@@ -1,7 +1,7 @@
-Subject: [RFC/PATCH 1/2] slab: allow different page allocation back-ends
+Subject: [RFC/PATCH 2/2] slab: mempool-backed object caches
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-Date: Sat, 28 Jan 2006 13:30:11 +0200
-Message-Id: <1138447811.8657.29.camel@localhost>
+Date: Sat, 28 Jan 2006 13:30:16 +0200
+Message-Id: <1138447816.8657.31.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
@@ -13,104 +13,138 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Matthew,
 
-This untested patch adds kmem_cache_operations so we can have different
-page allocation back-ends. The next patch uses this infrastructure to
-implement mempool-backed object caches.
+This completely untested patch adds kmem_cache_create_mempool which
+creates a mempool-backed object cache. It wont work as-is (we're not
+checking page order, for example) but you should get the idea.
+
+The good part is that now you can create object caches for many critical
+allocations which can share the same subsystem-specific mempool.
 
 Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
 
- mm/slab.c |   31 +++++++++++++++++++++++++++++--
- 1 file changed, 29 insertions(+), 2 deletions(-)
+ include/linux/slab.h |   15 ++++++++++++---
+ mm/slab.c            |   44 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 52 insertions(+), 7 deletions(-)
 
+Index: 2.6-mm/include/linux/slab.h
+===================================================================
+--- 2.6-mm.orig/include/linux/slab.h
++++ 2.6-mm/include/linux/slab.h
+@@ -15,6 +15,7 @@ typedef struct kmem_cache kmem_cache_t;
+ #include	<linux/gfp.h>
+ #include	<linux/init.h>
+ #include	<linux/types.h>
++#include	<linux/mempool.h>
+ #include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
+ #include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
+ 
+@@ -58,9 +59,17 @@ typedef struct kmem_cache kmem_cache_t;
+ /* prototypes */
+ extern void __init kmem_cache_init(void);
+ 
+-extern kmem_cache_t *kmem_cache_create(const char *, size_t, size_t, unsigned long,
+-				       void (*)(void *, kmem_cache_t *, unsigned long),
+-				       void (*)(void *, kmem_cache_t *, unsigned long));
++typedef void (*kmem_ctor_fn)(void *, kmem_cache_t *, unsigned long);
++typedef void (*kmem_dtor_fn)(void *, kmem_cache_t *, unsigned long);
++
++extern struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
++					    unsigned long, kmem_ctor_fn,
++					    kmem_dtor_fn);
++
++extern struct kmem_cache *kmem_cache_create_mempool(const char *, size_t,
++						    size_t, unsigned long,
++						    kmem_ctor_fn,
++						    kmem_dtor_fn, mempool_t *);
+ extern int kmem_cache_destroy(kmem_cache_t *);
+ extern int kmem_cache_shrink(kmem_cache_t *);
+ extern void *kmem_cache_alloc(kmem_cache_t *, gfp_t);
 Index: 2.6-mm/mm/slab.c
 ===================================================================
 --- 2.6-mm.orig/mm/slab.c
 +++ 2.6-mm/mm/slab.c
-@@ -362,6 +362,11 @@ static void kmem_list3_init(struct kmem_
- 	MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, nodeid);	\
- 	} while (0)
- 
-+struct kmem_cache_operations {
-+	void* (*getpages)(struct kmem_cache *, gfp_t, int);
-+	void (*freepages)(struct kmem_cache *, void *);
-+};
-+
- /*
-  * struct kmem_cache
-  *
-@@ -401,6 +406,8 @@ struct kmem_cache {
+@@ -406,6 +406,7 @@ struct kmem_cache {
  	/* de-constructor func */
  	void (*dtor) (void *, struct kmem_cache *, unsigned long);
  
-+	struct kmem_cache_operations *ops;
-+
++	mempool_t *mempool;
+ 	struct kmem_cache_operations *ops;
+ 
  	/* shrinker data for this cache */
- 	struct shrinker *shrinker;
+@@ -1346,6 +1347,22 @@ static struct kmem_cache_operations page
+ 	.freepages = pagealloc_freepages
+ };
  
-@@ -638,6 +645,8 @@ static struct arraycache_init initarray_
- static struct arraycache_init initarray_generic =
-     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
- 
-+static struct kmem_cache_operations pagealloc_ops;
-+
- /* internal cache of cache description objs */
- static struct kmem_cache cache_cache = {
- 	.batchcount = 1,
-@@ -647,6 +656,7 @@ static struct kmem_cache cache_cache = {
- 	.flags = SLAB_NO_REAP,
- 	.spinlock = SPIN_LOCK_UNLOCKED,
- 	.name = "kmem_cache",
-+	.ops = &pagealloc_ops,
- #if DEBUG
- 	.obj_size = sizeof(struct kmem_cache),
- #endif
-@@ -1282,7 +1292,7 @@ static void *kmem_getpages(struct kmem_c
- 	int i;
- 
- 	flags |= cachep->gfpflags;
--	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-+	page = cachep->ops->getpages(cachep, flags, nodeid);
- 	if (!page)
- 		return NULL;
- 	addr = page_address(page);
-@@ -1315,11 +1325,27 @@ static void kmem_freepages(struct kmem_c
- 	sub_page_state(nr_slab, nr_freed);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
--	free_pages((unsigned long)addr, cachep->gfporder);
-+	cachep->ops->freepages(cachep, addr);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		atomic_sub(1 << cachep->gfporder, &slab_reclaim_pages);
- }
- 
-+static void *pagealloc_getpages(struct kmem_cache *cache, gfp_t flags,
-+				int nodeid)
++static void *mempool_getpages(struct kmem_cache *cache, gfp_t flags,
++			      int nodeid)
 +{
-+	return alloc_pages_node(nodeid, flags, cache->gfporder);
++	return mempool_alloc(cache->mempool, flags);
 +}
 +
-+static void pagealloc_freepages(struct kmem_cache *cache, void *addr)
++static void mempool_freepages(struct kmem_cache *cache, void *addr)
 +{
-+	free_pages((unsigned long)addr, cache->gfporder);
++	mempool_free(addr, cache->mempool);
 +}
 +
-+static struct kmem_cache_operations pagealloc_ops = {
-+	.getpages = pagealloc_getpages,
-+	.freepages = pagealloc_freepages
++static struct kmem_cache_operations mempool_ops = {
++	.getpages = mempool_getpages,
++	.freepages = mempool_freepages
 +};
 +
  static void kmem_rcu_free(struct rcu_head *head)
  {
  	struct slab_rcu *slab_rcu = (struct slab_rcu *)head;
-@@ -1784,6 +1810,7 @@ kmem_cache_create (const char *name, siz
+@@ -1678,9 +1695,9 @@ static inline size_t calculate_slab_orde
+  * as davem.
+  */
+ struct kmem_cache *
+-kmem_cache_create (const char *name, size_t size, size_t align,
+-	unsigned long flags, void (*ctor)(void*, struct kmem_cache *, unsigned long),
+-	void (*dtor)(void*, struct kmem_cache *, unsigned long))
++__kmem_cache_create(const char *name, size_t size, size_t align,
++		    unsigned long flags, kmem_ctor_fn ctor, kmem_dtor_fn dtor,
++		    mempool_t *mempool, struct kmem_cache_operations *ops)
+ {
+ 	size_t left_over, slab_size, ralign;
+ 	struct kmem_cache *cachep = NULL;
+@@ -1810,7 +1827,8 @@ kmem_cache_create (const char *name, siz
  		goto oops;
  	memset(cachep, 0, sizeof(struct kmem_cache));
  
-+	cachep->ops = &pagealloc_ops;
+-	cachep->ops = &pagealloc_ops;
++	cachep->mempool = mempool;
++	cachep->ops = ops;
  #if DEBUG
  	cachep->obj_size = size;
  
+@@ -1970,8 +1988,26 @@ kmem_cache_create (const char *name, siz
+ 
+ 	return cachep;
+ }
++
++struct kmem_cache *
++kmem_cache_create(const char *name, size_t size, size_t align,
++		  unsigned long flags, kmem_ctor_fn ctor, kmem_dtor_fn dtor)
++{
++	return __kmem_cache_create(name, size, align, flags, ctor, dtor,
++				   NULL, &pagealloc_ops);
++}
+ EXPORT_SYMBOL(kmem_cache_create);
+ 
++struct kmem_cache *
++kmem_cache_create_mempool(const char *name, size_t size, size_t align,
++			  unsigned long flags, kmem_ctor_fn ctor,
++			  kmem_dtor_fn dtor, mempool_t *mempool)
++{
++	return __kmem_cache_create(name, size, align, flags, ctor, dtor,
++				   mempool, &mempool_ops);
++}
++EXPORT_SYMBOL(kmem_cache_create_mempool);
++
+ #if DEBUG
+ static void check_irq_off(void)
+ {
 
 
 --
