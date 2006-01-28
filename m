@@ -1,92 +1,71 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k0RMos2I010363
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 17:50:54 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k0RMn5O9252848
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 15:49:05 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k0RMosVV012072
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2006 15:50:54 -0700
-Message-ID: <43DAA3C9.9070105@us.ibm.com>
-Date: Fri, 27 Jan 2006 16:50:49 -0600
-From: Brian Twichell <tbrian@us.ibm.com>
+Message-ID: <43DABDBF.7010006@us.ibm.com>
+Date: Fri, 27 Jan 2006 16:41:35 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] Shared page tables
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 0/9] Critical Mempools
+References: <1138217992.2092.0.camel@localhost.localdomain>	 <Pine.LNX.4.62.0601260954540.15128@schroedinger.engr.sgi.com>	 <43D954D8.2050305@us.ibm.com>	 <Pine.LNX.4.62.0601261516160.18716@schroedinger.engr.sgi.com>	 <43D95BFE.4010705@us.ibm.com> <20060127000304.GG10409@kvack.org>	 <43D968E4.5020300@us.ibm.com>	 <84144f020601262335g49c21b62qaa729732e9275c0@mail.gmail.com>	 <20060127021050.f50d358d.pj@sgi.com> <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
+In-Reply-To: <84144f020601270307t7266a4ccs5071d4b288a9257f@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Paul Jackson <pj@sgi.com>, bcrl@kvack.org, clameter@engr.sgi.com, linux-kernel@vger.kernel.org, sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
+Pekka Enberg wrote:
+> Hi,
+> 
+> Pekka wrote:
+> 
+>>>As as side note, we already have __GFP_NOFAIL. How is it different
+>>>from GFP_CRITICAL and why aren't we improving that?
+> 
+> 
+> On 1/27/06, Paul Jackson <pj@sgi.com> wrote:
+> 
+>>Don't these two flags invoke two different mechanisms.
+>>  __GFP_NOFAIL can sleep for HZ/50 then retry, rather than return failure.
+>>  __GFP_CRITICAL can steal from the emergency pool rather than fail.
+>>
+>>I would favor renaming at least the __GFP_CRITICAL to something
+>>like __GFP_EMERGPOOL, to highlight the relevant distinction.
+> 
+> 
+> Yeah you're right. __GFP_NOFAIL guarantees to never fail but it
+> doesn't guarantee to actually succeed either. I think the suggested
+> semantics for __GFP_EMERGPOOL are that while it can fail, it tries to
+> avoid that by dipping into page reserves. However, I do still think
+> it's a bad idea to allow the slab allocator to steal whole pages for
+> critical allocations because in low-memory condition, it should be
+> fairly easy to exhaust the reserves and waste most of that memory at
+> the same time.
 
->On Thu, 5 Jan 2006, Dave McCracken wrote:
->  
->
->>Here's a new version of my shared page tables patch.
->>
->>The primary purpose of sharing page tables is improved performance for
->>large applications that share big memory areas between multiple processes.
->>It eliminates the redundant page tables and significantly reduces the
->>number of minor page faults.  Tests show significant performance
->>improvement for large database applications, including those using large
->>pages.  There is no measurable performance degradation for small processes.
->>
->>This version of the patch uses Hugh's new locking mechanism, extending it
->>up the page table tree as far as necessary for proper concurrency control.
->>
->>The patch also includes the proper locking for following the vma chains.
->>
->>Hugh, I believe I have all the lock points nailed down.  I'd appreciate
->>your input on any I might have missed.
->>
->>The architectures supported are i386 and x86_64.  I'm working on 64 bit
->>ppc, but there are still some issues around proper segment handling that
->>need more testing.  This will be available in a separate patch once it's
->>solid.
->>
->>Dave McCracken
->>    
->>
->
->The locking looks much better now, and I like the way i_mmap_lock seems
->to fall naturally into place where the pte lock doesn't work.  But still
->some raciness noted in comments on patch below.
->
->The main thing I dislike is the
-> 16 files changed, 937 insertions(+), 69 deletions(-)
->(with just i386 and x86_64 included): it's adding more complexity than
->I can welcome, and too many unavoidable "if (shared) ... else ..."s.
->With significant further change needed, not just adding architectures.
->
->Worthwhile additional complexity?  I'm not the one to judge that.
->Brian has posted dramatic improvments (25%, 49%) for the non-huge OLTP,
->and yes, it's sickening the amount of memory we're wasting on pagetables
->in that particular kind of workload.  Less dramatic (3%, 4%) in the
->hugetlb case: and as yet (since last summer even) no profiles to tell
->where that improvement actually comes from.
->
->  
->
-Hi,
+The main pushback I got on my previous attempt at somethign like
+__GFP_EMERGPOOL was that a single, system-wide pool was unacceptable.
+Determining the appropriate size for such a pool would be next to
+impossible, particularly as the number of users of __GFP_EMERGPOOL grows.
+The general concensus was that per-subsystem or dynamically created pools
+would be a more useful addition to the kernel.  Do any of you who are now
+requesting the single pool approach have any suggestions as to how to
+appropriately size a pool with potentially dozens of users so as to offer
+any kind of useful guarantee?  The less users of a single pool, obviously
+the easier it is to appropriately size that pool...
 
-We collected more granular performance data for the ppc64/hugepage case.
+As far as allowing the slab allocator to steal a whole page from the
+critical pool to satisfy a single slab request, I think that is ok.  The
+only other suggestion I've heard is to insert a SLOB layer between the
+critical pool's page allocator and the slab allocator, and have this SLOB
+layer chopping up pages into pieces to handle slab requests that cannot be
+satisfied through the normal slab/page allocator combo.  This involves
+adding a fair bit of code and complexity for the benefit of a few pages of
+memory.  Now, a few pages of memory could be incredibly crucial, since
+we're discussing an emergency (presumably) low-mem situation, but if we're
+going to be getting several requests for the same slab/kmalloc-size then
+we're probably better of giving a whole page to the slab allocator.  This
+is pure speculation, of course... :)
 
-CPI decreased by 3% when shared pagetables were used.  Underlying this was a
-7% decrease in the overall TLB miss rate.  The TLB miss rate for hugepages
-decreased 39%.  TLB miss rates are calculated per instruction executed.
-
-We didn't collect a profile per se, as we would expect a CPI improvement
-of this nature to be spread over a significant number of functions,
-mostly in user-space.
-
-Cheers,
-Brian
-
+-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
