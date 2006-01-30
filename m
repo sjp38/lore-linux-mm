@@ -1,137 +1,108 @@
-Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
-	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k0UMNdkk002545
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2006 14:23:39 -0800
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k0UKPSo3100029383
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2006 12:25:28 -0800 (PST)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k0UKLhOT21177734
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2006 12:21:43 -0800 (PST)
-Date: Mon, 30 Jan 2006 12:19:44 -0800 (PST)
+Date: Mon, 30 Jan 2006 12:24:07 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: [PATCH] zone_reclaim: configurable off node allocation period.
-Message-ID: <Pine.LNX.4.62.0601301219001.4821@schroedinger.engr.sgi.com>
+Subject: [PATCH] Zone reclaim: Allow modification of zone reclaim behavior
+Message-ID: <Pine.LNX.4.62.0601301223350.4821@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.62.0601301221370.4821@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently the zone_reclaim code has a fixed window of 30 seconds of
-off node allocations should a local zone have no unused pagecache pages left.
-Reclaim will be attempted again after this timeout period to avoid repeated
-useless scans for memory. This is also useful to established sufficiently large
-off node allocation chunks to relieve the local node.
+In some situations one may want zone_reclaim to behave differently. For
+example a process writing large amounts of memory will spew unto other
+nodes to cache the writes if many pages in a zone become dirty. This may
+impact the performance of processes running on other nodes.
 
-It may be beneficial to adjust that time period for some special situations.
-For example if memory use was exceeding node capacity one may want to give
-up for longer periods of time. If memory spikes intermittendly then one may
-want to shorten the time period to reduce the number of off node allocations.
+Allowing writes during reclaim puts a stop to that behavior and throttles
+the process by restricting the pages to the local zone.
 
-This patch allows just that....
+Similarly one may want to contain processes to local memory by enabling
+regular swap behavior during zone_reclaim. Off node memory allocation
+can then be controlled through memory policies and cpusets.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.16-rc1-mm4/include/linux/swap.h
-===================================================================
---- linux-2.6.16-rc1-mm4.orig/include/linux/swap.h	2006-01-30 11:27:37.000000000 -0800
-+++ linux-2.6.16-rc1-mm4/include/linux/swap.h	2006-01-30 11:31:18.000000000 -0800
-@@ -178,6 +178,7 @@ extern int vm_swappiness;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
-+extern int zone_reclaim_interval;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
- #else
- #define zone_reclaim_mode 0
 Index: linux-2.6.16-rc1-mm4/mm/vmscan.c
 ===================================================================
---- linux-2.6.16-rc1-mm4.orig/mm/vmscan.c	2006-01-30 11:27:37.000000000 -0800
-+++ linux-2.6.16-rc1-mm4/mm/vmscan.c	2006-01-30 11:31:31.000000000 -0800
-@@ -1834,7 +1834,7 @@ int zone_reclaim_mode __read_mostly;
+--- linux-2.6.16-rc1-mm4.orig/mm/vmscan.c	2006-01-30 11:31:31.000000000 -0800
++++ linux-2.6.16-rc1-mm4/mm/vmscan.c	2006-01-30 12:19:49.000000000 -0800
+@@ -1831,6 +1831,11 @@ module_init(kswapd_init)
+  */
+ int zone_reclaim_mode __read_mostly;
+ 
++#define RECLAIM_OFF 0
++#define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
++#define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
++#define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
++
  /*
   * Mininum time between zone reclaim scans
   */
--#define ZONE_RECLAIM_INTERVAL 30*HZ
-+int zone_reclaim_interval __read_mostly = 30*HZ;
+@@ -1869,8 +1874,8 @@ int zone_reclaim(struct zone *zone, gfp_
+ 	if (!cpus_empty(mask) && node_id != numa_node_id())
+ 		return 0;
  
- /*
-  * Priority for ZONE_RECLAIM. This determines the fraction of pages
-@@ -1856,7 +1856,7 @@ int zone_reclaim(struct zone *zone, gfp_
- 	int node_id;
- 
- 	if (time_before(jiffies,
--		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
-+		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
- 			return 0;
- 
- 	if (!(gfp_mask & __GFP_WAIT) ||
+-	sc.may_writepage = 0;
+-	sc.may_swap = 0;
++	sc.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE);
++	sc.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP);
+ 	sc.nr_scanned = 0;
+ 	sc.nr_reclaimed = 0;
+ 	sc.priority = ZONE_RECLAIM_PRIORITY + 1;
 Index: linux-2.6.16-rc1-mm4/Documentation/sysctl/vm.txt
 ===================================================================
---- linux-2.6.16-rc1-mm4.orig/Documentation/sysctl/vm.txt	2006-01-30 11:27:34.000000000 -0800
-+++ linux-2.6.16-rc1-mm4/Documentation/sysctl/vm.txt	2006-01-30 12:13:33.000000000 -0800
-@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/
- - block_dump
- - drop-caches
- - zone_reclaim_mode
-+- zone_reclaim_interval
+--- linux-2.6.16-rc1-mm4.orig/Documentation/sysctl/vm.txt	2006-01-30 12:13:33.000000000 -0800
++++ linux-2.6.16-rc1-mm4/Documentation/sysctl/vm.txt	2006-01-30 12:22:18.000000000 -0800
+@@ -127,17 +127,39 @@ the high water marks for each per cpu pa
  
- ==============================================================
+ zone_reclaim_mode:
  
-@@ -137,4 +138,15 @@ of memory should be used for caching fil
- 
- It may be beneficial to switch this on if one wants to do zone
- reclaim regardless of the numa distances in the system.
-+================================================================
+-This is set during bootup to 1 if it is determined that pages from
+-remote zones will cause a significant performance reduction. The
++Zone_reclaim_mode allows to set more or less agressive approaches to
++reclaim memory when a zone runs out of memory. If it is set to zero then no
++zone reclaim occurs. Allocations will be satisfied from other zones / nodes
++in the system.
 +
-+zone_reclaim_interval:
++This is value ORed together of
 +
-+The time allowed for off node allocations after zone reclaim
-+has failed to reclaim enough pages to allow a local allocation.
++1	= Zone reclaim on
++2	= Zone reclaim writes dirty pages out
++4	= Zone reclaim swaps pages
 +
-+Time is set in seconds and set by default to 30 seconds.
++zone_reclaim_mode is set during bootup to 1 if it is determined that pages
++from remote zones will cause a measurable performance reduction. The
+ page allocator will then reclaim easily reusable pages (those page
+-cache pages that are currently not used) before going off node.
++cache pages that are currently not used) before allocating off node pages.
+ 
+-The user can override this setting. It may be beneficial to switch
+-off zone reclaim if the system is used for a file server and all
+-of memory should be used for caching files from disk.
++It may be beneficial to switch off zone reclaim if the system is
++used for a file server and all of memory should be used for caching files
++from disk. In that case the caching effect is more important than
++data locality.
 +
-+Reduce the interval if undesired off node allocations occur. However, too
-+frequent scans will have a negative impact onoff node allocation performance.
++Allowing zone reclaim to write out pages stops processes that are
++writing large amounts of data from dirtying pages on other nodes. Zone
++reclaim will write out dirty pages if a zone fills up and so effectively
++throttle the process. This may decrease the performance of a single process
++since it cannot use all of system memory to buffer the outgoing writes
++anymore but it preserve the memory on other nodes so that the performance
++of other processes running on other nodes will not be affected.
++
++Allowing regular swap effectively restricts allocations to the local
++node unless explicitly overridden by memory policies or cpuset
++configurations.
  
-Index: linux-2.6.16-rc1-mm4/kernel/sysctl.c
-===================================================================
---- linux-2.6.16-rc1-mm4.orig/kernel/sysctl.c	2006-01-30 11:27:37.000000000 -0800
-+++ linux-2.6.16-rc1-mm4/kernel/sysctl.c	2006-01-30 11:31:18.000000000 -0800
-@@ -888,6 +888,15 @@ static ctl_table vm_table[] = {
- 		.strategy	= &sysctl_intvec,
- 		.extra1		= &zero,
- 	},
-+	{
-+		.ctl_name	= VM_ZONE_RECLAIM_INTERVAL,
-+		.procname	= "zone_reclaim_interval",
-+		.data		= &zone_reclaim_interval,
-+		.maxlen		= sizeof(zone_reclaim_interval),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec_jiffies,
-+		.strategy	= &sysctl_jiffies,
-+	},
- #endif
- 	{ .ctl_name = 0 }
- };
-Index: linux-2.6.16-rc1-mm4/include/linux/sysctl.h
-===================================================================
---- linux-2.6.16-rc1-mm4.orig/include/linux/sysctl.h	2006-01-30 11:27:37.000000000 -0800
-+++ linux-2.6.16-rc1-mm4/include/linux/sysctl.h	2006-01-30 11:35:20.000000000 -0800
-@@ -183,7 +183,8 @@ enum
- 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
- 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
- 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
--	VM_ZONE_RECLAIM_MODE=31,/* reclaim local zone memory before going off node */
-+	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
-+	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
- };
+-It may be beneficial to switch this on if one wants to do zone
+-reclaim regardless of the numa distances in the system.
+ ================================================================
  
- 
+ zone_reclaim_interval:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
