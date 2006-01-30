@@ -1,74 +1,66 @@
-Date: Sun, 29 Jan 2006 15:59:24 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Compile error on x86 with hotplug but no highmem
-In-Reply-To: <1138392149.19801.53.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.58.0601291556470.18044@skynet>
-References: <Pine.LNX.4.58.0601271014090.25836@skynet>
- <1138392149.19801.53.camel@localhost.localdomain>
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH/RFC] Shared page tables
+Date: Mon, 30 Jan 2006 12:46:24 -0600
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
+ <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com>
+ <43DAA3C9.9070105@us.ibm.com>
+In-Reply-To: <43DAA3C9.9070105@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <200601301246.27455.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Brian Twichell <tbrian@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Jan 2006, Dave Hansen wrote:
+On Friday 27 January 2006 16:50, Brian Twichell wrote:
+<snip>
 
-> On Fri, 2006-01-27 at 10:17 +0000, Mel Gorman wrote:
-> > Memory hotplug without highmem is meaningless but it is still an allowed
-> > configuration. This is one possible fix. Another is to not allow memory
-> > hotplug without high memory being available. Another is to take
-> > online_page() outside of the #ifdef CONFIG_HIGHMEM block in init.c .
 >
-> If it is meaningless, then we should probably fix it in the Kconfig
-> file, not just work around it at runtime.
+> Hi,
 >
-> What we really want is something to tell us that the architecture
-> _supports_ highmem and isn't using it.  Maybe something like this?
+> We collected more granular performance data for the ppc64/hugepage case.
 >
-> in mm/Kconfig:
->
-> config MEMORY_HOTPLUG
-> 	depends on ... && !ARCH_HAS_DISABLED_HIGHMEM
->
-> in arch/i386/Kconfig:
->
-> config ARCH_HAS_DISABLED_HIGHMEM
-> 	def_bool n
-> 	depends on !HIGHMEM
+> CPI decreased by 3% when shared pagetables were used.  Underlying this was
+> a 7% decrease in the overall TLB miss rate.  The TLB miss rate for
+> hugepages decreased 39%.  TLB miss rates are calculated per instruction
+> executed.
 >
 
-As HIGHMEM is not a requirement for hotplug on all architectures, I
-changed the idea slightly to have the arch say when it does not have a
-zone suitable for hotplug. How does this look?
+Interesting.
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm3-clean/arch/i386/Kconfig linux-2.6.16-rc1-mm3-nohotplug/arch/i386/Kconfig
---- linux-2.6.16-rc1-mm3-clean/arch/i386/Kconfig	2006-01-29 15:08:27.000000000 +0000
-+++ linux-2.6.16-rc1-mm3-nohotplug/arch/i386/Kconfig	2006-01-29 15:38:55.000000000 +0000
-@@ -446,6 +446,10 @@ config HIGHMEM64G
- 	  Select this if you have a 32-bit processor and more than 4
- 	  gigabytes of physical RAM.
+Do you know if Dave's patch supports sharing of pte's for 2 MB pages on 
+X86_64?
 
-+config ARCH_HAS_NO_HOTPLUG_ZONE
-+	def_bool y
-+	depends on NOHIGHMEM
-+
- endchoice
+Was there a corresponding improvement in overall transaction throughput for 
+the hugetlb, shared pte case?    That is, did the 3% improvement in CPI 
+translate to a measurable improvement in the overall OLTP benchmark score?
 
- choice
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm3-clean/mm/Kconfig linux-2.6.16-rc1-mm3-nohotplug/mm/Kconfig
---- linux-2.6.16-rc1-mm3-clean/mm/Kconfig	2006-01-17 07:44:47.000000000 +0000
-+++ linux-2.6.16-rc1-mm3-nohotplug/mm/Kconfig	2006-01-29 15:37:16.000000000 +0000
-@@ -115,7 +115,7 @@ config SPARSEMEM_EXTREME
- # eventually, we can have this option just 'select SPARSEMEM'
- config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
--	depends on SPARSEMEM && HOTPLUG && !SOFTWARE_SUSPEND
-+	depends on SPARSEMEM && HOTPLUG && !SOFTWARE_SUSPEND && !ARCH_HAS_NO_HOTPLUG_ZONE
+(I'm assuming your 25-50% improvement measurements, as mentioned in a previous 
+note, was for small pages.)
 
- comment "Memory hotplug is currently incompatible with Software Suspend"
- 	depends on SPARSEMEM && HOTPLUG && SOFTWARE_SUSPEND
+> We didn't collect a profile per se, as we would expect a CPI improvement
+> of this nature to be spread over a significant number of functions,
+> mostly in user-space.
+>
+> Cheers,
+> Brian
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
