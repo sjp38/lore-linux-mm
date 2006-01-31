@@ -1,35 +1,40 @@
-Date: Tue, 31 Jan 2006 13:18:37 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH/RFC] Shared page tables
-Message-ID: <15D75E814ADD9E4E6FCCD9E1@[10.1.1.4]>
-In-Reply-To: <43DFB0D7.3070805@us.ibm.com>
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]>
- <Pine.LNX.4.61.0601202020001.8821@goblin.wat.veritas.com>
- <43DAA3C9.9070105@us.ibm.com> <200601301246.27455.raybry@mpdtxmail.amd.com>
- <43DFB0D7.3070805@us.ibm.com>
-MIME-Version: 1.0
+Date: Tue, 31 Jan 2006 13:57:19 -0600
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 2/4] Split the free lists into kernel and user parts
+Message-ID: <20060131195718.GA8496@dmt.cnet>
+References: <20060120115415.16475.8529.sendpatchset@skynet.csn.ul.ie> <20060120115455.16475.93688.sendpatchset@skynet.csn.ul.ie> <20060122133147.GA4186@dmt.cnet> <Pine.LNX.4.58.0601230937200.11319@skynet> <20060123191341.GA4892@dmt.cnet> <Pine.LNX.4.58.0601261548190.3279@skynet>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0601261548190.3279@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brian Twichell <tbrian@us.ibm.com>, Ray Bryant <raybry@mpdtxmail.amd.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, jschopp@austin.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
---On Tuesday, January 31, 2006 12:47:51 -0600 Brian Twichell
-<tbrian@us.ibm.com> wrote:
+> > Other codepaths which touch page->flags do not hold any lock, so you
+> > really must use atomic operations, except when you've guarantee that the
+> > page is being freed and won't be reused.
+> >
+> 
+> Understood, so I took another look to be sure;
+> 
+> PageEasyRclm() is used on pages that are about to be freed to the main
+> or per-cpu allocator so it should be safe.
+> 
+> __SetPageEasyRclm is called when the page is about to be freed. It should
+> be safe from concurrent access.
+> 
+> __ClearPageEasyRclm is called when the page is about to be allocated. It
+> should be safe.
+> 
+> I think it is guaranteed that there are on concurrent accessing of the
+> page flags. Is there something I have missed?
 
->> Do you know if Dave's patch supports sharing of pte's for 2 MB pages on 
->> X86_64?
->>  
->> 
-> I believe it does.  Dave, can you confirm ?
+Nope, you are right.
 
-It shares pmd pages for hugepages, which I assume is what you're talking
-about.
-
-Dave McCracken
+The usage is safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
