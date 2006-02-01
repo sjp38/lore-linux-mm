@@ -1,42 +1,42 @@
-Message-ID: <43E0842A.105@yahoo.com.au>
-Date: Wed, 01 Feb 2006 20:49:30 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <43E0B8EE.7050306@shadowen.org>
+Date: Wed, 01 Feb 2006 13:34:38 +0000
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] Shared page tables
-References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <200601240210.04337.ak@suse.de> <1138086398.2977.19.camel@laptopd505.fenrus.org> <200601240818.28696.ak@suse.de>
-In-Reply-To: <200601240818.28696.ak@suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [RFC][PATCH] remove zone_mem_map [3/4] pfn_to_page()
+References: <43E02AAC.7050104@jp.fujitsu.com> <43E04206.8030104@mbligh.org>
+In-Reply-To: <43E04206.8030104@mbligh.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Arjan van de Ven <arjan@infradead.org>, Ray Bryant <raybry@mpdtxmail.amd.com>, Dave McCracken <dmccr@us.ibm.com>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-
+Martin J. Bligh wrote:
+> KAMEZAWA Hiroyuki wrote:
 > 
-> Well, we first have to figure out if the shared page tables
-> are really worth all the ugly code, nasty locking and other problems 
-> (inefficient TLB flush etc.) I personally would prefer
-> to make large pages work better before going down that path.
+>> Replace page_to_pfn() functions which uses zone->zone_mem_map.
+>>
+>> Although pfn_to_page() uses node->node_mem_map, page_to_pfn() uses
+>> zone->zone_mem_map. I don't know why. This patch make page_to_pfn
+>> use node->node_mem_map
 > 
+> 
+> I think that might have been because it's a faster op, at least on
+> some architectures, under sparsemem. Andy, can you confirm / deny?
+> Some part of the mapping was embedded in the page flags.
+> 
+> If Andy can't recall, I'll look again on Thursday when I'm back ...
 
-Other thing I wonder about - less efficient page table placement
-on NUMA systems might harm TLB miss latency on some systems
-(although we don't always do a great job of trying to localise these
-things yet anyway). Another is possible increased lock contention on
-widely shared page tables like libc.
+Not for SPARSEMEM anyhow, we don't use any of those pointers we are
+using the per section maps based on pfn.  However, I would assume we
+have it as an optimisation for the FLAT/DISCONTIG forms -- as we have a
+quick lookup of the zone.  That said we should have a quick lookup of
+the node too and it looks like the proposed replacement is using that
+one.  So I'd say this should be about as performant.
 
-I agree that it is not something which needs to be rushed in any
-time soon. We've already got significant concessions and complexity
-in the memory manager for databases (hugepages, direct io / raw io)
-so a few % improvement on database performance doesn't put it on our
-must have list IMO.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
