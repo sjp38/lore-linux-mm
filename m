@@ -1,71 +1,42 @@
-Date: Wed, 01 Feb 2006 15:16:02 +0900 (JST)
-Message-Id: <20060201.151602.71086465.taka@valinux.co.jp>
-Subject: Re: [ckrm-tech] [PATCH 0/8] Pzone based CKRM memory resource
- controller
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20060201053958.CE35B74035@sv1.valinux.co.jp>
-References: <20060131023000.7915.71955.sendpatchset@debian>
-	<1138762698.3938.16.camel@localhost.localdomain>
-	<20060201053958.CE35B74035@sv1.valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-ID: <43E0842A.105@yahoo.com.au>
+Date: Wed, 01 Feb 2006 20:49:30 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH/RFC] Shared page tables
+References: <A6D73CCDC544257F3D97F143@[10.1.1.4]> <200601240210.04337.ak@suse.de> <1138086398.2977.19.camel@laptopd505.fenrus.org> <200601240818.28696.ak@suse.de>
+In-Reply-To: <200601240818.28696.ak@suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sekharan@us.ibm.com
-Cc: kurosawa@valinux.co.jp, ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Arjan van de Ven <arjan@infradead.org>, Ray Bryant <raybry@mpdtxmail.amd.com>, Dave McCracken <dmccr@us.ibm.com>, Robin Holt <holt@sgi.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Chandra,
+Andi Kleen wrote:
 
->You are welcome.  Thanks for the comments.
->
->> I have few questions:
->>  - how are shared pages handled ?
->
->Shared pages are accounted to the class that a task in it allocate 
->the pages.  This behavior is different from the memory resource 
->controller in CKRM.
->
->>  - what is the plan to support "limit" ?
->
->To be honest, I don't have any specific idea to support "limit" currently.
->Probably the userspace daemon that enlarge "guarantee" to the specified
->"limit" might support the "limit", because "guarantee" in the pzone based 
->memory resource controller also works as "limit".
+> 
+> Well, we first have to figure out if the shared page tables
+> are really worth all the ugly code, nasty locking and other problems 
+> (inefficient TLB flush etc.) I personally would prefer
+> to make large pages work better before going down that path.
+> 
 
-I think that this should be placed outside of Kurosawa's controller.
-That would be a kernel thread between CKRM API and the controller,
-which collects statistics about pzones to change the size of them
-between "guarantee" and "limit". An userspace daemon would be also OK.
+Other thing I wonder about - less efficient page table placement
+on NUMA systems might harm TLB miss latency on some systems
+(although we don't always do a great job of trying to localise these
+things yet anyway). Another is possible increased lock contention on
+widely shared page tables like libc.
 
-To separate balancing pzones code from VM will keep the code simple.
+I agree that it is not something which needs to be rushed in any
+time soon. We've already got significant concessions and complexity
+in the memory manager for databases (hugepages, direct io / raw io)
+so a few % improvement on database performance doesn't put it on our
+must have list IMO.
 
->>  - can you provide more information in stats ?
->
->Ok, I'll do that.
->
->>  - is it designed to work with cpumeter alone (i.e without ckrm) ?
->
->Maybe it works with cpumeter.
->
->> comment/suggestion:
->>  - IMO, moving pages from a class at time of reclassification would be
->>    the right thing to do. May be we have to add a pointer to Chris patch
->>    and make sure it works as we expect.
->> 
->>  - instead of adding the pseudo zone related code to the core memory
->>    files, you can put them in a separate file.
->
->That's right.  But I guess that several static functions in 
->mm/page_alloc.c would need to be exported.
->
->>  - Documentation on how to configure and use it would be good.
->
->I think so too.  I'll write some documents.
-
-Thanks,
-Hirokazu Takahashi.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
