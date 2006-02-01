@@ -1,180 +1,27 @@
-Message-ID: <43E11968.6080906@t-platforms.ru>
-Date: Wed, 01 Feb 2006 23:26:16 +0300
-From: Andrey Slepuhin <pooh@t-platforms.ru>
-MIME-Version: 1.0
+Date: Wed, 1 Feb 2006 15:59:13 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [discuss] Memory performance problems on Tyan VX50
-References: <43DF7654.6060807@t-platforms.ru> <200602011539.40368.ak@suse.de> <Pine.LNX.4.62.0602010900200.16613@schroedinger.engr.sgi.com> <200602011816.35114.ak@suse.de>
-In-Reply-To: <200602011816.35114.ak@suse.de>
-Content-Type: multipart/mixed;
- boundary="------------050403020404090805080607"
+In-Reply-To: <43E11968.6080906@t-platforms.ru>
+Message-ID: <Pine.LNX.4.62.0602011555400.20831@schroedinger.engr.sgi.com>
+References: <43DF7654.6060807@t-platforms.ru> <200602011539.40368.ak@suse.de>
+ <Pine.LNX.4.62.0602010900200.16613@schroedinger.engr.sgi.com>
+ <200602011816.35114.ak@suse.de> <43E11968.6080906@t-platforms.ru>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, discuss@x86-64.org, Ray Bryant <raybry@mpdtxmail.amd.com>, linux-mm@kvack.org, akpm@osdl.org
+To: Andrey Slepuhin <pooh@t-platforms.ru>
+Cc: Andi Kleen <ak@suse.de>, discuss@x86-64.org, Ray Bryant <raybry@mpdtxmail.amd.com>, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------050403020404090805080607
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+> ffffffff801549ac -> include/linux/list.h:150
 
-Andi Kleen wrote:
->>Could we get an accurate pointer to the statement that is  
->>causing the NULL deref?
-> 
-> 
-> Andrey, can you recompile the kernel with CONFIG_DEBUG_INFO and 
-> do a addr2line -e vmlinux <RIP from oops> ? 
+Hmm... That may indicate that something overwrites
+page->lru. 
 
-Yes, I have done it:
-
-ffffffff801549ac -> include/linux/list.h:150
-
-and two more addresses up the stack:
-
-ffffffff80154f10 -> mm/page_alloc.c:580
-ffffffff801552e7 -> mm/page_alloc.c:965
-
-I also attached the new oops log
-
-Best regards,
-Andrey
-
---------------050403020404090805080607
-Content-Type: application/x-gzip;
- name="nc2.log.gz"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="nc2.log.gz"
-
-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
---------------050403020404090805080607--
+Wild guess: lru is placed after the spinlock used for
+page table locking in struct page. Is this system using
+per page page table locks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
