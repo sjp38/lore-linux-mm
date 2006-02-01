@@ -1,44 +1,43 @@
-From: Matthew Dobson <colpatch@us.ibm.com>
-Subject: [patch 4/9] mempool - Update mempool page allocator user
-Date: Wed, 25 Jan 2006 11:40:05 -0800
-Message-ID: <1138218005.2092.4.camel@localhost.localdomain>
-References: <20060125161321.647368000@localhost.localdomain>
-Reply-To: colpatch@us.ibm.com
+Date: Wed, 1 Feb 2006 14:06:50 +0900
+From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
+Subject: Re: [ckrm-tech] [PATCH 1/8] Add the __GFP_NOLRU flag
+In-Reply-To: <1138731533.6424.2.camel@localhost.localdomain>
+References: <20060131023000.7915.71955.sendpatchset@debian>
+	<20060131023005.7915.10365.sendpatchset@debian>
+	<1138731533.6424.2.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S932148AbWAYVh6@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: sri@us.ibm.com, andrea@suse.de, pavel@suse.cz, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Message-Id: <20060201050650.CC4FF74032@sv1.valinux.co.jp>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-plain text document attachment (critical_mempools)
-Fixup existing mempool users to use the new mempool API, part 1.
+Hi,
 
-Fix the sole "indirect" user of mempool_alloc_pages to be aware of its new
-'node_id' argument.
+On Tue, 31 Jan 2006 10:18:53 -0800
+Dave Hansen <haveblue@us.ibm.com> wrote:
 
-Signed-off-by: Matthew Dobson <colpatch@us.ibm.com>
+> > This patch adds the __GFP_NOLRU flag.  This option should be used 
+> > for GFP_USER/GFP_HIGHUSER page allocations that are not maintained
+> > in the zone LRU lists.
+> 
+> Is this simply to mark pages which will never end up in the LRU?  Why is
+> this important?
 
- highmem.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+The resource controller assumes that pages in pzones are linked to
+LRU lists or free lists in order to simplify the cleanup of pzones
+in classes.  Cleaning up a pzone needs to know all the pages that
+belong to the pzone.  So the resource controller is designed not to 
+allocate pages from pzones that will never end up in the LRU.
 
-Index: linux-2.6.16-rc1+critical_mempools/mm/highmem.c
-===================================================================
---- linux-2.6.16-rc1+critical_mempools.orig/mm/highmem.c
-+++ linux-2.6.16-rc1+critical_mempools/mm/highmem.c
-@@ -30,9 +30,9 @@
- 
- static mempool_t *page_pool, *isa_page_pool;
- 
--static void *mempool_alloc_pages_isa(gfp_t gfp_mask, void *data)
-+static void *mempool_alloc_pages_isa(gfp_t gfp_mask, int node_id, void *data)
- {
--	return mempool_alloc_pages(gfp_mask | GFP_DMA, data);
-+	return mempool_alloc_pages(gfp_mask | GFP_DMA, node_id, data);
- }
- 
-
+-- 
+KUROSAWA, Takahiro
 
 --
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
