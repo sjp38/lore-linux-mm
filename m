@@ -1,100 +1,204 @@
-Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
-From: Peter Zijlstra <peter@programming.kicks-ass.net>
-In-Reply-To: <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
-References: <20051230223952.765.21096.sendpatchset@twins.localnet>
-	 <20051230224312.765.58575.sendpatchset@twins.localnet>
-	 <20051231002417.GA4913@dmt.cnet> <1136028546.17853.69.camel@twins>
-	 <20060105094722.897C574030@sv1.valinux.co.jp>
-	 <Pine.LNX.4.63.0601050830530.18976@cuia.boston.redhat.com>
-	 <20060106090135.3525D74031@sv1.valinux.co.jp>
-	 <20060124063010.B85C77402D@sv1.valinux.co.jp>
-	 <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
-Content-Type: text/plain
-Date: Fri, 03 Feb 2006 10:25:04 +0100
-Message-Id: <1138958705.5450.9.camel@localhost.localdomain>
+Date: Fri, 3 Feb 2006 18:37:34 +0900
+From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
+Subject: Re: [ckrm-tech] [PATCH 0/8] Pzone based CKRM memory resource
+ controller
+In-Reply-To: <20060203013358.6EA1F7403C@sv1.valinux.co.jp>
+References: <20060119080408.24736.13148.sendpatchset@debian>
+	<20060131023000.7915.71955.sendpatchset@debian>
+	<1138763255.3938.27.camel@localhost.localdomain>
+	<20060203013358.6EA1F7403C@sv1.valinux.co.jp>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;
+ boundary="Multipart=_Fri__3_Feb_2006_18_37_34_+0900_grqUuNZMmuPD7.Vx"
+Message-Id: <20060203093735.16FE77402D@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>
+To: sekharan@us.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-01-24 at 16:25 +0900, IWAMOTO Toshihiro wrote:
-> (Removed linux-kernel@ from Cc:)
-> 
-> At Tue, 24 Jan 2006 15:30:10 +0900,
-> IWAMOTO Toshihiro wrote:
-> > I thought this situation means that page access frequencies cannot be
-> > correctly compared and leads to suboptimal performance, but I couldn't
-> > prove that.  However, I've managed to create an example workload where
-> > clockpro performs worse.  I'm not sure if the example is related to
-> > this hand problem.  I'll describe it in the next mail.
-> 
-> Environment: Dell 1850 4GB EM64T CPUx2 HT disabled, x86_64 kernel
-> Kernel 1: linux-2.6.15-rc5
-> Kernel 2: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31
-> Kernel 3: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31 +
-> 	  modification to disable page cache usage from ZONE_DMA
-> 	  (to rule out possible zone balancing related problem)
-> Kernel 1 and 2 were booted with "mem=1008m", Kernel 3 was booted with
-> "mem=1024m".
-> 
-> The test program: 2read.c (attached below)
-> 	2read.c repeatedly reads from two files zero and zero2.
-> 	Command line arguments specify the ranges to be read. (See the
-> 	code for detail)
-> 	It prints the number of read operations/2 every 5 seconds and
-> 	terminates in 5 minutes.
-> 
-> $ cc -O 2read.c
-> $ ls -l zero*
-> -rw-r--r--  1 toshii users 1073741824 2006-01-13 17:27 zero
-> -rw-r--r--  1 toshii users 1572864000 2006-01-20 18:20 zero2
-> 
-> (with Kernel 1)
-> $ for n in 100 200 300 400 500; do
-> > ./a.out -n $n $((1100-$n)) > /tmp/2d.$n ; done
-> (with Kernel 2)
-> $ for n in 100 200 300 400 500; do
-> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.$n ; done
-> (with Kernel 3)
-> $ for n in 100 200 300 400 500; do
-> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.nodma.$n ; done
-> 
-> The table below is the last numbers printed by the test program
-> ((number of reads)/2 in 5 minutes).  Clockpro (with or without the
-> ZONE_DMA modification) is always slower with one exception, and
-> the slowdown can be as large as 42-54%.
-> 
-> I've put the complete data and some generated figures at
-> http://people.valinux.co.jp/~iwamoto/clockpro-20051231/
-> 
->  n     Kernel 1    Kernel 2   Kernel 3
-> ======================================
-> 100    373600      298720     395818
-> 200    385639	   272749     272166
-> 300    371047	   243734     262370
-> 400    367691	   213974     169714
-> 500    147130	   126284     103038
+This is a multi-part message in MIME format.
 
-<snip code>
+--Multipart=_Fri__3_Feb_2006_18_37_34_+0900_grqUuNZMmuPD7.Vx
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 
-Iwamoto-San,
+On Fri, 3 Feb 2006 10:33:58 +0900
+KUROSAWA Takahiro <kurosawa@valinux.co.jp> wrote:
+> On Tue, 31 Jan 2006 19:07:35 -0800
+> chandra seetharaman <sekharan@us.ibm.com> wrote:
+> 
+> > I tried to use the controller but having some problems.
+> > 
+> > - Created class a,
+> > - set guarantee to 50(with parent having 100, i expected class a to get 
+> >   50% of memory in the system). 
+> > - moved my shell to class a. 
+> > - Issued a make in the kernel tree.
+> > It consistently fails with 
+> > -----------
+> > make: getcwd: : Cannot allocate memory
+> > Makefile:313: /scripts/Kbuild.include: No such file or directory
+> > Makefile:532: /arch/i386/Makefile: No such file or directory
+> > Can't open perl script "/scripts/setlocalversion": No such file or
+> > directory
+> > make: *** No rule to make target `/arch/i386/Makefile'.  Stop.
+> > -----------
+> > Note that the compilation succeeds if I move my shell to the default
+> > class.
+> 
+> I could reproduce this problem.  Could you try the attached patch?
 
-Could you test again with my latest patches found at:
-http://programming.kicks-ass.net/kernel-patches/page-replace/2.6.16-rc1-3/
+I'm sorry, the patch attached to my previous mail has a severe bug.
+Could you try this patch instead?
+Also, the code still doesn't work if you enable preemption because of
+a locking problem so far...
 
-esp. the last patch in the series:
-http://programming.kicks-ass.net/kernel-patches/page-replace/2.6.16-rc1-3/kswapd-writeout-wait.patch
+--Multipart=_Fri__3_Feb_2006_18_37_34_+0900_grqUuNZMmuPD7.Vx
+Content-Type: text/plain;
+ name="memrc-pzone-gfp-fix2.diff"
+Content-Disposition: attachment;
+ filename="memrc-pzone-gfp-fix2.diff"
+Content-Transfer-Encoding: 7bit
 
-which is what I needed to do in order to fix some regressions found with
-your test case. It seems to work on my system, although it is admittedly
-quite a bit smaller than your machine.
+Index: mm/mem_rc_pzone.c
+===================================================================
+RCS file: /cvsroot/ckrm/memrc-pzone/mm/mem_rc_pzone.c,v
+retrieving revision 1.9
+diff -u -p -r1.9 mem_rc_pzone.c
+--- mm/mem_rc_pzone.c	19 Jan 2006 05:40:13 -0000	1.9
++++ mm/mem_rc_pzone.c	3 Feb 2006 08:30:15 -0000
+@@ -38,7 +38,7 @@ struct mem_rc {
+ 	unsigned long guarantee;
+ 	struct mem_rc_domain *rcd;
+ 	struct zone **zones[MAX_NUMNODES];
+-	struct zonelist *zonelists[MAX_NUMNODES];
++	struct zonelist *zonelists[MAX_NUMNODES][GFP_ZONETYPES];
+ };
+ 
+ 
+@@ -109,7 +109,7 @@ static void *mem_rc_create(void *arg, st
+ 	struct zone *parent, *z, *z_ref;
+ 	pg_data_t *pgdat;
+ 	int node, allocn;
+-	int i, j;
++	int i, j, k;
+ 
+ 	allocn = first_node(rcd->nodes);
+ 	mr = kmalloc_node(sizeof(*mr), GFP_KERNEL, allocn);
+@@ -132,13 +132,16 @@ static void *mem_rc_create(void *arg, st
+ 		memset(mr->zones[node], 0,
+ 		       sizeof(*mr->zones[node]) * MAX_NR_ZONES);
+ 
+-		mr->zonelists[node]
+-			= kmalloc_node(sizeof(*mr->zonelists[node]),
+-				       GFP_KERNEL, allocn);
+-		if (!mr->zonelists[node])
+-			goto failed;
++		for (i = 0; i < GFP_ZONETYPES; i++) {
++			mr->zonelists[node][i]
++				= kmalloc_node(sizeof(*mr->zonelists[node][i]),
++					       GFP_KERNEL, allocn);
++			if (!mr->zonelists[node][i])
++				goto failed;
+ 
+-		memset(mr->zonelists[node], 0, sizeof(*mr->zonelists[node]));
++			memset(mr->zonelists[node][i], 0,
++			       sizeof(*mr->zonelists[node][i]));
++		}
+ 
+ 		for (i = 0; i < MAX_NR_ZONES; i++) {
+ 			parent = pgdat->node_zones + i;
+@@ -153,21 +156,22 @@ static void *mem_rc_create(void *arg, st
+ 	}
+ 
+ 	for_each_node_mask(node, rcd->nodes) {
+-		/* NORMAL zones and DMA zones also in HIGHMEM zonelist. */
+-		zl_ref = NODE_DATA(node)->node_zonelists + __GFP_HIGHMEM;
+-		zl = mr->zonelists[node];
+-
+-		for (j = i = 0; i < ARRAY_SIZE(zl_ref->zones); i++) {
+-			z_ref = zl_ref->zones[i];
+-			if (!z_ref)
+-				break;
+-
+-			z = mr->zones[node][zone_idx(z_ref)];
+-			if (!z)
+-				continue;
+-			zl->zones[j++] = z;
++		for (i = 0; i < GFP_ZONETYPES; i++) {
++			zl_ref = NODE_DATA(node)->node_zonelists + i;
++			zl = mr->zonelists[node][i];
++
++			for (j = k = 0; k < ARRAY_SIZE(zl_ref->zones); k++) {
++				z_ref = zl_ref->zones[k];
++				if (!z_ref)
++					break;
++
++				z = mr->zones[z_ref->zone_pgdat->node_id][zone_idx(z_ref)];
++				if (!z)
++					continue;
++				zl->zones[j++] = z;
++			}
++			zl->zones[j] = NULL;
+ 		}
+-		zl->zones[j] = NULL;
+ 	}
+ 	up(&rcd->sem);
+ 
+@@ -175,8 +179,10 @@ static void *mem_rc_create(void *arg, st
+ 
+ failed:
+ 	for_each_node_mask(node, rcd->nodes) {
+-		if (mr->zonelists[node])
+-			kfree(mr->zonelists[node]);
++		for (i = 0; i < GFP_ZONETYPES; i++) {
++			if (mr->zonelists[node][i])
++				kfree(mr->zonelists[node][i]);
++		}
+ 
+ 		if (!mr->zones[node])
+ 			continue;
+@@ -204,8 +210,10 @@ static void mem_rc_destroy(void *p)
+ 
+ 	down(&rcd->sem);
+ 	for (node = 0; node < MAX_NUMNODES; node++) {
+-		if (mr->zonelists[node])
+-			kfree(mr->zonelists[node]);
++		for (i = 0; i < GFP_ZONETYPES; i++) {
++			if (mr->zonelists[node][i])
++				kfree(mr->zonelists[node][i]);
++		}
+ 			
+ 		if (!mr->zones[node])
+ 			continue;
+@@ -341,14 +349,15 @@ EXPORT_SYMBOL(mem_rc_get);
+ struct page *alloc_page_mem_rc(int nid, gfp_t gfpmask)
+ {
+ 	struct mem_rc *mr;
++	gfp_t zoneidx = gfpmask & GFP_ZONEMASK;
+ 
+ 	mr = mem_rc_get(current);
+ 	if (!mr)
+ 		return __alloc_pages(gfpmask, 0,
+ 				     NODE_DATA(nid)->node_zonelists
+-				     + (gfpmask & GFP_ZONEMASK));
++				     + zoneidx);
+ 
+-	return __alloc_pages(gfpmask, 0, mr->zonelists[nid]);
++	return __alloc_pages(gfpmask, 0, mr->zonelists[nid][zoneidx]);
+ }
+ EXPORT_SYMBOL(alloc_page_mem_rc);
+ 
+@@ -364,5 +373,5 @@ struct zonelist *mem_rc_get_zonelist(int
+ 	if (!mr)
+ 		return NULL;
+ 
+-	return mr->zonelists[nd];
++	return mr->zonelists[nd][gfpmask & GFP_ZONEMASK];
+ }
 
-Kind regards,
-
-Peter
+--Multipart=_Fri__3_Feb_2006_18_37_34_+0900_grqUuNZMmuPD7.Vx--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
