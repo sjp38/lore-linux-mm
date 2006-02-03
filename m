@@ -1,176 +1,100 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k137u6Qu023980 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:56:06 +0900
-        (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k137u5tL023921 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:56:05 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp (s4 [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C308B1CC00F
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:56:04 +0900 (JST)
-Received: from fjm502.ms.jp.fujitsu.com (fjm502.ms.jp.fujitsu.com [10.56.99.74])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D5A571CC14D
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:56:03 +0900 (JST)
-Received: from [127.0.0.1] (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm502.ms.jp.fujitsu.com with ESMTP id k137tEe3008187
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:55:15 +0900
-Message-ID: <43E30C9E.7010401@jp.fujitsu.com>
-Date: Fri, 03 Feb 2006 16:56:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: [RFC] peeling off zone from physical memory layout [10/10] memory_hotplug
- fix
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 6/9] clockpro-clockpro.patch
+From: Peter Zijlstra <peter@programming.kicks-ass.net>
+In-Reply-To: <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
+References: <20051230223952.765.21096.sendpatchset@twins.localnet>
+	 <20051230224312.765.58575.sendpatchset@twins.localnet>
+	 <20051231002417.GA4913@dmt.cnet> <1136028546.17853.69.camel@twins>
+	 <20060105094722.897C574030@sv1.valinux.co.jp>
+	 <Pine.LNX.4.63.0601050830530.18976@cuia.boston.redhat.com>
+	 <20060106090135.3525D74031@sv1.valinux.co.jp>
+	 <20060124063010.B85C77402D@sv1.valinux.co.jp>
+	 <20060124072503.BAF6A7402F@sv1.valinux.co.jp>
+Content-Type: text/plain
+Date: Fri, 03 Feb 2006 10:25:04 +0100
+Message-Id: <1138958705.5450.9.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Marijn Meijles <marijn@bitpit.net>
 List-ID: <linux-mm.kvack.org>
 
-Now, zone resizing is needless.
-This patch removes zone_start_pfn, spanned_pages from memory hotplug code.
-And zone resizing code is removed too.
+On Tue, 2006-01-24 at 16:25 +0900, IWAMOTO Toshihiro wrote:
+> (Removed linux-kernel@ from Cc:)
+> 
+> At Tue, 24 Jan 2006 15:30:10 +0900,
+> IWAMOTO Toshihiro wrote:
+> > I thought this situation means that page access frequencies cannot be
+> > correctly compared and leads to suboptimal performance, but I couldn't
+> > prove that.  However, I've managed to create an example workload where
+> > clockpro performs worse.  I'm not sure if the example is related to
+> > this hand problem.  I'll describe it in the next mail.
+> 
+> Environment: Dell 1850 4GB EM64T CPUx2 HT disabled, x86_64 kernel
+> Kernel 1: linux-2.6.15-rc5
+> Kernel 2: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31
+> Kernel 3: linux-2.6.15-rc5 + clockpro patch posted in 2005/12/31 +
+> 	  modification to disable page cache usage from ZONE_DMA
+> 	  (to rule out possible zone balancing related problem)
+> Kernel 1 and 2 were booted with "mem=1008m", Kernel 3 was booted with
+> "mem=1024m".
+> 
+> The test program: 2read.c (attached below)
+> 	2read.c repeatedly reads from two files zero and zero2.
+> 	Command line arguments specify the ranges to be read. (See the
+> 	code for detail)
+> 	It prints the number of read operations/2 every 5 seconds and
+> 	terminates in 5 minutes.
+> 
+> $ cc -O 2read.c
+> $ ls -l zero*
+> -rw-r--r--  1 toshii users 1073741824 2006-01-13 17:27 zero
+> -rw-r--r--  1 toshii users 1572864000 2006-01-20 18:20 zero2
+> 
+> (with Kernel 1)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.$n ; done
+> (with Kernel 2)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.$n ; done
+> (with Kernel 3)
+> $ for n in 100 200 300 400 500; do
+> > ./a.out -n $n $((1100-$n)) > /tmp/2d.c.nodma.$n ; done
+> 
+> The table below is the last numbers printed by the test program
+> ((number of reads)/2 in 5 minutes).  Clockpro (with or without the
+> ZONE_DMA modification) is always slower with one exception, and
+> the slowdown can be as large as 42-54%.
+> 
+> I've put the complete data and some generated figures at
+> http://people.valinux.co.jp/~iwamoto/clockpro-20051231/
+> 
+>  n     Kernel 1    Kernel 2   Kernel 3
+> ======================================
+> 100    373600      298720     395818
+> 200    385639	   272749     272166
+> 300    371047	   243734     262370
+> 400    367691	   213974     169714
+> 500    147130	   126284     103038
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitu.com>
+<snip code>
 
+Iwamoto-San,
 
-Index: hogehoge/include/linux/mmzone.h
-===================================================================
---- hogehoge.orig/include/linux/mmzone.h
-+++ hogehoge/include/linux/mmzone.h
-@@ -28,6 +28,7 @@ struct free_area {
-  };
+Could you test again with my latest patches found at:
+http://programming.kicks-ass.net/kernel-patches/page-replace/2.6.16-rc1-3/
 
-  struct pglist_data;
-+struct page;
+esp. the last patch in the series:
+http://programming.kicks-ass.net/kernel-patches/page-replace/2.6.16-rc1-3/kswapd-writeout-wait.patch
 
-  /*
-   * zone->lock and zone->lru_lock are two of the hottest locks in the kernel.
-@@ -129,10 +130,7 @@ struct zone {
-  	 * free areas of different sizes
-  	 */
-  	spinlock_t		lock;
--#ifdef CONFIG_MEMORY_HOTPLUG
--	/* see spanned/present_pages for more description */
--	seqlock_t		span_seqlock;
--#endif
-+
-  	struct free_area	free_area[MAX_ORDER];
+which is what I needed to do in order to fix some regressions found with
+your test case. It seems to work on my system, although it is admittedly
+quite a bit smaller than your machine.
 
+Kind regards,
 
-Index: hogehoge/include/linux/memory_hotplug.h
-===================================================================
---- hogehoge.orig/include/linux/memory_hotplug.h
-+++ hogehoge/include/linux/memory_hotplug.h
-@@ -25,29 +25,6 @@ void pgdat_resize_init(struct pglist_dat
-  {
-  	spin_lock_init(&pgdat->node_size_lock);
-  }
--/*
-- * Zone resizing functions
-- */
--static inline unsigned zone_span_seqbegin(struct zone *zone)
--{
--	return read_seqbegin(&zone->span_seqlock);
--}
--static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
--{
--	return read_seqretry(&zone->span_seqlock, iv);
--}
--static inline void zone_span_writelock(struct zone *zone)
--{
--	write_seqlock(&zone->span_seqlock);
--}
--static inline void zone_span_writeunlock(struct zone *zone)
--{
--	write_sequnlock(&zone->span_seqlock);
--}
--static inline void zone_seqlock_init(struct zone *zone)
--{
--	seqlock_init(&zone->span_seqlock);
--}
-  extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
-  extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
-  extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
-@@ -69,17 +46,6 @@ static inline void pgdat_resize_lock(str
-  static inline void pgdat_resize_unlock(struct pglist_data *p, unsigned long *f) {}
-  static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
-
--static inline unsigned zone_span_seqbegin(struct zone *zone)
--{
--	return 0;
--}
--static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
--{
--	return 0;
--}
--static inline void zone_span_writelock(struct zone *zone) {}
--static inline void zone_span_writeunlock(struct zone *zone) {}
--static inline void zone_seqlock_init(struct zone *zone) {}
-
-  static inline int mhp_notimplemented(const char *func)
-  {
-Index: hogehoge/mm/memory_hotplug.c
-===================================================================
---- hogehoge.orig/mm/memory_hotplug.c
-+++ hogehoge/mm/memory_hotplug.c
-@@ -21,6 +21,7 @@
-  #include <linux/memory_hotplug.h>
-  #include <linux/highmem.h>
-  #include <linux/vmalloc.h>
-+#include <linux/memorymap.h>
-
-  #include <asm/tlbflush.h>
-
-@@ -76,23 +77,6 @@ int __add_pages(struct zone *zone, unsig
-  	return err;
-  }
-
--static void grow_zone_span(struct zone *zone,
--		unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long old_zone_end_pfn;
--
--	zone_span_writelock(zone);
--
--	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
--	if (start_pfn < zone->zone_start_pfn)
--		zone->zone_start_pfn = start_pfn;
--
--	if (end_pfn > old_zone_end_pfn)
--		zone->spanned_pages = end_pfn - zone->zone_start_pfn;
--
--	zone_span_writeunlock(zone);
--}
--
-  static void grow_pgdat_span(struct pglist_data *pgdat,
-  		unsigned long start_pfn, unsigned long end_pfn)
-  {
-@@ -118,11 +102,12 @@ int online_pages(unsigned long pfn, unsi
-  	 * The section can't be removed here because of the
-  	 * memory_block->state_sem.
-  	 */
-+	memory_resize_lock();
-  	zone = page_zone(pfn_to_page(pfn));
-  	pgdat_resize_lock(zone->zone_pgdat, &flags);
--	grow_zone_span(zone, pfn, pfn + nr_pages);
-  	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
-  	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-+	memory_resize_unlock();
-
-  	for (i = 0; i < nr_pages; i++) {
-  		struct page *page = pfn_to_page(pfn + i);
-Index: hogehoge/mm/page_alloc.c
-===================================================================
---- hogehoge.orig/mm/page_alloc.c
-+++ hogehoge/mm/page_alloc.c
-@@ -2042,7 +2042,6 @@ static void __init free_area_init_core(s
-  		zone->name = zone_names[j];
-  		spin_lock_init(&zone->lock);
-  		spin_lock_init(&zone->lru_lock);
--		zone_seqlock_init(zone);
-  		zone->zone_pgdat = pgdat;
-  		zone->free_pages = 0;
-
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
