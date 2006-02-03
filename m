@@ -1,24 +1,24 @@
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k137s49A030929 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:54:04 +0900
+        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k137u6Qu023980 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:56:06 +0900
         (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k137s4tL022208 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:54:04 +0900
+Received: from s4.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k137u5tL023921 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:56:05 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id E8BF620A472
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:54:03 +0900 (JST)
-Received: from fjm505.ms.jp.fujitsu.com (fjm505.ms.jp.fujitsu.com [10.56.99.83])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 7909C20A4C2
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:54:03 +0900 (JST)
-Received: from [127.0.0.1] (fjmscan501.ms.jp.fujitsu.com [10.56.99.141])by fjm505.ms.jp.fujitsu.com with ESMTP id k137rovi010066
-	for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:53:51 +0900
-Message-ID: <43E30C49.5030302@jp.fujitsu.com>
-Date: Fri, 03 Feb 2006 16:54:49 +0900
+Received: from s4.gw.fujitsu.co.jp (s4 [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C308B1CC00F
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:56:04 +0900 (JST)
+Received: from fjm502.ms.jp.fujitsu.com (fjm502.ms.jp.fujitsu.com [10.56.99.74])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D5A571CC14D
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:56:03 +0900 (JST)
+Received: from [127.0.0.1] (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm502.ms.jp.fujitsu.com with ESMTP id k137tEe3008187
+	for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:55:15 +0900
+Message-ID: <43E30C9E.7010401@jp.fujitsu.com>
+Date: Fri, 03 Feb 2006 16:56:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC] peeling off zone from physical memory layout [9/10] remove
- zone_start_pfn from page_alloc.c
+Subject: [RFC] peeling off zone from physical memory layout [10/10] memory_hotplug
+ fix
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,122 +26,151 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch removes zone_start_pfn, spanned_pages from mm/page_alloc.c.
+Now, zone resizing is needless.
+This patch removes zone_start_pfn, spanned_pages from memory hotplug code.
+And zone resizing code is removed too.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitu.com>
 
 
 Index: hogehoge/include/linux/mmzone.h
 ===================================================================
 --- hogehoge.orig/include/linux/mmzone.h
 +++ hogehoge/include/linux/mmzone.h
-@@ -212,20 +212,7 @@ struct zone {
-  	 * Discontig memory support fields.
+@@ -28,6 +28,7 @@ struct free_area {
+  };
+
+  struct pglist_data;
++struct page;
+
+  /*
+   * zone->lock and zone->lru_lock are two of the hottest locks in the kernel.
+@@ -129,10 +130,7 @@ struct zone {
+  	 * free areas of different sizes
   	 */
-  	struct pglist_data	*zone_pgdat;
--	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
--	unsigned long		zone_start_pfn;
+  	spinlock_t		lock;
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-	/* see spanned/present_pages for more description */
+-	seqlock_t		span_seqlock;
+-#endif
++
+  	struct free_area	free_area[MAX_ORDER];
 
--	/*
--	 * zone_start_pfn, spanned_pages and present_pages are all
--	 * protected by span_seqlock.  It is a seqlock because it has
--	 * to be read outside of zone->lock, and it is done in the main
--	 * allocator path.  But, it is written quite infrequently.
--	 *
--	 * The lock is declared along with zone->lock because it is
--	 * frequently read in proximity to zone->lock.  It's good to
--	 * give them a chance of being in the same cacheline.
--	 */
--	unsigned long		spanned_pages;	/* total size, including holes */
-  	unsigned long		present_pages;	/* amount of memory (excluding holes) */
 
-  	/*
+Index: hogehoge/include/linux/memory_hotplug.h
+===================================================================
+--- hogehoge.orig/include/linux/memory_hotplug.h
++++ hogehoge/include/linux/memory_hotplug.h
+@@ -25,29 +25,6 @@ void pgdat_resize_init(struct pglist_dat
+  {
+  	spin_lock_init(&pgdat->node_size_lock);
+  }
+-/*
+- * Zone resizing functions
+- */
+-static inline unsigned zone_span_seqbegin(struct zone *zone)
+-{
+-	return read_seqbegin(&zone->span_seqlock);
+-}
+-static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
+-{
+-	return read_seqretry(&zone->span_seqlock, iv);
+-}
+-static inline void zone_span_writelock(struct zone *zone)
+-{
+-	write_seqlock(&zone->span_seqlock);
+-}
+-static inline void zone_span_writeunlock(struct zone *zone)
+-{
+-	write_sequnlock(&zone->span_seqlock);
+-}
+-static inline void zone_seqlock_init(struct zone *zone)
+-{
+-	seqlock_init(&zone->span_seqlock);
+-}
+  extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
+  extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
+  extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+@@ -69,17 +46,6 @@ static inline void pgdat_resize_lock(str
+  static inline void pgdat_resize_unlock(struct pglist_data *p, unsigned long *f) {}
+  static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
+
+-static inline unsigned zone_span_seqbegin(struct zone *zone)
+-{
+-	return 0;
+-}
+-static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
+-{
+-	return 0;
+-}
+-static inline void zone_span_writelock(struct zone *zone) {}
+-static inline void zone_span_writeunlock(struct zone *zone) {}
+-static inline void zone_seqlock_init(struct zone *zone) {}
+
+  static inline int mhp_notimplemented(const char *func)
+  {
+Index: hogehoge/mm/memory_hotplug.c
+===================================================================
+--- hogehoge.orig/mm/memory_hotplug.c
++++ hogehoge/mm/memory_hotplug.c
+@@ -21,6 +21,7 @@
+  #include <linux/memory_hotplug.h>
+  #include <linux/highmem.h>
+  #include <linux/vmalloc.h>
++#include <linux/memorymap.h>
+
+  #include <asm/tlbflush.h>
+
+@@ -76,23 +77,6 @@ int __add_pages(struct zone *zone, unsig
+  	return err;
+  }
+
+-static void grow_zone_span(struct zone *zone,
+-		unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	unsigned long old_zone_end_pfn;
+-
+-	zone_span_writelock(zone);
+-
+-	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	if (start_pfn < zone->zone_start_pfn)
+-		zone->zone_start_pfn = start_pfn;
+-
+-	if (end_pfn > old_zone_end_pfn)
+-		zone->spanned_pages = end_pfn - zone->zone_start_pfn;
+-
+-	zone_span_writeunlock(zone);
+-}
+-
+  static void grow_pgdat_span(struct pglist_data *pgdat,
+  		unsigned long start_pfn, unsigned long end_pfn)
+  {
+@@ -118,11 +102,12 @@ int online_pages(unsigned long pfn, unsi
+  	 * The section can't be removed here because of the
+  	 * memory_block->state_sem.
+  	 */
++	memory_resize_lock();
+  	zone = page_zone(pfn_to_page(pfn));
+  	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	grow_zone_span(zone, pfn, pfn + nr_pages);
+  	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
+  	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	memory_resize_unlock();
+
+  	for (i = 0; i < nr_pages; i++) {
+  		struct page *page = pfn_to_page(pfn + i);
 Index: hogehoge/mm/page_alloc.c
 ===================================================================
 --- hogehoge.orig/mm/page_alloc.c
 +++ hogehoge/mm/page_alloc.c
-@@ -89,19 +89,7 @@ unsigned long __initdata nr_all_pages;
-  #ifdef CONFIG_DEBUG_VM
-  static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
-  {
--	int ret = 0;
--	unsigned seq;
--	unsigned long pfn = page_to_pfn(page);
--
--	do {
--		seq = zone_span_seqbegin(zone);
--		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
--			ret = 1;
--		else if (pfn < zone->zone_start_pfn)
--			ret = 1;
--	} while (zone_span_seqretry(zone, seq));
--
--	return ret;
-+	return page_zone(page) != zone;
-  }
-
-  static int page_is_consistent(struct zone *zone, struct page *page)
-@@ -649,7 +637,7 @@ void mark_free_pages(struct zone *zone)
-  	int order;
-  	struct list_head *curr;
-
--	if (!zone->spanned_pages)
-+	if (!populated_zone(zone))
-  		return;
-
-  	spin_lock_irqsave(&zone->lock, flags);
-@@ -2012,11 +2000,9 @@ static __meminit void init_currently_emp
-  	zone_wait_table_init(zone, size);
-  	pgdat->nr_zones = zone_idx(zone) + 1;
-
--	zone->zone_start_pfn = zone_start_pfn;
--
-  	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
-
--	zone_init_free_lists(pgdat, zone, zone->spanned_pages);
-+	zone_init_free_lists(pgdat, zone, size);
-  	arch_register_memory_zone(zone, zone_start_pfn, size);
-  }
-
-@@ -2052,7 +2038,6 @@ static void __init free_area_init_core(s
-  			nr_kernel_pages += realsize;
-  		nr_all_pages += realsize;
-
--		zone->spanned_pages = size;
-  		zone->present_pages = realsize;
+@@ -2042,7 +2042,6 @@ static void __init free_area_init_core(s
   		zone->name = zone_names[j];
   		spin_lock_init(&zone->lock);
-@@ -2219,7 +2204,6 @@ static int zoneinfo_show(struct seq_file
-  			   "\n        active   %lu"
-  			   "\n        inactive %lu"
-  			   "\n        scanned  %lu (a: %lu i: %lu)"
--			   "\n        spanned  %lu"
-  			   "\n        present  %lu",
-  			   zone->free_pages,
-  			   zone->pages_min,
-@@ -2229,7 +2213,6 @@ static int zoneinfo_show(struct seq_file
-  			   zone->nr_inactive,
-  			   zone->pages_scanned,
-  			   zone->nr_scan_active, zone->nr_scan_inactive,
--			   zone->spanned_pages,
-  			   zone->present_pages);
-  		seq_printf(m,
-  			   "\n        protection: (%lu",
-@@ -2280,12 +2263,10 @@ static int zoneinfo_show(struct seq_file
-  		seq_printf(m,
-  			   "\n  all_unreclaimable: %u"
-  			   "\n  prev_priority:     %i"
--			   "\n  temp_priority:     %i"
--			   "\n  start_pfn:         %lu",
-+			   "\n  temp_priority:     %i",
-  			   zone->all_unreclaimable,
-  			   zone->prev_priority,
--			   zone->temp_priority,
--			   zone->zone_start_pfn);
-+			   zone->temp_priority);
-  		spin_unlock_irqrestore(&zone->lock, flags);
-  		seq_putc(m, '\n');
-  	}
+  		spin_lock_init(&zone->lru_lock);
+-		zone_seqlock_init(zone);
+  		zone->zone_pgdat = pgdat;
+  		zone->free_pages = 0;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
