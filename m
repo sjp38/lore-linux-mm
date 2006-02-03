@@ -1,200 +1,64 @@
-Date: Fri, 3 Feb 2006 10:33:58 +0900
-From: KUROSAWA Takahiro <kurosawa@valinux.co.jp>
-Subject: Re: [ckrm-tech] [PATCH 0/8] Pzone based CKRM memory resource
- controller
-In-Reply-To: <1138763255.3938.27.camel@localhost.localdomain>
-References: <20060119080408.24736.13148.sendpatchset@debian>
-	<20060131023000.7915.71955.sendpatchset@debian>
-	<1138763255.3938.27.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="Multipart=_Fri__3_Feb_2006_10_33_58_+0900_0Ug2emIe+czQ/HbH"
-Message-Id: <20060203013358.6EA1F7403C@sv1.valinux.co.jp>
+Received: from m7.gw.fujitsu.co.jp ([10.0.50.77])
+        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k137ZCw8003763 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:35:12 +0900
+        (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s11.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k137ZBWg031715 for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:35:11 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s11.gw.fujitsu.co.jp (s11 [127.0.0.1])
+	by s11.gw.fujitsu.co.jp (Postfix) with ESMTP id 97B94F8C3A
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:35:11 +0900 (JST)
+Received: from fjm506.ms.jp.fujitsu.com (fjm506.ms.jp.fujitsu.com [10.56.99.86])
+	by s11.gw.fujitsu.co.jp (Postfix) with ESMTP id 528E3F8527
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2006 16:35:11 +0900 (JST)
+Received: from [127.0.0.1] (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm506.ms.jp.fujitsu.com with ESMTP id k137Ytxf002849
+	for <linux-mm@kvack.org>; Fri, 3 Feb 2006 16:34:57 +0900
+Message-ID: <43E307DB.3000903@jp.fujitsu.com>
+Date: Fri, 03 Feb 2006 16:35:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: [RFC] pearing off zone from physical memory layout [0/10]
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sekharan@us.ibm.com
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hi,
 
---Multipart=_Fri__3_Feb_2006_10_33_58_+0900_0Ug2emIe+czQ/HbH
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+This series of patches remove members from zone, which depends on physical
+memory layout, zone_start_pfn, spanned_pages, zone_mem_map against 2.6.16-rc1.
 
-On Tue, 31 Jan 2006 19:07:35 -0800
-chandra seetharaman <sekharan@us.ibm.com> wrote:
+By this, zone's meaning will be changed from "a range of memory to be used
+in a same manner" to "a group of memory to be used in a same manner".
 
-> I tried to use the controller but having some problems.
-> 
-> - Created class a,
-> - set guarantee to 50(with parent having 100, i expected class a to get 
->   50% of memory in the system). 
-> - moved my shell to class a. 
-> - Issued a make in the kernel tree.
-> It consistently fails with 
-> -----------
-> make: getcwd: : Cannot allocate memory
-> Makefile:313: /scripts/Kbuild.include: No such file or directory
-> Makefile:532: /arch/i386/Makefile: No such file or directory
-> Can't open perl script "/scripts/setlocalversion": No such file or
-> directory
-> make: *** No rule to make target `/arch/i386/Makefile'.  Stop.
-> -----------
-> Note that the compilation succeeds if I move my shell to the default
-> class.
+Now, the kernel and memmap became sparse if SPARSEMEM=y,  but zone is considered
+as a range of memory.
 
-I could reproduce this problem.  Could you try the attached patch?
+memory-hot-add adds memory to HIGHMEM, but a zone is considered as a range.
+This means memory layout (after hot add) like this is ok,
+NORMAL | NORMAL  | HIGHMEM | HIGHMEM.
+but this is insane
+NORMAL | HIGHMEM | NORMAL  | HIGHMEM. (we can do, but insane)
 
-> I got a oops too:
+IMHO, a zone is  an unit of allocation/reclaim of same type of pages.
+I think that a zone should be defined by its usage/purpose not by physical
+memory layout.
 
-I can't reproduce the oops so far.  Does this oops also occur constantly?
+Some codes which wants to walk through all pages in a zone is supported by
+for_each_page_in_zone() macro.
 
---Multipart=_Fri__3_Feb_2006_10_33_58_+0900_0Ug2emIe+czQ/HbH
-Content-Type: text/plain;
- name="memrc-pzone-gfp-fix.diff"
-Content-Disposition: attachment;
- filename="memrc-pzone-gfp-fix.diff"
-Content-Transfer-Encoding: 7bit
+I tested this on my desktop machine a little, but  I know this patch needs
+more work on some arch (ia64 etc...).
 
-Index: mm/mem_rc_pzone.c
-===================================================================
-RCS file: /cvsroot/ckrm/memrc-pzone/mm/mem_rc_pzone.c,v
-retrieving revision 1.9
-diff -u -p -r1.9 mem_rc_pzone.c
---- mm/mem_rc_pzone.c	19 Jan 2006 05:40:13 -0000	1.9
-+++ mm/mem_rc_pzone.c	3 Feb 2006 01:01:22 -0000
-@@ -38,7 +38,7 @@ struct mem_rc {
- 	unsigned long guarantee;
- 	struct mem_rc_domain *rcd;
- 	struct zone **zones[MAX_NUMNODES];
--	struct zonelist *zonelists[MAX_NUMNODES];
-+	struct zonelist *zonelists[MAX_NUMNODES][GFP_ZONETYPES];
- };
- 
- 
-@@ -109,7 +109,7 @@ static void *mem_rc_create(void *arg, st
- 	struct zone *parent, *z, *z_ref;
- 	pg_data_t *pgdat;
- 	int node, allocn;
--	int i, j;
-+	int i, j, k;
- 
- 	allocn = first_node(rcd->nodes);
- 	mr = kmalloc_node(sizeof(*mr), GFP_KERNEL, allocn);
-@@ -132,13 +132,16 @@ static void *mem_rc_create(void *arg, st
- 		memset(mr->zones[node], 0,
- 		       sizeof(*mr->zones[node]) * MAX_NR_ZONES);
- 
--		mr->zonelists[node]
--			= kmalloc_node(sizeof(*mr->zonelists[node]),
--				       GFP_KERNEL, allocn);
--		if (!mr->zonelists[node])
--			goto failed;
-+		for (i = 0; i < GFP_ZONETYPES; i++) {
-+			mr->zonelists[node][i]
-+				= kmalloc_node(sizeof(*mr->zonelists[node]),
-+					       GFP_KERNEL, allocn);
-+			if (!mr->zonelists[node][i])
-+				goto failed;
- 
--		memset(mr->zonelists[node], 0, sizeof(*mr->zonelists[node]));
-+			memset(mr->zonelists[node][i], 0,
-+			       sizeof(*mr->zonelists[node][i]));
-+		}
- 
- 		for (i = 0; i < MAX_NR_ZONES; i++) {
- 			parent = pgdat->node_zones + i;
-@@ -153,21 +156,22 @@ static void *mem_rc_create(void *arg, st
- 	}
- 
- 	for_each_node_mask(node, rcd->nodes) {
--		/* NORMAL zones and DMA zones also in HIGHMEM zonelist. */
--		zl_ref = NODE_DATA(node)->node_zonelists + __GFP_HIGHMEM;
--		zl = mr->zonelists[node];
--
--		for (j = i = 0; i < ARRAY_SIZE(zl_ref->zones); i++) {
--			z_ref = zl_ref->zones[i];
--			if (!z_ref)
--				break;
--
--			z = mr->zones[node][zone_idx(z_ref)];
--			if (!z)
--				continue;
--			zl->zones[j++] = z;
-+		for (i = 0; i < GFP_ZONETYPES; i++) {
-+			zl_ref = NODE_DATA(node)->node_zonelists + i;
-+			zl = mr->zonelists[node][i];
-+
-+			for (j = k = 0; k < ARRAY_SIZE(zl_ref->zones); k++) {
-+				z_ref = zl_ref->zones[k];
-+				if (!z_ref)
-+					break;
-+
-+				z = mr->zones[node][zone_idx(z_ref)];
-+				if (!z)
-+					continue;
-+				zl->zones[j++] = z;
-+			}
-+			zl->zones[j] = NULL;
- 		}
--		zl->zones[j] = NULL;
- 	}
- 	up(&rcd->sem);
- 
-@@ -175,8 +179,10 @@ static void *mem_rc_create(void *arg, st
- 
- failed:
- 	for_each_node_mask(node, rcd->nodes) {
--		if (mr->zonelists[node])
--			kfree(mr->zonelists[node]);
-+		for (i = 0; i < GFP_ZONETYPES; i++) {
-+			if (mr->zonelists[node][i])
-+				kfree(mr->zonelists[node][i]);
-+		}
- 
- 		if (!mr->zones[node])
- 			continue;
-@@ -204,8 +210,10 @@ static void mem_rc_destroy(void *p)
- 
- 	down(&rcd->sem);
- 	for (node = 0; node < MAX_NUMNODES; node++) {
--		if (mr->zonelists[node])
--			kfree(mr->zonelists[node]);
-+		for (i = 0; i < GFP_ZONETYPES; i++) {
-+			if (mr->zonelists[node][i])
-+				kfree(mr->zonelists[node][i]);
-+		}
- 			
- 		if (!mr->zones[node])
- 			continue;
-@@ -341,14 +349,15 @@ EXPORT_SYMBOL(mem_rc_get);
- struct page *alloc_page_mem_rc(int nid, gfp_t gfpmask)
- {
- 	struct mem_rc *mr;
-+	gfp_t zoneidx = gfpmask & GFP_ZONEMASK;
- 
- 	mr = mem_rc_get(current);
- 	if (!mr)
- 		return __alloc_pages(gfpmask, 0,
- 				     NODE_DATA(nid)->node_zonelists
--				     + (gfpmask & GFP_ZONEMASK));
-+				     + zoneidx);
- 
--	return __alloc_pages(gfpmask, 0, mr->zonelists[nid]);
-+	return __alloc_pages(gfpmask, 0, mr->zonelists[nid][zoneidx]);
- }
- EXPORT_SYMBOL(alloc_page_mem_rc);
- 
-@@ -364,5 +373,5 @@ struct zonelist *mem_rc_get_zonelist(int
- 	if (!mr)
- 		return NULL;
- 
--	return mr->zonelists[nd];
-+	return mr->zonelists[nd][gfpmask & GFP_ZONEMASK];
- }
+comments ?
 
---Multipart=_Fri__3_Feb_2006_10_33_58_+0900_0Ug2emIe+czQ/HbH--
+
+-- Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
