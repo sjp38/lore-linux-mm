@@ -1,10 +1,11 @@
 Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <Pine.LNX.4.62.0602040709210.31909@graphe.net>
+In-Reply-To: <1139070369.21489.3.camel@localhost>
 References: <1139060024.8707.5.camel@localhost>
 	 <Pine.LNX.4.62.0602040709210.31909@graphe.net>
-Date: Sat, 04 Feb 2006 18:26:09 +0200
-Message-Id: <1139070369.21489.3.camel@localhost>
+	 <1139070369.21489.3.camel@localhost>
+Date: Sat, 04 Feb 2006 18:32:59 +0200
+Message-Id: <1139070779.21489.5.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
@@ -14,18 +15,16 @@ To: Christoph Lameter <christoph@lameter.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 4 Feb 2006, Pekka Enberg wrote:
-> > I don't have access to NUMA machine and would appreciate if someone
-> > could give this patch a spin and let me know I didn't break anything.
-
 On Sat, 2006-02-04 at 07:11 -0800, Christoph Lameter wrote:
-> No time to do a full review (off to traffic school... sigh), I did not 
-> see anything by just glancing over it but the patch will conflict with 
-> Paul Jacksons patchset to implement memory spreading.
+> > No time to do a full review (off to traffic school... sigh), I did not 
+> > see anything by just glancing over it but the patch will conflict with 
+> > Paul Jacksons patchset to implement memory spreading.
 
-Here's the same patch rediffed on top of the cpuset changes.
+On Sat, 2006-02-04 at 18:26 +0200, Pekka Enberg wrote:
+> Here's the same patch rediffed on top of the cpuset changes.
 
-			Pekka
+Sorry, strike that. I forgot some bits from the NUMA version of
+__cache_alloc. Here's a proper patch.
 
 Subject: slab: consolidate allocation paths
 From: Pekka Enberg <penberg@cs.helsinki.fi>
@@ -39,8 +38,8 @@ Cc: Christoph Lameter <christoph@lameter.com>
 Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
 
- mm/slab.c |  132 +++++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 67 insertions(+), 65 deletions(-)
+ mm/slab.c |  136 ++++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 71 insertions(+), 65 deletions(-)
 
 Index: 2.6-cpuset/mm/slab.c
 ===================================================================
@@ -120,7 +119,7 @@ Index: 2.6-cpuset/mm/slab.c
   * A interface to enable slab creation on nodeid
   */
  static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
-@@ -2788,8 +2745,69 @@ static void *__cache_alloc_node(struct k
+@@ -2788,8 +2745,73 @@ static void *__cache_alloc_node(struct k
        done:
  	return obj;
  }
@@ -147,6 +146,10 @@ Index: 2.6-cpuset/mm/slab.c
 +static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 +					   gfp_t flags, int nodeid)
 +{
++	if (nodeid != -1 && nodeid != numa_node_id() &&
++	    cachep->nodelists[nodeid])
++		return __cache_alloc_node(cachep, flags, nodeid);
++
 +	if (unlikely(current->flags & (PF_MEM_SPREAD|PF_MEMPOLICY))) {
 +		void *obj = alternate_node_alloc(cachep, flags);
 +		if (obj)
@@ -190,7 +193,7 @@ Index: 2.6-cpuset/mm/slab.c
  /*
   * Caller needs to acquire correct kmem_list's list_lock
   */
-@@ -2951,7 +2969,7 @@ static inline void __cache_free(struct k
+@@ -2951,7 +2973,7 @@ static inline void __cache_free(struct k
   */
  void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
  {
@@ -199,7 +202,7 @@ Index: 2.6-cpuset/mm/slab.c
  }
  EXPORT_SYMBOL(kmem_cache_alloc);
  
-@@ -3012,23 +3030,7 @@ int fastcall kmem_ptr_validate(struct km
+@@ -3012,23 +3034,7 @@ int fastcall kmem_ptr_validate(struct km
   */
  void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
  {
@@ -224,7 +227,7 @@ Index: 2.6-cpuset/mm/slab.c
  }
  EXPORT_SYMBOL(kmem_cache_alloc_node);
  
-@@ -3039,7 +3041,7 @@ void *kmalloc_node(size_t size, gfp_t fl
+@@ -3039,7 +3045,7 @@ void *kmalloc_node(size_t size, gfp_t fl
  	cachep = kmem_find_general_cachep(size, flags);
  	if (unlikely(cachep == NULL))
  		return NULL;
@@ -233,7 +236,7 @@ Index: 2.6-cpuset/mm/slab.c
  }
  EXPORT_SYMBOL(kmalloc_node);
  #endif
-@@ -3078,7 +3080,7 @@ static __always_inline void *__do_kmallo
+@@ -3078,7 +3084,7 @@ static __always_inline void *__do_kmallo
  	cachep = __find_general_cachep(size, flags);
  	if (unlikely(cachep == NULL))
  		return NULL;
