@@ -1,62 +1,34 @@
-Received: by uproxy.gmail.com with SMTP id k40so409553ugc
-        for <linux-mm@kvack.org>; Sun, 05 Feb 2006 01:12:13 -0800 (PST)
-Message-ID: <2cd57c900602050112l701cf9e2p@mail.gmail.com>
-Date: Sun, 5 Feb 2006 17:12:12 +0800
-From: Coywolf Qi Hunt <coywolf@gmail.com>
-Subject: Re: [PATCH 2/4] Split the free lists into kernel and user parts
-In-Reply-To: <2cd57c900602050057p1b5a813bh@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20060120115415.16475.8529.sendpatchset@skynet.csn.ul.ie>
-	 <20060120115455.16475.93688.sendpatchset@skynet.csn.ul.ie>
-	 <2cd57c900602050057p1b5a813bh@mail.gmail.com>
+Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1139128872.11782.5.camel@localhost>
+References: <1139060024.8707.5.camel@localhost>
+	 <Pine.LNX.4.62.0602040709210.31909@graphe.net>
+	 <1139070369.21489.3.camel@localhost> <1139070779.21489.5.camel@localhost>
+	 <20060204180026.b68e9476.pj@sgi.com>  <1139128872.11782.5.camel@localhost>
+Date: Sun, 05 Feb 2006 11:18:29 +0200
+Message-Id: <1139131109.11782.8.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, jschopp@austin.ibm.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lhms-devel@lists.sourceforge.net
+To: Paul Jackson <pj@sgi.com>
+Cc: christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-2006/2/5, Coywolf Qi Hunt <coywolf@gmail.com>:
-> 2006/1/20, Mel Gorman <mel@csn.ul.ie>:
-> >
-> > This patch adds the core of the anti-fragmentation strategy. It works by
-> > grouping related allocation types together. The idea is that large groups of
-> > pages that may be reclaimed are placed near each other. The zone->free_area
-> > list is broken into RCLM_TYPES number of lists.
-> >
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
-> > diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h
-> > --- linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h      2006-01-19 11:21:59.000000000 +0000
-> > +++ linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h    2006-01-19 21:51:05.000000000 +0000
-> > @@ -22,8 +22,16 @@
-> >  #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
-> >  #endif
-> >
-> > +#define RCLM_NORCLM 0
->
-> better be RCLM_NORMAL
+On Sun, 2006-02-05 at 10:41 +0200, Pekka Enberg wrote:
+> Ah, sorry about that, I forgot to verify the NUMA case. The problem is
+> that to kmalloc_node() is calling cache_alloc() now which is forced
+> inline. I am wondering, would it be ok to make __cache_alloc()
+> non-inline for NUMA? The relevant numbers are:
 
-err, RCLM_NONRCLM, or RCLM_NONE
+[snip]
 
->
-> > +#define RCLM_EASY   1
-> > +#define RCLM_TYPES  2
-> > +
-> > +#define for_each_rclmtype_order(type, order) \
-> > +       for (order = 0; order < MAX_ORDER; order++) \
-> > +               for (type = 0; type < RCLM_TYPES; type++)
-> > +
-> >  struct free_area {
-> > -       struct list_head        free_list;
-> > +       struct list_head        free_list[RCLM_TYPES];
-> >         unsigned long           nr_free;
-> >  };
+Btw, we can also change kmalloc_node() to use kmem_cache_alloc_node()
+again but for that, we have a minor correctness issue, namely, the
+__builtin_return_address(0) won't work for kmalloc_node(). Hmm.
 
---
-Coywolf Qi Hunt
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
