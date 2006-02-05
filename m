@@ -1,44 +1,48 @@
-Date: Sat, 4 Feb 2006 20:36:17 -0800
-From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
-Message-Id: <20060204203617.f773606a.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.62.0602041941570.9005@schroedinger.engr.sgi.com>
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20060204180026.b68e9476.pj@sgi.com>
 References: <1139060024.8707.5.camel@localhost>
-	<Pine.LNX.4.62.0602040709210.31909@graphe.net>
-	<1139070369.21489.3.camel@localhost>
-	<1139070779.21489.5.camel@localhost>
-	<20060204180026.b68e9476.pj@sgi.com>
-	<Pine.LNX.4.62.0602041941570.9005@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.62.0602040709210.31909@graphe.net>
+	 <1139070369.21489.3.camel@localhost> <1139070779.21489.5.camel@localhost>
+	 <20060204180026.b68e9476.pj@sgi.com>
+Date: Sun, 05 Feb 2006 10:41:12 +0200
+Message-Id: <1139128872.11782.5.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: penberg@cs.helsinki.fi, christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
+To: Paul Jackson <pj@sgi.com>
+Cc: christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> Hmmm... Maybe its worth a retry with gcc 3.4 and 4.X? Note that the
-> size increase may be much less on i386. The .o file includes descriptive
-> material too...
+Hi,
 
-Yes, the other gcc's will no doubt have a different amount of increase.
+On Sat, 2006-02-04 at 18:00 -0800, Paul Jackson wrote:
+> Two issues I can see:
+> 
+>   1) This patch increased the text size of mm/slab.o by 776
+>      bytes (ia64 sn2_defconfig gcc 3.3.3), which should be
+>      justified.  My naive expectation would have been that
+>      such a source code consolidation patch would be text
+>      size neutral, or close to it.
 
-Yes, i386 text sizes seem to run half the size of ia64.
+Ah, sorry about that, I forgot to verify the NUMA case. The problem is
+that to kmalloc_node() is calling cache_alloc() now which is forced
+inline. I am wondering, would it be ok to make __cache_alloc()
+non-inline for NUMA? The relevant numbers are:
 
-No, I said "text" size, not file size.  Meaning with the size command.
-That same 776 byte size difference in text size showed up in the final
-vmlinux, which I just verified.
+   text    data     bss     dec     hex filename
+  15882    2512      24   18418    47f2 mm/slab.o (original)
+  16029    2512      24   18565    4885 mm/slab.o (inline)
+  15798    2512      24   18334    479e mm/slab.o (non-inline)
 
-This is not a 'big problem.'  It's just a curiosity, for which an
-explanation might provide interesting insight to what this patch is
-doing.
+>   2) You might want to hold off this patch for a few days,
+>      until the dust settles from my memory spread patch.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Sure.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
