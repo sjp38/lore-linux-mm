@@ -1,48 +1,59 @@
-Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20060204180026.b68e9476.pj@sgi.com>
-References: <1139060024.8707.5.camel@localhost>
-	 <Pine.LNX.4.62.0602040709210.31909@graphe.net>
-	 <1139070369.21489.3.camel@localhost> <1139070779.21489.5.camel@localhost>
-	 <20060204180026.b68e9476.pj@sgi.com>
-Date: Sun, 05 Feb 2006 10:41:12 +0200
-Message-Id: <1139128872.11782.5.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: by uproxy.gmail.com with SMTP id q2so454398uge
+        for <linux-mm@kvack.org>; Sun, 05 Feb 2006 00:57:47 -0800 (PST)
+Message-ID: <2cd57c900602050057p1b5a813bh@mail.gmail.com>
+Date: Sun, 5 Feb 2006 16:57:46 +0800
+From: Coywolf Qi Hunt <coywolf@gmail.com>
+Subject: Re: [PATCH 2/4] Split the free lists into kernel and user parts
+In-Reply-To: <20060120115455.16475.93688.sendpatchset@skynet.csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20060120115415.16475.8529.sendpatchset@skynet.csn.ul.ie>
+	 <20060120115455.16475.93688.sendpatchset@skynet.csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, jschopp@austin.ibm.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+2006/1/20, Mel Gorman <mel@csn.ul.ie>:
+>
+> This patch adds the core of the anti-fragmentation strategy. It works by
+> grouping related allocation types together. The idea is that large groups of
+> pages that may be reclaimed are placed near each other. The zone->free_area
+> list is broken into RCLM_TYPES number of lists.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
+> diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h
+> --- linux-2.6.16-rc1-mm1-001_antifrag_flags/include/linux/mmzone.h      2006-01-19 11:21:59.000000000 +0000
+> +++ linux-2.6.16-rc1-mm1-002_fragcore/include/linux/mmzone.h    2006-01-19 21:51:05.000000000 +0000
+> @@ -22,8 +22,16 @@
+>  #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
+>  #endif
+>
+> +#define RCLM_NORCLM 0
 
-On Sat, 2006-02-04 at 18:00 -0800, Paul Jackson wrote:
-> Two issues I can see:
-> 
->   1) This patch increased the text size of mm/slab.o by 776
->      bytes (ia64 sn2_defconfig gcc 3.3.3), which should be
->      justified.  My naive expectation would have been that
->      such a source code consolidation patch would be text
->      size neutral, or close to it.
+better be RCLM_NORMAL
 
-Ah, sorry about that, I forgot to verify the NUMA case. The problem is
-that to kmalloc_node() is calling cache_alloc() now which is forced
-inline. I am wondering, would it be ok to make __cache_alloc()
-non-inline for NUMA? The relevant numbers are:
+> +#define RCLM_EASY   1
+> +#define RCLM_TYPES  2
+> +
+> +#define for_each_rclmtype_order(type, order) \
+> +       for (order = 0; order < MAX_ORDER; order++) \
+> +               for (type = 0; type < RCLM_TYPES; type++)
+> +
+>  struct free_area {
+> -       struct list_head        free_list;
+> +       struct list_head        free_list[RCLM_TYPES];
+>         unsigned long           nr_free;
+>  };
+>
 
-   text    data     bss     dec     hex filename
-  15882    2512      24   18418    47f2 mm/slab.o (original)
-  16029    2512      24   18565    4885 mm/slab.o (inline)
-  15798    2512      24   18334    479e mm/slab.o (non-inline)
 
->   2) You might want to hold off this patch for a few days,
->      until the dust settles from my memory spread patch.
-
-Sure.
-
-			Pekka
+--
+Coywolf Qi Hunt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
