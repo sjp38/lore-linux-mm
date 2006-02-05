@@ -1,12 +1,12 @@
 Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1139128872.11782.5.camel@localhost>
+In-Reply-To: <20060204180026.b68e9476.pj@sgi.com>
 References: <1139060024.8707.5.camel@localhost>
 	 <Pine.LNX.4.62.0602040709210.31909@graphe.net>
 	 <1139070369.21489.3.camel@localhost> <1139070779.21489.5.camel@localhost>
-	 <20060204180026.b68e9476.pj@sgi.com>  <1139128872.11782.5.camel@localhost>
-Date: Sun, 05 Feb 2006 11:18:29 +0200
-Message-Id: <1139131109.11782.8.camel@localhost>
+	 <20060204180026.b68e9476.pj@sgi.com>
+Date: Sun, 05 Feb 2006 14:29:12 +0200
+Message-Id: <1139142552.11782.15.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
@@ -16,17 +16,19 @@ To: Paul Jackson <pj@sgi.com>
 Cc: christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2006-02-05 at 10:41 +0200, Pekka Enberg wrote:
-> Ah, sorry about that, I forgot to verify the NUMA case. The problem is
-> that to kmalloc_node() is calling cache_alloc() now which is forced
-> inline. I am wondering, would it be ok to make __cache_alloc()
-> non-inline for NUMA? The relevant numbers are:
+On Sat, 2006-02-04 at 18:00 -0800, Paul Jackson wrote:
+>   1) This patch increased the text size of mm/slab.o by 776
+>      bytes (ia64 sn2_defconfig gcc 3.3.3), which should be
+>      justified.  My naive expectation would have been that
+>      such a source code consolidation patch would be text
+>      size neutral, or close to it.
 
-[snip]
+I have a version of the patch now that reduces text size on NUMA. You
+can find it here (it won't apply on top of cpuset though):
 
-Btw, we can also change kmalloc_node() to use kmem_cache_alloc_node()
-again but for that, we have a minor correctness issue, namely, the
-__builtin_return_address(0) won't work for kmalloc_node(). Hmm.
+http://www.cs.helsinki.fi/u/penberg/linux/penberg-2.6/penberg-01-slab/
+
+I'll wait until the cpuset patches have been settled down and repost.
 
 			Pekka
 
