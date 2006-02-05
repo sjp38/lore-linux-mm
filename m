@@ -1,41 +1,30 @@
-Date: Sat, 4 Feb 2006 18:00:26 -0800
-From: Paul Jackson <pj@sgi.com>
+Date: Sat, 4 Feb 2006 19:44:45 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [RFT/PATCH] slab: consolidate allocation paths
-Message-Id: <20060204180026.b68e9476.pj@sgi.com>
-In-Reply-To: <1139070779.21489.5.camel@localhost>
-References: <1139060024.8707.5.camel@localhost>
-	<Pine.LNX.4.62.0602040709210.31909@graphe.net>
-	<1139070369.21489.3.camel@localhost>
-	<1139070779.21489.5.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060204180026.b68e9476.pj@sgi.com>
+Message-ID: <Pine.LNX.4.62.0602041941570.9005@schroedinger.engr.sgi.com>
+References: <1139060024.8707.5.camel@localhost> <Pine.LNX.4.62.0602040709210.31909@graphe.net>
+ <1139070369.21489.3.camel@localhost> <1139070779.21489.5.camel@localhost>
+ <20060204180026.b68e9476.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
+To: Paul Jackson <pj@sgi.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, christoph@lameter.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com
 List-ID: <linux-mm.kvack.org>
 
-This consolidation patch looks ok to me on first read, though others
-are certainly more expert in this code than I am.  Certainly cleanup,
-ifdef reduction and consolidation of mm/slab.c is a worthwhile goal.
-That code is rough for folks like me to follow.
+On Sat, 4 Feb 2006, Paul Jackson wrote:
 
-Two issues I can see:
+>   1) This patch increased the text size of mm/slab.o by 776
+>      bytes (ia64 sn2_defconfig gcc 3.3.3), which should be
+>      justified.  My naive expectation would have been that
+>      such a source code consolidation patch would be text
+>      size neutral, or close to it.
 
-  1) This patch increased the text size of mm/slab.o by 776
-     bytes (ia64 sn2_defconfig gcc 3.3.3), which should be
-     justified.  My naive expectation would have been that
-     such a source code consolidation patch would be text
-     size neutral, or close to it.
-
-  2) You might want to hold off this patch for a few days,
-     until the dust settles from my memory spread patch.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Hmmm... Maybe its worth a retry with gcc 3.4 and 4.X? Note that the
+size increase may be much less on i386. The .o file includes descriptive
+material too...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
