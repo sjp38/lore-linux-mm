@@ -1,60 +1,54 @@
-Message-ID: <20060206014739.82993.qmail@web33003.mail.mud.yahoo.com>
-Date: Sun, 5 Feb 2006 17:47:39 -0800 (PST)
-From: Shantanu Goel <sgoel01@yahoo.com>
+Date: Sun, 5 Feb 2006 20:50:56 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [VM PATCH] rotate_reclaimable_page fails frequently
+Message-Id: <20060205205056.01a025fa.akpm@osdl.org>
 In-Reply-To: <Pine.LNX.4.61L.0602051138260.26086@imladris.surriel.com>
-MIME-Version: 1.0
+References: <20060205150259.1549.qmail@web33007.mail.mud.yahoo.com>
+	<Pine.LNX.4.61L.0602051138260.26086@imladris.surriel.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@surriel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: sgoel01@yahoo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> The question is, why is the page not yet back on the
-> LRU by the time the data write completes ?
+Rik van Riel <riel@surriel.com> wrote:
+>
+> On Sun, 5 Feb 2006, Shantanu Goel wrote:
 > 
-
-One possibility is that dirtiness is being tracked by
-buffers which are clean.  When writepage() notices
-that it simply marks the page clean and calls
-end_page_writeback() which then calls
-rotate_reclaimable_page() before the page scanner has
-had the chance to put the page back on the LRU.
-
-> Surely a disk IO is slow enough that the page will
-> have been put on the LRU milliseconds before the IO
-> completes ?
+>  > It seems rotate_reclaimable_page fails most of the
+>  > time due the page not being on the LRU when kswapd
+>  > calls writepage().
 > 
+>  The question is, why is the page not yet back on the
+>  LRU by the time the data write completes ?
 
-Agreed but if the scenario I described above is
-possible, there would essentially be no delay.  I have
-not examined the ext3 code paths closely.  Perhaps
-someone on the list can verify if this can happen. 
-The statistics seem to clearly indicate that writeback
-can complete before the scanner gets a chance to put
-the page back.
+Could be they're ext3 pages which were written out by kjournald.  Such
+pages are marked dirty but have clean buffers.  ext3_writepage() will
+discover that the page is actually clean and will mark it thus without
+performing any I/O.
 
-> In what kind of configuration do you run into this
-> problem ?
+In which case this code in shrink_list():
 
-Not sure what you looking for here but there is
-nothing unusual on this machine that I can think of. 
-The machine runs Ubuntu Breezy with Gnome.  To force 
-that particular VM code path, I wrote a simple program
-that gobbled a lot of mmap'ed memory and then ran the
-dd test.  The only VM parameter I adjusted was
-swappiness which I set to 55 instead of the default
-60.
+				/*
+				 * A synchronous write - probably a ramdisk.  Go
+				 * ahead and try to reclaim the page.
+				 */
+				if (TestSetPageLocked(page))
+					goto keep;
+				if (PageDirty(page) || PageWriteback(page))
+					goto keep_locked;
+				mapping = page_mapping(page);
+			case PAGE_CLEAN:
+				; /* try to free the page below */
 
-Shantanu
+should just go and reclaim the page immediately.
 
-
-__________________________________________________
-Do You Yahoo!?
-Tired of spam?  Yahoo! Mail has the best spam protection around 
-http://mail.yahoo.com 
+Shantanu, I suggest you add some instrumentation there too, see if it's
+working.  (That'll be non-trivial.  Just because we hit PAGE_CLEAN: here
+doesn't necessarily mean that the page will be reclaimed).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
