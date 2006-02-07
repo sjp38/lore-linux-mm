@@ -1,328 +1,171 @@
-Date: Mon, 6 Feb 2006 16:38:42 -0800
-From: Andrew Morton <akpm@osdl.org>
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: implement swap prefetching
-Message-Id: <20060206163842.7ff70c49.akpm@osdl.org>
-In-Reply-To: <200602071028.30721.kernel@kolivas.org>
-References: <200602071028.30721.kernel@kolivas.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Tue, 7 Feb 2006 12:29:25 +1100
+References: <200602071028.30721.kernel@kolivas.org> <20060206163842.7ff70c49.akpm@osdl.org>
+In-Reply-To: <20060206163842.7ff70c49.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200602071229.25793.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-Con Kolivas <kernel@kolivas.org> wrote:
+On Tue, 7 Feb 2006 11:38 am, Andrew Morton wrote:
+> Con Kolivas <kernel@kolivas.org> wrote:
+> > After you removed it from -mm there were some people that described
+> > the benefits it afforded their workloads. -mm being ever so slightly
+> > quieter at the moment please reconsider.
 >
-> Andrew et al
-> 
-> I'm resubmitting the swap prefetching patch for inclusion in -mm and hopefully
-> mainline.
+> I wish I could convince myself this is sufficiently beneficial..
+>
+> I've been running 2.6.15-rc2-mm2 on my main workstation (x86, 2G) since
+> whenever.  (Am lazy, haven't gotten around to upgrading that machine).  It
+> has swap prefetch.
 
-Resubmitting is good, thanks.
+Tons of ram, no swapping maybe?
 
-> After you removed it from -mm there were some people that described
-> the benefits it afforded their workloads. -mm being ever so slightly quieter
-> at the moment please reconsider.
-> 
+> I can't say I noticed any difference, although I did turn it off in /proc a
+> few reboots ago because it was irritating me for some reason which I forget
+> (sorry).
 
-I wish I could convince myself this is sufficiently beneficial..
+It could be the intermittent way it was actually doing any prefetching. It 
+ticks the drive over every second. I'll change this. 
 
-I've been running 2.6.15-rc2-mm2 on my main workstation (x86, 2G) since
-whenever.  (Am lazy, haven't gotten around to upgrading that machine).  It
-has swap prefetch.
+> One thing about 2.6.15-rc2-mm2 is that the `so' and `si' columns in
+> `vmstat' always read zero.  I don't know whether that bug is due to the
+> prefetch patch or not.
 
-I can't say I noticed any difference, although I did turn it off in /proc a
-few reboots ago because it was irritating me for some reason which I forget
-(sorry).
+so and si work fine here and are the main way I watch if it has started 
+prefetching.
 
-One thing about 2.6.15-rc2-mm2 is that the `so' and `si' columns in
-`vmstat' always read zero.  I don't know whether that bug is due to the
-prefetch patch or not.
+>
+> > The amount prefetched in each group is configurable via the tunable in
+> > /proc/sys/vm/swap_prefetch. This is set to a value based on memory size.
+> > When laptop_mode is enabled it prefetches in ten times larger blocks to
+> > minimise the time spent reading.
+>
+> That's incomprehensible, sorry.
+>
+> I think it'd be much clearer if the thing was called swap_prefetch_kbytes
+> or swap_prefetch_mbytes or (worse) swap_prefetch_pages - putting the units
+> in the name really helps clarify things.
+>
+> And if such a change is made, the internal variable should also be renamed.
+>  Right now it's "swap_prefetch", which sounds like a boolean.
 
-> 
-> The amount prefetched in each group is configurable via the tunable in
-> /proc/sys/vm/swap_prefetch. This is set to a value based on memory size. When
-> laptop_mode is enabled it prefetches in ten times larger blocks to minimise
-> the time spent reading.
+I might just change it to a boolean and be done with.
 
-That's incomprehensible, sorry.
+>
+> > +swap_prefetch
+> > +
+> > +This is the amount of data prefetched per prefetching interval when
+> > +swap prefetching is compiled in. The value means multiples of 128K,
+> > +except when laptop_mode is enabled and then it is ten times larger.
+> > +Setting it to 0 disables prefetching entirely.
+>
+> What does "ten times larger" mean?  If laptop_mode, this thing is in units
+> of 1280 kbytes and if !laptop_mode it's in units of 128 kbytes?
+>
+> If so (or if not), this tunable is quite obscure and hard-to-understand.
+> Can you find a way to make this more user-friendly?
 
-I think it'd be much clearer if the thing was called swap_prefetch_kbytes
-or swap_prefetch_mbytes or (worse) swap_prefetch_pages - putting the units in the
-name really helps clarify things.
+Changing it to on or off should fix that. I'll blow the idea that you can set 
+the amount to prefetch, and I'll just change it to - on: prefetch till ram is 
+sufficiently full or we run out of pages to prefetch.
 
-And if such a change is made, the internal variable should also be renamed.
- Right now it's "swap_prefetch", which sounds like a boolean.
+[ack snipped comments]
 
-> +swap_prefetch
-> +
-> +This is the amount of data prefetched per prefetching interval when
-> +swap prefetching is compiled in. The value means multiples of 128K,
-> +except when laptop_mode is enabled and then it is ten times larger.
-> +Setting it to 0 disables prefetching entirely.
+> > +/* Last total free pages */
+> > +static unsigned long last_free = 0;
+> > +static unsigned long temp_free = 0;
+>
+> Unneeded initialisation.
 
-What does "ten times larger" mean?  If laptop_mode, this thing is in units
-of 1280 kbytes and if !laptop_mode it's in units of 128 kbytes?
+Very first use of both of these variables depends on them being initialised.
 
-If so (or if not), this tunable is quite obscure and hard-to-understand. 
-Can you find a way to make this more user-friendly?
+> > +	if (unlikely(!spin_trylock(&swapped.lock)))
+> > +		goto out;
+>
+> hm, spin_trylock() should internally do unlikely(), but it doesn't.  (It's
+> a bit of a mess, too).
 
-> +/* only used by prefetch externally */
-> +/*	mm/swap_prefetch.c */
-> +extern void prepare_prefetch(void);
-> +extern void add_to_swapped_list(unsigned long index);
-> +extern void remove_from_swapped_list(unsigned long index);
-> +extern void delay_prefetch(void);
+Good point. Perhaps I should submit a separate patch for this instead.
 
-I'd suggest that "prefetch" is too generic a term.  We prefetch lots of
-things in the kernel.  Please rename all globally-visible identifiers with
-s/prefetch/swap_prefetch/.
+[ack other snipped points]
 
+> > +		/* Select the zone with the most free ram preferring high */
+> > +		if ((free > most_free && (!high_zone(zone) || high_zone(z))) ||
+> > +			(!high_zone(zone) && high_zone(z))) {
+> > +				most_free = free;
+> > +				zone = z;
+> > +		}
+> > +	}
+>
+> <stares at the above expression for three minutes>
+>
+> I think it'll always select ZONE_HIGHMEM no matter what.  Users of 1G x86
+> boxes not happy.
 
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux-2.6.16-rc2-ck1/mm/swap_prefetch.c	2006-02-04 18:38:24.000000000 +1100
-> @@ -0,0 +1,431 @@
-> +/*
-> + * linux/mm/swap_prefetch.c
-> + *
-> + * Copyright (C) 2005 Con Kolivas
-> + *
-> + * Written by Con Kolivas <kernel@kolivas.org>
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License version 2 as
-> + * published by the Free Software Foundation.
-> + */
-> +
-> +#include <linux/fs.h>
-> +#include <linux/swap.h>
-> +#include <linux/ioprio.h>
-> +#include <linux/kthread.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/syscalls.h>
-> +#include <linux/writeback.h>
-> +
-> +/* Time to delay prefetching if vm is busy or prefetching unsuccessful */
-> +#define PREFETCH_DELAY	(HZ * 5)
-> +/* Time between attempting prefetching when vm is idle */
-> +#define PREFETCH_INTERVAL (HZ)
-> +
-> +/* sysctl - how many SWAP_CLUSTER_MAX pages to prefetch at a time */
-> +int swap_prefetch __read_mostly;
-> +
-> +struct swapped_root {
-> +	unsigned long		busy;		/* vm busy */
-> +	spinlock_t		lock;		/* protects all data */
-> +	struct list_head	list;		/* MRU list of swapped pages */
-> +	struct radix_tree_root	swap_tree;	/* Lookup tree of pages */
-> +	unsigned int		count;		/* Number of entries */
-> +	unsigned int		maxcount;	/* Maximum entries allowed */
-> +	kmem_cache_t		*cache;
-						/* Of struct swapped_entry */
-> +};
+Rethink in order..
 
-> +struct swapped_entry {
-> +	swp_entry_t		swp_entry;
-> +	struct list_head	swapped_list;
-> +};
-> +
-> +static struct swapped_root swapped = {
-> +	.busy 		= 0,
-> +	.lock		= SPIN_LOCK_UNLOCKED,
-> +	.list  		= LIST_HEAD_INIT(swapped.list),
-> +	.swap_tree	= RADIX_TREE_INIT(GFP_ATOMIC),
-> +	.count 		= 0,
-> +};
+> > +static inline unsigned long prefetch_pages(void)
+> > +{
+> > +	return (SWAP_CLUSTER_MAX * swap_prefetch * (1 + 9 * !!laptop_mode));
+> > +}
+>
+> I don't think this should be done in-kernel.  There's a nice script to
+> start and stop laptop mode.  We can make this decision in that script.
 
-Description of `busy' and `count'?
+Will be unnecessary as I'm blowing away the idea of scaling the amount of 
+pages to prefetch.
 
-> +static task_t *kprefetchd_task;
-> +
-> +/* Max mapped we will prefetch to */
-> +static unsigned long mapped_limit __read_mostly;
-> +/* Last total free pages */
-> +static unsigned long last_free = 0;
-> +static unsigned long temp_free = 0;
+> > +	if (last_free) {
+> > +		if (temp_free + SWAP_CLUSTER_MAX < last_free) {
+> > +			last_free = temp_free;
+> > +			goto out;
+> > +		}
+> > +	} else
+> > +		last_free = temp_free;
+>
+> What is the actual threshold rate here?
+> SWAP_CLUSTER_MAX/(how fast your CPU is)?  Seems a bit vague?
 
-Unneeded initialisation.
+temp_free is the total amount of free pages in all zones at the moment. 
 
-> +
-> +/*
-> + * Accounting is sloppy on purpose. As adding and removing entries from the
-> + * list happens during swapping in and out we don't want to be spinning on
-> + * locks. It is cheaper to just miss adding an entry since having a reference
-> + * to every entry is not critical.
-> + */
-> +void add_to_swapped_list(unsigned long index)
-> +{
-> +	struct swapped_entry *entry;
-> +	int error;
-> +
-> +	if (unlikely(!spin_trylock(&swapped.lock)))
-> +		goto out;
+If SWAP_CLUSTER_MAX pages have been allocated since we last called 
+prefetch_suitable it returns that prefetching is unsuitable.
 
-hm, spin_trylock() should internally do unlikely(), but it doesn't.  (It's
-a bit of a mess, too).
+> > +	get_page_state(&ps);
+>
+> get_page_state() can be super-expensive.  How frequently is this called?
 
-> +	if (swapped.count >= swapped.maxcount) {
+It will call this only if the system is very idle for at least 5 seconds. 
+However once it starts doing the actual prefetching it calls it regularly 
+when every page is prefetched, but only if the system remains idle. If 
+there's pretty much anything else going on it won't hit this.
 
-		/*
-		 * <comment about LRU>
-		 */
-> +		entry = list_entry(swapped.list.next,
-> +			struct swapped_entry, swapped_list);
-> +		radix_tree_delete(&swapped.swap_tree, entry->swp_entry.val);
-> +		list_del(&entry->swapped_list);
-> +		swapped.count--;
-> +	} else {
-> +		entry = kmem_cache_alloc(swapped.cache, GFP_ATOMIC);
-> +		if (unlikely(!entry))
-> +			/* bad, can't allocate more mem */
-> +			goto out_locked;
-> +	}
-> +
-> +	entry->swp_entry.val = index;
-> +
-> +	error = radix_tree_preload(GFP_ATOMIC);
+> > +		case TRICKLE_SUCCESS:
+> > +			last_free = temp_free;
+>
+> This `last_free' thing is really confusing.  It's central to the algorithms
+> yet its name is largely meaningless.  last_free *what*?  It seems to mean
+> "total number of free pages on the last prefetching pass", yes?  Wanna
+> think of a better name and a better comment for it?
 
-I suspect we don't need to preload here.  We can handle radix_tree_insert()
-failure, so just go ahead and do it.
+Yes that's what it means. I'll have a renaming rethink and spray more comments 
+around.
 
-> +static inline int high_zone(struct zone *zone)
-> +{
-> +	if (zone == NULL)
-> +		return 0;
-> +	return is_highmem(zone);
-> +}
-> +
-> +/*
-> + * Find the zone with the most free pages, recheck the watermarks and
-> + * then directly allocate the ram. We don't want prefetch to use
-> + * __alloc_pages and go calling on reclaim.
-> + */
-> +static struct page *prefetch_get_page(void)
-> +{
-> +	struct zone *zone = NULL, *z;
-> +	struct page *page = NULL;
-> +	struct zonelist *zonelist;
-> +	long most_free = 0;
-> +
-> +	for_each_zone(z) {
-> +		long free;
-> +
-> +		if (z->present_pages == 0)
-> +			continue;
-> +
-> +		/* We don't prefetch into DMA */
-> +		if (zone_idx(z) == ZONE_DMA)
-> +			continue;
-> +
-> +		free = z->free_pages;
-> +		/* Select the zone with the most free ram preferring high */
-> +		if ((free > most_free && (!high_zone(zone) || high_zone(z))) ||
-> +			(!high_zone(zone) && high_zone(z))) {
-> +				most_free = free;
-> +				zone = z;
-> +		}
-> +	}
+Thanks very much for your patch reviewing and comments!
 
-<stares at the above expression for three minutes>
+I'll rework it, thrash it around a bit here and resubmit.
 
-I think it'll always select ZONE_HIGHMEM no matter what.  Users of 1G x86
-boxes not happy.
-
-> +/*
-> + * How many pages to prefetch at a time. We prefetch SWAP_CLUSTER_MAX *
-> + * swap_prefetch per PREFETCH_INTERVAL, but prefetch ten times as much at a
-> + * time in laptop_mode to minimise the time we keep the disk spinning.
-> + */
-> +static inline unsigned long prefetch_pages(void)
-> +{
-> +	return (SWAP_CLUSTER_MAX * swap_prefetch * (1 + 9 * !!laptop_mode));
-> +}
-
-I don't think this should be done in-kernel.  There's a nice script to
-start and stop laptop mode.  We can make this decision in that script.
-
-> +/*
-> + * We want to be absolutely certain it's ok to start prefetching.
-> + */
-> +static int prefetch_suitable(void)
-> +{
-> +	struct page_state ps;
-> +	unsigned long limit;
-> +	struct zone *z;
-> +	int ret = 0;
-> +
-> +	/* Purposefully racy and might return false positive which is ok */
-> +	if (__test_and_clear_bit(0, &swapped.busy))
-> +		goto out;
-> +
-> +	temp_free = 0;
-> +	/*
-> +	 * Have some hysteresis between where page reclaiming and prefetching
-> +	 * will occur to prevent ping-ponging between them.
-> +	 */
-> +	for_each_zone(z) {
-> +		unsigned long free;
-> +
-> +		if (z->present_pages == 0)
-> +			continue;
-> +		free = z->free_pages;
-> +		if (z->pages_high * 3 > free)
-> +			goto out;
-> +		temp_free += free;
-> +	}
-> +
-> +	/*
-> +	 * We check to see that pages are not being allocated elsewhere
-> +	 * at any significant rate implying any degree of memory pressure
-> +	 * (eg during file reads)
-> +	 */
-> +	if (last_free) {
-> +		if (temp_free + SWAP_CLUSTER_MAX < last_free) {
-> +			last_free = temp_free;
-> +			goto out;
-> +		}
-> +	} else
-> +		last_free = temp_free;
-
-What is the actual threshold rate here?
-SWAP_CLUSTER_MAX/(how fast your CPU is)?  Seems a bit vague?
-
-> +	get_page_state(&ps);
-
-get_page_state() can be super-expensive.  How frequently is this called?
-
-> +
-> +static int kprefetchd(void *__unused)
-> +{
-> +	set_user_nice(current, 19);
-> +	/* Set ioprio to lowest if supported by i/o scheduler */
-> +	sys_ioprio_set(IOPRIO_WHO_PROCESS, 0, IOPRIO_CLASS_IDLE);
-> +
-> +	do {
-> +		enum trickle_return prefetched;
-> +
-> +		try_to_freeze();
-> +
-> +		/*
-> +		 * TRICKLE_FAILED implies no entries left - we do not schedule
-> +		 * a wakeup, and further delay the next one.
-> +		 */
-> +		prefetched = trickle_swap();
-> +		switch (prefetched) {
-> +		case TRICKLE_SUCCESS:
-> +			last_free = temp_free;
-
-This `last_free' thing is really confusing.  It's central to the algorithms
-yet its name is largely meaningless.  last_free *what*?  It seems to mean
-"total number of free pages on the last prefetching pass", yes?  Wanna
-think of a better name and a better comment for it?
-
+Cheers,
+Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
