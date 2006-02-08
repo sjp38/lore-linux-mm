@@ -1,51 +1,76 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: implement swap prefetching
-Date: Wed, 8 Feb 2006 16:33:11 +1100
-References: <200602071028.30721.kernel@kolivas.org> <20060207204655.f1c69875.pj@sgi.com> <200602081606.19656.kernel@kolivas.org>
-In-Reply-To: <200602081606.19656.kernel@kolivas.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: [RFC] Removing page->flags
+From: Magnus Damm <magnus@valinux.co.jp>
+Content-Type: text/plain
+Date: Wed, 08 Feb 2006 15:46:23 +0900
+Message-Id: <1139381183.22509.186.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602081633.12072.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, ck@vds.kolivas.org
+To: linux-mm@kvack.org
+Cc: Magnus Damm <damm@opensource.se>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Feb 2006 04:06 pm, Con Kolivas wrote:
-> On Wed, 8 Feb 2006 03:46 pm, Paul Jackson wrote:
-> > Con, responding to Nick:
-> > > > It introduces global cacheline bouncing in pagecache allocation and
-> > > > removal and page reclaim paths, also low watermark failure is quite
-> > > > common in normal operation, so that is another global cacheline write
-> > > > in page allocation path.
-> > >
-> > > None of these issues is going to remotely the target audience. If the
-> > > issue is how scalable such a change can be then I cannot advocate
-> > > making the code smart and complex enough to be numa and cpuset aware..
-> > > but then that's never going to be the target audience. It affects a
-> > > particular class of user which happens to be quite a large population
-> > > not affected by complex memory hardware.
-> >
-> > How about only moving memory back to the Memory Node (zone) that it
-> > came from?  And providing some call that Christoph Lameters migration
-> > code can call, to disable or fix this up, so you don't end up bringing
-> > back pages on their pre-migration nodes?
->
-> Sounds good, and this is what I was hoping to be able to do; first I need
-> to see the best time and place to get this information (and learn some more
-> about the code).
+[RFC] Removing page-flags
 
-Actually it's looking an awful lot like I should just use one thread per pgdat 
-and have per node data. Given that, I should probably just make this a task 
-for kswapd since that is what they already are - and the name isn't wrong 
-either.
+Removing page->flags might not be the right way to put this idea, but it
+sums it up pretty good IMO. The idea is to save memory for smaller
+machines and also improve scalability for large SMP systems. Maybe too
+much overhead is introduced, hopefully someone of you can tell.
 
-Cheers,
-Con
+Today each page->flags contain two types of information:
+A) 21 bits defined in linux/page-flags.h
+B) Zone, node and sparsemem section bit fields, covered in linux/mm.h
+
+On smaller systems (like my laptop), type B is only used to determine
+which zone it belongs to using any given struct page. At least 8 bits
+per struct page are unused in that case.
+
+Large NUMA systems use type B more efficiently, but the fact that type A
+contains a mix of bits might be suboptimal. Especially since some bits
+may require atomic operations while others are already protected and
+doesn't require atomicy. The fact that the bits share the same word
+forces us to use atomic-only operation, which may result in unnecessary
+cache line bouncing.
+
+Moving type A bits:
+
+Instead of keeping the bits together, we spread them out and store a
+pointer to them from pg_data_t.
+
+To be more exact, pg_data_t is extended to include an array of pointers,
+one pointer per bit defined in linux/page-flags.h. Today that would be
+21 pointers. Each pointer is pointing to a bitmap, and the bitmap
+contains one bit per page in the node. The bitmap should be indexed
+using (pfn - node_start_pfn). Each one of these (21) bitmaps may be
+accessed using atomic or non-atomic operations, all depending on how the
+flag is used. This hopefully improves scalability.
+
+Removing type B bits:
+
+Instead of using the highest bits of page->flags to locate zones, nodes
+or sparsemem section, let's remove them and locate them using alignment!
+
+To locate which zone, node and sparsemem section a page belongs to, just
+use struct page (source_page) and aligment! The page that contains the
+specific struct page (and also contains other parts of mem_map), it's
+struct page is located using something like this:
+
+  memmap_page = virt_to_page(source_page)
+
+This memmap_page should be unused today. Maybe it is reserved. Anyway,
+memmap_page could be used to do all sorts of tricks, like misusing
+mapping to point to the zone, index to point to the sparsemem section,
+and while at it why not use lru.next to point to the node. One drawback
+with this idea is that it adds some extra limitations to the sizes of
+zones and sparsemem sections. One example is that a DMA zone of 4096
+pages works very well, but 4097 pages might force a certain page
+containing a part of mem_map to point to two different zones which of
+course does not work at all.
+
+Much work, no gain? Comments?
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
