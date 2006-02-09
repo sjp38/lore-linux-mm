@@ -1,75 +1,35 @@
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Subject: Re: [PATCH] Dynamically allocated pageflags
-Date: Thu, 9 Feb 2006 09:43:21 +1000
-References: <200602022111.32930.ncunningham@cyclades.com> <200602021431.30194.ak@suse.de>
-In-Reply-To: <200602021431.30194.ak@suse.de>
+Message-ID: <43EAA0F4.2060208@jp.fujitsu.com>
+Date: Thu, 09 Feb 2006 10:55:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart1322261.PFn1ScY5Cy";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Subject: Re: [RFC] Removing page->flags
+References: <1139381183.22509.186.camel@localhost>
+In-Reply-To: <1139381183.22509.186.camel@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200602090943.25550.ncunningham@cyclades.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Magnus Damm <magnus@valinux.co.jp>
+Cc: linux-mm@kvack.org, Magnus Damm <damm@opensource.se>
 List-ID: <linux-mm.kvack.org>
 
---nextPart1322261.PFn1ScY5Cy
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Magnus Damm wrote:
+> [RFC] Removing page-flags
+> 
+> Moving type A bits:
+> 
+> Instead of keeping the bits together, we spread them out and store a
+> pointer to them from pg_data_t.
+> 
+This will annoy people who has a job to look into crash-dump's vmcore..like me ;)
+so, I don't like this idea.
 
-Hi.
+BTW, did you see Nigel's dynamic page-flags idea ?
+I think temporal page-flags can be replaced by some page tracking
+infrastructure.
 
-On Thursday 02 February 2006 23:31, Andi Kleen wrote:
-> On Thursday 02 February 2006 12:11, Nigel Cunningham wrote:
-> > Hi everyone.
-> >=20
-> > This is my latest revision of the dynamically allocated pageflags patch.
-> >=20
-> > The patch is useful for kernel space applications that sometimes need t=
-o flag
-> > pages for some purpose, but don't otherwise need the retain the state. =
-A prime
-> > example is suspend-to-disk, which needs to flag pages as unsaveable, al=
-located
-> > by suspend-to-disk and the like while it is working, but doesn't need to
-> > retain any of this state between cycles.
->=20
-> It looks like total overkill for a simple problem to me. And is there rea=
-lly
-> any other user of this other than swsusp?
+-- Kame
 
-Sorry for the slow response. I switched email clients and gained a bogus
-filter along the way (entirely my fault, of course).
-
-As Dave said, he might make use of them too. I use about 5 or 6 of these,
-depending upon exactly how Suspend2 is configured.
-
-In the meanwhile, AKPM gave me a suggestion for a better solution
-(radix-trees). My algorithms & data-structures course was 14 years ago,
-so I'll go dust off Kingston (IIRC) and learn what he's talking about again=
- :)
-
-Thanks for the feedback and regards,
-
-Nigel
-
---nextPart1322261.PFn1ScY5Cy
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
-
-iD8DBQBD6oIdN0y+n1M3mo0RAlEcAJ90Z50N05zRpayBvEN8kigs1ctAGgCgn0dv
-EaIQmZfFLw0FLtNvlO0u1/Q=
-=XGBJ
------END PGP SIGNATURE-----
-
---nextPart1322261.PFn1ScY5Cy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
