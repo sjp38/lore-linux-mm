@@ -1,73 +1,38 @@
-Received: by uproxy.gmail.com with SMTP id m3so35030uge
-        for <linux-mm@kvack.org>; Wed, 08 Feb 2006 19:38:43 -0800 (PST)
-Message-ID: <aec7e5c30602081938w1d593309h5422abcef597f4bf@mail.gmail.com>
-Date: Thu, 9 Feb 2006 12:38:43 +0900
-From: Magnus Damm <magnus.damm@gmail.com>
-Subject: Re: [RFC] Removing page->flags
-In-Reply-To: <43EAB395.6000603@jp.fujitsu.com>
+Message-ID: <43EABC4D.7000900@jp.fujitsu.com>
+Date: Thu, 09 Feb 2006 12:51:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <1139381183.22509.186.camel@localhost>
-	 <43EAA0F4.2060208@jp.fujitsu.com>
-	 <aec7e5c30602081857t65e58eb7l58299dcde36e6949@mail.gmail.com>
-	 <43EAB395.6000603@jp.fujitsu.com>
+Subject: Re: [RFC] Removing page->flags
+References: <1139381183.22509.186.camel@localhost>	 <43EAA0F4.2060208@jp.fujitsu.com>	 <aec7e5c30602081857t65e58eb7l58299dcde36e6949@mail.gmail.com>	 <43EAB395.6000603@jp.fujitsu.com> <aec7e5c30602081938w1d593309h5422abcef597f4bf@mail.gmail.com>
+In-Reply-To: <aec7e5c30602081938w1d593309h5422abcef597f4bf@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Magnus Damm <magnus.damm@gmail.com>
 Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, Magnus Damm <damm@opensource.se>
 List-ID: <linux-mm.kvack.org>
 
-On 2/9/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Magnus Damm wrote:
-> > Hi Kamezawa-san,
-> >
-> > On 2/9/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >> Magnus Damm wrote:
-> >>> [RFC] Removing page-flags
-> >>>
-> >>> Moving type A bits:
-> >>>
-> >>> Instead of keeping the bits together, we spread them out and store a
-> >>> pointer to them from pg_data_t.
-> >>>
-> >> This will annoy people who has a job to look into crash-dump's vmcore..like me ;)
-> >> so, I don't like this idea.
-> >
-> > Hehe, gotcha. =) I also wonder how well it would work with your zone patches.
-> >
-> My layout-free-zone patches are not affected by this if you use pgdat/section to
-> preserve page-flags.
-
-Ok, good.
-
-> To be honest, I'd like to do this
-> ==
+Magnus Damm wrote:
+> With my proposal (Removing type B bits), if you can guarantee that all
+> your zones have a start address and a size that is aligned to (1 <<
+> (PAGE_SHIFT * 2)), then the following code should be possible:
+> 
 > struct zone *page_zone(struct page *page)
 > {
->         return page->zone;
+>   struct page *parent = virt_to_page(page);
+> 
+>   return (struct zone *)parent->mapping;
 > }
-> ==
-> But this increases size of memmap awfully ;( and I can't.
-> Current zone-indexing in page-flags is well saving memory space, I think.
+> 
 
-With my proposal (Removing type B bits), if you can guarantee that all
-your zones have a start address and a size that is aligned to (1 <<
-(PAGE_SHIFT * 2)), then the following code should be possible:
+I think "Why do this" is important. Just for increasing space of page->flags
+is not attractive to me. And I think your proposal will adds a extra limitation
+to memmap and page<->zone linkage.
+IMHO, it will adds another complexity to the kernel.
 
-struct zone *page_zone(struct page *page)
-{
-  struct page *parent = virt_to_page(page);
+-- Kame
 
-  return (struct zone *)parent->mapping;
-}
-
-This assumes that the first entry in mem_map is aligned to PAGE_SIZE,
-and that some code has setup parent->mapping to point to the correct
-zone. =)
-
-/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
