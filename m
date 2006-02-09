@@ -1,29 +1,39 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: Implement Swap Prefetching v22
-Date: Fri, 10 Feb 2006 01:12:50 +1100
-References: <200602092339.49719.kernel@kolivas.org> <200602100047.09722.kernel@kolivas.org> <43EB4D5C.8030603@yahoo.com.au>
-In-Reply-To: <43EB4D5C.8030603@yahoo.com.au>
+Message-ID: <43EB4FD5.20107@yahoo.com.au>
+Date: Fri, 10 Feb 2006 01:21:09 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH] mm: Implement Swap Prefetching v22
+References: <200602092339.49719.kernel@kolivas.org> <43EB43B9.5040001@yahoo.com.au> <200602100047.09722.kernel@kolivas.org>
+In-Reply-To: <200602100047.09722.kernel@kolivas.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602100112.50793.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Con Kolivas <kernel@kolivas.org>
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 10 February 2006 01:10, Nick Piggin wrote:
-> Well at least you do.... Just to be sure, you did see my comments through
-> the code right?
+Con Kolivas wrote:
 
-Have put it on the (busy) todo list. Thanks again for your comments and 
-review.
+> I really don't want to go throwing out pagecache without some smart semantics 
+> and then swap in random stuff that could be crap I agree. The answer to this 
+> is for the vm itself to have an ageing algorithm like the clockpro stuff 
+> which does this in a smart way. It could certainly age away the updatedb 
+> wrinkles and leave some free ram - which would help/be helped by prefetching.
+> 
 
-Cheers,
-Con
+AFAIK clockpro will not leave free ram, will it?
+
+Getting a little hand-wavy; I don't think the updatedb problem needs to
+be fixed by a really fancy page reclaim algorithm (IMO, and that's not to
+say that a fancy reclaim algorithm wouldn't be nice for other reasons).
+Just small improvements here and there, and there will always be a tradeoff
+between throughput and interactive pagein latency so in the end it might
+need a tunable (hey there is one - maybe it needs to be improved)
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
