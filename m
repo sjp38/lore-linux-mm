@@ -1,45 +1,49 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k19HS2Oa019755
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2006 12:28:02 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k19HS2N6111386
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2006 12:28:02 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k19HS2lY022418
-	for <linux-mm@kvack.org>; Thu, 9 Feb 2006 12:28:02 -0500
-Subject: Re: [RFC] Removing page->flags
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <aec7e5c30602081850n772005bckf729683f446fb2a9@mail.gmail.com>
-References: <1139381183.22509.186.camel@localhost>
-	 <1139427478.9452.6.camel@localhost.localdomain>
-	 <aec7e5c30602081850n772005bckf729683f446fb2a9@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 09 Feb 2006 09:27:55 -0800
-Message-Id: <1139506075.9209.9.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Nikita Danilov <nikita@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <17387.33855.858274.530175@gargle.gargle.HOWL>
+Date: Thu, 9 Feb 2006 21:04:47 +0300
+Subject: Re: [PATCH] mm: Implement Swap Prefetching v22
+In-Reply-To: <43EB43B9.5040001@yahoo.com.au>
+References: <200602092339.49719.kernel@kolivas.org>
+	<43EB43B9.5040001@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, Magnus Damm <damm@opensource.se>, Andy Whitcroft <apw@shadowen.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-02-09 at 11:50 +0900, Magnus Damm wrote:
-> I realize that if struct page size is not a power of two we will end
-> up with struct page elements that cross a lot of page boundaries. But
-> is that really a problem? I thought we were safe if:
-> 
-> 1) struct page could be any size
-> 2) zones have to start and end at pfn:s that are a multiple of
-> PAGE_SIZE
-> 3) for sparsemem, the smallest section size is 1 << (PAGE_SIZE * 2).
+Nick Piggin writes:
 
-Yeah, I've thought through some scenarios and I can't think of any where
-it breaks unless the section size is really small, or a
-non-power-of-two.  But, I don't think it is as feasible for DISCONTIGMEM
-or normal FLATMEM configurations.  
+[...]
 
--- Dave
+ > > +/*
+ > > + * We check to see no part of the vm is busy. If it is this will interrupt
+ > > + * trickle_swap and wait another PREFETCH_DELAY. Purposefully racy.
+ > > + */
+ > > +inline void delay_swap_prefetch(void)
+ > > +{
+ > > +	__set_bit(0, &swapped.busy);
+ > > +}
+ > > +
+ > 
+ > Test this first so you don't bounce the cacheline around in page
+ > reclaim too much.
+
+Shouldn't we have special macros/inlines for this? Like, e.g.,
+
+static inline void __set_bit_weak(int nr, volatile unsigned long * addr)
+{
+        if (!__test_bit(nr, addr))
+                __set_bit(nr, addr);
+}
+
+? These test-then-set sequences start to proliferate throughout the code.
+
+[...]
+
+Nikita.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
