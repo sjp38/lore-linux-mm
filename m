@@ -1,49 +1,44 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17387.33855.858274.530175@gargle.gargle.HOWL>
-Date: Thu, 9 Feb 2006 21:04:47 +0300
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: Implement Swap Prefetching v22
-In-Reply-To: <43EB43B9.5040001@yahoo.com.au>
-References: <200602092339.49719.kernel@kolivas.org>
-	<43EB43B9.5040001@yahoo.com.au>
+Date: Fri, 10 Feb 2006 09:48:26 +1100
+References: <200602092339.49719.kernel@kolivas.org> <200602100047.09722.kernel@kolivas.org> <43EB4FD5.20107@yahoo.com.au>
+In-Reply-To: <43EB4FD5.20107@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200602100948.27601.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Paul Jackson <pj@sgi.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
+On Friday 10 February 2006 01:21, Nick Piggin wrote:
+> Con Kolivas wrote:
+> > I really don't want to go throwing out pagecache without some smart
+> > semantics and then swap in random stuff that could be crap I agree. The
+> > answer to this is for the vm itself to have an ageing algorithm like the
+> > clockpro stuff which does this in a smart way. It could certainly age
+> > away the updatedb wrinkles and leave some free ram - which would help/be
+> > helped by prefetching.
+>
+> AFAIK clockpro will not leave free ram, will it?
+>
+> Getting a little hand-wavy; I don't think the updatedb problem needs to
+> be fixed by a really fancy page reclaim algorithm (IMO, and that's not to
+> say that a fancy reclaim algorithm wouldn't be nice for other reasons).
+> Just small improvements here and there, and there will always be a tradeoff
+> between throughput and interactive pagein latency so in the end it might
+> need a tunable (hey there is one - maybe it needs to be improved)
 
-[...]
+Well I have a handful of patches for just that issue... However they all fall 
+into the "it's too hard to prove to Andrew and Nick that they help" so I've 
+never bothered trying to push them to mainline.
 
- > > +/*
- > > + * We check to see no part of the vm is busy. If it is this will interrupt
- > > + * trickle_swap and wait another PREFETCH_DELAY. Purposefully racy.
- > > + */
- > > +inline void delay_swap_prefetch(void)
- > > +{
- > > +	__set_bit(0, &swapped.busy);
- > > +}
- > > +
- > 
- > Test this first so you don't bounce the cacheline around in page
- > reclaim too much.
-
-Shouldn't we have special macros/inlines for this? Like, e.g.,
-
-static inline void __set_bit_weak(int nr, volatile unsigned long * addr)
-{
-        if (!__test_bit(nr, addr))
-                __set_bit(nr, addr);
-}
-
-? These test-then-set sequences start to proliferate throughout the code.
-
-[...]
-
-Nikita.
+Cheers,
+Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
