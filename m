@@ -1,46 +1,94 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: Implement Swap Prefetching v23
-Date: Fri, 10 Feb 2006 16:37:57 +1100
-References: <200602101355.41421.kernel@kolivas.org> <200602101626.12824.kernel@kolivas.org> <43EC2572.7010100@yahoo.com.au>
-In-Reply-To: <43EC2572.7010100@yahoo.com.au>
+Date: Thu, 9 Feb 2006 21:39:25 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Minor updates for page migration
+Message-ID: <Pine.LNX.4.62.0602092134290.13398@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602101637.57821.kernel@kolivas.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, ck@vds.kolivas.org, pj@sgi.com, linux-kernel@vger.kernel.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 10 February 2006 16:32, Nick Piggin wrote:
-> Con Kolivas wrote:
-> > Just so it's clear I understand, is this what you (both) had in mind?
-> > Inline so it's not built for !CONFIG_SWAP_PREFETCH
->
-> Close...
+This adds some additional comments in order to help others figure out
+how exactly the code works. And fix a variable name.
 
-> > +inline void lru_cache_add_tail(struct page *page)
->
-> Is this inline going to do what you intend?
+Also swap_page does need to ignore all reference bits when unmapping
+a page. Otherwise we may have to repeatedly unmap a frequently touched
+page. So change the try_to_unmap parameter to 1.
 
-I don't care if it's actually inlined, but the subtleties of compilers is way 
-beyond me. All it positively achieves is silencing the unused function 
-warning so I had hoped it meant that function was not built. I tend to be 
-wrong though...
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
->      spin_lock_irq(&zone->lru_lock);
->
-> > +	add_page_to_inactive_list_tail(zone, page);
->
->      spin_unlock_irq(&zone->lru_lock);
-
-Thanks!
-
-Cheers,
-Con
+Index: linux-2.6.16-rc2-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.16-rc2-mm1.orig/mm/vmscan.c	2006-02-09 20:04:37.000000000 -0800
++++ linux-2.6.16-rc2-mm1/mm/vmscan.c	2006-02-09 21:32:24.000000000 -0800
+@@ -630,7 +630,7 @@ static int swap_page(struct page *page)
+ 	struct address_space *mapping = page_mapping(page);
+ 
+ 	if (page_mapped(page) && mapping)
+-		if (try_to_unmap(page, 0) != SWAP_SUCCESS)
++		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
+ 			goto unlock_retry;
+ 
+ 	if (PageDirty(page)) {
+@@ -837,7 +837,7 @@ EXPORT_SYMBOL(migrate_page);
+  * pages are swapped out.
+  *
+  * The function returns after 10 attempts or if no pages
+- * are movable anymore because t has become empty
++ * are movable anymore because to has become empty
+  * or no retryable pages exist anymore.
+  *
+  * Return: Number of pages not migrated when "to" ran empty.
+@@ -926,12 +926,21 @@ redo:
+ 			goto unlock_both;
+ 
+ 		if (mapping->a_ops->migratepage) {
++			/*
++			 * Most pages have a mapping and most filesystems
++			 * should provide a migration function. Anonymous
++			 * pages are part of swap space which also has its
++			 * own migration function. This is the most common
++			 * path for page migration.
++			 */
+ 			rc = mapping->a_ops->migratepage(newpage, page);
+ 			goto unlock_both;
+                 }
+ 
+ 		/*
+-		 * Trigger writeout if page is dirty
++		 * Default handling if a filesystem does not provide
++		 * a migration function. We can only migrate clean
++		 * pages so try to write out any dirty pages first.
+ 		 */
+ 		if (PageDirty(page)) {
+ 			switch (pageout(page, mapping)) {
+@@ -947,9 +956,10 @@ redo:
+ 				; /* try to migrate the page below */
+ 			}
+                 }
++
+ 		/*
+-		 * If we have no buffer or can release the buffer
+-		 * then do a simple migration.
++		 * Buffers are managed in a filesystem specific way.
++		 * We must have no buffers or drop them.
+ 		 */
+ 		if (!page_has_buffers(page) ||
+ 		    try_to_release_page(page, GFP_KERNEL)) {
+@@ -964,6 +974,11 @@ redo:
+ 		 * swap them out.
+ 		 */
+ 		if (pass > 4) {
++			/*
++			 * Persistently unable to drop buffers..... As a
++			 * measure of last resort we fall back to
++			 * swap_page().
++			 */
+ 			unlock_page(newpage);
+ 			newpage = NULL;
+ 			rc = swap_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
