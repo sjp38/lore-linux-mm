@@ -1,59 +1,30 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: Implement Swap Prefetching v23
-Date: Fri, 10 Feb 2006 16:48:01 +1100
-References: <200602101355.41421.kernel@kolivas.org> <200602101637.57821.kernel@kolivas.org> <43EC281B.2030000@yahoo.com.au>
-In-Reply-To: <43EC281B.2030000@yahoo.com.au>
+Date: Fri, 10 Feb 2006 10:03:49 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC] Removing page->flags
+In-Reply-To: <aec7e5c30602081835s8870713qa40a6cf88431cad1@mail.gmail.com>
+Message-ID: <Pine.LNX.4.63.0602101002430.25390@cuia.boston.redhat.com>
+References: <1139381183.22509.186.camel@localhost>  <43E9DBE8.8020900@yahoo.com.au>
+ <aec7e5c30602081835s8870713qa40a6cf88431cad1@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602101648.01923.kernel@kolivas.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, ck@vds.kolivas.org, pj@sgi.com, linux-kernel@vger.kernel.org
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Magnus Damm <magnus@valinux.co.jp>, linux-mm@kvack.org, Magnus Damm <damm@opensource.se>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 10 February 2006 16:43, Nick Piggin wrote:
-> Con Kolivas wrote:
-> > On Friday 10 February 2006 16:32, Nick Piggin wrote:
-> >>Con Kolivas wrote:
-> >>>Just so it's clear I understand, is this what you (both) had in mind?
-> >>>Inline so it's not built for !CONFIG_SWAP_PREFETCH
-> >>
-> >>Close...
-> >>
-> >>>+inline void lru_cache_add_tail(struct page *page)
-> >>
-> >>Is this inline going to do what you intend?
-> >
-> > I don't care if it's actually inlined, but the subtleties of compilers is
-> > way beyond me. All it positively achieves is silencing the unused
-> > function warning so I had hoped it meant that function was not built. I
-> > tend to be wrong though...
->
-> I don't think it can because it is not used in the same file.
-> You'd have to put it into the header file.
+On Thu, 9 Feb 2006, Magnus Damm wrote:
 
-Yes that was the stream of "unimplemented" errors we started seeing on new 
-gccs that couldn't inline and said so. The build process is mystical and 
-somewhat random in order but I guessed if it encounters this first it should 
-be able to inline it. However as I said I don't really need it inlined.
+> OTOH, maybe it is more likely that a certain struct page is in the cache 
+> if struct page would become smaller.
 
-> Not sure why it silences the unused function warning.
+No.  If the struct page is no longer equal to the size of
+a cache line, most of the struct page structures will end
+up straddling two cache lines, instead of each being on
+their own cache line.
 
-It probably just fools it... Will probably warn on newer gccs soon.
-
-> You didn't 
-> replace a 'static' with the inline? I don't think there is any
-> other way the compiler can know the function isn't used externally.
-
-Well I could always just put it in a header file under CONFIG_SWAP_PREFETCH.. 
-I was trying to do the swap.c thing that akpm suggested though.
-
-Cheers,
-Con
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
