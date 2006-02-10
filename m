@@ -1,41 +1,53 @@
 From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: Implement Swap Prefetching v22
-Date: Fri, 10 Feb 2006 09:48:26 +1100
-References: <200602092339.49719.kernel@kolivas.org> <200602100047.09722.kernel@kolivas.org> <43EB4FD5.20107@yahoo.com.au>
-In-Reply-To: <43EB4FD5.20107@yahoo.com.au>
+Date: Fri, 10 Feb 2006 11:08:46 +1100
+References: <200602092339.49719.kernel@kolivas.org> <43EB43B9.5040001@yahoo.com.au> <17387.33855.858274.530175@gargle.gargle.HOWL>
+In-Reply-To: <17387.33855.858274.530175@gargle.gargle.HOWL>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200602100948.27601.kernel@kolivas.org>
+Message-Id: <200602101108.47614.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, ck list <ck@vds.kolivas.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 10 February 2006 01:21, Nick Piggin wrote:
-> Con Kolivas wrote:
-> > I really don't want to go throwing out pagecache without some smart
-> > semantics and then swap in random stuff that could be crap I agree. The
-> > answer to this is for the vm itself to have an ageing algorithm like the
-> > clockpro stuff which does this in a smart way. It could certainly age
-> > away the updatedb wrinkles and leave some free ram - which would help/be
-> > helped by prefetching.
+On Friday 10 February 2006 05:04, Nikita Danilov wrote:
+> Nick Piggin writes:
 >
-> AFAIK clockpro will not leave free ram, will it?
+> [...]
 >
-> Getting a little hand-wavy; I don't think the updatedb problem needs to
-> be fixed by a really fancy page reclaim algorithm (IMO, and that's not to
-> say that a fancy reclaim algorithm wouldn't be nice for other reasons).
-> Just small improvements here and there, and there will always be a tradeoff
-> between throughput and interactive pagein latency so in the end it might
-> need a tunable (hey there is one - maybe it needs to be improved)
+>  > > +/*
+>  > > + * We check to see no part of the vm is busy. If it is this will
+>  > > interrupt + * trickle_swap and wait another PREFETCH_DELAY.
+>  > > Purposefully racy. + */
+>  > > +inline void delay_swap_prefetch(void)
+>  > > +{
+>  > > +	__set_bit(0, &swapped.busy);
+>  > > +}
+>  > > +
+>  >
+>  > Test this first so you don't bounce the cacheline around in page
+>  > reclaim too much.
+>
+> Shouldn't we have special macros/inlines for this? Like, e.g.,
+>
+> static inline void __set_bit_weak(int nr, volatile unsigned long * addr)
+> {
+>         if (!__test_bit(nr, addr))
+>                 __set_bit(nr, addr);
+> }
+>
+> ? These test-then-set sequences start to proliferate throughout the code.
 
-Well I have a handful of patches for just that issue... However they all fall 
-into the "it's too hard to prove to Andrew and Nick that they help" so I've 
-never bothered trying to push them to mainline.
+Maybe.
+
+There isn't actually a non-atomic __test_bit anyway, only a test_bit. The 
+non-atomic __test_and_set_bit already exists, but that sets the bit 
+regardless of what the bit was as far as I can tell.
 
 Cheers,
 Con
