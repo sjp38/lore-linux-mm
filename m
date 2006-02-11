@@ -1,31 +1,111 @@
-Date: Sat, 11 Feb 2006 13:27:17 -0800 (PST)
+Date: Sat, 11 Feb 2006 13:39:14 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Get rid of scan_control
-In-Reply-To: <20060211131324.63d49cff.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.62.0602111327001.24634@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0602092039230.13184@schroedinger.engr.sgi.com>
- <20060211045355.GA3318@dmt.cnet> <20060211013255.20832152.akpm@osdl.org>
- <Pine.LNX.4.62.0602111054520.24060@schroedinger.engr.sgi.com>
- <20060211131324.63d49cff.akpm@osdl.org>
+Subject: Skip reclaim_mapped determination if we do not swap
+Message-ID: <Pine.LNX.4.62.0602111335560.24685@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: marcelo.tosatti@cyclades.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 11 Feb 2006, Andrew Morton wrote:
+This puts the variables and the way to get to reclaim_mapped in one 
+block. And allows zone_reclaim or other things to skip the determination 
+(maybe this whole block of code does not belong into 
+refill_inactive_zone()?)
 
-> > Patch to fix the calling of page_referenced() follows. This is against 
-> > 2.6.16-rc2. We probably need another patch for current mm. In the case
-> > of VMSCAN_MAY_SWAP not set, we may just want to bypass the whole 
-> > calculation thing for reclaim_mapped.
-> > 
-> 
-> What's VMSCAN_MAY_SWAP?
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Heh. Its gone!
+Index: linux-2.6.16-rc2/mm/vmscan.c
+===================================================================
+--- linux-2.6.16-rc2.orig/mm/vmscan.c	2006-02-11 13:29:51.000000000 -0800
++++ linux-2.6.16-rc2/mm/vmscan.c	2006-02-11 13:31:15.000000000 -0800
+@@ -1180,9 +1180,43 @@ refill_inactive_zone(struct zone *zone, 
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
+-	long mapped_ratio;
+-	long distress;
+-	long swap_tendency;
++
++	if (sc->may_swap) {
++		long mapped_ratio;
++		long distress;
++		long swap_tendency;
++
++		/*
++		 * `distress' is a measure of how much trouble we're having reclaiming
++		 * pages.  0 -> no problems.  100 -> great trouble.
++		 */
++		distress = 100 >> zone->prev_priority;
++
++		/*
++		 * The point of this algorithm is to decide when to start reclaiming
++		 * mapped memory instead of just pagecache.  Work out how much memory
++		 * is mapped.
++		 */
++		mapped_ratio = (sc->nr_mapped * 100) / total_memory;
++
++		/*
++		 * Now decide how much we really want to unmap some pages.  The mapped
++		 * ratio is downgraded - just because there's a lot of mapped memory
++		 * doesn't necessarily mean that page reclaim isn't succeeding.
++		 *
++		 * The distress ratio is important - we don't want to start going oom.
++		 *
++		 * A 100% value of vm_swappiness overrides this algorithm altogether.
++		 */
++		swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
++
++		/*
++		 * Now use this metric to decide whether to start moving mapped memory
++		 * onto the inactive list.
++		 */
++		if (swap_tendency >= 100)
++			reclaim_mapped = 1;
++	}
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1192,37 +1226,6 @@ refill_inactive_zone(struct zone *zone, 
+ 	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+-	/*
+-	 * `distress' is a measure of how much trouble we're having reclaiming
+-	 * pages.  0 -> no problems.  100 -> great trouble.
+-	 */
+-	distress = 100 >> zone->prev_priority;
+-
+-	/*
+-	 * The point of this algorithm is to decide when to start reclaiming
+-	 * mapped memory instead of just pagecache.  Work out how much memory
+-	 * is mapped.
+-	 */
+-	mapped_ratio = (sc->nr_mapped * 100) / total_memory;
+-
+-	/*
+-	 * Now decide how much we really want to unmap some pages.  The mapped
+-	 * ratio is downgraded - just because there's a lot of mapped memory
+-	 * doesn't necessarily mean that page reclaim isn't succeeding.
+-	 *
+-	 * The distress ratio is important - we don't want to start going oom.
+-	 *
+-	 * A 100% value of vm_swappiness overrides this algorithm altogether.
+-	 */
+-	swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
+-
+-	/*
+-	 * Now use this metric to decide whether to start moving mapped memory
+-	 * onto the inactive list.
+-	 */
+-	if (swap_tendency >= 100 && sc->may_swap)
+-		reclaim_mapped = 1;
+-
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
