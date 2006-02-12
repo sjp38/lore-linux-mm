@@ -1,34 +1,66 @@
-Date: Sat, 11 Feb 2006 16:59:55 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Skip reclaim_mapped determination if we do not swap
-In-Reply-To: <20060211152905.6093258d.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.62.0602111658370.25379@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.62.0602111335560.24685@schroedinger.engr.sgi.com>
- <20060211135031.623fdef9.akpm@osdl.org> <Pine.LNX.4.62.0602111405340.24923@schroedinger.engr.sgi.com>
- <20060211152905.6093258d.akpm@osdl.org>
+Message-ID: <43EEAC93.3000803@yahoo.com.au>
+Date: Sun, 12 Feb 2006 14:33:39 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Get rid of scan_control
+References: <Pine.LNX.4.62.0602092039230.13184@schroedinger.engr.sgi.com>	<20060211045355.GA3318@dmt.cnet>	<20060211013255.20832152.akpm@osdl.org> <20060211014649.7cb3b9e2.akpm@osdl.org>
+In-Reply-To: <20060211014649.7cb3b9e2.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, marcelo.tosatti@cyclades.com
+Cc: marcelo.tosatti@cyclades.com, clameter@engr.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 11 Feb 2006, Andrew Morton wrote:
-
-> Christoph Lameter <clameter@engr.sgi.com> wrote:
-> >
-> > But should 
-> >  this piece of code really be there? Doesnt it belong ito shrink_zone() or 
-> >  even in try_to_free_pages() or balance_pgdat(). Shouldn't we pass 
-> >  reclaim_mapped as a parameter to refill_inactive_zone?
+Andrew Morton wrote:
+> Andrew Morton <akpm@osdl.org> wrote:
 > 
-> Well, it's only used in refill_inactive_zone().  Does it matter much where
-> it is?
+>>I found that scan_control wasn't
+>> really a success.  We had one bug due to failing to initialise something in
+>> it, and we're fiddling with fields all over the place.  It just seemed to
+>> obfuscate the code, make it harder to work with, harder to check that
+>> everything was correct.
+> 
 
-If it is repeatedly evaluated when reclaiming then it matters. It also 
-makes refill_inactive_zone() simpler if the statistical considerations are 
-in one place in shrink_zone().
+I agree with Marcelo, I prefer scan_control. I'm not sure if it was
+modelled on writeback_control or not, but it is certianly very different:
+writeback_control is spread over many files and subsystems. scan_control
+is vmscan local and is simply used to alleviate the passing of many
+values back and forth between vmscan functions.
+
+> 
+> I spose we could do this, which is a bit of an improvement.
+> 
+> But the problems do remain, really.  The one which creeps me out is looking
+> at a piece of code which does:
+> 
+> 
+> 	foo(&sc);
+> 	if (sc.bar ...)
+> 
+> and just not knowing whether foo() altered sc.bar.
+> 
+
+Luckily there are very limited call stacks which modify this stuff so it isn't
+too hard to keep all in your head at once after you start doing a bit of work
+in vmscan. That said, we could implement a commenting convention to help things.
+
+/*
+  * refill_inactive_list
+  * input:
+  * sc.nr_scan - specifies the number of ...
+  * sc.blah ...
+  *
+  * modifies:
+  * sc.nr_scan - blah blah
+  */
+
+?
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
