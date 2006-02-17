@@ -1,20 +1,31 @@
-Date: Thu, 16 Feb 2006 17:40:50 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
- list initialization
-In-Reply-To: <200602170223.34031.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com>
-References: <200602170223.34031.ak@suse.de>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback list initialization
+Date: Fri, 17 Feb 2006 02:46:02 +0100
+References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200602170246.03172.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-What happens if another node beyond higest_node comes online later?
-Or one node in between comes online?
+On Friday 17 February 2006 02:40, Christoph Lameter wrote:
+> What happens if another node beyond higest_node comes online later?
+> Or one node in between comes online?
+
+I don't know. Whoever implements node hotplug has to handle it.
+But I'm pretty sure the old code also didn't handle it, so it's not
+a regression.
+
+My primary interest is just to get all these Opterons booting again.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
