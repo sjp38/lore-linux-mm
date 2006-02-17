@@ -1,56 +1,43 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060217141812.7621.29547.sendpatchset@skynet.csn.ul.ie>
-In-Reply-To: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
-References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 7/7] Add documentation for extra boot parameters
-Date: Fri, 17 Feb 2006 14:18:12 +0000 (GMT)
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
+	list initialization
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <200602171315.45419.ak@suse.de>
+References: <200602170223.34031.ak@suse.de> <200602171058.33078.ak@suse.de>
+	 <20060217112324.GA31068@localhost>  <200602171315.45419.ak@suse.de>
+Content-Type: text/plain
+Date: Fri, 17 Feb 2006 09:34:13 -0500
+Message-Id: <1140186854.5219.7.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Andi Kleen <ak@suse.de>
+Cc: Bob Picco <bob.picco@hp.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Christoph Lameter <clameter@engr.sgi.com>, torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Once all patches are applied, two new command-line parameters exist -
-kernelcore and noeasyrclm. This patch adds the necessary documentation.
+On Fri, 2006-02-17 at 13:15 +0100, Andi Kleen wrote:
+> On Friday 17 February 2006 12:23, Bob Picco wrote:
+> 
+> > Yasunori thanks for mentioning memory less nodes for ia64.  This is my
+> > concern with the patch.
+> 
+> I very much doubt it worked before without this patch in 2.6.16-* (unless you have
+> the memory less nodes all at the end and not in the middle) 
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-107_hugetlb_use_easyrclm/Documentation/kernel-parameters.txt linux-2.6.16-rc3-mm1-108_docs/Documentation/kernel-parameters.txt
---- linux-2.6.16-rc3-mm1-107_hugetlb_use_easyrclm/Documentation/kernel-parameters.txt	2006-02-16 09:50:42.000000000 +0000
-+++ linux-2.6.16-rc3-mm1-108_docs/Documentation/kernel-parameters.txt	2006-02-17 09:45:49.000000000 +0000
-@@ -704,6 +704,16 @@ running once the system is up.
- 	js=		[HW,JOY] Analog joystick
- 			See Documentation/input/joystick.txt.
- 
-+	kernelcore=nn[KMG]	[KNL,IA-32,PPC] On the x86 and ppc64, this
-+			parameter specifies the amount of memory usable
-+			by the kernel and places the rest in an EasyRclm
-+			zone. The EasyRclm zone is used for the allocation
-+			of pages on behalf of a process and for HugeTLB
-+			pages. On ppc64, it is likely that memory sections
-+			on this zone can be offlined. Note that allocations
-+			like PTEs-from-HighMem still use the HighMem zone
-+			if it exists, and the Normal zone if it does not.
-+
- 	keepinitrd	[HW,ARM]
- 
- 	kstack=N	[IA-32,X86-64] Print N words from the kernel stack
-@@ -1006,6 +1016,16 @@ running once the system is up.
- 
- 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
- 
-+	noeasyrclm	[IA-32,PPC] If kernelcore= is specified, the default
-+			zone to add memory to for IA-32 and PPC is EasyRclm. If
-+			this is undesirable, noeasyrclm can be specified to
-+			force the adding of memory on IA-32 to ZONE_HIGHMEM
-+			and to ZONE_DMA on PPC. This is desirable when the
-+			EasyRclm zone is setup as a "soft" area for HugeTLB
-+			pages to be allocated from to give the chance for
-+			administrators to grow the reserved number of Huge
-+			pages when the system has been running for some time.
-+
- 	noexec		[IA-64]
- 
- 	noexec		[IA-32,X86-64]
+Yes, that is the case with HP NUMA platforms.  When configure with fully
+hardware interleaved memory, all of the real nodes, 0-n, show up as having
+no memory while containing all the cpus.  The memory shows up as a ficticious
+node n+1 with no cpus.  For completeness, I should mention that even when
+configured for "100% cell local memory", the platforms still have the 
+memory-only pseudo-node containing 512MB [on 4 node system, e.g.] of 
+interleaved memory--at physaddr 0, I believe.  
+
+Except for the ACPI slab corruption that Bjorn fixed recently, 2.6.16-rc*
+has successfully booted on these platforms.
+
+Lee
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
