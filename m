@@ -1,154 +1,155 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
-Subject: [PATCH 0/7] Reducing fragmentation using zones v5
-Date: Fri, 17 Feb 2006 14:15:52 +0000 (GMT)
+Message-Id: <20060217141612.7621.58291.sendpatchset@skynet.csn.ul.ie>
+In-Reply-To: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+Subject: [PATCH 1/7] Add __GFP_EASYRCLM flag and update callers
+Date: Fri, 17 Feb 2006 14:16:12 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Changelog since v4
-  o Move x86_64 from one patch to another
-  o Fix for oops bug on ppc64
+This creates a zone modifier __GFP_EASYRCLM and a set of GFP flags called
+GFP_RCLMUSER. The only difference between GFP_HIGHUSER and GFP_RCLMUSER is the
+zone that is used. Callers appropriate to use the ZONE_EASYRCLM are changed.
 
-Changelog since v3
-  o Minor bugs
-  o ppc64 can specify kernelcore
-  o Ability to disable use of ZONE_EASYRCLM at boot time
-  o HugeTLB uses ZONE_EASYRCLM
-  o Add drain-percpu caches for testing
-  o boot-parameter documentation added
-
-This is a zone-based approach to anti-fragmentation. This is posted in light
-of the discussions related to the list-based (sometimes dubbed as sub-zones)
-approach where the prevailing opinion was that zones were the answer. The
-patches have been tested based on linux-2.6.16-rc3-mm1 with x86 and two
-different ppc64 machines. It has also been just booted tested on x86_64. If
-there are no objections, I would like to these patches to spend some time
-in -mm. The patches also apply with offsets to 2.6.16-rc3.
-
-The usage scenario I set up to test out the patches is;
-
-1. Test machine 1: 4-way x86 machine with 1.5GiB physical RAM
-   Test machine 2: 4-way PPC64 machine with 4GiB physical RAM
-2. Boot with kernelcore=512MB . This gives the kernel 512MB to work with and
-   the rest is placed in ZONE_EASYRCLM. (see patch 3 for more comments about
-      the value of kernelcore)
-3. Benchmark kbuild, aim9 and high order allocations
-
-An alternative scenario has been tested that produces similar figures. The
-scenario is;
-
-1. Test machine: 4-way x86 machine with 1.5GiB physical RAM
-2. Boot with mem=512MB
-3. Hot-add the remaining memory
-4. Benchmark kbuild, aim9 and high order allocations
-
-The alternative scenario requires two more patches related to hot-adding on
-the x86. I can post them if people want to take a look or experiment with
-hot-add instead of using kernelcore= .
-
-Benchmark comparison between -mm+NoOOM tree and with the new zones on the
-x86. The tests are run in order with no reboots between the tests.  This is
-so that the system is in a used state when we try and allocate large pages.
-
-KBuild
-                               2.6.16-rc3-mm1-clean  2.6.16-rc3-mm1-zbuddy-v5
-Time taken to extract kernel:                    16                        14
-Time taken to build kernel:                    1110                      1110
-
-Comparable performance there. On ppc64, zbuddy was slightly faster as well.
-
-Aim9
-                 2.6.16-rc3-mm1-clean  2.6.16-rc3-mm1-zbuddy-v5
- 1 creat-clo            13381.10              13276.69     -104.41 -0.78% File Creations and Closes/second
- 2 page_test            121821.06             123350.55    1529.49  1.26% System Allocations & Pages/second
- 3 brk_test             597817.76             589136.95   -8680.81 -1.45% System Memory Allocations/second
- 4 jmp_test            4372237.96            4377790.74    5552.78  0.13% Non-local gotos/second
- 5 signal_test           84038.65              82755.75   -1282.90 -1.53% Signal Traps/second
- 6 exec_test                61.99                 62.21       0.22  0.35% Program Loads/second
- 7 fork_test              1178.82               1162.36     -16.46 -1.40% Task Creations/second
- 8 link_test              4801.10               4799.00      -2.10 -0.04% Link/Unlink Pairs/second
-
-Comparable performance again. On ppc64, almost all the microbenchmarks were
-within 0.2% of each other. The one exception was jmp_test but then I found
-that jmp_test results vary widely between runs on the same kernel on ppc64
-so I ignored it.
-
-HugeTLB Allocation Capability under load
-This test is different from older reports. Older reports used a kernel module
-to really try and allocate HugeTLB-sized pages which is artificial. This test
-uses only the proc interface to adjust nr_hugepages. The test is;
-
-  1. Build 7 kernels at the same time
-  2. Try and get HugeTLB pages
-  3. Stop the compiles, delete the trees and try and get HugeTLB pages
-  4. DD a file the size of physical memory, cat it to /dev/null and delete
-     it, try and get HugeTLB pages.
-
-The results for x86 were;
-
-                                  2.6.16-rc3-mm1-clean  2.6.16-rc3-mm1-zbuddy-v5
-During compile:                                      7                         7
-At rest before dd of large file:                    56                        60
-At rest after  dd of large file:                    79                        85
-
-These seem comparable, but it is only because the HighMem zone on the clean
-kernel is a similar size to the EasyRclm zone with zbuddy-v5. With PPC64,
-where there was a much larger difference, the results were;
-
-                                  2.6.16-rc3-mm1-clean  2.6.16-rc3-mm1-zbuddy-v5
-During compile:                                      0                         0
-At rest before dd of large file:                     0                       103
-At rest after  dd of large file:                     6                       154
-
-So, the zone can potentially make a massive difference to the availability
-of HugeTLB pages some systems. I am expecting a similar result on an x86
-with more physical RAM than my current test box.
-
-Using the kernel module to really stress the allocation of pages,
-there were even wider differences between the results with the zone-based
-anti-fragmentation kernel having a clear advantage. On ppc64, 191 huge pages
-were available at rest with zone-based anti-fragmentation in comparison to
-33 huge pages without it. On x86, the zone-based anti-fragmentation had
-only slightly more huge pages, but this again is because of the similar
-size of the HighMem on the clean kernel compared to the EasyRclm zone on
-the anti-fragmentation kernel.
-
-Bottom line, both kernels perform similarly on two different architectures but,
-when configured correctly, there can be massive difference to the availability
-of huge pages and the regions that can be hot-removed. When kernelcore is
-not configured at boot time, there is no measurable differences between
-the kernels.
-
-The final diffstat for the patches is;
- Documentation/kernel-parameters.txt |   20 ++++++++++++
- arch/i386/kernel/setup.c            |   49 ++++++++++++++++++++++++++++++-
- arch/i386/mm/init.c                 |    2 -
- arch/powerpc/mm/mem.c               |    2 -
- arch/powerpc/mm/numa.c              |   56 ++++++++++++++++++++++++++++++++++--
- arch/x86_64/mm/init.c               |    2 -
- fs/compat.c                         |    2 -
- fs/exec.c                           |    2 -
- fs/inode.c                          |    2 -
- include/asm-i386/page.h             |    3 +
- include/linux/gfp.h                 |    3 +
- include/linux/highmem.h             |    2 -
- include/linux/memory_hotplug.h      |    1 
- include/linux/mmzone.h              |   12 ++++---
- mm/hugetlb.c                        |    4 +-
- mm/memory.c                         |    4 +-
- mm/mempolicy.c                      |    2 -
- mm/page_alloc.c                     |   20 +++++++++---
- mm/shmem.c                          |    4 ++
- mm/swap_state.c                     |    2 -
- 20 files changed, 165 insertions(+), 29 deletions(-)
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/fs/compat.c linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/compat.c
+--- linux-2.6.16-rc3-mm1-clean/fs/compat.c	2006-02-13 00:27:25.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/compat.c	2006-02-17 09:41:14.000000000 +0000
+@@ -1397,7 +1397,7 @@ static int compat_copy_strings(int argc,
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_RCLMUSER);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/fs/exec.c linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/exec.c
+--- linux-2.6.16-rc3-mm1-clean/fs/exec.c	2006-02-16 09:50:43.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/exec.c	2006-02-17 09:41:14.000000000 +0000
+@@ -238,7 +238,7 @@ static int copy_strings(int argc, char _
+ 			page = bprm->page[i];
+ 			new = 0;
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_RCLMUSER);
+ 				bprm->page[i] = page;
+ 				if (!page) {
+ 					ret = -ENOMEM;
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/fs/inode.c linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/inode.c
+--- linux-2.6.16-rc3-mm1-clean/fs/inode.c	2006-02-16 09:50:43.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/fs/inode.c	2006-02-17 09:41:14.000000000 +0000
+@@ -147,7 +147,7 @@ static struct inode *alloc_inode(struct 
+ 		mapping->a_ops = &empty_aops;
+  		mapping->host = inode;
+ 		mapping->flags = 0;
+-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
++		mapping_set_gfp_mask(mapping, GFP_RCLMUSER);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
+ 
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/include/asm-i386/page.h linux-2.6.16-rc3-mm1-101_antifrag_flags/include/asm-i386/page.h
+--- linux-2.6.16-rc3-mm1-clean/include/asm-i386/page.h	2006-02-13 00:27:25.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/include/asm-i386/page.h	2006-02-17 09:41:14.000000000 +0000
+@@ -36,7 +36,8 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define alloc_zeroed_user_highpage(vma, vaddr) \
++	alloc_page_vma(GFP_RCLMUSER | __GFP_ZERO, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/include/linux/gfp.h linux-2.6.16-rc3-mm1-101_antifrag_flags/include/linux/gfp.h
+--- linux-2.6.16-rc3-mm1-clean/include/linux/gfp.h	2006-02-13 00:27:25.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/include/linux/gfp.h	2006-02-17 09:41:14.000000000 +0000
+@@ -21,6 +21,7 @@ struct vm_area_struct;
+ #else
+ #define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
+ #endif
++#define __GFP_EASYRCLM  ((__force gfp_t)0x08u)
+ 
+ /*
+  * Action modifiers - doesn't change the zoning
+@@ -65,6 +66,8 @@ struct vm_area_struct;
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+ 			 __GFP_HIGHMEM)
++#define GFP_RCLMUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
++			__GFP_EASYRCLM)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/include/linux/highmem.h linux-2.6.16-rc3-mm1-101_antifrag_flags/include/linux/highmem.h
+--- linux-2.6.16-rc3-mm1-clean/include/linux/highmem.h	2006-02-13 00:27:25.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/include/linux/highmem.h	2006-02-17 09:41:14.000000000 +0000
+@@ -47,7 +47,7 @@ static inline void clear_user_highpage(s
+ static inline struct page *
+ alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+ {
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
++	struct page *page = alloc_page_vma(GFP_RCLMUSER, vma, vaddr);
+ 
+ 	if (page)
+ 		clear_user_highpage(page, vaddr);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/mm/memory.c linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/memory.c
+--- linux-2.6.16-rc3-mm1-clean/mm/memory.c	2006-02-16 09:50:44.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/memory.c	2006-02-17 09:41:14.000000000 +0000
+@@ -1480,7 +1480,7 @@ gotten:
+ 		if (!new_page)
+ 			goto oom;
+ 	} else {
+-		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		new_page = alloc_page_vma(GFP_RCLMUSER, vma, address);
+ 		if (!new_page)
+ 			goto oom;
+ 		cow_user_page(new_page, old_page, address);
+@@ -2079,7 +2079,7 @@ retry:
+ 
+ 		if (unlikely(anon_vma_prepare(vma)))
+ 			goto oom;
+-		page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		page = alloc_page_vma(GFP_RCLMUSER, vma, address);
+ 		if (!page)
+ 			goto oom;
+ 		copy_user_highpage(page, new_page, address);
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/mm/shmem.c linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/shmem.c
+--- linux-2.6.16-rc3-mm1-clean/mm/shmem.c	2006-02-16 09:50:44.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/shmem.c	2006-02-17 09:41:14.000000000 +0000
+@@ -921,6 +921,8 @@ shmem_alloc_page(gfp_t gfp, struct shmem
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
+ 	pvma.vm_pgoff = idx;
+ 	pvma.vm_end = PAGE_SIZE;
++	if (gfp & __GFP_HIGHMEM)
++		gfp = (gfp & ~__GFP_HIGHMEM) | __GFP_EASYRCLM;
+ 	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
+ 	mpol_free(pvma.vm_policy);
+ 	return page;
+@@ -936,6 +938,8 @@ shmem_swapin(struct shmem_inode_info *in
+ static inline struct page *
+ shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
+ {
++	if (gfp & __GFP_HIGHMEM)
++		gfp = (gfp & ~__GFP_HIGHMEM) | __GFP_EASYRCLM;
+ 	return alloc_page(gfp | __GFP_ZERO);
+ }
+ #endif
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-clean/mm/swap_state.c linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/swap_state.c
+--- linux-2.6.16-rc3-mm1-clean/mm/swap_state.c	2006-02-13 00:27:25.000000000 +0000
++++ linux-2.6.16-rc3-mm1-101_antifrag_flags/mm/swap_state.c	2006-02-17 09:41:14.000000000 +0000
+@@ -334,7 +334,7 @@ struct page *read_swap_cache_async(swp_e
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
+-			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
++			new_page = alloc_page_vma(GFP_RCLMUSER, vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
