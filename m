@@ -1,63 +1,60 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback list initialization
-Date: Fri, 17 Feb 2006 03:10:19 +0100
-References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161749330.27091@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0602161749330.27091@schroedinger.engr.sgi.com>
+Message-ID: <43F5311F.90900@jp.fujitsu.com>
+Date: Fri, 17 Feb 2006 11:12:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
+ list initialization
+References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com> <200602170246.03172.ak@suse.de>
+In-Reply-To: <200602170246.03172.ak@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602170310.19731.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 17 February 2006 02:51, Christoph Lameter wrote:
-> On Fri, 17 Feb 2006, Andi Kleen wrote:
+Andi Kleen wrote:
+> On Friday 17 February 2006 02:40, Christoph Lameter wrote:
+>> What happens if another node beyond higest_node comes online later?
+>> Or one node in between comes online?
 > 
-> > Empty nodes are not initialization, but the node number is still 
-> > allocated. And then it would early except or even triple fault here  
-> > because it would try to set  up a fallback list for a NULL pgdat. Oops.
+> I don't know. Whoever implements node hotplug has to handle it.
+> But I'm pretty sure the old code also didn't handle it, so it's not
+> a regression.
 > 
-> Isnt this an issue with the arch code? Simply do not allocate an empty 
-> node. 
+> My primary interest is just to get all these Opterons booting again.
+> 
 
-The node is not allocated (in the pgdat sense), but the nodes are not 
-renumbered when this happens.
+All existing pgdat's default zonelist should be refreshed when a new
+node comes in. So,I think this patch wouldn't be problem.
+It's node-hotplug's problem.
 
-> Is the mapping from linux Node id -> Hardware node id fixed on  
-> x86_64? 
 
-No, in theory not, but changing that would require considerable changes 
-in the NUMA discovery code and I'm not planning to do that for 2.6.16 now.
+Goto is implementing it now by this:
+==
++static int __build_all_zonelists(void *dummy)
++{
++	int i;
++	for_each_online_node(i)
++		build_zonelists(NODE_DATA(i));
++	/* XXX: Cpuset must be updated when node is hotplugged. */
++	return 0;
++}
+<snip>
++	stop_machine_run(__build_all_zonelists, zone->zone_pgdat, NR_CPUS);
+==
 
-Also I think the generic code ought to handle that anyways. Why should
-we have node bitmaps if they can't have holes?
+If this is ok, next problem is "how to remove pgdat/zone from all zonelist....".
 
-> ia64 has a lookup table. 
+If there are no performance problem, adding list and seqlock , callback to
+zonelist is one way to manage add-remove-zone/pgdat to zonelist.
+But this will make codes more complicated.
 
-x86-64 too.
- 
-> These are empty nodes without processor? Or a processor without a node?
+Thanks,
 
-processor(s) without node
-(it could be multiple processors in the multi core case)
+-- Kame
 
-On some systems it's even unavoidable because on cheaper motherboards
-the vendors sometimes don't put DIMM slots to one of the CPUs.
-
-> In that case the processor will have to be assigned a default node.
-
-It will - it will get a nearby node.
-
-In fact it has worked in the past (ok mostly  there were bugs in it too, but 
-the last few releases were ok). But due to some changes there were regressions 
-and people are hitting this now.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
