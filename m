@@ -1,111 +1,94 @@
-Date: Fri, 17 Feb 2006 08:52:30 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
- list initialization
-In-Reply-To: <200602170223.34031.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0602170841190.916@g5.osdl.org>
-References: <200602170223.34031.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] 0/4 Migration Cache Overview
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <Pine.LNX.4.64.0602170816530.30999@schroedinger.engr.sgi.com>
+References: <1140190593.5219.22.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602170816530.30999@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 17 Feb 2006 11:59:58 -0500
+Message-Id: <1140195598.5219.77.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: akpm@osdl.org, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 17 Feb 2006, Andi Kleen wrote:
+On Fri, 2006-02-17 at 08:22 -0800, Christoph Lameter wrote:
+> On Fri, 17 Feb 2006, Lee Schermerhorn wrote:
 > 
-> The new function to set up the node fallback lists didn't handle
-> holes in the node map. This happens e.g. on Opterons when 
-> the a CPU is missing memory, which is not that uncommon. 
+> > Marcello Tosatti introduced the migration cache back in Oct04 to obviate use
+> > of swap space for anon pages during page migration.  He posted the original
+> > migration patch [let's call this V0] to the linux-mm list:
+> 
+> Could add a justification of this feature? What is the benefit of having a 
+> migration cache instead of using swap pte (current migration is not really 
+> using swap space per se)?
 
-That whole function is crap. Your changes don't seem to make it any less 
-crap, and depends on some insane and unreliable node ordering 
-characteristic, as far as I can tell. The thing is horrid.
+I think Marcello covered that in his original posts, which I linked.  
+I can go back and extract his arguments.  My primary interest is for
+"lazy page migration" where anon pages can hang around the the cache
+until the task faults them in [possibly migrating] or exits, if ever.
+I think the desire to avoid using swap for this case is even stronger.
 
-There is no way you can know that your
+> 
+> > migration work has been submitted upstream, I have ported the migration
+> > cache patches to work with his direct migration in 2.6.16-rc3-mm1. I'm
+> > calling this "V8".
+> 
+> Direct migration is in Linus' tree and I am not aware of anything 
+> necessary in mm.
 
-	n = (node + i) % random_value;
+Correct.  But, I figured if any testing were going to be done, it would
+be against the mm tree, so I diffed against that.  I don't know how much
+the mm tree differs from the corresponding 16-rc? tree in the areas
+touched
+by these patches.
 
-hits all nodes, much less a valid node. 
+> 
+> > One complication in all of this is when direct migration of an anon
+> > page falls back to swapping out the pages.  If the page had not already
+> > been in the swap cache, it will have been added to the migration 
+> > cache.  To swap the page out, we need to move if from the migration
+> > cache to the swap cache.  Note that this would also be required if
+> > shrink_list() encounters a page in the migration cache.  Both the
+> > page migration code and shrink_list() have been modified to call
+> > a new function "migration_move_to_swap()" in these cases.  Marcello
+> > mentions the need to do this in his first migration cache post linked
+> > above.
+> 
+> We could potentially remove the ability to fall back to swap or add an 
+> option to disallow the fallback. This is also necessary if we want to 
+> migration mlocked memory. Maybe this could simplify the code?
 
-Think about it: because we do "for_each_online_node(i)", the "i" is _not_ 
-guaranteed to be contiguous, which means that "node + i" is not guaranteed 
-to be contiguous, which in turn means that you may be hopping over all the 
-valid nodes, and every time (because you do that stupid and undefined 
-"node + i" crap) you may hit something invalid or empty.
+Possibly.  I think we'd still want to be able to do this for vmscan.  
+Again, because anon pages could languish in the migration cache
+indefinitely.
 
-THE WHOLE ALGORITHM IS BROKEN.
+> 
+> > QUESTION:  what does this mean for tasks that fault on the 
+> > migration cache pte while we're moving the page to the swap
+> > cache?  I think that if they manage to look up the page in the
+> > migration cache and get a reference on it, the current test
+> > in do_swap_page() will work OK.  However, is there a potential
+> > race between the time __handle_mm_fault() fetches the pte from
+> > the page table and when do_swap_page() does the cache lookup?
+> > [in a preemptible kernel?]
+> 
+> Yes there is since handle_mm_fault accesses the pte without locking.
+> do_swap_page acquires the lock and will then recheck if the pte is the 
+> same. If anything happened in between it should redo the page fault.
+> 
 
-Your patch doesn't make it any less broken, it just makes it _differently_ 
-broken, and so you think it fixed something. It fixed absolutely NOTHING.
-
-Here is a totally untested diff that may not even compile, but at least it 
-makes SENSE from a conceptual standpoint. The magis is
-
- - don't do the "node + i" crap, because it is by definition broken.
-
-   It has no semantic meaning, and I _guarantee_ that you can't get it to 
-   work in general.
-
- - prefer nodes that follow the current node, by artificially inflating 
-   the distance to previous nodes. This should automatically get you 
-   exactly the round-robin behaviour you wanted.
-
-NOTE! I've not tested (and thus not debugged) it. I don't even have NUMA 
-enabled, so I've not even compiled it. Somebody else please test it, and 
-send it back to me with a sign-off and a proper explanation, and I'll sign 
-off on it again and apply it.
-
-		Linus
-
-----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 62c1225..208812b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1541,29 +1541,29 @@ static int __initdata node_load[MAX_NUMN
-  */
- static int __init find_next_best_node(int node, nodemask_t *used_node_mask)
- {
--	int i, n, val;
-+	int n, val;
- 	int min_val = INT_MAX;
- 	int best_node = -1;
- 
--	for_each_online_node(i) {
--		cpumask_t tmp;
-+	/* Use the local node if we haven't already */
-+	if (!node_isset(node, *used_node_mask)) {
-+		node_set(node, *used_node_mask);
-+		return node;
-+	}
- 
--		/* Start from local node */
--		n = (node+i) % num_online_nodes();
-+	for_each_online_node(n) {
-+		cpumask_t tmp;
- 
- 		/* Don't want a node to appear more than once */
- 		if (node_isset(n, *used_node_mask))
- 			continue;
- 
--		/* Use the local node if we haven't already */
--		if (!node_isset(node, *used_node_mask)) {
--			best_node = node;
--			break;
--		}
--
- 		/* Use the distance array to find the distance */
- 		val = node_distance(node, n);
- 
-+		/* Penalize nodes under us ("prefer the next node") */
-+		val += (n < node);
-+
- 		/* Give preference to headless and unused nodes */
- 		tmp = node_to_cpumask(n);
- 		if (!cpus_empty(tmp))
+I thought so, but hadn't thought of an efficient check for the fault
+handlers.  I'm thinking that if the fault handler doesn't find the 
+page in the cache and the page's private data doesn't match the pte
+[after appropriate conversion],  the handler could return -EAGAIN
+causing handle_mm_fault to refetch the pte.  I guess if the handler
+doesn't find the page in the cache, this is the slow path anyway,
+so maybe efficiency isn't such a concern.  It will require converion
+of the pte to swp_entry or vice versa, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
