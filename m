@@ -1,62 +1,103 @@
-Date: Fri, 17 Feb 2006 09:12:32 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [RFC] 0/4 Migration Cache Overview
-In-Reply-To: <1140195598.5219.77.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0602170906030.31408@schroedinger.engr.sgi.com>
-References: <1140190593.5219.22.camel@localhost.localdomain>
- <Pine.LNX.4.64.0602170816530.30999@schroedinger.engr.sgi.com>
- <1140195598.5219.77.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1HHHX3m020567
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:33 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1HHHXVT200422
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:33 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k1HHHWFZ004577
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:32 -0500
+Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot
+	time
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+	 <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
+Content-Type: text/plain
+Date: Fri, 17 Feb 2006 09:16:58 -0800
+Message-Id: <1140196618.21383.112.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Feb 2006, Lee Schermerhorn wrote:
-
-> > Could add a justification of this feature? What is the benefit of having a 
-> > migration cache instead of using swap pte (current migration is not really 
-> > using swap space per se)?
+On Fri, 2006-02-17 at 14:17 +0000, Mel Gorman wrote:
+> This patch adds the kernelcore= parameter for ppc64.
 > 
-> I think Marcello covered that in his original posts, which I linked.  
-> I can go back and extract his arguments.  My primary interest is for
-> "lazy page migration" where anon pages can hang around the the cache
-> until the task faults them in [possibly migrating] or exits, if ever.
-> I think the desire to avoid using swap for this case is even stronger.
+> The amount of memory will requested will not be reserved in all nodes. The
+> first node that is found that can accomodate the requested amount of memory
+> and have remaining more for ZONE_EASYRCLM is used. If a node has memory holes,
+> it also will not be used.
 
-I am bit confused. A task faults in a page from the migration cache? Isnt 
-this swap behavior? I thought the migration cache was just to avoid using
-swap page numbers for the intermediate pte values during migration?
+One thing I think we really need to see before these go into mainline is
+the ability to shrink the ZONE_EASYRCLM at runtime, and give the memory
+back to NORMAL/DMA.
 
-You are moving the page when it is faulted in?
+Otherwise, any system starting off sufficiently small will end up having
+lowmem starvation issues.  Allowing resizing at least gives the admin a
+chance to avoid those issues.
 
-Including Marcelo's rationale may help understanding here. I read it a 
-while back but I do not remember the details. Please give us an overview.
+> +               if (core_mem_pfn == 0 ||
+> +                               end_pfn - start_pfn < core_mem_pfn ||
+> +                               end_pfn - start_pfn != pages_present) {
+> +                       zones_size[ZONE_DMA] = end_pfn - start_pfn;
+> +                       zones_size[ZONE_EASYRCLM] = 0;
+> +                       zholes_size[ZONE_DMA] =
+> +                               zones_size[ZONE_DMA] - pages_present;
+> +                       zholes_size[ZONE_EASYRCLM] = 0;
+> +                       if (core_mem_pfn >= pages_present)
+> +                               core_mem_pfn -= pages_present;
+> +               } else {
+> +                       zones_size[ZONE_DMA] = core_mem_pfn;
+> +                       zones_size[ZONE_EASYRCLM] = end_pfn - core_mem_pfn;
+> +                       zholes_size[ZONE_DMA] = 0;
+> +                       zholes_size[ZONE_EASYRCLM] = 0;
+> +                       core_mem_pfn = 0;
+> +               }
 
-> > Yes there is since handle_mm_fault accesses the pte without locking.
-> > do_swap_page acquires the lock and will then recheck if the pte is the 
-> > same. If anything happened in between it should redo the page fault.
-> I thought so, but hadn't thought of an efficient check for the fault
-> handlers.  I'm thinking that if the fault handler doesn't find the 
-> page in the cache and the page's private data doesn't match the pte
-> [after appropriate conversion],  the handler could return -EAGAIN
-> causing handle_mm_fault to refetch the pte.  I guess if the handler
-> doesn't find the page in the cache, this is the slow path anyway,
-> so maybe efficiency isn't such a concern.  It will require converion
-> of the pte to swp_entry or vice versa, right?
+I'm finding this bit of code really hard to parse. 
 
-If the migration cache is only used for intermediary pte values then the
-fault handler should wait until the migration of the page is complete.
-do_swap_page acquired the page lock after checking the pte. Thus the 
-process should block until migration is complete.
+First of all, please give "core_mem_size" and "core_mem_pfn" some better
+names.  "core_mem_size" in _what_?  Bytes?  Pages?  g0ats? ;)
 
-It seems to me that what you are trying to accomplish here is already 
-provided for by the current swap based code. You just need to control the 
-swap in behavior in order to make lazy migration work right. But then I 
-guess I am missing something.
+The "pfn" in "core_mem_pfn" is usually used to denote a physical address
+>> PAGE_SHIFT.  However, yours is actually a _number_ of pages, not an
+address, right?  Actually, as I look at it closer, it appears to be a
+pfn in the else{} and a nr_page in the if{} block.  
 
+core_mem_nr_pages or nr_core_mem_pages might be more appropriate.
+
+Users will _not_ care about memory holes.  They'll just want to specify
+a number of pages.  I think this:
+
+> +                       zones_size[ZONE_DMA] = core_mem_pfn;
+> +                       zones_size[ZONE_EASYRCLM] = end_pfn - core_mem_pfn;
+
+is probably bogus because it doesn't deal with holes at all.
+
+Walking those init_node_data() structures in get_region() is probably
+pretty darn fast, and we don't need to be careful about how many times
+we do it.  I think I'd probably separate out the problem a bit.
+
+1. make get_region() not care about holes.  Have it just return the
+   range of the node's pages.
+2. make a new function (get_region_holes()??) that, given a pfn range,
+   walks the init_node_data[] just like get_region() (have them share
+   code) and return the present_pages in that pfn range.
+3. go back to paging init, and try to properly size ZONE_DMA.  Find
+   holes with your new function, and increase its size proportionately,
+   set zholes_size[ZONE_DMA] at this time.  Make sure the user size is
+   in nr_page, _NOT_ max_pfns.
+4. give the rest of the space to ZONE_EASYRCLM.  Call your new function
+   to properly size its zone hole(s).
+5. Profit!
+
+This may all belong broken out in a new function.  
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
