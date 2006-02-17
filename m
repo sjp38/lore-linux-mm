@@ -1,63 +1,58 @@
-Subject: Re: [RFC] 4/4 Migration Cache - use for direct migration
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reply-To: lee.schermerhorn@hp.com
-In-Reply-To: <Pine.LNX.4.64.0602170834310.30999@schroedinger.engr.sgi.com>
-References: <1140190651.5219.25.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0602170834310.30999@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 17 Feb 2006 13:37:58 -0500
-Message-Id: <1140201478.5219.132.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 17 Feb 2006 10:38:26 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
+ list initialization
+In-Reply-To: <200602171907.39236.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0602171030530.916@g5.osdl.org>
+References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602170841190.916@g5.osdl.org>
+ <200602171907.39236.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-02-17 at 08:35 -0800, Christoph Lameter wrote:
-> On Fri, 17 Feb 2006, Lee Schermerhorn wrote:
+
+On Fri, 17 Feb 2006, Andi Kleen wrote:
 > 
-> > Index: linux-2.6.16-rc3-mm1/mm/vmscan.c
-> > ===================================================================
-> > --- linux-2.6.16-rc3-mm1.orig/mm/vmscan.c	2006-02-15 10:50:59.000000000 -0500
-> > +++ linux-2.6.16-rc3-mm1/mm/vmscan.c	2006-02-15 10:51:09.000000000 -0500
-> > @@ -911,7 +911,12 @@ redo:
-> >  		 * preserved.
-> >  		 */
-> >  		if (PageAnon(page) && !PageSwapCache(page)) {
-> > -			if (!add_to_swap(page, GFP_KERNEL)) {
-> > +			if (!to) {
-> > +				if (!add_to_swap(page, GFP_KERNEL)) {
-> > +					rc = -ENOMEM;
-> > +					goto unlock_page;
-> > +				}
-> > +			} else if (add_to_migration_cache(page, GFP_KERNEL)) {
-> >  				rc = -ENOMEM;
-> >  				goto unlock_page;
-> >  			}
+> That is why I added the !NODE_DATA(...) continue check
+> It will just continue until it finds a usable node. 
+
+The thing is, there is nothing to guarantee that it _ever_ finds a usable 
+node. Let's say that we have nodes
+
+	3 10
+
+in the node map, then neither the old "i + n % 2" nor your new "i + n % 11" 
+will ever actually hit either of the valid nodes at all when you traverse 
+the thing. See? 
+
+That's why I'm saying that the "(i + n) % any_random_number" just can't be 
+right, and that you absolutely _have_ to use the numbers that 
+"for_each_online_node()" gives you directly. Using anything else is always 
+going to be buggy.
+
+> > NOTE! I've not tested (and thus not debugged) it. I don't even have NUMA 
+> > enabled, so I've not even compiled it. Somebody else please test it, and 
+> > send it back to me with a sign-off and a proper explanation, and I'll sign 
+> > off on it again and apply it.
 > 
-> Hmmm.... maybe add another parameter to add_to_swap instead? This seems to 
-> be duplicating some code.
-> 
+> I gave it a quick boot on the simulator with a missing node and it looks 
+> good. Will test it a bit more and then resubmit it.
 
-Could do.  The value of which would depend on 'to' in this context.  
+If it compiles (and I didn't just do something stupid like use the wrong 
+variable or test the order the wrong way), I think my version is always 
+safe. It doesn't play games with the node numbers, and it only really 
+edits the "distance function" to have a dependency on the node 
+relationship.
 
-This would require a change to shrink_list() in vmscan which you wanted
-to avoid in comment on previous mail, or we could leave add_to_swap() as
-a wrapper over the current one renamed to __add_to_swap or such with the
-extra parameter.
+So if it works at all, I think it works every time. But I'm biased ;)
 
-Could also change the code above to use a single if:
+And I'll never argue against more testing.
 
-if ((!to && !add_to_swap()) || (to && add_to_migration_cache())) ...
-
-I'm not too clear on what passes for "readability" and how that weighs
-against this level code duplication. ;-)
-
-But, in general, I agree with the notion of hiding the details or
-even existence of the migration cache behind the swap interfaces.
-
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
