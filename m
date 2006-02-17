@@ -1,60 +1,41 @@
-Message-ID: <43F5311F.90900@jp.fujitsu.com>
-Date: Fri, 17 Feb 2006 11:12:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
+Date: Thu, 16 Feb 2006 18:46:00 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
  list initialization
-References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com> <200602170246.03172.ak@suse.de>
-In-Reply-To: <200602170246.03172.ak@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <200602170310.19731.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0602161828090.27424@schroedinger.engr.sgi.com>
+References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161749330.27091@schroedinger.engr.sgi.com>
+ <200602170310.19731.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, torvalds@osdl.org, akpm@osdl.org, kiran@scalex86.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Friday 17 February 2006 02:40, Christoph Lameter wrote:
->> What happens if another node beyond higest_node comes online later?
->> Or one node in between comes online?
-> 
-> I don't know. Whoever implements node hotplug has to handle it.
-> But I'm pretty sure the old code also didn't handle it, so it's not
-> a regression.
-> 
-> My primary interest is just to get all these Opterons booting again.
-> 
+On Fri, 17 Feb 2006, Andi Kleen wrote:
 
-All existing pgdat's default zonelist should be refreshed when a new
-node comes in. So,I think this patch wouldn't be problem.
-It's node-hotplug's problem.
+> No, in theory not, but changing that would require considerable changes 
+> in the NUMA discovery code and I'm not planning to do that for 2.6.16 now.
 
+Are you sure that the kernel can handle nodelists with holes everywhere? 
+This is essentially a new feature requiring a review of all uses of 
+node ranges.... I'd rather suggest to fix the arch.
 
-Goto is implementing it now by this:
-==
-+static int __build_all_zonelists(void *dummy)
-+{
-+	int i;
-+	for_each_online_node(i)
-+		build_zonelists(NODE_DATA(i));
-+	/* XXX: Cpuset must be updated when node is hotplugged. */
-+	return 0;
-+}
-<snip>
-+	stop_machine_run(__build_all_zonelists, zone->zone_pgdat, NR_CPUS);
-==
+> Also I think the generic code ought to handle that anyways. Why should
+> we have node bitmaps if they can't have holes?
 
-If this is ok, next problem is "how to remove pgdat/zone from all zonelist....".
+There are special cases for example in the slab allocator and possibly 
+elsewhere too. F.e. have a look at __alloc_percpu which must allocate 
+memory for cpus on offline nodes. These will then never be used. So 
+hopefully not an issue just a waste of memory. There is more in 
+alloc_alien_cache(). That is just the stuff that I know about off hand. 
 
-If there are no performance problem, adding list and seqlock , callback to
-zonelist is one way to manage add-remove-zone/pgdat to zonelist.
-But this will make codes more complicated.
+> > ia64 has a lookup table. 
+> x86-64 too.
 
-Thanks,
-
--- Kame
-
+So this is fixable in arch specific code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
