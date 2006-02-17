@@ -1,31 +1,31 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback list initialization
-Date: Fri, 17 Feb 2006 02:46:02 +0100
-References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0602161739560.27091@schroedinger.engr.sgi.com>
+Date: Thu, 16 Feb 2006 17:51:54 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback
+ list initialization
+In-Reply-To: <200602170223.34031.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0602161749330.27091@schroedinger.engr.sgi.com>
+References: <200602170223.34031.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200602170246.03172.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
+To: Andi Kleen <ak@suse.de>
 Cc: torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 17 February 2006 02:40, Christoph Lameter wrote:
-> What happens if another node beyond higest_node comes online later?
-> Or one node in between comes online?
+On Fri, 17 Feb 2006, Andi Kleen wrote:
 
-I don't know. Whoever implements node hotplug has to handle it.
-But I'm pretty sure the old code also didn't handle it, so it's not
-a regression.
+> Empty nodes are not initialization, but the node number is still 
+> allocated. And then it would early except or even triple fault here  
+> because it would try to set  up a fallback list for a NULL pgdat. Oops.
 
-My primary interest is just to get all these Opterons booting again.
+Isnt this an issue with the arch code? Simply do not allocate an empty 
+node. Is the mapping from linux Node id -> Hardware node id fixed on 
+x86_64? ia64 has a lookup table.
 
--Andi
+These are empty nodes without processor? Or a processor without a node?
+In that case the processor will have to be assigned a default node.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
