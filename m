@@ -1,109 +1,62 @@
-Message-ID: <A7L8MnrrKNY82Fv2VhRG0gc0.UkHzuA75o7q@auxdelicesdepoissy.com>
-From: "Randi Lee" <LindseyHogue@auxdelicesdepoissy.com>
-Reply-To: "Randi Lee" <LindseyHogue@auxdelicesdepoissy.com>
-Subject: AutoCAD Thousands of Adobe software titles, 80 % 0ff
-Date: Fri, 17 Feb 2006 12:10:35 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1HLWahT018156
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 16:32:36 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1HLWaVT216856
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 16:32:36 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k1HLWab9007891
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 16:32:36 -0500
+Message-ID: <43F640AC.6060600@austin.ibm.com>
+Date: Fri, 17 Feb 2006 15:31:24 -0600
+From: Joel Schopp <jschopp@austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;  boundary="--lJYtFtoO67JPxIFo"
-Return-Path: <JenniferOdonnell@banderalawfirm.com>
-To: owner-linux-mm@kvack.org
-Cc: linux-mm-archive@kvack.org
+Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot	time
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>	 <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie> <1140196618.21383.112.camel@localhost.localdomain>
+In-Reply-To: <1140196618.21383.112.camel@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-CvszqgJDb9sC1bO46b 
+>> This patch adds the kernelcore= parameter for ppc64.
+>>
+>> The amount of memory will requested will not be reserved in all nodes. The
+>> first node that is found that can accomodate the requested amount of memory
+>> and have remaining more for ZONE_EASYRCLM is used. If a node has memory holes,
+>> it also will not be used.
+> 
+> One thing I think we really need to see before these go into mainline is
+> the ability to shrink the ZONE_EASYRCLM at runtime, and give the memory
+> back to NORMAL/DMA.
+> 
+> Otherwise, any system starting off sufficiently small will end up having
+> lowmem starvation issues.  Allowing resizing at least gives the admin a
+> chance to avoid those issues.
+> 
 
-----lJYtFtoO67JPxIFo
-Content-Type: text/html;
-Content-Transfer-Encoding: quoted-printable
+I'm not too keen on calling it resizing, because that term is 
+misleading.  The resizing is one way.  You can't later resize back. It's 
+like a window that you can only close but never reopen.  We should call 
+it "runtime incremental disabling", or RID.
 
-<html><head><meta http-equiv=3DContent-Language content=3Den-us><meta name=
-=3D4W1RCNTmXt7KWPSNENOb content=3DrkacsMw7OqkcLrmK><meta name=3DmMzuv9VH8Z=
-ZQa content=3DSKNIWnwDiAm><meta http-equiv=3DContent-Type content=3D"text/=
-html; charset=3Dwindows-1252"><title>7qJHc90nAFxhi2GYz</title></head><body=
-><table border=3D0 cellspacing=3D1 style=3D"border-collapse: collapse" bor=
-dercolor=3D#111111 width=3D1 id=3DAutoNumber1 height=3D234><tr><td width=3D=
-10 height=3D231><font face=3D"Courier New" size=3D2><br><br><br> D<br><br>=
-<br> M<br><br><br><br><br><br> A<br><br><br><br><br><br> M<br><br><br><br>=
- A<br> &nbsp;</font></td><td width=3D18 height=3D231><font face=3D"Courier=
- New" size=3D2><br><br><br> ow<br><br><br> ic<br><br><br><br><br><br> do<b=
-r> &nbsp;<br><br><br><br><br> ac<br><br><br><br> ut<br> &nbsp;</font></td>=
-<td width=3D25 height=3D231><font face=3D"Courier New" size=3D2>&nbsp;<br>=
-&nbsp; V<br><br> nlo<br><br><br> ros<br><br><br><br><br><br> be<br> &nbsp;=
-<br><br><br><br><br> rom<br><br><br><br> ode<br> &nbsp;</font></td><td wid=
-th=3D25 height=3D231><font face=3D"Courier New" size=3D2><br>isi<br> &nbsp=
-;<br> ad<br> &nbsp;<br><br> oft<br><br><br><br><br><br> Acr<br> Pho<br> Cr=
-e<br> Go<br> Ill<br><br> edi<br><br><br><br> sk&nbsp;<br> &nbsp;</font></t=
-d><td width=3D33 height=3D231><font face=3D"Courier New" size=3D2>&nbsp;<b=
-r>t Ou<br><br> Inst<br><br><br> &nbsp;Win<br> &nbsp;Off<br> &nbsp;Off<br> =
-&nbsp;Ser<br> &nbsp;Ser<br><br> obat<br> tosh<br> ativ<br> Live<br> ustr<b=
-r><br> a&nbsp;St<br> &nbsp; Dr<br> &nbsp; Fl<br><br> Auto<br> &nbsp; </fon=
-t></td><td width=3D33 height=3D231><font face=3D"Courier New" size=3D2><br=
->r On<br><br> antl<br> &nbsp;<br><br> dows<br> ice<br> ice<br> ver<br> ver=
-<br><br> &nbsp;v7.<br> op C<br> e&nbsp;Su<br> &nbsp;CS2<br> ator<br><br> u=
-dio<br> eamw<br> ash<br><br> CAD<br>&nbsp;</font></td><td width=3D17 heigh=
-t=3D231><p><font face=3D"Courier New" size=3D2><br>li<br><br> y!<br><br><b=
-r> &nbsp;X<br> &nbsp;X<br> 2K<br> 2K<br> &nbsp;2<br><br> 0<br> S2<br> it<b=
-r><br> &nbsp;1<br><br> &nbsp;M<br> ea<br> MX<br><br> 20<br> &nbsp;</font><=
-/p></td><td width=3D17 height=3D231><p><font face=3D"Courier New" size=3D2=
-><br>ne<br><br><br><br><br> P<br> P<br> 3<br> 3<br> K<br><br> Pr<br><br> e=
-<br><br> 1.<br><br> X<br> ve<br> &nbsp;P<br><br> 05<br> &nbsp;</font></p><=
-/td><td width=3D33 height=3D231><p><font face=3D"Courier New" size=3D2>&nb=
-sp;<br>&nbsp;Sto<br><br> &nbsp;<br><br> &nbsp;<br> Pro<br> Pro<br> Pro<br>=
- Ent.<br> Pro<br><br> o<br><br> 2<br><br> 0 CS<br><br> 2004<br> r 8<br> ro=
-<br><br><br> &nbsp;</font></p></td><td width=3D17 height=3D231><p><font fa=
-ce=3D"Courier New" size=3D2><br>re<br><br> Re<br> ..<br><br><br><br><br><b=
-r><br><br><br><br><br><br><br><br><br><br><br><br><br> &nbsp;</font></p></=
-td><td width=3D17 height=3D231><p><font face=3D"Courier New" size=3D2><br>=
-&nbsp;&amp;<br><br> t.<br> ..<br><br> &nbsp;$<br> &nbsp;$<br> &nbsp;$<br> =
-&nbsp;$<br> &nbsp;$<br><br> &nbsp;$<br> &nbsp;$<br> &nbsp;$<br> &nbsp;$<br=
-> &nbsp;$<br><br> &nbsp;$<br> &nbsp;$<br> &nbsp;$<br> &nbsp;<br> &nbsp;$<b=
-r> &nbsp;</font></p></td><td width=3D17 height=3D231><p><font face=3D"Cour=
-ier New" size=3D2><br>&nbsp;S<br><br> &nbsp;P<br> ..<br><br> 27<br> 49<br>=
- 59<br> 79<br> 66<br><br> 44<br> 59<br> 11<br> 39<br> 49<br><br> 99<br> 39=
-<br> 54<br><br> 37<br> &nbsp;</font></p></td><td width=3D17 height=3D231><=
-p><font face=3D"Courier New" size=3D2><br>av<br><br> ri<br> ..<br><br> 9.<=
-br> 9.<br> 9.<br> 9.<br> 9.<br><br> 9.<br> 9.<br> 99<br> 9.<br> 9.<br><br>=
- 9.<br> 9.<br> 9.<br><br> 50<br> &nbsp;</font></p></td><td width=3D17 heig=
-ht=3D231><p><font face=3D"Courier New" size=3D2><br>e<br><br> ce<br> ..<br=
-><br> 00<br> 00<br> 00<br> 00<br> 00<br><br> 00<br> 00<br> .0<br> 00<br> 0=
-0<br><br> 00<br> 00<br> 00<br><br> .0<br> &nbsp;</font></p></td><td width=3D=
-17 height=3D231><p><font face=3D"Courier New" size=3D2><br>Up<br><br> &nbs=
-p;<br><br><br><br><br><br><br><br><br><br><br> 0<br><br><br><br><br><br><b=
-r><br> 0<br> &nbsp;</font></p></td><td width=3D18 height=3D231><p><font fa=
-ce=3D"Courier New" size=3D2><b><br></b>&nbsp;t<br> <b><br> Ou<br> ..<br><b=
-r><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br> &nb=
-sp;</b></font></p></td><td width=3D18 height=3D231><p><font face=3D"Courie=
-r New" size=3D2><b><br></b>o<b><br><br> r<br> ..<br><br> $4<br> $4<br> $6<=
-br> $6<br> $6<br><br> $6<br> $6<br> $9<br> $4<br> $4<br><br> $6<br> $4<br>=
- $3<br><br> $9<br> &nbsp;</b></font></p></td><td width=3D18 height=3D231><=
-p><font face=3D"Courier New" size=3D2><b><br></b>90<b><br><br> Pr<br> ..<b=
-r><br> 9.<br> 9.<br> 9.<br> 9.<br> 9.<br><br> 9.<br> 9.<br> 9.<br> 9.<br> =
-9.<br><br> 9.<br> 9.<br> 9.<br><br> 9.<br> &nbsp;</b></font></p></td><td w=
-idth=3D18 height=3D231><p><font face=3D"Courier New" size=3D2><b><br></b>=
-%<b><br><br> ic<br> ..<br><br> 99<br> 99<br> 99<br> 99<br> 99<br><br> 99<b=
-r> 99<br> 99<br> 99<br> 99<br><br> 99<br> 99<br> 99<br><br> 95<br> &nbsp;<=
-/b></font></p></td><td width=3D18 height=3D231><p><font face=3D"Courier Ne=
-w" size=3D2><b><br></b>Of<b><br><br> e<br> .<br><br><br><br><br><br><br><b=
-r><br><br><br><br><br><br><br><br><br><br><br> &nbsp;</b></font></p></td><=
-td width=3D18 height=3D231><p><font face=3D"Courier New" size=3D2><b><br><=
-/b>f!<b><br><br> &nbsp;Y<br> &nbsp;.<br><br> &nbsp;O<br> &nbsp;O<br> &nbsp=
-;O<br> &nbsp;O<br> &nbsp;O<br><br> &nbsp;O<br> &nbsp;O<br> &nbsp;O<br> &nb=
-sp;O<br> &nbsp;O<br><br> &nbsp;O<br> &nbsp;O<br> &nbsp;O<br><br> Ov<br> &n=
-bsp;</b></font></p></td><td width=3D18 height=3D231><p><b><font face=3D"Co=
-urier New" size=3D2><br><br><br> ou<br> ..<br><br> ve<br> ve<br> ve<br> ve=
-<br> ve<br><br> ve<br> ve<br> vr<br> ve<br> ve<br><br> ve<br> ve<br> ve<br=
-><br> er<br> &nbsp;</font></b></p></td><td width=3D18 height=3D231><p><b><=
-font face=3D"Courier New" size=3D2><br><br><br> &nbsp;S<br> ..<br><br> r<b=
-r> r<br> r<br> r<br> r<br><br> r<br> r<br> &nbsp;$<br> r<br> r<br><br> r<b=
-r> r<br> r<br><br> &nbsp;$<br> &nbsp;</font></b></p></td><td width=3D18 he=
-ight=3D231><p><b><font face=3D"Courier New" size=3D2><br><br><br> av<br> .=
-<br><br> $2<br> $4<br> $5<br> $7<br> $7<br><br> $3<br> $5<br> 10<br> $3<b=
-r> $4<br><br> $9<br> $3<br> $5<br><br> 36<br> &nbsp;</font></b></p></td><t=
-d width=3D20 height=3D231><p><b><font face=3D"Courier New" size=3D2><br><b=
-r><br> e<br> .<br><br> 29<br> 49<br> 29<br> 29<br> 00<br><br> 79<br> 29<br=
-> 49<br> 49<br> 49<br><br> 29<br> 49<br> 09<br><br> 50<br> &nbsp;</font></=
-b></p></td></tr></table><p><font face=3D"Courier New" size=3D2><a href=3Dh=
-ttp://r2d2oem.com/?VZeKLmp032HcjFArHocCU3NfF>http://r2d2oem.com/?ggNBoOXdl=
-AM1Mz80gUS9sc</a></a></font></p></body></html>
+I don't think we need RID in order to merge these patches.  RID can be 
+merged later if people decide they want a special easy reclaim zone that 
+could disappear at any moment.  I personally fall in the camp of wanting 
+my zones I explicitly enabled to stay put and am opposed to RID.
 
-----lJYtFtoO67JPxIFo--
+If only somebody had presented a solution that was flexible enough to 
+dynamically resize reclaimable and non-reclaimable both ways.
+http://sourceforge.net/mailarchive/message.php?msg_id=13864331
+
+
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
