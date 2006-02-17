@@ -1,103 +1,62 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1HHHX3m020567
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:33 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1HHHXVT200422
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:33 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k1HHHWFZ004577
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2006 12:17:32 -0500
-Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot
-	time
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
-References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
-	 <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
-Content-Type: text/plain
-Date: Fri, 17 Feb 2006 09:16:58 -0800
-Message-Id: <1140196618.21383.112.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH for 2.6.16] Handle holes in node mask in node fallback list initialization
+Date: Fri, 17 Feb 2006 19:07:38 +0100
+References: <200602170223.34031.ak@suse.de> <Pine.LNX.4.64.0602170841190.916@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0602170841190.916@g5.osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200602171907.39236.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: akpm@osdl.org, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-02-17 at 14:17 +0000, Mel Gorman wrote:
-> This patch adds the kernelcore= parameter for ppc64.
+On Friday 17 February 2006 17:52, Linus Torvalds wrote:
 > 
-> The amount of memory will requested will not be reserved in all nodes. The
-> first node that is found that can accomodate the requested amount of memory
-> and have remaining more for ZONE_EASYRCLM is used. If a node has memory holes,
-> it also will not be used.
+> On Fri, 17 Feb 2006, Andi Kleen wrote:
+> > 
+> > The new function to set up the node fallback lists didn't handle
+> > holes in the node map. This happens e.g. on Opterons when 
+> > the a CPU is missing memory, which is not that uncommon. 
+> 
+> That whole function is crap. Your changes don't seem to make it any less 
+> crap, and depends on some insane and unreliable node ordering 
+> characteristic, as far as I can tell. The thing is horrid.
 
-One thing I think we really need to see before these go into mainline is
-the ability to shrink the ZONE_EASYRCLM at runtime, and give the memory
-back to NORMAL/DMA.
+Yes the algorithm is a bit strange anyways. Essentially it's a bogosort 
+indexed on node_distance() with some additional tweaks.
 
-Otherwise, any system starting off sufficiently small will end up having
-lowmem starvation issues.  Allowing resizing at least gives the admin a
-chance to avoid those issues.
+Maybe it would be better to collect all data into an array and then do a 
+normal sort.
 
-> +               if (core_mem_pfn == 0 ||
-> +                               end_pfn - start_pfn < core_mem_pfn ||
-> +                               end_pfn - start_pfn != pages_present) {
-> +                       zones_size[ZONE_DMA] = end_pfn - start_pfn;
-> +                       zones_size[ZONE_EASYRCLM] = 0;
-> +                       zholes_size[ZONE_DMA] =
-> +                               zones_size[ZONE_DMA] - pages_present;
-> +                       zholes_size[ZONE_EASYRCLM] = 0;
-> +                       if (core_mem_pfn >= pages_present)
-> +                               core_mem_pfn -= pages_present;
-> +               } else {
-> +                       zones_size[ZONE_DMA] = core_mem_pfn;
-> +                       zones_size[ZONE_EASYRCLM] = end_pfn - core_mem_pfn;
-> +                       zholes_size[ZONE_DMA] = 0;
-> +                       zholes_size[ZONE_EASYRCLM] = 0;
-> +                       core_mem_pfn = 0;
-> +               }
+ 
+> Think about it: because we do "for_each_online_node(i)", the "i" is _not_ 
+> guaranteed to be contiguous, which means that "node + i" is not guaranteed 
+> to be contiguous, which in turn means that you may be hopping over all the 
+> valid nodes, and every time (because you do that stupid and undefined 
+> "node + i" crap) you may hit something invalid or empty.
 
-I'm finding this bit of code really hard to parse. 
+That is why I added the !NODE_DATA(...) continue check
+It will just continue until it finds a usable node. 
 
-First of all, please give "core_mem_size" and "core_mem_pfn" some better
-names.  "core_mem_size" in _what_?  Bytes?  Pages?  g0ats? ;)
+But you're right it can miss valid nodes.
 
-The "pfn" in "core_mem_pfn" is usually used to denote a physical address
->> PAGE_SHIFT.  However, yours is actually a _number_ of pages, not an
-address, right?  Actually, as I look at it closer, it appears to be a
-pfn in the else{} and a nr_page in the if{} block.  
 
-core_mem_nr_pages or nr_core_mem_pages might be more appropriate.
+> NOTE! I've not tested (and thus not debugged) it. I don't even have NUMA 
+> enabled, so I've not even compiled it. Somebody else please test it, and 
+> send it back to me with a sign-off and a proper explanation, and I'll sign 
+> off on it again and apply it.
 
-Users will _not_ care about memory holes.  They'll just want to specify
-a number of pages.  I think this:
+I gave it a quick boot on the simulator with a missing node and it looks 
+good. Will test it a bit more and then resubmit it.
 
-> +                       zones_size[ZONE_DMA] = core_mem_pfn;
-> +                       zones_size[ZONE_EASYRCLM] = end_pfn - core_mem_pfn;
+Thanks,
 
-is probably bogus because it doesn't deal with holes at all.
-
-Walking those init_node_data() structures in get_region() is probably
-pretty darn fast, and we don't need to be careful about how many times
-we do it.  I think I'd probably separate out the problem a bit.
-
-1. make get_region() not care about holes.  Have it just return the
-   range of the node's pages.
-2. make a new function (get_region_holes()??) that, given a pfn range,
-   walks the init_node_data[] just like get_region() (have them share
-   code) and return the present_pages in that pfn range.
-3. go back to paging init, and try to properly size ZONE_DMA.  Find
-   holes with your new function, and increase its size proportionately,
-   set zholes_size[ZONE_DMA] at this time.  Make sure the user size is
-   in nr_page, _NOT_ max_pfns.
-4. give the rest of the space to ZONE_EASYRCLM.  Call your new function
-   to properly size its zone hole(s).
-5. Profit!
-
-This may all belong broken out in a new function.  
-
--- Dave
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
