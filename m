@@ -1,24 +1,24 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k1LBuXUD001087 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 20:56:33 +0900
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k1LC1GQA020746 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:01:16 +0900
         (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s0.gw.fujitsu.co.jp by m4.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k1LBuVHC024606 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 20:56:31 +0900
+Received: from s0.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k1LC1F0Y015184 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:01:15 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
 Received: from s0.gw.fujitsu.co.jp (s0 [127.0.0.1])
-	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B19A32D70F
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 20:56:31 +0900 (JST)
-Received: from fjm503.ms.jp.fujitsu.com (fjm503.ms.jp.fujitsu.com [10.56.99.77])
-	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id B0A9A32D706
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 20:56:30 +0900 (JST)
-Received: from [127.0.0.1] (fjmscan503.ms.jp.fujitsu.com [10.56.99.143])by fjm503.ms.jp.fujitsu.com with ESMTP id k1LBu4g7001777
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 20:56:06 +0900
-Message-ID: <43FB003E.9050302@jp.fujitsu.com>
-Date: Tue, 21 Feb 2006 20:57:50 +0900
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 98BE532D814
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:01:14 +0900 (JST)
+Received: from fjm504.ms.jp.fujitsu.com (fjm504.ms.jp.fujitsu.com [10.56.99.80])
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 329EE32D809
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:01:14 +0900 (JST)
+Received: from [127.0.0.1] (fjmscan503.ms.jp.fujitsu.com [10.56.99.143])by fjm504.ms.jp.fujitsu.com with ESMTP id k1LC13RF013376
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:01:04 +0900
+Message-ID: <43FB0169.6030508@jp.fujitsu.com>
+Date: Tue, 21 Feb 2006 21:02:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH] bdata and pgdat initialization cleanup [1/5] change
- alloc_bootmem_node arg
+Subject: [RFC][PATCH] bdata and pgdat initialization cleanup [2/5] remove
+ pgdat_list
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,320 +26,221 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-After reading node-hot-add patch discussion, I started to rewrite
-pgdat initialization codes to share them with node_hot_add codes.
+This patch removes pgdat_list.
+for_each_pgdat() can be defined by node_online_map and some macros.
 
-But they look too complicated... so, I'd like to start from making
-it clean :) Following patches are just for review before writing tons of each-arch
-patches. I'm now testing these on i386.
+Advantage of this is
+	- an onlined node is automatically added to for_each_pgdat(),
+	  for_each_zone()'s target.
+	- each arch don't have to sort pgdat_list :)
 
+Note:
+bootmem uses another linked list, so this change doesn't harm it.
 
---  Kame
-
-pgdat initialization is affected by bootmem initialization to some extent.
-This increases complexity of bootmem codes.
-As a first step, this patch modifies generic bootmem allocator and
-pgdat_link. These patches divide bootmem and pgdat.
-
-
-This patch does
-
-	- define bootmem[MAX_NUMNODES] and BOOTMEM(i)
-	  All archs/config can use this. (MAX_NUMNODES=1 when FLATMEM)
-
-	- rewrite bootmem funcs based on bootmem_data_t instead of pg_data_t.
-
-	- pgdat_link initialization is removed. so for_each_pgdat cannot
-	  work. this is fixed by the next patch.
-
-	- for_each_pgdat() for bootmem allocater is changed to
-           list_for_each_entry(bdata, bdata_list, list).
-	  By this, CONFIG_HAVE_ARCH_BOOTMEM_NODE can be removed.
-	  (order of bootmem's list should be carefully checked.)
-	  i.e if init_bootmem_node(node) is not called, the node is
-	  not a target of alloc_bootmem().
-
-Patches for each archs (which has NUMA configs) will follow after patches
-for generic codes.
-
-Sigh, this will change  many callers of alloc_bootmem_node().
+This is originally written by Yasunori Goto.
 
 Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Index: testtree/include/linux/bootmem.h
+
+Index: testtree/include/linux/mmzone.h
 ===================================================================
---- testtree.orig/include/linux/bootmem.h
-+++ testtree/include/linux/bootmem.h
-@@ -38,8 +38,19 @@ typedef struct bootmem_data {
-  	unsigned long last_pos;
-  	unsigned long last_success;	/* Previous allocation point.  To speed
-  					 * up searching */
-+	struct list_head list;
-  } bootmem_data_t;
+--- testtree.orig/include/linux/mmzone.h
++++ testtree/include/linux/mmzone.h
+@@ -13,6 +13,7 @@
+  #include <linux/numa.h>
+  #include <linux/init.h>
+  #include <linux/seqlock.h>
++#include <linux/nodemask.h>
+  #include <asm/atomic.h>
 
-+extern bootmem_data_t bootmem[MAX_NUMNODES];
-+
-+#ifndef BOOTMEM
-+#ifdef CONFIG_NUMA
-+#define BOOTMEM(i)	(&bootmem[(i)])
-+#else
-+#define BOOTMEM(i)	(&bootmem[0])
-+#endif
-+#endif /* BOOTMEM */
-+
-  extern unsigned long __init bootmem_bootmap_pages (unsigned long);
-  extern unsigned long __init init_bootmem (unsigned long addr, unsigned long memend);
-  extern void __init free_bootmem (unsigned long addr, unsigned long size);
-@@ -47,11 +58,11 @@ extern void * __init __alloc_bootmem (un
-  extern void * __init __alloc_bootmem_low(unsigned long size,
-  					 unsigned long align,
-  					 unsigned long goal);
--extern void * __init __alloc_bootmem_low_node(pg_data_t *pgdat,
-+extern void * __init __alloc_bootmem_low_node(bootmem_data_t *bdata,
-  					      unsigned long size,
-  					      unsigned long align,
-  					      unsigned long goal);
--#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-+
-  extern void __init reserve_bootmem (unsigned long addr, unsigned long size);
-  #define alloc_bootmem(x) \
-  	__alloc_bootmem((x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-@@ -61,21 +72,25 @@ extern void __init reserve_bootmem (unsi
-  	__alloc_bootmem((x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-  #define alloc_bootmem_low_pages(x) \
-  	__alloc_bootmem_low((x), PAGE_SIZE, 0)
--#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-+
-  extern unsigned long __init free_all_bootmem (void);
--extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size, unsigned long align, unsigned long goal);
--extern unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn, unsigned long startpfn, unsigned long endpfn);
--extern void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size);
--extern void __init free_bootmem_node (pg_data_t *pgdat, unsigned long addr, unsigned long size);
--extern unsigned long __init free_all_bootmem_node (pg_data_t *pgdat);
--#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
--#define alloc_bootmem_node(pgdat, x) \
--	__alloc_bootmem_node((pgdat), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_pages_node(pgdat, x) \
--	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_low_pages_node(pgdat, x) \
--	__alloc_bootmem_low_node((pgdat), (x), PAGE_SIZE, 0)
--#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-+extern void * __init __alloc_bootmem_node (bootmem_data_t *bdata,
-+              unsigned long size, unsigned long align, unsigned long goal);
-+extern unsigned long __init init_bootmem_node (bootmem_data_t *bdata,
-+      unsigned long freepfn, unsigned long startpfn, unsigned long endpfn);
-+extern void __init reserve_bootmem_node (bootmem_data_t *bdata,
-+      unsigned long physaddr, unsigned long size);
-+extern void __init free_bootmem_node (bootmem_data_t *bdata,
-+      unsigned long addr, unsigned long size);
-+extern unsigned long __init free_all_bootmem_node (bootmem_data_t *bdata);
-+
-+#define alloc_bootmem_node(bdata, x) \
-+	__alloc_bootmem_node((bdata), (x), SMP_CACHE_BYTES,\
-+                             __pa(MAX_DMA_ADDRESS))
-+#define alloc_bootmem_pages_node(bdata, x) \
-+	__alloc_bootmem_node((bdata), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-+#define alloc_bootmem_low_pages_node(bdata, x) \
-+	__alloc_bootmem_low_node((bdata), (x), PAGE_SIZE, 0)
+  /* Free memory management - zoned buddy allocator.  */
+@@ -307,7 +308,6 @@ typedef struct pglist_data {
+  	unsigned long node_spanned_pages; /* total size of physical page
+  					     range, including holes */
+  	int node_id;
+-	struct pglist_data *pgdat_next;
+  	wait_queue_head_t kswapd_wait;
+  	struct task_struct *kswapd;
+  	int kswapd_max_order;
+@@ -324,8 +324,6 @@ typedef struct pglist_data {
 
-  #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
-  extern void *alloc_remap(int nid, unsigned long size);
-Index: testtree/mm/bootmem.c
-===================================================================
---- testtree.orig/mm/bootmem.c
-+++ testtree/mm/bootmem.c
-@@ -33,6 +33,9 @@ EXPORT_SYMBOL(max_pfn);		/* This is expo
-  				 * dma_get_required_mask(), which uses
-  				 * it, can be an inline function */
+  #include <linux/memory_hotplug.h>
 
-+bootmem_data_t bootmem[MAX_NUMNODES] __initdata;
-+LIST_HEAD(bdata_list);
-+
-  #ifdef CONFIG_CRASH_DUMP
-  /*
-   * If we have booted due to a crash, max_pfn will be a very low value. We need
-@@ -56,15 +59,11 @@ unsigned long __init bootmem_bootmap_pag
-  /*
-   * Called once to set up the allocator itself.
-   */
--static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
-+static unsigned long __init init_bootmem_core (bootmem_data_t *bdata,
-  	unsigned long mapstart, unsigned long start, unsigned long end)
-  {
--	bootmem_data_t *bdata = pgdat->bdata;
-  	unsigned long mapsize = ((end - start)+7)/8;
-
--	pgdat->pgdat_next = pgdat_list;
--	pgdat_list = pgdat;
+-extern struct pglist_data *pgdat_list;
 -
-  	mapsize = ALIGN(mapsize, sizeof(long));
-  	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
-  	bdata->node_boot_start = (start << PAGE_SHIFT);
-@@ -76,6 +75,9 @@ static unsigned long __init init_bootmem
-  	 */
-  	memset(bdata->node_bootmem_map, 0xff, mapsize);
+  void __get_zone_counts(unsigned long *active, unsigned long *inactive,
+  			unsigned long *free, struct pglist_data *pgdat);
+  void get_zone_counts(unsigned long *active, unsigned long *inactive,
+@@ -350,57 +348,6 @@ unsigned long __init node_memmap_size_by
+   */
+  #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
 
-+	INIT_LIST_HEAD(&bdata->list);
-+	list_add_tail(&bdata->list, &bdata_list);
+-/**
+- * for_each_pgdat - helper macro to iterate over all nodes
+- * @pgdat - pointer to a pg_data_t variable
+- *
+- * Meant to help with common loops of the form
+- * pgdat = pgdat_list;
+- * while(pgdat) {
+- * 	...
+- * 	pgdat = pgdat->pgdat_next;
+- * }
+- */
+-#define for_each_pgdat(pgdat) \
+-	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->pgdat_next)
+-
+-/*
+- * next_zone - helper magic for for_each_zone()
+- * Thanks to William Lee Irwin III for this piece of ingenuity.
+- */
+-static inline struct zone *next_zone(struct zone *zone)
+-{
+-	pg_data_t *pgdat = zone->zone_pgdat;
+-
+-	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
+-		zone++;
+-	else if (pgdat->pgdat_next) {
+-		pgdat = pgdat->pgdat_next;
+-		zone = pgdat->node_zones;
+-	} else
+-		zone = NULL;
+-
+-	return zone;
+-}
+-
+-/**
+- * for_each_zone - helper macro to iterate over all memory zones
+- * @zone - pointer to struct zone variable
+- *
+- * The user only needs to declare the zone variable, for_each_zone
+- * fills it in. This basically means for_each_zone() is an
+- * easier to read version of this piece of code:
+- *
+- * for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
+- * 	for (i = 0; i < MAX_NR_ZONES; ++i) {
+- * 		struct zone * z = pgdat->node_zones + i;
+- * 		...
+- * 	}
+- * }
+- */
+-#define for_each_zone(zone) \
+-	for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
+-
+  static inline int populated_zone(struct zone *zone)
+  {
+  	return (!!zone->present_pages);
+@@ -472,6 +419,58 @@ extern struct pglist_data contig_page_da
+
+  #endif /* !CONFIG_NEED_MULTIPLE_NODES */
+
 +
-  	return mapsize;
-  }
++static inline pg_data_t *first_online_pgdat(void)
++{
++	return NODE_DATA(first_online_node());
++}
++
++static inline pg_data_t *next_online_pgdat(pg_data_t *pgdat)
++{
++	int nid = next_online_node(pgdat->node_id);
++	return (nid == MAX_NUMNODES)? NULL : NODE_DATA(nid);
++}
++
++#define for_each_pgdat(pgdat) \
++	for (pgdat = first_online_pgdat(); pgdat;\
++             pgdat = next_online_pgdat(pgdat))
++
++/*
++ * next_zone - helper magic for for_each_zone()
++ * Thanks to William Lee Irwin III for this piece of ingenuity.
++ */
++static inline struct zone *next_zone(struct zone *zone)
++{
++	pg_data_t *pgdat = zone->zone_pgdat;
++
++	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
++		zone++;
++	else  {
++		pgdat = next_online_pgdat(pgdat);
++		if (pgdat)
++			zone = pgdat->node_zones;
++		else
++			zone = NULL;
++	}
++	return zone;
++}
++
++/**
++ * for_each_zone - helper macro to iterate over all memory zones
++ * @zone - pointer to struct zone variable
++ *
++ * The user only needs to declare the zone variable, for_each_zone
++ * fills it in. This basically means for_each_zone() is an
++ * easier to read version of this piece of code:
++
++ */
++#define for_each_zone(zone) \
++	for (zone = first_online_pgdat()->node_zones;\
++		zone; zone = next_zone(zone))
++
++
++
++
+  #ifdef CONFIG_SPARSEMEM
+  #include <asm/sparsemem.h>
+  #endif
+Index: testtree/include/linux/nodemask.h
+===================================================================
+--- testtree.orig/include/linux/nodemask.h
++++ testtree/include/linux/nodemask.h
+@@ -350,11 +350,15 @@ extern nodemask_t node_possible_map;
+  #define num_possible_nodes()	nodes_weight(node_possible_map)
+  #define node_online(node)	node_isset((node), node_online_map)
+  #define node_possible(node)	node_isset((node), node_possible_map)
++#define first_online_node()	first_node(node_online_map)
++#define next_online_node(node)	next_node((node), node_online_map)
+  #else
+  #define num_online_nodes()	1
+  #define num_possible_nodes()	1
+  #define node_online(node)	((node) == 0)
+  #define node_possible(node)	((node) == 0)
++#define first_online_node()	(0)
++#define next_online_node(node)	(MAX_NUMNODES)
+  #endif
 
-@@ -271,11 +273,10 @@ found:
-  	return ret;
-  }
-
--static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
-+static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-  {
-  	struct page *page;
-  	unsigned long pfn;
--	bootmem_data_t *bdata = pgdat->bdata;
-  	unsigned long i, count, total = 0;
-  	unsigned long idx;
-  	unsigned long *map;
-@@ -337,58 +338,60 @@ static unsigned long __init free_all_boo
-  	return total;
-  }
-
--unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn, unsigned long startpfn, unsigned long endpfn)
-+unsigned long __init init_bootmem_node (bootmem_data_t *bdata,
-+        unsigned long freepfn, unsigned long startpfn, unsigned long endpfn)
-  {
--	return(init_bootmem_core(pgdat, freepfn, startpfn, endpfn));
-+	return(init_bootmem_core(bdata, freepfn, startpfn, endpfn));
-  }
-
--void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size)
-+void __init reserve_bootmem_node (bootmem_data_t *bdata,
-+        unsigned long physaddr, unsigned long size)
-  {
--	reserve_bootmem_core(pgdat->bdata, physaddr, size);
-+	reserve_bootmem_core(bdata, physaddr, size);
-  }
-
--void __init free_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size)
-+void __init free_bootmem_node (bootmem_data_t *bdata,
-+        unsigned long physaddr, unsigned long size)
-  {
--	free_bootmem_core(pgdat->bdata, physaddr, size);
-+	free_bootmem_core(bdata, physaddr, size);
-  }
-
--unsigned long __init free_all_bootmem_node (pg_data_t *pgdat)
-+unsigned long __init free_all_bootmem_node (bootmem_data_t *bdata)
-  {
--	return(free_all_bootmem_core(pgdat));
-+	return(free_all_bootmem_core(bdata));
-  }
-
-  unsigned long __init init_bootmem (unsigned long start, unsigned long pages)
-  {
-  	max_low_pfn = pages;
-  	min_low_pfn = start;
--	return(init_bootmem_core(NODE_DATA(0), start, 0, pages));
-+	return(init_bootmem_core(BOOTMEM(0), start, 0, pages));
-  }
-
-  #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-  void __init reserve_bootmem (unsigned long addr, unsigned long size)
-  {
--	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
-+	reserve_bootmem_core(BOOTMEM(0), addr, size);
-  }
-  #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-
-  void __init free_bootmem (unsigned long addr, unsigned long size)
-  {
--	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
-+	free_bootmem_core(BOOTMEM(0), addr, size);
-  }
-
-  unsigned long __init free_all_bootmem (void)
-  {
--	return(free_all_bootmem_core(NODE_DATA(0)));
-+	return(free_all_bootmem_core(BOOTMEM(0)));
-  }
-
-  void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
-  {
--	pg_data_t *pgdat = pgdat_list;
-+	bootmem_data_t *bdata;
-  	void *ptr;
-
--	for_each_pgdat(pgdat)
--		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
--						 align, goal, 0)))
-+	list_for_each_entry(bdata, &bdata_list, list)
-+		if ((ptr = __alloc_bootmem_core(bdata, size, align, goal, 0)))
-  			return(ptr);
-
-  	/*
-@@ -400,12 +403,12 @@ void * __init __alloc_bootmem(unsigned l
-  }
-
-
--void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size, unsigned long align,
--				   unsigned long goal)
-+void * __init __alloc_bootmem_node(bootmem_data_t *bdata,
-+	unsigned long size, unsigned long align,unsigned long goal)
-  {
-  	void *ptr;
-
--	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
-+	ptr = __alloc_bootmem_core(bdata, size, align, goal, 0);
-  	if (ptr)
-  		return (ptr);
-
-@@ -414,14 +417,14 @@ void * __init __alloc_bootmem_node(pg_da
-
-  #define LOW32LIMIT 0xffffffff
-
--void * __init __alloc_bootmem_low(unsigned long size, unsigned long align, unsigned long goal)
-+void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
-+			unsigned long goal)
-  {
--	pg_data_t *pgdat = pgdat_list;
-+	bootmem_data_t *bdata;
-  	void *ptr;
-
--	for_each_pgdat(pgdat)
--		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
--						 align, goal, LOW32LIMIT)))
-+	list_for_each_entry(bdata, &bdata_list, list)
-+		if ((ptr = __alloc_bootmem_core(bdata, size, align, goal, LOW32LIMIT)))
-  			return(ptr);
-
-  	/*
-@@ -432,8 +435,8 @@ void * __init __alloc_bootmem_low(unsign
-  	return NULL;
-  }
-
--void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
--				       unsigned long align, unsigned long goal)
-+void * __init __alloc_bootmem_low_node(bootmem_data_t *bdata,
-+		unsigned long size, unsigned long align, unsigned long goal)
-  {
--	return __alloc_bootmem_core(pgdat->bdata, size, align, goal, LOW32LIMIT);
-+	return __alloc_bootmem_core(bdata, size, align, goal, LOW32LIMIT);
-  }
+  #define any_online_node(mask)			\
 Index: testtree/mm/page_alloc.c
 ===================================================================
 --- testtree.orig/mm/page_alloc.c
 +++ testtree/mm/page_alloc.c
-@@ -2225,8 +2225,7 @@ void __init free_area_init_node(int nid,
+@@ -49,7 +49,6 @@ nodemask_t node_online_map __read_mostly
+  EXPORT_SYMBOL(node_online_map);
+  nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+  EXPORT_SYMBOL(node_possible_map);
+-struct pglist_data *pgdat_list __read_mostly;
+  unsigned long totalram_pages __read_mostly;
+  unsigned long totalhigh_pages __read_mostly;
+  long nr_swap_pages;
+@@ -2244,8 +2243,9 @@ static void *frag_start(struct seq_file
+  {
+  	pg_data_t *pgdat;
+  	loff_t node = *pos;
+-
+-	for (pgdat = pgdat_list; pgdat && node; pgdat = pgdat->pgdat_next)
++	for (pgdat = first_online_pgdat();
++	     pgdat && node;
++	     pgdat = next_online_pgdat(pgdat))
+  		--node;
+
+  	return pgdat;
+@@ -2256,7 +2256,7 @@ static void *frag_next(struct seq_file *
+  	pg_data_t *pgdat = (pg_data_t *)arg;
+
+  	(*pos)++;
+-	return pgdat->pgdat_next;
++	return next_online_pgdat(pgdat);
   }
 
-  #ifndef CONFIG_NEED_MULTIPLE_NODES
--static bootmem_data_t contig_bootmem_data;
--struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
-+struct pglist_data contig_page_data = { .bdata = BOOTMEM(0)};
-
-  EXPORT_SYMBOL(contig_page_data);
-  #endif
-
-
+  static void frag_stop(struct seq_file *m, void *arg)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
