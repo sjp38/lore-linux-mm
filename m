@@ -1,122 +1,93 @@
-Received: from m7.gw.fujitsu.co.jp ([10.0.50.77])
-        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k1LC9Fiu015414 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:09:15 +0900
-        (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k1LC9EWg009764 for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:09:14 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id ADA542C8102
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:09:14 +0900 (JST)
-Received: from fjm504.ms.jp.fujitsu.com (fjm504.ms.jp.fujitsu.com [10.56.99.80])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 691AA2C80FF
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:09:14 +0900 (JST)
-Received: from [127.0.0.1] (fjmscan501.ms.jp.fujitsu.com [10.56.99.141])by fjm504.ms.jp.fujitsu.com with ESMTP id k1LC8WRF015725
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2006 21:08:33 +0900
-Message-ID: <43FB0329.3070105@jp.fujitsu.com>
-Date: Tue, 21 Feb 2006 21:10:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 21 Feb 2006 13:09:26 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: remap_file_pages - Bug with _PAGE_PROTNONE - is it used in
+ current kernels?
+In-Reply-To: <200602202354.48851.blaisorblade@yahoo.it>
+Message-ID: <Pine.LNX.4.61.0602211257360.8644@goblin.wat.veritas.com>
+References: <200602202354.48851.blaisorblade@yahoo.it>
 MIME-Version: 1.0
-Subject: [RFC][PATCH] bdata and pgdat initialization cleanup [5/5]  i386 changes
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Blaisorblade <blaisorblade@yahoo.it>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-i386 changes.
+On Mon, 20 Feb 2006, Blaisorblade wrote:
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyyu@jp.fujitsu.com>
-Index: testtree/arch/i386/mm/discontig.c
-===================================================================
---- testtree.orig/arch/i386/mm/discontig.c
-+++ testtree/arch/i386/mm/discontig.c
-@@ -39,7 +39,6 @@
+> I've been hitting a bug on a patch I'm working on and have considered (and 
+> more or less tested with good results) doing this change:
+> 
+> -#define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
+> +#define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT))
+> 
+> (and the corresponding thing on other architecture).
+> 
+> In general, the question is whether __P000 and __S000 in protection_map are 
+> ever used except for MAP_POPULATE, and even then if they work well.
+> 
+> I'm seeking for objections to this change and/or anything I'm missing.
 
-  struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
-  EXPORT_SYMBOL(node_data);
--bootmem_data_t node0_bdata;
+Objection, your honor.
 
-  /*
-   * numa interface - we expect the numa architecture specfic code to have
-@@ -343,7 +342,6 @@ unsigned long __init setup_memory(void)
-  		find_max_pfn_node(nid);
+> This bug showed up while porting remap_file_pages protection support to 
+> 2.6.16-rc3. It always existed but couldn't trigger before the PageReserved 
+> changes.
+> 
+> Consider a _PAGE_PROTNONE pte, which has then pte_pfn(pte) == 0 (with 
+> remap_file_pages you need them to exist). Obviously pte_pfn(pte) on such a PTE 
+> doesn't make sense, but since pte_present(pte) gives true the code doesn't 
+> know that.
 
-  	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
--	NODE_DATA(0)->bdata = &node0_bdata;
-  	setup_bootmem_allocator();
-  	return max_low_pfn;
-  }
-@@ -352,17 +350,6 @@ void __init zone_sizes_init(void)
-  {
-  	int nid;
+I didn't fully understand you there, but I think you've got it the wrong
+way round: _PAGE_PROTNONE is included in the pte_present() test precisely
+because there is a valid page there, pfn is set (it might be pfn 0, yes,
+but much more likely to be pfn non-0).
 
--	/*
--	 * Insert nodes into pgdat_list backward so they appear in order.
--	 * Clobber node 0's links and NULL out pgdat_list before starting.
--	 */
--	pgdat_list = NULL;
--	for (nid = MAX_NUMNODES - 1; nid >= 0; nid--) {
--		if (!node_online(nid))
--			continue;
--		NODE_DATA(nid)->pgdat_next = pgdat_list;
--		pgdat_list = NODE_DATA(nid);
--	}
+I've never used PROT_NONE myself (beyond testing), but I think the
+traditional way it's used is this: mmap(,,PROT_READ|PROT_WRITE,,,),
+initialize the pages of that mapping, then mprotect(,,PROT_NONE) -
+which retains all those pages but make them generate SIGSEGVs - so
+the app can detect accesses and decide if it wants to do something
+special with them, other than the obvious mprotect(,,PROT_READ) or
+whatever.
 
-  	for_each_online_node(nid) {
-  		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-Index: testtree/include/asm-i386/mmzone.h
-===================================================================
---- testtree.orig/include/asm-i386/mmzone.h
-+++ testtree/include/asm-i386/mmzone.h
-@@ -99,28 +99,7 @@ static inline int pfn_valid(int pfn)
+PROT_NONE gives you a way of holding the page present (unlike munmap),
+yet failing access.  And since those pages remain present, they do
+need to be freed later when you get to zap_pte_range.  They are
+normal pages, but user access to them has been restricted.
 
-  #endif /* CONFIG_DISCONTIGMEM */
+Hugh
 
--#ifdef CONFIG_NEED_MULTIPLE_NODES
--
--/*
-- * Following are macros that are specific to this numa platform.
-- */
--#define reserve_bootmem(addr, size) \
--	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
--#define alloc_bootmem(x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_low(x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
--#define alloc_bootmem_pages(x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_low_pages(x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
--#define alloc_bootmem_node(ignore, x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_pages_node(ignore, x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
--#define alloc_bootmem_low_pages_node(ignore, x) \
--	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
--
--#endif /* CONFIG_NEED_MULTIPLE_NODES */
-+/* always allocate bootmem from node0 */
-+#define BOOTMEM(nid)	&bootmem[0]
-
-  #endif /* _ASM_MMZONE_H_ */
-Index: testtree/arch/i386/Kconfig
-===================================================================
---- testtree.orig/arch/i386/Kconfig
-+++ testtree/arch/i386/Kconfig
-@@ -533,11 +533,6 @@ comment "NUMA (NUMA-Q) requires SMP, 64G
-  comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
-  	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
-
--config HAVE_ARCH_BOOTMEM_NODE
--	bool
--	depends on NUMA
--	default y
--
-  config ARCH_HAVE_MEMORY_PRESENT
-  	bool
-  	depends on DISCONTIGMEM
+> Consider a call to munmap on this range. We get to zap_pte_range() which (in 
+> condensed source code):
+> 
+> zap_pte_range() 
+> ...
+>                 if (pte_present(ptent)) {
+> //This test is passed
+>                         struct page *page = vm_normal_page(vma, addr, ptent);
+> //Now page points to page 0 - which is wrong, page should be NULL
+>                         page_remove_rmap(page);
+> //Which doesn't make any sense.
+> //If mem_map[0] wasn't mapped we hit a BUG now, if it was we'll hit it later - 
+> //i.e. negative page_mapcount().
+> 
+> Now, since this code doesn't work in this situation, I wonder whether PROTNONE 
+> is indeed used anywhere in the code *at the moment*, since faults on pages 
+> mapped as such are handled with SIGSEGV.
+> 
+> The only possible application, which is only possible in 2.6 and not in 2.4 
+> where _PAGE_PROTNONE still exists, is mmap(MAP_POPULATE) with prot == 
+> PROT_NONE.
+> 
+> Instead I need to make use of PROTNONE, so the handling of it may need 
+> changes. In particular, I wonder about why:
+> 
+> #define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
+> 
+> I see why that _PAGE_PROTNONE can make sense, but in the above code it 
+> doesn't.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
