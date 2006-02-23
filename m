@@ -1,86 +1,82 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1NICKVD011116
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 13:12:20 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1NI9trN188552
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 11:09:55 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k1NICKUe028908
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 11:12:20 -0700
-Subject: Re: [RFC] memory-layout-free zones (for review) [3/3]  fix
-	for_each_page_in_zone
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1NIG3JK004197
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 13:16:03 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1NIG3St235196
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 13:16:03 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k1NIG2ki017321
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 13:16:03 -0500
+Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot
+	time
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060223180023.396d2cfe.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20060223180023.396d2cfe.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0602231740410.24093@skynet.skynet.ie>
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+	 <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
+	 <1140196618.21383.112.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602211445160.4335@skynet.skynet.ie>
+	 <1140543359.8693.32.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602221625100.2801@skynet.skynet.ie>
+	 <1140712969.8697.33.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602231646530.24093@skynet.skynet.ie>
+	 <1140716304.8697.53.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602231740410.24093@skynet.skynet.ie>
 Content-Type: text/plain
-Date: Thu, 23 Feb 2006 10:12:13 -0800
-Message-Id: <1140718333.8697.69.camel@localhost.localdomain>
+Date: Thu, 23 Feb 2006 10:15:55 -0800
+Message-Id: <1140718555.8697.73.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-02-23 at 18:00 +0900, KAMEZAWA Hiroyuki wrote:
-> +static inline struct page *first_page_in_zone(struct zone *zone)
-> +{
-> +	struct pglist_data *pgdat;
-> +	unsigned long start_pfn;
-> +	unsigned long i = 0;
-> +
-> +	if (!populated_zone(zone))
-> +		return NULL;
-> +
-> +	pgdat = zone->zone_pgdat;
-> +	zone = pgdat->node_start_pfn;
-> +
-> +	for (i = 0; i < pgdat->zone_spanned_pages; i++) {
-> +		if (pfn_valid(start_pfn + i) && page_zone(page) == zone)
-> +			break;
-> +	}
-> +	BUG_ON(i == pgdat->node_spanned_pages); /* zone is populated */
-> +	return pfn_to_page(start_pfn + i);
-> +}
+On Thu, 2006-02-23 at 18:01 +0000, Mel Gorman wrote:
+> On Thu, 23 Feb 2006, Dave Hansen wrote:
+> > OK, back to the hapless system admin using kernelcore. They have a
+> > 4-node system with 2GB of RAM in each node for 8GB total.  They use
+> > kernelcore=1GB.  They end up with 4x1GB ZONE_DMA and 4x1GB
+> > ZONE_EASYRCLM.  Perfect.  You can safely remove 4GB of RAM.
+> >
+> > Now, imagine that the machine has been heavily used for a while, there
+> > is only 1 node's memory available, but CPUs are available in the same
+> > places as before.  So, you start up your partition again have 8GB of
+> > memory in one node.  Same kernelcore=1GB option.  You get 1x7GB ZONE_DMA
+> > and 1x1GB ZONE_EASYRCLM.  I'd argue this is going to be a bit of a
+> > surprise to the poor admin.
+> >
+> 
+> That sort of surprise is totally unacceptable but the behaviour of 
+> kernelcore needs to be consistent on both the x86 and the ppc (any any 
+> other ar. How about;
+> 
+> 1. kernelcore=X determines the total amount of memory for !ZONE_EASYRCLM
+>     (be it ZONE_DMA, ZONE_NORMAL or ZONE_HIGHMEM)
 
-I know we don't use this function _too_ much , but it would probably be
-nice to make it a little smarter than "i++".  We can be pretty sure, at
-least with SPARSEMEM that the granularity is larger than that.  We can
-probably leave it until it gets to be a real problem.
+Sounds reasonable.  But, if you're going to do that, should we just make
+it the opposite and explicitly be easy_reclaim_mem=?  Do we want the
+limit to be set as "I need this much kernel memory", or "I want this
+much removable memory".  I dunno.
 
-I was also trying to think if a binary search is appropriate here.  I
-guess it depends on whether we allow the zones to have overlapping pfn
-ranges, which I _think_ is one of the goals from these patches.  Any
-thoughts?
+> 2. For every node that can have ZONE_EASYRCLM, split the kernelcore across
+>     the nodes as a percentage of the node size
+> 
+>     Example: 4 nodes, 1 GiB each, kernelcore=512MB
+>  		node 0 ZONE_DMA = 128MB
+>  		node 1 ZONE_DMA = 128MB
+>  		node 2 ZONE_DMA = 128MB
+>  		node 3 ZONE_DMA = 128MB
+> 
+>  	    2 nodes, 3GiB and 1GIB, kernelcore=512MB
+>  		node 0 ZONE_DMA = 384
+>  		node 1 ZONE_DMA = 128
+> 
+> It gets a bit more complex on NUMA for x86 because ZONE_NORMAL is 
+> involved but the idea would essentially be the same.
 
-Oh, and I noticed the "pgdat->zone_spanned_pages" bit.  Did you compile
-this? ;)
-
-> +static inline struct page *next_page_in_zone(struct page *page,
-> +					     struct zone *zone)
-> +{
-> +	struct pglist_data *pgdat;
-> +	unsigned long start_pfn;
-> +	unsigned long i;
-> +
-> +	if (!populated_zone(zone))
-> +		return NULL;
-> +	pgdat = zone->zone_pgdat;
-> +	start_pfn = pgdat->node_start_pfn;
-> +	i = page_to_pfn(page) - start_pfn;
-> +
-> +	for (i = i + 1; i < pgdat->node_spanned_pages; i++) {
-> +		if (pfn_vlaid(start_pfn + i) && page_zone(page) == zone)
-> +			break;
-> +	}
-> +	if (i == pgdat->node_spanned_pages)
-> +		return NULL;
-> +	return pfn_to_page(start_pfn + i);
-> +}
-
-Same comment, BTW, about code sharing.  Is it something we want to or
-can do with these?
+Yes, chopping it up seems like the right thing (or as close as we can
+get) to me.  
 
 -- Dave
 
