@@ -1,56 +1,48 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-        by fgwmail7.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k1N8v4TF009990 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:57:04 +0900
+Received: from m7.gw.fujitsu.co.jp ([10.0.50.77])
+        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k1N8wWcE005897 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:58:32 +0900
         (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp by m4.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k1N8v3HC016281 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:57:03 +0900
+Received: from s5.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k1N8wVWg002807 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:58:31 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp (s6 [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DE8DC2A0C00
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:57:02 +0900 (JST)
-Received: from fjm505.ms.jp.fujitsu.com (fjm505.ms.jp.fujitsu.com [10.56.99.83])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E5B22A0BF9
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:57:02 +0900 (JST)
-Received: from aworks (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm505.ms.jp.fujitsu.com with SMTP id k1N8ubvh009686
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:56:37 +0900
-Date: Thu, 23 Feb 2006 17:56:43 +0900
+Received: from s5.gw.fujitsu.co.jp (s5 [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AEF61B8057
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:58:31 +0900 (JST)
+Received: from fjm506.ms.jp.fujitsu.com (fjm506.ms.jp.fujitsu.com [10.56.99.86])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CA511B8051
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:58:31 +0900 (JST)
+Received: from aworks (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm506.ms.jp.fujitsu.com with SMTP id k1N8wDxe014744
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 17:58:14 +0900
+Date: Thu, 23 Feb 2006 17:58:19 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] memory-layout-free zones (for review) [1/3]
- for_each_page_in_zone()
-Message-Id: <20060223175643.a685dfb3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] memory-layout-free zones (for review) [2/3]  remvoe
+ zone_start_pfn/spanned_pages
+Message-Id: <20060223175819.3fbb21fe.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, I'm now modifing zone to be free from memory layout mainly
-for memory-hotplug. This post is just for review.
+This patch removes zone_start_pfn/zone_spanned_pages from zone struct.
+(and also removes seqlock for zone resizing)
 
-By these patches, zone_start_pfn/zone_spanned_pages are removed.
-I already posted removing zone_mem_map patch. So, a zone which a 
-page belongs to is determined just by what (pfn,range) is passed to 
-free_area_init_core(). 
+By this definion of zone will change
+from : a contiguous range of pages to be used in the same manner.
+to   : a group of pages to be used in the same manner.
 
-These patches will change the meaning of zones from a range of pages
-to a group of pages, but no real effect now.
+zone will become a pure page_allocator. memory layout is managed by
+pgdat.
 
-I'm now considering to move page betweens zones and add new zone
-as ZONE_EASYRCLM, which is not defined by the range.
-(IMHO, ZONE_EMERGENCY can be implemented in clean way in future
- rather than mempools.)
+This change has benefit for memory-hotplug and maybe other works.
+We can define a zone which is free from memory layout, like ZONE_EASYRCLM,
+ZONE_EMERGENCY(currently maneged by mempool) etc..witout inconsistency.
 
-I'll post these to lkml if I'm ready.
+for_each_page_in_zone() uses zone's memory layout information, but this
+patch doesn't include fixes for it. It will be fixed by following patch.
 
---Kame
-==
-This patch defines for_each_page_in_zone(page, zone) macro.
-This macro is useful for iterate over all (valid) pages in a zone.
-
-Some of codes, especially kernel/power/snapshot.c, iterate over
-all pages in zone. This patch can clean up them.
 
 Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
@@ -58,276 +50,251 @@ Index: node-hot-add2/include/linux/mmzone.h
 ===================================================================
 --- node-hot-add2.orig/include/linux/mmzone.h
 +++ node-hot-add2/include/linux/mmzone.h
-@@ -474,6 +474,54 @@ static inline struct zone *next_zone(str
- 	     zone;					\
- 	     zone = next_zone(zone))
+@@ -141,10 +141,6 @@ struct zone {
+ 	 * free areas of different sizes
+ 	 */
+ 	spinlock_t		lock;
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-	/* see spanned/present_pages for more description */
+-	seqlock_t		span_seqlock;
+-#endif
+ 	struct free_area	free_area[MAX_ORDER];
  
-+/*
-+ *  These inline function for for_each_page_in_zone can work
-+ *  even if CONFIG_SPARSEMEM=y.
-+ */
-+static inline struct page *first_page_in_zone(struct zone *zone)
-+{
-+	unsigned long start_pfn = zone->zone_start_pfn;
-+	unsigned long i = 0;
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+
-+	for (i = 0; i < zone->zone_spanned_pages; i++) {
-+		if (pfn_valid(start_pfn + i))
-+			break;
-+	}
-+	return pfn_to_page(start_pfn + i);
-+}
-+
-+static inline struct page *next_page_in_zone(struct page *page,
-+					     struct zone *zone)
-+{
-+	unsigned long start_pfn = zone->zone_start_pfn;
-+	unsigned long i = page_to_pfn(page) - start_pfn;
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+
-+	for (i = i + 1; i < zone->zone_spanned_pages; i++) {
-+		if (pfn_vlaid(start_pfn + i))
-+			break;
-+	}
-+	if (i == zone->zone_spanned_pages)
-+		return NULL;
-+	return pfn_to_page(start_pfn + i);
-+}
-+
-+/**
-+ * for_each_page_in_zone -- helper macro to iterate over all pages in a zone.
-+ * @page - pointer to page
-+ * @zone - pointer to zone
-+ *
-+ */
-+#define for_each_page_in_zone(page, zone)		\
-+	for (page = (first_page_in_zone((zone)));	\
-+	     page;					\
-+	     page = next_page_in_zone(page, (zone)));
-+
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
- #endif
+ 
+@@ -226,20 +222,7 @@ struct zone {
+ 	 * Discontig memory support fields.
+ 	 */
+ 	struct pglist_data	*zone_pgdat;
+-	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
+-	unsigned long		zone_start_pfn;
+ 
+-	/*
+-	 * zone_start_pfn, spanned_pages and present_pages are all
+-	 * protected by span_seqlock.  It is a seqlock because it has
+-	 * to be read outside of zone->lock, and it is done in the main
+-	 * allocator path.  But, it is written quite infrequently.
+-	 *
+-	 * The lock is declared along with zone->lock because it is
+-	 * frequently read in proximity to zone->lock.  It's good to
+-	 * give them a chance of being in the same cacheline.
+-	 */
+-	unsigned long		spanned_pages;	/* total size, including holes */
+ 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
+ 
+ 	/*
+Index: node-hot-add2/arch/powerpc/mm/mem.c
+===================================================================
+--- node-hot-add2.orig/arch/powerpc/mm/mem.c
++++ node-hot-add2/arch/powerpc/mm/mem.c
+@@ -143,7 +143,7 @@ int __devinit add_memory(u64 start, u64 
+ int __devinit remove_memory(u64 start, u64 size)
+ {
+ 	struct zone *zone;
+-	unsigned long start_pfn, end_pfn, nr_pages;
++	unsigned long offset, start_pfn, end_pfn, nr_pages;
+ 
+ 	start_pfn = start >> PAGE_SHIFT;
+ 	nr_pages = size >> PAGE_SHIFT;
+@@ -163,8 +163,9 @@ int __devinit remove_memory(u64 start, u
+ 	 * not handling removing memory ranges that
+ 	 * overlap multiple zones yet
+ 	 */
+-	if (end_pfn > (zone->zone_start_pfn + zone->spanned_pages))
+-		goto overlap;
++	for (offset = 0; offset < nr_pages; offset++)
++		if (page_zone(pfn_to_page(start_pfn + offset)) != zone)
++			goto overlap;
+ 
+ 	/* make sure it is NOT in RMO */
+ 	if ((start < lmb.rmo_size) || ((start+size) < lmb.rmo_size)) {
 Index: node-hot-add2/mm/page_alloc.c
 ===================================================================
 --- node-hot-add2.orig/mm/page_alloc.c
 +++ node-hot-add2/mm/page_alloc.c
-@@ -670,7 +670,8 @@ static void __drain_pages(unsigned int c
+@@ -85,23 +85,6 @@ unsigned long __initdata nr_kernel_pages
+ unsigned long __initdata nr_all_pages;
  
- void mark_free_pages(struct zone *zone)
+ #ifdef CONFIG_DEBUG_VM
+-static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+-{
+-	int ret = 0;
+-	unsigned seq;
+-	unsigned long pfn = page_to_pfn(page);
+-
+-	do {
+-		seq = zone_span_seqbegin(zone);
+-		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
+-			ret = 1;
+-		else if (pfn < zone->zone_start_pfn)
+-			ret = 1;
+-	} while (zone_span_seqretry(zone, seq));
+-
+-	return ret;
+-}
+-
+ static int page_is_consistent(struct zone *zone, struct page *page)
  {
--	unsigned long zone_pfn, flags;
-+	struct page *page;
-+	unsigned long flags;
+ #ifdef CONFIG_HOLES_IN_ZONE
+@@ -118,8 +101,6 @@ static int page_is_consistent(struct zon
+  */
+ static int bad_range(struct zone *zone, struct page *page)
+ {
+-	if (page_outside_zone_boundaries(zone, page))
+-		return 1;
+ 	if (!page_is_consistent(zone, page))
+ 		return 1;
+ 
+@@ -675,7 +656,7 @@ void mark_free_pages(struct zone *zone)
  	int order;
  	struct list_head *curr;
  
-@@ -678,8 +679,8 @@ void mark_free_pages(struct zone *zone)
+-	if (!zone->spanned_pages)
++	if (populated_zone(zone))
  		return;
  
  	spin_lock_irqsave(&zone->lock, flags);
--	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--		ClearPageNosaveFree(pfn_to_page(zone_pfn + zone->zone_start_pfn));
-+	for_each_page_in_zone(page, zone)
-+		ClearPageNosaveFree(page);
+@@ -2117,11 +2098,9 @@ static __meminit void init_currently_emp
+ 	zone_wait_table_init(zone, size);
+ 	pgdat->nr_zones = zone_idx(zone) + 1;
  
- 	for (order = MAX_ORDER - 1; order >= 0; --order)
- 		list_for_each(curr, &zone->free_area[order].free_list) {
-Index: node-hot-add2/kernel/power/snapshot.c
-===================================================================
---- node-hot-add2.orig/kernel/power/snapshot.c
-+++ node-hot-add2/kernel/power/snapshot.c
-@@ -43,18 +43,12 @@ static unsigned long *buffer;
- unsigned int count_highmem_pages(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	unsigned int n = 0;
+-	zone->zone_start_pfn = zone_start_pfn;
 -
-+	struct page *page;
- 	for_each_zone (zone)
- 		if (is_highmem(zone)) {
- 			mark_free_pages(zone);
--			for (zone_pfn = 0; zone_pfn < zone->spanned_pages; zone_pfn++) {
--				struct page *page;
--				unsigned long pfn = zone_pfn + zone->zone_start_pfn;
--				if (!pfn_valid(pfn))
--					continue;
--				page = pfn_to_page(pfn);
-+			for_each_page_in_zone(page, zone) {
- 				if (PageReserved(page))
- 					continue;
- 				if (PageNosaveFree(page))
-@@ -75,19 +69,15 @@ static struct highmem_page *highmem_copy
+ 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
  
- static int save_highmem_zone(struct zone *zone)
- {
--	unsigned long zone_pfn;
-+	struct page *page;
- 	mark_free_pages(zone);
--	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
--		struct page *page;
-+	for_each_page_in_zone(page , zone) {
- 		struct highmem_page *save;
- 		void *kaddr;
--		unsigned long pfn = zone_pfn + zone->zone_start_pfn;
-+		unsigned long pfn = page_to_pfn(page);
- 
- 		if (!(pfn%10000))
- 			printk(".");
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
- 		/*
- 		 * This condition results from rvmalloc() sans vmalloc_32()
- 		 * and architectural memory reservations. This should be
-@@ -167,15 +157,8 @@ static int pfn_is_nosave(unsigned long p
-  *	isn't part of a free chunk of pages.
-  */
- 
--static int saveable(struct zone *zone, unsigned long *zone_pfn)
-+static int saveable(struct page *page)
- {
--	unsigned long pfn = *zone_pfn + zone->zone_start_pfn;
--	struct page *page;
--
--	if (!pfn_valid(pfn))
--		return 0;
--
--	page = pfn_to_page(pfn);
- 	BUG_ON(PageReserved(page) && PageNosave(page));
- 	if (PageNosave(page))
- 		return 0;
-@@ -190,15 +173,15 @@ static int saveable(struct zone *zone, u
- unsigned int count_data_pages(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
-+	struct page *page;
- 	unsigned int n = 0;
- 
- 	for_each_zone (zone) {
- 		if (is_highmem(zone))
- 			continue;
- 		mark_free_pages(zone);
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			n += saveable(zone, &zone_pfn);
-+		for_each_page_in_zone(page, zone)
-+			n += saveable(page);
- 	}
- 	return n;
+-	zone_init_free_lists(pgdat, zone, zone->spanned_pages);
++	zone_init_free_lists(pgdat, zone, size);
  }
-@@ -206,9 +189,8 @@ unsigned int count_data_pages(void)
- static void copy_data_pages(struct pbe *pblist)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	struct pbe *pbe, *p;
--
-+	struct page *page;
- 	pbe = pblist;
- 	for_each_zone (zone) {
- 		if (is_highmem(zone))
-@@ -219,10 +201,9 @@ static void copy_data_pages(struct pbe *
- 			SetPageNosaveFree(virt_to_page(p));
- 		for_each_pbe (p, pblist)
- 			SetPageNosaveFree(virt_to_page(p->address));
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
--			if (saveable(zone, &zone_pfn)) {
-+		for_each_page_in_zone(page, zone) {
-+			if (saveable(page)) {
- 				struct page *page;
--				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
- 				BUG_ON(!pbe);
- 				pbe->orig_address = (unsigned long)page_address(page);
- 				/* copy_page is not usable for copying task structs. */
-@@ -403,19 +384,15 @@ struct pbe *alloc_pagedir(unsigned int n
- void swsusp_free(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
--
-+	struct page *page;
- 	for_each_zone(zone) {
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			if (pfn_valid(zone_pfn + zone->zone_start_pfn)) {
--				struct page *page;
--				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
--				if (PageNosave(page) && PageNosaveFree(page)) {
--					ClearPageNosave(page);
--					ClearPageNosaveFree(page);
--					free_page((long) page_address(page));
--				}
-+		for_each_page_in_zone(page, zone) {
-+			if (PageNosave(page) && PageNosaveFree(page)) {
-+				ClearPageNosave(page);
-+				ClearPageNosaveFree(page);
-+				free_page((long) page_address(page));
- 			}
-+		}
+ 
+ /*
+@@ -2154,12 +2133,10 @@ static void __init free_area_init_core(s
+ 			nr_kernel_pages += realsize;
+ 		nr_all_pages += realsize;
+ 
+-		zone->spanned_pages = size;
+ 		zone->present_pages = realsize;
+ 		zone->name = zone_names[j];
+ 		spin_lock_init(&zone->lock);
+ 		spin_lock_init(&zone->lru_lock);
+-		zone_seqlock_init(zone);
+ 		zone->zone_pgdat = pgdat;
+ 		zone->free_pages = 0;
+ 
+@@ -2322,7 +2299,6 @@ static int zoneinfo_show(struct seq_file
+ 			   "\n        active   %lu"
+ 			   "\n        inactive %lu"
+ 			   "\n        scanned  %lu (a: %lu i: %lu)"
+-			   "\n        spanned  %lu"
+ 			   "\n        present  %lu",
+ 			   zone->free_pages,
+ 			   zone->pages_min,
+@@ -2332,7 +2308,6 @@ static int zoneinfo_show(struct seq_file
+ 			   zone->nr_inactive,
+ 			   zone->pages_scanned,
+ 			   zone->nr_scan_active, zone->nr_scan_inactive,
+-			   zone->spanned_pages,
+ 			   zone->present_pages);
+ 		seq_printf(m,
+ 			   "\n        protection: (%lu",
+@@ -2384,11 +2359,9 @@ static int zoneinfo_show(struct seq_file
+ 			   "\n  all_unreclaimable: %u"
+ 			   "\n  prev_priority:     %i"
+ 			   "\n  temp_priority:     %i"
+-			   "\n  start_pfn:         %lu",
+ 			   zone->all_unreclaimable,
+ 			   zone->prev_priority,
+-			   zone->temp_priority,
+-			   zone->zone_start_pfn);
++			   zone->temp_priority);
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 		seq_putc(m, '\n');
  	}
- 	nr_copy_pages = 0;
- 	nr_meta_pages = 0;
-@@ -618,18 +595,16 @@ int snapshot_read_next(struct snapshot_h
- static int mark_unsafe_pages(struct pbe *pblist)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	struct pbe *p;
-+	struct page *page;
- 
- 	if (!pblist) /* a sanity check */
- 		return -EINVAL;
- 
- 	/* Clear page flags */
- 	for_each_zone (zone) {
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			if (pfn_valid(zone_pfn + zone->zone_start_pfn))
--				ClearPageNosaveFree(pfn_to_page(zone_pfn +
--					zone->zone_start_pfn));
-+		for_each_page_in_zone(page, zone)
-+			ClearPageNosaveFree(page);
- 	}
- 
- 	/* Mark orig addresses */
-Index: node-hot-add2/arch/i386/mm/discontig.c
+Index: node-hot-add2/mm/memory_hotplug.c
 ===================================================================
---- node-hot-add2.orig/arch/i386/mm/discontig.c
-+++ node-hot-add2/arch/i386/mm/discontig.c
-@@ -400,23 +400,15 @@ void __init set_highmem_pages_init(int b
- 	struct page *page;
+--- node-hot-add2.orig/mm/memory_hotplug.c
++++ node-hot-add2/mm/memory_hotplug.c
+@@ -76,22 +76,6 @@ int __add_pages(struct zone *zone, unsig
+ 	return err;
+ }
  
- 	for_each_zone(zone) {
--		unsigned long node_pfn, zone_start_pfn, zone_end_pfn;
+-static void grow_zone_span(struct zone *zone,
+-		unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	unsigned long old_zone_end_pfn;
 -
- 		if (!is_highmem(zone))
- 			continue;
- 
--		zone_start_pfn = zone->zone_start_pfn;
--		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
+-	zone_span_writelock(zone);
 -
--		printk("Initializing %s for node %d (%08lx:%08lx)\n",
--				zone->name, zone->zone_pgdat->node_id,
--				zone_start_pfn, zone_end_pfn);
-+		printk("Initializing %s for node %d\n",
-+				zone->name, zone->zone_pgdat->node_id);
+-	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	if (start_pfn < zone->zone_start_pfn)
+-		zone->zone_start_pfn = start_pfn;
+-
+-	if (end_pfn > old_zone_end_pfn)
+-		zone->spanned_pages = end_pfn - zone->zone_start_pfn;
+-
+-	zone_span_writeunlock(zone);
+-}
  
--		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {
--			if (!pfn_valid(node_pfn))
--				continue;
--			page = pfn_to_page(node_pfn);
--			add_one_highpage_init(page, node_pfn, bad_ppro);
-+		for_each_page_in_zone(page, zone) {
-+			add_one_highpage_init(page,
-+				page_to_pfn(page), bad_ppro);
- 		}
- 	}
- 	totalram_pages += totalhigh_pages;
+ static void grow_pgdat_span(struct pglist_data *pgdat,
+ 		unsigned long start_pfn, unsigned long end_pfn)
+@@ -120,7 +104,6 @@ int online_pages(unsigned long pfn, unsi
+ 	 */
+ 	zone = page_zone(pfn_to_page(pfn));
+ 	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	grow_zone_span(zone, pfn, pfn + nr_pages);
+ 	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
+ 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+ 
+Index: node-hot-add2/include/linux/memory_hotplug.h
+===================================================================
+--- node-hot-add2.orig/include/linux/memory_hotplug.h
++++ node-hot-add2/include/linux/memory_hotplug.h
+@@ -25,29 +25,6 @@ void pgdat_resize_init(struct pglist_dat
+ {
+ 	spin_lock_init(&pgdat->node_size_lock);
+ }
+-/*
+- * Zone resizing functions
+- */
+-static inline unsigned zone_span_seqbegin(struct zone *zone)
+-{
+-	return read_seqbegin(&zone->span_seqlock);
+-}
+-static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
+-{
+-	return read_seqretry(&zone->span_seqlock, iv);
+-}
+-static inline void zone_span_writelock(struct zone *zone)
+-{
+-	write_seqlock(&zone->span_seqlock);
+-}
+-static inline void zone_span_writeunlock(struct zone *zone)
+-{
+-	write_sequnlock(&zone->span_seqlock);
+-}
+-static inline void zone_seqlock_init(struct zone *zone)
+-{
+-	seqlock_init(&zone->span_seqlock);
+-}
+ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
+ extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
+ extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+@@ -69,17 +46,6 @@ static inline void pgdat_resize_lock(str
+ static inline void pgdat_resize_unlock(struct pglist_data *p, unsigned long *f) {}
+ static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
+ 
+-static inline unsigned zone_span_seqbegin(struct zone *zone)
+-{
+-	return 0;
+-}
+-static inline int zone_span_seqretry(struct zone *zone, unsigned iv)
+-{
+-	return 0;
+-}
+-static inline void zone_span_writelock(struct zone *zone) {}
+-static inline void zone_span_writeunlock(struct zone *zone) {}
+-static inline void zone_seqlock_init(struct zone *zone) {}
+ 
+ static inline int mhp_notimplemented(const char *func)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
