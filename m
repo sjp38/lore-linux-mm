@@ -1,165 +1,165 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k1N90XZq027583 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 18:00:33 +0900
-        (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k1N90VtL030023 for <linux-mm@kvack.org>; Thu, 23 Feb 2006 18:00:31 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp (s6 [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B2A902A0C03
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 18:00:31 +0900 (JST)
-Received: from fjm506.ms.jp.fujitsu.com (fjm506.ms.jp.fujitsu.com [10.56.99.86])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 50E4C2A0BF9
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 18:00:31 +0900 (JST)
-Received: from aworks (fjmscan503.ms.jp.fujitsu.com [10.56.99.143])by fjm506.ms.jp.fujitsu.com with SMTP id k1N90Hxe015580
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 18:00:17 +0900
-Date: Thu, 23 Feb 2006 18:00:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] memory-layout-free zones (for review) [3/3]  fix
- for_each_page_in_zone
-Message-Id: <20060223180023.396d2cfe.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1NGgv3j004528
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 11:42:57 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1NGeVrN238244
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 09:40:31 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k1NGguvI018835
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2006 09:42:57 -0700
+Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot
+	time
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0602221625100.2801@skynet.skynet.ie>
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+	 <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
+	 <1140196618.21383.112.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602211445160.4335@skynet.skynet.ie>
+	 <1140543359.8693.32.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0602221625100.2801@skynet.skynet.ie>
+Content-Type: text/plain
+Date: Thu, 23 Feb 2006 08:42:49 -0800
+Message-Id: <1140712969.8697.33.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-To remove zone_start_pfn/zone_spanned_pages, for_each_page_in_zone()
-must be modified. This pacth uses pgdat instead of zones and calls
-page_zone() to check page is in zone.
-Maybe slower (>_<......
+On Wed, 2006-02-22 at 16:43 +0000, Mel Gorman wrote:
+> Is this a bit clearer? It's built and boot tested on one ppc64 machine. I 
+> am having trouble finding a ppc64 machine that *has* memory holes to be 
+> 100% sure it's ok.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Yeah, it looks that way.  If you need a machine, see Mike Kravetz.  I
+think he was working on a way to automate creating memory holes.
 
-Index: node-hot-add2/include/linux/mm.h
-===================================================================
---- node-hot-add2.orig/include/linux/mm.h
-+++ node-hot-add2/include/linux/mm.h
-@@ -549,6 +549,64 @@ void page_address_init(void);
- #define page_address_init()  do { } while(0)
- #endif
- 
-+
-+/*
-+ *  These inline function for for_each_page_in_zone can work
-+ *  even if CONFIG_SPARSEMEM=y.
-+ */
-+static inline struct page *first_page_in_zone(struct zone *zone)
-+{
-+	struct pglist_data *pgdat;
-+	unsigned long start_pfn;
-+	unsigned long i = 0;
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+
-+	pgdat = zone->zone_pgdat;
-+	zone = pgdat->node_start_pfn;
-+
-+	for (i = 0; i < pgdat->zone_spanned_pages; i++) {
-+		if (pfn_valid(start_pfn + i) && page_zone(page) == zone)
-+			break;
-+	}
-+	BUG_ON(i == pgdat->node_spanned_pages); /* zone is populated */
-+	return pfn_to_page(start_pfn + i);
-+}
-+
-+static inline struct page *next_page_in_zone(struct page *page,
-+					     struct zone *zone)
-+{
-+	struct pglist_data *pgdat;
-+	unsigned long start_pfn;
-+	unsigned long i;
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+	pgdat = zone->zone_pgdat;
-+	start_pfn = pgdat->node_start_pfn;
-+	i = page_to_pfn(page) - start_pfn;
-+
-+	for (i = i + 1; i < pgdat->node_spanned_pages; i++) {
-+		if (pfn_vlaid(start_pfn + i) && page_zone(page) == zone)
-+			break;
-+	}
-+	if (i == pgdat->node_spanned_pages)
-+		return NULL;
-+	return pfn_to_page(start_pfn + i);
-+}
-+
-+/**
-+ * for_each_page_in_zone -- helper macro to iterate over all pages in a zone.
-+ * @page - pointer to page
-+ * @zone - pointer to zone
-+ *
-+ */
-+#define for_each_page_in_zone(page, zone)		\
-+	for (page = (first_page_in_zone((zone)));	\
-+	     page;					\
-+	     page = next_page_in_zone(page, (zone)));
-+
- /*
-  * On an anonymous page mapped into a user virtual memory area,
-  * page->mapping points to its anon_vma, not to a struct address_space;
-Index: node-hot-add2/include/linux/mmzone.h
-===================================================================
---- node-hot-add2.orig/include/linux/mmzone.h
-+++ node-hot-add2/include/linux/mmzone.h
-@@ -457,53 +457,6 @@ static inline struct zone *next_zone(str
- 	     zone;					\
- 	     zone = next_zone(zone))
- 
--/*
-- *  These inline function for for_each_page_in_zone can work
-- *  even if CONFIG_SPARSEMEM=y.
-- */
--static inline struct page *first_page_in_zone(struct zone *zone)
--{
--	unsigned long start_pfn = zone->zone_start_pfn;
--	unsigned long i = 0;
--
--	if (!populated_zone(zone))
--		return NULL;
--
--	for (i = 0; i < zone->zone_spanned_pages; i++) {
--		if (pfn_valid(start_pfn + i))
--			break;
--	}
--	return pfn_to_page(start_pfn + i);
--}
--
--static inline struct page *next_page_in_zone(struct page *page,
--					     struct zone *zone)
--{
--	unsigned long start_pfn = zone->zone_start_pfn;
--	unsigned long i = page_to_pfn(page) - start_pfn;
--
--	if (!populated_zone(zone))
--		return NULL;
--
--	for (i = i + 1; i < zone->zone_spanned_pages; i++) {
--		if (pfn_vlaid(start_pfn + i))
--			break;
--	}
--	if (i == zone->zone_spanned_pages)
--		return NULL;
--	return pfn_to_page(start_pfn + i);
--}
--
--/**
-- * for_each_page_in_zone -- helper macro to iterate over all pages in a zone.
-- * @page - pointer to page
-- * @zone - pointer to zone
-- *
-- */
--#define for_each_page_in_zone(page, zone)		\
--	for (page = (first_page_in_zone((zone)));	\
--	     page;					\
--	     page = next_page_in_zone(page, (zone)));
- 
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
+> diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.16-rc3-mm1-103_x86coremem/arch/powerpc/mm/numa.c linux-2.6.16-rc3-mm1-104_ppc64coremem/arch/powerpc/mm/numa.c
+> --- linux-2.6.16-rc3-mm1-103_x86coremem/arch/powerpc/mm/numa.c	2006-02-16 09:50:42.000000000 +0000
+> +++ linux-2.6.16-rc3-mm1-104_ppc64coremem/arch/powerpc/mm/numa.c	2006-02-22 16:07:35.000000000 +0000
+> @@ -17,10 +17,12 @@
+>   #include <linux/nodemask.h>
+>   #include <linux/cpu.h>
+>   #include <linux/notifier.h>
+> +#include <linux/sort.h>
+>   #include <asm/sparsemem.h>
+>   #include <asm/lmb.h>
+>   #include <asm/system.h>
+>   #include <asm/smp.h>
+> +#include <asm/machdep.h>
+
+Is the email spacing getting screwed up here?
+
+> +/* Initialise the size of each zone in a node */
+> +void __init zone_sizes_init(unsigned int nid,
+> +		unsigned long kernelcore_pages,
+> +		unsigned long *zones_size)
+
+Minor nit territory: set_zone_sizes(), maybe?
+
+> +{
+> +	unsigned int i;
+> +	unsigned long pages_present = 0;
+
+pages_present_in_node?
+
+> +	/* Get the number of present pages in the node */
+> +	for (i = 0; init_node_data[i].end_pfn; i++) {
+> +		if (init_node_data[i].nid != nid)
+> +			continue;
+> +
+> +		pages_present += init_node_data[i].end_pfn -
+> +			init_node_data[i].start_pfn;
+> +	}
+> +
+> +	if (kernelcore_pages && kernelcore_pages < pages_present) {
+> +		zones_size[ZONE_DMA] = kernelcore_pages;
+> +		zones_size[ZONE_EASYRCLM] = pages_present - kernelcore_pages;
+> +	} else {
+> +		zones_size[ZONE_DMA] = pages_present;
+> +		zones_size[ZONE_EASYRCLM] = 0;
+> +	}
+> +}
+
+I think there are a couple of buglets here.  I think the
+kernelcore_pages is going to be applied per-zone, right?
+
+Also, how do we want to distribute kernelcore memory over each node?
+The way it is coded up for now, it will all be sliced out of the first
+node.  I'm not sure that's a good thing.
+
+My inclination would be to completely separate out the ZONE_EASYRCLM
+into separate code.  It makes it easier to set whatever policy you want
+in one place.  Just a suggestion.
+
+> +void __init get_zholes_size(unsigned int nid, unsigned long *zones_size,
+> +		unsigned long *zholes_size) {
+
+nid_zholes_size()?  I'm not too sure about this one.  Just promise me
+you'll think about it a bit more. ;)
+
+> +	unsigned int i = 0;
+> +	unsigned int start_easyrclm_pfn;
+> +	unsigned long last_end_pfn, first;
+> +
+> +	/* Find where the PFN of the end of DMA is */
+> +	unsigned long pages_count = zones_size[ZONE_DMA];
+
+<tangent> This (virtually) proves that zones_size[] needs to get a
+different name.  Perhaps we need to make it more like the zone structure
+itself and go to spanned and present pages? </tangent>
+
+> +	for (i = 0; init_node_data[i].end_pfn; i++) {
+> +		unsigned long segment_size;
+> +		if (init_node_data[i].nid != nid)
+> +			continue;
+> +
+> +		/*
+> +		 * Check if the end of ZONE_DMA is in this segment of the
+> +		 * init_node_data
+> +		 */
+> +		segment_size = init_node_data[i].end_pfn -
+> +			init_node_data[i].start_pfn;
+
+"segment" is probably a bad term to use here, especially on ppc.
+
+One other thing, I want to _know_ that variables being compared are in
+the same units.  When one is called "pages_" something and the other is
+something "_size", I don't _know_.  
+
+> +
+> +	/* Walk the map again and get the size of the holes */
+> +	first = 1;
+> +	zholes_size[ZONE_DMA] = 0;
+> +	zholes_size[ZONE_EASYRCLM] = 0;
+> +	for (i = 1; init_node_data[i].end_pfn; i++) {
+> +		unsigned long hole_size;
+> +		if (init_node_data[i].nid != nid)
+> +			continue;
+> +
+> +		if (first) {
+> +			last_end_pfn = init_node_data[i].end_pfn;
+> +			first = 0;
+> +			continue;
+> +		}
+> +
+> +		/* Hole found */
+> +		hole_size = init_node_data[i].start_pfn - last_end_pfn;
+> +		if (init_node_data[i].start_pfn < start_easyrclm_pfn) {
+> +			zholes_size[ZONE_DMA] += hole_size;
+> +		} else {
+> +			zholes_size[ZONE_EASYRCLM] += hole_size;
+> +		}
+> +		last_end_pfn = init_node_data[i].end_pfn;
+> +	}
+> +}
+
+I'd probably put this loop in another function.  It is pretty
+self-contained, no?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
