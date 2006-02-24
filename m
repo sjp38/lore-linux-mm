@@ -1,424 +1,87 @@
-Date: Fri, 24 Feb 2006 17:15:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] [RFC] for_each_page_in_zone [1/1]
-Message-Id: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 24 Feb 2006 09:04:24 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot time
+In-Reply-To: <1140718555.8697.73.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0602240902220.19157@skynet.skynet.ie>
+References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
+ <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
+ <1140196618.21383.112.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0602211445160.4335@skynet.skynet.ie>
+ <1140543359.8693.32.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0602221625100.2801@skynet.skynet.ie>
+ <1140712969.8697.33.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0602231646530.24093@skynet.skynet.ie>
+ <1140716304.8697.53.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0602231740410.24093@skynet.skynet.ie>
+ <1140718555.8697.73.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Pavel Machek <pavel@suse.cz>, Dave Hansen <haveblue@us.ibm.com>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This patch defines for_each_page_in_zone() macro. This replaces
-routine like this:
-==from==
-for(i = 0; i < zone->zone_spanned_pages; i++) {
-	if (!pfn_valid(pfn + i))
-		continue;
-	page = pfn_to_page(zone->zone_start_pfn + i);
-	.....
-==
-==to==
-for_each_page_in_zone(page,zone) {
-	....
-}
-==
-This can be used by many places in kernel/power/snapshot.c
+On Thu, 23 Feb 2006, Dave Hansen wrote:
 
-This patch is against 2.6.16-rc4-mm1 and has no dependency to other pathces.
-I did compile test and booted, but I don't have a hardware which touches codes
-I modified. so...please check.
+> On Thu, 2006-02-23 at 18:01 +0000, Mel Gorman wrote:
+>> On Thu, 23 Feb 2006, Dave Hansen wrote:
+>>> OK, back to the hapless system admin using kernelcore. They have a
+>>> 4-node system with 2GB of RAM in each node for 8GB total.  They use
+>>> kernelcore=1GB.  They end up with 4x1GB ZONE_DMA and 4x1GB
+>>> ZONE_EASYRCLM.  Perfect.  You can safely remove 4GB of RAM.
+>>>
+>>> Now, imagine that the machine has been heavily used for a while, there
+>>> is only 1 node's memory available, but CPUs are available in the same
+>>> places as before.  So, you start up your partition again have 8GB of
+>>> memory in one node.  Same kernelcore=1GB option.  You get 1x7GB ZONE_DMA
+>>> and 1x1GB ZONE_EASYRCLM.  I'd argue this is going to be a bit of a
+>>> surprise to the poor admin.
+>>>
+>>
+>> That sort of surprise is totally unacceptable but the behaviour of
+>> kernelcore needs to be consistent on both the x86 and the ppc (any any
+>> other ar. How about;
+>>
+>> 1. kernelcore=X determines the total amount of memory for !ZONE_EASYRCLM
+>>     (be it ZONE_DMA, ZONE_NORMAL or ZONE_HIGHMEM)
+>
+> Sounds reasonable.  But, if you're going to do that, should we just make
+> it the opposite and explicitly be easy_reclaim_mem=?  Do we want the
+> limit to be set as "I need this much kernel memory", or "I want this
+> much removable memory".  I dunno.
+>
 
---diffstat--
- arch/i386/mm/discontig.c |   18 ++-------
- include/linux/mmzone.h   |   20 ++++++++++
- kernel/power/snapshot.c  |   72 +++++++++++-------------------------
- mm/Makefile              |    2 -
- mm/mmzone.c              |   92 +++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c          |    7 ++-
- 6 files changed, 145 insertions(+), 66 deletions(-)
---
+I think we should keep it at kernelcore=. If you have too little easyrclm 
+memory, then hot-remove and hugetlb availability is impaired. If you 
+have too little kernel memory, you have a really bad day.
 
--- Kame
-==
-This patch defines for_each_page_in_zone(page, zone) macro.
-This macro is useful for iterate over all (valid) pages in a zone.
+>> 2. For every node that can have ZONE_EASYRCLM, split the kernelcore across
+>>     the nodes as a percentage of the node size
+>>
+>>     Example: 4 nodes, 1 GiB each, kernelcore=512MB
+>>  		node 0 ZONE_DMA = 128MB
+>>  		node 1 ZONE_DMA = 128MB
+>>  		node 2 ZONE_DMA = 128MB
+>>  		node 3 ZONE_DMA = 128MB
+>>
+>>  	    2 nodes, 3GiB and 1GIB, kernelcore=512MB
+>>  		node 0 ZONE_DMA = 384
+>>  		node 1 ZONE_DMA = 128
+>>
+>> It gets a bit more complex on NUMA for x86 because ZONE_NORMAL is
+>> involved but the idea would essentially be the same.
+>
+> Yes, chopping it up seems like the right thing (or as close as we can
+> get) to me.
+>
 
-Some of codes, especially kernel/power/snapshot.c, iterate over
-all pages in zone. This patch can clean up them.
+Ok, will rework the code to make it happen.
 
-Changelog v1->v2
-- misc fixes
-- first_page_in_zone and next_page_in_zone are out-of-lined.
-- a function next_valid_page() is added.
-- patch against 2.6.16-rc4-mm1, no dependency to other patches.
-
-
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Index: testtree/include/linux/mmzone.h
-===================================================================
---- testtree.orig/include/linux/mmzone.h
-+++ testtree/include/linux/mmzone.h
-@@ -472,6 +472,26 @@ extern struct pglist_data contig_page_da
- 
- #endif /* !CONFIG_NEED_MULTIPLE_NODES */
- 
-+/*
-+ * these function uses suitable algorythm for each memory model
-+ *
-+ * first_page_in_zone(zone) returns first valid page in zone.
-+ * next_page_in_zone(page,zone) returns next valid page in zone.
-+ */
-+extern struct page *first_page_in_zone(struct zone *zone);
-+extern struct page *next_page_in_zone(struct page *page, struct zone *zone);
-+
-+/**
-+ * for_each_page_in_zone -- helper macro to iterate over all pages in a zone.
-+ * @page - pointer to page
-+ * @zone - pointer to zone
-+ *
-+ */
-+#define for_each_page_in_zone(page, zone)		\
-+	for (page = (first_page_in_zone((zone)));	\
-+	     page;					\
-+	     page = next_page_in_zone(page, (zone)))
-+
- #ifdef CONFIG_SPARSEMEM
- #include <asm/sparsemem.h>
- #endif
-Index: testtree/mm/page_alloc.c
-===================================================================
---- testtree.orig/mm/page_alloc.c
-+++ testtree/mm/page_alloc.c
-@@ -671,7 +671,8 @@ static void __drain_pages(unsigned int c
- 
- void mark_free_pages(struct zone *zone)
- {
--	unsigned long zone_pfn, flags;
-+	struct page *page;
-+	unsigned long flags;
- 	int order;
- 	struct list_head *curr;
- 
-@@ -679,8 +680,8 @@ void mark_free_pages(struct zone *zone)
- 		return;
- 
- 	spin_lock_irqsave(&zone->lock, flags);
--	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--		ClearPageNosaveFree(pfn_to_page(zone_pfn + zone->zone_start_pfn));
-+	for_each_page_in_zone(page, zone)
-+		ClearPageNosaveFree(page);
- 
- 	for (order = MAX_ORDER - 1; order >= 0; --order)
- 		list_for_each(curr, &zone->free_area[order].free_list) {
-Index: testtree/kernel/power/snapshot.c
-===================================================================
---- testtree.orig/kernel/power/snapshot.c
-+++ testtree/kernel/power/snapshot.c
-@@ -43,18 +43,12 @@ static unsigned long *buffer;
- unsigned int count_highmem_pages(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	unsigned int n = 0;
--
-+	struct page *page;
- 	for_each_zone (zone)
- 		if (is_highmem(zone)) {
- 			mark_free_pages(zone);
--			for (zone_pfn = 0; zone_pfn < zone->spanned_pages; zone_pfn++) {
--				struct page *page;
--				unsigned long pfn = zone_pfn + zone->zone_start_pfn;
--				if (!pfn_valid(pfn))
--					continue;
--				page = pfn_to_page(pfn);
-+			for_each_page_in_zone(page, zone) {
- 				if (PageReserved(page))
- 					continue;
- 				if (PageNosaveFree(page))
-@@ -75,19 +69,15 @@ static struct highmem_page *highmem_copy
- 
- static int save_highmem_zone(struct zone *zone)
- {
--	unsigned long zone_pfn;
-+	struct page *page;
- 	mark_free_pages(zone);
--	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
--		struct page *page;
-+	for_each_page_in_zone(page , zone) {
- 		struct highmem_page *save;
- 		void *kaddr;
--		unsigned long pfn = zone_pfn + zone->zone_start_pfn;
-+		unsigned long pfn = page_to_pfn(page);
- 
- 		if (!(pfn%10000))
- 			printk(".");
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
- 		/*
- 		 * This condition results from rvmalloc() sans vmalloc_32()
- 		 * and architectural memory reservations. This should be
-@@ -167,19 +157,12 @@ static int pfn_is_nosave(unsigned long p
-  *	isn't part of a free chunk of pages.
-  */
- 
--static int saveable(struct zone *zone, unsigned long *zone_pfn)
-+static int saveable(struct page *page)
- {
--	unsigned long pfn = *zone_pfn + zone->zone_start_pfn;
--	struct page *page;
--
--	if (!pfn_valid(pfn))
--		return 0;
--
--	page = pfn_to_page(pfn);
- 	BUG_ON(PageReserved(page) && PageNosave(page));
- 	if (PageNosave(page))
- 		return 0;
--	if (PageReserved(page) && pfn_is_nosave(pfn))
-+	if (PageReserved(page) && pfn_is_nosave(page_to_pfn(page)))
- 		return 0;
- 	if (PageNosaveFree(page))
- 		return 0;
-@@ -190,15 +173,15 @@ static int saveable(struct zone *zone, u
- unsigned int count_data_pages(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
-+	struct page *page;
- 	unsigned int n = 0;
- 
- 	for_each_zone (zone) {
- 		if (is_highmem(zone))
- 			continue;
- 		mark_free_pages(zone);
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			n += saveable(zone, &zone_pfn);
-+		for_each_page_in_zone(page, zone)
-+			n += saveable(page);
- 	}
- 	return n;
- }
-@@ -206,9 +189,8 @@ unsigned int count_data_pages(void)
- static void copy_data_pages(struct pbe *pblist)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	struct pbe *pbe, *p;
--
-+	struct page *page;
- 	pbe = pblist;
- 	for_each_zone (zone) {
- 		if (is_highmem(zone))
-@@ -219,10 +201,8 @@ static void copy_data_pages(struct pbe *
- 			SetPageNosaveFree(virt_to_page(p));
- 		for_each_pbe (p, pblist)
- 			SetPageNosaveFree(virt_to_page(p->address));
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
--			if (saveable(zone, &zone_pfn)) {
--				struct page *page;
--				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
-+		for_each_page_in_zone(page, zone) {
-+			if (saveable(page)) {
- 				BUG_ON(!pbe);
- 				pbe->orig_address = (unsigned long)page_address(page);
- 				/* copy_page is not usable for copying task structs. */
-@@ -403,19 +383,15 @@ struct pbe *alloc_pagedir(unsigned int n
- void swsusp_free(void)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
--
-+	struct page *page;
- 	for_each_zone(zone) {
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			if (pfn_valid(zone_pfn + zone->zone_start_pfn)) {
--				struct page *page;
--				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
--				if (PageNosave(page) && PageNosaveFree(page)) {
--					ClearPageNosave(page);
--					ClearPageNosaveFree(page);
--					free_page((long) page_address(page));
--				}
-+		for_each_page_in_zone(page, zone) {
-+			if (PageNosave(page) && PageNosaveFree(page)) {
-+				ClearPageNosave(page);
-+				ClearPageNosaveFree(page);
-+				free_page((long) page_address(page));
- 			}
-+		}
- 	}
- 	nr_copy_pages = 0;
- 	nr_meta_pages = 0;
-@@ -618,18 +594,16 @@ int snapshot_read_next(struct snapshot_h
- static int mark_unsafe_pages(struct pbe *pblist)
- {
- 	struct zone *zone;
--	unsigned long zone_pfn;
- 	struct pbe *p;
-+	struct page *page;
- 
- 	if (!pblist) /* a sanity check */
- 		return -EINVAL;
- 
- 	/* Clear page flags */
- 	for_each_zone (zone) {
--		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
--			if (pfn_valid(zone_pfn + zone->zone_start_pfn))
--				ClearPageNosaveFree(pfn_to_page(zone_pfn +
--					zone->zone_start_pfn));
-+		for_each_page_in_zone(page, zone)
-+			ClearPageNosaveFree(page);
- 	}
- 
- 	/* Mark orig addresses */
-Index: testtree/arch/i386/mm/discontig.c
-===================================================================
---- testtree.orig/arch/i386/mm/discontig.c
-+++ testtree/arch/i386/mm/discontig.c
-@@ -411,23 +411,15 @@ void __init set_highmem_pages_init(int b
- 	struct page *page;
- 
- 	for_each_zone(zone) {
--		unsigned long node_pfn, zone_start_pfn, zone_end_pfn;
--
- 		if (!is_highmem(zone))
- 			continue;
- 
--		zone_start_pfn = zone->zone_start_pfn;
--		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
--
--		printk("Initializing %s for node %d (%08lx:%08lx)\n",
--				zone->name, zone->zone_pgdat->node_id,
--				zone_start_pfn, zone_end_pfn);
-+		printk("Initializing %s for node %d\n",
-+				zone->name, zone->zone_pgdat->node_id);
- 
--		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {
--			if (!pfn_valid(node_pfn))
--				continue;
--			page = pfn_to_page(node_pfn);
--			add_one_highpage_init(page, node_pfn, bad_ppro);
-+		for_each_page_in_zone(page, zone) {
-+			add_one_highpage_init(page,
-+				page_to_pfn(page), bad_ppro);
- 		}
- 	}
- 	totalram_pages += totalhigh_pages;
-Index: testtree/mm/Makefile
-===================================================================
---- testtree.orig/mm/Makefile
-+++ testtree/mm/Makefile
-@@ -10,7 +10,7 @@ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o 
- obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
- 			   page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
--			   prio_tree.o util.o $(mmu-y)
-+			   prio_tree.o util.o mmzone.o $(mmu-y)
- 
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
-Index: testtree/mm/mmzone.c
-===================================================================
---- /dev/null
-+++ testtree/mm/mmzone.c
-@@ -0,0 +1,92 @@
-+/*
-+ * mmzone.c -- functions for zone/pgdat, except for page allocator.
-+ *             includes functions depedns on memory models.
-+ */
-+#include <linux/config.h>
-+#include <stddef.h>
-+#include <linux/mm.h>
-+
-+#define END_PFN		(~0UL)	/* used to show end of pfn */
-+
-+/*
-+ * helper functions for each memory models.
-+ *
-+ * returns next valid pfn in range..
-+ */
-+#if defined(CONFIG_FLATMEM) || defined(CONFIG_DISCONTIGMEM)
-+
-+static inline unsigned long next_valid_pfn(unsigned long pfn,
-+					   unsigned long end_pfn)
-+{
-+	do {
-+		++pfn;
-+		if (pfn == end_pfn)
-+			return END_PFN;
-+	} while (!pfn_valid(pfn));
-+
-+	return pfn;
-+}
-+
-+#elif defined(CONFIG_SPARSEMEM)
-+
-+static inline unsigned long next_valid_pfn(unsigned long pfn,
-+					   unsigned long end_pfn)
-+{
-+	++pfn;
-+	do {
-+		if (pfn_valid(pfn))
-+			break;
-+		/* go to next section */
-+		pfn = ((pfn + PAGES_PER_SECTION) & PAGE_SECTION_MASK);
-+
-+	} while (pfn <= end_pfn);
-+
-+	if (pfn >= end_pfn)
-+		return END_PFN;
-+
-+	return pfn;
-+}
-+
-+#endif
-+
-+/*
-+ * generic routine.
-+ *
-+ * first_page_in_zone(zone) returns lowest valid page in zone.
-+ * next_page_in_zone(page,zone)  returns next valid page in zone.
-+ */
-+
-+struct page *first_page_in_zone(struct zone *zone)
-+{
-+	unsigned long pfn;
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+
-+	if (pfn_valid(zone->zone_start_pfn))
-+		return pfn_to_page(zone->zone_start_pfn);
-+
-+	pfn = next_valid_pfn(zone->zone_start_pfn,
-+			     zone->zone_start_pfn + zone->spanned_pages);
-+
-+	if (pfn == END_PFN) /* this means zone is empty */
-+		return NULL;
-+
-+	return pfn_to_page(pfn);
-+}
-+
-+struct page *next_page_in_zone(struct page *page, struct zone *zone)
-+{
-+	unsigned long pfn = page_to_pfn(page);
-+
-+	if (!populated_zone(zone))
-+		return NULL;
-+
-+	pfn = next_valid_pfn(pfn, zone->zone_start_pfn + zone->spanned_pages);
-+
-+	if (pfn == END_PFN)
-+		return NULL;
-+
-+	return pfn_to_page(pfn);
-+}
-+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
