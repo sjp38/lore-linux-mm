@@ -1,87 +1,60 @@
-Date: Fri, 24 Feb 2006 09:04:24 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/7] ppc64 - Specify amount of kernel memory at boot time
-In-Reply-To: <1140718555.8697.73.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0602240902220.19157@skynet.skynet.ie>
-References: <20060217141552.7621.74444.sendpatchset@skynet.csn.ul.ie>
- <20060217141712.7621.49906.sendpatchset@skynet.csn.ul.ie>
- <1140196618.21383.112.camel@localhost.localdomain>
- <Pine.LNX.4.64.0602211445160.4335@skynet.skynet.ie>
- <1140543359.8693.32.camel@localhost.localdomain>
- <Pine.LNX.4.64.0602221625100.2801@skynet.skynet.ie>
- <1140712969.8697.33.camel@localhost.localdomain>
- <Pine.LNX.4.64.0602231646530.24093@skynet.skynet.ie>
- <1140716304.8697.53.camel@localhost.localdomain>
- <Pine.LNX.4.64.0602231740410.24093@skynet.skynet.ie>
- <1140718555.8697.73.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Fri, 24 Feb 2006 11:52:20 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] [RFC] for_each_page_in_zone [1/1]
+Message-ID: <20060224105220.GA1662@elf.ucw.cz>
+References: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms-devel@lists.sourceforge.net
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Feb 2006, Dave Hansen wrote:
+Hi!
 
-> On Thu, 2006-02-23 at 18:01 +0000, Mel Gorman wrote:
->> On Thu, 23 Feb 2006, Dave Hansen wrote:
->>> OK, back to the hapless system admin using kernelcore. They have a
->>> 4-node system with 2GB of RAM in each node for 8GB total.  They use
->>> kernelcore=1GB.  They end up with 4x1GB ZONE_DMA and 4x1GB
->>> ZONE_EASYRCLM.  Perfect.  You can safely remove 4GB of RAM.
->>>
->>> Now, imagine that the machine has been heavily used for a while, there
->>> is only 1 node's memory available, but CPUs are available in the same
->>> places as before.  So, you start up your partition again have 8GB of
->>> memory in one node.  Same kernelcore=1GB option.  You get 1x7GB ZONE_DMA
->>> and 1x1GB ZONE_EASYRCLM.  I'd argue this is going to be a bit of a
->>> surprise to the poor admin.
->>>
->>
->> That sort of surprise is totally unacceptable but the behaviour of
->> kernelcore needs to be consistent on both the x86 and the ppc (any any
->> other ar. How about;
->>
->> 1. kernelcore=X determines the total amount of memory for !ZONE_EASYRCLM
->>     (be it ZONE_DMA, ZONE_NORMAL or ZONE_HIGHMEM)
->
-> Sounds reasonable.  But, if you're going to do that, should we just make
-> it the opposite and explicitly be easy_reclaim_mem=?  Do we want the
-> limit to be set as "I need this much kernel memory", or "I want this
-> much removable memory".  I dunno.
->
+> This patch defines for_each_page_in_zone() macro. This replaces
+> routine like this:
+> ==from==
+> for(i = 0; i < zone->zone_spanned_pages; i++) {
+> 	if (!pfn_valid(pfn + i))
+> 		continue;
+> 	page = pfn_to_page(zone->zone_start_pfn + i);
+> 	.....
+> ==
+> ==to==
+> for_each_page_in_zone(page,zone) {
+> 	....
+> }
+> ==
+> This can be used by many places in kernel/power/snapshot.c
+> 
+> This patch is against 2.6.16-rc4-mm1 and has no dependency to other pathces.
+> I did compile test and booted, but I don't have a hardware which touches codes
+> I modified. so...please check.
 
-I think we should keep it at kernelcore=. If you have too little easyrclm 
-memory, then hot-remove and hugetlb availability is impaired. If you 
-have too little kernel memory, you have a really bad day.
+Patch looks good to me. I'll try it later today.
 
->> 2. For every node that can have ZONE_EASYRCLM, split the kernelcore across
->>     the nodes as a percentage of the node size
->>
->>     Example: 4 nodes, 1 GiB each, kernelcore=512MB
->>  		node 0 ZONE_DMA = 128MB
->>  		node 1 ZONE_DMA = 128MB
->>  		node 2 ZONE_DMA = 128MB
->>  		node 3 ZONE_DMA = 128MB
->>
->>  	    2 nodes, 3GiB and 1GIB, kernelcore=512MB
->>  		node 0 ZONE_DMA = 384
->>  		node 1 ZONE_DMA = 128
->>
->> It gets a bit more complex on NUMA for x86 because ZONE_NORMAL is
->> involved but the idea would essentially be the same.
->
-> Yes, chopping it up seems like the right thing (or as close as we can
-> get) to me.
->
+> Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Index: testtree/include/linux/mmzone.h
+> ===================================================================
+> --- testtree.orig/include/linux/mmzone.h
+> +++ testtree/include/linux/mmzone.h
+> @@ -472,6 +472,26 @@ extern struct pglist_data contig_page_da
+>  
+>  #endif /* !CONFIG_NEED_MULTIPLE_NODES */
+>  
+> +/*
+> + * these function uses suitable algorythm for each memory model
 
-Ok, will rework the code to make it happen.
+"These functions use suitable algorithm for each memory model"?
 
+								Pavel
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Web maintainer for suspend.sf.net (www.sf.net/projects/suspend) wanted...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
