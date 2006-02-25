@@ -1,126 +1,70 @@
-Date: Sat, 25 Feb 2006 15:07:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] for_each_online_pgdat (take2)  [2/5]  for_each_bootmem
-Message-Id: <20060225150749.99ad7d3b.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 25 Feb 2006 14:01:12 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: page_lock_anon_vma(): remove check for mapped page
+In-Reply-To: <Pine.LNX.4.64.0602241658030.24668@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.61.0602251400520.7164@goblin.wat.veritas.com>
+References: <Pine.LNX.4.64.0602241658030.24668@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@osdl.org>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds list_head to bootmem_data_t and make bootmems use it.
-bootmem list is sorted by node_boot_start.
+On Fri, 24 Feb 2006, Christoph Lameter wrote:
 
-Only nodes against which init_bootmem() is called are linked to the list.
-(i386 allocates bootmem only from one node(0) not from all online nodes.)
+> Any reason that this function is checking for a mapped page? There could
+> be references through a swap pte to the page. The looping in
+> remove_from_swap, page_referenced_anon and try_to_unmap anon would 
+> work even if the check for a mapped page would be removed.
+> 
+> I have sent the patch below today to Hugh Dickins but did not receive an 
+> answer. Probaby requires some discussion.
 
-A summary:
- 1. for_each_online_pgdat() traverses all *online* nodes.
- 2. alloc_bootmem() allocates memory only from initialized-for-bootmem nodes.
+Good question, and I was on the point of answering that it's just a
+racy micro-optimization that you could eliminate.  But now I think
+that answer is wrong.  It's actually an essential part of the tricky
+business of getting from the struct page to the anon_vma lock, when
+there's a danger that the anon_vma and even its slab may be recycled
+at any instant (remember that we have to leave the anon page->mapping
+set even after the last page_remove_rmap, with comment there on that).
+If the page is not found mapped under the rcu_read_lock, then there's
+no guarantee that the anon_vma memory hasn't already been freed and
+its slab page destroyed, and recycled for other purposes completely.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I'll have to come back to this, and think it through more carefully: I
+might arrive at the opposite conclusion with more thought this evening.
 
-Index: linux-2.6.16-rc4-mm2/include/linux/bootmem.h
-===================================================================
---- linux-2.6.16-rc4-mm2.orig/include/linux/bootmem.h
-+++ linux-2.6.16-rc4-mm2/include/linux/bootmem.h
-@@ -38,6 +38,7 @@ typedef struct bootmem_data {
- 	unsigned long last_pos;
- 	unsigned long last_success;	/* Previous allocation point.  To speed
- 					 * up searching */
-+	struct list_head list;
- } bootmem_data_t;
- 
- extern unsigned long __init bootmem_bootmap_pages (unsigned long);
-Index: linux-2.6.16-rc4-mm2/mm/bootmem.c
-===================================================================
---- linux-2.6.16-rc4-mm2.orig/mm/bootmem.c
-+++ linux-2.6.16-rc4-mm2/mm/bootmem.c
-@@ -33,6 +33,7 @@ EXPORT_SYMBOL(max_pfn);		/* This is expo
- 				 * dma_get_required_mask(), which uses
- 				 * it, can be an inline function */
- 
-+LIST_HEAD(bdata_list);
- #ifdef CONFIG_CRASH_DUMP
- /*
-  * If we have booted due to a crash, max_pfn will be a very low value. We need
-@@ -52,6 +53,27 @@ unsigned long __init bootmem_bootmap_pag
- 
- 	return mapsize;
- }
-+/*
-+ * link bdata in order
-+ */
-+static void link_bootmem(bootmem_data_t *bdata)
-+{
-+	bootmem_data_t *ent;
-+	if (list_empty(&bdata_list)) {
-+		list_add(&bdata->list, &bdata_list);
-+		return;
-+	}
-+	/* insert in order */
-+	list_for_each_entry(ent, &bdata_list, list) {
-+		if (ent->node_boot_start < ent->node_boot_start) {
-+			list_add_tail(&bdata->list, &ent->list);
-+			return;
-+		}
-+	}
-+	list_add_tail(&bdata->list, &bdata_list);
-+	return;
-+}
-+
- 
- /*
-  * Called once to set up the allocator itself.
-@@ -62,13 +84,11 @@ static unsigned long __init init_bootmem
- 	bootmem_data_t *bdata = pgdat->bdata;
- 	unsigned long mapsize = ((end - start)+7)/8;
- 
--	pgdat->pgdat_next = pgdat_list;
--	pgdat_list = pgdat;
--
- 	mapsize = ALIGN(mapsize, sizeof(long));
- 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
- 	bdata->node_boot_start = (start << PAGE_SHIFT);
- 	bdata->node_low_pfn = end;
-+	link_bootmem(bdata);
- 
- 	/*
- 	 * Initially all pages are reserved - setup_arch() has to
-@@ -383,12 +403,11 @@ unsigned long __init free_all_bootmem (v
- 
- void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
- {
--	pg_data_t *pgdat = pgdat_list;
-+	bootmem_data_t *bdata;
- 	void *ptr;
- 
--	for_each_pgdat(pgdat)
--		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
--						 align, goal, 0)))
-+	list_for_each_entry(bdata, &bdata_list, list)
-+		if ((ptr = __alloc_bootmem_core(bdata, size, align, goal, 0)))
- 			return(ptr);
- 
- 	/*
-@@ -416,11 +435,11 @@ void * __init __alloc_bootmem_node(pg_da
- 
- void * __init __alloc_bootmem_low(unsigned long size, unsigned long align, unsigned long goal)
- {
--	pg_data_t *pgdat = pgdat_list;
-+	bootmem_data_t *bdata;
- 	void *ptr;
- 
--	for_each_pgdat(pgdat)
--		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
-+	list_for_each_entry(bdata, &bdata_list, list)
-+		if ((ptr = __alloc_bootmem_core(bdata, size,
- 						 align, goal, LOW32LIMIT)))
- 			return(ptr);
- 
+Hugh
+
+> 
+> 
+> 
+> It is okay to obtain a anon vma lock for a page that is only mapped
+> via a swap pte to the page. This occurs frequently during page
+> migration. The check for a mapped page (requiring regular ptes pointing
+> to the page) gets in the way.
+> 
+> Without this patch anonymous pages will have swap ptes after migration
+> that then need to be converted into regular ptes via a page fault.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.16-rc4/mm/rmap.c
+> ===================================================================
+> --- linux-2.6.16-rc4.orig/mm/rmap.c	2006-02-17 14:23:45.000000000 -0800
+> +++ linux-2.6.16-rc4/mm/rmap.c	2006-02-24 13:19:11.000000000 -0800
+> @@ -196,8 +196,6 @@ static struct anon_vma *page_lock_anon_v
+>  	anon_mapping = (unsigned long) page->mapping;
+>  	if (!(anon_mapping & PAGE_MAPPING_ANON))
+>  		goto out;
+> -	if (!page_mapped(page))
+> -		goto out;
+>  
+>  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+>  	spin_lock(&anon_vma->lock);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
