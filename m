@@ -1,52 +1,61 @@
-Date: Fri, 24 Feb 2006 17:15:01 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Fix sys_migrate_pages: Move all pages when invoked from root
-Message-Id: <20060224171501.1e19d34a.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0602241649530.24668@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0602241616540.24013@schroedinger.engr.sgi.com>
-	<20060224164733.6d5224a5.akpm@osdl.org>
-	<Pine.LNX.4.64.0602241649530.24668@schroedinger.engr.sgi.com>
+Date: Sat, 25 Feb 2006 10:24:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] [RFC] for_each_page_in_zone [1/1]
+Message-Id: <20060225102443.22b5727e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1140795826.8697.86.camel@localhost.localdomain>
+References: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
+	<1140795826.8697.86.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org, pavel@suse.cz, kravetz@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@engr.sgi.com> wrote:
->
-> > Also, this check from a few lines earlier:
-> > 
-> > 	/*
-> > 	 * Check if this process has the right to modify the specified
-> > 	 * process. The right exists if the process has administrative
-> > 	 * capabilities, superuser priviledges or the same
-> > 	 * userid as the target process.
-> > 	 */
-> > 	if ((current->euid != task->suid) && (current->euid != task->uid) &&
-> > 	    (current->uid != task->suid) && (current->uid != task->uid) &&
-> > 	    !capable(CAP_SYS_ADMIN)) {
-> > 		err = -EPERM;
-> > 		goto out;
-> > 	}
-> > 
-> > appears to be a) somewhat duplicative of your patch and b) a heck of a lot
-> > better way of determining whether to use MF_MOVE versus MF_MOVE_ALL.
+On Fri, 24 Feb 2006 07:43:45 -0800
+Dave Hansen <haveblue@us.ibm.com> wrote:
+
+> On Fri, 2006-02-24 at 17:15 +0900, KAMEZAWA Hiroyuki wrote:
+> > +struct page *next_page_in_zone(struct page *page, struct zone *zone)
+> > +{
+> > +       unsigned long pfn = page_to_pfn(page);
+> > +
+> > +       if (!populated_zone(zone))
+> > +               return NULL;
+> > +
+> > +       pfn = next_valid_pfn(pfn, zone->zone_start_pfn + zone->spanned_pages);
+> > +
+> > +       if (pfn == END_PFN)
+> > +               return NULL;
+> > +
+> > +       return pfn_to_page(pfn);
+> > +} 
 > 
-> Huh? This only checks the permission for allow a process to start 
-> migration another process. It does not define the scope of actions.
+> If there can be a case where a node spans other nodes, then I don't
+> think this patch will work.  The next_valid_pfn() could be a pfn in
+> another zone.  I believe that you may have to do a pfn_to_page() and
+> check the zone on each one.  
 > 
-> How could this determine if a user would be allowed to move all pages? 
+Oh......maybe this code is ok?
+--
+do {
+	pfn = next_valid_pfn(pfn, zone->zone_start_pfn + zone->zone->spanned_pages);
+}while(page_zone(pfn_to_page(pfn)) !-= zone);
+--
+I think powerpc uses SPARSEMEM when NUMA, so pfn is efficientlly skipped.
 
-You want a check which says "can this user move that user's pages".  The
-current proposal is to use CAP_SYS_ADMIN, which is a bit coarse.
 
-<looks>
+> There are some ppc64 machines which have memory laid out like this:
+> 
+>   0-100 MB Node0
+> 100-200 MB Node1
+> 200-300 MB Node0
+> 
+Interesting....
 
-Oh, it uses the mapcount rather than a permission check on vma->vm_file. 
-Oh well.
+--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
