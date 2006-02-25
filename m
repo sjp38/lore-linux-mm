@@ -1,68 +1,48 @@
-Date: Fri, 24 Feb 2006 16:57:41 -0800 (PST)
+Date: Fri, 24 Feb 2006 17:03:20 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Fix sys_migrate_pages: Move all pages when invoked from root
-In-Reply-To: <20060224164733.6d5224a5.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0602241649530.24668@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0602241616540.24013@schroedinger.engr.sgi.com>
- <20060224164733.6d5224a5.akpm@osdl.org>
+Subject: page_lock_anon_vma(): remove check for mapped page
+Message-ID: <Pine.LNX.4.64.0602241658030.24668@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Feb 2006, Andrew Morton wrote:
+Any reason that this function is checking for a mapped page? There could
+be references through a swap pte to the page. The looping in
+remove_from_swap, page_referenced_anon and try_to_unmap anon would 
+work even if the check for a mapped page would be removed.
 
-> What a strange interface.  One would expect the syscall to pass in an arg
-> saying "move my pages" or "move all pages", and then permission checking
-> will either do that or it will reject it.
-
-Another approach is to say that the migrate_pages() call moves the pages 
-it is allowed to. A user should not move pages of other processes whereas
-root is expected to be able to do everything. Migrate means migrate 
-whatever you can because the pages are on the wrong nodes. And a regular 
-user can only move his own stuff.
-
-A detailed control over page migration is possible via the mbind() 
-function call. Hmmm... Although adding some flag to sys_migrate_pages 
-would allow more flexibility for root and may also allow other flags in 
-the fture.
-
-> As it stands, programs will silently behave differently depending upon
-> whether root ran them, which is silly.
-
-The processes affected will still run correctly and the user may only 
-notice a performance difference.
-
-> Also, this check from a few lines earlier:
-> 
-> 	/*
-> 	 * Check if this process has the right to modify the specified
-> 	 * process. The right exists if the process has administrative
-> 	 * capabilities, superuser priviledges or the same
-> 	 * userid as the target process.
-> 	 */
-> 	if ((current->euid != task->suid) && (current->euid != task->uid) &&
-> 	    (current->uid != task->suid) && (current->uid != task->uid) &&
-> 	    !capable(CAP_SYS_ADMIN)) {
-> 		err = -EPERM;
-> 		goto out;
-> 	}
-> 
-> appears to be a) somewhat duplicative of your patch and b) a heck of a lot
-> better way of determining whether to use MF_MOVE versus MF_MOVE_ALL.
-
-Huh? This only checks the permission for allow a process to start 
-migration another process. It does not define the scope of actions.
-
-How could this determine if a user would be allowed to move all pages? 
-If a user would be allowed to move all pages then he could move f.e. 
-glibc or ldso pages (these are heavily shared) to a bad location affecting 
-the performance of the processes of other users on the system.
+I have sent the patch below today to Hugh Dickins but did not receive an 
+answer. Probaby requires some discussion.
 
 
+
+It is okay to obtain a anon vma lock for a page that is only mapped
+via a swap pte to the page. This occurs frequently during page
+migration. The check for a mapped page (requiring regular ptes pointing
+to the page) gets in the way.
+
+Without this patch anonymous pages will have swap ptes after migration
+that then need to be converted into regular ptes via a page fault.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.16-rc4/mm/rmap.c
+===================================================================
+--- linux-2.6.16-rc4.orig/mm/rmap.c	2006-02-17 14:23:45.000000000 -0800
++++ linux-2.6.16-rc4/mm/rmap.c	2006-02-24 13:19:11.000000000 -0800
+@@ -196,8 +196,6 @@ static struct anon_vma *page_lock_anon_v
+ 	anon_mapping = (unsigned long) page->mapping;
+ 	if (!(anon_mapping & PAGE_MAPPING_ANON))
+ 		goto out;
+-	if (!page_mapped(page))
+-		goto out;
+ 
+ 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+ 	spin_lock(&anon_vma->lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
