@@ -1,48 +1,52 @@
-Date: Fri, 24 Feb 2006 17:03:20 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: page_lock_anon_vma(): remove check for mapped page
-Message-ID: <Pine.LNX.4.64.0602241658030.24668@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 24 Feb 2006 17:15:01 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Fix sys_migrate_pages: Move all pages when invoked from root
+Message-Id: <20060224171501.1e19d34a.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0602241649530.24668@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0602241616540.24013@schroedinger.engr.sgi.com>
+	<20060224164733.6d5224a5.akpm@osdl.org>
+	<Pine.LNX.4.64.0602241649530.24668@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Any reason that this function is checking for a mapped page? There could
-be references through a swap pte to the page. The looping in
-remove_from_swap, page_referenced_anon and try_to_unmap anon would 
-work even if the check for a mapped page would be removed.
+Christoph Lameter <clameter@engr.sgi.com> wrote:
+>
+> > Also, this check from a few lines earlier:
+> > 
+> > 	/*
+> > 	 * Check if this process has the right to modify the specified
+> > 	 * process. The right exists if the process has administrative
+> > 	 * capabilities, superuser priviledges or the same
+> > 	 * userid as the target process.
+> > 	 */
+> > 	if ((current->euid != task->suid) && (current->euid != task->uid) &&
+> > 	    (current->uid != task->suid) && (current->uid != task->uid) &&
+> > 	    !capable(CAP_SYS_ADMIN)) {
+> > 		err = -EPERM;
+> > 		goto out;
+> > 	}
+> > 
+> > appears to be a) somewhat duplicative of your patch and b) a heck of a lot
+> > better way of determining whether to use MF_MOVE versus MF_MOVE_ALL.
+> 
+> Huh? This only checks the permission for allow a process to start 
+> migration another process. It does not define the scope of actions.
+> 
+> How could this determine if a user would be allowed to move all pages? 
 
-I have sent the patch below today to Hugh Dickins but did not receive an 
-answer. Probaby requires some discussion.
+You want a check which says "can this user move that user's pages".  The
+current proposal is to use CAP_SYS_ADMIN, which is a bit coarse.
 
+<looks>
 
-
-It is okay to obtain a anon vma lock for a page that is only mapped
-via a swap pte to the page. This occurs frequently during page
-migration. The check for a mapped page (requiring regular ptes pointing
-to the page) gets in the way.
-
-Without this patch anonymous pages will have swap ptes after migration
-that then need to be converted into regular ptes via a page fault.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.16-rc4/mm/rmap.c
-===================================================================
---- linux-2.6.16-rc4.orig/mm/rmap.c	2006-02-17 14:23:45.000000000 -0800
-+++ linux-2.6.16-rc4/mm/rmap.c	2006-02-24 13:19:11.000000000 -0800
-@@ -196,8 +196,6 @@ static struct anon_vma *page_lock_anon_v
- 	anon_mapping = (unsigned long) page->mapping;
- 	if (!(anon_mapping & PAGE_MAPPING_ANON))
- 		goto out;
--	if (!page_mapped(page))
--		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
- 	spin_lock(&anon_vma->lock);
+Oh, it uses the mapcount rather than a permission check on vma->vm_file. 
+Oh well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
