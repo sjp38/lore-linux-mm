@@ -1,61 +1,35 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k1OFhtPd004704
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2006 10:43:55 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VERS6.8) with ESMTP id k1OFhtAf243600
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2006 10:43:55 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k1OFhsCM029025
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2006 10:43:55 -0500
-Subject: Re: [PATCH] [RFC] for_each_page_in_zone [1/1]
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20060224171518.29bae84b.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Fri, 24 Feb 2006 07:43:45 -0800
-Message-Id: <1140795826.8697.86.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 24 Feb 2006 16:17:44 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Fix sys_migrate_pages: Move all pages when invoked from root
+Message-ID: <Pine.LNX.4.64.0602241616540.24013@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Pavel Machek <pavel@suse.cz>, Mike Kravetz <kravetz@us.ibm.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-02-24 at 17:15 +0900, KAMEZAWA Hiroyuki wrote:
-> +struct page *next_page_in_zone(struct page *page, struct zone *zone)
-> +{
-> +       unsigned long pfn = page_to_pfn(page);
-> +
-> +       if (!populated_zone(zone))
-> +               return NULL;
-> +
-> +       pfn = next_valid_pfn(pfn, zone->zone_start_pfn + zone->spanned_pages);
-> +
-> +       if (pfn == END_PFN)
-> +               return NULL;
-> +
-> +       return pfn_to_page(pfn);
-> +} 
+Currently sys_migrate_pages only moves pages belonging to a process.
+This is okay when invoked from a regular user. But if invoked from
+root it should move all pages as documented in the migrate_pages manpage.
 
-If there can be a case where a node spans other nodes, then I don't
-think this patch will work.  The next_valid_pfn() could be a pfn in
-another zone.  I believe that you may have to do a pfn_to_page() and
-check the zone on each one.  
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-There are some ppc64 machines which have memory laid out like this:
-
-  0-100 MB Node0
-100-200 MB Node1
-200-300 MB Node0
-
-Node0's ZONE_DMA has a start_pfn of 0, a spanned_pages of 300MB and a
-present_pages of 200MB.  The next_valid_pfn() after the first 100MB is a
-page in Node1.
-
-Sorry if I missed this on the first go around.  
-
--- Dave
+Index: linux-2.6.16-rc4/mm/mempolicy.c
+===================================================================
+--- linux-2.6.16-rc4.orig/mm/mempolicy.c	2006-02-24 14:32:02.000000000 -0800
++++ linux-2.6.16-rc4/mm/mempolicy.c	2006-02-24 15:44:24.000000000 -0800
+@@ -940,7 +940,8 @@ asmlinkage long sys_migrate_pages(pid_t 
+ 		goto out;
+ 	}
+ 
+-	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
++	err = do_migrate_pages(mm, &old, &new,
++		capable(CAP_SYS_ADMIN) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
+ out:
+ 	mmput(mm);
+ 	return err;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
