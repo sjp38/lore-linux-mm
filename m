@@ -1,102 +1,73 @@
-Date: Sat, 25 Feb 2006 21:57:04 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
+Date: Sun, 26 Feb 2006 15:58:30 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: page_lock_anon_vma(): remove check for mapped page
-In-Reply-To: <Pine.LNX.4.61.0602260359080.9682@goblin.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0602252152500.29338@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0602252120150.29251@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.61.0602261535350.13368@goblin.wat.veritas.com>
 References: <Pine.LNX.4.64.0602241658030.24668@schroedinger.engr.sgi.com>
  <Pine.LNX.4.61.0602251400520.7164@goblin.wat.veritas.com>
  <Pine.LNX.4.61.0602260359080.9682@goblin.wat.veritas.com>
+ <Pine.LNX.4.64.0602252120150.29251@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here is the parameterization you wanted. However, I am still not sure
-that a check for a valid mapping here is sufficient if the caller has no
-other means to guarantee that the mapping is not vanishing.
+On Sat, 25 Feb 2006, Christoph Lameter wrote:
+> On Sun, 26 Feb 2006, Hugh Dickins wrote:
+> 
+> > But I think you can avoid it.  It looks to me like the mmap_sem of
+> > an mm containing the pages is held across migrate_pages?  That should
+> 
+> Currently yes, but the hotplug folks may need to use the page 
+> migration functions without holding mmap_sem. So we would like to see the 
+> page migration code in vmscan.c not depend on mmap_sem.
 
-If the mapping is removed after the check for the mapping was done then
-we still have a problem.
+I'm afraid you'll have to think up some other way to stabilize the
+anon_vma in that future extension then.  For now mmap_sem covers it.
+Wish I could dream up a BUG_ON to warn against those future changes.
 
-Or is there some way that RCU can preserve the existence of an anonymous 
-vma?
+> > be enough to guarantee that the anon_vmas involved cannot be freed
+> 
+> The page is locked. Isnt that enough to guarantee that the page cannot be 
+> removed from the anon vma?
 
-Cannot imagine how that would work. If an rcu free was done on the 
-anonymous vma then it may vanish anytime after page_lock_anon_vma does a 
-rcu unlock. And then we are holding a lock that is located in free 
-space...... 
+Not at all.  We don't have to take page lock when munmapping or exiting
+mm (though when it's a swap page, we do trylock).  Nor would wish to.
 
+> > behind your back (whereas page_referenced and try_to_unmap are called
+> > without any mmap_sem held).  So you'd want to add a new flag to
+> > page_lock_anon_vma, to condition whether page_mapped is checked.
+> 
+> Is that really necessary? Can we check for page mapped or page locked?
 
+Yes.  No.
 
-page_lock_anon_vma: Add additional parameter to control mapped check
+> > Though I'm not yet certain that that won't have races of its own:
+> > please examine it sceptically.  And is it actually guaranteed that
+> > a relevant mmap_sem is held here?  Why on earth does vmscan.c contain
+> > EXPORT_SYMBOLs of migrate_page_remove_references, migrate_page_copy,
+> > migrate_page?
+> 
+> This is so that filesystems can generate their own migration functions. 
+> Filesystem may mantain structures with additional references to the pages 
+> being moved and we cannot move pages with buffers without filesystem 
+> cooperation.
 
-It is okay to obtain a anon vma lock for a page that is only mapped
-via a swap pte to the page. This occurs frequently during page
-migration. The check for a mapped page (requiring regular ptes pointing
-to the page) gets in the way.
+Hmm.  I'd be happier about them if there were some example in the tree
+of how they should be used from a filesystem: kill the EXPORTs until
+then?  probably too late now, to make that change in 2.6.16.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+So long as the filesystem only tries to migrate its own pagecache
+pages, it should be okay (the locking for file pages is not problematic
+as it is for anonymous - probably because we do insist on locking pages
+before truncating or clearing the cache).  But if it were to try to
+migrate the anonymous pages COWed into a private file-based vma,
+without any mmap_sem, then it would be unsafe.  Unlikely mistake.
 
-Index: linux-2.6.16-rc4/mm/rmap.c
-===================================================================
---- linux-2.6.16-rc4.orig/mm/rmap.c	2006-02-17 14:23:45.000000000 -0800
-+++ linux-2.6.16-rc4/mm/rmap.c	2006-02-25 21:51:49.000000000 -0800
-@@ -187,7 +187,7 @@ void __init anon_vma_init(void)
-  * Getting a lock on a stable anon_vma from a page off the LRU is
-  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-  */
--static struct anon_vma *page_lock_anon_vma(struct page *page)
-+static struct anon_vma *page_lock_anon_vma(struct page *page, int check_mapped)
- {
- 	struct anon_vma *anon_vma = NULL;
- 	unsigned long anon_mapping;
-@@ -196,7 +196,15 @@ static struct anon_vma *page_lock_anon_v
- 	anon_mapping = (unsigned long) page->mapping;
- 	if (!(anon_mapping & PAGE_MAPPING_ANON))
- 		goto out;
--	if (!page_mapped(page))
-+	/*
-+	 * Mysterious check that may have something to do with the vma
-+	 * potentially vanishing if page was the last page in the mapping
-+	 * and was just removed.
-+	 *
-+	 * Check is not necessary if we have another means of guaranteeing
-+	 * that the vma is safe.
-+	 */
-+	if (check_mapped && !page_mapped(page))
- 		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-@@ -222,7 +230,7 @@ void remove_from_swap(struct page *page)
- 	if (!PageAnon(page) || !PageSwapCache(page))
- 		return;
- 
--	anon_vma = page_lock_anon_vma(page);
-+	anon_vma = page_lock_anon_vma(page, 0);
- 	if (!anon_vma)
- 		return;
- 
-@@ -359,7 +367,7 @@ static int page_referenced_anon(struct p
- 	struct vm_area_struct *vma;
- 	int referenced = 0;
- 
--	anon_vma = page_lock_anon_vma(page);
-+	anon_vma = page_lock_anon_vma(page, 1);
- 	if (!anon_vma)
- 		return referenced;
- 
-@@ -737,7 +745,7 @@ static int try_to_unmap_anon(struct page
- 	struct vm_area_struct *vma;
- 	int ret = SWAP_AGAIN;
- 
--	anon_vma = page_lock_anon_vma(page);
-+	anon_vma = page_lock_anon_vma(page, 1);
- 	if (!anon_vma)
- 		return ret;
- 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
