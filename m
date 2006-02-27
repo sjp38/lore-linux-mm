@@ -1,26 +1,33 @@
-Message-ID: <20060227170007.93099.qmail@web51911.mail.yahoo.com>
-Date: Mon, 27 Feb 2006 17:00:07 +0000 (GMT)
-From: Doni Andri Cahyono <d0n1ac@yahoo.com>
-Subject: mail archive
+Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Mon, 27 Feb 2006 09:05:33 -0800
+Date: Mon, 27 Feb 2006 09:05:32 -0800 (PST)
+From: "Randy.Dunlap" <rdunlap@xenotime.net>
+Subject: Re: mail archive
+In-Reply-To: <20060227170007.93099.qmail@web51911.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.58.0602270904460.22195@shark.he.net>
+References: <20060227170007.93099.qmail@web51911.mail.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Doni Andri Cahyono <d0n1ac@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi there,
+On Mon, 27 Feb 2006, Doni Andri Cahyono wrote:
 
-I'm still newbie here. Is it also available
-mail-archive for this mailing list? Since i can learn
-by reading :-).
+> Hi there,
+>
+> I'm still newbie here. Is it also available
+> mail-archive for this mailing list? Since i can learn
+> by reading :-).
 
-TIA
+http://marc.theaimsgroup.com/?l=linux-mm
 
-Doni
+also the wiki at http://www.linux-mm.org/
+has some good info.
 
-Send instant messages to your online friends http://uk.messenger.yahoo.com 
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
