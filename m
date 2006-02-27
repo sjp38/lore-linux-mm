@@ -1,33 +1,34 @@
-Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Mon, 27 Feb 2006 09:05:33 -0800
-Date: Mon, 27 Feb 2006 09:05:32 -0800 (PST)
-From: "Randy.Dunlap" <rdunlap@xenotime.net>
 Subject: Re: mail archive
+From: Avishay Traeger <atraeger@cs.sunysb.edu>
 In-Reply-To: <20060227170007.93099.qmail@web51911.mail.yahoo.com>
-Message-ID: <Pine.LNX.4.58.0602270904460.22195@shark.he.net>
 References: <20060227170007.93099.qmail@web51911.mail.yahoo.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
+Date: Mon, 27 Feb 2006 12:05:37 -0500
+Message-Id: <1141059937.32697.4.camel@rockstar.fsl.cs.sunysb.edu>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Doni Andri Cahyono <d0n1ac@yahoo.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Feb 2006, Doni Andri Cahyono wrote:
-
+On Mon, 2006-02-27 at 17:00 +0000, Doni Andri Cahyono wrote:
 > Hi there,
->
+> 
 > I'm still newbie here. Is it also available
 > mail-archive for this mailing list? Since i can learn
 > by reading :-).
+> 
+> TIA
+> 
+> Doni
 
-http://marc.theaimsgroup.com/?l=linux-mm
+http://marc.theaimsgroup.com/?l=linux-mm&r=1&w=2
 
-also the wiki at http://www.linux-mm.org/
-has some good info.
 
--- 
-~Randy
+Avishay Traeger
+http://www.fsl.cs.sunysb.edu/~avishay/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
