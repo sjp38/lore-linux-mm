@@ -1,93 +1,49 @@
-From: Blaisorblade <blaisorblade@yahoo.it>
-Subject: Re: remap_file_pages - Bug with _PAGE_PROTNONE - is it used in current kernels?
-Date: Tue, 28 Feb 2006 17:53:44 +0100
-References: <200602202354.48851.blaisorblade@yahoo.it> <Pine.LNX.4.61.0602211257360.8644@goblin.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.61.0602211257360.8644@goblin.wat.veritas.com>
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: vDSO vs. mm : problems with ppc vdso
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.61.0602281213540.7059@goblin.wat.veritas.com>
+References: <1141105154.3767.27.camel@localhost.localdomain>
+	 <20060227215416.2bfc1e18.akpm@osdl.org>
+	 <1141106896.3767.34.camel@localhost.localdomain>
+	 <20060227222055.4d877f16.akpm@osdl.org>
+	 <1141108220.3767.43.camel@localhost.localdomain>
+	 <440424CA.5070206@yahoo.com.au>
+	 <Pine.LNX.4.61.0602281213540.7059@goblin.wat.veritas.com>
+Content-Type: text/plain
+Date: Wed, 01 Mar 2006 04:55:54 +1100
+Message-Id: <1141149355.3767.57.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <200602281753.47439.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, paulus@samba.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 21 February 2006 14:09, Hugh Dickins wrote:
-> On Mon, 20 Feb 2006, Blaisorblade wrote:
-> > I've been hitting a bug on a patch I'm working on and have considered
-> > (and more or less tested with good results) doing this change:
-> >
-> > -#define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
-> > +#define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT))
-> >
-> > (and the corresponding thing on other architecture).
-> >
-> > In general, the question is whether __P000 and __S000 in protection_map
-> > are ever used except for MAP_POPULATE, and even then if they work well.
-> >
-> > I'm seeking for objections to this change and/or anything I'm missing.
+On Tue, 2006-02-28 at 12:32 +0000, Hugh Dickins wrote:
+> On Tue, 28 Feb 2006, Nick Piggin wrote:
+> > 
+> > You should be OK. VM_RESERVED itself is something of an anachronism
+> > these days. If you're not getting your page from the page allocator
+> > then you'll want to make sure each of their count, and mapcount is
+> > reset before allowing them to be mapped.
+> 
+> Yes, it's fine that VM_RESERVED isn't set on it.
+> But I don't understand your remarks about count and mapcount at all:
+> perhaps you meant to say something else?
 
-> Objection, your honor.
-English humor :-) ?
+Ah thanks , I was worried there too ;)
 
-> I didn't fully understand you there, but I think you've got it the wrong
-> way round: _PAGE_PROTNONE is included in the pte_present() test precisely
-> because there is a valid page there, pfn is set (it might be pfn 0, yes,
-> but much more likely to be pfn non-0).
+> If I ignore what you actually said, and think of what problems there
+> might be in that area, then yes, if the pages come from kernel memory
+> (they do) rather than page allocator, we'd better make sure page_count
+> starts above 0, so it doesn't go down to zero on last free from userspace:
+> and indeed, Ben's vdso_init does a get_page on each to ensure that.
 
-> I've never used PROT_NONE myself (beyond testing), but I think the
-> traditional way it's used is this: mmap(,,PROT_READ|PROT_WRITE,,,),
-> initialize the pages of that mapping, then mprotect(,,PROT_NONE) -
-> which retains all those pages but make them generate SIGSEGVs - so
-> the app can detect accesses and decide if it wants to do something
-> special with them, other than the obvious mprotect(,,PROT_READ) or
-> whatever.
+Yup, I took care of that and that part seems to work. I don't touch
+mapcount at all.
 
-> PROT_NONE gives you a way of holding the page present (unlike munmap),
-> yet failing access.  And since those pages remain present, they do
-> need to be freed later when you get to zap_pte_range.  They are
-> normal pages, but user access to them has been restricted.
+Ben.
 
-Ok, thanks for the explaination.
-
-The bug is born from the patched install_file_pte(). Before there was no need 
-to store the protection bits, now it's needed.
-
-So, it sets a pte_file PTE containing no page, and on PROT_NONE it uses 
-_PAGE_PROTNONE|_PAGE_FILE.
-
-Indeed, what I've actually coded and tested was safer, but I wanted to know if 
-it could be simpler (and faster). For i386 it should be (I've re-tested only 
-UML so far):
-
--#define pte_present(x)  ((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
-+#define pte_present(x)  (((x).pte_low & _PAGE_PRESENT) || \
-+	(((x).pte_low & (_PAGE_PROTNONE|_PAGE_FILE)) == _PAGE_PROTNONE))
-
---- linux-2.6.git.orig/include/asm-um/pgtable.h
-+++ linux-2.6.git/include/asm-um/pgtable.h
-@@
-
--#define pte_present(x) pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTNONE))
-+#define pte_present(x) (pte_get_bits(x, (_PAGE_PRESENT)) || (pte_get_bits(x, 
-(_PAGE_PROTNONE)) && !pte_file(x)))
-
--- 
-Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
-Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
-http://www.user-mode-linux.org/~blaisorblade
-
-
-	
-
-	
-		
-___________________________________ 
-Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
-http://mail.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
