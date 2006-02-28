@@ -1,71 +1,72 @@
-Date: Mon, 27 Feb 2006 22:20:55 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: vDSO vs. mm : problems with ppc vdso
-Message-Id: <20060227222055.4d877f16.akpm@osdl.org>
+Subject: [PATCH] Add mm->task_size and fix powerpc vdso
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 In-Reply-To: <1141106896.3767.34.camel@localhost.localdomain>
 References: <1141105154.3767.27.camel@localhost.localdomain>
-	<20060227215416.2bfc1e18.akpm@osdl.org>
-	<1141106896.3767.34.camel@localhost.localdomain>
+	 <20060227215416.2bfc1e18.akpm@osdl.org>
+	 <1141106896.3767.34.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Tue, 28 Feb 2006 17:27:20 +1100
+Message-Id: <1141108040.3767.40.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, hugh@veritas.com, paulus@samba.org, nickpiggin@yahoo.com.au, davem@davemloft.net
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, hugh@veritas.com, paulus@samba.org, nickpiggin@yahoo.com.au, "David S. Miller" <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
->
-> 
-> > As mentioned on IRC, we keep on getting bugs because we don't have a clear
-> > separation between 64-bit tasks (a task_struct thing) and 64-bit mm's (an
-> > mm_struct thing).  I'd propose added mm_struct.task_size and testing that
-> > in the appropriate places.
-> 
-> Ok, What about a patch adding mm->task_size and setting it to TASK_SIZE
-> asap and use that to fix my bug at least. It would have to be done in 
-> flush_old_exec(), after the call to flush_thread() at least on powerpc
-> that's where we properly switch the TIF_32BIT flag. I can't do it
-> earlier. Does that sound all right ?
+This patch adds mm->task_size to keep track of the task size of a given
+mm and uses that to fix the powerpc vdso so that it uses the mm task
+size to decide what pages to fault in instead of the current thread
+flags (which broke when ptracing).
 
-It should be done with some care - I suspect this will become *the*
-way in which we recognise a 64-bit mm and quite a bit of stuff will end up
-migrating to it.  We do need input from the various 64-bit people who have
-wrestled with these things.
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-> I'll send the patch as a reply to this message.
+Index: linux-work/arch/powerpc/kernel/vdso.c
+===================================================================
+--- linux-work.orig/arch/powerpc/kernel/vdso.c	2005-11-29 10:56:02.000000000 +1100
++++ linux-work/arch/powerpc/kernel/vdso.c	2006-02-28 17:07:18.000000000 +1100
+@@ -182,8 +182,8 @@ static struct page * vdso_vma_nopage(str
+ 	unsigned long offset = address - vma->vm_start;
+ 	struct page *pg;
+ #ifdef CONFIG_PPC64
+-	void *vbase = test_thread_flag(TIF_32BIT) ?
+-		vdso32_kbase : vdso64_kbase;
++	void *vbase = (vma->vm_mm->task_size > TASK_SIZE_USER32) ?
++		vdso64_kbase : vdso32_kbase;
+ #else
+ 	void *vbase = vdso32_kbase;
+ #endif
+Index: linux-work/fs/exec.c
+===================================================================
+--- linux-work.orig/fs/exec.c	2006-02-17 14:38:43.000000000 +1100
++++ linux-work/fs/exec.c	2006-02-28 17:05:50.000000000 +1100
+@@ -885,6 +885,12 @@ int flush_old_exec(struct linux_binprm *
+ 	current->flags &= ~PF_RANDOMIZE;
+ 	flush_thread();
+ 
++	/* Set the new mm task size. We have to do that late because it may
++	 * depend on TIF_32BIT which is only updated in flush_thread() on
++	 * some architectures like powerpc
++	 */
++	current->mm->task_size = TASK_SIZE;
++
+ 	if (bprm->e_uid != current->euid || bprm->e_gid != current->egid || 
+ 	    file_permission(bprm->file, MAY_READ) ||
+ 	    (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
+Index: linux-work/include/linux/sched.h
+===================================================================
+--- linux-work.orig/include/linux/sched.h	2006-02-17 14:38:43.000000000 +1100
++++ linux-work/include/linux/sched.h	2006-02-28 17:03:52.000000000 +1100
+@@ -299,6 +299,7 @@ struct mm_struct {
+ 				unsigned long pgoff, unsigned long flags);
+ 	void (*unmap_area) (struct mm_struct *mm, unsigned long addr);
+         unsigned long mmap_base;		/* base of mmap area */
++	unsigned long task_size;		/* size of task vm space */
+         unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
+ 	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
+ 	pgd_t * pgd;
 
-Please copy linux-arch.
-
-> > > The second problem is more subtle and that's where I really need a VM
-> > > guru to help me assess how bad the situation is and what should be done
-> > > to fix it.
-> > > 
-> > > Since when not-COWed, those vDSO pages are actually kernel pages mapped
-> > > into every process, they aren't per-se anonymous pages, nor file
-> > > pages... in fact, they don't quite fit in anything rmap knows about.
-> > > However, I can't mark the VMA as VM_RESERVED or anything like that since
-> > > that would prevent COW from working.
-> > > 
-> > > Thus we hit some "interesting" code path in rmap of that sort:
-> > 
-> > rmap won't touch this page unless your ->nopage handler put it onto the
-> > page LRU.
-> 
-> It indeed looks like try_to_unmap() is never called if page->mapping is
-> NULL.
-
-It's not ->mapping.  It's the fact that rmap only operates on pages which
-were found on the LRU.  If you don't add it to the LRU (and surely you do
-not) then no problem.
-
-> Do you gus see any other case where my "special" vma & those kernel
-> pages in could be a problem ?
-
-It sounds just like a sound card DMA buffer to me - that's a solved
-problem?  (Well, we keep unsolving it, but it's a relatively common
-pattern).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
