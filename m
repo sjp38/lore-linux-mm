@@ -1,38 +1,63 @@
-Message-ID: <44050939.4060303@yahoo.com.au>
-Date: Wed, 01 Mar 2006 13:38:49 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: vDSO vs. mm : problems with ppc vdso
-References: <1141105154.3767.27.camel@localhost.localdomain>	 <20060227215416.2bfc1e18.akpm@osdl.org>	 <1141106896.3767.34.camel@localhost.localdomain>	 <20060227222055.4d877f16.akpm@osdl.org>	 <1141108220.3767.43.camel@localhost.localdomain>	 <440424CA.5070206@yahoo.com.au>	 <Pine.LNX.4.61.0602281213540.7059@goblin.wat.veritas.com>	 <440505D0.2030802@yahoo.com.au> <1141180019.4157.12.camel@localhost.localdomain>
-In-Reply-To: <1141180019.4157.12.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 1 Mar 2006 11:07:12 -0600
+From: Cliff Wickman <cpw@sgi.com>
+Subject: [PATCH 1/1] shrink dentry cache before inode cache
+Message-ID: <20060301170712.GA18066@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, paulus@samba.org, davem@davemloft.net
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> On Wed, 2006-03-01 at 13:24 +1100, Nick Piggin wrote:
+The shrink_slab() function must often be called twice to get significant
+slab cache reduction.
 
->>mapcount should be reset, to avoid the bug in page_remove_rmap.
-> 
-> 
-> Can you be more explicit ?
-> 
+shrink_slab() walks the shrinker_list to call functions that can
+release kernel slab memory.
 
-reset_page_mapcount() -- if you don't already know that mapcount is
-the right value.
+The shrinker_list is walked head to tail and, as it is now, comes across the
+inode cache shrinker first.  This releases inodes found on the inode_unused 
+list.  Afterwards the dentry cache shrinker moves many freeable inodes to 
+the list.  But those inodes are not freed until a second invocation of 
+shrink_slab().
 
-It might not be unreasonable to say "bah my arch initialises it to
-0, and I didn'tcare for it to be accounted in nr_mapped anyway",
-however not using the mapcount accessors means you might break in
-future if they change.
+The dentry cache shrinker (shrink_dcache_memory()) should run before 
+the inode cache shrinker (shrink_icache_memory()).
 
+This can be accomplished by queuing the dentry cache shrinker earlier -
+simply calling inode_init() before dcache_init().
+
+Diffed against 2.6.15-rc5
+
+Signed-off-by: Cliff Wickman <cpw@sgi.com>
+---
+ fs/dcache.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.16-rc5/fs/dcache.c
+===================================================================
+--- linux-2.6.16-rc5.orig/fs/dcache.c
++++ linux-2.6.16-rc5/fs/dcache.c
+@@ -1738,8 +1738,11 @@ void __init vfs_caches_init(unsigned lon
+ 	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
+ 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, filp_ctor, filp_dtor);
+ 
+-	dcache_init(mempages);
+ 	inode_init(mempages);
++	dcache_init(mempages); /* place after inode_init so that the dentry
++				  cache shrink goes onto the shrinker list
++				  before the inode cache shrink;
++				  freeing dentry's does iput's of inodes */
+ 	files_init(mempages);
+ 	mnt_init(mempages);
+ 	bdev_cache_init();
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Cliff Wickman
+Silicon Graphics, Inc.
+cpw@sgi.com
+(651) 683-3824
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
