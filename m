@@ -1,66 +1,66 @@
-Date: Sat, 4 Mar 2006 01:07:08 -0800
-From: Andrew Morton <akpm@osdl.org>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: numa_maps update
-Message-Id: <20060304010708.31697f71.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603030846170.13932@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603030846170.13932@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Sat, 4 Mar 2006 05:59:16 +0100
+References: <Pine.LNX.4.64.0603030846170.13932@schroedinger.engr.sgi.com> <20060304010708.31697f71.akpm@osdl.org>
+In-Reply-To: <20060304010708.31697f71.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200603040559.16666.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: hugh@veritas.com, ak@suse.de, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, hugh@veritas.com, linux-mm@kvack.org, mtk-manpages@gmx.net
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@engr.sgi.com> wrote:
->
-> Change the format
+On Saturday 04 March 2006 10:07, Andrew Morton wrote:
+> Christoph Lameter <clameter@engr.sgi.com> wrote:
+> >
+> > Change the format
+> 
+> uh-oh.
 
-uh-oh.
+I guess it's better because it's clearly better than the old format.
+But of course it would need to be done before 2.6.16
+> 
+> > of numa_maps to be more compact and contain additional
+> > information that is useful for managing and troubleshooting memory on a NUMA
+> > system. Numa_maps can now also support huge pages.
+> 
+> What will be the userspace impact (ie: breakage) due to this change?
 
-> of numa_maps to be more compact and contain additional
-> information that is useful for managing and troubleshooting memory on a NUMA
-> system. Numa_maps can now also support huge pages.
+It will at least break the manpages I think. But I suspect/hope no user space
+is using it yet because it was only added recently.
 
-What will be the userspace impact (ie: breakage) due to this change?
+> > +	if (file) {
+> > +
+> > +		seq_printf(m, " file=");
+> > +		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t");
+> > +
+> > +	} else if (vma->vm_start <= mm->brk &&
+> > +		   vma->vm_end >= mm->start_brk)
+> > +
+> > +			seq_printf(m, " heap");
+> > +
+> > +	else if (vma->vm_start <= mm->start_stack &&
+> > +		vma->vm_end >= mm->start_stack)
+> > +
+> > +			seq_printf(m, " stack");
+> > +
+> > +	if (is_vm_hugetlb_page(vma)) {
+> > +
+> > +		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
+> > +		seq_printf(m, " huge");
+> > +
+> > +	} else
+> 
+> What bizarre layout!
 
-> New items shown:
->
-> ... 
-> locked
-> 	Number of pages locked. Only displayed if >0.
+The 16 space indents?
 
-I doubt if the PageLocked() count will be useful.  The only occasion upon
-which pages are locked for more than a fleeting period is when they're
-initially being brought up to date from backing store - readahead, swapin,
-etc.
-
-A more useful statistic would be the number of PageWriteback() pages.
-
-> +	if (file) {
-> +
-> +		seq_printf(m, " file=");
-> +		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t");
-> +
-> +	} else if (vma->vm_start <= mm->brk &&
-> +		   vma->vm_end >= mm->start_brk)
-> +
-> +			seq_printf(m, " heap");
-> +
-> +	else if (vma->vm_start <= mm->start_stack &&
-> +		vma->vm_end >= mm->start_stack)
-> +
-> +			seq_printf(m, " stack");
-> +
-> +	if (is_vm_hugetlb_page(vma)) {
-> +
-> +		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
-> +		seq_printf(m, " huge");
-> +
-> +	} else
-
-What bizarre layout!
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
