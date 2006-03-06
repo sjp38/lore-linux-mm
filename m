@@ -1,77 +1,73 @@
-Date: Mon, 6 Mar 2006 09:37:29 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: numa_maps update
-In-Reply-To: <20060304122618.7867267a.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0603060935300.24016@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603030846170.13932@schroedinger.engr.sgi.com>
- <20060304010708.31697f71.akpm@osdl.org> <200603040559.16666.ak@suse.de>
- <Pine.LNX.4.64.0603041206260.18435@schroedinger.engr.sgi.com>
- <20060304122618.7867267a.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k26Mo4pw005081
+	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:04 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k26Mo3lL227668
+	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:05 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k26Mo2Su014199
+	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:02 -0500
+Subject: [PATCH] hugetlb: remove sysctl zero and infinity values
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Mon, 06 Mar 2006 14:49:54 -0800
+Message-Id: <20060306224954.4400F11C@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: ak@suse.de, hugh@veritas.com, linux-mm@kvack.org, mtk-manpages@gmx.net
+To: wli@holomorphy.com
+Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-1. Remove pagelocked display. Worked only sporadically for page 
-   migration.
+These appear pretty redundant to me.  The sysctl helper that
+is used only deals with unsigned longs, so it doesn't make
+much sense to try to deal with values less than zero here.
+It is equally strange to try to impose a maximum of ~0UL.
 
-2. Add writeback display as requested by Andrew
+There's also something a little bit fishy with putting
+max_huge_pages in the sysctl table _and_ setting it manually
+in the handler function.  But, I'll leave that for another day.
 
-3. Escape some more characters when displaying filenames so that a program
-   can parse or skip the filename in a reasonable way.
+---
 
-Andi: will try to get you a manpage later today to be included in the 
-numactl package.
+ work-dave/include/linux/hugetlb.h |    1 -
+ work-dave/kernel/sysctl.c         |    2 --
+ work-dave/mm/hugetlb.c            |    1 -
+ 3 files changed, 4 deletions(-)
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.16-rc5-mm2/mm/mempolicy.c
-===================================================================
---- linux-2.6.16-rc5-mm2.orig/mm/mempolicy.c	2006-03-06 09:10:13.000000000 -0800
-+++ linux-2.6.16-rc5-mm2/mm/mempolicy.c	2006-03-06 09:12:50.000000000 -0800
-@@ -1786,7 +1786,7 @@ struct numa_maps {
- 	unsigned long pages;
- 	unsigned long anon;
- 	unsigned long active;
--	unsigned long locked;
-+	unsigned long writeback;
- 	unsigned long mapcount_max;
- 	unsigned long dirty;
- 	unsigned long swapcache;
-@@ -1808,8 +1808,8 @@ static void gather_stats(struct page *pa
- 	if (PageActive(page))
- 		md->active++;
+diff -puN kernel/sysctl.c~hugetlb-sysctl-remove-zero-infinity kernel/sysctl.c
+--- work/kernel/sysctl.c~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
++++ work-dave/kernel/sysctl.c	2006-03-06 12:33:45.000000000 -0800
+@@ -755,8 +755,6 @@ static ctl_table vm_table[] = {
+ 		.maxlen		= sizeof(unsigned long),
+ 		.mode		= 0644,
+ 		.proc_handler	= &hugetlb_sysctl_handler,
+-		.extra1		= (void *)&hugetlb_zero,
+-		.extra2		= (void *)&hugetlb_infinity,
+ 	 },
+ 	 {
+ 		.ctl_name	= VM_HUGETLB_GROUP,
+diff -puN mm/hugetlb.c~hugetlb-sysctl-remove-zero-infinity mm/hugetlb.c
+--- work/mm/hugetlb.c~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
++++ work-dave/mm/hugetlb.c	2006-03-06 12:28:55.000000000 -0800
+@@ -19,7 +19,6 @@
  
--	if (PageLocked(page))
--		md->locked++;
-+	if (PageWriteback(page))
-+		md->writeback++;
+ #include <linux/hugetlb.h>
  
- 	if (PageAnon(page))
- 		md->anon++;
-@@ -1871,7 +1871,7 @@ int show_numa_map(struct seq_file *m, vo
+-const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static unsigned long nr_huge_pages, free_huge_pages;
+ unsigned long max_huge_pages;
+ static struct list_head hugepage_freelists[MAX_NUMNODES];
+diff -puN include/linux/hugetlb.h~hugetlb-sysctl-remove-zero-infinity include/linux/hugetlb.h
+--- work/include/linux/hugetlb.h~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
++++ work-dave/include/linux/hugetlb.h	2006-03-06 12:28:55.000000000 -0800
+@@ -28,7 +28,6 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 			unsigned long address, int write_access);
  
- 	if (file) {
- 		seq_printf(m, " file=");
--		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t");
-+		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t= ");
- 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
- 		seq_printf(m, " heap");
- 	} else if (vma->vm_start <= mm->start_stack &&
-@@ -1908,8 +1908,8 @@ int show_numa_map(struct seq_file *m, vo
- 	if (md->active < md->pages && !is_vm_hugetlb_page(vma))
- 		seq_printf(m," active=%lu", md->active);
+ extern unsigned long max_huge_pages;
+-extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
  
--	if (md->locked)
--		seq_printf(m," locked=%lu", md->locked);
-+	if (md->writeback)
-+		seq_printf(m," writeback=%lu", md->writeback);
- 
- 	for_each_online_node(n)
- 		if (md->node[n])
+ /* arch callbacks */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
