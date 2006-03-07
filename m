@@ -1,57 +1,65 @@
-Message-ID: <440D0755.5010902@yahoo.com.au>
-Date: Tue, 07 Mar 2006 15:08:53 +1100
+Message-ID: <440D0863.8070304@yahoo.com.au>
+Date: Tue, 07 Mar 2006 15:13:23 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH] avoid atomic op on page free
-References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com> <440CEA34.1090205@yahoo.com.au> <20060307021002.GL32565@linux.intel.com>
-In-Reply-To: <20060307021002.GL32565@linux.intel.com>
+References: <200603070230.k272UVg18638@unix-os.sc.intel.com>
+In-Reply-To: <200603070230.k272UVg18638@unix-os.sc.intel.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@linux.intel.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: Benjamin LaHaise <bcrl@linux.intel.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
-> On Tue, Mar 07, 2006 at 01:04:36PM +1100, Nick Piggin wrote:
+Chen, Kenneth W wrote:
+> Nick Piggin wrote on Monday, March 06, 2006 6:05 PM
 > 
->>I'd say it will turn out to be more trouble than its worth, for the 
->>miserly cost
->>avoiding one atomic_inc, and one atomic_dec_and_test on page-local data 
->>that will
->>be in L1 cache. I'd never turn my nose up at anyone just having a go 
->>though :)
+>>My patches in -mm avoid the lru_lock and disabling/enabling interrupts
+>>if the page is not on lru too, btw.
 > 
 > 
-> The cost is anything but miserly.  Consider that every lock instruction is 
-> a memory barrier which takes your OoO CPU with lots of instructions in flight 
-> to ramp down to just 1 for the time it takes that instruction to execute.  
-> That synchronization is what makes the atomic expensive.
+> Can you put the spin lock/unlock inside TestClearPageLRU()?  The
+> difference is subtle though.
 > 
 
-Yeah x86(-64) is a _little_ worse off in that regard because its locks
-imply rmbs.
+That's the idea, but you just need to do a little bit more so as not to
+introduce a race.
 
-But I'm saying the cost is miserly compared to the likely overheads
-of using RCU-ed page freeing, when taken as impact on the system as a
-whole.
+http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.16-rc2/2.6.16-rc2-mm1/broken-out/mm-never-clearpagelru-released-pages.patch
 
-Though definitely if we can get rid of atomic ops for free in any low
-level page handling functions in mm/ then we want to do that.
-
-> In the case of netperf, I ended up with a 2.5Gbit/s (~30%) performance 
-> improvement through nothing but microoptimizations.  There is method to 
-> my madness. ;-)
+> - Ken
+> 
+> 
+> --- ./mm/swap.c.orig	2006-03-06 19:25:10.680967542 -0800
+> +++ ./mm/swap.c	2006-03-06 19:27:02.334286487 -0800
+> @@ -210,14 +210,16 @@ int lru_add_drain_all(void)
+>  void fastcall __page_cache_release(struct page *page)
+>  {
+>  	unsigned long flags;
+> -	struct zone *zone = page_zone(page);
+> +	struct zone *zone;
+>  
+> -	spin_lock_irqsave(&zone->lru_lock, flags);
+> -	if (TestClearPageLRU(page))
+> +	if (TestClearPageLRU(page)) {
+> +		zone = page_zone(page);
+> +		spin_lock_irqsave(&zone->lru_lock, flags);
+>  		del_page_from_lru(zone, page);
+> -	if (page_count(page) != 0)
+> -		page = NULL;
+> -	spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +		if (page_count(page) != 0)
+> +			page = NULL;
+> +		spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +	}
+>  	if (page)
+>  		free_hot_page(page);
+>  }
+> 
 > 
 
-Well... it was wrong too ;)
-
-But as you can see, I'm not against microoptimisations either and I'm
-glad others, like yourself, are looking at the problem too.
-
-The 30% number is very impressive. I'd be interested to see what the
-stuff currently in -mm is worth.
 
 -- 
 SUSE Labs, Novell Inc.
