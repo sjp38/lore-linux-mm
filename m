@@ -1,36 +1,54 @@
-Date: Mon, 6 Mar 2006 18:10:02 -0800
-From: Benjamin LaHaise <bcrl@linux.intel.com>
-Subject: Re: [PATCH] avoid atomic op on page free
-Message-ID: <20060307021002.GL32565@linux.intel.com>
-References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com> <440CEA34.1090205@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <200603070230.k272UVg18638@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH] avoid atomic op on page free
+Date: Mon, 6 Mar 2006 18:30:30 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 In-Reply-To: <440CEA34.1090205@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
+To: 'Nick Piggin' <nickpiggin@yahoo.com.au>, Benjamin LaHaise <bcrl@linux.intel.com>
 Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 07, 2006 at 01:04:36PM +1100, Nick Piggin wrote:
-> I'd say it will turn out to be more trouble than its worth, for the 
-> miserly cost
-> avoiding one atomic_inc, and one atomic_dec_and_test on page-local data 
-> that will
-> be in L1 cache. I'd never turn my nose up at anyone just having a go 
-> though :)
+Nick Piggin wrote on Monday, March 06, 2006 6:05 PM
+> 
+> My patches in -mm avoid the lru_lock and disabling/enabling interrupts
+> if the page is not on lru too, btw.
 
-The cost is anything but miserly.  Consider that every lock instruction is 
-a memory barrier which takes your OoO CPU with lots of instructions in flight 
-to ramp down to just 1 for the time it takes that instruction to execute.  
-That synchronization is what makes the atomic expensive.
+Can you put the spin lock/unlock inside TestClearPageLRU()?  The
+difference is subtle though.
 
-In the case of netperf, I ended up with a 2.5Gbit/s (~30%) performance 
-improvement through nothing but microoptimizations.  There is method to 
-my madness. ;-)
+- Ken
 
-		-ben
+
+--- ./mm/swap.c.orig	2006-03-06 19:25:10.680967542 -0800
++++ ./mm/swap.c	2006-03-06 19:27:02.334286487 -0800
+@@ -210,14 +210,16 @@ int lru_add_drain_all(void)
+ void fastcall __page_cache_release(struct page *page)
+ {
+ 	unsigned long flags;
+-	struct zone *zone = page_zone(page);
++	struct zone *zone;
+ 
+-	spin_lock_irqsave(&zone->lru_lock, flags);
+-	if (TestClearPageLRU(page))
++	if (TestClearPageLRU(page)) {
++		zone = page_zone(page);
++		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		del_page_from_lru(zone, page);
+-	if (page_count(page) != 0)
+-		page = NULL;
+-	spin_unlock_irqrestore(&zone->lru_lock, flags);
++		if (page_count(page) != 0)
++			page = NULL;
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	}
+ 	if (page)
+ 		free_hot_page(page);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
