@@ -1,73 +1,49 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k26Mo4pw005081
-	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:04 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k26Mo3lL227668
-	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:05 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k26Mo2Su014199
-	for <linux-mm@kvack.org>; Mon, 6 Mar 2006 17:50:02 -0500
-Subject: [PATCH] hugetlb: remove sysctl zero and infinity values
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Mon, 06 Mar 2006 14:49:54 -0800
-Message-Id: <20060306224954.4400F11C@localhost.localdomain>
+Date: Mon, 6 Mar 2006 16:10:15 -0800
+From: Benjamin LaHaise <bcrl@linux.intel.com>
+Subject: [PATCH] avoid atomic op on page free
+Message-ID: <20060307001015.GG32565@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: wli@holomorphy.com
-Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-These appear pretty redundant to me.  The sysctl helper that
-is used only deals with unsigned longs, so it doesn't make
-much sense to try to deal with values less than zero here.
-It is equally strange to try to impose a maximum of ~0UL.
+Hello Andrew et al,
 
-There's also something a little bit fishy with putting
-max_huge_pages in the sysctl table _and_ setting it manually
-in the handler function.  But, I'll leave that for another day.
+The patch below adds a fast path that avoids the atomic dec and test 
+operation and spinlock acquire/release on page free.  This is especially 
+important to the network stack which uses put_page() to free user 
+buffers.  Removing these atomic ops helps improve netperf on the P4 
+from ~8126Mbit/s to ~8199Mbit/s (although that number fluctuates quite a 
+bit with some runs getting 8243Mbit/s).  There are probably better 
+workloads to see an improvement from this on, but removing 3 atomics and 
+an irq save/restore is good.
 
----
+		-ben
+-- 
+"Time is of no importance, Mr. President, only life is important."
+Don't Email: <dont@kvack.org>.
 
- work-dave/include/linux/hugetlb.h |    1 -
- work-dave/kernel/sysctl.c         |    2 --
- work-dave/mm/hugetlb.c            |    1 -
- 3 files changed, 4 deletions(-)
-
-diff -puN kernel/sysctl.c~hugetlb-sysctl-remove-zero-infinity kernel/sysctl.c
---- work/kernel/sysctl.c~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
-+++ work-dave/kernel/sysctl.c	2006-03-06 12:33:45.000000000 -0800
-@@ -755,8 +755,6 @@ static ctl_table vm_table[] = {
- 		.maxlen		= sizeof(unsigned long),
- 		.mode		= 0644,
- 		.proc_handler	= &hugetlb_sysctl_handler,
--		.extra1		= (void *)&hugetlb_zero,
--		.extra2		= (void *)&hugetlb_infinity,
- 	 },
- 	 {
- 		.ctl_name	= VM_HUGETLB_GROUP,
-diff -puN mm/hugetlb.c~hugetlb-sysctl-remove-zero-infinity mm/hugetlb.c
---- work/mm/hugetlb.c~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
-+++ work-dave/mm/hugetlb.c	2006-03-06 12:28:55.000000000 -0800
-@@ -19,7 +19,6 @@
- 
- #include <linux/hugetlb.h>
- 
--const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
- static unsigned long nr_huge_pages, free_huge_pages;
- unsigned long max_huge_pages;
- static struct list_head hugepage_freelists[MAX_NUMNODES];
-diff -puN include/linux/hugetlb.h~hugetlb-sysctl-remove-zero-infinity include/linux/hugetlb.h
---- work/include/linux/hugetlb.h~hugetlb-sysctl-remove-zero-infinity	2006-03-06 12:28:55.000000000 -0800
-+++ work-dave/include/linux/hugetlb.h	2006-03-06 12:28:55.000000000 -0800
-@@ -28,7 +28,6 @@ int hugetlb_fault(struct mm_struct *mm, 
- 			unsigned long address, int write_access);
- 
- extern unsigned long max_huge_pages;
--extern const unsigned long hugetlb_zero, hugetlb_infinity;
- extern int sysctl_hugetlb_shm_group;
- 
- /* arch callbacks */
-_
+Signed-off-by: Benjamin LaHaise <bcrl@linux.intel.com>
+diff --git a/mm/swap.c b/mm/swap.c
+index cce3dda..d6934cf 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -49,7 +49,10 @@ void put_page(struct page *page)
+ {
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+-	else if (put_page_testzero(page))
++	else if (page_count(page) == 1 && !PageLRU(page)) {
++		set_page_count(page, 0);
++		free_hot_page(page);
++	} else if (put_page_testzero(page))
+ 		__page_cache_release(page);
+ }
+ EXPORT_SYMBOL(put_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
