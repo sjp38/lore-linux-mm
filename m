@@ -1,35 +1,40 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH] avoid atomic op on page free
-Date: Tue, 7 Mar 2006 07:30:27 +0100
-References: <20060307001015.GG32565@linux.intel.com> <20060306173941.4b5e0fc7.akpm@osdl.org> <20060307015229.GJ32565@linux.intel.com>
-In-Reply-To: <20060307015229.GJ32565@linux.intel.com>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: [PATCH] mm: yield during swap prefetching
+Date: Wed, 8 Mar 2006 10:13:44 +1100
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200603070730.27999.ak@suse.de>
+Message-Id: <200603081013.44678.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@linux.intel.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 07 March 2006 02:52, Benjamin LaHaise wrote:
+Swap prefetching doesn't use very much cpu but spends a lot of time waiting on 
+disk in uninterruptible sleep. This means it won't get preempted often even at 
+a low nice level since it is seen as sleeping most of the time. We want to 
+minimise its cpu impact so yield where possible.
 
-> Those 1-2 cycles are free if you look at how things get scheduled with the 
-> execution of the surrounding code. I bet $20 that you can't find a modern 
-> CPU where the cost is measurable (meaning something like a P4, Athlon).  
-> If this level of cost for the common case is a concern, it's probably worth 
-> making atomic_dec_and_test() inline for page_cache_release().  The overhead 
-> of the function call and the PageCompound() test is probably more than what 
-> we're talking about as you're increasing the cache footprint and actually 
-> performing a write to memory.
+Signed-off-by: Con Kolivas <kernel@kolivas.org>
+---
+ mm/swap_prefetch.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-The test should be essentially free at least on an out of order CPU. Not quite sure 
-about in order though.
-
--Andi
+Index: linux-2.6.15-ck5/mm/swap_prefetch.c
+===================================================================
+--- linux-2.6.15-ck5.orig/mm/swap_prefetch.c	2006-03-02 14:00:46.000000000 +1100
++++ linux-2.6.15-ck5/mm/swap_prefetch.c	2006-03-08 08:49:32.000000000 +1100
+@@ -421,6 +421,7 @@ static enum trickle_return trickle_swap(
+ 
+ 		if (trickle_swap_cache_async(swp_entry, node) == TRICKLE_DELAY)
+ 			break;
++		yield();
+ 	}
+ 
+ 	if (sp_stat.prefetched_pages) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
