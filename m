@@ -1,45 +1,50 @@
-Message-ID: <440CE797.1010303@yahoo.com.au>
-Date: Tue, 07 Mar 2006 12:53:27 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Mon, 6 Mar 2006 17:52:29 -0800
+From: Benjamin LaHaise <bcrl@linux.intel.com>
 Subject: Re: [PATCH] avoid atomic op on page free
-References: <20060307001015.GG32565@linux.intel.com>
-In-Reply-To: <20060307001015.GG32565@linux.intel.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20060307015229.GJ32565@linux.intel.com>
+References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com> <20060306173941.4b5e0fc7.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060306173941.4b5e0fc7.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@linux.intel.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
+On Mon, Mar 06, 2006 at 05:39:41PM -0800, Andrew Morton wrote:
+> > It's just a simple send() and recv() pair of processes.  Networking uses 
+> > pages for the buffer on user transmits.
+> 
+> You mean non-zero-copy transmits?  If they were zero-copy then those pages
+> would still be on the LRU.
 
->Hello Andrew et al,
->
->The patch below adds a fast path that avoids the atomic dec and test 
->operation and spinlock acquire/release on page free.  This is especially 
->important to the network stack which uses put_page() to free user 
->buffers.  Removing these atomic ops helps improve netperf on the P4 
->from ~8126Mbit/s to ~8199Mbit/s (although that number fluctuates quite a 
->bit with some runs getting 8243Mbit/s).  There are probably better 
->workloads to see an improvement from this on, but removing 3 atomics and 
->an irq save/restore is good.
->
->		-ben
->
+Correct.
 
-You can't do this because you can't test PageLRU like that.
+> >  Those pages tend to be freed 
+> > in irq context on transmit or in the receiver if the traffic is local.
+> 
+> If it was a non-zero-copy Tx then networking owns that page and can just do
+> free_hot_page() on it and avoid all that stuff in put_page().
 
-Have a look in the lkml archives a few months back, where I proposed
-a way to do this for __free_pages(). You can't do it for put_page.
+At least currently, networking has no way of knowing that is the case since 
+pages may have their reference count increased when an skb() is cloned, and 
+in fact do when TCP sends them off.
 
-BTW I have quite a large backlog of patches in -mm which should end
-up avoiding an atomic or two around these parts.
+> Thing is, that case would represent about 1000000th of the number of
+> put_pages()s which get done in the world.  IOW: a net loss.
 
---
+Those 1-2 cycles are free if you look at how things get scheduled with the 
+execution of the surrounding code. I bet $20 that you can't find a modern 
+CPU where the cost is measurable (meaning something like a P4, Athlon).  
+If this level of cost for the common case is a concern, it's probably worth 
+making atomic_dec_and_test() inline for page_cache_release().  The overhead 
+of the function call and the PageCompound() test is probably more than what 
+we're talking about as you're increasing the cache footprint and actually 
+performing a write to memory.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
