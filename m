@@ -1,50 +1,89 @@
-Date: Mon, 6 Mar 2006 17:52:29 -0800
-From: Benjamin LaHaise <bcrl@linux.intel.com>
+Message-ID: <440CEA34.1090205@yahoo.com.au>
+Date: Tue, 07 Mar 2006 13:04:36 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH] avoid atomic op on page free
-Message-ID: <20060307015229.GJ32565@linux.intel.com>
-References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com> <20060306173941.4b5e0fc7.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060306173941.4b5e0fc7.akpm@osdl.org>
+References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com>
+In-Reply-To: <20060307011107.GI32565@linux.intel.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org
+To: Benjamin LaHaise <bcrl@linux.intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 06, 2006 at 05:39:41PM -0800, Andrew Morton wrote:
-> > It's just a simple send() and recv() pair of processes.  Networking uses 
-> > pages for the buffer on user transmits.
-> 
-> You mean non-zero-copy transmits?  If they were zero-copy then those pages
-> would still be on the LRU.
+Benjamin LaHaise wrote:
 
-Correct.
+>On Mon, Mar 06, 2006 at 04:50:39PM -0800, Andrew Morton wrote:
+>
+>>Am a bit surprised at those numbers.
+>>
+>
+>>Because userspace has to do peculiar things to get its pages taken off the
+>>LRU.  What exactly was that application doing?
+>>
+>
+>It's just a simple send() and recv() pair of processes.  Networking uses 
+>pages for the buffer on user transmits.  Those pages tend to be freed 
+>in irq context on transmit or in the receiver if the traffic is local.
+>
+>
+>>The patch adds slight overhead to the common case while providing
+>>improvement to what I suspect is a very uncommon case?
+>>
+>
+>At least on any modern CPU with branch prediction, the test is essentially 
+>free (2 memory reads that pipeline well, iow 1 cycle, maybe 2).  The 
+>upside is that you get to avoid the atomic (~17 cycles on a P4 with a 
+>simple test program, the penalty doubles if there is one other instruction 
+>that operates on memory in the loop), disabling interrupts (~20 cycles?, I 
+>don't remember) another atomic for the spinlock, another atomic for 
+>TestClearPageLRU() and the pushf/popf (expensive as they rely on whatever 
+>instruction that might still be in flight to complete and add the penalty 
+>for changing irq state).  That's at least 70 cycles without including the 
+>memory barrier side effects which can cost 100 cycles+.  Add in the costs 
+>for the cacheline bouncing of the lru_lock and we're talking *expensive*.
+>
+>
 
-> >  Those pages tend to be freed 
-> > in irq context on transmit or in the receiver if the traffic is local.
-> 
-> If it was a non-zero-copy Tx then networking owns that page and can just do
-> free_hot_page() on it and avoid all that stuff in put_page().
+My patches in -mm avoid the lru_lock and disabling/enabling interrupts
+if the page is not on lru too, btw.
 
-At least currently, networking has no way of knowing that is the case since 
-pages may have their reference count increased when an skb() is cloned, and 
-in fact do when TCP sends them off.
+>So, a 1-2 cycle cost for a case that normally takes from 17 to 100+ cycles?  
+>I think that's worth it given the benefits.
+>
+>Also, I think the common case (page cache read / map) is something that 
+>should be done differently, as those atomics really do add up to major 
+>pain.  Using rcu for page cache reads would be truely wonderful, but that 
+>will take some time.
+>
+>
 
-> Thing is, that case would represent about 1000000th of the number of
-> put_pages()s which get done in the world.  IOW: a net loss.
+It is not very difficult to implement (and is something I intend to look
+at after I finish my lockless pagecache). But it has quite a lot of 
+problems,
+including a potentially big (temporal) increase of cache footprint to 
+process
+the pages, more CPU time in general to traverse the lists, increased over /
+underflows in the per cpu pagelists. Possibly even worse would be the 
+increased
+overhead on the RCU infrastructure and potential OOM conditions.
 
-Those 1-2 cycles are free if you look at how things get scheduled with the 
-execution of the surrounding code. I bet $20 that you can't find a modern 
-CPU where the cost is measurable (meaning something like a P4, Athlon).  
-If this level of cost for the common case is a concern, it's probably worth 
-making atomic_dec_and_test() inline for page_cache_release().  The overhead 
-of the function call and the PageCompound() test is probably more than what 
-we're talking about as you're increasing the cache footprint and actually 
-performing a write to memory.
+Not to mention the extra logic involved to either retry, or fall back to 
+get/put
+in the case that the userspace target page is not resident.
 
-		-ben
+I'd say it will turn out to be more trouble than its worth, for the 
+miserly cost
+avoiding one atomic_inc, and one atomic_dec_and_test on page-local data 
+that will
+be in L1 cache. I'd never turn my nose up at anyone just having a go 
+though :)
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
