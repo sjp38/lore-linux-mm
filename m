@@ -1,67 +1,61 @@
-Date: Mon, 6 Mar 2006 19:20:11 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Fix drain_array() so that it works correctly with the shared_array
-Message-ID: <Pine.LNX.4.64.0603061916110.28448@schroedinger.engr.sgi.com>
+Message-ID: <440D0755.5010902@yahoo.com.au>
+Date: Tue, 07 Mar 2006 15:08:53 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] avoid atomic op on page free
+References: <20060307001015.GG32565@linux.intel.com> <20060306165039.1c3b66d8.akpm@osdl.org> <20060307011107.GI32565@linux.intel.com> <440CEA34.1090205@yahoo.com.au> <20060307021002.GL32565@linux.intel.com>
+In-Reply-To: <20060307021002.GL32565@linux.intel.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@linux.intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The list_lock also protects the shared array and we call drain_array()
-with the shared array. Therefore we cannot go as far as I wanted to
-but have to take the lock in a way so that it also protects the 
-array_cache in drain_pages.
+Benjamin LaHaise wrote:
+> On Tue, Mar 07, 2006 at 01:04:36PM +1100, Nick Piggin wrote:
+> 
+>>I'd say it will turn out to be more trouble than its worth, for the 
+>>miserly cost
+>>avoiding one atomic_inc, and one atomic_dec_and_test on page-local data 
+>>that will
+>>be in L1 cache. I'd never turn my nose up at anyone just having a go 
+>>though :)
+> 
+> 
+> The cost is anything but miserly.  Consider that every lock instruction is 
+> a memory barrier which takes your OoO CPU with lots of instructions in flight 
+> to ramp down to just 1 for the time it takes that instruction to execute.  
+> That synchronization is what makes the atomic expensive.
+> 
 
-(Note: maybe we should make the array_cache locking more consistent? I.e.
-always take the array cache lock for shared arrays and disable interrupts
-for the per cpu arrays?)
+Yeah x86(-64) is a _little_ worse off in that regard because its locks
+imply rmbs.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+But I'm saying the cost is miserly compared to the likely overheads
+of using RCU-ed page freeing, when taken as impact on the system as a
+whole.
 
-Index: linux-2.6.16-rc5-mm2/mm/slab.c
-===================================================================
---- linux-2.6.16-rc5-mm2.orig/mm/slab.c	2006-03-06 17:41:06.000000000 -0800
-+++ linux-2.6.16-rc5-mm2/mm/slab.c	2006-03-06 19:15:08.000000000 -0800
-@@ -3554,7 +3554,8 @@ static void enable_cpucache(struct kmem_
- 
- /*
-  * Drain an array if it contains any elements taking the l3 lock only if
-- * necessary.
-+ * necessary. Note that the l3 listlock also protects the array_cache
-+ * if drain_array() is used on the shared array.
-  */
- void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
- 			 struct array_cache *ac, int force, int node)
-@@ -3566,16 +3567,18 @@ void drain_array(struct kmem_cache *cach
- 
- 	if (ac->touched && !force) {
- 		ac->touched = 0;
--	} else if (ac->avail) {
--		tofree = force ? ac->avail : (ac->limit + 4) / 5;
--		if (tofree > ac->avail)
--			tofree = (ac->avail + 1) / 2;
-+	} else {
- 		spin_lock_irq(&l3->list_lock);
--		free_block(cachep, ac->entry, tofree, node);
-+		if (ac->avail) {
-+			tofree = force ? ac->avail : (ac->limit + 4) / 5;
-+			if (tofree > ac->avail)
-+				tofree = (ac->avail + 1) / 2;
-+			free_block(cachep, ac->entry, tofree, node);
-+			ac->avail -= tofree;
-+			memmove(ac->entry, &(ac->entry[tofree]),
-+				sizeof(void *) * ac->avail);
-+		}
- 		spin_unlock_irq(&l3->list_lock);
--		ac->avail -= tofree;
--		memmove(ac->entry, &(ac->entry[tofree]),
--			sizeof(void *) * ac->avail);
- 	}
- }
- 
+Though definitely if we can get rid of atomic ops for free in any low
+level page handling functions in mm/ then we want to do that.
+
+> In the case of netperf, I ended up with a 2.5Gbit/s (~30%) performance 
+> improvement through nothing but microoptimizations.  There is method to 
+> my madness. ;-)
+> 
+
+Well... it was wrong too ;)
+
+But as you can see, I'm not against microoptimisations either and I'm
+glad others, like yourself, are looking at the problem too.
+
+The 30% number is very impressive. I'd be interested to see what the
+stuff currently in -mm is worth.
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
