@@ -1,49 +1,30 @@
-Date: Mon, 6 Mar 2006 16:10:15 -0800
-From: Benjamin LaHaise <bcrl@linux.intel.com>
-Subject: [PATCH] avoid atomic op on page free
-Message-ID: <20060307001015.GG32565@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <200603070030.k270UNg17446@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [PATCH] hugetlb: remove sysctl zero and infinity values
+Date: Mon, 6 Mar 2006 16:30:23 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060306224954.4400F11C@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org
+To: 'Dave Hansen' <haveblue@us.ibm.com>, wli@holomorphy.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Andrew et al,
+Dave Hansen wrote on Monday, March 06, 2006 2:50 PM
+> There's also something a little bit fishy with putting
+> max_huge_pages in the sysctl table _and_ setting it manually
+> in the handler function.  But, I'll leave that for another day.
 
-The patch below adds a fast path that avoids the atomic dec and test 
-operation and spinlock acquire/release on page free.  This is especially 
-important to the network stack which uses put_page() to free user 
-buffers.  Removing these atomic ops helps improve netperf on the P4 
-from ~8126Mbit/s to ~8199Mbit/s (although that number fluctuates quite a 
-bit with some runs getting 8243Mbit/s).  There are probably better 
-workloads to see an improvement from this on, but removing 3 atomics and 
-an irq save/restore is good.
+max_huge_pages looks OK, maybe it has a bad name.  Because that is
+a variable used to pass desired hugetlb pool size by sys admin. It
+is used only in the reservation path.  Kernel pretty much needs at
+least two variables: what is the desired target and what is current
+reservation state (that tracked by nr_huge_pages).
 
-		-ben
--- 
-"Time is of no importance, Mr. President, only life is important."
-Don't Email: <dont@kvack.org>.
-
-Signed-off-by: Benjamin LaHaise <bcrl@linux.intel.com>
-diff --git a/mm/swap.c b/mm/swap.c
-index cce3dda..d6934cf 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -49,7 +49,10 @@ void put_page(struct page *page)
- {
- 	if (unlikely(PageCompound(page)))
- 		put_compound_page(page);
--	else if (put_page_testzero(page))
-+	else if (page_count(page) == 1 && !PageLRU(page)) {
-+		set_page_count(page, 0);
-+		free_hot_page(page);
-+	} else if (put_page_testzero(page))
- 		__page_cache_release(page);
- }
- EXPORT_SYMBOL(put_page);
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
