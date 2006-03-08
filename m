@@ -1,30 +1,49 @@
 From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [ck] Re: [PATCH] mm: yield during swap prefetching
-Date: Wed, 8 Mar 2006 19:52:42 +1100
-References: <200603081013.44678.kernel@kolivas.org> <20060307152636.1324a5b5.akpm@osdl.org> <20060308084824.GA4193@rhlx01.fht-esslingen.de>
-In-Reply-To: <20060308084824.GA4193@rhlx01.fht-esslingen.de>
+Date: Thu, 9 Mar 2006 00:36:48 +1100
+References: <200603081013.44678.kernel@kolivas.org> <20060307152636.1324a5b5.akpm@osdl.org> <cone.1141774323.5234.18683.501@kolivas.org>
+In-Reply-To: <cone.1141774323.5234.18683.501@kolivas.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200603081952.42853.kernel@kolivas.org>
+Message-Id: <200603090036.49915.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Cc: Andrew Morton <akpm@osdl.org>, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ck@vds.kolivas.org
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 08 March 2006 19:48, Andreas Mohr wrote:
-> Hi,
->
-> On Tue, Mar 07, 2006 at 03:26:36PM -0800, Andrew Morton wrote:
+cc'ing Ingo...
+
+On Wednesday 08 March 2006 10:32, Con Kolivas wrote:
+> Andrew Morton writes:
 > > Con Kolivas <kernel@kolivas.org> wrote:
-> > > Swap prefetching doesn't use very much cpu but spends a lot of time
-> > > waiting on disk in uninterruptible sleep. This means it won't get
-> > > preempted often even at a low nice level since it is seen as sleeping
-> > > most of the time. We want to minimise its cpu impact so yield where
-> > > possible.
+> >> Swap prefetching doesn't use very much cpu but spends a lot of time
+> >> waiting on disk in uninterruptible sleep. This means it won't get
+> >> preempted often even at a low nice level since it is seen as sleeping
+> >> most of the time. We want to minimise its cpu impact so yield where
+> >> possible.
+> >>
+> >> Signed-off-by: Con Kolivas <kernel@kolivas.org>
+> >> ---
+> >>  mm/swap_prefetch.c |    1 +
+> >>  1 file changed, 1 insertion(+)
+> >>
+> >> Index: linux-2.6.15-ck5/mm/swap_prefetch.c
+> >> ===================================================================
+> >> --- linux-2.6.15-ck5.orig/mm/swap_prefetch.c	2006-03-02
+> >> 14:00:46.000000000 +1100 +++
+> >> linux-2.6.15-ck5/mm/swap_prefetch.c	2006-03-08 08:49:32.000000000 +1100
+> >> @@ -421,6 +421,7 @@ static enum trickle_return trickle_swap(
+> >>
+> >>  		if (trickle_swap_cache_async(swp_entry, node) == TRICKLE_DELAY)
+> >>  			break;
+> >> +		yield();
+> >>  	}
+> >>
+> >>  	if (sp_stat.prefetched_pages) {
 > >
 > > yield() really sucks if there are a lot of runnable tasks.  And the
 > > amount of CPU which that thread uses isn't likely to matter anyway.
@@ -33,25 +52,13 @@ On Wednesday 08 March 2006 19:48, Andreas Mohr wrote:
 > > static priority instead?  Does the scheduler have a knob which can be
 > > used to disable a tasks's dynamic priority boost heuristic?
 >
-> This problem occurs due to giving a priority boost to processes that are
-> sleeping a lot (e.g. in this case, I/O, from disk), right?
-> Forgive me my possibly less insightful comments, but maybe instead of
-> adding crude specific hacks (namely, yield()) to each specific problematic
-> process as it comes along (it just happens to be the swap prefetch thread
-> this time) there is a *general way* to give processes with lots of disk I/O
-> sleeping much smaller amounts of boost in order to get them preempted more
-> often in favour of an actually much more critical process (game)?
->
-> >From the discussion here it seems this problem is caused by a *general*
->
-> miscalculation of processes sleeping on disk I/O a lot.
->
-> Thus IMHO this problem should be solved in a general way if at all
-> possible.
+> We do have SCHED_BATCH but even that doesn't really have the desired
+> effect. I know how much yield sucks and I actually want it to suck as much
+> as yield does.
 
-No. We already do special things for tasks waiting on uninterruptible sleep. 
-This is more about what is exaggerated on a dual array expiring scheduler 
-design that mainline has.
+Thinking some more on this I wonder if SCHED_BATCH isn't a strong enough 
+scheduling hint if it's not suitable for such an application. Ingo do you 
+think we could make SCHED_BATCH tasks always wake up on the expired array?
 
 Cheers,
 Con
