@@ -1,20 +1,20 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-        by fgwmail7.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k28Dh8Em011789 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:43:08 +0900
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k28DgvKt015407 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:42:57 +0900
         (envelope-from y-goto@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k28Dh70Y029183 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:43:07 +0900
+Received: from s12.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k28Dgv5o026573 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:42:57 +0900
 	(envelope-from y-goto@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 783B8208282
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:43:07 +0900 (JST)
-Received: from ml6.s.css.fujitsu.com (ml6.s.css.fujitsu.com [10.23.4.196])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 38C8A208287
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:43:07 +0900 (JST)
-Date: Wed, 08 Mar 2006 22:43:07 +0900
+Received: from s12.gw.fujitsu.co.jp (s12 [127.0.0.1])
+	by s12.gw.fujitsu.co.jp (Postfix) with ESMTP id 201791CC125
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:42:57 +0900 (JST)
+Received: from ml8.s.css.fujitsu.com (ml8.s.css.fujitsu.com [10.23.4.198])
+	by s12.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AB531CC00E
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:42:56 +0900 (JST)
+Date: Wed, 08 Mar 2006 22:42:56 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 016/017](RFC) Memory hotplug for new nodes v.3. (get node id from acpi's handle)
-Message-Id: <20060308213726.0042.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 014/017](RFC) Memory hotplug for new nodes v.3.(add start function acpi_memhotplug)
+Message-Id: <20060308213548.003E.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -24,91 +24,75 @@ To: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Joel Schopp <js
 Cc: linux-ia64@vger.kernel.org, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This is to find node id from acpi's handle of memory_device in DSDT.
-_PXM for the new node can be found by acpi_get_pxm()
-by using new memory's handle. 
-So, node id can be found by pxm_to_nid_map[].
+This is a patch to call add_memroy() when notify reaches for 
+new node's add event.
 
-  This patch becomes simpler than v2. Because old add_memory()
-  function doesn't have node id parameter. So, kernel must 
-  find its handle by physical address via DSDT again.
-  But, v3 just give node id to add_memory() now.
+When new node is added, notify of ACPI reaches container device
+which means the node.
+Container device driver calls acpi_bus_scan() to find and add
+belonging devices (which means cpu, memory and so on).
+Its function calls add and start function of belonging 
+devices's driver.
+
+Howevever, current memory hotplug driver just register add function to
+create sysfs file for its memory. But, acpi_memory_enable_device()
+is not called because it is considered just the case that notify reaches
+memory device directly. So, if notify reaches container device 
+nothing can call add_memory().
+
+This is a patch to create start function which calls add_memory().
+add_memory() can be called by this when notify reaches container device.
+
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 Index: pgdat6/drivers/acpi/acpi_memhotplug.c
 ===================================================================
---- pgdat6.orig/drivers/acpi/acpi_memhotplug.c	2006-03-06 18:26:30.000000000 +0900
-+++ pgdat6/drivers/acpi/acpi_memhotplug.c	2006-03-06 18:26:31.000000000 +0900
-@@ -182,7 +182,7 @@ static int acpi_memory_check_device(stru
+--- pgdat6.orig/drivers/acpi/acpi_memhotplug.c	2006-03-06 18:38:18.000000000 +0900
++++ pgdat6/drivers/acpi/acpi_memhotplug.c	2006-03-06 19:06:54.000000000 +0900
+@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
  
- static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- {
--	int result;
-+	int result, node;
+ static int acpi_memory_device_add(struct acpi_device *device);
+ static int acpi_memory_device_remove(struct acpi_device *device, int type);
++static int acpi_memory_device_start (struct acpi_device *device);
  
- 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
+ static struct acpi_driver acpi_memory_device_driver = {
+ 	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
+@@ -65,6 +66,7 @@ static struct acpi_driver acpi_memory_de
+ 	.ops = {
+ 		.add = acpi_memory_device_add,
+ 		.remove = acpi_memory_device_remove,
++		.start = acpi_memory_device_start,
+ 		},
+ };
  
-@@ -194,11 +194,12 @@ static int acpi_memory_enable_device(str
- 		return result;
- 	}
- 
-+	node = acpi_get_node(mem_device->handle);
- 	/*
- 	 * Tell the VM there is more memory here...
- 	 * Note: Assume that this function returns zero on success
- 	 */
--	result = add_memory(mem_device->start_addr, mem_device->length);
-+	result = add_memory(node, mem_device->start_addr, mem_device->length);
- 	switch(result) {
- 	case 0:
- 		break;
-Index: pgdat6/drivers/acpi/numa.c
-===================================================================
---- pgdat6.orig/drivers/acpi/numa.c	2006-03-06 18:25:32.000000000 +0900
-+++ pgdat6/drivers/acpi/numa.c	2006-03-06 18:26:31.000000000 +0900
-@@ -258,3 +258,18 @@ int acpi_get_pxm(acpi_handle h)
+@@ -382,6 +384,26 @@ static int acpi_memory_device_remove(str
+ 	return_VALUE(0);
  }
  
- EXPORT_SYMBOL(acpi_get_pxm);
-+
-+int acpi_get_node(acpi_handle *handle)
++static int
++acpi_memory_device_start (struct acpi_device *device)
 +{
-+	int pxm, node = -1;
++	struct acpi_memory_device *mem_device = NULL;
++	int result = 0;
 +
-+	ACPI_FUNCTION_TRACE("acpi_get_node");
++	ACPI_FUNCTION_TRACE("acpi_memory_device_start");
 +
-+	pxm = acpi_get_pxm(handle);
-+	if (pxm >= 0)
-+		node = acpi_map_pxm_to_node(pxm);
++	mem_device = (struct acpi_memory_device *) acpi_driver_data(device);
 +
-+	return_VALUE(node);
++	if (!acpi_memory_check_device(mem_device)){
++		/* call add_memory func */
++		result = acpi_memory_enable_device(mem_device);
++		if (result)
++			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
++			"Error in acpi_memory_enable_device\n"));
++	}
++	return_VALUE(result);
 +}
 +
-+EXPORT_SYMBOL(acpi_get_node);
-Index: pgdat6/include/linux/acpi.h
-===================================================================
---- pgdat6.orig/include/linux/acpi.h	2006-03-06 18:25:37.000000000 +0900
-+++ pgdat6/include/linux/acpi.h	2006-03-06 18:26:31.000000000 +0900
-@@ -529,12 +529,18 @@ static inline void acpi_set_cstate_limit
- 
- #ifdef CONFIG_ACPI_NUMA
- int acpi_get_pxm(acpi_handle handle);
-+int acpi_get_node(acpi_handle *handle);
- #else
- static inline int acpi_get_pxm(acpi_handle handle)
- {
- 	return 0;
- }
-+static inline int acpi_get_node(acpi_handle *handle)
-+{
-+	return 0;
-+}
- #endif
-+extern int acpi_paddr_to_node(u64 start_addr, u64 size);
- 
- extern int pnpacpi_disabled;
- 
+ /*
+  * Helper function to check for memory device
+  */
 
 -- 
 Yasunori Goto 
