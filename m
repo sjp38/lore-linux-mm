@@ -1,96 +1,39 @@
-References: <200603081013.44678.kernel@kolivas.org> <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe> <200603081330.56548.kernel@kolivas.org> <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com>
-Message-ID: <cone.1141787137.882268.19235.501@kolivas.org>
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: yield during swap prefetching
-Date: Wed, 08 Mar 2006 14:05:37 +1100
-Mime-Version: 1.0
-Content-Type: multipart/signed;
-    boundary="=_mimegpg-kolivas.org-19235-1141787137-0001";
-    micalg=pgp-sha1; protocol="application/pgp-signature"
+Date: Tue, 7 Mar 2006 19:35:01 -0800 (PST)
+Message-Id: <200603080335.TAA11549@panorama.Covad.COM>
+From: Covad Network Abuse Team <abuse-isp@Covad.COM>
+Subject: Automated reply to the submission of abuse incident
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?B?QW5kcuk=?= Goddard Rosa <andre.goddard@gmail.com>
-Cc: Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME GnuPG-signed message.  If you see this text, it means that
-your E-mail or Usenet software does not support MIME signed messages.
+This is an automated reply to the submission of your network abuse incident.  Please take time to read it carefully because it provides insight to your reported incident and guidelines for future submissions to the Covad Network Abuse Team.
 
---=_mimegpg-kolivas.org-19235-1141787137-0001
-Content-Type: text/plain; format=flowed; charset="ISO-8859-1"
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-X-Mime-Autoconverted: from 8bit to quoted-printable by mimegpg
+Covad's Policy on Network Abuse:  We would like to thank you for bringing this matter to our attention.  We take network abuse very seriously within the Covad domain, and we apologize for any inconvenience this has caused you. Due to the large number of complaints we receive, we may not provide any further response regarding this incident.  However, Covad investigates each reported incident of abuse, and we will take all appropriate action to warn, suspend, and/or terminate a subscriber that has violated Covad's Acceptable Use Policy or Terms of Service. 
 
-Andr=E9 Goddard Rosa writes:
+Covad's Guidelines for Reporting Suspected Network Abuse:  When reporting a network abuse incident to Covad's Network Abuse Team you must follow the submission guidelines below to expedite the investigation process.  If you fail to follow these guidelines we may not process your request or we may be delayed in processing your request.  We process abuse requests on a First-In-First-Out basis, prioritized by the level of network abuse a customer is experiencing.  Also, please do not submit more than one request per network abuse incident.  This will ensure that each occurrence is addressed in the most efficient manner possible.
 
-> [...]
->> > > Because being a serious desktop operating system that we are
->> > > (bwahahahaha) means the user should not have special privileges to ru=
-n
->> > > something as simple as a game. Games should not need special scheduli=
-ng
->> > > classes. We can always use 'nice' for a compile though. Real time aud=
-io
->> > > is a completely different world to this.
-> [...]
->> Well as I said in my previous reply, games should _not_ need special
->> scheduling classes. They are not written in a real time smart way and the=
-y do
->> not have any realtime constraints or requirements.
-> 
-> Sorry Con, but I have to disagree with you on this.
-> 
-> Games are very complex software, involving heavy use of hardware resources
-> and they also have a lot of time constraints. So, I think they should
-> use RT priorities
-> if it is necessary to get the resources needed in time.
+Network Abuse Submission Guidelines
 
-Excellent, I've opened the can of worms.
+1. Provide a brief, general description of the network abuse incident.
 
-Yes, games are a in incredibly complex beast.
+2. Include all logs or information relevant to the incident; ensure the logs you're submitting contain:
 
-No they shouldn't need real time scheduling to work well if they are coded 
-properly. However, witness the fact that most of our games are windows 
-ports, therefore being lower quality than the original. Witness also the 
-fact that at last with dual core support, lots and lots (but not all) of 
-windows games on _windows_ are having scheduling trouble and jerky playback,=
- 
-forcing them to crappily force binding to one cpu. As much as I'd love to 
-blame windows, it is almost certainly due to the coding of the application 
-since better games don't exhibit this problem. Now the games in question 
-can't be trusted to even run on SMP; do you really think they could cope 
-with good real time code? Good -complex- real time coding is very difficult.=
- 
-If you take any game out there that currently exists and throw real time 
-scheduling at it, almost certainly it will hang the machine. No, I don't 
-believe games need realtime scheduling to work well; they just need to be 
-written well and the kernel needs to be unintrusive enough to work well with=
- 
-them. Otherwise gaming would have needed realtime scheduling from day 
-one on all operating systems. Generic kernel activities should not cause 
-game stuttering either as users have little control over them. I do expect 
-users to not run too many userspace programs while trying to play games 
-though. I do not believe we should make games work well in the presence of 
-updatedb running for example.
+   a. Date of incident
+   b. Time of incident and time zone
+   c. Source Internet protocol (IP) address or host name
+   d. Destination IP addresses or host name
+   e. Destination port
 
-Cheers,
-Con
+3. For e-mail abuse (i.e., Spam), include full-unmodified header information and content of the email.  Header information is a requirement for reporting e-mail abuse.  Without the header information, the Abuse Team cannot determine the true originator of the e-mail and will be unable to take any action.  If you are unsure how to extract a full-unmodified header, please visit http://spamcop.net/fom-serve/cache/19.html for instructions to support your mail client. 
 
+4. For alleged off topic (non-spam) or commercial Usenet postings, we also need full un-modified headers of the Usenet posting including the body of the offending message.  If you are unsure how to view the full-unmodified headers of the Usenet post, consult the help section of your newsreader software or your news provider.
 
---=_mimegpg-kolivas.org-19235-1141787137-0001
-Content-Type: application/pgp-signature
-Content-Transfer-Encoding: 7bit
+Covad cannot investigate an incident of network abuse without the information requested above.  In addition, Covad only investigates incidents of network abuse regarding Covad subscribers.  Non-subscribers should be reported to their appropriate ISP for network abuse resolution.  Please be advised that Covad does not disclose personally identifiable information about our subscribers except as may be required or permitted by law or authorized by our subscribers.  As a result, information pertaining to particular subscriber(s) or specific actions taken in regard to Abuse complaints may not be disclosed.  However, Covad is committed to identifying alleged offenders and taking all appropriate action to ensure compliance with our Acceptable Use Policy and other Terms of Service.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
+Sincerely,
 
-iD8DBQBEDkoBZUg7+tp6mRURAoszAJ92VIxqHRxyBVfHfIY7KUxBDGMzDgCfWsrt
-ABs88x3ldlS0BZE8WKrM110=
-=q1Ii
------END PGP SIGNATURE-----
-
---=_mimegpg-kolivas.org-19235-1141787137-0001--
+The Covad Network Abuse Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
