@@ -1,20 +1,20 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k28DgqLR006960 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:42:52 +0900
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+        by fgwmail7.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k28Dh8Em011789 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:43:08 +0900
         (envelope-from y-goto@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k28DgpY7006905 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:42:51 +0900
+Received: from s7.gw.fujitsu.co.jp by m3.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k28Dh70Y029183 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:43:07 +0900
 	(envelope-from y-goto@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp (s4 [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EF531CC144
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:42:51 +0900 (JST)
-Received: from ml1.s.css.fujitsu.com (ml1.s.css.fujitsu.com [10.23.4.191])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF3E31CC00E
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:42:50 +0900 (JST)
-Date: Wed, 08 Mar 2006 22:42:50 +0900
+Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 783B8208282
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:43:07 +0900 (JST)
+Received: from ml6.s.css.fujitsu.com (ml6.s.css.fujitsu.com [10.23.4.196])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 38C8A208287
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:43:07 +0900 (JST)
+Date: Wed, 08 Mar 2006 22:43:07 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 013/017](RFC) Memory hotplug for new nodes v.3. (changes from __init to __meminit) 
-Message-Id: <20060308213446.003C.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 016/017](RFC) Memory hotplug for new nodes v.3. (get node id from acpi's handle)
+Message-Id: <20060308213726.0042.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -24,106 +24,91 @@ To: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Joel Schopp <js
 Cc: linux-ia64@vger.kernel.org, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a patch to change definition of some functions and data
-from __init to __meminit.
-These functions and data can be used after bootup by this patch to
-be used for hot-add codes.
+This is to find node id from acpi's handle of memory_device in DSDT.
+_PXM for the new node can be found by acpi_get_pxm()
+by using new memory's handle. 
+So, node id can be found by pxm_to_nid_map[].
+
+  This patch becomes simpler than v2. Because old add_memory()
+  function doesn't have node id parameter. So, kernel must 
+  find its handle by physical address via DSDT again.
+  But, v3 just give node id to add_memory() now.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Index: pgdat6/mm/page_alloc.c
+Index: pgdat6/drivers/acpi/acpi_memhotplug.c
 ===================================================================
---- pgdat6.orig/mm/page_alloc.c	2006-03-06 21:07:19.000000000 +0900
-+++ pgdat6/mm/page_alloc.c	2006-03-06 21:08:35.000000000 +0900
-@@ -81,8 +81,8 @@ EXPORT_SYMBOL(zone_table);
- static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
- int min_free_kbytes = 1024;
+--- pgdat6.orig/drivers/acpi/acpi_memhotplug.c	2006-03-06 18:26:30.000000000 +0900
++++ pgdat6/drivers/acpi/acpi_memhotplug.c	2006-03-06 18:26:31.000000000 +0900
+@@ -182,7 +182,7 @@ static int acpi_memory_check_device(stru
  
--unsigned long __initdata nr_kernel_pages;
--unsigned long __initdata nr_all_pages;
-+unsigned long __meminitdata nr_kernel_pages;
-+unsigned long __meminitdata nr_all_pages;
- 
- #ifdef CONFIG_DEBUG_VM
- static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
-@@ -1574,7 +1574,7 @@ void show_free_areas(void)
-  *
-  * Add all populated zones of a node to the zonelist.
-  */
--static int __init build_zonelists_node(pg_data_t *pgdat,
-+static int __meminit build_zonelists_node(pg_data_t *pgdat,
- 			struct zonelist *zonelist, int nr_zones, int zone_type)
+ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
  {
- 	struct zone *zone;
-@@ -1610,7 +1610,7 @@ static inline int highest_zone(int zone_
+-	int result;
++	int result, node;
  
- #ifdef CONFIG_NUMA
- #define MAX_NODE_LOAD (num_online_nodes())
--static int __initdata node_load[MAX_NUMNODES];
-+static int __meminitdata node_load[MAX_NUMNODES];
- /**
-  * find_next_best_node - find the next node that should appear in a given node's fallback list
-  * @node: node whose fallback list we're appending
-@@ -1625,7 +1625,7 @@ static int __initdata node_load[MAX_NUMN
-  * on them otherwise.
-  * It returns -1 if no node is found.
-  */
--static int __init find_next_best_node(int node, nodemask_t *used_node_mask)
-+static int __meminit find_next_best_node(int node, nodemask_t *used_node_mask)
- {
- 	int n, val;
- 	int min_val = INT_MAX;
-@@ -1671,7 +1671,7 @@ static int __init find_next_best_node(in
- 	return best_node;
- }
+ 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
  
--static void __init build_zonelists(pg_data_t *pgdat)
-+static void __meminit build_zonelists(pg_data_t *pgdat)
- {
- 	int i, j, k, node, local_node;
- 	int prev_node, load;
-@@ -1723,7 +1723,7 @@ static void __init build_zonelists(pg_da
+@@ -194,11 +194,12 @@ static int acpi_memory_enable_device(str
+ 		return result;
+ 	}
  
- #else	/* CONFIG_NUMA */
- 
--static void __init build_zonelists(pg_data_t *pgdat)
-+static void __meminit build_zonelists(pg_data_t *pgdat)
- {
- 	int i, j, k, node, local_node;
- 
-@@ -2164,7 +2164,7 @@ __meminit int init_currently_empty_zone(
-  *   - mark all memory queues empty
-  *   - clear the memory bitmaps
-  */
--static void __init free_area_init_core(struct pglist_data *pgdat,
-+static void __meminit free_area_init_core(struct pglist_data *pgdat,
- 		unsigned long *zones_size, unsigned long *zholes_size)
- {
- 	unsigned long j;
-@@ -2246,7 +2246,7 @@ static void __init alloc_node_mem_map(st
- #endif /* CONFIG_FLAT_NODE_MEM_MAP */
- }
- 
--void __init free_area_init_node(int nid, struct pglist_data *pgdat,
-+void __meminit free_area_init_node(int nid, struct pglist_data *pgdat,
- 		unsigned long *zones_size, unsigned long node_start_pfn,
- 		unsigned long *zholes_size)
- {
-Index: pgdat6/include/linux/bootmem.h
++	node = acpi_get_node(mem_device->handle);
+ 	/*
+ 	 * Tell the VM there is more memory here...
+ 	 * Note: Assume that this function returns zero on success
+ 	 */
+-	result = add_memory(mem_device->start_addr, mem_device->length);
++	result = add_memory(node, mem_device->start_addr, mem_device->length);
+ 	switch(result) {
+ 	case 0:
+ 		break;
+Index: pgdat6/drivers/acpi/numa.c
 ===================================================================
---- pgdat6.orig/include/linux/bootmem.h	2006-03-06 18:25:37.000000000 +0900
-+++ pgdat6/include/linux/bootmem.h	2006-03-06 21:08:05.000000000 +0900
-@@ -88,8 +88,8 @@ static inline void *alloc_remap(int nid,
+--- pgdat6.orig/drivers/acpi/numa.c	2006-03-06 18:25:32.000000000 +0900
++++ pgdat6/drivers/acpi/numa.c	2006-03-06 18:26:31.000000000 +0900
+@@ -258,3 +258,18 @@ int acpi_get_pxm(acpi_handle h)
  }
+ 
+ EXPORT_SYMBOL(acpi_get_pxm);
++
++int acpi_get_node(acpi_handle *handle)
++{
++	int pxm, node = -1;
++
++	ACPI_FUNCTION_TRACE("acpi_get_node");
++
++	pxm = acpi_get_pxm(handle);
++	if (pxm >= 0)
++		node = acpi_map_pxm_to_node(pxm);
++
++	return_VALUE(node);
++}
++
++EXPORT_SYMBOL(acpi_get_node);
+Index: pgdat6/include/linux/acpi.h
+===================================================================
+--- pgdat6.orig/include/linux/acpi.h	2006-03-06 18:25:37.000000000 +0900
++++ pgdat6/include/linux/acpi.h	2006-03-06 18:26:31.000000000 +0900
+@@ -529,12 +529,18 @@ static inline void acpi_set_cstate_limit
+ 
+ #ifdef CONFIG_ACPI_NUMA
+ int acpi_get_pxm(acpi_handle handle);
++int acpi_get_node(acpi_handle *handle);
+ #else
+ static inline int acpi_get_pxm(acpi_handle handle)
+ {
+ 	return 0;
+ }
++static inline int acpi_get_node(acpi_handle *handle)
++{
++	return 0;
++}
  #endif
++extern int acpi_paddr_to_node(u64 start_addr, u64 size);
  
--extern unsigned long __initdata nr_kernel_pages;
--extern unsigned long __initdata nr_all_pages;
-+extern unsigned long __meminitdata nr_kernel_pages;
-+extern unsigned long __meminitdata nr_all_pages;
+ extern int pnpacpi_disabled;
  
- extern void *__init alloc_large_system_hash(const char *tablename,
- 					    unsigned long bucketsize,
 
 -- 
 Yasunori Goto 
