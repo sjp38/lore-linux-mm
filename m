@@ -1,87 +1,106 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+Received: from m7.gw.fujitsu.co.jp ([10.0.50.77])
         by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k28Df5wb013659 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:41:05 +0900
+        with ESMTP id k28DfMc0013928 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:41:22 +0900
         (envelope-from y-goto@jp.fujitsu.com)
-Received: from s13.gw.fujitsu.co.jp by m6.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k28Df4Js027057 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:41:04 +0900
+Received: from s2.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k28DfKWg022556 for <linux-mm@kvack.org>; Wed, 8 Mar 2006 22:41:20 +0900
 	(envelope-from y-goto@jp.fujitsu.com)
-Received: from s13.gw.fujitsu.co.jp (s13 [127.0.0.1])
-	by s13.gw.fujitsu.co.jp (Postfix) with ESMTP id 988441CC101
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:41:04 +0900 (JST)
-Received: from ml8.s.css.fujitsu.com (ml8.s.css.fujitsu.com [10.23.4.198])
-	by s13.gw.fujitsu.co.jp (Postfix) with ESMTP id C55EC1CC0BD
-	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:41:03 +0900 (JST)
-Date: Wed, 08 Mar 2006 22:41:03 +0900
+Received: from s2.gw.fujitsu.co.jp (s2 [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B6F434E00A5
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:41:20 +0900 (JST)
+Received: from ml6.s.css.fujitsu.com (ml6.s.css.fujitsu.com [10.23.4.196])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BDC444E00A8
+	for <linux-mm@kvack.org>; Wed,  8 Mar 2006 22:41:19 +0900 (JST)
+Date: Wed, 08 Mar 2006 22:41:19 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 000/017] (RFC)Memory hotplug for new nodes v.3.
-Message-Id: <20060308212316.0022.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 002/017](RFC) Memory hotplug for new nodes v.3. (change name old add_memory() to arch_add_memory()) 
+Message-Id: <20060308212547.0026.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Joel Schopp <jschopp@austin.ibm.com>, Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-ia64@vger.kernel.org, Andrew Morton <akpm@osdl.org>
+Cc: linux-ia64@vger.kernel.org, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+This patch changes name of old add_memory() to arch_add_memory.
+and use node id to get pgdat for the node at NODE_DATA().
 
-I'll post newest patches for memory hotadd with pgdat allocation as V3.
-There are many changes to make more common code.
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-This may be too many patches, but I would like to show
-total feature of this code now.
-
-This patches are for 2.6.16-rc5-mm3.
-I tested these patch on just Tiger4(ia64) with emulation now.
-But, I'll test them for x86-64 too after this post.
-
-Please comment.
-
----------------------------------------
-
-This is memory hotadd code when new node is added.
-In this patch, pgdat is allocated when new node is comming.
-To initialize pgdat and zones, a set of patches are necessary.
-  - to allcate and initialize pgdat, zone, zonelist.
-  - to make new kswapd
-  - to initialize node_data[] array (ia64)
-  - to register sysfs file for new node.
-  - to call memory_hotplug code from acpi container driver.
-
-Note:
- - kzalloc is used for pgdat allocation in this version.
-   So, even if pgdat is allocated, it will be allocated on the other node.
-   This is only to simplify patches a bit. :-P
-
------------------------------
-Followings are updates.
-
-Updates from V2 to V3.
-  - update for 2.6.16-rc5-mm3.
-  - The caller function of pgdat allcation and so on become common code.
-  - Passing node id at add_memory().
-  - build_zonelists() is called after that pages are onlined.
-  - Updating NODE_DATA() for ia64 become simple and become 
-    common code between booting and hotadd.
-    (But other consideration will be necessary for hot-remove.)
-  - kswapd is called by kthread_run().
-  - finding node id by acpi use handle of its memory device.
-  - 
-
-Updates from V1 to V2.
-  - update for 2.6.16-rc5-mm2.
-  - not only ia64, This is tested on x86_64 with NUMA emulation too. :-)
-  - wait_table_size() allcation is changed.
-      - Take max size as much as possible.
-      - Change using GFP_ATOMIC. It is inside of zone_init_lock.
-        (Warining message of might_sleep() is very well.)
-  - stop_machine_run(build_zonelists) is move to outside of lock.
-  - pgdat_insert() is moved to generic code to be used by x86_64.
-  - add decision of ZONE_DMA32 or ZONE_NORMAL to x86_64's add_memory().
-  - Make a separated patch to change from __init to __meminit.
-  - Fix some typo
-
+Index: pgdat6/arch/i386/mm/init.c
+===================================================================
+--- pgdat6.orig/arch/i386/mm/init.c	2006-03-06 19:16:38.000000000 +0900
++++ pgdat6/arch/i386/mm/init.c	2006-03-06 19:34:53.000000000 +0900
+@@ -652,7 +652,7 @@ void __init mem_init(void)
+  * memory to the highmem for now.
+  */
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	struct pglist_data *pgdata = &contig_page_data;
+ 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
+Index: pgdat6/arch/ia64/mm/init.c
+===================================================================
+--- pgdat6.orig/arch/ia64/mm/init.c	2006-03-06 19:16:38.000000000 +0900
++++ pgdat6/arch/ia64/mm/init.c	2006-03-06 19:34:53.000000000 +0900
+@@ -646,7 +646,7 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
+ 
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	pg_data_t *pgdat;
+ 	struct zone *zone;
+@@ -654,7 +654,7 @@ int add_memory(u64 start, u64 size)
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
+ 
+-	pgdat = NODE_DATA(0);
++	pgdat = NODE_DATA(nid);
+ 
+ 	zone = pgdat->node_zones + ZONE_NORMAL;
+ 	ret = __add_pages(zone, start_pfn, nr_pages);
+Index: pgdat6/arch/powerpc/mm/mem.c
+===================================================================
+--- pgdat6.orig/arch/powerpc/mm/mem.c	2006-03-06 19:16:38.000000000 +0900
++++ pgdat6/arch/powerpc/mm/mem.c	2006-03-06 19:34:53.000000000 +0900
+@@ -114,15 +114,13 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
+ 
+-int __devinit add_memory(u64 start, u64 size)
++int __devinit arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	struct pglist_data *pgdata;
+ 	struct zone *zone;
+-	int nid;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 
+-	nid = hot_add_scn_to_nid(start);
+ 	pgdata = NODE_DATA(nid);
+ 
+ 	start = __va(start);
+Index: pgdat6/arch/x86_64/mm/init.c
+===================================================================
+--- pgdat6.orig/arch/x86_64/mm/init.c	2006-03-06 19:16:38.000000000 +0900
++++ pgdat6/arch/x86_64/mm/init.c	2006-03-06 19:34:53.000000000 +0900
+@@ -493,9 +493,9 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
+ 
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+-	struct pglist_data *pgdat = NODE_DATA(0);
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct zone *zone = pgdat->node_zones + MAX_NR_ZONES-2;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
 -- 
 Yasunori Goto 
