@@ -1,39 +1,53 @@
-Date: Tue, 7 Mar 2006 19:35:01 -0800 (PST)
-Message-Id: <200603080335.TAA11549@panorama.Covad.COM>
-From: Covad Network Abuse Team <abuse-isp@Covad.COM>
-Subject: Automated reply to the submission of abuse incident
+Received: from ludicrous.sby.abo.fi (ludicrous.sby.abo.fi [130.232.121.246])
+ by smtp01.mess.utu.fi
+ (Sun Java System Messaging Server 6.2-2.05 (built Apr 28 2005))
+ with ESMTP id <0IVS004VSTU4V070@smtp01.mess.utu.fi> for linux-mm@kvack.org;
+ Wed, 08 Mar 2006 09:51:40 +0200 (EET)
+Date: Wed, 08 Mar 2006 09:51:38 +0200
+From: Jan Knutar <jk-lkml@sci.fi>
+Subject: Re: [PATCH] mm: yield during swap prefetching
+In-reply-to: <200603081228.05820.kernel@kolivas.org>
+Message-id: <200603080951.38316.jk-lkml@sci.fi>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7BIT
+Content-disposition: inline
+References: <200603081013.44678.kernel@kolivas.org>
+ <20060307172337.1d97cd80.akpm@osdl.org> <200603081228.05820.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-This is an automated reply to the submission of your network abuse incident.  Please take time to read it carefully because it provides insight to your reported incident and guidelines for future submissions to the Covad Network Abuse Team.
+On Wednesday 08 March 2006 03:28, Con Kolivas wrote:
 
-Covad's Policy on Network Abuse:  We would like to thank you for bringing this matter to our attention.  We take network abuse very seriously within the Covad domain, and we apologize for any inconvenience this has caused you. Due to the large number of complaints we receive, we may not provide any further response regarding this incident.  However, Covad investigates each reported incident of abuse, and we will take all appropriate action to warn, suspend, and/or terminate a subscriber that has violated Covad's Acceptable Use Policy or Terms of Service. 
+> Anything that does disk access delays prefetch fine. Things that only do heavy 
+> cpu do not delay prefetch. Anything reading from disk will be noticeable 
+> during 3d gaming.
 
-Covad's Guidelines for Reporting Suspected Network Abuse:  When reporting a network abuse incident to Covad's Network Abuse Team you must follow the submission guidelines below to expedite the investigation process.  If you fail to follow these guidelines we may not process your request or we may be delayed in processing your request.  We process abuse requests on a First-In-First-Out basis, prioritized by the level of network abuse a customer is experiencing.  Also, please do not submit more than one request per network abuse incident.  This will ensure that each occurrence is addressed in the most efficient manner possible.
+What exactly makes the disk accesses noticeable? Is it because they steal
+time from the disk that the game otherwise would need, or do the disk accesses
+themselves consume noticeable amounts of CPU time? 
+Or, do bits of the game's executable drop from memory to make room for the
+new stuff being pulled in from memory, causing the game to halt while it waits
+for its pages to come back? On a related note, through advanced use of
+handwaving and guessing, this seems to be the thing that kills my destop
+experience (*buzzword alert*) most often. Checksumming a large file
+seems to be less of an impact than things that seek alot, like updatedb.
 
-Network Abuse Submission Guidelines
+I remember playing vegastrike on my linux desktop machine few years ago,
+the game leaked so much memory that it filled my 2G swap rather often,
+unleashing OOM killer mayhem. I "solved" this by putting swap on floppy at
+lower priority than the 2G, and a 128M swap file as "backup" at even lower
+priority than the floppy. I didn't notice the swapping to harddrive, but when it
+started to swap to floppy, it made the game run a bit slower for a few seconds,
+plus the floppy light went on, and I knew I had 128M left to  save my position
+and quit.
 
-1. Provide a brief, general description of the network abuse incident.
-
-2. Include all logs or information relevant to the incident; ensure the logs you're submitting contain:
-
-   a. Date of incident
-   b. Time of incident and time zone
-   c. Source Internet protocol (IP) address or host name
-   d. Destination IP addresses or host name
-   e. Destination port
-
-3. For e-mail abuse (i.e., Spam), include full-unmodified header information and content of the email.  Header information is a requirement for reporting e-mail abuse.  Without the header information, the Abuse Team cannot determine the true originator of the e-mail and will be unable to take any action.  If you are unsure how to extract a full-unmodified header, please visit http://spamcop.net/fom-serve/cache/19.html for instructions to support your mail client. 
-
-4. For alleged off topic (non-spam) or commercial Usenet postings, we also need full un-modified headers of the Usenet posting including the body of the offending message.  If you are unsure how to view the full-unmodified headers of the Usenet post, consult the help section of your newsreader software or your news provider.
-
-Covad cannot investigate an incident of network abuse without the information requested above.  In addition, Covad only investigates incidents of network abuse regarding Covad subscribers.  Non-subscribers should be reported to their appropriate ISP for network abuse resolution.  Please be advised that Covad does not disclose personally identifiable information about our subscribers except as may be required or permitted by law or authorized by our subscribers.  As a result, information pertaining to particular subscriber(s) or specific actions taken in regard to Abuse complaints may not be disclosed.  However, Covad is committed to identifying alleged offenders and taking all appropriate action to ensure compliance with our Acceptable Use Policy and other Terms of Service.
-
-Sincerely,
-
-The Covad Network Abuse Team
+If I needed floppy to make disk access noticeable on my very low end
+machine... What are these new fancy things doing to make HD access
+noticeable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
