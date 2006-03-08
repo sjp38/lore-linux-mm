@@ -1,60 +1,49 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH] mm: yield during swap prefetching
-Date: Wed, 8 Mar 2006 19:39:23 +1100
-References: <200603081013.44678.kernel@kolivas.org> <200603081228.05820.kernel@kolivas.org> <200603080951.38316.jk-lkml@sci.fi>
-In-Reply-To: <200603080951.38316.jk-lkml@sci.fi>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 8 Mar 2006 09:48:24 +0100
+From: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
+Subject: Re: [ck] Re: [PATCH] mm: yield during swap prefetching
+Message-ID: <20060308084824.GA4193@rhlx01.fht-esslingen.de>
+References: <200603081013.44678.kernel@kolivas.org> <20060307152636.1324a5b5.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200603081939.23791.kernel@kolivas.org>
+In-Reply-To: <20060307152636.1324a5b5.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Knutar <jk-lkml@sci.fi>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Con Kolivas <kernel@kolivas.org>, ck@vds.kolivas.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 08 March 2006 18:51, Jan Knutar wrote:
-> On Wednesday 08 March 2006 03:28, Con Kolivas wrote:
-> > Anything that does disk access delays prefetch fine. Things that only do
-> > heavy cpu do not delay prefetch. Anything reading from disk will be
-> > noticeable during 3d gaming.
->
-> What exactly makes the disk accesses noticeable? Is it because they steal
-> time from the disk that the game otherwise would need, or do the disk
-> accesses themselves consume noticeable amounts of CPU time?
-> Or, do bits of the game's executable drop from memory to make room for the
-> new stuff being pulled in from memory, causing the game to halt while it
-> waits for its pages to come back? On a related note, through advanced use
-> of handwaving and guessing, this seems to be the thing that kills my destop
-> experience (*buzzword alert*) most often. Checksumming a large file seems
-> to be less of an impact than things that seek alot, like updatedb.
->
-> I remember playing vegastrike on my linux desktop machine few years ago,
-> the game leaked so much memory that it filled my 2G swap rather often,
-> unleashing OOM killer mayhem. I "solved" this by putting swap on floppy at
-> lower priority than the 2G, and a 128M swap file as "backup" at even lower
-> priority than the floppy. I didn't notice the swapping to harddrive, but
-> when it started to swap to floppy, it made the game run a bit slower for a
-> few seconds, plus the floppy light went on, and I knew I had 128M left to 
-> save my position and quit.
->
-> If I needed floppy to make disk access noticeable on my very low end
-> machine... What are these new fancy things doing to make HD access
-> noticeable?
+Hi,
 
-It's the cumulative effect of the cpu used by the in kernel code paths and the 
-kprefetchd kernel thread. Even running ultra low priority, if they read a lot 
-from the hard drive it costs us cpu time (seen as I/O wait in top for 
-example). Swap prefetch _never_ displaces anything from ram; it only ever 
-reads things from swap if there is generous free ram available. Not only that 
-but if it reads something from swap it is put at the end of the "least 
-recently used" list meaning that if _anything_ needs ram, these are the first 
-things displaced again.
+On Tue, Mar 07, 2006 at 03:26:36PM -0800, Andrew Morton wrote:
+> Con Kolivas <kernel@kolivas.org> wrote:
+> >
+> > Swap prefetching doesn't use very much cpu but spends a lot of time waiting on 
+> > disk in uninterruptible sleep. This means it won't get preempted often even at 
+> > a low nice level since it is seen as sleeping most of the time. We want to 
+> > minimise its cpu impact so yield where possible.
 
-Cheers,
-Con
+> yield() really sucks if there are a lot of runnable tasks.  And the amount
+> of CPU which that thread uses isn't likely to matter anyway.
+> 
+> I think it'd be better to just not do this.  Perhaps alter the thread's
+> static priority instead?  Does the scheduler have a knob which can be used
+> to disable a tasks's dynamic priority boost heuristic?
+
+This problem occurs due to giving a priority boost to processes that are
+sleeping a lot (e.g. in this case, I/O, from disk), right?
+Forgive me my possibly less insightful comments, but maybe instead of adding
+crude specific hacks (namely, yield()) to each specific problematic process as
+it comes along (it just happens to be the swap prefetch thread this time)
+there is a *general way* to give processes with lots of disk I/O sleeping
+much smaller amounts of boost in order to get them preempted more often
+in favour of an actually much more critical process (game)?
+>From the discussion here it seems this problem is caused by a *general*
+miscalculation of processes sleeping on disk I/O a lot.
+
+Thus IMHO this problem should be solved in a general way if at all possible.
+
+Andreas Mohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
