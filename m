@@ -1,68 +1,79 @@
+References: <200603081013.44678.kernel@kolivas.org> <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe> <200603081330.56548.kernel@kolivas.org> <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com> <cone.1141787137.882268.19235.501@kolivas.org> <1141852064.21958.28.camel@localhost> <cone.1141858802.179786.26372.501@kolivas.org> <1141861694.21958.66.camel@localhost>
+Message-ID: <cone.1141862870.463023.26372.501@kolivas.org>
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: yield during swap prefetching
-From: Zan Lynx <zlynx@acm.org>
-In-Reply-To: <cone.1141858802.179786.26372.501@kolivas.org>
-References: <200603081013.44678.kernel@kolivas.org>
-	 <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe>
-	 <200603081330.56548.kernel@kolivas.org>
-	 <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com>
-	 <cone.1141787137.882268.19235.501@kolivas.org>
-	 <1141852064.21958.28.camel@localhost>
-	 <cone.1141858802.179786.26372.501@kolivas.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-78/UWGx+zSDjgKJaXXV7"
-Date: Wed, 08 Mar 2006 16:48:13 -0700
-Message-Id: <1141861694.21958.66.camel@localhost>
+Date: Thu, 09 Mar 2006 11:07:50 +1100
 Mime-Version: 1.0
+Content-Type: multipart/signed;
+    boundary="=_mimegpg-kolivas.org-26372-1141862870-0003";
+    micalg=pgp-sha1; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: =?ISO-8859-1?Q?Andr=E9?= Goddard Rosa <andre.goddard@gmail.com>, Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
+To: Zan Lynx <zlynx@acm.org>
+Cc: =?ISO-8859-1?B?QW5kcuk=?= Goddard Rosa <andre.goddard@gmail.com>, Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
---=-78/UWGx+zSDjgKJaXXV7
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+This is a MIME GnuPG-signed message.  If you see this text, it means that
+your E-mail or Usenet software does not support MIME signed messages.
 
-On Thu, 2006-03-09 at 10:00 +1100, Con Kolivas wrote:
-> Zan Lynx writes:
-[snip]
-> > Games and real-time go together like they were made for each other.
->=20
-> I guess every single well working windows game since the dawn of time is=20
-> some sort of anomaly then.
+--=_mimegpg-kolivas.org-26372-1141862870-0003
+Content-Type: text/plain; format=flowed; charset="US-ASCII"
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 
-Yes, those Windows games are anomalies that rely on the OS scheduling
-them AS IF they were real-time, but without actually claiming that
-priority.
+Zan Lynx writes:
 
-Because these games just assume they own the whole system and aren't
-explicitly telling the OS about their real-time requirements, the OS has
-to guess instead and can get it wrong, especially when hardware
-capabilities advance in ways that force changes to the task scheduler
-(multi-core, hyper-threading).  And you said it yourself, many old games
-don't work well on dual-core systems.
+> On Thu, 2006-03-09 at 10:00 +1100, Con Kolivas wrote:
+>> Zan Lynx writes:
+> [snip]
+>> > Games and real-time go together like they were made for each other.
+>> 
+>> I guess every single well working windows game since the dawn of time is 
+>> some sort of anomaly then.
+> 
+> Yes, those Windows games are anomalies that rely on the OS scheduling
+> them AS IF they were real-time, but without actually claiming that
+> priority.
+> 
+> Because these games just assume they own the whole system and aren't
+> explicitly telling the OS about their real-time requirements, the OS has
+> to guess instead and can get it wrong, especially when hardware
+> capabilities advance in ways that force changes to the task scheduler
+> (multi-core, hyper-threading).  And you said it yourself, many old games
+> don't work well on dual-core systems.
+> 
+> I think your effort to improve the guessing is a good idea, and
+> thanks.  
+> 
+> Just don't dismiss the idea that games do have real-time requirements
+> and if they did things correctly, games would explicitly specify those
+> requirements.
 
-I think your effort to improve the guessing is a good idea, and
-thanks. =20
+Games worked on windows for a decade on single core without real time 
+scheduling because that's what they were written for. 
 
-Just don't dismiss the idea that games do have real-time requirements
-and if they did things correctly, games would explicitly specify those
-requirements.
---=20
-Zan Lynx <zlynx@acm.org>
+Now that games are written for windows with dual core they work well - again 
+without real time scheduling. 
 
---=-78/UWGx+zSDjgKJaXXV7
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+Why should a port of these games to linux require real time?
+
+Cheers,
+Con
+
+
+--=_mimegpg-kolivas.org-26372-1141862870-0003
+Content-Type: application/pgp-signature
+Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.2.1 (GNU/Linux)
+Version: GnuPG v1.2.4 (GNU/Linux)
 
-iD8DBQBED209G8fHaOLTWwgRAlf9AKCQQoX7TBnsu8+x/ZjB2Wz3HmnZlwCeIl+V
-JrldF/RpZPpTGmbhEvg/CUE=
-=aCHK
+iD8DBQBED3HWZUg7+tp6mRURAg+1AJ0fB36N1qlMehnrYtdGfyepc2yd8QCggPBB
+paa/Q/lzpQGBwsahcK+7omo=
+=9TQX
 -----END PGP SIGNATURE-----
 
---=-78/UWGx+zSDjgKJaXXV7--
+--=_mimegpg-kolivas.org-26372-1141862870-0003--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
