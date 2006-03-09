@@ -1,186 +1,95 @@
-Subject: [PATCH/RFC] Migrate-on-fault prototype 5/5 V0.1 - add MPOL_MF_LAZY
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reply-To: lee.schermerhorn@hp.com
-Content-Type: text/plain
-Date: Thu, 09 Mar 2006 16:54:42 -0500
-Message-Id: <1141941282.8326.11.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <4410AFD3.7090505@bigpond.net.au>
+Date: Fri, 10 Mar 2006 09:44:35 +1100
+From: Peter Williams <pwil3058@bigpond.net.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: yield during swap prefetching
+References: <200603081013.44678.kernel@kolivas.org> <200603081212.03223.kernel@kolivas.org> <440FEDF7.2040008@aitel.hist.no> <200603092008.16792.kernel@kolivas.org> Sender:	linux-kernel-owner@vger.kernel.org X-Mailing-List:	linux-kernel@vger.kernel.org
+In-Reply-To: <200603092008.16792.kernel@kolivas.org> Sender:	linux-kernel-owner@vger.kernel.org X-Mailing-List:	linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Christoph Lameter <clameter@sgi.com>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Helge Hafting <helge.hafting@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-I never saw this one hit the list.
+Con Kolivas wrote:
+> On Thursday 09 March 2006 19:57, Helge Hafting wrote:
+> 
+>>Con Kolivas wrote:
+>>
+>>>On Wed, 8 Mar 2006 12:11 pm, Andrew Morton wrote:
+>>>
+>>>>but, but.  If prefetching is prefetching stuff which that game will soon
+>>>>use then it'll be an aggregate improvement.  If prefetch is prefetching
+>>>>stuff which that game _won't_ use then prefetch is busted.  Using yield()
+>>>>to artificially cripple kprefetchd is a rather sad workaround isn't it?
+>>>
+>>>It's not the stuff that it prefetches that's the problem; it's the disk
+>>>access.
+>>
+>>Well, seems you have some sorry kind of disk driver then?
+>>An ide disk not using dma?
+>>
+>>A low-cpu task that only abuses the disk shouldn't make an impact
+>>on a 3D game that hogs the cpu only.  Unless the driver for your
+>>harddisk is faulty, using way more cpu than it need.
+>>
+>>Use hdparm, check the basics:
+>>unmaksirq=1, using_dma=1, multcount is some positive number,
+>>such as 8 or 16, readahead is some positive number.
+>>Also use hdparm -i and verify that the disk is using some
+>>nice udma mode.  (too old for that, and it probably isn't worth
+>>optimizing this for...)
+>>
+>>Also make sure the disk driver isn't sharing an irq with the
+>>3D card.
+>>
+>>Come to think of it, if your 3D game happens to saturate the
+>>pci bus for long times, then disk accesses might indeed
+>>be noticeable as they too need the bus.  Check if going to
+>>a slower dma mode helps - this might free up the bus a bit.
+> 
+> 
+> Thanks for the hints. 
+> 
+> However I actually wrote the swap prefetch code and this is all about changing 
+> its behaviour to make it do what I want. The problem is that nice 19 will 
+> give it up to 5% cpu in the presence of a nice 0 task when I really don't 
+> want swap prefetch doing anything.
 
-Migrate-on-fault prototype 5/5 V0.1 - add MPOL_MF_LAZY
+I'm working on a patch to add soft and hard CPU rate caps to the 
+scheduler and the soft caps may be useful for what you're trying to do. 
+  They are a generalization of your SCHED_BATCH implementation in 
+staircase (which would have been better called SCHED_BACKGROUND :-) 
+IMHO) in that a task with a soft cap will only use more CPU than that 
+cap if it (the cpu) would otherwise go unused.  The main difference 
+between this mechanism and staircase's SCHED_BATCH mechanism is that you 
+can specify how much (as parts per thousand of a CPU) the task can use 
+instead of just being background or not background.  With the soft cap 
+set to zero the effect would be essentially the same.
 
-This patch adds another mbind() flag to request "lazy migration".
-The flag, MPOL_MF_LAZY, modifies MPOL_MF_MOVE* such that the selected
-pages are simply unmapped from the calling task's page table ['_MOVE]
-or from all referencing page tables [_MOVE_ALL].  Anon pages will first
-be added to the swap [or migration?] cache, if necessary.  The pages
-will be migrated in the fault path on "first touch", if the policy
-dictates at that time.
+> Furthermore because it is constantly 
+> waking up from sleep (after disk activity) it is always given lower latency 
+> scheduling than a fully cpu bound nice 0 task - this is normally appropriate 
+> behaviour. Yielding regularly works around that issue. 
+> 
+> Ideally taking into account cpu usage and only working below a certain cpu 
+> threshold may be the better mechanism and it does appear this would be more 
+> popular. It would not be hard to implement, but does add yet more code to an 
+> increasingly complex heuristic used to detect "idleness". I am seriously 
+> considering it.
 
-"Lazy Migration" will allow testing of migrate-on-fault.  If useful to
-applications, it could become a permanent part of the mbind() interface. 
-Yes, it does duplicate some of the code in migrate_pages().  However,
-lazy migration doesn't need to do all that migrate_pages() does, nor
-does it need to try as hard.  Trying to weave both functions into
-migrate_pages() could probably be done, but that could  result in fairly
-ugly code. 
+See above re CPU rate soft caps.  I'm holding off on submitting this 
+patch for consideration until the current scheduler modifications being 
+tested in -mm have had time to settle.
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Peter
+-- 
+Peter Williams                                   pwil3058@bigpond.net.au
 
-Index: linux-2.6.16-rc5-git8/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.16-rc5-git8.orig/include/linux/mempolicy.h	2006-03-08 14:51:40.000000000 -0500
-+++ linux-2.6.16-rc5-git8/include/linux/mempolicy.h	2006-03-08 14:52:56.000000000 -0500
-@@ -22,9 +22,14 @@
- 
- /* Flags for mbind */
- #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
--#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform to mapping */
--#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to mapping */
--#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
-+#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform
-+				   to policy */
-+#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
-+#define MPOL_MF_LAZY	(1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
-+#define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
-+
-+#define MPOL_MF_VALID \
-+	(MPOL_MF_STRICT | MPOL_MF_MOVE | MPOL_MF_MOVE_ALL | MPOL_MF_LAZY)
- 
- #ifdef __KERNEL__
- 
-@@ -179,7 +184,7 @@ int do_migrate_pages(struct mm_struct *m
-  */
- #define MPOL_MIGRATE_NONINTERLEAVED 1
- #define MPOL_MIGRATE_INTERLEAVED 2
--#define misplaced_is_interleaved(pol) (MPOL_MIGRATE_INTERLEAVED - 1)
-+#define misplaced_is_interleaved(pol) (pol == MPOL_MIGRATE_INTERLEAVED)
- 
- int mpol_misplaced(struct page *, struct vm_area_struct *,
- 		unsigned long, int *);
-Index: linux-2.6.16-rc5-git8/mm/vmscan.c
-===================================================================
---- linux-2.6.16-rc5-git8.orig/mm/vmscan.c	2006-03-08 14:52:38.000000000 -0500
-+++ linux-2.6.16-rc5-git8/mm/vmscan.c	2006-03-08 14:52:56.000000000 -0500
-@@ -1073,6 +1073,67 @@ next:
- }
- 
- /*
-+ * Lazy migration:  just unmap pages, moving anon pages to swap cache, if
-+ * necessary.  Migration will occur, if policy dictates, when a task faults
-+ * an unmapped page back into its page table--i.e., on "first touch" after
-+ * unmapping.
-+ *
-+ * Successfully unmapped pages will be put back on the LRU.  Failed pages
-+ * will be left on the argument pagelist for the caller to handle, like
-+ * migrate_pages[_to]().
-+ */
-+int migrate_pages_unmap_only(struct list_head *pagelist)
-+{
-+	struct page *page;
-+	struct page *page2;
-+	int nr_failed = 0, nr_unmapped = 0;
-+
-+	list_for_each_entry_safe(page, page2, pagelist, lru) {
-+		int nr_refs;
-+
-+		/*
-+		 * Give up easily.  We are being lazy.
-+		 */
-+		if (page_count(page) == 1 || TestSetPageLocked(page))
-+			continue;
-+
-+		if (PageWriteback(page))
-+			goto unlock_page;
-+
-+		if (PageAnon(page) && !PageSwapCache(page)) {
-+			if (!add_to_swap(page, GFP_KERNEL)) {
-+				goto unlock_page;
-+			}
-+		}
-+
-+		if (page_has_buffers(page))
-+			nr_refs = 3;	/* cache, bufs and current */
-+		else
-+			nr_refs = 2;	/* cache and current */
-+
-+		if (migrate_page_try_to_unmap(page, nr_refs)) {
-+			++nr_failed;
-+			goto unlock_page;
-+		}
-+
-+		++nr_unmapped;
-+		move_to_lru(page);
-+
-+	unlock_page:
-+		unlock_page(page);
-+
-+	}
-+
-+	/*
-+	 * so fault path can find them on lru
-+	 */
-+	if (nr_unmapped)
-+		lru_add_drain_all();
-+
-+	return nr_failed;
-+}
-+
-+/*
-  * Isolate one page from the LRU lists.
-  * Adds a reference count for caller.
-  *
-Index: linux-2.6.16-rc5-git8/mm/mempolicy.c
-===================================================================
---- linux-2.6.16-rc5-git8.orig/mm/mempolicy.c	2006-03-08 14:51:40.000000000 -0500
-+++ linux-2.6.16-rc5-git8/mm/mempolicy.c	2006-03-08 14:52:56.000000000 -0500
-@@ -744,9 +744,7 @@ long do_mbind(unsigned long start, unsig
- 	int err;
- 	LIST_HEAD(pagelist);
- 
--	if ((flags & ~(unsigned long)(MPOL_MF_STRICT |
--				      MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
--	    || mode > MPOL_MAX)
-+	if ((flags & ~(unsigned long)MPOL_MF_VALID) || mode > MPOL_MAX)
- 		return -EINVAL;
- 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_RESOURCE))
- 		return -EPERM;
-@@ -792,8 +790,13 @@ long do_mbind(unsigned long start, unsig
- 
- 		err = mbind_range(vma, start, end, new);
- 
--		if (!list_empty(&pagelist))
--			nr_failed = migrate_pages_to(&pagelist, vma, -1);
-+		if (!list_empty(&pagelist)) {
-+			if (!(flags & MPOL_MF_LAZY))
-+				nr_failed = migrate_pages_to(&pagelist,
-+								 vma, -1);
-+			else
-+				nr_failed = migrate_pages_unmap_only(&pagelist);
-+		}
- 
- 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
- 			err = -EIO;
-Index: linux-2.6.16-rc5-git8/include/linux/swap.h
-===================================================================
---- linux-2.6.16-rc5-git8.orig/include/linux/swap.h	2006-03-08 14:51:40.000000000 -0500
-+++ linux-2.6.16-rc5-git8/include/linux/swap.h	2006-03-08 14:52:56.000000000 -0500
-@@ -199,6 +199,7 @@ extern int migrate_page_unmap_and_replac
- extern int migrate_pages(struct list_head *l, struct list_head *t,
- 		struct list_head *moved, struct list_head *failed);
- struct page *migrate_misplaced_page(struct page *, int, int);
-+extern int migrate_pages_unmap_only(struct list_head *);
- extern int fail_migrate_page(struct page *, struct page *, int);
- #else
- static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
-
+"Learning, n. The kind of ignorance distinguishing the studious."
+  -- Ambrose Bierce
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
