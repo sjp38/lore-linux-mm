@@ -1,37 +1,43 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH: 010/017](RFC) Memory hotplug for new nodes v.3. (allocate wait table)
-Date: Thu, 9 Mar 2006 05:56:04 +0100
-References: <20060308213301.0036.Y-GOTO@jp.fujitsu.com> <20060309040055.21f3ec2d.akpm@osdl.org>
-In-Reply-To: <20060309040055.21f3ec2d.akpm@osdl.org>
+Message-Id: <200603091231.k29CV9g20079@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [patch] hugetlb strict commit accounting
+Date: Thu, 9 Mar 2006 04:31:11 -0800
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200603090556.06226.ak@suse.de>
+In-Reply-To: <20060309120631.GC9479@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, tony.luck@intel.com, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: 'David Gibson' <david@gibson.dropbear.id.au>
+Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 09 March 2006 13:00, Andrew Morton wrote:
-> Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
-> >
-> >  +		/* we can use kmalloc() in run time */
-> >  +		do {
-> >  +			table_size = zone->wait_table_size
-> >  +					* sizeof(wait_queue_head_t);
-> >  +			zone->wait_table = kmalloc(table_size, GFP_ATOMIC);
+David Gibson wrote on Thursday, March 09, 2006 4:07 AM
+> > Well, the reservation is already done at mmap time for shared mapping. Why
+> > does kernel need to do anything at fault time?  Doing it at fault time is
+> > an indication of weakness (or brokenness) - you already promised at mmap
+> > time that there will be a page available for faulting.  Why check them
+> > again at fault time?
 > 
-> Again, GFP_KERNEL would be better is possible.
-> 
-> Won't this place the node's wait_table into a different node's memory?
+> You can't know (or bound) at mmap() time how many pages a PRIVATE
+> mapping will take (because of fork()).  So unless you have a test at
+> fault time (essentialy deciding whether to draw from "reserved" and
+> "unreserved" hugepage pool) a supposedly reserved SHARED mapping will
+> OOM later if there have been enough COW faults to use up all the
+> hugepages before it's instantiated.
 
-Yes, kmalloc_node would be better.
+I see. But that is easy to fix.  I just need to do exactly the same
+thing as what you did to alloc_huge_page.  I will then need to change
+definition of 'reservation' to needs-in-the future (also an easy thing
+to change).
 
--Andi
+The real question or discussion I want to bring up is whether kernel
+should do it's own accounting or relying on traversing the page cache. 
+My opinion is that kernel should do it's own accounting because it is
+simpler: you just need to do that at mmap and ftruncate time.
 
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
