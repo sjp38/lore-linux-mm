@@ -1,10 +1,10 @@
-Subject: [PATCH/RFC] Migrate-on-fault prototype 1/5 V0.1 - separate unmap
-	from radix tree replace
+Subject: [PATCH/RFC] Migrate-on-fault prototype 2/5 V0.1 - check for
+	misplaced page
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reply-To: lee.schermerhorn@hp.com
 Content-Type: text/plain
-Date: Thu, 09 Mar 2006 13:28:51 -0500
-Message-Id: <1141928931.6393.11.camel@localhost.localdomain>
+Date: Thu, 09 Mar 2006 13:29:07 -0500
+Message-Id: <1141928947.6393.12.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,194 +13,162 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Migrate-on-fault prototype 1/5 V0.1 - separate unmap from radix tree
-replace
+Migrate-on-fault prototype 2/5 V0.1 - check for misplaced page
 
-The migrate_page_remove_references() function performs two distinct
-operations:  actually attempting to remove pte references from the
-page via try_to_unmap() and replacing the page with a new page in
-the page's mapping's radix tree.  This patch separates these 
-operations into two functions so that they can be called separately.
+This patch provides a new function to test whether a page resides
+on a node that is appropriate for the mempolicy for the vma and
+address where the page is supposed to be mapped.  This involves
+looking up the node where the page belongs.  So, the function
+returns that node so that it may be used to allocated the page
+without consulting the policy again.  Because interleaved and
+non-interleaved allocations are accounted differently, the function
+also returns whether or not the new node came from an interleaved
+policy, if the page is misplaced.
 
-Then, migrate_page_remove_references() is replaced with a function
-named migrate_page_unmap_and_replace() to indicate the two operations,
-and existing calls in mm/vmscan.c:migrate_page() and
-fs/buffer.c:buffer_migrate_page() are updated.
+A subsequent patch will call this function from the fault path for
+stable pages with zero page_mapcount().  Because of this, I don't
+want to go ahead and allocate the page, e.g., via alloc_page_vma()
+only to have to free it if it has the correct policy.  So, I just
+mimic the alloc_page_vma() node computation logic.
 
-Note:  this results in each of the functions having to load the
-mapping when called for direct migration.  Perhaps passing mapping as
-an argument would be preferable?
-
-Subsequent patches in the series will make use of the separate
-operations. 
-
-Eventually, we can remove migrate_page_unmap_and_replace()
+Note that for "process interleaving" the destination node depends
+on the order of access to pages.  I.e., there is no fixed layout
+for process interleaved pages, as there is for pages interleaved
+via vma policy.  So, as long as the page resides on a node that
+exists in the process's interleave set, no migration is indicated.
+Having said that, we may never need to call this function without
+a vma, so maybe we can lose that "feature".
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Index: linux-2.6.16-rc5-git8/fs/buffer.c
+Index: linux-2.6.16-rc5-git11/mm/mempolicy.c
 ===================================================================
---- linux-2.6.16-rc5-git8.orig/fs/buffer.c 2006-03-06 13:40:46.000000000
+--- linux-2.6.16-rc5-git11.orig/mm/mempolicy.c 2006-03-08
+15:49:08.000000000 -0500
++++ linux-2.6.16-rc5-git11/mm/mempolicy.c 2006-03-08 15:49:41.000000000
 -0500
-+++ linux-2.6.16-rc5-git8/fs/buffer.c 2006-03-08 10:46:33.000000000
--0500
-@@ -3060,6 +3060,7 @@ int buffer_migrate_page(struct page *new
-{
-struct address_space *mapping = page->mapping;
-struct buffer_head *bh, *head;
-+ static const int nr_refs = 3; /* cache + bufs + current */
-
-if (!mapping)
-return -EAGAIN;
-@@ -3069,7 +3070,7 @@ int buffer_migrate_page(struct page *new
-
-head = page_buffers(page);
-
-- if (migrate_page_remove_references(newpage, page, 3))
-+ if (migrate_page_unmap_and_replace(newpage, page, nr_refs))
-return -EAGAIN;
-
-bh = head;
-@@ -3083,7 +3084,7 @@ int buffer_migrate_page(struct page *new
-ClearPagePrivate(page);
-set_page_private(newpage, page_private(page));
-set_page_private(page, 0);
-- put_page(page);
-+ put_page(page); /* transfer buf ref to newpage */
-get_page(newpage);
-
-bh = head;
-Index: linux-2.6.16-rc5-git8/mm/vmscan.c
-===================================================================
---- linux-2.6.16-rc5-git8.orig/mm/vmscan.c 2006-03-06 13:40:48.000000000
--0500
-+++ linux-2.6.16-rc5-git8/mm/vmscan.c 2006-03-08 10:44:39.000000000
--0500
-@@ -685,14 +685,12 @@ EXPORT_SYMBOL(swap_page);
-  */
-
-/*
-- * Remove references for a page and establish the new page with the
-correct
-- * basic settings to be able to stop accesses to the page.
-+ * try to remove pte references from page in preparation to migrate to
-+ * a new page.
-  */
--int migrate_page_remove_references(struct page *newpage,
-- struct page *page, int nr_refs)
-+int migrate_page_try_to_unmap(struct page *page, int nr_refs)
-{
-struct address_space *mapping = page_mapping(page);
-- struct page **radix_pointer;
-
-/*
-* Avoid doing any of the following work if the page count
-@@ -721,14 +719,27 @@ int migrate_page_remove_references(struc
-* If the page was not migrated then the PageSwapCache bit
-* is still set and the operation may continue.
-*/
-- try_to_unmap(page, 1);
-+ try_to_unmap(page, 1); /* ignore_refs */
-
-/*
-- * Give up if we were unable to remove all mappings.
-+ * Fail if we were unable to remove all mappings.
-*/
-if (page_mapcount(page))
-return 1;
-
-+ return 0;
-+}
-+EXPORT_SYMBOL(migrate_page_try_to_unmap);
-+
-+/*
-+ * replace page in it's mapping's radix tree with newpage
-+ */
-+int migrate_page_replace_in_mapping(struct page *newpage,
-+ struct page *page, int nr_refs)
-+{
-+ struct address_space *mapping = page_mapping(page);
-+ struct page **radix_pointer;
-+
-write_lock_irq(&mapping->tree_lock);
-
-radix_pointer = (struct page **)radix_tree_lookup_slot(
-@@ -749,7 +760,7 @@ int migrate_page_remove_references(struc
-* find it through the radix tree update before we are finished
-* copying the page.
-*/
-- get_page(newpage);
-+ get_page(newpage); /* add cache ref */
-newpage->index = page->index;
-newpage->mapping = page->mapping;
-if (PageSwapCache(page)) {
-@@ -758,12 +769,30 @@ int migrate_page_remove_references(struc
-}
-
-*radix_pointer = newpage;
-- __put_page(page);
-+ __put_page(page); /* drop cache ref */
-write_unlock_irq(&mapping->tree_lock);
-
+@@ -1891,3 +1891,97 @@ out:
 return 0;
 }
--EXPORT_SYMBOL(migrate_page_remove_references);
-+EXPORT_SYMBOL(migrate_page_replace_in_mapping);
+
 +
-+
-+/*
-+ * Remove references for a page and establish the new page with the
-correct
-+ * basic settings to be able to stop accesses to the page.
++/**
++ * mpol_misplaced - check whether current page node id valid in policy
++ *
++ * @page   - page to be checked
++ * @vma    - vm area where page mapped
++ * @addr   - virtual address where page mapped
++ * @newnid - [ptr to] node id to which page should be migrated
++ *
++ * lookup current policy node id for vma,addr and "compare to" page's
++ * node id.
++ * if same, return 0 -- reuse current page
++ * if different,
++ *     return destination nid via newnid
++ *     return MPOL_MIGRATE_NONINTERLEAVED for non-interleaved policy
++ *     return MPOL_MIGRATE_INTERLEAVED for interleaved policy.
++ * policy determination mimics alloc_page_vma()
 + */
-+int migrate_page_unmap_and_replace(struct page *newpage,
-+ struct page *page, int nr_refs)
++int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
++ unsigned long addr, int *newnid)
 +{
++ struct mempolicy *pol = get_vma_policy(current, vma, addr);
++ struct zonelist *zl;
++ int curnid = page_to_nid(page);
++ int polnid = -1, interleave = 0;
++ int i;
++
++ cpuset_update_task_memory_state();
++
++ if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
++ interleave = 1; /* for accounting */
++ if (vma) {
++ unsigned long off;
++ BUG_ON(addr >= vma->vm_end);
++ BUG_ON(addr < vma->vm_start);
++ off = vma->vm_pgoff;
++ off += (addr - vma->vm_start) >> PAGE_SHIFT;
++ polnid = offset_il_node(pol, vma, off);
++ } else {
++//TODO:  can this ever happen?
 + /*
-+ * Give up if we were unable to remove all mappings.
++ * for process interleaving, just ensure that
++ * curnid is in policy nodes -- to avoid thrashing
 + */
-+ if (migrate_page_try_to_unmap(page, nr_refs))
-+ return 1;
++ if (node_isset(curnid, pol->v.nodes))
++ return 0;
++ polnid = interleave_nodes(pol);
++ }
++ } else
++ switch (pol->policy) {
++ case MPOL_PREFERRED:
++ polnid = pol->v.preferred_node;
++ if (polnid < 0)
++ polnid = numa_node_id();
++ break;
++ case MPOL_BIND:
++ /*
++ * allows binding to multiple nodes.
++ * use current page if in zonelist,
++ * else select first allowed node
++ */
++ zl = pol->v.zonelist;
++ for (i = 0; zl->zones[i]; i++) {
++ int nid = zl->zones[i]->zone_pgdat->node_id;
 +
-+ return migrate_page_replace_in_mapping(page, newpage, nr_refs);
++ if (nid == curnid)
++ return 0;
++
++ if (polnid < 0 &&
++     node_isset(nid, current->mems_allowed)) {
++ polnid = nid;
++ }
++ }
++ if (polnid >= 0)
++ break;
++ /*FALL THROUGH*/
++ case MPOL_INTERLEAVE: /* should not happen */
++ case MPOL_DEFAULT:
++ polnid = numa_node_id();
++ break;
++ default:
++ polnid = 0;
++ BUG();
++ }
++
++ if (curnid == polnid)
++ return 0;
++
++ *newnid = polnid;
++ if (interleave)
++ return MPOL_MIGRATE_INTERLEAVED;
++
++ return MPOL_MIGRATE_NONINTERLEAVED;
 +}
-+EXPORT_SYMBOL(migrate_page_unmap_and_replace);
-
-/*
-  * Copy the page to its new location
-@@ -813,9 +842,11 @@ EXPORT_SYMBOL(migrate_page_copy);
-  */
-int migrate_page(struct page *newpage, struct page *page)
-{
-+ static const int nr_refs = 2; /* cache + current */
-+
-BUG_ON(PageWriteback(page)); /* Writeback must be complete */
-
-- if (migrate_page_remove_references(newpage, page, 2))
-+ if (migrate_page_unmap_and_replace(newpage, page, nr_refs))
-return -EAGAIN;
-
-migrate_page_copy(newpage, page);
-Index: linux-2.6.16-rc5-git8/include/linux/swap.h
+Index: linux-2.6.16-rc5-git11/include/linux/mempolicy.h
 ===================================================================
---- linux-2.6.16-rc5-git8.orig/include/linux/swap.h 2006-03-06
-13:40:47.000000000 -0500
-+++ linux-2.6.16-rc5-git8/include/linux/swap.h 2006-03-08
-10:44:14.000000000 -0500
-@@ -193,7 +193,9 @@ extern int isolate_lru_page(struct page 
-extern int putback_lru_pages(struct list_head *l);
-extern int migrate_page(struct page *, struct page *);
-extern void migrate_page_copy(struct page *, struct page *);
--extern int migrate_page_remove_references(struct page *, struct page *,
-int);
-+extern int migrate_page_try_to_unmap(struct page *, int);
-+extern int migrate_page_replace_in_mapping(struct page *, struct page
-*, int);
-+extern int migrate_page_unmap_and_replace(struct page *, struct page *,
-int);
-extern int migrate_pages(struct list_head *l, struct list_head *t,
-struct list_head *moved, struct list_head *failed);
-extern int fail_migrate_page(struct page *, struct page *);
+--- linux-2.6.16-rc5-git11.orig/include/linux/mempolicy.h 2006-03-08
+15:49:03.000000000 -0500
++++ linux-2.6.16-rc5-git11/include/linux/mempolicy.h 2006-03-08
+15:49:41.000000000 -0500
+@@ -172,6 +172,17 @@ static inline void check_highest_zone(in
+int do_migrate_pages(struct mm_struct *mm,
+const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+
++/*
++ * mm/vmscan.c doesn't include mempolicy.  Keep knowledge of these
++ * macros' values internal to mempolicy.[ch]
++ */
++#define MPOL_MIGRATE_NONINTERLEAVED 1
++#define MPOL_MIGRATE_INTERLEAVED 2
++#define misplaced_is_interleaved(pol) (MPOL_MIGRATE_INTERLEAVED - 1)
++
++int mpol_misplaced(struct page *, struct vm_area_struct *,
++ unsigned long, int *);
++
+extern void *cpuset_being_rebound; /* Trigger mpol_copy vma rebind */
+
+#else
 
 
 --
