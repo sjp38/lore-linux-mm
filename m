@@ -1,54 +1,51 @@
-Message-Id: <200603091143.k29BhAg19160@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch] hugetlb strict commit accounting
-Date: Thu, 9 Mar 2006 03:43:12 -0800
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Date: Thu, 9 Mar 2006 04:00:21 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH: 000/017] (RFC)Memory hotplug for new nodes v.3.
+Message-Id: <20060309040021.3cf64e4b.akpm@osdl.org>
+In-Reply-To: <20060308212316.0022.Y-GOTO@jp.fujitsu.com>
+References: <20060308212316.0022.Y-GOTO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20060309112635.GB9479@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'David Gibson' <david@gibson.dropbear.id.au>
-Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: tony.luck@intel.com, ak@suse.de, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Gibson wrote on Thursday, March 09, 2006 3:27 AM
-> Um... as far as I can tell, this patch doesn't actually reserve
-> anything.  There are no changes to the fault handler ot
-> alloc_huge_page(), so there's nothing to stop PRIVATE mappings dipping
-> into the supposedly reserved pool.
+Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+>
+> I'll post newest patches for memory hotadd with pgdat allocation as V3.
+>  There are many changes to make more common code.
 
-Well, the reservation is already done at mmap time for shared mapping. Why
-does kernel need to do anything at fault time?  Doing it at fault time is
-an indication of weakness (or brokenness) - you already promised at mmap
-time that there will be a page available for faulting.  Why check them
-again at fault time?
+General comments:
 
-I don't think your implementation handles PRIVATE mapping either, Isn't it?
-Private mapping doesn't enter into the page cache hanging of address_space
-pointer, so either way, it is busted.
+- Thanks for working against -mm.  It can be a bit of a pain, but it
+  eases staging and integration later on.
 
+- Please review all the code to check that all those functions which can
+  be made static are indeed made static.  I see quite a few global
+  functions there.
 
-> This looks a bit like a case of "let's make it an atomic_t to sprinkle
-> it with magic atomicity dust" without thinking about what operations
-> are and need to be atomic.  I think resv_huge_pages should be an
-> ordinary int, but protected by a lock (exactly which lock is not
-> immediately obvious).
+- Make sure that all functions which can be tagged __meminit are so tagged.
 
-Yeah, I agree.  It crossed my mind whether I should fix that or post a
-fairly straightforward back port.  I decided to do the latter and I got
-bitten :-(  That is in the pipeline if people agree that this variable
-reservation system is a better one.
+- It would be useful to build a CONFIG_MEMORY_HOTPLUG=n kernel both with
+  and without the patchsets and to publish and maintain the increase in
+  code size.  Ideally that increase will be zero.  Probably it won't be,
+  and it'd be nice to understand why, and to minimise it.
 
+- Arch issues:
 
-> What is the list of regions (mapping->private_list) protected by?
-> mmap_sem (the only thing I can think of off hand that's already taken)
-> doesn't cut it, because the mapping can be accessed by multiple mms.
+  - Which architectures is this patchset aimed at and tested on?
 
-I think it is the inode->i_mutex.
+  - Which other architectures might be able to use this code in the
+    future?  Because we should ask the maintainers of those other
+    architectures to take a look at the changes.
 
-- Ken
+- What locking does node hot-add use?  There are quite a few places in
+  the kernel which cheerfully iterate across node lists while assuming that
+  they won't change.  The usage of stop_machine_run() is supposed to cover
+  all that, I assume?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
