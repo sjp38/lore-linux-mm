@@ -1,68 +1,54 @@
 From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: yield during swap prefetching
-Date: Thu, 9 Mar 2006 20:08:16 +1100
-References: <200603081013.44678.kernel@kolivas.org> <200603081212.03223.kernel@kolivas.org> <440FEDF7.2040008@aitel.hist.no>
-In-Reply-To: <440FEDF7.2040008@aitel.hist.no>
+Date: Thu, 9 Mar 2006 20:11:47 +1100
+References: <200603081013.44678.kernel@kolivas.org> <200603091330.14396.kernel@kolivas.org> <440F99AF.8050706@yahoo.com.au>
+In-Reply-To: <440F99AF.8050706@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200603092008.16792.kernel@kolivas.org>
+Message-Id: <200603092011.48494.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helge.hafting@aitel.hist.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Pavel Machek <pavel@ucw.cz>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 09 March 2006 19:57, Helge Hafting wrote:
+On Thursday 09 March 2006 13:57, Nick Piggin wrote:
 > Con Kolivas wrote:
-> >On Wed, 8 Mar 2006 12:11 pm, Andrew Morton wrote:
-> >>but, but.  If prefetching is prefetching stuff which that game will soon
-> >>use then it'll be an aggregate improvement.  If prefetch is prefetching
-> >>stuff which that game _won't_ use then prefetch is busted.  Using yield()
-> >>to artificially cripple kprefetchd is a rather sad workaround isn't it?
+> >On Thu, 9 Mar 2006 01:22 pm, Nick Piggin wrote:
+> >>So as much as a major fault costs in terms of performance, the tiny
+> >>chance that prefetching will avoid it means even the CPU usage is
+> >>questionable. Using sched_yield() seems like a hack though.
 > >
-> >It's not the stuff that it prefetches that's the problem; it's the disk
-> >access.
+> >Yeah it's a hack alright. Funny how at last I find a place where yield
+> > does exactly what I want and because we hate yield so much noone wants me
+> > to use it all.
 >
-> Well, seems you have some sorry kind of disk driver then?
-> An ide disk not using dma?
+> AFAIKS it is a hack for the same reason using it for locking is a hack,
+> it's just that prefetch doesn't care if it doesn't get the CPU back for
+> a while.
 >
-> A low-cpu task that only abuses the disk shouldn't make an impact
-> on a 3D game that hogs the cpu only.  Unless the driver for your
-> harddisk is faulty, using way more cpu than it need.
+> Given a yield implementation which does something completely different
+> for SCHED_OTHER tasks, you code may find it doesn't work so well anymore.
+> This is no different to the java folk using it with decent results for
+> locking. Just because it happened to work OK for them at the time didn't
+> mean it was the right thing to do.
 >
-> Use hdparm, check the basics:
-> unmaksirq=1, using_dma=1, multcount is some positive number,
-> such as 8 or 16, readahead is some positive number.
-> Also use hdparm -i and verify that the disk is using some
-> nice udma mode.  (too old for that, and it probably isn't worth
-> optimizing this for...)
+> I have always maintained that a SCHED_OTHER task calling sched_yield
+> is basically a bug because it is utterly undefined behaviour.
 >
-> Also make sure the disk driver isn't sharing an irq with the
-> 3D card.
->
-> Come to think of it, if your 3D game happens to saturate the
-> pci bus for long times, then disk accesses might indeed
-> be noticeable as they too need the bus.  Check if going to
-> a slower dma mode helps - this might free up the bus a bit.
+> But being an in-kernel user that "knows" the implementation sort of does
+> the right thin, maybe you justify it that way.
 
-Thanks for the hints. 
+You're right. Even if I do know exactly how yield works and am using it to my 
+advantage, any solution that depends on the way yield works may well not work 
+in the future. It does look like I should just check cpu usage as well in 
+prefetch_suitable(). That will probably be the best generalised solution to 
+this. 
 
-However I actually wrote the swap prefetch code and this is all about changing 
-its behaviour to make it do what I want. The problem is that nice 19 will 
-give it up to 5% cpu in the presence of a nice 0 task when I really don't 
-want swap prefetch doing anything. Furthermore because it is constantly 
-waking up from sleep (after disk activity) it is always given lower latency 
-scheduling than a fully cpu bound nice 0 task - this is normally appropriate 
-behaviour. Yielding regularly works around that issue. 
-
-Ideally taking into account cpu usage and only working below a certain cpu 
-threshold may be the better mechanism and it does appear this would be more 
-popular. It would not be hard to implement, but does add yet more code to an 
-increasingly complex heuristic used to detect "idleness". I am seriously 
-considering it.
+Thanks.
 
 Cheers,
 Con
