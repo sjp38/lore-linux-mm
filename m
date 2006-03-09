@@ -1,77 +1,60 @@
-Date: Thu, 9 Mar 2006 23:06:31 +1100
-From: 'David Gibson' <david@gibson.dropbear.id.au>
-Subject: Re: [patch] hugetlb strict commit accounting
-Message-ID: <20060309120631.GC9479@localhost.localdomain>
-References: <20060309112635.GB9479@localhost.localdomain> <200603091143.k29BhAg19160@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200603091143.k29BhAg19160@unix-os.sc.intel.com>
+Message-Id: <200603091214.k29CE0g20029@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [patch] hugetlb strict commit accounting
+Date: Thu, 9 Mar 2006 04:14:01 -0800
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: 
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+To: 'David Gibson' <david@gibson.dropbear.id.au>
 Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 09, 2006 at 03:43:12AM -0800, Chen, Kenneth W wrote:
+Chen, Kenneth W wrote on Thursday, March 09, 2006 4:02 AM
 > David Gibson wrote on Thursday, March 09, 2006 3:27 AM
-> > Um... as far as I can tell, this patch doesn't actually reserve
-> > anything.  There are no changes to the fault handler ot
-> > alloc_huge_page(), so there's nothing to stop PRIVATE mappings dipping
-> > into the supposedly reserved pool.
+> > Again, there are no changes to the fault handler.  Including the
+> > promised changes which would mean my instantiation serialization path
+> > isn't necessary ;-).
 > 
-> Well, the reservation is already done at mmap time for shared mapping. Why
-> does kernel need to do anything at fault time?  Doing it at fault time is
-> an indication of weakness (or brokenness) - you already promised at mmap
-> time that there will be a page available for faulting.  Why check them
-> again at fault time?
+> This is the major portion that I omitted in the first patch and is the
+> real kicker that fulfills the promise of guaranteed available hugetlb
+> page for shared mapping.
 
-You can't know (or bound) at mmap() time how many pages a PRIVATE
-mapping will take (because of fork()).  So unless you have a test at
-fault time (essentialy deciding whether to draw from "reserved" and
-"unreserved" hugepage pool) a supposedly reserved SHARED mapping will
-OOM later if there have been enough COW faults to use up all the
-hugepages before it's instantiated.
+Take a look at the following snippets of earlier patch:  in
+hugetlb_reserve_pages(), region_chg() calculates an estimate how many
+pages is needed, then calls to hugetlb_acct_memory() to make sure there
+are enough pages available, then another call to region_add to confirm
+the reservation.  It looks OK to me.
 
-> I don't think your implementation handles PRIVATE mapping either, Isn't it?
-> Private mapping doesn't enter into the page cache hanging of address_space
-> pointer, so either way, it is busted.
 
-Depends what you mean by "handle".  With my patch PRIVATE mappings are
-never reserved or guaranteed (I couldn't think of any set of sane
-semantics for it), *but* they will never eat into the pool reserved
-for SHARED mappings.  With yours, they can, so:
-	p = mmap(SHARED)
-	/* Lots of COW faults elsewhere */
-	*p = x;
-Will result in an OOM Kill on the last line.
++int hugetlb_acct_memory(long delta)
++{
++	atomic_add(delta, &resv_huge_pages);
++	if (delta > 0 && atomic_read(&resv_huge_pages) >
++			VMACCTPG(hugetlb_total_pages())) {
++		atomic_add(-delta, &resv_huge_pages);
++		return -ENOMEM;
++	}
++	return 0;
++}
++
++static int hugetlb_reserve_pages(struct inode *inode, int from, int to)
++{
++	int ret, chg;
++
++	chg = region_chg(&inode->i_mapping->private_list, from, to);
++	if (chg < 0)
++		return chg;
++	ret = hugetlb_acct_memory(chg);
++	if (ret < 0)
++		return ret;
++	region_add(&inode->i_mapping->private_list, from, to);
++	return 0;
+ }
 
-> > This looks a bit like a case of "let's make it an atomic_t to sprinkle
-> > it with magic atomicity dust" without thinking about what operations
-> > are and need to be atomic.  I think resv_huge_pages should be an
-> > ordinary int, but protected by a lock (exactly which lock is not
-> > immediately obvious).
-> 
-> Yeah, I agree.  It crossed my mind whether I should fix that or post a
-> fairly straightforward back port.  I decided to do the latter and I got
-> bitten :-(  That is in the pipeline if people agree that this variable
-> reservation system is a better one.
-> 
-> 
-> > What is the list of regions (mapping->private_list) protected by?
-> > mmap_sem (the only thing I can think of off hand that's already taken)
-> > doesn't cut it, because the mapping can be accessed by multiple mms.
-> 
-> I think it is the inode->i_mutex.
-
-Ok, you should double check that's taken in all the right places, but
-it sounds plausible.
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
