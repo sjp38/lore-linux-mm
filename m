@@ -1,10 +1,10 @@
-Date: Thu, 9 Mar 2006 04:01:04 -0800
+Date: Thu, 9 Mar 2006 04:01:09 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH: 012/017](RFC) Memory hotplug for new nodes v.3.
- (rebuild zonelists after online pages)
-Message-Id: <20060309040104.6e6f5ccd.akpm@osdl.org>
-In-Reply-To: <20060308213410.003A.Y-GOTO@jp.fujitsu.com>
-References: <20060308213410.003A.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [PATCH: 013/017](RFC) Memory hotplug for new nodes v.3.
+ (changes from __init to __meminit)
+Message-Id: <20060309040109.4f9c7d5c.akpm@osdl.org>
+In-Reply-To: <20060308213446.003C.Y-GOTO@jp.fujitsu.com>
+References: <20060308213446.003C.Y-GOTO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,15 +16,27 @@ List-ID: <linux-mm.kvack.org>
 
 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
 >
-> In current code, zonelist is considered to be build once, no modification.
->  But MemoryHotplug can add new zone/pgdat. It must be updated.
-> 
->  This patch modifies build_all_zonelists(). 
->  By this, build_all_zonelist() can reconfig pgdat's zonelists.
-> 
->  To update them safety, this patch use stop_machine_run().
+> Index: pgdat6/include/linux/bootmem.h
+>  ===================================================================
+>  --- pgdat6.orig/include/linux/bootmem.h	2006-03-06 18:25:37.000000000 +0900
+>  +++ pgdat6/include/linux/bootmem.h	2006-03-06 21:08:05.000000000 +0900
+>  @@ -88,8 +88,8 @@ static inline void *alloc_remap(int nid,
+>   }
+>   #endif
+>   
+>  -extern unsigned long __initdata nr_kernel_pages;
+>  -extern unsigned long __initdata nr_all_pages;
+>  +extern unsigned long __meminitdata nr_kernel_pages;
+>  +extern unsigned long __meminitdata nr_all_pages;
 
-Yup, that's a good way of doing it.
+Declaring the section for externs like this isn't very useful really.  I
+don't think there's any way in which the compiler can check it and the
+linker will look at the definition, not at the declarations.  And if we add
+these, we just need to keep the declarations updated for cosmetic reasons
+as you've discovered.
+
+So I'd recommend you simply remove the __initdata tags here and leave it at
+that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
