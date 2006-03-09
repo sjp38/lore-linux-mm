@@ -1,9 +1,10 @@
-Subject: [PATCH/RFC] Migrate-on-fault prototype 0/5 V0.1 - Overview
+Subject: [PATCH/RFC] Migrate-on-fault prototype 1/5 V0.1 - separate unmap
+	from radix tree replace
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reply-To: lee.schermerhorn@hp.com
 Content-Type: text/plain
-Date: Thu, 09 Mar 2006 13:28:25 -0500
-Message-Id: <1141928905.6393.10.camel@localhost.localdomain>
+Date: Thu, 09 Mar 2006 13:28:51 -0500
+Message-Id: <1141928931.6393.11.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -12,172 +13,194 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-For your entertainment:
+Migrate-on-fault prototype 1/5 V0.1 - separate unmap from radix tree
+replace
 
-Migrate-on-fault prototype 0/5 V0.1 - Overview
+The migrate_page_remove_references() function performs two distinct
+operations:  actually attempting to remove pte references from the
+page via try_to_unmap() and replacing the page with a new page in
+the page's mapping's radix tree.  This patch separates these 
+operations into two functions so that they can be called separately.
 
-This series of patches, against 2.6.16-rc5-git11, implements page
-migration
-in the fault path.  Based on discussions with Christoph Lameter, this 
-seems like the next logical step in page migration.
+Then, migrate_page_remove_references() is replaced with a function
+named migrate_page_unmap_and_replace() to indicate the two operations,
+and existing calls in mm/vmscan.c:migrate_page() and
+fs/buffer.c:buffer_migrate_page() are updated.
 
-The basic idea is that when a fault handler [do_swap_page,
-filemap_nopage,
-...] finds a cached page with zero mappings that is otherwise "stable"--
-i.e., no writebacks--this is a good opportunity to check whether the 
-page resides on the node indicated by the policy in the current context.
+Note:  this results in each of the functions having to load the
+mapping when called for direct migration.  Perhaps passing mapping as
+an argument would be preferable?
 
-We only want to check if there are zero mappings because 1) we can
-easily
-migrate the page--don't have to go through the effort of removing all
-mappings and 2) default policy--a common case--can give different
-answers
-from different tasks running on different nodes.  Checking the policy
-when there are zero mappings effectively implements a "first touch"
-placement policy.
+Subsequent patches in the series will make use of the separate
+operations. 
 
-Note that this mechanism can be used to migrate page cache pages that 
-were read in earlier, are no longer referenced, but are about to be
-used by a new task on another node from where the page resides.  The
-same mechanism can be used to pull anon pages along with a task when
-the load balancer decides to move it to another node.  However, that
-will require a bit more mechanism, and is the subject of another
-patch series.
+Eventually, we can remove migrate_page_unmap_and_replace()
 
-The current [2.6.16-rc5+] direct migration patches support most of the
-mechanism that is required to implement this "migration on fault".  
-Some of the necessary operations are combined in functions with other
-code that isn't required [must not be executed] in the fault path,
-so these have been separated out in a couple of cases.
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Then we need to add the function[s] to test the current page in the
-fault path for zero mapping, no writebacks, misplacement; and the
-function[s] to acutally migrate the page contents to a newly
-allocated page using the [modified] migratepage address space
-operations of the direct migration mechanism.
+Index: linux-2.6.16-rc5-git8/fs/buffer.c
+===================================================================
+--- linux-2.6.16-rc5-git8.orig/fs/buffer.c 2006-03-06 13:40:46.000000000
+-0500
++++ linux-2.6.16-rc5-git8/fs/buffer.c 2006-03-08 10:46:33.000000000
+-0500
+@@ -3060,6 +3060,7 @@ int buffer_migrate_page(struct page *new
+{
+struct address_space *mapping = page->mapping;
+struct buffer_head *bh, *head;
++ static const int nr_refs = 3; /* cache + bufs + current */
 
-The Patches:
+if (!mapping)
+return -EAGAIN;
+@@ -3069,7 +3070,7 @@ int buffer_migrate_page(struct page *new
 
-The patches are broken out in the order I implemented them. Each
-should build and boot on its own.  [at least they did at one time!]
+head = page_buffers(page);
 
-migrate-on-fault-01-separate-unmap-replace.patch
+- if (migrate_page_remove_references(newpage, page, 3))
++ if (migrate_page_unmap_and_replace(newpage, page, nr_refs))
+return -EAGAIN;
 
-Separates the mm/vmscan.c:migrate_page_remove_references()
-function into its 2 distinct operations:  removing references
-[try_to_unmap()], and replacing the old page in the radix 
-tree of the page's "mapping".  Only the second part is 
-needed in the fault path, as the page is already completely
-unmapped.
+bh = head;
+@@ -3083,7 +3084,7 @@ int buffer_migrate_page(struct page *new
+ClearPagePrivate(page);
+set_page_private(newpage, page_private(page));
+set_page_private(page, 0);
+- put_page(page);
++ put_page(page); /* transfer buf ref to newpage */
+get_page(newpage);
 
-A wrapper function that calls both operations is provided,
-and the 2 places that call migrate_page_remove_references()
-have been modified to call that wrapper.
+bh = head;
+Index: linux-2.6.16-rc5-git8/mm/vmscan.c
+===================================================================
+--- linux-2.6.16-rc5-git8.orig/mm/vmscan.c 2006-03-06 13:40:48.000000000
+-0500
++++ linux-2.6.16-rc5-git8/mm/vmscan.c 2006-03-08 10:44:39.000000000
+-0500
+@@ -685,14 +685,12 @@ EXPORT_SYMBOL(swap_page);
+  */
 
-migrate-on-fault-02-mpol_misplaced.patch
+/*
+- * Remove references for a page and establish the new page with the
+correct
+- * basic settings to be able to stop accesses to the page.
++ * try to remove pte references from page in preparation to migrate to
++ * a new page.
+  */
+-int migrate_page_remove_references(struct page *newpage,
+- struct page *page, int nr_refs)
++int migrate_page_try_to_unmap(struct page *page, int nr_refs)
+{
+struct address_space *mapping = page_mapping(page);
+- struct page **radix_pointer;
 
-This patch implements the function mpol_misplaced() in
-mm/mempolicy.c to check whether a page resides on the
-node indicated by the vma and address arguments.  If
-so, it returns 0 [!misplaced].  If not, it returns an
-indication of whether the policy was interleaved or not
-[for properly accounting later allocation] and passes the
-node indicated by the policy through a pointer argument.
+/*
+* Avoid doing any of the following work if the page count
+@@ -721,14 +719,27 @@ int migrate_page_remove_references(struc
+* If the page was not migrated then the PageSwapCache bit
+* is still set and the operation may continue.
+*/
+- try_to_unmap(page, 1);
++ try_to_unmap(page, 1); /* ignore_refs */
 
-Because this will be called in the fault path, I don't 
-want to go through the effort of actually allocating a
-page--e.g., via alloc_page_vma()--only to find that the
-current page in on the correct node.  However, I wanted
-to come to the same answer that alloc_page_vma() would.
-So, mpol_misplaced() mimics the node computation logic
-of alloc_page_vma().
+/*
+- * Give up if we were unable to remove all mappings.
++ * Fail if we were unable to remove all mappings.
+*/
+if (page_mapcount(page))
+return 1;
 
-migrate-on-fault-03-migrate_misplaced_page.patch
++ return 0;
++}
++EXPORT_SYMBOL(migrate_page_try_to_unmap);
++
++/*
++ * replace page in it's mapping's radix tree with newpage
++ */
++int migrate_page_replace_in_mapping(struct page *newpage,
++ struct page *page, int nr_refs)
++{
++ struct address_space *mapping = page_mapping(page);
++ struct page **radix_pointer;
++
+write_lock_irq(&mapping->tree_lock);
 
-This patch contains the main migrate on fault functions:
+radix_pointer = (struct page **)radix_tree_lookup_slot(
+@@ -749,7 +760,7 @@ int migrate_page_remove_references(struc
+* find it through the radix tree update before we are finished
+* copying the page.
+*/
+- get_page(newpage);
++ get_page(newpage); /* add cache ref */
+newpage->index = page->index;
+newpage->mapping = page->mapping;
+if (PageSwapCache(page)) {
+@@ -758,12 +769,30 @@ int migrate_page_remove_references(struc
+}
 
-check_migrate_misplaced_page() is implemented as a static
-inline function in mempolicy.h when MIGRATION is configured.
-If the page has zero mappings, is stable and misplaced,
-check_*() will call migrate_misplaced_page() in vmscan.c
-to do the dirty work.  If for any reason the page can't
-or shouldn't be migrated, these functions will return the
-old page in the state it was found.
+*radix_pointer = newpage;
+- __put_page(page);
++ __put_page(page); /* drop cache ref */
+write_unlock_irq(&mapping->tree_lock);
 
-Note that when a page is NOT found in the cache, and the fault
-handler has to allocate one and read it in, it will have zero
-mappings, so check_migrate_misplaced_page() WILL call
-mpol_misplaced() to see if it needs migration.  Of course, it
-should have been allocated on the correct node, so no migration
-should be necessary.  However, it's possible that the node 
-indicated by the policy has no free pages so the newly 
-allocated page may be on a different node.  In this case, I
-guess check_migrate_misplaced_page() will attempt to migrate
-it.  In either case, the "unnecessary" calls to mpol_misplaced()
-and to migrate_misplaced_page(), if the original allocation
-"overflowed", occur after an IO, so this is the slow path
-anyway.  
+return 0;
+}
+-EXPORT_SYMBOL(migrate_page_remove_references);
++EXPORT_SYMBOL(migrate_page_replace_in_mapping);
++
++
++/*
++ * Remove references for a page and establish the new page with the
+correct
++ * basic settings to be able to stop accesses to the page.
++ */
++int migrate_page_unmap_and_replace(struct page *newpage,
++ struct page *page, int nr_refs)
++{
++ /*
++ * Give up if we were unable to remove all mappings.
++ */
++ if (migrate_page_try_to_unmap(page, nr_refs))
++ return 1;
++
++ return migrate_page_replace_in_mapping(page, newpage, nr_refs);
++}
++EXPORT_SYMBOL(migrate_page_unmap_and_replace);
 
-When MIGRATION is NOT configured, check_migrate_misplaced_page()
-becomes a macro that evaluates to its argument page.
+/*
+  * Copy the page to its new location
+@@ -813,9 +842,11 @@ EXPORT_SYMBOL(migrate_page_copy);
+  */
+int migrate_page(struct page *newpage, struct page *page)
+{
++ static const int nr_refs = 2; /* cache + current */
++
+BUG_ON(PageWriteback(page)); /* Writeback must be complete */
 
-More details with the patch.
+- if (migrate_page_remove_references(newpage, page, 2))
++ if (migrate_page_unmap_and_replace(newpage, page, nr_refs))
+return -EAGAIN;
 
-migrate-on-fault-04.1-misplaced-anon-pages.patch
-
-This is a simple one-liner [OK, 2, counting an empty line]
-to call check_migrate_misplaced_page() from do_swap_page()
-in memory.c.  
-
-Patches to hook other fault paths [filemap_nopage(), etc.] 
-are TBD, based on feedback to this series.  [Oh, I'll 
-probably do them anyway, to measure the effects.]
-
-migrate-on-fault-05-mbind-lazy-migrate.patch
-
-This patch adds an MPOL_MF_LAZY [maybe should be '_DEFERRED?]
-flag to modify the behavior of MPOL_MF_MOVE[_ALL].  When
-the 'LAZY flag is specified, mbind() simply unmaps eligible
-pages in the specified range, moving anon pages to the
-swap cache, if not already there.  Then, when the task
-touch the pages, or queries their location via 
-get_mempolicy(..., MPOL_F_NODE|MPOL_F_ADDR), it will take
-fault, find the page in the cache and migrate it, if the
-policy so indicates.  Actually, this will only happen for
-anon pages, until additional fault paths are hooked up.
-
-This patch allows me to test the migrate on fault mechanism
-by forcing pages to be unmapped.
-
-
-Testing:
-
-I have tested migrate-on-fault of anon pages using the MPOL_MF_LAZY 
-extension to mbind() discussed in patch 5 above on 2.6.16-rc5-git11.
-I have an ad hoc [odd hack?] test program, called memtoy, available at:
-
-http://free.linux.hp.com/~lts/Tools/memtoy-latest.tar.gz
-
-The Xpm-tests subdirectory in the tarball contains memtoy test
-scripts for "manual page migration"--i.e., the migrate_pages()
-syscall, "direct migration" using mbind(MPOL_MF_MOVE) and
-migrate-on-fault using mbind(MPOL_MF_MOVE+MPOL_MF_LAZY).
-
----
-Why are these patches NOT against the -mm tree?
-
-I've been using some trace instrumentation that relies on relayfs.
-I haven't been motivated to port it to the sysfs relay channels yet.
-Soon come...
-
-If you're interested in seeing an annotated trace log of direct
-migration
-and migrate-on-fault [lazy] in action, you can find one at:
-
-http://free.linux.hp.com/~lts/Tools/mtrace-anon-8p-direct+lazy.log
-
-This file contains the log for 2 memtoy runs, each migrating an 8 page
-anon segment from one node to another.  
+migrate_page_copy(newpage, page);
+Index: linux-2.6.16-rc5-git8/include/linux/swap.h
+===================================================================
+--- linux-2.6.16-rc5-git8.orig/include/linux/swap.h 2006-03-06
+13:40:47.000000000 -0500
++++ linux-2.6.16-rc5-git8/include/linux/swap.h 2006-03-08
+10:44:14.000000000 -0500
+@@ -193,7 +193,9 @@ extern int isolate_lru_page(struct page 
+extern int putback_lru_pages(struct list_head *l);
+extern int migrate_page(struct page *, struct page *);
+extern void migrate_page_copy(struct page *, struct page *);
+-extern int migrate_page_remove_references(struct page *, struct page *,
+int);
++extern int migrate_page_try_to_unmap(struct page *, int);
++extern int migrate_page_replace_in_mapping(struct page *, struct page
+*, int);
++extern int migrate_page_unmap_and_replace(struct page *, struct page *,
+int);
+extern int migrate_pages(struct list_head *l, struct list_head *t,
+struct list_head *moved, struct list_head *failed);
+extern int fail_migrate_page(struct page *, struct page *);
 
 
 --
