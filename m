@@ -1,19 +1,19 @@
-Message-Id: <200603091214.k29CE0g20029@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch] hugetlb strict commit accounting
-Date: Thu, 9 Mar 2006 04:14:01 -0800
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: 
+Date: Thu, 9 Mar 2006 23:14:16 +1100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [patch] hugetlb strict commit accounting
+Message-ID: <20060309121416.GD9479@localhost.localdomain>
+References: <20060309112635.GB9479@localhost.localdomain> <200603091202.k29C24g19696@unix-os.sc.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200603091202.k29C24g19696@unix-os.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'David Gibson' <david@gibson.dropbear.id.au>
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
 Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Chen, Kenneth W wrote on Thursday, March 09, 2006 4:02 AM
+On Thu, Mar 09, 2006 at 04:02:06AM -0800, Chen, Kenneth W wrote:
 > David Gibson wrote on Thursday, March 09, 2006 3:27 AM
 > > Again, there are no changes to the fault handler.  Including the
 > > promised changes which would mean my instantiation serialization path
@@ -22,39 +22,37 @@ Chen, Kenneth W wrote on Thursday, March 09, 2006 4:02 AM
 > This is the major portion that I omitted in the first patch and is the
 > real kicker that fulfills the promise of guaranteed available hugetlb
 > page for shared mapping.
+> 
+> You can shower me all over on the lock protection :-) yes, this is not
+> perfect and was the reason I did not post it earlier, but I want to give
+> you the concept on how I envision this route would work.
+> 
+> Again PRIVATE mapping is busted, you can't count them from inode.  You
+> would have to count them via mm_struct (I think).
 
-Take a look at the following snippets of earlier patch:  in
-hugetlb_reserve_pages(), region_chg() calculates an estimate how many
-pages is needed, then calls to hugetlb_acct_memory() to make sure there
-are enough pages available, then another call to region_add to confirm
-the reservation.  It looks OK to me.
+I don't think there's any sane way to reserve for PRIVATE mappings.
+To do it strictly you'd have to reaccount the whole block on every
+fork(), and that would mean that any process using >0.5 of the
+system's hugepages could never fork(), even if the child was just
+going to exec().
 
+Given that, it's simplest just to allow free overcommit for PRIVATE
+mappings.  *But* you can ensure that PRIVATE allocations (i.e. COW
+faults) don't mess with any previously reserved SHARED mappings.
 
-+int hugetlb_acct_memory(long delta)
-+{
-+	atomic_add(delta, &resv_huge_pages);
-+	if (delta > 0 && atomic_read(&resv_huge_pages) >
-+			VMACCTPG(hugetlb_total_pages())) {
-+		atomic_add(-delta, &resv_huge_pages);
-+		return -ENOMEM;
-+	}
-+	return 0;
-+}
-+
-+static int hugetlb_reserve_pages(struct inode *inode, int from, int to)
-+{
-+	int ret, chg;
-+
-+	chg = region_chg(&inode->i_mapping->private_list, from, to);
-+	if (chg < 0)
-+		return chg;
-+	ret = hugetlb_acct_memory(chg);
-+	if (ret < 0)
-+		return ret;
-+	region_add(&inode->i_mapping->private_list, from, to);
-+	return 0;
- }
+> Note: definition of "reservation" in earlier patch is total hugetlb pages
+> needed for that file, including the one that is already faulted in.  Maybe
+> that throw you off a bit because I'm guessing your definition is "needed
+> in the future" and probably you are looking for a decrement of the counter
+> in the fault path?
 
+No, I realised that distinction.
+
+-- 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
