@@ -1,76 +1,81 @@
+References: <200603081013.44678.kernel@kolivas.org> <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe> <200603081330.56548.kernel@kolivas.org> <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com> <cone.1141787137.882268.19235.501@kolivas.org> <1141852064.21958.28.camel@localhost> <cone.1141858802.179786.26372.501@kolivas.org> <1141861694.21958.66.camel@localhost> <cone.1141862870.463023.26372.501@kolivas.org> <1141874012.21958.138.camel@localhost>
+Message-ID: <cone.1141877326.889550.27403.501@kolivas.org>
+From: Con Kolivas <kernel@kolivas.org>
 Subject: Re: [PATCH] mm: yield during swap prefetching
-From: Zan Lynx <zlynx@acm.org>
-In-Reply-To: <cone.1141862870.463023.26372.501@kolivas.org>
-References: <200603081013.44678.kernel@kolivas.org>
-	 <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe>
-	 <200603081330.56548.kernel@kolivas.org>
-	 <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com>
-	 <cone.1141787137.882268.19235.501@kolivas.org>
-	 <1141852064.21958.28.camel@localhost>
-	 <cone.1141858802.179786.26372.501@kolivas.org>
-	 <1141861694.21958.66.camel@localhost>
-	 <cone.1141862870.463023.26372.501@kolivas.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-zJ9LnmXwAF2CSBtVTkz0"
-Date: Wed, 08 Mar 2006 20:13:32 -0700
-Message-Id: <1141874012.21958.138.camel@localhost>
+Date: Thu, 09 Mar 2006 15:08:46 +1100
 Mime-Version: 1.0
+Content-Type: multipart/signed;
+    boundary="=_mimegpg-kolivas.org-27403-1141877326-0001";
+    micalg=pgp-sha1; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: =?ISO-8859-1?Q?Andr=E9?= Goddard Rosa <andre.goddard@gmail.com>, Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
+To: Zan Lynx <zlynx@acm.org>
+Cc: =?ISO-8859-1?B?QW5kcuk=?= Goddard Rosa <andre.goddard@gmail.com>, Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
---=-zJ9LnmXwAF2CSBtVTkz0
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+This is a MIME GnuPG-signed message.  If you see this text, it means that
+your E-mail or Usenet software does not support MIME signed messages.
 
-On Thu, 2006-03-09 at 11:07 +1100, Con Kolivas wrote:
-> Games worked on windows for a decade on single core without real time=20
-> scheduling because that's what they were written for.=20
->=20
-> Now that games are written for windows with dual core they work well -
-> again=20
-> without real time scheduling.=20
->=20
-> Why should a port of these games to linux require real time?
+--=_mimegpg-kolivas.org-27403-1141877326-0001
+Content-Type: text/plain; format=flowed; charset="US-ASCII"
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 
-That isn't what I said.  I said nothing about *requiring* anything, only
-about how to do it better.
+Zan Lynx writes:
 
-Here is what Con said that I was disagreeing with.  All the rest was to
-justify my disagreement. =20
+> On Thu, 2006-03-09 at 11:07 +1100, Con Kolivas wrote:
+>> Games worked on windows for a decade on single core without real time 
+>> scheduling because that's what they were written for. 
+>> 
+>> Now that games are written for windows with dual core they work well -
+>> again 
+>> without real time scheduling. 
+>> 
+>> Why should a port of these games to linux require real time?
+> 
+> That isn't what I said.  I said nothing about *requiring* anything, only
+> about how to do it better.
+> 
+> Here is what Con said that I was disagreeing with.  All the rest was to
+> justify my disagreement.  
+> 
+> Con said, "... games should _not_ need special scheduling classes. They
+> are not written in a real time smart way and they do not have any
+> realtime constraints or requirements."
+> 
+> And he said later, "No they shouldn't need real time scheduling to work
+> well if they are coded properly."
+> 
+> Here is a list of simple statements of what I am saying:
+> Games do have real-time requirements.
+> The OS guessing about real-time priorities will sometimes get it wrong.
+> Guessing task priority is worse than being told and knowing for sure.
+> Games should, in an ideal world, be using real-time OS scheduling.
+> Games would work better using real-time OS scheduling.
 
-Con said, "... games should _not_ need special scheduling classes. They
-are not written in a real time smart way and they do not have any
-realtime constraints or requirements."
+At the risk of  being repetitive to the point of tiresome, my point is that 
+there are no real time requirements in games. You're assuming that 
+everything will be better if we assume that there are rt requirements and 
+that we're simulating pseudo real time conditions currently. That's just not 
+the case and never has been. That's why it has worked fine for so long.
 
-And he said later, "No they shouldn't need real time scheduling to work
-well if they are coded properly."
+Cheers,
+Con
 
-Here is a list of simple statements of what I am saying:
-Games do have real-time requirements.
-The OS guessing about real-time priorities will sometimes get it wrong.
-Guessing task priority is worse than being told and knowing for sure.
-Games should, in an ideal world, be using real-time OS scheduling.
-Games would work better using real-time OS scheduling.
 
-That is all from me.
---=20
-Zan Lynx <zlynx@acm.org>
-
---=-zJ9LnmXwAF2CSBtVTkz0
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+--=_mimegpg-kolivas.org-27403-1141877326-0001
+Content-Type: application/pgp-signature
+Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.2.1 (GNU/Linux)
+Version: GnuPG v1.2.4 (GNU/Linux)
 
-iD8DBQBED51cG8fHaOLTWwgRAn4XAKCNNx6BkyM7bKMsUSHQlaZ6aYjskgCfZ/8V
-PhwwV6gfUdOOZR/NUa+D4ho=
-=sP7C
+iD8DBQBED6pOZUg7+tp6mRURAlf7AJwIouBC/f6ERWGXbB8p+YdIjiBhwQCfQ+88
+FxURRRcJbvW1YCO0UUu1qdQ=
+=feUX
 -----END PGP SIGNATURE-----
 
---=-zJ9LnmXwAF2CSBtVTkz0--
+--=_mimegpg-kolivas.org-27403-1141877326-0001--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
