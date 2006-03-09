@@ -1,53 +1,60 @@
-Subject: Re: [PATCH/RFC] Migrate-on-fault prototype 1/5 V0.1 - separate
-	unmap from radix tree replace
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reply-To: lee.schermerhorn@hp.com
-In-Reply-To: <1141929612.8599.145.camel@localhost.localdomain>
-References: <1141928931.6393.11.camel@localhost.localdomain>
-	 <1141929612.8599.145.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Thu, 09 Mar 2006 14:05:55 -0500
-Message-Id: <1141931156.6393.48.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 9 Mar 2006 11:12:57 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH/RFC] Migrate-on-fault prototype 0/5 V0.1 - Overview
+In-Reply-To: <1141928905.6393.10.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0603091104280.17622@schroedinger.engr.sgi.com>
+References: <1141928905.6393.10.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-03-09 at 10:40 -0800, Dave Hansen wrote:
-> On Thu, 2006-03-09 at 13:28 -0500, Lee Schermerhorn wrote:
-> > @@ -3083,7 +3084,7 @@ int buffer_migrate_page(struct page *new
-> > ClearPagePrivate(page);
-> > set_page_private(newpage, page_private(page));
-> > set_page_private(page, 0);
-> > - put_page(page);
-> > + put_page(page); /* transfer buf ref to newpage */
-> > get_page(newpage); 
-> 
-> Is it just me, or do these have some serious whitespace borkage?
+On Thu, 9 Mar 2006, Lee Schermerhorn wrote:
 
-<heavy sigh>  Probably.  I was fighting with the mailer.  Took several
-attempts to import the text files.  Even sent one to myself first,
-before sending it out.  Looked OK.  
+> The basic idea is that when a fault handler [do_swap_page,
+> filemap_nopage,
+> ...] finds a cached page with zero mappings that is otherwise "stable"--
+> i.e., no writebacks--this is a good opportunity to check whether the 
+> page resides on the node indicated by the policy in the current context.
 
-> 
-> Do you have a clean version of them posted anywhere?
+Note that this is only one of the types of use of memory policy. Policy is 
+typically used for placement and may be changed repeatedly for the same 
+memory area in order to get certain patterns of allocation. This approach 
+assumes that pages must follow policy. This is not the case for 
+applications that keep changing allocation policies. But we have a similar
+use with MPOL_MF_MOVE and MPOL_MF_MOVE_ALL. However, these need to be 
+enabled explicitly. We may not want this mechanism to be on by default 
+because it may destroy the arrangement of pages that an HPC application 
+has tried to obtain.
 
-I just placed a tarball at:
+> Note that when a page is NOT found in the cache, and the fault
+> handler has to allocate one and read it in, it will have zero
+> mappings, so check_migrate_misplaced_page() WILL call
+> mpol_misplaced() to see if it needs migration.  Of course, it
+> should have been allocated on the correct node, so no migration
+> should be necessary.  However, it's possible that the node 
+> indicated by the policy has no free pages so the newly 
+> allocated page may be on a different node.  In this case, I
+> guess check_migrate_misplaced_page() will attempt to migrate
+> it.  In either case, the "unnecessary" calls to mpol_misplaced()
+> and to migrate_misplaced_page(), if the original allocation
+> "overflowed", occur after an IO, so this is the slow path
+> anyway.  
 
-http://free.linux.hp.com/~lts/Patches/PageMigration/
+There is a general issue with memory policies. vma vma policies are 
+currently not implemented for file backed pages. So if a page is read in 
+then it should be read into a node that follows vma policy.
 
-I took a look at the files in the tar ball.  Several of them do seem to
-have lines consisting of a single space for what were empty context
-lines in the patches.  The patches were generated via quilt which
-usually complains about trailing white space and I always fix them.
+What you are  doing here is reading a page then checking if 
+it is on the correct node? I think you would need to fix the policy issue 
+with file backed pages first. Then the page will be placed on the correct 
+node after the read and you do not need to check the page afterwards.
 
-Some of the lines in the discussion above the patches do seem to have
-trailing spaces, but that's probably just my fat fingers...
-
-Lee
+I'd be glad to have a a look at the pages when you get the issues with 
+the mailer fixed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
