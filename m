@@ -1,58 +1,37 @@
-Date: Thu, 9 Mar 2006 23:14:16 +1100
-From: 'David Gibson' <david@gibson.dropbear.id.au>
-Subject: Re: [patch] hugetlb strict commit accounting
-Message-ID: <20060309121416.GD9479@localhost.localdomain>
-References: <20060309112635.GB9479@localhost.localdomain> <200603091202.k29C24g19696@unix-os.sc.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH: 010/017](RFC) Memory hotplug for new nodes v.3. (allocate wait table)
+Date: Thu, 9 Mar 2006 05:56:04 +0100
+References: <20060308213301.0036.Y-GOTO@jp.fujitsu.com> <20060309040055.21f3ec2d.akpm@osdl.org>
+In-Reply-To: <20060309040055.21f3ec2d.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200603091202.k29C24g19696@unix-os.sc.intel.com>
+Message-Id: <200603090556.06226.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, tony.luck@intel.com, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 09, 2006 at 04:02:06AM -0800, Chen, Kenneth W wrote:
-> David Gibson wrote on Thursday, March 09, 2006 3:27 AM
-> > Again, there are no changes to the fault handler.  Including the
-> > promised changes which would mean my instantiation serialization path
-> > isn't necessary ;-).
+On Thursday 09 March 2006 13:00, Andrew Morton wrote:
+> Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+> >
+> >  +		/* we can use kmalloc() in run time */
+> >  +		do {
+> >  +			table_size = zone->wait_table_size
+> >  +					* sizeof(wait_queue_head_t);
+> >  +			zone->wait_table = kmalloc(table_size, GFP_ATOMIC);
 > 
-> This is the major portion that I omitted in the first patch and is the
-> real kicker that fulfills the promise of guaranteed available hugetlb
-> page for shared mapping.
+> Again, GFP_KERNEL would be better is possible.
 > 
-> You can shower me all over on the lock protection :-) yes, this is not
-> perfect and was the reason I did not post it earlier, but I want to give
-> you the concept on how I envision this route would work.
-> 
-> Again PRIVATE mapping is busted, you can't count them from inode.  You
-> would have to count them via mm_struct (I think).
+> Won't this place the node's wait_table into a different node's memory?
 
-I don't think there's any sane way to reserve for PRIVATE mappings.
-To do it strictly you'd have to reaccount the whole block on every
-fork(), and that would mean that any process using >0.5 of the
-system's hugepages could never fork(), even if the child was just
-going to exec().
+Yes, kmalloc_node would be better.
 
-Given that, it's simplest just to allow free overcommit for PRIVATE
-mappings.  *But* you can ensure that PRIVATE allocations (i.e. COW
-faults) don't mess with any previously reserved SHARED mappings.
+-Andi
 
-> Note: definition of "reservation" in earlier patch is total hugetlb pages
-> needed for that file, including the one that is already faulted in.  Maybe
-> that throw you off a bit because I'm guessing your definition is "needed
-> in the future" and probably you are looking for a decrement of the counter
-> in the fault path?
-
-No, I realised that distinction.
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
