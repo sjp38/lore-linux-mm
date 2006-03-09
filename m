@@ -1,79 +1,50 @@
-References: <200603081013.44678.kernel@kolivas.org> <200603081322.02306.kernel@kolivas.org> <1141784834.767.134.camel@mindpipe> <200603081330.56548.kernel@kolivas.org> <b8bf37780603071852r6bf3821fr7610597a54ad305b@mail.gmail.com> <cone.1141787137.882268.19235.501@kolivas.org> <1141852064.21958.28.camel@localhost> <cone.1141858802.179786.26372.501@kolivas.org> <1141861694.21958.66.camel@localhost>
-Message-ID: <cone.1141862870.463023.26372.501@kolivas.org>
-From: Con Kolivas <kernel@kolivas.org>
+Message-ID: <440F9154.2080909@yahoo.com.au>
+Date: Thu, 09 Mar 2006 13:22:12 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm: yield during swap prefetching
-Date: Thu, 09 Mar 2006 11:07:50 +1100
-Mime-Version: 1.0
-Content-Type: multipart/signed;
-    boundary="=_mimegpg-kolivas.org-26372-1141862870-0003";
-    micalg=pgp-sha1; protocol="application/pgp-signature"
+References: <200603081013.44678.kernel@kolivas.org> <20060307152636.1324a5b5.akpm@osdl.org> <cone.1141774323.5234.18683.501@kolivas.org> <20060307160515.0feba529.akpm@osdl.org> <20060308222404.GA4693@elf.ucw.cz>
+In-Reply-To: <20060308222404.GA4693@elf.ucw.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zan Lynx <zlynx@acm.org>
-Cc: =?ISO-8859-1?B?QW5kcuk=?= Goddard Rosa <andre.goddard@gmail.com>, Lee Revell <rlrevell@joe-job.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ck@vds.kolivas.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME GnuPG-signed message.  If you see this text, it means that
-your E-mail or Usenet software does not support MIME signed messages.
+Pavel Machek wrote:
 
---=_mimegpg-kolivas.org-26372-1141862870-0003
-Content-Type: text/plain; format=flowed; charset="US-ASCII"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
+>On Ut 07-03-06 16:05:15, Andrew Morton wrote:
+>
+>>Why do you want that?
+>>
+>>If prefetch is doing its job then it will save the machine from a pile of
+>>major faults in the near future.  The fact that the machine happens
+>>
+>
+>Or maybe not.... it is prefetch, it may prefetch wrongly, and you
+>definitely want it doing nothing when system is loaded.... It only
+>makes sense to prefetch when system is idle.
+>
 
-Zan Lynx writes:
+Right. Prefetching is obviously going to have a very low work/benefit,
+assuming your page reclaim is working properly, because a) it doesn't
+deal with file pages, and b) it is doing work to reclaim pages that
+have already been deemed to be the least important.
 
-> On Thu, 2006-03-09 at 10:00 +1100, Con Kolivas wrote:
->> Zan Lynx writes:
-> [snip]
->> > Games and real-time go together like they were made for each other.
->> 
->> I guess every single well working windows game since the dawn of time is 
->> some sort of anomaly then.
-> 
-> Yes, those Windows games are anomalies that rely on the OS scheduling
-> them AS IF they were real-time, but without actually claiming that
-> priority.
-> 
-> Because these games just assume they own the whole system and aren't
-> explicitly telling the OS about their real-time requirements, the OS has
-> to guess instead and can get it wrong, especially when hardware
-> capabilities advance in ways that force changes to the task scheduler
-> (multi-core, hyper-threading).  And you said it yourself, many old games
-> don't work well on dual-core systems.
-> 
-> I think your effort to improve the guessing is a good idea, and
-> thanks.  
-> 
-> Just don't dismiss the idea that games do have real-time requirements
-> and if they did things correctly, games would explicitly specify those
-> requirements.
+What it is good for is working around our interesting VM that apparently
+allows updatedb to swap everything out (although I haven't seen this
+problem myself), and artificial memory hogs. By moving work to times of
+low cost. No problem with the theory behind it.
 
-Games worked on windows for a decade on single core without real time 
-scheduling because that's what they were written for. 
+So as much as a major fault costs in terms of performance, the tiny
+chance that prefetching will avoid it means even the CPU usage is
+questionable. Using sched_yield() seems like a hack though.
 
-Now that games are written for windows with dual core they work well - again 
-without real time scheduling. 
+--
 
-Why should a port of these games to linux require real time?
-
-Cheers,
-Con
-
-
---=_mimegpg-kolivas.org-26372-1141862870-0003
-Content-Type: application/pgp-signature
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
-
-iD8DBQBED3HWZUg7+tp6mRURAg+1AJ0fB36N1qlMehnrYtdGfyepc2yd8QCggPBB
-paa/Q/lzpQGBwsahcK+7omo=
-=9TQX
------END PGP SIGNATURE-----
-
---=_mimegpg-kolivas.org-26372-1141862870-0003--
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
