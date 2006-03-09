@@ -1,51 +1,42 @@
-Subject: [PATCH/RFC] Migrate-on-fault prototype 4/5 V0.1 - handle misplaced
-	anon pages
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reply-To: lee.schermerhorn@hp.com
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k29Iefse021116
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2006 13:40:41 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k29IhSqe121526
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2006 11:43:29 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k29IeaSa013598
+	for <linux-mm@kvack.org>; Thu, 9 Mar 2006 11:40:37 -0700
+Subject: Re: [PATCH/RFC] Migrate-on-fault prototype 1/5 V0.1 - separate
+	unmap from radix tree replace
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1141928931.6393.11.camel@localhost.localdomain>
+References: <1141928931.6393.11.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Thu, 09 Mar 2006 13:29:50 -0500
-Message-Id: <1141928990.6393.14.camel@localhost.localdomain>
+Date: Thu, 09 Mar 2006 10:40:12 -0800
+Message-Id: <1141929612.8599.145.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Christoph Lameter <clameter@sgi.com>
+To: lee.schermerhorn@hp.com
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Migrate-on-fault prototype 4/5 V0.1 - handle misplaced anon pages
+On Thu, 2006-03-09 at 13:28 -0500, Lee Schermerhorn wrote:
+> @@ -3083,7 +3084,7 @@ int buffer_migrate_page(struct page *new
+> ClearPagePrivate(page);
+> set_page_private(newpage, page_private(page));
+> set_page_private(page, 0);
+> - put_page(page);
+> + put_page(page); /* transfer buf ref to newpage */
+> get_page(newpage); 
 
-This patch simply hooks the anon page fault handler [do_swap_page()]
-to check for and migrate misplaced pages.
+Is it just me, or do these have some serious whitespace borkage?
 
-File and shmem fault paths will be addressed in separate patches.
+Do you have a clean version of them posted anywhere?
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
-Index: linux-2.6.16-rc5-git8/mm/memory.c
-===================================================================
---- linux-2.6.16-rc5-git8.orig/mm/memory.c 2006-03-06 13:40:48.000000000
--0500
-+++ linux-2.6.16-rc5-git8/mm/memory.c 2006-03-07 08:53:30.000000000
--0500
-@@ -48,6 +48,7 @@
-#include <linux/rmap.h>
-#include <linux/module.h>
-#include <linux/init.h>
-+#include <linux/mempolicy.h> /* check_migrate_misplaced_page() */
-
-#include <asm/pgalloc.h>
-#include <asm/uaccess.h>
-@@ -1926,6 +1927,8 @@ again:
-
-/* The page isn't present yet, go ahead with the fault. */
-
-+ page = check_migrate_misplaced_page(page, vma, address);
-+
-inc_mm_counter(mm, anon_rss);
-pte = mk_pte(page, vma->vm_page_prot);
-if (write_access && can_share_swap_page(page)) {
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
