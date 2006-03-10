@@ -1,49 +1,37 @@
-Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
-References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <1141977139.2876.15.camel@laptopd505.fenrus.org>
-	 <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
+Subject: Re: [PATCH/RFC] Migrate-on-fault prototype 0/5 V0.1 - Overview
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <1141932602.6393.68.camel@localhost.localdomain>
+References: <1141928905.6393.10.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0603091104280.17622@schroedinger.engr.sgi.com>
+	 <1141932602.6393.68.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Fri, 10 Mar 2006 15:05:06 +0100
-Message-Id: <1141999506.2876.45.camel@laptopd505.fenrus.org>
+Date: Fri, 10 Mar 2006 09:15:21 -0500
+Message-Id: <1142000122.5204.1.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-03-10 at 14:19 +0100, Magnus Damm wrote:
-> On 3/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
-> > > Apply on top of 2.6.16-rc5.
-> > >
-> > > Comments?
-> >
-> >
-> > my big worry with a split LRU is: how do you keep fairness and balance
-> > between those LRUs? This is one of the things that made the 2.4 VM suck
-> > really badly, so I really wouldn't want this bad...
+On Thu, 2006-03-09 at 14:30 -0500, Lee Schermerhorn wrote:
+
+> If you're interested in seeing an annotated trace log of direct
+> migration
+> and migrate-on-fault [lazy] in action, you can find one at:
 > 
-> Yeah, I agree this is important. I think linux-2.4 tried to keep the
-> LRU list lengths in a certain way (maybe 2/3 of all pages active, 1/3
-> inactive).
+> http://free.linux.hp.com/~lts/Tools/mtrace-anon-8p-direct+lazy.log
+> 
+> This file contains the log for 2 memtoy runs, each migrating an 8 page
+> anon segment from one node to another. 
 
-not really 
+Duh!  not my day..
 
-> My current code just extends this idea which basically means that
-> there is currently no relation between how many pages that sit in each
-> LRU. The LRU with the largest amount of pages will be shrunk/rotated
-> first. And on top of that is the guarantee logic and the
-> reclaim_mapped threshold, ie the unmapped LRU will be shrunk first by
-> default.
+correct link:
+http://free.linux.hp.com/~lts/Tools/mmtrace-anon-8p-direct+lazy.log
 
-that sounds wrong, you lose history this way. There is NO reason to
-shrink only the unmapped LRU and not the mapped one. At minimum you
-always need to pressure both. How you pressure (absolute versus
-percentage) is an interesting question, but to me there is no doubt that
-you always need to pressure both, and "equally" to some measure of equal
 
 
 --
