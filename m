@@ -1,39 +1,52 @@
-Message-ID: <44110727.802@yahoo.com.au>
-Date: Fri, 10 Mar 2006 15:57:11 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 03/03] Unmapped: Add guarantee code
-References: <20060310034412.8340.90939.sendpatchset@cherry.local> <20060310034429.8340.61997.sendpatchset@cherry.local>
-In-Reply-To: <20060310034429.8340.61997.sendpatchset@cherry.local>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 10 Mar 2006 15:50:33 +1100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [patch] hugetlb strict commit accounting - v3
+Message-ID: <20060310045033.GH9776@localhost.localdomain>
+References: <200603100314.k2A3Evg28313@unix-os.sc.intel.com> <20060310043737.GG9776@localhost.localdomain> <20060309204653.0f780ba1.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060309204653.0f780ba1.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus@valinux.co.jp>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: kenneth.w.chen@intel.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Magnus Damm wrote:
-> Implement per-LRU guarantee through sysctl.
+On Thu, Mar 09, 2006 at 08:46:53PM -0800, Andrew Morton wrote:
+> "'David Gibson'" <david@gibson.dropbear.id.au> wrote:
+> >
+> > On Thu, Mar 09, 2006 at 07:14:58PM -0800, Chen, Kenneth W wrote:
+> > > hugetlb strict commit accounting for shared mapping - v3
+> > > 
+> > > The a region reservation list is implementation as a linked list
+> > > hanging off address_space i_data->private_list.  It turns out that
+> > > clear_inode() was also looking at inode->i_data->private_list and
+> > > if not empty, it think inode has dirty buffers and start clearing.
+> > > Except it won't go very far before oops-ing.  That could happen if
+> > > a reservation is made but no actual faulting. hugetlbfs_delete_inode
+> > > and hugetlbfs_forget_inode doesn't call truncate_hugepages if there
+> > > are no actual page in the page cache, leading to clear_inode to do
+> > > bad thing.  Change that to always call truncate_hugepages even if
+> > > there are no pages in page cache and to let the unreserve code to
+> > > clear out the reservation linked list.
+> > 
+> > Hrm.. overloading the private_list in this manner sounds fragile.
+> > Maybe we should move the list into the hugetlbfs specific inode data.
 > 
-> This patch introduces the two new sysctl files "node_mapped_guar" and
-> "node_unmapped_guar". Each file contains one percentage per node and tells
-> the system how many percentage of all pages that should be kept in RAM as 
-> unmapped or mapped pages.
-> 
+> private_list and private_lock are available for use by the subsystem which
+> owns this mapping's address_space_operations.  ie: hugetlbfs.
 
-The whole Linux VM philosophy until now has been to get away from stuff
-like this.
+If that's so, why is clear_inode messing with it?
 
-If your app is really that specialised then maybe it can use mlock. If
-not, maybe the VM is currently broken.
-
-You do have a real-world workload that is significantly improved by this,
-right?
+> It's been this way for several years but afaik this is the first time
+> that's actually been taken advantage of.
 
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
