@@ -1,93 +1,59 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
-        with ESMTP id k2A7DAdG029274 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:10 +0900
+Received: from m7.gw.fujitsu.co.jp ([10.0.50.77])
+        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k2A7KfJ2007333 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:20:41 +0900
         (envelope-from y-goto@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id k2A7D6tL009424 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:06 +0900
+Received: from s11.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k2A7KeWg007911 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:20:40 +0900
 	(envelope-from y-goto@jp.fujitsu.com)
-Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 1535B2C8114
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:06 +0900 (JST)
-Received: from ml9.s.css.fujitsu.com (ml9.s.css.fujitsu.com [10.23.4.199])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 12F062C8104
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:05 +0900 (JST)
-Date: Fri, 10 Mar 2006 16:13:02 +0900
+Received: from s11.gw.fujitsu.co.jp (s11 [127.0.0.1])
+	by s11.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FE3D119C66
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:20:40 +0900 (JST)
+Received: from ml6.s.css.fujitsu.com (ml6.s.css.fujitsu.com [10.23.4.196])
+	by s11.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BF5E119C02
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:20:39 +0900 (JST)
+Date: Fri, 10 Mar 2006 16:20:37 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH: 000/017] (RFC)Memory hotplug for new nodes v.3.
-In-Reply-To: <20060309040021.3cf64e4b.akpm@osdl.org>
-References: <20060308212316.0022.Y-GOTO@jp.fujitsu.com> <20060309040021.3cf64e4b.akpm@osdl.org>
-Message-Id: <20060310145025.CA6F.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [PATCH: 010/017](RFC) Memory hotplug for new nodes v.3. (allocate wait table)
+In-Reply-To: <200603090556.06226.ak@suse.de>
+References: <20060309040055.21f3ec2d.akpm@osdl.org> <200603090556.06226.ak@suse.de>
+Message-Id: <20060310154910.CA79.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: tony.luck@intel.com, ak@suse.de, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+Cc: tony.luck@intel.com, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you for your comment.
-I'm very glad. :-)
+> On Thursday 09 March 2006 13:00, Andrew Morton wrote:
+> > Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+> > >
+> > >  +		/* we can use kmalloc() in run time */
+> > >  +		do {
+> > >  +			table_size = zone->wait_table_size
+> > >  +					* sizeof(wait_queue_head_t);
+> > >  +			zone->wait_table = kmalloc(table_size, GFP_ATOMIC);
+> > 
+> > Again, GFP_KERNEL would be better is possible.
 
-> Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
-> >
-> > I'll post newest patches for memory hotadd with pgdat allocation as V3.
-> >  There are many changes to make more common code.
+Oops.
+This was inside of spin_lock in old my patch.
+But, it is moved out from spin_lock as a result of refactoring 
+and I didn't notice that.
+Yes. GFP_KERNEL is better.
+
+> > 
+> > Won't this place the node's wait_table into a different node's memory?
 > 
-> General comments:
-> 
-> - Thanks for working against -mm.  It can be a bit of a pain, but it
->   eases staging and integration later on.
-> 
-> - Please review all the code to check that all those functions which can
->   be made static are indeed made static.  I see quite a few global
->   functions there.
-> - Make sure that all functions which can be tagged __meminit are so tagged.
-> 
-> - It would be useful to build a CONFIG_MEMORY_HOTPLUG=n kernel both with
->   and without the patchsets and to publish and maintain the increase in
->   code size.  Ideally that increase will be zero.  Probably it won't be,
->   and it'd be nice to understand why, and to minimise it.
+> Yes, kmalloc_node would be better.
 
-Ok. I'll check and fix it.
+Kmalloc_node() will not work well at here, 
+because this patch is to initialize structures for new node -itself-.
+It will work after that completion of initalize pgdat and wait_table.
 
-> 
-> - Arch issues:
-> 
->   - Which architectures is this patchset aimed at and tested on?
-
-      IA64.
-      At least, Fujitsu is making this style hot-add feature
-      on ia64 box which is named as PrimeQuest.
-      (SGI or HP might wait it.)
-
->   - Which other architectures might be able to use this code in the
->     future?  Because we should ask the maintainers of those other
->     architectures to take a look at the changes.
-
-      I heard from Andi-san that x86-64 will need this.
-      And ppc64 might use some of my patch.
-
-      It depends on ....
-         - There is Numa box on its architecture.
-         - One node of NUMA will be hot-added.
-
-> - What locking does node hot-add use?  There are quite a few places in
->   the kernel which cheerfully iterate across node lists while assuming that
->   they won't change.  The usage of stop_machine_run() is supposed to cover
->   all that, I assume?
-
-    If my understanding is correct, there is 2 critical point.
-      - One is zonelist update, indeed. Stop_machine_run() can
-        cover it.
-      - Another is node_online_map and NODE_DATA().
-        If node_online_map is onlined before that 
-        NODE_DATA() is updated, or before that pgdat is initialized,
-        kernel might touch uninitialized pgdat.
-        So, node_set_online() is called at final point. 
-    
-    The old kernel had pgdat->next link list, it was also critial point
-    for hot-add. But current -mm remove it. So, it is not issue now. :-)
+To use new node's memory at here, other consideration will be necessary. 
+But, I would like to use kmalloc() to simplify my patch at this time.
 
 Thanks.
 
