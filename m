@@ -1,16 +1,17 @@
-Received: by zproxy.gmail.com with SMTP id 12so197761nzp
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2006 21:55:00 -0800 (PST)
-Message-ID: <aec7e5c30603092155u59789c87u2f21c61078587d0b@mail.gmail.com>
-Date: Fri, 10 Mar 2006 14:55:00 +0900
+Received: by zproxy.gmail.com with SMTP id z3so620881nzf
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2006 22:05:45 -0800 (PST)
+Message-ID: <aec7e5c30603092204h21fa7639wf90e6d4e2fdee128@mail.gmail.com>
+Date: Fri, 10 Mar 2006 15:04:15 +0900
 From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
-In-Reply-To: <441106C9.9040502@yahoo.com.au>
+Subject: Re: [PATCH 03/03] Unmapped: Add guarantee code
+In-Reply-To: <44110727.802@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
 References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <441106C9.9040502@yahoo.com.au>
+	 <20060310034429.8340.61997.sendpatchset@cherry.local>
+	 <44110727.802@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
@@ -19,90 +20,34 @@ List-ID: <linux-mm.kvack.org>
 
 On 3/10/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > Magnus Damm wrote:
-> > Unmapped patches - Use two LRU:s per zone.
+> > Implement per-LRU guarantee through sysctl.
 > >
-> > These patches break out the per-zone LRU into two separate LRU:s - one for
-> > mapped pages and one for unmapped pages. The patches also introduce guarantee
-> > support, which allows the user to set how many percent of all pages per node
-> > that should be kept in memory for mapped or unmapped pages. This guarantee
-> > makes it possible to adjust the VM behaviour depending on the workload.
-> >
-> > Reasons behind the LRU separation:
-> >
-> > - Avoid unnecessary page scanning.
-> >   The current VM implementation rotates mapped pages on the active list
-> >   until the number of mapped pages are high enough to start unmap and page out.
-> >   By using two LRU:s we can avoid this scanning and shrink/rotate unmapped
-> >   pages only, not touching mapped pages until the threshold is reached.
-> >
-> > - Make it possible to adjust the VM behaviour.
-> >   In some cases the user might want to guarantee that a certain amount of
-> >   pages should be kept in memory, overriding the standard behaviour. Separating
-> >   pages into mapped and unmapped LRU:s allows guarantee with low overhead.
-> >
-> > I've performed many tests on a Dual PIII machine while varying the amount of
-> > RAM available. Kernel compiles on a 64MB configuration gets a small speedup,
-> > but the impact on other configurations and workloads seems to be unaffected.
-> >
-> > Apply on top of 2.6.16-rc5.
-> >
-> > Comments?
+> > This patch introduces the two new sysctl files "node_mapped_guar" and
+> > "node_unmapped_guar". Each file contains one percentage per node and tells
+> > the system how many percentage of all pages that should be kept in RAM as
+> > unmapped or mapped pages.
 > >
 >
-> I did something similar a while back which I called split active lists.
-> I think it is a good idea in general and I did see fairly large speedups
-> with heavy swapping kbuilds, but nobody else seemed to want it :P
+> The whole Linux VM philosophy until now has been to get away from stuff
+> like this.
 
-I want it if it helps you! =)
+Yeah, and Linux has never supported memory resource control either, right?
 
-I don't see why both mapped and unmapped pages should be kept on the
-same list at all actually, especially with the reclaim_mapped
-threshold used today.  The current solution is to scan through lots of
-mapped pages on the active list if the threshold is not reached. I
-think avoiding this scanning can improve performance.
+> If your app is really that specialised then maybe it can use mlock. If
+> not, maybe the VM is currently broken.
+>
+> You do have a real-world workload that is significantly improved by this,
+> right?
 
-The single LRU solution today keeps mapped pages on the active list,
-but always moves unmapped pages from the active list to the inactive
-list. I would say that that solution is pretty different from having
-two individual LRU:s with two lists each.
+Not really, but I think there is a demand for memory resource control today.
 
-> So you split the inactive list as well - that's going to be a bit of
-> change in behaviour and I'm not sure whether you gain anything.
+The memory controller in ckrm also breaks out the LRU, but puts one
+LRU instance in each class. My code does not depend on ckrm, but it
+should be possible to have some kind of resource control with this
+patch and cpusets. And yeah, add numa emulation if you are out of
+nodes. =)
 
-Well, other parts of the VM still use lru_cache_add_active for some
-mapped pages, so anonymous pages will mostly be in the active list on
-the mapped LRU. My plan with using two full LRU:s is to provide two
-separate LRU instances that individually will act as two-list LRU:s.
-So active mapped pages should actually end up on the active list,
-while seldom used mapped pages should be on the inactive list.
-
-Also, I think it makes sense to separate mapped from unmapped because
-mapped pages needs to clear the young-bits in the pte to track usage,
-but unmapped activity happens through mark_page_accessed(). So mapped
-pages needs to be scanned, but unmapped pages could say be moved to
-the head of a list to avoid scanning. I'm not sure that is a win
-though.
-
-> I don't think PageMapped is a very good name for the flag.
-
-Yeah, it's a bit confusing to both have PageMapped() and page_mapped().
-
-> I test mapped lazily. Much better way to go IMO.
-
-I will have a look at your patch to see how you handle things.
-
-> I had further patches that got rid of reclaim_mapped completely while
-> I was there. It is based on crazy metrics that basically completely
-> change meaning if there are changes in the memory configuration of
-> the system, or small changes in reclaim algorithms.
-
-It is not very NUMA aware either, right?
-
-I think there are many interesting things that are possible to improve
-in the vmscan code, but I'm trying to change as little as possible for
-now.
-
-Thanks for the comments,
+Thanks,
 
 / magnus
 
