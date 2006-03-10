@@ -1,55 +1,99 @@
-Received: by zproxy.gmail.com with SMTP id z3so620881nzf
-        for <linux-mm@kvack.org>; Thu, 09 Mar 2006 22:05:45 -0800 (PST)
-Message-ID: <aec7e5c30603092204h21fa7639wf90e6d4e2fdee128@mail.gmail.com>
-Date: Fri, 10 Mar 2006 15:04:15 +0900
-From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: Re: [PATCH 03/03] Unmapped: Add guarantee code
-In-Reply-To: <44110727.802@yahoo.com.au>
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+        by fgwmail5.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k2A7DAdG029274 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:10 +0900
+        (envelope-from y-goto@jp.fujitsu.com)
+Received: from s7.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k2A7D6tL009424 for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:06 +0900
+	(envelope-from y-goto@jp.fujitsu.com)
+Received: from s7.gw.fujitsu.co.jp (s7 [127.0.0.1])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 1535B2C8114
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:06 +0900 (JST)
+Received: from ml9.s.css.fujitsu.com (ml9.s.css.fujitsu.com [10.23.4.199])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 12F062C8104
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 16:13:05 +0900 (JST)
+Date: Fri, 10 Mar 2006 16:13:02 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH: 000/017] (RFC)Memory hotplug for new nodes v.3.
+In-Reply-To: <20060309040021.3cf64e4b.akpm@osdl.org>
+References: <20060308212316.0022.Y-GOTO@jp.fujitsu.com> <20060309040021.3cf64e4b.akpm@osdl.org>
+Message-Id: <20060310145025.CA6F.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <20060310034429.8340.61997.sendpatchset@cherry.local>
-	 <44110727.802@yahoo.com.au>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: tony.luck@intel.com, ak@suse.de, jschopp@austin.ibm.com, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/10/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> Magnus Damm wrote:
-> > Implement per-LRU guarantee through sysctl.
+Thank you for your comment.
+I'm very glad. :-)
+
+> Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
 > >
-> > This patch introduces the two new sysctl files "node_mapped_guar" and
-> > "node_unmapped_guar". Each file contains one percentage per node and tells
-> > the system how many percentage of all pages that should be kept in RAM as
-> > unmapped or mapped pages.
-> >
->
-> The whole Linux VM philosophy until now has been to get away from stuff
-> like this.
+> > I'll post newest patches for memory hotadd with pgdat allocation as V3.
+> >  There are many changes to make more common code.
+> 
+> General comments:
+> 
+> - Thanks for working against -mm.  It can be a bit of a pain, but it
+>   eases staging and integration later on.
+> 
+> - Please review all the code to check that all those functions which can
+>   be made static are indeed made static.  I see quite a few global
+>   functions there.
+> - Make sure that all functions which can be tagged __meminit are so tagged.
+> 
+> - It would be useful to build a CONFIG_MEMORY_HOTPLUG=n kernel both with
+>   and without the patchsets and to publish and maintain the increase in
+>   code size.  Ideally that increase will be zero.  Probably it won't be,
+>   and it'd be nice to understand why, and to minimise it.
 
-Yeah, and Linux has never supported memory resource control either, right?
+Ok. I'll check and fix it.
 
-> If your app is really that specialised then maybe it can use mlock. If
-> not, maybe the VM is currently broken.
->
-> You do have a real-world workload that is significantly improved by this,
-> right?
+> 
+> - Arch issues:
+> 
+>   - Which architectures is this patchset aimed at and tested on?
 
-Not really, but I think there is a demand for memory resource control today.
+      IA64.
+      At least, Fujitsu is making this style hot-add feature
+      on ia64 box which is named as PrimeQuest.
+      (SGI or HP might wait it.)
 
-The memory controller in ckrm also breaks out the LRU, but puts one
-LRU instance in each class. My code does not depend on ckrm, but it
-should be possible to have some kind of resource control with this
-patch and cpusets. And yeah, add numa emulation if you are out of
-nodes. =)
+>   - Which other architectures might be able to use this code in the
+>     future?  Because we should ask the maintainers of those other
+>     architectures to take a look at the changes.
 
-Thanks,
+      I heard from Andi-san that x86-64 will need this.
+      And ppc64 might use some of my patch.
 
-/ magnus
+      It depends on ....
+         - There is Numa box on its architecture.
+         - One node of NUMA will be hot-added.
+
+> - What locking does node hot-add use?  There are quite a few places in
+>   the kernel which cheerfully iterate across node lists while assuming that
+>   they won't change.  The usage of stop_machine_run() is supposed to cover
+>   all that, I assume?
+
+    If my understanding is correct, there is 2 critical point.
+      - One is zonelist update, indeed. Stop_machine_run() can
+        cover it.
+      - Another is node_online_map and NODE_DATA().
+        If node_online_map is onlined before that 
+        NODE_DATA() is updated, or before that pgdat is initialized,
+        kernel might touch uninitialized pgdat.
+        So, node_set_online() is called at final point. 
+    
+    The old kernel had pgdat->next link list, it was also critial point
+    for hot-add. But current -mm remove it. So, it is not issue now. :-)
+
+Thanks.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
