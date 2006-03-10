@@ -1,95 +1,101 @@
-Message-ID: <4410CF4B.5060601@bigpond.net.au>
-Date: Fri, 10 Mar 2006 11:58:51 +1100
-From: Peter Williams <pwil3058@bigpond.net.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: yield during swap prefetching
-References: <200603081013.44678.kernel@kolivas.org> <200603081212.03223.kernel@kolivas.org> <440FEDF7.2040008@aitel.hist.no> <200603092008.16792.kernel@kolivas.org> Sender:	linux-kernel-owner@vger.kernel.org X-Mailing-List:	linux-kernel@vger.kernel.org
-In-Reply-To: <200603092008.16792.kernel@kolivas.org> Sender:	linux-kernel-owner@vger.kernel.org X-Mailing-List:	linux-kernel@vger.kernel.org
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 10 Mar 2006 13:38:54 +1100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [patch] hugetlb strict commit accounting
+Message-ID: <20060310023854.GD9776@localhost.localdomain>
+References: <200603100045.k2A0jAg26642@unix-os.sc.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200603100045.k2A0jAg26642@unix-os.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Helge Hafting <helge.hafting@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ck@vds.kolivas.org
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Con Kolivas wrote:
-> On Thursday 09 March 2006 19:57, Helge Hafting wrote:
+On Thu, Mar 09, 2006 at 04:45:11PM -0800, Chen, Kenneth W wrote:
+> hugetlb strict commit accounting for shared mapping - v2
 > 
->>Con Kolivas wrote:
->>
->>>On Wed, 8 Mar 2006 12:11 pm, Andrew Morton wrote:
->>>
->>>>but, but.  If prefetching is prefetching stuff which that game will soon
->>>>use then it'll be an aggregate improvement.  If prefetch is prefetching
->>>>stuff which that game _won't_ use then prefetch is busted.  Using yield()
->>>>to artificially cripple kprefetchd is a rather sad workaround isn't it?
->>>
->>>It's not the stuff that it prefetches that's the problem; it's the disk
->>>access.
->>
->>Well, seems you have some sorry kind of disk driver then?
->>An ide disk not using dma?
->>
->>A low-cpu task that only abuses the disk shouldn't make an impact
->>on a 3D game that hogs the cpu only.  Unless the driver for your
->>harddisk is faulty, using way more cpu than it need.
->>
->>Use hdparm, check the basics:
->>unmaksirq=1, using_dma=1, multcount is some positive number,
->>such as 8 or 16, readahead is some positive number.
->>Also use hdparm -i and verify that the disk is using some
->>nice udma mode.  (too old for that, and it probably isn't worth
->>optimizing this for...)
->>
->>Also make sure the disk driver isn't sharing an irq with the
->>3D card.
->>
->>Come to think of it, if your 3D game happens to saturate the
->>pci bus for long times, then disk accesses might indeed
->>be noticeable as they too need the bus.  Check if going to
->>a slower dma mode helps - this might free up the bus a bit.
+> Changes since v1:
+> 
+> * change resv_huge_pages to normal unsigned long
+> * add proper lock around update/access resv_huge_pages
+> * resv_huge_pages record future needs of hugetlb pages
+> * strict commit accounting for shared mapping
+> * don't allow free_huge_pages to dip below reserved page in sysctl path
 > 
 > 
-> Thanks for the hints. 
-> 
-> However I actually wrote the swap prefetch code and this is all about changing 
-> its behaviour to make it do what I want. The problem is that nice 19 will 
-> give it up to 5% cpu in the presence of a nice 0 task when I really don't 
-> want swap prefetch doing anything.
+> David - what do you think? I don't think kernel needs to traverse page
+> cache twice. It already has all the information it needed to calculate
+> what are the future reservation requirement: at truncate time, it knows:
+> (1) total length, (2) how much to truncate, (3) how much hugetlb page
+> was free'ed because of truncate.  Then you can just do the math.  This
+> version doesn't do extra traverse.  I suspect you can do the same thing
+> with yours too.
 
-I'm working on a patch to add soft and hard CPU rate caps to the
-scheduler and the soft caps may be useful for what you're trying to do.
-  They are a generalization of your SCHED_BATCH implementation in
-staircase (which would have been better called SCHED_BACKGROUND :-)
-IMHO) in that a task with a soft cap will only use more CPU than that
-cap if it (the cpu) would otherwise go unused.  The main difference
-between this mechanism and staircase's SCHED_BATCH mechanism is that you
-can specify how much (as parts per thousand of a CPU) the task can use
-instead of just being background or not background.  With the soft cap
-set to zero the effect would be essentially the same.
+Ah.. yes, I believe I can.  Erm... except I'm not sure about the
+locking, I suspect in both approaches we may need to hold tree_lock
+across a larger chunk of the truncate path.
 
-> Furthermore because it is constantly 
-> waking up from sleep (after disk activity) it is always given lower latency 
-> scheduling than a fully cpu bound nice 0 task - this is normally appropriate 
-> behaviour. Yielding regularly works around that issue. 
+> I still want to convince you that this patch is better because it allows
+> arbitrary mmap offset.
+
+I'm almost convinced.  Only fundamental thing I still dislike is the
+100 or so extra lines of code for the region manipulation.
+
+
+One minor nitpick remaining:
+[snip]
+> +#define VMACCTPG(x) ((x) >> (HPAGE_SHIFT - PAGE_SHIFT))
+
+This macro confuses me every time I see it - the name utterly fails to
+conjure its very simple meaning.  Let's kill it, it's not really any
+more verbose to expand its two callers.
+
+> +static int hugetlb_acct_memory(long delta)
+> +{
+> +	int ret = -ENOMEM;
+> +
+> +	spin_lock(&hugetlb_lock);
+> +	if ((delta + resv_huge_pages) <= free_huge_pages) {
+> +		resv_huge_pages += delta;
+> +		ret = 0;
+> +	}
+> +	spin_unlock(&hugetlb_lock);
+> +	return ret;
+> +}
+> +
+> +int hugetlb_reserve_pages(struct inode *inode, struct vm_area_struct *vma)
+> +{
+> +	int ret, chg;
+> +	int from = VMACCTPG(vma->vm_pgoff);
+> +	int to = VMACCTPG(vma->vm_pgoff +
+> +			 ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT));
+> +
+> +	chg = region_chg(&inode->i_mapping->private_list, from, to);
+> +	if (chg < 0)
+> +		return chg;
+> +	ret = hugetlb_acct_memory(chg);
+> +	if (ret < 0)
+> +		return ret;
+> +	region_add(&inode->i_mapping->private_list, from, to);
+> +	return 0;
+> +}
+> +
+> +void hugetlb_unreserve_pages(struct inode *inode, pgoff_t offset, int freed)
+> +{
+> +	int chg;
+> +	chg  = region_truncate(&inode->i_mapping->private_list, offset);
+> +	hugetlb_acct_memory(freed - chg);
+> +}
 > 
-> Ideally taking into account cpu usage and only working below a certain cpu 
-> threshold may be the better mechanism and it does appear this would be more 
-> popular. It would not be hard to implement, but does add yet more code to an 
-> increasingly complex heuristic used to detect "idleness". I am seriously 
-> considering it.
+> 
 
-See above re CPU rate soft caps.  I'm holding off on submitting this
-patch for consideration until the current scheduler modifications being
-tested in -mm have had time to settle.
-
-Peter
 -- 
-Peter Williams                                   pwil3058@bigpond.net.au
-
-"Learning, n. The kind of ignorance distinguishing the studious."
-  -- Ambrose Bierce
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
