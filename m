@@ -1,35 +1,110 @@
-Date: Thu, 9 Mar 2006 21:48:46 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch] hugetlb strict commit accounting - v3
-Message-Id: <20060309214846.64943f60.akpm@osdl.org>
-In-Reply-To: <20060309213957.211aaec9.akpm@osdl.org>
-References: <200603100314.k2A3Evg28313@unix-os.sc.intel.com>
-	<20060310043737.GG9776@localhost.localdomain>
-	<20060309204653.0f780ba1.akpm@osdl.org>
-	<20060310045033.GH9776@localhost.localdomain>
-	<20060309213957.211aaec9.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by zproxy.gmail.com with SMTP id 12so197761nzp
+        for <linux-mm@kvack.org>; Thu, 09 Mar 2006 21:55:00 -0800 (PST)
+Message-ID: <aec7e5c30603092155u59789c87u2f21c61078587d0b@mail.gmail.com>
+Date: Fri, 10 Mar 2006 14:55:00 +0900
+From: "Magnus Damm" <magnus.damm@gmail.com>
+Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
+In-Reply-To: <441106C9.9040502@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20060310034412.8340.90939.sendpatchset@cherry.local>
+	 <441106C9.9040502@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: david@gibson.dropbear.id.au, kenneth.w.chen@intel.com, wli@holomorphy.com, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> wrote:
+On 3/10/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Magnus Damm wrote:
+> > Unmapped patches - Use two LRU:s per zone.
+> >
+> > These patches break out the per-zone LRU into two separate LRU:s - one for
+> > mapped pages and one for unmapped pages. The patches also introduce guarantee
+> > support, which allows the user to set how many percent of all pages per node
+> > that should be kept in memory for mapped or unmapped pages. This guarantee
+> > makes it possible to adjust the VM behaviour depending on the workload.
+> >
+> > Reasons behind the LRU separation:
+> >
+> > - Avoid unnecessary page scanning.
+> >   The current VM implementation rotates mapped pages on the active list
+> >   until the number of mapped pages are high enough to start unmap and page out.
+> >   By using two LRU:s we can avoid this scanning and shrink/rotate unmapped
+> >   pages only, not touching mapped pages until the threshold is reached.
+> >
+> > - Make it possible to adjust the VM behaviour.
+> >   In some cases the user might want to guarantee that a certain amount of
+> >   pages should be kept in memory, overriding the standard behaviour. Separating
+> >   pages into mapped and unmapped LRU:s allows guarantee with low overhead.
+> >
+> > I've performed many tests on a Dual PIII machine while varying the amount of
+> > RAM available. Kernel compiles on a 64MB configuration gets a small speedup,
+> > but the impact on other configurations and workloads seems to be unaffected.
+> >
+> > Apply on top of 2.6.16-rc5.
+> >
+> > Comments?
+> >
 >
->  > > private_list and private_lock are available for use by the subsystem which
->  > > owns this mapping's address_space_operations.  ie: hugetlbfs.
->  > 
->  > If that's so, why is clear_inode messing with it?
->  > 
-> 
->  Oh.   It's being bad.
+> I did something similar a while back which I called split active lists.
+> I think it is a good idea in general and I did see fairly large speedups
+> with heavy swapping kbuilds, but nobody else seemed to want it :P
 
-That doesn't rule out reuse.  It just means that only buffer_head users are
-allowed to run clear_inode() with a non-empty list.
+I want it if it helps you! =)
 
-So it's bad, but not fatally so.
+I don't see why both mapped and unmapped pages should be kept on the
+same list at all actually, especially with the reclaim_mapped
+threshold used today.  The current solution is to scan through lots of
+mapped pages on the active list if the threshold is not reached. I
+think avoiding this scanning can improve performance.
+
+The single LRU solution today keeps mapped pages on the active list,
+but always moves unmapped pages from the active list to the inactive
+list. I would say that that solution is pretty different from having
+two individual LRU:s with two lists each.
+
+> So you split the inactive list as well - that's going to be a bit of
+> change in behaviour and I'm not sure whether you gain anything.
+
+Well, other parts of the VM still use lru_cache_add_active for some
+mapped pages, so anonymous pages will mostly be in the active list on
+the mapped LRU. My plan with using two full LRU:s is to provide two
+separate LRU instances that individually will act as two-list LRU:s.
+So active mapped pages should actually end up on the active list,
+while seldom used mapped pages should be on the inactive list.
+
+Also, I think it makes sense to separate mapped from unmapped because
+mapped pages needs to clear the young-bits in the pte to track usage,
+but unmapped activity happens through mark_page_accessed(). So mapped
+pages needs to be scanned, but unmapped pages could say be moved to
+the head of a list to avoid scanning. I'm not sure that is a win
+though.
+
+> I don't think PageMapped is a very good name for the flag.
+
+Yeah, it's a bit confusing to both have PageMapped() and page_mapped().
+
+> I test mapped lazily. Much better way to go IMO.
+
+I will have a look at your patch to see how you handle things.
+
+> I had further patches that got rid of reclaim_mapped completely while
+> I was there. It is based on crazy metrics that basically completely
+> change meaning if there are changes in the memory configuration of
+> the system, or small changes in reclaim algorithms.
+
+It is not very NUMA aware either, right?
+
+I think there are many interesting things that are possible to improve
+in the vmscan code, but I'm trying to change as little as possible for
+now.
+
+Thanks for the comments,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
