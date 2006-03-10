@@ -1,16 +1,16 @@
-Received: from taynzmail03.nz-tay.cpqcorp.net (relay.cpqcorp.net [16.47.4.103])
-	by atlrel6.hp.com (Postfix) with ESMTP id 0E70D34450
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 14:43:58 -0500 (EST)
-Received: from anw.zk3.dec.com (or.zk3.dec.com [16.140.48.4])
-	by taynzmail03.nz-tay.cpqcorp.net (Postfix) with ESMTP id B7AD51735
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 14:43:57 -0500 (EST)
-Subject: [PATCH/RFC] AutoPage Migration - V0.1 - 2/8 add
-	sched_migrate_memory sysctl
+Received: from mailrelay01.cce.cpqcorp.net (relay.cpqcorp.net [16.47.68.171])
+	by ccerelbas03.cce.hp.com (Postfix) with ESMTP id 2128034020
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 13:46:19 -0600 (CST)
+Received: from anw.zk3.dec.com (wasted.zk3.dec.com [16.140.32.3])
+	by mailrelay01.cce.cpqcorp.net (Postfix) with ESMTP id DD063858B
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 13:46:18 -0600 (CST)
+Subject: [PATCH/RFC] AutoPage Migration - V0.1 - 3/8 generic check/notify
+	internode migration
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reply-To: lee.schermerhorn@hp.com
 Content-Type: text/plain
-Date: Fri, 10 Mar 2006 14:43:38 -0500
-Message-Id: <1142019818.5204.17.camel@localhost.localdomain>
+Date: Fri, 10 Mar 2006 14:45:59 -0500
+Message-Id: <1142019959.5204.19.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,147 +18,129 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-AutoPage Migration - V0.1 - 2/8 add sched_migrate_memory sysctl
+AutoPage Migration - V0.1 - 3/8 generic check/notify internode migration
 
-This patch adds the infrastructure for "migration controls" under
-/sys/kernel/migration.  It also adds a single such control--
-sched_migrate_memory--to enable/disable scheduler driven task memory
-migration.  May also be initialized from boot command line option.
+This patch adds the check for internode migration to be called
+from scheduler load balancing, and the check for migration pending
+to be called when a task returning to user space notices
+'NOTIFY_PENDING.
 
-Default is disabled!
+Check for internode migration:  if scheduler driven memory migration
+is enabled [sched_migrate_memory != 0] and this is a user task and the
+destination cpu is on a different node from the task's current cpu,
+the task will be marked for migration pending via member added to task
+struct.  The TIF_NOTIFY_PENDING thread_info flag is set to cause the
+task
+to enter do_notify_resume[_user]() to check for migration pending.
 
-Note that this patch also introduces a new header:  <linux/auto-migrate.h>
-to contain the minimal memory migration definitions required to
-hook the migration to the scheduler's inter-node task migration.
-At this point, the header contains only the extern declaration for
-the sched_migrate_memory control.
+When a task is rescheduled to user space with TIF_NOTIFY_PENDING,
+it will check for migration pending, unless SIGKILL is pending.
+If the task notices migration pending, it will call a
+migrate_task_memory()
+to migrate pages in vma's with default policy.  Only default policy
+is affected by migration to a new node.
+
+Note that we can't call migrate_task_memory() with interrupts disabled.
+Temporarily enable interrupts around the call.
+
+These checks become empty macros when 'MIGRATION' is not configured.
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
+Index: linux-2.6.16-rc5-git6/include/linux/sched.h
+===================================================================
+--- linux-2.6.16-rc5-git6.orig/include/linux/sched.h	2006-03-02
+16:40:44.000000000 -0500
++++ linux-2.6.16-rc5-git6/include/linux/sched.h	2006-03-03
+10:42:27.000000000 -0500
+@@ -863,6 +863,9 @@ struct task_struct {
+ #ifdef CONFIG_NUMA
+   	struct mempolicy *mempolicy;
+ 	short il_next;
++#ifdef CONFIG_MIGRATION
++	int migrate_pending;		/* internode mem migration pending */
++#endif
+ #endif
+ #ifdef CONFIG_CPUSETS
+ 	struct cpuset *cpuset;
 Index: linux-2.6.16-rc5-git6/include/linux/auto-migrate.h
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.16-rc5-git6/include/linux/auto-migrate.h	2006-03-03 12:46:01.000000000 -0500
-@@ -0,0 +1,20 @@
-+#ifndef _LINUX_AUTO_MIGRATE_H
-+#define _LINUX_AUTO_MIGRATE_H
-+
-+/*
-+ * minimal memory migration definitions need by scheduler,
-+ * sysctl, ..., so that they don't need to drag in the entire
-+ * mempolicy.h and all that it depends on.
-+ */
-+
-+#include <linux/config.h>
-+
-+#ifdef CONFIG_MIGRATION
-+
-+extern int sched_migrate_memory;	/* sysctl:  enable/disable */
-+
-+#else
-+
-+#endif
-+
-+#endif
-Index: linux-2.6.16-rc5-git6/mm/mempolicy.c
-===================================================================
---- linux-2.6.16-rc5-git6.orig/mm/mempolicy.c	2006-03-03 10:05:39.000000000 -0500
-+++ linux-2.6.16-rc5-git6/mm/mempolicy.c	2006-03-03 12:47:11.000000000 -0500
-@@ -86,6 +86,7 @@
- #include <linux/swap.h>
- #include <linux/seq_file.h>
- #include <linux/proc_fs.h>
-+#include <linux/sysfs.h>
+--- linux-2.6.16-rc5-git6.orig/include/linux/auto-migrate.h	2006-03-03
+10:06:58.000000000 -0500
++++ linux-2.6.16-rc5-git6/include/linux/auto-migrate.h	2006-03-03
+10:42:05.000000000 -0500
+@@ -13,8 +13,67 @@
  
- #include <asm/tlbflush.h>
- #include <asm/uaccess.h>
-@@ -112,6 +113,78 @@ struct mempolicy default_policy = {
- 	.policy = MPOL_DEFAULT,
- };
+ extern int sched_migrate_memory;	/* sysctl:  enable/disable */
  
-+/*
-+ * System Controls for [auto] migration
-+ */
-+#define MIGRATION_ATTR_RW(_name) \
-+static struct subsys_attribute _name##_attr = \
-+	__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+
-+/*
-+ * sched_migrate_memory:  boot option and sysctl to enable/disable
-+ * memory migration on inter-node task migration due to scheduler
-+ * load balancing or change in cpu affinity.
-+ */
-+int sched_migrate_memory = 0;
-+
-+static int __init set_sched_migrate_memory(char *str)
+-#else
++#ifdef _LINUX_SCHED_H	/* only used where this is defined */
++static inline void check_internode_migration(task_t *task, int
+dest_cpu)
 +{
-+	get_option(&str, &sched_migrate_memory);
-+	return 1;
++	if (sched_migrate_memory &&
++		task->mm && !(task->flags & PF_BORROWED_MM)) {
++		int node = cpu_to_node(task_cpu(task));
++		if ((node != cpu_to_node(dest_cpu))) {
++			/*
++			 * migrating a user task to a new node.
++			 * mark for memory migration on return to user space.
++			 */
++			struct thread_info *info = task->thread_info;
+ 
+-#endif
++			task->migrate_pending = 1;
++			set_bit(TIF_NOTIFY_RESUME, &info->flags);
++		}
++	}
 +}
+ 
+-#endif
++extern void migrate_task_memory(void);
 +
-+__setup("sched_migrate_memory", set_sched_migrate_memory);
-+
-+static ssize_t sched_migrate_memory_show(struct subsystem *subsys, char *page)
++static inline void check_migrate_pending(void)
 +{
-+	return sprintf(page, "sched_migrate_memory %s\n",
-+			sched_migrate_memory ? "on" : "off");
-+}
-+static ssize_t sched_migrate_memory_store(struct subsystem *subsys,
-+				      const char *page, size_t count)
-+{
-+        unsigned long n = simple_strtoul(page, NULL, 10);
-+	if (n)
-+		sched_migrate_memory = 1;
-+	else
-+		sched_migrate_memory = 0;
-+        return count;
-+}
-+MIGRATION_ATTR_RW(sched_migrate_memory);
-+
-+
-+decl_subsys(migration, NULL, NULL);
-+EXPORT_SYMBOL(migration_subsys);
-+
-+static struct attribute *migration_attrs[] = {
-+	&sched_migrate_memory_attr.attr,
-+	NULL
-+};
-+
-+static struct attribute_group migration_attr_group = {
-+	.attrs = migration_attrs,
-+};
-+
-+static int __init migration_control_init(void)
-+{
-+	int error;
++	if (!sched_migrate_memory)
++		goto out;
 +
 +	/*
-+	 * child of kernel subsys
++	 * Don't bother with memory migration prep if 'KILL pending
 +	 */
-+	kset_set_kset_s(&migration_subsys, kernel_subsys);
-+	error = subsystem_register(&migration_subsys);
-+	if (!error)
-+		error = sysfs_create_group(&migration_subsys.kset.kobj,
-+					   &migration_attr_group);
-+	return error;
++	if (test_thread_flag(TIF_SIGPENDING) &&
++		(sigismember(&current->pending.signal, SIGKILL) ||
++		sigismember(&current->signal->shared_pending.signal, SIGKILL)))
++		goto out;
++
++	if (unlikely(current->migrate_pending)) {
++		int disable_irqs = 0;
++
++		if (likely(irqs_disabled())) {
++			disable_irqs = 1;
++			local_irq_enable();
++		}
++
++		migrate_task_memory();
++
++		if (likely(disable_irqs))
++			local_irq_disable();
++	}
++
++out:
++	current->migrate_pending = 0;
++	clear_thread_flag(TIF_NOTIFY_RESUME);
++	return;
 +}
-+subsys_initcall(migration_control_init);
-+/*
-+ * end Migration System Controls
-+ */
++#endif /* _LINUX_SCHED_H */
 +
- /* Return effective policy for a VMA */
- static struct mempolicy * get_vma_policy(struct task_struct *task,
- 		struct vm_area_struct *vma, unsigned long addr)
-@@ -130,6 +203,7 @@ static struct mempolicy * get_vma_policy
- 	return pol;
- }
- 
++#else	/* !CONFIG_MIGRATION */
 +
- /* Do sanity checking on a policy */
- static int mpol_check_policy(int mode, nodemask_t *nodes)
- {
++#define check_internode_migration(t,c)	/* NOTHING */
++
++#define check_migrate_pending()		/* NOTHING */
++
++#endif	/* CONFIG_MIGRATION */
++
++#endif /* _LINUX_AUTO_MIGRATE_H */
 
 
 --
