@@ -1,16 +1,16 @@
-Received: from taynzmail03.nz-tay.cpqcorp.net (relay.dec.com [16.47.4.103])
-	by atlrel8.hp.com (Postfix) with ESMTP id AB4BB3579B
-	for <linux-mm@kvack.org>; Sun, 12 Mar 2006 13:03:56 -0500 (EST)
-Received: from anw.zk3.dec.com (alpha.zk3.dec.com [16.140.128.4])
-	by taynzmail03.nz-tay.cpqcorp.net (Postfix) with ESMTP id 81D4167A2
-	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 14:38:18 -0500 (EST)
-Subject: [PATCH/RFC] AutoPage Migration - V0.1 - 1/8 migrate task memory
-	with default policy
+Received: from taynzmail03.nz-tay.cpqcorp.net (relay.cpqcorp.net [16.47.4.103])
+	by atlrel6.hp.com (Postfix) with ESMTP id 0E70D34450
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 14:43:58 -0500 (EST)
+Received: from anw.zk3.dec.com (or.zk3.dec.com [16.140.48.4])
+	by taynzmail03.nz-tay.cpqcorp.net (Postfix) with ESMTP id B7AD51735
+	for <linux-mm@kvack.org>; Fri, 10 Mar 2006 14:43:57 -0500 (EST)
+Subject: [PATCH/RFC] AutoPage Migration - V0.1 - 2/8 add
+	sched_migrate_memory sysctl
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reply-To: lee.schermerhorn@hp.com
 Content-Type: text/plain
-Date: Fri, 10 Mar 2006 14:37:59 -0500
-Message-Id: <1142019479.5204.15.camel@localhost.localdomain>
+Date: Fri, 10 Mar 2006 14:43:38 -0500
+Message-Id: <1142019818.5204.17.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,210 +18,146 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-AutoPage Migration - V0.1 - 1/8 migrate task memory with default policy
+AutoPage Migration - V0.1 - 2/8 add sched_migrate_memory sysctl
 
-This patch introduces the mm/mempolicy.c "migrate_task_memory()" function.
-When called, this function will migrate all possible task pages with default
-policy that are not located on the node that contains the current task's cpu.
+This patch adds the infrastructure for "migration controls" under
+/sys/kernel/migration.  It also adds a single such control--
+sched_migrate_memory--to enable/disable scheduler driven task memory
+migration.  May also be initialized from boot command line option.
 
-migrate_task_memory() operates on one vma at at time, filtering out those
-that don't have default policy and that have no access.  Added helper
-function migrate_vma_to_node()--a slight variant of migrate_to_node()--that
-takes a vma instead of an mm struct.  Changed comment on migrate_to_node()
-to indicate that it operates on entire mm.
+Default is disabled!
 
-I had to move get_vma_policy() up in mempolicy.c so that I could reference
-it from migrate_task_memory().  Should I have just added a forward ref
-declaration?
-
-Subsequent patches will arrange for this function to be called when a task
-returns to user space after the scheduler migrates it to a cpu on a node
-different from the node where it last executed.
+Note that this patch also introduces a new header:  <linux/auto-migrate.h>
+to contain the minimal memory migration definitions required to
+hook the migration to the scheduler's inter-node task migration.
+At this point, the header contains only the extern declaration for
+the sched_migrate_memory control.
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Index: linux-2.6.16-rc5-git6/include/linux/mempolicy.h
+Index: linux-2.6.16-rc5-git6/include/linux/auto-migrate.h
 ===================================================================
---- linux-2.6.16-rc5-git6.orig/include/linux/mempolicy.h	2006-03-02 16:40:38.000000000 -0500
-+++ linux-2.6.16-rc5-git6/include/linux/mempolicy.h	2006-03-02 16:48:02.000000000 -0500
-@@ -172,6 +172,8 @@ static inline void check_highest_zone(in
- int do_migrate_pages(struct mm_struct *mm,
- 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
- 
-+extern void migrate_task_memory(void);
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.16-rc5-git6/include/linux/auto-migrate.h	2006-03-03 12:46:01.000000000 -0500
+@@ -0,0 +1,20 @@
++#ifndef _LINUX_AUTO_MIGRATE_H
++#define _LINUX_AUTO_MIGRATE_H
 +
- extern void *cpuset_being_rebound;	/* Trigger mpol_copy vma rebind */
- 
- #else
-@@ -263,6 +265,8 @@ static inline int do_migrate_pages(struc
- 	return 0;
- }
- 
-+static inline void migrate_task_memory(void) { }
++/*
++ * minimal memory migration definitions need by scheduler,
++ * sysctl, ..., so that they don't need to drag in the entire
++ * mempolicy.h and all that it depends on.
++ */
 +
- static inline void check_highest_zone(int k)
- {
- }
++#include <linux/config.h>
++
++#ifdef CONFIG_MIGRATION
++
++extern int sched_migrate_memory;	/* sysctl:  enable/disable */
++
++#else
++
++#endif
++
++#endif
 Index: linux-2.6.16-rc5-git6/mm/mempolicy.c
 ===================================================================
---- linux-2.6.16-rc5-git6.orig/mm/mempolicy.c	2006-03-02 16:40:44.000000000 -0500
-+++ linux-2.6.16-rc5-git6/mm/mempolicy.c	2006-03-06 12:55:27.000000000 -0500
-@@ -112,6 +112,24 @@ struct mempolicy default_policy = {
+--- linux-2.6.16-rc5-git6.orig/mm/mempolicy.c	2006-03-03 10:05:39.000000000 -0500
++++ linux-2.6.16-rc5-git6/mm/mempolicy.c	2006-03-03 12:47:11.000000000 -0500
+@@ -86,6 +86,7 @@
+ #include <linux/swap.h>
+ #include <linux/seq_file.h>
+ #include <linux/proc_fs.h>
++#include <linux/sysfs.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -112,6 +113,78 @@ struct mempolicy default_policy = {
  	.policy = MPOL_DEFAULT,
  };
  
-+/* Return effective policy for a VMA */
-+static struct mempolicy * get_vma_policy(struct task_struct *task,
-+		struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol = task->mempolicy;
++/*
++ * System Controls for [auto] migration
++ */
++#define MIGRATION_ATTR_RW(_name) \
++static struct subsys_attribute _name##_attr = \
++	__ATTR(_name, 0644, _name##_show, _name##_store)
 +
-+	if (vma) {
-+		if (vma->vm_ops && vma->vm_ops->get_policy)
-+			pol = vma->vm_ops->get_policy(vma, addr);
-+		else if (vma->vm_policy &&
-+				vma->vm_policy->policy != MPOL_DEFAULT)
-+			pol = vma->vm_policy;
-+	}
-+	if (!pol)
-+		pol = &default_policy;
-+	return pol;
++
++/*
++ * sched_migrate_memory:  boot option and sysctl to enable/disable
++ * memory migration on inter-node task migration due to scheduler
++ * load balancing or change in cpu affinity.
++ */
++int sched_migrate_memory = 0;
++
++static int __init set_sched_migrate_memory(char *str)
++{
++	get_option(&str, &sched_migrate_memory);
++	return 1;
 +}
++
++__setup("sched_migrate_memory", set_sched_migrate_memory);
++
++static ssize_t sched_migrate_memory_show(struct subsystem *subsys, char *page)
++{
++	return sprintf(page, "sched_migrate_memory %s\n",
++			sched_migrate_memory ? "on" : "off");
++}
++static ssize_t sched_migrate_memory_store(struct subsystem *subsys,
++				      const char *page, size_t count)
++{
++        unsigned long n = simple_strtoul(page, NULL, 10);
++	if (n)
++		sched_migrate_memory = 1;
++	else
++		sched_migrate_memory = 0;
++        return count;
++}
++MIGRATION_ATTR_RW(sched_migrate_memory);
++
++
++decl_subsys(migration, NULL, NULL);
++EXPORT_SYMBOL(migration_subsys);
++
++static struct attribute *migration_attrs[] = {
++	&sched_migrate_memory_attr.attr,
++	NULL
++};
++
++static struct attribute_group migration_attr_group = {
++	.attrs = migration_attrs,
++};
++
++static int __init migration_control_init(void)
++{
++	int error;
++
++	/*
++	 * child of kernel subsys
++	 */
++	kset_set_kset_s(&migration_subsys, kernel_subsys);
++	error = subsystem_register(&migration_subsys);
++	if (!error)
++		error = sysfs_create_group(&migration_subsys.kset.kobj,
++					   &migration_attr_group);
++	return error;
++}
++subsys_initcall(migration_control_init);
++/*
++ * end Migration System Controls
++ */
++
+ /* Return effective policy for a VMA */
+ static struct mempolicy * get_vma_policy(struct task_struct *task,
+ 		struct vm_area_struct *vma, unsigned long addr)
+@@ -130,6 +203,7 @@ static struct mempolicy * get_vma_policy
+ 	return pol;
+ }
+ 
 +
  /* Do sanity checking on a policy */
  static int mpol_check_policy(int mode, nodemask_t *nodes)
- {
-@@ -629,7 +647,7 @@ out:
- }
- 
- /*
-- * Migrate pages from one node to a target node.
-+ * Migrate all eligible pages mapped in mm from source node to destination node.
-  * Returns error or the number of pages not migrated.
-  */
- int migrate_to_node(struct mm_struct *mm, int source, int dest, int flags)
-@@ -734,6 +752,97 @@ int do_migrate_pages(struct mm_struct *m
- 	return busy;
- }
- 
-+
-+/*
-+ * Migrate all eligible pages mapped in vma NOT on destination node to
-+ * the destination node.
-+ * Returns error or the number of pages not migrated.
-+ */
-+static int migrate_vma_to_node(struct vm_area_struct *vma, int dest, int flags)
-+{
-+	nodemask_t nmask;
-+	LIST_HEAD(pagelist);
-+	int err = 0;
-+
-+	nodes_clear(nmask);
-+	node_set(dest, nmask);
-+
-+	vma = check_range(vma->vm_mm, vma->vm_start, vma->vm_end, &nmask,
-+			flags | MPOL_MF_INVERT,	/* pages NOT on dest */
-+			&pagelist);
-+
-+	if (IS_ERR(vma))
-+		err = PTR_ERR(vma);
-+	else if (!list_empty(&pagelist))
-+		err = migrate_pages_to(&pagelist, NULL, dest);
-+
-+	if (!list_empty(&pagelist))
-+		putback_lru_pages(&pagelist);
-+	return err;
-+}
-+
-+/*
-+ * for filtering 'no access' segments
-+TODO:  what are these?
-+ */
-+static inline int vma_no_access(struct vm_area_struct *vma)
-+{
-+	const int VM_RWX = VM_READ|VM_WRITE|VM_EXEC;
-+
-+	return (vma->vm_flags & VM_RWX) == 0;
-+}
-+
-+/**
-+ * migrate_task_memory()
-+ *
-+ * Called just before returning to user state when a task has been
-+ * migrated to a new node by the schedule and sched_migrate_memory
-+ * is enabled.  Walks the current task's mm_struct's vma list and
-+ * migrates pages of eligible vmas to the new node.  Eligible
-+ * vmas are those with null or default memory policy, because
-+ * default policy depends on local/home node.
-+ */
-+
-+void migrate_task_memory(void)
-+{
-+	struct mm_struct *mm = NULL;
-+	struct vm_area_struct *vma;
-+	int dest;
-+
-+	BUG_ON(irqs_disabled());
-+
-+	mm = current->mm;
-+	/*
-+	 * we're returning to user space, so mm must be non-NULL
-+	 */
-+	BUG_ON(!mm);
-+
-+	/*
-+	 * migrate eligible vma's pages
-+	 */
-+	dest = cpu_to_node(task_cpu(current));
-+	down_read(&mm->mmap_sem);
-+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+		struct mempolicy *pol = get_vma_policy(current, vma,
-+							 vma->vm_start);
-+		int err;
-+
-+		if (pol->policy != MPOL_DEFAULT)
-+			continue;
-+		if (vma_no_access(vma))
-+			continue;
-+
-+		// TODO:  more eligibility filtering?
-+
-+		// TODO:  more agressive migration ['MOVE_ALL] ?
-+		//        via sysctl?
-+		err = migrate_vma_to_node(vma, dest, MPOL_MF_MOVE);
-+
-+	}
-+	up_read(&mm->mmap_sem);
-+
-+}
-+
- long do_mbind(unsigned long start, unsigned long len,
- 		unsigned long mode, nodemask_t *nmask, unsigned long flags)
- {
-@@ -1067,24 +1176,6 @@ asmlinkage long compat_sys_mbind(compat_
- 
- #endif
- 
--/* Return effective policy for a VMA */
--static struct mempolicy * get_vma_policy(struct task_struct *task,
--		struct vm_area_struct *vma, unsigned long addr)
--{
--	struct mempolicy *pol = task->mempolicy;
--
--	if (vma) {
--		if (vma->vm_ops && vma->vm_ops->get_policy)
--			pol = vma->vm_ops->get_policy(vma, addr);
--		else if (vma->vm_policy &&
--				vma->vm_policy->policy != MPOL_DEFAULT)
--			pol = vma->vm_policy;
--	}
--	if (!pol)
--		pol = &default_policy;
--	return pol;
--}
--
- /* Return a zonelist representing a mempolicy */
- static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
  {
 
 
