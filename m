@@ -1,55 +1,37 @@
-Received: by pproxy.gmail.com with SMTP id z74so551918pyg
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2006 03:52:53 -0800 (PST)
-Message-ID: <aec7e5c30603110352u4a18825ai1aaa6c5eac04685d@mail.gmail.com>
-Date: Sat, 11 Mar 2006 20:52:53 +0900
+Received: by wproxy.gmail.com with SMTP id i4so210359wra
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2006 03:56:28 -0800 (PST)
+Message-ID: <aec7e5c30603110356w3c866498v5d43c69454bf476e@mail.gmail.com>
+Date: Sat, 11 Mar 2006 20:56:28 +0900
 From: "Magnus Damm" <magnus.damm@gmail.com>
 Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
-In-Reply-To: <1141999506.2876.45.camel@laptopd505.fenrus.org>
+In-Reply-To: <Pine.LNX.4.64.0603101111570.28805@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
 References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <1141977139.2876.15.camel@laptopd505.fenrus.org>
-	 <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
-	 <1141999506.2876.45.camel@laptopd505.fenrus.org>
+	 <Pine.LNX.4.64.0603101111570.28805@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
-> On Fri, 2006-03-10 at 14:19 +0100, Magnus Damm wrote:
-> > My current code just extends this idea which basically means that
-> > there is currently no relation between how many pages that sit in each
-> > LRU. The LRU with the largest amount of pages will be shrunk/rotated
-> > first. And on top of that is the guarantee logic and the
-> > reclaim_mapped threshold, ie the unmapped LRU will be shrunk first by
-> > default.
+On 3/11/06, Christoph Lameter <clameter@sgi.com> wrote:
+> On Fri, 10 Mar 2006, Magnus Damm wrote:
 >
-> that sounds wrong, you lose history this way. There is NO reason to
-> shrink only the unmapped LRU and not the mapped one. At minimum you
-> always need to pressure both. How you pressure (absolute versus
-> percentage) is an interesting question, but to me there is no doubt that
-> you always need to pressure both, and "equally" to some measure of equal
+> > Unmapped patches - Use two LRU:s per zone.
+>
+> Note that if this is done then the default case of zone_reclaim becomes
+> trivial to deal with and we can get rid of the zone_reclaim_interval.
 
-Regarding if shrinking the unmapped LRU only is bad or not: In the
-vanilla version of refill_inactive_zone(), if reclaim_mapped is false
-then mapped pages are rotated on the active list without the
-young-bits are getting cleared in the PTE:s. I would say this is very
-similar to leaving the pages on the mapped active list alone as long
-as reclaim_mapped is false in the dual LRU case. Do you agree?
+That's a good thing, right? =)
 
-Also, losing history, do you mean that the order of the pages are not
-kept? If so, then I think my refill_inactive_zone() rant above shows
-that the order of the pages are not kept today. But yes, keeping the
-order is probaly a good idea.
+> However, I have not looked at the rest yet.
 
-It would be interesting to hear what you mean by "pressure", do you
-mean that both the active list and inactive list are scanned?
+Please do. I'd like to hear what you think about it.
 
-Many thanks,
+Thanks,
 
 / magnus
 
