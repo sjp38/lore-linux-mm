@@ -1,52 +1,28 @@
-Date: Fri, 10 Mar 2006 16:28:26 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Fri, 10 Mar 2006 16:33:06 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: drain_node_pages: interrupt latency reduction / optimization
-Message-Id: <20060310162826.5f7a50e4.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603101605410.31461@schroedinger.engr.sgi.com>
+In-Reply-To: <20060310162826.5f7a50e4.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0603101629100.32555@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0603101258290.29954@schroedinger.engr.sgi.com>
-	<20060310160527.5ddfc610.akpm@osdl.org>
-	<Pine.LNX.4.64.0603101605410.31461@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060310160527.5ddfc610.akpm@osdl.org> <Pine.LNX.4.64.0603101605410.31461@schroedinger.engr.sgi.com>
+ <20060310162826.5f7a50e4.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
+> > -		pset = zone_pcp(zone, smp_processor_id());
+> > +		pset = zone_pcp(zone, raw_smp_processor_id());
+> hm.  That replaces a runtime check with a comment.  If someone comes along
+> and reuses this function wrongly they'll have a nasty subtle bug.
 >
-> Here is a fixup adding some comments and raw_smp_processor_id()
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c	2006-03-10 16:09:10.000000000 -0800
-> +++ linux-2.6/mm/page_alloc.c	2006-03-10 16:10:07.000000000 -0800
-> @@ -593,6 +593,8 @@ static int rmqueue_bulk(struct zone *zon
->  /*
->   * Called from the slab reaper to drain pagesets on a particular node that
->   * belong to the currently executing processor.
-> + * Note that this function must be called with the thread pinned to
-> + * a processor.
->   */
->  void drain_node_pages(int nodeid)
->  {
-> @@ -603,7 +605,7 @@ void drain_node_pages(int nodeid)
->  		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
->  		struct per_cpu_pageset *pset;
->  
-> -		pset = zone_pcp(zone, smp_processor_id());
-> +		pset = zone_pcp(zone, raw_smp_processor_id());
->  		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
->  			struct per_cpu_pages *pcp;
+> IOW: it might be best to keep the smp_processor_id() check in there.
 
-hm.  That replaces a runtime check with a comment.  If someone comes along
-and reuses this function wrongly they'll have a nasty subtle bug.
-
-IOW: it might be best to keep the smp_processor_id() check in there.
+Ahh. The DEBUG_PREEMPT is much more intelligent now and checks for this in 
+the right way.  I agree leave as is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
