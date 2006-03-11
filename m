@@ -1,48 +1,36 @@
-Date: Sat, 11 Mar 2006 15:41:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
-Message-Id: <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1142019195.5204.12.camel@localhost.localdomain>
-References: <1142019195.5204.12.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by zproxy.gmail.com with SMTP id z3so871105nzf
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2006 00:22:45 -0800 (PST)
+Message-ID: <661de9470603110022i25baba63w4a79eb543c5db626@mail.gmail.com>
+Date: Sat, 11 Mar 2006 13:52:45 +0530
+From: "Balbir Singh" <bsingharora@gmail.com>
+Subject: Re: [patch 1/3] radix tree: RCU lockless read-side
+In-Reply-To: <20060207021831.10002.84268.sendpatchset@linux.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20060207021822.10002.30448.sendpatchset@linux.site>
+	 <20060207021831.10002.84268.sendpatchset@linux.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lee.schermerhorn@hp.com
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, a few comments.
+<snip>
 
-On Fri, 10 Mar 2006 14:33:14 -0500
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
-> Furthermore, to prevent thrashing, a second
-> sysctl, sched_migrate_interval, has been implemented.  The load balancer
-> will not move a task to a different node if it has move to a new node
-> in the last sched_migrate_interval seconds.  [User interface is in
-> seconds; internally it's in HZ.]  The idea is to give the task time to
-> ammortize the cost of the migration by giving it time to benefit from
-> local references to the page.
-I think this HZ should be automatically estimated by the kernel. not by user.
+>                 if (slot->slots[i]) {
+> -                       results[nr_found++] = slot->slots[i];
+> +                       results[nr_found++] = &slot->slots[i];
+>                         if (nr_found == max_items)
+>                                 goto out;
+>                 }
 
+A quick clarification - Shouldn't accesses to slot->slots[i] above be
+protected using rcu_derefence()?
 
-> Kernel builds [after make mrproper+make defconfig]
-> on 2.6.16-rc5-git11 on 16-cpu/4 node/32GB HP rx8620 [ia64].
-> Times taken after a warm-up run.
-> Entire kernel source likely held in page cache.
-> This amplifies the effect of the patches because I
-> can't hide behind disk IO time.
-
-It looks you added check_internode_migration() in migrate_task().
-migrate_task() is called by sched_migrate_task().
-And....sched_migrate_task() is called by sched_exec().
-(a process can be migrated when exec().)
-In this case, migrate_task_memory() just wastes time..., I think.
-
-BTW, what happens against shared pages ?
--- Kame
-
+Warm Regards,
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
