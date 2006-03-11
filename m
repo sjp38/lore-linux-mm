@@ -1,71 +1,43 @@
-Received: by wproxy.gmail.com with SMTP id i27so831353wra
-        for <linux-mm@kvack.org>; Sat, 11 Mar 2006 04:29:55 -0800 (PST)
-Message-ID: <aec7e5c30603110429tcad0ff1lc0073c613486eec5@mail.gmail.com>
-Date: Sat, 11 Mar 2006 21:29:55 +0900
-From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: Re: [PATCH 03/03] Unmapped: Add guarantee code
-In-Reply-To: <1142005277.8174.107.camel@linuxchandra>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
+Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
+From: Peter Zijlstra <peter@programming.kicks-ass.net>
+In-Reply-To: <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
 References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <20060310034429.8340.61997.sendpatchset@cherry.local>
-	 <44110727.802@yahoo.com.au>
-	 <aec7e5c30603092204h21fa7639wf90e6d4e2fdee128@mail.gmail.com>
-	 <1142005277.8174.107.camel@linuxchandra>
+	 <1141977139.2876.15.camel@laptopd505.fenrus.org>
+	 <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
+Content-Type: text/plain
+Date: Sat, 11 Mar 2006 21:58:14 +0100
+Message-Id: <1142110694.2928.6.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sekharan@us.ibm.com
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Valerie Clement <Valerie.Clement@bull.net>
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Arjan van de Ven <arjan@infradead.org>, Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/11/06, Chandra Seetharaman <sekharan@us.ibm.com> wrote:
-> On Fri, 2006-03-10 at 15:04 +0900, Magnus Damm wrote:
-> > On 3/10/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> > > Magnus Damm wrote:
-> > > If your app is really that specialised then maybe it can use mlock. If
-> > > not, maybe the VM is currently broken.
+On Fri, 2006-03-10 at 14:19 +0100, Magnus Damm wrote:
+> On 3/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
+> > > Apply on top of 2.6.16-rc5.
 > > >
-> > > You do have a real-world workload that is significantly improved by this,
-> > > right?
+> > > Comments?
 > >
-> > Not really, but I think there is a demand for memory resource control today.
->
-> As a person who is working on CKRM, I totally agree with this :)
+> >
+> > my big worry with a split LRU is: how do you keep fairness and balance
+> > between those LRUs? This is one of the things that made the 2.4 VM suck
+> > really badly, so I really wouldn't want this bad...
+> 
+> Yeah, I agree this is important. I think linux-2.4 tried to keep the
+> LRU list lengths in a certain way (maybe 2/3 of all pages active, 1/3
+> inactive). In 2.6 there is no such thing, instead the number of pages
+> scanned is related to the current scanning priority.
 
-Hehe, good to head that I'm not alone. =)
+This sounds wrong, the active and inactive lists are balanced to a 1:1
+ratio. This is happens because the scan speed is directly proportional
+to the size of the list. Hence the largest list will shrink fastest -
+this gives a natural balance to equal sizes.
 
-> > The memory controller in ckrm also breaks out the LRU, but puts one
-> > LRU instance in each class. My code does not depend on ckrm, but it
-> > should be possible to have some kind of resource control with this
->
-> i do not understand how breaking lru lists into mapped/unmapped pages
-> and providing a knob to control the proportion of mapped/unmapped pages
-> in a node help in resource control.
+Peter
 
-It is one type of resource control. It is of course not a complete
-solution like ckrm, but on machines with more than one node (or a
-regular PC with numa emulation) it is possible to create partitions
-using CPUSETS and then use this patch to control the amount of memory
-that should be dedicated for say mapped pages on each node.
-
-CKRM and CPUSETS are the ways to provide resource control today.
-CPUSETS is coarse-grained, but CKRM aims for finer granularity. None
-of them have a way to control the ratio between mapped and unmapped
-pages, excluding this patch.
-
-I'd like to see CKRM merged, but I'm not the one calling the shots
-(probably fortunate enough for everyone). I think CKRM has the same
-properties as the ClockPRO work - it would be nice to have it included
-in mainline, but these patches modify lots of crital code and
-therefore has problems getting accepted that easily.
-
-So this patch is YASSITRD. (Yet Another Small Step In The Right Direction)
-
-Thank you!
-
-/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
