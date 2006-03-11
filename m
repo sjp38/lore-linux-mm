@@ -1,65 +1,48 @@
-Message-ID: <44125812.1090408@yahoo.com.au>
-Date: Sat, 11 Mar 2006 15:54:42 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch][rfc] nommu: reverse mappings for nommu to solve get_user_pages
- problem
-References: <20060311032606.GK26501@wotan.suse.de>
-In-Reply-To: <20060311032606.GK26501@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Sat, 11 Mar 2006 15:41:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
+Message-Id: <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1142019195.5204.12.camel@localhost.localdomain>
+References: <1142019195.5204.12.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: gerg@uclinux.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Howells <dhowells@redhat.com>
+To: lee.schermerhorn@hp.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+Hi, a few comments.
 
->  int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  	unsigned long start, int len, int write, int force,
->  	struct page **pages, struct vm_area_struct **vmas)
->  {
->  	int i;
-> -	static struct vm_area_struct dummy_vma;
-> +	struct page *__page;
-> +	static struct vm_area_struct *__vma;
-> +	unsigned long addr = start;
->  
->  	for (i = 0; i < len; i++) {
-> +		__vma = find_vma(mm, addr);
-> +		if (!__vma)
-> +			goto out_failed;
-> +
-> +		__page = virt_to_page(addr);
-> +		if (!__page)
-> +			goto out_failed;
-> +
-> +		BUG_ON(page_vma(__page) != __vma);
-> +
+On Fri, 10 Mar 2006 14:33:14 -0500
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> Furthermore, to prevent thrashing, a second
+> sysctl, sched_migrate_interval, has been implemented.  The load balancer
+> will not move a task to a different node if it has move to a new node
+> in the last sched_migrate_interval seconds.  [User interface is in
+> seconds; internally it's in HZ.]  The idea is to give the task time to
+> ammortize the cost of the migration by giving it time to benefit from
+> local references to the page.
+I think this HZ should be automatically estimated by the kernel. not by user.
 
-Actually this check is leftover from a previous version. I think it
-needs to be removed.
 
->  		if (pages) {
-> -			pages[i] = virt_to_page(start);
-> -			if (pages[i])
-> -				page_cache_get(pages[i]);
-> +			if (!__page->mapping) {
-> +				printk(KERN_INFO "get_user_pages on unaligned"
-> +						"anonymous page unsupported\n");				dump_stack();
-> +				goto out_failed;
-> +			}
-> +
+> Kernel builds [after make mrproper+make defconfig]
+> on 2.6.16-rc5-git11 on 16-cpu/4 node/32GB HP rx8620 [ia64].
+> Times taken after a warm-up run.
+> Entire kernel source likely held in page cache.
+> This amplifies the effect of the patches because I
+> can't hide behind disk IO time.
 
-And this could trigger for file-backed pages that have been truncated meanwhile
-I think. It wouldn't be a problem for a simple test-run, but does need to be
-reworked slightly in order to be correct. Sub-page anonymous mappings cause a
-lot of headaches :)
+It looks you added check_internode_migration() in migrate_task().
+migrate_task() is called by sched_migrate_task().
+And....sched_migrate_task() is called by sched_exec().
+(a process can be migrated when exec().)
+In this case, migrate_task_memory() just wastes time..., I think.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+BTW, what happens against shared pages ?
+-- Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
