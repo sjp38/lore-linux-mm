@@ -1,51 +1,57 @@
-Message-ID: <44128EDA.6010105@yahoo.com.au>
-Date: Sat, 11 Mar 2006 19:48:26 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by pproxy.gmail.com with SMTP id z74so551918pyg
+        for <linux-mm@kvack.org>; Sat, 11 Mar 2006 03:52:53 -0800 (PST)
+Message-ID: <aec7e5c30603110352u4a18825ai1aaa6c5eac04685d@mail.gmail.com>
+Date: Sat, 11 Mar 2006 20:52:53 +0900
+From: "Magnus Damm" <magnus.damm@gmail.com>
+Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
+In-Reply-To: <1141999506.2876.45.camel@laptopd505.fenrus.org>
 MIME-Version: 1.0
-Subject: Re: [patch 1/3] radix tree: RCU lockless read-side
-References: <20060207021822.10002.30448.sendpatchset@linux.site>	 <20060207021831.10002.84268.sendpatchset@linux.site> <661de9470603110022i25baba63w4a79eb543c5db626@mail.gmail.com>
-In-Reply-To: <661de9470603110022i25baba63w4a79eb543c5db626@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <20060310034412.8340.90939.sendpatchset@cherry.local>
+	 <1141977139.2876.15.camel@laptopd505.fenrus.org>
+	 <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
+	 <1141999506.2876.45.camel@laptopd505.fenrus.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> <snip>
-> 
->>                if (slot->slots[i]) {
->>-                       results[nr_found++] = slot->slots[i];
->>+                       results[nr_found++] = &slot->slots[i];
->>                        if (nr_found == max_items)
->>                                goto out;
->>                }
-> 
-> 
-> A quick clarification - Shouldn't accesses to slot->slots[i] above be
-> protected using rcu_derefence()?
-> 
+On 3/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
+> On Fri, 2006-03-10 at 14:19 +0100, Magnus Damm wrote:
+> > My current code just extends this idea which basically means that
+> > there is currently no relation between how many pages that sit in each
+> > LRU. The LRU with the largest amount of pages will be shrunk/rotated
+> > first. And on top of that is the guarantee logic and the
+> > reclaim_mapped threshold, ie the unmapped LRU will be shrunk first by
+> > default.
+>
+> that sounds wrong, you lose history this way. There is NO reason to
+> shrink only the unmapped LRU and not the mapped one. At minimum you
+> always need to pressure both. How you pressure (absolute versus
+> percentage) is an interesting question, but to me there is no doubt that
+> you always need to pressure both, and "equally" to some measure of equal
 
-I think we're safe here -- this is the _address_ of the pointer.
-However, when dereferencing this address in _gang_lookup,
-I think we do need rcu_dereference indeed.
+Regarding if shrinking the unmapped LRU only is bad or not: In the
+vanilla version of refill_inactive_zone(), if reclaim_mapped is false
+then mapped pages are rotated on the active list without the
+young-bits are getting cleared in the PTE:s. I would say this is very
+similar to leaving the pages on the mapped active list alone as long
+as reclaim_mapped is false in the dual LRU case. Do you agree?
 
-Note that _gang_lookup_slot doesn't do this for us, however --
-the caller must do that when dereferencing the pointer to the
-item (eg. see page_cache_get_speculative in 2/3).
+Also, losing history, do you mean that the order of the pages are not
+kept? If so, then I think my refill_inactive_zone() rant above shows
+that the order of the pages are not kept today. But yes, keeping the
+order is probaly a good idea.
 
-That said, I'm not 100% sure I have the rcu memory barriers in
-the right places (well I'm sure I don't, given the _gang_lookup
-bug you exposed!).
+It would be interesting to hear what you mean by "pressure", do you
+mean that both the active list and inactive list are scanned?
 
-Thanks,
-Nick
+Many thanks,
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
