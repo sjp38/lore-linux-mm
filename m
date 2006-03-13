@@ -1,82 +1,43 @@
-Message-ID: <4415F410.90706@yahoo.com.au>
-Date: Tue, 14 Mar 2006 09:37:04 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 13 Mar 2006 15:35:50 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: A lockless pagecache for Linux
+In-Reply-To: <20060207021822.10002.30448.sendpatchset@linux.site>
+Message-ID: <Pine.LNX.4.64.0603131528180.13687@schroedinger.engr.sgi.com>
+References: <20060207021822.10002.30448.sendpatchset@linux.site>
 MIME-Version: 1.0
-Subject: Re: [patch 1/3] radix tree: RCU lockless read-side
-References: <20060207021822.10002.30448.sendpatchset@linux.site>	 <20060207021831.10002.84268.sendpatchset@linux.site>	 <661de9470603110022i25baba63w4a79eb543c5db626@mail.gmail.com>	 <44128EDA.6010105@yahoo.com.au>	 <661de9470603121904h7e83579boe3b26013f771c0f2@mail.gmail.com>	 <4414E2CB.7060604@yahoo.com.au> <661de9470603130724mc95405dr6ee32d00d800d37@mail.gmail.com>
-In-Reply-To: <661de9470603130724mc95405dr6ee32d00d800d37@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
+On Fri, 10 Mar 2006, Nick Piggin wrote:
 
-><snip>
->
->>But we should have already rcu_dereference()ed "slot", right
->>(in the loop above this one)? That means we are now able to
->>dereference it, and the data at the other end will be valid.
->>
->>
->
->Yes, but my confusion is about the following piece of code
->
-><begin code>
->
->       for ( ; height > 1; height--) {
->
->               for (i = (index >> shift) & RADIX_TREE_MAP_MASK ;
->                               i < RADIX_TREE_MAP_SIZE; i++) {
->-                       if (slot->slots[i] != NULL)
->+                       __s = rcu_dereference(slot->slots[i]);
->+                       if (__s != NULL)
->                               break;
->                       index &= ~((1UL << shift) - 1);
->                       index += 1UL << shift;
->@@ -531,14 +550,14 @@ __lookup(struct radix_tree_root *root, v
->                       goto out;
->
->               shift -= RADIX_TREE_MAP_SHIFT;
->-               slot = slot->slots[i];
->+               slot = __s;
->       }
->
->       /* Bottom level: grab some items */
->       for (i = index & RADIX_TREE_MAP_MASK; i < RADIX_TREE_MAP_SIZE; i++) {
->               index++;
->               if (slot->slots[i]) {
->-                       results[nr_found++] = slot->slots[i];
->+                       results[nr_found++] = &slot->slots[i];
->                       if (nr_found == max_items)
->                               goto out;
->               }
-><end code>
->
->In the for loop, lets say __s is *not* NULL, we break from the loop.
->In the loop below
->slot->slots[i] is derefenced without rcu, __s is not used. Is that not
->inconsistent?
->
->
+> I'm writing some stuff about these patches, and I've uploaded a
+> **draft** chapter on the RCU radix-tree, 'radix-intro.pdf' in above
+> directory (note the bibliography didn't make it -- but thanks Paul
+> McKenney!)
 
-The "slots" member is an array, not an RCU assigned pointer. As such, after
-doing rcu_dereference(slot), you can access slot->slots[i] without further
-memory barriers I think?
+Ah thanks. I had a look at it. Note that the problem with the radix tree 
+tags is that these are inherited from the lower layer. How is the 
+consistency of these guaranteed? Also you may want to add a more elaborate 
+intro and conclusion. Typically these summarize other sections of the 
+paper.
 
-But I agree that code now is a bit inconsistent. I've cleaned things up a
-bit in my tree now... but perhaps it is easier if you send a patch to show
-what you mean (because sometimes I'm a bit dense, I'm afraid).
+What you are proposing is to allow lockless read operations right? No 
+lockless write? The concurrency issue that we currently have is multiple 
+processes faulting in pages in different ranges from the same file. I 
+think this is a rather typical usage scenario. Faulting in a page from a 
+file for reading requires a write operation on the radix tree. The 
+approach with a lockless read path does not help us. This proposed scheme 
+would only help if pages are already faulted in and another process starts
+using the same pages as an earlier process.
 
-Thanks,
-Nick
-
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Would it not be better to handle the radix tree in the same way as a page 
+table? Have a lock at the lowest layer so that different sections of the 
+radix tree can be locked by different processes? That would enable 
+concurrent writes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
