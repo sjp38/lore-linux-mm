@@ -1,43 +1,42 @@
-Date: Mon, 13 Mar 2006 15:35:50 -0800 (PST)
+Date: Mon, 13 Mar 2006 15:45:45 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: A lockless pagecache for Linux
-In-Reply-To: <20060207021822.10002.30448.sendpatchset@linux.site>
-Message-ID: <Pine.LNX.4.64.0603131528180.13687@schroedinger.engr.sgi.com>
-References: <20060207021822.10002.30448.sendpatchset@linux.site>
+Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
+In-Reply-To: <1142270857.5210.50.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com>
+References: <1142019195.5204.12.camel@localhost.localdomain>
+ <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com>
+ <1142270857.5210.50.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Mar 2006, Nick Piggin wrote:
+On Mon, 13 Mar 2006, Lee Schermerhorn wrote:
 
-> I'm writing some stuff about these patches, and I've uploaded a
-> **draft** chapter on the RCU radix-tree, 'radix-intro.pdf' in above
-> directory (note the bibliography didn't make it -- but thanks Paul
-> McKenney!)
+> > BTW, what happens against shared pages ?
+> 
+> I have made no changes to the way that 2.6.16-rc* migration code handles
+> shared pages.  Note that migrate_task_memory()/migrate_vma_to_node()
+> calls check_range() with the flag MPOL_MF_MOVE.  This will select for
+> migration pages that are only mapped by the calling task--i.e., only in
+> the calling task's page tables.  This includes shared pages that are
+> only mapped by the calling task.  With the current migration code, we
+> have 2 flags:  '_MOVE and '_MOVE_ALL.  '_MOVE behaves as described
+> above; '_MOVE_ALL is more aggressive and migrates pages regardless of
+> the # of mappings.  Christoph says that's primarily for cpusets, but the
+> migrate_pages() sys call will also use 'MOVE_ALL when invoked as root.
 
-Ah thanks. I had a look at it. Note that the problem with the radix tree 
-tags is that these are inherited from the lower layer. How is the 
-consistency of these guaranteed? Also you may want to add a more elaborate 
-intro and conclusion. Typically these summarize other sections of the 
-paper.
-
-What you are proposing is to allow lockless read operations right? No 
-lockless write? The concurrency issue that we currently have is multiple 
-processes faulting in pages in different ranges from the same file. I 
-think this is a rather typical usage scenario. Faulting in a page from a 
-file for reading requires a write operation on the radix tree. The 
-approach with a lockless read path does not help us. This proposed scheme 
-would only help if pages are already faulted in and another process starts
-using the same pages as an earlier process.
-
-Would it not be better to handle the radix tree in the same way as a page 
-table? Have a lock at the lowest layer so that different sections of the 
-radix tree can be locked by different processes? That would enable 
-concurrent writes.
+cpusets uses _MOVE_ALL because Paul wanted it that way. I still think it 
+is a bad idea to move shared libraries etc. _MOVE only moves the pages used
+by the currently executing process. If you do a MOVE_ALL then you may 
+cause delays in other processes because they have to wait for their pages 
+to become available again. Also they may have to generate additional 
+faults to restore their PTEs. So you are negatively impacting other 
+processes. Note that these wait times can be extensive if _MOVE_ALL is 
+f.e. just migrating a critical glibc page that all processes use.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
