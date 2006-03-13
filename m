@@ -1,45 +1,54 @@
+Received: by wproxy.gmail.com with SMTP id 36so1394361wra
+        for <linux-mm@kvack.org>; Sun, 12 Mar 2006 18:28:45 -0800 (PST)
+Message-ID: <aec7e5c30603121828j11c43972yfe642e0f3e1dbef9@mail.gmail.com>
+Date: Mon, 13 Mar 2006 11:28:45 +0900
+From: "Magnus Damm" <magnus.damm@gmail.com>
 Subject: Re: [PATCH 00/03] Unmapped: Separate unmapped and mapped pages
-From: Peter Zijlstra <peter@programming.kicks-ass.net>
-In-Reply-To: <aec7e5c30603100538v4942f9dbnfcc962f1a5bde190@mail.gmail.com>
+In-Reply-To: <1142110694.2928.6.camel@lappy>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 References: <20060310034412.8340.90939.sendpatchset@cherry.local>
-	 <1141993351.8165.10.camel@twins>
-	 <aec7e5c30603100538v4942f9dbnfcc962f1a5bde190@mail.gmail.com>
-Content-Type: text/plain
-Date: Sat, 11 Mar 2006 22:08:15 +0100
-Message-Id: <1142111295.2928.14.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	 <1141977139.2876.15.camel@laptopd505.fenrus.org>
+	 <aec7e5c30603100519l5a68aec3ub838ac69a734a46b@mail.gmail.com>
+	 <1142110694.2928.6.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Peter Zijlstra <peter@programming.kicks-ass.net>
+Cc: Arjan van de Ven <arjan@infradead.org>, Magnus Damm <magnus@valinux.co.jp>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-03-10 at 14:38 +0100, Magnus Damm wrote:
-> On 3/10/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On 3/12/06, Peter Zijlstra <peter@programming.kicks-ass.net> wrote:
+> On Fri, 2006-03-10 at 14:19 +0100, Magnus Damm wrote:
+> > On 3/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
+> > > > Apply on top of 2.6.16-rc5.
+> > > >
+> > > > Comments?
+> > >
+> > >
+> > > my big worry with a split LRU is: how do you keep fairness and balance
+> > > between those LRUs? This is one of the things that made the 2.4 VM suck
+> > > really badly, so I really wouldn't want this bad...
+> >
+> > Yeah, I agree this is important. I think linux-2.4 tried to keep the
+> > LRU list lengths in a certain way (maybe 2/3 of all pages active, 1/3
+> > inactive). In 2.6 there is no such thing, instead the number of pages
+> > scanned is related to the current scanning priority.
+>
+> This sounds wrong, the active and inactive lists are balanced to a 1:1
+> ratio. This is happens because the scan speed is directly proportional
+> to the size of the list. Hence the largest list will shrink fastest -
+> this gives a natural balance to equal sizes.
 
-> > Breaking the LRU in two like this breaks the page ordering, which makes
-> > it possible for pages to stay resident even though they have much less
-> > activity than pages that do get reclaimed.
-> 
-> Yes, true. But this happens already with a per-zone LRU. LRU pages
-> that happen to end up in the DMA zone will probably stay there a
-> longer time than pages in the normal zone. That does not mean it is
-> right to break the page ordering though, I'm just saying it happens
-> already and the oldest piece of data in the global system will not be
-> reclaimed first - instead there are priorities such as unmapped pages
-> will be reclaimed over mapped and so on. (I strongly feel that there
-> should be per-node LRU:s, but that's another story)
+Yes, you are explaining the current 2.6 behaviour much better. Also,
+some balancing logic with nr_scan_active/nr_scan_inactive is present
+in the code today. I'm not entirely sure about the purpose of that
+code.
 
-If reclaim works right* there is equal pressure on each zone
-(proportional to their size) and hence each page will have an equal life
-time expectancy. 
+Thanks,
 
-(*) this is of course not possible for all workloads, however
-balance_pgdat and the page allocator take pains to make it as true as
-possible.
-
-Peter
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
