@@ -1,49 +1,95 @@
-Date: Tue, 14 Mar 2006 20:40:25 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH: 003/017](RFC) Memory hotplug for new nodes v.3.(get node id at probe memory)
-In-Reply-To: <20060310154600.CA73.Y-GOTO@jp.fujitsu.com>
-References: <20060309040031.2be49ec2.akpm@osdl.org> <20060310154600.CA73.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20060314201603.9159.Y-GOTO@jp.fujitsu.com>
+Date: Tue, 14 Mar 2006 20:59:15 +0800
+From: Wu Fengguang <wfg@mail.ustc.edu.cn>
+Subject: Re: A lockless pagecache for Linux
+Message-ID: <20060314125915.GB4265@mail.ustc.edu.cn>
+References: <20060207021822.10002.30448.sendpatchset@linux.site> <Pine.LNX.4.64.0603131528180.13687@schroedinger.engr.sgi.com> <4416432E.1050904@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4416432E.1050904@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jschopp@austin.ibm.com, haveblue@us.ibm.com
-Cc: Andrew Morton <akpm@osdl.org>, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
-> > >
-> > > When CONFIG_NUMA && CONFIG_ARCH_MEMORY_PROBE, nid should be defined
-> > >  before calling add_memory_node(nid, start, size).
-> > > 
-> > >  Each arch , which supports CONFIG_NUMA && ARCH_MEMORY_PROBE, should
-> > >  define arch_nid_probe(paddr);
-> > > 
-> > >  Powerpc has nice function. X86_64 has not.....
-> > 
-> > This patch uses an odd mixture of __devinit and <nothing-at-all> in
-> > arch/x86_64/mm/init.c.  I guess it should be using __meminit
-> > throughout.
+On Tue, Mar 14, 2006 at 03:14:38PM +1100, Nick Piggin wrote:
+> Christoph Lameter wrote:
+> >What you are proposing is to allow lockless read operations right? No 
+> >lockless write? The concurrency issue that we currently have is multiple 
+> >processes faulting in pages in different ranges from the same file. I 
+> >think this is a rather typical usage scenario. Faulting in a page from a 
+> >file for reading requires a write operation on the radix tree. The 
+> >approach with a lockless read path does not help us. This proposed scheme 
+> >would only help if pages are already faulted in and another process starts
+> >using the same pages as an earlier process.
+> >
 > 
->   Oh... I made mistake. I'll fix them.
+> Yep, lockless reads only to start with. I think you'll see some benefit
+> because the read(2) and ->nopage paths also take read-side locks, so your
+> write side will no longer have to contend with them.
+> 
+> It won't be a huge improvement in scalability though, maybe just a constant
+> factor.
+> 
+> >Would it not be better to handle the radix tree in the same way as a page 
+> >table? Have a lock at the lowest layer so that different sections of the 
+> >radix tree can be locked by different processes? That would enable 
+> >concurrent writes.
+> >
+> 
+> Yeah this is the next step. Note that it is not the first step because I
+> actually want to _speed up_ single threaded lookup paths, rather than
+> slowing them down, otherwise it will never get accepted.
+> 
+> It also might add quite a large amount of complexity to the radix tree, so
+> it may no longer be suitable for a generic data structure anymore (depends
+> how it is implemented). But the write side should be easier than the
+> read-side so I don't think there is too much to worry about. I already have
+> some bits and pieces to make it fine-grained.
 
-Hmmm. I'm confusing again about this. :-(
+Maybe we can try another way to reduce the concurrent radix tree
+writers problem: coordinating and serializing writers at high level.
 
-Dave-san, Joel-san.
+Since kswapd is the major radix tree deleter, and readahead is the
+major radix tree inserter, putting parts of them together in a loop
+might reduce the contention noticeably.
 
-Why does Powerpc use __devinit for add_memory()?
-Usually, add_memory() is never called at boottime.
-So, I suppose __meminit nor __devinit is not needed at all around here.
+The following pseudo-code shows the basic idea:
+(Integrating kprefetchd is also possible. Just for simplicity...:)
 
-But, does it have a plan that add_memory() is called only boottime on 
-Powerpc?
+PER_NODE(ra_queue);
 
+kswapd()
+{
+        loop {
+                loop {
+                        free enough pages for top(ra_queue)
+                }
+                submit(pop(ra_queue));
+                wait();
+        }
+}
 
--- 
-Yasunori Goto 
+readahead()
+{
+        assemble one ra_req
 
+        if (ra_req immediately needed)
+                submit(ra_req);
+        else {
+                push(ra_queue, ra_req);
+                wakeup_kswapd();
+        }
+}
+
+This scheme might reduce
+        - direct page reclaim pressure
+        - radix tree write lock contention
+        - lru lock contention
+
+Regards,
+Wu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
