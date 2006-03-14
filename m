@@ -1,95 +1,97 @@
-Date: Tue, 14 Mar 2006 20:59:15 +0800
-From: Wu Fengguang <wfg@mail.ustc.edu.cn>
-Subject: Re: A lockless pagecache for Linux
-Message-ID: <20060314125915.GB4265@mail.ustc.edu.cn>
-References: <20060207021822.10002.30448.sendpatchset@linux.site> <Pine.LNX.4.64.0603131528180.13687@schroedinger.engr.sgi.com> <4416432E.1050904@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4416432E.1050904@yahoo.com.au>
+Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 1/8 migrate task
+	memory with default policy
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <Pine.LNX.4.64.0603131547020.13713@schroedinger.engr.sgi.com>
+References: <1142019479.5204.15.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0603131547020.13713@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 14 Mar 2006 09:46:07 -0500
+Message-Id: <1142347567.5235.18.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 14, 2006 at 03:14:38PM +1100, Nick Piggin wrote:
-> Christoph Lameter wrote:
-> >What you are proposing is to allow lockless read operations right? No 
-> >lockless write? The concurrency issue that we currently have is multiple 
-> >processes faulting in pages in different ranges from the same file. I 
-> >think this is a rather typical usage scenario. Faulting in a page from a 
-> >file for reading requires a write operation on the radix tree. The 
-> >approach with a lockless read path does not help us. This proposed scheme 
-> >would only help if pages are already faulted in and another process starts
-> >using the same pages as an earlier process.
-> >
+On Mon, 2006-03-13 at 15:52 -0800, Christoph Lameter wrote:
+> On Fri, 10 Mar 2006, Lee Schermerhorn wrote:
 > 
-> Yep, lockless reads only to start with. I think you'll see some benefit
-> because the read(2) and ->nopage paths also take read-side locks, so your
-> write side will no longer have to contend with them.
+> > +/*
+> > + * Migrate all eligible pages mapped in vma NOT on destination node to
+> > + * the destination node.
+> > + * Returns error or the number of pages not migrated.
+> > + */
+> > +static int migrate_vma_to_node(struct vm_area_struct *vma, int dest, int flags)
+> > +{
 > 
-> It won't be a huge improvement in scalability though, maybe just a constant
-> factor.
+> This duplicates code in migrate_to_node().
+
+Yes.  At this point, this is intentional.  I wanted to be able to see
+what I'm doing.
+More below...
+
 > 
-> >Would it not be better to handle the radix tree in the same way as a page 
-> >table? Have a lock at the lowest layer so that different sections of the 
-> >radix tree can be locked by different processes? That would enable 
-> >concurrent writes.
-> >
+> > +/*
+> > + * for filtering 'no access' segments
+> > +TODO:  what are these?
 > 
-> Yeah this is the next step. Note that it is not the first step because I
-> actually want to _speed up_ single threaded lookup paths, rather than
-> slowing them down, otherwise it will never get accepted.
+> ??
 > 
-> It also might add quite a large amount of complexity to the radix tree, so
-> it may no longer be suitable for a generic data structure anymore (depends
-> how it is implemented). But the write side should be easier than the
-> read-side so I don't think there is too much to worry about. I already have
-> some bits and pieces to make it fine-grained.
+> > +	down_read(&mm->mmap_sem);
+> > +	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> > +		struct mempolicy *pol = get_vma_policy(current, vma,
+> > +							 vma->vm_start);
+> > +		int err;
+> > +
+> > +		if (pol->policy != MPOL_DEFAULT)
+> > +			continue;
+> > +		if (vma_no_access(vma))
+> > +			continue;
+> > +
+> > +		// TODO:  more eligibility filtering?
+> > +
+> > +		// TODO:  more agressive migration ['MOVE_ALL] ?
+> > +		//        via sysctl?
+> > +		err = migrate_vma_to_node(vma, dest, MPOL_MF_MOVE);
+> > +
+> > +	}
+> 
+> Duplicates code in migrate_to_node().
 
-Maybe we can try another way to reduce the concurrent radix tree
-writers problem: coordinating and serializing writers at high level.
+Again, yes...  
+> 
+> Could you add some special casing instead to migrate_to_node and/or 
+> check_range?
 
-Since kswapd is the major radix tree deleter, and readahead is the
-major radix tree inserter, putting parts of them together in a loop
-might reduce the contention noticeably.
+I think this could be done.  Don't know whether the results would be
+"pretty" or not.
 
-The following pseudo-code shows the basic idea:
-(Integrating kprefetchd is also possible. Just for simplicity...:)
+Currently, you'll note that I'm calling check_range for one vma at a
+time.  I'm not sure this is a good idea.  It probably adds overhead
+revisiting upper level page table pages many times.  But, I want to
+compare different approaches.  If I use migrate_to_node() and it's call
+to check_range(), I would have to have something like the above logic to
+do the per vma stuff.   But, why per vma?  I agree it doesn't make a lot
+of sense for the kernel build workload.  I find very few eligible pages
+to migrate, so even if I scanned the entire mm at once, the resulting
+page list would be very small.  However, I was concerned about tying up
+a large number of pages, isolated from the LRU, for applications with
+larger footprints.  I'm also going to experiment with more agressive
+migration--i.e., selecting pages with >1 map counts.  This may result in
+larger numbers of pages migrating.
 
-PER_NODE(ra_queue);
+But, I have thought about adding internal flags to steer different paths
+through migrate_to_node() and check_range().  If we ever get serious
+about including an automigration mechanism like this, I'll go ahead and
+take a look at it.
 
-kswapd()
-{
-        loop {
-                loop {
-                        free enough pages for top(ra_queue)
-                }
-                submit(pop(ra_queue));
-                wait();
-        }
-}
+Lee
 
-readahead()
-{
-        assemble one ra_req
+Lee
 
-        if (ra_req immediately needed)
-                submit(ra_req);
-        else {
-                push(ra_queue, ra_req);
-                wakeup_kswapd();
-        }
-}
-
-This scheme might reduce
-        - direct page reclaim pressure
-        - radix tree write lock contention
-        - lru lock contention
-
-Regards,
-Wu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
