@@ -1,26 +1,26 @@
-Date: Tue, 14 Mar 2006 17:16:04 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Tue, 14 Mar 2006 17:16:28 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Inconsistent capabilites associated with MPOL_MOVE_ALL
-In-Reply-To: <441820B0.6719.396D781@michael.kerrisk.gmx.net>
-Message-ID: <Pine.LNX.4.64.0603141715340.23371@schroedinger.engr.sgi.com>
-References: <441820B0.6719.396D781@michael.kerrisk.gmx.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20060314171628.0513ef36.akpm@osdl.org>
+In-Reply-To: <10343.1142384346@www015.gmx.net>
+References: <20060314164138.5912ce82.akpm@osdl.org>
+	<10343.1142384346@www015.gmx.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Kerrisk <michael.kerrisk@gmx.net>
-Cc: Andrew Morton <akpm@osdl.org>, clameter@sgi.comclameter@sgi.com, ak@suse.de, linux-mm@kvack.org, mtk-manpages@gmx.net
+To: Michael Kerrisk <mtk-manpages@gmx.net>
+Cc: clameter@sgi.com, ak@suse.de, linux-mm@kvack.org, michael.kerrisk@gmx.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Mar 2006, Michael Kerrisk wrote:
+"Michael Kerrisk" <mtk-manpages@gmx.net> wrote:
+>
+>  I see that Christoph already commented, but just to aff.
+>  Not sure if you are on linux-mm.  In case not, the message 
+>  below provides some context that might help.
 
-> Ooops sorry about the last -- I see that Christoph is changing stuff in 
-> addition to what I was proposing...  (But it makes sense to me, from a 
-> consistency point of view.)
-
-No these are all related to MPOL_MOVE_ALL. Either for mbind() or 
-migrate_pages().
-
+<squeaky wheel>That's actually what changelogs are for</squeaky wheel>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
