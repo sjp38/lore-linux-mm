@@ -1,49 +1,34 @@
-Date: Wed, 15 Mar 2006 01:40:56 +0100 (MET)
-From: "Michael Kerrisk" <mtk-manpages@gmx.net>
-MIME-Version: 1.0
-References: <Pine.LNX.4.64.0603141632210.23051@schroedinger.engr.sgi.com>
+Date: Tue, 14 Mar 2006 16:53:32 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Inconsistent capabilites associated with MPOL_MOVE_ALL
-Message-ID: <32623.1142383256@www015.gmx.net>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20060314164138.5912ce82.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0603141648570.23152@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0603141608350.22835@schroedinger.engr.sgi.com>
+ <23583.1142382327@www015.gmx.net> <Pine.LNX.4.64.0603141632210.23051@schroedinger.engr.sgi.com>
+ <20060314164138.5912ce82.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, ak@suse.de, linux-mm@kvack.org, michael.kerrisk@gmx.net
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, mtk-manpages@gmx.net, ak@suse.de, linux-mm@kvack.org, michael.kerrisk@gmx.net
 List-ID: <linux-mm.kvack.org>
 
-> --- Ursprungliche Nachricht ---
-> Von: Christoph Lameter <clameter@sgi.com>
-> An: akpm@osdl.org
-> Kopie: Michael Kerrisk <mtk-manpages@gmx.net>, ak@suse.de,
-> linux-mm@kvack.org, michael.kerrisk@gmx.net
-> Betreff: Re: Inconsistent capabilites associated with MPOL_MOVE_ALL
-> Datum: Tue, 14 Mar 2006 16:33:29 -0800 (PST)
-> 
-> On Wed, 15 Mar 2006, Michael Kerrisk wrote:
-> 
-> > It seems to me that setting scheduling policy and 
-> > priorities is also the kind of thing that might be performed 
-> > in apps that also use the NUMA API, so it would seem consistent 
-> > to use CAP_SYS_NICE for NUMA also.
-> 
-> Use CAP_SYS_NICE for controlling migration permissions.
+On Tue, 14 Mar 2006, Andrew Morton wrote:
 
-Ahhh -- the sweet smell of consistency...
+> Christoph Lameter <clameter@sgi.com> wrote:
+> >
+> > Use CAP_SYS_NICE for controlling migration permissions.
+> ahem.  Kind of eleventh-hour.  Are we really sure?
 
-Thanks!
+This may still get into 2.6.16??? Then I'd also like to have 
+the documentation update in and the fix for the retries on VM_LOCKED. The 
+VM_LOCKED patch changes the migration API for filesystems and I really 
+would like to limit the changes after 2.6.16 is out.
 
-Michael
-
--- 
-Michael Kerrisk
-maintainer of Linux man pages Sections 2, 3, 4, 5, and 7 
-
-Want to help with man page maintenance?  
-Grab the latest tarball at
-ftp://ftp.win.tue.nl/pub/linux-local/manpages/, 
-read the HOWTOHELP file and grep the source 
-files for 'FIXME'.
+Michael had the first intelligent comment on the use of the 
+capabilities in page migration that I have seen and he actually made 
+more sense than my reasoning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
