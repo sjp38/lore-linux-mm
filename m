@@ -1,40 +1,38 @@
-Date: Tue, 14 Mar 2006 17:01:11 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Tue, 14 Mar 2006 17:08:07 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Inconsistent capabilites associated with MPOL_MOVE_ALL
-Message-Id: <20060314170111.7c2203a0.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603141648570.23152@schroedinger.engr.sgi.com>
+In-Reply-To: <20060314170111.7c2203a0.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0603141706170.23371@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0603141608350.22835@schroedinger.engr.sgi.com>
-	<23583.1142382327@www015.gmx.net>
-	<Pine.LNX.4.64.0603141632210.23051@schroedinger.engr.sgi.com>
-	<20060314164138.5912ce82.akpm@osdl.org>
-	<Pine.LNX.4.64.0603141648570.23152@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <23583.1142382327@www015.gmx.net> <Pine.LNX.4.64.0603141632210.23051@schroedinger.engr.sgi.com>
+ <20060314164138.5912ce82.akpm@osdl.org> <Pine.LNX.4.64.0603141648570.23152@schroedinger.engr.sgi.com>
+ <20060314170111.7c2203a0.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: mtk-manpages@gmx.net, ak@suse.de, linux-mm@kvack.org, michael.kerrisk@gmx.net
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, mtk-manpages@gmx.net, ak@suse.de, linux-mm@kvack.org, michael.kerrisk@gmx.net
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> On Tue, 14 Mar 2006, Andrew Morton wrote:
+On Tue, 14 Mar 2006, Andrew Morton wrote:
+
+> > This may still get into 2.6.16???
 > 
-> > Christoph Lameter <clameter@sgi.com> wrote:
-> > >
-> > > Use CAP_SYS_NICE for controlling migration permissions.
-> > ahem.  Kind of eleventh-hour.  Are we really sure?
+> Well it changes the userspace API.
+
+I am still working on the tool so its fine now.
+
+> > Then I'd also like to have 
+> > the documentation update in and the fix for the retries on VM_LOCKED.
 > 
-> This may still get into 2.6.16???
+> gargh, pelase don't send me off to read hundreds of patches to work out
+> which one you're referring to :(
 
-Well it changes the userspace API.
+Ok...
 
-> Then I'd also like to have 
-> the documentation update in and the fix for the retries on VM_LOCKED.
-
-gargh, pelase don't send me off to read hundreds of patches to work out
-which one you're referring to :(
+page-migration-fail-if-page-is-in-a-vma-flagged-vm_locked.patch
+page-migration-documentation-update.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
