@@ -1,32 +1,45 @@
-Date: Tue, 14 Mar 2006 19:59:40 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: page migration: Fail with error if swap not setup
-In-Reply-To: <20060314195234.10cf35a7.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0603141955370.24487@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
- <20060314192443.0d121e73.akpm@osdl.org> <Pine.LNX.4.64.0603141945060.24395@schroedinger.engr.sgi.com>
- <20060314195234.10cf35a7.akpm@osdl.org>
+Message-Id: <200603150403.k2F43Kg10964@unix-os.sc.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: BUG in x86_64 hugepage support
+Date: Tue, 14 Mar 2006 20:03:20 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060315012000.GC5526@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: 'Nishanth Aravamudan' <nacc@us.ibm.com>, agl@us.ibm.com, david@gibson.dropbear.id.au, ak@suse.de
+Cc: linux-mm@kvack.org, discuss@x86-64.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Mar 2006, Andrew Morton wrote:
-
-> But the operation can still fail if we run out of swapspace partway through
-> - so this problem can still occur.  The patch just makes it (much) less
-> frequent.
+Nishanth Aravamudan wrote on Tuesday, March 14, 2006 5:20 PM
+> While doing some testing of libhugetlbfs, I ran into the following BUGs
+> on my x86_64 box when checking mprotect with hugepages (running make
+> func in libhugetlbfs is all it took here) (distro is Ubuntu Dapper, runs
+> 32-bit userspace).
 > 
-> Surely it's possible to communicate -ENOSWAP correctly and reliably?
+> So, the first &= results in the lower 11 bits of pte_val(pte) being all
+> 0s. By my analysis, this is the problem, pte_modify() on x86_64 is
+> clearing the bits we check to see if a pte is a hugetlb one. To see if
+> this might be an accurate analysis, I modified _PAGE_CHG_MASK as
+> follows:
+> 
+> 	-#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+> 	+#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_PSE | _PAGE_PRESENT)
+> 
+> That is, forcing the bits we care about to get set in pte_modify(). This
+> removed the BUG()s I was seeing in our testing.
 
-There are a number of possible failure conditions. The strategy of the 
-migration function is to migrate as much as possible and return the rest 
-without giving any reason. migrate_pages() returns the number of leftover 
-pages not the reasons they failed.
 
+I think your analysis looked correct.  Though I don't think you want to
+add _PAGE_PRESENT to _PAGE_CHG_MASK.  The reason being newprot suppose
+to have correct present bit (based on what the new protection is) and
+it will be or'ed to form new pte.
+
+I think _PAGE_PSE bit should be in _PAGE_CHG_MASK.
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
