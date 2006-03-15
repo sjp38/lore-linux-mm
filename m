@@ -1,8 +1,8 @@
-Date: Tue, 14 Mar 2006 19:49:11 -0800 (PST)
+Date: Tue, 14 Mar 2006 19:53:22 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: page migration: Fail with error if swap not setup
 In-Reply-To: <20060314192443.0d121e73.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0603141945060.24395@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0603141949290.24395@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
  <20060314192443.0d121e73.akpm@osdl.org>
 MIME-Version: 1.0
@@ -10,32 +10,60 @@ Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 14 Mar 2006, Andrew Morton wrote:
 
-> Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > Currently the migration of anonymous pages will silently fail if no swap 
-> > is setup.
+> >  		lru_add_drain_all();
+> > +	}
+> >  
 > 
-> Why?
+> Whereas this appears to be racy...
 
-The allocation of the swap page will fail in migrate_pages() and then the 
-page is going on the permant failure list. Hmm... This is not a real 
-total failure of page migration since file backed pages can be migrated 
-without having swap and page migration will continue for those. However, 
-all anonymous pages will end up on the failed list. At the end of page 
-migration these will be returned to the LRU. Thus they stay where they 
-were.
+Migration just makes the best effort. Page that are moved off the LRU 
+after the draining end up on the failed migration list and will not be 
+migrated.
 
-> I mean, if something tries to allocate a swap page and that fails then the
-> error should be propagated back.  That's race-free.
+Sorry about the blank. New patch with more explanations?
 
-It is propaged back in the form of a list of pages that failed to migrate. 
-Its just no clear at the end what the reasons for the individual failures
-were. Its better just to check for swap availability before migration.
+
+
+page migration: Fail with error if swap not setup
+
+Currently the migration of anonymous pages will silently fail if no
+swap is setup. This patch makes page migration functions to check
+for available swap and fail with -ENODEV if no swap space is available.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.16-rc6/mm/mempolicy.c
+===================================================================
+--- linux-2.6.16-rc6.orig/mm/mempolicy.c	2006-03-14 16:31:15.000000000 -0800
++++ linux-2.6.16-rc6/mm/mempolicy.c	2006-03-14 19:52:25.000000000 -0800
+@@ -330,9 +330,19 @@ check_range(struct mm_struct *mm, unsign
+ 	int err;
+ 	struct vm_area_struct *first, *vma, *prev;
+ 
+-	/* Clear the LRU lists so pages can be isolated */
+-	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
++		/* Must have swap device for migration */
++		if (nr_swap_pages <= 0)
++			return ERR_PTR(-ENODEV);
++
++		/*
++		 * Clear the LRU lists so pages can be isolated.
++		 * Note that pages may be moved off the LRU after we have
++		 * drained them. Those pages will fail to migrate like other
++		 * pages that may be busy.
++		 */
+ 		lru_add_drain_all();
++	}
+ 
+ 	first = find_vma(mm, start);
+ 	if (!first)
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
