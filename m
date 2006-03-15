@@ -1,49 +1,41 @@
-Message-ID: <441863AC.6050101@argo.co.il>
-Date: Wed, 15 Mar 2006 20:57:48 +0200
-From: Avi Kivity <avi@argo.co.il>
+Date: Wed, 15 Mar 2006 11:00:31 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page migration: Fail with error if swap not setup
+In-Reply-To: <20060315213904.GA13771@dmt.cnet>
+Message-ID: <Pine.LNX.4.64.0603151059080.27630@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
+ <1142434053.5198.1.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0603150901530.26799@schroedinger.engr.sgi.com>
+ <20060315204742.GB12432@dmt.cnet> <Pine.LNX.4.64.0603151002490.27212@schroedinger.engr.sgi.com>
+ <20060315213904.GA13771@dmt.cnet>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
-References: <1142019195.5204.12.camel@localhost.localdomain>	<20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com>	<1142270857.5210.50.camel@localhost.localdomain>	<Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com>	<44183B64.3050701@argo.co.il>	<20060315095426.b70026b8.pj@sgi.com>	<Pine.LNX.4.64.0603151008570.27212@schroedinger.engr.sgi.com> <20060315101402.3b19330c.pj@sgi.com>
-In-Reply-To: <20060315101402.3b19330c.pj@sgi.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, lee.schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, nickpiggin@yahoo.com.au, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
+On Wed, 15 Mar 2006, Marcelo Tosatti wrote:
 
->>a page if a certain mapcount is reached.
->>    
->>
->
->He said "accessed", not "referenced".
->
->The point was to copy pages that receive many
->load and store instructions from far away nodes.
->
->  
->
-Only loads, please. Writable pages should not be duplicated.
+> > That does not answer the question if VM_LOCKED pages should be 
+> > migratable. We all agree that they should not show up on swap.
+> 
+> I guess you missed the first part of the man page:
+> 
+> All pages which contain a part of the specified memory range are
+> guaranteed be resident in RAM when the mlock system call returns
+> successfully and they are guaranteed to stay in RAM until the pages are
+> unlocked by munlock or munlockall, until the pages are unmapped via
+> munmap, or until the process terminates or starts another program with
+> exec. Child processes do not inherit page locks across a fork.
+> 
+> That is, mlock() only guarantees that pages are kept in RAM and not
+> swapped. It does seem to refer to physical placing of pages.
 
->This has only minimal to do with the number of
->memory address spaces mapping the region
->holding that page.
->
->  
->
-
-For starters, you could indicate which files need duplication manually. 
-You would duplicate your main binaries and associated shared objects. 
-Presumably large numas have plenty of memory so over-duplication would 
-not be a huge problem.
-
-Is the kernel text duplicated?
-
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+If VM_LOCKED is not pinning memory then how does one pin memory? There are 
+likely applications / drivers that require memory not to move. Increase 
+pagecount?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
