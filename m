@@ -1,48 +1,57 @@
-Date: Wed, 15 Mar 2006 08:35:17 -0800 (PST)
+Date: Wed, 15 Mar 2006 09:11:07 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: page migration: Fail with error if swap not setup
-In-Reply-To: <44180D5A.7000202@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0603150827460.26633@schroedinger.engr.sgi.com>
+In-Reply-To: <1142434053.5198.1.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0603150901530.26799@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
- <20060314192443.0d121e73.akpm@osdl.org> <Pine.LNX.4.64.0603141945060.24395@schroedinger.engr.sgi.com>
- <20060314195234.10cf35a7.akpm@osdl.org> <Pine.LNX.4.64.0603141955370.24487@schroedinger.engr.sgi.com>
- <44180D5A.7000202@yahoo.com.au>
+ <1142434053.5198.1.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, nickpiggin@yahoo.com.au, akpm@osdl.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Mar 2006, Nick Piggin wrote:
+On Wed, 15 Mar 2006, Lee Schermerhorn wrote:
 
-> > There are a number of possible failure conditions. The strategy of the
-> > migration function is to migrate as much as possible and return the rest
-> > without giving any reason. migrate_pages() returns the number of leftover
-> > pages not the reasons they failed.
-> Could you return the reason the first failing page failed. At least then
-> the caller can have some idea about what is needed to make further progress.
+> On Tue, 2006-03-14 at 19:05 -0800, Christoph Lameter wrote:
+> > Currently the migration of anonymous pages will silently fail if no swap 
+> > is setup. This patch makes page migration functions check for available 
+> > swap and fail with -ENODEV if no swap space is available.
+> 
+> Migration Cache, anyone?  ;-)
 
-The return value of migrate_pages() is the number of pages that were not 
-migrated. It is up to the caller to figure out why a page was not 
-migrated. We could change that in the future but that would be a big 
-change to the code. Migrate_pages() makes the best effort at 
-migration and categorizes failing pages into those who with permanent 
-failures and those which may be retriable. Currently page migration simply 
-skips over any soft or hard failures to migrate pages and leaves them in 
-place. The current page migration code is intentionally designed to only 
-make a reasonable attempt on a group of pages. Earlier code attempted to 
-guarantee migration but that never worked the right way and introduced 
-unacceptable delays while holding locks.
+Yes, but please cleanly integrated into the way swap works.
 
-The calling program may go through the list of failing pages and 
-investigate the reasons by inspecting page count, mapping, swap etc. I 
-guess we could add some sort of a callback in the future that determines 
-what to do on failure. Or add some flags to return immediately if 
-migration fails.
+At that point we can also follow Marcelo's suggestion and move the 
+migration code into mm/mmigrate.c because it then becomes easier to 
+separate the migration code from swap.
 
-But I think the current code is just fine.
+There are a couple of other pending things that are also listed in 
+the todo list in Documentation/vm/page-migration
+
+1. Somehow safely track the prior mm_structs that a pte was mapped to 
+(increase mm refcount?) and restore those mappings to avoid faults to 
+restore ptes after a page was moved.
+
+2. Avoid dirty bit faults for dirty pages.
+
+More things to consider:
+
+- Add migration support for more filesystems.
+
+- Lazy migration in the fault paths (seems to depend on first implementing 
+proper policy support for file backed pages).
+
+- Support migration of VM_LOCKED pages (First question is if we want to 
+  have that at all. Does VM_LOCKED imply that a page is fixed at a 
+  specific location in memory?).
+
+- Think about how to realize migration of kernel pages (some arches have
+  page table for kernel space, one could potentially remap the address 
+  instead of going through all the twists and turns of the existing 
+  hotplug approach. See also what virtual iron has done about this.).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
