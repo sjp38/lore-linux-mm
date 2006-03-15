@@ -1,40 +1,47 @@
-Date: Wed, 15 Mar 2006 13:56:55 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
-Message-ID: <20060315195654.GA16771@sgi.com>
-References: <1142019195.5204.12.camel@localhost.localdomain> <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com> <1142270857.5210.50.camel@localhost.localdomain> <Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com> <44183B64.3050701@argo.co.il> <20060315095426.b70026b8.pj@sgi.com> <Pine.LNX.4.64.0603151008570.27212@schroedinger.engr.sgi.com> <20060315101402.3b19330c.pj@sgi.com> <441863AC.6050101@argo.co.il> <1142450826.5198.14.camel@localhost.localdomain>
+Date: Wed, 15 Mar 2006 17:06:33 -0600
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: page migration: Fail with error if swap not setup
+Message-ID: <20060315230633.GA14825@dmt.cnet>
+References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com> <1142434053.5198.1.camel@localhost.localdomain> <Pine.LNX.4.64.0603150901530.26799@schroedinger.engr.sgi.com> <20060315204742.GB12432@dmt.cnet> <Pine.LNX.4.64.0603151002490.27212@schroedinger.engr.sgi.com> <20060315213904.GA13771@dmt.cnet> <Pine.LNX.4.64.0603151059080.27630@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1142450826.5198.14.camel@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.64.0603151059080.27630@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Avi Kivity <avi@argo.co.il>, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Steve Ofsthun <sofsthun@virtualiron.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, nickpiggin@yahoo.com.au, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-> > Is the kernel text duplicated?
+On Wed, Mar 15, 2006 at 11:00:31AM -0800, Christoph Lameter wrote:
+> On Wed, 15 Mar 2006, Marcelo Tosatti wrote:
 > 
-> No.  Might have been patches to do this for ia64 at one time.  I'm not
-> sure, tho'.
+> > > That does not answer the question if VM_LOCKED pages should be 
+> > > migratable. We all agree that they should not show up on swap.
+> > 
+> > I guess you missed the first part of the man page:
+> > 
+> > All pages which contain a part of the specified memory range are
+> > guaranteed be resident in RAM when the mlock system call returns
+> > successfully and they are guaranteed to stay in RAM until the pages are
+> > unlocked by munlock or munlockall, until the pages are unmapped via
+> > munmap, or until the process terminates or starts another program with
+> > exec. Child processes do not inherit page locks across a fork.
+> > 
+> > That is, mlock() only guarantees that pages are kept in RAM and not
+> > swapped. It does seem to refer to physical placing of pages.
 > 
+> If VM_LOCKED is not pinning memory then how does one pin memory? There are 
+> likely applications / drivers that require memory not to move. Increase 
+> pagecount?
 
-Yes, there is a patch to duplicate kernel text. I still have a copy
-although I'm sure it has gotten very stale.
+Err, I meant that mlock() does _not_ refer to physical placing of pages, 
+it only refers to guaranteed availability of page in RAM (as can be read
+in the man page).
 
-Kernel text replication was part of the IA64 "trillian" patch at 
-one time but was dropped because we never saw any significant benefit.
-However, systems are larger now & I would not be surprised if
-replication helped on very large systems.
+Now drivers using VM_LOCKED is another history... 
 
-I plan to retest kernel replication within the next couple of
-months. Stay tuned...
-
----
-Jack
-
-
-
+In the end my comments haven't been useful at all, oh well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
