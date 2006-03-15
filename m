@@ -1,41 +1,45 @@
-Date: Wed, 15 Mar 2006 11:00:31 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: page migration: Fail with error if swap not setup
-In-Reply-To: <20060315213904.GA13771@dmt.cnet>
-Message-ID: <Pine.LNX.4.64.0603151059080.27630@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
- <1142434053.5198.1.camel@localhost.localdomain>
- <Pine.LNX.4.64.0603150901530.26799@schroedinger.engr.sgi.com>
- <20060315204742.GB12432@dmt.cnet> <Pine.LNX.4.64.0603151002490.27212@schroedinger.engr.sgi.com>
- <20060315213904.GA13771@dmt.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <Pine.LNX.4.64.0603151019490.27289@schroedinger.engr.sgi.com>
+References: <1142019195.5204.12.camel@localhost.localdomain>
+	 <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1142270857.5210.50.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com>
+	 <44183B64.3050701@argo.co.il> <20060315095426.b70026b8.pj@sgi.com>
+	 <Pine.LNX.4.64.0603151008570.27212@schroedinger.engr.sgi.com>
+	 <20060315101402.3b19330c.pj@sgi.com>
+	 <Pine.LNX.4.64.0603151019490.27289@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 15 Mar 2006 14:21:58 -0500
+Message-Id: <1142450519.5198.8.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, nickpiggin@yahoo.com.au, akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Jackson <pj@sgi.com>, avi@argo.co.il, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Peter Chubb <peterc@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Mar 2006, Marcelo Tosatti wrote:
+On Wed, 2006-03-15 at 10:20 -0800, Christoph Lameter wrote:
+> On Wed, 15 Mar 2006, Paul Jackson wrote:
+> 
+> > The point was to copy pages that receive many
+> > load and store instructions from far away nodes.
+> 
+> Right. In order to do that we first need to have some memory traces or 
+> statistics that can establish that a page is accessed from far away nodes.
+> 
 
-> > That does not answer the question if VM_LOCKED pages should be 
-> > migratable. We all agree that they should not show up on swap.
-> 
-> I guess you missed the first part of the man page:
-> 
-> All pages which contain a part of the specified memory range are
-> guaranteed be resident in RAM when the mlock system call returns
-> successfully and they are guaranteed to stay in RAM until the pages are
-> unlocked by munlock or munlockall, until the pages are unmapped via
-> munmap, or until the process terminates or starts another program with
-> exec. Child processes do not inherit page locks across a fork.
-> 
-> That is, mlock() only guarantees that pages are kept in RAM and not
-> swapped. It does seem to refer to physical placing of pages.
+The guys down at UNSW have patches for the ia64 that can show numa
+accesses.  The patches are based on their long format vhpt tlb miss
+handler.  As such, it can only report when a pages misses in the tlb,
+but that's more that we have now.  I believe that they have a "numa
+visualization" tool to display the results graphically, as well.
 
-If VM_LOCKED is not pinning memory then how does one pin memory? There are 
-likely applications / drivers that require memory not to move. Increase 
-pagecount?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
