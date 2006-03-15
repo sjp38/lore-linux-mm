@@ -1,41 +1,27 @@
-Message-ID: <44180D5A.7000202@yahoo.com.au>
-Date: Wed, 15 Mar 2006 23:49:30 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
 Subject: Re: page migration: Fail with error if swap not setup
-References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com> <20060314192443.0d121e73.akpm@osdl.org> <Pine.LNX.4.64.0603141945060.24395@schroedinger.engr.sgi.com> <20060314195234.10cf35a7.akpm@osdl.org> <Pine.LNX.4.64.0603141955370.24487@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0603141955370.24487@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reply-To: lee.schermerhorn@hp.com
+In-Reply-To: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 15 Mar 2006 09:47:33 -0500
+Message-Id: <1142434053.5198.1.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 14 Mar 2006, Andrew Morton wrote:
-> 
-> 
->>But the operation can still fail if we run out of swapspace partway through
->>- so this problem can still occur.  The patch just makes it (much) less
->>frequent.
->>
->>Surely it's possible to communicate -ENOSWAP correctly and reliably?
-> 
-> 
-> There are a number of possible failure conditions. The strategy of the 
-> migration function is to migrate as much as possible and return the rest 
-> without giving any reason. migrate_pages() returns the number of leftover 
-> pages not the reasons they failed.
-> 
+On Tue, 2006-03-14 at 19:05 -0800, Christoph Lameter wrote:
+> Currently the migration of anonymous pages will silently fail if no swap 
+> is setup. This patch makes page migration functions check for available 
+> swap and fail with -ENODEV if no swap space is available.
 
-Could you return the reason the first failing page failed. At least then
-the caller can have some idea about what is needed to make further progress.
+Migration Cache, anyone?  ;-)
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
