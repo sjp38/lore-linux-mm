@@ -1,38 +1,48 @@
-Message-ID: <44183B64.3050701@argo.co.il>
-Date: Wed, 15 Mar 2006 18:05:56 +0200
-From: Avi Kivity <avi@argo.co.il>
+Date: Wed, 15 Mar 2006 08:35:17 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page migration: Fail with error if swap not setup
+In-Reply-To: <44180D5A.7000202@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0603150827460.26633@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0603141903150.24199@schroedinger.engr.sgi.com>
+ <20060314192443.0d121e73.akpm@osdl.org> <Pine.LNX.4.64.0603141945060.24395@schroedinger.engr.sgi.com>
+ <20060314195234.10cf35a7.akpm@osdl.org> <Pine.LNX.4.64.0603141955370.24487@schroedinger.engr.sgi.com>
+ <44180D5A.7000202@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC] AutoPage Migration - V0.1 - 0/8 Overview
-References: <1142019195.5204.12.camel@localhost.localdomain>  <20060311154113.c4358e40.kamezawa.hiroyu@jp.fujitsu.com> <1142270857.5210.50.camel@localhost.localdomain> <Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0603131541330.13713@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, pj@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
+On Wed, 15 Mar 2006, Nick Piggin wrote:
 
->cpusets uses _MOVE_ALL because Paul wanted it that way. I still think it 
->is a bad idea to move shared libraries etc. _MOVE only moves the pages used
->by the currently executing process. If you do a MOVE_ALL then you may 
->cause delays in other processes because they have to wait for their pages 
->to become available again. Also they may have to generate additional 
->faults to restore their PTEs. So you are negatively impacting other 
->processes. Note that these wait times can be extensive if _MOVE_ALL is 
->f.e. just migrating a critical glibc page that all processes use.
->  
->
-Doesn't it make sense to duplicate heavily accessed shared read-only pages?
+> > There are a number of possible failure conditions. The strategy of the
+> > migration function is to migrate as much as possible and return the rest
+> > without giving any reason. migrate_pages() returns the number of leftover
+> > pages not the reasons they failed.
+> Could you return the reason the first failing page failed. At least then
+> the caller can have some idea about what is needed to make further progress.
 
-Something like page migration, but keeping the original page intact. 
-Unfortunately, for threaded applications, it means page table bases 
-(cr3) can't be shared among threads.
+The return value of migrate_pages() is the number of pages that were not 
+migrated. It is up to the caller to figure out why a page was not 
+migrated. We could change that in the future but that would be a big 
+change to the code. Migrate_pages() makes the best effort at 
+migration and categorizes failing pages into those who with permanent 
+failures and those which may be retriable. Currently page migration simply 
+skips over any soft or hard failures to migrate pages and leaves them in 
+place. The current page migration code is intentionally designed to only 
+make a reasonable attempt on a group of pages. Earlier code attempted to 
+guarantee migration but that never worked the right way and introduced 
+unacceptable delays while holding locks.
 
--- 
-error compiling committee.c: too many arguments to function
+The calling program may go through the list of failing pages and 
+investigate the reasons by inspecting page count, mapping, swap etc. I 
+guess we could add some sort of a callback in the future that determines 
+what to do on failure. Or add some flags to return immediately if 
+migration fails.
+
+But I think the current code is just fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
