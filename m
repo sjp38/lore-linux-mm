@@ -1,42 +1,36 @@
-Date: Wed, 15 Mar 2006 17:55:44 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Wed, 15 Mar 2006 17:59:32 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: page migration reorg patch
-Message-Id: <20060315175544.6f9adc59.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603151736380.30472@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0603151747290.30472@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0603151757170.30472@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0603151736380.30472@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0603151747290.30472@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, marcelo.tosatti@cyclades.com, lee.schermerhorn@hp.com
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> This patch centralizes the page migration functions in anticipation of 
->  additional tinkering.
+Gosh. Why am I not perfect. Bonk bonk....
 
-That was a bit optimistic :(
+Missing include in swap_state.c
 
-bix:/usr/src/25> wc mm/vmscan.c.rej include/linux/swap.h.rej mm/mempolicy.c.rej fs/buffer.c.rej    
-    483    2046   12204 mm/vmscan.c.rej
-     34     170    1268 include/linux/swap.h.rej
-     18      77     613 mm/mempolicy.c.rej
-     75     212    1456 fs/buffer.c.rej
-    610    2505   15541 total
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Am currently sitting on 136 patches which touch mm/*.
-
-If you can rework this patch against
-http://www.zip.com.au/~akpm/linux/patches/stuff/x.bz2 (my current queue up
-to and including slab-leaks3-locking-fix.patch, against 2.6.16-rc6) then
-I'll be able to insert it in the right place and then fix up subsequent
-fallout, thanks.
-
-
-Or we can just do it later.  Whenever that is.
+Index: linux-2.6.16-rc6/mm/swap_state.c
+===================================================================
+--- linux-2.6.16-rc6.orig/mm/swap_state.c	2006-03-11 14:12:55.000000000 -0800
++++ linux-2.6.16-rc6/mm/swap_state.c	2006-03-15 17:53:19.000000000 -0800
+@@ -15,6 +15,7 @@
+ #include <linux/buffer_head.h>
+ #include <linux/backing-dev.h>
+ #include <linux/pagevec.h>
++#include <linux/migrate.h>
+ 
+ #include <asm/pgtable.h>
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
