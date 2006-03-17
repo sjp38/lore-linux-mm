@@ -1,7 +1,7 @@
-Date: Fri, 17 Mar 2006 17:22:28 +0900
+Date: Fri, 17 Mar 2006 17:22:45 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 011/017]Memory hotplug for new nodes v.4.(start kswapd)
-Message-Id: <20060317163538.C64D.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 013/017]Memory hotplug for new nodes v.4.(changes from __init to __meminit) 
+Message-Id: <20060317163657.C651.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,91 +11,110 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-When node is hot-added, kswapd for the node should start.
-This export kswapd start function as kswapd_run().
-
+This is a patch to change definition of some functions and data
+from __init to __meminit.
+These functions and data can be used after bootup by this patch to
+be used for hot-add codes.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- include/linux/swap.h |    5 +++++
- mm/vmscan.c          |   35 ++++++++++++++++++++++++++---------
- 2 files changed, 31 insertions(+), 9 deletions(-)
+ include/linux/bootmem.h |    4 ++--
+ mm/page_alloc.c         |   18 +++++++++---------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
-Index: pgdat8/mm/vmscan.c
+Index: pgdat8/mm/page_alloc.c
 ===================================================================
---- pgdat8.orig/mm/vmscan.c	2006-03-16 16:05:38.000000000 +0900
-+++ pgdat8/mm/vmscan.c	2006-03-16 16:06:27.000000000 +0900
-@@ -35,6 +35,7 @@
- #include <linux/notifier.h>
- #include <linux/rwsem.h>
- #include <linux/delay.h>
-+#include <linux/kthread.h>
+--- pgdat8.orig/mm/page_alloc.c	2006-03-17 13:53:45.530940715 +0900
++++ pgdat8/mm/page_alloc.c	2006-03-17 13:53:53.011409373 +0900
+@@ -82,8 +82,8 @@ EXPORT_SYMBOL(zone_table);
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
+ int min_free_kbytes = 1024;
  
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1843,20 +1844,36 @@ static int __devinit cpu_callback(struct
- }
- #endif /* CONFIG_HOTPLUG_CPU */
+-unsigned long __initdata nr_kernel_pages;
+-unsigned long __initdata nr_all_pages;
++unsigned long __meminitdata nr_kernel_pages;
++unsigned long __meminitdata nr_all_pages;
  
-+/*
-+ * This kswapd start function will be called by init and node-hot-add.
-+ * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
-+ */
-+int kswapd_run(int nid)
-+{
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+	int ret = 0;
-+
-+	if (pgdat->kswapd)
-+		return 0;
-+
-+	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
-+	if (pgdat->kswapd == ERR_PTR(-ENOMEM)) {
-+		/* failure at boot is fatal */
-+		BUG_ON(system_state == SYSTEM_BOOTING);
-+		printk("faled to run kswapd on node %d\n",nid);
-+		ret = -1;
-+	}
-+	return ret;
-+}
-+
- static int __init kswapd_init(void)
+ #ifdef CONFIG_DEBUG_VM
+ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+@@ -1579,7 +1579,7 @@ void show_free_areas(void)
+  *
+  * Add all populated zones of a node to the zonelist.
+  */
+-static int __init build_zonelists_node(pg_data_t *pgdat,
++static int __meminit build_zonelists_node(pg_data_t *pgdat,
+ 			struct zonelist *zonelist, int nr_zones, int zone_type)
  {
--	pg_data_t *pgdat;
-+	int nid;
+ 	struct zone *zone;
+@@ -1615,7 +1615,7 @@ static inline int highest_zone(int zone_
  
- 	swap_setup();
--	for_each_online_pgdat(pgdat) {
--		pid_t pid;
-+	for_each_online_node(nid)
-+ 		kswapd_run(nid);
+ #ifdef CONFIG_NUMA
+ #define MAX_NODE_LOAD (num_online_nodes())
+-static int __initdata node_load[MAX_NUMNODES];
++static int __meminitdata node_load[MAX_NUMNODES];
+ /**
+  * find_next_best_node - find the next node that should appear in a given node's fallback list
+  * @node: node whose fallback list we're appending
+@@ -1630,7 +1630,7 @@ static int __initdata node_load[MAX_NUMN
+  * on them otherwise.
+  * It returns -1 if no node is found.
+  */
+-static int __init find_next_best_node(int node, nodemask_t *used_node_mask)
++static int __meminit find_next_best_node(int node, nodemask_t *used_node_mask)
+ {
+ 	int n, val;
+ 	int min_val = INT_MAX;
+@@ -1676,7 +1676,7 @@ static int __init find_next_best_node(in
+ 	return best_node;
+ }
  
--		pid = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
--		BUG_ON(pid < 0);
--		read_lock(&tasklist_lock);
--		pgdat->kswapd = find_task_by_pid(pid);
--		read_unlock(&tasklist_lock);
--	}
- 	total_memory = nr_free_pagecache_pages();
- 	hotcpu_notifier(cpu_callback, 0);
- 	return 0;
-Index: pgdat8/include/linux/swap.h
+-static void __init build_zonelists(pg_data_t *pgdat)
++static void __meminit build_zonelists(pg_data_t *pgdat)
+ {
+ 	int i, j, k, node, local_node;
+ 	int prev_node, load;
+@@ -1728,7 +1728,7 @@ static void __init build_zonelists(pg_da
+ 
+ #else	/* CONFIG_NUMA */
+ 
+-static void __init build_zonelists(pg_data_t *pgdat)
++static void __meminit build_zonelists(pg_data_t *pgdat)
+ {
+ 	int i, j, k, node, local_node;
+ 
+@@ -2190,7 +2190,7 @@ __meminit int init_currently_empty_zone(
+  *   - mark all memory queues empty
+  *   - clear the memory bitmaps
+  */
+-static void __init free_area_init_core(struct pglist_data *pgdat,
++static void __meminit free_area_init_core(struct pglist_data *pgdat,
+ 		unsigned long *zones_size, unsigned long *zholes_size)
+ {
+ 	unsigned long j;
+@@ -2272,7 +2272,7 @@ static void __init alloc_node_mem_map(st
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ }
+ 
+-void __init free_area_init_node(int nid, struct pglist_data *pgdat,
++void __meminit free_area_init_node(int nid, struct pglist_data *pgdat,
+ 		unsigned long *zones_size, unsigned long node_start_pfn,
+ 		unsigned long *zholes_size)
+ {
+Index: pgdat8/include/linux/bootmem.h
 ===================================================================
---- pgdat8.orig/include/linux/swap.h	2006-03-16 16:05:38.000000000 +0900
-+++ pgdat8/include/linux/swap.h	2006-03-16 16:06:27.000000000 +0900
-@@ -208,6 +208,11 @@ static inline int migrate_pages(struct l
- #define fail_migrate_page NULL
+--- pgdat8.orig/include/linux/bootmem.h	2006-03-17 13:53:45.530940715 +0900
++++ pgdat8/include/linux/bootmem.h	2006-03-17 13:53:53.011409373 +0900
+@@ -91,8 +91,8 @@ static inline void *alloc_remap(int nid,
+ }
  #endif
  
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+/* start new kswapd for new node */
-+extern int kswapd_run(int nid);
-+#endif
-+
- #ifdef CONFIG_MMU
- /* linux/mm/shmem.c */
- extern int shmem_unuse(swp_entry_t entry, struct page *page);
+-extern unsigned long __initdata nr_kernel_pages;
+-extern unsigned long __initdata nr_all_pages;
++extern unsigned long nr_kernel_pages;
++extern unsigned long nr_all_pages;
+ 
+ extern void *__init alloc_large_system_hash(const char *tablename,
+ 					    unsigned long bucketsize,
 
 -- 
 Yasunori Goto 
