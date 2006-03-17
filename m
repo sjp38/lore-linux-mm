@@ -1,7 +1,7 @@
-Date: Fri, 17 Mar 2006 17:22:37 +0900
+Date: Fri, 17 Mar 2006 17:23:09 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 012/017]Memory hotplug for new nodes v.4.(rebuild zonelists after online pages)
-Message-Id: <20060317163612.C64F.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 017/017]Memory hotplug for new nodes v.4.(arch_register_node() for ia64)
+Message-Id: <20060317163911.C659.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,111 +11,57 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In current code, zonelist is considered to be build once, no modification.
-But MemoryHotplug can add new zone/pgdat. It must be updated.
+This is to create sysfs file for new node.
+It adds arch specific functions 'arch_register_node()'
+and 'arch_unregister_node()' to IA64 to call the generic
+function 'register_node()' and 'unregister_node()' respectively.
 
-This patch modifies build_all_zonelists(). 
-By this, build_all_zonelist() can reconfig pgdat's zonelists.
 
-To update them safety, this patch use stop_machine_run().
-Other cpus don't touch among updating them by using it.
+Signed-off-by: Keiichiro Tokunaga <tokuanga.keiich@jp.fujitsu.com>
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-In previous version (V2), kernel updated them after zone initialization.
-But present_page of its new zone is still 0, because online_page()
-is not called yet at this time. 
-Build_zonelists() checks present_pages to find present zone.
-It was too early. So, I changed it after online_pages().
+ arch/ia64/kernel/topology.c |   15 +++++++++++++++
+ include/linux/node.h        |    2 ++
+ 2 files changed, 17 insertions(+)
 
-Signed-off-by: Yasunori Goto     <y-goto@jp.fujitsu.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
- mm/memory_hotplug.c |   12 ++++++++++++
- mm/page_alloc.c     |   26 +++++++++++++++++++++-----
- 2 files changed, 33 insertions(+), 5 deletions(-)
-
-Index: pgdat8/mm/page_alloc.c
+Index: pgdat8/arch/ia64/kernel/topology.c
 ===================================================================
---- pgdat8.orig/mm/page_alloc.c	2006-03-17 13:53:39.194026730 +0900
-+++ pgdat8/mm/page_alloc.c	2006-03-17 13:53:45.530940715 +0900
-@@ -37,6 +37,7 @@
- #include <linux/nodemask.h>
- #include <linux/vmalloc.h>
- #include <linux/mempolicy.h>
-+#include <linux/stop_machine.h>
+--- pgdat8.orig/arch/ia64/kernel/topology.c	2006-03-16 16:04:54.000000000 +0900
++++ pgdat8/arch/ia64/kernel/topology.c	2006-03-16 16:06:27.000000000 +0900
+@@ -65,6 +65,21 @@ EXPORT_SYMBOL(arch_register_cpu);
+ EXPORT_SYMBOL(arch_unregister_cpu);
+ #endif /*CONFIG_HOTPLUG_CPU*/
  
- #include <asm/tlbflush.h>
- #include "internal.h"
-@@ -1765,14 +1766,29 @@ static void __init build_zonelists(pg_da
- 
- #endif	/* CONFIG_NUMA */
- 
--void __init build_all_zonelists(void)
-+/* return values int ....just for stop_machine_run() */
-+static int __meminit __build_all_zonelists(void *dummy)
- {
--	int i;
-+	int nid;
-+	for_each_online_node(nid)
-+		build_zonelists(NODE_DATA(nid));
-+	return 0;
++#ifdef CONFIG_NUMA
++int arch_register_node(int num)
++{
++	if (sysfs_nodes[num].sysdev.id == num)
++		return 0;
++
++	return register_node(&sysfs_nodes[num], num, 0);
 +}
 +
-+void __meminit build_all_zonelists(void)
++void arch_unregister_node(int num)
 +{
-+	if (system_state == SYSTEM_BOOTING) {
-+		__build_all_zonelists(0);
-+		cpuset_init_current_mems_allowed();
-+	} else {
-+		/* we have to stop all cpus to guaranntee there is no user
-+		   of zonelist */
-+		stop_machine_run(__build_all_zonelists, NULL, NR_CPUS);
-+		/* cpuset refresh routine should be here */
-+	}
++	unregister_node(&sysfs_nodes[num]);
++	sysfs_nodes[num].sysdev.id = -1;
++}
++#endif
  
--	for_each_online_node(i)
--		build_zonelists(NODE_DATA(i));
- 	printk("Built %i zonelists\n", num_online_nodes());
--	cpuset_init_current_mems_allowed();
-+
- }
- 
- /*
-Index: pgdat8/mm/memory_hotplug.c
+ static int __init topology_init(void)
+ {
+Index: pgdat8/include/linux/node.h
 ===================================================================
---- pgdat8.orig/mm/memory_hotplug.c	2006-03-17 13:53:38.274104866 +0900
-+++ pgdat8/mm/memory_hotplug.c	2006-03-17 13:53:40.712581399 +0900
-@@ -123,6 +123,7 @@ int online_pages(unsigned long pfn, unsi
- 	unsigned long flags;
- 	unsigned long onlined_pages = 0;
- 	struct zone *zone;
-+	int need_refresh_zonelist = 0;
+--- pgdat8.orig/include/linux/node.h	2006-03-16 16:04:54.000000000 +0900
++++ pgdat8/include/linux/node.h	2006-03-16 16:06:27.000000000 +0900
+@@ -28,6 +28,8 @@ struct node {
  
- 	/*
- 	 * This doesn't need a lock to do pfn_to_page().
-@@ -135,6 +136,14 @@ int online_pages(unsigned long pfn, unsi
- 	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+ extern int register_node(struct node *, int, struct node *);
+ extern void unregister_node(struct node *node);
++extern int arch_register_node(int num);
++extern void arch_unregister_node(int num);
  
-+	/*
-+	 * If this zone is not populated, then it is not in zonelist.
-+	 * This means the page allocator ignores this zone.
-+	 * So, zonelist must be updated after online.
-+	 */
-+	if (!populated_zone(zone))
-+		need_refresh_zonelist = 1;
-+
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page = pfn_to_page(pfn + i);
- 		online_page(page);
-@@ -145,6 +154,9 @@ int online_pages(unsigned long pfn, unsi
- 
- 	setup_per_zone_pages_min();
- 
-+	if (need_refresh_zonelist)
-+		build_all_zonelists();
-+
- 	return 0;
- }
+ #define to_node(sys_device) container_of(sys_device, struct node, sysdev)
  
 
 -- 
