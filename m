@@ -1,7 +1,7 @@
-Date: Fri, 17 Mar 2006 17:21:22 +0900
+Date: Fri, 17 Mar 2006 17:22:06 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 006/017]Memory hotplug for new nodes v.4.(move out pgdat array from mem_data for ia64)
-Message-Id: <20060317163146.C643.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 009/017]Memory hotplug for new nodes v.4.(add return code init_currently_empty_zone)
+Message-Id: <20060317163404.C649.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,106 +11,121 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is preparing patch to make common code for updating of NODE_DATA()
-of ia64 between boottime and hotplug.
+When add_zone() is called against empty zone (not populated zone),
+we have to initialize the zone which didn't initialize at boot time.
+But, init_currently_empty_zone() may fail due to allocation of 
+wait table. So, this patch is to catch its error code.
 
-Current code remembers pgdat address in mem_data which is used at just boot
-time. But its information can be used at hotplug time
-by moving to global value.
-The next patche use this array.
+Changes against wait_table is in the next patch.
 
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
- arch/ia64/mm/discontig.c |   19 ++++++++-----------
- 1 files changed, 8 insertions(+), 11 deletions(-)
+ include/linux/mmzone.h |    3 +++
+ mm/memory_hotplug.c    |   15 +++++++++++++--
+ mm/page_alloc.c        |   11 ++++++++---
+ 3 files changed, 24 insertions(+), 5 deletions(-)
 
-Index: pgdat8/arch/ia64/mm/discontig.c
+Index: pgdat8/mm/page_alloc.c
 ===================================================================
---- pgdat8.orig/arch/ia64/mm/discontig.c	2006-03-16 16:05:38.000000000 +0900
-+++ pgdat8/arch/ia64/mm/discontig.c	2006-03-16 16:51:35.000000000 +0900
-@@ -33,7 +33,6 @@
-  */
- struct early_node_data {
- 	struct ia64_node_data *node_data;
--	pg_data_t *pgdat;
- 	unsigned long pernode_addr;
- 	unsigned long pernode_size;
- 	struct bootmem_data bootmem_data;
-@@ -46,6 +45,8 @@ struct early_node_data {
- static struct early_node_data mem_data[MAX_NUMNODES] __initdata;
- static nodemask_t memory_less_mask __initdata;
- 
-+static pg_data_t *pgdat_list[MAX_NUMNODES];
-+
- /*
-  * To prevent cache aliasing effects, align per-node structures so that they
-  * start at addresses that are strided by node number.
-@@ -175,13 +176,13 @@ static void __init fill_pernode(int node
- 	pernode += PERCPU_PAGE_SIZE * cpus;
- 	pernode += node * L1_CACHE_BYTES;
- 
--	mem_data[node].pgdat = __va(pernode);
-+	pgdat_list[node] = __va(pernode);
- 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
- 
- 	mem_data[node].node_data = __va(pernode);
- 	pernode += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
- 
--	mem_data[node].pgdat->bdata = bdp;
-+	pgdat_list[node]->bdata = bdp;
- 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
- 
- 	cpu_data = per_cpu_node_setup(cpu_data, node);
-@@ -268,7 +269,7 @@ static int __init find_pernode_space(uns
- static int __init free_node_bootmem(unsigned long start, unsigned long len,
- 				    int node)
- {
--	free_bootmem_node(mem_data[node].pgdat, start, len);
-+	free_bootmem_node(pgdat_list[node], start, len);
- 
- 	return 0;
+--- pgdat8.orig/mm/page_alloc.c	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/mm/page_alloc.c	2006-03-16 16:44:04.000000000 +0900
+@@ -2111,8 +2111,9 @@ static __meminit void zone_pcp_init(stru
+ 		zone->name, zone->present_pages, batch);
  }
-@@ -287,7 +288,7 @@ static void __init reserve_pernode_space
- 	int node;
  
- 	for_each_online_node(node) {
--		pg_data_t *pdp = mem_data[node].pgdat;
-+		pg_data_t *pdp = pgdat_list[node];
- 
- 		if (node_isset(node, memory_less_mask))
- 			continue;
-@@ -317,12 +318,8 @@ static void __init reserve_pernode_space
-  */
- static void __init initialize_pernode_data(void)
+-static __meminit void init_currently_empty_zone(struct zone *zone,
+-		unsigned long zone_start_pfn, unsigned long size)
++__meminit int init_currently_empty_zone(struct zone *zone,
++					unsigned long zone_start_pfn,
++					unsigned long size)
  {
--	pg_data_t *pgdat_list[MAX_NUMNODES];
- 	int cpu, node;
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
  
--	for_each_online_node(node)
--		pgdat_list[node] = mem_data[node].pgdat;
--
- 	/* Copy the pg_data_t list to each node and init the node field */
- 	for_each_online_node(node) {
- 		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
-@@ -372,7 +369,7 @@ static void __init *memory_less_node_all
- 	if (bestnode == -1)
- 		bestnode = anynode;
+@@ -2124,6 +2125,8 @@ static __meminit void init_currently_emp
+ 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
  
--	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
-+	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
- 		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+ 	zone_init_free_lists(pgdat, zone, zone->spanned_pages);
++
++	return 0;
+ }
  
- 	return ptr;
-@@ -476,7 +473,7 @@ void __init find_memory(void)
- 		pernodesize = mem_data[node].pernode_size;
- 		map = pernode + pernodesize;
+ /*
+@@ -2138,6 +2141,7 @@ static void __init free_area_init_core(s
+ 	unsigned long j;
+ 	int nid = pgdat->node_id;
+ 	unsigned long zone_start_pfn = pgdat->node_start_pfn;
++	int ret;
  
--		init_bootmem_node(mem_data[node].pgdat,
-+		init_bootmem_node(pgdat_list[node],
- 				  map>>PAGE_SHIFT,
- 				  bdp->node_boot_start>>PAGE_SHIFT,
- 				  bdp->node_low_pfn);
+ 	pgdat_resize_init(pgdat);
+ 	pgdat->nr_zones = 0;
+@@ -2179,7 +2183,8 @@ static void __init free_area_init_core(s
+ 			continue;
+ 
+ 		zonetable_add(zone, nid, j, zone_start_pfn, size);
+-		init_currently_empty_zone(zone, zone_start_pfn, size);
++		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
++		BUG_ON(ret);
+ 		zone_start_pfn += size;
+ 	}
+ }
+Index: pgdat8/mm/memory_hotplug.c
+===================================================================
+--- pgdat8.orig/mm/memory_hotplug.c	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/mm/memory_hotplug.c	2006-03-16 16:45:30.000000000 +0900
+@@ -26,16 +26,23 @@
+ 
+ extern void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
+ 			  unsigned long size);
+-static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
++static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int nr_pages = PAGES_PER_SECTION;
+ 	int nid = pgdat->node_id;
+ 	int zone_type;
++	int ret = 0;
+ 
+ 	zone_type = zone - pgdat->node_zones;
++	if (!populated_zone(zone)) {
++		ret = init_currently_empty_zone(zone, phys_start_pfn, nr_pages);
++		if (ret < 0)
++			return ret;
++	}
+ 	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
+ 	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
++	return 0;
+ }
+ 
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+@@ -50,7 +57,11 @@ static int __add_section(struct zone *zo
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	__add_zone(zone, phys_start_pfn);
++	ret = __add_zone(zone, phys_start_pfn);
++
++	if (ret < 0)
++		return ret;
++
+ 	return register_new_memory(__pfn_to_section(phys_start_pfn));
+ }
+ 
+Index: pgdat8/include/linux/mmzone.h
+===================================================================
+--- pgdat8.orig/include/linux/mmzone.h	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/include/linux/mmzone.h	2006-03-16 16:06:27.000000000 +0900
+@@ -332,6 +332,9 @@ void wakeup_kswapd(struct zone *zone, in
+ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 		int classzone_idx, int alloc_flags);
+ 
++extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
++				     unsigned long size);
++
+ #ifdef CONFIG_HAVE_MEMORY_PRESENT
+ void memory_present(int nid, unsigned long start, unsigned long end);
+ #else
 
 -- 
 Yasunori Goto 
