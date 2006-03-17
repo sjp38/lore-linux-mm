@@ -1,58 +1,47 @@
-Message-ID: <441AC3C7.1060900@yahoo.com.au>
-Date: Sat, 18 Mar 2006 01:12:23 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [rfc] mm: mmu gather in-place
-References: <20060317131354.GA16156@wotan.suse.de>
-In-Reply-To: <20060317131354.GA16156@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2HHDGgm027552
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 12:13:16 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2HHGC39186762
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 10:16:12 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k2HHDEtW004057
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 10:13:14 -0700
+Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
+	old add_memory() to arch_add_memory())
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Fri, 17 Mar 2006 09:12:18 -0800
+Message-Id: <1142615538.10906.67.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Hi,
+On Fri, 2006-03-17 at 17:20 +0900, Yasunori Goto wrote:
+> This patch changes name of old add_memory() to arch_add_memory.
+> and use node id to get pgdat for the node at NODE_DATA().
 > 
-> I'm embarrassed to release this patch in such a state, but I am
-> because a) I won't have much time to work on it in the short term;
-> b) it would take a lot of work to polish so I'd like to see what
-> people think before going too far; c) so I have something other than
-> boring lockless pagecache to talk about at Ottawa.
-> 
-> The basic idea is this: replace the heavyweight per-CPU mmu_gather
-> structure with a lightweight stack based one which is missing the
-> big page vector. Instead of the vector, use Linux pagetables to
-> store the pages-to-be-freed. Pages and pagetables are first unmapped,
-> then tlbs are flushed, then pages and pagetables are freed.
-> 
-> There is a downside: walking the page table can be anywhere from
-> slightly to a lot less efficient than walking the vector, depending
-> on density, and this adds a 2nd pagetable walk to unmapping (but
-> removes the vector walk, of course).
-> 
-> Upsides: mmu_gather is preemptible, horrible mmu_gather breaking
-> code can be removed, artificial disparity between PREEMPT tlb
-> flush batching and non-PREEMPT disappears (preempt can now have
-> good performance and non-preempt can have good latency). tlb flush
-> batching is possibly much closer to perfect though on non-PREEMPT
-> that may not be noticable (for PREEMPT, it appears to be spending
-> 5x less time in tlb flushing on kbuild)
-> 
-> Caveats:
-> - nonlinear mappings don't work yet
-> - hugepages don't work yet
-> - i386 only
+> Note: Powerpc's old add_memory() is defined as __devinit. However,
+>       add_memory() is usually called only after bootup. 
+>       I suppose it may be redundant. But, I'm not sure about powerpc.
+>       So, I keep it. (But, __meminit is better than __devinit at least.)
 
-Note that in theory it should be usable by any architecture of course.
-Actually those ones for which hardware doesn't natively grok the Linux
-page tables can even be more creative than i386...
+My thoughts when originally designing the API were that the architecture
+may be the only bit that actually knows where the memory _is_.  So, we
+shouldn't involve the generic code in figuring this out.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+You can see the result of this in the next patch because there is a new
+function introduced to hide the arch-specific node lookup.  If that was
+simply done in the already arch-specific add_memory() function, then you
+wouldn't need arch_nid_probe() and its related #ifdefs at all.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
