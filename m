@@ -1,92 +1,33 @@
-Date: Fri, 17 Mar 2006 17:22:51 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 014/017]Memory hotplug for new nodes v.4.(add start function acpi_memhotplug)
-Message-Id: <20060317163738.C653.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Fri, 17 Mar 2006 10:06:53 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [ck] Re: [PATCH] mm: yield during swap prefetching
+Message-ID: <20060317090653.GC13387@elte.hu>
+References: <200603081013.44678.kernel@kolivas.org> <20060307152636.1324a5b5.akpm@osdl.org> <cone.1141774323.5234.18683.501@kolivas.org> <200603090036.49915.kernel@kolivas.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200603090036.49915.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: ck@vds.kolivas.org, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a patch to call add_memory() when notify reaches for 
-new node's add event.
+* Con Kolivas <kernel@kolivas.org> wrote:
 
-When new node is added, notify of ACPI reaches container device
-which means the node.
-Container device driver calls acpi_bus_scan() to find and add
-belonging devices (which means cpu, memory and so on).
-Its function calls add and start function of belonging 
-devices's driver.
+> > We do have SCHED_BATCH but even that doesn't really have the desired
+> > effect. I know how much yield sucks and I actually want it to suck as much
+> > as yield does.
+> 
+> Thinking some more on this I wonder if SCHED_BATCH isn't a strong 
+> enough scheduling hint if it's not suitable for such an application. 
+> Ingo do you think we could make SCHED_BATCH tasks always wake up on 
+> the expired array?
 
-Howevever, current memory hotplug driver just register add function to
-create sysfs file for its memory. But, acpi_memory_enable_device()
-is not called because it is considered just the case that notify reaches
-memory device directly. So, if notify reaches container device 
-nothing can call add_memory().
+yep, i think that's a good idea. In the worst case the starvation 
+timeout should kick in.
 
-This is a patch to create start function which calls add_memory().
-add_memory() can be called by this when notify reaches container device.
-
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
- drivers/acpi/acpi_memhotplug.c |   22 ++++++++++++++++++++++
- 1 files changed, 22 insertions(+)
-
-Index: pgdat8/drivers/acpi/acpi_memhotplug.c
-===================================================================
---- pgdat8.orig/drivers/acpi/acpi_memhotplug.c	2006-03-16 16:05:38.000000000 +0900
-+++ pgdat8/drivers/acpi/acpi_memhotplug.c	2006-03-16 16:41:56.000000000 +0900
-@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
- 
- static int acpi_memory_device_add(struct acpi_device *device);
- static int acpi_memory_device_remove(struct acpi_device *device, int type);
-+static int acpi_memory_device_start (struct acpi_device *device);
- 
- static struct acpi_driver acpi_memory_device_driver = {
- 	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
-@@ -65,6 +66,7 @@ static struct acpi_driver acpi_memory_de
- 	.ops = {
- 		.add = acpi_memory_device_add,
- 		.remove = acpi_memory_device_remove,
-+		.start = acpi_memory_device_start,
- 		},
- };
- 
-@@ -429,6 +431,26 @@ static int acpi_memory_device_remove(str
- 	return_VALUE(0);
- }
- 
-+static int
-+acpi_memory_device_start (struct acpi_device *device)
-+{
-+	struct acpi_memory_device *mem_device;
-+	int result = 0;
-+
-+	ACPI_FUNCTION_TRACE("acpi_memory_device_start");
-+
-+	mem_device = (struct acpi_memory_device *) acpi_driver_data(device);
-+
-+	if (!acpi_memory_check_device(mem_device)){
-+		/* call add_memory func */
-+		result = acpi_memory_enable_device(mem_device);
-+		if (result)
-+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-+			"Error in acpi_memory_enable_device\n"));
-+	}
-+	return_VALUE(result);
-+}
-+
- /*
-  * Helper function to check for memory device
-  */
-
--- 
-Yasunori Goto 
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
