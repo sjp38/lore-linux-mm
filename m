@@ -1,68 +1,108 @@
-Date: Thu, 16 Mar 2006 01:31:41 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: page migration reorg patch
-Message-Id: <20060316013141.16c28224.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603151828001.30650@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603151736380.30472@schroedinger.engr.sgi.com>
-	<20060315175544.6f9adc59.akpm@osdl.org>
-	<Pine.LNX.4.64.0603151828001.30650@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 17 Mar 2006 17:20:33 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name old add_memory() to arch_add_memory()) 
+Message-Id: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, marcelo.tosatti@cyclades.com, lee.schermerhorn@hp.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> This patch centralizes the page migration functions in anticipation of
->  additional tinkering. Creates a new file mm/migrate.c
+This patch changes name of old add_memory() to arch_add_memory.
+and use node id to get pgdat for the node at NODE_DATA().
 
+Note: Powerpc's old add_memory() is defined as __devinit. However,
+      add_memory() is usually called only after bootup. 
+      I suppose it may be redundant. But, I'm not sure about powerpc.
+      So, I keep it. (But, __meminit is better than __devinit at least.)
 
-mm/migrate.c: In function `migrate_page_remove_references':
-mm/migrate.c:200: warning: implicit declaration of function `__put_page'
-mm/migrate.c: In function `isolate_lru_page':
-mm/migrate.c:482: warning: implicit declaration of function `TestClearPageLRU'
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
+ arch/i386/mm/init.c   |    2 +-
+ arch/ia64/mm/init.c   |    4 ++--
+ arch/powerpc/mm/mem.c |    4 +---
+ arch/x86_64/mm/init.c |    4 ++--
+ 4 files changed, 6 insertions(+), 8 deletions(-)
 
-Signed-off-by: Andrew Morton <akpm@osdl.org>
----
-
- mm/migrate.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletion(-)
-
-diff -puN mm/migrate.c~page-migration-reorg-fixes mm/migrate.c
---- devel/mm/migrate.c~page-migration-reorg-fixes	2006-03-16 01:28:18.000000000 -0800
-+++ devel-akpm/mm/migrate.c	2006-03-16 01:28:18.000000000 -0800
-@@ -26,6 +26,8 @@
- #include <linux/cpuset.h>
- #include <linux/swapops.h>
+Index: pgdat8/arch/i386/mm/init.c
+===================================================================
+--- pgdat8.orig/arch/i386/mm/init.c	2006-03-17 12:15:27.574691472 +0900
++++ pgdat8/arch/i386/mm/init.c	2006-03-17 12:16:06.189821080 +0900
+@@ -652,7 +652,7 @@ void __init mem_init(void)
+  * memory to the highmem for now.
+  */
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	struct pglist_data *pgdata = &contig_page_data;
+ 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
+Index: pgdat8/arch/ia64/mm/init.c
+===================================================================
+--- pgdat8.orig/arch/ia64/mm/init.c	2006-03-17 12:15:27.574691472 +0900
++++ pgdat8/arch/ia64/mm/init.c	2006-03-17 12:16:06.190820928 +0900
+@@ -646,7 +646,7 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
  
-+#include "internal.h"
-+
- /* The maximum number of pages to take off the LRU for migration */
- #define MIGRATE_CHUNK_SIZE 256
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	pg_data_t *pgdat;
+ 	struct zone *zone;
+@@ -654,7 +654,7 @@ int add_memory(u64 start, u64 size)
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
  
-@@ -479,9 +481,10 @@ int isolate_lru_page(struct page *page)
- 	if (PageLRU(page)) {
- 		struct zone *zone = page_zone(page);
- 		spin_lock_irq(&zone->lru_lock);
--		if (TestClearPageLRU(page)) {
-+		if (PageLRU(page)) {
- 			ret = 1;
- 			get_page(page);
-+			ClearPageLRU(page);
- 			if (PageActive(page))
- 				del_page_from_active_list(zone, page);
- 			else
-_
+-	pgdat = NODE_DATA(0);
++	pgdat = NODE_DATA(nid);
+ 
+ 	zone = pgdat->node_zones + ZONE_NORMAL;
+ 	ret = __add_pages(zone, start_pfn, nr_pages);
+Index: pgdat8/arch/powerpc/mm/mem.c
+===================================================================
+--- pgdat8.orig/arch/powerpc/mm/mem.c	2006-03-17 12:15:27.575691320 +0900
++++ pgdat8/arch/powerpc/mm/mem.c	2006-03-17 12:16:06.190820928 +0900
+@@ -114,15 +114,13 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
+ 
+-int __devinit add_memory(u64 start, u64 size)
++int __meminit arch_add_memory(int nid, u64 start, u64 size)
+ {
+ 	struct pglist_data *pgdata;
+ 	struct zone *zone;
+-	int nid;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 
+-	nid = hot_add_scn_to_nid(start);
+ 	pgdata = NODE_DATA(nid);
+ 
+ 	start = __va(start);
+Index: pgdat8/arch/x86_64/mm/init.c
+===================================================================
+--- pgdat8.orig/arch/x86_64/mm/init.c	2006-03-17 12:15:27.575691320 +0900
++++ pgdat8/arch/x86_64/mm/init.c	2006-03-17 12:16:06.191820776 +0900
+@@ -493,9 +493,9 @@ void online_page(struct page *page)
+ 	num_physpages++;
+ }
+ 
+-int add_memory(u64 start, u64 size)
++int arch_add_memory(int nid, u64 start, u64 size)
+ {
+-	struct pglist_data *pgdat = NODE_DATA(0);
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct zone *zone = pgdat->node_zones + MAX_NR_ZONES-2;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
+-- 
+Yasunori Goto 
 
-This wasn't compile tested and it wasn't runtime tested.  But the worrisome
-part is that the patch failed to bring over changes which were made by
-earlier patches.  So it possibly reverts important changes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
