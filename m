@@ -1,121 +1,101 @@
-Date: Fri, 17 Mar 2006 17:22:19 +0900
+Date: Fri, 17 Mar 2006 17:22:28 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 010/017]Memory hotplug for new nodes v.4.(allocate wait table)
-Message-Id: <20060317163451.C64B.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 011/017]Memory hotplug for new nodes v.4.(start kswapd)
+Message-Id: <20060317163538.C64D.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Wait_table is initialized according to zone size at boot time.
-But, we cannot know the maixmum zone size when memory hotplug is enabled.
-It can be changed.... And resizing of wait_table is too hard.
+When node is hot-added, kswapd for the node should start.
+This export kswapd start function as kswapd_run().
 
-So kernel allocate and initialzie wait_table as its maximum size.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- mm/page_alloc.c |   45 +++++++++++++++++++++++++++++++++++++++------
- 1 files changed, 39 insertions(+), 6 deletions(-)
+ include/linux/swap.h |    5 +++++
+ mm/vmscan.c          |   35 ++++++++++++++++++++++++++---------
+ 2 files changed, 31 insertions(+), 9 deletions(-)
 
-Index: pgdat8/mm/page_alloc.c
+Index: pgdat8/mm/vmscan.c
 ===================================================================
---- pgdat8.orig/mm/page_alloc.c	2006-03-17 11:13:18.466550152 +0900
-+++ pgdat8/mm/page_alloc.c	2006-03-17 11:19:32.371677992 +0900
-@@ -1788,6 +1788,7 @@ void __init build_all_zonelists(void)
-  */
- #define PAGES_PER_WAITQUEUE	256
+--- pgdat8.orig/mm/vmscan.c	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/mm/vmscan.c	2006-03-16 16:06:27.000000000 +0900
+@@ -35,6 +35,7 @@
+ #include <linux/notifier.h>
+ #include <linux/rwsem.h>
+ #include <linux/delay.h>
++#include <linux/kthread.h>
  
-+#ifdef CONFIG_MEMORY_HOTPLUG
- static inline unsigned long wait_table_size(unsigned long pages)
- {
- 	unsigned long size = 1;
-@@ -1806,6 +1807,17 @@ static inline unsigned long wait_table_s
- 
- 	return max(size, 4UL);
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -1843,20 +1844,36 @@ static int __devinit cpu_callback(struct
  }
-+#else
-+/*
-+ * Because zone size might be changed by hot-add,
-+ * We can't determin suitable size for wait_table as traditional.
-+ * So, we use maximum size.
-+ */
-+static inline unsigned long wait_table_size(unsigned long pages)
-+{
-+	return 4096UL;
-+}
-+#endif
+ #endif /* CONFIG_HOTPLUG_CPU */
  
- /*
-  * This is an integer logarithm so that shifts can be used later
-@@ -2074,7 +2086,7 @@ void __init setup_per_cpu_pageset(void)
++/*
++ * This kswapd start function will be called by init and node-hot-add.
++ * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
++ */
++int kswapd_run(int nid)
++{
++	pg_data_t *pgdat = NODE_DATA(nid);
++	int ret = 0;
++
++	if (pgdat->kswapd)
++		return 0;
++
++	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
++	if (pgdat->kswapd == ERR_PTR(-ENOMEM)) {
++		/* failure at boot is fatal */
++		BUG_ON(system_state == SYSTEM_BOOTING);
++		printk("faled to run kswapd on node %d\n",nid);
++		ret = -1;
++	}
++	return ret;
++}
++
+ static int __init kswapd_init(void)
+ {
+-	pg_data_t *pgdat;
++	int nid;
+ 
+ 	swap_setup();
+-	for_each_online_pgdat(pgdat) {
+-		pid_t pid;
++	for_each_online_node(nid)
++ 		kswapd_run(nid);
+ 
+-		pid = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+-		BUG_ON(pid < 0);
+-		read_lock(&tasklist_lock);
+-		pgdat->kswapd = find_task_by_pid(pid);
+-		read_unlock(&tasklist_lock);
+-	}
+ 	total_memory = nr_free_pagecache_pages();
+ 	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
+Index: pgdat8/include/linux/swap.h
+===================================================================
+--- pgdat8.orig/include/linux/swap.h	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/include/linux/swap.h	2006-03-16 16:06:27.000000000 +0900
+@@ -208,6 +208,11 @@ static inline int migrate_pages(struct l
+ #define fail_migrate_page NULL
  #endif
  
- static __meminit
--void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
-+int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
- {
- 	int i;
- 	struct pglist_data *pgdat = zone->zone_pgdat;
-@@ -2085,12 +2097,37 @@ void zone_wait_table_init(struct zone *z
- 	 */
- 	zone->wait_table_size = wait_table_size(zone_size_pages);
- 	zone->wait_table_bits =	wait_table_bits(zone->wait_table_size);
--	zone->wait_table = (wait_queue_head_t *)
--		alloc_bootmem_node(pgdat, zone->wait_table_size
--					* sizeof(wait_queue_head_t));
-+	if (system_state == SYSTEM_BOOTING) {
-+		zone->wait_table = (wait_queue_head_t *)
-+			alloc_bootmem_node(pgdat, zone->wait_table_size
-+						* sizeof(wait_queue_head_t));
-+	} else {
-+		int table_size;
-+		/*
-+		 * XXX: This is the case that new node is hotadded.
-+		 * 	At this time, kmalloc() will not get this new node's
-+		 *	memory. Because this wait_table must be initialized,
-+		 *	to use this new node itself. To use this new node's
-+		 *	memory, further consideration will be necessary.
-+		 */
-+		do {
-+			table_size = zone->wait_table_size
-+					* sizeof(wait_queue_head_t);
-+			zone->wait_table = kmalloc(table_size, GFP_KERNEL);
-+			if (!zone->wait_table) {
-+				/* try half size */
-+				zone->wait_table_size >>= 1;
-+				zone->wait_table_bits =
-+					wait_table_bits(zone->wait_table_size);
-+			}
-+		} while (zone->wait_table_size && !zone->wait_table);
-+	}
-+	if (!zone->wait_table)
-+		return -ENOMEM;
- 
- 	for(i = 0; i < zone->wait_table_size; ++i)
- 		init_waitqueue_head(zone->wait_table + i);
-+	return 0;
- }
- 
- static __meminit void zone_pcp_init(struct zone *zone)
-@@ -2116,8 +2153,10 @@ __meminit int init_currently_empty_zone(
- 					unsigned long size)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
--
--	zone_wait_table_init(zone, size);
-+	int ret;
-+	ret = zone_wait_table_init(zone, size);
-+	if (ret)
-+		return ret;
- 	pgdat->nr_zones = zone_idx(zone) + 1;
- 
- 	zone->zone_start_pfn = zone_start_pfn;
++#ifdef CONFIG_MEMORY_HOTPLUG
++/* start new kswapd for new node */
++extern int kswapd_run(int nid);
++#endif
++
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
 
 -- 
 Yasunori Goto 
