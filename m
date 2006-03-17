@@ -1,125 +1,116 @@
-Date: Fri, 17 Mar 2006 17:21:30 +0900
+Date: Fri, 17 Mar 2006 17:21:22 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 007/017]Memory hotplug for new nodes v.4.(refresh NODE_DATA() for ia64)
-Message-Id: <20060317163229.C645.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 006/017]Memory hotplug for new nodes v.4.(move out pgdat array from mem_data for ia64)
+Message-Id: <20060317163146.C643.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-As I mentioned previous patches,
-ia64 has copies of information of pgdat address array on each node
-as per node data.
+This is preparing patch to make common code for updating of NODE_DATA()
+of ia64 between boottime and hotplug.
 
-At v2, this function used stop_machine_run() to update them.
-(I wished that they were copied safety as much as possible.)
-But, in this patch, this arrays are just copied simply, and
-set node_online_map bit after completion of pgdat initialization.
-
-So, kernel must touch NODE_DATA() macro after checking 
-node_online_map(). (Current code has already done it.)
-This is more simple way for just hot-add.....
-
-Note : It will be problem when hot-remove will occur,
-       because, even if online_map bit is set, kernel may
-       touch NODE_DATA() due to race condition. :-(
+Current code remembers pgdat address in mem_data which is used at just boot
+time. But its information can be used at hotplug time
+by moving to global value.
+The next patche use this array.
 
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
- arch/ia64/Kconfig           |    4 ++++
- arch/ia64/mm/discontig.c    |   24 +++++++++++++++++++-----
- include/asm-ia64/nodedata.h |   12 ++++++++++++
- 3 files changed, 35 insertions(+), 5 deletions(-)
+ arch/ia64/mm/discontig.c |   19 ++++++++-----------
+ 1 files changed, 8 insertions(+), 11 deletions(-)
 
 Index: pgdat8/arch/ia64/mm/discontig.c
 ===================================================================
---- pgdat8.orig/arch/ia64/mm/discontig.c	2006-03-17 15:43:50.000000000 +0900
-+++ pgdat8/arch/ia64/mm/discontig.c	2006-03-17 15:44:08.000000000 +0900
-@@ -308,6 +308,17 @@ static void __init reserve_pernode_space
- 	}
- }
+--- pgdat8.orig/arch/ia64/mm/discontig.c	2006-03-16 16:05:38.000000000 +0900
++++ pgdat8/arch/ia64/mm/discontig.c	2006-03-16 16:51:35.000000000 +0900
+@@ -33,7 +33,6 @@
+  */
+ struct early_node_data {
+ 	struct ia64_node_data *node_data;
+-	pg_data_t *pgdat;
+ 	unsigned long pernode_addr;
+ 	unsigned long pernode_size;
+ 	struct bootmem_data bootmem_data;
+@@ -46,6 +45,8 @@ struct early_node_data {
+ static struct early_node_data mem_data[MAX_NUMNODES] __initdata;
+ static nodemask_t memory_less_mask __initdata;
  
-+static void __meminit scatter_node_data(void)
-+{
-+	pg_data_t **dst;
-+	int node;
++static pg_data_t *pgdat_list[MAX_NUMNODES];
 +
-+	for_each_online_node(node){
-+		dst = LOCAL_DATA_ADDR(pgdat_list[node])->pg_data_ptrs;
-+		memcpy(dst, pgdat_list, sizeof(pgdat_list));
-+	}
-+}
-+
- /**
-  * initialize_pernode_data - fixup per-cpu & per-node pointers
-  *
-@@ -320,11 +331,8 @@ static void __init initialize_pernode_da
+ /*
+  * To prevent cache aliasing effects, align per-node structures so that they
+  * start at addresses that are strided by node number.
+@@ -175,13 +176,13 @@ static void __init fill_pernode(int node
+ 	pernode += PERCPU_PAGE_SIZE * cpus;
+ 	pernode += node * L1_CACHE_BYTES;
+ 
+-	mem_data[node].pgdat = __va(pernode);
++	pgdat_list[node] = __va(pernode);
+ 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
+ 
+ 	mem_data[node].node_data = __va(pernode);
+ 	pernode += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
+ 
+-	mem_data[node].pgdat->bdata = bdp;
++	pgdat_list[node]->bdata = bdp;
+ 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
+ 
+ 	cpu_data = per_cpu_node_setup(cpu_data, node);
+@@ -268,7 +269,7 @@ static int __init find_pernode_space(uns
+ static int __init free_node_bootmem(unsigned long start, unsigned long len,
+ 				    int node)
  {
+-	free_bootmem_node(mem_data[node].pgdat, start, len);
++	free_bootmem_node(pgdat_list[node], start, len);
+ 
+ 	return 0;
+ }
+@@ -287,7 +288,7 @@ static void __init reserve_pernode_space
+ 	int node;
+ 
+ 	for_each_online_node(node) {
+-		pg_data_t *pdp = mem_data[node].pgdat;
++		pg_data_t *pdp = pgdat_list[node];
+ 
+ 		if (node_isset(node, memory_less_mask))
+ 			continue;
+@@ -317,12 +318,8 @@ static void __init reserve_pernode_space
+  */
+ static void __init initialize_pernode_data(void)
+ {
+-	pg_data_t *pgdat_list[MAX_NUMNODES];
  	int cpu, node;
  
--	/* Copy the pg_data_t list to each node and init the node field */
--	for_each_online_node(node) {
--		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
--		       sizeof(pgdat_list));
--	}
-+	scatter_node_data();
-+
- #ifdef CONFIG_SMP
- 	/* Set the node_data pointer for each per-cpu struct */
- 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-@@ -719,3 +727,9 @@ void __init paging_init(void)
+-	for_each_online_node(node)
+-		pgdat_list[node] = mem_data[node].pgdat;
+-
+ 	/* Copy the pg_data_t list to each node and init the node field */
+ 	for_each_online_node(node) {
+ 		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
+@@ -372,7 +369,7 @@ static void __init *memory_less_node_all
+ 	if (bestnode == -1)
+ 		bestnode = anynode;
  
- 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
- }
-+
-+void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
-+{
-+	pgdat_list[update_node] = update_pgdat;
-+	scatter_node_data();
-+}
-Index: pgdat8/arch/ia64/Kconfig
-===================================================================
---- pgdat8.orig/arch/ia64/Kconfig	2006-03-17 15:40:25.000000000 +0900
-+++ pgdat8/arch/ia64/Kconfig	2006-03-17 15:43:50.000000000 +0900
-@@ -365,6 +365,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
- 	def_bool y
- 	depends on NEED_MULTIPLE_NODES
+-	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
++	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
+ 		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
  
-+config HAVE_ARCH_NODEDATA_EXTENSION
-+	def_bool y
-+	depends on NUMA
-+
- config IA32_SUPPORT
- 	bool "Support for Linux/x86 binaries"
- 	help
-Index: pgdat8/include/asm-ia64/nodedata.h
-===================================================================
---- pgdat8.orig/include/asm-ia64/nodedata.h	2006-03-17 15:40:25.000000000 +0900
-+++ pgdat8/include/asm-ia64/nodedata.h	2006-03-17 15:43:50.000000000 +0900
-@@ -47,6 +47,18 @@ struct ia64_node_data {
-  */
- #define NODE_DATA(nid)		(local_node_data->pg_data_ptrs[nid])
+ 	return ptr;
+@@ -476,7 +473,7 @@ void __init find_memory(void)
+ 		pernodesize = mem_data[node].pernode_size;
+ 		map = pernode + pernodesize;
  
-+/*
-+ * LOCAL_DATA_ADDR - This is to calculate the address of other node's
-+ *		     "local_node_data" at hot-plug phase. The local_node_data
-+ *		     is pointed by per_cpu_page. Kernel usually use it for
-+ *		     just executing cpu. However, when new node is hot-added,
-+ *		     the addresses of local data for other nodes are necessary
-+ *		     to update all of them.
-+ */
-+#define LOCAL_DATA_ADDR(pgdat)  			\
-+	((struct ia64_node_data *)((u64)(pgdat) + 	\
-+				   L1_CACHE_ALIGN(sizeof(struct pglist_data))))
-+
- #endif /* CONFIG_NUMA */
- 
- #endif /* _ASM_IA64_NODEDATA_H */
+-		init_bootmem_node(mem_data[node].pgdat,
++		init_bootmem_node(pgdat_list[node],
+ 				  map>>PAGE_SHIFT,
+ 				  bdp->node_boot_start>>PAGE_SHIFT,
+ 				  bdp->node_low_pfn);
 
 -- 
 Yasunori Goto 
