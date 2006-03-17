@@ -1,7 +1,7 @@
-Date: Fri, 17 Mar 2006 17:21:04 +0900
+Date: Fri, 17 Mar 2006 17:20:22 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [PATCH: 004/017]Memory hotplug for new nodes v.4.(generic alloc pgdat)
-Message-Id: <20060317162912.C63F.Y-GOTO@jp.fujitsu.com>
+Subject: [PATCH: 001/017]Memory hotplug for new nodes v.4.(Generic code of pgdat alloc)
+Message-Id: <20060317162642.C639.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,104 +11,139 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-For node hotplug, basically we have to allocate new pgdat.
-But, there are several types of implementations of pgdat.
+This patch adds node-hot-add support to add_memory().
 
-1. Allocate only pgdat.
-   This style allocate only pgdat area.
-   And its address is recorded in node_data[].
-   It is most popular style.
+node hotadd uses this sequence.
+1. allocate pgdat.
+2. refresh NODE_DATA()
+3. call free_area_init_node() to initialize
+4. create sysfs entry
+5. add memory (old add_memory())
+6. set node online
+7. run kswapd for new node.
+(8). update zonelist after pages are onlined. (This is in other patch due to
+   update phase is difference.)
 
-2. Static array of pgdat
-   In this case, all of pgdats are static array.
-   Some archs use this style.
+Note:
+  To make common function as much as possible, 
+  there is 2 changes from v2.
+    - The old add_memory(), which is defiend by each archs,
+      is renamed to arch_add_memory(). New add_memory becomes
+      caller of arch dependent function as a common code.
+  
+    - This patch changes add_memory()'s interface
+        From: add_memory(start, end)
+        TO  : add_memory(nid, start, end).
+      It was cause of similar code that finding node id from
+      physical address is inside of old add_memory() on each arch. 
+      
+      In addition, acpi memory hotplug driver can find node id easier.
+      In v2, it must walk DSDT'S _CRS by matching physical address to
+      get the handle of its memory device, then get _PXM and node id.
+      Because input is just physical address. 
+      However, in v3, the acpi driver can use handle to get _PXM and node id
+      for the new memory device. It can pass just node id to add_memory().
 
-3. Allocate not only pgdat, but also per node data.
-   To increase performance, each node has copy of some data as
-   a per node data. So, this area must be allocated too.
 
-   Ia64 is this style. Ia64 has the copies of node_data[] array
-   on each per node data to increase performance.
+Fix interface of arch_add_memory() is in next patche.
 
-In this series of patches, treat (1) as generic arch.
-
-generic archs can use generic function. (2) and (3) should have
-its own if necessary. 
-
-This patch defines pgdat allocator.
-Updating NODE_DATA() macro function is in other patch.
-
-( I'll post another patch for (3).
-  I don't know (2) which can use memory hotplug.
-  So, there is not patch for (2). )
-
-Signed-off-by: Yasonori Goto     <y-goto@jp.fujitsu.com>
+Signed-off-by: Yasunori Goto     <y-goto@jp.fujitsu.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- include/linux/memory_hotplug.h |   50 +++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 50 insertions(+)
+ include/linux/memory_hotplug.h |    3 +
+ mm/memory_hotplug.c            |   68 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)
 
+Index: pgdat8/mm/memory_hotplug.c
+===================================================================
+--- pgdat8.orig/mm/memory_hotplug.c	2006-03-17 15:40:27.000000000 +0900
++++ pgdat8/mm/memory_hotplug.c	2006-03-17 15:41:56.000000000 +0900
+@@ -136,3 +136,71 @@ int online_pages(unsigned long pfn, unsi
+ 
+ 	return 0;
+ }
++
++static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
++{
++	struct pglist_data *pgdat;
++	unsigned long zones_size[MAX_NR_ZONES] = {0};
++	unsigned long zholes_size[MAX_NR_ZONES] = {0};
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++
++	pgdat = arch_alloc_nodedata(nid);
++	if (!pgdat)
++		return NULL;
++
++	arch_refresh_nodedata(nid, pgdat);
++
++	/* we can use NODE_DATA(nid) from here */
++
++	/* init node's zones as empty zones, we don't have any present pages.*/
++	free_area_init_node(nid, pgdat, zones_size, start_pfn, zholes_size);
++
++	/*
++         * register this node to sysfs.
++         * this is depends on topology. So each arch has its own.
++         */
++	arch_register_node(nid);
++
++	return pgdat;
++}
++
++static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
++{
++	arch_refresh_nodedata(nid, NULL);
++	arch_free_nodedata(pgdat);
++	return;
++}
++
++int add_memory(int nid, u64 start, u64 end)
++{
++	pg_data_t *pgdat = NULL;
++	int new_pgdat = 0;
++	int ret;
++
++	if (!node_online(nid)) {
++		pgdat = hotadd_new_pgdat(nid, start);
++		if (!pgdat)
++			return -ENOMEM;
++		new_pgdat = 1;
++		ret = kswapd_run(nid);
++		if (ret)
++			goto error;
++	}
++	/* call arch's memory hotadd */
++	ret = arch_add_memory(nid, start, end);
++
++	if (!ret < 0)
++		goto error;
++
++	/* we online node here. we have no error path from here. */
++	node_set_online(nid);
++
++	return ret;
++error:
++	/* rollback pgdat allocation and others */
++	if (new_pgdat)
++		rollback_node_hotadd(nid, pgdat);
++
++	return ret;
++}
++
 Index: pgdat8/include/linux/memory_hotplug.h
 ===================================================================
---- pgdat8.orig/include/linux/memory_hotplug.h	2006-03-17 11:12:41.933104080 +0900
-+++ pgdat8/include/linux/memory_hotplug.h	2006-03-17 12:05:14.554754256 +0900
-@@ -75,6 +75,56 @@ static inline int arch_nid_probe(u64 sta
- }
- #endif
+--- pgdat8.orig/include/linux/memory_hotplug.h	2006-03-17 15:40:27.000000000 +0900
++++ pgdat8/include/linux/memory_hotplug.h	2006-03-17 15:44:35.000000000 +0900
+@@ -58,7 +58,8 @@ extern int add_one_highpage(struct page 
+ /* need some defines for these for archs that don't support it */
+ extern void online_page(struct page *page);
+ /* VM interface that may be used by firmware interface */
+-extern int add_memory(u64 start, u64 size);
++extern int add_memory(int nid, u64 start, u64 size);
++extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int remove_memory(u64 start, u64 size);
+ extern int online_pages(unsigned long, unsigned long);
  
-+#ifdef CONFIG_HAVE_ARCH_NODEDATA_EXTENSION
-+/*
-+ * For supporint node-hotadd, we have to allocate new pgdat.
-+ *
-+ * If an arch have generic style NODE_DATA(),
-+ * node_data[nid] = kzalloc() works well . But it depends on each arch.
-+ *
-+ * In general, generic_alloc_nodedata() is used.
-+ * Now, arch_free_nodedata() is just defined for error path of node_hot_add.
-+ *
-+ */
-+extern pg_data_t * arch_alloc_nodedata(int nid);
-+extern void arch_free_nodedata(pg_data_t *pgdat);
-+
-+#else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
-+
-+#define arch_alloc_nodedata(nid)	generic_alloc_nodedata(nid)
-+#define arch_free_nodedata(pgdat)	generic_free_nodedata(pgdat)
-+
-+#ifdef CONFIG_NUMA
-+/*
-+ * If ARCH_HAS_NODEDATA_EXTENSION=n, this func is used to allocate pgdat.
-+ * XXX: kmalloc_node() can't work well to get new node's memory at this time.
-+ *	Because, pgdat for the new node is not allocated/initialized yet itself.
-+ *	To use new node's memory, more consideration will be necessary.
-+ */
-+#define generic_alloc_nodedata(nid)				\
-+({								\
-+	(pg_data_t *)kzalloc(sizeof(pg_data_t), GFP_KERNEL);	\
-+})
-+/*
-+ * This definition is just for error path in node hotadd.
-+ * For node hotremove, we have to replace this.
-+ */
-+#define generic_free_nodedata(pgdat)	kfree(pgdat)
-+
-+#else /* !CONFIG_NUMA */
-+
-+/* never called */
-+static inline pg_data_t *generic_alloc_nodedata(int nid)
-+{
-+	BUG();
-+	return NULL;
-+}
-+static inline void generic_free_nodedata(pg_data_t *pgdat)
-+{
-+}
-+#endif /* CONFIG_NUMA */
-+#endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
-+
- #else /* ! CONFIG_MEMORY_HOTPLUG */
- /*
-  * Stub functions for when hotplug is off
 
 -- 
 Yasunori Goto 
