@@ -1,20 +1,20 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2HHDGgm027552
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 12:13:16 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2HHGC39186762
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 10:16:12 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k2HHDEtW004057
-	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 10:13:14 -0700
-Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
-	old add_memory() to arch_add_memory())
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2HHKIQu005363
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 12:20:18 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2HHK8R5174986
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 12:20:08 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k2HHK7IY012435
+	for <linux-mm@kvack.org>; Fri, 17 Mar 2006 12:20:08 -0500
+Subject: Re: [PATCH: 009/017]Memory hotplug for new nodes v.4.(add return
+	code init_currently_empty_zone)
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
-References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20060317163404.C649.Y-GOTO@jp.fujitsu.com>
+References: <20060317163404.C649.Y-GOTO@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Fri, 17 Mar 2006 09:12:18 -0800
-Message-Id: <1142615538.10906.67.camel@localhost.localdomain>
+Date: Fri, 17 Mar 2006 09:19:11 -0800
+Message-Id: <1142615951.10906.70.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,23 +23,36 @@ To: Yasunori Goto <y-goto@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-03-17 at 17:20 +0900, Yasunori Goto wrote:
-> This patch changes name of old add_memory() to arch_add_memory.
-> and use node id to get pgdat for the node at NODE_DATA().
-> 
-> Note: Powerpc's old add_memory() is defined as __devinit. However,
->       add_memory() is usually called only after bootup. 
->       I suppose it may be redundant. But, I'm not sure about powerpc.
->       So, I keep it. (But, __meminit is better than __devinit at least.)
+On Fri, 2006-03-17 at 17:22 +0900, Yasunori Goto wrote:
+> --- pgdat8.orig/mm/memory_hotplug.c	2006-03-16 16:05:38.000000000 +0900
+> +++ pgdat8/mm/memory_hotplug.c	2006-03-16 16:45:30.000000000 +0900
+> @@ -26,16 +26,23 @@
+>  
+>  extern void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
+>  			  unsigned long size);
+> -static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+> +static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+>  {
+>  	struct pglist_data *pgdat = zone->zone_pgdat;
+>  	int nr_pages = PAGES_PER_SECTION;
+>  	int nid = pgdat->node_id;
+>  	int zone_type;
+> +	int ret = 0;
+>  
+>  	zone_type = zone - pgdat->node_zones;
+> +	if (!populated_zone(zone)) {
+> +		ret = init_currently_empty_zone(zone, phys_start_pfn, nr_pages);
+> +		if (ret < 0)
+> +			return ret;
+> +	}
+>  	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
+>  	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
+> +	return 0;
+>  }
 
-My thoughts when originally designing the API were that the architecture
-may be the only bit that actually knows where the memory _is_.  So, we
-shouldn't involve the generic code in figuring this out.
-
-You can see the result of this in the next patch because there is a new
-function introduced to hide the arch-specific node lookup.  If that was
-simply done in the already arch-specific add_memory() function, then you
-wouldn't need arch_nid_probe() and its related #ifdefs at all.
+Minor nit: If you're going to introduce a top-level 'ret' variable, it
+is probably best to just use it everywhere.  In this case, you only use
+it inside of that if(), so you _could_ declare it in there.
 
 -- Dave
 
