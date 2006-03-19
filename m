@@ -1,45 +1,18 @@
 From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: [PATCH][RFC] mm: swsusp shrink_all_memory tweaks
-Date: Sat, 18 Mar 2006 20:40:10 +1100
-References: <200603101704.AA00798@bbb-jz5c7z9hn9y.digitalinfra.co.jp> <200603181714.23977.kernel@kolivas.org> <441BC527.50400@yahoo.com.au>
-In-Reply-To: <441BC527.50400@yahoo.com.au>
+Date: Mon, 20 Mar 2006 02:31:49 +1100
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200603182040.12052.kernel@kolivas.org>
+Subject: [PATCH][1/3] mm: swsusp shrink_all_memory tweaks
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200603200231.50666.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, ck@vds.kolivas.org, Andreas Mohr <andi@rhlx01.fht-esslingen.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Machek <pavel@suse.cz>, Stefan Seyfried <seife@suse.de>, Greg KH <gregkh@suse.de>
+To: linux list <linux-kernel@vger.kernel.org>
+Cc: ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@osdl.org>, Rafael Wysocki <rjw@sisk.pl>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 18 March 2006 19:30, Nick Piggin wrote:
-> Con Kolivas wrote:
-> > cc'ed GregKH for comment hopefully.
-> >
-> >>You did the right thing there by introducing the accessor, which moves
-> >> the ifdef out of code that wants to query the member right? But you can
-> >> still leave it in the .c file if it is local (which it is).
-> >
-> > Once again I'm happy to do the right thing; I'm just not sure what that
-> > is.
->
-> Well, struct scan_control escaping from vmscan.c is not the right thing
-> (try to get that past Andrew!). Obviously in this case, having the ifdef
-> in the .c file is OK.
->
-> I guess Greg's presentation is a first order approximation to get people
-> thinking in the right way. I mean we do it all the time, and in core kernel
-> code too (our favourite sched.c is a prime example).
-
-Ok here's a respin without touching swap.h and leaving the code otherwise the
-same.
-
-Cheers,
-Con
----
 This patch is a rewrite of the shrink_all_memory function used by swsusp
 prior to suspending to disk.
 
@@ -58,14 +31,14 @@ faster.
 Signed-off-by: Con Kolivas <kernel@kolivas.org>
 
  kernel/power/swsusp.c |   10 ---
- mm/vmscan.c           |  164 ++++++++++++++++++++++++++++++--------------------
- 2 files changed, 104 insertions(+), 70 deletions(-)
+ mm/vmscan.c           |  165 ++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 105 insertions(+), 70 deletions(-)
 
-Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
+Index: linux-2.6.16-rc6-mm2/mm/vmscan.c
 ===================================================================
---- linux-2.6.16-rc6-mm1.orig/mm/vmscan.c	2006-03-18 13:29:38.000000000 +1100
-+++ linux-2.6.16-rc6-mm1/mm/vmscan.c	2006-03-18 19:47:38.000000000 +1100
-@@ -74,8 +74,32 @@ struct scan_control {
+--- linux-2.6.16-rc6-mm2.orig/mm/vmscan.c	2006-03-19 15:40:41.000000000 +1100
++++ linux-2.6.16-rc6-mm2/mm/vmscan.c	2006-03-20 02:17:01.000000000 +1100
+@@ -62,8 +62,33 @@ struct scan_control {
  	 * In this context, it doesn't matter that we scan the
  	 * whole list at once. */
  	int swap_cluster_max;
@@ -76,10 +49,11 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
 +	 * We decrement to allow code to transparently do normal reclaim
 +	 * without explicitly setting it to 0.
 +	 *
-+	 * 3 = Reclaim from inactive_list only
-+	 * 2 = Reclaim from active list but don't reclaim mapped
-+	 * 1 = 2nd pass of type 2
-+	 * 0 = Reclaim mapped (normal reclaim)
++	 * 4 = Reclaim from inactive_list only
++	 * 3 = Reclaim from active list but don't reclaim mapped
++	 * 2 = 2nd pass of type 2
++	 * 1 = Reclaim mapped (normal reclaim)
++	 * 0 = 2nd pass of type 1
 +	 */
 +	int suspend_pass;
 +#endif
@@ -90,7 +64,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
 + * active lists on the 2nd pass.
 + */
 +#ifdef CONFIG_PM
-+#define suspend_scan_active(sc)	((sc)->suspend_pass < 3)
++#define suspend_scan_active(sc)	((sc)->suspend_pass < 4)
 +#else
 +#define suspend_scan_active(sc)	1
 +#endif
@@ -98,7 +72,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
  
  #ifdef ARCH_HAS_PREFETCH
-@@ -1327,7 +1351,8 @@ static void shrink_active_list(unsigned 
+@@ -840,7 +865,8 @@ static void shrink_active_list(unsigned 
  }
  
  /*
@@ -108,7 +82,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
   */
  static unsigned long shrink_zone(int priority, struct zone *zone,
  				struct scan_control *sc)
-@@ -1345,7 +1370,7 @@ static unsigned long shrink_zone(int pri
+@@ -858,7 +884,7 @@ static unsigned long shrink_zone(int pri
  	 */
  	zone->nr_scan_active += (zone->nr_active >> priority) + 1;
  	nr_active = zone->nr_scan_active;
@@ -117,7 +91,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  		zone->nr_scan_active = 0;
  	else
  		nr_active = 0;
-@@ -1422,7 +1447,12 @@ static unsigned long shrink_zones(int pr
+@@ -935,7 +961,12 @@ static unsigned long shrink_zones(int pr
  	}
  	return nr_reclaimed;
  }
@@ -131,7 +105,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  /*
   * This is the main entry point to direct page reclaim.
   *
-@@ -1466,7 +1496,7 @@ unsigned long try_to_free_pages(struct z
+@@ -979,7 +1010,7 @@ unsigned long try_to_free_pages(struct z
  		lru_pages += zone->nr_active + zone->nr_inactive;
  	}
  
@@ -140,7 +114,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  		sc.nr_mapped = read_page_state(nr_mapped);
  		sc.nr_scanned = 0;
  		if (!priority)
-@@ -1516,10 +1546,6 @@ out:
+@@ -1029,10 +1060,6 @@ out:
   * For kswapd, balance_pgdat() will work across all this node's zones until
   * they are all at pages_high.
   *
@@ -151,7 +125,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
   * Returns the number of pages which were actually freed.
   *
   * There is special handling here for zones which are full of pinned pages.
-@@ -1537,10 +1563,8 @@ out:
+@@ -1050,10 +1077,8 @@ out:
   * the page allocator fallback scheme to ensure that aging of pages is balanced
   * across the zones.
   */
@@ -163,7 +137,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  	int all_zones_ok;
  	int priority;
  	int i;
-@@ -1550,7 +1574,7 @@ static unsigned long balance_pgdat(pg_da
+@@ -1063,7 +1088,7 @@ static unsigned long balance_pgdat(pg_da
  	struct scan_control sc = {
  		.gfp_mask = GFP_KERNEL,
  		.may_swap = 1,
@@ -172,7 +146,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  	};
  
  loop_again:
-@@ -1567,7 +1591,7 @@ loop_again:
+@@ -1080,7 +1105,7 @@ loop_again:
  		zone->temp_priority = DEF_PRIORITY;
  	}
  
@@ -181,7 +155,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
  		unsigned long lru_pages = 0;
  
-@@ -1577,31 +1601,27 @@ loop_again:
+@@ -1090,31 +1115,27 @@ loop_again:
  
  		all_zones_ok = 1;
  
@@ -229,7 +203,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  scan:
  		for (i = 0; i <= end_zone; i++) {
  			struct zone *zone = pgdat->node_zones + i;
-@@ -1628,11 +1648,9 @@ scan:
+@@ -1141,11 +1162,9 @@ scan:
  			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
  				continue;
  
@@ -244,7 +218,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  			zone->temp_priority = priority;
  			if (zone->prev_priority > priority)
  				zone->prev_priority = priority;
-@@ -1657,8 +1675,6 @@ scan:
+@@ -1170,8 +1189,6 @@ scan:
  			    total_scanned > nr_reclaimed + nr_reclaimed / 2)
  				sc.may_writepage = 1;
  		}
@@ -253,7 +227,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  		if (all_zones_ok)
  			break;		/* kswapd: all done */
  		/*
-@@ -1674,7 +1690,7 @@ scan:
+@@ -1187,7 +1204,7 @@ scan:
  		 * matches the direct reclaim path behaviour in terms of impact
  		 * on zone->*_priority.
  		 */
@@ -262,7 +236,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  			break;
  	}
  out:
-@@ -1756,7 +1772,7 @@ static int kswapd(void *p)
+@@ -1269,7 +1286,7 @@ static int kswapd(void *p)
  		}
  		finish_wait(&pgdat->kswapd_wait, &wait);
  
@@ -271,7 +245,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  	}
  	return 0;
  }
-@@ -1786,36 +1802,58 @@ void wakeup_kswapd(struct zone *zone, in
+@@ -1299,36 +1316,58 @@ void wakeup_kswapd(struct zone *zone, in
  #ifdef CONFIG_PM
  /*
   * Try to free `nr_pages' of memory, system-wide.  Returns the number of freed
@@ -292,7 +266,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
 +		.gfp_mask = GFP_KERNEL,
 +		.may_swap = 1,
 +		.swap_cluster_max = nr_pages,
-+		.suspend_pass = 3,
++		.suspend_pass = 4,
 +		.may_writepage = 1,
  	};
  
@@ -336,7 +310,7 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
 +				 * shrink_active_list needs this to reclaim
 +				 * mapped pages
 +				 */
-+				if (!sc.suspend_pass)
++				if (sc.suspend_pass < 2)
 +					zone->prev_priority = 0;
 +				freed = shrink_zone(priority, zone, &sc);
 +				ret += freed;
@@ -351,10 +325,10 @@ Index: linux-2.6.16-rc6-mm1/mm/vmscan.c
  	return ret;
  }
  #endif
-Index: linux-2.6.16-rc6-mm1/kernel/power/swsusp.c
+Index: linux-2.6.16-rc6-mm2/kernel/power/swsusp.c
 ===================================================================
---- linux-2.6.16-rc6-mm1.orig/kernel/power/swsusp.c	2006-03-18 13:29:38.000000000 +1100
-+++ linux-2.6.16-rc6-mm1/kernel/power/swsusp.c	2006-03-18 13:30:52.000000000 +1100
+--- linux-2.6.16-rc6-mm2.orig/kernel/power/swsusp.c	2006-03-19 15:40:42.000000000 +1100
++++ linux-2.6.16-rc6-mm2/kernel/power/swsusp.c	2006-03-20 02:15:47.000000000 +1100
 @@ -173,9 +173,6 @@ void free_all_swap_pages(int swap, struc
   *	Notice: all userland should be stopped before it is called, or
   *	livelock is possible.
