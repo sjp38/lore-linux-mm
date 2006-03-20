@@ -1,9 +1,9 @@
-Received: by uproxy.gmail.com with SMTP id y2so606304uge
-        for <linux-mm@kvack.org>; Mon, 20 Mar 2006 05:38:20 -0800 (PST)
-Message-ID: <bc56f2f0603200538s6ab7fb8h@mail.gmail.com>
-Date: Mon, 20 Mar 2006 08:38:19 -0500
+Received: by uproxy.gmail.com with SMTP id u2so571014uge
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2006 05:38:36 -0800 (PST)
+Message-ID: <bc56f2f0603200538g3d6aa712i@mail.gmail.com>
+Date: Mon, 20 Mar 2006 08:38:36 -0500
 From: "Stone Wang" <pwstone@gmail.com>
-Subject: [PATCH][7/8] mm: rmap add/remove interface change
+Subject: [PATCH][8/8] mm: lru interface change
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
@@ -14,279 +14,278 @@ To: akpm@osdl.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Modify rmap add/remove interface to support passing structure vm_area_struct,
-for this structure contains necessary info(vma->vm_wire_change),
-so not to wire the same page twice (make_pages_wired and page_add_*_rmap).
+Add Wired list to LRU.
+Add PG_Wired bit to page.
 
 Signed-off-by: Shaoping Wang <pwstone@gmail.com>
 
 --
- linux-2.6.15/include/linux/rmap.h |    4 ++--
- linux-2.6.15/mm/filemap_xip.c     |    2 +-
- linux-2.6.15/mm/fremap.c          |    6 ++++--
- linux-2.6.15/mm/memory.c          |    2 +-
- linux-2.6.15/mm/rmap.c            |   21 +++++++++++++++------
- mm/memory.c                       |   29 +++++++++++++++--------------
- 6 files changed, 38 insertions(+), 26 deletions(-)
+ include/linux/mm_inline.h  |   25 +++++++++++++
+ include/linux/mmzone.h     |    2 +
+ include/linux/page-flags.h |    9 +++++
+ include/linux/swap.h       |    2 +
+ mm/page_alloc.c            |    4 +-
+ mm/swap.c                  |   81 +++++++++++++++++++++++++++++++++++++--------
+ 6 files changed, 107 insertions(+), 16 deletions(-)
 
-diff -urN linux-2.6.15.orig/include/linux/rmap.h
-linux-2.6.15/include/linux/rmap.h
---- linux-2.6.15.orig/include/linux/rmap.h	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/include/linux/rmap.h	2006-03-06 06:30:07.000000000 -0500
-@@ -71,8 +71,8 @@
-  * rmap interfaces called when adding or removing pte of page
-  */
- void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
--void page_add_file_rmap(struct page *);
--void page_remove_rmap(struct page *);
-+void page_add_file_rmap(struct page *, struct vm_area_struct *);
-+void page_remove_rmap(struct page *, struct vm_area_struct *);
+diff -urN  linux-2.6.15.orig/include/linux/mm_inline.h
+linux-2.6.15/include/linux/mm_inline.h
+--- linux-2.6.15.orig/include/linux/mm_inline.h	2006-01-02
+22:21:10.000000000 -0500
++++ linux-2.6.15/include/linux/mm_inline.h	2006-03-07 01:56:10.000000000 -0500
+@@ -1,3 +1,9 @@
++/*
++ * There are 3 per-zone lists in LRU:
++ * 			Active: pages which were accessed more frequently.
++ *			Inactive: pages accessed less frequently.
++ *			Wired: pages mlocked by some tasks.
++ */
 
- /**
-  * page_dup_rmap - duplicate pte mapping to a page
-diff -urN linux-2.6.15.orig/mm/filemap_xip.c linux-2.6.15/mm/filemap_xip.c
---- linux-2.6.15.orig/mm/filemap_xip.c	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/mm/filemap_xip.c	2006-03-06 06:30:07.000000000 -0500
-@@ -189,7 +189,7 @@
- 			/* Nuke the page table entry. */
- 			flush_cache_page(vma, address, pte_pfn(*pte));
- 			pteval = ptep_clear_flush(vma, address, pte);
--			page_remove_rmap(page);
-+			page_remove_rmap(page, vma);
- 			dec_mm_counter(mm, file_rss);
- 			BUG_ON(pte_dirty(pteval));
- 			pte_unmap_unlock(pte, ptl);
-diff -urN linux-2.6.15.orig/mm/fremap.c linux-2.6.15/mm/fremap.c
---- linux-2.6.15.orig/mm/fremap.c	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/mm/fremap.c	2006-03-06 06:30:07.000000000 -0500
-@@ -33,7 +33,7 @@
- 		if (page) {
- 			if (pte_dirty(pte))
- 				set_page_dirty(page);
--			page_remove_rmap(page);
-+			page_remove_rmap(page, vma);
- 			page_cache_release(page);
- 		}
+ static inline void
+ add_page_to_active_list(struct zone *zone, struct page *page)
+@@ -14,6 +20,13 @@
+ }
+
+ static inline void
++add_page_to_wired_list(struct zone *zone, struct page *page)
++{
++	list_add(&page->lru, &zone->wired_list);
++	zone->nr_wired++;
++}
++
++static inline void
+ del_page_from_active_list(struct zone *zone, struct page *page)
+ {
+ 	list_del(&page->lru);
+@@ -28,10 +41,20 @@
+ }
+
+ static inline void
++del_page_from_wired_list(struct zone *zone, struct page *page)
++{
++	list_del(&page->lru);
++	zone->nr_wired--;
++}
++
++static inline void
+ del_page_from_lru(struct zone *zone, struct page *page)
+ {
+ 	list_del(&page->lru);
+-	if (PageActive(page)) {
++	if(PageWired(page)){
++		ClearPageWired(page);
++		zone->nr_wired--;
++	} else if (PageActive(page)) {
+ 		ClearPageActive(page);
+ 		zone->nr_active--;
  	} else {
-@@ -80,7 +80,7 @@
+diff -urN  linux-2.6.15.orig/include/linux/mmzone.h
+linux-2.6.15/include/linux/mmzone.h
+--- linux-2.6.15.orig/include/linux/mmzone.h	2006-01-02 22:21:10.000000000 -0500
++++ linux-2.6.15/include/linux/mmzone.h	2006-03-07 01:58:26.000000000 -0500
+@@ -143,10 +143,12 @@
+ 	spinlock_t		lru_lock;	
+ 	struct list_head	active_list;
+ 	struct list_head	inactive_list;
++	struct list_head	wired_list; /* Pages wired. */
+ 	unsigned long		nr_scan_active;
+ 	unsigned long		nr_scan_inactive;
+ 	unsigned long		nr_active;
+ 	unsigned long		nr_inactive;
++	unsigned long		nr_wired;
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+ 	int			all_unreclaimable; /* All pages pinned */
 
- 	flush_icache_page(vma, page);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
--	page_add_file_rmap(page);
-+	page_add_file_rmap(page, vma);
- 	pte_val = *pte;
- 	update_mmu_cache(vma, addr, pte_val);
- 	err = 0;
-@@ -203,6 +203,8 @@
- 			spin_unlock(&mapping->i_mmap_lock);
- 		}
+diff -urN  linux-2.6.15.orig/include/linux/page-flags.h
+linux-2.6.15/include/linux/page-flags.h
+--- linux-2.6.15.orig/include/linux/page-flags.h	2006-01-02
+22:21:10.000000000 -0500
++++ linux-2.6.15/include/linux/page-flags.h	2006-03-06 06:30:07.000000000 -0500
+@@ -76,6 +76,8 @@
+ #define PG_nosave_free		18	/* Free, should not be written */
+ #define PG_uncached		19	/* Page has been mapped as uncached */
 
-+		if(vma->vm_flags & VM_LOCKED)
-+			flags &= ~MAP_NONBLOCK;
- 		err = vma->vm_ops->populate(vma, start, size,
- 					    vma->vm_page_prot,
- 					    pgoff, flags & MAP_NONBLOCK);
-diff -urN linux-2.6.15.orig/mm/memory.c linux-2.6.15/mm/memory.c
---- linux-2.6.15.orig/mm/memory.c	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/mm/memory.c	2006-03-07 11:14:59.000000000 -0500
-@@ -656,7 +656,7 @@
- 					mark_page_accessed(page);
- 				file_rss--;
- 			}
--			page_remove_rmap(page);
-+			page_remove_rmap(page, vma);
- 			tlb_remove_page(tlb, page);
- 			continue;
- 		}
-
-diff -urN linux-2.6.15.orig/mm/rmap.c linux-2.6.15/mm/rmap.c
---- linux-2.6.15.orig/mm/rmap.c	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/mm/rmap.c	2006-03-07 06:17:57.000000000 -0500
-@@ -449,6 +449,8 @@
- 		struct anon_vma *anon_vma = vma->anon_vma;
-
- 		BUG_ON(!anon_vma);
-+		if((vma->vm_flags & VM_LOCKED) && !vma->vm_wire_change)
-+	        wire_page(page);
- 		anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
- 		page->mapping = (struct address_space *) anon_vma;
-
-@@ -465,11 +467,13 @@
-  *
-  * The caller needs to hold the pte lock.
-  */
--void page_add_file_rmap(struct page *page)
-+void page_add_file_rmap(struct page *page, struct vm_area_struct *vma)
- {
- 	BUG_ON(PageAnon(page));
- 	BUG_ON(!pfn_valid(page_to_pfn(page)));
-
-+	if((vma->vm_flags & VM_LOCKED) && !vma->vm_wire_change)
-+		wire_page(page);
- 	if (atomic_inc_and_test(&page->_mapcount))
- 		inc_page_state(nr_mapped);
- }
-@@ -480,8 +484,11 @@
-  *
-  * The caller needs to hold the pte lock.
-  */
--void page_remove_rmap(struct page *page)
-+void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
- {
-+	if(PageWired(page) && (vma->vm_flags&VM_LOCKED))
-+		unwire_page(page);
++#define PG_wired		20  /* Page is on Wired list */
 +
- 	if (atomic_add_negative(-1, &page->_mapcount)) {
- 		BUG_ON(page_mapcount(page) < 0);
- 		/*
-@@ -562,7 +569,7 @@
- 	} else
- 		dec_mm_counter(mm, file_rss);
+ /*
+  * Global page accounting.  One instance per CPU.  Only unsigned longs are
+  * allowed.
+@@ -198,7 +200,14 @@
+ #define __ClearPageDirty(page)	__clear_bit(PG_dirty, &(page)->flags)
+ #define TestClearPageDirty(page) test_and_clear_bit(PG_dirty, &(page)->flags)
 
--	page_remove_rmap(page);
-+	page_remove_rmap(page, vma);
- 	page_cache_release(page);
-
- out_unmap:
-@@ -652,7 +659,7 @@
- 		if (pte_dirty(pteval))
- 			set_page_dirty(page);
-
--		page_remove_rmap(page);
-+		page_remove_rmap(page, vma);
- 		page_cache_release(page);
- 		dec_mm_counter(mm, file_rss);
- 		(*mapcount)--;
-@@ -712,8 +719,10 @@
-
- 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
- 						shared.vm_set.list) {
--		if (vma->vm_flags & VM_LOCKED)
--			continue;
++#define SetPageWired(page)	set_bit(PG_wired, &(page)->flags)
++#define ClearPageWired(page) clear_bit(PG_wired,&(page)->flags)
++#define PageWired(page)		test_bit(PG_wired, &(page)->flags)
++#define TestSetPageWired(page)	test_and_set_bit(PG_wired, &(page)->flags)
++#define TestClearPageWired(page)	test_and_clear_bit(PG_wired, &(page)->flags)
 +
-+		/* If VM_LOCKED set, the page will be moved to Wired list.*/
-+		if (vma->vm_flags & VM_LOCKED)
-+			continue;
- 		cursor = (unsigned long) vma->vm_private_data;
- 		if (cursor > max_nl_cursor)
- 			max_nl_cursor = cursor;
-diff -urN linux-2.6.15.orig/mm/memory.c linux-2.6.15/mm/memory.c
---- linux-2.6.15.orig/mm/memory.c	2006-01-02 22:21:10.000000000 -0500
-+++ linux-2.6.15/mm/memory.c	2006-03-07 11:14:59.000000000 -0500
-@@ -1089,7 +1120,7 @@
- 		struct page *page = ZERO_PAGE(addr);
- 		pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
- 		page_cache_get(page);
--		page_add_file_rmap(page);
-+		page_add_file_rmap(page,vma);
- 		inc_mm_counter(mm, file_rss);
- 		BUG_ON(!pte_none(*pte));
- 		set_pte_at(mm, addr, pte, zero_pte);
-@@ -1098,8 +1129,8 @@
- 	return 0;
+ #define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
++#define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
+ #define PageLRU(page)		test_bit(PG_lru, &(page)->flags)
+ #define TestSetPageLRU(page)	test_and_set_bit(PG_lru, &(page)->flags)
+ #define TestClearPageLRU(page)	test_and_clear_bit(PG_lru, &(page)->flags)
+diff -urN  linux-2.6.15.orig/include/linux/swap.h
+linux-2.6.15/include/linux/swap.h
+--- linux-2.6.15.orig/include/linux/swap.h	2006-01-02 22:21:10.000000000 -0500
++++ linux-2.6.15/include/linux/swap.h	2006-03-06 06:30:07.000000000 -0500
+@@ -165,6 +165,8 @@
+ extern void FASTCALL(lru_cache_add(struct page *));
+ extern void FASTCALL(lru_cache_add_active(struct page *));
+ extern void FASTCALL(activate_page(struct page *));
++extern void FASTCALL(wire_page(struct page *));
++extern void FASTCALL(unwire_page(struct page *));
+ extern void FASTCALL(mark_page_accessed(struct page *));
+ extern void lru_add_drain(void);
+ extern int rotate_reclaimable_page(struct page *page);
+diff -urN  linux-2.6.15.orig/mm/swap.c linux-2.6.15/mm/swap.c
+--- linux-2.6.15.orig/mm/swap.c	2006-01-02 22:21:10.000000000 -0500
++++ linux-2.6.15/mm/swap.c	2006-03-07 11:45:37.000000000 -0500
+@@ -110,6 +110,44 @@
+ 	spin_unlock_irq(&zone->lru_lock);
  }
 
--static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
--			unsigned long addr, unsigned long end, pgprot_t prot)
-+static inline int zeromap_pmd_range(struct mm_struct *mm, struct
-vm_area_struct *vma,
-+			 pud_t *pud, unsigned long addr, unsigned long end, pgprot_t prot)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -1109,14 +1140,14 @@
- 		return -ENOMEM;
- 	do {
- 		next = pmd_addr_end(addr, end);
--		if (zeromap_pte_range(mm, pmd, addr, next, prot))
-+		if (zeromap_pte_range(mm, vma, pmd, addr, next, prot))
- 			return -ENOMEM;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
-
--static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
--			unsigned long addr, unsigned long end, pgprot_t prot)
-+static inline int zeromap_pud_range(struct mm_struct *mm, struct
-vm_area_struct *vma,
-+			pgd_t *pgd, unsigned long addr, unsigned long end, pgprot_t prot)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -1126,7 +1157,7 @@
- 		return -ENOMEM;
- 	do {
- 		next = pud_addr_end(addr, end);
--		if (zeromap_pmd_range(mm, pud, addr, next, prot))
-+		if (zeromap_pmd_range(mm, vma, pud, addr, next, prot))
- 			return -ENOMEM;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
-@@ -1146,7 +1177,7 @@
- 	flush_cache_range(vma, addr, end);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		err = zeromap_pud_range(mm, pgd, addr, next, prot);
-+		err = zeromap_pud_range(mm, vma, pgd, addr, next, prot);
- 		if (err)
- 			break;
- 	} while (pgd++, addr = next, addr != end);
-@@ -1172,7 +1203,8 @@
-  * old drivers should use this, and they needed to mark their
-  * pages reserved for the old functions anyway.
++/* Wire the page; if the page is in LRU,
++ * try move it to Wired list.
++ */
++void fastcall wire_page(struct page *page)
++{
++	struct zone *zone = page_zone(page);
++
++	spin_lock_irq(&zone->lru_lock);
++	page->wired_count ++;
++	if(!PageWired(page)){
++		if(PageLRU(page)){
++			del_page_from_lru(zone, page);
++			add_page_to_wired_list(zone,page);
++			SetPageWired(page);
++		}
++	}
++	spin_unlock_irq(&zone->lru_lock);
++}
++
++/* Unwire the page.
++ * If it isnt wired by any process, try move it to active list.
++ */
++void fastcall unwire_page(struct page *page)
++{
++	struct zone *zone = page_zone(page);
++
++	spin_lock_irq(&zone->lru_lock);
++	page->wired_count --;
++	if(!page->wired_count){
++		if(PageLRU(page) && TestClearPageWired(page)){
++			del_page_from_wired_list(zone,page);
++			add_page_to_active_list(zone,page);
++			SetPageActive(page);
++		}
++	}
++	spin_unlock_irq(&zone->lru_lock);
++}
++
+ /*
+  * Mark a page as having seen activity.
+  *
+@@ -119,11 +157,13 @@
   */
--static int insert_page(struct mm_struct *mm, unsigned long addr,
-struct page *page, pgprot_t prot)
-+static int insert_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long addr, struct page *page, pgprot_t prot)
+ void fastcall mark_page_accessed(struct page *page)
  {
- 	int retval;
- 	pte_t *pte;
-@@ -1193,7 +1225,7 @@
- 	/* Ok, finally just insert the thing.. */
- 	get_page(page);
- 	inc_mm_counter(mm, file_rss);
--	page_add_file_rmap(page);
-+	page_add_file_rmap(page,vma);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
-
- 	retval = 0;
-@@ -1229,7 +1261,7 @@
- 	if (!page_count(page))
- 		return -EINVAL;
- 	vma->vm_flags |= VM_INSERTPAGE;
--	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
-+	return insert_page(vma->vm_mm, vma, addr, page, vma->vm_page_prot);
- }
- EXPORT_SYMBOL(vm_insert_page);
-
-@@ -1484,7 +1516,7 @@
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (likely(pte_same(*page_table, orig_pte))) {
- 		if (old_page) {
--			page_remove_rmap(old_page);
-+			page_remove_rmap(old_page, vma);
- 			if (!PageAnon(old_page)) {
- 				dec_mm_counter(mm, file_rss);
- 				inc_mm_counter(mm, anon_rss);
-@@ -1967,7 +1999,7 @@
- 		if (!pte_none(*page_table))
- 			goto release;
- 		inc_mm_counter(mm, file_rss);
--		page_add_file_rmap(page);
-+		page_add_file_rmap(page, vma);
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+-		activate_page(page);
+-		ClearPageReferenced(page);
+-	} else if (!PageReferenced(page)) {
+-		SetPageReferenced(page);
++	if(!PageWired(page)) {
++		if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
++			activate_page(page);
++			ClearPageReferenced(page);
++		} else if (!PageReferenced(page)) {
++			SetPageReferenced(page);
++		}
  	}
+ }
 
- 	set_pte_at(mm, address, page_table, entry);
-@@ -2089,7 +2121,7 @@
- 			page_add_anon_rmap(new_page, vma, address);
- 		} else {
- 			inc_mm_counter(mm, file_rss);
--			page_add_file_rmap(new_page);
-+			page_add_file_rmap(new_page, vma);
+@@ -178,13 +218,15 @@
+ 	struct zone *zone = page_zone(page);
+
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+-	if (TestClearPageLRU(page))
+-		del_page_from_lru(zone, page);
+-	if (page_count(page) != 0)
+-		page = NULL;
++	if(!PageWired(page)) {
++		if (TestClearPageLRU(page))
++			del_page_from_lru(zone, page);
++		if (page_count(page) != 0)
++			page = NULL;
++		if (page)
++			free_hot_page(page);
++	}
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+-	if (page)
+-		free_hot_page(page);
+ }
+
+ EXPORT_SYMBOL(__page_cache_release);
+@@ -214,7 +256,8 @@
+
+ 		if (!put_page_testzero(page))
+ 			continue;
+-
++		if(PageWired(page))
++			continue;
+ 		pagezone = page_zone(page);
+ 		if (pagezone != zone) {
+ 			if (zone)
+@@ -301,7 +344,12 @@
  		}
- 	} else {
- 		/* One of our sibling threads was faster, back out. */
+ 		if (TestSetPageLRU(page))
+ 			BUG();
+-		add_page_to_inactive_list(zone, page);
++		if(!page->wired_count)
++			add_page_to_inactive_list(zone, page);
++		else {
++			SetPageWired(page);
++			add_page_to_wired_list(zone,page);
++		}
+ 	}
+ 	if (zone)
+ 		spin_unlock_irq(&zone->lru_lock);
+@@ -330,7 +378,12 @@
+ 			BUG();
+ 		if (TestSetPageActive(page))
+ 			BUG();
+-		add_page_to_active_list(zone, page);
++		if(!page->wired_count)
++			add_page_to_active_list(zone, page);
++		else{
++			SetPageWired(page);
++			add_page_to_wired_list(zone,page);
++		}
+ 	}
+ 	if (zone)
+ 		spin_unlock_irq(&zone->lru_lock);
+diff -urN  linux-2.6.15.orig/mm/page_alloc.c linux-2.6.15/mm/page_alloc.c
+--- linux-2.6.15.orig/mm/page_alloc.c	2006-01-02 22:21:10.000000000 -0500
++++ linux-2.6.15/mm/page_alloc.c	2006-03-06 06:30:08.000000000 -0500
+@@ -348,7 +348,8 @@
+ 			1 << PG_slab	|
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback |
+-			1 << PG_reserved )))
++			1 << PG_reserved |
++			1 << PG_wired )))
+ 		bad_page(function, page);
+ 	if (PageDirty(page))
+ 		__ClearPageDirty(page);
+@@ -481,6 +482,7 @@
+ 			1 << PG_private	|
+ 			1 << PG_locked	|
+ 			1 << PG_active	|
++			1 << PG_wired   |
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_slab    |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
