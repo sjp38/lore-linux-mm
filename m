@@ -1,11 +1,10 @@
-Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and
-	balanced mlock-LRU semantic
+Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
 From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <bc56f2f0603200535s2b801775m@mail.gmail.com>
-References: <bc56f2f0603200535s2b801775m@mail.gmail.com>
+In-Reply-To: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
+References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
 Content-Type: text/plain
-Date: Mon, 20 Mar 2006 14:41:18 +0100
-Message-Id: <1142862078.3114.47.camel@laptopd505.fenrus.org>
+Date: Mon, 20 Mar 2006 14:42:14 +0100
+Message-Id: <1142862134.3114.49.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,16 +13,15 @@ To: Stone Wang <pwstone@gmail.com>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 1. Posix mlock/munlock/mlockall/munlockall.
->    Get mlock/munlock/mlockall/munlockall to Posix definiton: transaction-like,
->    just as described in the manpage(2) of mlock/munlock/mlockall/munlockall.
->    Thus users of mlock system call series will always have an clear map of
->    mlocked areas.
-> 2. More consistent LRU semantics in Memory Management.
->    Mlocked pages is placed on a separate LRU list: Wired List.
+On Mon, 2006-03-20 at 08:36 -0500, Stone Wang wrote:
+> 1. Add make_pages_unwired routine.
+> 2. Replace make_pages_present with make_pages_wired, support rollback.
+> 3. Pass 1 more param ("wire") to get_user_pages.
 
-please give this a more logical name, such as mlocked list or pinned
-list
+hmm again "wire" is a meaningless name
+also.. get_user_pages ALWAYS pins the page ... so might as well make
+that automatic (with an unpin when the pinning is released)
+
 
 
 --
