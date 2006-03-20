@@ -1,49 +1,37 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2KFZYHj017834
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 10:35:34 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2KFZOOM171794
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 10:35:24 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k2KFZNWa024486
-	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 10:35:24 -0500
-Subject: Re: [patch] hugetlb strict commit accounting - v3
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <200603100314.k2A3Evg28313@unix-os.sc.intel.com>
-References: <200603100314.k2A3Evg28313@unix-os.sc.intel.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2KGeU22012757
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 11:40:30 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2KGeK7U235376
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 11:40:20 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k2KGeJTM012149
+	for <linux-mm@kvack.org>; Mon, 20 Mar 2006 11:40:20 -0500
+Subject: Re: [PATCH: 017/017]Memory hotplug for new nodes
+	v.4.(arch_register_node() for ia64)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060320183634.7E9C.Y-GOTO@jp.fujitsu.com>
+References: <20060317163911.C659.Y-GOTO@jp.fujitsu.com>
+	 <1142618434.10906.99.camel@localhost.localdomain>
+	 <20060320183634.7E9C.Y-GOTO@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Mon, 20 Mar 2006 09:35:21 -0600
-Message-Id: <1142868921.14508.3.camel@localhost.localdomain>
+Date: Mon, 20 Mar 2006 08:39:04 -0800
+Message-Id: <1142872744.10906.125.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'David Gibson' <david@gibson.dropbear.id.au>, wli@holomorphy.com, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-03-09 at 19:14 -0800, Chen, Kenneth W wrote:
-> @@ -98,6 +98,12 @@ struct page *alloc_huge_page(struct vm_a
->  	int i;
->  
->  	spin_lock(&hugetlb_lock);
-> +	if (vma->vm_flags & VM_MAYSHARE)
-> +		resv_huge_pages--;
-> +	else if (free_huge_pages <= resv_huge_pages) {
-> +		spin_unlock(&hugetlb_lock);
-> +		return NULL;
-> +	}
->  	page = dequeue_huge_page(vma, addr);
->  	if (!page) {
->  		spin_unlock(&hugetlb_lock);
+On Mon, 2006-03-20 at 18:57 +0900, Yasunori Goto wrote:
+> Current i386's code treats "parent node" in arch_register_node(). 
+> But, IA64 doesn't need it.
 
-Unfortunately this will break down when two or more threads race to
-allocate the same page. You end up with a double-decrement of
-resv_huge_pages even though only one thread will win the race.
+I'm not sure I understand.  What do you mean by "treats"?
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
