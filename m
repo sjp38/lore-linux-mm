@@ -1,37 +1,173 @@
-Received: by uproxy.gmail.com with SMTP id m3so701785uge
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 07:33:39 -0800 (PST)
-Message-ID: <bc56f2f0603210733vc3ce132p@mail.gmail.com>
-Date: Tue, 21 Mar 2006 10:33:36 -0500
+Received: by uproxy.gmail.com with SMTP id s2so692827uge
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 07:53:40 -0800 (PST)
+Message-ID: <bc56f2f0603210753k758ebf6dq@mail.gmail.com>
+Date: Tue, 21 Mar 2006 10:53:40 -0500
 From: "Stone Wang" <pwstone@gmail.com>
-Subject: Re: [PATCH][5/8] proc: export mlocked pages info through "/proc/meminfo: Wired"
-In-Reply-To: <441FEFC7.5030109@yahoo.com.au>
+Subject: Re: [PATCH][8/8] mm: lru interface change
+In-Reply-To: <441FF007.6020901@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>
-	 <441FEFC7.5030109@yahoo.com.au>
+References: <bc56f2f0603200538g3d6aa712i@mail.gmail.com>
+	 <441FF007.6020901@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The list potentially could have more wider use.
+> I may have missed something very trivial, but... why are they on a
+> list at all if they don't get scanned
 
-For example, kernel-space locked/pinned pages could be placed on the list too
-(while mlocked pages are locked/pinned by system calls from user-space).
+Get the locked pages on a list is necessary for page management,
+scatter the locked pages around isnt a good idea.
+
+Also, we could add some kinds of scan to the locked pages,
+if we find that it's necessary.
+
+
+Shaoping Wang
 
 2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
 > Stone Wang wrote:
-> > Export mlock(wired) info through file /proc/meminfo.
+> > Add Wired list to LRU.
+> > Add PG_Wired bit to page.
 > >
 >
-> If wired is solely for mlock pages... why not just call it
-> mlock/mlocked?
+> I may have missed something very trivial, but... why are they on a
+> list at all if they don't get scanned?
+>
+>
+> > diff -urN  linux-2.6.15.orig/mm/swap.c linux-2.6.15/mm/swap.c
+> > --- linux-2.6.15.orig/mm/swap.c       2006-01-02 22:21:10.000000000 -0500
+> > +++ linux-2.6.15/mm/swap.c    2006-03-07 11:45:37.000000000 -0500
+> > @@ -110,6 +110,44 @@
+> >       spin_unlock_irq(&zone->lru_lock);
+> >  }
+> >
+> > +/* Wire the page; if the page is in LRU,
+> > + * try move it to Wired list.
+> > + */
+> > +void fastcall wire_page(struct page *page)
+>
+> Ahh, here's the elusive beast.
+>
+> > +{
+> > +     struct zone *zone = page_zone(page);
+> > +
+> > +     spin_lock_irq(&zone->lru_lock);
+>
+> This is a fairly heavy lock for something which is going into page fault
+> fastpaths and such. You might be better off making wired_count atomic and
+> not using a lock in the common case if possible (even if it is only for
+> mlocked pages, I'm sure someone will complain).
+>
+> > +     page->wired_count ++;
+>
+> Oh dear, I missed this change you made to struct page, tucked away in 5/8.
+> This alone pretty much makes it a showstopper, I'm afraid. You'll have to
+> work out some other way to do it so as not to penalise 99.999% of machines
+> which don't need this.
+>
+> (Oh, and making the field a short usually won't help either, because of
+> alignment constraints).
+>
+> > +     if(!PageWired(page)){
+> > +             if(PageLRU(page)){
+> > +                     del_page_from_lru(zone, page);
+> > +                     add_page_to_wired_list(zone,page);
+> > +                     SetPageWired(page);
+> > +             }
+> > +     }
+> > +     spin_unlock_irq(&zone->lru_lock);
+> > +}
+> > +
+> > +/* Unwire the page.
+> > + * If it isnt wired by any process, try move it to active list.
+> > + */
+> > +void fastcall unwire_page(struct page *page)
+> > +{
+> > +     struct zone *zone = page_zone(page);
+> > +
+> > +     spin_lock_irq(&zone->lru_lock);
+> > +     page->wired_count --;
+> > +     if(!page->wired_count){
+> > +             if(PageLRU(page) && TestClearPageWired(page)){
+> > +                     del_page_from_wired_list(zone,page);
+> > +                     add_page_to_active_list(zone,page);
+> > +                     SetPageActive(page);
+> > +             }
+> > +     }
+> > +     spin_unlock_irq(&zone->lru_lock);
+> > +}
+> > +
+> >  /*
+> >   * Mark a page as having seen activity.
+> >   *
+> > @@ -119,11 +157,13 @@
+> >   */
+> >  void fastcall mark_page_accessed(struct page *page)
+> >  {
+> > -     if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+> > -             activate_page(page);
+> > -             ClearPageReferenced(page);
+> > -     } else if (!PageReferenced(page)) {
+> > -             SetPageReferenced(page);
+> > +     if(!PageWired(page)) {
+> > +             if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+> > +                     activate_page(page);
+> > +                     ClearPageReferenced(page);
+> > +             } else if (!PageReferenced(page)) {
+> > +                     SetPageReferenced(page);
+> > +             }
+> >       }
+> >  }
+> >
+>
+> So, umm... what happens when the page gets wired before activate_page()?
+>
+> > @@ -178,13 +218,15 @@
+> >       struct zone *zone = page_zone(page);
+> >
+> >       spin_lock_irqsave(&zone->lru_lock, flags);
+> > -     if (TestClearPageLRU(page))
+> > -             del_page_from_lru(zone, page);
+> > -     if (page_count(page) != 0)
+> > -             page = NULL;
+> > +     if(!PageWired(page)) {
+> > +             if (TestClearPageLRU(page))
+> > +                     del_page_from_lru(zone, page);
+> > +             if (page_count(page) != 0)
+> > +                     page = NULL;
+> > +             if (page)
+> > +                     free_hot_page(page);
+> > +     }
+> >       spin_unlock_irqrestore(&zone->lru_lock, flags);
+> > -     if (page)
+> > -             free_hot_page(page);
+> >  }
+> >
+>
+> Hmm... how do PageWired pages get freed, then?
+>
+> >  EXPORT_SYMBOL(__page_cache_release);
+> > @@ -214,7 +256,8 @@
+> >
+> >               if (!put_page_testzero(page))
+> >                       continue;
+> > -
+> > +             if(PageWired(page))
+> > +                     continue;
+> >               pagezone = page_zone(page);
+> >               if (pagezone != zone) {
+> >                       if (zone)
+>
+> Ditto.
 >
 > --
 > SUSE Labs, Novell Inc.
+>
 >
 > Send instant messages to your online friends http://au.messenger.yahoo.com
 >
