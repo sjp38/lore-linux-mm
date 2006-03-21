@@ -1,118 +1,37 @@
-Message-ID: <441FEFB4.6050700@yahoo.com.au>
-Date: Tue, 21 Mar 2006 23:21:08 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
-References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
-In-Reply-To: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH][8/8] mm: lru interface change
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <441FF007.6020901@yahoo.com.au>
+References: <bc56f2f0603200538g3d6aa712i@mail.gmail.com>
+	 <441FF007.6020901@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 21 Mar 2006 14:13:05 +0100
+Message-Id: <1142946785.3077.78.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Stone Wang <pwstone@gmail.com>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stone Wang wrote:
-> 1. Add make_pages_unwired routine.
-
-Unfortunately you forgot wire_page and unwire_page, so this patch will
-not even compile.
-
-> 2. Replace make_pages_present with make_pages_wired, support rollback.
-
-What does support rollback mean?
-
-> 3. Pass 1 more param ("wire") to get_user_pages.
+> > +	page->wired_count ++;
 > 
-
-As others have pointed out, wire may be a BSD / other unix thing, but
-it does not feature in Linux memory management terminology. If you
-want to introduce it, you need to do a better job of specifying it.
-
-> Signed-off-by: Shaoping Wang <pwstone@gmail.com>
+> Oh dear, I missed this change you made to struct page, tucked away in 5/8.
+> This alone pretty much makes it a showstopper, I'm afraid. You'll have to
+> work out some other way to do it so as not to penalise 99.999% of machines
+> which don't need this.
 > 
+> (Oh, and making the field a short usually won't help either, because of
+> alignment constraints).
 
-> +void make_pages_unwired(struct mm_struct *mm,
-> +					unsigned long start,unsigned long end)
-> +{
-> +	struct vm_area_struct *vma;
-> +	struct page *page;
-> +	unsigned int foll_flags;
-> +
-> +	foll_flags =0;
-> +
-> +	vma=find_vma(mm,start);
-> +	if(!vma)
-> +		BUG();
-> +	if(is_vm_hugetlb_page(vma))
-> +		return;
-> +	
-> +	for(; start<end ; start+=PAGE_SIZE) {
-> +		page=follow_page(vma,start,foll_flags);
-> +		if(page)
-> +			unwire_page(page);
-> +	}
-> +}
-> +
+it's not that hard even. All you need to do is make the vm be lazy about
+it; if it encounters a pinned page during scanning, move it THEN to the
+pinned list. If it then gets pinned more no issue. The first unpin then
+moves it back to the normal list (yes it's still pinned), but the first
+time the VM sees it it goes right back to the pinned list.
+That way there's no need to keep a "pin depth" at all...
 
-What happens when start goes past vma->vm_end?
 
->  int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-> -		unsigned long start, int len, int write, int force,
-> +		unsigned long start, int len, int write,int force, int wire,
->  		struct page **pages, struct vm_area_struct **vmas)
->  {
->  	int i;
-> @@ -973,6 +995,7 @@
->  		if (!vma && in_gate_area(tsk, start)) {
->  			unsigned long pg = start & PAGE_MASK;
->  			struct vm_area_struct *gate_vma = get_gate_vma(tsk);
-> +			struct page *page;	
->  			pgd_t *pgd;
->  			pud_t *pud;
->  			pmd_t *pmd;
-> @@ -994,6 +1017,7 @@
->  				pte_unmap(pte);
->  				return i ? : -EFAULT;
->  			}
-> +			page = vm_normal_page(gate_vma, start, *pte);
-
-You wire gate_vma pages? But it doesn't look like you can unwire them with
-make_pages_unwired.
-
->  			if (pages) {
->  				struct page *page = vm_normal_page(gate_vma, start, *pte);
-
-This can go now?
-
->  				pages[i] = page;
-> @@ -1003,9 +1027,12 @@
->  			pte_unmap(pte);
->  			if (vmas)
->  				vmas[i] = gate_vma;
-> +			if(wire)
-> +				wire_page(page);
->  			i++;
->  			start += PAGE_SIZE;
->  			len--;
-> +
->  			continue;
->  		}
-> 
-> @@ -1013,6 +1040,7 @@
->  				|| !(vm_flags & vma->vm_flags))
->  			return i ? : -EFAULT;
-> 
-> +		/* We dont account wired HugeTLB pages */
-
-You don't account wired HugeTLB pages? If you can wire them you should be able
-to unwire them as well shouldn't you?
-
--- 
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
