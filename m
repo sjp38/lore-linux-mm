@@ -1,33 +1,117 @@
-Message-ID: <441FF069.4030508@yahoo.com.au>
-Date: Tue, 21 Mar 2006 23:24:09 +1100
+Message-ID: <441FEFB4.6050700@yahoo.com.au>
+Date: Tue, 21 Mar 2006 23:21:08 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced
- mlock-LRU semantic
-References: <bc56f2f0603200535s2b801775m@mail.gmail.com>	 <1142862078.3114.47.camel@laptopd505.fenrus.org> <5c49b0ed0603201552j58150a18lbf4d0a9b0406d175@mail.gmail.com>
-In-Reply-To: <5c49b0ed0603201552j58150a18lbf4d0a9b0406d175@mail.gmail.com>
+Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
+References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
+In-Reply-To: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nate Diller <nate.diller@gmail.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, Stone Wang <pwstone@gmail.com>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Stone Wang <pwstone@gmail.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nate Diller wrote:
+Stone Wang wrote:
+> 1. Add make_pages_unwired routine.
 
-> Might I suggest calling it the long_term_pinned list?  It also might
-> be worth putting ramdisk pages on this list, since they cannot be
-> written out in response to memory pressure.  This would eliminate the
-> need for AOP_WRITEPAGE_ACTIVATE.
+Unfortunately you forgot wire_page and unwire_page, so this patch will
+not even compile.
+
+> 2. Replace make_pages_present with make_pages_wired, support rollback.
+
+What does support rollback mean?
+
+> 3. Pass 1 more param ("wire") to get_user_pages.
 > 
 
-They are for the ram filesystem, btw. and I don't think you can eliminate
-AOP_WRITEPAGE_ACTIVATE, because it is needed for a number of reasons (out
-of swap space being one).
+As others have pointed out, wire may be a BSD / other unix thing, but
+it does not feature in Linux memory management terminology. If you
+want to introduce it, you need to do a better job of specifying it.
+
+> Signed-off-by: Shaoping Wang <pwstone@gmail.com>
+> 
+
+> +void make_pages_unwired(struct mm_struct *mm,
+> +					unsigned long start,unsigned long end)
+> +{
+> +	struct vm_area_struct *vma;
+> +	struct page *page;
+> +	unsigned int foll_flags;
+> +
+> +	foll_flags =0;
+> +
+> +	vma=find_vma(mm,start);
+> +	if(!vma)
+> +		BUG();
+> +	if(is_vm_hugetlb_page(vma))
+> +		return;
+> +	
+> +	for(; start<end ; start+=PAGE_SIZE) {
+> +		page=follow_page(vma,start,foll_flags);
+> +		if(page)
+> +			unwire_page(page);
+> +	}
+> +}
+> +
+
+What happens when start goes past vma->vm_end?
+
+>  int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> -		unsigned long start, int len, int write, int force,
+> +		unsigned long start, int len, int write,int force, int wire,
+>  		struct page **pages, struct vm_area_struct **vmas)
+>  {
+>  	int i;
+> @@ -973,6 +995,7 @@
+>  		if (!vma && in_gate_area(tsk, start)) {
+>  			unsigned long pg = start & PAGE_MASK;
+>  			struct vm_area_struct *gate_vma = get_gate_vma(tsk);
+> +			struct page *page;	
+>  			pgd_t *pgd;
+>  			pud_t *pud;
+>  			pmd_t *pmd;
+> @@ -994,6 +1017,7 @@
+>  				pte_unmap(pte);
+>  				return i ? : -EFAULT;
+>  			}
+> +			page = vm_normal_page(gate_vma, start, *pte);
+
+You wire gate_vma pages? But it doesn't look like you can unwire them with
+make_pages_unwired.
+
+>  			if (pages) {
+>  				struct page *page = vm_normal_page(gate_vma, start, *pte);
+
+This can go now?
+
+>  				pages[i] = page;
+> @@ -1003,9 +1027,12 @@
+>  			pte_unmap(pte);
+>  			if (vmas)
+>  				vmas[i] = gate_vma;
+> +			if(wire)
+> +				wire_page(page);
+>  			i++;
+>  			start += PAGE_SIZE;
+>  			len--;
+> +
+>  			continue;
+>  		}
+> 
+> @@ -1013,6 +1040,7 @@
+>  				|| !(vm_flags & vma->vm_flags))
+>  			return i ? : -EFAULT;
+> 
+> +		/* We dont account wired HugeTLB pages */
+
+You don't account wired HugeTLB pages? If you can wire them you should be able
+to unwire them as well shouldn't you?
 
 -- 
 SUSE Labs, Novell Inc.
+
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
