@@ -1,31 +1,43 @@
-Date: Tue, 21 Mar 2006 13:11:53 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH: 017/017]Memory hotplug for new nodes v.4.(arch_register_node() for ia64)
-In-Reply-To: <1142872744.10906.125.camel@localhost.localdomain>
-References: <20060320183634.7E9C.Y-GOTO@jp.fujitsu.com> <1142872744.10906.125.camel@localhost.localdomain>
-Message-Id: <20060321130425.E477.Y-GOTO@jp.fujitsu.com>
+Received: by uproxy.gmail.com with SMTP id q2so636737uge
+        for <linux-mm@kvack.org>; Mon, 20 Mar 2006 21:23:06 -0800 (PST)
+Message-ID: <bc56f2f0603202123o1f43132u@mail.gmail.com>
+Date: Tue, 21 Mar 2006 00:23:06 -0500
+From: "Stone Wang" <pwstone@gmail.com>
+Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced mlock-LRU semantic
+In-Reply-To: <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <bc56f2f0603200535s2b801775m@mail.gmail.com>
+	 <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 2006-03-20 at 18:57 +0900, Yasunori Goto wrote:
-> > Current i386's code treats "parent node" in arch_register_node(). 
-> > But, IA64 doesn't need it.
-> 
-> I'm not sure I understand.  What do you mean by "treats"?
+I will check and fix it.
 
-Oops. My English may be wrong. :-(
-I mean that i386 seems trying to make relationship of parent and child
-among each node.
-
--- 
-Yasunori Goto 
-
+2006/3/20, Christoph Lameter <clameter@sgi.com>:
+> On Mon, 20 Mar 2006, Stone Wang wrote:
+>
+> > 2. More consistent LRU semantics in Memory Management.
+> >    Mlocked pages is placed on a separate LRU list: Wired List.
+> >    The pages dont take part in LRU algorithms,for they could never be swapped,
+> >    until munlocked.
+>
+> This also implies that dirty bits of the pte for mlocked pages are never
+> checked.
+>
+> Currently light swapping (which is very common) will scan over all pages
+> and move the dirty bits from the pte into struct page. This may take
+> awhile but at least at some point we will write out dirtied pages.
+>
+> The result of not scanning mlocked pages will be that mmapped files will
+> not be updated unless either the process terminates or msync() is called.
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
