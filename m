@@ -1,65 +1,39 @@
-Received: by uproxy.gmail.com with SMTP id o2so709444uge
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 07:20:12 -0800 (PST)
-Message-ID: <bc56f2f0603210720q332b0fdbu@mail.gmail.com>
-Date: Tue, 21 Mar 2006 10:20:12 -0500
+Received: by uproxy.gmail.com with SMTP id m3so701785uge
+        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 07:33:39 -0800 (PST)
+Message-ID: <bc56f2f0603210733vc3ce132p@mail.gmail.com>
+Date: Tue, 21 Mar 2006 10:33:36 -0500
 From: "Stone Wang" <pwstone@gmail.com>
-Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced mlock-LRU semantic
-In-Reply-To: <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH][5/8] proc: export mlocked pages info through "/proc/meminfo: Wired"
+In-Reply-To: <441FEFC7.5030109@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-References: <bc56f2f0603200535s2b801775m@mail.gmail.com>
-	 <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
+References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>
+	 <441FEFC7.5030109@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Checked, mlocked pages dont take part in swapping-writeback,
-unlike normal mmaped pages :
+The list potentially could have more wider use.
 
-linux-2.6.16/mm/rmap.c
+For example, kernel-space locked/pinned pages could be placed on the list too
+(while mlocked pages are locked/pinned by system calls from user-space).
 
-try_to_unmap_one()
-
-    603     if ((vma->vm_flags & VM_LOCKED) ||
-    604             (ptep_clear_flush_young(vma, address, pte)
-    605                 && !ignore_refs)) {
-    606         ret = SWAP_FAIL;
-    607         goto out_unmap;
-    608     }
-    609
-    610     /* Nuke the page table entry. */
-    611     flush_cache_page(vma, address, page_to_pfn(page));
-    612     pteval = ptep_clear_flush(vma, address, pte);
-    613
-    614     /* Move the dirty bit to the physical page now the pte is gone. */
-    615     if (pte_dirty(pteval))
-    616         set_page_dirty(page);
-
-For VM_LOCKED page, it goes back(line 607) without set_page_dirty(line 616).
-
-
-
-2006/3/20, Christoph Lameter <clameter@sgi.com>:
-> On Mon, 20 Mar 2006, Stone Wang wrote:
+2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
+> Stone Wang wrote:
+> > Export mlock(wired) info through file /proc/meminfo.
+> >
 >
-> > 2. More consistent LRU semantics in Memory Management.
-> >    Mlocked pages is placed on a separate LRU list: Wired List.
-> >    The pages dont take part in LRU algorithms,for they could never be swapped,
-> >    until munlocked.
+> If wired is solely for mlock pages... why not just call it
+> mlock/mlocked?
 >
-> This also implies that dirty bits of the pte for mlocked pages are never
-> checked.
+> --
+> SUSE Labs, Novell Inc.
 >
-> Currently light swapping (which is very common) will scan over all pages
-> and move the dirty bits from the pte into struct page. This may take
-> awhile but at least at some point we will write out dirtied pages.
->
-> The result of not scanning mlocked pages will be that mmapped files will
-> not be updated unless either the process terminates or msync() is called.
+> Send instant messages to your online friends http://au.messenger.yahoo.com
 >
 >
 
