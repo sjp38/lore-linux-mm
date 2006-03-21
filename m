@@ -1,140 +1,55 @@
-Received: by uproxy.gmail.com with SMTP id u40so714325ugc
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 08:03:05 -0800 (PST)
-Message-ID: <bc56f2f0603210803l28145c7dj@mail.gmail.com>
-Date: Tue, 21 Mar 2006 11:03:05 -0500
-From: "Stone Wang" <pwstone@gmail.com>
-Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
-In-Reply-To: <441FEFB4.6050700@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
-	 <441FEFB4.6050700@yahoo.com.au>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2LI1qtK000638
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 13:01:52 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2LI1erQ246416
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 13:01:42 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k2LI1enT009830
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 13:01:40 -0500
+Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
+	old add_memory() to arch_add_memory())
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060318102653.57c6a2af.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+	 <1142615538.10906.67.camel@localhost.localdomain>
+	 <20060318102653.57c6a2af.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 21 Mar 2006 10:00:12 -0800
+Message-Id: <1142964013.10906.158.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: y-goto@jp.fujitsu.com, akpm@osdl.org, tony.luck@intel.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We dont account HugeTLB pages for:
+On Sat, 2006-03-18 at 10:26 +0900, KAMEZAWA Hiroyuki wrote:
+> If *determine node* function is moved to arch specific parts,
+> memory hot add need more and more codes to determine  paddr -> nid in arch
+> specific codes. Then, we have to add new paddr->nid function even if new nid is
+> passed by firmware. We *lose* useful information of nid from firmware if 
+> add_memory() has just 2 args, (start, end).  
 
-1. HugeTLB pages themselves are not reclaimable.
+What I'm saying is that I'd like add_memory() to be just that, for
+adding memory.
 
-2. If we count HugeTLB pages in "Wired",then we would have no mind
-   how many of the "Wired" are HugeTLB pages, and how many are
-normal-size pages.
-   Thus, hard to get a clear map of physical memory use,for example:
-     how many pages are reclaimable?
-   If we must count HugeTLB pages,more fields should be added to
-"/proc/meminfo",
-   for exmaple: "Wired HugeTLB:", "Wired Normal:".
+At some point in the process, you need to export the NUMA node layout to
+the rest of the system, to say which pages go in which node.  I'm just
+saying that you should do that _before_ add_memory().
 
-Shaoping Wang
+add_memory() should support adding memory to more than one node.  If any
+hypervisor or hardware happens to have memory added in one contiguous
+chunk, it can not simply call add_memory().  _That_ firmware would be
+forced to do the NUMA parsing and figure out how many times to call
+add_memory().  
 
-2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
-> Stone Wang wrote:
-> > 1. Add make_pages_unwired routine.
->
-> Unfortunately you forgot wire_page and unwire_page, so this patch will
-> not even compile.
->
-> > 2. Replace make_pages_present with make_pages_wired, support rollback.
->
-> What does support rollback mean?
->
-> > 3. Pass 1 more param ("wire") to get_user_pages.
-> >
->
-> As others have pointed out, wire may be a BSD / other unix thing, but
-> it does not feature in Linux memory management terminology. If you
-> want to introduce it, you need to do a better job of specifying it.
->
-> > Signed-off-by: Shaoping Wang <pwstone@gmail.com>
-> >
->
-> > +void make_pages_unwired(struct mm_struct *mm,
-> > +                                     unsigned long start,unsigned long end)
-> > +{
-> > +     struct vm_area_struct *vma;
-> > +     struct page *page;
-> > +     unsigned int foll_flags;
-> > +
-> > +     foll_flags =0;
-> > +
-> > +     vma=find_vma(mm,start);
-> > +     if(!vma)
-> > +             BUG();
-> > +     if(is_vm_hugetlb_page(vma))
-> > +             return;
-> > +
-> > +     for(; start<end ; start+=PAGE_SIZE) {
-> > +             page=follow_page(vma,start,foll_flags);
-> > +             if(page)
-> > +                     unwire_page(page);
-> > +     }
-> > +}
-> > +
->
-> What happens when start goes past vma->vm_end?
->
-> >  int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-> > -             unsigned long start, int len, int write, int force,
-> > +             unsigned long start, int len, int write,int force, int wire,
-> >               struct page **pages, struct vm_area_struct **vmas)
-> >  {
-> >       int i;
-> > @@ -973,6 +995,7 @@
-> >               if (!vma && in_gate_area(tsk, start)) {
-> >                       unsigned long pg = start & PAGE_MASK;
-> >                       struct vm_area_struct *gate_vma = get_gate_vma(tsk);
-> > +                     struct page *page;
-> >                       pgd_t *pgd;
-> >                       pud_t *pud;
-> >                       pmd_t *pmd;
-> > @@ -994,6 +1017,7 @@
-> >                               pte_unmap(pte);
-> >                               return i ? : -EFAULT;
-> >                       }
-> > +                     page = vm_normal_page(gate_vma, start, *pte);
->
-> You wire gate_vma pages? But it doesn't look like you can unwire them with
-> make_pages_unwired.
->
-> >                       if (pages) {
-> >                               struct page *page = vm_normal_page(gate_vma, start, *pte);
->
-> This can go now?
->
-> >                               pages[i] = page;
-> > @@ -1003,9 +1027,12 @@
-> >                       pte_unmap(pte);
-> >                       if (vmas)
-> >                               vmas[i] = gate_vma;
-> > +                     if(wire)
-> > +                             wire_page(page);
-> >                       i++;
-> >                       start += PAGE_SIZE;
-> >                       len--;
-> > +
-> >                       continue;
-> >               }
-> >
-> > @@ -1013,6 +1040,7 @@
-> >                               || !(vm_flags & vma->vm_flags))
-> >                       return i ? : -EFAULT;
-> >
-> > +             /* We dont account wired HugeTLB pages */
->
-> You don't account wired HugeTLB pages? If you can wire them you should be able
-> to unwire them as well shouldn't you?
->
-> --
-> SUSE Labs, Novell Inc.
->
-> Send instant messages to your online friends http://au.messenger.yahoo.com
->
->
+Let me reiterate: the process of telling the system which pages are in
+which node should be separate from telling the system that there *are*
+currently pages there now.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
