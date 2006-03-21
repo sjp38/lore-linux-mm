@@ -1,48 +1,31 @@
-Message-ID: <1142901862.441f4c66c748e@vds.kolivas.org>
-Date: Tue, 21 Mar 2006 11:44:22 +1100
-From: kernel@kolivas.org
-Subject: Re: [PATCH][3/3] mm: swsusp post resume aggressive swap prefetch
-References: <200603200234.01472.kernel@kolivas.org> <200603202247.38576.rjw@sisk.pl> <1142889937.441f1dd19e90f@vds.kolivas.org> <200603210022.32985.rjw@sisk.pl>
-In-Reply-To: <200603210022.32985.rjw@sisk.pl>
+Date: Tue, 21 Mar 2006 13:11:53 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH: 017/017]Memory hotplug for new nodes v.4.(arch_register_node() for ia64)
+In-Reply-To: <1142872744.10906.125.camel@localhost.localdomain>
+References: <20060320183634.7E9C.Y-GOTO@jp.fujitsu.com> <1142872744.10906.125.camel@localhost.localdomain>
+Message-Id: <20060321130425.E477.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux list <linux-kernel@vger.kernel.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <ak@suse.de>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Quoting "Rafael J. Wysocki" <rjw@sisk.pl>:
-> Sorry, I was wrong.  After resume the image pages in the swap are visible as
-> free, because we allocate them after we have created the image (ie. the
-> image
-> contains the system state in which these pages are free).
+> On Mon, 2006-03-20 at 18:57 +0900, Yasunori Goto wrote:
+> > Current i386's code treats "parent node" in arch_register_node(). 
+> > But, IA64 doesn't need it.
 > 
-> Well, this means I really don't know what happens and what causes the
-> slowdown.  It certainly is related to the aggressive prefetch hook in
-> swsusp_suspend().  [It seems to search the whole swap, but it doesn't
-> actually prefetch anything.  Strange.]
+> I'm not sure I understand.  What do you mean by "treats"?
 
-Are you looking at swap still in use? Swap prefetch keeps a copy of prefetched
-pages on backing store as well as in ram so the swap space will not be freed on
-prefetching. 
+Oops. My English may be wrong. :-(
+I mean that i386 seems trying to make relationship of parent and child
+among each node.
 
-> > If so, is there a way to differentiate the two so we only aggressively
-> > prefetch on kernel resume - is that what you meant by doing it in the
-> > other file? 
-> 
-> Basically, yes.  swsusp.c and snapshot.c contain common functions,
-> disk.c and swap.c contain the code used by the built-in swsusp only,
-> and user.c contains the userland interface.  If you want something to
-> be run by the built-in swsusp only, place it in disk.c.
-> 
-> Still in this particular case it won't matter, I'm afraid.
+-- 
+Yasunori Goto 
 
-I don't understand what you mean by it won't matter?
-
-Cheers,
-Con
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
