@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223228.12658.57533.sendpatchset@twins.localnet>
+Message-Id: <20060322223238.12658.35814.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 08/34] mm: page-replace-move-scan_control.patch
-Date: Wed, 22 Mar 2006 23:33:00 +0100
+Subject: [PATCH 09/34] mm: page-replace-move-isolate_lru_pages.patch
+Date: Wed, 22 Mar 2006 23:33:10 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,100 +12,282 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Move struct scan_control to the general page_replace header so that all
-policies can make use of it.
+In anticipation that only the policy implementation will know anything about
+the management of the pages, move isolate_lru_pages over to the policy
+implementation.
+
+API:
+	int page_replace_isolate(struct page*)
+
+isolate a single page from the cache mgmt structures - used by page migration.
+NOTE: this function leaves the reclaim page state untouched so that it can be 
+reinserted in the dest. zone at the correct place.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/mm_page_replace.h |   30 ++++++++++++++++++++++++++++++
- mm/vmscan.c                     |   30 ------------------------------
- 2 files changed, 30 insertions(+), 30 deletions(-)
+ include/linux/mm_page_replace.h    |    6 ++
+ include/linux/mm_use_once_policy.h |    3 +
+ include/linux/swap.h               |    2 
+ mm/mempolicy.c                     |    2 
+ mm/useonce.c                       |   81 +++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                        |   79 ------------------------------------
+ 6 files changed, 92 insertions(+), 81 deletions(-)
 
-Index: linux-2.6-git/include/linux/mm_page_replace.h
+Index: linux-2.6-git/mm/mempolicy.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -8,6 +8,36 @@
- #include <linux/pagevec.h>
- #include <linux/mm_inline.h>
- 
-+struct scan_control {
-+	/* Ask refill_inactive_zone, or shrink_cache to scan this many pages */
-+	unsigned long nr_to_scan;
+--- linux-2.6-git.orig/mm/mempolicy.c
++++ linux-2.6-git/mm/mempolicy.c
+@@ -552,7 +552,7 @@ static void migrate_page_add(struct page
+ 	 * Avoid migrating a page that is shared with others.
+ 	 */
+ 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
+-		if (isolate_lru_page(page))
++		if (page_replace_isolate(page))
+ 			list_add_tail(&page->lru, pagelist);
+ 	}
+ }
+Index: linux-2.6-git/mm/useonce.c
+===================================================================
+--- linux-2.6-git.orig/mm/useonce.c
++++ linux-2.6-git/mm/useonce.c
+@@ -75,3 +75,84 @@ int page_replace_add_drain_all(void)
+ 	return 0;
+ }
+ #endif
 +
-+	/* Incremented by the number of inactive pages that were scanned */
-+	unsigned long nr_scanned;
++#ifdef CONFIG_MIGRATION
++/*
++ * Isolate one page from the LRU lists and put it on the
++ * indicated list with elevated refcount.
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list and added to the specified list.
++ */
++int page_replace_isolate(struct page *page)
++{
++	int ret = 0;
 +
-+	/* Incremented by the number of pages reclaimed */
-+	unsigned long nr_reclaimed;
++	if (PageLRU(page)) {
++		struct zone *zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++		if (TestClearPageLRU(page)) {
++			ret = 1;
++			get_page(page);
++			if (PageActive(page))
++				del_page_from_active_list(zone, page);
++			else
++				del_page_from_inactive_list(zone, page);
++		}
++		spin_unlock_irq(&zone->lru_lock);
++	}
 +
-+	unsigned long nr_mapped;	/* From page_state */
++	return ret;
++}
++#endif
 +
-+	/* Ask shrink_caches, or shrink_zone to scan at this priority */
-+	unsigned int priority;
++/*
++ * zone->lru_lock is heavily contended.  Some of the functions that
++ * shrink the lists perform better by taking out a batch of pages
++ * and working on them outside the LRU lock.
++ *
++ * For pagecache intensive workloads, this function is the hottest
++ * spot in the kernel (apart from copy_*_user functions).
++ *
++ * Appropriate locks must be held before calling this function.
++ *
++ * @nr_to_scan:	The number of pages to look through on the list.
++ * @src:	The LRU list to pull pages off.
++ * @dst:	The temp list to put pages on to.
++ * @scanned:	The number of pages that were scanned.
++ *
++ * returns how many pages were moved onto *@dst.
++ */
++int isolate_lru_pages(int nr_to_scan, struct list_head *src,
++		      struct list_head *dst, int *scanned)
++{
++	int nr_taken = 0;
++	struct page *page;
++	int scan = 0;
 +
-+	/* This context's GFP mask */
-+	gfp_t gfp_mask;
++	while (scan++ < nr_to_scan && !list_empty(src)) {
++		page = lru_to_page(src);
++		prefetchw_prev_lru_page(page, src, flags);
 +
-+	int may_writepage;
++		if (!TestClearPageLRU(page))
++			BUG();
++		list_del(&page->lru);
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			list_add(&page->lru, src);
++			continue;
++		} else {
++			list_add(&page->lru, dst);
++			nr_taken++;
++		}
++	}
 +
-+	/* Can pages be swapped as part of reclaim? */
-+	int may_swap;
++	*scanned = scan;
++	return nr_taken;
++}
 +
-+	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
-+	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
-+	 * In this context, it doesn't matter that we scan the
-+	 * whole list at once. */
-+	int swap_cluster_max;
-+};
-+
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
- 
- #ifdef ARCH_HAS_PREFETCH
 Index: linux-2.6-git/mm/vmscan.c
 ===================================================================
 --- linux-2.6-git.orig/mm/vmscan.c
 +++ linux-2.6-git/mm/vmscan.c
-@@ -52,36 +52,6 @@ typedef enum {
- 	PAGE_CLEAN,
- } pageout_t;
+@@ -509,6 +509,7 @@ keep:
+ }
  
--struct scan_control {
--	/* Ask refill_inactive_zone, or shrink_cache to scan this many pages */
--	unsigned long nr_to_scan;
+ #ifdef CONFIG_MIGRATION
++
+ static inline void move_to_lru(struct page *page)
+ {
+ 	list_del(&page->lru);
+@@ -936,87 +937,9 @@ next:
+ 
+ 	return nr_failed + retry;
+ }
 -
--	/* Incremented by the number of inactive pages that were scanned */
--	unsigned long nr_scanned;
+-/*
+- * Isolate one page from the LRU lists and put it on the
+- * indicated list with elevated refcount.
+- *
+- * Result:
+- *  0 = page not on LRU list
+- *  1 = page removed from LRU list and added to the specified list.
+- */
+-int isolate_lru_page(struct page *page)
+-{
+-	int ret = 0;
 -
--	/* Incremented by the number of pages reclaimed */
--	unsigned long nr_reclaimed;
+-	if (PageLRU(page)) {
+-		struct zone *zone = page_zone(page);
+-		spin_lock_irq(&zone->lru_lock);
+-		if (TestClearPageLRU(page)) {
+-			ret = 1;
+-			get_page(page);
+-			if (PageActive(page))
+-				del_page_from_active_list(zone, page);
+-			else
+-				del_page_from_inactive_list(zone, page);
+-		}
+-		spin_unlock_irq(&zone->lru_lock);
+-	}
 -
--	unsigned long nr_mapped;	/* From page_state */
--
--	/* Ask shrink_caches, or shrink_zone to scan at this priority */
--	unsigned int priority;
--
--	/* This context's GFP mask */
--	gfp_t gfp_mask;
--
--	int may_writepage;
--
--	/* Can pages be swapped as part of reclaim? */
--	int may_swap;
--
--	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
--	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
--	 * In this context, it doesn't matter that we scan the
--	 * whole list at once. */
--	int swap_cluster_max;
--};
--
+-	return ret;
+-}
+ #endif
+ 
  /*
-  * The list of shrinker callbacks used by to apply pressure to
-  * ageable caches.
+- * zone->lru_lock is heavily contended.  Some of the functions that
+- * shrink the lists perform better by taking out a batch of pages
+- * and working on them outside the LRU lock.
+- *
+- * For pagecache intensive workloads, this function is the hottest
+- * spot in the kernel (apart from copy_*_user functions).
+- *
+- * Appropriate locks must be held before calling this function.
+- *
+- * @nr_to_scan:	The number of pages to look through on the list.
+- * @src:	The LRU list to pull pages off.
+- * @dst:	The temp list to put pages on to.
+- * @scanned:	The number of pages that were scanned.
+- *
+- * returns how many pages were moved onto *@dst.
+- */
+-static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
+-			     struct list_head *dst, int *scanned)
+-{
+-	int nr_taken = 0;
+-	struct page *page;
+-	int scan = 0;
+-
+-	while (scan++ < nr_to_scan && !list_empty(src)) {
+-		page = lru_to_page(src);
+-		prefetchw_prev_lru_page(page, src, flags);
+-
+-		if (!TestClearPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (get_page_testone(page)) {
+-			/*
+-			 * It is being freed elsewhere
+-			 */
+-			__put_page(page);
+-			SetPageLRU(page);
+-			list_add(&page->lru, src);
+-			continue;
+-		} else {
+-			list_add(&page->lru, dst);
+-			nr_taken++;
+-		}
+-	}
+-
+-	*scanned = scan;
+-	return nr_taken;
+-}
+-
+-/*
+  * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
+  */
+ static void shrink_cache(struct zone *zone, struct scan_control *sc)
+Index: linux-2.6-git/include/linux/mm_use_once_policy.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
++++ linux-2.6-git/include/linux/mm_use_once_policy.h
+@@ -76,5 +76,8 @@ static inline int page_replace_activate(
+ 	return 1;
+ }
+ 
++extern int isolate_lru_pages(int nr_to_scan, struct list_head *src,
++			     struct list_head *dst, int *scanned);
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_USEONCE_POLICY_H */
+Index: linux-2.6-git/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git/include/linux/mm_page_replace.h
+@@ -88,6 +88,12 @@ typedef enum {
+ /* int page_replace_activate(struct page *page); */
+ 
+ 
++#ifdef CONFIG_MIGRATION
++extern int page_replace_isolate(struct page *p);
++#else
++static inline int page_replace_isolate(struct page *p) { return -ENOSYS; }
++#endif
++
+ #ifdef CONFIG_MM_POLICY_USEONCE
+ #include <linux/mm_use_once_policy.h>
+ #else
+Index: linux-2.6-git/include/linux/swap.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/swap.h
++++ linux-2.6-git/include/linux/swap.h
+@@ -186,7 +186,6 @@ static inline int zone_reclaim(struct zo
+ #endif
+ 
+ #ifdef CONFIG_MIGRATION
+-extern int isolate_lru_page(struct page *p);
+ extern int putback_lru_pages(struct list_head *l);
+ extern int migrate_page(struct page *, struct page *);
+ extern void migrate_page_copy(struct page *, struct page *);
+@@ -195,7 +194,6 @@ extern int migrate_pages(struct list_hea
+ 		struct list_head *moved, struct list_head *failed);
+ extern int fail_migrate_page(struct page *, struct page *);
+ #else
+-static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
+ static inline int putback_lru_pages(struct list_head *l) { return 0; }
+ static inline int migrate_pages(struct list_head *l, struct list_head *t,
+ 	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
