@@ -1,60 +1,79 @@
-Received: by uproxy.gmail.com with SMTP id m2so24188uge
-        for <linux-mm@kvack.org>; Tue, 21 Mar 2006 22:02:44 -0800 (PST)
-Message-ID: <bc56f2f0603212202l5cb41f5h@mail.gmail.com>
-Date: Wed, 22 Mar 2006 01:02:44 -0500
-From: "Stone Wang" <pwstone@gmail.com>
-Subject: Re: [PATCH][5/8] proc: export mlocked pages info through "/proc/meminfo: Wired"
-In-Reply-To: <1142977393.10906.204.camel@localhost.localdomain>
+Date: Wed, 22 Mar 2006 15:06:52 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name old add_memory() to arch_add_memory())
+In-Reply-To: <20060322103839.3b3d2a66.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1142989698.10906.224.camel@localhost.localdomain> <20060322103839.3b3d2a66.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20060322120649.E48C.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>
-	 <1142977393.10906.204.camel@localhost.localdomain>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@osdl.org, tony.luck@intel.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-2006/3/21, Dave Hansen <haveblue@us.ibm.com>:
-> On Mon, 2006-03-20 at 08:37 -0500, Stone Wang wrote:
-> > --- linux-2.6.15.orig/include/linux/mm.h        2006-01-02 22:21:10.000000000 -0500
-> > +++ linux-2.6.15/include/linux/mm.h     2006-03-07 01:49:12.000000000 -0500
-> > @@ -218,6 +221,10 @@
-> >         unsigned long flags;            /* Atomic flags, some possibly
-> >                                          * updated asynchronously */
-> >         atomic_t _count;                /* Usage count, see below. */
-> > +       unsigned short wired_count; /* Count of wirings of the page.
-> > +                                        * If not zero,the page would be SetPageWired,
-> > +                                        * and put on Wired list of the zone.
-> > +                                        */
-> >         atomic_t _mapcount;             /* Count of ptes mapped in mms,
-> >                                          * to show when page is mapped
-> >                                          * & limit reverse map searches.
->
-> We're usually pretty picky about adding stuff to 'struct page'.  It
-> _just_ fits inside a cacheline on most 32-bit architectures.
->
-> Can this wired_count not be derived at runtime?  It seems like it would
-> be possible to run through all VMAs mapping the page, and determining
-> how many of them are VM_LOCKED.  Would that be too slow?
+> On Tue, 21 Mar 2006 17:08:18 -0800
+> Dave Hansen <haveblue@us.ibm.com> wrote:
+> > If I missed it before, please refresh my memory.  But, if we're
+> > providing arch_nid_probe(addr), then why don't we just call it inside of
+> > add_memory() on the start address, instead of in the generic code?
+> > 
+> I think just *probe* needs it. The firmware which supports memory-hotplug, ACPI, 
+> i386/x86_64/ia64, can tell node number as pxm.(proximity domain)
+> 
+> add_memory() can pass address of paddr as args, but can't pass *pxm*. 
+> 
+> We already maintain pxm <-> nid map. But paddr <-> nid map isn't now.
+> If add_memory() doesn't has nid as args, we have to maintain
+> (1) pxm <-> nid map.
+> (2) paddr <-> nid map.
+> Becasue pfn_to_nid() is maintained by SPARSEMEM itself now, *new* paddr<->nid map
+> is redundant, I think. And I think the firmware already has the map before calling
+> add_memory(). 
 
-It can be derived, but perhaps would made code not that clear.
+In ACPI's case, kernel has to do 3 steps to get node id from physicall 
+address.
+  1) parse DSDT to get device handle of ACPI for new memory.
+     This step can be described 3 detail steps.
+      1-1) search memory device in DSDT.
+      1-2) get _CRS of its memory device to see physicall address.
+      1-3) compare 1-2)'s address with required paddr.
+           (its memory device might be for other memory.)
+           If it is for new memory, then goto step 2),
+           else goto 1-1) again.
+  2) get pxm against its device handle.
+     It is just calling acpi_get_pxm().
+  3) get node from pxm. If pxm is new one, new node id is assigned.
 
-I will try accroding to your comments, and i think there could be
-fast scanning of the vma list for this purpose.
+Step 1) is a bit complicated.
+But, when notify of memory hot-add event reaches via ACPI,
+its handle is already obtained. So, step 2) and 3) are enough to
+get node id. If node id can be passed at add_memory(), that is all.
+If not, kernel losts memory device handle information or node id once
+at calling add_memory(), and search memory device handle again by step 1).
 
-> Also, does it matter how many times it is locked, or just that
-> _somebody_ has it locked?
 
-For now, it just matters somebody has it locked.
-When munlock a page, it matters  somebody else has it locked.
 
->
-> -- Dave
->
->
+In addition, if paddr to node id translation is called in add_memory(),
+then its code for -each arch- will be like followings.
+This will be close from ugly "copy and paste" again....... :-(
+ 
+add_memory(paddr)
+{
+	nid = paddr_to_node_id(paddr)
+	if (!node_online(nid)) {
+		pgdat = hotadd_new_pgdat(nid, start);
+		if (!pgdat)
+			return -ENOMEM;
+	}
+              :
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
