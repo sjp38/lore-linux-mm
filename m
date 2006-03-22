@@ -1,65 +1,72 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223118.12658.36826.sendpatchset@twins.localnet>
+Message-Id: <20060322223128.12658.81399.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 01/34] mm: kill-page-activate.patch
-Date: Wed, 22 Mar 2006 23:31:50 +0100
+Subject: [PATCH 02/34] mm: page-replace-kconfig-makefile.patch
+Date: Wed, 22 Mar 2006 23:32:00 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Bob Picco <bob.picco@hp.com>, Andrew Morton <akpm@osdl.org>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Get rid of activate_page() callers.
+Introduce the configuration option, and modify the Makefile.
 
-Instead, page activation is achieved through mark_page_accessed()
-interface.
-
-Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/swap.h |    1 -
- mm/swapfile.c        |    4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ mm/Kconfig  |   11 +++++++++++
+ mm/Makefile |    2 ++
+ mm/useonce.c    |    3 +++
+ 3 files changed, 16 insertions(+)
 
-Index: linux-2.6/include/linux/swap.h
+Index: linux-2.6/mm/Kconfig
 ===================================================================
---- linux-2.6.orig/include/linux/swap.h	2006-03-13 20:37:08.000000000 +0100
-+++ linux-2.6/include/linux/swap.h	2006-03-13 20:37:22.000000000 +0100
-@@ -164,7 +164,6 @@ extern unsigned int nr_free_pagecache_pa
- /* linux/mm/swap.c */
- extern void FASTCALL(lru_cache_add(struct page *));
- extern void FASTCALL(lru_cache_add_active(struct page *));
--extern void FASTCALL(activate_page(struct page *));
- extern void FASTCALL(mark_page_accessed(struct page *));
- extern void lru_add_drain(void);
- extern int lru_add_drain_all(void);
-Index: linux-2.6/mm/swapfile.c
-===================================================================
---- linux-2.6.orig/mm/swapfile.c	2006-03-13 20:37:08.000000000 +0100
-+++ linux-2.6/mm/swapfile.c	2006-03-13 20:37:22.000000000 +0100
-@@ -435,7 +435,7 @@ static void unuse_pte(struct vm_area_str
- 	 * Move the page to the active list so it is not
- 	 * immediately swapped out again after swapon.
- 	 */
--	activate_page(page);
-+	mark_page_accessed(page);
- }
+--- linux-2.6.orig/mm/Kconfig	2006-03-13 20:37:08.000000000 +0100
++++ linux-2.6/mm/Kconfig	2006-03-13 20:37:24.000000000 +0100
+@@ -133,6 +133,17 @@ config SPLIT_PTLOCK_CPUS
+ 	default "4096" if PARISC && !PA20
+ 	default "4"
  
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -537,7 +537,7 @@ static int unuse_mm(struct mm_struct *mm
- 		 * Activate page so shrink_cache is unlikely to unmap its
- 		 * ptes while lock is dropped, so swapoff can make progress.
- 		 */
--		activate_page(page);
-+		mark_page_accessed(page);
- 		unlock_page(page);
- 		down_read(&mm->mmap_sem);
- 		lock_page(page);
++choice
++	prompt	"Page replacement policy"
++	default MM_POLICY_USEONCE
++
++config MM_POLICY_USEONCE
++	bool "LRU-2Q USE-ONCE"
++	help
++	  This option selects the standard multi-queue LRU policy.
++
++endchoice
++
+ #
+ # support for page migration
+ #
+Index: linux-2.6/mm/Makefile
+===================================================================
+--- linux-2.6.orig/mm/Makefile	2006-03-13 20:37:08.000000000 +0100
++++ linux-2.6/mm/Makefile	2006-03-13 20:37:24.000000000 +0100
+@@ -12,6 +12,8 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o $(mmu-y)
+ 
++obj-$(CONFIG_MM_POLICY_USEONCE) += useonce.o
++
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+ obj-$(CONFIG_NUMA) 	+= mempolicy.o
+Index: linux-2.6/mm/useonce.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/mm/useonce.c	2006-03-13 20:37:24.000000000 +0100
+@@ -0,0 +1,3 @@
++
++
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
