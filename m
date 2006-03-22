@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223511.12658.80845.sendpatchset@twins.localnet>
+Message-Id: <20060322223521.12658.49919.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 24/34] mm: sum_cpu_var.patch
-Date: Wed, 22 Mar 2006 23:35:43 +0100
+Subject: [PATCH 25/34] mm: kswapd-writeout-wait.patch
+Date: Wed, 22 Mar 2006 23:35:53 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,32 +12,88 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Much used per_cpu op by the additional policies.
+The new page reclaim implementations can require a lot more scanning
+in order to find a suiteable page. This causes kswapd to constantly hit:
+
+ 	blk_congestion_wait(WRITE, HZ/10);
+
+without there being any submitted IO.
+
+Count the number of async pages submitted by pageout() and only wait
+for congestion when the last priority level has submitted more than
+half SWAP_CLUSTER_MAX pages for IO.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/percpu.h |    5 +++++
- 1 file changed, 5 insertions(+)
+ include/linux/mm_page_replace.h |    2 ++
+ mm/vmscan.c                     |    9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/include/linux/percpu.h
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/include/linux/percpu.h	2006-03-13 20:38:20.000000000 +0100
-+++ linux-2.6/include/linux/percpu.h	2006-03-13 20:45:24.000000000 +0100
-@@ -15,6 +15,11 @@
- #define get_cpu_var(var) (*({ preempt_disable(); &__get_cpu_var(var); }))
- #define put_cpu_var(var) preempt_enable()
+--- linux-2.6.orig/mm/vmscan.c	2006-03-13 20:45:16.000000000 +0100
++++ linux-2.6/mm/vmscan.c	2006-03-13 20:45:25.000000000 +0100
+@@ -343,6 +343,7 @@ int shrink_list(struct list_head *page_l
+ 	struct pagevec freed_pvec;
+ 	int pgactivate = 0;
+ 	int reclaimed = 0;
++	int writeout = 0;
  
-+#define __sum_cpu_var(type, var) ({ __typeof__(type) sum = 0; \
-+                                 int cpu; \
-+                                 for_each_cpu(cpu) sum += per_cpu(var, cpu); \
-+                                 sum; })
+ 	cond_resched();
+ 
+@@ -438,8 +439,10 @@ int shrink_list(struct list_head *page_l
+ 			case PAGE_ACTIVATE:
+ 				goto activate_locked;
+ 			case PAGE_SUCCESS:
+-				if (PageWriteback(page) || PageDirty(page))
++				if (PageWriteback(page) || PageDirty(page)) {
++					writeout++;
+ 					goto keep;
++				}
+ 				/*
+ 				 * A synchronous write - probably a ramdisk.  Go
+ 				 * ahead and try to reclaim the page.
+@@ -507,6 +510,7 @@ keep:
+ 		__pagevec_release_nonlru(&freed_pvec);
+ 	mod_page_state(pgactivate, pgactivate);
+ 	sc->nr_reclaimed += reclaimed;
++	sc->nr_writeout += writeout;
+ 	return reclaimed;
+ }
+ 
+@@ -1232,6 +1236,7 @@ scan:
+ 		 * pages behind kswapd's direction of progress, which would
+ 		 * cause too much scanning of the lower zones.
+ 		 */
++		sc.nr_writeout = 0;
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+ 			int nr_slab;
+@@ -1283,7 +1288,7 @@ scan:
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+ 		 */
+-		if (total_scanned && priority < DEF_PRIORITY - 2)
++		if (sc.nr_writeout > SWAP_CLUSTER_MAX/2)
+ 			blk_congestion_wait(WRITE, HZ/10);
+ 
+ 		/*
+Index: linux-2.6/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-03-13 20:45:16.000000000 +0100
++++ linux-2.6/include/linux/mm_page_replace.h	2006-03-13 20:45:25.000000000 +0100
+@@ -18,6 +18,8 @@ struct scan_control {
+ 	/* Incremented by the number of pages reclaimed */
+ 	unsigned long nr_reclaimed;
+ 
++	unsigned long nr_writeout;	/* page against which writeout was started */
 +
- #ifdef CONFIG_SMP
+ 	unsigned long nr_mapped;	/* From page_state */
  
- struct percpu_data {
+ 	/* Ask shrink_caches, or shrink_zone to scan at this priority */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
