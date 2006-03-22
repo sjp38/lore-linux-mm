@@ -1,11 +1,10 @@
-Message-ID: <442098B6.5000607@yahoo.com.au>
-Date: Wed, 22 Mar 2006 11:22:14 +1100
+Message-ID: <44209A26.3040102@yahoo.com.au>
+Date: Wed, 22 Mar 2006 11:28:22 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH][5/8] proc: export mlocked pages info through "/proc/meminfo:
- Wired"
-References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>	 <441FEFC7.5030109@yahoo.com.au> <bc56f2f0603210733vc3ce132p@mail.gmail.com>
-In-Reply-To: <bc56f2f0603210733vc3ce132p@mail.gmail.com>
+Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
+References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>	 <441FEFB4.6050700@yahoo.com.au> <bc56f2f0603210803l28145c7dj@mail.gmail.com>
+In-Reply-To: <bc56f2f0603210803l28145c7dj@mail.gmail.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,21 +14,24 @@ Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Stone Wang wrote:
-> The list potentially could have more wider use.
+> We dont account HugeTLB pages for:
 > 
-> For example, kernel-space locked/pinned pages could be placed on the list too
-> (while mlocked pages are locked/pinned by system calls from user-space).
+> 1. HugeTLB pages themselves are not reclaimable.
+> 
+> 2. If we count HugeTLB pages in "Wired",then we would have no mind
+>    how many of the "Wired" are HugeTLB pages, and how many are
+> normal-size pages.
+>    Thus, hard to get a clear map of physical memory use,for example:
+>      how many pages are reclaimable?
+>    If we must count HugeTLB pages,more fields should be added to
+> "/proc/meminfo",
+>    for exmaple: "Wired HugeTLB:", "Wired Normal:".
 > 
 
-kernel-space pages are always pinned. And no, you can't put them on the list
-because you never know if their ->lru field is going to be used for something
-else.
+Then why do you wire them at all? Your unwire function does not appear
+to be able to unwire them.
 
-Why would you want to ever do something like that though? I don't think you
-should use this name "just in case", unless you have some really good
-potential usage in mind.
-
----
+-- 
 SUSE Labs, Novell Inc.
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
