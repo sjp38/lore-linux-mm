@@ -1,30 +1,45 @@
-Message-ID: <44212353.7000408@yahoo.com.au>
-Date: Wed, 22 Mar 2006 21:13:39 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Received: by uproxy.gmail.com with SMTP id s2so48106uge
+        for <linux-mm@kvack.org>; Wed, 22 Mar 2006 03:59:47 -0800 (PST)
+Message-ID: <bc56f2f0603220359p6a583535x@mail.gmail.com>
+Date: Wed, 22 Mar 2006 06:59:47 -0500
+From: "Stone Wang" <pwstone@gmail.com>
 Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
-References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>	 <441FEFB4.6050700@yahoo.com.au>	 <bc56f2f0603210803l28145c7dj@mail.gmail.com>	 <44209A26.3040102@yahoo.com.au> <bc56f2f0603220059x6b2a30b8h@mail.gmail.com>
-In-Reply-To: <bc56f2f0603220059x6b2a30b8h@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <44212353.7000408@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
+	 <441FEFB4.6050700@yahoo.com.au>
+	 <bc56f2f0603210803l28145c7dj@mail.gmail.com>
+	 <44209A26.3040102@yahoo.com.au>
+	 <bc56f2f0603220059x6b2a30b8h@mail.gmail.com>
+	 <44212353.7000408@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stone Wang wrote:
-> 2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
+Right, it made confusions.
 
-> 
-> We didnt wire them.
-> 
+I will correct it.
 
-But your comment said they were wired.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+2006/3/22, Nick Piggin <nickpiggin@yahoo.com.au>:
+> Stone Wang wrote:
+> > 2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
+>
+> >
+> > We didnt wire them.
+> >
+>
+> But your comment said they were wired.
+>
+> --
+> SUSE Labs, Novell Inc.
+> Send instant messages to your online friends http://au.messenger.yahoo.com
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
