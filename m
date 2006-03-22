@@ -1,140 +1,148 @@
-Date: Wed, 22 Mar 2006 13:44:45 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Add gfp flag __GFP_POLICY to control policies and cpusets redirection
- of allocations
-Message-ID: <Pine.LNX.4.64.0603221342170.24959@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Message-Id: <20060322223107.12658.14997.sendpatchset@twins.localnet>
+Subject: [PATCH 00/34] mm: Page Replacement Policy Framework
+Date: Wed, 22 Mar 2006 23:31:40 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: pj@sgi.com, ak@suse.de, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Bob Picco <bob.picco@hp.com>, Andrew Morton <akpm@osdl.org>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-Note to Andrew: This patch replaces
-	cpuset-alloc_pages_node-overrides-cpuset-constraints.patch
-	cpuset-alloc_pages_node-overrides-cpuset-constraints-speedup.patch
+This patch-set introduces a page replacement policy framework and 4 new 
+experimental policies.
 
-Various subsystems manage their own locality (slab, block layer, device drivers)
-and are rather sensitive to cpusets or memory policies interfering with their
-operation. Also various kernel components rely on the ability to temporarily
-allocate a page for a kernel thread. That page should be local to the process.
+The page replacement algorithm determines which pages to swap out.
+The current algorithm has some problems that are increasingly noticable, even
+on desktop workloads. As said, this patch-set introduces 4 new algorithms.
 
-This patch introduces a flag __GFP_POLICY that can be specified to enable
-cpusets and memory policy redirection to different nodes for alloc_pages()
-and alloc_pages_node().
+Patches 01 - 25:
 
-__GFP_POLICY is set by default for user space page allocations (GFP_USER and
-GFP_HIGHUSER) but not for GFP_KERNEL which is used by device drivers and
-other local uses of pages in the kernel.
+  Introduction of the general framework. Piece by piece the current 
+use-once LRU-2Q policy is isolated. With each patch a piece of the framework
+API is introduced.
 
-The slab allocator does its own application of memory policies and cpuset
-constraints based on SLAB_MEM_SPREAD flags. The patch just insures that the
-page allocator does not apply additional policies after the slab allocator
-has determined where memory should be allocated. This can happen f.e. if
-a cpuset is active and then some kernel component tries to allocate
-a new slab or grow the size of the slab.
+Patches 26 - 29: 
 
-vmalloc() and vmalloc_node() are exempted from policies since these are
-typically used by device drivers for large memory allocations that should
-be controlled by the device driver itself.
+  Adds a policy based on CLOCKPro. (http://linux-mm.org/PeterZClockPro2)
 
-GFP_KERNEL does not have __GFP_POLICY set. Meaning that page allocations
-with GFP_KERNEL are no longer subject to cpusets and policy constraints.
-I have looked through the kernel for page allocation with GFP_KERNEL and 
-the instance I have seen should not use policies.
-(Note that slab allocations with GFP_KERNEL still perform as before).
+Patches 30 - 32: 
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+  Adds a policy based on CART. (http://linux-mm.org/PeterZCart)
 
-Index: linux-2.6.16/include/linux/gfp.h
-===================================================================
---- linux-2.6.16.orig/include/linux/gfp.h	2006-03-19 21:53:29.000000000 -0800
-+++ linux-2.6.16/include/linux/gfp.h	2006-03-22 13:25:02.000000000 -0800
-@@ -47,6 +47,9 @@ struct vm_area_struct;
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
-+#define __GFP_POLICY	((__force gfp_t)0x40000u) /* Allocation needs to obey memory policies
-+						     and cpuset constraints */
-+
- 
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -55,16 +58,17 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_POLICY)
- 
- /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
- #define GFP_ATOMIC	(__GFP_HIGH)
- #define GFP_NOIO	(__GFP_WAIT)
- #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
--#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
-+#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
-+			 __GFP_POLICY)
- #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
--			 __GFP_HIGHMEM)
-+			 __GFP_HIGHMEM | __GFP_POLICY)
- 
- /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-    platforms, used as appropriate on others */
-Index: linux-2.6.16/mm/slab.c
-===================================================================
---- linux-2.6.16.orig/mm/slab.c	2006-03-19 21:53:29.000000000 -0800
-+++ linux-2.6.16/mm/slab.c	2006-03-22 13:25:02.000000000 -0800
-@@ -1392,6 +1392,8 @@ static void *kmem_getpages(struct kmem_c
- 	int i;
- 
- 	flags |= cachep->gfpflags;
-+	flags &= ~__GFP_POLICY;
-+
- 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
- 	if (!page)
- 		return NULL;
-Index: linux-2.6.16/mm/vmalloc.c
-===================================================================
---- linux-2.6.16.orig/mm/vmalloc.c	2006-03-19 21:53:29.000000000 -0800
-+++ linux-2.6.16/mm/vmalloc.c	2006-03-22 13:25:02.000000000 -0800
-@@ -411,6 +411,9 @@ void *__vmalloc_area_node(struct vm_stru
- 	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
- 	array_size = (nr_pages * sizeof(struct page *));
- 
-+	/* Do not obey policy or cpuset constraints */
-+	gfp_mask &= ~__GFP_POLICY;
-+
- 	area->nr_pages = nr_pages;
- 	/* Please note that the recursion is strictly bounded. */
- 	if (array_size > PAGE_SIZE)
-Index: linux-2.6.16/kernel/cpuset.c
-===================================================================
---- linux-2.6.16.orig/kernel/cpuset.c	2006-03-19 21:53:29.000000000 -0800
-+++ linux-2.6.16/kernel/cpuset.c	2006-03-22 13:25:02.000000000 -0800
-@@ -2159,7 +2159,7 @@ int __cpuset_zone_allowed(struct zone *z
- 	const struct cpuset *cs;	/* current cpuset ancestors */
- 	int allowed = 1;		/* is allocation in zone z allowed? */
- 
--	if (in_interrupt())
-+	if (in_interrupt() || !(gfp_mask & __GFP_POLICY))
- 		return 1;
- 	node = z->zone_pgdat->node_id;
- 	if (node_isset(node, current->mems_allowed))
-Index: linux-2.6.16/mm/mempolicy.c
-===================================================================
---- linux-2.6.16.orig/mm/mempolicy.c	2006-03-19 21:53:29.000000000 -0800
-+++ linux-2.6.16/mm/mempolicy.c	2006-03-22 13:25:02.000000000 -0800
-@@ -1292,7 +1292,7 @@ struct page *alloc_pages_current(gfp_t g
- 
- 	if ((gfp & __GFP_WAIT) && !in_interrupt())
- 		cpuset_update_task_memory_state();
--	if (!pol || in_interrupt())
-+	if (!pol || in_interrupt() || !(gfp & __GFP_POLICY))
- 		pol = &default_policy;
- 	if (pol->policy == MPOL_INTERLEAVE)
- 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
+Patch 33: 
+
+  Adds a variation of the CART policy that tries to incorporate 
+cyclic access patterns.
+
+Patch 34: 
+
+  Adds a random page replacement policy, simple policy that uses a simple
+PRNG to take the decision. More of a toy example than a real alternative.
+
+
+Individual patches and a rollup can be found here:
+  http://programming.kicks-ass.net/kernel-patches/page-replace/
+
+
+Measurements:
+
+(Walltime, so lower is better)
+
+cyclic-anon ; Cyclic access pattern with anonymous memory.
+              (http://programming.kicks-ass.net/benchmarks/cyclic-anon.c)
+
+2.6.16-rc6              14:28
+2.6.16-rc6-useonce      15:11
+2.6.16-rc6-clockpro     10:51
+2.6.16-rc6-cart          8:55
+2.6.16-rc6-random     1:09:50
+
+cyclic-file ; Cyclic access pattern with file backed memory.
+              (http://programming.kicks-ass.net/benchmarks/cyclic-file.c)
+
+2.6.16-rc6              11:24
+2.6.16-rc6-clockpro      8:14
+2.6.16-rc6-cart          8:09
+
+webtrace ; Replay of an IO trace from the Umass trace repository
+           (http://programming.kicks-ass.net/benchmarks/spc/)
+
+2.6.16-rc6               8:27
+2.6.16-rc6-useonce       8:24
+2.6.16-rc6-clockpro     10:23
+2.6.16-rc6-cart         15:30
+2.6.16-rc6-random       15:52
+
+mdb-bench ; Low frequency benchmark.
+            (http://linux-mm.org/PageReplacementTesting)
+
+2.6.16-rc6            4:20:44
+2.6.16-rc6 (mlock)    3:52:15
+2.6.16-rc6-useonce    4:20:59
+2.6.16-rc6-clockpro   3:56:17
+2.6.16-rc6-cart       4:11:54
+2.6.16-rc6-random     5:21:30
+
+(I should do more runs to get error bounds on these values, 
+ this is the avg of 3)
+
+Aside from tweaking the policies, the big thing left is NUMA-ify the 
+nonresident page trackers.
+
+The results merit further attention, please consider for 2.6.18.
+
+Peter
+
+---
+
+ Documentation/vm/page_replacement_api.txt |  216 +++++++
+ fs/cifs/file.c                            |    4 
+ fs/exec.c                                 |    4 
+ fs/mpage.c                                |    5 
+ fs/ntfs/file.c                            |    4 
+ fs/ramfs/file-nommu.c                     |    2 
+ include/linux/mm_cart_data.h              |   39 +
+ include/linux/mm_cart_policy.h            |  141 ++++
+ include/linux/mm_clockpro_data.h          |   21 
+ include/linux/mm_clockpro_policy.h        |  143 +++++
+ include/linux/mm_inline.h                 |   39 -
+ include/linux/mm_page_replace.h           |  146 +++++
+ include/linux/mm_page_replace_data.h      |   19 
+ include/linux/mm_random_data.h            |    9 
+ include/linux/mm_random_policy.h          |   47 +
+ include/linux/mm_use_once_data.h          |   16 
+ include/linux/mm_use_once_policy.h        |  175 ++++++
+ include/linux/mmzone.h                    |    8 
+ include/linux/nonresident-cart.h          |   34 +
+ include/linux/nonresident.h               |   12 
+ include/linux/page-flags.h                |   11 
+ include/linux/pagevec.h                   |    8 
+ include/linux/percpu.h                    |    5 
+ include/linux/rmap.h                      |    4 
+ include/linux/swap.h                      |   10 
+ init/main.c                               |    2 
+ mm/Kconfig                                |   32 +
+ mm/Makefile                               |    6 
+ mm/cart.c                                 |  723 +++++++++++++++++++++++++
+ mm/clockpro.c                             |  855 ++++++++++++++++++++++++++++++
+ mm/filemap.c                              |   20 
+ mm/hugetlb.c                              |    5 
+ mm/memory.c                               |   42 +
+ mm/mempolicy.c                            |   13 
+ mm/mmap.c                                 |    5 
+ mm/nonresident-cart.c                     |  362 ++++++++++++
+ mm/nonresident.c                          |  167 +++++
+ mm/page_alloc.c                           |   76 --
+ mm/random_policy.c                        |  292 ++++++++++
+ mm/readahead.c                            |    9 
+ mm/rmap.c                                 |   26 
+ mm/shmem.c                                |    2 
+ mm/swap.c                                 |  206 +------
+ mm/swap_state.c                           |    6 
+ mm/swapfile.c                             |   17 
+ mm/useonce.c                              |  489 +++++++++++++++++
+ mm/vmscan.c                               |  552 +++----------------
+ 47 files changed, 4226 insertions(+), 803 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
