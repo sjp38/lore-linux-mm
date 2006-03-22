@@ -1,54 +1,68 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2LLikRV020917
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 16:44:46 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2LLfcPM251166
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 14:41:46 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k2LLicPS023557
-	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 14:44:38 -0700
-Subject: Re: [PATCH][5/8] proc: export mlocked pages info through
-	"/proc/meminfo: Wired"
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>
-References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 21 Mar 2006 13:43:12 -0800
-Message-Id: <1142977393.10906.204.camel@localhost.localdomain>
+Date: Wed, 22 Mar 2006 09:05:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
+ old add_memory() to arch_add_memory())
+Message-Id: <20060322090514.6d6826fc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1142964013.10906.158.camel@localhost.localdomain>
+References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+	<1142615538.10906.67.camel@localhost.localdomain>
+	<20060318102653.57c6a2af.kamezawa.hiroyu@jp.fujitsu.com>
+	<1142964013.10906.158.camel@localhost.localdomain>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: y-goto@jp.fujitsu.com, akpm@osdl.org, tony.luck@intel.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2006-03-20 at 08:37 -0500, Stone Wang wrote:
-> --- linux-2.6.15.orig/include/linux/mm.h        2006-01-02 22:21:10.000000000 -0500
-> +++ linux-2.6.15/include/linux/mm.h     2006-03-07 01:49:12.000000000 -0500
-> @@ -218,6 +221,10 @@
->         unsigned long flags;            /* Atomic flags, some possibly
->                                          * updated asynchronously */
->         atomic_t _count;                /* Usage count, see below. */
-> +       unsigned short wired_count; /* Count of wirings of the page.
-> +                                        * If not zero,the page would be SetPageWired,
-> +                                        * and put on Wired list of the zone.
-> +                                        */
->         atomic_t _mapcount;             /* Count of ptes mapped in mms,
->                                          * to show when page is mapped
->                                          * & limit reverse map searches. 
+On Tue, 21 Mar 2006 10:00:12 -0800
+Dave Hansen <haveblue@us.ibm.com> wrote:
 
-We're usually pretty picky about adding stuff to 'struct page'.  It
-_just_ fits inside a cacheline on most 32-bit architectures.  
+> On Sat, 2006-03-18 at 10:26 +0900, KAMEZAWA Hiroyuki wrote:
+> > If *determine node* function is moved to arch specific parts,
+> > memory hot add need more and more codes to determine  paddr -> nid in arch
+> > specific codes. Then, we have to add new paddr->nid function even if new nid is
+> > passed by firmware. We *lose* useful information of nid from firmware if 
+> > add_memory() has just 2 args, (start, end).  
+> 
+> What I'm saying is that I'd like add_memory() to be just that, for
+> adding memory.
+> 
+> At some point in the process, you need to export the NUMA node layout to
+> the rest of the system, to say which pages go in which node.  I'm just
+> saying that you should do that _before_ add_memory().
+> 
 
-Can this wired_count not be derived at runtime?  It seems like it would
-be possible to run through all VMAs mapping the page, and determining
-how many of them are VM_LOCKED.  Would that be too slow?
+To do so, we have to maintain new pfn_to_nid() function.
+We have to maintain a new table/list and have to consider name of it :).
+And, add_memory() has to check whether a node which belongs exists ot not, again.
+I don't want these kind of things. 
 
-Also, does it matter how many times it is locked, or just that
-_somebody_ has it locked?  
+With current kernel, we have to add new *pgdat* to node when adding a new node.
+(If we don't, the kernel goes panic()) And we have to allocate a pgdat/zones 
+in a local node in future. So adding a node before adding memory is not good. 
+(current code uses kmalloc() just for reducing complexity.)
 
--- Dave
+> add_memory() should support adding memory to more than one node.  If any
+> hypervisor or hardware happens to have memory added in one contiguous
+> chunk, it can not simply call add_memory().  _That_ firmware would be
+> forced to do the NUMA parsing and figure out how many times to call
+> add_memory().  
+I don't think the firmware adds memory of multiple nodes at once.
+It's crazy.
+
+> 
+> Let me reiterate: the process of telling the system which pages are in
+> which node should be separate from telling the system that there *are*
+> currently pages there now.
+
+Considering "cpu only node', "check and add new node" function can be separated,
+like add_memory_less_node().(But pgdat/zone etc.. will be allocated in out of node.)
+
+Bye.
+-- Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
