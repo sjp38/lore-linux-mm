@@ -1,127 +1,248 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223451.12658.69502.sendpatchset@twins.localnet>
+Message-Id: <20060322223501.12658.54945.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 22/34] mm: page-replace-shrink-new.patch
-Date: Wed, 22 Mar 2006 23:35:23 +0100
+Subject: [PATCH 23/34] mm: page-replace-documentation.patch
+Date: Wed, 22 Mar 2006 23:35:33 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Bob Picco <bob.picco@hp.com>, Andrew Morton <akpm@osdl.org>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Wu Fengguang <wfg@mail.ustc.edu.cn>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
-Add a general shrinker that policies can make use of.
-The policy defines MM_POLICY_HAS_SHRINKER when it does _NOT_ want
-to make use of this framework.
+Documentation for the page replace framework.
 
-API:
-	unsigned long __page_replace_nr_scan(struct zone *);
-
-return the number of pages in the scanlist for this zone.
-
-	void page_replace_candidates(struct zone *, int, struct list_head *);
-
-fill the @list with at most @nr pages from @zone.
-
-	void page_replace_reinsert_zone(struct zone *, struct list_head *, int);
-
-reinsert @list into @zone where @nr pages were freed - reinsert those pages that
-could not be freed.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 ---
 
- include/linux/mm_page_replace.h    |    6 +++++
- include/linux/mm_use_once_policy.h |    2 +
- mm/vmscan.c                        |   43 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+)
+ Documentation/vm/page_replacement_api.txt |  216 ++++++++++++++++++++++++++++++
+ 1 file changed, 216 insertions(+)
 
-Index: linux-2.6-git/include/linux/mm_page_replace.h
+Index: linux-2.6/Documentation/vm/page_replacement_api.txt
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -128,5 +128,11 @@ static inline void page_replace_add_drai
- 	put_cpu();
- }
- 
-+#if ! defined MM_POLICY_HAS_SHRINKER
-+/* unsigned long __page_replace_nr_scan(struct zone *); */
-+void page_replace_candidates(struct zone *, int, struct list_head *);
-+void page_replace_reinsert_zone(struct zone *, struct list_head *, int);
-+#endif
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/Documentation/vm/page_replacement_api.txt	2006-03-13 20:45:22.000000000 +0100
+@@ -0,0 +1,216 @@
++		Page Replacement Policy Interface
 +
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_PAGE_REPLACE_H */
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -958,6 +958,49 @@ int should_reclaim_mapped(struct zone *z
- 	return 0;
- }
- 
-+#if ! defined MM_POLICY_HAS_SHRINKER
-+void page_replace_shrink(struct zone *zone, struct scan_control *sc)
-+{
-+	unsigned long nr_scan = 0;
++Introduction
++============
 +
-+	atomic_inc(&zone->reclaim_in_progress);
++This document describes the page replacement interfaces used by the
++virtual memory subsystem.
 +
-+	if (unlikely(sc->swap_cluster_max > SWAP_CLUSTER_MAX)) {
-+		nr_scan = zone->policy.nr_scan;
-+		zone->policy.nr_scan =
-+			sc->swap_cluster_max + SWAP_CLUSTER_MAX - 1;
-+	} else
-+		zone->policy.nr_scan +=
-+			(__page_replace_nr_scan(zone) >> sc->priority) + 1;
++When the system's free memory runs below a certain threshold, an action
++must be initiated to reclaim memory for future use. The decision of
++which memory pages to evict is called the replacement policy.
 +
-+	while (zone->policy.nr_scan >= SWAP_CLUSTER_MAX) {
-+		LIST_HEAD(page_list);
-+		int nr_freed;
++There are several types of reclaimable objects which live in the
++system's memory:
 +
-+		zone->policy.nr_scan -= SWAP_CLUSTER_MAX;
-+		page_replace_candidates(zone, SWAP_CLUSTER_MAX, &page_list);
-+		if (list_empty(&page_list))
-+			continue;
++a) file cache pages
++b) anonymous process pages
++c) shared memory (shm) pages
++d) SLAB cache pages, used for internal kernel objects such as the inode
++and dentry caches.
 +
-+		nr_freed = shrink_list(&page_list, sc);
++The policy API abstracts the replacement structure for pagecache objects
++(items a) b) and c)), separating it from the reclaim code path.
 +
-+		local_irq_disable();
-+		if (current_is_kswapd())
-+			__mod_page_state(kswapd_steal, nr_freed);
-+		__mod_page_state_zone(zone, pgsteal, nr_freed);
-+		local_irq_enable();
++This allows maintenance of different policies to deal with different
++workload requirements.
 +
-+		page_replace_reinsert_zone(zone, &page_list, nr_freed);
-+	}
-+	if (nr_scan)
-+		zone->policy.nr_scan = nr_scan;
++Zoned VM
++========
 +
-+	atomic_dec(&zone->reclaim_in_progress);
++In Linux, physical memory is managed separately into zones, because
++certain types of allocations are address constrained.
 +
-+	throttle_vm_writeout();
-+}
-+#endif
++The operating system has to support types of hardware which cannot
++access full 32-bit addresses, but are limited to an address mask. For
++instance, ISA devices can only address the lower 24-bits (hence their
++visilibity goes up to 16MB).
 +
- /*
-  * This is the direct reclaim path, for page-allocating processes.  We only
-  * try to reclaim pages from zones which will satisfy the caller's allocation
-Index: linux-2.6-git/include/linux/mm_use_once_policy.h
-===================================================================
---- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
-+++ linux-2.6-git/include/linux/mm_use_once_policy.h
-@@ -169,5 +169,7 @@ static inline unsigned long __page_repla
- 	return zone->policy.nr_active + zone->policy.nr_inactive;
- }
- 
-+#define MM_POLICY_HAS_SHRINKER
++Additionally, pages used for internal kernel data must be restricted to
++the direct kernel mapping, which is approximately 1GB in current default
++configurations.
 +
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_USEONCE_POLICY_H */
++Different zones must be managed separately from the perspective of page
++reclaim path, because particular zones might suffer more pressure than
++others.
++
++This means that the page replacement structures have to be maintained
++separately for each zone.
++
++Description
++===========
++
++The page replacement policy interface consists off a set of operations
++which are invoked from the common VM code.
++
++As mentioned before, the policy specific data has to be maintained
++separately for each zone, therefore "struct zone" embeds the following
++data structure:
++
++	struct page_replace_data policy;
++
++Which is to be defined by the policy in a separate header file.
++
++At the moment, this data structure is guarded by the "zone->lru_lock"
++spinlock, thus shared by all policies.
++
++Initialization (invoked during system bootup)
++--------------
++
++ * void __init page_replace_init(void)
++
++Policy private initialization.
++
++ * void __init page_replace_init_zone(struct zone *)
++
++Initialize zone specific policy data.
++
++
++Methods called by the VM
++------------------------
++
++ * void page_replace_hint_active(struct page *);
++ * void page_replace_hint_use_once(struct page *);
++
++Give the policy hints as to the importance of the page. These hints can
++be viewed as initial priority of page, where active is +1 and use_once -1.
++
++
++ * void fastcall page_replace_add(struct page *);
++
++Insert page into per-CPU list(s), used for batching groups of pages to
++relief zone->lru_lock contention. Called during page instantiation.
++
++
++ * void page_replace_add_drain(void);
++ * void page_replace_add_drain_cpu(unsigned int);
++
++Drain the per-CPU lists(s), pushing pages to the actual cache.
++Called in locations where it is important to not have stale data
++into the per-CPU lists.
++
++
++ * void pagevec_page_replace_add(struct pagevec *);
++ * void __pagevec_page_replace_add(struct pagevec *);
++
++Insert a whole pagevec worth of pages directly.
++
++
++ * void page_replace_candidates(struct zone *, int, struct list_head *);
++
++Select candidates for eviction from the specified zone.
++
++@zone: which memory zone to scan for.
++@nr_to_scan: number of pages to scan.
++@page_list: list_head to add select pages
++
++Called by mm/vmscan.c::shrink_cache(), the main function used to
++evict pagecache pages from a specific zone.
++
++
++ * reclaim_t page_replace_reclaimable(struct page *);
++
++Determines wether a page is reclaimable, used by shrink_list().
++This function encapsulates the call to page_referenced.
++
++
++ * void page_replace_activate(struct page *);
++
++Callback used to let the policy know this page was referenced.
++
++
++ * void page_replace_reinsert_zone(struct zone *, struct list_head *);
++
++Put unfreeable pages back into the zone's cache mgmt structures.
++
++@zone: memory zone which pages belong
++@page_list: list of pages to reinsert
++
++
++ * void page_replace_remove(struct zone *, struct page *);
++
++Remove page from cache. This function clears the page state.
++
++
++ * int page_replace_isolate(struct page *);
++
++Isolate a specified page; ie. remove it from the cache mgmt structures without
++clearing its page state (used for page migration).
++
++
++ * void page_replace_reinsert(struct list_head *);
++
++Reinsert a list of pages previously isolated by page_replace_isolate().
++Remember that these pages still have their page state; this property
++distinguishes this function from page_replace_add().
++NOTE: the pages on the list need not be in the same zone.
++
++
++ * void __page_replace_rotate_reclaimable(struct zone *, struct page *);
++
++Place this page so that it will be in the next candidate batch.
++
++
++ * void page_replace_remember(struct zone *, struct page*);
++ * void page_replace_forget(struct address_space *, unsigned long);
++
++Hooks for nonresident page management. Allows the policy to remember and
++forget about pages that are no longer resident.
++
++ * void page_replace_show(struct zone *);
++ * void page_replace_zoneinfo(struct zone *, struct seq_file *);
++
++Prints zoneinfo in the various ways.
++
++* void __page_replace_counts(unsigned long *, unsigned long *,
++			     unsigned long *, struct pglist_data *);
++
++Gives 'active', 'inactive' and free count in pages for the selected pgdat.
++Where active/inactive are open for interpretation of the policy.
++
++ * unsigned long __page_replace_nr_pages(struct zone *);
++
++Gives the total number of pages currently managed by the page replacement
++policy.
++
++
++ * unsigned long __page_replace_nr_scan(struct zone *);
++
++Gives the number of pages needed to drive the scanning.
++
++Helpers
++-------
++
++Certain helpers are shared by all policies, follows a description of them:
++
++1) int should_reclaim_mapped(struct zone *);
++
++The point of this algorithm is to decide when to start reclaiming mapped
++memory instead of clean pagecache.
++
++Returns 1 if mapped pages should be candidates for reclaim, 0 otherwise.
++
++Page flags
++----------
++
++A number of bits in page->flags are reserved for the page replacement
++policies, they are:
++
++	PG_reclaim1	/* bit 6 */
++	PG_reclaim2	/* bit 20 */
++	PG_reclaim3	/* bit 21 */
++
++The policy private semantics of this bits are to be defined in
++the policy implementation. This bits are internal to the policy and as such
++should not be interpreted in any way by external code.
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
