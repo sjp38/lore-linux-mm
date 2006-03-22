@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223441.12658.17738.sendpatchset@twins.localnet>
+Message-Id: <20060322223451.12658.69502.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 21/34] mm: page-replace-nonresident.patch
-Date: Wed, 22 Mar 2006 23:35:13 +0100
+Subject: [PATCH 22/34] mm: page-replace-shrink-new.patch
+Date: Wed, 22 Mar 2006 23:35:23 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,170 +12,116 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Add hooks for nonresident page tracking.
-The policy has to define MM_POLICY_HAS_NONRESIDENT when it makes
-use of these.
+Add a general shrinker that policies can make use of.
+The policy defines MM_POLICY_HAS_SHRINKER when it does _NOT_ want
+to make use of this framework.
 
 API:
-	void page_replace_remember(struct zone *, struct page *);
+	unsigned long __page_replace_nr_scan(struct zone *);
 
-Remeber a page - insert it into the nonresident page tracking.
+return the number of pages in the scanlist for this zone.
 
-	void page_replace_forget(struct address_space *, unsigned long);
+	void page_replace_candidates(struct zone *, int, struct list_head *);
 
-Forget about a page - remove it from the nonresident page tracking.
+fill the @list with at most @nr pages from @zone.
+
+	void page_replace_reinsert_zone(struct zone *, struct list_head *, int);
+
+reinsert @list into @zone where @nr pages were freed - reinsert those pages that
+could not be freed.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/mm_page_replace.h    |    2 ++
- include/linux/mm_use_once_policy.h |    3 +++
- mm/memory.c                        |   28 ++++++++++++++++++++++++++++
- mm/swapfile.c                      |   13 +++++++++++--
- mm/vmscan.c                        |    2 ++
- 5 files changed, 46 insertions(+), 2 deletions(-)
+ include/linux/mm_page_replace.h    |    6 +++++
+ include/linux/mm_use_once_policy.h |    2 +
+ mm/vmscan.c                        |   43 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+)
 
-Index: linux-2.6-git/include/linux/mm_use_once_policy.h
-===================================================================
---- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
-+++ linux-2.6-git/include/linux/mm_use_once_policy.h
-@@ -161,6 +161,9 @@ static inline int page_replace_is_active
- 	return PageActive(page);
- }
- 
-+#define page_replace_remember(z, p) do { } while (0)
-+#define page_replace_forget(m, i) do { } while (0)
-+
- static inline unsigned long __page_replace_nr_pages(struct zone *zone)
- {
- 	return zone->policy.nr_active + zone->policy.nr_inactive;
 Index: linux-2.6-git/include/linux/mm_page_replace.h
 ===================================================================
 --- linux-2.6-git.orig/include/linux/mm_page_replace.h
 +++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -96,6 +96,8 @@ extern void page_replace_shrink(struct z
- /* void page_replace_copy_state(struct page *, struct page *); */
- /* void page_replace_clear_state(struct page *); */
- /* int page_replace_is_active(struct page *); */
-+/* void page_replace_remember(struct zone *, struct page*); */
-+/* void page_replace_forget(struct address_space *, unsigned long); */
- extern void page_replace_show(struct zone *);
- extern void page_replace_zoneinfo(struct zone *, struct seq_file *);
- extern void __page_replace_counts(unsigned long *, unsigned long *,
-Index: linux-2.6-git/mm/memory.c
-===================================================================
---- linux-2.6-git.orig/mm/memory.c
-+++ linux-2.6-git/mm/memory.c
-@@ -606,6 +606,31 @@ int copy_page_range(struct mm_struct *ds
- 	return 0;
+@@ -128,5 +128,11 @@ static inline void page_replace_add_drai
+ 	put_cpu();
  }
  
-+#if defined MM_POLICY_HAS_NONRESIDENT
-+static void free_file(struct vm_area_struct *vma,
-+				unsigned long offset)
-+{
-+	struct address_space *mapping;
-+	struct page *page;
-+
-+	if (!vma ||
-+	    !vma->vm_file ||
-+	    !vma->vm_file->f_mapping)
-+		return;
-+
-+	mapping = vma->vm_file->f_mapping;
-+	page = find_get_page(mapping, offset);
-+	if (page) {
-+		page_cache_release(page);
-+		return;
-+	}
-+
-+	page_replace_forget(mapping, offset);
-+}
-+#else
-+#define free_file(a,b) do { } while (0)
++#if ! defined MM_POLICY_HAS_SHRINKER
++/* unsigned long __page_replace_nr_scan(struct zone *); */
++void page_replace_candidates(struct zone *, int, struct list_head *);
++void page_replace_reinsert_zone(struct zone *, struct list_head *, int);
 +#endif
 +
- static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
-@@ -621,6 +646,7 @@ static unsigned long zap_pte_range(struc
- 	do {
- 		pte_t ptent = *pte;
- 		if (pte_none(ptent)) {
-+			free_file(vma, pte_to_pgoff(ptent));
- 			(*zap_work)--;
- 			continue;
- 		}
-@@ -679,6 +705,8 @@ static unsigned long zap_pte_range(struc
- 			continue;
- 		if (!pte_file(ptent))
- 			free_swap_and_cache(pte_to_swp_entry(ptent));
-+		else
-+			free_file(vma, pte_to_pgoff(ptent));
- 		pte_clear_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
- 
-Index: linux-2.6-git/mm/swapfile.c
-===================================================================
---- linux-2.6-git.orig/mm/swapfile.c
-+++ linux-2.6-git/mm/swapfile.c
-@@ -28,6 +28,7 @@
- #include <linux/mutex.h>
- #include <linux/capability.h>
- #include <linux/syscalls.h>
-+#include <linux/mm_page_replace.h>
- 
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
-@@ -300,7 +301,8 @@ void swap_free(swp_entry_t entry)
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		swap_entry_free(p, swp_offset(entry));
-+		if (!swap_entry_free(p, swp_offset(entry)))
-+			page_replace_forget(&swapper_space, entry.val);
- 		spin_unlock(&swap_lock);
- 	}
- }
-@@ -397,8 +399,15 @@ void free_swap_and_cache(swp_entry_t ent
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		if (swap_entry_free(p, swp_offset(entry)) == 1)
-+		switch (swap_entry_free(p, swp_offset(entry))) {
-+		case 1:
- 			page = find_trylock_page(&swapper_space, entry.val);
-+			break;
-+
-+		case 0:
-+			page_replace_forget(&swapper_space, entry.val);
-+			break;
-+		}
- 		spin_unlock(&swap_lock);
- 	}
- 	if (page) {
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_PAGE_REPLACE_H */
 Index: linux-2.6-git/mm/vmscan.c
 ===================================================================
 --- linux-2.6-git.orig/mm/vmscan.c
 +++ linux-2.6-git/mm/vmscan.c
-@@ -315,6 +315,7 @@ static int remove_mapping(struct address
+@@ -958,6 +958,49 @@ int should_reclaim_mapped(struct zone *z
+ 	return 0;
+ }
  
- 	if (PageSwapCache(page)) {
- 		swp_entry_t swap = { .val = page_private(page) };
-+		page_replace_remember(page_zone(page), page);
- 		__delete_from_swap_cache(page);
- 		write_unlock_irq(&mapping->tree_lock);
- 		swap_free(swap);
-@@ -322,6 +323,7 @@ static int remove_mapping(struct address
- 		return 1;
- 	}
++#if ! defined MM_POLICY_HAS_SHRINKER
++void page_replace_shrink(struct zone *zone, struct scan_control *sc)
++{
++	unsigned long nr_scan = 0;
++
++	atomic_inc(&zone->reclaim_in_progress);
++
++	if (unlikely(sc->swap_cluster_max > SWAP_CLUSTER_MAX)) {
++		nr_scan = zone->policy.nr_scan;
++		zone->policy.nr_scan =
++			sc->swap_cluster_max + SWAP_CLUSTER_MAX - 1;
++	} else
++		zone->policy.nr_scan +=
++			(__page_replace_nr_scan(zone) >> sc->priority) + 1;
++
++	while (zone->policy.nr_scan >= SWAP_CLUSTER_MAX) {
++		LIST_HEAD(page_list);
++		int nr_freed;
++
++		zone->policy.nr_scan -= SWAP_CLUSTER_MAX;
++		page_replace_candidates(zone, SWAP_CLUSTER_MAX, &page_list);
++		if (list_empty(&page_list))
++			continue;
++
++		nr_freed = shrink_list(&page_list, sc);
++
++		local_irq_disable();
++		if (current_is_kswapd())
++			__mod_page_state(kswapd_steal, nr_freed);
++		__mod_page_state_zone(zone, pgsteal, nr_freed);
++		local_irq_enable();
++
++		page_replace_reinsert_zone(zone, &page_list, nr_freed);
++	}
++	if (nr_scan)
++		zone->policy.nr_scan = nr_scan;
++
++	atomic_dec(&zone->reclaim_in_progress);
++
++	throttle_vm_writeout();
++}
++#endif
++
+ /*
+  * This is the direct reclaim path, for page-allocating processes.  We only
+  * try to reclaim pages from zones which will satisfy the caller's allocation
+Index: linux-2.6-git/include/linux/mm_use_once_policy.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
++++ linux-2.6-git/include/linux/mm_use_once_policy.h
+@@ -169,5 +169,7 @@ static inline unsigned long __page_repla
+ 	return zone->policy.nr_active + zone->policy.nr_inactive;
+ }
  
-+	page_replace_remember(page_zone(page), page);
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
- 	__put_page(page);
++#define MM_POLICY_HAS_SHRINKER
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_USEONCE_POLICY_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
