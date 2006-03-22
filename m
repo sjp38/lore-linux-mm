@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223408.12658.49441.sendpatchset@twins.localnet>
+Message-Id: <20060322223430.12658.69558.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 18/34] mm: page-replace-counts.patch
-Date: Wed, 22 Mar 2006 23:34:40 +0100
+Subject: [PATCH 20/34] mm: page-replace-pg_flags.patch
+Date: Wed, 22 Mar 2006 23:35:03 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,24 +12,21 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Abstract the various page counts used to drive the scanner.
+Abstract the replacement policy specific pageflags.
 
 API:
 
-give the 'active', 'inactive' and free count for the selected pgdat.
-(free interpretation of '' words)
+Copy the policy specific page flags
 
-    void __page_replace_counts(unsigned long *, unsigned long *,
-			    unsigned long *, struct pglist_data *);
+	void page_replace_copy_state(struct page *, struct page *);
 
-total number of pages in the policies care
+Clear the policy specific page flags
 
-    unsigned long __page_replace_nr_pages(struct zone *);
+	void page_replace_clear_state(struct page *);
 
-number of pages to base the scan speed on
+Account the page as active
 
-    unsigned long __page_replace_nr_scan(struct zone *);
-
+	int page_replace_is_active(struct page *);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
@@ -37,119 +34,191 @@ Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 ---
 
  include/linux/mm_page_replace.h    |    3 +++
- include/linux/mm_use_once_policy.h |    5 +++++
- mm/page_alloc.c                    |   12 +-----------
- mm/useonce.c                       |   16 ++++++++++++++++
+ include/linux/mm_use_once_policy.h |   26 ++++++++++++++++++++++++++
+ include/linux/page-flags.h         |    8 +-------
+ mm/hugetlb.c                       |    2 +-
+ mm/mempolicy.c                     |    2 +-
+ mm/page_alloc.c                    |    6 +++---
  mm/vmscan.c                        |    6 +++---
- 5 files changed, 28 insertions(+), 14 deletions(-)
+ 7 files changed, 38 insertions(+), 15 deletions(-)
 
-Index: linux-2.6-git/include/linux/mm_page_replace.h
-===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -95,6 +95,9 @@ extern void page_replace_shrink(struct z
- /* void __page_replace_rotate_reclaimable(struct zone *, struct page *); */
- extern void page_replace_show(struct zone *);
- extern void page_replace_zoneinfo(struct zone *, struct seq_file *);
-+extern void __page_replace_counts(unsigned long *, unsigned long *,
-+				  unsigned long *, struct pglist_data *);
-+/* unsigned long __page_replace_nr_pages(struct zone *); */
- 
- #ifdef CONFIG_MIGRATION
- extern int page_replace_isolate(struct page *p);
-Index: linux-2.6-git/mm/useonce.c
-===================================================================
---- linux-2.6-git.orig/mm/useonce.c
-+++ linux-2.6-git/mm/useonce.c
-@@ -478,3 +478,19 @@ void page_replace_zoneinfo(struct zone *
- 		   zone->spanned_pages,
- 		   zone->present_pages);
- }
-+
-+void __page_replace_counts(unsigned long *active, unsigned long *inactive,
-+			   unsigned long *free, struct pglist_data *pgdat)
-+{
-+	struct zone *zones = pgdat->node_zones;
-+	int i;
-+
-+	*active = 0;
-+	*inactive = 0;
-+	*free = 0;
-+	for (i = 0; i < MAX_NR_ZONES; i++) {
-+		*active += zones[i].nr_active;
-+		*inactive += zones[i].nr_inactive;
-+		*free += zones[i].free_pages;
-+	}
-+}
-Index: linux-2.6-git/mm/page_alloc.c
-===================================================================
---- linux-2.6-git.orig/mm/page_alloc.c
-+++ linux-2.6-git/mm/page_alloc.c
-@@ -1307,17 +1307,7 @@ EXPORT_SYMBOL(mod_page_state_offset);
- void __get_zone_counts(unsigned long *active, unsigned long *inactive,
- 			unsigned long *free, struct pglist_data *pgdat)
- {
--	struct zone *zones = pgdat->node_zones;
--	int i;
--
--	*active = 0;
--	*inactive = 0;
--	*free = 0;
--	for (i = 0; i < MAX_NR_ZONES; i++) {
--		*active += zones[i].nr_active;
--		*inactive += zones[i].nr_inactive;
--		*free += zones[i].free_pages;
--	}
-+	__page_replace_counts(active, inactive, free, pgdat);
- }
- 
- void get_zone_counts(unsigned long *active,
 Index: linux-2.6-git/include/linux/mm_use_once_policy.h
 ===================================================================
 --- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
 +++ linux-2.6-git/include/linux/mm_use_once_policy.h
-@@ -135,5 +135,10 @@ static inline void __page_replace_rotate
+@@ -5,6 +5,15 @@
+ 
+ #include <linux/fs.h>
+ #include <linux/rmap.h>
++#include <linux/page-flags.h>
++
++#define PG_active	PG_reclaim1
++
++#define PageActive(page)	test_bit(PG_active, &(page)->flags)
++#define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
++#define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
++#define TestClearPageActive(page) test_and_clear_bit(PG_active, &(page)->flags)
++#define TestSetPageActive(page) test_and_set_bit(PG_active, &(page)->flags)
+ 
+ static inline void page_replace_hint_active(struct page *page)
+ {
+@@ -135,6 +144,23 @@ static inline void __page_replace_rotate
  	}
  }
  
-+static inline unsigned long __page_replace_nr_pages(struct zone *zone)
++static inline void page_replace_copy_state(struct page *dpage, struct page *spage)
 +{
-+	return zone->nr_active + zone->nr_inactive;
++	if (PageActive(spage))
++		SetPageActive(dpage);
 +}
 +
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_USEONCE_POLICY_H */
++static inline void page_replace_clear_state(struct page *page)
++{
++	if (PageActive(page))
++		ClearPageActive(page);
++}
++
++static inline int page_replace_is_active(struct page *page)
++{
++	return PageActive(page);
++}
++
+ static inline unsigned long __page_replace_nr_pages(struct zone *zone)
+ {
+ 	return zone->policy.nr_active + zone->policy.nr_inactive;
+Index: linux-2.6-git/include/linux/page-flags.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/page-flags.h
++++ linux-2.6-git/include/linux/page-flags.h
+@@ -58,7 +58,7 @@
+ 
+ #define PG_dirty	 	 4
+ #define PG_lru			 5
+-#define PG_active		 6
++#define PG_reclaim1		 6	/* reserved by the mm reclaim code */
+ #define PG_slab			 7	/* slab debug (Suparna wants this) */
+ 
+ #define PG_checked		 8	/* kill me in 2.5.<early>. */
+@@ -244,12 +244,6 @@ extern void __mod_page_state_offset(unsi
+ #define TestSetPageLRU(page)	test_and_set_bit(PG_lru, &(page)->flags)
+ #define TestClearPageLRU(page)	test_and_clear_bit(PG_lru, &(page)->flags)
+ 
+-#define PageActive(page)	test_bit(PG_active, &(page)->flags)
+-#define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
+-#define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
+-#define TestClearPageActive(page) test_and_clear_bit(PG_active, &(page)->flags)
+-#define TestSetPageActive(page) test_and_set_bit(PG_active, &(page)->flags)
+-
+ #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
+ #define SetPageSlab(page)	set_bit(PG_slab, &(page)->flags)
+ #define ClearPageSlab(page)	clear_bit(PG_slab, &(page)->flags)
+Index: linux-2.6-git/mm/page_alloc.c
+===================================================================
+--- linux-2.6-git.orig/mm/page_alloc.c
++++ linux-2.6-git/mm/page_alloc.c
+@@ -149,7 +149,7 @@ static void bad_page(struct page *page)
+ 	page->flags &= ~(1 << PG_lru	|
+ 			1 << PG_private |
+ 			1 << PG_locked	|
+-			1 << PG_active	|
++			1 << PG_reclaim1 |
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim |
+ 			1 << PG_slab    |
+@@ -360,7 +360,7 @@ static inline int free_pages_check(struc
+ 			1 << PG_lru	|
+ 			1 << PG_private |
+ 			1 << PG_locked	|
+-			1 << PG_active	|
++			1 << PG_reclaim1 |
+ 			1 << PG_reclaim	|
+ 			1 << PG_slab	|
+ 			1 << PG_swapcache |
+@@ -517,7 +517,7 @@ static int prep_new_page(struct page *pa
+ 			1 << PG_lru	|
+ 			1 << PG_private	|
+ 			1 << PG_locked	|
+-			1 << PG_active	|
++			1 << PG_reclaim1 |
+ 			1 << PG_dirty	|
+ 			1 << PG_reclaim	|
+ 			1 << PG_slab    |
+Index: linux-2.6-git/mm/hugetlb.c
+===================================================================
+--- linux-2.6-git.orig/mm/hugetlb.c
++++ linux-2.6-git/mm/hugetlb.c
+@@ -152,7 +152,7 @@ static void update_and_free_page(struct 
+ 	nr_huge_pages_node[page_zone(page)->zone_pgdat->node_id]--;
+ 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
+ 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+-				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
++				1 << PG_dirty | 1 << PG_reclaim1 | 1 << PG_reserved |
+ 				1 << PG_private | 1<< PG_writeback);
+ 		set_page_count(&page[i], 0);
+ 	}
+Index: linux-2.6-git/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git/include/linux/mm_page_replace.h
+@@ -93,6 +93,9 @@ extern void page_replace_shrink(struct z
+ /* void page_replace_mark_accessed(struct page *); */
+ /* void page_replace_remove(struct zone *, struct page *); */
+ /* void __page_replace_rotate_reclaimable(struct zone *, struct page *); */
++/* void page_replace_copy_state(struct page *, struct page *); */
++/* void page_replace_clear_state(struct page *); */
++/* int page_replace_is_active(struct page *); */
+ extern void page_replace_show(struct zone *);
+ extern void page_replace_zoneinfo(struct zone *, struct seq_file *);
+ extern void __page_replace_counts(unsigned long *, unsigned long *,
 Index: linux-2.6-git/mm/vmscan.c
 ===================================================================
 --- linux-2.6-git.orig/mm/vmscan.c
 +++ linux-2.6-git/mm/vmscan.c
-@@ -1033,7 +1033,7 @@ int try_to_free_pages(struct zone **zone
- 			continue;
+@@ -484,6 +484,7 @@ int shrink_list(struct list_head *page_l
+ 			goto keep_locked;
  
- 		zone->temp_priority = DEF_PRIORITY;
--		lru_pages += zone->nr_active + zone->nr_inactive;
-+		lru_pages += __page_replace_nr_pages(zone);
- 	}
+ free_it:
++		page_replace_clear_state(page);
+ 		unlock_page(page);
+ 		reclaimed++;
+ 		if (!pagevec_add(&freed_pvec, page))
+@@ -668,12 +669,11 @@ void migrate_page_copy(struct page *newp
+ 		SetPageReferenced(newpage);
+ 	if (PageUptodate(page))
+ 		SetPageUptodate(newpage);
+-	if (PageActive(page))
+-		SetPageActive(newpage);
+ 	if (PageChecked(page))
+ 		SetPageChecked(newpage);
+ 	if (PageMappedToDisk(page))
+ 		SetPageMappedToDisk(newpage);
++	page_replace_copy_state(newpage, page);
  
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-@@ -1175,7 +1175,7 @@ scan:
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
+ 	if (PageDirty(page)) {
+ 		clear_page_dirty_for_io(page);
+@@ -681,8 +681,8 @@ void migrate_page_copy(struct page *newp
+  	}
  
--			lru_pages += zone->nr_active + zone->nr_inactive;
-+			lru_pages += __page_replace_nr_pages(zone);
- 		}
+ 	ClearPageSwapCache(page);
+-	ClearPageActive(page);
+ 	ClearPagePrivate(page);
++	page_replace_clear_state(page);
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
  
- 		/*
-@@ -1219,7 +1219,7 @@ scan:
- 			if (zone->all_unreclaimable)
- 				continue;
- 			if (nr_slab == 0 && zone->pages_scanned >=
--				    (zone->nr_active + zone->nr_inactive) * 4)
-+				    __page_replace_nr_pages(zone) * 4)
- 				zone->all_unreclaimable = 1;
- 			/*
- 			 * If we've done a decent amount of scanning and
+Index: linux-2.6-git/mm/mempolicy.c
+===================================================================
+--- linux-2.6-git.orig/mm/mempolicy.c
++++ linux-2.6-git/mm/mempolicy.c
+@@ -1774,7 +1774,7 @@ static void gather_stats(struct page *pa
+ 	if (PageSwapCache(page))
+ 		md->swapcache++;
+ 
+-	if (PageActive(page))
++	if (page_replace_is_active(page))
+ 		md->active++;
+ 
+ 	if (PageWriteback(page))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
