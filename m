@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223248.12658.9617.sendpatchset@twins.localnet>
+Message-Id: <20060322223258.12658.22203.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 10/34] mm: page-replace-reinsert.patch
-Date: Wed, 22 Mar 2006 23:33:20 +0100
+Subject: [PATCH 11/34] mm: page-replace-should_reclaim_mapped.patch
+Date: Wed, 22 Mar 2006 23:33:30 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,127 +12,121 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-API:
-	void page_replace_reinsert(struct list_head*);
-
-reinserts pages taken with page_replace_isolate().
-NOTE: these pages still have their reclaim page state and so can be
-inserted at the proper place.
+Move the reclaim_mapped code over to its own function so that other
+reclaim policies can make use of it.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/mm_page_replace.h |    2 +-
- mm/mempolicy.c                  |    6 +++---
- mm/useonce.c                    |   11 +++++++++++
- mm/vmscan.c                     |   26 --------------------------
- 4 files changed, 15 insertions(+), 30 deletions(-)
+ mm/vmscan.c |   86 ++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 46 insertions(+), 40 deletions(-)
 
-Index: linux-2.6-git/include/linux/mm_page_replace.h
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -86,7 +86,7 @@ typedef enum {
- 
- /* reclaim_t page_replace_reclaimable(struct page *); */
- /* int page_replace_activate(struct page *page); */
--
-+extern void page_replace_reinsert(struct list_head *);
- 
- #ifdef CONFIG_MIGRATION
- extern int page_replace_isolate(struct page *p);
-Index: linux-2.6-git/mm/useonce.c
-===================================================================
---- linux-2.6-git.orig/mm/useonce.c
-+++ linux-2.6-git/mm/useonce.c
-@@ -107,6 +107,17 @@ int page_replace_isolate(struct page *pa
+--- linux-2.6.orig/mm/vmscan.c	2006-03-13 20:37:32.000000000 +0100
++++ linux-2.6/mm/vmscan.c	2006-03-13 20:37:33.000000000 +0100
+@@ -978,6 +978,50 @@ done:
+ 	pagevec_release(&pvec);
  }
- #endif
  
-+void page_replace_reinsert(struct list_head *page_list)
++int should_reclaim_mapped(struct zone *zone, struct scan_control *sc)
 +{
-+	struct page *page, *page2;
++	long mapped_ratio;
++	long distress;
++	long swap_tendency;
 +
-+	list_for_each_entry_safe(page, page2, page_list, lru) {
-+		list_del(&page->lru);
-+		page_replace_add(page);
-+		put_page(page);
-+	}
++	/*
++	 * `distress' is a measure of how much trouble we're having
++	 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
++	 */
++	distress = 100 >> zone->prev_priority;
++
++	/*
++	 * The point of this algorithm is to decide when to start
++	 * reclaiming mapped memory instead of just pagecache.  Work out
++	 * how much memory
++	 * is mapped.
++	 */
++	mapped_ratio = (sc->nr_mapped * 100) / total_memory;
++
++	/*
++	 * Now decide how much we really want to unmap some pages.  The
++	 * mapped ratio is downgraded - just because there's a lot of
++	 * mapped memory doesn't necessarily mean that page reclaim
++	 * isn't succeeding.
++	 *
++	 * The distress ratio is important - we don't want to start
++	 * going oom.
++	 *
++	 * A 100% value of vm_swappiness overrides this algorithm
++	 * altogether.
++	 */
++	swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
++
++	/*
++	 * Now use this metric to decide whether to start moving mapped
++	 * memory onto the inactive list.
++	 */
++	if (swap_tendency >= 100)
++		return 1;
++
++	return 0;
 +}
 +
  /*
-  * zone->lru_lock is heavily contended.  Some of the functions that
-  * shrink the lists perform better by taking out a batch of pages
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -509,32 +509,6 @@ keep:
- }
+  * This moves pages from the active list to the inactive list.
+  *
+@@ -1009,46 +1053,8 @@ refill_inactive_zone(struct zone *zone, 
+ 	struct pagevec pvec;
+ 	int reclaim_mapped = 0;
  
- #ifdef CONFIG_MIGRATION
+-	if (unlikely(sc->may_swap)) {
+-		long mapped_ratio;
+-		long distress;
+-		long swap_tendency;
 -
--static inline void move_to_lru(struct page *page)
--{
--	list_del(&page->lru);
--	page_replace_add(page);
--	put_page(page);
--}
+-		/*
+-		 * `distress' is a measure of how much trouble we're having
+-		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
+-		 */
+-		distress = 100 >> zone->prev_priority;
 -
--/*
-- * Add isolated pages on the list back to the LRU.
-- *
-- * returns the number of pages put back.
-- */
--int putback_lru_pages(struct list_head *l)
--{
--	struct page *page;
--	struct page *page2;
--	int count = 0;
+-		/*
+-		 * The point of this algorithm is to decide when to start
+-		 * reclaiming mapped memory instead of just pagecache.  Work out
+-		 * how much memory
+-		 * is mapped.
+-		 */
+-		mapped_ratio = (sc->nr_mapped * 100) / total_memory;
 -
--	list_for_each_entry_safe(page, page2, l, lru) {
--		move_to_lru(page);
--		count++;
+-		/*
+-		 * Now decide how much we really want to unmap some pages.  The
+-		 * mapped ratio is downgraded - just because there's a lot of
+-		 * mapped memory doesn't necessarily mean that page reclaim
+-		 * isn't succeeding.
+-		 *
+-		 * The distress ratio is important - we don't want to start
+-		 * going oom.
+-		 *
+-		 * A 100% value of vm_swappiness overrides this algorithm
+-		 * altogether.
+-		 */
+-		swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
+-
+-		/*
+-		 * Now use this metric to decide whether to start moving mapped
+-		 * memory onto the inactive list.
+-		 */
+-		if (swap_tendency >= 100)
+-			reclaim_mapped = 1;
 -	}
--	return count;
--}
--
- /*
-  * Non migratable page
-  */
-Index: linux-2.6-git/mm/mempolicy.c
-===================================================================
---- linux-2.6-git.orig/mm/mempolicy.c
-+++ linux-2.6-git/mm/mempolicy.c
-@@ -607,7 +607,7 @@ redo:
- 	}
- 	err = migrate_pages(pagelist, &newlist, &moved, &failed);
++	if (unlikely(sc->may_swap))
++		reclaim_mapped = should_reclaim_mapped(zone, sc);
  
--	putback_lru_pages(&moved);	/* Call release pages instead ?? */
-+	page_replace_reinsert(&moved);	/* Call release pages instead ?? */
- 
- 	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
- 		goto redo;
-@@ -648,7 +648,7 @@ int migrate_to_node(struct mm_struct *mm
- 	if (!list_empty(&pagelist)) {
- 		err = migrate_pages_to(&pagelist, NULL, dest);
- 		if (!list_empty(&pagelist))
--			putback_lru_pages(&pagelist);
-+			page_replace_reinsert(&pagelist);
- 	}
- 	return err;
- }
-@@ -800,7 +800,7 @@ long do_mbind(unsigned long start, unsig
- 			err = -EIO;
- 	}
- 	if (!list_empty(&pagelist))
--		putback_lru_pages(&pagelist);
-+		page_replace_reinsert(&pagelist);
- 
- 	up_write(&mm->mmap_sem);
- 	mpol_free(new);
+ 	page_replace_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
