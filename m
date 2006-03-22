@@ -1,39 +1,73 @@
-Message-ID: <44209A26.3040102@yahoo.com.au>
-Date: Wed, 22 Mar 2006 11:28:22 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
-References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>	 <441FEFB4.6050700@yahoo.com.au> <bc56f2f0603210803l28145c7dj@mail.gmail.com>
-In-Reply-To: <bc56f2f0603210803l28145c7dj@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id k2M19t8l003549
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 20:09:55 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k2M19jrQ226500
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 20:09:45 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k2M19j7g013938
+	for <linux-mm@kvack.org>; Tue, 21 Mar 2006 20:09:45 -0500
+Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
+	old add_memory() to arch_add_memory())
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060322090514.6d6826fc.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
+	 <1142615538.10906.67.camel@localhost.localdomain>
+	 <20060318102653.57c6a2af.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1142964013.10906.158.camel@localhost.localdomain>
+	 <20060322090514.6d6826fc.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 21 Mar 2006 17:08:18 -0800
+Message-Id: <1142989698.10906.224.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: y-goto@jp.fujitsu.com, akpm@osdl.org, tony.luck@intel.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stone Wang wrote:
-> We dont account HugeTLB pages for:
-> 
-> 1. HugeTLB pages themselves are not reclaimable.
-> 
-> 2. If we count HugeTLB pages in "Wired",then we would have no mind
->    how many of the "Wired" are HugeTLB pages, and how many are
-> normal-size pages.
->    Thus, hard to get a clear map of physical memory use,for example:
->      how many pages are reclaimable?
->    If we must count HugeTLB pages,more fields should be added to
-> "/proc/meminfo",
->    for exmaple: "Wired HugeTLB:", "Wired Normal:".
-> 
+On Wed, 2006-03-22 at 09:05 +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 21 Mar 2006 10:00:12 -0800
+> Dave Hansen <haveblue@us.ibm.com> wrote:
+> > At some point in the process, you need to export the NUMA node layout to
+> > the rest of the system, to say which pages go in which node.  I'm just
+> > saying that you should do that _before_ add_memory().
+> > 
+> To do so, we have to maintain new pfn_to_nid() function.
+> We have to maintain a new table/list and have to consider name of it :).
 
-Then why do you wire them at all? Your unwire function does not appear
-to be able to unwire them.
+I completely spaced out, and forgot that we use sparsemem and 'struct
+pages' for pfn_to_nid() now.  I've been buried too deep in the i386
+discontigmem physnode_map[].  Sorry.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+If I missed it before, please refresh my memory.  But, if we're
+providing arch_nid_probe(addr), then why don't we just call it inside of
+add_memory() on the start address, instead of in the generic code?
+
+I'm also getting a bit confused in your patches whether add_memory() is
+the _original_ add_memory(), or the new one.  It tends to get lost in 17
+patches. :(
+
+I don't really like the arch_nid_probe() name.  We need to make it very
+apparent that it is to be used _only_ for memory hotplug operations.  It
+has no meaning for anything else.
+
+	hotplug_physaddr_to_nid()?
+
+Maybe with a "memory_" in front.  Maybe even
+memory_add_physaddr_to_nid()?
+
+It was probably to keep from changing as little code as possible, but
+please convert the u64 values to pfns as soon as possible.  I noticed
+that hotadd_new_pgdat() still deals with them, and does the shift as
+well.  Is that really necessary.
+
+The u64s should not be kept for more than one level of calls.  That
+level of calls should be the firmware.  So, let the firmware call into
+the VM code with u64s, then have all of the plain VM code deal in pfns.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
