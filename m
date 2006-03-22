@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223318.12658.32710.sendpatchset@twins.localnet>
+Message-Id: <20060322223338.12658.78359.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 13/34] mm: page-replace-mark-accessed.patch
-Date: Wed, 22 Mar 2006 23:33:50 +0100
+Subject: [PATCH 15/34] mm: page-replace-rotate.patch
+Date: Wed, 22 Mar 2006 23:34:10 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,14 +12,14 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Abstract the page activation.
+Take out the knowledge of the rotation itself.
 
 API:
-	void page_replace_mark_accessed(struct page *);
 
-Mark a page as accessed.
+rotate the page to the candidate end of the page scanner 
+(when suitable for reclaim)
 
-XXX: go through tree and rename mark_page_accessed() ?
+	void __page_replace_rotate_reclaimable(struct zone *, struct page *);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
@@ -27,56 +27,37 @@ Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 ---
 
  include/linux/mm_page_replace.h    |    1 +
- include/linux/mm_use_once_policy.h |   26 ++++++++++++++++++++++++++
- mm/swap.c                          |   28 +---------------------------
- 3 files changed, 28 insertions(+), 27 deletions(-)
+ include/linux/mm_use_once_policy.h |    8 ++++++++
+ mm/swap.c                          |    8 +-------
+ 3 files changed, 10 insertions(+), 7 deletions(-)
 
 Index: linux-2.6-git/include/linux/mm_use_once_policy.h
 ===================================================================
 --- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
 +++ linux-2.6-git/include/linux/mm_use_once_policy.h
-@@ -31,6 +31,32 @@ static inline void page_replace_hint_use
- {
+@@ -127,5 +127,13 @@ static inline void page_replace_remove(s
+ 	}
  }
  
-+/*
-+ * Mark a page as having seen activity.
-+ *
-+ * inactive,unreferenced	->	inactive,referenced
-+ * inactive,referenced		->	active,unreferenced
-+ * active,unreferenced		->	active,referenced
-+ */
-+static inline void page_replace_mark_accessed(struct page *page)
++static inline void __page_replace_rotate_reclaimable(struct zone *zone, struct page *page)
 +{
-+	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
-+		struct zone *zone = page_zone(page);
-+
-+		spin_lock_irq(&zone->lru_lock);
-+		if (PageLRU(page) && !PageActive(page)) {
-+			del_page_from_inactive_list(zone, page);
-+			SetPageActive(page);
-+			add_page_to_active_list(zone, page);
-+			inc_page_state(pgactivate);
-+		}
-+		spin_unlock_irq(&zone->lru_lock);
-+		ClearPageReferenced(page);
-+	} else if (!PageReferenced(page)) {
-+		SetPageReferenced(page);
++	if (PageLRU(page) && !PageActive(page)) {
++		list_move_tail(&page->lru, &zone->inactive_list);
++		inc_page_state(pgrotated);
 +	}
 +}
 +
- /* Called without lock on whether page is mapped, so answer is unstable */
- static inline int page_mapping_inuse(struct page *page)
- {
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_USEONCE_POLICY_H */
 Index: linux-2.6-git/include/linux/mm_page_replace.h
 ===================================================================
 --- linux-2.6-git.orig/include/linux/mm_page_replace.h
 +++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -88,6 +88,7 @@ typedef enum {
- /* int page_replace_activate(struct page *page); */
- extern void page_replace_reinsert(struct list_head *);
+@@ -89,6 +89,7 @@ extern void page_replace_reinsert(struct
  extern void page_replace_shrink(struct zone *, struct scan_control *);
-+/* void page_replace_mark_accessed(struct page *); */
+ /* void page_replace_mark_accessed(struct page *); */
+ /* void page_replace_remove(struct zone *, struct page *); */
++/* void __page_replace_rotate_reclaimable(struct zone *, struct page *); */
  
  #ifdef CONFIG_MIGRATION
  extern int page_replace_isolate(struct page *p);
@@ -84,45 +65,26 @@ Index: linux-2.6-git/mm/swap.c
 ===================================================================
 --- linux-2.6-git.orig/mm/swap.c
 +++ linux-2.6-git/mm/swap.c
-@@ -98,37 +98,11 @@ int rotate_reclaimable_page(struct page 
- }
+@@ -78,18 +78,12 @@ int rotate_reclaimable_page(struct page 
+ 		return 1;
+ 	if (PageDirty(page))
+ 		return 1;
+-	if (PageActive(page))
+-		return 1;
+ 	if (!PageLRU(page))
+ 		return 1;
  
- /*
-- * FIXME: speed this up?
-- */
--void fastcall activate_page(struct page *page)
--{
--	struct zone *zone = page_zone(page);
--
--	spin_lock_irq(&zone->lru_lock);
+ 	zone = page_zone(page);
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
 -	if (PageLRU(page) && !PageActive(page)) {
--		del_page_from_inactive_list(zone, page);
--		SetPageActive(page);
--		add_page_to_active_list(zone, page);
--		inc_page_state(pgactivate);
+-		list_del(&page->lru);
+-		list_add_tail(&page->lru, &zone->inactive_list);
+-		inc_page_state(pgrotated);
 -	}
--	spin_unlock_irq(&zone->lru_lock);
--}
--
--/*
-  * Mark a page as having seen activity.
-- *
-- * inactive,unreferenced	->	inactive,referenced
-- * inactive,referenced		->	active,unreferenced
-- * active,unreferenced		->	active,referenced
-  */
- void fastcall mark_page_accessed(struct page *page)
- {
--	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
--		activate_page(page);
--		ClearPageReferenced(page);
--	} else if (!PageReferenced(page)) {
--		SetPageReferenced(page);
--	}
-+	page_replace_mark_accessed(page);
- }
- 
- EXPORT_SYMBOL(mark_page_accessed);
++	__page_replace_rotate_reclaimable(zone, page);
+ 	if (!test_clear_page_writeback(page))
+ 		BUG();
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
