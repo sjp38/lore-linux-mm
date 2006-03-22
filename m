@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223613.12658.1636.sendpatchset@twins.localnet>
+Message-Id: <20060322223634.12658.27826.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 30/34] mm: cart-nonresident.patch
-Date: Wed, 22 Mar 2006 23:36:45 +0100
+Subject: [PATCH 32/34] mm: cart-cart.patch
+Date: Wed, 22 Mar 2006 23:37:06 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,424 +12,948 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Originally started by Rik van Riel, I heavily modified the code
-to suit my needs. Comments in the file should be clear.
+This patch contains a Page Replacement Algorithm based on CART
+Please refer to the CART paper here -
+  http://www.almaden.ibm.com/cs/people/dmodha/clockfast.pdf
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/nonresident-cart.h |   34 +++
- mm/nonresident-cart.c            |  362 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 396 insertions(+)
+ include/linux/mm_cart_data.h         |   31 +
+ include/linux/mm_cart_policy.h       |  134 ++++++
+ include/linux/mm_page_replace.h      |    6 
+ include/linux/mm_page_replace_data.h |    6 
+ mm/Kconfig                           |    5 
+ mm/Makefile                          |    1 
+ mm/cart.c                            |  678 +++++++++++++++++++++++++++++++++++
+ 7 files changed, 857 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/mm/nonresident-cart.c
+Index: linux-2.6-git/mm/cart.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/mm/nonresident-cart.c	2006-03-13 20:38:04.000000000 +0100
-@@ -0,0 +1,362 @@
+--- /dev/null
++++ linux-2.6-git/mm/cart.c
+@@ -0,0 +1,678 @@
 +/*
-+ * mm/nonresident-cart.c
-+ * (C) 2004,2005 Red Hat, Inc
-+ * Written by Rik van Riel <riel@redhat.com>
-+ * Released under the GPL, see the file COPYING for details.
-+ * Adapted by Peter Zijlstra <a.p.zijlstra@chello.nl> for use by ARC
-+ * like algorithms.
++ * mm/cart.c
 + *
-+ * Keeps track of whether a non-resident page was recently evicted
-+ * and should be immediately promoted to the active list. This also
-+ * helps automatically tune the inactive target.
++ * Written by Peter Zijlstra <a.p.zijlstra@chello.nl>
++ * Released under the GPLv2, see the file COPYING for details.
 + *
-+ * The pageout code stores a recently evicted page in this cache
-+ * by calling nonresident_put(mapping/mm, index/vaddr)
-+ * and can look it up in the cache by calling nonresident_find()
-+ * with the same arguments.
++ * This file contains a Page Replacement Algorithm based on CART
++ * Please refer to the CART paper here -
++ *   http://www.almaden.ibm.com/cs/people/dmodha/clockfast.pdf
 + *
-+ * Note that there is no way to invalidate pages after eg. truncate
-+ * or exit, we let the pages fall out of the non-resident set through
-+ * normal replacement.
++ * T1 -> active_list     |T1| -> nr_active
++ * T2 -> inactive_list   |T2| -> nr_inactive
++ * filter bit -> PG_longterm
 + *
++ * The algorithm was adapted to work for linux which poses the following
++ * extra constraints:
++ *  - multiple memory zones,
++ *  - fault before reference,
++ *  - expensive refernce check.
 + *
-+ * Modified to work with ARC like algorithms who:
-+ *  - need to balance two FIFOs; |b1| + |b2| = c,
++ * The multiple memory zones are handled by decoupling the T lists from the
++ * B lists, keeping T lists per zone while having global B lists. See
++ * mm/nonresident.c for the B list implementation. List sizes are scaled on
++ * comparison.
 + *
-+ * The bucket contains four single linked cyclic lists (CLOCKS) and each
-+ * clock has a tail hand. By selecting a victim clock upon insertion it
-+ * is possible to balance them.
++ * The paper seems to assume we insert after/on the first reference, we
++ * actually insert before the first reference. In order to give 'S' pages
++ * a chance we will not mark them 'L' on their first cycle (PG_new).
 + *
-+ * The first two lists are used for B1/B2 and a third for a free slot list.
-+ * The fourth list is unused.
++ * Also for efficiency's sake the replace operation is batched. This to
++ * avoid holding the much contended zone->lru_lock while calling the
++ * possibly slow page_referenced().
 + *
-+ * The slot looks like this:
-+ * struct slot_t {
-+ *         u32 cookie : 24; // LSB
-+ *         u32 index  :  6;
-+ *         u32 listid :  2;
-+ * };
-+ *
-+ * The bucket is guarded by a spinlock.
++ * All functions that are prefixed with '__' assume that zone->lru_lock is taken.
 + */
-+#include <linux/swap.h>
-+#include <linux/mm.h>
-+#include <linux/cache.h>
-+#include <linux/spinlock.h>
++
++#include <linux/mm_page_replace.h>
++#include <linux/rmap.h>
++#include <linux/buffer_head.h>
++#include <linux/pagevec.h>
 +#include <linux/bootmem.h>
-+#include <linux/hash.h>
-+#include <linux/prefetch.h>
-+#include <linux/kernel.h>
++#include <linux/init.h>
 +#include <linux/nonresident-cart.h>
++#include <linux/swap.h>
++#include <linux/module.h>
++#include <linux/percpu.h>
++#include <linux/writeback.h>
 +
-+#define TARGET_SLOTS	64
-+#define NR_CACHELINES  (TARGET_SLOTS*sizeof(u32) / L1_CACHE_BYTES)
-+#define NR_SLOTS	(((NR_CACHELINES * L1_CACHE_BYTES) - sizeof(spinlock_t) - 4*sizeof(u8)) / sizeof(u32))
-+#if 0
-+#if NR_SLOTS < (TARGET_SLOTS / 2)
-+#warning very small slot size
-+#if NR_SLOTS <= 0
-+#error no room for slots left
-+#endif
-+#endif
-+#endif
++#include <asm/div64.h>
 +
-+#define BUILD_MASK(bits, shift) (((1 << (bits)) - 1) << (shift))
 +
-+#define LISTID_BITS		2
-+#define LISTID_SHIFT		(sizeof(u32)*8 - LISTID_BITS)
-+#define LISTID_MASK		BUILD_MASK(LISTID_BITS, LISTID_SHIFT)
++static DEFINE_PER_CPU(unsigned long, cart_nr_q);
 +
-+#define SET_LISTID(x, flg)	((x) = ((x) & ~LISTID_MASK) | ((flg) << LISTID_SHIFT))
-+#define GET_LISTID(x)		(((x) & LISTID_MASK) >> LISTID_SHIFT)
-+
-+#define INDEX_BITS		6  /* ceil(log2(NR_SLOTS)) */
-+#define INDEX_SHIFT		(LISTID_SHIFT - INDEX_BITS)
-+#define INDEX_MASK		BUILD_MASK(INDEX_BITS, INDEX_SHIFT)
-+
-+#define SET_INDEX(x, idx)	((x) = ((x) & ~INDEX_MASK) | ((idx) << INDEX_SHIFT))
-+#define GET_INDEX(x)		(((x) & INDEX_MASK) >> INDEX_SHIFT)
-+
-+#define COOKIE_MASK		BUILD_MASK(sizeof(u32)*8 - LISTID_BITS - INDEX_BITS, 0)
-+
-+struct nr_bucket
++void __init page_replace_init(void)
 +{
-+	spinlock_t lock;
-+	u8 hand[4];
-+	u32 slot[NR_SLOTS];
-+} ____cacheline_aligned;
++	int i;
 +
-+/* The non-resident page hash table. */
-+static struct nr_bucket * nonres_table;
-+static unsigned int nonres_shift;
-+static unsigned int nonres_mask;
++	nonresident_init();
 +
-+/* hash the address into a bucket */
-+static struct nr_bucket * nr_hash(void * mapping, unsigned long index)
-+{
-+	unsigned long bucket;
-+	unsigned long hash;
-+
-+	hash = (unsigned long)mapping + 37 * index;
-+	bucket = hash_long(hash, nonres_shift);
-+
-+	return nonres_table + bucket;
++	for_each_cpu(i)
++		per_cpu(cart_nr_q, i) = 0;
 +}
 +
-+/* hash the address and inode into a cookie */
-+static u32 nr_cookie(struct address_space * mapping, unsigned long index)
++void __init page_replace_init_zone(struct zone *zone)
 +{
-+	unsigned long hash;
-+
-+	hash = 37 * (unsigned long)mapping + index;
-+
-+	if (mapping && mapping->host)
-+		hash = 37 * hash + mapping->host->i_ino;
-+
-+	return hash_long(hash, sizeof(u32)*8 - LISTID_BITS - INDEX_BITS);
++	INIT_LIST_HEAD(&zone->policy.list_T1);
++	INIT_LIST_HEAD(&zone->policy.list_T2);
++	zone->policy.nr_T1 = 0;
++	zone->policy.nr_T2 = 0;
++	zone->policy.nr_shortterm = 0;
++	zone->policy.nr_p = 0;
++	zone->policy.flags = 0;
 +}
 +
-+DEFINE_PER_CPU(unsigned long[4], nonres_count);
-+
-+/*
-+ * remove current (b from 'abc'):
-+ *
-+ *    initial        swap(2,3)
-+ *
-+ *   1: -> [2],a     1: -> [2],a
-+ * * 2: -> [3],b     2: -> [1],c
-+ *   3: -> [1],c   * 3: -> [3],b
-+ *
-+ *   3 is now free for use.
-+ *
-+ * @nr_bucket: bucket to operate in
-+ * @listid: list that the deletee belongs to
-+ * @pos: slot position of deletee
-+ * @slot: possible pointer to slot
-+ *
-+ * returns pointer to removed slot, NULL when list empty.
-+ */
-+static u32 * __nonresident_del(struct nr_bucket *nr_bucket, int listid, u8 pos, u32 *slot)
++static inline unsigned long cart_c(struct zone *zone)
 +{
-+	int next_pos;
-+	u32 *next;
-+
-+	if (slot == NULL) {
-+		slot = &nr_bucket->slot[pos];
-+		if (GET_LISTID(*slot) != listid)
-+			return NULL;
-+	}
-+
-+	--__get_cpu_var(nonres_count[listid]);
-+
-+	next_pos = GET_INDEX(*slot);
-+	if (pos == next_pos) {
-+		next = slot;
-+		goto out;
-+	}
-+
-+	next = &nr_bucket->slot[next_pos];
-+	*next = xchg(slot, *next);
-+
-+	if (next_pos == nr_bucket->hand[listid])
-+		nr_bucket->hand[listid] = pos;
-+out:
-+	BUG_ON(GET_INDEX(*next) != next_pos);
-+	return next;
++	return zone->policy.nr_T1 + zone->policy.nr_T2 + zone->free_pages;
 +}
 +
-+static inline u32 * __nonresident_pop(struct nr_bucket *nr_bucket, int listid)
++#define scale(x, y, z) ({ unsigned long long tmp = (x); \
++			  tmp *= (y); \
++			  do_div(tmp, (z)); \
++			  (unsigned long)tmp; })
++
++#define B2T(x) scale((x), cart_c(zone), nonresident_total())
++#define T2B(x) scale((x), nonresident_total(), cart_c(zone))
++
++static inline unsigned long cart_longterm(struct zone *zone)
 +{
-+	return __nonresident_del(nr_bucket, listid, nr_bucket->hand[listid], NULL);
++	return zone->policy.nr_T1 + zone->policy.nr_T2 - zone->policy.nr_shortterm;
 +}
 +
-+/*
-+ * insert before (d before b in 'abc')
-+ *
-+ *    initial          set 4         swap(2,4)
-+ *
-+ *   1: -> [2],a     1: -> [2],a    1: -> [2],a
-+ * * 2: -> [3],b     2: -> [3],b    2: -> [4],d
-+ *   3: -> [1],c     3: -> [1],c    3: -> [1],c
-+ *   4: -> [4],nil   4: -> [4],d  * 4: -> [3],b
-+ *
-+ *   leaving us with 'adbc'.
-+ *
-+ * @nr_bucket: bucket to operator in
-+ * @listid: list to insert into
-+ * @pos: position to insert before
-+ * @slot: slot to insert
-+ */
-+static void __nonresident_insert(struct nr_bucket *nr_bucket, int listid, u8 *pos, u32 *slot)
++static inline unsigned long __cart_q(void)
 +{
-+	u32 *head;
-+
-+	SET_LISTID(*slot, listid);
-+
-+	head = &nr_bucket->slot[*pos];
-+
-+	*pos = GET_INDEX(*slot);
-+	if (GET_LISTID(*head) == listid)
-+		*slot = xchg(head, *slot);
-+
-+	++__get_cpu_var(nonres_count[listid]);
++	return __sum_cpu_var(unsigned long, cart_nr_q);
 +}
 +
-+static inline void __nonresident_push(struct nr_bucket *nr_bucket, int listid, u32 *slot)
++static void __cart_q_inc(struct zone *zone, unsigned long dq)
 +{
-+	__nonresident_insert(nr_bucket, listid, &nr_bucket->hand[listid], slot);
-+}
++	/* if (|T2| + |B2| + |T1| - ns >= c) q = min(q + 1, 2c - |T1|) */
++	/*     |B2| + nl               >= c                            */
++	if (B2T(nonresident_count(NR_b2)) + cart_longterm(zone) >=
++	    cart_c(zone)) {
++		unsigned long nr_q = __cart_q();
++		unsigned long target = 2*nonresident_total() - T2B(zone->policy.nr_T1);
 +
-+/*
-+ * Remembers a page by putting a hash-cookie on the @listid list.
-+ *
-+ * @mapping: page_mapping()
-+ * @index: page_index()
-+ * @listid: list to put the page on (NR_b1, NR_b2 and NR_free).
-+ * @listid_evict: list to get a free page from when NR_free is empty.
-+ *
-+ * returns the list an empty page was taken from.
-+ */
-+int nonresident_put(struct address_space * mapping, unsigned long index, int listid, int listid_evict)
-+{
-+	struct nr_bucket *nr_bucket;
-+	u32 cookie;
-+	unsigned long flags;
-+	u32 *slot;
-+	int evict = NR_free;
++		__get_cpu_var(cart_nr_q) += dq;
++		nr_q += dq;
 +
-+	prefetch(mapping->host);
-+	nr_bucket = nr_hash(mapping, index);
-+
-+	spin_lock_prefetch(nr_bucket); // prefetchw_range(nr_bucket, NR_CACHELINES);
-+	cookie = nr_cookie(mapping, index);
-+
-+	spin_lock_irqsave(&nr_bucket->lock, flags);
-+	slot = __nonresident_pop(nr_bucket, evict);
-+	if (!slot) {
-+		evict = listid_evict;
-+		slot = __nonresident_pop(nr_bucket, evict);
-+		if (!slot) {
-+			evict ^= 1;
-+			slot = __nonresident_pop(nr_bucket, evict);
++		if (nr_q > target) {
++			unsigned long tmp = nr_q - target;
++			__get_cpu_var(cart_nr_q) -= tmp;
 +		}
 +	}
-+	BUG_ON(!slot);
-+	SET_INDEX(cookie, GET_INDEX(*slot));
-+	cookie = xchg(slot, cookie);
-+	__nonresident_push(nr_bucket, listid, slot);
-+	spin_unlock_irqrestore(&nr_bucket->lock, flags);
++}
 +
-+	return evict;
++static void __cart_q_dec(struct zone *zone, unsigned long dq)
++{
++	/* q = max(q - 1, c - |T1|) */
++	unsigned long nr_q = __cart_q();
++	unsigned long target = nonresident_total() - T2B(zone->policy.nr_T1);
++
++	if (nr_q < dq) {
++		__get_cpu_var(cart_nr_q) -= nr_q;
++		nr_q = 0;
++	} else {
++		__get_cpu_var(cart_nr_q) -= dq;
++		nr_q -= dq;
++	}
++
++	if (nr_q < target) {
++		unsigned long tmp = target - nr_q;
++		__get_cpu_var(cart_nr_q) += tmp;
++	}
++}
++
++static inline unsigned long cart_q(void)
++{
++	unsigned long q;
++	preempt_disable();
++	q = __cart_q();
++	preempt_enable();
++	return q;
++}
++
++static inline void __cart_p_inc(struct zone *zone)
++{
++	/* p = min(p + max(1, ns/|B1|), c) */
++	unsigned long ratio;
++	ratio = (zone->policy.nr_shortterm /
++		 (B2T(nonresident_count(NR_b1)) + 1)) ?: 1UL;
++	zone->policy.nr_p += ratio;
++	if (unlikely(zone->policy.nr_p > cart_c(zone)))
++		zone->policy.nr_p = cart_c(zone);
++}
++
++static inline void __cart_p_dec(struct zone *zone)
++{
++	/* p = max(p - max(1, nl/|B2|), 0) */
++	unsigned long ratio;
++	ratio = (cart_longterm(zone) /
++		 (B2T(nonresident_count(NR_b2)) + 1)) ?: 1UL;
++	if (zone->policy.nr_p >= ratio)
++		zone->policy.nr_p -= ratio;
++	else
++		zone->policy.nr_p = 0UL;
++}
++
++static unsigned long list_count(struct list_head *list, int PG_flag, int result)
++{
++	unsigned long nr = 0;
++	struct page *page;
++	list_for_each_entry(page, list, lru) {
++		if (!!test_bit(PG_flag, &(page)->flags) == result)
++			++nr;
++	}
++	return nr;
++}
++
++static void __validate_zone(struct zone *zone)
++{
++#if 0
++	int bug = 0;
++	unsigned long cnt0 = list_count(&zone->policy.list_T1, PG_lru, 0);
++	unsigned long cnt1 = list_count(&zone->policy.list_T1, PG_lru, 1);
++	if (cnt1 != zone->policy.nr_T1) {
++		printk(KERN_ERR "__validate_zone: T1: %lu,%lu,%lu\n", cnt0, cnt1, zone->policy.nr_T1);
++		bug = 1;
++	}
++
++	cnt0 = list_count(&zone->policy.list_T2, PG_lru, 0);
++	cnt1 = list_count(&zone->policy.list_T2, PG_lru, 1);
++	if (cnt1 != zone->policy.nr_T2 || bug) {
++		printk(KERN_ERR "__validate_zone: T2: %lu,%lu,%lu\n", cnt0, cnt1, zone->policy.nr_T2);
++		bug = 1;
++	}
++
++	cnt0 = list_count(&zone->policy.list_T1, PG_longterm, 0) +
++	       list_count(&zone->policy.list_T2, PG_longterm, 0);
++	cnt1 = list_count(&zone->policy.list_T1, PG_longterm, 1) +
++	       list_count(&zone->policy.list_T2, PG_longterm, 1);
++	if (cnt0 != zone->policy.nr_shortterm || bug) {
++		printk(KERN_ERR "__validate_zone: shortterm: %lu,%lu,%lu\n", cnt0, cnt1, zone->policy.nr_shortterm);
++		bug = 1;
++	}
++
++	cnt0 = list_count(&zone->policy.list_T2, PG_longterm, 0);
++	cnt1 = list_count(&zone->policy.list_T2, PG_longterm, 1);
++	if (cnt1 != zone->policy.nr_T2 || bug) {
++		printk(KERN_ERR "__validate_zone: longterm: %lu,%lu,%lu\n", cnt0, cnt1, zone->policy.nr_T2);
++		bug = 1;
++	}
++
++	if (bug) {
++		BUG();
++	}
++#endif
 +}
 +
 +/*
-+ * Searches a page on the first two lists, and places it on the free list.
++ * Insert page into @zones CART and update adaptive parameters.
 + *
-+ * @mapping: page_mapping()
-+ * @index: page_index()
-+ *
-+ * returns listid of the list the item was found on with NR_found set if found.
++ * @zone: target zone.
++ * @page: new page.
 + */
-+int nonresident_get(struct address_space * mapping, unsigned long index)
++void __page_replace_add(struct zone *zone, struct page *page)
 +{
-+	struct nr_bucket * nr_bucket;
-+	u32 wanted;
-+	int j;
-+	u8 i;
-+	unsigned long flags;
++	unsigned int rflags;
++
++	/*
++	 * Note: we could give hints to the insertion process using the LRU
++	 * specific PG_flags like: PG_t1, PG_longterm and PG_referenced.
++	 */
++
++	rflags = nonresident_get(page_mapping(page), page_index(page));
++
++	if (rflags & NR_found) {
++		SetPageLongTerm(page);
++		rflags &= NR_listid;
++		if (rflags == NR_b1) {
++			__cart_p_inc(zone);
++		} else if (rflags == NR_b2) {
++			__cart_p_dec(zone);
++			__cart_q_inc(zone, 1);
++		}
++		/* ++cart_longterm(zone); */
++	} else {
++		ClearPageLongTerm(page);
++		++zone->policy.nr_shortterm;
++	}
++	SetPageT1(page);
++
++	list_add(&page->lru, &zone->policy.list_T1);
++
++	++zone->policy.nr_T1;
++	BUG_ON(!PageLRU(page));
++
++	__validate_zone(zone);
++}
++
++static DEFINE_PER_CPU(struct pagevec, cart_add_pvecs) = { 0, };
++
++void fastcall page_replace_add(struct page *page)
++{
++	struct pagevec *pvec = &get_cpu_var(cart_add_pvecs);
++
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page))
++		__pagevec_page_replace_add(pvec);
++	put_cpu_var(cart_add_pvecs);
++}
++
++void __page_replace_add_drain(unsigned int cpu)
++{
++	struct pagevec *pvec = &per_cpu(cart_add_pvecs, cpu);
++
++	if (pagevec_count(pvec))
++		__pagevec_page_replace_add(pvec);
++}
++
++#ifdef CONFIG_NUMA
++static void drain_per_cpu(void *dummy)
++{
++	page_replace_add_drain();
++}
++
++/*
++ * Returns 0 for success
++ */
++int page_replace_add_drain_all(void)
++{
++	return schedule_on_each_cpu(drain_per_cpu, NULL);
++}
++
++#else
++
++/*
++ * Returns 0 for success
++ */
++int page_replace_add_drain_all(void)
++{
++	page_replace_add_drain();
++	return 0;
++}
++#endif
++
++#ifdef CONFIG_MIGRATION
++/*
++ * Isolate one page from the LRU lists and put it on the
++ * indicated list with elevated refcount.
++ *
++ * Result:
++ *  0 = page not on LRU list
++ *  1 = page removed from LRU list and added to the specified list.
++ */
++int page_replace_isolate(struct page *page)
++{
 +	int ret = 0;
 +
-+	if (mapping)
-+		prefetch(mapping->host);
-+	nr_bucket = nr_hash(mapping, index);
++	if (PageLRU(page)) {
++		struct zone *zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++		if (TestClearPageLRU(page)) {
++			ret = 1;
++			get_page(page);
 +
-+	spin_lock_prefetch(nr_bucket); // prefetch_range(nr_bucket, NR_CACHELINES);
-+	wanted = nr_cookie(mapping, index) & COOKIE_MASK;
++			if (PageT1(page))
++				--zone->policy.nr_T1;
++			else
++				--zone->policy.nr_T2;
 +
-+	spin_lock_irqsave(&nr_bucket->lock, flags);
-+	for (i = 0; i < 2; ++i) {
-+		j = nr_bucket->hand[i];
-+		do {
-+			u32 *slot = &nr_bucket->slot[j];
-+			if (GET_LISTID(*slot) != i)
-+				break;
-+
-+			if ((*slot & COOKIE_MASK) == wanted) {
-+				slot = __nonresident_del(nr_bucket, i, j, slot);
-+				__nonresident_push(nr_bucket, NR_free, slot);
-+				ret = i | NR_found;
-+				goto out;
-+			}
-+
-+			j = GET_INDEX(*slot);
-+		} while (j != nr_bucket->hand[i]);
++			if (!PageLongTerm(page))
++				--zone->policy.nr_shortterm;
++		}
++		spin_unlock_irq(&zone->lru_lock);
 +	}
-+out:
-+	spin_unlock_irqrestore(&nr_bucket->lock, flags);
 +
 +	return ret;
 +}
++#endif
 +
-+unsigned int nonresident_total(void)
++/*
++ * Add page to a release pagevec, temp. drop zone lock to release pagevec if full.
++ *
++ * @zone: @pages zone.
++ * @page: page to be released.
++ * @pvec: pagevec to collect pages in.
++ */
++static inline void __page_release(struct zone *zone, struct page *page,
++				       struct pagevec *pvec)
 +{
-+	return (1 << nonres_shift) * NR_SLOTS;
++	if (TestSetPageLRU(page))
++		BUG();
++	if (!PageLongTerm(page))
++		++zone->policy.nr_shortterm;
++	if (PageT1(page))
++		++zone->policy.nr_T1;
++	else
++		++zone->policy.nr_T2;
++
++	if (!pagevec_add(pvec, page)) {
++		spin_unlock_irq(&zone->lru_lock);
++		if (buffer_heads_over_limit)
++			pagevec_strip(pvec);
++		__pagevec_release(pvec);
++		spin_lock_irq(&zone->lru_lock);
++	}
++}
++
++void page_replace_reinsert(struct list_head *page_list)
++{
++	struct page *page, *page2;
++	struct zone *zone = NULL;
++	struct pagevec pvec;
++
++	pagevec_init(&pvec, 1);
++	list_for_each_entry_safe(page, page2, page_list, lru) {
++		struct zone *pagezone = page_zone(page);
++		if (pagezone != zone) {
++			if (zone)
++				spin_unlock_irq(&zone->lru_lock);
++			zone = pagezone;
++			spin_lock_irq(&zone->lru_lock);
++		}
++		if (PageT1(page))
++			list_move(&page->lru, &zone->policy.list_T1);
++		else
++			list_move(&page->lru, &zone->policy.list_T2);
++
++		__page_release(zone, page, &pvec);
++	}
++	if (zone)
++		spin_unlock_irq(&zone->lru_lock);
++	pagevec_release(&pvec);
 +}
 +
 +/*
-+ * For interactive workloads, we remember about as many non-resident pages
-+ * as we have actual memory pages.  For server workloads with large inter-
-+ * reference distances we could benefit from remembering more.
++ * zone->lru_lock is heavily contended.  Some of the functions that
++ * shrink the lists perform better by taking out a batch of pages
++ * and working on them outside the LRU lock.
++ *
++ * For pagecache intensive workloads, this function is the hottest
++ * spot in the kernel (apart from copy_*_user functions).
++ *
++ * Appropriate locks must be held before calling this function.
++ *
++ * @nr_to_scan:	The number of pages to look through on the list.
++ * @src:	The LRU list to pull pages off.
++ * @dst:	The temp list to put pages on to.
++ * @scanned:	The number of pages that were scanned.
++ *
++ * returns how many pages were moved onto *@dst.
 + */
-+static __initdata unsigned long nonresident_factor = 1;
-+void __init nonresident_init(void)
++static int isolate_pages(struct zone *zone, int nr_to_scan,
++			 struct list_head *src,
++			 struct list_head *dst, int *scanned)
 +{
-+	int target;
-+	int i, j;
++	int nr_taken = 0;
++	struct page *page;
++	int scan = 0;
 +
-+	/*
-+	 * Calculate the non-resident hash bucket target. Use a power of
-+	 * two for the division because alloc_large_system_hash rounds up.
-+	 */
-+	target = nr_all_pages * nonresident_factor;
-+	target /= (sizeof(struct nr_bucket) / sizeof(u32));
++	while (scan++ < nr_to_scan && !list_empty(src)) {
++		page = lru_to_page(src);
++		prefetchw_prev_lru_page(page, src, flags);
 +
-+	nonres_table = alloc_large_system_hash("Non-resident page tracking",
-+					sizeof(struct nr_bucket),
-+					target,
-+					0,
-+					HASH_EARLY | HASH_HIGHMEM,
-+					&nonres_shift,
-+					&nonres_mask,
-+					0);
-+
-+	for (i = 0; i < (1 << nonres_shift); i++) {
-+		spin_lock_init(&nonres_table[i].lock);
-+		for (j = 0; j < 4; ++j)
-+			nonres_table[i].hand[j] = 0;
-+
-+		for (j = 0; j < NR_SLOTS; ++j) {
-+			nonres_table[i].slot[j] = 0;
-+			SET_LISTID(nonres_table[i].slot[j], NR_free);
-+			if (j < NR_SLOTS - 1)
-+				SET_INDEX(nonres_table[i].slot[j], j+1);
-+			else /* j == NR_SLOTS - 1 */
-+				SET_INDEX(nonres_table[i].slot[j], 0);
++		if (!TestClearPageLRU(page))
++			BUG();
++		list_del(&page->lru);
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			list_add(&page->lru, src);
++			continue;
++		} else {
++			list_add(&page->lru, dst);
++			nr_taken++;
++			if (!PageLongTerm(page))
++				--zone->policy.nr_shortterm;
 +		}
 +	}
 +
-+	for_each_cpu(i) {
-+		for (j=0; j<4; ++j)
-+			per_cpu(nonres_count[j], i) = 0;
++	zone->pages_scanned += scan;
++	if (src == &zone->policy.list_T1)
++		zone->policy.nr_T1 -= nr_taken;
++	else
++		zone->policy.nr_T2 -= nr_taken;
++
++	*scanned = scan;
++	return nr_taken;
++}
++
++static inline int cart_reclaim_T1(struct zone *zone)
++{
++	int t1 = zone->policy.nr_T1 > zone->policy.nr_p;
++	int sat = TestClearZoneSaturated(zone);
++	int rec = ZoneReclaimedT1(zone);
++
++	if (t1) {
++		if (sat && rec)
++			return 0;
++		return 1;
++	}
++
++	if (sat && !rec)
++		return 1;
++	return 0;
++}
++
++
++void page_replace_candidates(struct zone *zone, int nr_to_scan,
++		struct list_head *page_list)
++{
++	int nr_scan;
++	int nr_taken;
++	struct list_head *list;
++
++	page_replace_add_drain();
++	spin_lock_irq(&zone->lru_lock);
++
++	if (cart_reclaim_T1(zone)) {
++		list = &zone->policy.list_T1;
++		SetZoneReclaimedT1(zone);
++	} else {
++		list = &zone->policy.list_T2;
++		ClearZoneReclaimedT1(zone);
++	}
++
++	nr_taken = isolate_pages(zone, nr_to_scan, list, page_list,
++			         &nr_scan);
++
++	if (!nr_taken) {
++		if (list == &zone->policy.list_T1) {
++			list = &zone->policy.list_T2;
++			ClearZoneReclaimedT1(zone);
++		} else {
++			list = &zone->policy.list_T1;
++			SetZoneReclaimedT1(zone);
++		}
++
++		nr_taken = isolate_pages(zone, nr_to_scan, list,
++				         page_list, &nr_scan);
++	}
++	spin_unlock(&zone->lru_lock);
++	if (current_is_kswapd())
++		__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
++	else
++		__mod_page_state_zone(zone, pgscan_direct, nr_scan);
++	local_irq_enable();
++}
++
++void page_replace_reinsert_zone(struct zone *zone, struct list_head *page_list, int nr_freed)
++{
++	struct pagevec pvec;
++	unsigned long dqi = 0;
++	unsigned long dqd = 0;
++	unsigned long dsl = 0;
++	unsigned long target;
++
++	pagevec_init(&pvec, 1);
++	spin_lock_irq(&zone->lru_lock);
++
++	target = min(zone->policy.nr_p + 1UL, B2T(nonresident_count(NR_b1)));
++
++	while (!list_empty(page_list)) {
++		struct page * page = lru_to_page(page_list);
++		prefetchw_prev_lru_page(page, page_list, flags);
++
++		if (PageT1(page)) { /* T1 */
++			if (TestClearPageReferenced(page)) {
++				if (!PageLongTerm(page) &&
++				    (zone->policy.nr_T1 - dqd + dqi) >= target) {
++					SetPageLongTerm(page);
++					++dsl;
++				}
++				list_move(&page->lru, &zone->policy.list_T1);
++			} else if (PageLongTerm(page)) {
++				ClearPageT1(page);
++				++dqd;
++				list_move(&page->lru, &zone->policy.list_T2);
++			} else {
++				/* should have been reclaimed or was PG_new */
++				list_move(&page->lru, &zone->policy.list_T1);
++			}
++		} else { /* T2 */
++			if (TestClearPageReferenced(page)) {
++				SetPageT1(page);
++				++dqi;
++				list_move(&page->lru, &zone->policy.list_T1);
++			} else {
++				/* should have been reclaimed */
++				list_move(&page->lru, &zone->policy.list_T2);
++			}
++		}
++		__page_release(zone, page, &pvec);
++	}
++
++	if (!nr_freed) SetZoneSaturated(zone);
++
++	if (dqi > dqd)
++		__cart_q_inc(zone, dqi - dqd);
++	else
++		__cart_q_dec(zone, dqd - dqi);
++
++	spin_unlock_irq(&zone->lru_lock);
++	pagevec_release(&pvec);
++}
++
++void __page_replace_rotate_reclaimable(struct zone *zone, struct page *page)
++{
++	if (PageLRU(page)) {
++		if (PageLongTerm(page)) {
++			if (TestClearPageT1(page)) {
++				--zone->policy.nr_T1;
++				++zone->policy.nr_T2;
++				__cart_q_dec(zone, 1);
++			}
++			list_move_tail(&page->lru, &zone->policy.list_T2);
++		} else {
++			if (!PageT1(page))
++				BUG();
++			list_move_tail(&page->lru, &zone->policy.list_T1);
++		}
 +	}
 +}
 +
-+static int __init set_nonresident_factor(char * str)
++void page_replace_remember(struct zone *zone, struct page *page)
 +{
-+	if (!str)
-+		return 0;
-+	nonresident_factor = simple_strtoul(str, &str, 0);
-+	return 1;
++	int target_list = PageT1(page) ? NR_b1 : NR_b2;
++	int evict_list = (nonresident_count(NR_b1) > cart_q())
++		? NR_b1 : NR_b2;
++
++	nonresident_put(page_mapping(page), page_index(page),
++			target_list, evict_list);
 +}
 +
-+__setup("nonresident_factor=", set_nonresident_factor);
-Index: linux-2.6/include/linux/nonresident-cart.h
++void page_replace_forget(struct address_space *mapping, unsigned long index)
++{
++	nonresident_get(mapping, index);
++}
++
++#define K(x) ((x) << (PAGE_SHIFT-10))
++
++void page_replace_show(struct zone *zone)
++{
++	printk("%s"
++	       " free:%lukB"
++	       " min:%lukB"
++	       " low:%lukB"
++	       " high:%lukB"
++	       " T1:%lukB"
++	       " T2:%lukB"
++	       " shortterm:%lukB"
++	       " present:%lukB"
++	       " pages_scanned:%lu"
++	       " all_unreclaimable? %s"
++	       "\n",
++	       zone->name,
++	       K(zone->free_pages),
++	       K(zone->pages_min),
++	       K(zone->pages_low),
++	       K(zone->pages_high),
++	       K(zone->policy.nr_T1),
++	       K(zone->policy.nr_T2),
++	       K(zone->policy.nr_shortterm),
++	       K(zone->present_pages),
++	       zone->pages_scanned,
++	       (zone->all_unreclaimable ? "yes" : "no")
++	      );
++}
++
++void page_replace_zoneinfo(struct zone *zone, struct seq_file *m)
++{
++	seq_printf(m,
++		   "\n  pages free       %lu"
++		   "\n        min        %lu"
++		   "\n        low        %lu"
++		   "\n        high       %lu"
++		   "\n        T1         %lu"
++		   "\n        T2         %lu"
++		   "\n        shortterm  %lu"
++		   "\n        p          %lu"
++		   "\n        flags      %lu"
++		   "\n        scanned    %lu"
++		   "\n        spanned    %lu"
++		   "\n        present    %lu",
++		   zone->free_pages,
++		   zone->pages_min,
++		   zone->pages_low,
++		   zone->pages_high,
++		   zone->policy.nr_T1,
++		   zone->policy.nr_T2,
++		   zone->policy.nr_shortterm,
++		   zone->policy.nr_p,
++		   zone->policy.flags,
++		   zone->pages_scanned,
++		   zone->spanned_pages,
++		   zone->present_pages);
++}
++
++void __page_replace_counts(unsigned long *active, unsigned long *inactive,
++			   unsigned long *free, struct pglist_data *pgdat)
++{
++	struct zone *zones = pgdat->node_zones;
++	int i;
++
++	*active = 0;
++	*inactive = 0;
++	*free = 0;
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		*active += zones[i].policy.nr_T1 + zones[i].policy.nr_T2 -
++			zones[i].policy.nr_shortterm;
++		*inactive += zones[i].policy.nr_shortterm;
++		*free += zones[i].free_pages;
++	}
++}
+Index: linux-2.6-git/include/linux/mm_page_replace.h
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/include/linux/nonresident-cart.h	2006-03-13 20:38:04.000000000 +0100
-@@ -0,0 +1,34 @@
-+#ifndef _LINUX_NONRESIDENT_CART_H_
-+#define _LINUX_NONRESIDENT_CART_H_
+--- linux-2.6-git.orig/include/linux/mm_page_replace.h
++++ linux-2.6-git/include/linux/mm_page_replace.h
+@@ -112,10 +112,12 @@ extern int page_replace_isolate(struct p
+ static inline int page_replace_isolate(struct page *p) { return -ENOSYS; }
+ #endif
+ 
+-#ifdef CONFIG_MM_POLICY_USEONCE
++#if defined CONFIG_MM_POLICY_USEONCE
+ #include <linux/mm_use_once_policy.h>
+-#elif CONFIG_MM_POLICY_CLOCKPRO
++#elif defined CONFIG_MM_POLICY_CLOCKPRO
+ #include <linux/mm_clockpro_policy.h>
++#elif defined CONFIG_MM_POLICY_CART
++#include <linux/mm_cart_policy.h>
+ #else
+ #error no mm policy
+ #endif
+Index: linux-2.6-git/include/linux/mm_page_replace_data.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/mm_page_replace_data.h
++++ linux-2.6-git/include/linux/mm_page_replace_data.h
+@@ -3,10 +3,12 @@
+ 
+ #ifdef __KERNEL__
+ 
+-#ifdef CONFIG_MM_POLICY_USEONCE
++#if defined CONFIG_MM_POLICY_USEONCE
+ #include <linux/mm_use_once_data.h>
+-#elif CONFIG_MM_POLICY_CLOCKPRO
++#elif defined CONFIG_MM_POLICY_CLOCKPRO
+ #include <linux/mm_clockpro_data.h>
++#elif defined CONFIG_MM_POLICY_CART
++#include <linux/mm_cart_data.h>
+ #else
+ #error no mm policy
+ #endif
+Index: linux-2.6-git/mm/Kconfig
+===================================================================
+--- linux-2.6-git.orig/mm/Kconfig
++++ linux-2.6-git/mm/Kconfig
+@@ -147,6 +147,11 @@ config MM_POLICY_CLOCKPRO
+ 	help
+ 	  This option selects a CLOCK-Pro based policy
+ 
++config MM_POLICY_CART
++	bool "CART"
++	help
++	  This option selects a CART based policy
++
+ endchoice
+ 
+ #
+Index: linux-2.6-git/mm/Makefile
+===================================================================
+--- linux-2.6-git.orig/mm/Makefile
++++ linux-2.6-git/mm/Makefile
+@@ -14,6 +14,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 
+ obj-$(CONFIG_MM_POLICY_USEONCE) += useonce.o
+ obj-$(CONFIG_MM_POLICY_CLOCKPRO) += nonresident.o clockpro.o
++obj-$(CONFIG_MM_POLICY_CART) += nonresident-cart.o cart.o
+ 
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+Index: linux-2.6-git/include/linux/mm_cart_data.h
+===================================================================
+--- /dev/null
++++ linux-2.6-git/include/linux/mm_cart_data.h
+@@ -0,0 +1,31 @@
++#ifndef _LINUX_CART_DATA_H_
++#define _LINUX_CART_DATA_H_
 +
 +#ifdef __KERNEL__
 +
-+#include <linux/fs.h>
-+#include <linux/preempt.h>
-+#include <linux/percpu.h>
++#include <asm/bitops.h>
 +
-+#define NR_b1		0
-+#define NR_b2		1
-+#define NR_free		2
++struct page_replace_data {
++	struct list_head        list_T1;
++	struct list_head        list_T2;
++	unsigned long		nr_scan;
++	unsigned long		nr_T1;
++	unsigned long		nr_T2;
++	unsigned long           nr_shortterm;
++	unsigned long           nr_p;
++	unsigned long		flags;
++};
 +
-+#define NR_listid	3
-+#define NR_found	0x80000000
++#define CART_RECLAIMED_T1	0
++#define CART_SATURATED		1
 +
-+extern int nonresident_put(struct address_space *, unsigned long, int, int);
-+extern int nonresident_get(struct address_space *, unsigned long);
-+extern unsigned int nonresident_total(void);
-+extern void nonresident_init(void);
++#define ZoneReclaimedT1(z)	test_bit(CART_RECLAIMED_T1, &((z)->policy.flags))
++#define SetZoneReclaimedT1(z)	__set_bit(CART_RECLAIMED_T1, &((z)->policy.flags))
++#define ClearZoneReclaimedT1(z)	__clear_bit(CART_RECLAIMED_T1, &((z)->policy.flags))
 +
-+DECLARE_PER_CPU(unsigned long[4], nonres_count);
++#define ZoneSaturated(z)	test_bit(CART_SATURATED, &((z)->policy.flags))
++#define SetZoneSaturated(z)	__set_bit(CART_SATURATED, &((z)->policy.flags))
++#define TestClearZoneSaturated(z)  __test_and_clear_bit(CART_SATURATED, &((z)->policy.flags))
 +
-+static inline unsigned long nonresident_count(int listid)
++#endif /* __KERNEL__ */
++#endif /* _LINUX_CART_DATA_H_ */
+Index: linux-2.6-git/include/linux/mm_cart_policy.h
+===================================================================
+--- /dev/null
++++ linux-2.6-git/include/linux/mm_cart_policy.h
+@@ -0,0 +1,134 @@
++#ifndef _LINUX_MM_CART_POLICY_H
++#define _LINUX_MM_CART_POLICY_H
++
++#ifdef __KERNEL__
++
++#include <linux/rmap.h>
++#include <linux/page-flags.h>
++
++#define PG_t1		PG_reclaim1
++#define PG_longterm	PG_reclaim2
++#define PG_new		PG_reclaim3
++
++#define PageT1(page)		test_bit(PG_t1, &(page)->flags)
++#define SetPageT1(page)		set_bit(PG_t1, &(page)->flags)
++#define ClearPageT1(page)	clear_bit(PG_t1, &(page)->flags)
++#define TestClearPageT1(page)	test_and_clear_bit(PG_t1, &(page)->flags)
++#define TestSetPageT1(page)	test_and_set_bit(PG_t1, &(page)->flags)
++
++#define PageLongTerm(page)	test_bit(PG_longterm, &(page)->flags)
++#define SetPageLongTerm(page)	set_bit(PG_longterm, &(page)->flags)
++#define TestSetPageLongTerm(page) test_and_set_bit(PG_longterm, &(page)->flags)
++#define ClearPageLongTerm(page)	clear_bit(PG_longterm, &(page)->flags)
++#define TestClearPageLongTerm(page) test_and_clear_bit(PG_longterm, &(page)->flags)
++
++#define PageNew(page)		test_bit(PG_new, &(page)->flags)
++#define SetPageNew(page)	set_bit(PG_new, &(page)->flags)
++#define TestSetPageNew(page)	test_and_set_bit(PG_new, &(page)->flags)
++#define ClearPageNew(page)	clear_bit(PG_new, &(page)->flags)
++#define TestClearPageNew(page)	test_and_clear_bit(PG_new, &(page)->flags)
++
++static inline void page_replace_hint_active(struct page *page)
 +{
-+	unsigned long count;
-+	preempt_disable();
-+	count = __sum_cpu_var(unsigned long, nonres_count[listid]);
-+	preempt_enable();
-+	return count;
++}
++
++static inline void page_replace_hint_use_once(struct page *page)
++{
++	if (PageLRU(page))
++		BUG();
++	SetPageNew(page);
++}
++
++extern void __page_replace_add(struct zone *, struct page *);
++
++static inline void page_replace_copy_state(struct page *dpage, struct page *spage)
++{
++	if (PageT1(spage))
++		SetPageT1(dpage);
++	if (PageLongTerm(spage))
++		SetPageLongTerm(dpage);
++	if (PageNew(spage))
++		SetPageNew(dpage);
++}
++
++static inline void page_replace_clear_state(struct page *page)
++{
++	if (PageT1(page))
++		ClearPageT1(page);
++	if (PageLongTerm(page))
++		ClearPageLongTerm(page);
++	if (PageNew(page))
++		ClearPageNew(page);
++}
++
++static inline int page_replace_is_active(struct page *page)
++{
++	return PageLongTerm(page);
++}
++
++static inline void page_replace_remove(struct zone *zone, struct page *page)
++{
++	list_del(&page->lru);
++	if (PageT1(page))
++		--zone->policy.nr_T1;
++	else
++		--zone->policy.nr_T2;
++
++	if (!PageLongTerm(page))
++		--zone->policy.nr_shortterm;
++
++	page_replace_clear_state(page);
++}
++
++static inline int page_replace_reclaimable(struct page *page)
++{
++	if (page_referenced(page, 1, 0))
++		return RECLAIM_ACTIVATE;
++
++	if (PageNew(page))
++		ClearPageNew(page);
++
++	if ((PageT1(page) && PageLongTerm(page)) ||
++	    (!PageT1(page) && !PageLongTerm(page)))
++		return RECLAIM_KEEP;
++
++	return RECLAIM_OK;
++}
++
++static inline int fastcall page_replace_activate(struct page *page)
++{
++	/* just set PG_referenced, handle the rest in
++	 * page_replace_reinsert()
++	 */
++	if (!TestClearPageNew(page)) {
++		SetPageReferenced(page);
++		return 1;
++	}
++
++	return 0;
++}
++
++extern void __page_replace_rotate_reclaimable(struct zone *, struct page *);
++
++static inline void page_replace_mark_accessed(struct page *page)
++{
++	SetPageReferenced(page);
++}
++
++#define MM_POLICY_HAS_NONRESIDENT
++
++extern void page_replace_remember(struct zone *, struct page *);
++extern void page_replace_forget(struct address_space *, unsigned long);
++
++static inline unsigned long __page_replace_nr_pages(struct zone *zone)
++{
++	return zone->policy.nr_T1 + zone->policy.nr_T2;
++}
++
++static inline unsigned long __page_replace_nr_scan(struct zone *zone)
++{
++	return zone->policy.nr_T1 + zone->policy.nr_T2;
 +}
 +
 +#endif /* __KERNEL__ */
-+#endif /* _LINUX_NONRESIDENT_CART_H_ */
++#endif /* _LINUX_MM_CART_POLICY_H_ */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
