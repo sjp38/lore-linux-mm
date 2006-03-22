@@ -1,68 +1,41 @@
-Date: Wed, 22 Mar 2006 09:05:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH: 002/017]Memory hotplug for new nodes v.4.(change name
- old add_memory() to arch_add_memory())
-Message-Id: <20060322090514.6d6826fc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1142964013.10906.158.camel@localhost.localdomain>
-References: <20060317162757.C63B.Y-GOTO@jp.fujitsu.com>
-	<1142615538.10906.67.camel@localhost.localdomain>
-	<20060318102653.57c6a2af.kamezawa.hiroyu@jp.fujitsu.com>
-	<1142964013.10906.158.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <442097EE.2000601@yahoo.com.au>
+Date: Wed, 22 Mar 2006 11:18:54 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH][8/8] mm: lru interface change
+References: <bc56f2f0603200538g3d6aa712i@mail.gmail.com>	 <441FF007.6020901@yahoo.com.au> <bc56f2f0603210753k758ebf6dq@mail.gmail.com>
+In-Reply-To: <bc56f2f0603210753k758ebf6dq@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: y-goto@jp.fujitsu.com, akpm@osdl.org, tony.luck@intel.com, ak@suse.de, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: Stone Wang <pwstone@gmail.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Mar 2006 10:00:12 -0800
-Dave Hansen <haveblue@us.ibm.com> wrote:
-
-> On Sat, 2006-03-18 at 10:26 +0900, KAMEZAWA Hiroyuki wrote:
-> > If *determine node* function is moved to arch specific parts,
-> > memory hot add need more and more codes to determine  paddr -> nid in arch
-> > specific codes. Then, we have to add new paddr->nid function even if new nid is
-> > passed by firmware. We *lose* useful information of nid from firmware if 
-> > add_memory() has just 2 args, (start, end).  
+Stone Wang wrote:
+>>I may have missed something very trivial, but... why are they on a
+>>list at all if they don't get scanned
 > 
-> What I'm saying is that I'd like add_memory() to be just that, for
-> adding memory.
 > 
-> At some point in the process, you need to export the NUMA node layout to
-> the rest of the system, to say which pages go in which node.  I'm just
-> saying that you should do that _before_ add_memory().
+> Get the locked pages on a list is necessary for page management,
+> scatter the locked pages around isnt a good idea.
 > 
 
-To do so, we have to maintain new pfn_to_nid() function.
-We have to maintain a new table/list and have to consider name of it :).
-And, add_memory() has to check whether a node which belongs exists ot not, again.
-I don't want these kind of things. 
+This doesn't make sense. Whether or not they're on a list does not
+change the fact that they may be "scattered".
 
-With current kernel, we have to add new *pgdat* to node when adding a new node.
-(If we don't, the kernel goes panic()) And we have to allocate a pgdat/zones 
-in a local node in future. So adding a node before adding memory is not good. 
-(current code uses kmalloc() just for reducing complexity.)
-
-> add_memory() should support adding memory to more than one node.  If any
-> hypervisor or hardware happens to have memory added in one contiguous
-> chunk, it can not simply call add_memory().  _That_ firmware would be
-> forced to do the NUMA parsing and figure out how many times to call
-> add_memory().  
-I don't think the firmware adds memory of multiple nodes at once.
-It's crazy.
-
+> Also, we could add some kinds of scan to the locked pages,
+> if we find that it's necessary.
 > 
-> Let me reiterate: the process of telling the system which pages are in
-> which node should be separate from telling the system that there *are*
-> currently pages there now.
 
-Considering "cpu only node', "check and add new node" function can be separated,
-like add_memory_less_node().(But pgdat/zone etc.. will be allocated in out of node.)
+This is a valid reason. But at present you don't scan them, do you?
+So you should add them to a list in patch 9 where you add the
+machanism to scan them as well, right?
 
-Bye.
--- Kame
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
