@@ -1,45 +1,44 @@
-Received: by uproxy.gmail.com with SMTP id s2so48106uge
-        for <linux-mm@kvack.org>; Wed, 22 Mar 2006 03:59:47 -0800 (PST)
-Message-ID: <bc56f2f0603220359p6a583535x@mail.gmail.com>
-Date: Wed, 22 Mar 2006 06:59:47 -0500
-From: "Stone Wang" <pwstone@gmail.com>
-Subject: Re: PATCH][1/8] 2.6.15 mlock: make_pages_wired/unwired
-In-Reply-To: <44212353.7000408@yahoo.com.au>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH: 003/017]Memory hotplug for new nodes v.4.(get node id at probe memory)
+Date: Wed, 22 Mar 2006 14:17:55 +0100
+References: <20060317162835.C63D.Y-GOTO@jp.fujitsu.com>
+In-Reply-To: <20060317162835.C63D.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <bc56f2f0603200536scb87a8ck@mail.gmail.com>
-	 <441FEFB4.6050700@yahoo.com.au>
-	 <bc56f2f0603210803l28145c7dj@mail.gmail.com>
-	 <44209A26.3040102@yahoo.com.au>
-	 <bc56f2f0603220059x6b2a30b8h@mail.gmail.com>
-	 <44212353.7000408@yahoo.com.au>
+Message-Id: <200603221417.55462.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Right, it made confusions.
+On Friday 17 March 2006 09:20, Yasunori Goto wrote:
+> When CONFIG_NUMA && CONFIG_ARCH_MEMORY_PROBE, nid should be defined
+> before calling add_memory(nid, start, size).
 
-I will correct it.
+Seems a bit weird to have the node number assignment somewhere
+hidden in memory hotadd. It would be probably cleaner to have
+a separate step for this.
 
-2006/3/22, Nick Piggin <nickpiggin@yahoo.com.au>:
-> Stone Wang wrote:
-> > 2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
->
-> >
-> > We didnt wire them.
-> >
->
-> But your comment said they were wired.
->
-> --
-> SUSE Labs, Novell Inc.
-> Send instant messages to your online friends http://au.messenger.yahoo.com
->
->
+> +#if defined(CONFIG_NUMA) && defined(CONFIG_ARCH_MEMORY_PROBE)
+> +extern int arch_nid_probe(u64 start);
+
+Instead of adding such ugly ifdefs better just add stubs to all the
+architectures that support memory hotplug. There are not that many
+anyways.
+
+-Andi
+
+> +#else
+> +static inline int arch_nid_probe(u64 start)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
