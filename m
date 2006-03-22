@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Message-Id: <20060322223328.12658.43943.sendpatchset@twins.localnet>
+Message-Id: <20060322223348.12658.94409.sendpatchset@twins.localnet>
 In-Reply-To: <20060322223107.12658.14997.sendpatchset@twins.localnet>
 References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
-Subject: [PATCH 14/34] mm: page-replace-remove-mm_inline.patch
-Date: Wed, 22 Mar 2006 23:34:00 +0100
+Subject: [PATCH 16/34] mm: page-replace-init.patch
+Date: Wed, 22 Mar 2006 23:34:20 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,202 +12,111 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Remove mm_inline.h and abstract the removal of pages from the 
-page replacement policy.
+Move initialization of the replacement policy's variables into the
+implementation.
 
 API:
 
-remove the page from the care of the replacement policy's care
+initialize the implementation's per zone variables
 
-	void page_replace_remove(struct zone *, struct page *);
+	void page_replace_init_zone(struct zone *);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
 ---
 
- include/linux/mm_inline.h          |   39 -------------------------------------
- include/linux/mm_page_replace.h    |    2 -
- include/linux/mm_use_once_policy.h |   25 +++++++++++++++++++++++
- mm/swap.c                          |    5 +---
- mm/useonce.c                       |    8 ++++++-
- mm/vmscan.c                        |    1 
- 6 files changed, 35 insertions(+), 45 deletions(-)
+ include/linux/mm_page_replace.h |    2 ++
+ init/main.c                     |    2 ++
+ mm/useonce.c                        |   15 +++++++++++++++
+ mm/page_alloc.c                 |    8 ++------
+ 4 files changed, 21 insertions(+), 6 deletions(-)
 
-Index: linux-2.6-git/include/linux/mm_inline.h
+Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_inline.h
-+++ linux-2.6-git/include/linux/mm_inline.h
-@@ -1,41 +1,2 @@
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-03-13 20:37:39.000000000 +0100
++++ linux-2.6/include/linux/mm_page_replace.h	2006-03-13 20:37:40.000000000 +0100
+@@ -67,6 +67,8 @@ struct scan_control {
+ #define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
+ #endif
  
--static inline void
--add_page_to_active_list(struct zone *zone, struct page *page)
--{
--	list_add(&page->lru, &zone->active_list);
--	zone->nr_active++;
--}
--
--static inline void
--add_page_to_inactive_list(struct zone *zone, struct page *page)
--{
--	list_add(&page->lru, &zone->inactive_list);
--	zone->nr_inactive++;
--}
--
--static inline void
--del_page_from_active_list(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	zone->nr_active--;
--}
--
--static inline void
--del_page_from_inactive_list(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	zone->nr_inactive--;
--}
--
--static inline void
--del_page_from_lru(struct zone *zone, struct page *page)
--{
--	list_del(&page->lru);
--	if (PageActive(page)) {
--		ClearPageActive(page);
--		zone->nr_active--;
--	} else {
--		zone->nr_inactive--;
--	}
--}
- 
-Index: linux-2.6-git/include/linux/mm_use_once_policy.h
++extern void page_replace_init(void);
++extern void page_replace_init_zone(struct zone *);
+ /* void page_replace_hint_active(struct page *); */
+ /* void page_replace_hint_use_once(struct page *); */
+ extern void fastcall page_replace_add(struct page *);
+Index: linux-2.6/mm/useonce.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_use_once_policy.h
-+++ linux-2.6-git/include/linux/mm_use_once_policy.h
-@@ -12,6 +12,20 @@ static inline void page_replace_hint_act
- }
+--- linux-2.6.orig/mm/useonce.c	2006-03-13 20:37:38.000000000 +0100
++++ linux-2.6/mm/useonce.c	2006-03-13 20:37:40.000000000 +0100
+@@ -6,6 +6,21 @@
+ #include <linux/buffer_head.h>	/* for try_to_release_page(),
+ 					buffer_heads_over_limit */
  
++void __init page_replace_init(void)
++{
++	/* empty hook */
++}
++
++void __init page_replace_init_zone(struct zone *zone)
++{
++	INIT_LIST_HEAD(&zone->active_list);
++	INIT_LIST_HEAD(&zone->inactive_list);
++	zone->nr_scan_active = 0;
++	zone->nr_scan_inactive = 0;
++	zone->nr_active = 0;
++	zone->nr_inactive = 0;
++}
++
  static inline void
-+del_page_from_inactive_list(struct zone *zone, struct page *page)
-+{
-+       list_del(&page->lru);
-+       zone->nr_inactive--;
-+}
-+
-+static inline void
-+add_page_to_active_list(struct zone *zone, struct page *page)
-+{
-+	list_add(&page->lru, &zone->active_list);
-+	zone->nr_active++;
-+}
-+
-+static inline void
  add_page_to_inactive_list(struct zone *zone, struct page *page)
  {
- 	list_add(&page->lru, &zone->policy.inactive_list);
-@@ -102,5 +116,16 @@ static inline int page_replace_activate(
- 	return 1;
- }
- 
-+static inline void page_replace_remove(struct zone *zone, struct page *page)
-+{
-+	list_del(&page->lru);
-+	if (PageActive(page)) {
-+		ClearPageActive(page);
-+		zone->nr_active--;
-+	} else {
-+		zone->nr_inactive--;
-+	}
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_USEONCE_POLICY_H */
-Index: linux-2.6-git/include/linux/mm_page_replace.h
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm_page_replace.h
-+++ linux-2.6-git/include/linux/mm_page_replace.h
-@@ -6,7 +6,6 @@
- #include <linux/mmzone.h>
- #include <linux/mm.h>
- #include <linux/pagevec.h>
--#include <linux/mm_inline.h>
+--- linux-2.6.orig/mm/page_alloc.c	2006-03-13 20:37:05.000000000 +0100
++++ linux-2.6/mm/page_alloc.c	2006-03-13 20:37:40.000000000 +0100
+@@ -37,6 +37,7 @@
+ #include <linux/nodemask.h>
+ #include <linux/vmalloc.h>
+ #include <linux/mempolicy.h>
++#include <linux/mm_page_replace.h>
  
- struct scan_control {
- 	/* Ask refill_inactive_zone, or shrink_cache to scan this many pages */
-@@ -89,6 +88,7 @@ typedef enum {
- extern void page_replace_reinsert(struct list_head *);
- extern void page_replace_shrink(struct zone *, struct scan_control *);
- /* void page_replace_mark_accessed(struct page *); */
-+/* void page_replace_remove(struct zone *, struct page *); */
+ #include <asm/tlbflush.h>
+ #include "internal.h"
+@@ -2075,12 +2076,7 @@ static void __init free_area_init_core(s
+ 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
  
- #ifdef CONFIG_MIGRATION
- extern int page_replace_isolate(struct page *p);
-Index: linux-2.6-git/mm/useonce.c
+ 		zone_pcp_init(zone);
+-		INIT_LIST_HEAD(&zone->active_list);
+-		INIT_LIST_HEAD(&zone->inactive_list);
+-		zone->nr_scan_active = 0;
+-		zone->nr_scan_inactive = 0;
+-		zone->nr_active = 0;
+-		zone->nr_inactive = 0;
++		page_replace_init_zone(zone);
+ 		atomic_set(&zone->reclaim_in_progress, 0);
+ 		if (!size)
+ 			continue;
+Index: linux-2.6/init/main.c
 ===================================================================
---- linux-2.6-git.orig/mm/useonce.c
-+++ linux-2.6-git/mm/useonce.c
-@@ -1,5 +1,4 @@
- #include <linux/mm_page_replace.h>
--#include <linux/mm_inline.h>
- #include <linux/swap.h>
- #include <linux/module.h>
- #include <linux/pagemap.h>
-@@ -7,6 +6,13 @@
- #include <linux/buffer_head.h>	/* for try_to_release_page(),
- 					buffer_heads_over_limit */
- 
-+static inline void
-+del_page_from_active_list(struct zone *zone, struct page *page)
-+{
-+       list_del(&page->lru);
-+       zone->nr_active--;
-+}
-+
- /**
-  * lru_cache_add: add a page to the page lists
-  * @page: the page to add
-Index: linux-2.6-git/mm/swap.c
-===================================================================
---- linux-2.6-git.orig/mm/swap.c
-+++ linux-2.6-git/mm/swap.c
-@@ -22,7 +22,6 @@
- #include <linux/pagevec.h>
- #include <linux/init.h>
- #include <linux/module.h>
--#include <linux/mm_inline.h>
- #include <linux/buffer_head.h>	/* for try_to_release_page() */
- #include <linux/module.h>
- #include <linux/percpu_counter.h>
-@@ -118,7 +117,7 @@ void fastcall __page_cache_release(struc
- 
- 	spin_lock_irqsave(&zone->lru_lock, flags);
- 	if (TestClearPageLRU(page))
--		del_page_from_lru(zone, page);
-+		page_replace_remove(zone, page);
- 	if (page_count(page) != 0)
- 		page = NULL;
- 	spin_unlock_irqrestore(&zone->lru_lock, flags);
-@@ -171,7 +170,7 @@ void release_pages(struct page **pages, 
- 			spin_lock_irq(&zone->lru_lock);
- 		}
- 		if (TestClearPageLRU(page))
--			del_page_from_lru(zone, page);
-+			page_replace_remove(zone, page);
- 		if (page_count(page) == 0) {
- 			if (!pagevec_add(&pages_to_free, page)) {
- 				spin_unlock_irq(&zone->lru_lock);
-Index: linux-2.6-git/mm/vmscan.c
-===================================================================
---- linux-2.6-git.orig/mm/vmscan.c
-+++ linux-2.6-git/mm/vmscan.c
-@@ -24,7 +24,6 @@
- #include <linux/blkdev.h>
- #include <linux/buffer_head.h>	/* for try_to_release_page(),
- 					buffer_heads_over_limit */
--#include <linux/mm_inline.h>
- #include <linux/pagevec.h>
- #include <linux/backing-dev.h>
+--- linux-2.6.orig/init/main.c	2006-03-13 20:37:05.000000000 +0100
++++ linux-2.6/init/main.c	2006-03-13 20:37:40.000000000 +0100
+@@ -47,6 +47,7 @@
  #include <linux/rmap.h>
+ #include <linux/mempolicy.h>
+ #include <linux/key.h>
++#include <linux/mm_page_replace.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -507,6 +508,7 @@ asmlinkage void __init start_kernel(void
+ #endif
+ 	vfs_caches_init_early();
+ 	cpuset_init_early();
++	page_replace_init();
+ 	mem_init();
+ 	kmem_cache_init();
+ 	setup_per_cpu_pageset();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
