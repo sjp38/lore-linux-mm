@@ -1,91 +1,76 @@
-Date: Thu, 23 Mar 2006 15:13:40 -0600
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Date: Thu, 23 Mar 2006 10:15:47 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH 00/34] mm: Page Replacement Policy Framework
-Message-ID: <20060323211340.GB11676@dmt.cnet>
-References: <20060322223107.12658.14997.sendpatchset@twins.localnet> <20060322145132.0886f742.akpm@osdl.org> <44220614.1090101@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <44220614.1090101@yahoo.com.au>
+In-Reply-To: <20060323205324.GA11676@dmt.cnet>
+Message-ID: <Pine.LNX.4.64.0603231003390.26286@g5.osdl.org>
+References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
+ <20060322145132.0886f742.akpm@osdl.org> <20060323205324.GA11676@dmt.cnet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, iwamoto@valinux.co.jp, christoph@lameter.com, wfg@mail.ustc.edu.cn, npiggin@suse.de, torvalds@osdl.org, riel@redhat.com
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, iwamoto@valinux.co.jp, christoph@lameter.com, wfg@mail.ustc.edu.cn, npiggin@suse.de, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick,
 
-On Thu, Mar 23, 2006 at 01:21:08PM +1100, Nick Piggin wrote:
-> Andrew Morton wrote:
-> >Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> >
-> >>
-> >>This patch-set introduces a page replacement policy framework and 4 new 
-> >>experimental policies.
-> >
-> >
-> >Holy cow.
-> >
-> >
-> >>The page replacement algorithm determines which pages to swap out.
-> >>The current algorithm has some problems that are increasingly noticable, 
-> >>even
-> >>on desktop workloads.
-> >
-> >
-> >Rather than replacing the whole lot four times I'd really prefer to see
-> >precise descriptions of these problems, see if we can improve the situation
-> >incrementally rather than wholesale slash-n-burn...
-> >
+On Thu, 23 Mar 2006, Marcelo Tosatti wrote:
 > 
-> The other thing is that a lot of the "policy" stuff you've abstracted
-> out is actually low-level "mechanism" stuff that has implications beyond
-> page reclaim. Taking a refcount on lru pages, for example.
+> IMHO the page replacement framework intent is wider than fixing the     
+> currently known performance problems.
+> 
+> It allows easier implementation of new algorithms, which are being
+> invented/adapted over time as necessity appears.
 
-On "cache pages" you mean :) 
+Yes and no.
 
-Yes, some low-level mechanisms have also been abstracted away... I think
-a nice way to avoid explicit knowledge of page reference acquision at
-the moment of candidate selection hasnt been found.
+It smells wonderful for a pluggable page replacement standpoint, but 
+here's a couple of observations/questions:
+ a) the current one actually seems to have beaten the on-comers (except 
+    for loads that were actually made up to try to defeat LRU)
+ b) is page replacement actually a huge issue?
 
-Do you have any suggestions?
+Now, the reason I ask about (b) is that these days, you buy a Mac Mini, 
+and it comes with half a gig of RAM, and some apple users seem to worry 
+about the fact that the UMA graphics removes 50MB or something of that is 
+a problem.
 
-> you should be submitting them (eg. patch 25, or patch 1) rather than
-> sitting on them and sending them in a huge patchset where they don't
-> really belong.
+IOW, just under half a _gigabyte_ of RAM is apparently considered to be 
+low end, and this is when talking about low-end (modern) hardware!
 
-I guess Peter and myself expected folks to criticise and help shape the
-API to something acceptable.
+And don't tell me that the high-end people care, because both databases 
+(high end commercial) and video/graphics editing (high end desktop) very 
+much do _not_ care, since they tend to try to do their own memory 
+management anyway.
 
-BTW, patches 1 and 25 are not crucial improvements for mainline (there's
-not much point in having them in mainline), and I don't see any others?
+> One example (which I mentioned several times) is power saving:
+> 
+> PB-LRU: A Self-Tuning Power Aware Storage Cache Replacement Algorithm
+> for Conserving Disk Energy.
 
-> Some of the API names aren't very nice either. It's great that you want
-> to keep the namespace consistent, but it shouldn't be at the expense of
-> more descriptive names, and having the page_replace_ prefix itself makes
-> many functions read like crap. I'd suggest something like a pgrep_
-> prefix and try to make the rest of the name make sense.
+Please name a load that really actually hits the page replacement today.
 
-"pgrep_" looks more pleasant to me.
+It smells like university research to me.
 
-> Aside from all that, I'm with Andrew in that problems need to be
-> identified first and foremost. 
+And don't flame me: I'm perfectly happy to be shown to be wrong. I just 
+get a very strong feeling that the people who care about tight memory 
+conditions and perhaps about page replacement are the same people who 
+think that our kernel is too big - the embedded people. And somehow I'm 
+not convinced they want the added abstraction either - they'd probably 
+rather just have a smaller kernel ;)
 
-See my previous message.
+What I'm trying to say is that page replacement hasn't been what seems to 
+have worried people over the last year or two. We had some ugly problems 
+in the early 2.4.x timeframe, and I'll claim that most (but not all) of 
+those were related to highmem/zoning issues which we largely solved. Which 
+was about page replacement, but really a very specific issue within that 
+area.
 
-> But also I don't like the chances of this
-> whole framework flying at all -- Linus vetoed a similar framework for
-> sched.c that was actually a reasonable API, with little or no
-> consequences outside sched.c. With good reason.
+So seriously, I suspect Andrew's "Holy cow" comes from the fact that he is 
+more worried about VM maintainability and stability than page replacement. 
+I certainly am.
 
-Aren't we talking about very different things here? IMHO there is a lot
-of point in allowing pluggable page replacement instead of trying to
-make one policy fit all needs (which is obviously impossible).
-
-> Nice work, though :)
-
-Indeed - Peter has done a very nice job.
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
