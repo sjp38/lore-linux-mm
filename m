@@ -1,42 +1,50 @@
-Date: Thu, 23 Mar 2006 20:51:20 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Lockless pagecache perhaps for 2.6.18?
-In-Reply-To: <20060323081100.GE26146@wotan.suse.de>
-Message-ID: <Pine.LNX.4.61.0603232044330.8050@goblin.wat.veritas.com>
-References: <20060323081100.GE26146@wotan.suse.de>
+Date: Thu, 23 Mar 2006 12:49:00 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [PATCH 00/34] mm: Page Replacement Policy Framework
+In-Reply-To: <20060323223057.GA12895@dmt.cnet>
+Message-ID: <Pine.LNX.4.64.0603231243160.26286@g5.osdl.org>
+References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
+ <20060322145132.0886f742.akpm@osdl.org> <20060323205324.GA11676@dmt.cnet>
+ <Pine.LNX.4.64.0603231003390.26286@g5.osdl.org> <20060323223057.GA12895@dmt.cnet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, iwamoto@valinux.co.jp, christoph@lameter.com, wfg@mail.ustc.edu.cn, npiggin@suse.de, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Mar 2006, Nick Piggin wrote:
+
+On Thu, 23 Mar 2006, Marcelo Tosatti wrote:
 > 
-> Would there be any objection to having my lockless pagecache patches
-> merged into -mm, for a possible mainline merge after 2.6.17 (ie. if/
-> when the mm hackers feel comfortable with it).
+> Nope, LRU only beat CLOCK-Pro/CART on the "UMass trace" (which is trace
+> replay, which can be very sensitive and not necessarily meaningful).
+> Needs more study though (talk is cheap).
 
-No objection from me (though I've still to study it).
-But the timing should be as suits Andrew and state of -mm tree.
+Umm.. That _trace_ was the only thing that seemed to have any real-life 
+dataset, afaik. The others were totally synthetic.
 
-> There are now just 3 patches: 15 files, 312 insertions, 81 deletions
-> for the core changes, including RCU radix-tree. (not counting those
-> last two I just sent you Andrew (VM_BUG_ON, find_trylock_page))
-
-Sounds reasonable (and I've come to prefer 3 patches to 141).
-
-> It is fairly well commented, and not overly complex (IMO) compared
-> with other lockless stuff in the tree now.
+> Anyway, smarter algorithms such as this two have been proven to be more
+> efficient than LRU under a large range of real life loads. LRU's lack of
+> frequency information is really terrible.
 > 
-> My main motivation is to get more testing and more serious reviews,
-> rather than trying to clear a fast path into mainline.
+> LRU's worst case scenarios were well known before I was born.
 
-Yes, please let's not presuppose it'll go into 2.6.18:
-that will depend on what confidence it acquires in -mm.
+The kernel doesn't actually use LRU, so the fact that LRU isn't good seems 
+a non-argument.
 
-Hugh
+> - "Every time I wake up in the morning updatedb has thrown my applications
+> out of memory".
+> 
+> - "Linux is awful every time I untar something larger than memory to disk".
+
+People seem to think that the fact that there are bad behaviours means 
+that there are somehow "magic" algorithms that don't have bad behaviours.
+
+I'd really suggest somebody show better real-life numbers with a new 
+algorithm _before_ we do anything like this.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
