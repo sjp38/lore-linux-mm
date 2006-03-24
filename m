@@ -1,30 +1,61 @@
-Date: Thu, 23 Mar 2006 23:45:15 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced
- mlock-LRU semantic
-In-Reply-To: <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.63.0603232344190.23558@cuia.boston.redhat.com>
-References: <bc56f2f0603200535s2b801775m@mail.gmail.com>
- <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: [PATCH] swswsup: return correct load_image error
+Date: Fri, 24 Mar 2006 16:00:55 +1100
+References: <200603200234.01472.kernel@kolivas.org> <1142889937.441f1dd19e90f@vds.kolivas.org> <200603210022.32985.rjw@sisk.pl>
+In-Reply-To: <200603210022.32985.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200603241600.56144.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Stone Wang <pwstone@gmail.com>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux list <linux-kernel@vger.kernel.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Mar 2006, Christoph Lameter wrote:
+On Tuesday 21 March 2006 10:22, Rafael J. Wysocki wrote:
+> Basically, yes.  swsusp.c and snapshot.c contain common functions,
+> disk.c and swap.c contain the code used by the built-in swsusp only,
+> and user.c contains the userland interface.  If you want something to
+> be run by the built-in swsusp only, place it in disk.c.
 
-> The result of not scanning mlocked pages will be that mmapped files will 
-> not be updated unless either the process terminates or msync() is called.
+Ok. A quick look at the code in swap.c makes me wonder if we need this patch.
 
-That's ok.  Light swapping on a system with non-mlocked
-mmapped pages has the same result, since we won't scan
-mapped pages most of the time...
+Rafael?
 
--- 
-All Rights Reversed
+Cheers,
+Con
+---
+If there's an error in load_image() we should return that without checking
+snapshot_image_loaded.
+
+Signed-off-by: Con Kolivas <kernel@kolivas.org>
+
+---
+ kernel/power/swap.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
+
+Index: linux-2.6.16-mm1/kernel/power/swap.c
+===================================================================
+--- linux-2.6.16-mm1.orig/kernel/power/swap.c	2006-03-24 15:04:13.000000000 +1100
++++ linux-2.6.16-mm1/kernel/power/swap.c	2006-03-24 15:55:30.000000000 +1100
+@@ -454,10 +454,11 @@ static int load_image(struct swap_map_ha
+ 			nr_pages++;
+ 		}
+ 	} while (ret > 0);
+-	if (!error)
++	if (!error) {
+ 		printk("\b\b\b\bdone\n");
+-	if (!snapshot_image_loaded(snapshot))
+-		error = -ENODATA;
++		if (!snapshot_image_loaded(snapshot))
++			error = -ENODATA;
++	}
+ 	return error;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
