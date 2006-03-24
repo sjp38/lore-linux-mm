@@ -1,51 +1,27 @@
-Date: Thu, 23 Mar 2006 15:59:39 -0500 (EST)
+Date: Thu, 23 Mar 2006 23:45:15 -0500 (EST)
 From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 00/34] mm: Page Replacement Policy Framework
-In-Reply-To: <Pine.LNX.4.64.0603231243160.26286@g5.osdl.org>
-Message-ID: <Pine.LNX.4.63.0603231554220.23558@cuia.boston.redhat.com>
-References: <20060322223107.12658.14997.sendpatchset@twins.localnet>
- <20060322145132.0886f742.akpm@osdl.org> <20060323205324.GA11676@dmt.cnet>
- <Pine.LNX.4.64.0603231003390.26286@g5.osdl.org> <20060323223057.GA12895@dmt.cnet>
- <Pine.LNX.4.64.0603231243160.26286@g5.osdl.org>
+Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced
+ mlock-LRU semantic
+In-Reply-To: <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.63.0603232344190.23558@cuia.boston.redhat.com>
+References: <bc56f2f0603200535s2b801775m@mail.gmail.com>
+ <Pine.LNX.4.64.0603200923560.24138@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, iwamoto@valinux.co.jp, christoph@lameter.com, wfg@mail.ustc.edu.cn, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Stone Wang <pwstone@gmail.com>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Mar 2006, Linus Torvalds wrote:
+On Mon, 20 Mar 2006, Christoph Lameter wrote:
 
-> > LRU's worst case scenarios were well known before I was born.
-> 
-> The kernel doesn't actually use LRU, so the fact that LRU isn't good seems 
-> a non-argument.
+> The result of not scanning mlocked pages will be that mmapped files will 
+> not be updated unless either the process terminates or msync() is called.
 
-Agreed.  The current algorithm in the kernel is close to 2Q, 
-just without the corrections that 2Q gets from non-resident
-history and the further tuning that is done by clock-pro.
-
-> > - "Every time I wake up in the morning updatedb has thrown my applications
-> >    out of memory".
-> > 
-> > - "Linux is awful every time I untar something larger than memory to disk".
-> 
-> People seem to think that the fact that there are bad behaviours means 
-> that there are somehow "magic" algorithms that don't have bad behaviours.
-> 
-> I'd really suggest somebody show better real-life numbers with a new 
-> algorithm _before_ we do anything like this.
-
-Remember that it's not necessarily about "making a VM that
-handles the common case better", but rather about "making
-the VM behave well more of the time".
-
-Furthermore, all VM benchmarks are corner cases.  After all,
-most systems have enough memory most of the time, and will
-not be evicting much at all.  This makes interpreting VM
-benchmark results harder than the interpretation of many
-other benchmarks...
+That's ok.  Light swapping on a system with non-mlocked
+mmapped pages has the same result, since we won't scan
+mapped pages most of the time...
 
 -- 
 All Rights Reversed
