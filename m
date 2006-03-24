@@ -1,54 +1,44 @@
-Message-ID: <442424FF.3090405@yahoo.com.au>
-Date: Sat, 25 Mar 2006 03:57:35 +1100
+Message-ID: <4424398F.2040300@yahoo.com.au>
+Date: Sat, 25 Mar 2006 05:25:19 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH][0/8] (Targeting 2.6.17) Posix memory locking and balanced
- mlock-LRU semantic
-References: <bc56f2f0603200535s2b801775m@mail.gmail.com>	 <441FEF8D.7090905@yahoo.com.au> <bc56f2f0603240705y3b4abe3ej@mail.gmail.com>
-In-Reply-To: <bc56f2f0603240705y3b4abe3ej@mail.gmail.com>
+Subject: Re: [PATCH][5/8] proc: export mlocked pages info through "/proc/meminfo:
+ Wired"
+References: <bc56f2f0603200537i7b2492a6p@mail.gmail.com>  <441FEFC7.5030109@yahoo.com.au> <bc56f2f0603210733vc3ce132p@mail.gmail.com> <442098B6.5000607@yahoo.com.au> <Pine.LNX.4.63.0603241133550.30426@cuia.boston.redhat.com> <442420A2.80807@yahoo.com.au> <Pine.LNX.4.63.0603241319130.30426@cuia.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.63.0603241319130.30426@cuia.boston.redhat.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Stone Wang <pwstone@gmail.com>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stone Wang wrote:
-> 2006/3/21, Nick Piggin <nickpiggin@yahoo.com.au>:
+Rik van Riel wrote:
+> On Sat, 25 Mar 2006, Nick Piggin wrote:
+> 
+>>Rik van Riel wrote:
+>>
+>>>On Wed, 22 Mar 2006, Nick Piggin wrote:
+>>>
+>>>
+>>>>Why would you want to ever do something like that though? I don't think
+>>>>you should use this name "just in case", unless you have some really good
+>>>>potential usage in mind.
+>>>
+>>>ramfs
+>>
+>>Why would ramfs want its pages in this wired list? (I'm not so
+>>familiar with it but I can't think of a reason).
+> 
+> 
+> Because ramfs pages cannot be paged out, which makes them locked
+> into memory the same way mlocked pages are.
+> 
 
->>In what way are we not now posix compliant now?
-> 
-> 
-> Currently, Linux's mlock for example, may fail with  only part of its
-> task finished.
-> 
-> While accroding to POSIX definition:
-> 
-> man mlock(2)
-> 
-> "
-> RETURN VALUE
->        On success, mlock returns zero.  On error, -1 is returned, errno is set
->        appropriately, and no changes are made to  any  locks  in  the  address
->        space of the process.
-> "
-> 
-
-Looks like you're right, so good catch. You should probably try to submit your
-posix mlock patch by itself then. Make sure you look at the coding standards
-though, and try to _really_ follow coding conventions of the file you're
-modifying.
-
-You also should make sure the patch works standalone (ie. not just as part of
-a set). Oh, and introducing a new field in vma for a flag is probably not the
-best option if you still have room in the vm_flags field.
-
-And the patch changelog should contain the actual problem, and quote the
-relevant part of the POSIX definition, if applicable.
-
-Thanks,
-Nick
+I don't understand why they need to be on any list though,
+that isn't an internal ramfs specific structure (ie. not
+the just-in-case wired list).
 
 -- 
 SUSE Labs, Novell Inc.
