@@ -1,108 +1,48 @@
-Message-ID: <44240B04.3050909@aitel.hist.no>
-Date: Fri, 24 Mar 2006 16:06:44 +0100
-From: Helge Hafting <helge.hafting@aitel.hist.no>
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] mm: swsusp shrink_all_memory tweaks
+Date: Fri, 24 Mar 2006 16:16:05 +0100
+References: <200603200231.50666.kernel@kolivas.org> <200603201946.32681.rjw@sisk.pl> <200603241807.41175.kernel@kolivas.org>
+In-Reply-To: <200603241807.41175.kernel@kolivas.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/34] mm: Page Replacement Policy Framework
-References: <20060322223107.12658.14997.sendpatchset@twins.localnet> <20060322145132.0886f742.akpm@osdl.org> <20060323205324.GA11676@dmt.cnet> <Pine.LNX.4.64.0603231003390.26286@g5.osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0603231003390.26286@g5.osdl.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200603241616.06687.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, iwamoto@valinux.co.jp, christoph@lameter.com, wfg@mail.ustc.edu.cn, npiggin@suse.de, riel@redhat.com
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux list <linux-kernel@vger.kernel.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
+On Friday 24 March 2006 08:07, Con Kolivas wrote:
+> On Tuesday 21 March 2006 05:46, Rafael J. Wysocki wrote:
+> > swsusp_shrink_memory() is still wrong, because it will always fail for
+> > image_size = 0.  My bad, sorry.
+> >
+> > The appended patch (on top of yours) should fix that (hope I did it right
+> > this time).
+> 
+> Well I discovered that if all the necessary memory is freed in one call to
+>  shrink_all_memory we don't get the nice updating printout from
+>  swsusp_shrink_memory telling us we're making progress. So instead of
+>  modifying the function to call shrink_all_memory with the full amount (and
+>  since we've botched swsusp_shrink_memory a few times between us), we should
+>  limit it to a max of SHRINK_BITEs instead.
+> 
+>  This patch is fine standalone.
+> 
+>  Rafael, Pavel what do you think of this one? 
 
->On Thu, 23 Mar 2006, Marcelo Tosatti wrote:
->  
->
->>IMHO the page replacement framework intent is wider than fixing the     
->>currently known performance problems.
->>
->>It allows easier implementation of new algorithms, which are being
->>invented/adapted over time as necessity appears.
->>    
->>
->
->Yes and no.
->
->It smells wonderful for a pluggable page replacement standpoint, but 
->here's a couple of observations/questions:
-> a) the current one actually seems to have beaten the on-comers (except 
->    for loads that were actually made up to try to defeat LRU)
-> b) is page replacement actually a huge issue?
->
->Now, the reason I ask about (b) is that these days, you buy a Mac Mini, 
->and it comes with half a gig of RAM, and some apple users seem to worry 
->about the fact that the UMA graphics removes 50MB or something of that is 
->a problem.
->
->IOW, just under half a _gigabyte_ of RAM is apparently considered to be 
->low end, and this is when talking about low-end (modern) hardware!
->
->And don't tell me that the high-end people care, because both databases 
->(high end commercial) and video/graphics editing (high end desktop) very 
->much do _not_ care, since they tend to try to do their own memory 
->management anyway.
->
->  
->
->>One example (which I mentioned several times) is power saving:
->>
->>PB-LRU: A Self-Tuning Power Aware Storage Cache Replacement Algorithm
->>for Conserving Disk Energy.
->>    
->>
->
->Please name a load that really actually hits the page replacement today.
->  
->
-Any load where things goes into swap?
-Sure - I have 512MB in my machines, I still tend to
-get 20-50 MB in swap after a while.  And now and then
-I wait for stuff to swap in again.
+In principle it looks good to me, but when I tested the previous one I noticed
+shrink_all_memory() tended to return 0 prematurely (ie. when it was possible
+to free some more pages).  It only happened if more than 50% of memory was
+occupied by application data.
 
-I don't claim the current system is bad, and a more gradual
-appraoach may very well be the better way.  But if someone can
-demonstrate an improvement, then I'm for it.  Getting an
-improved selection for the 50M in swap will be noticeable at times.
+Unfortunately I couldn't find the reason.
 
-Remember, people compensate the bigger memory with bigger apps.
-Linux should run those apps well. ;-)
-
->It smells like university research to me.
->
->And don't flame me: I'm perfectly happy to be shown to be wrong. I just 
->get a very strong feeling that the people who care about tight memory 
->conditions and perhaps about page replacement are the same people who 
->think that our kernel is too big - the embedded people. 
->  
->
-Well, how about desktop users?  Snappyness is a nice thing.
-The "enough memory" argument can be turned around too. 
-If the power users don't care because they have the memory - then
-they shouldn't worry about someone changing the replacement
-algorithms. :-)
-
->What I'm trying to say is that page replacement hasn't been what seems to 
->have worried people over the last year or two. We had some ugly problems 
->in the early 2.4.x timeframe, and I'll claim that most (but not all) of 
->those were related to highmem/zoning issues which we largely solved. Which 
->was about page replacement, but really a very specific issue within that 
->area.
->
->So seriously, I suspect Andrew's "Holy cow" comes from the fact that he is 
->more worried about VM maintainability and stability than page replacement. 
->I certainly am.
->  
->
-Sure, the incremental approach is good, and this replaceable
-system may be a thing for interested VM developers.
-But there is definitely interest if they can show improvement.
-
-Helge Hafting
+Greetings,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
