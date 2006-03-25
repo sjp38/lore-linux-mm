@@ -1,87 +1,79 @@
-Date: Fri, 24 Mar 2006 17:44:48 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Add gfp flag __GFP_POLICY to control policies and cpusets
- redirection of allocations
-Message-Id: <20060324174448.0ac4a520.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0603221342170.24959@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603221342170.24959@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Christoph Lameter <clameter@sgi.com>, ak@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Message-ID: <009801c64fba$650055f0$0862ceb7@CTYBKG>
+From: "Wolke Beni" <npdoto@gmx.at>
+Subject: Probleme =?ISO-8859-1?Q?l=F6st?= Oswald hier
+Date: Fri, 24 Mar 2006 19:34:37 -0800
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0095_01C64F77.56DD15F0"
+Return-Path: <npdoto@gmx.at>
+To: Nora <owner-linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+This is a multi-part message in MIME format.
 
-I am NAQ'ing this patch, aka:
+------=_NextPart_000_0095_01C64F77.56DD15F0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-  add-gfp-flag-__gfp_policy-to-control-policies-and-cpusets-redirection.patch added to -mm tree
+Guten Tag Nora,
+Probleme lost Oswald hier
+http://foibne.goseeworld.net/?eksbethikhmp
+------=_NextPart_000_0095_01C64F77.56DD15F0
+Content-Type: text/html;;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-This patch does not always fix the problem that first motivated it of
-failed memory migrations, and it changes the semantics of the
-interaction of the kernel page allocators with the cpuset and mempolicy
-memory policies in ways that, in my view, need more analysis first.
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Diso-8859-1">
+<STYLE type=3Dtext/css><!--body {background-color:#FFFFFF; =
+padding-left:20px; padding-top:12px; font-size:12px; font-family:arial, =
+helvetica, sans-serif;} table {font-size: 12px; font-family: arial, =
+helvetica, sans-serif; } .t1 { background-color:#ffffcc; =
+border-left:#000066 1px solid; border-right:#000066 1px solid; =
+border-top:#000066 1px solid; border-bottom:#000066 1px solid; =
+font-size:14px; font-weight:800; font-family:arial, helvetica, sans-serif; =
+color:000000; } .t2 { border-left:#000066 1px solid; padding-right:0px; =
+padding-top: 10px; padding-bottom:10px; font-size:18px; font-family:arial, =
+helvetica, sans-serif; color:0000ff; font-weight:bold; } .t3 { =
+padding-left:0px; padding-top: 10px;padding-bottom:10px; font-size:18px; =
+font-family:arial, helvetica, sans-serif; color:0000ff; font-weight:bold; =
+} .t4 { border-right:#000066 1px solid; padding-left:0px; padding-top: =
+10px;padding-bottom:10px; font-size:18px; font-family:arial, helvetica, =
+sans-serif; color:0000ff; font-weight:bold; } .t5 { =
+background-color:#000066; padding-right:6px; font-size:14px; =
+font-family:arial, helvetica, sans-serif; color:ffffff; font-weight:800; =
+font-style:italic; }--></STYLE>
 
-I intend to send a patch with a different solution on about Monday
-three days from now, hopefully with Christoph's review and ACK.
-
-Details ... for the curious:
-
-  We have two sets of problems here.
-
-  1) Invoking memory migration via the cpuset interface 'memory_migrate'
-     would fail (do nothing, without complaint or explanation) if
-     the task invoking the migration was not in the target cpuset of
-     the migration.  This caused much confusion and befuddlement of
-     Christoph, myself and our test engineers.
-
-     The key problem was that we are trying to allocate the new pages
-     to receive the migration in the context of the task invoking the
-     migration.  If that tasks cpusets (or mbind mempolicy) doesn't allow
-     allocation on those nodes, the migration will move the target
-     task to some nodes that are in the invoking tasks cpuset instead.
-
-     This needs fixing sooner rather than later.  The ordinary user
-     of memory migration will often find it broken until we fix this.
-
-     My next attempt to fix this will have the kernel migration code
-     temporarilly and silently and automatically put the invoking task
-     in the necessary cpuset, so that the migration code can allocate
-     the new pages on the requested nodes.  I hope to prepare this
-     patch this weekend, so Christoph can review it Monday, and we
-     can submit it then.
-
-  2) The GFP flags and the interaction with various kernel allocators
-     and the cpuset and mm/mempolicy memory policies have some strange
-     '(mis)features'.  In the normal case, when there is enough memory
-     where asked for, they are ok.
-
-     Or, at least, no one has actually noticed the breakage, even
-     though much of it has been there for over a year.
-
-     The 2 patches that Christoph and I sent so far (the above
-     NAQ'd patch and its predecessor) both addressed some of these
-     '(mis)features', with the side affect of fixing (most of the time,
-     not all cases) the failed migrations of problem (1) above.
-
-     But both patches were partial bandaids.
-
-     More thought will be required before we offer up solutions for
-     (2).  If I get the chance this weekend, I will at least try to
-     write up an lkml post describing some of the '(mis)features' we
-     observed during our analysis of this area, under some such Subject
-     as "Misfeatures of the kernel allocators and memory policy."
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</HEAD>
+<BODY>Die <B>wirkungsvollsten Medikamente </B>k=F6nnen Sie nun diskret und =
+kosteng=FCnstig =FCber's Internet bestellen.<BR><BR>
+<TABLE cellSpacing=3D0 cellPadding=3D0 width=3D500 border=3D0>
+<TR>
+<TD class=3Dt1 colSpan=3D6 height=3D40>
+<DIV align=3Dcenter>Alle unsere Produkte sind Orginale. Hier eine kleine =
+Auswahl:</DIV></TD></TR>
+<TR>
+<TD class=3Dt2 width=3D61 height=3D52>
+<DIV align=3Dright>
+<P>Via<BR>Cia<BR>Lev<BR>Max<BR>Pro</P></DIV></TD>
+<TD class=3Dt3 width=3D63 =
+height=3D52>gra<BR>lis<BR>itra<BR>aman<BR>pecia</TD>
+<TD class=3Dt3 width=3D119>
+<DIV align=3Dright>Human Gro<BR>Hoo<BR>Mer<BR>So<BR>Tram</DIV></TD>
+<TD class=3Dt3 width=3D143>wth Hormone<BR>dia<BR>idia<BR>ma<BR>adol</TD>
+<TD class=3Dt3 width=3D56>
+<DIV align=3Dright>Tami<BR>Vali<BR>Xan<BR>Pro<BR>Amb</DIV></TD>
+<TD class=3Dt4 width=3D58>
+<P>flu<BR>um<BR>ax<BR>zac<BR>ien</P></TD></TR>
+<TR>
+<TD class=3Dt5 colSpan=3D6 height=3D35>
+<DIV align=3Dcenter>Viele weitere Produkte finden Sie in unserer =
+Online-Apotheke</DIV></TD></TR></TABLE><BR>Zum <A =
+href=3D"http://foibne.goseeworld.net/?eksbethikhmp">Online-Shop =
+&gt;&gt;&gt;</A></FONT> <BR><BR><BR><BR><BR><BR><BR><BR><BR>
+<P align=3Dright><A =
+href=3D"http://foibne.goseeworld.net/?dmtdlvoqyafvethikhmp">nein</A></P></B=
+ODY></HTML>
+------=_NextPart_000_0095_01C64F77.56DD15F0--
