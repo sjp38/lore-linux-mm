@@ -1,79 +1,73 @@
-Message-ID: <009801c64fba$650055f0$0862ceb7@CTYBKG>
-From: "Wolke Beni" <npdoto@gmx.at>
-Subject: Probleme =?ISO-8859-1?Q?l=F6st?= Oswald hier
-Date: Fri, 24 Mar 2006 19:34:37 -0800
+From: Nigel Cunningham <ncunningham@cyclades.com>
+Subject: Re: Lockless pagecache perhaps for 2.6.18?
+Date: Sun, 26 Mar 2006 20:21:40 +1000
+References: <20060323081100.GE26146@wotan.suse.de>
+In-Reply-To: <20060323081100.GE26146@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0095_01C64F77.56DD15F0"
-Return-Path: <npdoto@gmx.at>
-To: Nora <owner-linux-mm@kvack.org>
+Content-Type: multipart/signed;
+  boundary="nextPart1568995.tqgjAY3qyE";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200603262021.46276.ncunningham@cyclades.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
-
-------=_NextPart_000_0095_01C64F77.56DD15F0
+--nextPart1568995.tqgjAY3qyE
 Content-Type: text/plain;
-	charset="iso-8859-1"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-Guten Tag Nora,
-Probleme lost Oswald hier
-http://foibne.goseeworld.net/?eksbethikhmp
-------=_NextPart_000_0095_01C64F77.56DD15F0
-Content-Type: text/html;;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Hi Nick.
 
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Diso-8859-1">
-<STYLE type=3Dtext/css><!--body {background-color:#FFFFFF; =
-padding-left:20px; padding-top:12px; font-size:12px; font-family:arial, =
-helvetica, sans-serif;} table {font-size: 12px; font-family: arial, =
-helvetica, sans-serif; } .t1 { background-color:#ffffcc; =
-border-left:#000066 1px solid; border-right:#000066 1px solid; =
-border-top:#000066 1px solid; border-bottom:#000066 1px solid; =
-font-size:14px; font-weight:800; font-family:arial, helvetica, sans-serif; =
-color:000000; } .t2 { border-left:#000066 1px solid; padding-right:0px; =
-padding-top: 10px; padding-bottom:10px; font-size:18px; font-family:arial, =
-helvetica, sans-serif; color:0000ff; font-weight:bold; } .t3 { =
-padding-left:0px; padding-top: 10px;padding-bottom:10px; font-size:18px; =
-font-family:arial, helvetica, sans-serif; color:0000ff; font-weight:bold; =
-} .t4 { border-right:#000066 1px solid; padding-left:0px; padding-top: =
-10px;padding-bottom:10px; font-size:18px; font-family:arial, helvetica, =
-sans-serif; color:0000ff; font-weight:bold; } .t5 { =
-background-color:#000066; padding-right:6px; font-size:14px; =
-font-family:arial, helvetica, sans-serif; color:ffffff; font-weight:800; =
-font-style:italic; }--></STYLE>
+On Thursday 23 March 2006 18:11, Nick Piggin wrote:
+> Hi,
+>
+> Would there be any objection to having my lockless pagecache patches
+> merged into -mm, for a possible mainline merge after 2.6.17 (ie. if/
+> when the mm hackers feel comfortable with it).
+>
+> There are now just 3 patches: 15 files, 312 insertions, 81 deletions
+> for the core changes, including RCU radix-tree. (not counting those
+> last two I just sent you Andrew (VM_BUG_ON, find_trylock_page))
+>
+> It is fairly well commented, and not overly complex (IMO) compared
+> with other lockless stuff in the tree now.
+>
+> My main motivation is to get more testing and more serious reviews,
+> rather than trying to clear a fast path into mainline.
+>
+> Nick
 
-</HEAD>
-<BODY>Die <B>wirkungsvollsten Medikamente </B>k=F6nnen Sie nun diskret und =
-kosteng=FCnstig =FCber's Internet bestellen.<BR><BR>
-<TABLE cellSpacing=3D0 cellPadding=3D0 width=3D500 border=3D0>
-<TR>
-<TD class=3Dt1 colSpan=3D6 height=3D40>
-<DIV align=3Dcenter>Alle unsere Produkte sind Orginale. Hier eine kleine =
-Auswahl:</DIV></TD></TR>
-<TR>
-<TD class=3Dt2 width=3D61 height=3D52>
-<DIV align=3Dright>
-<P>Via<BR>Cia<BR>Lev<BR>Max<BR>Pro</P></DIV></TD>
-<TD class=3Dt3 width=3D63 =
-height=3D52>gra<BR>lis<BR>itra<BR>aman<BR>pecia</TD>
-<TD class=3Dt3 width=3D119>
-<DIV align=3Dright>Human Gro<BR>Hoo<BR>Mer<BR>So<BR>Tram</DIV></TD>
-<TD class=3Dt3 width=3D143>wth Hormone<BR>dia<BR>idia<BR>ma<BR>adol</TD>
-<TD class=3Dt3 width=3D56>
-<DIV align=3Dright>Tami<BR>Vali<BR>Xan<BR>Pro<BR>Amb</DIV></TD>
-<TD class=3Dt4 width=3D58>
-<P>flu<BR>um<BR>ax<BR>zac<BR>ien</P></TD></TR>
-<TR>
-<TD class=3Dt5 colSpan=3D6 height=3D35>
-<DIV align=3Dcenter>Viele weitere Produkte finden Sie in unserer =
-Online-Apotheke</DIV></TD></TR></TABLE><BR>Zum <A =
-href=3D"http://foibne.goseeworld.net/?eksbethikhmp">Online-Shop =
-&gt;&gt;&gt;</A></FONT> <BR><BR><BR><BR><BR><BR><BR><BR><BR>
-<P align=3Dright><A =
-href=3D"http://foibne.goseeworld.net/?dmtdlvoqyafvethikhmp">nein</A></P></B=
-ODY></HTML>
-------=_NextPart_000_0095_01C64F77.56DD15F0--
+Can I get a pointer to the patches and any docs please? Since I save the pa=
+ge=20
+cache separately, I'd need a good understanding of the implications of the=
+=20
+changes.
+
+Regards,
+
+Nigel
+
+--nextPart1568995.tqgjAY3qyE
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQBEJms6N0y+n1M3mo0RAn9MAJ9RvlVVnPkcVz9p36uXW58JjULgkACbBSoL
+17R0oxCV0C4tw9wbSTX7Q4k=
+=to0l
+-----END PGP SIGNATURE-----
+
+--nextPart1568995.tqgjAY3qyE--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
