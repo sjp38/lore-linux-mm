@@ -1,84 +1,54 @@
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Subject: Re: Lockless pagecache perhaps for 2.6.18?
-Date: Mon, 27 Mar 2006 10:54:16 +1000
-References: <20060323081100.GE26146@wotan.suse.de> <200603262021.46276.ncunningham@cyclades.com> <4427353A.6060905@yahoo.com.au>
-In-Reply-To: <4427353A.6060905@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart1326753.93uEGe0Jv1";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Date: Sun, 26 Mar 2006 23:29:46 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: Add gfp flag __GFP_POLICY to control policies and cpusets
+ redirection of allocations
+Message-Id: <20060326232946.620f9f60.pj@sgi.com>
+In-Reply-To: <20060324174448.0ac4a520.pj@sgi.com>
+References: <Pine.LNX.4.64.0603221342170.24959@schroedinger.engr.sgi.com>
+	<20060324174448.0ac4a520.pj@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <200603271054.22272.ncunningham@cyclades.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <andrea@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, clameter@sgi.com, ak@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---nextPart1326753.93uEGe0Jv1
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+  (Executive, aka Andrew, summary: no action items here yet ...)
 
-Hi Nick.
+Christoph sent me some corrections offline to my previous post.
 
-On Monday 27 March 2006 10:43, Nick Piggin wrote:
-> Nigel Cunningham wrote:
-> > Can I get a pointer to the patches and any docs please? Since I save the
-> > page cache separately, I'd need a good understanding of the implications
-> > of the changes.
->
-> Hi Nigel,
->
-> http://www.kernel.org/pub/linux/kernel/people/npiggin/patches/lockless/2.=
-6.
->16-rc5/
->
-> There are some patches... a lot of them, but only the last 5 in the series
-> matter (the rest are pretty much in 2.6.16-head).
->
-> There is also a small doc on the lockless radix-tree in that directory. I=
-'m
-> in the process of writing some documentation on the lockless pagecache
-> itself...
->
-> You probably don't need to worry too much unless you are testing
-> page_count() under the tree_lock, held for writing, expecting that to
-> stabilise page_count. In which case I could have a look at your code and
-> see if it would be a problem.
+I (pj) had written:
+> This patch does not always fix the problem that first motivated it of
+> failed memory migrations,
 
-Thanks.
+I had misunderstood Christoph's patch.  He never intended to fix the
+cpuset induced failure of memory migration.  He intended to restore 
+proper behavior of the slab allocator and other kernel subsystems.
 
-I'm not far from head now, so guess I have no problems with the rest.
+Part of my confusion arose from the fact that he took the occassion of
+his patch to ask Andrew to drop an earlier patch of ours that -had-
+intended, in part, to fix this cpuset-migration interaction.
 
-=46rom what you say about the other patches, I think I'm fine as far as the=
- rest=20
-go too. I was mostly concerned that the modifications might make it possibl=
-e=20
-for the lru to start changing while the image is being written. It looks to=
-=20
-me now like I was being too paranoid (which isn't necessarily a bad thing, =
-is=20
-it?).
+And part of my confusion was just plain old confusion on my part.
 
-Regards,
 
-Nigel
+>      If I get the chance this weekend, I will at least try to
+>      write up an lkml post describing some of the '(mis)features' we
+>      observed during our analysis of this area, under some such Subject
+>      as "Misfeatures of the kernel allocators and memory policy."
 
---nextPart1326753.93uEGe0Jv1
-Content-Type: application/pgp-signature
+I won't get that far.  I'm still working with Christoph offline to make
+sense of this.  Hopefully I won't drive him to drink first ;-).
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
+I still hope to have a much improved, agreed to by Christoph, patch to
+fix the cpuset-migration interaction, posted to lkml in a day or two.
 
-iD8DBQBEJze+N0y+n1M3mo0RAtAXAKDZSvoxBvvhTMKSmS+bwXvkDlfxuACaAqyW
-aIorYA1ncd/Wa5NqCLZ5tNM=
-=rTQO
------END PGP SIGNATURE-----
-
---nextPart1326753.93uEGe0Jv1--
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
