@@ -1,54 +1,42 @@
-Date: Sun, 26 Mar 2006 23:29:46 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Add gfp flag __GFP_POLICY to control policies and cpusets
- redirection of allocations
-Message-Id: <20060326232946.620f9f60.pj@sgi.com>
-In-Reply-To: <20060324174448.0ac4a520.pj@sgi.com>
-References: <Pine.LNX.4.64.0603221342170.24959@schroedinger.engr.sgi.com>
-	<20060324174448.0ac4a520.pj@sgi.com>
+Date: Mon, 27 Mar 2006 14:24:15 +0200
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [PATCH] mm: swsusp shrink_all_memory tweaks
+Message-ID: <20060327122415.GC1766@elf.ucw.cz>
+References: <200603200231.50666.kernel@kolivas.org> <200603202250.14843.kernel@kolivas.org> <200603201946.32681.rjw@sisk.pl> <200603241807.41175.kernel@kolivas.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200603241807.41175.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, clameter@sgi.com, ak@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux list <linux-kernel@vger.kernel.org>, ck list <ck@vds.kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  (Executive, aka Andrew, summary: no action items here yet ...)
+Hi!
 
-Christoph sent me some corrections offline to my previous post.
+> > swsusp_shrink_memory() is still wrong, because it will always fail for
+> > image_size = 0.  My bad, sorry.
+> >
+> > The appended patch (on top of yours) should fix that (hope I did it right
+> > this time).
+> 
+> Well I discovered that if all the necessary memory is freed in one call to
+>  shrink_all_memory we don't get the nice updating printout from
+>  swsusp_shrink_memory telling us we're making progress. So instead of
+>  modifying the function to call shrink_all_memory with the full amount (and
+>  since we've botched swsusp_shrink_memory a few times between us), we should
+>  limit it to a max of SHRINK_BITEs instead.
+> 
+>  This patch is fine standalone.
+> 
+>  Rafael, Pavel what do you think of this one? 
 
-I (pj) had written:
-> This patch does not always fix the problem that first motivated it of
-> failed memory migrations,
-
-I had misunderstood Christoph's patch.  He never intended to fix the
-cpuset induced failure of memory migration.  He intended to restore 
-proper behavior of the slab allocator and other kernel subsystems.
-
-Part of my confusion arose from the fact that he took the occassion of
-his patch to ask Andrew to drop an earlier patch of ours that -had-
-intended, in part, to fix this cpuset-migration interaction.
-
-And part of my confusion was just plain old confusion on my part.
-
-
->      If I get the chance this weekend, I will at least try to
->      write up an lkml post describing some of the '(mis)features' we
->      observed during our analysis of this area, under some such Subject
->      as "Misfeatures of the kernel allocators and memory policy."
-
-I won't get that far.  I'm still working with Christoph offline to make
-sense of this.  Hopefully I won't drive him to drink first ;-).
-
-I still hope to have a much improved, agreed to by Christoph, patch to
-fix the cpuset-migration interaction, posted to lkml in a day or two.
+Looks good to me (but I'm not a mm expert).
+									Pavel
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Picture of sleeping (Linux) penguin wanted...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
