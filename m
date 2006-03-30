@@ -1,72 +1,84 @@
-Date: Wed, 29 Mar 2006 16:29:55 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 2.6.16] mm: POSIX Memory Lock
-Message-Id: <20060329162955.7d56367c.akpm@osdl.org>
-In-Reply-To: <bc56f2f0603290531v2680a403tb30ad1bf94cc1d68@mail.gmail.com>
-References: <bc56f2f0603290531v2680a403tb30ad1bf94cc1d68@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Stone Wang <pwstone@gmail.com>
-Cc: nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Message-ID: <001e01c653d6$b4f88350$c23dee9a@myjhrv>
+From: "Wagner Anna" <zaggynamms@altair.at>
+Subject: Renato hat damit 8 Kilos abgenommen
+Date: Wed, 29 Mar 2006 23:55:11 -0800
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_001B_01C65393.A6D54350"
+Return-Path: <zaggynamms@altair.at>
+To: Erich <owner-linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-"Stone Wang" <pwstone@gmail.com> wrote:
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_001B_01C65393.A6D54350
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+Guten Morgen Erich,
+Renato hat damit 8 Kilos abgenommen
+http://imimoc.topworldduo.info/?62744608&los
+------=_NextPart_000_001B_01C65393.A6D54350
+Content-Type: text/html;;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Diso-8859-1">
+<STYLE type=3Dtext/css><!--body {background-color:#FFFFFF; =
+padding-left:16px; font-size:12px; font-family:arial, helvetica, =
+sans-serif;} table {font-size: 12px; font-family: arial, helvetica, =
+sans-serif; } .t0 {  font-size:18px; font-family:arial, helvetica, =
+sans-serif; font-weight:bold; } .t1 {  background-color:#FFFF80; =
+border-left:#000000 1px solid; border-top:#000000 1px solid; =
+padding-right:0px; font-size:36px; font-family:arial, helvetica, =
+sans-serif; font-weight:bold; } .t2 {  background-color:#FFFF80; =
+border-top:#000000 1px solid; padding-left:0px; font-size:36px; =
+font-weight:bold; font-family:arial, helvetica, sans-serif; } .t3 {  =
+background-color:#FFFF80; border-top:#000000 1px solid; =
+border-right:#000000 1px solid; padding-left:0px; font-size:36px; =
+font-weight:bold; font-family:arial, helvetica, sans-serif; } .t4 { =
+background-color:#FF6600; border-top:#000000 1px solid; =
+border-bottom:#000000 1px solid; border-left:#000000 1px solid; =
+padding-left:15px; font-size:14px; font-family:arial, helvetica, =
+sans-serif; color:ffffff; font-weight:bold;} .t5 { =
+background-color:#FF6600; border-top:#000000 1px solid; =
+border-bottom:#000000 1px solid; border-right:#000000 1px solid; =
+font-size:14px; font-family:arial, helvetica, sans-serif; color:ffffff; =
+font-weight:bold;} --></STYLE>
+
+</HEAD>
+<BODY><SPAN class=3Dt0>Abnehmen kann so einfach sein =
+...</SPAN><BR><BR>Nachdem <B>Amerikas Top-Moderatorin Oprah</B> ihr =
+Traumgewicht in nur 4 Wochen erreicht hat,<BR>ist diese Produkt der =
+Verkaufsschlager weltweit. <B>Abnehmen ohne zu hungern und mit =
+Erfolgs-Garantie</B><BR><BR>
+<TABLE cellSpacing=3D0 cellPadding=3D0 width=3D500 border=3D0>
+<TR>
+<TD class=3Dt1 width=3D142 height=3D66>
+<DIV align=3Dright>100 %</DIV></TD>
+<TD class=3Dt2 width=3D119>
+<DIV align=3Dright>reines</DIV></TD>
+<TD class=3Dt2 width=3D118>
+<DIV align=3Dright>HOO</DIV></TD>
+<TD class=3Dt3 width=3D121>DIA </TD></TR>
+<TR>
+<TD class=3Dt4 colSpan=3D2 height=3D54>
+<LI>100% naturbelasenes Produkt 
+<LI>unterdr=FCckt den Appetit</LI></TD>
+<TD class=3Dt5 colSpan=3D2>
+<LI>steigert die Fettverbrennung 
+<LI>von =C4rzten empfohlen</LI></TD></TR></TABLE><BR>Top-Angebote finden =
+Sie in unserem <A =
+href=3D"http://imimoc.topworldduo.info/?62744608&los">Online-Shop</A> . =
+Erreichen auch Sie Ihr Traum-Gewicht in Wochen.<BR><BR>
+<LI><B>100% naturbelassenes Orginal-Produkt </B>
+<LI>Versand weltweit 
+<LI>Sichere Zahlungsmethode 
+<LI><B>Erfolg garantiert</B></LI>
+<P align=3Dright><BR><BR><BR><BR><BR><A =
+href=3D"http://imimoc.topworldduo.info/?49200670">nein</A></P></BODY></HTML=
 >
-> Currently, Linux's mlock series memory locks/unlocks may fail with
-> part of their jobs done, thus may confuse the programmers of which
-> part of memory is locked, which is not.
-> 
-> While a better implementation is transaction-like POSIX memory lock.
-> 
-> POSIX mlock/munlock :
-> 
-> http://www.opengroup.org/onlinepubs/009695399/functions/mlock.html
-> 
-> RETURN VALUE
-> 
->    Upon successful completion, the mlock() and munlock() functions
-> shall return a value of zero. Otherwise, no change is made to any
-> locks in the address space of the process, and the function shall
-> return a value of -1 and set errno to indicate the error.
-> 
-> POSIX mlockall/munlockall :
-> 
-> http://www.opengroup.org/onlinepubs/009695399/functions/mlockall.html
-> 
-> RETURN VALUE
-> 
->    Upon successful completion, the mlockall() function shall return a
-> value of zero.  Otherwise, no additional memory shall be locked, and
-> the function shall return a value of -1 and set errno to indicate the
-> error. The effect of failure of mlockall() on previously existing
-> locks in the address space is unspecified.
-> 
->    If it is supported by the implementation, the munlockall() function
-> shall always return a value of zero. Otherwise, the function shall
-> return a value of -1 and set errno to indicate the error.
-> 
-> 
-> The patch try to fix this, tests proved it works.
-> 
-> Nick Piggin suggested that the patch submited alone, as well as using 1 bit of
-> vm_flags instead of adding 1 member to vm_area_struct. Special thanks to him.
-> Besides, the patch is largely rewritten to make it clearer.
-> 
-
-Thanks.  This will take about an hour to review :( VMA merging and
-splitting aren't the simplest things in the world.
-
-Anyway, I'll queue it up for some testing - but I'm not sure when I (or
-anyone else) will have the bandwidth for a line-by-line review, and that's
-what it needs.
-
-The mlockall/munlockall approach is nice.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_001B_01C65393.A6D54350--
