@@ -1,7 +1,7 @@
-Message-Id: <200603302318.k2UNIJg25911@unix-os.sc.intel.com>
+Message-Id: <200603310013.k2V0Dng26534@unix-os.sc.intel.com>
 From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: [patch] fix extra page ref count in follow_hugetlb_page
-Date: Thu, 30 Mar 2006 15:19:04 -0800
+Subject: [patch] don't allow free hugetlb count fall below reserved count
+Date: Thu, 30 Mar 2006 16:14:34 -0800
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -9,36 +9,27 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@osdl.org, 'Adam Litke' <agl@us.ibm.com>
+Cc: 'David Gibson' <david@gibson.dropbear.id.au>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-"[PATCH] optimize follow_hugetlb_page" breaks mlock on hugepage areas.
-
-I mis-interpret pages argument and made get_page() unconditional.  It
-should only get a ref count when "pages" argument is non-null.
-
-Credit goes to Adam Litke who spotted the bug.
+With strict page reservation, I think kernel should enforce number of
+free hugetlb page don't fall below reserved count. Currently it is
+possible in the sysctl path.  Add proper check in sysctl to disallow
+that.
 
 
 Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
-Acked-by: Adam Litke <agl@us.ibm.com>
 
-
---- ./mm/hugetlb.c.orig	2006-03-30 15:54:20.000000000 -0800
-+++ ./mm/hugetlb.c	2006-03-30 15:54:56.000000000 -0800
-@@ -555,9 +555,10 @@ int follow_hugetlb_page(struct mm_struct
- 		pfn_offset = (vaddr & ~HPAGE_MASK) >> PAGE_SHIFT;
- 		page = pte_page(*pte);
- same_page:
--		get_page(page);
--		if (pages)
-+		if (pages) {
-+			get_page(page);
- 			pages[i] = page + pfn_offset;
-+		}
+--- ./mm/hugetlb.c.orig	2006-03-30 15:32:20.000000000 -0800
++++ ./mm/hugetlb.c	2006-03-30 15:48:22.000000000 -0800
+@@ -334,6 +334,7 @@
+ 		return nr_huge_pages;
  
- 		if (vmas)
- 			vmas[i] = vma;
+ 	spin_lock(&hugetlb_lock);
++	count = max(count, reserved_huge_pages);
+ 	try_to_free_low(count);
+ 	while (count < nr_huge_pages) {
+ 		struct page *page = dequeue_huge_page(NULL, 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
