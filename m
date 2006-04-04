@@ -1,45 +1,43 @@
-Date: Tue, 4 Apr 2006 20:04:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 2/6] Swapless V1:  Add SWP_TYPE_MIGRATION
-Message-Id: <20060404200409.a78cdb2a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060404065750.24532.67454.sendpatchset@schroedinger.engr.sgi.com>
+Date: Tue, 4 Apr 2006 07:24:54 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 6/6] Swapless V1: Revise main migration logic
+In-Reply-To: <20060404195820.4adc09d7.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604040721460.26235@schroedinger.engr.sgi.com>
 References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
-	<20060404065750.24532.67454.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060404065810.24532.30027.sendpatchset@schroedinger.engr.sgi.com>
+ <20060404195820.4adc09d7.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com, lhms-devel@lists.sourceforge.net, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Apr 2006 23:57:50 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 4 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
->
->  #define MAX_SWAPFILES_SHIFT	5
-> -#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
-> +#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-1)
-> +
-> +/* Use last entry for page migration swap entries */
-> +#define SWP_TYPE_MIGRATION	MAX_SWAPFILES
+> >  	 */
+> > -	if (!mapping || page_mapcount(page) + nr_refs != page_count(page))
+> > -		return -EAGAIN;
+> > +	if (!page->mapping ||
+> > +		page_mapcount(page) + nr_refs + !!mapping != page_count(page))
+> > +			return -EAGAIN;
+> >  
+> I think this hidden !!mapping refcnt is not easy to read.
+> 
+> How about modifying caller istead of callee ?
+> 
+> in migrate_page()
+> ==
+> if (page->mapping) 
+> 	rc = migrate_page_remove_reference(newpage, page, 2)
+> else
+> 	rc = migrate_page_remove_reference(newpage, page, 1);
+> ==
+> 
+> If you dislike this 'if', plz do as you like.
 
-How about this ?
-
-#ifdef CONFIG_MIGRATION
-#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT) - 1)
-#else
-#define MAX_SWAPFILES (1 << MAX_SWAPFILES_SHIFT)
-#endif
-
-#define SWP_TYPE_MIGRATION (MAX_SWAPFILES + 1)
-
-
-.....but I don't think there is a user who uses 32 swaps....
-
---Kame
- 
+Good idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
