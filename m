@@ -1,39 +1,48 @@
-Date: Sat, 1 Apr 2006 10:49:14 -0800 (PST)
+Date: Mon, 3 Apr 2006 22:33:49 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Avoid excessive time spend on concurrent slab shrinking
-In-Reply-To: <20060401183038.GY27189130@melbourne.sgi.com>
-Message-ID: <Pine.LNX.4.64.0604011047340.11929@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0603311441400.8465@schroedinger.engr.sgi.com>
- <20060331150120.21fad488.akpm@osdl.org> <Pine.LNX.4.64.0603311507130.8617@schroedinger.engr.sgi.com>
- <20060331153235.754deb0c.akpm@osdl.org> <Pine.LNX.4.64.0603311541260.8948@schroedinger.engr.sgi.com>
- <20060331160032.6e437226.akpm@osdl.org> <Pine.LNX.4.64.0603311619590.9173@schroedinger.engr.sgi.com>
- <20060331172518.40a5b03d.akpm@osdl.org> <20060401155942.E961681@wobbly.melbourne.sgi.com>
- <20060401183038.GY27189130@melbourne.sgi.com>
+Subject: Page Migration: Make do_swap_page redo the fault
+Message-ID: <Pine.LNX.4.64.0604032228150.24182@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: Nathan Scott <nathans@sgi.com>, Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@melbourne.sgi.com
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2 Apr 2006, David Chinner wrote:
+It is better to redo the complete fault if do_swap_page() finds
+that the page is not in PageSwapCache() because the page migration
+code may have replaced the swap pte already with a pte pointing
+to valid memory.
 
-> same hash chain, which tends to implicate not enough hash buckets.
-> 
-> > If its useful for experimenting, Christoph, you can easily tweak the
-> > cluster hash size manually by dinking with xfs_iget.c::xfs_chash_init.
-> 
-> Just use the ihashsize mount option - the cluster hash size is proportional
-> to the inode hash size which is changed by the ihashsize mount option.
-> 
-> Cheers,
+do_swap_page may interpret an invalid swap entry without this patch 
+because we do not reload the pte if we are looping back. The page 
+migration code may already have reused the swap entry referenced by our
+local swp_entry.
 
-XFS settings visible via /proc/mounts are
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-rw,ihashsize=32768,sunit=32,swidth=25
-
-Not enough hash buckets? This was the default selection by xfs.
+Index: linux-2.6.17-rc1/mm/memory.c
+===================================================================
+--- linux-2.6.17-rc1.orig/mm/memory.c	2006-04-02 20:22:10.000000000 -0700
++++ linux-2.6.17-rc1/mm/memory.c	2006-04-03 22:22:56.000000000 -0700
+@@ -1879,7 +1879,6 @@ static int do_swap_page(struct mm_struct
+ 		goto out;
+ 
+ 	entry = pte_to_swp_entry(orig_pte);
+-again:
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
+  		swapin_readahead(entry, address, vma);
+@@ -1907,7 +1906,7 @@ again:
+ 		/* Page migration has occured */
+ 		unlock_page(page);
+ 		page_cache_release(page);
+-		goto again;
++		goto out;
+ 	}
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
