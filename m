@@ -1,35 +1,33 @@
-Date: Tue, 4 Apr 2006 08:06:26 -0700 (PDT)
+Date: Tue, 4 Apr 2006 08:20:03 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 5/6] Swapless V1: Rip out swap migration code
-In-Reply-To: <20060404193714.2dfafa79.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604040804560.26787@schroedinger.engr.sgi.com>
-References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
- <20060404065805.24532.65008.sendpatchset@schroedinger.engr.sgi.com>
- <20060404193714.2dfafa79.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 2/3] mm: speculative get_page
+In-Reply-To: <20060219020159.9923.94877.sendpatchset@linux.site>
+Message-ID: <Pine.LNX.4.64.0604040814140.26807@schroedinger.engr.sgi.com>
+References: <20060219020140.9923.43378.sendpatchset@linux.site>
+ <20060219020159.9923.94877.sendpatchset@linux.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com, lhms-devel@lists.sourceforge.net, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Apr 2006, KAMEZAWA Hiroyuki wrote:
+Looks like the NoNewRefs flag is mostly == 
+spin_is_locked(mapping->tree_lock)? Would it not be better to check the 
+tree_lock?
 
-> On Mon, 3 Apr 2006 23:58:05 -0700 (PDT)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Rip the page migration logic out
-> > 
-> 
-> Thank you. I like this removal, especially removing remove_from_swap() :)
 
-Have a look at remove_migration_ptes(). Like remove_from_swap() it has the 
-requirement that the mmap_sem is held since that is the only secure way to 
-make sure that the anon_vma is not vanishing from under us. That may be a 
-problem if you are not coming from a process context. Any ideas on how to 
-fix that?
+> --- linux-2.6.orig/mm/migrate.c
+> +++ linux-2.6/mm/migrate.c
+>  
+> +	SetPageNoNewRefs(page);
+>  	write_lock_irq(&mapping->tree_lock);
 
+A dream come true! If this is really working as it sounds then we can 
+move the SetPageNoNewRefs up and avoid the final check under 
+mapping->tree_lock. Then keep SetPageNoNewRefs until the page has been 
+copied. It would basically play the same role as locking the page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
