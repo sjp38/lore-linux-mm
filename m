@@ -1,98 +1,148 @@
-Date: Mon, 3 Apr 2006 23:57:44 -0700 (PDT)
+Date: Mon, 3 Apr 2006 23:57:50 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060404065744.24532.6154.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060404065750.24532.67454.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 1/6] Swapless V1: try_to_unmap() - Rename ignrefs to "migration"
+Subject: [RFC 2/6] Swapless V1:  Add SWP_TYPE_MIGRATION
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, lhms-devel@lists.sourceforge.net, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-migrate is a better name since we implement special handling for
-page migration later.
+Add migration swap type
+
+SWP_TYPE_MIGRATION is a special swap type that encodes the pfn of the
+page in the swp_offset.
+
+Note that the swp_offset size is limited. This is 27 bits on 32 bit and
+54 bits on IA64. pfn numbers must fit into that size of a field for
+this scheme to work. Could that be a problem?
+
+SWP_TYPE_MIGRATION is only set for a pte while the corresponding page
+is locked. It is removed while the page is still locked. Therefore the
+processing for this special type of swap page can be simple.
+
+The freeing of this type of entry is simply ignored.
+
+lookup_swap_cache() determines the page from the pfn and only takes a
+reference on the page.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.17-rc1/mm/rmap.c
+Index: linux-2.6.17-rc1/mm/swap_state.c
 ===================================================================
---- linux-2.6.17-rc1.orig/mm/rmap.c	2006-04-02 20:22:10.000000000 -0700
-+++ linux-2.6.17-rc1/mm/rmap.c	2006-04-03 22:33:56.000000000 -0700
-@@ -578,7 +578,7 @@ void page_remove_rmap(struct page *page)
-  * repeatedly from either try_to_unmap_anon or try_to_unmap_file.
+--- linux-2.6.17-rc1.orig/mm/swap_state.c	2006-04-02 20:22:10.000000000 -0700
++++ linux-2.6.17-rc1/mm/swap_state.c	2006-04-03 23:26:21.000000000 -0700
+@@ -10,6 +10,7 @@
+ #include <linux/mm.h>
+ #include <linux/kernel_stat.h>
+ #include <linux/swap.h>
++#include <linux/swapops.h>
+ #include <linux/init.h>
+ #include <linux/pagemap.h>
+ #include <linux/buffer_head.h>
+@@ -299,6 +300,16 @@ struct page * lookup_swap_cache(swp_entr
+ {
+ 	struct page *page;
+ 
++	/*
++	 * If the swap type is SWP_TYPE_MIGRATION then the
++	 * swap entry contains the pfn of a page.
++	 */
++	if (unlikely(swp_type(entry) == SWP_TYPE_MIGRATION)) {
++		page = pfn_to_page(swp_offset(entry));
++		get_page(page);
++		return page;
++	}
++
+ 	page = find_get_page(&swapper_space, entry.val);
+ 
+ 	if (page)
+Index: linux-2.6.17-rc1/mm/swapfile.c
+===================================================================
+--- linux-2.6.17-rc1.orig/mm/swapfile.c	2006-04-02 20:22:10.000000000 -0700
++++ linux-2.6.17-rc1/mm/swapfile.c	2006-04-03 23:26:21.000000000 -0700
+@@ -395,6 +395,9 @@ void free_swap_and_cache(swp_entry_t ent
+ 	struct swap_info_struct * p;
+ 	struct page *page = NULL;
+ 
++	if (swp_type(entry) == SWP_TYPE_MIGRATION)
++		return;
++
+ 	p = swap_info_get(entry);
+ 	if (p) {
+ 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+@@ -1710,6 +1713,9 @@ int swap_duplicate(swp_entry_t entry)
+ 	int result = 0;
+ 
+ 	type = swp_type(entry);
++	if (type == SWP_TYPE_MIGRATION)
++		return 1;
++
+ 	if (type >= nr_swapfiles)
+ 		goto bad_file;
+ 	p = type + swap_info;
+Index: linux-2.6.17-rc1/include/linux/swap.h
+===================================================================
+--- linux-2.6.17-rc1.orig/include/linux/swap.h	2006-04-02 20:22:10.000000000 -0700
++++ linux-2.6.17-rc1/include/linux/swap.h	2006-04-03 23:43:03.000000000 -0700
+@@ -29,7 +29,10 @@ static inline int current_is_kswapd(void
+  * the type/offset into the pte as 5/27 as well.
   */
- static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
--				int ignore_refs)
-+				int migration)
+ #define MAX_SWAPFILES_SHIFT	5
+-#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
++#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-1)
++
++/* Use last entry for page migration swap entries */
++#define SWP_TYPE_MIGRATION	MAX_SWAPFILES
+ 
+ /*
+  * Magic header for a swap area. The first part of the union is
+@@ -293,7 +296,6 @@ static inline void disable_swap_token(vo
+ #define swap_duplicate(swp)			/*NOTHING*/
+ #define swap_free(swp)				/*NOTHING*/
+ #define read_swap_cache_async(swp,vma,addr)	NULL
+-#define lookup_swap_cache(swp)			NULL
+ #define valid_swaphandles(swp, off)		0
+ #define can_share_swap_page(p)			0
+ #define move_to_swap_cache(p, swp)		1
+@@ -302,6 +304,12 @@ static inline void disable_swap_token(vo
+ #define delete_from_swap_cache(p)		/*NOTHING*/
+ #define swap_token_default_timeout		0
+ 
++#ifdef CONFIG_MIGRATION
++extern struct page* lookup_swap_cache(swp_entry_t);
++#else
++#define lookup_swap_cache(swp)			NULL
++#endif
++
+ static inline int remove_exclusive_swap_page(struct page *p)
  {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
-@@ -602,7 +602,7 @@ static int try_to_unmap_one(struct page 
- 	 */
- 	if ((vma->vm_flags & VM_LOCKED) ||
- 			(ptep_clear_flush_young(vma, address, pte)
--				&& !ignore_refs)) {
-+				&& !migration)) {
- 		ret = SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -736,7 +736,7 @@ static void try_to_unmap_cluster(unsigne
- 	pte_unmap_unlock(pte - 1, ptl);
- }
+ 	return 0;
+Index: linux-2.6.17-rc1/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc1.orig/mm/migrate.c	2006-04-03 22:07:40.000000000 -0700
++++ linux-2.6.17-rc1/mm/migrate.c	2006-04-03 23:44:10.000000000 -0700
+@@ -32,6 +32,18 @@
  
--static int try_to_unmap_anon(struct page *page, int ignore_refs)
-+static int try_to_unmap_anon(struct page *page, int migration)
- {
- 	struct anon_vma *anon_vma;
- 	struct vm_area_struct *vma;
-@@ -747,7 +747,7 @@ static int try_to_unmap_anon(struct page
- 		return ret;
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
  
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
--		ret = try_to_unmap_one(page, vma, ignore_refs);
-+		ret = try_to_unmap_one(page, vma, migration);
- 		if (ret == SWAP_FAIL || !page_mapped(page))
- 			break;
- 	}
-@@ -764,7 +764,7 @@ static int try_to_unmap_anon(struct page
-  *
-  * This function is only called from try_to_unmap for object-based pages.
-  */
--static int try_to_unmap_file(struct page *page, int ignore_refs)
-+static int try_to_unmap_file(struct page *page, int migration)
- {
- 	struct address_space *mapping = page->mapping;
- 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-@@ -778,7 +778,7 @@ static int try_to_unmap_file(struct page
- 
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
--		ret = try_to_unmap_one(page, vma, ignore_refs);
-+		ret = try_to_unmap_one(page, vma, migration);
- 		if (ret == SWAP_FAIL || !page_mapped(page))
- 			goto out;
- 	}
-@@ -863,16 +863,16 @@ out:
-  * SWAP_AGAIN	- we missed a mapping, try again later
-  * SWAP_FAIL	- the page is unswappable
-  */
--int try_to_unmap(struct page *page, int ignore_refs)
-+int try_to_unmap(struct page *page, int migration)
- {
- 	int ret;
- 
- 	BUG_ON(!PageLocked(page));
- 
- 	if (PageAnon(page))
--		ret = try_to_unmap_anon(page, ignore_refs);
-+		ret = try_to_unmap_anon(page, migration);
- 	else
--		ret = try_to_unmap_file(page, ignore_refs);
-+		ret = try_to_unmap_file(page, migration);
- 
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
++#ifndef CONFIG_SWAP
++struct page *lookup_swap_cache(swp_entry_t entry)
++{
++	if (unlikely(swp_type(entry) == SWP_TYPE_MIGRATION)) {
++		struct page *page = pfn_to_page(swp_offset(entry));
++		get_page(page);
++		return page;
++	}
++	return NULL;
++}
++#endif
++
+ /*
+  * Isolate one page from the LRU lists. If successful put it onto
+  * the indicated list with elevated page count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
