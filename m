@@ -1,165 +1,244 @@
-Date: Mon, 3 Apr 2006 23:58:10 -0700 (PDT)
+Date: Mon, 3 Apr 2006 23:58:05 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060404065810.24532.30027.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060404065805.24532.65008.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 6/6] Swapless V1: Revise main migration logic
+Subject: [RFC 5/6] Swapless V1: Rip out swap migration code
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, lhms-devel@lists.sourceforge.net, Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-New migration scheme
+Rip the page migration logic out
+
+Remove all code that has to do with swapping during page migration.
+
+This also guts the ability to migrate pages to swap. No one used that
+so lets let it go for good.
+
+Page migration should be a bit broken after this patch.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.17-rc1/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc1.orig/mm/migrate.c	2006-04-03 23:44:31.000000000 -0700
-+++ linux-2.6.17-rc1/mm/migrate.c	2006-04-03 23:48:02.000000000 -0700
-@@ -151,27 +151,21 @@ int migrate_page_remove_references(struc
- 	 * indicates that the page is in use or truncate has removed
- 	 * the page.
- 	 */
--	if (!mapping || page_mapcount(page) + nr_refs != page_count(page))
--		return -EAGAIN;
-+	if (!page->mapping ||
-+		page_mapcount(page) + nr_refs + !!mapping != page_count(page))
-+			return -EAGAIN;
- 
- 	/*
--	 * Establish swap ptes for anonymous pages or destroy pte
-+	 * Establish migration ptes for anonymous pages or destroy pte
- 	 * maps for files.
- 	 *
- 	 * In order to reestablish file backed mappings the fault handlers
- 	 * will take the radix tree_lock which may then be used to stop
-   	 * processses from accessing this page until the new page is ready.
- 	 *
--	 * A process accessing via a swap pte (an anonymous page) will take a
--	 * page_lock on the old page which will block the process until the
--	 * migration attempt is complete. At that time the PageSwapCache bit
--	 * will be examined. If the page was migrated then the PageSwapCache
--	 * bit will be clear and the operation to retrieve the page will be
--	 * retried which will find the new page in the radix tree. Then a new
--	 * direct mapping may be generated based on the radix tree contents.
--	 *
--	 * If the page was not migrated then the PageSwapCache bit
--	 * is still set and the operation may continue.
-+	 * A process accessing via a migration pte (an anonymous page) will
-+	 * take a  page_lock on the old page which will block the process
-+	 * until the migration attempt is complete.
- 	 */
- 	if (try_to_unmap(page, 1) == SWAP_FAIL)
- 		/* A vma has VM_LOCKED set -> permanent failure */
-@@ -183,13 +177,19 @@ int migrate_page_remove_references(struc
- 	if (page_mapcount(page))
- 		return -EAGAIN;
- 
-+	if (!mapping)
-+		return 0;	/* Anonymous page without swap */
-+
-+	/*
-+	 * Page has a mapping that we need to change
-+	 */
- 	write_lock_irq(&mapping->tree_lock);
- 
- 	radix_pointer = (struct page **)radix_tree_lookup_slot(
- 						&mapping->page_tree,
- 						page_index(page));
- 
--	if (!page_mapping(page) || page_count(page) != nr_refs ||
-+	if (!page_mapping(page) || page_count(page) != nr_refs + 1 ||
- 			*radix_pointer != page) {
- 		write_unlock_irq(&mapping->tree_lock);
- 		return -EAGAIN;
-@@ -206,11 +206,12 @@ int migrate_page_remove_references(struc
- 	get_page(newpage);
- 	newpage->index = page->index;
- 	newpage->mapping = page->mapping;
-+#ifdef CONFIG_SWAP
- 	if (PageSwapCache(page)) {
- 		SetPageSwapCache(newpage);
- 		set_page_private(newpage, page_private(page));
- 	}
+--- linux-2.6.17-rc1.orig/mm/migrate.c	2006-04-03 22:07:40.000000000 -0700
++++ linux-2.6.17-rc1/mm/migrate.c	2006-04-03 22:07:56.000000000 -0700
+@@ -70,10 +70,6 @@ int isolate_lru_page(struct page *page, 
+  */
+ int migrate_prep(void)
+ {
+-	/* Must have swap device for migration */
+-	if (nr_swap_pages <= 0)
+-		return -ENODEV;
 -
-+#endif
- 	*radix_pointer = newpage;
- 	__put_page(page);
- 	write_unlock_irq(&mapping->tree_lock);
-@@ -244,7 +245,9 @@ void migrate_page_copy(struct page *newp
- 		set_page_dirty(newpage);
-  	}
+ 	/*
+ 	 * Clear the LRU lists so pages can be isolated.
+ 	 * Note that pages may be moved off the LRU after we have
+@@ -129,53 +125,6 @@ int fail_migrate_page(struct page *newpa
+ EXPORT_SYMBOL(fail_migrate_page);
  
-+#ifdef CONFIG_SWAP
- 	ClearPageSwapCache(page);
-+#endif
- 	ClearPageActive(page);
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
-@@ -271,10 +274,12 @@ int migrate_page(struct page *newpage, s
+ /*
+- * swapout a single page
+- * page is locked upon entry, unlocked on exit
+- */
+-static int swap_page(struct page *page)
+-{
+-	struct address_space *mapping = page_mapping(page);
+-
+-	if (page_mapped(page) && mapping)
+-		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
+-			goto unlock_retry;
+-
+-	if (PageDirty(page)) {
+-		/* Page is dirty, try to write it out here */
+-		switch(pageout(page, mapping)) {
+-		case PAGE_KEEP:
+-		case PAGE_ACTIVATE:
+-			goto unlock_retry;
+-
+-		case PAGE_SUCCESS:
+-			goto retry;
+-
+-		case PAGE_CLEAN:
+-			; /* try to free the page below */
+-		}
+-	}
+-
+-	if (PagePrivate(page)) {
+-		if (!try_to_release_page(page, GFP_KERNEL) ||
+-		    (!mapping && page_count(page) == 1))
+-			goto unlock_retry;
+-	}
+-
+-	if (remove_mapping(mapping, page)) {
+-		/* Success */
+-		unlock_page(page);
+-		return 0;
+-	}
+-
+-unlock_retry:
+-	unlock_page(page);
+-
+-retry:
+-	return -EAGAIN;
+-}
+-EXPORT_SYMBOL(swap_page);
+-
+-/*
+  * Remove references for a page and establish the new page with the correct
+  * basic settings to be able to stop accesses to the page.
+  */
+@@ -336,8 +285,7 @@ EXPORT_SYMBOL(migrate_page);
+  * Two lists are passed to this function. The first list
+  * contains the pages isolated from the LRU to be migrated.
+  * The second list contains new pages that the pages isolated
+- * can be moved to. If the second list is NULL then all
+- * pages are swapped out.
++ * can be moved to.
+  *
+  * The function returns after 10 attempts or if no pages
+  * are movable anymore because to has become empty
+@@ -393,30 +341,13 @@ redo:
+ 		 * Only wait on writeback if we have already done a pass where
+ 		 * we we may have triggered writeouts for lots of pages.
+ 		 */
+-		if (pass > 0) {
++		if (pass > 0)
+ 			wait_on_page_writeback(page);
+-		} else {
++		else {
+ 			if (PageWriteback(page))
+ 				goto unlock_page;
+ 		}
  
- 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
+-		/*
+-		 * Anonymous pages must have swap cache references otherwise
+-		 * the information contained in the page maps cannot be
+-		 * preserved.
+-		 */
+-		if (PageAnon(page) && !PageSwapCache(page)) {
+-			if (!add_to_swap(page, GFP_KERNEL)) {
+-				rc = -ENOMEM;
+-				goto unlock_page;
+-			}
+-		}
+-
+-		if (!to) {
+-			rc = swap_page(page);
+-			goto next;
+-		}
+-
+ 		newpage = lru_to_page(to);
+ 		lock_page(newpage);
  
--	rc = migrate_page_remove_references(newpage, page, 2);
-+	rc = migrate_page_remove_references(newpage, page, 1);
+@@ -470,24 +401,6 @@ redo:
+ 			goto unlock_both;
+ 		}
  
--	if (rc)
-+	if (rc) {
-+		remove_migration_ptes(page, page);
- 		return rc;
-+	}
+-		/*
+-		 * On early passes with mapped pages simply
+-		 * retry. There may be a lock held for some
+-		 * buffers that may go away. Later
+-		 * swap them out.
+-		 */
+-		if (pass > 4) {
+-			/*
+-			 * Persistently unable to drop buffers..... As a
+-			 * measure of last resort we fall back to
+-			 * swap_page().
+-			 */
+-			unlock_page(newpage);
+-			newpage = NULL;
+-			rc = swap_page(page);
+-			goto next;
+-		}
+-
+ unlock_both:
+ 		unlock_page(newpage);
  
- 	migrate_page_copy(newpage, page);
- 
-@@ -286,7 +291,7 @@ int migrate_page(struct page *newpage, s
- 	 * waiting on the page lock to use the new page via the page tables
- 	 * before the new page is unlocked.
- 	 */
--	remove_from_swap(newpage);
-+	remove_migration_ptes(page, newpage);
+Index: linux-2.6.17-rc1/mm/swapfile.c
+===================================================================
+--- linux-2.6.17-rc1.orig/mm/swapfile.c	2006-04-03 22:07:46.000000000 -0700
++++ linux-2.6.17-rc1/mm/swapfile.c	2006-04-03 22:07:56.000000000 -0700
+@@ -618,15 +618,6 @@ static int unuse_mm(struct mm_struct *mm
  	return 0;
  }
- EXPORT_SYMBOL(migrate_page);
-@@ -368,9 +373,12 @@ redo:
- 		 * Try to migrate the page.
- 		 */
- 		mapping = page_mapping(page);
--		if (!mapping)
-+		if (!mapping) {
-+
-+			rc = migrate_page(newpage, page);
- 			goto unlock_both;
  
-+		} else
- 		if (mapping->a_ops->migratepage) {
- 			/*
- 			 * Most pages have a mapping and most filesystems
-@@ -462,7 +470,7 @@ int buffer_migrate_page(struct page *new
- 
- 	head = page_buffers(page);
- 
--	rc = migrate_page_remove_references(newpage, page, 3);
-+	rc = migrate_page_remove_references(newpage, page, 2);
- 
- 	if (rc)
- 		return rc;
-Index: linux-2.6.17-rc1/mm/Kconfig
+-#ifdef CONFIG_MIGRATION
+-int remove_vma_swap(struct vm_area_struct *vma, struct page *page)
+-{
+-	swp_entry_t entry = { .val = page_private(page) };
+-
+-	return unuse_vma(vma, entry, page);
+-}
+-#endif
+-
+ /*
+  * Scan swap_map from current position to next entry still in use.
+  * Recycle to start on reaching the end, returning 0 when empty.
+Index: linux-2.6.17-rc1/mm/rmap.c
 ===================================================================
---- linux-2.6.17-rc1.orig/mm/Kconfig	2006-04-02 20:22:10.000000000 -0700
-+++ linux-2.6.17-rc1/mm/Kconfig	2006-04-03 23:44:31.000000000 -0700
-@@ -138,8 +138,8 @@ config SPLIT_PTLOCK_CPUS
- #
- config MIGRATION
- 	bool "Page migration"
--	def_bool y if NUMA
--	depends on SWAP && NUMA
-+	def_bool y
-+	depends on NUMA
- 	help
- 	  Allows the migration of the physical location of pages of processes
- 	  while the virtual addresses are not changed. This is useful for
+--- linux-2.6.17-rc1.orig/mm/rmap.c	2006-04-03 22:07:55.000000000 -0700
++++ linux-2.6.17-rc1/mm/rmap.c	2006-04-03 22:07:56.000000000 -0700
+@@ -205,44 +205,6 @@ out:
+ 	return anon_vma;
+ }
+ 
+-#ifdef CONFIG_MIGRATION
+-/*
+- * Remove an anonymous page from swap replacing the swap pte's
+- * through real pte's pointing to valid pages and then releasing
+- * the page from the swap cache.
+- *
+- * Must hold page lock on page and mmap_sem of one vma that contains
+- * the page.
+- */
+-void remove_from_swap(struct page *page)
+-{
+-	struct anon_vma *anon_vma;
+-	struct vm_area_struct *vma;
+-	unsigned long mapping;
+-
+-	if (!PageSwapCache(page))
+-		return;
+-
+-	mapping = (unsigned long)page->mapping;
+-
+-	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
+-		return;
+-
+-	/*
+-	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
+-	 */
+-	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+-	spin_lock(&anon_vma->lock);
+-
+-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+-		remove_vma_swap(vma, page);
+-
+-	spin_unlock(&anon_vma->lock);
+-	delete_from_swap_cache(page);
+-}
+-EXPORT_SYMBOL(remove_from_swap);
+-#endif
+-
+ /*
+  * At what user virtual address is page expected in vma?
+  */
+Index: linux-2.6.17-rc1/include/linux/rmap.h
+===================================================================
+--- linux-2.6.17-rc1.orig/include/linux/rmap.h	2006-04-03 22:07:55.000000000 -0700
++++ linux-2.6.17-rc1/include/linux/rmap.h	2006-04-03 22:07:56.000000000 -0700
+@@ -92,7 +92,6 @@ static inline void page_dup_rmap(struct 
+  */
+ int page_referenced(struct page *, int is_locked);
+ int try_to_unmap(struct page *, int ignore_refs);
+-void remove_from_swap(struct page *page);
+ 
+ /*
+  * Called from mm/filemap_xip.c to unmap empty zero page
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
