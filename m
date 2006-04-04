@@ -1,10 +1,10 @@
-Date: Tue, 4 Apr 2006 19:58:20 +0900
+Date: Tue, 4 Apr 2006 20:04:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 6/6] Swapless V1: Revise main migration logic
-Message-Id: <20060404195820.4adc09d7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060404065810.24532.30027.sendpatchset@schroedinger.engr.sgi.com>
+Subject: Re: [RFC 2/6] Swapless V1:  Add SWP_TYPE_MIGRATION
+Message-Id: <20060404200409.a78cdb2a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060404065750.24532.67454.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
-	<20060404065810.24532.30027.sendpatchset@schroedinger.engr.sgi.com>
+	<20060404065750.24532.67454.sendpatchset@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,44 +14,32 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com, lhms-devel@lists.sourceforge.net, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Apr 2006 23:58:10 -0700 (PDT)
+On Mon, 3 Apr 2006 23:57:50 -0700 (PDT)
 Christoph Lameter <clameter@sgi.com> wrote:
 
-> New migration scheme
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.17-rc1/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.17-rc1.orig/mm/migrate.c	2006-04-03 23:44:31.000000000 -0700
-> +++ linux-2.6.17-rc1/mm/migrate.c	2006-04-03 23:48:02.000000000 -0700
-> @@ -151,27 +151,21 @@ int migrate_page_remove_references(struc
->  	 * indicates that the page is in use or truncate has removed
->  	 * the page.
->  	 */
-> -	if (!mapping || page_mapcount(page) + nr_refs != page_count(page))
-> -		return -EAGAIN;
-> +	if (!page->mapping ||
-> +		page_mapcount(page) + nr_refs + !!mapping != page_count(page))
-> +			return -EAGAIN;
->  
-I think this hidden !!mapping refcnt is not easy to read.
+>
+>  #define MAX_SWAPFILES_SHIFT	5
+> -#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+> +#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-1)
+> +
+> +/* Use last entry for page migration swap entries */
+> +#define SWP_TYPE_MIGRATION	MAX_SWAPFILES
 
-How about modifying caller istead of callee ?
+How about this ?
 
-in migrate_page()
-==
-if (page->mapping) 
-	rc = migrate_page_remove_reference(newpage, page, 2)
-else
-	rc = migrate_page_remove_reference(newpage, page, 1);
-==
+#ifdef CONFIG_MIGRATION
+#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT) - 1)
+#else
+#define MAX_SWAPFILES (1 << MAX_SWAPFILES_SHIFT)
+#endif
 
-If you dislike this 'if', plz do as you like.
+#define SWP_TYPE_MIGRATION (MAX_SWAPFILES + 1)
 
-Thanks,
+
+.....but I don't think there is a user who uses 32 swaps....
+
 --Kame
-
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
