@@ -1,90 +1,49 @@
-Message-ID: <44345742.8070109@redhat.com>
-Date: Wed, 05 Apr 2006 19:48:18 -0400
-From: Hideo AOKI <haoki@redhat.com>
+Message-ID: <44330DC6.1040805@yahoo.com.au>
+Date: Wed, 05 Apr 2006 10:22:30 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [patch 3/3] mm: An enhancement of OVERCOMMIT_GUESS
-Content-Type: multipart/mixed;
- boundary="------------020305010509000208030303"
+Subject: Re: [patch 2/3] mm: speculative get_page
+References: <20060219020140.9923.43378.sendpatchset@linux.site> <20060219020159.9923.94877.sendpatchset@linux.site> <Pine.LNX.4.64.0604040814140.26807@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0604040814140.26807@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020305010509000208030303
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Christoph Lameter wrote:
+> Looks like the NoNewRefs flag is mostly == 
+> spin_is_locked(mapping->tree_lock)? Would it not be better to check the 
+> tree_lock?
+> 
 
-There is a copy of __vm_enough_memory() in mm/nommu.c. I believe that
-this enhancement is useful for nommu environment too.
+Well there are other uses for the tree_lock (eg. tag operations)
+which do not need the "no new references" guarantee.
 
----
-Hideo Aoki, Hitachi Computer Products (America) Inc.
+> 
+> 
+>>--- linux-2.6.orig/mm/migrate.c
+>>+++ linux-2.6/mm/migrate.c
+>> 
+>>+	SetPageNoNewRefs(page);
+>> 	write_lock_irq(&mapping->tree_lock);
+> 
+> 
+> A dream come true! If this is really working as it sounds then we can 
+> move the SetPageNoNewRefs up and avoid the final check under 
+> mapping->tree_lock. Then keep SetPageNoNewRefs until the page has been 
+> copied. It would basically play the same role as locking the page.
+> 
 
---------------020305010509000208030303
-Content-Type: text/x-patch;
- name="mm-consider_rsvpgs-nommu.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="mm-consider_rsvpgs-nommu.patch"
+Yes we could do that but at this stage I wouldn't like to seperate
+SetPageNoNewRefs from tree_lock, as it is replacing a traditional
+guarantee that tree_lock no longer provides.
 
-This patch is an enhancement of OVERCOMMIT_GUESS algorithm in
-__vm_enough_memory() in mm/nommu.c.
-
-When the OVERCOMMIT_GUESS algorithm calculates the number of free
-pages, the algorithm subtracts the number of reserved pages from
-the result nr_free_pages().
-
-Signed-off-by: Hideo Aoki <haoki@redhat.com>
----
-
- nommu.c |   18 +++++++++++++++---
- 1 files changed, 15 insertions(+), 3 deletions(-)
-
-diff -purN linux-2.6.17-rc1-mm1/mm/nommu.c linux-2.6.17-rc1-mm1-idea6/mm/nommu.c
---- linux-2.6.17-rc1-mm1/mm/nommu.c	2006-04-04 10:43:30.000000000 -0400
-+++ linux-2.6.17-rc1-mm1-idea6/mm/nommu.c	2006-04-04 15:09:24.000000000 -0400
-@@ -1147,14 +1147,26 @@ int __vm_enough_memory(long pages, int c
- 		 * only call if we're about to fail.
- 		 */
- 		n = nr_free_pages();
-+
-+		/*
-+		 * Leave reserved pages. The pages are not for anonymous pages.
-+		 */
-+		if (n <= totalreserve_pages)
-+			goto error;
-+		else
-+			n -= totalreserve_pages;
-+
-+		/*
-+		 * Leave the last 3% for root
-+		 */
- 		if (!cap_sys_admin)
- 			n -= n / 32;
- 		free += n;
- 
- 		if (free > pages)
- 			return 0;
--		vm_unacct_memory(pages);
--		return -ENOMEM;
-+
-+		goto error;
- 	}
- 
- 	allowed = totalram_pages * sysctl_overcommit_ratio / 100;
-@@ -1175,7 +1187,7 @@ int __vm_enough_memory(long pages, int c
- 	 */
- 	if (atomic_read(&vm_committed_space) < (long)allowed)
- 		return 0;
--
-+error:
- 	vm_unacct_memory(pages);
- 
- 	return -ENOMEM;
-
---------------020305010509000208030303--
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
