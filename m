@@ -1,84 +1,51 @@
-Date: Wed, 5 Apr 2006 13:07:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 5/6] Swapless V1: Rip out swap migration code
-Message-Id: <20060405130747.6a0dd54f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0604042038370.31431@schroedinger.engr.sgi.com>
-References: <20060404065739.24532.95451.sendpatchset@schroedinger.engr.sgi.com>
-	<20060404065805.24532.65008.sendpatchset@schroedinger.engr.sgi.com>
-	<20060404193714.2dfafa79.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604040804560.26787@schroedinger.engr.sgi.com>
-	<20060405100614.97d2e422.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604041940390.28908@schroedinger.engr.sgi.com>
-	<20060405123341.52145bf5.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604042038370.31431@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Wed, 05 Apr 2006 19:57:08 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch:000/004] wait_table and zonelist initializing for memory hotadd
+Message-Id: <20060405192737.3C3F.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, lee.schermerhorn@hp.com, lhms-devel@lists.sourceforge.net, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Apr 2006 20:47:58 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-> > When a page is converted into SWP_TYPE_MIGRATION, changed pte entry
-> > implicitly points old page. This introduces the state 'a page is referred 
-> > but no refcnt'. if mmap_sem is held, this is maybe no problem. 
-> > but looks a bit dangerous.
-> 
-> We have increased the refcnt on the page (see isolate_lru_page()) and the 
-> page is locked when  SWP_TYPE_MIGRATION is used. So there is a refcnt.
-> 
-yes. I just wrote about implicit refcnt.
+Hi.
 
-> > > > I think adding SWP_TYPE_MIGRATION consideration to free_swap_and_cache() is
-> > > > enough against anon_vma vanishing. Because remove_migration_ptes() compares 
-> > > > old pte entry with old page's pfn, a page cannot be remapped into old place
-> > > > when anon_vma has gone. This is my first impression.
-> > > 
-> > > However, the last process containing the page may terminate and free the 
-> > > page, while we migrate. The SWAP_TYPE_MIGRATION pte will be rewoved 
-> > > together with the anonvma if no lock is held on mmap_sem. 
-> > yes. 
-> > 
-> > > Then remove_migration_ptes() cannot obtain a anon_vma. So it would break 
-> > > without holding mmap_sem. We could fix this if we could somehow know that 
-> > > the last process mapping the page vanished and skip 
-> > > remove_migration_ptes().
-> > > 
-> > 
-> > Hmm, I'm not sure but how about this way ?
-> > 1. don't drop refcnt in try_to_unmap_one() when changing a page to 
-> >    SWP_TYPE_MIGRATION. because it is referred. (rmap should be removed ?)
-> 
-> Then we would have a page with mapcounts but there are no real ptes 
-> pointing to the page. It would be a strange condition for the page. 
-> 
-O.K. dropping mapcount is necessary. (migrate_page_remove_reference checks it, 
-anyway)
-refcnt mentioned above is page_count(page).
+These are parts of patches for new nodes addition v4.
+I picked them up because v4 might be a bit too many patches.
+These patches can be used even when a new zone becomes available.
+When empty zone becomes not empty, wait_table must be initialized,
+and zonelists must be updated.
+So, They are a good group for once post.
 
-> Moreover, a process may fork or terminate while we migrate. Forking may 
-> increase the refcnt and termination may decrease it. We do not keep
-> refcnts for the SWP_TYPE_MIGRATION entry but rely on the reverse maps. So 
-> we may end up with a messed up mapcount if we do not drop the refcnts.
+  ex) x86-64 is good example of new zone addition.
+      - System boot up with memory under 4G address.
+        All of memory will be ZONE_DMA32.
+      - Then hot-add over 4G memory. It becomes ZONE_NORMAL. But, 
+        wait table of zone normal is not initialized at this time.
 
-At fork, copy_one_pte() can manage swap entry.
-Adding SWP_TYPE_MIGRATION consideration there is necessary and enough if 
-not holding mmap_sem. Hmm...maybe.
+This patch is for 2.6.17-rc1-mm1.
 
-exit is the same case as zap_page_range(). modifing swap_entry_free() will be
-necessary.
+Please apply.
 
--Kame
+----------------------------
+Change log from v4 of hot-add.
+  - update for 2.6.17-rc1-mm1.
+  - change allocation for wait_table from kmalloc() to vmalloc().
+    vmalloc() is enough for it.
+
+V4 of post is here.
+<description>
+http://marc.theaimsgroup.com/?l=linux-mm&w=2&r=1&s=memory+hotplug+node+v.4&q=b
+<patches>
+http://marc.theaimsgroup.com/?l=linux-mm&w=2&r=1&s=memory+hotplug+node+v.4.&q=b
 
 
 
-
-
-
-
+-- 
+Yasunori Goto 
 
 
 --
