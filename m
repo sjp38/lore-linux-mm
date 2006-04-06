@@ -1,70 +1,51 @@
-Message-ID: <4434C12A.4000108@redhat.com>
-Date: Thu, 06 Apr 2006 03:20:10 -0400
-From: Hideo AOKI <haoki@redhat.com>
-MIME-Version: 1.0
+Date: Thu, 6 Apr 2006 17:08:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch 1/3] mm: An enhancement of OVERCOMMIT_GUESS
-References: <4434570F.9030507@redhat.com> <20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20060406170851.1402c78d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4434C12A.4000108@redhat.com>
+References: <4434570F.9030507@redhat.com>
+	<20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
+	<4434C12A.4000108@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hideo AOKI <haoki@redhat.com>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Kamezawa-san,
+On Thu, 06 Apr 2006 03:20:10 -0400
+Hideo AOKI <haoki@redhat.com> wrote:
 
-Thank you for your comments.
-
-KAMEZAWA Hiroyuki wrote:
-> Hi, AOKI-san
+> Hi Kamezawa-san,
 > 
-> On Wed, 05 Apr 2006 19:47:27 -0400
-> Hideo AOKI <haoki@redhat.com> wrote:
+> Thank you for your comments.
 > 
+> KAMEZAWA Hiroyuki wrote:
+> > Hi, AOKI-san
+> I like your idea. But, in the function, I think we need to care
+> lowmem_reserve too.
 > 
->>Hello Andrew,
->>
->>Could you apply my patches to your tree?
->>
->>These patches are an enhancement of OVERCOMMIT_GUESS algorithm in
->>__vm_enough_memory(). The detailed description is in attached patch.
+Ah, I see.
+
+> Since __vm_enough_memory() doesn't know zone and cpuset information,
+> we have to guess proper value of lowmem_reserve in each zone
+> like I did in calculate_totalreserve_pages() in my patch.
+> Do you think that we can do this calculation every time?
 > 
-> I think adding a function like this is more simple way.
-> (call this istead of nr_free_pages().)
-> ==
-> int nr_available_memory() 
-> {
-> 	unsigned long sum = 0;
-> 	for_each_zone(zone) {
-> 		if (zone->free_pages > zone->pages_high)
-> 			sum += zone->free_pages - zone->pages_high;
-> 	}
-> 	return sum;
-> }
-> ==
+> If it is good enough, I'll make revised patch.
+> 
+I just thought to show "how to calculate" in unified way is better.
+But if things goes ugly, please ignore my comment.
 
-I like your idea. But, in the function, I think we need to care
-lowmem_reserve too.
-
-Since __vm_enough_memory() doesn't know zone and cpuset information,
-we have to guess proper value of lowmem_reserve in each zone
-like I did in calculate_totalreserve_pages() in my patch.
-Do you think that we can do this calculation every time?
-
-If it is good enough, I'll make revised patch.
+Do you have a detailed comparison of test result with and without this patch ?
+I'm interested in.
+I'm sorry if I missed your post of result.
 
 
-> BTW, vm_enough_memory() doesn't eat cpuset information ?
-
-I think this is another point which we should improve.
-
-Best regards,
-Hideo Aoki
-
----
-Hideo Aoki, Hitachi Computer Products (America) Inc.
+Cheers!
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
