@@ -1,51 +1,58 @@
-Date: Thu, 6 Apr 2006 17:08:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 1/3] mm: An enhancement of OVERCOMMIT_GUESS
-Message-Id: <20060406170851.1402c78d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4434C12A.4000108@redhat.com>
-References: <4434570F.9030507@redhat.com>
-	<20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
-	<4434C12A.4000108@redhat.com>
+Subject: Re: [Patch:003/004] wait_table and zonelist initializing for
+	memory hotadd (wait_table initialization)
+From: Dave Hansen <dave@sr71.net>
+In-Reply-To: <20060405195913.3C45.Y-GOTO@jp.fujitsu.com>
+References: <20060405192737.3C3F.Y-GOTO@jp.fujitsu.com>
+	 <20060405195913.3C45.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Thu, 06 Apr 2006 15:05:04 -0700
+Message-Id: <1144361104.9731.190.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hideo AOKI <haoki@redhat.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 06 Apr 2006 03:20:10 -0400
-Hideo AOKI <haoki@redhat.com> wrote:
-
-> Hi Kamezawa-san,
+On Wed, 2006-04-05 at 20:01 +0900, Yasunori Goto wrote:
 > 
-> Thank you for your comments.
-> 
-> KAMEZAWA Hiroyuki wrote:
-> > Hi, AOKI-san
-> I like your idea. But, in the function, I think we need to care
-> lowmem_reserve too.
-> 
-Ah, I see.
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+>  static inline unsigned long wait_table_size(unsigned long pages)
+>  {
+>         unsigned long size = 1;
+> @@ -1803,6 +1804,17 @@ static inline unsigned long wait_table_s
+>  
+>         return max(size, 4UL);
+>  }
+> +#else
+> +/*
+> + * XXX: Because zone size might be changed by hot-add,
+> + *      It is hard to determin suitable size for wait_table as
+> traditional.
+> + *      So, we use maximum size now.
+> + */
+> +static inline unsigned long wait_table_size(unsigned long pages)
+> +{
+> +       return 4096UL;
+> +}
+> +#endif 
 
-> Since __vm_enough_memory() doesn't know zone and cpuset information,
-> we have to guess proper value of lowmem_reserve in each zone
-> like I did in calculate_totalreserve_pages() in my patch.
-> Do you think that we can do this calculation every time?
-> 
-> If it is good enough, I'll make revised patch.
-> 
-I just thought to show "how to calculate" in unified way is better.
-But if things goes ugly, please ignore my comment.
+Sorry for the slow response.  My IBM email is temporarily dead.
 
-Do you have a detailed comparison of test result with and without this patch ?
-I'm interested in.
-I'm sorry if I missed your post of result.
+Couple of things.  
 
+First, is there anything useful that prepending UL to the constants does
+to the functions?  It ends up looking a little messy to me.
 
-Cheers!
--Kame
+Also, I thought you were going to put a big fat comment on there about
+doing it correctly in the future.  It would also be nice to quantify the
+wasted space in terms of bytes, just so that people get a feel for it.
+
+Oh, and wait_table_size() needs a unit.  wait_table_size_bytes() sounds
+like a winner to me.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
