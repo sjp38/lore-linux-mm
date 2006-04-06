@@ -1,55 +1,70 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: Respin: [PATCH] mm: limit lowmem_reserve
-Date: Thu, 6 Apr 2006 14:52:42 +1000
-References: <200604021401.13331.kernel@kolivas.org> <20060405204009.3235b021.akpm@osdl.org> <200604061436.16907.kernel@kolivas.org>
-In-Reply-To: <200604061436.16907.kernel@kolivas.org>
+Message-ID: <4434C12A.4000108@redhat.com>
+Date: Thu, 06 Apr 2006 03:20:10 -0400
+From: Hideo AOKI <haoki@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [patch 1/3] mm: An enhancement of OVERCOMMIT_GUESS
+References: <4434570F.9030507@redhat.com> <20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060406094533.b340f633.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200604061452.43020.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ck@vds.kolivas.org
-Cc: Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 06 April 2006 14:36, Con Kolivas wrote:
-> On Thursday 06 April 2006 13:40, Andrew Morton wrote:
-> > Con Kolivas <kernel@kolivas.org> wrote:
-> > > On Thursday 06 April 2006 12:55, Con Kolivas wrote:
-> > > > On Thursday 06 April 2006 12:43, Andrew Morton wrote:
-> > > > > Con Kolivas <kernel@kolivas.org> wrote:
-> > > > > > It is possible with a low enough lowmem_reserve ratio to make
-> > > > > >  zone_watermark_ok fail repeatedly if the lower_zone is small
-> > > > > > enough.
-> > > > >
-> > > > > Is that actually a problem?
-> > > >
-> > > > Every single call to get_page_from_freelist will call on zone
-> > > > reclaim. It seems a problem to me if every call to __alloc_pages will
-> > > > do that?
-> > >
-> > > every call to __alloc_pages of that zone I mean
-> >
-> > One would need to check with the NUMA guys.  zone_reclaim() has a
-> > (lame-looking) timer in there to prevent it from doing too much work.
-> >
-> > That, or I'm missing something.  This problem wasn't particularly well
-> > described, sorry.
->
-> Ah ok. This all came about because I'm trying to honour the lowmem_reserve
-> better in swap_prefetch at Nick's request. It's hard to honour a watermark
-> that on some configurations is never reached.
+Hi Kamezawa-san,
 
-Forget that. If the numa people don't care about it I shouldn't touch it. I 
-thought I was doing something helpful at the source but got no response from 
-Nick or the the other numa_ids out there so they obviously don't care. I'll 
-tackle it differently in swap prefetch.
+Thank you for your comments.
 
-Cheers,
-Con
+KAMEZAWA Hiroyuki wrote:
+> Hi, AOKI-san
+> 
+> On Wed, 05 Apr 2006 19:47:27 -0400
+> Hideo AOKI <haoki@redhat.com> wrote:
+> 
+> 
+>>Hello Andrew,
+>>
+>>Could you apply my patches to your tree?
+>>
+>>These patches are an enhancement of OVERCOMMIT_GUESS algorithm in
+>>__vm_enough_memory(). The detailed description is in attached patch.
+> 
+> I think adding a function like this is more simple way.
+> (call this istead of nr_free_pages().)
+> ==
+> int nr_available_memory() 
+> {
+> 	unsigned long sum = 0;
+> 	for_each_zone(zone) {
+> 		if (zone->free_pages > zone->pages_high)
+> 			sum += zone->free_pages - zone->pages_high;
+> 	}
+> 	return sum;
+> }
+> ==
+
+I like your idea. But, in the function, I think we need to care
+lowmem_reserve too.
+
+Since __vm_enough_memory() doesn't know zone and cpuset information,
+we have to guess proper value of lowmem_reserve in each zone
+like I did in calculate_totalreserve_pages() in my patch.
+Do you think that we can do this calculation every time?
+
+If it is good enough, I'll make revised patch.
+
+
+> BTW, vm_enough_memory() doesn't eat cpuset information ?
+
+I think this is another point which we should improve.
+
+Best regards,
+Hideo Aoki
+
+---
+Hideo Aoki, Hitachi Computer Products (America) Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
