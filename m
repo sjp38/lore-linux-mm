@@ -1,27 +1,27 @@
-Received: from smtp1.fc.hp.com (smtp1.fc.hp.com [15.15.136.127])
-	by atlrel8.hp.com (Postfix) with ESMTP id C443B36F83
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 16:42:28 -0400 (EDT)
+Received: from smtp2.fc.hp.com (smtp.fc.hp.com [15.11.136.114])
+	by atlrel7.hp.com (Postfix) with ESMTP id 9ED3534E67
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 16:43:48 -0400 (EDT)
 Received: from ldl.fc.hp.com (ldl.fc.hp.com [15.11.146.30])
-	by smtp1.fc.hp.com (Postfix) with ESMTP id 9DE54102C9
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 20:42:28 +0000 (UTC)
+	by smtp2.fc.hp.com (Postfix) with ESMTP id 79DE1AD24
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 20:43:48 +0000 (UTC)
 Received: from localhost (localhost [127.0.0.1])
-	by ldl.fc.hp.com (Postfix) with ESMTP id 757F6138E38
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:42:28 -0600 (MDT)
+	by ldl.fc.hp.com (Postfix) with ESMTP id 55911138E39
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:43:48 -0600 (MDT)
 Received: from ldl.fc.hp.com ([127.0.0.1])
 	by localhost (ldl [127.0.0.1]) (amavisd-new, port 10024) with ESMTP
-	id 23197-08 for <linux-mm@kvack.org>;
-	Fri, 7 Apr 2006 14:42:26 -0600 (MDT)
+	id 23197-10 for <linux-mm@kvack.org>;
+	Fri, 7 Apr 2006 14:43:46 -0600 (MDT)
 Received: from [16.116.101.121] (unknown [16.116.101.121])
-	by ldl.fc.hp.com (Postfix) with ESMTP id D7A3B138E39
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:42:25 -0600 (MDT)
-Subject: Re: [PATCH 2.6.17-rc1-mm1 8/9] AutoPage Migration - V0.2 - add max
-	mapcount migration threshold
+	by ldl.fc.hp.com (Postfix) with ESMTP id 1B6B2138E38
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:43:46 -0600 (MDT)
+Subject: Re: [PATCH 2.6.17-rc1-mm1 9/9] AutoPage Migration - V0.2 - hook
+	automigration to migrate-on-fault
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 In-Reply-To: <1144441946.5198.52.camel@localhost.localdomain>
 References: <1144441946.5198.52.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Fri, 07 Apr 2006 16:43:50 -0400
-Message-Id: <1144442630.5198.69.camel@localhost.localdomain>
+Date: Fri, 07 Apr 2006 16:45:10 -0400
+Message-Id: <1144442710.5198.71.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,108 +29,124 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-AutoPage Migration - V0.2 - 8/9 add max mapcount migration threshold
+AutoPage Migration - V0.2 - 9/9 hook automigration to migrate-on-fault
 
-This patch adds an additional migration control that allows one
-to vary the page mapcount threshold above which pages will not
-be migrated by MPOL_MF_MOVE.  The default value is 1, which yields
-the same behavior as before this patch.
+Add a /sys/kernel/migration control--auto_migrate_lazy--to use 
+migrate-on-fault for auto-migration.
+
+Modify migrate_to_node() to just unmap the eligible pages
+via migrate_pages_unmap_only() when MPOL_MF_LAZY flag is set.
+
+This patch depends on the "migrate-on-fault" patch series that
+defines the MPOL_MF_LAZY flag and the migrate_pages_unmap_only()
+function.
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Index: linux-2.6.16-mm1/include/linux/auto-migrate.h
+Index: linux-2.6.16-mm1/mm/mempolicy.c
 ===================================================================
---- linux-2.6.16-mm1.orig/include/linux/auto-migrate.h	2006-03-23 16:50:24.000000000 -0500
-+++ linux-2.6.16-mm1/include/linux/auto-migrate.h	2006-03-23 16:50:30.000000000 -0500
-@@ -20,6 +20,8 @@ extern unsigned long auto_migrate_interv
- #define AUTO_MIGRATE_INTERVAL_MIN (5*HZ)
- #define AUTO_MIGRATE_INTERVAL_MAX (300*HZ)
+--- linux-2.6.16-mm1.orig/mm/mempolicy.c	2006-03-23 16:50:30.000000000 -0500
++++ linux-2.6.16-mm1/mm/mempolicy.c	2006-03-23 16:50:36.000000000 -0500
+@@ -635,7 +635,11 @@ int migrate_to_node(struct mm_struct *mm
+ 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
  
-+extern unsigned int migrate_max_mapcount;
+ 	if (!list_empty(&pagelist)) {
+-		err = migrate_pages_to(&pagelist, NULL, dest);
++		if (flags & MPOL_MF_LAZY)
++			err = migrate_pages_unmap_only(&pagelist);
++		else
++			err = migrate_pages_to(&pagelist, NULL, dest);
 +
- #ifdef _LINUX_SCHED_H	/* only used where this is defined */
- static inline void check_internode_migration(task_t *task, int dest_cpu)
- {
-@@ -98,6 +100,7 @@ out:
- #define too_soon_for_internode_migration(t,c) 0
+ 		if (!list_empty(&pagelist))
+ 			putback_lru_pages(&pagelist);
+ 	}
+@@ -744,6 +748,9 @@ void auto_migrate_task_memory(void)
+ 	 */
+ 	BUG_ON(!mm);
  
- #define check_migrate_pending()		/* NOTHING */
-+#define migrate_max_mapcount (1)
++	if (auto_migrate_lazy)
++		flags |= MPOL_MF_LAZY;
++
+ 	/*
+ 	 * Pass destination node as source node plus 'INVERT flag:
+ 	 *    Migrate all pages NOT on destination node.
+@@ -1000,7 +1007,6 @@ out:
+ 	return err;
+ }
  
- #endif	/* CONFIG_MIGRATION */
- 
+-
+ /* Retrieve NUMA policy */
+ asmlinkage long sys_get_mempolicy(int __user *policy,
+ 				unsigned long __user *nmask,
 Index: linux-2.6.16-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.16-mm1.orig/mm/migrate.c	2006-03-23 16:50:24.000000000 -0500
-+++ linux-2.6.16-mm1/mm/migrate.c	2006-03-23 16:50:30.000000000 -0500
-@@ -107,12 +107,35 @@ static ssize_t auto_migrate_interval_sto
+--- linux-2.6.16-mm1.orig/mm/migrate.c	2006-03-23 16:50:30.000000000 -0500
++++ linux-2.6.16-mm1/mm/migrate.c	2006-03-23 16:50:36.000000000 -0500
+@@ -129,6 +129,37 @@ static ssize_t migrate_max_mapcount_stor
  }
- MIGRATION_ATTR_RW(auto_migrate_interval);
+ MIGRATION_ATTR_RW(migrate_max_mapcount);
  
 +/*
-+ * migrate_max_mapcount:  specify how many mappers allowed
-+ * before we won't migrate a page via MPOL_MF_MOVE.
++ * auto_migrate_lazy:  use "lazy migration"--i.e., migration-on-fault--
++ * for scheduler driven task memory migration.
 + */
-+unsigned int migrate_max_mapcount = 1;	/* default == minimum */
++int auto_migrate_lazy = 0;
 +
-+static ssize_t migrate_max_mapcount_show(struct subsystem *subsys, char *page)
++static int __init set_auto_migrate_lazy(char *str)
 +{
-+	return sprintf(page, "migrate_max_mapcount %d\n", migrate_max_mapcount);
++	get_option(&str, &auto_migrate_lazy);
++	return 1;
 +}
-+static ssize_t migrate_max_mapcount_store(struct subsystem *subsys,
++
++__setup("auto_migrate_lazy", set_auto_migrate_lazy);
++
++static ssize_t auto_migrate_lazy_show(struct subsystem *subsys, char *page)
++{
++	return sprintf(page, "auto_migrate_lazy %s\n",
++			auto_migrate_lazy ? "on" : "off");
++}
++static ssize_t auto_migrate_lazy_store(struct subsystem *subsys,
 +				      const char *page, size_t count)
 +{
-+        unsigned int n = simple_strtoul(page, NULL, 10);
-+	if (n < 1)
-+		migrate_max_mapcount = 1;
++        unsigned long n = simple_strtoul(page, NULL, 10);
++	if (n)
++		auto_migrate_lazy = 1;
 +	else
-+		migrate_max_mapcount = n;
++		auto_migrate_lazy = 0;
 +        return count;
 +}
-+MIGRATION_ATTR_RW(migrate_max_mapcount);
++MIGRATION_ATTR_RW(auto_migrate_lazy);
 +
  decl_subsys(migration, NULL, NULL);
  EXPORT_SYMBOL(migration_subsys);
  
- static struct attribute *migration_attrs[] = {
+@@ -136,6 +167,7 @@ static struct attribute *migration_attrs
  	&auto_migrate_enable_attr.attr,
  	&auto_migrate_interval_attr.attr,
-+	&migrate_max_mapcount_attr.attr,
+ 	&migrate_max_mapcount_attr.attr,
++	&auto_migrate_lazy_attr.attr,
  	NULL
  };
  
-Index: linux-2.6.16-mm1/mm/mempolicy.c
+Index: linux-2.6.16-mm1/include/linux/auto-migrate.h
 ===================================================================
---- linux-2.6.16-mm1.orig/mm/mempolicy.c	2006-03-23 16:49:34.000000000 -0500
-+++ linux-2.6.16-mm1/mm/mempolicy.c	2006-03-23 16:50:30.000000000 -0500
-@@ -87,6 +87,7 @@
- #include <linux/seq_file.h>
- #include <linux/proc_fs.h>
- #include <linux/migrate.h>
-+#include <linux/auto-migrate.h>
+--- linux-2.6.16-mm1.orig/include/linux/auto-migrate.h	2006-03-23 16:50:30.000000000 -0500
++++ linux-2.6.16-mm1/include/linux/auto-migrate.h	2006-03-23 16:50:36.000000000 -0500
+@@ -21,6 +21,7 @@ extern unsigned long auto_migrate_interv
+ #define AUTO_MIGRATE_INTERVAL_MAX (300*HZ)
  
- #include <asm/tlbflush.h>
- #include <asm/uaccess.h>
-@@ -452,7 +453,6 @@ static int contextualize_policy(int mode
- 	return mpol_check_policy(mode, nodes);
- }
+ extern unsigned int migrate_max_mapcount;
++extern int auto_migrate_lazy;
  
--
- /*
-  * Update task->flags PF_MEMPOLICY bit: set iff non-default
-  * mempolicy.  Allows more rapid checking of this (combined perhaps
-@@ -611,9 +611,10 @@ static void migrate_page_add(struct page
- 				unsigned long flags)
- {
- 	/*
--	 * Avoid migrating a page that is shared with others.
-+	 * Avoid migrating a page that is shared with [too many] others.
- 	 */
--	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1)
-+	if ((flags & MPOL_MF_MOVE_ALL) ||
-+		page_mapcount(page) <= migrate_max_mapcount)
- 		isolate_lru_page(page, pagelist);
- }
+ #ifdef _LINUX_SCHED_H	/* only used where this is defined */
+ static inline void check_internode_migration(task_t *task, int dest_cpu)
+@@ -101,6 +102,7 @@ out:
+ 
+ #define check_migrate_pending()		/* NOTHING */
+ #define migrate_max_mapcount (1)
++#define auto_migrate_lazy (0)
+ 
+ #endif	/* CONFIG_MIGRATION */
  
 
 
