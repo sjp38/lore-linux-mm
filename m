@@ -1,29 +1,27 @@
-Subject: Re: [Patch:003/004] wait_table and zonelist initializing for
-	memory hotadd (wait_table initialization)
-From: Dave Hansen <dave@sr71.net>
-In-Reply-To: <20060407104859.EBED.Y-GOTO@jp.fujitsu.com>
-References: <20060405195913.3C45.Y-GOTO@jp.fujitsu.com>
-	 <1144361104.9731.190.camel@localhost.localdomain>
-	 <20060407104859.EBED.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Thu, 06 Apr 2006 20:12:04 -0700
-Message-Id: <1144379524.9731.192.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <443605E1.7060203@yahoo.com.au>
+Date: Fri, 07 Apr 2006 16:25:37 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: limit lowmem_reserve
+References: <200604021401.13331.kernel@kolivas.org> <200604031248.13532.kernel@kolivas.org> <200604041235.59876.kernel@kolivas.org> <200604061110.35789.kernel@kolivas.org>
+In-Reply-To: <200604061110.35789.kernel@kolivas.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@osdl.org>, ck@vds.kolivas.org, linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-04-07 at 12:10 +0900, Yasunori Goto wrote:
-> 
-> This size doesn't mean bytes. It is hash table entry size.
-> So, wait_table_hash_size() or wait_table_entry_size() might be better.
+Con Kolivas wrote:
+> It is possible with a low enough lowmem_reserve ratio to make
+> zone_watermark_ok always fail if the lower_zone is small enough.
 
-wait_table_hash_nr_entries() is pretty obvious, although a bit long.
+I don't see how this would happen?
 
--- Dave
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
