@@ -1,27 +1,27 @@
-Received: from smtp2.fc.hp.com (smtp2.fc.hp.com [15.11.136.114])
-	by atlrel7.hp.com (Postfix) with ESMTP id 156EC343A3
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 16:39:59 -0400 (EDT)
-Received: from ldl.fc.hp.com (ldl.fc.hp.com [15.11.146.30])
-	by smtp2.fc.hp.com (Postfix) with ESMTP id E4218AD24
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 20:39:58 +0000 (UTC)
+Received: from smtp1.fc.hp.com (smtp1.fc.hp.com [15.15.136.127])
+	by atlrel9.hp.com (Postfix) with ESMTP id E78E835025
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 16:41:18 -0400 (EDT)
+Received: from ldl.fc.hp.com (linux-bugs.fc.hp.com [15.11.146.30])
+	by smtp1.fc.hp.com (Postfix) with ESMTP id C08CB102C9
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 20:41:18 +0000 (UTC)
 Received: from localhost (localhost [127.0.0.1])
-	by ldl.fc.hp.com (Postfix) with ESMTP id A5F81138E3A
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:39:58 -0600 (MDT)
+	by ldl.fc.hp.com (Postfix) with ESMTP id 78C8C138E39
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:41:18 -0600 (MDT)
 Received: from ldl.fc.hp.com ([127.0.0.1])
 	by localhost (ldl [127.0.0.1]) (amavisd-new, port 10024) with ESMTP
-	id 22880-09 for <linux-mm@kvack.org>;
-	Fri, 7 Apr 2006 14:39:56 -0600 (MDT)
+	id 23160-05 for <linux-mm@kvack.org>;
+	Fri, 7 Apr 2006 14:41:16 -0600 (MDT)
 Received: from [16.116.101.121] (unknown [16.116.101.121])
-	by ldl.fc.hp.com (Postfix) with ESMTP id 23914138E38
-	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:39:56 -0600 (MDT)
-Subject: Re: [PATCH 2.6.17-rc1-mm1 6/9] AutoPage Migration - V0.2 - hook
-	sched migrate to memory migration
+	by ldl.fc.hp.com (Postfix) with ESMTP id 44064138E38
+	for <linux-mm@kvack.org>; Fri,  7 Apr 2006 14:41:16 -0600 (MDT)
+Subject: Re: [PATCH 2.6.17-rc1-mm1 7/9] AutoPage Migration - V0.2 - add
+	hysteresis to internode migration
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 In-Reply-To: <1144441946.5198.52.camel@localhost.localdomain>
 References: <1144441946.5198.52.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Fri, 07 Apr 2006 16:41:20 -0400
-Message-Id: <1144442480.5198.64.camel@localhost.localdomain>
+Date: Fri, 07 Apr 2006 16:42:40 -0400
+Message-Id: <1144442561.5198.67.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,107 +29,193 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-AutoPage Migration - V0.2 - 6/9 hook sched migrate to memory migration
+AutoPage Migration - V0.2 - 7/9 add hysteresis to internode migration
 
-Add check for internode migration to scheduler -- in most places
-where a new cpu is assigned via set_task_cpu().  If MIGRATION is
-configured, and auto-migration is enabled [and this is a
-user space task], the check will set "migration pending" for the
-task if the destination cpu is on a different node from the last
-cpu to which the task was assigned.  Migration of affected pages
-[those with default policy] will occur when the task returns to
-user space.
+V0.2:	moved to mm/migrate.c; renamed to "auto_migrate_interval"
 
-V0.2:
-	only check/notify task of internode migration in migrate_task()
-	if not in exec() path.  Walking task address space and unmapping
-	pages is probably a waste of time in this case.  Note, however,
-	that we won't give the task a chance to pull any resident text
-	or library pages local to itself.  If we ever support replication
-	or more agressive migration, we can fix this.
+This patch adds hysteresis to the internode migration to prevent
+page migration trashing when automatic scheduler driven page migration
+is enabled.  
 
-	Thanks to Kamezawa Hiroyoki for pointing out this potential
-	optimization.
+Add static in-line function "too_soon_for_internode_migration"
+[macro => 0 if !CONFIG_MIGRATION] to check for attempts to move
+task to a new node sooner than auto_migrate_interval jiffies
+after previous migration.
 
+Modify try_to_wakeup() to leave task on its current cpu if too
+soon to move it to a different node.
+
+Modify can_migrate_task() to "just say no!" if the load balancer
+proposes an internode migration too soon after previous internode
+migration.
+
+Added a control variable--auto_migrate_interval--to /sys/kernel/migration
+to query/set the interval.  Provide some fairly arbitrary min, max and
+default values.
 
 Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Index: linux-2.6.17-rc1-mm1/kernel/sched.c
+Index: linux-2.6.17-rc1-mm1/include/linux/sched.h
 ===================================================================
---- linux-2.6.17-rc1-mm1.orig/kernel/sched.c	2006-04-05 10:14:36.000000000 -0400
-+++ linux-2.6.17-rc1-mm1/kernel/sched.c	2006-04-05 10:16:13.000000000 -0400
-@@ -52,8 +52,9 @@
- #include <linux/acct.h>
- #include <linux/kprobes.h>
- #include <linux/kgdb.h>
--#include <asm/tlb.h>
+--- linux-2.6.17-rc1-mm1.orig/include/linux/sched.h	2006-04-05 10:15:00.000000000 -0400
++++ linux-2.6.17-rc1-mm1/include/linux/sched.h	2006-04-05 10:16:26.000000000 -0400
+@@ -909,6 +909,7 @@ struct task_struct {
+   	struct mempolicy *mempolicy;
+ 	short il_next;
+ #ifdef CONFIG_MIGRATION
++	unsigned long next_migrate;	/* internode migration hysteresis */
+ 	int migrate_pending;		/* internode mem migration pending */
+ #endif
+ #endif
+Index: linux-2.6.17-rc1-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc1-mm1.orig/mm/migrate.c	2006-04-05 10:14:58.000000000 -0400
++++ linux-2.6.17-rc1-mm1/mm/migrate.c	2006-04-05 10:16:26.000000000 -0400
+@@ -26,6 +26,7 @@
+ #include <linux/cpuset.h>
+ #include <linux/swapops.h>
+ #include <linux/sysfs.h>
 +#include <linux/auto-migrate.h>
  
-+#include <asm/tlb.h>
- #include <asm/unistd.h>
+ #include "internal.h"
  
- /*
-@@ -1028,7 +1029,8 @@ typedef struct {
-  * The task's runqueue lock must be held.
-  * Returns true if you have to wait for migration thread.
-  */
--static int migrate_task(task_t *p, int dest_cpu, migration_req_t *req)
-+static int migrate_task(task_t *p, int dest_cpu, migration_req_t *req,
-+			int execing)
+@@ -73,11 +74,45 @@ static ssize_t auto_migrate_enable_store
+ }
+ MIGRATION_ATTR_RW(auto_migrate_enable);
+ 
++/*
++ * auto_migrate_interval:  minimum interval between internode
++ * task migration when auto-migration enabled.
++ * units:  jiffies
++ */
++unsigned long auto_migrate_interval     = AUTO_MIGRATE_INTERVAL_DFLT;
++
++//TODO:  __setup function for boot command option
++
++static ssize_t auto_migrate_interval_show(struct subsystem *subsys,
++					 char *page)
++{
++	return sprintf(page, "auto_migrate_interval %ld\n",
++		 auto_migrate_interval/HZ );
++}
++static ssize_t auto_migrate_interval_store(struct subsystem *subsys,
++				      const char *page, size_t count)
++{
++        unsigned long n = simple_strtoul(page, NULL, 10) * HZ;
++
++	/*
++	 * silently clip to min/max
++	 */
++	if (n < AUTO_MIGRATE_INTERVAL_MIN)
++		auto_migrate_interval = AUTO_MIGRATE_INTERVAL_MIN;
++	else if (n > AUTO_MIGRATE_INTERVAL_MAX)
++		auto_migrate_interval = AUTO_MIGRATE_INTERVAL_MAX;
++	else
++		auto_migrate_interval = n;
++        return count;
++}
++MIGRATION_ATTR_RW(auto_migrate_interval);
++
+ decl_subsys(migration, NULL, NULL);
+ EXPORT_SYMBOL(migration_subsys);
+ 
+ static struct attribute *migration_attrs[] = {
+ 	&auto_migrate_enable_attr.attr,
++	&auto_migrate_interval_attr.attr,
+ 	NULL
+ };
+ 
+Index: linux-2.6.17-rc1-mm1/include/linux/auto-migrate.h
+===================================================================
+--- linux-2.6.17-rc1-mm1.orig/include/linux/auto-migrate.h	2006-04-05 10:15:00.000000000 -0400
++++ linux-2.6.17-rc1-mm1/include/linux/auto-migrate.h	2006-04-05 10:16:26.000000000 -0400
+@@ -15,6 +15,11 @@ extern void auto_migrate_task_memory(voi
+ 
+ extern int auto_migrate_enable;
+ 
++extern unsigned long auto_migrate_interval;    /* seconds <=> jiffies */
++#define AUTO_MIGRATE_INTERVAL_DFLT (30*HZ)
++#define AUTO_MIGRATE_INTERVAL_MIN (5*HZ)
++#define AUTO_MIGRATE_INTERVAL_MAX (300*HZ)
++
+ #ifdef _LINUX_SCHED_H	/* only used where this is defined */
+ static inline void check_internode_migration(task_t *task, int dest_cpu)
  {
- 	runqueue_t *rq = task_rq(p);
- 
-@@ -1037,6 +1039,8 @@ static int migrate_task(task_t *p, int d
- 	 * it is sufficient to simply update the task's cpu field.
- 	 */
- 	if (!p->array && !task_running(rq, p)) {
-+		if (!execing)
-+			check_internode_migration(p, dest_cpu);
- 		set_task_cpu(p, dest_cpu);
- 		return 0;
+@@ -33,6 +38,25 @@ static inline void check_internode_migra
  	}
-@@ -1432,6 +1436,7 @@ static int try_to_wake_up(task_t *p, uns
- out_set_cpu:
- 	new_cpu = wake_idle(new_cpu, p);
- 	if (new_cpu != cpu) {
-+		check_internode_migration(p, new_cpu);
- 		set_task_cpu(p, new_cpu);
- 		task_rq_unlock(rq, &flags);
- 		/* might preempt at this point */
-@@ -1944,7 +1949,7 @@ static void sched_migrate_task(task_t *p
- 		goto out;
+ }
  
- 	/* force the process onto the specified CPU */
--	if (migrate_task(p, dest_cpu, &req)) {
-+	if (migrate_task(p, dest_cpu, &req, 1)) {
- 		/* Need to wait for migration thread (might exit: take ref). */
- 		struct task_struct *mt = rq->migration_thread;
- 		get_task_struct(mt);
-@@ -1981,6 +1986,7 @@ void pull_task(runqueue_t *src_rq, prio_
++/*
++ * To avoids page migration thrashing when auto memory migration is enabled,
++ * check user task for too recent internode migration.
++ */
++static inline int too_soon_for_internode_migration(task_t *task,
++                                                         int this_cpu)
++{
++	if (auto_migrate_enable &&
++		task->mm && !(task->flags & PF_BORROWED_MM) &&
++		cpu_to_node(task_cpu(task)) != cpu_to_node(this_cpu)) {
++
++		if (task->migrate_pending ||
++			time_before(jiffies, task->next_migrate))
++			return 1;
++	}
++
++	return 0;
++}
++
+ static inline void check_migrate_pending(void)
  {
- 	dequeue_task(p, src_array);
- 	dec_nr_running(p, src_rq);
-+	check_internode_migration(p, this_cpu);
- 	set_task_cpu(p, this_cpu);
- 	inc_nr_running(p, this_rq);
- 	enqueue_task(p, this_array);
-@@ -4721,7 +4727,7 @@ int set_cpus_allowed(task_t *p, cpumask_
- 	if (cpu_isset(task_cpu(p), new_mask))
- 		goto out;
+ 	if (!auto_migrate_enable)
+@@ -55,6 +79,7 @@ static inline void check_migrate_pending
+ 		}
  
--	if (migrate_task(p, any_online_cpu(new_mask), &req)) {
-+	if (migrate_task(p, any_online_cpu(new_mask), &req, 0)) {
- 		/* Need help from migration thread: drop lock and wait. */
- 		task_rq_unlock(rq, &flags);
- 		wake_up_process(rq->migration_thread);
-@@ -4763,6 +4769,7 @@ static void __migrate_task(struct task_s
- 	if (!cpu_isset(dest_cpu, p->cpus_allowed))
- 		goto out;
+ 		auto_migrate_task_memory();
++		current->next_migrate = jiffies + auto_migrate_interval;
  
-+	check_internode_migration(p, dest_cpu);
- 	set_task_cpu(p, dest_cpu);
- 	if (p->array) {
- 		/*
+ 		if (likely(disable_irqs))
+ 			local_irq_disable();
+@@ -70,6 +95,7 @@ out:
+ #else	/* !CONFIG_MIGRATION */
+ 
+ #define check_internode_migration(t,c)	/* NOTHING */
++#define too_soon_for_internode_migration(t,c) 0
+ 
+ #define check_migrate_pending()		/* NOTHING */
+ 
+Index: linux-2.6.17-rc1-mm1/kernel/sched.c
+===================================================================
+--- linux-2.6.17-rc1-mm1.orig/kernel/sched.c	2006-04-05 10:16:13.000000000 -0400
++++ linux-2.6.17-rc1-mm1/kernel/sched.c	2006-04-05 10:16:26.000000000 -0400
+@@ -1378,7 +1378,8 @@ static int try_to_wake_up(task_t *p, uns
+ 		}
+ 	}
+ 
+-	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
++	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)
++		|| too_soon_for_internode_migration(p, this_cpu)))
+ 		goto out_set_cpu;
+ 
+ 	/*
+@@ -2013,6 +2014,7 @@ int can_migrate_task(task_t *p, runqueue
+ 	 * 1) running (obviously), or
+ 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
+ 	 * 3) are cache-hot on their current CPU.
++	 * 4) too soon since last internode migration
+ 	 */
+ 	if (!cpu_isset(this_cpu, p->cpus_allowed))
+ 		return 0;
+@@ -2021,6 +2023,10 @@ int can_migrate_task(task_t *p, runqueue
+ 	if (task_running(rq, p))
+ 		return 0;
+ 
++// TODO:  should this be under Agressive migration?
++	if (too_soon_for_internode_migration(p, this_cpu))
++		return 0;
++
+ 	/*
+ 	 * Aggressive migration if:
+ 	 * 1) task is cache cold, or
 
 
 --
