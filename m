@@ -1,42 +1,32 @@
-Date: Sun, 9 Apr 2006 04:11:29 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Page Migration: Make do_swap_page redo the fault
-In-Reply-To: <Pine.LNX.4.64.0604081430280.17911@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0604090357350.5312@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0604032228150.24182@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0604081312200.14441@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0604081058290.16914@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0604082022170.12196@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0604081430280.17911@schroedinger.engr.sgi.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
+Date: Sun, 9 Apr 2006 09:01:13 +0200
+References: <1144441108.5198.36.camel@localhost.localdomain>
+In-Reply-To: <1144441108.5198.36.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200604090901.13447.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 8 Apr 2006, Christoph Lameter wrote:
-> On Sat, 8 Apr 2006, Hugh Dickins wrote:
-> > 
-> > Sure, those are long standing checks, necessary long before migration
-> > came on the scene; whereas the check in do_swap_page was recently added
-> > just for a page migration case, and now turns out to be redundant.
-> 
-> Those two checks were added for migration together with the one we 
-> are removing now. Sounds like you think they additionally fix some other 
-> race conditions?
+On Friday 07 April 2006 22:18, Lee Schermerhorn wrote:
+> This is a reposting of the migrate-on-fault series, against
+> the 2.6.17-rc1-mm1 tree.  I would love to get some feedback on 
+> these patches--especially regarding criteria for getting them
+> into the mm tree for wider testing.
 
-Of course, you're right - sorry.  Whatever was I looking at,
-to get it so confidently wrong?  Dunno: scary.
+The biggest criteria would be some numbers that it actually
+helps for something and doesn't break performance in other workloads.
 
-But I do have to worry then.  I'd missed the addition of those checks:
-if they really are necessary, then the rules have changed in two
-tricky areas I now need to re-understand.  It'll take me a while.
+For me it seems rather risky.
 
-Thanks for setting me straight.
-
-Hugh
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
