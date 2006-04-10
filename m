@@ -1,44 +1,37 @@
-Date: Mon, 10 Apr 2006 14:05:18 -0500
+Date: Mon, 10 Apr 2006 15:11:26 -0500
 From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [RFC/PATCH] Shared Page Tables [1/2]
-Message-ID: <C7A8E6F316A73810A5FF466E@[10.1.1.4]>
-In-Reply-To: <1144695296.31255.16.camel@localhost.localdomain>
-References: <1144685591.570.36.camel@wildcat.int.mccr.org>
- <1144695296.31255.16.camel@localhost.localdomain>
+Subject: Re: [RFC/PATCH] Shared Page Tables [0/2]
+Message-ID: <200ED4FEFEB8AA8427120DE7@[10.1.1.4]>
+In-Reply-To: <Pine.LNX.4.64.0604101020230.22947@schroedinger.engr.sgi.com>
+References: <1144685588.570.35.camel@wildcat.int.mccr.org>
+ <Pine.LNX.4.64.0604101020230.22947@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Adam Litke <agl@us.ibm.com>, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
---On Monday, April 10, 2006 11:54:56 -0700 Dave Hansen
-<haveblue@us.ibm.com> wrote:
+--On Monday, April 10, 2006 10:22:34 -0700 Christoph Lameter
+<clameter@sgi.com> wrote:
 
->> Complete the macro definitions for pxd_page/pxd_page_kernel 
+>> Here's a new cut of the shared page table patch.  I divided it into
+>> two patches.  The first one just fleshes out the
+>> pxd_page/pxd_page_kernel macros across the architectures.  The
+>> second one is the main patch.
+>> (...)
 > 
-> Could you explain a bit why these are needed for shared page tables?
+> Could you break out the locking changes to huge pages?
 
-The existing definitions define pte_page and pmd_page to return the struct
-page for the pfn contained in that entry, and pmd_page_kernel returns the
-kernel virtual address of it.  However, pud_page and pgd_page are defined
-to return the kernel virtual address.  There are no macros that return the
-struct page.
-
-No one actually uses any of the pud_page and pgd_page macros (other than
-one reference in the same include file).  After some discussion on the list
-the last time I posted the patches, we agreed that changing pud_page and
-pgd_page to be consistent with pmd_page is the best solution.  We also
-agreed that I should go ahead and propagate that change across all
-architectures even though not all of them currently support shared page
-tables.  This patch is the result of that work.
+The lock changes to hugetlb are only to support sharing of pmd pages when
+they contain hugetlb pages.  They just substitute the struct page lock for
+the page_table_lock, and are only about 30 lines of code.  Is this really
+worth separating out?
 
 Dave McCracken
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
