@@ -1,32 +1,28 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
-Date: Sun, 9 Apr 2006 09:01:13 +0200
-References: <1144441108.5198.36.camel@localhost.localdomain>
-In-Reply-To: <1144441108.5198.36.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Subject: [RFC/PATCH] Shared Page Tables [0/2]
+From: Dave McCracken <dmccr@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 10 Apr 2006 11:13:08 -0500
+Message-Id: <1144685588.570.35.camel@wildcat.int.mccr.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200604090901.13447.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 07 April 2006 22:18, Lee Schermerhorn wrote:
-> This is a reposting of the migrate-on-fault series, against
-> the 2.6.17-rc1-mm1 tree.  I would love to get some feedback on 
-> these patches--especially regarding criteria for getting them
-> into the mm tree for wider testing.
+Here's a new cut of the shared page table patch.  I divided it into
+two patches.  The first one just fleshes out the
+pxd_page/pxd_page_kernel macros across the architectures.  The
+second one is the main patch.
 
-The biggest criteria would be some numbers that it actually
-helps for something and doesn't break performance in other workloads.
+This version of the patch should address the concerns Hugh raised.
+Hugh, I'd appreciate your feedback again.  Did I get everything?
 
-For me it seems rather risky.
+These patches apply against 2.6.17-rc1.
 
--Andi
+Dave McCracken
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
