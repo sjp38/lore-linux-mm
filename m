@@ -1,80 +1,87 @@
 Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <200604112052.50133.ak@suse.de>
+In-Reply-To: <20060411190330.GA21229@sgi.com>
 References: <1144441108.5198.36.camel@localhost.localdomain>
 	 <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
-	 <200604112052.50133.ak@suse.de>
+	 <200604112052.50133.ak@suse.de>  <20060411190330.GA21229@sgi.com>
 Content-Type: text/plain
-Date: Tue, 11 Apr 2006 16:40:19 -0400
-Message-Id: <1144788020.5160.136.camel@localhost.localdomain>
+Date: Tue, 11 Apr 2006 16:40:45 -0400
+Message-Id: <1144788046.5160.138.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, ak@suse.com
+To: Jack Steiner <steiner@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>, ak@suse.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-04-11 at 20:52 +0200, Andi Kleen wrote:
-> On Tuesday 11 April 2006 20:46, Christoph Lameter wrote:
-> > However, if the page is not frequently references then the 
-> > effort required to migrate the page was not justified.
+On Tue, 2006-04-11 at 14:03 -0500, Jack Steiner wrote:
+> On Tue, Apr 11, 2006 at 08:52:49PM +0200, Andi Kleen wrote:
+> > On Tuesday 11 April 2006 20:46, Christoph Lameter wrote:
+> > > However, if the page is not frequently references then the 
+> > > effort required to migrate the page was not justified.
+> > 
+> > I have my doubts the whole thing is really worthwhile. It probably 
+> > would at least need some statistics to only do this for frequent
+> > accesses, but I don't know where to put this data.
 > 
-> I have my doubts the whole thing is really worthwhile. It probably 
-> would at least need some statistics to only do this for frequent
-> accesses, but I don't know where to put this data.
-> 
-> At least it would be a serious research project to figure out 
-> a good way to do automatic migration. From what I was told by
-> people who tried this (e.g. in Irix) it is really hard and
-> didn't turn out to be a win for them.
+> Agree. And a way to disable the migration-on-fault.
 
-My understanding is that it IS really hard to optimize this or try to
-use statistics to do this.  Especially if your goal is to eke out the
-last ounce of performance, as HPC apps are wont to do.  I'm not
-interested in this.  
+I know.  I don't have such a control in the current series.  I've
+thought of adding one, but I think this might be better as a per task
+control.  And, to set those, I kind of like Paul Jackson's cpuset
+methodology--like "memory_spread_page".  A "migrate_on_fault" cpuset
+attribute would turn this on for tasks in the cpuset.  Default should
+probably be off.
 
-> 
-> The better way is to just provide the infrastructure
-> and let batch managers or program itselves take care of migration.
-
-I agree, for that last ounce of performance.  But, I still think we can
-do better [have on other systems] than just letting the scheduler move
-tasks around a numa system with no attention to their memory locality.
-Not everybody want to be locking tasks down to prevent this, either.
+Might even want separate controls for migrating anon, file backed, shmem
+pages on fault.  Depends on how the policy for file backed pages gets
+sorted out.
 
 > 
-> That was the whole idea behind NUMA API - some problems 
-> are too hard to figure out automatically by the kernel, so 
-> allow the user or application to give it a hand.
-
-I really don't want the kernel to have to figure too much out.  You KNOW
-that when you move a task to a different node that either you're moving
-away from some memory footprint or, if you're lucky, back close to some
-earlier footprint.  How lucky you need to be to achieve the latter
-depends on how many nodes you have and how badly the tasks memory
-footprint is spread around the nodes due to involuntary migration.
-Migrate on fault provides the first piece of infrastructure to address
-this.  
-
-The first time a task touches a page that is not in memory, that task's
-policies get to choose where the page goes.  Presumably, we go through
-some amount of effort to get the page somewhere close to the task or
-where it wants it.  We've got a lot of vm infrastructure in support of
-this endeavor.  What migrate on fault does is allow that same decision
-to be made when a task finds a cached page for which no other tasks
-currently have translations [ptes].  Seems like a good time to
-reevaluate this.  Now, arranging for a significant number of the task's
-pages to be in that state is the subject of another patch series.
-
+> > 
+> > At least it would be a serious research project to figure out 
+> > a good way to do automatic migration. From what I was told by
+> > people who tried this (e.g. in Irix) it is really hard and
+> > didn't turn out to be a win for them.
 > 
-> And frankly the defaults we have currently are not that bad,
-> perhaps with some small tweaks (e.g. i'm still liking the idea
-> of interleaving file cache by default)
+> IRIX had hardware support for counting offnode vs. onnode references
+> to a page & sending interrupts when migration appeared to be beneficial
+> 
+> We intended to use this info to migrate pages.  Unfortunately, we were 
+> never able to demonstrate a performance benefit of migrating pages. 
+> The overhead always exceeded the cost except in a very small number
+> of carefully selected benchmarks.
 
-No, the defaults aren't bad for initial allocation.  But, they don't
-prevent scheduling/load balancing from undoing all the good work done up
-front.
+This was the work that I heard about.  I don't think I'm trying to do
+that.  The migrate-on-fault series just migrates a cached page that is
+eligible [mapcount==0] and misplaced.  Seems like a good time to
+evaluate the policy.  If enabled, of course.
+
+I do think that one could find some interesting research in measuring
+the cost of migrating pages vs the benefits of having them local.  One
+might want to track per node RSS [as Eric Focht and Martin Bligh, maybe
+others, have previously attempted] and prefer those with smaller memory
+footprints to move offnode during load balancing.  One might chose to
+move larger tasks less frequently based on the cost of migrating and/or
+remote accesses.
+
+We plan on doing a lot of this measurement and testing.  But, I needed
+the basic infrastructure [migrate on fault, auto-migrate] in place to do
+the testing.  I've already seen benefit in how the system settles back
+into a "good" [if not optimum] state after transient perturbations with
+the multithread streams benchmark results that I posted with V0.1 of the
+auto-migration series.  No fancy page use statistics.  Unmapping pages
+controlled by default policy when the task migrates to a new node caused
+the tasks to pull pages they were using close to themselves.  For a
+multi-threaded OMP job, this tended to do the right thing [to achieve
+maximum throughput] without any explicit placement.  Just start'em up,
+give 'em a good swift kick, and let them fall back into place.  
+
+Real soon now, I'll take some time out from tracking the bleeding edge
+and run some more benchmarks on our NUMA platforms, with and without
+hardware interleaving, with and without these patches, ...    I'll, uh,
+keep you posted ;-).
 
 Lee
 
