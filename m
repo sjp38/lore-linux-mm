@@ -1,59 +1,59 @@
-Subject: Re: [PATCH 2.6.17-rc1-mm1 1/6] Migrate-on-fault - separate unmap
-	from radix tree replace
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0604111106550.878@schroedinger.engr.sgi.com>
+Date: Tue, 11 Apr 2006 11:46:30 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
+In-Reply-To: <1144441108.5198.36.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
 References: <1144441108.5198.36.camel@localhost.localdomain>
-	 <1144441333.5198.39.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0604111106550.878@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 11 Apr 2006 14:47:18 -0400
-Message-Id: <1144781238.5160.35.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, ak@suse.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-04-11 at 11:08 -0700, Christoph Lameter wrote:
-> On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
-> 
-> > +		struct page *page, int nr_refs)
-> > +{
-> > +	struct address_space *mapping = page_mapping(page);
-> > +        struct page **radix_pointer;
-> > +
-> 
-> Whitespace damage. Some other places as well.
+On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
 
-OK.  Not sure how that [and the others] snuck in there....
+> Note that this mechanism can be used to migrate page cache pages that 
+> were read in earlier, are no longer referenced, but are about to be
+> used by a new task on another node from where the page resides.  The
+> same mechanism can be used to pull anon pages along with a task when
+> the load balancer decides to move it to another node.  However, that
+> will require a bit more mechanism, and is the subject of another
+> patch series.
 
-> 
-> >  /*
-> >   * Copy the page to its new location
-> > @@ -310,10 +338,11 @@ EXPORT_SYMBOL(migrate_page_copy);
-> >  int migrate_page(struct page *newpage, struct page *page)
-> >  {
-> >  	int rc;
-> > +	int nr_refs = 2;	/* cache + current */
-> 
-> Why the nr_refs variables if you do not modify them before passing them 
-> to the migration functions?
+The fundamental assumption in these patchsets is that memory policies are 
+permanently used to control allocation. However, allocation policies may 
+be temporarily set to various allocation methods in order to allocate 
+certain memory structures in special ways. The policy may be reset later 
+and not reflect the allocation wanted for a certain structure when the 
+opportunistic or lazy migration takes place.
 
-Couple of reasons:   I prefer symbolic names to magic numbers like '2'.
-This value will be passed to a function as arg "nr_refs", so that seemed
-like a good name for it here.  It's also a place to hang a comment for
-tracking the reference counts.  This was, for me, one of the trickiest
-areas in getting migrate on fault to work--keeping track of the page ref
-counts.  I wanted to be clear on what ref's we expect where, and what
-we're doing to them.  Finally, I'll be adding in the fault path
-reference in a subsequent patch in the series.
+Maybe we can use the memory polices in the way you suggest (my 
+MPOL_MF_MOVE_* flags certainly do the same but they are set by the coder 
+of the user space application who is aware of what is going on !). 
 
-I thought it made the code easier to read, and I hope the compiler is
-smart enough to "do the right thing".
+But there are significant components missing to make this work the right 
+way. In particular file backed pages are not allocated according to vma 
+policy. Only anonymous pages are. So this would only work correctly for 
+anonymous pages that are explicitly shifted onto swap. 
 
-Lee
+I think there will be mostly correct behavior for file backed pages. Most 
+processes do not use policies at all and so this will move the file 
+backed page to the node where the process is executing. If the process 
+frequently refers to the page then the effort that was expended is 
+justified. However, if the page is not frequently references then the 
+effort required to migrate the page was not justified.
+
+For some processes this has the potential to actually decreasing the 
+performance, for other processes that are using memory policies to 
+control the allocation of structures it may allocate the page in a way 
+that the application tried to avoid because it may be using the wrong 
+memory policy.
+
+Then there is the known deficiency that memory policies do not work with 
+file backed pages. I surely wish that this would be addressed first.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
