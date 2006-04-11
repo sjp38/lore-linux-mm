@@ -1,119 +1,97 @@
-Subject: Re: [PATCH 2.6.17-rc1-mm1 3/6] Migrate-on-fault - migrate
-	misplaced page
+Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0604111124090.878@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
 References: <1144441108.5198.36.camel@localhost.localdomain>
-	 <1144441424.5198.42.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0604111124090.878@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Tue, 11 Apr 2006 15:51:13 -0400
-Message-Id: <1144785073.5160.86.camel@localhost.localdomain>
+Date: Tue, 11 Apr 2006 16:40:14 -0400
+Message-Id: <1144788015.5160.134.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>
+Cc: linux-mm <linux-mm@kvack.org>, ak@suse.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-04-11 at 11:32 -0700, Christoph Lameter wrote:
+On Tue, 2006-04-11 at 11:46 -0700, Christoph Lameter wrote:
 > On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
 > 
-> > @@ -184,6 +185,31 @@ int do_migrate_pages(struct mm_struct *m
-> >  int mpol_misplaced(struct page *, struct vm_area_struct *,
-> >  		unsigned long, int *);
-> >  
-> > +#if defined(CONFIG_MIGRATION) && defined(_LINUX_MM_H)
-
-I go back and look at it.  I may have to come up with another way to
-avoid header dependency hell.  I did it this way because, as I recall,
-one place where mempolicy.h is included, I encountered errors because
-some of the functions used by the "check_migrate_misplace_page()" are
-not available because <linux/mm.h> was not included there.  That seems
-like a pretty heavy-weight header to be dragging into a source file to
-satisfy a dependency in a static-inline function that the source file
-doesn't even care about.  
-
-Maybe check_migrate_misplaced_page() belongs in some other header.
-mempolicy.h seemed like the right place.  And I wanted to put it in a
-header so that I could turn it into a no-op when migrate-on-fault is not
-enabled.  That seems to be the preferred method, when possible, rather
-than #ifdefs" in the .c's.  
-
+> > Note that this mechanism can be used to migrate page cache pages that 
+> > were read in earlier, are no longer referenced, but are about to be
+> > used by a new task on another node from where the page resides.  The
+> > same mechanism can be used to pull anon pages along with a task when
+> > the load balancer decides to move it to another node.  However, that
+> > will require a bit more mechanism, and is the subject of another
+> > patch series.
 > 
-> Remove the defined(_LINUX_MM_H). This is pretty obscure.
-> 
-> > Index: linux-2.6.17-rc1-mm1/mm/migrate.c
-> > ===================================================================
-> > --- linux-2.6.17-rc1-mm1.orig/mm/migrate.c	2006-04-05 10:14:38.000000000 -0400
-> > +++ linux-2.6.17-rc1-mm1/mm/migrate.c	2006-04-05 10:14:41.000000000 -0400
-> > @@ -59,7 +59,8 @@ int isolate_lru_page(struct page *page, 
-> >  				del_page_from_active_list(zone, page);
-> >  			else
-> >  				del_page_from_inactive_list(zone, page);
-> > -			list_add_tail(&page->lru, pagelist);
-> > +			if (pagelist)
-> > +				list_add_tail(&page->lru, pagelist);
-> >  		}
-> >  		spin_unlock_irq(&zone->lru_lock);
-> >  	}
-> 
-> isolate lru page can be called without a pagelist now?
+> The fundamental assumption in these patchsets is that memory policies are 
+> permanently used to control allocation. However, allocation policies may 
+> be temporarily set to various allocation methods in order to allocate 
+> certain memory structures in special ways. The policy may be reset later 
+> and not reflect the allocation wanted for a certain structure when the 
+> opportunistic or lazy migration takes place.
 
-I'll take a look.  I thought I still had to do something here to get the
-interface that I needed.
+Yes, that is the fundamental assumption.  That pages follow their
+policies to the extent that the system is capable of enforcing this.  I
+have always assumed that applications only played the games with
+changing the policies the way you describe because of the limitations of
+the current implementation.  If the system always did what you said vis
+a vis the policy, then why change it to something that's not what you
+want?
 
 > 
+> Maybe we can use the memory polices in the way you suggest (my 
+> MPOL_MF_MOVE_* flags certainly do the same but they are set by the coder 
+> of the user space application who is aware of what is going on !). 
 > 
-> > -int fail_migrate_page(struct page *newpage, struct page *page)
-> > +int fail_migrate_page(struct page *newpage, struct page *page, int faulting)
-> 
-> I do not think the faulting parameter is needed. mapcount == 0 if 
-> we are faulting on an unmapped page. try_to_unmap() will do nothing or 
-> you can check for mapcount.
+> But there are significant components missing to make this work the right 
+> way. In particular file backed pages are not allocated according to vma 
+> policy. Only anonymous pages are. So this would only work correctly for 
+> anonymous pages that are explicitly shifted onto swap. 
 
-I also need to allow another reference count for the fault path.  I much
-prefer having the explicit indication and think it less likely to cause
-breakage down the line that counting on zero map count here.  
-
-> 
-> >  	 *
-> >  	 * Note that a real pte entry will allow processes that are not
-> >  	 * waiting on the page lock to use the new page via the page tables
-> >  	 * before the new page is unlocked.
-> >  	 */
-> > -	remove_from_swap(newpage);
-> > +	if (!faulting)
-> > +		remove_from_swap(newpage);
-> >  	return 0;
-> 
-> If we are faulting then there is nothing to remove. remove_from_swap would 
-> do nothing.
-
-Not true.  The page is in the swap cache [or migration cache, if we ever
-get one].  And, the faulting task may not have the only pte reference to
-that page.  I don't remove_from_swap() walking the reverse map and
-replacing any other ptes in the fault path of another tasks--as we've
-discussed before.
+Right.  You mentioned this in the prior mail and in off-list exchanges
+we've had.  I agree.  IMO, this is another area where work could be
+done.  I'd be willing to tackle that as part of this effort if I can
+understand what it is that would be acceptable.
 
 > 
-> > +out:
-> > +	putback_lru_page(page);		/* drops a page ref */
-> 
-> We already have a ref from the fault patch and do not need another one 
-> in isolate_lru page right?
-> 
+> I think there will be mostly correct behavior for file backed pages. Most 
+> processes do not use policies at all and so this will move the file 
+> backed page to the node where the process is executing. If the process 
+> frequently refers to the page then the effort that was expended is 
+> justified. However, if the page is not frequently references then the 
+> effort required to migrate the page was not justified.
 
-No, we don't need another one.  I only did the isolate_lru_page() so
-that the page being migrated in the fault path is in the same state as
-pages being migrated directly--i.e., we hold them isolated from the lru.
-Then, they can only be found via the cache.  For anon pages, this means
-via faulting tasks' ptes.  For file back and shmem pages [when/if we
-hook them up], they could also be found by faulting on the appropriate
-file page.  However, in those cases, we'll already have the page locked,
-the subsquent faulters will be held off until migration is complete.
-Then they'll need to check and do the right thing [as discussed in a
-different thread].
+Well, the migration wouldn't have occurred unless the task just happened
+to touch the page at a point where 1) it's in the cache, 2) no tasks
+have any pte's referencing the page [mapcount ==0] and 3) its location
+does not follow applicable policy--WHATEVER that is.  This is similar to
+what would happen for the first task to touch a page after it has been
+evicted from the cache for some reason, right?
+
+> 
+> For some processes this has the potential to actually decreasing the 
+> performance, for other processes that are using memory policies to 
+> control the allocation of structures it may allocate the page in a way 
+> that the application tried to avoid because it may be using the wrong 
+> memory policy.
+
+Probably true.  Just as migrating task away from their memory due to
+scheduling load imbalances can decrease the performance of the affected
+task and, possibly, tasks on the node where it's left behind memory
+resides.  We need to ensure that users who have gone to a great deal of
+trouble to layout their application don't get burned.  However, I'd also
+like to provide some benefit for applications that haven't been
+carefully hand tuned/bound to the configuration.
+
+> 
+> Then there is the known deficiency that memory policies do not work with 
+> file backed pages. I surely wish that this would be addressed first.
+
+Without more information, I suspect that my approach to that may not be
+what you had in mind.  I discussed some ideas in response to other
+messages in this series.
 
 Lee
 
