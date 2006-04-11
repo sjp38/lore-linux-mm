@@ -1,142 +1,72 @@
-Date: Tue, 11 Apr 2006 20:30:39 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch:004/005] wait_table and zonelist initializing for memory hotadd (wait_table initialization)
-In-Reply-To: <20060411202031.5643.Y-GOTO@jp.fujitsu.com>
-References: <20060411202031.5643.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20060411202802.564B.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: Page Migration: Make do_swap_page redo the fault
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0604101303350.24029@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0604032228150.24182@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0604081312200.14441@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0604081058290.16914@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0604082022170.12196@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0604081430280.17911@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0604090357350.5312@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0604101933400.26478@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0604101303350.24029@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 11 Apr 2006 10:58:21 -0400
+Message-Id: <1144767501.5160.12.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Wait_table is initialized according to zone size at boot time.
-But, we cannot know the maixmum zone size when memory hotplug is enabled.
-It can be changed.... And resizing of wait_table is hard.
+On Mon, 2006-04-10 at 13:19 -0700, Christoph Lameter wrote:
+> On Mon, 10 Apr 2006, Hugh Dickins wrote:
+> 
+> > I have now checked through, and I'm relieved to conclude that neither
+> > of those other two PageSwapCache rechecks are necessary; and the rules
+> > are much as before.
+> 
+> Note that the removal of the check in do_swap_page does only work
+> since the remove_from_swap() changes the pte. Without that pte change 
+> do_swap_page could retrieve the old page via the swap map. It would wait 
+> until page migration finished its migration and then find that the page is 
+> not in the pagecache anymore. Note that Lee Schermerhorn's lazy page 
+> migration may rely on disabling remove_from_swap() for his migration 
+> scheme. Lee? Looks like we are putting new barriers in front of you?
 
-So kernel allocate and initialzie wait_table as its maximum size.
+Yes.  I noticed.  If the current code doesn't depend on these check, I
+guess you should probably rip 'em out and I'll carry any necessary check
+in my series.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> 
+> > In the try_to_unuse case, it's quite possible that !PageSwapCache there,
+> > because of a racing delete_from_swap_cache; but that case is correctly
+> > handled in the code that follows.
+> 
+> Ah. I see a later check 
+> 
+> if ((*swap_map > 1) && PageDirty(page) && PageSwapCache(page)) {
+> 
+> > So I believe we can safely remove these other two
+> > "Page migration has occured" blocks - can't we?
+> 
+> Hmmm... The increased count is also an argument against having to check 
+> for the race in do_swap_page(). So maybe Lee's lazy migration patchset 
+> should also be fine without these checks and there is actually no need
+> to rely on the ptes not being the same.
 
- mm/page_alloc.c |   47 +++++++++++++++++++++++++++++++++++++++++------
- 1 files changed, 41 insertions(+), 6 deletions(-)
+May still be some work in do_swap_page().  The unmap has already
+occurred.  In the general case [support for migrating pages w/ > 1 pte
+mapping], two or more tasks could race faulting the cache pte.  IMO one
+should perform the migration [replacing old page in cache with new
+page], others should block and then use the new page to resolve their
+own faults.  I think this means a check and then at least another cache
+lookup.  Maybe redo the fault, as Christoph has said.
 
-Index: pgdat10/mm/page_alloc.c
-===================================================================
---- pgdat10.orig/mm/page_alloc.c	2006-04-11 15:15:36.000000000 +0900
-+++ pgdat10/mm/page_alloc.c	2006-04-11 19:03:23.000000000 +0900
-@@ -1786,6 +1786,7 @@ void __init build_all_zonelists(void)
-  */
- #define PAGES_PER_WAITQUEUE	256
- 
-+#ifndef CONFIG_MEMORY_HOTPLUG
- static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
- {
- 	unsigned long size = 1;
-@@ -1804,6 +1805,33 @@ static inline unsigned long wait_table_h
- 
- 	return max(size, 4UL);
- }
-+#else
-+/*
-+ * XXX: Because zone size might be changed by hot-add,
-+ *	It is hard to determin suitable value for wait_table as traditional.
-+ *	So, we use maximum entries now.
-+ *
-+ *	  The max wait table size = 4096 x sizeof(wait_queue_head_t) byte.
-+ *	    ex:
-+ *	      i386 (preemption config)    : 4096 x 16 = 64Kbyte.
-+ *	      ia64, x86-64 (no preemption): 4096 x 20 = 80Kbyte.
-+ *	      ia64, x86-64 (preemption)   : 4096 x 24 = 96Kbyte.
-+ *
-+ *	  The maximum entries are prepared when a zone's memory is
-+ *	  (512K + 256) pages or more by traditional way. (See above)
-+ *	  It equals ....
-+ *	    i386, x86-64, powerpc(4K page size) : =  ( 2G + 1M)byte.
-+ *	    ia64(16K page size)                 : =  ( 8G + 4M)byte.
-+ *	    powerpc (64K page size)             : =  (32G +16M)byte.
-+ *
-+ *	  If system doesn't have this size or more memory in the future,
-+ *	  wait_table might be too bigger than suitable.
-+ */
-+static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
-+{
-+	return 4096UL;
-+}
-+#endif
- 
- /*
-  * This is an integer logarithm so that shifts can be used later
-@@ -2072,10 +2100,11 @@ void __init setup_per_cpu_pageset(void)
- #endif
- 
- static __meminit
--void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
-+int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
- {
- 	int i;
- 	struct pglist_data *pgdat = zone->zone_pgdat;
-+	size_t alloc_size;
- 
- 	/*
- 	 * The per-page waitqueue mechanism uses hashed waitqueues
-@@ -2085,12 +2114,32 @@ void zone_wait_table_init(struct zone *z
- 		 wait_table_hash_nr_entries(zone_size_pages);
- 	zone->wait_table_bits =
- 		wait_table_bits(zone->wait_table_hash_nr_entries);
--	zone->wait_table = (wait_queue_head_t *)
--		alloc_bootmem_node(pgdat, zone->wait_table_hash_nr_entries
--					* sizeof(wait_queue_head_t));
-+	alloc_size = zone->wait_table_hash_nr_entries
-+					* sizeof(wait_queue_head_t);
-+
-+ 	if (system_state == SYSTEM_BOOTING) {
-+		zone->wait_table = (wait_queue_head_t *)
-+			alloc_bootmem_node(pgdat, alloc_size);
-+	} else {
-+		/*
-+		 * XXX: This case means that a zone whose size was 0 gets new
-+		 *      memory by memory hot-add.
-+		 *      But, this may be the case that "new node" is hotadded.
-+		 * 	If its case, vmalloc() will not get this new node's
-+		 *      memory. Because this wait_table must be initialized
-+		 *      to use this new node itself too.
-+		 *      To use this new node's memory, further consideration
-+		 *      will be necessary.
-+		 */
-+		zone->wait_table = (wait_queue_head_t *)vmalloc(alloc_size);
-+	}
-+	if (!zone->wait_table)
-+		return -ENOMEM;
- 
- 	for(i = 0; i < zone->wait_table_hash_nr_entries; ++i)
- 		init_waitqueue_head(zone->wait_table + i);
-+
-+	return 0;
- }
- 
- static __meminit void zone_pcp_init(struct zone *zone)
-@@ -2117,8 +2166,10 @@ __meminit int init_currently_empty_zone(
- 					unsigned long size)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
--
--	zone_wait_table_init(zone, size);
-+	int ret;
-+	ret = zone_wait_table_init(zone, size);
-+	if (ret)
-+		return ret;
- 	pgdat->nr_zones = zone_idx(zone) + 1;
- 
- 	zone->zone_start_pfn = zone_start_pfn;
+Don't know about direct migration.
 
--- 
-Yasunori Goto 
-
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
