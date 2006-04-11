@@ -1,59 +1,45 @@
-Date: Tue, 11 Apr 2006 11:46:30 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: [PATCH 2.6.17-rc1-mm1 0/6] Migrate-on-fault - Overview
-In-Reply-To: <1144441108.5198.36.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
-References: <1144441108.5198.36.camel@localhost.localdomain>
+Date: Tue, 11 Apr 2006 20:52:49 +0200
+References: <1144441108.5198.36.camel@localhost.localdomain> <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0604111134350.1027@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200604112052.50133.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, ak@suse.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, ak@suse.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
+On Tuesday 11 April 2006 20:46, Christoph Lameter wrote:
+> However, if the page is not frequently references then the 
+> effort required to migrate the page was not justified.
 
-> Note that this mechanism can be used to migrate page cache pages that 
-> were read in earlier, are no longer referenced, but are about to be
-> used by a new task on another node from where the page resides.  The
-> same mechanism can be used to pull anon pages along with a task when
-> the load balancer decides to move it to another node.  However, that
-> will require a bit more mechanism, and is the subject of another
-> patch series.
+I have my doubts the whole thing is really worthwhile. It probably 
+would at least need some statistics to only do this for frequent
+accesses, but I don't know where to put this data.
 
-The fundamental assumption in these patchsets is that memory policies are 
-permanently used to control allocation. However, allocation policies may 
-be temporarily set to various allocation methods in order to allocate 
-certain memory structures in special ways. The policy may be reset later 
-and not reflect the allocation wanted for a certain structure when the 
-opportunistic or lazy migration takes place.
+At least it would be a serious research project to figure out 
+a good way to do automatic migration. From what I was told by
+people who tried this (e.g. in Irix) it is really hard and
+didn't turn out to be a win for them.
 
-Maybe we can use the memory polices in the way you suggest (my 
-MPOL_MF_MOVE_* flags certainly do the same but they are set by the coder 
-of the user space application who is aware of what is going on !). 
+The better way is to just provide the infrastructure
+and let batch managers or program itselves take care of migration.
 
-But there are significant components missing to make this work the right 
-way. In particular file backed pages are not allocated according to vma 
-policy. Only anonymous pages are. So this would only work correctly for 
-anonymous pages that are explicitly shifted onto swap. 
+That was the whole idea behind NUMA API - some problems 
+are too hard to figure out automatically by the kernel, so 
+allow the user or application to give it a hand.
 
-I think there will be mostly correct behavior for file backed pages. Most 
-processes do not use policies at all and so this will move the file 
-backed page to the node where the process is executing. If the process 
-frequently refers to the page then the effort that was expended is 
-justified. However, if the page is not frequently references then the 
-effort required to migrate the page was not justified.
+And frankly the defaults we have currently are not that bad,
+perhaps with some small tweaks (e.g. i'm still liking the idea
+of interleaving file cache by default) 
 
-For some processes this has the potential to actually decreasing the 
-performance, for other processes that are using memory policies to 
-control the allocation of structures it may allocate the page in a way 
-that the application tried to avoid because it may be using the wrong 
-memory policy.
-
-Then there is the known deficiency that memory policies do not work with 
-file backed pages. I surely wish that this would be addressed first.
-
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
