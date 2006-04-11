@@ -1,148 +1,121 @@
-Date: Tue, 11 Apr 2006 20:45:39 +0100
-Subject: [PATCH] squash duplicate page_to_pfn and pfn_to_page
-Message-ID: <20060411194539.GA2507@shadowen.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 2.6.17-rc1-mm1 3/6] Migrate-on-fault - migrate
+	misplaced page
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0604111124090.878@schroedinger.engr.sgi.com>
+References: <1144441108.5198.36.camel@localhost.localdomain>
+	 <1144441424.5198.42.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0604111124090.878@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Tue, 11 Apr 2006 15:51:13 -0400
+Message-Id: <1144785073.5160.86.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-squash duplicate page_to_pfn and pfn_to_page
+On Tue, 2006-04-11 at 11:32 -0700, Christoph Lameter wrote:
+> On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
+> 
+> > @@ -184,6 +185,31 @@ int do_migrate_pages(struct mm_struct *m
+> >  int mpol_misplaced(struct page *, struct vm_area_struct *,
+> >  		unsigned long, int *);
+> >  
+> > +#if defined(CONFIG_MIGRATION) && defined(_LINUX_MM_H)
 
-We have architectures where the size of page_to_pfn and pfn_to_page
-are significant enough to overall image size that they wish to
-push them out of line.  However, in the process we have grown
-a second copy of the implementation of each of these routines
-for each memory model.  Share the implmentation exposing it either
-inline or out-of-line as required.
+I go back and look at it.  I may have to come up with another way to
+avoid header dependency hell.  I did it this way because, as I recall,
+one place where mempolicy.h is included, I encountered errors because
+some of the functions used by the "check_migrate_misplace_page()" are
+not available because <linux/mm.h> was not included there.  That seems
+like a pretty heavy-weight header to be dragging into a source file to
+satisfy a dependency in a static-inline function that the source file
+doesn't even care about.  
 
-Tested on a range of test boxes with various memory models.  Against
-2.6.17-rc1-mm2.
+Maybe check_migrate_misplaced_page() belongs in some other header.
+mempolicy.h seemed like the right place.  And I wanted to put it in a
+header so that I could turn it into a no-op when migrate-on-fault is not
+enabled.  That seems to be the preferred method, when possible, rather
+than #ifdefs" in the .c's.  
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- include/asm-generic/memory_model.h |   27 +++++++++++++++------------
- mm/page_alloc.c                    |   32 ++------------------------------
- 2 files changed, 17 insertions(+), 42 deletions(-)
-diff -upN reference/include/asm-generic/memory_model.h current/include/asm-generic/memory_model.h
---- reference/include/asm-generic/memory_model.h
-+++ current/include/asm-generic/memory_model.h
-@@ -23,29 +23,23 @@
- 
- #endif /* CONFIG_DISCONTIGMEM */
- 
--#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
--struct page;
--/* this is useful when inlined pfn_to_page is too big */
--extern struct page *pfn_to_page(unsigned long pfn);
--extern unsigned long page_to_pfn(struct page *page);
--#else
- /*
-  * supports 3 memory models.
-  */
- #if defined(CONFIG_FLATMEM)
- 
--#define pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
--#define page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
-+#define __pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
-+#define __page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
- 				 ARCH_PFN_OFFSET)
- #elif defined(CONFIG_DISCONTIGMEM)
- 
--#define pfn_to_page(pfn)			\
-+#define __pfn_to_page(pfn)			\
- ({	unsigned long __pfn = (pfn);		\
- 	unsigned long __nid = arch_pfn_to_nid(pfn);  \
- 	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
- })
- 
--#define page_to_pfn(pg)							\
-+#define __page_to_pfn(pg)						\
- ({	struct page *__pg = (pg);					\
- 	struct pglist_data *__pgdat = NODE_DATA(page_to_nid(__pg));	\
- 	(unsigned long)(__pg - __pgdat->node_mem_map) +			\
-@@ -57,18 +51,27 @@ extern unsigned long page_to_pfn(struct 
-  * Note: section's mem_map is encorded to reflect its start_pfn.
-  * section[i].section_mem_map == mem_map's address - start_pfn;
-  */
--#define page_to_pfn(pg)					\
-+#define __page_to_pfn(pg)					\
- ({	struct page *__pg = (pg);				\
- 	int __sec = page_to_section(__pg);			\
- 	__pg - __section_mem_map_addr(__nr_to_section(__sec));	\
- })
- 
--#define pfn_to_page(pfn)				\
-+#define __pfn_to_page(pfn)				\
- ({	unsigned long __pfn = (pfn);			\
- 	struct mem_section *__sec = __pfn_to_section(__pfn);	\
- 	__section_mem_map_addr(__sec) + __pfn;		\
- })
- #endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
-+
-+#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
-+struct page;
-+/* this is useful when inlined pfn_to_page is too big */
-+extern struct page *pfn_to_page(unsigned long pfn);
-+extern unsigned long page_to_pfn(struct page *page);
-+#else
-+#define page_to_pfn __page_to_pfn
-+#define pfn_to_page __pfn_to_page
- #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
- 
- #endif /* __ASSEMBLY__ */
-diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
---- reference/mm/page_alloc.c
-+++ current/mm/page_alloc.c
-@@ -2861,42 +2861,14 @@ void *__init alloc_large_system_hash(con
- }
- 
- #ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
--/*
-- * pfn <-> page translation. out-of-line version.
-- * (see asm-generic/memory_model.h)
-- */
--#if defined(CONFIG_FLATMEM)
- struct page *pfn_to_page(unsigned long pfn)
- {
--	return mem_map + (pfn - ARCH_PFN_OFFSET);
-+	return __pfn_to_page(pfn);
- }
- unsigned long page_to_pfn(struct page *page)
- {
--	return (page - mem_map) + ARCH_PFN_OFFSET;
-+	return __page_to_pfn(page);
- }
--#elif defined(CONFIG_DISCONTIGMEM)
--struct page *pfn_to_page(unsigned long pfn)
--{
--	int nid = arch_pfn_to_nid(pfn);
--	return NODE_DATA(nid)->node_mem_map + arch_local_page_offset(pfn,nid);
--}
--unsigned long page_to_pfn(struct page *page)
--{
--	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
--	return (page - pgdat->node_mem_map) + pgdat->node_start_pfn;
--}
--#elif defined(CONFIG_SPARSEMEM)
--struct page *pfn_to_page(unsigned long pfn)
--{
--	return __section_mem_map_addr(__pfn_to_section(pfn)) + pfn;
--}
--
--unsigned long page_to_pfn(struct page *page)
--{
--	long section_id = page_to_section(page);
--	return page - __section_mem_map_addr(__nr_to_section(section_id));
--}
--#endif /* CONFIG_FLATMEM/DISCONTIGMME/SPARSEMEM */
- EXPORT_SYMBOL(pfn_to_page);
- EXPORT_SYMBOL(page_to_pfn);
- #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+> 
+> Remove the defined(_LINUX_MM_H). This is pretty obscure.
+> 
+> > Index: linux-2.6.17-rc1-mm1/mm/migrate.c
+> > ===================================================================
+> > --- linux-2.6.17-rc1-mm1.orig/mm/migrate.c	2006-04-05 10:14:38.000000000 -0400
+> > +++ linux-2.6.17-rc1-mm1/mm/migrate.c	2006-04-05 10:14:41.000000000 -0400
+> > @@ -59,7 +59,8 @@ int isolate_lru_page(struct page *page, 
+> >  				del_page_from_active_list(zone, page);
+> >  			else
+> >  				del_page_from_inactive_list(zone, page);
+> > -			list_add_tail(&page->lru, pagelist);
+> > +			if (pagelist)
+> > +				list_add_tail(&page->lru, pagelist);
+> >  		}
+> >  		spin_unlock_irq(&zone->lru_lock);
+> >  	}
+> 
+> isolate lru page can be called without a pagelist now?
+
+I'll take a look.  I thought I still had to do something here to get the
+interface that I needed.
+
+> 
+> 
+> > -int fail_migrate_page(struct page *newpage, struct page *page)
+> > +int fail_migrate_page(struct page *newpage, struct page *page, int faulting)
+> 
+> I do not think the faulting parameter is needed. mapcount == 0 if 
+> we are faulting on an unmapped page. try_to_unmap() will do nothing or 
+> you can check for mapcount.
+
+I also need to allow another reference count for the fault path.  I much
+prefer having the explicit indication and think it less likely to cause
+breakage down the line that counting on zero map count here.  
+
+> 
+> >  	 *
+> >  	 * Note that a real pte entry will allow processes that are not
+> >  	 * waiting on the page lock to use the new page via the page tables
+> >  	 * before the new page is unlocked.
+> >  	 */
+> > -	remove_from_swap(newpage);
+> > +	if (!faulting)
+> > +		remove_from_swap(newpage);
+> >  	return 0;
+> 
+> If we are faulting then there is nothing to remove. remove_from_swap would 
+> do nothing.
+
+Not true.  The page is in the swap cache [or migration cache, if we ever
+get one].  And, the faulting task may not have the only pte reference to
+that page.  I don't remove_from_swap() walking the reverse map and
+replacing any other ptes in the fault path of another tasks--as we've
+discussed before.
+
+> 
+> > +out:
+> > +	putback_lru_page(page);		/* drops a page ref */
+> 
+> We already have a ref from the fault patch and do not need another one 
+> in isolate_lru page right?
+> 
+
+No, we don't need another one.  I only did the isolate_lru_page() so
+that the page being migrated in the fault path is in the same state as
+pages being migrated directly--i.e., we hold them isolated from the lru.
+Then, they can only be found via the cache.  For anon pages, this means
+via faulting tasks' ptes.  For file back and shmem pages [when/if we
+hook them up], they could also be found by faulting on the appropriate
+file page.  However, in those cases, we'll already have the page locked,
+the subsquent faulters will be held off until migration is complete.
+Then they'll need to check and do the right thing [as discussed in a
+different thread].
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
