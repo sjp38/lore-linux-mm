@@ -1,52 +1,148 @@
-Date: Tue, 11 Apr 2006 12:33:06 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2.6.17-rc1-mm1 2/6] Migrate-on-fault - check for misplaced
- page
-In-Reply-To: <1144783687.5160.66.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0604111227460.1349@schroedinger.engr.sgi.com>
-References: <1144441108.5198.36.camel@localhost.localdomain>
- <1144441382.5198.40.camel@localhost.localdomain>
- <Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
- <1144783687.5160.66.camel@localhost.localdomain>
+Date: Tue, 11 Apr 2006 20:45:39 +0100
+Subject: [PATCH] squash duplicate page_to_pfn and pfn_to_page
+Message-ID: <20060411194539.GA2507@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, ak@suse.de
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Apr 2006, Lee Schermerhorn wrote:
+squash duplicate page_to_pfn and pfn_to_page
 
-> > The misplaced page function should not consider the vma policy if the page 
-> > is mapped because the VM does not handle vma policies for file 
-> > mapped pages yet. This version may be checking for a policy that would
-> > not be applied to the page for regular allocations.
-> 
-> When you say "mapped" here, you mean a mmap()ed file?  As opposed to
-> "mapped by a pte" such that page_mapcount(page) != 0, right?  Because if
-> the mapcount() isn't zero, we won't even look for misplaced pages.  And,
-> with the V0.2 series, I'm only checking for misplaced pages with
-> mapcount == 0 in the anon page fault path.  If necessary, I can skip
-> pages in VMAs that have non-NULL vm_file.  Do we get these in the anon
-> fault path?
+We have architectures where the size of page_to_pfn and pfn_to_page
+are significant enough to overall image size that they wish to
+push them out of line.  However, in the process we have grown
+a second copy of the implementation of each of these routines
+for each memory model.  Share the implmentation exposing it either
+inline or out-of-line as required.
 
-You would need to skip evaluating the vma policy for file backed pages
-for the misplaced page check.
+Tested on a range of test boxes with various memory models.  Against
+2.6.17-rc1-mm2.
 
-> > You need to use the task policy instead of the vma policy if the page is 
-> > file backed because vma policies do not apply in that case.
-> 
-> OK, but again, I haven't hooked up migrate-on-fault for file backed
-> pages yet.  Here, you're saying that if I DID hook it up before fixing
-> how file back pages are handled, then to be consistent with current
-> behavior, I should use task policy for file back pages?
-
-If this applied only to anonymous pages then its okay.
-
-> How about shmem backed pages?
-
-Those have a valid policy even when they are unmapped.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ include/asm-generic/memory_model.h |   27 +++++++++++++++------------
+ mm/page_alloc.c                    |   32 ++------------------------------
+ 2 files changed, 17 insertions(+), 42 deletions(-)
+diff -upN reference/include/asm-generic/memory_model.h current/include/asm-generic/memory_model.h
+--- reference/include/asm-generic/memory_model.h
++++ current/include/asm-generic/memory_model.h
+@@ -23,29 +23,23 @@
+ 
+ #endif /* CONFIG_DISCONTIGMEM */
+ 
+-#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
+-struct page;
+-/* this is useful when inlined pfn_to_page is too big */
+-extern struct page *pfn_to_page(unsigned long pfn);
+-extern unsigned long page_to_pfn(struct page *page);
+-#else
+ /*
+  * supports 3 memory models.
+  */
+ #if defined(CONFIG_FLATMEM)
+ 
+-#define pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
+-#define page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
++#define __pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
++#define __page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
+ 				 ARCH_PFN_OFFSET)
+ #elif defined(CONFIG_DISCONTIGMEM)
+ 
+-#define pfn_to_page(pfn)			\
++#define __pfn_to_page(pfn)			\
+ ({	unsigned long __pfn = (pfn);		\
+ 	unsigned long __nid = arch_pfn_to_nid(pfn);  \
+ 	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
+ })
+ 
+-#define page_to_pfn(pg)							\
++#define __page_to_pfn(pg)						\
+ ({	struct page *__pg = (pg);					\
+ 	struct pglist_data *__pgdat = NODE_DATA(page_to_nid(__pg));	\
+ 	(unsigned long)(__pg - __pgdat->node_mem_map) +			\
+@@ -57,18 +51,27 @@ extern unsigned long page_to_pfn(struct 
+  * Note: section's mem_map is encorded to reflect its start_pfn.
+  * section[i].section_mem_map == mem_map's address - start_pfn;
+  */
+-#define page_to_pfn(pg)					\
++#define __page_to_pfn(pg)					\
+ ({	struct page *__pg = (pg);				\
+ 	int __sec = page_to_section(__pg);			\
+ 	__pg - __section_mem_map_addr(__nr_to_section(__sec));	\
+ })
+ 
+-#define pfn_to_page(pfn)				\
++#define __pfn_to_page(pfn)				\
+ ({	unsigned long __pfn = (pfn);			\
+ 	struct mem_section *__sec = __pfn_to_section(__pfn);	\
+ 	__section_mem_map_addr(__sec) + __pfn;		\
+ })
+ #endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
++
++#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
++struct page;
++/* this is useful when inlined pfn_to_page is too big */
++extern struct page *pfn_to_page(unsigned long pfn);
++extern unsigned long page_to_pfn(struct page *page);
++#else
++#define page_to_pfn __page_to_pfn
++#define pfn_to_page __pfn_to_page
+ #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+ 
+ #endif /* __ASSEMBLY__ */
+diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
+--- reference/mm/page_alloc.c
++++ current/mm/page_alloc.c
+@@ -2861,42 +2861,14 @@ void *__init alloc_large_system_hash(con
+ }
+ 
+ #ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
+-/*
+- * pfn <-> page translation. out-of-line version.
+- * (see asm-generic/memory_model.h)
+- */
+-#if defined(CONFIG_FLATMEM)
+ struct page *pfn_to_page(unsigned long pfn)
+ {
+-	return mem_map + (pfn - ARCH_PFN_OFFSET);
++	return __pfn_to_page(pfn);
+ }
+ unsigned long page_to_pfn(struct page *page)
+ {
+-	return (page - mem_map) + ARCH_PFN_OFFSET;
++	return __page_to_pfn(page);
+ }
+-#elif defined(CONFIG_DISCONTIGMEM)
+-struct page *pfn_to_page(unsigned long pfn)
+-{
+-	int nid = arch_pfn_to_nid(pfn);
+-	return NODE_DATA(nid)->node_mem_map + arch_local_page_offset(pfn,nid);
+-}
+-unsigned long page_to_pfn(struct page *page)
+-{
+-	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
+-	return (page - pgdat->node_mem_map) + pgdat->node_start_pfn;
+-}
+-#elif defined(CONFIG_SPARSEMEM)
+-struct page *pfn_to_page(unsigned long pfn)
+-{
+-	return __section_mem_map_addr(__pfn_to_section(pfn)) + pfn;
+-}
+-
+-unsigned long page_to_pfn(struct page *page)
+-{
+-	long section_id = page_to_section(page);
+-	return page - __section_mem_map_addr(__nr_to_section(section_id));
+-}
+-#endif /* CONFIG_FLATMEM/DISCONTIGMME/SPARSEMEM */
+ EXPORT_SYMBOL(pfn_to_page);
+ EXPORT_SYMBOL(page_to_pfn);
+ #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
