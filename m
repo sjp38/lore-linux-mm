@@ -1,40 +1,39 @@
-Date: Tue, 11 Apr 2006 10:28:32 -0700 (PDT)
+Date: Tue, 11 Apr 2006 11:08:43 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] [PATCH] support for oom_die
-In-Reply-To: <20060411142909.1899c4c4.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604111025110.564@schroedinger.engr.sgi.com>
-References: <20060411142909.1899c4c4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm1 1/6] Migrate-on-fault - separate unmap
+ from radix tree replace
+In-Reply-To: <1144441333.5198.39.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0604111106550.878@schroedinger.engr.sgi.com>
+References: <1144441108.5198.36.camel@localhost.localdomain>
+ <1144441333.5198.39.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Apr 2006, KAMEZAWA Hiroyuki wrote:
+On Fri, 7 Apr 2006, Lee Schermerhorn wrote:
 
-> I think 2.6 kernel is very robust against OOM situation but sometimes
-> it occurs. Yes, oom_kill works enough and exit oom situation, *when*
-> the system wants to survive.
-> 
-> First, crash-dump is merged (to -mm?). So panic at OOM can be a method to
-> preserve *all* information at OOM. Current OOM killer kills process by SIGKILL,
-> this doesn't preserve any information about OOM situation. Just message log tell
-> something and we have to imagine what happend.
-> 
-> Second, considering clustering system, it has a failover node replacement 
-> system. Because oom_killer tends to kill system slowly, one by one, to detect 
-> it and do failover(or not) at OOM is tend to be difficult. (as far as I know)
-> Panic at OOM is useful in such system because failover system can replace
-> the node immediately.
-> 
-> I'm sorry if this kind of discussion has been setteled in past.
+> +		struct page *page, int nr_refs)
+> +{
+> +	struct address_space *mapping = page_mapping(page);
+> +        struct page **radix_pointer;
+> +
 
-A user process can cause an oops by using too much memory? Would it not be 
-better to terminate the rogue process instead? Otherwise any user can 
-bring down the system?
+Whitespace damage. Some other places as well.
 
+>  /*
+>   * Copy the page to its new location
+> @@ -310,10 +338,11 @@ EXPORT_SYMBOL(migrate_page_copy);
+>  int migrate_page(struct page *newpage, struct page *page)
+>  {
+>  	int rc;
+> +	int nr_refs = 2;	/* cache + current */
+
+Why the nr_refs variables if you do not modify them before passing them 
+to the migration functions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
