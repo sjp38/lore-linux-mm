@@ -1,117 +1,69 @@
-Date: Wed, 12 Apr 2006 15:53:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] support for panic at OOM
-Message-Id: <20060412155301.10d611ca.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 11 Apr 2006 23:59:07 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] support for panic at OOM
+Message-Id: <20060411235907.6a59ecba.akpm@osdl.org>
+In-Reply-To: <20060412155301.10d611ca.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20060412155301.10d611ca.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@engr.sgi.com>, riel@redhat.com, dgc@sgi.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@engr.sgi.com, riel@redhat.com, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a feature to panic at OOM, oom_die.
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+> This patch adds a feature to panic at OOM, oom_die.
 
-When sysctl vm.oom_die = 1, the kernel panics intead of killing
-rogue processes. And if vm.oom_die is 0 the kernel will do
-oom_kill() in the same way as it does today. Of course, the 
-default value is 0 and only root can modifies it.
+Makes sense I guess.
 
-In general, oom_killer works well and kill rogue processes. So 
-the whole system can survive. But there are environments where
-panic is preferable rather than kill some processes.
+> ===================================================================
+> --- linux-2.6.17-rc1-mm2.orig/kernel/sysctl.c
+> +++ linux-2.6.17-rc1-mm2/kernel/sysctl.c
+> @@ -60,6 +60,7 @@ extern int proc_nr_files(ctl_table *tabl
+>  extern int C_A_D;
+>  extern int sysctl_overcommit_memory;
+>  extern int sysctl_overcommit_ratio;
+> +extern int sysctl_oom_die;
+>  extern int max_threads;
+>  extern int sysrq_enabled;
+>  extern int core_uses_pid;
 
-For example, a failover system can replace a broken system with
-back-up system immediately at panic, so it doesn't need oom_kill.
+One day we should create a header file for all these.
 
-Considering a failover cluster system, a failover service puts
-all nodes under its observation. When a node panics, the failover
-system  can replace it with new one immediately. But if oom_kill runs
-and kills some processes, the system will go to partial broken
-state. This partial broken state is sometimes difficult to be
-detected. The worst case is that a failover daemon is killed 
-(possibility is not 0%), the whole system will be unstable.
+> @@ -718,6 +719,14 @@ static ctl_table vm_table[] = {
+>  		.proc_handler	= &proc_dointvec,
+>  	},
+>  	{
+> +		.ctl_name	= VM_OOM_DIE,
+> +		.procname	= "oom_die",
 
-Another case is crash-dump supported system. If the system panics
-at OOM, crash dump can preserve *all* information about system.
-Because SIGKILL cannot cause process coredump, oom killer cannot
-preserve any hints except for the message log.
+I'd suggest it be called "panic_on_oom".  Like the current panic_on_oops.
 
-thanks,
--Kame
-==
+> +int sysctl_oom_die = 0;
 
-This patch adds oom_die sysctl under sys.vm.
+The initialisation is unneeded.
 
-When oom_die==1, system panic at out_of_memory istead of kill some
-process. In some situation, I think panic is more useful than kill.
-This patch is against 2.6.17-rc1-mm2.
+> +static void oom_die(void)
+> +{
+> +	panic("Panic: out of memory: oom_die is selected.");
+> +}
+> +
+>  /**
+>   * oom_kill - kill the "best" process when we run out of memory
+>   *
+> @@ -331,6 +337,8 @@ void out_of_memory(struct zonelist *zone
+>  
+>  	case CONSTRAINT_NONE:
+>  retry:
+> +		if (sysctl_oom_die)
+> +			oom_die();
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I don't think we need a separate function for this?
 
-Index: linux-2.6.17-rc1-mm2/kernel/sysctl.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/kernel/sysctl.c
-+++ linux-2.6.17-rc1-mm2/kernel/sysctl.c
-@@ -60,6 +60,7 @@ extern int proc_nr_files(ctl_table *tabl
- extern int C_A_D;
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+extern int sysctl_oom_die;
- extern int max_threads;
- extern int sysrq_enabled;
- extern int core_uses_pid;
-@@ -718,6 +719,14 @@ static ctl_table vm_table[] = {
- 		.proc_handler	= &proc_dointvec,
- 	},
- 	{
-+		.ctl_name	= VM_OOM_DIE,
-+		.procname	= "oom_die",
-+		.data		= &sysctl_oom_die,
-+		.maxlen		= sizeof(sysctl_oom_die),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
-+	{
- 		.ctl_name	= VM_OVERCOMMIT_RATIO,
- 		.procname	= "overcommit_ratio",
- 		.data		= &sysctl_overcommit_ratio,
-Index: linux-2.6.17-rc1-mm2/mm/oom_kill.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/mm/oom_kill.c
-+++ linux-2.6.17-rc1-mm2/mm/oom_kill.c
-@@ -23,7 +23,7 @@
- #include <linux/cpuset.h>
- 
- /* #define DEBUG */
--
-+int sysctl_oom_die = 0;
- /**
-  * oom_badness - calculate a numeric value for how bad this task has been
-  * @p: task struct of which task we should calculate
-@@ -290,6 +290,12 @@ static struct mm_struct *oom_kill_proces
- 	return oom_kill_task(p, message);
- }
- 
-+
-+static void oom_die(void)
-+{
-+	panic("Panic: out of memory: oom_die is selected.");
-+}
-+
- /**
-  * oom_kill - kill the "best" process when we run out of memory
-  *
-@@ -331,6 +337,8 @@ void out_of_memory(struct zonelist *zone
- 
- 	case CONSTRAINT_NONE:
- retry:
-+		if (sysctl_oom_die)
-+			oom_die();
- 		/*
- 		 * Rambo mode: Shoot down a process and hope it solves whatever
- 		 * issues we may have.
+Please document the new sysctl in Documentation/sysctl/.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
