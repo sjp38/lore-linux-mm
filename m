@@ -1,35 +1,33 @@
-Date: Wed, 12 Apr 2006 10:23:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] squash duplicate page_to_pfn and pfn_to_page
-Message-Id: <20060412102334.0553cdea.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060411194539.GA2507@shadowen.org>
-References: <20060411194539.GA2507@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 11 Apr 2006 23:31:08 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [RFC] [PATCH] support for oom_die
+In-Reply-To: <20060412101154.019e9cb3.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.63.0604112330180.21892@cuia.boston.redhat.com>
+References: <20060411142909.1899c4c4.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604111025110.564@schroedinger.engr.sgi.com>
+ <20060412101154.019e9cb3.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Apr 2006 20:45:39 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
+On Wed, 12 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-> squash duplicate page_to_pfn and pfn_to_page
-> 
-> We have architectures where the size of page_to_pfn and pfn_to_page
-> are significant enough to overall image size that they wish to
-> push them out of line.  However, in the process we have grown
-> a second copy of the implementation of each of these routines
-> for each memory model.  Share the implmentation exposing it either
-> inline or out-of-line as required.
-> 
+> More description:
+> Why they want panic at OOM ?
 
-Thank you for elimination of duplicated codes.
+> Another is failover system. Because they can replace system immediately 
+> at panic, they doesn't need oom_kill.
 
-Thanks,
--Kame
+This makes perfect sense to me.  Of course, one of the guys
+developing our cluster software sits in the cube next to me,
+so I do get to see quite a bit of the cluster software ;)
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
