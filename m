@@ -1,54 +1,69 @@
+Date: Wed, 12 Apr 2006 13:55:12 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH 2.6.17-rc1-mm1 2/6] Migrate-on-fault - check for
-	misplaced page
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20060412094346.0a974f1c.pj@sgi.com>
+ misplaced page
+Message-Id: <20060412135512.913754f4.pj@sgi.com>
+In-Reply-To: <1144867785.5229.9.camel@localhost.localdomain>
 References: <1144441108.5198.36.camel@localhost.localdomain>
-	 <1144441382.5198.40.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
-	 <20060412094346.0a974f1c.pj@sgi.com>
-Content-Type: text/plain
-Date: Wed, 12 Apr 2006 14:49:45 -0400
-Message-Id: <1144867785.5229.9.camel@localhost.localdomain>
+	<1144441382.5198.40.camel@localhost.localdomain>
+	<Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
+	<20060412094346.0a974f1c.pj@sgi.com>
+	<1144867785.5229.9.camel@localhost.localdomain>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, ak@suse.de
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: clameter@sgi.com, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-04-12 at 09:43 -0700, Paul Jackson wrote:
-> Christoph, respnonding to Lee:
-> > > +			/*
-> > > +			 * allows binding to multiple nodes.
-> > > +			 * use current page if in zonelist,
-> > > +			 * else select first allowed node
-> > > +			 */
-> > > +			mems = &pol->cpuset_mems_allowed;
-> > > +			...
-> > 
-> > Hmm.... Checking for the current node in memory policy? How does this 
-> > interact with cpuset constraints?
-> 
-> The per-mempolicy 'cpuset_mems_allowed' does not specify the nodes to
-> which the task is bound, but rather the nodes to which the mempolicy is
-> relative.  No code except the mempolicy rebinding code should be using
-> the mempolicy->cpuset_mems_allowed field.
-> 
-> The proper way to check if a zone is allowed by cpusets appears
-> in several places in the files mm/page_alloc.c, mm/vmscan.c, and
-> mm/hugetlb.c.
+> Thanks, Paul.  But, I wonder, do I even need to do this check at all?
 
-Thanks, Paul.  But, I wonder, do I even need to do this check at all?
-I just found the node in the policy's nodelist after having done a
-cpuset_update_task_memory_state().  Looks like updating the task
-memory state refreshes the policy zonelist, so it should only have nodes
-valid in the cpuset.  Is this correct?
+Quite possibly you don't need that check.  I'm pretending to be on
+vacation this week and avoiding thinking too hard ;).
 
-If so, I can just drop that check...
+Hmmm ... looking around for a bit ... Notice the other code that picks
+off the mempolicy.zonelist when it needs to place a page under
+MPOL_BIND:
 
-Lee
 
+/* Return a zonelist representing a mempolicy */
+static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
+{
+        int nd;
+
+        switch (policy->policy) {
+        case MPOL_PREFERRED:
+                ...
+                break;
+        case MPOL_BIND:
+                /* Lower zones don't get a policy applied */
+                /* Careful: current->mems_allowed might have moved */
+                if (gfp_zone(gfp) >= policy_zone)
+                        if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
+                                return policy->v.zonelist;
+
+
+My recollection is that it goes like this.  If someone sets a mempolicy
+MPOL_BIND on some nodes, and then someone moves that task to a cpuset
+that doesn't include any of the BIND nodes, then that MPOL_BIND
+mempolicy is basically ignored, until such time as if/when the task
+fixes it to refer to some nodes currently allowed by its cpuset.
+
+So my 'cpuset_zone_allowed()' suggestion was wrong.
+
+Looks like you need a 'cpuset_zonelist_valid_mems_allowed()' check, and
+if that fails, behave as if they had a default mempolicy, ignoring the
+MPOL_BIND setting.
+
+Note that I still haven't given any thought to the larger issues that
+others have considered for this patch ... back to vacation.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
