@@ -1,69 +1,113 @@
-Date: Wed, 12 Apr 2006 13:55:12 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 2.6.17-rc1-mm1 2/6] Migrate-on-fault - check for
- misplaced page
-Message-Id: <20060412135512.913754f4.pj@sgi.com>
-In-Reply-To: <1144867785.5229.9.camel@localhost.localdomain>
-References: <1144441108.5198.36.camel@localhost.localdomain>
-	<1144441382.5198.40.camel@localhost.localdomain>
-	<Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
-	<20060412094346.0a974f1c.pj@sgi.com>
-	<1144867785.5229.9.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20060412232036.18862.84118.sendpatchset@skynet>
+Subject: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
+Date: Thu, 13 Apr 2006 00:20:36 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: clameter@sgi.com, linux-mm@kvack.org, ak@suse.de
+To: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> Thanks, Paul.  But, I wonder, do I even need to do this check at all?
+This is V2 of the patchset. They have been boot tested on x86, ppc64
+and x86_64 but I still need to do a double check that zones are the
+same size before and after the patch on all arches. IA64 passed a
+basic compile-test. a driver program that fed in the values generated
+by IA64 to add_active_range(), zone_present_pages_in_node() and
+zone_absent_pages_in_node() seemed to generate expected values.
 
-Quite possibly you don't need that check.  I'm pretending to be on
-vacation this week and avoiding thinking too hard ;).
+Changelog since V1
+o Correctly convert virtual and physical addresses to PFNs on ia64
+o Correctly convert physical addresses to PFN on older ppc 
+o When add_active_range() is called with overlapping pfn ranges, merge them
+o When a zone boundary occurs within a memory hole, account correctly
+o Minor whitespace damage cleanup
+o Debugging patch temporarily included
 
-Hmmm ... looking around for a bit ... Notice the other code that picks
-off the mempolicy.zonelist when it needs to place a page under
-MPOL_BIND:
+At a basic level, architectures define structures to record where active
+ranges of page frames are located. Once located, the code to calculate
+zone sizes and holes in each architecture is very similar.  Some of this
+zone and hole sizing code is difficult to read for no good reason. This
+set of patches eliminates the similar-looking architecture-specific code.
 
+The patches introduce a mechanism where architectures register where the
+active ranges of page frames are with add_active_range(). When all areas
+have been discovered, free_area_init_nodes() is called to initialise
+the pgdat and zones. The zone sizes and holes are then calculated in an
+architecture independent manner.
 
-/* Return a zonelist representing a mempolicy */
-static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
-{
-        int nd;
+Patch 1 introduces the mechanism for registering and initialising PFN ranges
+Patch 2 changes ppc to use the mechanism - 128 arch-specific LOC removed
+Patch 3 changes x86 to use the mechanism - 150 arch-specific LOC removed
+Patch 4 changes x86_64 to use the mechanism - 34 arch-specific LOC removed
+Patch 5 changes ia64 to use the mechanism - 57 arch-specific LOC removed
 
-        switch (policy->policy) {
-        case MPOL_PREFERRED:
-                ...
-                break;
-        case MPOL_BIND:
-                /* Lower zones don't get a policy applied */
-                /* Careful: current->mems_allowed might have moved */
-                if (gfp_zone(gfp) >= policy_zone)
-                        if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
-                                return policy->v.zonelist;
+At this point, there is a net reduction of 27 lines of code and the
+arch-independent code is a lot easier to read in comparison to some of
+the arch-specific stuff, particularly in arch/i386/ .
 
+For Patch 6, it was also noted that page_alloc.c has a *lot* of
+initialisation code which makes the file harder to read than it needs to
+be. Patch 6 creates a new file mem_init.c and moves a lot of initialisation
+code from page_alloc.c to it. After the patch is applied, there is still
+a net reduction of 6 lines of code.
 
-My recollection is that it goes like this.  If someone sets a mempolicy
-MPOL_BIND on some nodes, and then someone moves that task to a cpuset
-that doesn't include any of the BIND nodes, then that MPOL_BIND
-mempolicy is basically ignored, until such time as if/when the task
-fixes it to refer to some nodes currently allowed by its cpuset.
+The patches have been successfully boot tested on
 
-So my 'cpuset_zone_allowed()' suggestion was wrong.
+o x86, flatmem
+o x86, NUMAQ
+o PPC64, NUMA
+o PPC64, CONFIG_NUMA=n
+o x86_64, NUMA with SRAT
 
-Looks like you need a 'cpuset_zonelist_valid_mems_allowed()' check, and
-if that fails, behave as if they had a default mempolicy, ignoring the
-MPOL_BIND setting.
+The patches have been compile tested for ia64 for flatmem and sparsemem
+configurations. At attempt was made to boot test on an ancient RS/6000
+but the vanilla kernel does not boot so I have to investigate there.
 
-Note that I still haven't given any thought to the larger issues that
-others have considered for this patch ... back to vacation.
+The net reduction seems small but the big benefit of this set of patches
+is the reduction of 380 lines of architecture-specific code, some of
+which is very hairy. There should be a greater net reduction when other
+architectures use the same mechanisms for zone and hole sizing but I lack
+the hardware to test on.
+
+Comments?
+
+Additional credit;
+	Dave Hansen for the initial suggestion and comments on early patches
+	Andy Whitcroft for reviewing early versions and catching numerous errors
+	Tony Luck and Bob Picco for testing and debugging on IA64
+
+ arch/i386/Kconfig          |    8 
+ arch/i386/kernel/setup.c   |   19 
+ arch/i386/kernel/srat.c    |   98 ----
+ arch/i386/mm/discontig.c   |   59 --
+ arch/ia64/Kconfig          |    3 
+ arch/ia64/mm/contig.c      |   60 --
+ arch/ia64/mm/discontig.c   |   41 -
+ arch/ia64/mm/init.c        |   12 
+ arch/powerpc/Kconfig       |   13 
+ arch/powerpc/mm/mem.c      |   53 --
+ arch/powerpc/mm/numa.c     |  157 ------
+ arch/ppc/Kconfig           |    3 
+ arch/ppc/mm/init.c         |   26 -
+ arch/x86_64/Kconfig        |    3 
+ arch/x86_64/kernel/e820.c  |   19 
+ arch/x86_64/mm/init.c      |   60 --
+ arch/x86_64/mm/numa.c      |   15 
+ include/asm-ia64/meminit.h |    1 
+ include/asm-x86_64/e820.h  |    1 
+ include/asm-x86_64/proto.h |    2 
+ include/linux/mm.h         |   14 
+ include/linux/mmzone.h     |   15 
+ mm/Makefile                |    2 
+ mm/mem_init.c              | 1014 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c            |  678 ------------------------------
+ 25 files changed, 1185 insertions(+), 1191 deletions(-)
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
