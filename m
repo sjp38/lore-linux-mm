@@ -1,128 +1,57 @@
-Date: Wed, 12 Apr 2006 17:23:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] support for panic at OOM
-Message-Id: <20060412172305.6d5995a5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060411235907.6a59ecba.akpm@osdl.org>
-References: <20060412155301.10d611ca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20060411235907.6a59ecba.akpm@osdl.org>
+Date: Wed, 12 Apr 2006 09:43:46 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm1 2/6] Migrate-on-fault - check for
+ misplaced page
+Message-Id: <20060412094346.0a974f1c.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
+References: <1144441108.5198.36.camel@localhost.localdomain>
+	<1144441382.5198.40.camel@localhost.localdomain>
+	<Pine.LNX.4.64.0604111109370.878@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@engr.sgi.com, riel@redhat.com, dgc@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee.Schermerhorn@hp.com, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+Christoph, respnonding to Lee:
+> > +			/*
+> > +			 * allows binding to multiple nodes.
+> > +			 * use current page if in zonelist,
+> > +			 * else select first allowed node
+> > +			 */
+> > +			mems = &pol->cpuset_mems_allowed;
+> > +			...
+> 
+> Hmm.... Checking for the current node in memory policy? How does this 
+> interact with cpuset constraints?
 
-This is updated version. thank you for suggestions.
+The per-mempolicy 'cpuset_mems_allowed' does not specify the nodes to
+which the task is bound, but rather the nodes to which the mempolicy is
+relative.  No code except the mempolicy rebinding code should be using
+the mempolicy->cpuset_mems_allowed field.
 
--Kame
+The proper way to check if a zone is allowed by cpusets appears
+in several places in the files mm/page_alloc.c, mm/vmscan.c, and
+mm/hugetlb.c.
 
-==
-This patch adds panic_on_oom sysctl under sys.vm.
+$ grep cpuset_zone_allowed mm/*.c
+mm/hugetlb.c:           if (cpuset_zone_allowed(*z, GFP_HIGHUSER) &&
+mm/oom_kill.c:          if (cpuset_zone_allowed(*z, gfp_mask))
+mm/page_alloc.c:         * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+mm/page_alloc.c:                                !cpuset_zone_allowed(*z, gfp_mask))
+mm/page_alloc.c:         * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+mm/vmscan.c:            if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+mm/vmscan.c:            if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+mm/vmscan.c:            if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+mm/vmscan.c:    if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
 
-When sysctl vm.panic_on_oom = 1, the kernel panics intead of killing
-rogue processes. And if vm.panic_on_oom is 0 the kernel will do
-oom_kill() in the same way as it does today. Of course, the
-default value is 0 and only root can modifies it.
-
-In general, oom_killer works well and kill rogue processes. So
-the whole system can survive. But there are environments where
-panic is preferable rather than kill some processes.
-
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Index: oom_die-2.6.17-rc1-mm2/mm/oom_kill.c
-===================================================================
---- oom_die-2.6.17-rc1-mm2.orig/mm/oom_kill.c
-+++ oom_die-2.6.17-rc1-mm2/mm/oom_kill.c
-@@ -22,6 +22,7 @@
- #include <linux/jiffies.h>
- #include <linux/cpuset.h>
- 
-+int sysctl_panic_on_oom;
- /* #define DEBUG */
- 
- /**
-@@ -330,6 +331,8 @@ void out_of_memory(struct zonelist *zone
- 		break;
- 
- 	case CONSTRAINT_NONE:
-+		if (sysctl_panic_on_oom)
-+			panic("out of memory. panic_on_oom is selected\n");
- retry:
- 		/*
- 		 * Rambo mode: Shoot down a process and hope it solves whatever
-Index: oom_die-2.6.17-rc1-mm2/include/linux/sysctl.h
-===================================================================
---- oom_die-2.6.17-rc1-mm2.orig/include/linux/sysctl.h
-+++ oom_die-2.6.17-rc1-mm2/include/linux/sysctl.h
-@@ -188,6 +188,7 @@ enum
- 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
- 	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
- 	VM_SWAP_PREFETCH=33,	/* swap prefetch */
-+	VM_PANIC_ON_OOM=34,	/* panic at out-of-memory */
- };
- 
- 
-Index: oom_die-2.6.17-rc1-mm2/kernel/sysctl.c
-===================================================================
---- oom_die-2.6.17-rc1-mm2.orig/kernel/sysctl.c
-+++ oom_die-2.6.17-rc1-mm2/kernel/sysctl.c
-@@ -60,6 +60,7 @@ extern int proc_nr_files(ctl_table *tabl
- extern int C_A_D;
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+extern int sysctl_panic_on_oom;
- extern int max_threads;
- extern int sysrq_enabled;
- extern int core_uses_pid;
-@@ -718,6 +719,14 @@ static ctl_table vm_table[] = {
- 		.proc_handler	= &proc_dointvec,
- 	},
- 	{
-+		.ctl_name	= VM_PANIC_ON_OOM,
-+		.procname	= "panic_on_oom",
-+		.data		= &sysctl_panic_on_oom,
-+		.maxlen		= sizeof(sysctl_panic_on_oom),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
-+	{
- 		.ctl_name	= VM_OVERCOMMIT_RATIO,
- 		.procname	= "overcommit_ratio",
- 		.data		= &sysctl_overcommit_ratio,
-Index: oom_die-2.6.17-rc1-mm2/Documentation/sysctl/vm.txt
-===================================================================
---- oom_die-2.6.17-rc1-mm2.orig/Documentation/sysctl/vm.txt
-+++ oom_die-2.6.17-rc1-mm2/Documentation/sysctl/vm.txt
-@@ -30,6 +30,7 @@ Currently, these files are in /proc/sys/
- - zone_reclaim_mode
- - zone_reclaim_interval
- - swap_prefetch
-+- panic_on_oom
- 
- ==============================================================
- 
-@@ -189,3 +190,16 @@ copying back pages from swap into the sw
- practice it can take many minutes before the vm is idle enough.
- 
- The default value is 1.
-+
-+=============================================================
-+
-+panic_on_oom
-+
-+This enables or disables panic on out-of-memory feature. If this is set to 1,
-+the kernel panics when out-of-memory happens. If this is set to 0, the kernel
-+will kill some rogue process, called oom_killer. Usually, oom_killer can kill
-+rogue processes and system will survive. If you want to panic the system rather
-+than killing rogue processes, set this to 1.
-+
-+The default value is 0.
-+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
