@@ -1,7 +1,7 @@
-Date: Wed, 12 Apr 2006 16:06:19 +0900
+Date: Wed, 12 Apr 2006 17:23:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] support for panic at OOM
-Message-Id: <20060412160619.31a3c027.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20060412172305.6d5995a5.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20060411235907.6a59ecba.akpm@osdl.org>
 References: <20060412155301.10d611ca.kamezawa.hiroyu@jp.fujitsu.com>
 	<20060411235907.6a59ecba.akpm@osdl.org>
@@ -14,51 +14,115 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@engr.sgi.com, riel@redhat.com, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi, 
 
-On Tue, 11 Apr 2006 23:59:07 -0700
-Andrew Morton <akpm@osdl.org> wrote:
+This is updated version. thank you for suggestions.
 
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > This patch adds a feature to panic at OOM, oom_die.
-> 
-> Makes sense I guess.
-> 
-Thanks,
-
-> > @@ -718,6 +719,14 @@ static ctl_table vm_table[] = {
-> >  		.proc_handler	= &proc_dointvec,
-> >  	},
-> >  	{
-> > +		.ctl_name	= VM_OOM_DIE,
-> > +		.procname	= "oom_die",
-> 
-> I'd suggest it be called "panic_on_oom".  Like the current panic_on_oops.
-> 
-I'll chage.
-
-> > +int sysctl_oom_die = 0;
-> 
-> The initialisation is unneeded.
-> 
-Okay,
-
-
-> > +		if (sysctl_oom_die)
-> > +			oom_die();
-> 
-> I don't think we need a separate function for this?
-> 
-Hmm.. okay. I'll put panic("Panic: out of memory: panic_on_oom is 1.") directly.
-
-> Please document the new sysctl in Documentation/sysctl/.
-> 
-I'll do.
-
-
-Thanks,
 -Kame
+
+==
+This patch adds panic_on_oom sysctl under sys.vm.
+
+When sysctl vm.panic_on_oom = 1, the kernel panics intead of killing
+rogue processes. And if vm.panic_on_oom is 0 the kernel will do
+oom_kill() in the same way as it does today. Of course, the
+default value is 0 and only root can modifies it.
+
+In general, oom_killer works well and kill rogue processes. So
+the whole system can survive. But there are environments where
+panic is preferable rather than kill some processes.
+
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Index: oom_die-2.6.17-rc1-mm2/mm/oom_kill.c
+===================================================================
+--- oom_die-2.6.17-rc1-mm2.orig/mm/oom_kill.c
++++ oom_die-2.6.17-rc1-mm2/mm/oom_kill.c
+@@ -22,6 +22,7 @@
+ #include <linux/jiffies.h>
+ #include <linux/cpuset.h>
+ 
++int sysctl_panic_on_oom;
+ /* #define DEBUG */
+ 
+ /**
+@@ -330,6 +331,8 @@ void out_of_memory(struct zonelist *zone
+ 		break;
+ 
+ 	case CONSTRAINT_NONE:
++		if (sysctl_panic_on_oom)
++			panic("out of memory. panic_on_oom is selected\n");
+ retry:
+ 		/*
+ 		 * Rambo mode: Shoot down a process and hope it solves whatever
+Index: oom_die-2.6.17-rc1-mm2/include/linux/sysctl.h
+===================================================================
+--- oom_die-2.6.17-rc1-mm2.orig/include/linux/sysctl.h
++++ oom_die-2.6.17-rc1-mm2/include/linux/sysctl.h
+@@ -188,6 +188,7 @@ enum
+ 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
+ 	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
+ 	VM_SWAP_PREFETCH=33,	/* swap prefetch */
++	VM_PANIC_ON_OOM=34,	/* panic at out-of-memory */
+ };
+ 
+ 
+Index: oom_die-2.6.17-rc1-mm2/kernel/sysctl.c
+===================================================================
+--- oom_die-2.6.17-rc1-mm2.orig/kernel/sysctl.c
++++ oom_die-2.6.17-rc1-mm2/kernel/sysctl.c
+@@ -60,6 +60,7 @@ extern int proc_nr_files(ctl_table *tabl
+ extern int C_A_D;
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
++extern int sysctl_panic_on_oom;
+ extern int max_threads;
+ extern int sysrq_enabled;
+ extern int core_uses_pid;
+@@ -718,6 +719,14 @@ static ctl_table vm_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ 	{
++		.ctl_name	= VM_PANIC_ON_OOM,
++		.procname	= "panic_on_oom",
++		.data		= &sysctl_panic_on_oom,
++		.maxlen		= sizeof(sysctl_panic_on_oom),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++	},
++	{
+ 		.ctl_name	= VM_OVERCOMMIT_RATIO,
+ 		.procname	= "overcommit_ratio",
+ 		.data		= &sysctl_overcommit_ratio,
+Index: oom_die-2.6.17-rc1-mm2/Documentation/sysctl/vm.txt
+===================================================================
+--- oom_die-2.6.17-rc1-mm2.orig/Documentation/sysctl/vm.txt
++++ oom_die-2.6.17-rc1-mm2/Documentation/sysctl/vm.txt
+@@ -30,6 +30,7 @@ Currently, these files are in /proc/sys/
+ - zone_reclaim_mode
+ - zone_reclaim_interval
+ - swap_prefetch
++- panic_on_oom
+ 
+ ==============================================================
+ 
+@@ -189,3 +190,16 @@ copying back pages from swap into the sw
+ practice it can take many minutes before the vm is idle enough.
+ 
+ The default value is 1.
++
++=============================================================
++
++panic_on_oom
++
++This enables or disables panic on out-of-memory feature. If this is set to 1,
++the kernel panics when out-of-memory happens. If this is set to 0, the kernel
++will kill some rogue process, called oom_killer. Usually, oom_killer can kill
++rogue processes and system will survive. If you want to panic the system rather
++than killing rogue processes, set this to 1.
++
++The default value is 0.
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
