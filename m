@@ -1,33 +1,33 @@
-Date: Tue, 11 Apr 2006 23:31:08 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Wed, 12 Apr 2006 13:49:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC] [PATCH] support for oom_die
+Message-Id: <20060412134956.66857492.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20060412101154.019e9cb3.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.63.0604112330180.21892@cuia.boston.redhat.com>
 References: <20060411142909.1899c4c4.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604111025110.564@schroedinger.engr.sgi.com>
- <20060412101154.019e9cb3.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.LNX.4.64.0604111025110.564@schroedinger.engr.sgi.com>
+	<20060412101154.019e9cb3.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+Cc: clameter@sgi.com, linux-mm@kvack.org, dgc@sgi.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Apr 2006, KAMEZAWA Hiroyuki wrote:
+On Wed, 12 Apr 2006 10:11:54 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> More description:
 > Why they want panic at OOM ?
+> 
 
-> Another is failover system. Because they can replace system immediately 
-> at panic, they doesn't need oom_kill.
+David-san, Rik-san,  thank you for comments.
+I'm convinced there are some cases where panic is better than kill , again.
 
-This makes perfect sense to me.  Of course, one of the guys
-developing our cluster software sits in the cube next to me,
-so I do get to see quite a bit of the cluster software ;)
+I'll fix my corrupt English and post this patch to lkml with proper description.
 
--- 
-All Rights Reversed
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
