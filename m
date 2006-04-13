@@ -1,60 +1,53 @@
-Date: Thu, 13 Apr 2006 20:14:02 +0100
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
-Message-ID: <20060413191402.GA20606@skynet.ie>
-References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com> <20060413173008.GA19402@skynet.ie> <20060413174720.GA15183@agluck-lia64.sc.intel.com>
+Date: Thu, 13 Apr 2006 20:18:01 +0100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [RFD hugetlbfs] strict accounting and wasteful reservations
+Message-ID: <20060413191801.GA9195@localhost.localdomain>
+References: <1144949802.10795.99.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060413174720.GA15183@agluck-lia64.sc.intel.com>
-From: mel@csn.ul.ie (Mel Gorman)
+In-Reply-To: <1144949802.10795.99.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: akpm@osdl.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (13/04/06 10:47), Luck, Tony didst pronounce:
-> > Double counted a hole here, then went downhill. Does the following fix
-> > it?
+On Thu, Apr 13, 2006 at 12:36:42PM -0500, Adam Litke wrote:
+> Sorry to bring this up after the strict accounting patch was merged but
+> things moved along a bit too fast for me to intervene.
 > 
-> Yes, that boots.  What's more the counts of pages in DMA/Normal
-> zone match the kernel w/o your patches too.  So for tiger_defconfig
-> you've now exactly matched the old behaivour.
+> In the thread beginning at http://lkml.org/lkml/2006/3/8/47 , a
+> discussion was had to compare the patch from David Gibson (the patch
+> that was ultimately merged) with an alternative patch from Ken Chen.
+> The main functional difference is how we handle arbitrary file offsets
+> into a hugetlb file.  The current patch reserves enough huge pages to
+> populate the whole file up to the highest file offset in use.  Ken's
+> patch supported arbitrary blocks.
 > 
+> For libhugetlbfs, we would like to have sparsely populated hugetlb files
+> without wasting all the extra huge pages that the current implementation
+> requires.  That aside, having yet another difference in behavior for
+> hugetlbfs files (that isn't necessary) seems like a bad idea.
 
-Very very cool. Thanks for persisting.
+We would?  Why?
 
-> I'll try to test generic and sparse kernels later, but I have to
-> look at another issue now.
+> So on to my questions.  Do people agree that supporting reservation for
+> sparsely populated hugetlbfs files makes sense?
 > 
+> I've been hearing complaints about the code churn in hugetlbfs code
+> lately, so is there a way to adapt what we currently have to support
+> this?
+> 
+> Otherwise, should I (or Ken?) take a stab at resurrecting Ken's
+> competing patch with the intent of eventually replacing the current
+> code?
 
-When you get around to it later, there is one case you may hit that Bob
-Picco encountered and fixed for me. It's where a "new" range is registered
-that is inside an existing area; e.g.
-
-add_active_range:    0->10000
-add_active_range: 9800->10000
-
-It ends up merging incorrectly and you end up with one region from
-9800-10000. The fix is below. 
-
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc1-zonesizing-v6/mm/mem_init.c linux-2.6.17-rc1-107-debug/mm/mem_init.c
---- linux-2.6.17-rc1-zonesizing-v6/mm/mem_init.c	2006-04-13 10:30:50.000000000 +0100
-+++ linux-2.6.17-rc1-107-debug/mm/mem_init.c	2006-04-13 18:39:24.000000000 +0100
-@@ -922,6 +926,13 @@ void __init add_active_range(unsigned in
- 		if (early_node_map[i].nid != nid)
- 			continue;
- 
-+		/* Skip if an existing region covers this new one */
-+		if (start_pfn >= early_node_map[i].start_pfn &&
-+				end_pfn <= early_node_map[i].end_pfn) {
-+			printk("Existing\n");
-+			return;
-+		}
-+
- 		/* Merge forward if suitable */
- 		if (start_pfn <= early_node_map[i].end_pfn &&
- 				end_pfn > early_node_map[i].end_pfn) {
+-- 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
