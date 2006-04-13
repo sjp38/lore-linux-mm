@@ -1,89 +1,54 @@
-Date: Thu, 13 Apr 2006 18:30:08 +0100
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
-Message-ID: <20060413173008.GA19402@skynet.ie>
-References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3DHasZG013255
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:54 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3DHaiWw133554
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:44 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3DHahug018047
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:44 -0400
+Subject: [RFD hugetlbfs] strict accounting and wasteful reservations
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Thu, 13 Apr 2006 12:36:42 -0500
+Message-Id: <1144949802.10795.99.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20060413171942.GA15047@agluck-lia64.sc.intel.com>
-From: mel@csn.ul.ie (Mel Gorman)
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'David Gibson' <david@gibson.dropbear.id.au>, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (13/04/06 10:19), Luck, Tony didst pronounce:
-> On Thu, Apr 13, 2006 at 10:52:08AM +0100, Mel Gorman wrote:
-> > I didn't look at the test program output carefully enough! There was a
-> > double counting of some holes because of a missing "if" - obvious in the
-> > morning. Fix is this (applies on top of the debugging patch)
-> 
-> Back to not booting with tiger_defconfig on Intel Tiger box :-(
-> 
-> There are no lines like:
-> 
-> 	On node 0 totalpages: 260725
-> 	  DMA zone: 129700 pages, LIFO batch:7
-> 	  Normal zone: 131025 pages, LIFO batch:7
-> 
-> in the log ... which might explain the OOM later.
-> 
-> Whole console log appended (The "Kill process 2" messages repeat
-> forever).
-> 
-> -Tony
-> 
-> 
-> <SNIP>
-> Dumping sorted node map
-> entry 0: 0  1024 -> 130688
-> entry 1: 0  130984 -> 131020
-> entry 2: 0  393216 -> 524164
-> entry 3: 0  524192 -> 524269
-> Hole found index 1: 130688 -> 130984
-> Hole found index 2: 131020 -> 262144
-> Hole found index 2: 131020 -> 393216
+Sorry to bring this up after the strict accounting patch was merged but
+things moved along a bit too fast for me to intervene.
 
-Double counted a hole here, then went downhill. Does the following fix
-it?
+In the thread beginning at http://lkml.org/lkml/2006/3/8/47 , a
+discussion was had to compare the patch from David Gibson (the patch
+that was ultimately merged) with an alternative patch from Ken Chen.
+The main functional difference is how we handle arbitrary file offsets
+into a hugetlb file.  The current patch reserves enough huge pages to
+populate the whole file up to the highest file offset in use.  Ken's
+patch supported arbitrary blocks.
 
+For libhugetlbfs, we would like to have sparsely populated hugetlb files
+without wasting all the extra huge pages that the current implementation
+requires.  That aside, having yet another difference in behavior for
+hugetlbfs files (that isn't necessary) seems like a bad idea.
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc1-zonesizing-v6/mm/mem_init.c linux-2.6.17-rc1-107-debug/mm/mem_init.c
---- linux-2.6.17-rc1-zonesizing-v6/mm/mem_init.c	2006-04-13 10:30:50.000000000 +0100
-+++ linux-2.6.17-rc1-107-debug/mm/mem_init.c	2006-04-13 18:00:39.000000000 +0100
-@@ -753,17 +753,21 @@ unsigned long __init zone_absent_pages_i
- 		start_pfn = early_node_map[i].start_pfn;
- 		if (start_pfn > arch_zone_highest_possible_pfn[zone_type])
- 			start_pfn = arch_zone_highest_possible_pfn[zone_type];
--		if (prev_end_pfn > start_pfn) {
--			printk("prev_end > start_pfn : %lu > %lu\n",
--					prev_end_pfn,
--					start_pfn);
--			BUG();
--		}
-+		if (prev_end_pfn < arch_zone_lowest_possible_pfn[zone_type])
-+			prev_end_pfn = arch_zone_lowest_possible_pfn[zone_type];
- 
- 		/* Update the hole size cound and move on */
--		hole_pages += start_pfn - prev_end_pfn;
--		printk("Hole found index %d: %lu -> %lu\n",
--				i, prev_end_pfn, start_pfn);
-+		if (start_pfn > arch_zone_lowest_possible_pfn[zone_type]) {
-+			if (prev_end_pfn > start_pfn) {
-+				printk("prev_end > start_pfn : %lu > %lu\n",
-+						prev_end_pfn,
-+						start_pfn);
-+				BUG();
-+			}
-+			hole_pages += start_pfn - prev_end_pfn;
-+			printk("Hole found index %d: %lu -> %lu\n",
-+					i, prev_end_pfn, start_pfn);
-+		}
- 		prev_end_pfn = early_node_map[i].end_pfn;
- 	}
- 
+So on to my questions.  Do people agree that supporting reservation for
+sparsely populated hugetlbfs files makes sense?
 
+I've been hearing complaints about the code churn in hugetlbfs code
+lately, so is there a way to adapt what we currently have to support
+this?
+
+Otherwise, should I (or Ken?) take a stab at resurrecting Ken's
+competing patch with the intent of eventually replacing the current
+code?
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
