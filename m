@@ -1,44 +1,31 @@
-Date: Thu, 13 Apr 2006 22:32:17 +0100
-From: 'David Gibson' <david@gibson.dropbear.id.au>
-Subject: Re: [RFD hugetlbfs] strict accounting and wasteful reservations
-Message-ID: <20060413213217.GB13729@localhost.localdomain>
-References: <1144949802.10795.99.camel@localhost.localdomain> <20060413191801.GA9195@localhost.localdomain> <1144957873.10795.110.camel@localhost.localdomain> <20060413200143.GA13729@localhost.localdomain> <1144958804.10795.111.camel@localhost.localdomain>
+Date: Thu, 13 Apr 2006 16:24:32 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2/2] mm: fix mm_struct reference counting bugs in
+ mm/oom_kill.c
+Message-Id: <20060413162432.41892d3a.akpm@osdl.org>
+In-Reply-To: <200604131452.08292.dsp@llnl.gov>
+References: <200604131452.08292.dsp@llnl.gov>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1144958804.10795.111.camel@localhost.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: akpm@osdl.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, wli@holomorphy.com, linux-mm@kvack.org
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 13, 2006 at 03:06:44PM -0500, Adam Litke wrote:
-> On Thu, 2006-04-13 at 21:01 +0100, 'David Gibson' wrote:
-> > > We are thinking about switching the implementation of the ELF segment
-> > > remapping code to store all of the remapped segments in one hugetlbfs
-> > > file.  That way we have one hugetlb file per executable.  This makes
-> > > managing the segments much easier, especially when doing things like
-> > > global sharing.  When doing this, we'd like the file offset to
-> > > correspond to the virtual address of the mapped segment.  So I admit
-> > > that altering the kernel behavior helps libhugetlbfs, but I think my
-> > > second justification above is even more important.  I like removing
-> > > anomalies from hugetlbfs whenever possible.
-> > 
-> > Hrm... I'm not entirely convinced attempting to directly map vaddr to
-> > file offset is a good idea.  But give it a shot, I guess.
-> 
-> It works, but just wastes a ton of huge pages in the process.
+Dave Peterson <dsp@llnl.gov> wrote:
+>
+> The patch below fixes some mm_struct reference counting bugs in
+> badness().
 
-Just putting the various segments at consecutive offsets from the
-beginning of the file wouldn't be that hard.  It might be a quicker
-way forward than altering the kernel behaviour.
+hm, OK, afaict the code _is_ racy.
 
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+But you're now calling mmput() inside read_lock(&tasklist_lock), and
+mmput() can sleep in exit_aio() or in exit_mmap()->unmap_vmas().  So
+sterner stuff will be needed.
+
+I'll put a might_sleep() into mmput - it's a bit unexpected.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
