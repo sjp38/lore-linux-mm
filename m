@@ -1,54 +1,29 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3DHasZG013255
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:54 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3DHaiWw133554
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:44 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3DHahug018047
-	for <linux-mm@kvack.org>; Thu, 13 Apr 2006 13:36:44 -0400
-Subject: [RFD hugetlbfs] strict accounting and wasteful reservations
-From: Adam Litke <agl@us.ibm.com>
-Content-Type: text/plain
-Date: Thu, 13 Apr 2006 12:36:42 -0500
-Message-Id: <1144949802.10795.99.camel@localhost.localdomain>
+Date: Thu, 13 Apr 2006 10:47:20 -0700
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
+Message-ID: <20060413174720.GA15183@agluck-lia64.sc.intel.com>
+References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com> <20060413173008.GA19402@skynet.ie>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060413173008.GA19402@skynet.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'David Gibson' <david@gibson.dropbear.id.au>, wli@holomorphy.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry to bring this up after the strict accounting patch was merged but
-things moved along a bit too fast for me to intervene.
+> Double counted a hole here, then went downhill. Does the following fix
+> it?
 
-In the thread beginning at http://lkml.org/lkml/2006/3/8/47 , a
-discussion was had to compare the patch from David Gibson (the patch
-that was ultimately merged) with an alternative patch from Ken Chen.
-The main functional difference is how we handle arbitrary file offsets
-into a hugetlb file.  The current patch reserves enough huge pages to
-populate the whole file up to the highest file offset in use.  Ken's
-patch supported arbitrary blocks.
+Yes, that boots.  What's more the counts of pages in DMA/Normal
+zone match the kernel w/o your patches too.  So for tiger_defconfig
+you've now exactly matched the old behaivour.
 
-For libhugetlbfs, we would like to have sparsely populated hugetlb files
-without wasting all the extra huge pages that the current implementation
-requires.  That aside, having yet another difference in behavior for
-hugetlbfs files (that isn't necessary) seems like a bad idea.
+I'll try to test generic and sparse kernels later, but I have to
+look at another issue now.
 
-So on to my questions.  Do people agree that supporting reservation for
-sparsely populated hugetlbfs files makes sense?
-
-I've been hearing complaints about the code churn in hugetlbfs code
-lately, so is there a way to adapt what we currently have to support
-this?
-
-Otherwise, should I (or Ken?) take a stab at resurrecting Ken's
-competing patch with the intent of eventually replacing the current
-code?
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
