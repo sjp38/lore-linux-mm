@@ -1,75 +1,90 @@
-Date: Fri, 14 Apr 2006 00:26:54 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 2/2] mm: fix mm_struct reference counting bugs in
- mm/oom_kill.c
-Message-Id: <20060414002654.76d1a6bc.akpm@osdl.org>
-In-Reply-To: <200604131744.02114.dsp@llnl.gov>
-References: <200604131452.08292.dsp@llnl.gov>
-	<20060413162432.41892d3a.akpm@osdl.org>
-	<200604131744.02114.dsp@llnl.gov>
+Date: Fri, 14 Apr 2006 14:12:35 +0100
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
+Message-ID: <20060414131235.GA19064@skynet.ie>
+References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com> <20060413173008.GA19402@skynet.ie> <20060413174720.GA15183@agluck-lia64.sc.intel.com> <20060413191402.GA20606@skynet.ie> <20060413215358.GA15957@agluck-lia64.sc.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20060413215358.GA15957@agluck-lia64.sc.intel.com>
+From: mel@csn.ul.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Peterson <dsp@llnl.gov>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Peterson <dsp@llnl.gov> wrote:
->
-> On Thursday 13 April 2006 16:24, Andrew Morton wrote:
-> > Dave Peterson <dsp@llnl.gov> wrote:
-> > > The patch below fixes some mm_struct reference counting bugs in
-> > > badness().
-> >
-> > hm, OK, afaict the code _is_ racy.
-> >
-> > But you're now calling mmput() inside read_lock(&tasklist_lock), and
-> > mmput() can sleep in exit_aio() or in exit_mmap()->unmap_vmas().  So
-> > sterner stuff will be needed.
-> >
-> > I'll put a might_sleep() into mmput - it's a bit unexpected.
+On (13/04/06 14:53), Luck, Tony didst pronounce:
+> On Thu, Apr 13, 2006 at 08:14:02PM +0100, Mel Gorman wrote:
+> > When you get around to it later, there is one case you may hit that Bob
+> > Picco encountered and fixed for me. It's where a "new" range is registered
+> > that is inside an existing area; e.g.
+> > 
+> > add_active_range:    0->10000
+> > add_active_range: 9800->10000
+> > 
+> > It ends up merging incorrectly and you end up with one region from
+> > 9800-10000. The fix is below. 
 > 
-> Hmm... fixing this looks rather tricky.  If get_task_mm()/mmput() was
-> only being done on a single mm_struct then I suppose badness() could
-> do something a bit ugly like passing the reference back to its caller
-> and letting the caller do the mmput() once tasklist_lock is no longer
-> held.  However here we are iterating over a bunch of child tasks,
-> potentially doing a get_task_mm()/mmput() for a number of them.
+> I applied that fix on top of all the others and re-built and booted
+> a "generic" kernel (using arch/ia64/defconfig) and a "sparse" kernel
+> (based on arch/ia64/configs/gensparse_defconfig).
 > 
-> I have a suggestion for a possible solution.  Currently mmput() is
-> implemented as follows:
+> Both booted just fine on my tiger, the memory amounts looked
+> a bit suspicious though ... as if you are reporting *all* the
+> memory in range for the zone, rather than the usable parts.
 > 
->     01 void mmput(struct mm_struct *mm)
->     02 {
->     03         if (atomic_dec_and_lock(&mm->mm_users, &mmlist_lock)) {
->     04                 list_del(&mm->mmlist);
->     05                 mmlist_nr--;
->     06                 spin_unlock(&mmlist_lock);
->     07                 exit_aio(mm);
->     08                 exit_mmap(mm);
->     09                 put_swap_token(mm);
->     10                 mmdrop(mm);
->     11         }
->     12 }
+> Diffing console log from the boot of a 2.6.17-rc1 generic
+> kernel against one with your patches the relevent bit is:
 > 
-> Suppose we replace lines 07-10 with a little piece of code that adds
-> the mm_struct to a list.  Then a kernel thread empties the list
-> (perhaps via the work queue mechanism), doing the stuff in lines
-> 07-10 for each mm_struct.  This would eliminate the possibility of
-> mmput() sleeping, potentially making things easier for other callers
-> of mmput() and causing fewer surprises.  Any comments?
+> < On node 0 totalpages: 259873
+> <   DMA zone: 128931 pages, LIFO batch:7
+> <   Normal zone: 130942 pages, LIFO batch:7
+> ---
+> > On node 0 totalpages: 262144
+> >   DMA zone: 131072 pages, LIFO batch:7
+> >   Normal zone: 131072 pages, LIFO batch:7
+> 
+> That's a very precise 4G total, split exactly 2G+2G between
+> DMA and normal zones.  Same thing for the sparse kernel
+> (though I didn't check what an unpatched kernel prints).
+> 
 
-task_lock() can be used to pin a task's ->mm.  To use task_lock() in
-badness() we'd need to either
+Interesting.  I register active ranges inside count_node_pages() which is an
+EFI memmap_walk callback. So, I'd expect to see one call to add_active_range()
+for each active range in the EFI map;
 
-a) nest task_lock()s.  I don't know if we're doing that anywhere else,
-   but the parent->child ordering is a natural one.  or
+> add_active_range(0, 0, 4096): New
+> add_active_range(0, 0, 131072): Merging forward
+> add_active_range(0, 0, 131072): Existing
+> add_active_range(0, 393216, 523264): New
+> add_active_range(0, 393216, 523264): Existing
+> add_active_range(0, 393216, 524288): Merging forward
+> add_active_range(0, 393216, 524288): Existing
 
-b) take a ref on the parent's mm_struct, drop the parent's task_lock()
-   while we walk the children, then do mmput() on the parent's mm outside
-   tasklist_lock.  This is probably better.
+That appears fine, but I call add_active_range() after a GRANULEROUNDUP and
+GRANULEROUNDDOWN has taken place so that might be the problem, especially as
+all those ranges are aligned on a 16MiB boundary. The following patch calls
+add_active_range() before the rounding takes place. Can you try it out please?
+
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc1-zonesizing-v6/arch/ia64/mm/discontig.c linux-2.6.17-rc1-107-debug/arch/ia64/mm/discontig.c
+--- linux-2.6.17-rc1-zonesizing-v6/arch/ia64/mm/discontig.c	2006-04-13 10:30:49.000000000 +0100
++++ linux-2.6.17-rc1-107-debug/arch/ia64/mm/discontig.c	2006-04-14 11:37:51.000000000 +0100
+@@ -636,6 +636,7 @@ static __init int count_node_pages(unsig
+ {
+ 	unsigned long end = start + len;
+ 
++	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+ 	mem_data[node].num_physpages += len >> PAGE_SHIFT;
+ 	if (start <= __pa(MAX_DMA_ADDRESS))
+ 		mem_data[node].num_dma_physpages +=
+@@ -647,7 +648,6 @@ static __init int count_node_pages(unsig
+ 				     end >> PAGE_SHIFT);
+ 	mem_data[node].min_pfn = min(mem_data[node].min_pfn,
+ 				     start >> PAGE_SHIFT);
+-	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
