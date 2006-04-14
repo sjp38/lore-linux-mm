@@ -1,66 +1,76 @@
-Date: Fri, 14 Apr 2006 11:31:04 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Implement lookup_swap_cache for migration entries
-Message-Id: <20060414113104.72a5059b.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0604141025310.18575@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
-	<20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
-	<20060413171331.1752e21f.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
-	<20060413174232.57d02343.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
-	<20060413180159.0c01beb7.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131827210.16220@schroedinger.engr.sgi.com>
-	<20060413222921.2834d897.akpm@osdl.org>
-	<Pine.LNX.4.64.0604141025310.18575@schroedinger.engr.sgi.com>
+Date: Fri, 14 Apr 2006 20:36:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH] slab: cleanup kmem_getpages
+Message-ID: <20060414183618.GA21144@lst.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> This undoes the optimization that resulted in a yield in do_swap_cache().
-> do_swap_cache() stays as is. Instead we convert the migration entry to
-> a page * in lookup_swap_cache.
-> 
-> For the non swap case we need a special macro version of lookup_swap_cache
-> that is only capable of handling migration cache entries.
-> 
-> ...
->
-> @@ -305,6 +306,12 @@ struct page * lookup_swap_cache(swp_entr
->  {
->  	struct page *page;
->  
-> +	if (is_migration_entry(entry)) {
-> +		page = migration_entry_to_page(entry);
-> +		get_page(page);
-> +		return page;
-> +	}
+The last ifdef addition hit the ugliness treshold on this functions, so:
 
-What locking ensures that the state of `entry' remains unaltered across the
-is_migration_entry() and migration_entry_to_page() calls?
+ - rename the varibale i to nr_pages so it's somewhat descriptive
+ - remove the addr variable and do the page_address call at the very end
+ - instead of ifdef'ing the whole alloc_pages_node call just make the
+   __GFP_COMP addition to flags conditional
+ - rewrite the __GFP_COMP comment to make sense
 
->  
-> +/*
-> + * Must use a macro for lookup_swap_cache since the functions
-> + * used are only available in certain contexts.
-> + */
-> +#define lookup_swap_cache(__swp)				\
-> +({	struct page *p = NULL;					\
-> +	if (is_migration_entry(__swp)) {			\
-> +		p = migration_entry_to_page(__swp);		\
-> +		get_page(p);					\
-> +	}							\
-> +	p;							\
-> +})
 
-hm.  Can nommu do any of this?
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2006-04-13 16:22:12.000000000 +0200
++++ linux-2.6/mm/slab.c	2006-04-13 16:53:15.000000000 +0200
+@@ -1452,31 +1452,30 @@
+ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
+ 	struct page *page;
+-	void *addr;
+-	int i;
++	int nr_pages;
+ 
+-	flags |= cachep->gfpflags;
+ #ifndef CONFIG_MMU
+-	/* nommu uses slab's for process anonymous memory allocations, so
+-	 * requires __GFP_COMP to properly refcount higher order allocations"
++	/*
++	 * Nommu uses slab's for process anonymous memory allocations, and thus
++	 * requires __GFP_COMP to properly refcount higher order allocations
+ 	 */
+-	page = alloc_pages_node(nodeid, (flags | __GFP_COMP), cachep->gfporder);
+-#else
+-	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
++	flags |= __GFP_COMP;
+ #endif
++	flags |= cachep->gfpflags;
++
++	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+ 	if (!page)
+ 		return NULL;
+-	addr = page_address(page);
+ 
+-	i = (1 << cachep->gfporder);
++	nr_pages = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+-		atomic_add(i, &slab_reclaim_pages);
+-	add_page_state(nr_slab, i);
+-	while (i--) {
++		atomic_add(nr_pages, &slab_reclaim_pages);
++	add_page_state(nr_slab, nr_pages);
++	while (nr_pages--) {
+ 		__SetPageSlab(page);
+ 		page++;
+ 	}
+-	return addr;
++	return page_address(page);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
