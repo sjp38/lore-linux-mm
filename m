@@ -1,107 +1,43 @@
-Date: Fri, 14 Apr 2006 10:29:01 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Preserve write permissions in migration entries
-In-Reply-To: <20060414114437.1a5a9c7c.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604141023550.18575@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060413235432.15398.23912.sendpatchset@schroedinger.engr.sgi.com>
- <20060414101959.d59ac82d.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604131832020.16220@schroedinger.engr.sgi.com>
- <20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
- <20060414114437.1a5a9c7c.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3EHXUbE006300
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2006 13:33:30 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3EHXUoe255920
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2006 13:33:30 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3EHXTSN004984
+	for <linux-mm@kvack.org>; Fri, 14 Apr 2006 13:33:30 -0400
+Subject: RE: [RFD hugetlbfs] strict accounting and wasteful reservations
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <4t153d$lv444@azsmga001.ch.intel.com>
+References: <4t153d$lv444@azsmga001.ch.intel.com>
+Content-Type: text/plain
+Date: Fri, 14 Apr 2006 12:33:28 -0500
+Message-Id: <1145036008.10795.122.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'David Gibson' <david@gibson.dropbear.id.au>, akpm@osdl.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I cleaned up the patch a bit and ran some tests.
+On Thu, 2006-04-13 at 18:55 -0700, Chen, Kenneth W wrote:
+> Arbitrary offset isn't that bad, here is the patch that I forward port to
+> 2.6.17-rc1.  It is just 35 lines more.  Another thing I can do is to put
+> the variable region tracking code into a library function, maybe that will
+> help to move it along?  I'm with Adam, I don't like to see hugetlbfs have
+> yet another uncommon behavior.
 
+Thanks Ken.  The patch passes the libhugetlbfs test suite and also works
+as advertised for sparse mappings.  I don't recall, is this the version
+you and David were converging on before Dave's patch was merged?  I seem
+to remember a few iterations of this patch centered locking discussions,
+etc.
 
-This patch implements the preservation of the write permissions.
-The preservation of write permission avoids unnecessary COW operations
-following page migration.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Index: linux-2.6.17-rc1-mm2/include/linux/swap.h
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/include/linux/swap.h	2006-04-14 09:08:42.000000000 -0700
-+++ linux-2.6.17-rc1-mm2/include/linux/swap.h	2006-04-14 10:01:27.000000000 -0700
-@@ -33,8 +33,9 @@ static inline int current_is_kswapd(void
- #define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
- #else
- /* Use last entry for page migration swap entries */
--#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-1)
--#define SWP_TYPE_MIGRATION	MAX_SWAPFILES
-+#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
-+#define SWP_MIGRATION_READ	MAX_SWAPFILES
-+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
- #endif
- 
- /*
-Index: linux-2.6.17-rc1-mm2/include/linux/swapops.h
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/include/linux/swapops.h	2006-04-14 09:55:25.000000000 -0700
-+++ linux-2.6.17-rc1-mm2/include/linux/swapops.h	2006-04-14 10:06:43.000000000 -0700
-@@ -69,15 +69,22 @@ static inline pte_t swp_entry_to_pte(swp
- }
- 
- #ifdef CONFIG_MIGRATION
--static inline swp_entry_t make_migration_entry(struct page *page)
-+static inline swp_entry_t make_migration_entry(struct page *page, int write)
- {
- 	BUG_ON(!PageLocked(page));
--	return swp_entry(SWP_TYPE_MIGRATION, page_to_pfn(page));
-+	return swp_entry(write ? SWP_MIGRATION_WRITE : SWP_MIGRATION_READ,
-+			 page_to_pfn(page));
- }
- 
- static inline int is_migration_entry(swp_entry_t entry)
- {
--	return unlikely(swp_type(entry) == SWP_TYPE_MIGRATION);
-+	return unlikely(swp_type(entry) == SWP_MIGRATION_READ ||
-+			swp_type(entry) == SWP_MIGRATION_WRITE);
-+}
-+
-+static inline int is_write_migration_entry(swp_entry_t entry)
-+{
-+	return swp_type(entry) == SWP_MIGRATION_WRITE;
- }
- 
- static inline struct page *migration_entry_to_page(swp_entry_t entry)
-Index: linux-2.6.17-rc1-mm2/mm/rmap.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/mm/rmap.c	2006-04-13 16:43:24.000000000 -0700
-+++ linux-2.6.17-rc1-mm2/mm/rmap.c	2006-04-14 10:04:27.000000000 -0700
-@@ -602,7 +602,7 @@ static int try_to_unmap_one(struct page 
- 			 * pte is removed and then restart fault handling.
- 			 */
- 			BUG_ON(!migration);
--			entry = make_migration_entry(page);
-+			entry = make_migration_entry(page, pte_write(pteval));
- 		}
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 		BUG_ON(pte_file(*pte));
-Index: linux-2.6.17-rc1-mm2/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/mm/migrate.c	2006-04-13 16:44:07.000000000 -0700
-+++ linux-2.6.17-rc1-mm2/mm/migrate.c	2006-04-14 10:06:01.000000000 -0700
-@@ -167,7 +167,10 @@ static void remove_migration_pte(struct 
- 
- 	inc_mm_counter(mm, anon_rss);
- 	get_page(new);
--	set_pte_at(mm, addr, ptep, pte_mkold(mk_pte(new, vma->vm_page_prot)));
-+	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
-+	if (is_write_migration_entry(entry))
-+		pte = pte_mkwrite(pte);
-+	set_pte_at(mm, addr, ptep, pte);
- 	page_add_anon_rmap(new, vma, addr);
- out:
- 	pte_unmap_unlock(pte, ptl);
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
