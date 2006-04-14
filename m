@@ -1,44 +1,54 @@
-Date: Fri, 14 Apr 2006 23:54:07 +0100 (IST)
-From: Mel Gorman <mel@skynet.ie>
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture
- independent manner V2
-In-Reply-To: <20060414205345.GA1258@agluck-lia64.sc.intel.com>
-Message-ID: <Pine.LNX.4.64.0604142353460.22940@skynet.skynet.ie>
+From: Nigel Cunningham <ncunningham@cyclades.com>
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
+Date: Sat, 15 Apr 2006 09:17:04 +1000
 References: <20060412232036.18862.84118.sendpatchset@skynet>
- <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com>
- <20060413173008.GA19402@skynet.ie> <20060413174720.GA15183@agluck-lia64.sc.intel.com>
- <20060413191402.GA20606@skynet.ie> <20060413215358.GA15957@agluck-lia64.sc.intel.com>
- <20060414131235.GA19064@skynet.ie> <20060414205345.GA1258@agluck-lia64.sc.intel.com>
+In-Reply-To: <20060412232036.18862.84118.sendpatchset@skynet>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: multipart/signed;
+  boundary="nextPart5114347.xFTveIS9QW";
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1
+Content-Transfer-Encoding: 7bit
+Message-Id: <200604150917.10596.ncunningham@cyclades.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bob.picco@hp.com, ak@suse.de, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Apr 2006, Luck, Tony wrote:
+--nextPart5114347.xFTveIS9QW
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-> On Fri, Apr 14, 2006 at 02:12:35PM +0100, Mel Gorman wrote:
->> That appears fine, but I call add_active_range() after a GRANULEROUNDUP and
->> GRANULEROUNDDOWN has taken place so that might be the problem, especially as
->> all those ranges are aligned on a 16MiB boundary. The following patch calls
->> add_active_range() before the rounding takes place. Can you try it out please?
->
-> That's good.  Now I see identical output before/after your patch for
-> the generic (DISCONTIG=y) kernel:
->
-> On node 0 totalpages: 259873
->  DMA zone: 128931 pages, LIFO batch:7
->  Normal zone: 130942 pages, LIFO batch:7
->
+Hi Mel.
 
-Very very cool. Thanks for all the testing.
+It looks to me like this code could be used by the software suspend code in=
+=20
+our determinations of what pages to save, particularly in the context of=20
+memory hotplug support. Just some food for thought at the moment; I'll see =
+if=20
+I can come up with a patch when I have some time, but it might help justify=
+=20
+getting this merged.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Regards,
+
+Nigel
+
+--nextPart5114347.xFTveIS9QW
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQBEQC12N0y+n1M3mo0RAmFYAJ9a9Oz/cpEM/HR9N+6tkCaM9M8ckACgwZhq
+qzMYheL6j+4zC3D1vEv6gWM=
+=wz0/
+-----END PGP SIGNATURE-----
+
+--nextPart5114347.xFTveIS9QW--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
