@@ -1,143 +1,68 @@
-Date: Fri, 14 Apr 2006 20:37:07 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH] slab: stop using list_for_each
-Message-ID: <20060414183707.GB21144@lst.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Fri, 14 Apr 2006 11:48:09 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Implement lookup_swap_cache for migration entries
+In-Reply-To: <20060414113104.72a5059b.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0604141143520.22475@schroedinger.engr.sgi.com>
+References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
+ <20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
+ <20060413171331.1752e21f.akpm@osdl.org> <Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
+ <20060413174232.57d02343.akpm@osdl.org> <Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
+ <20060413180159.0c01beb7.akpm@osdl.org> <Pine.LNX.4.64.0604131827210.16220@schroedinger.engr.sgi.com>
+ <20060413222921.2834d897.akpm@osdl.org> <Pine.LNX.4.64.0604141025310.18575@schroedinger.engr.sgi.com>
+ <20060414113104.72a5059b.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Use the _entry variant everywhere to clean the code up a tiny bit.
+On Fri, 14 Apr 2006, Andrew Morton wrote:
 
+> > @@ -305,6 +306,12 @@ struct page * lookup_swap_cache(swp_entr
+> >  {
+> >  	struct page *page;
+> >  
+> > +	if (is_migration_entry(entry)) {
+> > +		page = migration_entry_to_page(entry);
+> > +		get_page(page);
+> > +		return page;
+> > +	}
+> 
+> What locking ensures that the state of `entry' remains unaltered across the
+> is_migration_entry() and migration_entry_to_page() calls?
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
+entry is a variable passed by value to the function.
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2006-04-13 16:48:58.000000000 +0200
-+++ linux-2.6/mm/slab.c	2006-04-13 16:52:59.000000000 +0200
-@@ -1904,8 +1904,7 @@
- 	void (*dtor)(void*, struct kmem_cache *, unsigned long))
- {
- 	size_t left_over, slab_size, ralign;
--	struct kmem_cache *cachep = NULL;
--	struct list_head *p;
-+	struct kmem_cache *cachep = NULL, *pc;
+> > +/*
+> > + * Must use a macro for lookup_swap_cache since the functions
+> > + * used are only available in certain contexts.
+> > + */
+> > +#define lookup_swap_cache(__swp)				\
+> > +({	struct page *p = NULL;					\
+> > +	if (is_migration_entry(__swp)) {			\
+> > +		p = migration_entry_to_page(__swp);		\
+> > +		get_page(p);					\
+> > +	}							\
+> > +	p;							\
+> > +})
+> 
+> hm.  Can nommu do any of this?
+
+If page migration is off (methinks nommu may not support numa) then
+the fallback functions are used.
+
+Fallback is
+
+is_migration_entry() == 0 
+
+therefore
+
+#define lookup_swap_cache(__swp) NULL
+
+like before.
  
- 	/*
- 	 * Sanity checks... these are all serious usage bugs.
-@@ -1925,8 +1924,7 @@
- 
- 	mutex_lock(&cache_chain_mutex);
- 
--	list_for_each(p, &cache_chain) {
--		struct kmem_cache *pc = list_entry(p, struct kmem_cache, next);
-+	list_for_each_entry(pc, &cache_chain, next) {
- 		mm_segment_t old_fs = get_fs();
- 		char tmp;
- 		int res;
-@@ -3668,7 +3666,7 @@
-  */
- static void cache_reap(void *unused)
- {
--	struct list_head *walk;
-+	struct kmem_cache *searchp;
- 	struct kmem_list3 *l3;
- 	int node = numa_node_id();
- 
-@@ -3679,13 +3677,11 @@
- 		return;
- 	}
- 
--	list_for_each(walk, &cache_chain) {
--		struct kmem_cache *searchp;
-+	list_for_each_entry(searchp, &cache_chain, next) {
- 		struct list_head *p;
- 		int tofree;
- 		struct slab *slabp;
- 
--		searchp = list_entry(walk, struct kmem_cache, next);
- 		check_irq_on();
- 
- 		/*
-@@ -3813,7 +3809,6 @@
- static int s_show(struct seq_file *m, void *p)
- {
- 	struct kmem_cache *cachep = p;
--	struct list_head *q;
- 	struct slab *slabp;
- 	unsigned long active_objs;
- 	unsigned long num_objs;
-@@ -3834,15 +3829,13 @@
- 		check_irq_on();
- 		spin_lock_irq(&l3->list_lock);
- 
--		list_for_each(q, &l3->slabs_full) {
--			slabp = list_entry(q, struct slab, list);
-+		list_for_each_entry(slabp, &l3->slabs_full, list) {
- 			if (slabp->inuse != cachep->num && !error)
- 				error = "slabs_full accounting error";
- 			active_objs += cachep->num;
- 			active_slabs++;
- 		}
--		list_for_each(q, &l3->slabs_partial) {
--			slabp = list_entry(q, struct slab, list);
-+		list_for_each_entry(slabp, &l3->slabs_partial, list) {
- 			if (slabp->inuse == cachep->num && !error)
- 				error = "slabs_partial inuse accounting error";
- 			if (!slabp->inuse && !error)
-@@ -3850,8 +3843,7 @@
- 			active_objs += slabp->inuse;
- 			active_slabs++;
- 		}
--		list_for_each(q, &l3->slabs_free) {
--			slabp = list_entry(q, struct slab, list);
-+		list_for_each_entry(slabp, &l3->slabs_free, list) {
- 			if (slabp->inuse && !error)
- 				error = "slabs_free/inuse accounting error";
- 			num_slabs++;
-@@ -3944,7 +3936,7 @@
- {
- 	char kbuf[MAX_SLABINFO_WRITE + 1], *tmp;
- 	int limit, batchcount, shared, res;
--	struct list_head *p;
-+	struct kmem_cache *cachep;
- 
- 	if (count > MAX_SLABINFO_WRITE)
- 		return -EINVAL;
-@@ -3963,10 +3955,7 @@
- 	/* Find the cache in the chain of caches. */
- 	mutex_lock(&cache_chain_mutex);
- 	res = -EINVAL;
--	list_for_each(p, &cache_chain) {
--		struct kmem_cache *cachep;
--
--		cachep = list_entry(p, struct kmem_cache, next);
-+	list_for_each_entry(cachep, &cache_chain, next) {
- 		if (!strcmp(cachep->name, kbuf)) {
- 			if (limit < 1 || batchcount < 1 ||
- 					batchcount > limit || shared < 0) {
-@@ -4093,14 +4082,10 @@
- 		check_irq_on();
- 		spin_lock_irq(&l3->list_lock);
- 
--		list_for_each(q, &l3->slabs_full) {
--			slabp = list_entry(q, struct slab, list);
-+		list_for_each_entry(slabp, &l3->slabs_full, list)
- 			handle_slab(n, cachep, slabp);
--		}
--		list_for_each(q, &l3->slabs_partial) {
--			slabp = list_entry(q, struct slab, list);
-+		list_for_each_entry(slabp, &l3->slabs_partial, list)
- 			handle_slab(n, cachep, slabp);
--		}
- 		spin_unlock_irq(&l3->list_lock);
- 	}
- 	name = cachep->name;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
