@@ -1,54 +1,45 @@
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
-Date: Sat, 15 Apr 2006 09:17:04 +1000
+Date: Sat, 15 Apr 2006 00:50:37 +0100 (IST)
+From: Mel Gorman <mel@skynet.ie>
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture
+ independent manner V2
+In-Reply-To: <200604150917.10596.ncunningham@cyclades.com>
+Message-ID: <Pine.LNX.4.64.0604150033230.22940@skynet.skynet.ie>
 References: <20060412232036.18862.84118.sendpatchset@skynet>
-In-Reply-To: <20060412232036.18862.84118.sendpatchset@skynet>
+ <200604150917.10596.ncunningham@cyclades.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart5114347.xFTveIS9QW";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
-Content-Transfer-Encoding: 7bit
-Message-Id: <200604150917.10596.ncunningham@cyclades.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: Nigel Cunningham <ncunningham@cyclades.com>
+Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bob.picco@hp.com, ak@suse.de, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---nextPart5114347.xFTveIS9QW
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+On Sat, 15 Apr 2006, Nigel Cunningham wrote:
 
-Hi Mel.
+> It looks to me like this code could be used by the software suspend code in
+> our determinations of what pages to save
 
-It looks to me like this code could be used by the software suspend code in=
-=20
-our determinations of what pages to save, particularly in the context of=20
-memory hotplug support. Just some food for thought at the moment; I'll see =
-if=20
-I can come up with a patch when I have some time, but it might help justify=
-=20
-getting this merged.
+Potentially yes. Currently, the node map and related functions are marked 
+__init so they become unavailable but that is not set in stone.
 
-Regards,
+>, particularly in the context of
+> memory hotplug support.
 
-Nigel
+Right now during memory hot-add, the memory is not registered with 
+add_active_range(), but it would be straight-forward to add the call to 
+add_memory() of each architecture that supported hotplug for example.
 
---nextPart5114347.xFTveIS9QW
-Content-Type: application/pgp-signature
+> Just some food for thought at the moment; I'll see if
+> I can come up with a patch when I have some time, but it might help justify
+> getting this merged.
+>
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
+Thanks
 
-iD8DBQBEQC12N0y+n1M3mo0RAmFYAJ9a9Oz/cpEM/HR9N+6tkCaM9M8ckACgwZhq
-qzMYheL6j+4zC3D1vEv6gWM=
-=wz0/
------END PGP SIGNATURE-----
-
---nextPart5114347.xFTveIS9QW--
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
