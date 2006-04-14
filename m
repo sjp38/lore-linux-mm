@@ -1,91 +1,75 @@
-Date: Thu, 13 Apr 2006 22:29:21 -0700
+Date: Fri, 14 Apr 2006 00:26:54 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 2/5] Swapless V2: Add migration swap entries
-Message-Id: <20060413222921.2834d897.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0604131827210.16220@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
-	<20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
-	<20060413171331.1752e21f.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
-	<20060413174232.57d02343.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
-	<20060413180159.0c01beb7.akpm@osdl.org>
-	<Pine.LNX.4.64.0604131827210.16220@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/2] mm: fix mm_struct reference counting bugs in
+ mm/oom_kill.c
+Message-Id: <20060414002654.76d1a6bc.akpm@osdl.org>
+In-Reply-To: <200604131744.02114.dsp@llnl.gov>
+References: <200604131452.08292.dsp@llnl.gov>
+	<20060413162432.41892d3a.akpm@osdl.org>
+	<200604131744.02114.dsp@llnl.gov>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
+Dave Peterson <dsp@llnl.gov> wrote:
 >
-> On Thu, 13 Apr 2006, Andrew Morton wrote:
+> On Thursday 13 April 2006 16:24, Andrew Morton wrote:
+> > Dave Peterson <dsp@llnl.gov> wrote:
+> > > The patch below fixes some mm_struct reference counting bugs in
+> > > badness().
+> >
+> > hm, OK, afaict the code _is_ racy.
+> >
+> > But you're now calling mmput() inside read_lock(&tasklist_lock), and
+> > mmput() can sleep in exit_aio() or in exit_mmap()->unmap_vmas().  So
+> > sterner stuff will be needed.
+> >
+> > I'll put a might_sleep() into mmput - it's a bit unexpected.
 > 
-> > So we falsely return VM_FAULT_MINOR and let userspace retake the pagefault,
-> > thus implementing a form of polling, yes?  If so, there is no "something
-> > else" which this process can do.
+> Hmm... fixing this looks rather tricky.  If get_task_mm()/mmput() was
+> only being done on a single mm_struct then I suppose badness() could
+> do something a bit ugly like passing the reference back to its caller
+> and letting the caller do the mmput() once tasklist_lock is no longer
+> held.  However here we are iterating over a bunch of child tasks,
+> potentially doing a get_task_mm()/mmput() for a number of them.
 > 
-> Right.
+> I have a suggestion for a possible solution.  Currently mmput() is
+> implemented as follows:
 > 
-> > Pages are locked during migration.  The faulting process will sleep in
-> > lock_page() until migration is complete.  Except we've gone and diddled
-> > with the swap pte so do_swap_page() can no longer locate the page which
-> > needs to be locked.
+>     01 void mmput(struct mm_struct *mm)
+>     02 {
+>     03         if (atomic_dec_and_lock(&mm->mm_users, &mmlist_lock)) {
+>     04                 list_del(&mm->mmlist);
+>     05                 mmlist_nr--;
+>     06                 spin_unlock(&mmlist_lock);
+>     07                 exit_aio(mm);
+>     08                 exit_mmap(mm);
+>     09                 put_swap_token(mm);
+>     10                 mmdrop(mm);
+>     11         }
+>     12 }
 > 
-> Oh. The page is enconded in the migration pte.
->  
-> > Doing a busy-wait seems a bit lame.  Perhaps it would be better to go to
-> > sleep on some global queue, poke that queue each time a page migration
-> > completes?
-> 
-> If we rely on the migrating thread to hold the page count while the 
-> page is locked then we could do what the patch below does. But then we 
-> may race with the freeing of the old page after migration is finished.
+> Suppose we replace lines 07-10 with a little piece of code that adds
+> the mm_struct to a list.  Then a kernel thread empties the list
+> (perhaps via the work queue mechanism), doing the stuff in lines
+> 07-10 for each mm_struct.  This would eliminate the possibility of
+> mmput() sleeping, potentially making things easier for other callers
+> of mmput() and causing fewer surprises.  Any comments?
 
-Yeah, that's unpleasant.
+task_lock() can be used to pin a task's ->mm.  To use task_lock() in
+badness() we'd need to either
 
-> If we would add the 
-> increment of the page count back then we are on the safe side but have 
-> the problem that we may increment the page count before the migrating
-> thread gets to the final check. Then the migration check would fail
-> and we would retry.
-> 
-> 
-> Index: linux-2.6.17-rc1-mm2/mm/memory.c
-> ===================================================================
-> --- linux-2.6.17-rc1-mm2.orig/mm/memory.c	2006-04-13 17:32:36.000000000 -0700
-> +++ linux-2.6.17-rc1-mm2/mm/memory.c	2006-04-13 18:26:49.000000000 -0700
-> @@ -1881,11 +1881,11 @@ static int do_swap_page(struct mm_struct
->  	entry = pte_to_swp_entry(orig_pte);
->  
->  	if (is_migration_entry(entry)) {
-> -		/*
-> -		 * We cannot access the page because of ongoing page
-> -		 * migration. See if we can do something else.
-> -		 */
-> -		yield();
-> +		page = migration_entry_to_page(entry);
-> +		lock_page(page);
-> +		entry = pte_to_swp_entry(*page_table);
-> +		BUG_ON(is_migration_entry(entry));
-> +		unlock_page(page);
->  		goto out;
->  	}
+a) nest task_lock()s.  I don't know if we're doing that anywhere else,
+   but the parent->child ordering is a natural one.  or
 
-Is this page still lookable-uppable in swapcache?  If so, that's the way to
-get the refcount on it.
-
-We don't _have_ to use the page lock of course.   A simple
-
-	wait_event(some_wq, !is_migration_entry(entry));
-
-would suffice.
-
-But what prevents this swp_entry_t from becoming an is_migration_entry
-swp_pte_t two nanoseconds after we've passed this check?
+b) take a ref on the parent's mm_struct, drop the parent's task_lock()
+   while we walk the children, then do mmput() on the parent's mm outside
+   tasklist_lock.  This is probably better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
