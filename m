@@ -1,43 +1,57 @@
-Date: Fri, 14 Apr 2006 09:01:18 -0700 (PDT)
+Date: Fri, 14 Apr 2006 09:48:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/5] Swapless V2: Add migration swap entries
-In-Reply-To: <20060413222516.4cb5885c.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0604140856420.18298@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
+In-Reply-To: <20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604140945320.18453@schroedinger.engr.sgi.com>
 References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
- <20060413171331.1752e21f.akpm@osdl.org> <Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
- <20060413174232.57d02343.akpm@osdl.org> <Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
- <20060413180159.0c01beb7.akpm@osdl.org> <20060413181716.152493b8.akpm@osdl.org>
- <Pine.LNX.4.64.0604131831150.16220@schroedinger.engr.sgi.com>
- <20060413222516.4cb5885c.akpm@osdl.org>
+ <20060413235432.15398.23912.sendpatchset@schroedinger.engr.sgi.com>
+ <20060414101959.d59ac82d.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604131832020.16220@schroedinger.engr.sgi.com>
+ <20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Apr 2006, Andrew Morton wrote:
+On Fri, 14 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-> > We would have to take that for each task mapping the page. Very expensive 
-> > operation.
+> I just compiled this patch (because I cannot use NUMA now.)
+
+I can give this a spin later today.
 > 
-> So...  why does do_migrate_pages() take mmap_sem at all?
+> BTW, why MAX_SWAPFILES_SHIFT==5 now ? required by some arch ?
 
-In order to scan for migratable pages through the page table and in order 
-to guarantee the existence of the anon vma.
+No idea.
 
-> And the code we're talking about here deals with anonymous pages, which are
-> not shared betweem mm's.
+> +/* write protected page under migration*/
+> +#define SWP_TYPE_MIGRATION_WP	(MAX_SWAPFILES - 1)
+> +/* write enabled migration type */
+> +#define SWP_TYPE_MIGRATION_WE	(MAX_SWAPFILES)
 
-COW f.e. results in sharing.
+Could we call this SWP_TYPE_MIGRATION_READ / WRITE?
 
-Hmmm.. But I see the point the "optimization" causes an inconsistency 
-between anon and file backed pages. For anon pages we need to do this 
-polling. I had prior unoptimized version that modified lookup_swap_cache 
-to handle migration entries. Maybe we better undo the optimization.
+> +	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
+> +	if (is_migration_entry_we(entry)) {
+is_write_migration_entry?
 
+> +		pte = pte_mkwrite(pte);
+> +	}
+
+No {} needed.
+
+> -			entry = make_migration_entry(page);
+> +			if (pte_write(pteval))
+> +				entry = make_migration_entry(page, 1);
+> +			else
+> +				entry = make_migration_entry(page, 0);
+>  		}
+
+entry = make_migration_entry(page, pte_write(pteval))
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
