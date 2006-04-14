@@ -1,10 +1,11 @@
-Date: Thu, 13 Apr 2006 17:27:54 -0700 (PDT)
+Date: Thu, 13 Apr 2006 17:29:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/5] Swapless page migration V2: Overview
-In-Reply-To: <20060413170853.0757af41.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0604131721340.15802@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/5] Swapless V2: Add migration swap entries
+In-Reply-To: <20060413171331.1752e21f.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
 References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060413170853.0757af41.akpm@osdl.org>
+ <20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
+ <20060413171331.1752e21f.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,35 +16,22 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Apr 2006, Andrew Morton wrote:
 
-> > Currently page migration is depending on the ability to assign swap entries
-> > to pages. However, those entries will only be to identify anonymous pages.
-> > Page migration will not work without swap although swap space is never
-> > really used.
+> Christoph Lameter <clameter@sgi.com> wrote:
+> >
+> > +
+> >  +	if (unlikely(is_migration_entry(entry))) {
 > 
-> That strikes me as a fairly minor limitation?
-
-Some people want never ever to use swap. Systems that have no swap defined 
-will currently not be able to migrate pages. Its kind of difficult to 
-comprehend that you need to have swap for migration, but then its not 
-going to be used. 
-
-> > The patchset will allow later patches to enable migration of VM_LOCKED vmas,
-> > the ability to exempt vmas from page migration, and allow the implementation
-> > of a another userland migration API for handling batches of pages.
+> Perhaps put the unlikely() in is_migration_entry()?
 > 
-> These seem like more important justifications.  Would you agree with that
-> judgement?
+> >  +		yield();
+> 
+> Please, no yielding.
+> 
+> _especially_ no unchangelogged, uncommented yielding.
 
-The swapless thing is the most important for us because many of our 
-customers do not have swap setup. Then follow the above 
-features then the efficiency consideration.
- 
-> Is it not possible to implement some or all of these new things without
-> this work?
+Page migration is ongoing so its best to do something else first.
 
-VM_LOCKED semantics are that a page cannot be swapped out. Not being able 
-to swap and not being able to migrate are the same right now. We need to 
-separate both.
+Add a comment?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
