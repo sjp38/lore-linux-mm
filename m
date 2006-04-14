@@ -1,32 +1,69 @@
-Date: Fri, 14 Apr 2006 13:53:45 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
-Message-ID: <20060414205345.GA1258@agluck-lia64.sc.intel.com>
-References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com> <20060413173008.GA19402@skynet.ie> <20060413174720.GA15183@agluck-lia64.sc.intel.com> <20060413191402.GA20606@skynet.ie> <20060413215358.GA15957@agluck-lia64.sc.intel.com> <20060414131235.GA19064@skynet.ie>
+Date: Fri, 14 Apr 2006 14:31:09 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2/2] mm: fix mm_struct reference counting bugs in
+ mm/oom_kill.c
+Message-Id: <20060414143109.5d537091.akpm@osdl.org>
+In-Reply-To: <200604141349.02047.dsp@llnl.gov>
+References: <200604131452.08292.dsp@llnl.gov>
+	<200604141214.35806.dsp@llnl.gov>
+	<20060414124530.24a36d51.akpm@osdl.org>
+	<200604141349.02047.dsp@llnl.gov>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060414131235.GA19064@skynet.ie>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 14, 2006 at 02:12:35PM +0100, Mel Gorman wrote:
-> That appears fine, but I call add_active_range() after a GRANULEROUNDUP and
-> GRANULEROUNDDOWN has taken place so that might be the problem, especially as
-> all those ranges are aligned on a 16MiB boundary. The following patch calls
-> add_active_range() before the rounding takes place. Can you try it out please?
+Dave Peterson <dsp@llnl.gov> wrote:
+>
+> Another thing I noticed: oom_kill_task() calls mmput() while holding
+> tasklist_lock.
 
-That's good.  Now I see identical output before/after your patch for
-the generic (DISCONTIG=y) kernel:
+Yes, that'll make my new might_sleep() get upset.
 
-On node 0 totalpages: 259873
-  DMA zone: 128931 pages, LIFO batch:7
-  Normal zone: 130942 pages, LIFO batch:7
+oom_kill_task() doesn't _have_ to run mmput() there - we could propagate
+the mm back to the top-level and do the mmput() there.
 
--Tony
+>  Here the calls to get_task_mm() and mmput() appear to
+> be unnecessary.  We shouldn't need to use any kind of locking or
+> reference counting since oom_kill_task() doesn't dereference into the
+> mm_struct or require the value of p->mm to stay constant.  I believe
+> the following (untested) code changes should fix the problem (and
+> simplify some other parts of the code).  Does this look correct?
+
+But yes, this looks better.
+
+> 
+> diff -urNp -X /home/dsp/dontdiff linux-2.6.17-rc1/mm/oom_kill.c linux-2.6.17-rc1-fix/mm/oom_kill.c
+> --- linux-2.6.17-rc1/mm/oom_kill.c	2006-03-19 21:53:29.000000000 -0800
+> +++ linux-2.6.17-rc1-fix/mm/oom_kill.c	2006-04-14 13:22:15.000000000 -0700
+> @@ -244,17 +244,15 @@ static void __oom_kill_task(task_t *p, c
+>  	force_sig(SIGKILL, p);
+>  }
+>  
+> -static struct mm_struct *oom_kill_task(task_t *p, const char *message)
+> +static int oom_kill_task(task_t *p, const char *message)
+>  {
+> -	struct mm_struct *mm = get_task_mm(p);
+> +	struct mm_struct *mm;
+>  	task_t * g, * q;
+
+Please put a loud comment in here explaining that `mm' may not be dereferenced.
+
+> -	if (!mm)
+> -		return NULL;
+> -	if (mm == &init_mm) {
+> -		mmput(mm);
+> -		return NULL;
+> -	}
+> +	mm = p->mm;
+> +
+> +	if ((mm == NULL) || (mm == &init_mm))
+
+I think the parenthesisation here is going a bit far ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
