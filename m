@@ -1,90 +1,65 @@
-Date: Fri, 14 Apr 2006 14:12:35 +0100
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V2
-Message-ID: <20060414131235.GA19064@skynet.ie>
-References: <20060412232036.18862.84118.sendpatchset@skynet> <20060413095207.GA4047@skynet.ie> <20060413171942.GA15047@agluck-lia64.sc.intel.com> <20060413173008.GA19402@skynet.ie> <20060413174720.GA15183@agluck-lia64.sc.intel.com> <20060413191402.GA20606@skynet.ie> <20060413215358.GA15957@agluck-lia64.sc.intel.com>
+Subject: Re: [PATCH 0/5] Swapless page migration V2: Overview
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0604131721340.15802@schroedinger.engr.sgi.com>
+References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
+	 <20060413170853.0757af41.akpm@osdl.org>
+	 <Pine.LNX.4.64.0604131721340.15802@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 14 Apr 2006 10:14:43 -0400
+Message-Id: <1145024083.5211.8.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20060413215358.GA15957@agluck-lia64.sc.intel.com>
-From: mel@csn.ul.ie (Mel Gorman)
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: davej@codemonkey.org.uk, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, hugh@veritas.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On (13/04/06 14:53), Luck, Tony didst pronounce:
-> On Thu, Apr 13, 2006 at 08:14:02PM +0100, Mel Gorman wrote:
-> > When you get around to it later, there is one case you may hit that Bob
-> > Picco encountered and fixed for me. It's where a "new" range is registered
-> > that is inside an existing area; e.g.
+On Thu, 2006-04-13 at 17:27 -0700, Christoph Lameter wrote:
+> On Thu, 13 Apr 2006, Andrew Morton wrote:
+> 
+> > > Currently page migration is depending on the ability to assign swap entries
+> > > to pages. However, those entries will only be to identify anonymous pages.
+> > > Page migration will not work without swap although swap space is never
+> > > really used.
 > > 
-> > add_active_range:    0->10000
-> > add_active_range: 9800->10000
+> > That strikes me as a fairly minor limitation?
+> 
+> Some people want never ever to use swap. Systems that have no swap defined 
+> will currently not be able to migrate pages. Its kind of difficult to 
+> comprehend that you need to have swap for migration, but then its not 
+> going to be used. 
+> 
+> > > The patchset will allow later patches to enable migration of VM_LOCKED vmas,
+> > > the ability to exempt vmas from page migration, and allow the implementation
+> > > of a another userland migration API for handling batches of pages.
 > > 
-> > It ends up merging incorrectly and you end up with one region from
-> > 9800-10000. The fix is below. 
+> > These seem like more important justifications.  Would you agree with that
+> > judgement?
 > 
-> I applied that fix on top of all the others and re-built and booted
-> a "generic" kernel (using arch/ia64/defconfig) and a "sparse" kernel
-> (based on arch/ia64/configs/gensparse_defconfig).
-> 
-> Both booted just fine on my tiger, the memory amounts looked
-> a bit suspicious though ... as if you are reporting *all* the
-> memory in range for the zone, rather than the usable parts.
-> 
-> Diffing console log from the boot of a 2.6.17-rc1 generic
-> kernel against one with your patches the relevent bit is:
-> 
-> < On node 0 totalpages: 259873
-> <   DMA zone: 128931 pages, LIFO batch:7
-> <   Normal zone: 130942 pages, LIFO batch:7
-> ---
-> > On node 0 totalpages: 262144
-> >   DMA zone: 131072 pages, LIFO batch:7
-> >   Normal zone: 131072 pages, LIFO batch:7
-> 
-> That's a very precise 4G total, split exactly 2G+2G between
-> DMA and normal zones.  Same thing for the sparse kernel
-> (though I didn't check what an unpatched kernel prints).
-> 
+> The swapless thing is the most important for us because many of our 
+> customers do not have swap setup. Then follow the above 
+> features then the efficiency consideration.
 
-Interesting.  I register active ranges inside count_node_pages() which is an
-EFI memmap_walk callback. So, I'd expect to see one call to add_active_range()
-for each active range in the EFI map;
+I do have the migration cache working against 17-rc1-mm2.  I tried to
+address Christoph's prior comments.  I just haven't posted yet, as I was
+working the migrate-on-fault/auto-migration series.  If one accepts lazy
+migration, then the migration cache becomes more important because anon
+pages can/will stay in the swap cache until the page is finally freed
+[or maybe gets evicted from the swap cache?].
 
-> add_active_range(0, 0, 4096): New
-> add_active_range(0, 0, 131072): Merging forward
-> add_active_range(0, 0, 131072): Existing
-> add_active_range(0, 393216, 523264): New
-> add_active_range(0, 393216, 523264): Existing
-> add_active_range(0, 393216, 524288): Merging forward
-> add_active_range(0, 393216, 524288): Existing
+The migration cache still uses the swap infrastructure, so must
+configure SWAP.  But, no swap devices need be configured.  Should
+address that particular concern w/o major surgery to the existing
+migration code.  
 
-That appears fine, but I call add_active_range() after a GRANULEROUNDUP and
-GRANULEROUNDDOWN has taken place so that might be the problem, especially as
-all those ranges are aligned on a 16MiB boundary. The following patch calls
-add_active_range() before the rounding takes place. Can you try it out please?
+ Let me know if I should repost the patches.  Meanwhile, they're
+available at:  
+http://free.linux.hp.com/~lts/Patches/PageMigration/ [which seems
+temporarily, I hope, unavailable].  Look for the migcache tarball.
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc1-zonesizing-v6/arch/ia64/mm/discontig.c linux-2.6.17-rc1-107-debug/arch/ia64/mm/discontig.c
---- linux-2.6.17-rc1-zonesizing-v6/arch/ia64/mm/discontig.c	2006-04-13 10:30:49.000000000 +0100
-+++ linux-2.6.17-rc1-107-debug/arch/ia64/mm/discontig.c	2006-04-14 11:37:51.000000000 +0100
-@@ -636,6 +636,7 @@ static __init int count_node_pages(unsig
- {
- 	unsigned long end = start + len;
- 
-+	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
- 	mem_data[node].num_physpages += len >> PAGE_SHIFT;
- 	if (start <= __pa(MAX_DMA_ADDRESS))
- 		mem_data[node].num_dma_physpages +=
-@@ -647,7 +648,6 @@ static __init int count_node_pages(unsig
- 				     end >> PAGE_SHIFT);
- 	mem_data[node].min_pfn = min(mem_data[node].min_pfn,
- 				     start >> PAGE_SHIFT);
--	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
- 
- 	return 0;
- }
+Lee
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
