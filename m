@@ -1,34 +1,27 @@
-Date: Thu, 13 Apr 2006 18:31:38 -0700 (PDT)
+Date: Thu, 13 Apr 2006 18:33:07 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/5] Swapless V2: Add migration swap entries
-In-Reply-To: <20060413181716.152493b8.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0604131831150.16220@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
+In-Reply-To: <20060414101959.d59ac82d.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604131832020.16220@schroedinger.engr.sgi.com>
 References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
- <20060413171331.1752e21f.akpm@osdl.org> <Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
- <20060413174232.57d02343.akpm@osdl.org> <Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
- <20060413180159.0c01beb7.akpm@osdl.org> <20060413181716.152493b8.akpm@osdl.org>
+ <20060413235432.15398.23912.sendpatchset@schroedinger.engr.sgi.com>
+ <20060414101959.d59ac82d.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Apr 2006, Andrew Morton wrote:
+On Fri, 14 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-> Andrew Morton <akpm@osdl.org> wrote:
-> >
-> > Perhaps it would be better to go to
-> >  sleep on some global queue, poke that queue each time a page migration
-> >  completes?
-> 
-> Or take mmap_sem for writing in do_migrate_pages()?  That takes the whole
-> pagefault path out of the picture.
+> For hotremove (I stops it now..), we should fix this later (if we can do).
+> If new SWP_TYPE_MIGRATION swp entry can contain write protect bit,
+> hotremove can avoid copy-on-write but things will be more complicated.
 
-We would have to take that for each task mapping the page. Very expensive 
-operation.
+This is a known issue.I'd be glad if you could come up with a working 
+scheme to solve this that is simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
