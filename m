@@ -1,38 +1,43 @@
-Subject: [PATCH] alloc uid cleanup
-Message-Id: <E1FVZH8-0004f1-8s@blr-eng3.blr.corp.google.com>
+Subject: [PATCH] dup fd error
+Message-Id: <E1FVZJQ-0004fB-6z@blr-eng3.blr.corp.google.com>
 From: Prasanna Meda <mlp@google.com>
-Date: Tue, 18 Apr 2006 00:50:42 +0530
+Date: Tue, 18 Apr 2006 00:53:04 +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Cleanup: Release the lock before key_put methods. They call 
-schedule_work etc. They block interrupts now, so it is not bug fix.
+set errorp in dup_fd, it will be used in sys_unshare also.
 
 Signed-off-by: Prasanna Meda
 
---- a/kernel/user.c	2006-04-17 23:02:54.000000000 +0530
-+++ b/kernel/user.c	2006-04-17 23:06:01.000000000 +0530
-@@ -160,15 +160,15 @@ struct user_struct * alloc_uid(uid_t uid
- 		spin_lock_irq(&uidhash_lock);
- 		up = uid_hash_find(uid, hashent);
- 		if (up) {
-+			spin_unlock_irq(&uidhash_lock);
- 			key_put(new->uid_keyring);
- 			key_put(new->session_keyring);
- 			kmem_cache_free(uid_cachep, new);
- 		} else {
- 			uid_hash_insert(new, hashent);
- 			up = new;
-+			spin_unlock_irq (&uidhash_lock);
- 		}
--		spin_unlock_irq(&uidhash_lock);
--
- 	}
- 	return up;
- }
+--- a/kernel/fork.c	2006-04-17 22:38:09.000000000 +0530
++++ b/kernel/fork.c	2006-04-18 00:38:37.000000000 +0530
+@@ -629,6 +629,7 @@ out:
+ /*
+  * Allocate a new files structure and copy contents from the
+  * passed in files structure.
++ * errorp will be valid only when the returned files_struct is NULL.
+  */
+ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
+ {
+@@ -637,6 +638,7 @@ static struct files_struct *dup_fd(struc
+ 	int open_files, size, i, expand;
+ 	struct fdtable *old_fdt, *new_fdt;
+ 
++	*errorp = -ENOMEM;
+ 	newf = alloc_files();
+ 	if (!newf)
+ 		goto out;
+@@ -750,7 +752,6 @@ static int copy_files(unsigned long clon
+ 	 * break this.
+ 	 */
+ 	tsk->files = NULL;
+-	error = -ENOMEM;
+ 	newf = dup_fd(oldf, &error);
+ 	if (!newf)
+ 		goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
