@@ -1,43 +1,140 @@
-Subject: [PATCH] dup fd error
-Message-Id: <E1FVZJQ-0004fB-6z@blr-eng3.blr.corp.google.com>
-From: Prasanna Meda <mlp@google.com>
-Date: Tue, 18 Apr 2006 00:53:04 +0530
+Date: Mon, 17 Apr 2006 16:52:13 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: migration_entry_wait: Use the pte lock instead of the anon_vma lock.
+In-Reply-To: <Pine.LNX.4.64.0604141417170.22852@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0604171649570.31773@schroedinger.engr.sgi.com>
+References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
+ <20060413235416.15398.49978.sendpatchset@schroedinger.engr.sgi.com>
+ <20060413171331.1752e21f.akpm@osdl.org> <Pine.LNX.4.64.0604131728150.15802@schroedinger.engr.sgi.com>
+ <20060413174232.57d02343.akpm@osdl.org> <Pine.LNX.4.64.0604131743180.15965@schroedinger.engr.sgi.com>
+ <20060413180159.0c01beb7.akpm@osdl.org> <Pine.LNX.4.64.0604131827210.16220@schroedinger.engr.sgi.com>
+ <20060413222921.2834d897.akpm@osdl.org> <Pine.LNX.4.64.0604141025310.18575@schroedinger.engr.sgi.com>
+ <20060414113104.72a5059b.akpm@osdl.org> <Pine.LNX.4.64.0604141143520.22475@schroedinger.engr.sgi.com>
+ <20060414121537.11134d26.akpm@osdl.org> <Pine.LNX.4.64.0604141214060.22652@schroedinger.engr.sgi.com>
+ <20060414125320.72599c7e.akpm@osdl.org> <Pine.LNX.4.64.0604141417170.22852@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-set errorp in dup_fd, it will be used in sys_unshare also.
+Use of the pte lock allows for much finer grained locking and avoids
+the complexity coming with locking via the anon_vma. It will also
+make the fetching of the pte value cleaner. Add a couple of other 
+improvements as well.
 
-Signed-off-by: Prasanna Meda
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
---- a/kernel/fork.c	2006-04-17 22:38:09.000000000 +0530
-+++ b/kernel/fork.c	2006-04-18 00:38:37.000000000 +0530
-@@ -629,6 +629,7 @@ out:
- /*
-  * Allocate a new files structure and copy contents from the
-  * passed in files structure.
-+ * errorp will be valid only when the returned files_struct is NULL.
-  */
- static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
- {
-@@ -637,6 +638,7 @@ static struct files_struct *dup_fd(struc
- 	int open_files, size, i, expand;
- 	struct fdtable *old_fdt, *new_fdt;
+Index: linux-2.6.17-rc1-mm2/mm/memory.c
+===================================================================
+--- linux-2.6.17-rc1-mm2.orig/mm/memory.c	2006-04-14 14:47:37.000000000 -0700
++++ linux-2.6.17-rc1-mm2/mm/memory.c	2006-04-17 16:23:50.000000000 -0700
+@@ -1881,7 +1881,7 @@ static int do_swap_page(struct mm_struct
+ 	entry = pte_to_swp_entry(orig_pte);
  
-+	*errorp = -ENOMEM;
- 	newf = alloc_files();
- 	if (!newf)
+ 	if (is_migration_entry(entry)) {
+-		migration_entry_wait(entry, page_table);
++		migration_entry_wait(mm, pmd, address);
  		goto out;
-@@ -750,7 +752,6 @@ static int copy_files(unsigned long clon
- 	 * break this.
- 	 */
- 	tsk->files = NULL;
--	error = -ENOMEM;
- 	newf = dup_fd(oldf, &error);
- 	if (!newf)
- 		goto out;
+ 	}
+ 
+Index: linux-2.6.17-rc1-mm2/include/linux/swapops.h
+===================================================================
+--- linux-2.6.17-rc1-mm2.orig/include/linux/swapops.h	2006-04-14 14:47:37.000000000 -0700
++++ linux-2.6.17-rc1-mm2/include/linux/swapops.h	2006-04-17 16:45:52.000000000 -0700
+@@ -91,13 +91,15 @@ static inline struct page *migration_ent
+ 	return p;
+ }
+ 
+-extern void migration_entry_wait(swp_entry_t entry, pte_t *);
++extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
++					unsigned long address);
+ #else
+ 
+ #define make_migration_entry(page) swp_entry(0, 0)
+ #define is_migration_entry(swp) 0
+ #define migration_entry_to_page(swp) NULL
+-static inline void migration_entry_wait(swp_entry_t entry, pte_t *ptep) { }
++static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
++					 unsigned long address) { }
+ 
+ #endif
+ 
+Index: linux-2.6.17-rc1-mm2/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc1-mm2.orig/mm/migrate.c	2006-04-14 14:47:37.000000000 -0700
++++ linux-2.6.17-rc1-mm2/mm/migrate.c	2006-04-17 16:46:45.000000000 -0700
+@@ -180,48 +180,35 @@ out:
+  *
+  * This function is called from do_swap_page().
+  */
+-void migration_entry_wait(swp_entry_t entry, pte_t *ptep)
++void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
++				unsigned long address)
+ {
+-	struct page *page = migration_entry_to_page(entry);
+-	unsigned long mapping = (unsigned long)page->mapping;
+-	struct anon_vma *anon_vma;
+-	pte_t pte;
+-
+-	if (!mapping ||
+-		(mapping & PAGE_MAPPING_ANON) == 0)
+-			return;
+-	/*
+-	 * We hold the mmap_sem lock.
+-	 */
+-	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
++	pte_t *ptep, pte;
++	spinlock_t *ptl;
++	swp_entry_t entry;
++	struct page *page;
+ 
+-	/*
+-	 * The anon_vma lock is also taken while removing the migration
+-	 * entries. Take the lock here to insure that the migration pte
+-	 * is not modified while we increment the page count.
+-	 * This is similar to find_get_page().
+-	 */
+-	spin_lock(&anon_vma->lock);
++	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	pte = *ptep;
+-	if (pte_present(pte) || pte_none(pte) || pte_file(pte)) {
+-		spin_unlock(&anon_vma->lock);
+-		return;
+-	}
++	if (!is_swap_pte(pte))
++		goto out;
++
+ 	entry = pte_to_swp_entry(pte);
+-	if (!is_migration_entry(entry) ||
+-		migration_entry_to_page(entry) != page) {
+-			/* Migration entry is gone */
+-			spin_unlock(&anon_vma->lock);
+-			return;
+-	}
+-	/* Pages with migration entries must be locked */
++	if (!is_migration_entry(entry))
++		goto out;
++
++	page = migration_entry_to_page(entry);
++
++	/* Pages with migration entries are always locked */
+ 	BUG_ON(!PageLocked(page));
+ 
+-	/* Phew. Finally we can increment the refcount */
+ 	get_page(page);
+-	spin_unlock(&anon_vma->lock);
++	pte_unmap_unlock(ptep, ptl);
+ 	wait_on_page_locked(page);
+ 	put_page(page);
++	return;
++out:
++	pte_unmap_unlock(ptep, ptl);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
