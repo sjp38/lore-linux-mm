@@ -1,52 +1,38 @@
-Date: Mon, 17 Apr 2006 10:00:02 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
-In-Reply-To: <20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604170958100.29732@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060413235432.15398.23912.sendpatchset@schroedinger.engr.sgi.com>
- <20060414101959.d59ac82d.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604131832020.16220@schroedinger.engr.sgi.com>
- <20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604140945320.18453@schroedinger.engr.sgi.com>
- <20060415090639.dde469e8.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604151040450.25886@schroedinger.engr.sgi.com>
- <20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] alloc uid cleanup
+Message-Id: <E1FVZH8-0004f1-8s@blr-eng3.blr.corp.google.com>
+From: Prasanna Meda <mlp@google.com>
+Date: Tue, 18 Apr 2006 00:50:42 +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Apr 2006, KAMEZAWA Hiroyuki wrote:
+Cleanup: Release the lock before key_put methods. They call 
+schedule_work etc. They block interrupts now, so it is not bug fix.
 
-> > Note that there is an issue with your approach. If a migration entry is 
-> > copied during fork then SWP_MIGRATION_WRITE must become SWP_MIGRATION_READ 
-> > for some cases. Would you look into fixing this?
-> Thank you for pointing out the issue.
-> 
-> In my understanding, copy_page_range() is used at fork().
-> This finally calls copy_one_pte() and copies ptes one by one.
+Signed-off-by: Prasanna Meda
 
-Right this is one spot but the ptes in the original mm must also be marked 
-read. Are there any additional races?
-
-> Maybe, I'll do like this.
-> ==
->  438         if (unlikely(!pte_present(pte)) {
->  439                 if (!pte_file(pte)) {
->  440                         swap_duplicate(pte_to_swp_entry(pte));
->  			     entry = pte_to_swp_entry(pte);
-> #ifdef CONFIG_MIGRATION
-> 			     if (is_migration_entry(entry)) {
-> 				......always copy as MIGRATION_READ.
-> 			     }
-> #endif
->  441                         /* make sure dst_mm is on swapoff's mmlist. */
-
-Looks okay for this one location.
+--- a/kernel/user.c	2006-04-17 23:02:54.000000000 +0530
++++ b/kernel/user.c	2006-04-17 23:06:01.000000000 +0530
+@@ -160,15 +160,15 @@ struct user_struct * alloc_uid(uid_t uid
+ 		spin_lock_irq(&uidhash_lock);
+ 		up = uid_hash_find(uid, hashent);
+ 		if (up) {
++			spin_unlock_irq(&uidhash_lock);
+ 			key_put(new->uid_keyring);
+ 			key_put(new->session_keyring);
+ 			kmem_cache_free(uid_cachep, new);
+ 		} else {
+ 			uid_hash_insert(new, hashent);
+ 			up = new;
++			spin_unlock_irq (&uidhash_lock);
+ 		}
+-		spin_unlock_irq(&uidhash_lock);
+-
+ 	}
+ 	return up;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
