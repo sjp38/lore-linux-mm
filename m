@@ -1,189 +1,137 @@
-Date: Tue, 18 Apr 2006 18:08:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
-Message-Id: <20060418180810.e947564c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0604180126221.4627@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0604140945320.18453@schroedinger.engr.sgi.com>
-	<20060415090639.dde469e8.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604151040450.25886@schroedinger.engr.sgi.com>
-	<20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604170958100.29732@schroedinger.engr.sgi.com>
-	<20060418090439.3e2f0df4.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604171724070.2752@schroedinger.engr.sgi.com>
-	<20060418094212.3ece222f.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604171856290.2986@schroedinger.engr.sgi.com>
-	<20060418120016.14419e02.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604172011490.3624@schroedinger.engr.sgi.com>
-	<20060418123256.41eb56af.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604172353570.4352@schroedinger.engr.sgi.com>
-	<20060418170517.b46736d8.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604180126221.4627@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20060418130015.28928.10163.sendpatchset@skynet>
+Subject: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V3
+Date: Tue, 18 Apr 2006 14:00:15 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+To: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Apr 2006 01:27:40 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+This is V3 of the patchset to size zones and memory holes in an
+architecture-independent manner. A number of bugs have been fixed in the
+IA64 changes and it is now known to boot with the correct zone sizes. In
+this release, 98 lines of x86_64 arch-specific code is removed because
+it used similar initialisation functions to powerpc. In the last release,
+only 34 lines were removed.
 
-> On Tue, 18 Apr 2006, KAMEZAWA Hiroyuki wrote:
-> 
-> > On Mon, 17 Apr 2006 23:58:41 -0700 (PDT)
-> > Christoph Lameter <clameter@sgi.com> wrote:
-> > 
-> > > Hmmm... Good ideas. I think it could be much simpler like the following 
-> > > patch.
-> > > 
-> > > However, the problem here is how to know that we really took the anon_vma 
-> > > lock and what to do about a page being unmmapped while migrating. This 
-> > > could cause the anon_vma not to be unlocked.
-> > > 
-> > lock dependency here is page_lock(page) -> page's anon_vma->lock.
-> > So, I guess  anon_vma->lock cannot be unlocked by other threads 
-> > if we have page_lock(page).
-> 
-> No the problem is to know if the lock was really taken. SWAP_AGAIN could 
-> mean that page_lock_anon_vma failed.
-> 
-Ah, I see. and understood what you did in http://lkml.org/lkml/2006/4/18/19
+Andi, in light of the x86_64 changes since the last release, can you take
+another look at the x86_64 changes please? Does this release make a bit
+more sense for x86_64 now?
 
-That will be happen when the migration takes the anon_vma->lock in
-try_to_unmap().
+Changelog since V2
+o Fix a bug where holes in lower zones get double counted
+o Catch the case where a new range is registered that is within an range
+o Catch the case where a zone boundary is within a hole
+o Use the EFI map for registering ranges on x86_64+numa
+o On IA64+NUMA, add the active ranges before rounding for granules
+o On x86_64, remove e820_hole_size and e820_bootmem_free and use
+  arch-independent equivalents
+o On x86_64, remove the map walk in e820_end_of_ram()
+o Rename memory_present_with_active_regions, name ambiguous
+o Add absent_pages_in_range() for arches to call
 
-> Also the page may be freed while it is being processes. In that case 
-> remove_migration_ptes may not find the mapping and may not unlock the 
-> anon_vma.
-> 
-My patch in http://lkml.org/lkml/2006/4/17/180
+Changelog since V1
+o Correctly convert virtual and physical addresses to PFNs on ia64
+o Correctly convert physical addresses to PFN on older ppc 
+o When add_active_range() is called with overlapping pfn ranges, merge them
+o When a zone boundary occurs within a memory hole, account correctly
+o Minor whitespace damage cleanup
+o Debugging patch temporarily included
 
-This is a look when above patch is applied.
-==
-/*
- * Common logic to directly migrate a single page suitable for
- * pages that do not use PagePrivate.
- *
- * Pages are locked upon entry and exit.
- */
-int migrate_page(struct page *newpage, struct page *page)
-{
-        int rc;
-        struct anon_vma *anon_vma;
-        BUG_ON(PageWriteback(page));    /* Writeback must be complete */
-        if (PageAnon(page)) {
-                anon_vma = page_lock_anon_vma(page);
-        }
-        rc = migrate_page_remove_references(newpage, page,
-                        page_mapping(page) ? 2 : 1);
+At a basic level, architectures define structures to record where active
+ranges of page frames are located. Once located, the code to calculate
+zone sizes and holes in each architecture is very similar.  Some of this
+zone and hole sizing code is difficult to read for no good reason. This
+set of patches eliminates the similar-looking architecture-specific code.
 
-        if (rc) {
-                remove_migration_ptes(anon_vma, page, page);
-                goto unlock_out;
-        }
-        migrate_page_copy(newpage, page);
-        remove_migration_ptes(anon_vma, page, newpage);
-unlock_out:
-        if (anon_vma)
-                spin_unlock(&anon_vma->lock);
-        return rc;
-}
-==
+The patches introduce a mechanism where architectures register where the
+active ranges of page frames are with add_active_range(). When all areas
+have been discovered, free_area_init_nodes() is called to initialise
+the pgdat and zones. The zone sizes and holes are then calculated in an
+architecture independent manner.
 
-lock around anon_vma->lock does not depend on the result of 
-try_to_unmap() and remove_migration_ptes(). 
+Patch 1 introduces the mechanism for registering and initialising PFN ranges
+Patch 2 changes ppc to use the mechanism - 128 arch-specific LOC removed
+Patch 3 changes x86 to use the mechanism - 150 arch-specific LOC removed
+Patch 4 changes x86_64 to use the mechanism - 98 arch-specific LOC removed
+Patch 5 changes ia64 to use the mechanism - 60 arch-specific LOC removed
 
-But I agree : 'taking anon_vma->lock before try_to_unmap() is ugly and complicated
-and will make things insane.'
+At this point, there is a net reduction of 62 lines of code and the
+arch-independent code is a lot easier to read in comparison to some of
+the arch-specific stuff, particularly in arch/i386/ .
 
-Will this attached one make things clearer ?
+For Patch 6, it was also noted that page_alloc.c has a *lot* of
+initialisation code which makes the file harder to read than it needs to
+be. Patch 6 creates a new file mem_init.c and moves a lot of initialisation
+code from page_alloc.c to it. After the patch is applied, there is still a net
+loss of 43 lines.
 
-This anon_vma->lock is just an optimization (for now) but complicated.
-I think restart discusstion against -mm3? will be better.
--Kame
-==
-Index: Christoph-NewMigrationV2/mm/rmap.c
-===================================================================
---- Christoph-NewMigrationV2.orig/mm/rmap.c
-+++ Christoph-NewMigrationV2/mm/rmap.c
-@@ -711,29 +711,44 @@ static void try_to_unmap_cluster(unsigne
- 	pte_unmap_unlock(pte - 1, ptl);
- }
- 
--static int try_to_unmap_anon(struct page *page, int migration)
-+static int __try_to_unmap_anon(struct anon_vma *anon_vma,
-+	struct page *page, int migration)
- {
--	struct anon_vma *anon_vma;
- 	struct vm_area_struct *vma;
- 	int ret = SWAP_AGAIN;
- 
--	if (migration) { /* anon_vma->lock is held under migration */
--		unsigned long mapping;
--		mapping = (unsigned long)page->mapping - PAGE_MAPPING_ANON;
--		anon_vma = (struct anon_vma *)mapping;
--	} else {
--		anon_vma = page_lock_anon_vma(page);
--	}
--	if (!anon_vma)
--		return ret;
--
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
- 		ret = try_to_unmap_one(page, vma, migration);
- 		if (ret == SWAP_FAIL || !page_mapped(page))
- 			break;
- 	}
--	if (!migration)
--		spin_unlock(&anon_vma->lock);
-+	return ret;
-+}
-+
-+static int try_to_unmap_anon(struct page *page)
-+{
-+        struct anon_vma *anon_vma;
-+        struct vm_area_struct *vma;
-+        int ret = SWAP_AGAIN;
-+
-+	anon_vma = page_lock_anon_vma(page);
-+	if (!anon_vma)
-+		return ret;
-+	ret = __try_to_unmap_anon(anon_vma, page, 0);
-+	spin_unlock(&anon_vma->lock);
-+	return ret;
-+}
-+
-+static int try_to_unmap_anon_migrate(struct page *page)
-+{
-+	struct anon_vma *anon_vma;
-+	unsigned long mapping;
-+	int ret = SWAP_AGAIN;
-+	if (PageAnon(page))
-+		return ret;
-+	mapping = page->mapping;
-+	anon_vma = (struct anon_vma *)(mapping - PAGE_MAPPING_ANON);
-+	ret = __try_to_unmap_anon_migrate(anon_vma, page, 1);
- 	return ret;
- }
- 
-@@ -851,9 +866,12 @@ int try_to_unmap(struct page *page, int 
- 
- 	BUG_ON(!PageLocked(page));
- 
--	if (PageAnon(page))
--		ret = try_to_unmap_anon(page, migration);
--	else
-+	if (PageAnon(page)) {
-+		if (migration)
-+			ret = try_to_unmap_anon_migrate(page);
-+		else
-+			ret = try_to_unmap_anon(page);
-+	} else
- 		ret = try_to_unmap_file(page, migration);
- 
- 	if (!page_mapped(page))
+The patches have been successfully boot tested and verified that the
+zones are the correct size on
+
+o x86, flatmem
+o x86, NUMAQ
+o PPC64, NUMA
+o PPC64, CONFIG_NUMA=n
+o x86_64, NUMA with SRAT
+o x86_64, CONFIG_NUMA=n
+
+There are differences in the zone sizes for x86_64 as the arch-specific code
+for x86_64 accounts the kernel image and the starting mem_maps as memory
+holes but the architecture-specific code accounts the memory as present.
+The patches have been compile tested for ia64 for flatmem and sparsemem
+configurations. At attempt was made to boot test on an ancient RS/6000
+but the vanilla kernel does not boot so I have to investigate there.
+
+The net reduction seems small but the big benefit of this set of patches
+is the reduction of 437 lines of architecture-specific code, some of
+which is very hairy. There should be a greater net reduction when other
+architectures use the same mechanisms for zone and hole sizing but I lack
+the hardware to test on.
+
+Comments?
+
+Additional credit;
+	Dave Hansen for the initial suggestion and comments on early patches
+	Andy Whitcroft for reviewing early versions and catching numerous errors
+	Tony Luck and Yasunori Goto for testing and debugging on IA64
+	Bob Picco for testing and fixing bugs related to pfn registration
+
+ arch/i386/Kconfig          |    8 
+ arch/i386/kernel/setup.c   |   19 
+ arch/i386/kernel/srat.c    |   98 ----
+ arch/i386/mm/discontig.c   |   59 --
+ arch/ia64/Kconfig          |    3 
+ arch/ia64/mm/contig.c      |   60 --
+ arch/ia64/mm/discontig.c   |   41 -
+ arch/ia64/mm/init.c        |   12 
+ arch/powerpc/Kconfig       |   13 
+ arch/powerpc/mm/mem.c      |   53 --
+ arch/powerpc/mm/numa.c     |  157 ------
+ arch/ppc/Kconfig           |    3 
+ arch/ppc/mm/init.c         |   26 -
+ arch/x86_64/Kconfig        |    3 
+ arch/x86_64/kernel/e820.c  |  109 +---
+ arch/x86_64/kernel/setup.c |    3 
+ arch/x86_64/mm/init.c      |   62 --
+ arch/x86_64/mm/numa.c      |   18 
+ arch/x86_64/mm/srat.c      |    7 
+ include/asm-ia64/meminit.h |    1 
+ include/asm-x86_64/e820.h  |    5 
+ include/asm-x86_64/proto.h |    2 
+ include/linux/mm.h         |   18 
+ include/linux/mmzone.h     |   15 
+ mm/Makefile                |    2 
+ mm/mem_init.c              | 1040 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c            |  678 -----------------------------
+ 27 files changed, 1236 insertions(+), 1279 deletions(-)
+
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
