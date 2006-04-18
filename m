@@ -1,58 +1,59 @@
-Date: Tue, 18 Apr 2006 17:05:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 18 Apr 2006 01:27:40 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
-Message-Id: <20060418170517.b46736d8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0604172353570.4352@schroedinger.engr.sgi.com>
+In-Reply-To: <20060418170517.b46736d8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604180126221.4627@schroedinger.engr.sgi.com>
 References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0604131832020.16220@schroedinger.engr.sgi.com>
-	<20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604140945320.18453@schroedinger.engr.sgi.com>
-	<20060415090639.dde469e8.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604151040450.25886@schroedinger.engr.sgi.com>
-	<20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604170958100.29732@schroedinger.engr.sgi.com>
-	<20060418090439.3e2f0df4.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604171724070.2752@schroedinger.engr.sgi.com>
-	<20060418094212.3ece222f.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604171856290.2986@schroedinger.engr.sgi.com>
-	<20060418120016.14419e02.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604172011490.3624@schroedinger.engr.sgi.com>
-	<20060418123256.41eb56af.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604172353570.4352@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060414113455.15fd5162.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604140945320.18453@schroedinger.engr.sgi.com>
+ <20060415090639.dde469e8.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604151040450.25886@schroedinger.engr.sgi.com>
+ <20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604170958100.29732@schroedinger.engr.sgi.com>
+ <20060418090439.3e2f0df4.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604171724070.2752@schroedinger.engr.sgi.com>
+ <20060418094212.3ece222f.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604171856290.2986@schroedinger.engr.sgi.com>
+ <20060418120016.14419e02.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604172011490.3624@schroedinger.engr.sgi.com>
+ <20060418123256.41eb56af.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604172353570.4352@schroedinger.engr.sgi.com>
+ <20060418170517.b46736d8.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Apr 2006 23:58:41 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 18 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-> Hmmm... Good ideas. I think it could be much simpler like the following 
-> patch.
+> On Mon, 17 Apr 2006 23:58:41 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> However, the problem here is how to know that we really took the anon_vma 
-> lock and what to do about a page being unmmapped while migrating. This 
-> could cause the anon_vma not to be unlocked.
-> 
-lock dependency here is page_lock(page) -> page's anon_vma->lock.
-So, I guess  anon_vma->lock cannot be unlocked by other threads 
-if we have page_lock(page).
+> > Hmmm... Good ideas. I think it could be much simpler like the following 
+> > patch.
+> > 
+> > However, the problem here is how to know that we really took the anon_vma 
+> > lock and what to do about a page being unmmapped while migrating. This 
+> > could cause the anon_vma not to be unlocked.
+> > 
+> lock dependency here is page_lock(page) -> page's anon_vma->lock.
+> So, I guess  anon_vma->lock cannot be unlocked by other threads 
+> if we have page_lock(page).
 
+No the problem is to know if the lock was really taken. SWAP_AGAIN could 
+mean that page_lock_anon_vma failed.
 
-> I guess we would need to have try_to_unmap return some state information.
-What kind of information ?
+Also the page may be freed while it is being processes. In that case 
+remove_migration_ptes may not find the mapping and may not unlock the 
+anon_vma.
 
-> I also toyed around with writing an "install_migration_ptes" function 
-> which would be called only for anonymous pages and would reduce the 
-> changes to try_to_unmap(). However, that also got too complicated.
-> 
+> > I guess we would need to have try_to_unmap return some state information.
+> What kind of information ?
 
--Kame
-
+Information that indicates that the anon_vma lock was taken.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
