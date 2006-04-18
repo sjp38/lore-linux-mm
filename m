@@ -1,38 +1,68 @@
-Date: Tue, 18 Apr 2006 09:49:12 -0700 (PDT)
+Date: Tue, 18 Apr 2006 11:21:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 5/5] Swapless V2: Revise main migration logic
-In-Reply-To: <20060418180810.e947564c.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604180948250.7391@schroedinger.engr.sgi.com>
-References: <20060413235406.15398.42233.sendpatchset@schroedinger.engr.sgi.com>
- <20060415090639.dde469e8.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604151040450.25886@schroedinger.engr.sgi.com>
- <20060417091830.bca60006.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604170958100.29732@schroedinger.engr.sgi.com>
- <20060418090439.3e2f0df4.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604171724070.2752@schroedinger.engr.sgi.com>
- <20060418094212.3ece222f.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604171856290.2986@schroedinger.engr.sgi.com>
- <20060418120016.14419e02.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604172011490.3624@schroedinger.engr.sgi.com>
- <20060418123256.41eb56af.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604172353570.4352@schroedinger.engr.sgi.com>
- <20060418170517.b46736d8.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0604180126221.4627@schroedinger.engr.sgi.com>
- <20060418180810.e947564c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Read/Write migration entries: Implement correct behavior in copy_one_pte
+Message-ID: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@osdl.org, hugh@veritas.com, linux-kernel@vger.kernel.org, lee.schermerhorn@hp.com, linux-mm@kvack.org, taka@valinux.co.jp, marcelo.tosatti@cyclades.com
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Apr 2006, KAMEZAWA Hiroyuki wrote:
+Note that this is again only a partial solution. mprotect() also has the
+potential of changing the write status to read. Are there any additional
+occurrences? Would you check and fix this one as well?
 
-> This anon_vma->lock is just an optimization (for now) but complicated.
-> I think restart discusstion against -mm3? will be better.
+If we cannot get to all the locations or if these fixes get too extensive
+then I think we better drop the preservation of write permissions and
+tolerate the occurrence of some useless COW after migration.
 
-I agree.
+
+
+Migration entries with write permission must become SWP_MIGRATION_READ
+entries if a COW mapping is processed. The migration entries from which
+the copy is being made must also become SWP_MIGRATION_READ. This mimicks
+the copying of pte for an anonymous page.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.17-rc1-mm3/mm/memory.c
+===================================================================
+--- linux-2.6.17-rc1-mm3.orig/mm/memory.c	2006-04-18 10:58:33.000000000 -0700
++++ linux-2.6.17-rc1-mm3/mm/memory.c	2006-04-18 11:09:23.000000000 -0700
+@@ -434,7 +434,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 	/* pte contains position in swap or file, so copy. */
+ 	if (unlikely(!pte_present(pte))) {
+ 		if (!pte_file(pte)) {
+-			swap_duplicate(pte_to_swp_entry(pte));
++			swp_entry_t entry = pte_to_swp_entry(pte);
++
++			swap_duplicate(entry);
+ 			/* make sure dst_mm is on swapoff's mmlist. */
+ 			if (unlikely(list_empty(&dst_mm->mmlist))) {
+ 				spin_lock(&mmlist_lock);
+@@ -443,6 +445,19 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 						 &src_mm->mmlist);
+ 				spin_unlock(&mmlist_lock);
+ 			}
++			if (is_migration_entry(entry) &&
++					is_cow_mapping(vm_flags)) {
++				page = migration_entry_to_page(entry);
++
++				/*
++				 * COW mappings require pages in both parent
++				*  and child to be set to read.
++				 */
++				entry = make_migration_entry(page,
++	`					SWP_MIGRATION_READ);
++				pte = swp_entry_to_pte(entry);
++				set_pte_at(src_mm, addr, src_pte, pte);
++			}
+ 		}
+ 		goto out_set_pte;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
