@@ -1,68 +1,90 @@
-Date: Tue, 18 Apr 2006 11:21:25 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Read/Write migration entries: Implement correct behavior in copy_one_pte
-Message-ID: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 18 Apr 2006 14:56:45 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture independent manner V3
+Message-ID: <20060418195644.GA30911@sgi.com>
+References: <20060418130015.28928.10163.sendpatchset@skynet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060418130015.28928.10163.sendpatchset@skynet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Note that this is again only a partial solution. mprotect() also has the
-potential of changing the write status to read. Are there any additional
-occurrences? Would you check and fix this one as well?
-
-If we cannot get to all the locations or if these fixes get too extensive
-then I think we better drop the preservation of write permissions and
-tolerate the occurrence of some useless COW after migration.
+On Tue, Apr 18, 2006 at 02:00:15PM +0100, Mel Gorman wrote:
+> This is V3 of the patchset to size zones and memory holes in an
+...
 
 
 
-Migration entries with write permission must become SWP_MIGRATION_READ
-entries if a COW mapping is processed. The migration entries from which
-the copy is being made must also become SWP_MIGRATION_READ. This mimicks
-the copying of pte for an anonymous page.
+FYI, I applied the patches to a recent kernel & booted on a large
+SGI system. No problem aside from what I assume is a very large number
+of debug messages. 
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.17-rc1-mm3/mm/memory.c
-===================================================================
---- linux-2.6.17-rc1-mm3.orig/mm/memory.c	2006-04-18 10:58:33.000000000 -0700
-+++ linux-2.6.17-rc1-mm3/mm/memory.c	2006-04-18 11:09:23.000000000 -0700
-@@ -434,7 +434,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 	/* pte contains position in swap or file, so copy. */
- 	if (unlikely(!pte_present(pte))) {
- 		if (!pte_file(pte)) {
--			swap_duplicate(pte_to_swp_entry(pte));
-+			swp_entry_t entry = pte_to_swp_entry(pte);
-+
-+			swap_duplicate(entry);
- 			/* make sure dst_mm is on swapoff's mmlist. */
- 			if (unlikely(list_empty(&dst_mm->mmlist))) {
- 				spin_lock(&mmlist_lock);
-@@ -443,6 +445,19 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 						 &src_mm->mmlist);
- 				spin_unlock(&mmlist_lock);
- 			}
-+			if (is_migration_entry(entry) &&
-+					is_cow_mapping(vm_flags)) {
-+				page = migration_entry_to_page(entry);
-+
-+				/*
-+				 * COW mappings require pages in both parent
-+				*  and child to be set to read.
-+				 */
-+				entry = make_migration_entry(page,
-+	`					SWP_MIGRATION_READ);
-+				pte = swp_entry_to_pte(entry);
-+				set_pte_at(src_mm, addr, src_pte, pte);
-+			}
- 		}
- 		goto out_set_pte;
- 	}
+------
+Linux version 2.6.17-tony (steiner@attica) (gcc version 4.1.0 (SUSE Linux)) #5 SMP PREEMPT Tue Apr 18 14:01:54 CDT 2006
+EFI v1.10 by INTEL: SALsystab=0x6002c51df0 ACPI 2.0=0x6002c51ee0
+Number of logical nodes in system = 512
+Number of memory chunks in system = 512
+SAL 2.9: SGI SN2 version 1.10
+SAL Platform features: ITC_Drift
+SAL: AP wakeup using external interrupt vector 0x12
+No logical to physical processor mapping available
+ACPI: Local APIC address c0000000fee00000
+ACPI: Error parsing MADT - no IOSAPIC entries
+register_intr: No IOSAPIC for GSI 52
+512 CPUs available, 512 CPUs total
+MCA related initialization done
+SGI SAL version 1.10
+add_active_range(0, 25168900, 25235456): New
+add_active_range(0, 25236375, 25419776): New
+add_active_range(0, 27262976, 27516927): New
+add_active_range(0, 29360128, 29614080): New
+add_active_range(1, 92277760, 92528640): New
+...
+add_active_range(511, 34322242024, 34322242047): New
+add_active_range(511, 34322243072, 34322243417): New
+add_active_range(511, 34322243432, 34322243460): New
+add_active_range(511, 34322243488, 34322243500): New
+Virtual mem_map starts at 0xa0007e407d270000
+free_area_init_nodes(68719476736, 68719476736, 34322243584, 34322243584)
+free_area_init_nodes(): find_min_pfn = 25168900
+Dumping sorted node map
+entry 0: 0  25168900 -> 25235456
+entry 1: 0  25236375 -> 25419776
+entry 2: 0  27262976 -> 27516927
+entry 3: 0  29360128 -> 29614080
+entry 4: 1  92277760 -> 92528640
+entry 5: 1  94371840 -> 94625792
+entry 6: 1  96468992 -> 96722944
+...
+entry 1536: 511	 34321989632 -> 34322242001
+entry 1537: 511	 34322242016 -> 34322242022
+entry 1538: 511	 34322242024 -> 34322242047
+entry 1539: 511	 34322243072 -> 34322243417
+entry 1540: 511	 34322243432 -> 34322243460
+entry 1541: 511	 34322243488 -> 34322243500
+__absent_pages_in_range(0, 25168900, 68719476736) = 3687320
+__absent_pages_in_range(0, 68719476736, 68719476736) = 0
+__absent_pages_in_range(0, 68719476736, 34322243584) = 0
+__absent_pages_in_range(0, 34322243584, 34322243584) = 0
+__absent_pages_in_range(0, 25168900, 68719476736) = 3687320
+...
+__absent_pages_in_range(511, 34322243584, 34322243584) = 0
+__absent_pages_in_range(511, 25168900, 68719476736) = 3687485
+__absent_pages_in_range(511, 68719476736, 68719476736) = 0
+__absent_pages_in_range(511, 68719476736, 34322243584) = 0
+__absent_pages_in_range(511, 34322243584, 34322243584) = 0
+Built 512 zonelists
+Kernel command line: BOOT_IMAGE=net0:jfs/tonys	ro hashdist=1 dhash_entries=2097152 ihash_entries=2097152 rhash_entries=2097152 thash_entries=2097152 console=ttySG0,38400n8 kdb=on noprobe root=/dev/sda5
+PID hash table entries: 4096 (order: 12, 32768 bytes)
+Console: colour dummy device 80x25
+Memory: 4639378784k/4655642784k available (7021k code, 16279040k reserved, 4361k data, 736k init)
+	(essentially the same numbers as with a kernel w/o the patches)
+McKinley Errata 9 workaround not needed; disabling it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
