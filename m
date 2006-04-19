@@ -1,93 +1,36 @@
-Date: Wed, 19 Apr 2006 09:50:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 18 Apr 2006 18:27:28 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Read/Write migration entries: Implement correct behavior in
  copy_one_pte
-Message-Id: <20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
+In-Reply-To: <20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604181823590.9747@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Apr 2006 11:21:25 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 19 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-> Note that this is again only a partial solution. mprotect() also has the
-> potential of changing the write status to read. 
-yes. in change_pte_range(). 
-
-Note:
-fork() and mprotect() both requires mm->mmap_sem.
-So both of them is not problem when migration holds mm->mmap_sem.
-If we does lazy migration or memory hot removing or allows migration from
-another process, this will be problem.
-
-
-
-> Are there any additional occurrences? Would you check and fix this one as well?
+> > Note that this is again only a partial solution. mprotect() also has the
+> > potential of changing the write status to read. 
+> yes. in change_pte_range(). 
 > 
-pte_modify() looks to be called only by mprotect(). I checked all mk_pte() but
-not found no occurrences now. But I'll have to do more.
+> Note:
+> fork() and mprotect() both requires mm->mmap_sem.
+> So both of them is not problem when migration holds mm->mmap_sem.
+> If we does lazy migration or memory hot removing or allows migration from
+> another process, this will be problem.
 
+Oh. We already allow migration from another process since the page may 
+be mapped by multiple mm's. Page migration will then replace the ptes in 
+*all* mm_structs that map this page with migration entries.
 
-> If we cannot get to all the locations or if these fixes get too extensive
-> then I think we better drop the preservation of write permissions and
-> tolerate the occurrence of some useless COW after migration.
-> 
-yes. I agree.
-
--Kame
-> 
-> 
-> Migration entries with write permission must become SWP_MIGRATION_READ
-> entries if a COW mapping is processed. The migration entries from which
-> the copy is being made must also become SWP_MIGRATION_READ. This mimicks
-> the copying of pte for an anonymous page.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.17-rc1-mm3/mm/memory.c
-> ===================================================================
-> --- linux-2.6.17-rc1-mm3.orig/mm/memory.c	2006-04-18 10:58:33.000000000 -0700
-> +++ linux-2.6.17-rc1-mm3/mm/memory.c	2006-04-18 11:09:23.000000000 -0700
-> @@ -434,7 +434,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
->  	/* pte contains position in swap or file, so copy. */
->  	if (unlikely(!pte_present(pte))) {
->  		if (!pte_file(pte)) {
-> -			swap_duplicate(pte_to_swp_entry(pte));
-> +			swp_entry_t entry = pte_to_swp_entry(pte);
-> +
-> +			swap_duplicate(entry);
->  			/* make sure dst_mm is on swapoff's mmlist. */
->  			if (unlikely(list_empty(&dst_mm->mmlist))) {
->  				spin_lock(&mmlist_lock);
-> @@ -443,6 +445,19 @@ copy_one_pte(struct mm_struct *dst_mm, s
->  						 &src_mm->mmlist);
->  				spin_unlock(&mmlist_lock);
->  			}
-> +			if (is_migration_entry(entry) &&
-> +					is_cow_mapping(vm_flags)) {
-> +				page = migration_entry_to_page(entry);
-> +
-> +				/*
-> +				 * COW mappings require pages in both parent
-> +				*  and child to be set to read.
-> +				 */
-> +				entry = make_migration_entry(page,
-> +	`					SWP_MIGRATION_READ);
-> +				pte = swp_entry_to_pte(entry);
-> +				set_pte_at(src_mm, addr, src_pte, pte);
-> +			}
->  		}
->  		goto out_set_pte;
->  	}
-> 
+So we need a fix here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
