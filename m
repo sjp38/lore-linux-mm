@@ -1,55 +1,29 @@
-Date: Wed, 19 Apr 2006 12:39:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Read/Write migration entries: Implement correct behavior in
- copy_one_pte
-Message-Id: <20060419123911.3bd22ab3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0604181823590.9747@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
-	<20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0604181823590.9747@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
+Message-ID: <20060419165754.66819.qmail@web50210.mail.yahoo.com>
+Date: Wed, 19 Apr 2006 09:57:54 -0700 (PDT)
+From: Tony Huang <thuang12@yahoo.com>
+Subject: Mem-misc tests
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Apr 2006 18:27:28 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi,
 
-> On Wed, 19 Apr 2006, KAMEZAWA Hiroyuki wrote:
-> 
-> > > Note that this is again only a partial solution. mprotect() also has the
-> > > potential of changing the write status to read. 
-> > yes. in change_pte_range(). 
-> > 
-> > Note:
-> > fork() and mprotect() both requires mm->mmap_sem.
-> > So both of them is not problem when migration holds mm->mmap_sem.
-> > If we does lazy migration or memory hot removing or allows migration from
-> > another process, this will be problem.
-> 
-> Oh. We already allow migration from another process since the page may 
-> be mapped by multiple mm's. Page migration will then replace the ptes in 
-> *all* mm_structs that map this page with migration entries.
-> 
-> So we need a fix here.
-> 
-Ah.....yes. sorry.
+We tried to run your mem-misc tests(e.g. shm-stress).
+So, in order for the binary to run on different OS
+(e.g. Red Hat Enterprise Linux 3), we need to
+recompile of the files using the 'Makefile', right? We
+ran into some problems recompiling the files? Is there
+anything else that we should do to make the binary
+(e.g. shm-stress) work? Many thanks.
 
-In my understanding (and grep), read/write protection for anon pages 
-can be changed under
-
-- fork()
-- mprotect()
-
-all are known.
-
-BTW, do we manage page table under move_vma() in right way ?
-
--Kame
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
