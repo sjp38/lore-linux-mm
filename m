@@ -1,70 +1,93 @@
-Date: Tue, 18 Apr 2006 16:38:26 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] slab: cleanup kmem_getpages
-Message-Id: <20060418163826.78af10a0.akpm@osdl.org>
-In-Reply-To: <20060418232428.GA13570@lst.de>
-References: <20060414183618.GA21144@lst.de>
-	<20060418232000.GL2732@melbourne.sgi.com>
-	<20060418232428.GA13570@lst.de>
+Date: Wed, 19 Apr 2006 09:50:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Read/Write migration entries: Implement correct behavior in
+ copy_one_pte
+Message-Id: <20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: dgc@sgi.com, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@lst.de> wrote:
->
-> > > +	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-> > >  	if (!page)
-> > >  		return NULL;
-> > > -	addr = page_address(page);
-> > .....
-> > > +	while (nr_pages--) {
-> > >  		__SetPageSlab(page);
-> > >  		page++;
-> > >  	}
-> > > -	return addr;
-> > > +	return page_address(page);
-> > 
-> > I think that's a bug - you return the address of the page after the
-> > allocation, not the first page of the allocation.
-> 
-> You're right.  I wonder why this didn't show up in my testing.  Looks
-> like slab will never allocate any high-order pages if your page size
-> is big enough..
-> 
-> Andrew, please drop this for now.  I'll redo it without that bit once
-> I'll get some time.
+On Tue, 18 Apr 2006 11:21:25 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-I already fixed it - it was giving me instantaneous oopses.
+> Note that this is again only a partial solution. mprotect() also has the
+> potential of changing the write status to read. 
+yes. in change_pte_range(). 
 
---- devel/mm/slab.c~slab-cleanup-kmem_getpages-fix	2006-04-15 01:00:53.000000000 -0700
-+++ devel-akpm/mm/slab.c	2006-04-15 01:01:49.000000000 -0700
-@@ -1492,6 +1492,7 @@ static void *kmem_getpages(struct kmem_c
- {
- 	struct page *page;
- 	int nr_pages;
-+	int i;
- 
- #ifndef CONFIG_MMU
- 	/*
-@@ -1510,10 +1511,8 @@ static void *kmem_getpages(struct kmem_c
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		atomic_add(nr_pages, &slab_reclaim_pages);
- 	add_page_state(nr_slab, nr_pages);
--	while (nr_pages--) {
--		__SetPageSlab(page);
--		page++;
--	}
-+	for (i = 0; i < nr_pages; i++)
-+		__SetPageSlab(page + i);
- 	return page_address(page);
- }
- 
-_
+Note:
+fork() and mprotect() both requires mm->mmap_sem.
+So both of them is not problem when migration holds mm->mmap_sem.
+If we does lazy migration or memory hot removing or allows migration from
+another process, this will be problem.
+
+
+
+> Are there any additional occurrences? Would you check and fix this one as well?
+> 
+pte_modify() looks to be called only by mprotect(). I checked all mk_pte() but
+not found no occurrences now. But I'll have to do more.
+
+
+> If we cannot get to all the locations or if these fixes get too extensive
+> then I think we better drop the preservation of write permissions and
+> tolerate the occurrence of some useless COW after migration.
+> 
+yes. I agree.
+
+-Kame
+> 
+> 
+> Migration entries with write permission must become SWP_MIGRATION_READ
+> entries if a COW mapping is processed. The migration entries from which
+> the copy is being made must also become SWP_MIGRATION_READ. This mimicks
+> the copying of pte for an anonymous page.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.17-rc1-mm3/mm/memory.c
+> ===================================================================
+> --- linux-2.6.17-rc1-mm3.orig/mm/memory.c	2006-04-18 10:58:33.000000000 -0700
+> +++ linux-2.6.17-rc1-mm3/mm/memory.c	2006-04-18 11:09:23.000000000 -0700
+> @@ -434,7 +434,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
+>  	/* pte contains position in swap or file, so copy. */
+>  	if (unlikely(!pte_present(pte))) {
+>  		if (!pte_file(pte)) {
+> -			swap_duplicate(pte_to_swp_entry(pte));
+> +			swp_entry_t entry = pte_to_swp_entry(pte);
+> +
+> +			swap_duplicate(entry);
+>  			/* make sure dst_mm is on swapoff's mmlist. */
+>  			if (unlikely(list_empty(&dst_mm->mmlist))) {
+>  				spin_lock(&mmlist_lock);
+> @@ -443,6 +445,19 @@ copy_one_pte(struct mm_struct *dst_mm, s
+>  						 &src_mm->mmlist);
+>  				spin_unlock(&mmlist_lock);
+>  			}
+> +			if (is_migration_entry(entry) &&
+> +					is_cow_mapping(vm_flags)) {
+> +				page = migration_entry_to_page(entry);
+> +
+> +				/*
+> +				 * COW mappings require pages in both parent
+> +				*  and child to be set to read.
+> +				 */
+> +				entry = make_migration_entry(page,
+> +	`					SWP_MIGRATION_READ);
+> +				pte = swp_entry_to_pte(entry);
+> +				set_pte_at(src_mm, addr, src_pte, pte);
+> +			}
+>  		}
+>  		goto out_set_pte;
+>  	}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
