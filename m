@@ -1,11 +1,11 @@
-Date: Thu, 20 Apr 2006 15:49:56 -0700
+Date: Thu, 20 Apr 2006 16:01:31 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [Patch: 001/006] pgdat allocation for new node add (specify
- node id)
-Message-Id: <20060420154956.1aa4acbe.akpm@osdl.org>
-In-Reply-To: <20060420190338.EE4A.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [Patch: 003/006] pgdat allocation for new node add (generic
+ alloc node_data)
+Message-Id: <20060420160131.7344fe8f.akpm@osdl.org>
+In-Reply-To: <20060420190547.EE4E.Y-GOTO@jp.fujitsu.com>
 References: <20060420185123.EE48.Y-GOTO@jp.fujitsu.com>
-	<20060420190338.EE4A.Y-GOTO@jp.fujitsu.com>
+	<20060420190547.EE4E.Y-GOTO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,22 +17,30 @@ List-ID: <linux-mm.kvack.org>
 
 Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
 >
-> +int add_memory(int nid, u64 start, u64 size)
->  +{
->  +	int ret;
->  +
->  +	/* call arch's memory hotadd */
->  +	ret = arch_add_memory(nid, start, size;
->  +
->  +	return ret;
->  +}
+>  +#define generic_alloc_nodedata(nid)				\
+>  +({								\
+>  +	(pg_data_t *)kzalloc(sizeof(pg_data_t), GFP_KERNEL);	\
+>  +})
 
-So this patch is missing a ), but your later patch which touches this code
-actually has the ).  Which tells me that this isn't the correct version of
-this patch.
+In general, library functions which perform memory allocation should not
+make assumptions about which gfp_t they are allowed to use.
 
-I'll fix that all up, but I would ask you to carefully verify that the
-patches which I merged are the ones which you meant to send, thanks.
+So this really should be `generic_alloc_nodedata(nid, gfp_mask)'.
+
+However, it's very desirable that memory allocations use GFP_KERNEL rather
+than, say, GFP_ATOMIC.  So your interface here _forces_ callers to be in a
+state where GFP_KERNEL is legal, which is good discipline.
+
+Although if that turns out to be a problem, we can expect to see a sad
+little patch from someone which tries to change this to GFP_ATOMIC, which
+makes everything worse - even those callers who _can_ use GFP_KERNEL.
+
+(In practice, NUMA developers seem to never test with sufficient
+CONFIG_DEBUG_* flags enabled, and with CONFIG_PREEMPT, so they happily
+don't get to discover their sleep-in-spinlock bugs anyway).
+
+Anyway, on balance, I think it'd be best to convert this API to take a
+gfp_t as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
