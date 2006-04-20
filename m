@@ -1,32 +1,29 @@
-Date: Thu, 20 Apr 2006 16:46:25 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage address space op to
- shmem
-Message-Id: <20060420164625.5009e935.akpm@osdl.org>
-In-Reply-To: <1145548859.5214.9.camel@localhost.localdomain>
+Date: Thu, 20 Apr 2006 16:51:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage address space op to shmem
+In-Reply-To: <20060420164625.5009e935.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0604201651360.19049@schroedinger.engr.sgi.com>
 References: <1145548859.5214.9.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060420164625.5009e935.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, clameter@sgi.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
->
->  Add migratepage address space op to shmem
-> 
->  Basic problem:  pages of a shared memory segment can only be
->  migrated once.
-> 
->  In 2.6.16 through 2.6.17-rc1, shared memory mappings do not
->  have a migratepage address space op.  Therefore, migrate_pages()
->  falls back to default processing.
+On Thu, 20 Apr 2006, Andrew Morton wrote:
 
-This sounds to me like a bugfix-for-2.6.17 rather than a "PATCH
-2.6.17-rc1-mm3"?
+> >  In 2.6.16 through 2.6.17-rc1, shared memory mappings do not
+> >  have a migratepage address space op.  Therefore, migrate_pages()
+> >  falls back to default processing.
+> 
+> This sounds to me like a bugfix-for-2.6.17 rather than a "PATCH
+> 2.6.17-rc1-mm3"?
+
+Correct.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
