@@ -1,29 +1,31 @@
-Date: Thu, 20 Apr 2006 16:51:47 -0700 (PDT)
+Date: Thu, 20 Apr 2006 16:54:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage address space op to shmem
-In-Reply-To: <20060420164625.5009e935.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0604201651360.19049@schroedinger.engr.sgi.com>
-References: <1145548859.5214.9.camel@localhost.localdomain>
- <20060420164625.5009e935.akpm@osdl.org>
+Subject: Re: [PATCH/RFC] Page Cache Policy V0.0 1/5 add offset arg to
+ migrate_pages_to()
+In-Reply-To: <1145565667.5214.36.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0604201652000.19049@schroedinger.engr.sgi.com>
+References: <1145565667.5214.36.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Apr 2006, Andrew Morton wrote:
+On Thu, 20 Apr 2006, Lee Schermerhorn wrote:
 
-> >  In 2.6.16 through 2.6.17-rc1, shared memory mappings do not
-> >  have a migratepage address space op.  Therefore, migrate_pages()
-> >  falls back to default processing.
+> Page Cache Policy V0.0 1/5 add offset arg to migrate_pages_to()
 > 
-> This sounds to me like a bugfix-for-2.6.17 rather than a "PATCH
-> 2.6.17-rc1-mm3"?
+> This patch adds a page offset arg to migrate_pages_to() for
+> use in selecting nodes from which to allocate for regions with
+> interleave policy.   This is needed to calculate the correct
+> node for shmem and generic mmap()ed files using the shared
+> policy infrastructure [subsequent patches]
 
-Correct.
- 
+Why do we not need this patch? Is it not possible to
+calculate the interleave node from the inode offset? This is only 
+necessary for the case in which no vma is available right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
