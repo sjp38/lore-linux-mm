@@ -1,9 +1,9 @@
-Date: Thu, 20 Apr 2006 19:10:08 +0900
+Date: Thu, 20 Apr 2006 19:10:22 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch: 002/006] pgdat allocation for new node add (get node id by acpi)
+Subject: [Patch: 005/006] pgdat allocation for new node add (export kswapd start func)
 In-Reply-To: <20060420185123.EE48.Y-GOTO@jp.fujitsu.com>
 References: <20060420185123.EE48.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20060420190511.EE4C.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20060420190713.EE52.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,90 +13,88 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is to find node id from acpi's handle of memory_device in DSDT.
-_PXM for the new node can be found by acpi_get_pxm()
-by using new memory's handle. 
-So, node id can be found by pxm_to_nid_map[].
+When node is hot-added, kswapd for the node should start.
+This export kswapd start function as kswapd_run() to use at add_memory().
 
-  This patch becomes simpler than v2 of node hot-add patch.
-  Because old add_memory() function doesn't have node id parameter.
-  So, kernel must find its handle by physical address via DSDT again.
-  But, v3 just give node id to add_memory() now.
 
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- drivers/acpi/acpi_memhotplug.c |    3 ++-
- drivers/acpi/numa.c            |   15 +++++++++++++++
- include/linux/acpi.h           |    6 ++++++
- 3 files changed, 23 insertions(+), 1 deletion(-)
+ include/linux/swap.h |    2 ++
+ mm/vmscan.c          |   35 ++++++++++++++++++++++++++---------
+ 2 files changed, 28 insertions(+), 9 deletions(-)
 
-Index: pgdat11/drivers/acpi/acpi_memhotplug.c
+Index: pgdat11/mm/vmscan.c
 ===================================================================
---- pgdat11.orig/drivers/acpi/acpi_memhotplug.c	2006-04-20 11:00:09.000000000 +0900
-+++ pgdat11/drivers/acpi/acpi_memhotplug.c	2006-04-20 11:00:17.000000000 +0900
-@@ -215,7 +215,7 @@ static int acpi_memory_enable_device(str
- {
- 	int result, num_enabled = 0;
- 	struct acpi_memory_info *info;
--	int node = 0;
-+	int node;
+--- pgdat11.orig/mm/vmscan.c	2006-04-20 11:00:07.000000000 +0900
++++ pgdat11/mm/vmscan.c	2006-04-20 11:00:33.000000000 +0900
+@@ -35,6 +35,7 @@
+ #include <linux/notifier.h>
+ #include <linux/rwsem.h>
+ #include <linux/delay.h>
++#include <linux/kthread.h>
  
- 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
- 
-@@ -227,6 +227,7 @@ static int acpi_memory_enable_device(str
- 		return result;
- 	}
- 
-+	node = acpi_get_node(mem_device->handle);
- 	/*
- 	 * Tell the VM there is more memory here...
- 	 * Note: Assume that this function returns zero on success
-Index: pgdat11/drivers/acpi/numa.c
-===================================================================
---- pgdat11.orig/drivers/acpi/numa.c	2006-04-20 11:00:04.000000000 +0900
-+++ pgdat11/drivers/acpi/numa.c	2006-04-20 11:00:17.000000000 +0900
-@@ -256,3 +256,18 @@ int acpi_get_pxm(acpi_handle h)
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -1353,20 +1354,36 @@ static int __devinit cpu_callback(struct
  }
+ #endif /* CONFIG_HOTPLUG_CPU */
  
- EXPORT_SYMBOL(acpi_get_pxm);
-+
-+int acpi_get_node(acpi_handle *handle)
++/*
++ * This kswapd start function will be called by init and node-hot-add.
++ * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
++ */
++int kswapd_run(int nid)
 +{
-+	int pxm, node = -1;
++	pg_data_t *pgdat = NODE_DATA(nid);
++	int ret = 0;
 +
-+	ACPI_FUNCTION_TRACE("acpi_get_node");
++	if (pgdat->kswapd)
++		return 0;
 +
-+	pxm = acpi_get_pxm(handle);
-+	if (pxm >= 0)
-+		node = acpi_map_pxm_to_node(pxm);
-+
-+	return_VALUE(node);
++	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
++	if (pgdat->kswapd == ERR_PTR(-ENOMEM)) {
++		/* failure at boot is fatal */
++		BUG_ON(system_state == SYSTEM_BOOTING);
++		printk("faled to run kswapd on node %d\n",nid);
++		ret = -1;
++	}
++	return ret;
 +}
 +
-+EXPORT_SYMBOL(acpi_get_node);
-Index: pgdat11/include/linux/acpi.h
-===================================================================
---- pgdat11.orig/include/linux/acpi.h	2006-04-20 11:00:07.000000000 +0900
-+++ pgdat11/include/linux/acpi.h	2006-04-20 11:00:17.000000000 +0900
-@@ -529,12 +529,18 @@ static inline void acpi_set_cstate_limit
- 
- #ifdef CONFIG_ACPI_NUMA
- int acpi_get_pxm(acpi_handle handle);
-+int acpi_get_node(acpi_handle *handle);
- #else
- static inline int acpi_get_pxm(acpi_handle handle)
+ static int __init kswapd_init(void)
  {
+-	pg_data_t *pgdat;
++	int nid;
+ 
+ 	swap_setup();
+-	for_each_online_pgdat(pgdat) {
+-		pid_t pid;
++	for_each_online_node(nid)
++ 		kswapd_run(nid);
+ 
+-		pid = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+-		BUG_ON(pid < 0);
+-		read_lock(&tasklist_lock);
+-		pgdat->kswapd = find_task_by_pid(pid);
+-		read_unlock(&tasklist_lock);
+-	}
+ 	total_memory = nr_free_pagecache_pages();
+ 	hotcpu_notifier(cpu_callback, 0);
  	return 0;
+Index: pgdat11/include/linux/swap.h
+===================================================================
+--- pgdat11.orig/include/linux/swap.h	2006-04-20 11:00:07.000000000 +0900
++++ pgdat11/include/linux/swap.h	2006-04-20 11:00:33.000000000 +0900
+@@ -212,6 +212,8 @@ static inline int zone_reclaim(struct zo
  }
-+static inline int acpi_get_node(acpi_handle *handle)
-+{
-+	return 0;
-+}
  #endif
-+extern int acpi_paddr_to_node(u64 start_addr, u64 size);
  
- extern int pnpacpi_disabled;
- 
++extern int kswapd_run(int nid);
++
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
 
 -- 
 Yasunori Goto 
