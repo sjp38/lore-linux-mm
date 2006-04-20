@@ -1,28 +1,35 @@
-Date: Thu, 20 Apr 2006 19:36:16 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/5] mm: deprecate vmalloc_to_pfn
-Message-ID: <20060420173616.GE21660@wotan.suse.de>
-References: <20060228202202.14172.60409.sendpatchset@linux.site> <20060228202223.14172.21110.sendpatchset@linux.site> <20060420172240.GD21659@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060420172240.GD21659@infradead.org>
+Message-Id: <4t153d$ofhg7@azsmga001.ch.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [RFC] - Kernel text replication on IA64
+Date: Thu, 20 Apr 2006 10:48:09 -0700
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060420164111.GA18770@agluck-lia64.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>
+To: "Luck, Tony" <tony.luck@intel.com>, Jack Steiner <steiner@sgi.com>
+Cc: linux-ia64@vger.kernel.org, lee.schermerhorn@hp.com, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 20, 2006 at 06:22:40PM +0100, Christoph Hellwig wrote:
-> On Thu, Apr 20, 2006 at 07:06:30PM +0200, Nick Piggin wrote:
-> > Deprecate vmalloc_to_pfn.
+Luck, Tony wrote on Thursday, April 20, 2006 9:41 AM
+> On Thu, Apr 20, 2006 at 08:53:16AM -0500, Jack Steiner wrote:
+> > Enabling replication reserves 1 additional DTLB entry for kernel code.
+> > This reduces the number of DTLB entries that is available for user code.
+> > There is the potential that this could impact some applications.
+> > Additional measurements are still needed.
 > 
-> I don't think there's any point to even keep it.  There's a trivial replcement.
+> Ken's recent patch to free up the DTLB that is currently used for per-cpu
+> data would mitigate this (though I'm sure he'll be unamused if I blow the
+> 1.6% gain he saw on his transaction processing benchmark on this :-)
 
-It is exported, is the only thing. I tend to stick my head in the sand
-with these matters, and try to go with whatever I think will help Andrew
-merge it.
+How much benefit is there to have readonly section replicated?  Do you really
+have to use two DTRs - one to map the readonly and one to map rw?
 
-If nobody cares, I'd just as soon remove it completely.
+What about just replicate text so we don't need to burn an extra DTR?
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
