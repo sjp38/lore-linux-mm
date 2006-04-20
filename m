@@ -1,43 +1,32 @@
-Date: Fri, 21 Apr 2006 08:38:45 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [Patch: 001/006] pgdat allocation for new node add (specify node id)
-In-Reply-To: <20060420154956.1aa4acbe.akpm@osdl.org>
-References: <20060420190338.EE4A.Y-GOTO@jp.fujitsu.com> <20060420154956.1aa4acbe.akpm@osdl.org>
-Message-Id: <20060421083415.FCF2.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Thu, 20 Apr 2006 16:46:25 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage address space op to
+ shmem
+Message-Id: <20060420164625.5009e935.akpm@osdl.org>
+In-Reply-To: <1145548859.5214.9.camel@localhost.localdomain>
+References: <1145548859.5214.9.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
-> >
-> > +int add_memory(int nid, u64 start, u64 size)
-> >  +{
-> >  +	int ret;
-> >  +
-> >  +	/* call arch's memory hotadd */
-> >  +	ret = arch_add_memory(nid, start, size;
-> >  +
-> >  +	return ret;
-> >  +}
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+>
+>  Add migratepage address space op to shmem
 > 
-> So this patch is missing a ), but your later patch which touches this code
-> actually has the ).  Which tells me that this isn't the correct version of
-> this patch.
+>  Basic problem:  pages of a shared memory segment can only be
+>  migrated once.
 > 
-> I'll fix that all up, but I would ask you to carefully verify that the
-> patches which I merged are the ones which you meant to send, thanks.
+>  In 2.6.16 through 2.6.17-rc1, shared memory mappings do not
+>  have a migratepage address space op.  Therefore, migrate_pages()
+>  falls back to default processing.
 
-Oops. I thought I fixed it, but I made mistake.
-Sorry.
-
--- 
-Yasunori Goto 
-
+This sounds to me like a bugfix-for-2.6.17 rather than a "PATCH
+2.6.17-rc1-mm3"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
