@@ -1,41 +1,29 @@
-Date: Thu, 20 Apr 2006 13:03:15 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 2/5] mm: deprecate vmalloc_to_pfn
-Message-Id: <20060420130315.1911ab42.akpm@osdl.org>
-In-Reply-To: <20060420173616.GE21660@wotan.suse.de>
-References: <20060228202202.14172.60409.sendpatchset@linux.site>
-	<20060228202223.14172.21110.sendpatchset@linux.site>
-	<20060420172240.GD21659@infradead.org>
-	<20060420173616.GE21660@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 20 Apr 2006 13:17:19 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Read/Write migration entries: Implement correct behavior in
+ copy_one_pte
+In-Reply-To: <20060419123911.3bd22ab3.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604201307200.19049@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0604181119480.7814@schroedinger.engr.sgi.com>
+ <20060419095044.d7333b21.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0604181823590.9747@schroedinger.engr.sgi.com>
+ <20060419123911.3bd22ab3.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> wrote:
->
-> On Thu, Apr 20, 2006 at 06:22:40PM +0100, Christoph Hellwig wrote:
-> > On Thu, Apr 20, 2006 at 07:06:30PM +0200, Nick Piggin wrote:
-> > > Deprecate vmalloc_to_pfn.
-> > 
-> > I don't think there's any point to even keep it.  There's a trivial replcement.
-> 
-> It is exported, is the only thing. I tend to stick my head in the sand
-> with these matters, and try to go with whatever I think will help Andrew
-> merge it.
-> 
-> If nobody cares, I'd just as soon remove it completely.
+On Wed, 19 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-It's been in there for a long time.  Theoretically we should mark it
-deprecated, kill it in six months or so.
+> BTW, do we manage page table under move_vma() in right way ?
 
-But vmalloc_to_page() is EXPORT_SYMBOLed, so fixing up downstream breakage
-will be so trivial it's hardly worth bothering.  So let's zap vmalloc_to_pfn()
-in 2.6.18.
+I had a look at it and it seems to be done the right way. The ptl locks
+are taken and the vma information is setup before the move. 
+remove_migration_ptes() will find the page both in the old and the new 
+vma.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
