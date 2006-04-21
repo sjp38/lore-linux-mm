@@ -1,8 +1,8 @@
-Date: Fri, 21 Apr 2006 13:15:24 +0900
+Date: Fri, 21 Apr 2006 13:18:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] split zonelist and use nodemask for page allocation [3/4]
- hugemem policy
-Message-Id: <20060421131524.7b7547b3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] split zonelist and use nodemask for page allocation [4/4]
+ build zonelist
+Message-Id: <20060421131832.82eb8201.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -12,104 +12,139 @@ To: linux-mm@kvack.org
 Cc: clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Changes in memploicy affects hugepage allocation.
-(this ver. is a bit ugly...)
+build_zonelist() also has to be modified.
+nodes_list() is created in the same way of old zonelist.
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu,com>
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Index: linux-2.6.17-rc1-mm2/include/linux/mempolicy.h
+Index: linux-2.6.17-rc1-mm2/mm/page_alloc.c
 ===================================================================
---- linux-2.6.17-rc1-mm2.orig/include/linux/mempolicy.h	2006-04-21 11:52:05.000000000 +0900
-+++ linux-2.6.17-rc1-mm2/include/linux/mempolicy.h	2006-04-21 11:56:37.000000000 +0900
-@@ -157,8 +157,8 @@
- #endif
+--- linux-2.6.17-rc1-mm2.orig/mm/page_alloc.c	2006-04-21 12:08:22.000000000 +0900
++++ linux-2.6.17-rc1-mm2/mm/page_alloc.c	2006-04-21 12:15:06.000000000 +0900
+@@ -1695,19 +1695,13 @@
+ 	return best_node;
+ }
  
- extern struct mempolicy default_policy;
--extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
--		unsigned long addr);
-+extern nodemask_t *huge_nodemask(struct vm_area_struct *vma,
-+				 unsigned long addr, int *nid);
- extern unsigned slab_node(struct mempolicy *policy);
- 
- extern int policy_zone;
-Index: linux-2.6.17-rc1-mm2/mm/hugetlb.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/mm/hugetlb.c	2006-04-21 11:51:26.000000000 +0900
-+++ linux-2.6.17-rc1-mm2/mm/hugetlb.c	2006-04-21 12:07:09.000000000 +0900
-@@ -66,24 +66,32 @@
- static struct page *dequeue_huge_page(struct vm_area_struct *vma,
- 				unsigned long address)
+-static void __init build_zonelists(pg_data_t *pgdat)
++static void __init build_nodelists(pg_data_t *pgdat)
  {
--	int nid = numa_node_id();
- 	struct page *page = NULL;
--	struct zonelist *zonelist = huge_zonelist(vma, address);
--	struct zone **z;
+-	int i, j, k, node, local_node;
++	int index, node, local_node;
+ 	int prev_node, load;
+ 	struct zonelist *zonelist;
+ 	nodemask_t used_mask;
+ 
+-	/* initialize zonelists */
+-	for (i = 0; i < GFP_ZONETYPES; i++) {
+-		zonelist = pgdat->node_zonelists + i;
+-		zonelist->zones[0] = NULL;
+-	}
 -
--	for (z = zonelist->zones; *z; z++) {
--		nid = (*z)->zone_pgdat->node_id;
--		if (cpuset_zone_allowed(*z, GFP_HIGHUSER) &&
--		    !list_empty(&hugepage_freelists[nid]))
--			break;
-+	int zid;
-+	int nid, orig_node, index = 0;
-+	nodemask_t *mask = huge_nodemask(vma, address, &nid);
-+	struct zone *z = NULL;
-+	orig_node = nid;
-+retry:
-+	if (node_isset(nid, *mask)) {
-+		for (zid = ZONE_HIGHMEM; zid >= 0; --zid) {
-+			z = NODE_DATA(nid)->node_zones + zid;
-+			if (cpuset_zone_allowed(z, GFP_HIGHUSER) &&
-+		    		!list_empty(&hugepage_freelists[nid]))
-+				break;
-+		}
- 	}
+ 	/* NUMA-aware ordering of nodes */
+ 	local_node = pgdat->node_id;
+ 	load = num_online_nodes();
+@@ -1723,6 +1717,10 @@
+ 		if (distance > RECLAIM_DISTANCE)
+ 			zone_reclaim_mode = 1;
  
--	if (*z) {
-+	if (z) {
- 		page = list_entry(hugepage_freelists[nid].next,
- 				  struct page, lru);
- 		list_del(&page->lru);
- 		free_huge_pages--;
- 		free_huge_pages_node[nid]--;
-+	} else {
-+		nid = NODE_DATA(orig_node)->nodes_list[++index];
-+		if (nid != -1)
-+			goto retry;
- 	}
- 	return page;
- }
-Index: linux-2.6.17-rc1-mm2/mm/mempolicy.c
-===================================================================
---- linux-2.6.17-rc1-mm2.orig/mm/mempolicy.c	2006-04-21 11:52:05.000000000 +0900
-+++ linux-2.6.17-rc1-mm2/mm/mempolicy.c	2006-04-21 12:05:27.000000000 +0900
-@@ -1096,8 +1096,9 @@
- }
++		/* avoid memory less node */
++		if (NODE_DATA(node)->node_present_pages == 0)
++			continue;
++
+ 		/*
+ 		 * We don't want to pressure a particular node.
+ 		 * So adding penalty to the first node in same
+@@ -1733,25 +1731,47 @@
+ 			node_load[node] += load;
+ 		prev_node = node;
+ 		load--;
+-		for (i = 0; i < GFP_ZONETYPES; i++) {
+-			zonelist = pgdat->node_zonelists + i;
+-			for (j = 0; zonelist->zones[j] != NULL; j++);
++		pgdat->nodes_list[index++] = node;
++	}
++	/* end of list */
++	pgdat->nodes_list[index] = -1;
++}
  
- #ifdef CONFIG_HUGETLBFS
--/* Return a zonelist suitable for a huge page allocation. */
--struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
-+/* Return a nodemask suitable for a huge page allocation. */
-+struct nodemask_t *
-+huge_nodemask(struct vm_area_struct *vma, unsigned long addr, int *nid)
+-			k = highest_zone(i);
++#elif defined(CONFIG_NEED_MULTIPLE_NODES)
+ 
+-	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+-			zonelist->zones[j] = NULL;
+-		}
++/* not NUMA but have multiple nodes */
++static void __init build_nodelists(pg_data_t *pgdat)
++{
++	int local_node = pgdat->node_id;
++	int node,index;
++
++	if (pgdat->node_present_pages != 0)
++		pgdat->nodes_list[index++] = local_node;
++
++	for (node = local_node + 1; node < MAX_NUMNODES; node++) {
++		if (!node_online(node))
++			continue;
++		pgdat->nodes_list[index++] = node;
++	}
++	for (node = 0; node < local_node; node++) {
++		if (!node_online(node))
++			continue;
++		pgdat->nodes_list[index++] = node;
+ 	}
++	pgdat->node_list[index] = -1;
+ }
+-
+-#else	/* CONFIG_NUMA */
++#else /* there is only one pgdat */
++static void __init build_nodelists(pg_data_t *pgdat)
++{
++	pgdat->nodes_list[0] = pgdat->node_id;
++	pgdat->nodes_list[1] = 0;
++}
++#endif
+ 
+ static void __init build_zonelists(pg_data_t *pgdat)
  {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+-	int i, j, k, node, local_node;
++	int i, j, k;
  
-@@ -1105,9 +1106,12 @@
- 		unsigned nid;
+-	local_node = pgdat->node_id;
+ 	for (i = 0; i < GFP_ZONETYPES; i++) {
+ 		struct zonelist *zonelist;
  
- 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
--		return NODE_DATA(nid)->node_zonelists + gfp_zone(GFP_HIGHUSER);
-+		return &pol->v.nodes;
+@@ -1760,30 +1780,11 @@
+ 		j = 0;
+ 		k = highest_zone(i);
+  		j = build_zonelists_node(pgdat, zonelist, j, k);
+- 		/*
+- 		 * Now we build the zonelist so that it contains the zones
+- 		 * of all the other nodes.
+- 		 * We don't want to pressure a particular node, so when
+- 		 * building the zones for node N, we make sure that the
+- 		 * zones coming right after the local ones are those from
+- 		 * node N+1 (modulo N)
+- 		 */
+-		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
+-			if (!node_online(node))
+-				continue;
+-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+-		}
+-		for (node = 0; node < local_node; node++) {
+-			if (!node_online(node))
+-				continue;
+-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+-		}
+-
+ 		zonelist->zones[j] = NULL;
  	}
--	return zonelist_policy(GFP_HIGHUSER, pol);
-+	*nid = numa_node_id();
-+	if (pol->policy == MPOL_MBIND)
-+		return &pol->v.nodes;
-+	return &node_online_map;
++	build_nodelists(pgdat);
  }
- #endif
  
+-#endif	/* CONFIG_NUMA */
+ 
+ void __init build_all_zonelists(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
