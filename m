@@ -1,138 +1,104 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060301045943.12434.6178.sendpatchset@linux.site>
+Message-Id: <20060301045952.12434.16351.sendpatchset@linux.site>
 In-Reply-To: <20060301045901.12434.54077.sendpatchset@linux.site>
 References: <20060301045901.12434.54077.sendpatchset@linux.site>
-Subject: [patch 4/5] mm: extra remap_vmalloc_range check
-Date: Fri, 21 Apr 2006 08:43:50 +0200 (CEST)
+Subject: [patch 5/5] drivers: leave vm_flags alone
+Date: Fri, 21 Apr 2006 08:44:00 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Add a flag to ensure all remap_vmalloc_range memory has been allocated
-with the vmalloc _user variants, so data does not get leaked.
+Get rid of some vm_flags twiddling from driver code. The net result of
+this + the last 4 patches is that all converted remap_vmalloc_range
+memory can support get_user_pages - do we want that? Can't hurt, can it?
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-Index: linux-2.6/include/linux/vmalloc.h
+Index: linux-2.6/drivers/media/video/em28xx/em28xx-video.c
 ===================================================================
---- linux-2.6.orig/include/linux/vmalloc.h
-+++ linux-2.6/include/linux/vmalloc.h
-@@ -8,6 +8,7 @@
- #define VM_IOREMAP	0x00000001	/* ioremap() and friends */
- #define VM_ALLOC	0x00000002	/* vmalloc() */
- #define VM_MAP		0x00000004	/* vmap()ed pages */
-+#define VM_USERMAP	0x00000008	/* suitable for remap_vmalloc_range */
- /* bits [20..32] reserved for arch specific ioremap internals */
+--- linux-2.6.orig/drivers/media/video/em28xx/em28xx-video.c
++++ linux-2.6/drivers/media/video/em28xx/em28xx-video.c
+@@ -620,10 +620,6 @@ static int em28xx_v4l2_mmap(struct file 
+ 		return -EINVAL;
+ 	}
  
- /*
+-	/* VM_IO is eventually going to replace PageReserved altogether */
+-	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+-
+ 	if (remap_vmalloc_range(vma, dev->frame[i].bufmem, 0)) {
+ 		em28xx_videodbg("mmap: remap_vmalloc_range failed\n");
+ 		mutex_unlock(&dev->fileop_lock);
 Index: linux-2.6/drivers/media/video/et61x251/et61x251_core.c
 ===================================================================
 --- linux-2.6.orig/drivers/media/video/et61x251/et61x251_core.c
 +++ linux-2.6/drivers/media/video/et61x251/et61x251_core.c
-@@ -133,7 +133,8 @@ et61x251_request_buffers(struct et61x251
- 
- 	cam->nbuffers = count;
- 	while (cam->nbuffers > 0) {
--		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
-+		if ((buff = vmalloc_32_user(cam->nbuffers *
-+						PAGE_ALIGN(imagesize))))
- 			break;
- 		cam->nbuffers--;
+@@ -1499,9 +1499,6 @@ static int et61x251_mmap(struct file* fi
+ 		return -EINVAL;
  	}
+ 
+-	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;
+-
+ 	if (remap_vmalloc_range(vma, cam->frame[i].bufmem, 0)) {
+ 		mutex_unlock(&cam->fileop_mutex);
+ 		return -EAGAIN;
+Index: linux-2.6/drivers/media/video/meye.c
+===================================================================
+--- linux-2.6.orig/drivers/media/video/meye.c
++++ linux-2.6/drivers/media/video/meye.c
+@@ -1689,8 +1689,6 @@ static int meye_mmap(struct file *file, 
+ 	}
+ 
+ 	vma->vm_ops = &meye_vm_ops;
+-	vma->vm_flags &= ~VM_IO;	/* not I/O memory */
+-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+ 	vma->vm_private_data = (void *) (offset / gbufsize);
+ 	meye_vm_open(vma);
+ 
+Index: linux-2.6/drivers/media/video/pwc/pwc-if.c
+===================================================================
+--- linux-2.6.orig/drivers/media/video/pwc/pwc-if.c
++++ linux-2.6/drivers/media/video/pwc/pwc-if.c
+@@ -1567,8 +1567,6 @@ static int pwc_video_mmap(struct file *f
+ 				vma->vm_start, vma->vm_end - vma->vm_start);
+ 	pdev = vdev->priv;
+ 
+-	vma->vm_flags |= VM_IO;
+-
+ 	if (remap_vmalloc_range(vma, pdev->image_data, 0))
+ 		return -EAGAIN;
+ 
 Index: linux-2.6/drivers/media/video/sn9c102/sn9c102_core.c
 ===================================================================
 --- linux-2.6.orig/drivers/media/video/sn9c102/sn9c102_core.c
 +++ linux-2.6/drivers/media/video/sn9c102/sn9c102_core.c
-@@ -149,7 +149,7 @@ sn9c102_request_buffers(struct sn9c102_d
- 
- 	cam->nbuffers = count;
- 	while (cam->nbuffers > 0) {
--		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
-+		if ((buff = vmalloc_32_user(cam->nbuffers * PAGE_ALIGN(imagesize))))
- 			break;
- 		cam->nbuffers--;
+@@ -1762,9 +1762,6 @@ static int sn9c102_mmap(struct file* fil
+ 		return -EINVAL;
  	}
+ 
+-	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;
+-
+ 	if (remap_vmalloc_range(vma, cam->frame[i].bufmem, 0)) {
+ 		mutex_unlock(&cam->fileop_mutex);
+ 		return -EAGAIN;
 Index: linux-2.6/drivers/media/video/zc0301/zc0301_core.c
 ===================================================================
 --- linux-2.6.orig/drivers/media/video/zc0301/zc0301_core.c
 +++ linux-2.6/drivers/media/video/zc0301/zc0301_core.c
-@@ -136,7 +136,7 @@ zc0301_request_buffers(struct zc0301_dev
- 
- 	cam->nbuffers = count;
- 	while (cam->nbuffers > 0) {
--		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
-+		if ((buff = vmalloc_32_user(cam->nbuffers * PAGE_ALIGN(imagesize))))
- 			break;
- 		cam->nbuffers--;
- 	}
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -524,7 +524,16 @@ EXPORT_SYMBOL(vmalloc);
-  */
- void *vmalloc_user(unsigned long size)
- {
--	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-+	struct vm_struct *area;
-+	void *ret;
-+
-+	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-+	write_lock(&vmlist_lock);
-+	area = __find_vm_area(ret);
-+	area->flags |= VM_USERMAP;
-+	write_unlock(&vmlist_lock);
-+
-+	return ret;
- }
- EXPORT_SYMBOL(vmalloc_user);
- 
-@@ -591,7 +600,16 @@ EXPORT_SYMBOL(vmalloc_32);
-  */
- void *vmalloc_32_user(unsigned long size)
- {
--	return __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
-+	struct vm_struct *area;
-+	void *ret;
-+
-+	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
-+	write_lock(&vmlist_lock);
-+	area = __find_vm_area(ret);
-+	area->flags |= VM_USERMAP;
-+	write_unlock(&vmlist_lock);
-+
-+	return ret;
- }
- EXPORT_SYMBOL(vmalloc_32_user);
- 
-@@ -700,6 +718,9 @@ int remap_vmalloc_range(struct vm_area_s
- 	if (!area)
- 		goto out_einval_locked;
- 
-+	if (!(area->flags & VM_USERMAP))
-+		goto out_einval_locked;
-+
- 	if (usize + (pgoff << PAGE_SHIFT) > area->size - PAGE_SIZE)
- 		goto out_einval_locked;
- 	read_unlock(&vmlist_lock);
-Index: linux-2.6/drivers/media/video/em28xx/em28xx-core.c
-===================================================================
---- linux-2.6.orig/drivers/media/video/em28xx/em28xx-core.c
-+++ linux-2.6/drivers/media/video/em28xx/em28xx-core.c
-@@ -79,10 +79,8 @@ u32 em28xx_request_buffers(struct em28xx
- 
- 	dev->num_frames = count;
- 	while (dev->num_frames > 0) {
--		if ((buff = vmalloc_32(dev->num_frames * imagesize))) {
--			memset(buff, 0, dev->num_frames * imagesize);
-+		if ((buff = vmalloc_32_user(dev->num_frames * imagesize)))
- 			break;
--		}
- 		dev->num_frames--;
+@@ -963,9 +963,6 @@ static int zc0301_mmap(struct file* filp
+ 		return -EINVAL;
  	}
  
+-	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;
+-
+ 	if (remap_vmalloc_range(vma, cam->frame[i].bufmem, 0)) {
+ 		mutex_unlock(&cam->fileop_mutex);
+ 		return -EAGAIN;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
