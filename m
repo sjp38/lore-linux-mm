@@ -1,51 +1,39 @@
-Date: Fri, 21 Apr 2006 11:02:06 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: introduce remap_vmalloc_range (pls. drop previous patchset)
-Message-ID: <20060421090206.GT21660@wotan.suse.de>
-References: <20060421084503.GS21660@wotan.suse.de> <84144f020604210157s406a08a7yd3c43d9ef2939ce@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f020604210157s406a08a7yd3c43d9ef2939ce@mail.gmail.com>
+Date: Fri, 21 Apr 2006 08:06:05 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] split zonelist and use nodemask for page allocation [1/4]
+In-Reply-To: <20060420235616.b2000f7f.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64.0604210800470.26525@schroedinger.engr.sgi.com>
+References: <20060421131147.81477c93.kamezawa.hiroyu@jp.fujitsu.com>
+ <20060420231751.f1068112.pj@sgi.com> <20060421154916.f1c436d3.kamezawa.hiroyu@jp.fujitsu.com>
+ <20060420235616.b2000f7f.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Jackson <pj@sgi.com>, linux-mm@kvack.org, ak@suse.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 21, 2006 at 11:57:32AM +0300, Pekka Enberg wrote:
-> Hi Nick,
-> 
-> On 4/21/06, Nick Piggin <npiggin@suse.de> wrote:
-> > +       addr = (void *)((unsigned long)addr + (pgoff << PAGE_SHIFT));
-> 
-> As Andrew said, you can get rid of the casting 
+One thing that also may be good to implement is to get away from traveling 
+lists for allocations.
 
-So he did...
+Most of the time you will have multiple nodes at the same distance for 
+an allocation. It would be best if we either could do a round robin on 
+those nodes or check the amount of memory free and allocate from the one 
+with the most memory free. This means that the nodelist would not work and 
+that the algorithm for selecting a remote node would get more complex.
 
----
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -725,7 +725,7 @@ int remap_vmalloc_range(struct vm_area_s
- 		goto out_einval_locked;
- 	read_unlock(&vmlist_lock);
- 
--	addr = (void *)((unsigned long)addr + (pgoff << PAGE_SHIFT));
-+	addr += pgoff << PAGE_SHIFT;
- 	do {
- 		struct page *page = vmalloc_to_page(addr);
- 		ret = vm_insert_page(vma, uaddr, page);
-@@ -733,7 +733,7 @@ int remap_vmalloc_range(struct vm_area_s
- 			return ret;
- 
- 		uaddr += PAGE_SIZE;
--		addr = (void *)((unsigned long)addr+PAGE_SIZE);
-+		addr += PAGE_SIZE;
- 		usize -= PAGE_SIZE;
- 	} while (usize > 0);
- 
+Also when going off node: It may be good to increase the amount that 
+cannot be touched to reserve more memory for local allocations.
+
+I think there are definitely some challenges here as Paul pointed out. 
+However, I think we may be at a dead end with the zonelist. Going away 
+from the zonelist would also enable the consolidation of policy and cpuset 
+restrictions. If the page allocator can take a list of nodes from which 
+allocations are allowed then the cpuset hooks may no longer be necessary.
+
+However, this is certainly not immediately doable but needs careful 
+thought and performance measurement to insure that we avoid regressions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
