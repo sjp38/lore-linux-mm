@@ -1,52 +1,58 @@
-Date: Fri, 21 Apr 2006 09:33:15 +0200
+Date: Fri, 21 Apr 2006 09:41:57 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 1/5] mm: remap_vmalloc_range
-Message-ID: <20060421073315.GL21660@wotan.suse.de>
-References: <20060301045901.12434.54077.sendpatchset@linux.site> <20060301045910.12434.4844.sendpatchset@linux.site> <20060421001712.4cd5625e.akpm@osdl.org>
+Message-ID: <20060421074156.GM21660@wotan.suse.de>
+References: <20060301045901.12434.54077.sendpatchset@linux.site> <20060301045910.12434.4844.sendpatchset@linux.site> <20060421002938.3878aec5.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060421001712.4cd5625e.akpm@osdl.org>
+In-Reply-To: <20060421002938.3878aec5.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 21, 2006 at 12:17:12AM -0700, Andrew Morton wrote:
-> Nick Piggin <npiggin@suse.de> wrote:
-> >
-> > Add a remap_vmalloc_range and get rid of as many remap_pfn_range and
-> > vm_insert_page loops as possible.
-> > 
-> > remap_vmalloc_range can do a whole lot of nice range checking even
-> > if the caller gets it wrong (which it looks like one or two do).
-> > 
-> > 
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
-> > -		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
-> > -		if (remap_pfn_range(vma, start, page + vma->vm_pgoff,
-> > -						PAGE_SIZE, vma->vm_page_prot))
-> > -		if (remap_pfn_range(vma, addr, pfn, PAGE_SIZE, PAGE_READONLY))
+On Fri, Apr 21, 2006 at 12:29:38AM -0700, Andrew Morton wrote:
 > 
-> You've removed the ability for the caller to set the pte protections - it
-> now always uses vma->vm_page_prot.
+> When replacing calls to remap_pfn_rage() with calls to remap_valloc_range():
 > 
-> please explain...
+> - remap_pfn_range() sets VM_IO|VM_RESERVED|VM_PFNMAP on the user's vma. 
+>   remap_valloc_range() sets only VM_RESERVED.
 
-They should use vma->vm_page_prot?
+Yep, it doesn't use PFNMAPs (we can always user the underlying struct
+ page), nor is it IO space. The only change that should be seen, as
+noted in patch 4/5, is that get_user_pages will work on all mappings
+now. I don't think there is a downside to this?
 
-The callers affected are the PAGE_SHARED ones (the others are unchanged).
-Isn't it correct to provide readonly mappings if userspace asks for it?
+> 
+> - remap_pfn_range() has special handling for COWable user vma's, but
+>   remap_valloc_range() does not.
 
-I assumed this is why Linus went this way too with the new vm_insert_page
-interface.
+That's only for PFNMAPs. COW should continue to work fine.
+
+> 
+> - are vma->vm_start and vma->vm_end always a multiple of PAGE_SIZE?  (I
+>   always forget).  If not, remap_valloc_range() looks a tad buggy.
+
+I hope so.
+
+> 
+> 
+> pls explain.
+> 
+> 
+> - remap_valloc_range() can use ~PAGE_MASK, not PAGE_SIZE-1
+
+I initially did that when coding the function in mm/memory.c, but when
+adding all the vmalloc range checking I tried to stick with vmalloc
+convention.
+
+> 
+> - remap_valloc_range() would lose a whole buncha typecasts if you use the
+>   gcc pointer-arith-with-void* extension.
+
+Should I?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
