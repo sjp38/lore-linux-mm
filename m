@@ -1,10 +1,12 @@
-Message-ID: <444BA0A9.3080901@yahoo.com.au>
-Date: Mon, 24 Apr 2006 01:43:37 +1000
+Message-ID: <444BA150.7040907@yahoo.com.au>
+Date: Mon, 24 Apr 2006 01:46:24 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [rfc][patch] radix-tree: small data structure
+Subject: Re: [rfc][patch] radix-tree: small data structure
+References: <444BA0A9.3080901@yahoo.com.au>
+In-Reply-To: <444BA0A9.3080901@yahoo.com.au>
 Content-Type: multipart/mixed;
- boundary="------------000804080204000408010301"
+ boundary="------------090004090206030103030004"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matt Mackall <mpm@selenic.com>
@@ -12,54 +14,51 @@ Cc: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>, Linux Memory Manag
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------000804080204000408010301
+--------------090004090206030103030004
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-With the previous patch, the radix_tree_node budget on my 64-bit
-desktop is cut from 20MB to 10MB. This patch should cut it again
-by nearly a factor of 4 (haven't verified, but 98ish % of files
-are under 64K).
+Nick Piggin wrote:
+> With the previous patch, the radix_tree_node budget on my 64-bit
+> desktop is cut from 20MB to 10MB. This patch should cut it again
+> by nearly a factor of 4 (haven't verified, but 98ish % of files
+> are under 64K).
+> 
+> I wonder if this would be of any interest for those who enable
+> CONFIG_BASE_SMALL?
 
-I wonder if this would be of any interest for those who enable
-CONFIG_BASE_SMALL?
+Bah, wrong patch.
 
 -- 
 SUSE Labs, Novell Inc.
 
---------------000804080204000408010301
+--------------090004090206030103030004
 Content-Type: text/plain;
- name="radix-tree-tag_get-fix.patch"
+ name="radix-small.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="radix-tree-tag_get-fix.patch"
+ filename="radix-small.patch"
 
-Index: rtth/radix-tree.c
+This patch reduces radix tree node memory usage by about a factor of 4
+on many small files (< 64K) scenarios, and results in perfect packing of
+the index range into 32 and 64 bits. There are pointer traversal and
+memory usage costs for large files with dense pagecache.
+
+Index: linux-2.6/lib/radix-tree.c
 ===================================================================
---- rtth.orig/radix-tree.c	2006-04-22 18:40:38.000000000 +1000
-+++ rtth/radix-tree.c	2006-04-23 04:46:15.000000000 +1000
-@@ -458,9 +458,8 @@ EXPORT_SYMBOL(radix_tree_tag_clear);
-  *
-  * Return values:
-  *
-- *  0: tag not present
-+ *  0: tag not set or not present
-  *  1: tag present, set
-- * -1: tag present, unset
-  */
- int radix_tree_tag_get(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag)
-@@ -494,7 +493,7 @@ int radix_tree_tag_get(struct radix_tree
- 			int ret = tag_get(slot, tag, offset);
+--- linux-2.6.orig/lib/radix-tree.c
++++ linux-2.6/lib/radix-tree.c
+@@ -33,7 +33,7 @@
  
- 			BUG_ON(ret && saw_unset_tag);
--			return ret ? 1 : -1;
-+			return ret;
- 		}
- 		slot = slot->slots[offset];
- 		shift -= RADIX_TREE_MAP_SHIFT;
+ 
+ #ifdef __KERNEL__
+-#define RADIX_TREE_MAP_SHIFT	6
++#define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+ #else
+ #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+ #endif
 
---------------000804080204000408010301--
+--------------090004090206030103030004--
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
