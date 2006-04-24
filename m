@@ -1,16 +1,16 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate2.de.ibm.com (8.13.6/8.13.6) with ESMTP id k3OCaBW2129920
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 12:36:11 GMT
+	by mtagate4.de.ibm.com (8.13.6/8.13.6) with ESMTP id k3OCaQh5100906
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 12:36:26 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3OCbGGv087498
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 14:37:16 +0200
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3OCbUGv123510
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 14:37:30 +0200
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k3OCaBmB008062
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 14:36:11 +0200
-Date: Mon, 24 Apr 2006 14:36:15 +0200
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k3OCaOdM008417
+	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 14:36:24 +0200
+Date: Mon, 24 Apr 2006 14:36:28 +0200
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [patch 7/8] Page host virtual assist: discarded page list.
-Message-ID: <20060424123615.GH15817@skybase>
+Subject: [patch 8/8] Page host virtual assist: s390 support.
+Message-ID: <20060424123628.GI15817@skybase>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -22,200 +22,437 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, akpm@osdl.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-[patch 7/8] Page host virtual assist: discarded page list.
+[patch 8/8] Page host virtual assist: s390 support.
 
-The discarded page list is used to postpone the freeing of discarded
-pages. A check is added to __remove_from_page_cache and
-__delete_from_swap_cache that sets the PG_discarded bit if the page
-has been removed by the host. free_hot_cold_page tests for the bit
-and puts the page to a per-cpu discarded page list if it is set.
-try_to_free_pages does an smp_call_function to collect all the
-partial discarded page lists and frees them.
+s390 uses the milli-coded ESSA instruction to set the page state. The
+page state is formed by four guest page states called block usage states
+and three host page states called block content states.
 
-There are two reasons why this is desirable. First, discarded page are
-really cold. Before the guest can reaccess the page frame the host
-needs to provide a fresh page. It is faster to use only non-discarded
-pages which do not require a host action as long as the working set
-of the guest allows it.
+The guest states are:
+ - stable (S): there is essential content in the page
+ - unused (U): there is no useful content and any access to the page will
+   cause an addressing exception
+ - volatile (V): there is useful content in the page. The host system is
+   allowed to discard the content anytime, but has to deliver a discard
+   fault with the absolute address of the page if the guest tries to
+   access it.
+ - potential volatile (P): the page has useful content. The host system
+   is allowed to discard the content after it has checked the dirty bit
+   of the page. It has to deliver a discard fault with the absolute
+   address of the page if the guest tries to access it.
 
-The second reason has to do with the peculiars of the s390 architecture.
-The discard fault exception delivers the absolute address of the page
-that caused the fault to the guest instead of the virtual address. With
-the virtual address we could have used the page table entry of the
-current process to safely get a reference to the discarded page. We can
-get the struct page pointer from the absolute page address but its
-rather hard to get to a proper page reference. The page that caused the
-fault could already have been freed and reused for a different purpose.
-None of the fields in the struct page would be reliable to use. The
-smp_call_function makes sure that the discard fault handler is called
-only for discarded pages that have not been freed yet. A call to
-get_page_unless_zero can then be used to get a proper page reference.
+The host states are:
+ - resident: the page is present in real memory.
+ - preserved: the page is not present in real memory but the content is
+   preserved elsewhere by the machine, e.g. on the paging device.
+ - zero: the page is not present in real memory. The content of the page
+   is logically-zero.
+
+There are 12 combinations of guest and host state, currently only 8 are
+valid page states:
+ Sr: a stable, resident page.
+ Sp: a stable, preserved page.
+ Sz: a stable, logically zero page. A page filled with zeroes will be
+     allocated on first access.
+ Ur: an unused but resident page. The host could make it Uz anytime but
+     it doesn't have to.
+ Uz: an unused, logically zero page.
+ Vr: a volatile, resident page. The guest can access it normally.
+ Vz: a volatile, logically zero page. This is a discarded page. The host
+     will deliver a discard fault for any access to the page.
+ Pr: a potential volatile, resident page. The guest can access it normally.
+
+The remaining 4 combinations can't occur:
+ Up: an unused, preserved page. If the host tries to get rid of a Ur page
+     it will remove it without writing the page content to disk and set
+     the page to Uz.
+ Vp: a volatile, preserved page. If the host picks a Vp page for eviction
+     it will discard it and set the page state to Vz.
+ Pp: a potential volatile, preserved page. There are two cases for page out:
+     1) the page is dirty then the host will preserved the page and set it
+     to Sp or 2) the page is clean then the host will discard it and set the
+     page state to Vz.
+ Pz: a potential volatile, logically zero page. The host system will always
+     use Vz instead of Pz.
+
+The state transitions (a diagram would be nicer but that is too hard
+to do in ascii art...):
+{Ur,Sr,Vr,Pr}: a resident page will change its block usage state if the
+     guest requests it with page_hva_set_{unused,stable,volatile}.
+{Uz,Sz,Vz}: a logically zero page will change its block usage state if the
+     guest requests it with page_hva_set_{unused,stable,volatile}. The
+     guest can't create the Pz state, the state will be Vz instead.
+Ur -> Uz: the host system can remove an unused, resident page from memory
+Sz -> Sr: on first access a stable, logically zero page will become resident
+Sr -> Sp: the host system can swap a stable page to disk
+Sp -> Sr: a guest access to a Sp page forces the host to retrieve it
+Vr -> Vz: the host can discard a volatile page
+Sp -> Uz: a page preserved by the host will be removed if the guest sets 
+     the block usage state to unused.
+Sp -> Vz: a page preserved by the host will be discarded if the guest sets
+     the block usage state to volatile.
+Pr -> Sp: the host can move a page from Pr to Sp if it discovers that the
+     page is dirty while trying to discard the page. Instead it is swapped
+     to disk. 
+Pr -> Vz: the host can discard a Pr page. The Pz state is replaced by the
+     Vz state.
+
+For potential volatile pages there is one more pitfall. The transfer of
+the hardware dirty bit to the software dirty bit needs to make sure that
+the page gets into the stable state before the hardware dirty bit is
+cleared. The primitive page_test_and_clear_dirty is split into
+page_test_dirty and page_clear_dirty to be able to place a
+page_hva_make_stable call between them.
 
 Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
 
- include/linux/page_hva.h |    4 +++
- mm/filemap.c             |    4 +++
- mm/page_alloc.c          |   57 +++++++++++++++++++++++++++++++++++++++++++++++
- mm/swap_state.c          |    4 +++
- mm/vmscan.c              |    1 
- 5 files changed, 70 insertions(+)
+ arch/s390/Kconfig             |    3 +
+ arch/s390/kernel/head64.S     |   10 ++++
+ arch/s390/kernel/traps.c      |    4 +
+ arch/s390/mm/fault.c          |   27 ++++++++++++
+ include/asm-generic/pgtable.h |   11 ++++
+ include/asm-s390/page_hva.h   |   93 ++++++++++++++++++++++++++++++++++++++++++
+ include/asm-s390/pgtable.h    |   25 ++++++-----
+ include/asm-s390/setup.h      |    1 
+ mm/msync.c                    |   24 +++++++++-
+ mm/rmap.c                     |   12 ++++-
+ 10 files changed, 195 insertions(+), 15 deletions(-)
 
-diff -urpN linux-2.6/include/linux/page_hva.h linux-2.6-patched/include/linux/page_hva.h
---- linux-2.6/include/linux/page_hva.h	2006-04-24 12:51:30.000000000 +0200
-+++ linux-2.6-patched/include/linux/page_hva.h	2006-04-24 12:51:31.000000000 +0200
-@@ -18,6 +18,7 @@
+diff -urpN linux-2.6/arch/s390/Kconfig linux-2.6-patched/arch/s390/Kconfig
+--- linux-2.6/arch/s390/Kconfig	2006-04-24 12:51:06.000000000 +0200
++++ linux-2.6-patched/arch/s390/Kconfig	2006-04-24 12:51:32.000000000 +0200
+@@ -454,6 +454,9 @@ config KEXEC
+ 	  current kernel, and to start another kernel.  It is like a reboot
+ 	  but is independent of hardware/microcode support.
  
- extern void page_hva_unmap_all(struct page *page);
- extern void page_hva_discard_page(struct page *page);
-+extern unsigned long page_hva_shrink_discards(void);
- 
- extern int  __page_hva_make_stable(struct page *page);
- extern void __page_hva_make_volatile(struct page *page, unsigned int offset);
-@@ -64,6 +65,8 @@ static inline void page_hva_reset_write(
- #define page_hva_set_volatile(_page,_writable)	do { } while (0)
- #define page_hva_cond_set_stable(_page)		(1)
- 
-+#define page_hva_discarded(_page)		(0)
++config PAGE_HVA
++	bool "Enable support for host virtual assist."
 +
- #define page_hva_make_stable(_page)		(1)
- #define page_hva_make_volatile(_page,_offset)	do { } while (0)
+ endmenu
  
-@@ -71,6 +74,7 @@ static inline void page_hva_reset_write(
- #define page_hva_reset_write(_page)		do { } while (0)
+ source "net/Kconfig"
+diff -urpN linux-2.6/arch/s390/kernel/head64.S linux-2.6-patched/arch/s390/kernel/head64.S
+--- linux-2.6/arch/s390/kernel/head64.S	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/arch/s390/kernel/head64.S	2006-04-24 12:51:32.000000000 +0200
+@@ -222,6 +222,16 @@ startup:basr  %r13,0                    
+ 	oi	7(%r12),0x80		# set IDTE flag
+ 0:
  
- #define page_hva_discard_page(_page)		do { } while (0)
-+#define page_hva_shrink_discards()		(0)
- 
++#
++# find out if we have the ESSA instruction
++#
++	la	%r1,0f-.LPG1(%r13)	# set program check address
++	stg	%r1,__LC_PGM_NEW_PSW+8
++	lghi	%r1,0
++	.long	0xb9ab0001		# essa get state
++	oi	6(%r12),0x01		# set ESSA flag
++0:
++
+         lpswe .Lentry-.LPG1(13)         # jump to _stext in primary-space,
+                                         # virtual and never return ...
+         .align 16
+diff -urpN linux-2.6/arch/s390/kernel/traps.c linux-2.6-patched/arch/s390/kernel/traps.c
+--- linux-2.6/arch/s390/kernel/traps.c	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/arch/s390/kernel/traps.c	2006-04-24 12:51:32.000000000 +0200
+@@ -64,6 +64,7 @@ extern void pfault_interrupt(struct pt_r
+ static ext_int_info_t ext_int_pfault;
  #endif
+ extern pgm_check_handler_t do_monitor_call;
++extern pgm_check_handler_t do_discard_fault;
  
-diff -urpN linux-2.6/mm/filemap.c linux-2.6-patched/mm/filemap.c
---- linux-2.6/mm/filemap.c	2006-04-24 12:51:31.000000000 +0200
-+++ linux-2.6-patched/mm/filemap.c	2006-04-24 12:51:31.000000000 +0200
-@@ -117,6 +117,10 @@ void __remove_from_page_cache(struct pag
- {
- 	struct address_space *mapping = page->mapping;
+ #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
  
-+	/* Set the PageDiscarded bit if the page has been discarded. */
-+	if (page_hva_enabled() &&
-+	    unlikely(!PageDiscarded(page) && page_hva_discarded(page)))
-+		SetPageDiscarded(page);
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
-diff -urpN linux-2.6/mm/page_alloc.c linux-2.6-patched/mm/page_alloc.c
---- linux-2.6/mm/page_alloc.c	2006-04-24 12:51:30.000000000 +0200
-+++ linux-2.6-patched/mm/page_alloc.c	2006-04-24 12:51:31.000000000 +0200
-@@ -744,6 +744,42 @@ static void zone_statistics(struct zonel
- #endif
+@@ -712,6 +713,9 @@ void __init trap_init(void)
+         pgm_check_table[0x1C] = &space_switch_exception;
+         pgm_check_table[0x1D] = &hfp_sqrt_exception;
+ 	pgm_check_table[0x40] = &do_monitor_call;
++#if defined(CONFIG_PAGE_HVA)
++	pgm_check_table[0x1a] = &do_discard_fault;
++#endif
+ 
+ 	if (MACHINE_IS_VM) {
+ #ifdef CONFIG_PFAULT
+diff -urpN linux-2.6/arch/s390/mm/fault.c linux-2.6-patched/arch/s390/mm/fault.c
+--- linux-2.6/arch/s390/mm/fault.c	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/arch/s390/mm/fault.c	2006-04-24 12:51:32.000000000 +0200
+@@ -20,6 +20,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/mman.h>
+ #include <linux/mm.h>
++#include <linux/pagemap.h>
+ #include <linux/smp.h>
+ #include <linux/smp_lock.h>
+ #include <linux/init.h>
+@@ -478,3 +479,29 @@ pfault_interrupt(struct pt_regs *regs, _
  }
+ #endif
  
 +#if defined(CONFIG_PAGE_HVA)
-+DEFINE_PER_CPU(struct list_head, page_hva_discard_list);
 +
-+static void __page_hva_shrink_discards(void *info)
++/*
++ * Discarded pages with a page_count() of zero are placed on
++ * the page_hva_discarded_list until all cpus have been at
++ * least once in enabled code. That closes the race of page
++ * free vs. discard faults.
++ */
++void do_discard_fault(struct pt_regs *regs, unsigned long error_code)
 +{
-+	static DEFINE_SPINLOCK(splice_lock);
-+	struct list_head *discard_list = info;
-+	struct list_head *cpu_list = &__get_cpu_var(page_hva_discard_list);
++	unsigned long address;
++	struct page *page;
 +
-+	if (list_empty(cpu_list))
-+		return;
-+	spin_lock(&splice_lock);
-+	list_splice_init(cpu_list, discard_list);
-+	spin_unlock(&splice_lock);
++	/*
++	 * get the real address that caused the block validity
++	 * exception.
++	 */
++	address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
++	page = pfn_to_page(address >> PAGE_SHIFT);
++
++	if (likely(get_page_unless_zero(page))) {
++		local_irq_enable();
++		page_hva_discard_page(page);
++	}
++}
++#endif
+diff -urpN linux-2.6/include/asm-generic/pgtable.h linux-2.6-patched/include/asm-generic/pgtable.h
+--- linux-2.6/include/asm-generic/pgtable.h	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/include/asm-generic/pgtable.h	2006-04-24 12:51:32.000000000 +0200
+@@ -140,8 +140,15 @@ static inline void ptep_set_wrprotect(st
+ #define pte_same(A,B)	(pte_val(A) == pte_val(B))
+ #endif
+ 
+-#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
+-#define page_test_and_clear_dirty(page) (0)
++#ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
++#define page_test_dirty(page)		(0)
++#endif
++
++#ifndef __HAVE_ARCH_PAGE_CLEAR_DIRTY
++#define page_clear_dirty(page)		do { } while (0)
++#endif
++
++#ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
+ #define pte_maybe_dirty(pte)		pte_dirty(pte)
+ #else
+ #define pte_maybe_dirty(pte)		(1)
+diff -urpN linux-2.6/include/asm-s390/page_hva.h linux-2.6-patched/include/asm-s390/page_hva.h
+--- linux-2.6/include/asm-s390/page_hva.h	1970-01-01 01:00:00.000000000 +0100
++++ linux-2.6-patched/include/asm-s390/page_hva.h	2006-04-24 12:51:32.000000000 +0200
+@@ -0,0 +1,93 @@
++#ifndef _ASM_S390_PAGE_HVA_H
++#define _ASM_S390_PAGE_HVA_H
++
++#define ESSA_GET_STATE			0
++#define ESSA_SET_STABLE			1
++#define ESSA_SET_UNUSED			2
++#define ESSA_SET_VOLATILE		3
++#define ESSA_SET_PVOLATILE		4
++#define ESSA_SET_STABLE_MAKE_RESIDENT	5
++#define ESSA_SET_STABLE_IF_NOT_DISCARDED	6
++
++#define ESSA_USTATE_MASK		0x0c
++#define ESSA_USTATE_STABLE		0x00
++#define ESSA_USTATE_UNUSED		0x04
++#define ESSA_USTATE_PVOLATILE		0x08
++#define ESSA_USTATE_VOLATILE		0x0c
++
++#define ESSA_CSTATE_MASK		0x03
++#define ESSA_CSTATE_RESIDENT		0x00
++#define ESSA_CSTATE_PRESERVED		0x02
++#define ESSA_CSTATE_ZERO		0x03
++
++extern struct page *mem_map;
++
++/*
++ * ESSA <rc-reg>,<page-address-reg>,<command-immediate>
++ */
++#define page_hva_essa(_page,_command) ({		       \
++	int _rc; \
++	asm volatile(".insn rrf,0xb9ab0000,%0,%1,%2,0" \
++		     : "=&d" (_rc) : "a" (((_page)-mem_map)<<PAGE_SHIFT), \
++		       "i" (_command)); \
++	_rc; \
++})
++
++static inline int page_hva_enabled(void)
++{
++	return MACHINE_HAS_ESSA;
 +}
 +
-+unsigned long page_hva_shrink_discards(void)
++static inline int page_hva_get_state(struct page *page)
 +{
-+	struct list_head pages_to_free = LIST_HEAD_INIT(pages_to_free);
-+	struct page *page, *next;
-+	unsigned long freed = 0;
++	return page_hva_essa(page, ESSA_GET_STATE);
++}
++
++static inline int page_hva_discarded(struct page *page)
++{
++	int state;
 +
 +	if (!page_hva_enabled())
 +		return 0;
-+
-+	smp_call_function(__page_hva_shrink_discards, &pages_to_free, 0, 1);
-+
-+	list_for_each_entry_safe(page, next, &pages_to_free, lru) {
-+		ClearPageDiscarded(page);
-+		free_cold_page(page);
-+		freed++;
-+	}
-+	return freed;
++	state = page_hva_get_state(page);
++	return (state & ESSA_USTATE_MASK) == ESSA_USTATE_VOLATILE &&
++		(state & ESSA_CSTATE_MASK) == ESSA_CSTATE_ZERO;
 +}
-+#endif
 +
- /*
-  * Free a 0-order page
-  */
-@@ -753,6 +789,16 @@ static void fastcall free_hot_cold_page(
- 	struct per_cpu_pages *pcp;
- 	unsigned long flags;
- 
-+#if defined(CONFIG_PAGE_HVA)
-+	if (page_hva_enabled() && unlikely(PageDiscarded(page))) {
-+		local_irq_disable();
-+		list_add_tail(&page->lru,
-+			      &__get_cpu_var(page_hva_discard_list));
-+		local_irq_enable();
++static inline void page_hva_set_unused(struct page *page)
++{
++	if (!page_hva_enabled())
 +		return;
-+	}
-+#endif
++	page_hva_essa(page, ESSA_SET_UNUSED);
++}
 +
- 	arch_free_page(page, 0);
- 
- 	if (PageAnon(page))
-@@ -2623,6 +2669,11 @@ static int page_alloc_cpu_notify(struct 
- 			src[i] = 0;
- 		}
- 
-+#if defined(CONFIG_PAGE_HVA)
-+		list_splice_init(&per_cpu(page_hva_discard_list, cpu),
-+				 &__get_cpu_var(page_hva_discard_list));
-+#endif
++static inline void page_hva_set_stable(struct page *page)
++{
++	if (!page_hva_enabled())
++		return;
++	page_hva_essa(page, ESSA_SET_STABLE);
++}
 +
- 		local_irq_enable();
++static inline void page_hva_set_volatile(struct page *page, int writable)
++{
++	if (!page_hva_enabled())
++		return;
++	if (writable)
++		page_hva_essa(page, ESSA_SET_PVOLATILE);
++	else
++		page_hva_essa(page, ESSA_SET_VOLATILE);
++}
++
++static inline int page_hva_cond_set_stable(struct page *page)
++{
++	int rc;
++
++	if (!page_hva_enabled() || PageReserved(page))
++		return 1;
++
++	rc = page_hva_essa(page, ESSA_SET_STABLE_IF_NOT_DISCARDED);
++	return (rc & ESSA_USTATE_MASK) != ESSA_USTATE_VOLATILE ||
++		(rc & ESSA_CSTATE_MASK) != ESSA_CSTATE_ZERO;
++}
++
++#endif /* _ASM_S390_PAGE_HVA_H */
+diff -urpN linux-2.6/include/asm-s390/pgtable.h linux-2.6-patched/include/asm-s390/pgtable.h
+--- linux-2.6/include/asm-s390/pgtable.h	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/include/asm-s390/pgtable.h	2006-04-24 12:51:32.000000000 +0200
+@@ -604,14 +604,18 @@ ptep_establish(struct vm_area_struct *vm
+  * should therefore only be called if it is not mapped in any
+  * address space.
+  */
+-#define page_test_and_clear_dirty(_page)				  \
++#define page_test_dirty(_page)						  \
+ ({									  \
+ 	struct page *__page = (_page);					  \
+ 	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
+-	int __skey = page_get_storage_key(__physpage);			  \
+-	if (__skey & _PAGE_CHANGED)					  \
+-		page_set_storage_key(__physpage, __skey & ~_PAGE_CHANGED);\
+-	(__skey & _PAGE_CHANGED);					  \
++	(page_get_storage_key(__physpage) & _PAGE_CHANGED);		  \
++})
++
++#define page_clear_dirty(_page)						  \
++({									  \
++	struct page *__page = (_page);					  \
++	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
++	page_set_storage_key(__physpage, PAGE_DEFAULT_KEY);		  \
+ })
+ 
+ /*
+@@ -658,10 +662,10 @@ static inline pte_t mk_pte_phys(unsigned
+ })
+ 
+ #define SetPageUptodate(_page) \
+-	do {								      \
+-		struct page *__page = (_page);				      \
+-		if (!test_and_set_bit(PG_uptodate, &__page->flags))	      \
+-			page_test_and_clear_dirty(_page);		      \
++	do {								  \
++		struct page *__page = (_page);				  \
++		if (!test_and_set_bit(PG_uptodate, &__page->flags))	  \
++			page_clear_dirty(_page);			  \
+ 	} while (0)
+ 
+ #ifdef __s390x__
+@@ -806,7 +810,8 @@ static inline pte_t mk_swap_pte(unsigned
+ #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ #define __HAVE_ARCH_PTE_SAME
+-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
++#define __HAVE_ARCH_PAGE_TEST_DIRTY
++#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
+ #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
+ #include <asm-generic/pgtable.h>
+ 
+diff -urpN linux-2.6/include/asm-s390/setup.h linux-2.6-patched/include/asm-s390/setup.h
+--- linux-2.6/include/asm-s390/setup.h	2006-03-20 06:53:29.000000000 +0100
++++ linux-2.6-patched/include/asm-s390/setup.h	2006-04-24 12:51:32.000000000 +0200
+@@ -42,6 +42,7 @@ extern unsigned long machine_flags;
+ #define MACHINE_HAS_MVPG	(machine_flags & 16)
+ #define MACHINE_HAS_DIAG44	(machine_flags & 32)
+ #define MACHINE_HAS_IDTE	(machine_flags & 128)
++#define MACHINE_HAS_ESSA	(machine_flags & 256)
+ 
+ #ifndef __s390x__
+ #define MACHINE_HAS_IEEE	(machine_flags & 2)
+diff -urpN linux-2.6/mm/msync.c linux-2.6-patched/mm/msync.c
+--- linux-2.6/mm/msync.c	2006-04-24 12:51:13.000000000 +0200
++++ linux-2.6-patched/mm/msync.c	2006-04-24 12:51:32.000000000 +0200
+@@ -46,9 +46,29 @@ again:
+ 		page = vm_normal_page(vma, addr, *pte);
+ 		if (!page)
+ 			continue;
+-		if (ptep_clear_flush_dirty(vma, addr, pte) ||
+-				page_test_and_clear_dirty(page))
++		if (ptep_clear_flush_dirty(vma, addr, pte))
+ 			ret += set_page_dirty(page);
++		if (page_test_dirty(page)) {
++			if (page_hva_enabled()) {
++				/*
++				 * Take another reference to the page to
++				 * make sure that make_volatile cannot make
++				 * the page volatile again after we made it
++				 * stable.
++				 * After the (software) dirty bit is set we
++				 * can release the reference again because
++				 * then the dirty bit takes over the job.
++				 */
++				page_cache_get(page);
++				BUG_ON(!page_hva_make_stable(page));
++				page_clear_dirty(page);
++				ret += set_page_dirty(page);
++				page_cache_release_nohv(page);
++			} else {
++				page_clear_dirty(page);
++				ret += set_page_dirty(page);
++			}
++		}
+ 		progress += 3;
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	pte_unmap_unlock(pte - 1, ptl);
+diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
+--- linux-2.6/mm/rmap.c	2006-04-24 12:51:31.000000000 +0200
++++ linux-2.6-patched/mm/rmap.c	2006-04-24 12:51:32.000000000 +0200
+@@ -529,8 +529,18 @@ void page_remove_rmap(struct page *page)
+ 		 * Leaving it set also helps swapoff to reinstate ptes
+ 		 * faster for those pages still in swapcache.
+ 		 */
+-		if (page_test_and_clear_dirty(page))
++		if (page_test_dirty(page)) {
++			BUG_ON(!page_hva_make_stable(page));
++			/*
++			 * We decremented the mapcount so we now have an
++			 * extra reference for the page. That prevents
++			 * page_hva_make_volatile from making the page
++			 * volatile again while the dirty bit is in
++			 * transit.
++			 */
++			page_clear_dirty(page);
+ 			set_page_dirty(page);
++		}
+ 		__dec_page_state(nr_mapped);
+ 		page_hva_reset_write(page);
  	}
- 	return NOTIFY_OK;
-@@ -2631,6 +2682,12 @@ static int page_alloc_cpu_notify(struct 
- 
- void __init page_alloc_init(void)
- {
-+#if defined(CONFIG_PAGE_HVA)
-+	int i;
-+
-+	for_each_possible_cpu(i)
-+		INIT_LIST_HEAD(&per_cpu(page_hva_discard_list, i));
-+#endif
- 	hotcpu_notifier(page_alloc_cpu_notify, 0);
- }
- 
-diff -urpN linux-2.6/mm/swap_state.c linux-2.6-patched/mm/swap_state.c
---- linux-2.6/mm/swap_state.c	2006-04-24 12:51:31.000000000 +0200
-+++ linux-2.6-patched/mm/swap_state.c	2006-04-24 12:51:31.000000000 +0200
-@@ -131,6 +131,10 @@ void __delete_from_swap_cache(struct pag
- 	BUG_ON(PageWriteback(page));
- 	BUG_ON(PagePrivate(page));
- 
-+	/* Set the PageDiscarded bit if the page has been discarded. */
-+	if (page_hva_enabled() &&
-+	    unlikely(!PageDiscarded(page) && page_hva_discarded(page)))
-+		SetPageDiscarded(page);
- 	radix_tree_delete(&swapper_space.page_tree, page_private(page));
- 	set_page_private(page, 0);
- 	ClearPageSwapCache(page);
-diff -urpN linux-2.6/mm/vmscan.c linux-2.6-patched/mm/vmscan.c
---- linux-2.6/mm/vmscan.c	2006-04-24 12:51:27.000000000 +0200
-+++ linux-2.6-patched/mm/vmscan.c	2006-04-24 12:51:31.000000000 +0200
-@@ -993,6 +993,7 @@ unsigned long try_to_free_pages(struct z
- 		sc.nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
-+		nr_reclaimed += page_hva_shrink_discards();
- 		nr_reclaimed += shrink_zones(priority, zones, &sc);
- 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
- 		if (reclaim_state) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
