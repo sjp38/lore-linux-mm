@@ -1,55 +1,50 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3OFj5DY015914
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 11:45:05 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3OFhm3O154098
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 11:43:48 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3OFhlSA029367
-	for <linux-mm@kvack.org>; Mon, 24 Apr 2006 11:43:47 -0400
-Message-ID: <444CF232.5000003@watson.ibm.com>
-Date: Mon, 24 Apr 2006 11:43:46 -0400
-From: Hubertus Franke <frankeh@watson.ibm.com>
+Date: Mon, 24 Apr 2006 21:08:49 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage addresss space op to
+ shmem
+Message-ID: <Pine.LNX.4.64.0604242046120.24647@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/8] Page host virtual assist: unused / free pages.
-References: <20060424123423.GB15817@skybase> <200604241649.24792.ak@suse.de> <1145890749.5241.12.camel@localhost> <200604241706.27221.ak@suse.de>
-In-Reply-To: <200604241706.27221.ak@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: schwidefsky@de.ibm.com, linux-mm@kvack.org, akpm@osdl.org, rhim@cc.gatech.edu
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Monday 24 April 2006 16:59, Martin Schwidefsky wrote:
-> 
-> 
->>Ok, sounds reasonable. Do we need to drop the _hva name component? If we
->>do that then something like page_hva_unmap_all will be named
->>page_unmap_all which might be a bit confusing as well.
-> 
-> 
-> I would drop it because it seems like a very s390 specific term.
-> 
-> -Andi
+[Sorry, I seem to have deleted the original, so destroyed threading]
 
-First, let's decide whether the functionality and the page states
-should be considered an "explicit concept" within linux like for instance
-the KMAP.
+On Thu, 20 Apr 2006, Lee Schermerhorn wrote:
+> 
+> In 2.6.16 through 2.6.17-rc1, shared memory mappings do not
+> have a migratepage address space op.  Therefore, migrate_pages()
+> falls back to default processing.  In this path, it will try to
+> pageout() dirty pages.  Once a shared memory page has been migrated
+> it becomes dirty, so migrate_pages() will try to page it out.  
+> However, because the page count is 3 [cache + current + pte],
+> pageout() will return PAGE_KEEP because is_page_cache_freeable()
+> returns false.  This will abort all subsequent migrations.
 
-So residency information of the hypervisor is thus exposed in the OS.
-Having 3 or 4 states which seem easily understood ( unused, stable, volatile, p-volatile )
-seems easy enough to us.
+So far as I can see, this problem is not at all peculiar to shmem
+(aside from its greater likelihood of being found PageDirty): won't
+that PageDirty pageout in migrate_pages always return PAGE_KEEP?
+so as it stands, is pointless and misleading?
 
-We can drop the _hva_ from the function calls and the name collisions we can
-solved differently or leave them there with _hva_ or what ever name makes sense.
-They don't show up in the general code path anyway.
+> This patch adds a migratepage address space op to shared memory
+> segments to avoid taking the default path.  We use the "migrate_page()"
+> function because it knows how to migrate dirty pages.  This allows
+> shared memory segment pages to migrate, subject to other conditions
+> such as # pte's referencing the page [page_mapcount(page)], when
+> requested.  
 
-Anybody else have a thought on this, Andrew ?
+While that's not wrong, wouldn't the right fix be something else?
 
--- Hubertus
+> I think this is safe.  If we're migrating a shared memory page,
+> then we found the page via a page table, so it must be in
+> memory.
+
+Yes, I agree: the isolate_lru_page while holding ptl keeps it sane.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
