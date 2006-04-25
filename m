@@ -1,95 +1,63 @@
-Date: Tue, 25 Apr 2006 10:05:27 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture
- independent manner V4
-In-Reply-To: <20060425104855.42c6ca62.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0604250948080.7250@skynet.skynet.ie>
-References: <20060424202009.20409.89016.sendpatchset@skynet>
- <20060425104855.42c6ca62.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <444DDD1B.4010202@yahoo.com.au>
+Date: Tue, 25 Apr 2006 18:26:03 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: Page host virtual assist patches.
+References: <20060424123412.GA15817@skybase>	 <20060424180138.52e54e5c.akpm@osdl.org> <1145952628.5282.8.camel@localhost>
+In-Reply-To: <1145952628.5282.8.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+To: schwidefsky@de.ibm.com
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Apr 2006, KAMEZAWA Hiroyuki wrote:
-
-> On Mon, 24 Apr 2006 21:20:09 +0100 (IST)
-> Mel Gorman <mel@csn.ul.ie> wrote:
->
->> This is V4 of the patchset to size zones and memory holes in an
->> architecture-independent manner.
+Martin Schwidefsky wrote:
+> On Mon, 2006-04-24 at 18:01 -0700, Andrew Morton wrote:
+> 
+>>Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
 >>
->
-> Could you add some documentation about 'how to use' your generic funcs ?
-> I think more archs can use your generic routine if well documented.
->
-> All initialization path can be written in following way ?
-> ==
-> for_all_memory_region()
-> 	add_active_range(nid, start, end)
-> free_area_init_nodes(max_dma, max_dma32, max_low_pfn, max_pfn);
-> ==
+>>> The basic idea of host virtual assist (hva) is to give a host system
+>>> which virtualizes the memory of its guest systems on a per page basis
+>>> usage information for the guest pages. The host can then use this
+>>> information to optimize the management of guest pages, in particular
+>>> the paging. This optimizations can be used for unused (free) guest
+>>> pages, for clean page cache pages, and for clean swap cache pages.
+>>
+>>This is pretty significant stuff.  It sounds like something which needs to
+>>be worked through with other possible users - UML, Xen, vware, etc.
+>>
+>>How come the reclaim has to be done in the host?  I'd have thought that a
+>>much simpler approach would be to perform a host->guest upcall saying
+>>either "try to free up this many pages" or "free this page" or "free this
+>>vector of pages"?
+> 
+> 
+> Because calling into the guest is too slow. You need to schedule a cpu,
+> the code that does the allocation needs to run, which might need other
+> pages, etc. The beauty of the scheme is that the host can immediately
+> remove a page that is mark as volatile or unused. No i/o, no scheduling,
+> nothing. Consider what that does to the latency of the hosts memory
+> allocation. Even if the percentage of discardable pages is small, lets
+> say 25% of the guests memory, the host will quickly find reusable
+> memory. If the vmscan of the host attempts to evict 100 pages, on
+> average it will start i/o for 75 of them, the other 25 are immediately
+> free for reuse.
+> 
 
-Yes, that is accurate. I can write in some documentation.
+I don't think there is any beauty in this scheme, to be honest.
 
->
-> And following functions are really needed ?
+I don't see why calling into the host is bad - won't it be able to
+make better reclaim decisions? If starting IO is the wrong thing to
+do under a hypervisor, why is it the right thing to do on bare metal?
 
-Most of them, yes. Without them, the arch-specific could would need to be 
-able to iterate through the list of active regions which would lead to 
-more similar-looking code.
-
-> ==
-
-> +extern void remove_all_active_ranges(void);
-
-Used by x86_64 when it finds the SRAT table is bad and needs to rediscover 
-active regions in another way. Spontaneous reboots were possible without 
-it.
-
-> +extern void get_pfn_range_for_nid(unsigned int nid,
-> +			unsigned long *start_pfn, unsigned long *end_pfn);
-
-Currently only used by power when initialising the boot allocator. There 
-were no obvious canditates for use elsewhere.
-
-> +extern unsigned long find_min_pfn_with_active_regions(void);
-
-This does not need to be in a header.
-
-> +extern unsigned long find_max_pfn_with_active_regions(void);
-
-Could be dropped, only required by x86_64.
-
-> +extern int early_pfn_to_nid(unsigned long pfn);
-
-Removed two copies of similar functions from power and x86. I thought I 
-could replace the IA64 one as well, but the code was unusual enough there 
-that I decided not to.
-
-> +extern void free_bootmem_with_active_regions(int nid,
-> +						unsigned long max_low_pfn);
-
-Removes similar-looking code from power and x86_64.
-
-> +extern void sparse_memory_present_with_active_regions(int nid);
-
-This is only used by power.
-
-> +extern unsigned long absent_pages_in_range(unsigned long start_pfn,
-> +						unsigned long end_pfn);
->
-
-Removes similar looking code from x86_64. For all other architectures, it 
-does the job of the existing functions that calculate zholes_size[].
+As for latency of host's memory allocation, it should attempt to
+keep some buffer of memory free.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
