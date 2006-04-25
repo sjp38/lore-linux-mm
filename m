@@ -1,54 +1,51 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.6/8.13.6) with ESMTP id k3PAiNtw045828
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 10:44:23 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3PAjSKp114940
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:45:28 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k3PAiMBV009402
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:44:23 +0200
-Subject: Re: Page host virtual assist patches.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <20060425013712.365892c2.akpm@osdl.org>
-References: <20060424123412.GA15817@skybase>
-	 <20060424180138.52e54e5c.akpm@osdl.org> <444DCD87.2030307@yahoo.com.au>
-	 <1145953914.5282.21.camel@localhost>
-	 <20060425013712.365892c2.akpm@osdl.org>
-Content-Type: text/plain
-Date: Tue, 25 Apr 2006 12:44:27 +0200
-Message-Id: <1145961867.5282.46.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Apr 2006 11:58:25 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage addresss space op to
+ shmem
+In-Reply-To: <Pine.LNX.4.64.0604241447520.8904@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0604251153300.29020@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0604242046120.24647@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0604241447520.8904@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: nickpiggin@yahoo.com.au, linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-04-25 at 01:37 -0700, Andrew Morton wrote:
-> >  The point here is WHO does the reclaim. Sure we can do the reclaim in
-> >  the guest but it is the host that has the memory pressure. To call into
-> >  the guest is not a good idea, if you have an idle guest you generally
-> >  increase the memory pressure because some of the guests pages might have
-> >  been swapped which are needed if the guest has to do the reclaim. 
+On Mon, 24 Apr 2006, Christoph Lameter wrote:
+> On Mon, 24 Apr 2006, Hugh Dickins wrote:
+> > 
+> > While that's not wrong, wouldn't the right fix be something else?
 > 
-> Cannot the guests employ text sharing?
+> His patch avoids going through the fallback functions and allows 
+> migrating dirty shmem pages without pageout. That is good.
 
-Yes we can. We even had some patches for sharing the kernel text between
-virtual machines. But the kernel text is only a small part of the memory
-that gets accessed for a vmscan operation.
+True.
 
--- 
-blue skies,
-  Martin.
+> Index: linux-2.6/mm/migrate.c
+> ===================================================================
+> --- linux-2.6.orig/mm/migrate.c	2006-04-18 12:51:31.000000000 -0700
+> +++ linux-2.6/mm/migrate.c	2006-04-24 15:03:10.000000000 -0700
+> @@ -439,6 +439,11 @@ redo:
+>  			goto unlock_both;
+>                  }
+>  
+> +		if (try_to_unmap(page, 1) == SWAP_FAIL) {
+> +			rc = -EPERM;
+> +			goto unlock_both;
+> +		}
+> +
+>  		/*
+>  		 * Default handling if a filesystem does not provide
+>  		 * a migration function. We can only migrate clean
 
-Martin Schwidefsky
-Linux for zSeries Development & Services
-IBM Deutschland Entwicklung GmbH
+Perhaps.  But there seem to be altogether too many ways through this
+code: this part of migrate_pages then starts to look rather like,
+but not exactly like, swap_page.  Feels like it needs refactoring.
 
-"Reality continues to ruin my life." - Calvin.
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
