@@ -1,34 +1,51 @@
-Date: Mon, 24 Apr 2006 18:01:38 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Page host virtual assist patches.
-Message-Id: <20060424180138.52e54e5c.akpm@osdl.org>
-In-Reply-To: <20060424123412.GA15817@skybase>
-References: <20060424123412.GA15817@skybase>
+Date: Tue, 25 Apr 2006 10:48:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/7] [RFC] Sizing zones and holes in an architecture
+ independent manner V4
+Message-Id: <20060425104855.42c6ca62.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060424202009.20409.89016.sendpatchset@skynet>
+References: <20060424202009.20409.89016.sendpatchset@skynet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
->
->  The basic idea of host virtual assist (hva) is to give a host system
->  which virtualizes the memory of its guest systems on a per page basis
->  usage information for the guest pages. The host can then use this
->  information to optimize the management of guest pages, in particular
->  the paging. This optimizations can be used for unused (free) guest
->  pages, for clean page cache pages, and for clean swap cache pages.
+On Mon, 24 Apr 2006 21:20:09 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-This is pretty significant stuff.  It sounds like something which needs to
-be worked through with other possible users - UML, Xen, vware, etc.
+> This is V4 of the patchset to size zones and memory holes in an
+> architecture-independent manner.
+> 
 
-How come the reclaim has to be done in the host?  I'd have thought that a
-much simpler approach would be to perform a host->guest upcall saying
-either "try to free up this many pages" or "free this page" or "free this
-vector of pages"?
+Could you add some documentation about 'how to use' your generic funcs ?
+I think more archs can use your generic routine if well documented.
+
+All initialization path can be written in following way ?
+==
+for_all_memory_region()
+	add_active_range(nid, start, end)
+free_area_init_nodes(max_dma, max_dma32, max_low_pfn, max_pfn);
+==
+
+And following functions are really needed ?
+==
++extern void remove_all_active_ranges(void);
++extern void get_pfn_range_for_nid(unsigned int nid,
++			unsigned long *start_pfn, unsigned long *end_pfn);
++extern unsigned long find_min_pfn_with_active_regions(void);
++extern unsigned long find_max_pfn_with_active_regions(void);
++extern int early_pfn_to_nid(unsigned long pfn);
++extern void free_bootmem_with_active_regions(int nid,
++						unsigned long max_low_pfn);
++extern void sparse_memory_present_with_active_regions(int nid);
++extern unsigned long absent_pages_in_range(unsigned long start_pfn,
++						unsigned long end_pfn);
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
