@@ -1,32 +1,46 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.6/8.13.6) with ESMTP id k3PAaNFa126294
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 10:36:23 GMT
+	by mtagate2.de.ibm.com (8.13.6/8.13.6) with ESMTP id k3PAhBDi068318
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 10:43:11 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3PAbSKp118684
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:37:28 +0200
+	by d12nrmr1607.megacenter.de.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3PAiGKp123744
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:44:16 +0200
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k3PAaMYT001729
-	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:36:22 +0200
+	by d12av02.megacenter.de.ibm.com (8.12.11/8.13.3) with ESMTP id k3PAhB8C008503
+	for <linux-mm@kvack.org>; Tue, 25 Apr 2006 12:43:11 +0200
 Subject: Re: Page host virtual assist patches.
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <444DDD1B.4010202@yahoo.com.au>
+In-Reply-To: <20060425013044.19888b02.akpm@osdl.org>
 References: <20060424123412.GA15817@skybase>
 	 <20060424180138.52e54e5c.akpm@osdl.org> <1145952628.5282.8.camel@localhost>
-	  <444DDD1B.4010202@yahoo.com.au>
+	 <20060425013044.19888b02.akpm@osdl.org>
 Content-Type: text/plain
-Date: Tue, 25 Apr 2006 12:36:26 +0200
-Message-Id: <1145961386.5282.37.camel@localhost>
+Date: Tue, 25 Apr 2006 12:43:15 +0200
+Message-Id: <1145961796.5282.44.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-04-25 at 18:26 +1000, Nick Piggin wrote:
-> > Because calling into the guest is too slow. You need to schedule a cpu,
+On Tue, 2006-04-25 at 01:30 -0700, Andrew Morton wrote:
+> > > This is pretty significant stuff.  It sounds like something which needs to
+> > > be worked through with other possible users - UML, Xen, vware, etc.
+> > > 
+> > > How come the reclaim has to be done in the host?  I'd have thought that a
+> > > much simpler approach would be to perform a host->guest upcall saying
+> > > either "try to free up this many pages" or "free this page" or "free this
+> > > vector of pages"?
+> > 
+> > Because calling into the guest is too slow.
+> 
+> So speed it up ;)
+
+We did.. the other way round by adding the ESSA :-)
+
+> > You need to schedule a cpu,
 > > the code that does the allocation needs to run, which might need other
 > > pages, etc. The beauty of the scheme is that the host can immediately
 > > remove a page that is mark as volatile or unused. No i/o, no scheduling,
@@ -36,44 +50,23 @@ On Tue, 2006-04-25 at 18:26 +1000, Nick Piggin wrote:
 > > memory. If the vmscan of the host attempts to evict 100 pages, on
 > > average it will start i/o for 75 of them, the other 25 are immediately
 > > free for reuse.
-> > 
 > 
-> I don't think there is any beauty in this scheme, to be honest.
+> Batching can do wonders.  What's the expected/typical memory footprint of a
+> guest versus the machine's total physical memory?
 
-Beauty lies in the eye of the beholder. From my point of view there is
-benefit to the method.
+Yes, batching will speed up the calls for one particular guest. Trouble
+is that we are not talking about freeing 1000 pages from 1 guest. We
+have the problem to free 1 page from 1000 guests.
 
-> I don't see why calling into the host is bad - won't it be able to
-> make better reclaim decisions? If starting IO is the wrong thing to
-> do under a hypervisor, why is it the right thing to do on bare metal?
+> And what's the typical total size of a guest?
+> 
+> Because a 100-page chunk sounds an awfully small work unit for a guest, let
+> alone for the host.
 
-First some assumptions about the environment. We are talking about a
-paging hypervisor that runs several hundreds of guest Linux images. The
-memory is overcommited, the sum of the guest memory sizes is larger than
-the host memory by a factor of 2-3. Usually a large percentage of the
-guests memory is paged out by the hypervisor.
-
-Both the host and the guest follow an LRU strategy. That means that the
-host will pick the oldest page from the idlest guest. Almost the same
-would happen if you call into the idlest guest to let the guest free its
-oldest page. But the catch is that the guest will touch a lot of page
-doing its vmscan operation, if that causes a single additional host i/o
-because a guest page needs to be retrieved from the host swap device,
-you are already in negative territory.
-
-> As for latency of host's memory allocation, it should attempt to
-> keep some buffer of memory free.
-
-It does attempt to keep some memory free. But lets say 1000 guest images
-generate a lot of memory pressure. You will run out of memory, and
-anything that speeds up the host reclaim will improve the situation. And
-the method allows to reduce the number of i/o that the host needs to do.
-Consider an old, volatile page that is picked for eviction. Without hva
-the host will write it to the paging device. If the guest touches the
-page again the host has to read it back to memory again. Two host i/o's.
-If the host discards the page, the guest will get a discard fault when
-it tries to reaccess the page. The guest will read the page from its
-backing device. One guest i/o. Seems like a good deal to me..
+The typical memory size of the guests depends on the workload it runs. A
+typical memory size would be something like 256MB. The real catch is the
+amount of memory overcommitment. And 100 pages sound about right if you
+have 1000 guests.
 
 -- 
 blue skies,
