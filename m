@@ -1,51 +1,46 @@
-Date: Tue, 25 Apr 2006 11:58:25 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage addresss space op to
- shmem
-In-Reply-To: <Pine.LNX.4.64.0604241447520.8904@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0604251153300.29020@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0604242046120.24647@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0604241447520.8904@schroedinger.engr.sgi.com>
+Message-ID: <444DF447.4020306@yahoo.com.au>
+Date: Tue, 25 Apr 2006 20:04:55 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Page host virtual assist patches.
+References: <20060424123412.GA15817@skybase>	 <20060424180138.52e54e5c.akpm@osdl.org>  <444DCD87.2030307@yahoo.com.au> <1145953914.5282.21.camel@localhost>
+In-Reply-To: <1145953914.5282.21.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: schwidefsky@de.ibm.com
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Apr 2006, Christoph Lameter wrote:
-> On Mon, 24 Apr 2006, Hugh Dickins wrote:
-> > 
-> > While that's not wrong, wouldn't the right fix be something else?
-> 
-> His patch avoids going through the fallback functions and allows 
-> migrating dirty shmem pages without pageout. That is good.
+Martin Schwidefsky wrote:
 
-True.
+> The point here is WHO does the reclaim. Sure we can do the reclaim in
+> the guest but it is the host that has the memory pressure. To call into
 
-> Index: linux-2.6/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.orig/mm/migrate.c	2006-04-18 12:51:31.000000000 -0700
-> +++ linux-2.6/mm/migrate.c	2006-04-24 15:03:10.000000000 -0700
-> @@ -439,6 +439,11 @@ redo:
->  			goto unlock_both;
->                  }
->  
-> +		if (try_to_unmap(page, 1) == SWAP_FAIL) {
-> +			rc = -EPERM;
-> +			goto unlock_both;
-> +		}
-> +
->  		/*
->  		 * Default handling if a filesystem does not provide
->  		 * a migration function. We can only migrate clean
+By logic, if the host has memory pressure, and the guest is running on
+the host, doesn't the guest have memory pressure? (Assuming you want to
+reclaim guest pages, which you do because that is what your patches are
+effectively doing anyway).
 
-Perhaps.  But there seem to be altogether too many ways through this
-code: this part of migrate_pages then starts to look rather like,
-but not exactly like, swap_page.  Feels like it needs refactoring.
+If the guest isn't under memory pressure (it has been allocated a fixed
+amount of memory, and hasn't exceeded it), then you just don't call in.
+Nor should you be employing this virtual assist reclaim on them.
 
-Hugh
+> the guest is not a good idea, if you have an idle guest you generally
+> increase the memory pressure because some of the guests pages might have
+> been swapped which are needed if the guest has to do the reclaim. 
+
+It might be a win in heavy swapping conditions to get your hypervisor's
+tentacles into the guests' core VM, I could believe that. Doesn't mean
+it is a good idea in our purpose OS.
+
+How badly did the simple approach fare?
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
