@@ -1,66 +1,64 @@
-Date: Wed, 26 Apr 2006 21:46:23 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: Lockless page cache test results
-Message-ID: <20060426194623.GD9211@suse.de>
-References: <20060426135310.GB5083@suse.de> <444F8714.9060808@yahoo.com.au>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3QJkLHK004720
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3QJkL5Q201170
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3QJkLWK013465
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
+Received: from mpk2005.rchland.ibm.com (mpk2005.rchland.ibm.com [9.10.86.58] (may be forged))
+	by d01av04.pok.ibm.com (8.12.11/8.12.11) with ESMTP id k3QJkLEx013432
+	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
+Subject: [RFC] Hugetlb fallback to normal pages
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Wed, 26 Apr 2006 14:46:20 -0500
+Message-Id: <1146080780.3872.69.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <444F8714.9060808@yahoo.com.au>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 27 2006, Nick Piggin wrote:
-> Jens Axboe wrote:
-> >Hi,
-> >
-> >Running a splice benchmark on a 4-way IPF box, I decided to give the
-> >lockless page cache patches from Nick a spin. I've attached the results
-> >as a png, it pretty much speaks for itself.
-> >
-> >The test in question splices a 1GiB file to a pipe and then splices that
-> >to some output. Normally that output would be something interesting, in
-> >this case it's simply /dev/null. So it tests the input side of things
-> >only, which is what I wanted to do here. To get adequate runtime, the
-> >operation is repeated a number of times (120 in this example). The
-> >benchmark does that number of loops with 1, 2, 3, and 4 clients each
-> >pinned to a private CPU. The pinning is mainly done for more stable
-> >results.
-> 
-> Thanks Jens!
-> 
-> It's interesting, single threaded performance is down a little. Is
-> this significant? In some other results you showed me with 3 splices
-> each running on their own file (ie. no tree_lock contention), lockless
-> looked slightly faster on the same machine.
+Thanks to the latest hugetlb accounting patches, we now have reliable
+shared mappings.  Private mappings are much more difficult because there
+is no way to know up-front how many huge pages will be required (we may
+have forking combined with unknown copy-on-write activity).  So private
+mappings currently get full overcommit semantics and when a fault cannot
+be handled, the apps get SIGBUS.
 
-I can't say for sure, as I haven't done enough of these runs to know for
-a fact if it's just a little fluctuation or actually statistically
-significant. The tests are quick to run, I'll do a series of single
-thread runs tomorrow to tell you.
+The problem: Random SIGBUS crashes for applications using large pages
+are not acceptable.  We need a way to handle the fault without giving up
+and killing the process.
 
-> It could well be that the speculative get_page operation is naturally
-> a bit slower on Itanium CPUs -- there is a different mix of barriers,
-> reads, writes, etc. If only someone gave me an IPF system... ;)
+So I've been mulling it over and as I see it, we either 1) Swap out huge
+pages, or 2) Demote huge pages.  In either case we need to be willing to
+accept the performance penalty to gain stability.  At this point, I
+think swapping is too intrusive and way too slow so I am considering
+demotion options.  To simplify things at first, I am only considering
+i386 (and demoting only private mappings of course).
 
-I'll gladly trade the heat and noise generation of that beast with you
-:-)
+Here's my idea:  When we fail to instantiate a new page at fault time,
+split the affected vma such that we have a new vma to cover the 1 huge
+page we are demoting.  Allocate HPAGE_SIZE/PAGE_SIZE normal pages.  Use
+the page table to locate any populated hugetlb pages.  Copy the data
+into the normal pages and install them in the page table.  Do any other
+fixup required to make the new VMA anonymous.  Return.
 
-I can do the same numbers on a 2-way em64t for comparison, that should
-get us a little better coverage.
+Any general opinions on the idea (flame retardant suit is equipped)?  As
+far as I can tell, we don't split vmas during fault anywhere else.  Is
+there inherent problems with doing so?  What about the conversion
+process to an anonymous VMA?  Since we are dealing with private mappings
+only, divorcing the vma from the hugetlbfs file should be okay afaics.
 
-> As you said, it would be nice to see how this goes when the other end
-> are 4 gigabit pipes or so... And then things like specweb and file
-> serving workloads.
-
-Yes, for now I just consider the /dev/null splicing an extremely fast
-and extremely light weigth interconnect :-)
+I know code speaks louder than words, but talk is cheap and that's why
+I'm starting with it :)  Thanks for your comments.
 
 -- 
-Jens Axboe
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
