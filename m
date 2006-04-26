@@ -1,30 +1,53 @@
-Date: Wed, 26 Apr 2006 09:55:11 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Lockless page cache test results
-Message-Id: <20060426095511.0cc7a3f9.akpm@osdl.org>
-In-Reply-To: <20060426135310.GB5083@suse.de>
-References: <20060426135310.GB5083@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Dave Peterson <dsp@llnl.gov>
+Subject: Re: [PATCH 1/2] mm: serialize OOM kill operations
+Date: Wed, 26 Apr 2006 10:14:14 -0700
+References: <200604251701.31899.dsp@llnl.gov> <444EF2CF.1020100@yahoo.com.au>
+In-Reply-To: <444EF2CF.1020100@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200604261014.15008.dsp@llnl.gov>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Jens Axboe <axboe@suse.de> wrote:
->
-> Running a splice benchmark on a 4-way IPF box, I decided to give the
->  lockless page cache patches from Nick a spin. I've attached the results
->  as a png, it pretty much speaks for itself.
+On Tuesday 25 April 2006 21:10, Nick Piggin wrote:
+> Firstly why not use a semaphore and trylocks instead of your homebrew
+> lock?
 
-It does.
+Are you suggesting something like this?
 
-What does the test do?
+	spinlock_t oom_kill_lock = SPIN_LOCK_UNLOCKED;
 
-In particular, does it cause the kernel to take tree_lock once per page, or
-once per batch-of-pages?
+	static inline int oom_kill_start(void)
+	{
+		return !spin_trylock(&oom_kill_lock);
+	}
+
+	static inline void oom_kill_finish()
+	{
+		spin_unlock(&oom_kill_lock);
+	}
+
+If you prefer the above implementation, I can rework the patch as
+above.
+
+> Second, can you arrange it without using the extra field in mm_struct
+> and operation in the mmput fast path?
+
+I'm open to suggestions on other ways of implementing this.  However I
+think the performance impact of the proposed implementation should be
+miniscule.  The code added to mmput() executes only when the referece
+count has reached 0; not on every decrement of the reference count.
+Once the reference count has reached 0, the common-case behavior is
+still only testing a boolean flag followed by a not-taken branch.  The
+use of unlikely() should help the compiler and CPU branch prediction
+hardware minimize overhead in the typical case where oom_kill_finish()
+is not called.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
