@@ -1,64 +1,41 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k3QJkLHK004720
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k3QJkL5Q201170
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k3QJkLWK013465
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
-Received: from mpk2005.rchland.ibm.com (mpk2005.rchland.ibm.com [9.10.86.58] (may be forged))
-	by d01av04.pok.ibm.com (8.12.11/8.12.11) with ESMTP id k3QJkLEx013432
-	for <linux-mm@kvack.org>; Wed, 26 Apr 2006 15:46:21 -0400
-Subject: [RFC] Hugetlb fallback to normal pages
-From: Adam Litke <agl@us.ibm.com>
-Content-Type: text/plain
-Date: Wed, 26 Apr 2006 14:46:20 -0500
-Message-Id: <1146080780.3872.69.camel@localhost.localdomain>
+Date: Wed, 26 Apr 2006 13:12:00 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Lockless page cache test results
+Message-Id: <20060426131200.516cbabc.akpm@osdl.org>
+In-Reply-To: <20060426191557.GA9211@suse.de>
+References: <20060426135310.GB5083@suse.de>
+	<20060426095511.0cc7a3f9.akpm@osdl.org>
+	<20060426174235.GC5002@suse.de>
+	<20060426111054.2b4f1736.akpm@osdl.org>
+	<Pine.LNX.4.64.0604261144290.3701@g5.osdl.org>
+	<20060426191557.GA9211@suse.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: torvalds@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks to the latest hugetlb accounting patches, we now have reliable
-shared mappings.  Private mappings are much more difficult because there
-is no way to know up-front how many huge pages will be required (we may
-have forking combined with unknown copy-on-write activity).  So private
-mappings currently get full overcommit semantics and when a fault cannot
-be handled, the apps get SIGBUS.
+Jens Axboe <axboe@suse.de> wrote:
+>
+> With a 16-page gang lookup in splice, the top profile for the 4-client
+> case (which is now at 4GiB/sec instead of 3) are:
+> 
+> samples  %        symbol name
+> 30396    36.7217  __do_page_cache_readahead
+> 25843    31.2212  find_get_pages_contig
+> 9699     11.7174  default_idle
 
-The problem: Random SIGBUS crashes for applications using large pages
-are not acceptable.  We need a way to handle the fault without giving up
-and killing the process.
+__do_page_cache_readahead() should use gang lookup.  We never got around to
+that, mainly because nothing really demonstrated a need.
 
-So I've been mulling it over and as I see it, we either 1) Swap out huge
-pages, or 2) Demote huge pages.  In either case we need to be willing to
-accept the performance penalty to gain stability.  At this point, I
-think swapping is too intrusive and way too slow so I am considering
-demotion options.  To simplify things at first, I am only considering
-i386 (and demoting only private mappings of course).
-
-Here's my idea:  When we fail to instantiate a new page at fault time,
-split the affected vma such that we have a new vma to cover the 1 huge
-page we are demoting.  Allocate HPAGE_SIZE/PAGE_SIZE normal pages.  Use
-the page table to locate any populated hugetlb pages.  Copy the data
-into the normal pages and install them in the page table.  Do any other
-fixup required to make the new VMA anonymous.  Return.
-
-Any general opinions on the idea (flame retardant suit is equipped)?  As
-far as I can tell, we don't split vmas during fault anywhere else.  Is
-there inherent problems with doing so?  What about the conversion
-process to an anonymous VMA?  Since we are dealing with private mappings
-only, divorcing the vma from the hugetlbfs file should be okay afaics.
-
-I know code speaks louder than words, but talk is cheap and that's why
-I'm starting with it :)  Thanks for your comments.
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+It's a problem that __do_page_cache_readahead() is being called at all -
+with everything in pagecache we should be auto-turning-off readahead.  This
+happens because splice is calling the low-level do_pagecache_readahead(). 
+If you convert it to use page_cache_readahead(), that will all vanish if
+readahead is working right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
