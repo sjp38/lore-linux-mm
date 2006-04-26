@@ -1,47 +1,36 @@
-Message-ID: <444EC953.6060309@yahoo.com.au>
-Date: Wed, 26 Apr 2006 11:13:55 +1000
+Message-ID: <444EF2CF.1020100@yahoo.com.au>
+Date: Wed, 26 Apr 2006 14:10:55 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Page host virtual assist patches.
-References: <20060424123412.GA15817@skybase>	 <20060424180138.52e54e5c.akpm@osdl.org>  <444DCD87.2030307@yahoo.com.au>	 <1145953914.5282.21.camel@localhost>  <444DF447.4020306@yahoo.com.au>	 <1145964531.5282.59.camel@localhost>  <444E1253.9090302@yahoo.com.au> <1145974521.5282.89.camel@localhost>
-In-Reply-To: <1145974521.5282.89.camel@localhost>
+Subject: Re: [PATCH 1/2] mm: serialize OOM kill operations
+References: <200604251701.31899.dsp@llnl.gov>
+In-Reply-To: <200604251701.31899.dsp@llnl.gov>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: schwidefsky@de.ibm.com
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky wrote:
+Dave Peterson wrote:
 
->On Tue, 2006-04-25 at 22:13 +1000, Nick Piggin wrote:
->
->>Yes, that simple approach (presumably the guest ballooner allocates
->>memory from the guest and frees it to the host or something similar).
->>I'd be interested to see numbers from real workloads...
->>
->>I don't think the hva method is reasonable as it is. Let's see if we
->>can improve host->guest driven reclaiming first.
->>
->
->So you believe that the host->guest driven relaiming can be improved to
->a point where hva is superfluous. I do not believe that. Lets agree to
+>The patch below modifies the behavior of the OOM killer so that only
+>one OOM kill operation can be in progress at a time.  When running a
+>test program that eats lots of memory, I was observing behavior where
+>the OOM killer gets impatient and shoots one or more system daemons
+>in addition to the program that is eating lots of memory.  This fixes
+>the problematic behavior.
 >
 
-I'm not sure that it would ever be quite as fast, but I hope it
-could be improved to the point that it is adequate. Yes.
+Hi Dave,
 
->disagree here. Any findings in the hva code itself?
->
+Firstly why not use a semaphore and trylocks instead of your homebrew
+lock?
 
-OK, we'll agree to disagree for now :)
+Second, can you arrange it without using the extra field in mm_struct
+and operation in the mmput fast path?
 
-I did start looking at the code but as you can see I only reviewed
-patch 1 before getting sidetracked. I'll try to find some more time
-to look at in the next few days.
-
-Nick
 --
 
 Send instant messages to your online friends http://au.messenger.yahoo.com 
