@@ -1,32 +1,58 @@
-Date: Wed, 26 Apr 2006 21:21:07 +0200
-From: Jens Axboe <axboe@suse.de>
+Message-ID: <444F8714.9060808@yahoo.com.au>
+Date: Thu, 27 Apr 2006 00:43:32 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: Lockless page cache test results
-Message-ID: <20060426192106.GB9211@suse.de>
-References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <20060426182323.GI5002@suse.de> <20060426114649.5a0e0dea.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060426114649.5a0e0dea.akpm@osdl.org>
+References: <20060426135310.GB5083@suse.de>
+In-Reply-To: <20060426135310.GB5083@suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 26 2006, Andrew Morton wrote:
-> Jens Axboe <axboe@suse.de> wrote:
-> >
-> > Are there cases where the lockless page cache performs worse than the
-> > current one?
+Jens Axboe wrote:
+> Hi,
 > 
-> Yeah - when human beings try to understand and maintain it.
+> Running a splice benchmark on a 4-way IPF box, I decided to give the
+> lockless page cache patches from Nick a spin. I've attached the results
+> as a png, it pretty much speaks for itself.
 > 
-> The usual tradeoffs apply ;)
+> The test in question splices a 1GiB file to a pipe and then splices that
+> to some output. Normally that output would be something interesting, in
+> this case it's simply /dev/null. So it tests the input side of things
+> only, which is what I wanted to do here. To get adequate runtime, the
+> operation is repeated a number of times (120 in this example). The
+> benchmark does that number of loops with 1, 2, 3, and 4 clients each
+> pinned to a private CPU. The pinning is mainly done for more stable
+> results.
 
-Ah ok, thanks for clearing that up :-)
+Thanks Jens!
+
+It's interesting, single threaded performance is down a little. Is
+this significant? In some other results you showed me with 3 splices
+each running on their own file (ie. no tree_lock contention), lockless
+looked slightly faster on the same machine.
+
+In my microbenchmarks, single threaded lockless is quite a bit faster
+than vanilla on both P4 and G5.
+
+It could well be that the speculative get_page operation is naturally
+a bit slower on Itanium CPUs -- there is a different mix of barriers,
+reads, writes, etc. If only someone gave me an IPF system... ;)
+
+As you said, it would be nice to see how this goes when the other end
+are 4 gigabit pipes or so... And then things like specweb and file
+serving workloads.
+
+Nick
 
 -- 
-Jens Axboe
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
