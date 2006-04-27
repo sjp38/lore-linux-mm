@@ -1,47 +1,68 @@
-Date: Thu, 27 Apr 2006 11:19:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Lockless page cache test results
-Message-Id: <20060427111937.deeed668.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060426185750.GM5002@suse.de>
-References: <20060426135310.GB5083@suse.de>
-	<20060426095511.0cc7a3f9.akpm@osdl.org>
-	<20060426174235.GC5002@suse.de>
-	<20060426185750.GM5002@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <44503BA2.7000405@yahoo.com.au>
+Date: Thu, 27 Apr 2006 13:33:54 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mm: serialize OOM kill operations
+References: <200604251701.31899.dsp@llnl.gov> <444EF2CF.1020100@yahoo.com.au> <200604261014.15008.dsp@llnl.gov>
+In-Reply-To: <200604261014.15008.dsp@llnl.gov>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Apr 2006 20:57:50 +0200
-Jens Axboe <axboe@suse.de> wrote:
+Dave Peterson wrote:
 
-> On Wed, Apr 26 2006, Jens Axboe wrote:
-> > We can speedup the lookups with find_get_pages(). The test does 64k max,
-> > so with luck we should be able to pull 16 pages in at the time. I'll try
-> > and run such a test. But boy I wish find_get_pages_contig() was there
-> > for that. I think I'd prefer adding that instead of coding that logic in
-> > splice, it can get a little tricky.
-> 
-> Here's such a run, graphed with the other two. I'll redo the lockless
-> side as well now, it's only fair to compare with that batching as well.
-> 
+>On Tuesday 25 April 2006 21:10, Nick Piggin wrote:
+>
+>>Firstly why not use a semaphore and trylocks instead of your homebrew
+>>lock?
+>>
+>
+>Are you suggesting something like this?
+>
+>	spinlock_t oom_kill_lock = SPIN_LOCK_UNLOCKED;
+>
+>	static inline int oom_kill_start(void)
+>	{
+>		return !spin_trylock(&oom_kill_lock);
+>	}
+>
+>	static inline void oom_kill_finish()
+>	{
+>		spin_unlock(&oom_kill_lock);
+>	}
+>
+>If you prefer the above implementation, I can rework the patch as
+>above.
+>
 
-Hi, thank you for interesting tests.
+I think you need a semaphore? Either way, drop the trivial wrappers.
 
->From user's view, I want to see the comparison among 
-- splice(file,/dev/null),
-- mmap+madvise(file,WILLNEED)/write(/dev/null),
-- read(file)/write(/dev/null)
-in this 1-4 threads test. 
+>
+>>Second, can you arrange it without using the extra field in mm_struct
+>>and operation in the mmput fast path?
+>>
+>
+>I'm open to suggestions on other ways of implementing this.  However I
+>think the performance impact of the proposed implementation should be
+>miniscule.  The code added to mmput() executes only when the referece
+>count has reached 0; not on every decrement of the reference count.
+>Once the reference count has reached 0, the common-case behavior is
+>still only testing a boolean flag followed by a not-taken branch.  The
+>use of unlikely() should help the compiler and CPU branch prediction
+>hardware minimize overhead in the typical case where oom_kill_finish()
+>is not called.
+>
 
-This will show when splice() can be used effectively.
+Mainly the cost of increasing cacheline footprint. I think someone
+suggested using a flag bit somewhere... that'd be preferable.
 
-Thanks,
--Kame
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
