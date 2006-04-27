@@ -1,55 +1,41 @@
-From: Dave Peterson <dsp@llnl.gov>
-Subject: [PATCH 2/2 (repost)] mm: avoid unnecessary looping in out_of_memory()
-Date: Thu, 27 Apr 2006 13:08:11 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
+Date: Thu, 27 Apr 2006 13:44:42 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH 1/2 (repost)] mm: serialize OOM kill operations
+Message-Id: <20060427134442.639a6d19.pj@sgi.com>
+In-Reply-To: <200604271308.10080.dsp@llnl.gov>
+References: <200604271308.10080.dsp@llnl.gov>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200604271308.11553.dsp@llnl.gov>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, riel@surriel.com, nickpiggin@yahoo.com.au, ak@suse.de, akpm@osdl.org
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com, nickpiggin@yahoo.com.au, ak@suse.de, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-I see no reason to loop in out_of_memory().  If oom_kill_process()
-returns 1, this may be because the task that select_bad_process()
-chose is now exiting (and therefore oom_kill_task() found the ->mm
-pointer of the chosen task to be NULL).  out_of_memory() may as well
-return to its caller, perhaps avoiding the need to shoot a process.
-If the memory issues are still not resolved, out_of_memory() will be
-called again so there's no reason to loop.
+Dave wrote:
+> @@ -350,6 +353,8 @@ struct mm_struct {
+>  	/* aio bits */
+>  	rwlock_t		ioctx_list_lock;
+>  	struct kioctx		*ioctx_list;
+> +
+> +	unsigned long flags;
 
-Signed-Off-By: David S. Peterson <dsp@llnl.gov>
----
-This is a repost of a previous patch.  It applies to kernel
-2.6.17-rc3 (after applying patch 1/2).
+I see Andi didn't reply to your question concerning what
+struct he saw a 'flags' in.
 
+Adding a flags word still costs a slot in mm_struct.
 
-Index: linux-2.6.17-rc3-oom/mm/oom_kill.c
-===================================================================
---- linux-2.6.17-rc3-oom.orig/mm/oom_kill.c	2006-04-27 12:08:36.000000000 -0700
-+++ linux-2.6.17-rc3-oom/mm/oom_kill.c	2006-04-27 12:08:36.000000000 -0700
-@@ -366,7 +366,6 @@ void out_of_memory(struct zonelist *zone
- 		break;
- 
- 	case CONSTRAINT_NONE:
--retry:
- 		/*
- 		 * Rambo mode: Shoot down a process and hope it solves whatever
- 		 * issues we may have.
-@@ -385,9 +384,7 @@ retry:
- 			panic("Out of memory and no killable processes...\n");
- 		}
- 
--		if (oom_kill_process(p, points, "Out of memory"))
--			goto retry;
--
-+		cancel = oom_kill_process(p, points, "Out of memory");
- 		break;
- 	}
- 
+Adding a 'oom_notify' bitfield after the existing 'dumpable'
+bitfield in mm_struct would save that slot:
+
+        unsigned dumpable:2;
+	unsigned oom_notify:1;
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
