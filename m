@@ -1,47 +1,36 @@
-Date: Thu, 27 Apr 2006 08:12:28 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: Lockless page cache test results
-In-Reply-To: <44505B59.1060308@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0604270804420.3701@g5.osdl.org>
-References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org>
- <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org>
- <Pine.LNX.4.64.0604261144290.3701@g5.osdl.org> <44505B59.1060308@yahoo.com.au>
+Message-ID: <4450C8C6.9040309@yahoo.com.au>
+Date: Thu, 27 Apr 2006 23:36:06 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Lockless page cache test results
+References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <Pine.LNX.4.64.0604261144290.3701@g5.osdl.org> <20060426191557.GA9211@suse.de> <20060426131200.516cbabc.akpm@osdl.org> <20060427074533.GJ9211@suse.de> <4450796A.2030908@yahoo.com.au> <44507AA9.2010005@yahoo.com.au> <20060427090000.GA23137@suse.de>
+In-Reply-To: <20060427090000.GA23137@suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Jens Axboe <axboe@suse.de>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Jens Axboe wrote:
+> On Thu, Apr 27 2006, Nick Piggin wrote:
 
-On Thu, 27 Apr 2006, Nick Piggin wrote:
-> > 
-> > Of course, with small files, the actual filename lookup is likely to be the
-> > real limiter.
+>>Hmm, what's more, find_get_pages_contig shouldn't result in any
+>>fewer tree_lock acquires than the open coded thing there now
+>>(for the densely populated pagecache case).
 > 
-> Although that's lockless so it scales. find_get_page will overtake it
-> at some point.
+> 
+> How do you figure? The open coded one does a find_get_page() on each
+> page in that range, so for x number of pages we'll grab and release
+> ->tree_lock x times.
 
-filename lookup is only lockless for independent files. You end up getting 
-the "dentry->d_lock" for a successful lookup in the lookup path, so if you 
-have multiple threads looking up the same files (or - MUCH more commonly - 
-directories), you're not going to be lockless.
+Yeah you're right. I had in mind that you were using
+find_get_pages_contig in readahead, rather than in splice.
 
-I don't know how we could improve it. I've several times thought that we 
-_should_ be able to do the directory lookups under the rcu read lock and 
-never touch their d_count or d_lock at all, but the locking against 
-directory renaming depends very intimately on d_lock.
-
-It is _possible_ that we should be able to handle it purely with just 
-memory ordering rather than depending on d_lock. That would be wonderful.
-
-Of course, we do actually scale pretty damn well already. I'm just saying 
-that it's not perfect.
-
-See __d_lookup() for details.
-
-			Linus
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
