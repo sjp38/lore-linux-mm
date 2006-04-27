@@ -1,55 +1,47 @@
-Date: Wed, 26 Apr 2006 13:31:14 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Thu, 27 Apr 2006 11:19:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: Lockless page cache test results
-In-Reply-To: <20060426184945.GL5002@suse.de>
-Message-ID: <Pine.LNX.4.64.0604261330310.20897@schroedinger.engr.sgi.com>
-References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org>
- <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org>
- <Pine.LNX.4.64.0604261130450.19587@schroedinger.engr.sgi.com>
- <20060426114737.239806a2.akpm@osdl.org> <20060426184945.GL5002@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20060427111937.deeed668.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060426185750.GM5002@suse.de>
+References: <20060426135310.GB5083@suse.de>
+	<20060426095511.0cc7a3f9.akpm@osdl.org>
+	<20060426174235.GC5002@suse.de>
+	<20060426185750.GM5002@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: dgc@sgi.com
-Cc: Jens Axboe <axboe@suse.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-have seen?
+On Wed, 26 Apr 2006 20:57:50 +0200
+Jens Axboe <axboe@suse.de> wrote:
 
-On Wed, 26 Apr 2006, Jens Axboe wrote:
+> On Wed, Apr 26 2006, Jens Axboe wrote:
+> > We can speedup the lookups with find_get_pages(). The test does 64k max,
+> > so with luck we should be able to pull 16 pages in at the time. I'll try
+> > and run such a test. But boy I wish find_get_pages_contig() was there
+> > for that. I think I'd prefer adding that instead of coding that logic in
+> > splice, it can get a little tricky.
+> 
+> Here's such a run, graphed with the other two. I'll redo the lockless
+> side as well now, it's only fair to compare with that batching as well.
+> 
 
-> On Wed, Apr 26 2006, Andrew Morton wrote:
-> > Christoph Lameter <clameter@sgi.com> wrote:
-> > >
-> > > On Wed, 26 Apr 2006, Andrew Morton wrote:
-> > > 
-> > > > OK.  That doesn't sound like something which a real application is likely
-> > > > to do ;)
-> > > 
-> > > A real application scenario may be an application that has lots of threads 
-> > > that are streaming data through multiple different disk channels (that 
-> > > are able to transfer data simultanouesly. e.g. connected to different 
-> > > nodes in a NUMA system) into the same address space.
-> > > 
-> > > Something like the above is fairly typical for multimedia filters 
-> > > processing large amounts of data.
-> > 
-> > >From the same file?
-> > 
-> > To /dev/null?
-> 
-> /dev/null doesn't have much to do with it, other than the fact that it
-> basically stresses only the input side of things. Same file is the
-> interesting bit of course, as that's the the granularity of the
-> tree_lock.
-> 
-> I haven't tested much else, I'll ask the tool to bench more files :)
-> 
-> -- 
-> Jens Axboe
-> 
-> 
+Hi, thank you for interesting tests.
+
+>From user's view, I want to see the comparison among 
+- splice(file,/dev/null),
+- mmap+madvise(file,WILLNEED)/write(/dev/null),
+- read(file)/write(/dev/null)
+in this 1-4 threads test. 
+
+This will show when splice() can be used effectively.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
