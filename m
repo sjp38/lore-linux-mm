@@ -1,54 +1,54 @@
-Received: by pproxy.gmail.com with SMTP id m51so2680708pye
-        for <linux-mm@kvack.org>; Wed, 26 Apr 2006 20:49:57 -0700 (PDT)
-Message-ID: <aec7e5c30604262049v3ae18915le415ee33b2f80fc4@mail.gmail.com>
-Date: Thu, 27 Apr 2006 12:49:49 +0900
-From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: Re: [RFC/PATCH] Shared Page Tables [1/2]
-In-Reply-To: <C7A8E6F316A73810A5FF466E@10.1.1.4>
+Message-ID: <4450551D.5050000@yahoo.com.au>
+Date: Thu, 27 Apr 2006 15:22:37 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <1144685591.570.36.camel@wildcat.int.mccr.org>
-	 <1144695296.31255.16.camel@localhost.localdomain>
-	 <C7A8E6F316A73810A5FF466E@10.1.1.4>
+Subject: Re: Lockless page cache test results
+References: <20060426135310.GB5083@suse.de>	<20060426095511.0cc7a3f9.akpm@osdl.org>	<20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org>
+In-Reply-To: <20060426111054.2b4f1736.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Jens Axboe <axboe@suse.de>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/11/06, Dave McCracken <dmccr@us.ibm.com> wrote:
-> --On Monday, April 10, 2006 11:54:56 -0700 Dave Hansen
-> <haveblue@us.ibm.com> wrote:
->
-> >> Complete the macro definitions for pxd_page/pxd_page_kernel
-> >
-> > Could you explain a bit why these are needed for shared page tables?
->
-> The existing definitions define pte_page and pmd_page to return the struct
-> page for the pfn contained in that entry, and pmd_page_kernel returns the
-> kernel virtual address of it.  However, pud_page and pgd_page are defined
-> to return the kernel virtual address.  There are no macros that return the
-> struct page.
->
-> No one actually uses any of the pud_page and pgd_page macros (other than
-> one reference in the same include file).  After some discussion on the list
-> the last time I posted the patches, we agreed that changing pud_page and
-> pgd_page to be consistent with pmd_page is the best solution.  We also
-> agreed that I should go ahead and propagate that change across all
-> architectures even though not all of them currently support shared page
-> tables.  This patch is the result of that work.
+Andrew Morton wrote:
 
-What is the merge status of this patch?
+>>The top of the 4-client
+>>vanilla run profile looks like this:
+>>
+>>samples  %        symbol name
+>>65328    47.8972  find_get_page
+>>
+>>Basically the machine is fully pegged, about 7% idle time.
+> 
+> 
+> Most of the time an acquisition of tree_lock is associated with a disk
+> read, or a page-size memset, or a page-size memcpy.  And often an
+> acquisition of tree_lock is associated with multiple pages, not just a
+> single page.
 
-I've written some generic page table creation code for kexec, but the
-fact that pud_page() returns struct page * on i386 but unsigned long
-on other architectures makes it hard to write clean generic code.
+Still, most of the times it is acquired would be once per page for
+read, write, nopage.
 
-Any merge objections, or was this patch simply overlooked?
+For read and write, often it will be a full page memcpy but even such
+a memcpy operation can quickly become insignificant compared to tl
+contention.
 
-/ magnus
+Anyway, whatever. What needs to be demonstrated are real world
+improvements at the end of the day.
+
+> 
+> So although the graph looks good, I wouldn't view this as a super-strong
+> argument in favour of lockless pagecache.
+
+No. Cool numbers though ;)
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
