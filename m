@@ -1,68 +1,54 @@
-Message-ID: <44503BA2.7000405@yahoo.com.au>
-Date: Thu, 27 Apr 2006 13:33:54 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by pproxy.gmail.com with SMTP id m51so2680708pye
+        for <linux-mm@kvack.org>; Wed, 26 Apr 2006 20:49:57 -0700 (PDT)
+Message-ID: <aec7e5c30604262049v3ae18915le415ee33b2f80fc4@mail.gmail.com>
+Date: Thu, 27 Apr 2006 12:49:49 +0900
+From: "Magnus Damm" <magnus.damm@gmail.com>
+Subject: Re: [RFC/PATCH] Shared Page Tables [1/2]
+In-Reply-To: <C7A8E6F316A73810A5FF466E@10.1.1.4>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: serialize OOM kill operations
-References: <200604251701.31899.dsp@llnl.gov> <444EF2CF.1020100@yahoo.com.au> <200604261014.15008.dsp@llnl.gov>
-In-Reply-To: <200604261014.15008.dsp@llnl.gov>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+References: <1144685591.570.36.camel@wildcat.int.mccr.org>
+	 <1144695296.31255.16.camel@localhost.localdomain>
+	 <C7A8E6F316A73810A5FF466E@10.1.1.4>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Peterson <dsp@llnl.gov>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@osdl.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Peterson wrote:
+On 4/11/06, Dave McCracken <dmccr@us.ibm.com> wrote:
+> --On Monday, April 10, 2006 11:54:56 -0700 Dave Hansen
+> <haveblue@us.ibm.com> wrote:
+>
+> >> Complete the macro definitions for pxd_page/pxd_page_kernel
+> >
+> > Could you explain a bit why these are needed for shared page tables?
+>
+> The existing definitions define pte_page and pmd_page to return the struct
+> page for the pfn contained in that entry, and pmd_page_kernel returns the
+> kernel virtual address of it.  However, pud_page and pgd_page are defined
+> to return the kernel virtual address.  There are no macros that return the
+> struct page.
+>
+> No one actually uses any of the pud_page and pgd_page macros (other than
+> one reference in the same include file).  After some discussion on the list
+> the last time I posted the patches, we agreed that changing pud_page and
+> pgd_page to be consistent with pmd_page is the best solution.  We also
+> agreed that I should go ahead and propagate that change across all
+> architectures even though not all of them currently support shared page
+> tables.  This patch is the result of that work.
 
->On Tuesday 25 April 2006 21:10, Nick Piggin wrote:
->
->>Firstly why not use a semaphore and trylocks instead of your homebrew
->>lock?
->>
->
->Are you suggesting something like this?
->
->	spinlock_t oom_kill_lock = SPIN_LOCK_UNLOCKED;
->
->	static inline int oom_kill_start(void)
->	{
->		return !spin_trylock(&oom_kill_lock);
->	}
->
->	static inline void oom_kill_finish()
->	{
->		spin_unlock(&oom_kill_lock);
->	}
->
->If you prefer the above implementation, I can rework the patch as
->above.
->
+What is the merge status of this patch?
 
-I think you need a semaphore? Either way, drop the trivial wrappers.
+I've written some generic page table creation code for kexec, but the
+fact that pud_page() returns struct page * on i386 but unsigned long
+on other architectures makes it hard to write clean generic code.
 
->
->>Second, can you arrange it without using the extra field in mm_struct
->>and operation in the mmput fast path?
->>
->
->I'm open to suggestions on other ways of implementing this.  However I
->think the performance impact of the proposed implementation should be
->miniscule.  The code added to mmput() executes only when the referece
->count has reached 0; not on every decrement of the reference count.
->Once the reference count has reached 0, the common-case behavior is
->still only testing a boolean flag followed by a not-taken branch.  The
->use of unlikely() should help the compiler and CPU branch prediction
->hardware minimize overhead in the typical case where oom_kill_finish()
->is not called.
->
+Any merge objections, or was this patch simply overlooked?
 
-Mainly the cost of increasing cacheline footprint. I think someone
-suggested using a flag bit somewhere... that'd be preferable.
-
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
