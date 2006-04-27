@@ -1,46 +1,48 @@
-Date: Thu, 27 Apr 2006 16:02:50 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 1/2 (repost)] mm: serialize OOM kill operations
-Message-Id: <20060427160250.a72cae11.pj@sgi.com>
-In-Reply-To: <20060427140921.249a00b0.akpm@osdl.org>
-References: <200604271308.10080.dsp@llnl.gov>
-	<20060427134442.639a6d19.pj@sgi.com>
-	<20060427140921.249a00b0.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 27 Apr 2006 16:05:23 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2.6.17-rc1-mm3] add migratepage addresss space op to
+ shmem
+In-Reply-To: <Pine.LNX.4.64.0604251153300.29020@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0604271554060.27987@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0604242046120.24647@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0604241447520.8904@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0604251153300.29020@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: dsp@llnl.gov, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com, nickpiggin@yahoo.com.au, ak@suse.de
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew wrote:
-> Note that these will occupy the same machine word.
+On Tue, 25 Apr 2006, Hugh Dickins wrote:
 
-That's why I did it.  Yup.
+> Perhaps.  But there seem to be altogether too many ways through this
+> code: this part of migrate_pages then starts to look rather like,
+> but not exactly like, swap_page.  Feels like it needs refactoring.
 
-> So they'll need
-> locking.  (Good luck trying to demonstrate the race though!)
+Actually the code migrates dirty pages because dirty information is 
+available in the pte and not in the dirty bit of the page struct. 
 
-Oops.  Good catch.  Thanks, Andrew.
+The branch in question is never taken because at that point the dirty 
+bit is not set in the the page struct.
 
-Probably solvable (lockable) but this line of thought is
-getting to be more trouble than I suspect it's worth.
+Later we call migrate_page(). migrate page unmaps the ptes and transfers 
+the dirty bit from the pte into the page struct. At that point we do not 
+check the dirty bit again and therefore the page will be migrated without 
+writeout. That is why the fallback mechanism passed the tests a couple of 
+months back and thats also why Lee reported that migration works for shmem 
+without a migratepage() method.
 
-I'm still a little surprised that this per-mm 'oom_notify' bit
-was needed to implement what I thought was a single, global
-system wide oom killer serializer.
+So the current problem is that the fallback path will migrate dirty pages 
+without regard to page dirty state. This may cause a problem for 
+filesystems that keep additional state for dirty pages and that do not 
+define their a migration method (The only filesystems with migration 
+methods are currently ext2,3 and xfs).
 
-But I'm too ignorant and lazy, and too distracted by other
-tasks, to actually think that surprise through.
-
-Good luck with it, Dave.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+I need to do some restructuring of migrate_page_remove_references() in 
+order to check the dirty state later. No need for pageout anymore. 
+Pageout contains more swap specific code that is not needed anymore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
