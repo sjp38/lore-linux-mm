@@ -1,38 +1,56 @@
-From: Andi Kleen <ak@suse.de>
+Message-ID: <44505FA6.70508@yahoo.com.au>
+Date: Thu, 27 Apr 2006 16:07:34 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: Lockless page cache test results
-Date: Thu, 27 Apr 2006 08:15:18 +0200
 References: <4t153d$r2dpi@azsmga001.ch.intel.com>
 In-Reply-To: <4t153d$r2dpi@azsmga001.ch.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200604270815.18575.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Jens Axboe' <axboe@suse.de>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, 'Nick Piggin' <npiggin@suse.de>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
+Cc: 'Jens Axboe' <axboe@suse.de>, linux-kernel@vger.kernel.org, 'Nick Piggin' <npiggin@suse.de>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 27 April 2006 07:39, Chen, Kenneth W wrote:
- 
+Chen, Kenneth W wrote:
+> Jens Axboe wrote on Wednesday, April 26, 2006 12:46 PM
+> 
+>>>It's interesting, single threaded performance is down a little. Is
+>>>this significant? In some other results you showed me with 3 splices
+>>>each running on their own file (ie. no tree_lock contention), lockless
+>>>looked slightly faster on the same machine.
+>>
+>>I can do the same numbers on a 2-way em64t for comparison, that should
+>>get us a little better coverage.
+> 
+> 
+> 
+> I throw the lockless patch and Jens splice-bench into our benchmark harness,
+> here are the numbers I collected, on the following hardware:
+> 
 > (1) 2P Intel Xeon, 3.4 GHz/HT, 2M L2
-> http://kernel-perf.sourceforge.net/splice/2P-3.4Ghz.png
-> 
 > (2) 4P Intel Xeon, 3.0 GHz/HT, 8M L3
-> http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz.png
-> 
 > (3) 4P Intel Xeon, 3.0 GHz/DC/HT, 2M L2 (per core)
-> http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz-DCHT.png
 > 
-> (4) everything on one graph:
-> http://kernel-perf.sourceforge.net/splice/splice.png
+> Here are the graph:
 
-Looks like a clear improvement for lockless unless I'm misreading the graphs.
-(Can you please use different colors next time?)
+Thanks a lot Ken.
 
--Andi
+So pagecache lookup performance goes up about 15-25% in single threaded
+tests on your P4s. Phew, I wasn't dreaming it.
+
+It is a pity that ipf hasn't improved similarly (and even slowed down a
+bit, if Jens' numbers are significant to that range). Next time I spend
+some cycles on lockless pagecache, I'll try to scrounge an ipf and see
+if I can't improve it (I don't expect miracles).
+
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
