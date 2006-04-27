@@ -1,47 +1,47 @@
-Message-Id: <4t16i2$r2lk1@orsmga001.jf.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: Lockless page cache test results
-Date: Thu, 27 Apr 2006 00:51:34 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <200604270815.18575.ak@suse.de>
+Date: Thu, 27 Apr 2006 10:03:16 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: Lockless page cache test results
+Message-ID: <20060427080316.GL9211@suse.de>
+References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426185750.GM5002@suse.de> <20060427111937.deeed668.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060427111937.deeed668.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andi Kleen' <ak@suse.de>
-Cc: 'Jens Axboe' <axboe@suse.de>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, 'Nick Piggin' <npiggin@suse.de>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote on Wednesday, April 26, 2006 11:15 PM
-> On Thursday 27 April 2006 07:39, Chen, Kenneth W wrote:
-> > (1) 2P Intel Xeon, 3.4 GHz/HT, 2M L2
-> > http://kernel-perf.sourceforge.net/splice/2P-3.4Ghz.png
-> > 
-> > (2) 4P Intel Xeon, 3.0 GHz/HT, 8M L3
-> > http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz.png
-> > 
-> > (3) 4P Intel Xeon, 3.0 GHz/DC/HT, 2M L2 (per core)
-> > http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz-DCHT.png
-> > 
-> > (4) everything on one graph:
-> > http://kernel-perf.sourceforge.net/splice/splice.png
+On Thu, Apr 27 2006, KAMEZAWA Hiroyuki wrote:
+> On Wed, 26 Apr 2006 20:57:50 +0200
+> Jens Axboe <axboe@suse.de> wrote:
 > 
-> Looks like a clear improvement for lockless unless I'm misreading the
-> graphs. (Can you please use different colors next time?)
+> > On Wed, Apr 26 2006, Jens Axboe wrote:
+> > > We can speedup the lookups with find_get_pages(). The test does 64k max,
+> > > so with luck we should be able to pull 16 pages in at the time. I'll try
+> > > and run such a test. But boy I wish find_get_pages_contig() was there
+> > > for that. I think I'd prefer adding that instead of coding that logic in
+> > > splice, it can get a little tricky.
+> > 
+> > Here's such a run, graphed with the other two. I'll redo the lockless
+> > side as well now, it's only fair to compare with that batching as well.
+> > 
+> 
+> Hi, thank you for interesting tests.
+> 
+> >From user's view, I want to see the comparison among 
+> - splice(file,/dev/null),
+> - mmap+madvise(file,WILLNEED)/write(/dev/null),
+> - read(file)/write(/dev/null)
+> in this 1-4 threads test. 
+> 
+> This will show when splice() can be used effectively.
 
+Sure, should be easy enough to do.
 
-Sorry, I'm a bit rusty with gnuplot. Color charts are updated with the
-same url.  On the last one, I was trying to plot same CPU type with same
-color but different line weight for each kernel, 
-
-plot "data" using 1:2 title "2P Xeon 3.4 GHz - vanilla" with linespoints lt 1 lw 10, \
-     "data" using 1:3 title "2P Xeon 3.4 GHz - lockless" with linespoints lt 1 lw 1
-
-gnuplot gives me the same color on both plotted lines, but the line weight
-argument doesn't have any effect.  I looked for examples everywhere on the
-web with no avail.  I must be missing some argument somewhere that I can't
-figure out right now :-(
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
