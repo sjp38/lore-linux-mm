@@ -1,54 +1,50 @@
-Message-ID: <4450551D.5050000@yahoo.com.au>
-Date: Thu, 27 Apr 2006 15:22:37 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-Id: <4t153d$r2dpi@azsmga001.ch.intel.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: Lockless page cache test results
+Date: Wed, 26 Apr 2006 22:39:30 -0700
 MIME-Version: 1.0
-Subject: Re: Lockless page cache test results
-References: <20060426135310.GB5083@suse.de>	<20060426095511.0cc7a3f9.akpm@osdl.org>	<20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org>
-In-Reply-To: <20060426111054.2b4f1736.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <20060426194623.GD9211@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Jens Axboe <axboe@suse.de>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: 'Jens Axboe' <axboe@suse.de>, 'Nick Piggin' <nickpiggin@yahoo.com.au>
+Cc: linux-kernel@vger.kernel.org, 'Nick Piggin' <npiggin@suse.de>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-
->>The top of the 4-client
->>vanilla run profile looks like this:
->>
->>samples  %        symbol name
->>65328    47.8972  find_get_page
->>
->>Basically the machine is fully pegged, about 7% idle time.
+Jens Axboe wrote on Wednesday, April 26, 2006 12:46 PM
+> > It's interesting, single threaded performance is down a little. Is
+> > this significant? In some other results you showed me with 3 splices
+> > each running on their own file (ie. no tree_lock contention), lockless
+> > looked slightly faster on the same machine.
 > 
-> 
-> Most of the time an acquisition of tree_lock is associated with a disk
-> read, or a page-size memset, or a page-size memcpy.  And often an
-> acquisition of tree_lock is associated with multiple pages, not just a
-> single page.
+> I can do the same numbers on a 2-way em64t for comparison, that should
+> get us a little better coverage.
 
-Still, most of the times it is acquired would be once per page for
-read, write, nopage.
 
-For read and write, often it will be a full page memcpy but even such
-a memcpy operation can quickly become insignificant compared to tl
-contention.
+I throw the lockless patch and Jens splice-bench into our benchmark harness,
+here are the numbers I collected, on the following hardware:
 
-Anyway, whatever. What needs to be demonstrated are real world
-improvements at the end of the day.
+(1) 2P Intel Xeon, 3.4 GHz/HT, 2M L2
+(2) 4P Intel Xeon, 3.0 GHz/HT, 8M L3
+(3) 4P Intel Xeon, 3.0 GHz/DC/HT, 2M L2 (per core)
 
-> 
-> So although the graph looks good, I wouldn't view this as a super-strong
-> argument in favour of lockless pagecache.
+Here are the graph:
 
-No. Cool numbers though ;)
+(1) 2P Intel Xeon, 3.4 GHz/HT, 2M L2
+http://kernel-perf.sourceforge.net/splice/2P-3.4Ghz.png
 
--- 
-SUSE Labs, Novell Inc.
+(2) 4P Intel Xeon, 3.0 GHz/HT, 8M L3
+http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz.png
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+(3) 4P Intel Xeon, 3.0 GHz/DC/HT, 2M L2 (per core)
+http://kernel-perf.sourceforge.net/splice/4P-3.0Ghz-DCHT.png
+
+(4) everything on one graph:
+http://kernel-perf.sourceforge.net/splice/splice.png
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
