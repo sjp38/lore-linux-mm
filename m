@@ -1,49 +1,58 @@
-Message-Id: <4sur0l$s7b0u@fmsmga001.fm.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [RFC] Hugetlb fallback to normal pages
-Date: Thu, 27 Apr 2006 16:31:06 -0700
+Message-ID: <4451A00A.2030606@yahoo.com.au>
+Date: Fri, 28 Apr 2006 14:54:34 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: Lockless page cache test results
+References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <Pine.LNX.4.64.0604261144290.3701@g5.osdl.org> <44505B59.1060308@yahoo.com.au> <Pine.LNX.4.64.0604270804420.3701@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0604270804420.3701@g5.osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <1146080780.3872.69.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Adam Litke' <agl@us.ibm.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Jens Axboe <axboe@suse.de>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote on Wednesday, April 26, 2006 12:46 PM
-> The problem: Random SIGBUS crashes for applications using large pages
-> are not acceptable.  We need a way to handle the fault without giving up
-> and killing the process.
+Linus Torvalds wrote:
 > 
-> So I've been mulling it over and as I see it, we either 1) Swap out huge
-> pages, or 2) Demote huge pages.  In either case we need to be willing to
-> accept the performance penalty to gain stability.  At this point, I
-> think swapping is too intrusive and way too slow so I am considering
-> demotion options.  To simplify things at first, I am only considering
-> i386 (and demoting only private mappings of course).
-
-Maybe hugetlb needs a page reclaim logic?
-
-
-> Here's my idea:  When we fail to instantiate a new page at fault time,
-> split the affected vma such that we have a new vma to cover the 1 huge
-> page we are demoting.  Allocate HPAGE_SIZE/PAGE_SIZE normal pages.  Use
-> the page table to locate any populated hugetlb pages.  Copy the data
-> into the normal pages and install them in the page table.  Do any other
-> fixup required to make the new VMA anonymous.  Return.
+> On Thu, 27 Apr 2006, Nick Piggin wrote:
 > 
-> Any general opinions on the idea (flame retardant suit is equipped)?  As
-> far as I can tell, we don't split vmas during fault anywhere else.  Is
-> there inherent problems with doing so?  What about the conversion
-> process to an anonymous VMA?  Since we are dealing with private mappings
-> only, divorcing the vma from the hugetlbfs file should be okay afaics.
+>>>Of course, with small files, the actual filename lookup is likely to be the
+>>>real limiter.
+>>
+>>Although that's lockless so it scales. find_get_page will overtake it
+>>at some point.
+> 
+> 
+> filename lookup is only lockless for independent files. You end up getting 
+> the "dentry->d_lock" for a successful lookup in the lookup path, so if you 
+> have multiple threads looking up the same files (or - MUCH more commonly - 
+> directories), you're not going to be lockless.
 
-Some arch don't support mixed page size within a range of virtual address.
-So automatic fallback to smaller page won't work on that arch :-(
+Oh that's true, I forgot. So the many small files case will often have
+as much d_lock activity as tree_lock.
 
-- Ken
+> 
+> I don't know how we could improve it. I've several times thought that we 
+> _should_ be able to do the directory lookups under the rcu read lock and 
+> never touch their d_count or d_lock at all, but the locking against 
+> directory renaming depends very intimately on d_lock.
+> 
+> It is _possible_ that we should be able to handle it purely with just 
+> memory ordering rather than depending on d_lock. That would be wonderful.
+> 
+> Of course, we do actually scale pretty damn well already. I'm just saying 
+> that it's not perfect.
+> 
+> See __d_lookup() for details.
+
+Yes I see. Perhaps a seqlock could do the trick (hmm, there already is one),
+however we still have to increment the refcount, so there'll always be a
+shared cacheline.
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
