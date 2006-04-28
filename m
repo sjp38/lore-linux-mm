@@ -1,166 +1,64 @@
-Date: Thu, 27 Apr 2006 23:03:33 -0700 (PDT)
+Date: Thu, 27 Apr 2006 23:42:08 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060428060333.30257.43096.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 7/7] page migration: Add new fallback function
+In-Reply-To: <20060428060333.30257.43096.sendpatchset@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0604272341390.30557@schroedinger.engr.sgi.com>
 References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 7/7] page migration: Add new fallback function
+ <20060428060333.30257.43096.sendpatchset@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Add new fallback function that checks properly for dirty pages
+Hmmm... We need to get rid of if(PageLocked())
 
-Add a new migration function that checks for PageDirty after unmapping
-the ptes. It then directly writes out the page without relying on pageout().
-
-Add some logic to deal with writepage() potentially unlocking the page.
+This introduced another race condition since another process may have
+locked the page. Simply relock the page after successfully calling
+migratepages() and then retry.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.17-rc2-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-27 21:34:12.171976982 -0700
-+++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-27 22:52:35.363141399 -0700
-@@ -24,6 +24,7 @@
- #include <linux/topology.h>
- #include <linux/cpu.h>
- #include <linux/cpuset.h>
-+#include <linux/writeback.h>
+--- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-27 22:55:46.731119932 -0700
++++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-27 23:39:11.853319378 -0700
+@@ -476,17 +476,20 @@
+ 			/* Someone else already triggered a write */
+ 			return -EAGAIN;
  
- #include "internal.h"
+-		if (mapping->a_ops->writepage(page, &wbc) < 0)
++		rc = mapping->a_ops->writepage(page, &wbc);
++		if (rc < 0)
+ 			/* I/O Error writing */
+ 			return -EIO;
  
-@@ -445,6 +446,66 @@
- }
- EXPORT_SYMBOL(buffer_migrate_page);
- 
-+static int fallback_migrate_page(struct address_space *mapping,
-+		struct page *newpage, struct page *page)
-+{
-+	int rc;
-+
-+	if (try_to_unmap(page, 1) == SWAP_FAIL)
-+		/* A vma has VM_LOCKED set -> permanent failure */
-+		return -EPERM;
-+
-+	/*
-+	 * Removing the ptes may have dirtied the page
-+	 */
-+	if (PageDirty(page)) {
-+		struct writeback_control wbc = {
-+			.sync_mode = WB_SYNC_NONE,
-+			.nr_to_write = 1,
-+			.range_start = 0,
-+			.range_end = LLONG_MAX,
-+			.nonblocking = 1,
-+			.for_reclaim = 1
-+		};
-+
-+		if (!mapping->a_ops->writepage)
-+			/* No write method for the address space */
-+			return -EINVAL;
-+
-+		if (!clear_page_dirty_for_io(page))
-+			/* Someone else already triggered a write */
++		if (rc == AOP_WRITEPAGE_ACTIVATE)
 +			return -EAGAIN;
 +
-+		if (mapping->a_ops->writepage(page, &wbc) < 0)
-+			/* I/O Error writing */
-+			return -EIO;
-+
-+		/*
-+		 * Retry if writepage() removed the lock or the page
-+		 * is still dirty or undergoing writeback.
-+		 */
-+		if (!PageLocked(page) ||
-+			PageWriteback(page) || PageDirty(page))
-+				return -EAGAIN;
-+	}
-+
-+	/*
-+	 * Buffers are managed in a filesystem specific way.
-+	 * We must have no buffers or drop them.
-+	 */
-+	if (page_has_buffers(page) &&
-+	    !try_to_release_page(page, GFP_KERNEL))
-+		return -EAGAIN;
-+
-+	rc = migrate_page_move_mapping(mapping, newpage, page);
-+
-+	if (rc)
-+		return rc;
-+
-+	migrate_page_copy(newpage, page);
-+	return 0;
-+}
-+
- /*
-  * migrate_pages
-  *
-@@ -527,59 +588,19 @@
- 		 * Try to migrate the page.
++		lock_page(page);
+ 		/*
+-		 * Retry if writepage() removed the lock or the page
+-		 * is still dirty or undergoing writeback.
++		 * The lock was dropped by writepage() and so something
++		 * may have changed with the page.
  		 */
- 		mapping = page_mapping(page);
--		if (!mapping) {
-+		if (!mapping)
- 			rc = migrate_page(mapping, newpage, page);
--			goto unlock_both;
+-		if (!PageLocked(page) ||
+-			PageWriteback(page) || PageDirty(page))
+-				return -EAGAIN;
++		return -EAGAIN;
+ 	}
  
--		} else
--		if (mapping->a_ops->migratepage) {
--			/*
--			 * Most pages have a mapping and most filesystems
--			 * should provide a migration function. Anonymous
--			 * pages are part of swap space which also has its
--			 * own migration function. This is the most common
--			 * path for page migration.
--			 */
-+		else if (mapping->a_ops->migratepage)
- 			rc = mapping->a_ops->migratepage(mapping,
- 							newpage, page);
--			goto unlock_both;
--                }
--
--		/*
--		 * Default handling if a filesystem does not provide
--		 * a migration function. We can only migrate clean
--		 * pages so try to write out any dirty pages first.
--		 */
--		if (PageDirty(page)) {
--			switch (pageout(page, mapping)) {
--			case PAGE_KEEP:
--			case PAGE_ACTIVATE:
--				goto unlock_both;
--
--			case PAGE_SUCCESS:
--				unlock_page(newpage);
--				goto next;
--
--			case PAGE_CLEAN:
--				; /* try to migrate the page below */
--			}
--                }
--
--		/*
--		 * Buffers are managed in a filesystem specific way.
--		 * We must have no buffers or drop them.
--		 */
--		if (!page_has_buffers(page) ||
--		    try_to_release_page(page, GFP_KERNEL)) {
--			rc = migrate_page(mapping, newpage, page);
--			goto unlock_both;
--		}
-+		else
-+			rc = fallback_migrate_page(mapping, newpage, page);
+ 	/*
+@@ -599,8 +602,7 @@
  
--unlock_both:
  		unlock_page(newpage);
--
  unlock_page:
--		unlock_page(page);
-+		if (PageLocked(page))	/* writepage() may unlock */
-+			unlock_page(page);
+-		if (PageLocked(page))	/* writepage() may unlock */
+-			unlock_page(page);
++		unlock_page(page);
  
  next:
  		if (rc) {
