@@ -1,32 +1,50 @@
-Received: by pproxy.gmail.com with SMTP id i49so478317pyi
-        for <linux-mm@kvack.org>; Fri, 28 Apr 2006 00:40:57 -0700 (PDT)
-Message-ID: <aec7e5c30604280040p60cc7c7dqc6fb6fbdd9506a6b@mail.gmail.com>
-Date: Fri, 28 Apr 2006 16:40:57 +0900
-From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: i386 and PAE: pud_present()
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
+Date: Fri, 28 Apr 2006 16:46:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/7] page migration: synchronize from and to lists
+Message-Id: <20060428164619.4b8bc28c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060428060323.30257.90761.sendpatchset@schroedinger.engr.sgi.com>
+References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
+	<20060428060323.30257.90761.sendpatchset@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, lee.schermerhorn@hp.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Hi guys,
+On Thu, 27 Apr 2006 23:03:23 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-In file include/asm-i386/pgtable-3level.h:
+> page migration: synchronize from and to lists to migrate_pages()
+> 
+> Handle pages from the "from" and "to" lists in such a way that the nth page
+> from "from" is moved to the nth page from "to". That way page placement
+> for each page can be controlled separately.
+> 
+It looks this path is not treated in desired way.
+==
+		rc=0;
+                if (page_count(page) == 1)
+                        /* page was freed from under us. So we are done. */
+                        goto next;
+next:
+                if (rc) {
+			<snip>;
+		} else {
+			 if (newpage) <--- new page is NULL. here
+                                /* Successful migration. Return page to LRU */
+                                move_to_lru(newpage);
 
-On i386 with PAE enabled, shouldn't pud_present() return (pud_val(pud)
-& _PAGE_PRESENT) instead of constant 1?
+                        list_move(&page->lru, moved);
+                }
+==
 
-Today pud_present() returns constant 1 regardless of PAE or not. This
-looks wrong to me, but maybe I'm misunderstanding how to fold the page
-tables... =)
+you should rotate "to" list in this case, I think.		
 
 Thanks,
-
-/ magnus
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
