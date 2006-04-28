@@ -1,41 +1,40 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: i386 and PAE: pud_present()
-Date: Fri, 28 Apr 2006 10:27:21 +0200
-References: <aec7e5c30604280040p60cc7c7dqc6fb6fbdd9506a6b@mail.gmail.com> <4451CA41.5070101@yahoo.com.au>
-In-Reply-To: <4451CA41.5070101@yahoo.com.au>
+Date: Fri, 28 Apr 2006 11:10:16 +0200
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: Lockless page cache test results
+Message-ID: <20060428091006.GA12001@elf.ucw.cz>
+References: <20060426135310.GB5083@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200604281027.22183.ak@suse.de>
+In-Reply-To: <20060426135310.GB5083@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Magnus Damm <magnus.damm@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Jens Axboe <axboe@suse.de>
+Cc: linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 April 2006 09:54, Nick Piggin wrote:
-> Magnus Damm wrote:
-> > Hi guys,
-> > 
-> > In file include/asm-i386/pgtable-3level.h:
-> > 
-> > On i386 with PAE enabled, shouldn't pud_present() return (pud_val(pud)
-> > & _PAGE_PRESENT) instead of constant 1?
-> > 
-> > Today pud_present() returns constant 1 regardless of PAE or not. This
-> > looks wrong to me, but maybe I'm misunderstanding how to fold the page
-> > tables... =)
+On St 26-04-06 15:53:10, Jens Axboe wrote:
+> Hi,
 > 
-> Take a look a little further down the page for the comment.
+> Running a splice benchmark on a 4-way IPF box, I decided to give the
+> lockless page cache patches from Nick a spin. I've attached the results
+> as a png, it pretty much speaks for itself.
 > 
-> In i386 + PAE, pud is always present.
+> The test in question splices a 1GiB file to a pipe and then splices that
+> to some output. Normally that output would be something interesting, in
+> this case it's simply /dev/null. So it tests the input side of things
+> only, which is what I wanted to do here. To get adequate runtime, the
+> operation is repeated a number of times (120 in this example). The
+> benchmark does that number of loops with 1, 2, 3, and 4 clients each
+> pinned to a private CPU. The pinning is mainly done for more stable
+> results.
 
-I think his problem is that the PGD is always present too (in pgtables-nopud.h)
-Indeed looks strange.
-
--Andi
+35GB/sec, AFAICS? Not sure how significant this benchmark is.. even
+with 4 clients, you have 2.5GB/sec, and that is better than almost
+anything you can splice to...
+								Pavel
+-- 
+Thanks for all the (sleeping) penguins.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
