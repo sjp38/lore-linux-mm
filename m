@@ -1,46 +1,32 @@
-Date: Fri, 28 Apr 2006 15:08:06 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/7] page migration: Reorder functions in migrate.c
-Message-Id: <20060428150806.057b0bac.akpm@osdl.org>
-In-Reply-To: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Dave Peterson <dsp@llnl.gov>
+Subject: Re: [PATCH 1/2 (repost)] mm: serialize OOM kill operations
+Date: Fri, 28 Apr 2006 15:09:03 -0700
+References: <200604271308.10080.dsp@llnl.gov> <20060427140921.249a00b0.akpm@osdl.org> <20060427160250.a72cae11.pj@sgi.com>
+In-Reply-To: <20060427160250.a72cae11.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200604281509.03140.dsp@llnl.gov>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, lee.schermerhorn@hp.com, hugh@veritas.com
+To: Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com, nickpiggin@yahoo.com.au, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> page migration: Reorder functions in migrate.c
+On Thursday 27 April 2006 16:02, Paul Jackson wrote:
+> I'm still a little surprised that this per-mm 'oom_notify' bit
+> was needed to implement what I thought was a single, global
+> system wide oom killer serializer.
 
-I'm a bit concerned about the way these migration patches are shaping up.
-
-- There was quite a lot of rework against the initial batch of "swapless"
-  patches.  I haven't yet found the time to sit down and review the end
-  result.
-
-- The initial batch of "swapless" patches needed a whole barrage of
-  fixups to make the kernel compile.
-
-- The patch series is rather straggly now: later patches are fixing up
-  code which was added in multiple earlier patches, so refactoring it all
-  logically is non-trivial.
-
-- I have vague feelings of disquiet regarding the whole thing and would
-  like to find the time to sit down and take a closer look at what's going
-  on in there.  This is a bit hard with the patches factored as they are
-  now.
-
-So I'm thinking it'd be good (for me, at least) if I were to drop the lot
-and ask you to refactor the patch series back into a logical sequence, make
-sure all the fixups are folded into the right places so we can generally
-take a fresh look at what you're proposing.
-
-How hurtful would that be?
+I think the title "mm: serialize OOM kill operations" was probably a
+poor choice of words.  It sounds like all I want to do is make sure
+tasks enter the OOM killer one-at-a-time.  My goal is actually to
+prevent further OOM kill operations until the OOM kill in progress
+has caused the victim task to free its address space (i.e. clean out
+its mm_struct).  That way we don't shoot more processes than necessary
+to resolve the OOM condition.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
