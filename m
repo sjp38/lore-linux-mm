@@ -1,105 +1,169 @@
-Date: Thu, 27 Apr 2006 23:03:28 -0700 (PDT)
+Date: Thu, 27 Apr 2006 23:03:33 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060428060328.30257.71534.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060428060333.30257.43096.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 6/7] page migration: Extract try_to_unmap
+Subject: [PATCH 7/7] page migration: Add new fallback function
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Extract try_to_unmap and rename remove_references -> move_mapping
+page migration: Add new fallback function that checks properly for dirty pages
 
-try_to_unmap may significantly change the page state by for example setting
-the dirty bit. It is therefore best for each migration function to do
-try_to_unmap on their own before examining the page state.
+Add a new migration function that checks for PageDirty after unmapping
+the ptes. It then directly writes out the page without relying on pageout().
 
-migrate_page_remove_references() will then only move the new page in
-place of the old page in the mapping. Rename the function to
-migrate_page_move_mapping().
+Add some logic to deal with writepage() potentially unlocking the page.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-
 Index: linux-2.6.17-rc2-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-27 21:32:50.417322988 -0700
-+++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-27 21:34:12.171976982 -0700
-@@ -246,32 +246,14 @@
+--- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-27 21:34:12.171976982 -0700
++++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-27 22:52:35.363141399 -0700
+@@ -24,6 +24,7 @@
+ #include <linux/topology.h>
+ #include <linux/cpu.h>
+ #include <linux/cpuset.h>
++#include <linux/writeback.h>
+ 
+ #include "internal.h"
+ 
+@@ -445,6 +446,66 @@
  }
+ EXPORT_SYMBOL(buffer_migrate_page);
  
- /*
-- * Remove or replace all references to a page so that future accesses to
-- * the page can be blocked. Establish the new page
-- * with the basic settings to be able to stop accesses to the page.
-+ * Remove or replace the page in the mapping
-  */
--static int migrate_page_remove_references(struct address_space *mapping,
-+static int migrate_page_move_mapping(struct address_space *mapping,
- 		struct page *newpage, struct page *page)
- {
- 	struct page **radix_pointer;
- 
- 	/*
--	 * Establish migration ptes for anonymous pages or destroy pte
--	 * maps for files.
--	 *
--	 * In order to reestablish file backed mappings the fault handlers
--	 * will take the radix tree_lock which may then be used to stop
--  	 * processses from accessing this page until the new page is ready.
--	 *
--	 * A process accessing via a migration pte (an anonymous page) will
--	 * take a page_lock on the old page which will block the process
--	 * until the migration attempt is complete.
--	 */
--	if (try_to_unmap(page, 1) == SWAP_FAIL)
--		/* A vma has VM_LOCKED set -> permanent failure */
--		return -EPERM;
--
--	/*
- 	 * Retry if we were unable to remove all mappings.
- 	 */
- 	if (page_mapcount(page))
-@@ -280,9 +262,6 @@
- 	if (!mapping) {
- 		/*
- 		 * Anonymous page without swap mapping.
--		 * User space cannot access the page anymore since we
--		 * removed the ptes. Now check if the kernel still has
--		 * pending references.
- 		 */
- 		if (page_count(page) != 1)
- 			return -EAGAIN;
-@@ -387,7 +366,12 @@
- 
- 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
- 
--	rc = migrate_page_remove_references(mapping, newpage, page);
-+	if (try_to_unmap(page, 1) == SWAP_FAIL) {
-+		remove_migration_ptes(page, page);
++static int fallback_migrate_page(struct address_space *mapping,
++		struct page *newpage, struct page *page)
++{
++	int rc;
++
++	if (try_to_unmap(page, 1) == SWAP_FAIL)
++		/* A vma has VM_LOCKED set -> permanent failure */
 +		return -EPERM;
++
++	/*
++	 * Removing the ptes may have dirtied the page
++	 */
++	if (PageDirty(page)) {
++		struct writeback_control wbc = {
++			.sync_mode = WB_SYNC_NONE,
++			.nr_to_write = 1,
++			.range_start = 0,
++			.range_end = LLONG_MAX,
++			.nonblocking = 1,
++			.for_reclaim = 1
++		};
++
++		if (!mapping->a_ops->writepage)
++			/* No write method for the address space */
++			return -EINVAL;
++
++		if (!clear_page_dirty_for_io(page))
++			/* Someone else already triggered a write */
++			return -EAGAIN;
++
++		if (mapping->a_ops->writepage(page, &wbc) < 0)
++			/* I/O Error writing */
++			return -EIO;
++
++		/*
++		 * Retry if writepage() removed the lock or the page
++		 * is still dirty or undergoing writeback.
++		 */
++		if (!PageLocked(page) ||
++			PageWriteback(page) || PageDirty(page))
++				return -EAGAIN;
 +	}
 +
-+	rc = migrate_page_move_mapping(mapping, newpage, page);
- 
- 	if (rc) {
- 		remove_migration_ptes(page, page);
-@@ -414,9 +398,12 @@
- 	if (!page_has_buffers(page))
- 		return migrate_page(mapping, newpage, page);
- 
-+	if (try_to_unmap(page, 1) == SWAP_FAIL)
-+		return -EPERM;
++	/*
++	 * Buffers are managed in a filesystem specific way.
++	 * We must have no buffers or drop them.
++	 */
++	if (page_has_buffers(page) &&
++	    !try_to_release_page(page, GFP_KERNEL))
++		return -EAGAIN;
 +
- 	head = page_buffers(page);
- 
--	rc = migrate_page_remove_references(mapping, newpage, page);
 +	rc = migrate_page_move_mapping(mapping, newpage, page);
++
++	if (rc)
++		return rc;
++
++	migrate_page_copy(newpage, page);
++	return 0;
++}
++
+ /*
+  * migrate_pages
+  *
+@@ -527,59 +588,19 @@
+ 		 * Try to migrate the page.
+ 		 */
+ 		mapping = page_mapping(page);
+-		if (!mapping) {
++		if (!mapping)
+ 			rc = migrate_page(mapping, newpage, page);
+-			goto unlock_both;
  
- 	if (rc)
- 		return rc;
+-		} else
+-		if (mapping->a_ops->migratepage) {
+-			/*
+-			 * Most pages have a mapping and most filesystems
+-			 * should provide a migration function. Anonymous
+-			 * pages are part of swap space which also has its
+-			 * own migration function. This is the most common
+-			 * path for page migration.
+-			 */
++		else if (mapping->a_ops->migratepage)
+ 			rc = mapping->a_ops->migratepage(mapping,
+ 							newpage, page);
+-			goto unlock_both;
+-                }
+-
+-		/*
+-		 * Default handling if a filesystem does not provide
+-		 * a migration function. We can only migrate clean
+-		 * pages so try to write out any dirty pages first.
+-		 */
+-		if (PageDirty(page)) {
+-			switch (pageout(page, mapping)) {
+-			case PAGE_KEEP:
+-			case PAGE_ACTIVATE:
+-				goto unlock_both;
+-
+-			case PAGE_SUCCESS:
+-				unlock_page(newpage);
+-				goto next;
+-
+-			case PAGE_CLEAN:
+-				; /* try to migrate the page below */
+-			}
+-                }
+-
+-		/*
+-		 * Buffers are managed in a filesystem specific way.
+-		 * We must have no buffers or drop them.
+-		 */
+-		if (!page_has_buffers(page) ||
+-		    try_to_release_page(page, GFP_KERNEL)) {
+-			rc = migrate_page(mapping, newpage, page);
+-			goto unlock_both;
+-		}
++		else
++			rc = fallback_migrate_page(mapping, newpage, page);
+ 
+-unlock_both:
+ 		unlock_page(newpage);
+-
+ unlock_page:
+-		unlock_page(page);
++		if (PageLocked(page))	/* writepage() may unlock */
++			unlock_page(page);
+ 
+ next:
+ 		if (rc) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
