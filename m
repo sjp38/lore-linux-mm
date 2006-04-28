@@ -1,36 +1,32 @@
-Date: Fri, 28 Apr 2006 16:30:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/7] page migration: Drop nr_refs parameter
-Message-Id: <20060428163033.4fa4863a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060428060317.30257.27066.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-	<20060428060317.30257.27066.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by pproxy.gmail.com with SMTP id i49so478317pyi
+        for <linux-mm@kvack.org>; Fri, 28 Apr 2006 00:40:57 -0700 (PDT)
+Message-ID: <aec7e5c30604280040p60cc7c7dqc6fb6fbdd9506a6b@mail.gmail.com>
+Date: Fri, 28 Apr 2006 16:40:57 +0900
+From: "Magnus Damm" <magnus.damm@gmail.com>
+Subject: i386 and PAE: pud_present()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, hugh@veritas.com, lee.schermerhorn@hp.com
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Apr 2006 23:03:18 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi guys,
 
-> page migration: Drop nr_refs parameter from migrate_page_remove_references()
-> 
-> The nr_refs parameter is not really useful since the number of remaining
-> references is always
-> 
-> 1 for anonymous pages without a mapping
-> 2 for pages with a mapping
-> 3 for pages with a mapping and PagePrivate set.
-> 
-Then, could you add this comment to migrate_page_remove_references
-(renamed as migrate_page_move_mapping) ?
+In file include/asm-i386/pgtable-3level.h:
 
--Kame
+On i386 with PAE enabled, shouldn't pud_present() return (pud_val(pud)
+& _PAGE_PRESENT) instead of constant 1?
 
+Today pud_present() returns constant 1 regardless of PAE or not. This
+looks wrong to me, but maybe I'm misunderstanding how to fold the page
+tables... =)
+
+Thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
