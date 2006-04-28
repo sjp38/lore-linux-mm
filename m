@@ -1,49 +1,118 @@
-Date: Fri, 28 Apr 2006 11:21:50 +0200
-From: Jens Axboe <axboe@suse.de>
+Message-ID: <346223668.21667@ustc.edu.cn>
+Date: Fri, 28 Apr 2006 19:28:35 +0800
+From: Wu Fengguang <wfg@mail.ustc.edu.cn>
 Subject: Re: Lockless page cache test results
-Message-ID: <20060428092150.GE23137@suse.de>
-References: <20060426135310.GB5083@suse.de> <20060428091006.GA12001@elf.ucw.cz>
-Mime-Version: 1.0
+Message-ID: <20060428112835.GA8072@mail.ustc.edu.cn>
+References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <Pine.LNX.4.64.0604261144290.3701@g5.osdl.org> <20060426191557.GA9211@suse.de> <20060426131200.516cbabc.akpm@osdl.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060428091006.GA12001@elf.ucw.cz>
+In-Reply-To: <20060426131200.516cbabc.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Jens Axboe <axboe@suse.de>, torvalds@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 28 2006, Pavel Machek wrote:
-> On St 26-04-06 15:53:10, Jens Axboe wrote:
-> > Hi,
+On Wed, Apr 26, 2006 at 01:12:00PM -0700, Andrew Morton wrote:
+> Jens Axboe <axboe@suse.de> wrote:
+> >
+> > With a 16-page gang lookup in splice, the top profile for the 4-client
+> > case (which is now at 4GiB/sec instead of 3) are:
 > > 
-> > Running a splice benchmark on a 4-way IPF box, I decided to give the
-> > lockless page cache patches from Nick a spin. I've attached the results
-> > as a png, it pretty much speaks for itself.
-> > 
-> > The test in question splices a 1GiB file to a pipe and then splices that
-> > to some output. Normally that output would be something interesting, in
-> > this case it's simply /dev/null. So it tests the input side of things
-> > only, which is what I wanted to do here. To get adequate runtime, the
-> > operation is repeated a number of times (120 in this example). The
-> > benchmark does that number of loops with 1, 2, 3, and 4 clients each
-> > pinned to a private CPU. The pinning is mainly done for more stable
-> > results.
+> > samples  %        symbol name
+> > 30396    36.7217  __do_page_cache_readahead
+> > 25843    31.2212  find_get_pages_contig
+> > 9699     11.7174  default_idle
 > 
-> 35GB/sec, AFAICS? Not sure how significant this benchmark is.. even
-> with 4 clients, you have 2.5GB/sec, and that is better than almost
-> anything you can splice to...
+> __do_page_cache_readahead() should use gang lookup.  We never got around to
+> that, mainly because nothing really demonstrated a need.
 
-2.5GB/sec isn't that much, and remember that is with the system fully
-loaded and spending _all_ its time in the kernel. It's the pure page
-cache lookup performance, I'd like to think you should have room for
-more. With hundreds or even thousands of clients.
+I have been testing a patch for this for a while. The new function
+looks like
 
-The point isn't the numbers themselves, rather the scalability of the
-vanilla page cache vs the lockless one. And that is demonstrated aptly.
+static int
+__do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+			pgoff_t offset, unsigned long nr_to_read)
+{
+	struct inode *inode = mapping->host;
+	struct page *page;
+	LIST_HEAD(page_pool);
+	pgoff_t last_index;	/* The last page we want to read */
+	pgoff_t hole_index;
+	int ret = 0;
+	loff_t isize = i_size_read(inode);
 
--- 
-Jens Axboe
+	last_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
+
+	if (unlikely(!isize || !nr_to_read))
+		goto out;
+	if (unlikely(last_index < offset))
+		goto out;
+
+	if (last_index > offset + nr_to_read - 1 &&
+		offset < offset + nr_to_read)
+		last_index = offset + nr_to_read - 1;
+
+	/*
+	 * Go through ranges of holes and preallocate all the absent pages.
+	 */
+next_hole_range:
+	cond_resched();
+
+	read_lock_irq(&mapping->tree_lock);
+	hole_index = radix_tree_scan_hole(&mapping->page_tree,
+					offset, last_index - offset + 1);
+
+	if (hole_index > last_index) {	/* no more holes? */
+		read_unlock_irq(&mapping->tree_lock);
+		goto submit_io;
+	}
+
+	offset = radix_tree_scan_data(&mapping->page_tree, (void **)&page,
+						hole_index, last_index);
+	read_unlock_irq(&mapping->tree_lock);
+
+	ddprintk("ra range %lu-%lu(%p)-%lu\n", hole_index, offset, page, last_index);
+
+	for (;;) {
+                page = page_cache_alloc_cold(mapping);
+		if (!page)
+			break;
+
+		page->index = hole_index;
+		list_add(&page->lru, &page_pool);
+		ret++;
+		BUG_ON(ret > nr_to_read);
+
+		if (hole_index >= last_index)
+			break;
+
+		if (++hole_index >= offset)
+			goto next_hole_range;
+	}
+
+submit_io:
+	/*
+	 * Now start the IO.  We ignore I/O errors - if the page is not
+	 * uptodate then the caller will launch readpage again, and
+	 * will then handle the error.
+	 */
+	if (ret)
+		read_pages(mapping, filp, &page_pool, ret);
+	BUG_ON(!list_empty(&page_pool));
+out:
+	return ret;
+}
+
+The radix_tree_scan_data()/radix_tree_scan_hole() functions called
+above are more flexible than the original __lookup(). Perhaps we can
+rebase radix_tree_gang_lookup() and find_get_pages_contig() on them.
+
+If it is deemed ok, I'll clean it up and submit the patch asap.
+
+Thanks,
+Wu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
