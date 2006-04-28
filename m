@@ -1,66 +1,54 @@
-Date: Fri, 28 Apr 2006 13:15:33 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [Fwd: Strange VM behavior on kernel 2.6.14.3]
-Message-Id: <20060428131533.5da621b7.akpm@osdl.org>
-In-Reply-To: <1146254890.4134.12.camel@dmt.cnet>
-References: <1146254890.4134.12.camel@dmt.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 28 Apr 2006 14:24:34 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20060428212434.2737.43187.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 1/3] more page migration: Do not dec/inc rss counters
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: linux-mm@kvack.org, vito@hostway.com
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@kvack.org> wrote:
->
-> Vito, 
-> 
-> There have been some changes after 2.6.14 in the reclaim code which
-> might 
-> affect the problem you're seeing wrt large chunks of pagecache being
-> freed.
-> 
-> Folks, any ideas on what might be causing this? Please refer to document
-> at the URL below, it contains quite some information.
-> 
-> -----
-> 
-> Perhaps you can point me at a patch or some kind of information to help
-> resolve/understand this problem, I have published some graphs and other
-> data
-> explaining the problem here on the web:
-> http://shells.gnugeneration.com/~swivel/pop_comparisons/04-26-2006/
-> 
-> I might give the latest 2.6 kernel off kernel.org a try, as it looks
-> like there has been some serious activity in the vm code lately...
-> 
-> Except this is in production and I'd rather not fix one bug while
-> potentially adding a handful of new ones... a patch fixing this specific
-> problem on our kernel would be ideal.
-> 
+more page migration: Do not dec/inc rss counters
 
-My first thought would be that some really large file (or files) hit the
-tail of the inode_unused and we ended up shooting down the whole lot in one
-hit so the inode itself could be reclaimed.
+If we install a migration entry then the rss not really decreases
+since the page is just moved somewhere else. We can save ourselves
+the work of decrementing and later incrementing which will just
+eventually cause cacheline bouncing.
 
-But Vito has thought of that and thinks it isn't happening.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Perhaps it's a bug, and page reclaim has gone nutso, but I don't recall
-having seen such a thing before.
-
-It's an x86-32 highmem machine, isn't it?
-
-A more detailed description of what the application is doing would be
-useful - number of files, average and max file size, access patterns, etc.
-
-Also, as always, testing on contemporary kernels.
-
-A potentially useful thing would be to capture /proc/meminfo and
-/proc/vmstat to a file every ten seconds or so, and to then pick out a
-record from each of those /proc files from both sides of one of these
-events, so we can see what changed in them.
+Index: linux-2.6.17-rc2-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-28 08:26:29.893711598 -0700
++++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-28 11:21:51.877154899 -0700
+@@ -166,7 +166,6 @@
+ 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
+ 		goto out;
+ 
+-	inc_mm_counter(mm, anon_rss);
+ 	get_page(new);
+ 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
+ 	if (is_write_migration_entry(entry))
+Index: linux-2.6.17-rc2-mm1/mm/rmap.c
+===================================================================
+--- linux-2.6.17-rc2-mm1.orig/mm/rmap.c	2006-04-28 08:14:27.583120481 -0700
++++ linux-2.6.17-rc2-mm1/mm/rmap.c	2006-04-28 11:21:30.310131304 -0700
+@@ -595,6 +595,7 @@
+ 					list_add(&mm->mmlist, &init_mm.mmlist);
+ 				spin_unlock(&mmlist_lock);
+ 			}
++			dec_mm_counter(mm, anon_rss);
+ 		} else {
+ 			/*
+ 			 * Store the pfn of the page in a special migration
+@@ -606,7 +607,6 @@
+ 		}
+ 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
+ 		BUG_ON(pte_file(*pte));
+-		dec_mm_counter(mm, anon_rss);
+ 	} else
+ 		dec_mm_counter(mm, file_rss);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
