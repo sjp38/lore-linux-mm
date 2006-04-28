@@ -1,118 +1,42 @@
-Message-ID: <346223668.21667@ustc.edu.cn>
-Date: Fri, 28 Apr 2006 19:28:35 +0800
-From: Wu Fengguang <wfg@mail.ustc.edu.cn>
-Subject: Re: Lockless page cache test results
-Message-ID: <20060428112835.GA8072@mail.ustc.edu.cn>
-References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <Pine.LNX.4.64.0604261144290.3701@g5.osdl.org> <20060426191557.GA9211@suse.de> <20060426131200.516cbabc.akpm@osdl.org>
+Date: Fri, 28 Apr 2006 06:57:28 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 4/7] page migration: Drop nr_refs parameter
+In-Reply-To: <20060428163033.4fa4863a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0604280656500.32052@schroedinger.engr.sgi.com>
+References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
+ <20060428060317.30257.27066.sendpatchset@schroedinger.engr.sgi.com>
+ <20060428163033.4fa4863a.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060426131200.516cbabc.akpm@osdl.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Jens Axboe <axboe@suse.de>, torvalds@osdl.org, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, hugh@veritas.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 26, 2006 at 01:12:00PM -0700, Andrew Morton wrote:
-> Jens Axboe <axboe@suse.de> wrote:
-> >
-> > With a 16-page gang lookup in splice, the top profile for the 4-client
-> > case (which is now at 4GiB/sec instead of 3) are:
-> > 
-> > samples  %        symbol name
-> > 30396    36.7217  __do_page_cache_readahead
-> > 25843    31.2212  find_get_pages_contig
-> > 9699     11.7174  default_idle
-> 
-> __do_page_cache_readahead() should use gang lookup.  We never got around to
-> that, mainly because nothing really demonstrated a need.
+On Fri, 28 Apr 2006, KAMEZAWA Hiroyuki wrote:
 
-I have been testing a patch for this for a while. The new function
-looks like
+> Then, could you add this comment to migrate_page_remove_references
+> (renamed as migrate_page_move_mapping) ?
 
-static int
-__do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			pgoff_t offset, unsigned long nr_to_read)
-{
-	struct inode *inode = mapping->host;
-	struct page *page;
-	LIST_HEAD(page_pool);
-	pgoff_t last_index;	/* The last page we want to read */
-	pgoff_t hole_index;
-	int ret = 0;
-	loff_t isize = i_size_read(inode);
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-	last_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
-
-	if (unlikely(!isize || !nr_to_read))
-		goto out;
-	if (unlikely(last_index < offset))
-		goto out;
-
-	if (last_index > offset + nr_to_read - 1 &&
-		offset < offset + nr_to_read)
-		last_index = offset + nr_to_read - 1;
-
-	/*
-	 * Go through ranges of holes and preallocate all the absent pages.
-	 */
-next_hole_range:
-	cond_resched();
-
-	read_lock_irq(&mapping->tree_lock);
-	hole_index = radix_tree_scan_hole(&mapping->page_tree,
-					offset, last_index - offset + 1);
-
-	if (hole_index > last_index) {	/* no more holes? */
-		read_unlock_irq(&mapping->tree_lock);
-		goto submit_io;
-	}
-
-	offset = radix_tree_scan_data(&mapping->page_tree, (void **)&page,
-						hole_index, last_index);
-	read_unlock_irq(&mapping->tree_lock);
-
-	ddprintk("ra range %lu-%lu(%p)-%lu\n", hole_index, offset, page, last_index);
-
-	for (;;) {
-                page = page_cache_alloc_cold(mapping);
-		if (!page)
-			break;
-
-		page->index = hole_index;
-		list_add(&page->lru, &page_pool);
-		ret++;
-		BUG_ON(ret > nr_to_read);
-
-		if (hole_index >= last_index)
-			break;
-
-		if (++hole_index >= offset)
-			goto next_hole_range;
-	}
-
-submit_io:
-	/*
-	 * Now start the IO.  We ignore I/O errors - if the page is not
-	 * uptodate then the caller will launch readpage again, and
-	 * will then handle the error.
-	 */
-	if (ret)
-		read_pages(mapping, filp, &page_pool, ret);
-	BUG_ON(!list_empty(&page_pool));
-out:
-	return ret;
-}
-
-The radix_tree_scan_data()/radix_tree_scan_hole() functions called
-above are more flexible than the original __lookup(). Perhaps we can
-rebase radix_tree_gang_lookup() and find_get_pages_contig() on them.
-
-If it is deemed ok, I'll clean it up and submit the patch asap.
-
-Thanks,
-Wu
+Index: linux-2.6.17-rc2-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-27 23:39:11.853319378 -0700
++++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-28 06:56:36.856624280 -0700
+@@ -248,6 +248,11 @@
+ 
+ /*
+  * Remove or replace the page in the mapping
++ *
++ * The number of remaining references must be:
++ * 1 for anonymous pages without a mapping
++ * 2 for pages with a mapping
++ * 3 for pages with a mapping and PagePrivate set.
+  */
+ static int migrate_page_move_mapping(struct address_space *mapping,
+ 		struct page *newpage, struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
