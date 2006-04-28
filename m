@@ -1,140 +1,130 @@
-Date: Fri, 28 Apr 2006 14:24:44 -0700 (PDT)
+Date: Fri, 28 Apr 2006 14:24:39 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060428212444.2737.66209.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060428212439.2737.94818.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060428212434.2737.43187.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060428212434.2737.43187.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 3/3] more page migration: migration entries for file backed pages
+Subject: [PATCH 2/3] more page migration: move common code to migrate pages()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-more page migration: Use migration entries for file backed pages
+more page migration: move common code from migration functions to migrate pages()
 
-This implements the use of migration entries to preserve ptes of
-file backed pages during migration. Processes can therefore
-be migrated back and forth without loosing their connection to
-pagecache pages.
+All migration functions start by unmapping ptes and thereby potentially
+creating migration ptes. They all end by replacing the migration ptes with
+real ones.
 
-Note that we implement the migration entries only for linear
-mappings. Nonlinear mappings still require the unmapping of the ptes
-for migration.
-
-And another writepage() ugliness shows up. writepage() can drop
-the page lock. Therefore we have to remove migration ptes
-before calling writepages() in order to avoid having migration entries
-point to unlocked pages.
+So extract the common code and put it into migrate_pages().
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.17-rc2-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-28 13:29:36.577252635 -0700
-+++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-28 13:40:54.435538677 -0700
-@@ -171,19 +171,44 @@
- 	if (is_write_migration_entry(entry))
- 		pte = pte_mkwrite(pte);
- 	set_pte_at(mm, addr, ptep, pte);
--	page_add_anon_rmap(new, vma, addr);
-+
-+	if (PageAnon(new))
-+		page_add_anon_rmap(new, vma, addr);
-+	else
-+		page_add_file_rmap(new);
-+
- out:
- 	pte_unmap_unlock(pte, ptl);
- }
- 
- /*
-- * Get rid of all migration entries and replace them by
-- * references to the indicated page.
-- *
-+ * Note that remove_file_migration_ptes will only work on regular mappings
-+ * specialized other mappings will simply be unmapped and do not use
-+ * migration entries.
-+ */
-+static void remove_file_migration_ptes(struct page *old, struct page *new)
-+{
-+	struct vm_area_struct *vma;
-+	struct address_space *mapping = page_mapping(new);
-+	struct prio_tree_iter iter;
-+	pgoff_t pgoff = new->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+
-+	if (!mapping)
-+		return;
-+
-+	spin_lock(&mapping->i_mmap_lock);
-+
-+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
-+		remove_migration_pte(vma, page_address_in_vma(new, vma), old, new);
-+
-+	spin_unlock(&mapping->i_mmap_lock);
-+}
-+
-+/*
-  * Must hold mmap_sem lock on at least one of the vmas containing
-  * the page so that the anon_vma cannot vanish.
-  */
--static void remove_migration_ptes(struct page *old, struct page *new)
-+static void remove_anon_migration_ptes(struct page *old, struct page *new)
+--- linux-2.6.17-rc2-mm1.orig/mm/migrate.c	2006-04-28 11:21:51.877154899 -0700
++++ linux-2.6.17-rc2-mm1/mm/migrate.c	2006-04-28 13:29:36.577252635 -0700
+@@ -258,17 +258,11 @@
  {
- 	struct anon_vma *anon_vma;
- 	struct vm_area_struct *vma;
-@@ -208,6 +233,18 @@
- }
+ 	struct page **radix_pointer;
  
- /*
-+ * Get rid of all migration entries and replace them by
-+ * references to the indicated page.
-+ */
-+static void remove_migration_ptes(struct page *old, struct page *new)
-+{
-+	if (PageAnon(new))
-+		remove_anon_migration_ptes(old, new);
-+	else
-+		remove_file_migration_ptes(old, new);
-+}
-+
-+/*
-  * Something used the pte of a page under migration. We need to
-  * get to the page and wait until migration is finished.
-  * When we return from this function the fault will be retried.
-@@ -450,6 +487,13 @@
- 			.for_reclaim = 1
- 		};
+-	/*
+-	 * Retry if we were unable to remove all mappings.
+-	 */
+-	if (page_mapcount(page))
+-		return -EAGAIN;
+-
+ 	if (!mapping) {
+ 		/*
+ 		 * Anonymous page without swap mapping.
+ 		 */
+-		if (page_count(page) != 1)
++		if (page_count(page) != 1 || !page->mapping)
+ 			return -EAGAIN;
+ 
+ 		return 0;
+@@ -371,21 +365,12 @@
+ 
+ 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
+ 
+-	if (try_to_unmap(page, 1) == SWAP_FAIL) {
+-		remove_migration_ptes(page, page);
+-		return -EPERM;
+-	}
+-
+ 	rc = migrate_page_move_mapping(mapping, newpage, page);
+ 
+-	if (rc) {
+-		remove_migration_ptes(page, page);
+-		return rc;
+-	}
++	if (!rc)
++		migrate_page_copy(newpage, page);
+ 
+-	migrate_page_copy(newpage, page);
+-	remove_migration_ptes(page, newpage);
+-	return 0;
++	return rc;
+ }
+ EXPORT_SYMBOL(migrate_page);
+ 
+@@ -403,9 +388,6 @@
+ 	if (!page_has_buffers(page))
+ 		return migrate_page(mapping, newpage, page);
+ 
+-	if (try_to_unmap(page, 1) == SWAP_FAIL)
+-		return -EPERM;
+-
+ 	head = page_buffers(page);
+ 
+ 	rc = migrate_page_move_mapping(mapping, newpage, page);
+@@ -455,10 +437,6 @@
+ {
+ 	int rc;
+ 
+-	if (try_to_unmap(page, 1) == SWAP_FAIL)
+-		/* A vma has VM_LOCKED set -> permanent failure */
+-		return -EPERM;
+-
+ 	/*
+ 	 * Removing the ptes may have dirtied the page
+ 	 */
+@@ -590,6 +568,21 @@
+ 		else if (PageWriteback(page))
+ 				goto unlock_page;
  
 +		/*
-+		 * Remove the migration entries because writepage() may
-+		 * unlock which may result in migration entries
-+		 * pointing to unlocked pages.
++		 * Establish migration entries or unmap file ptes.
 +		 */
-+		remove_migration_ptes(page, page);
++		rc = -EPERM;
++		if (try_to_unmap(page, 1) == SWAP_FAIL)
++			/* A vma has VM_LOCKED set -> permanent failure */
++			goto remove_migentry;
 +
- 		if (!mapping->a_ops->writepage)
- 			/* No write method for the address space */
- 			return -EINVAL;
-Index: linux-2.6.17-rc2-mm1/mm/rmap.c
-===================================================================
---- linux-2.6.17-rc2-mm1.orig/mm/rmap.c	2006-04-28 11:21:30.310131304 -0700
-+++ linux-2.6.17-rc2-mm1/mm/rmap.c	2006-04-28 13:29:40.767422138 -0700
-@@ -607,8 +607,14 @@
- 		}
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 		BUG_ON(pte_file(*pte));
--	} else
-+	} else if (!migration)
- 		dec_mm_counter(mm, file_rss);
-+	else {
-+		/* Establish migration entry for a file page */
-+		swp_entry_t entry;
-+		entry = make_migration_entry(page, pte_write(pteval));
-+		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
-+	}
++		/*
++		 * Retry if we were unable to remove all mappings.
++		 */
++		rc = -EAGAIN;
++		if (page_mapcount(page))
++			goto remove_migentry;
++
+ 		lock_page(newpage);
+ 		/* Prepare mapping for the new page.*/
+ 		newpage->index = page->index;
+@@ -609,7 +602,13 @@
+ 		else
+ 			rc = fallback_migrate_page(mapping, newpage, page);
  
- 	page_remove_rmap(page);
- 	page_cache_release(page);
++		if (rc == 0)
++			remove_migration_ptes(page, newpage);
+ 		unlock_page(newpage);
++
++remove_migentry:
++		if (rc)
++			remove_migration_ptes(page, page);
+ unlock_page:
+ 		unlock_page(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
