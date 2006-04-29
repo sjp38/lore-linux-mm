@@ -1,196 +1,36 @@
-Date: Fri, 28 Apr 2006 20:22:56 -0700 (PDT)
+Date: Fri, 28 Apr 2006 20:22:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032256.4999.45018.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 2/7] PM cleanup: Group functions
+Message-Id: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
+Subject: Page Migration patchsets overview
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Reorder functions in migrate.c
+Following are 3 patchsets for page migration.
 
-Group all migration functions for struct address_space_operations
-together.
+The first patchset contains a series of cleanups that also
+contains the right fix for the PageDirty problem.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+The second patchset implements read/write migration entries.
+This allows us to no longer be dependent on the swap code (page migration
+currently will not work if no swap volume is defined) and add additional
+features. The speed of page migration increases by 20%. Page migration
+can now preserve the write enable bit of the ptes. Useless COW faults
+do no longer occur. The kernel can be compiled without SWAP support
+and page migration will still work.
 
-Index: linux-2.6.17-rc3/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 17:11:42.779439413 -0700
-+++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 17:24:03.935627108 -0700
-@@ -120,15 +120,6 @@
- }
- 
- /*
-- * Non migratable page
-- */
--int fail_migrate_page(struct page *newpage, struct page *page)
--{
--	return -EIO;
--}
--EXPORT_SYMBOL(fail_migrate_page);
--
--/*
-  * swapout a single page
-  * page is locked upon entry, unlocked on exit
-  */
-@@ -297,6 +288,17 @@
- }
- EXPORT_SYMBOL(migrate_page_copy);
- 
-+/************************************************************
-+ *                    Migration functions
-+ ***********************************************************/
-+
-+/* Always fail migration. Used for mappings that are not movable */
-+int fail_migrate_page(struct page *newpage, struct page *page)
-+{
-+	return -EIO;
-+}
-+EXPORT_SYMBOL(fail_migrate_page);
-+
- /*
-  * Common logic to directly migrate a single page suitable for
-  * pages that do not use PagePrivate.
-@@ -330,6 +332,67 @@
- EXPORT_SYMBOL(migrate_page);
- 
- /*
-+ * Migration function for pages with buffers. This function can only be used
-+ * if the underlying filesystem guarantees that no other references to "page"
-+ * exist.
-+ */
-+int buffer_migrate_page(struct page *newpage, struct page *page)
-+{
-+	struct address_space *mapping = page->mapping;
-+	struct buffer_head *bh, *head;
-+	int rc;
-+
-+	if (!mapping)
-+		return -EAGAIN;
-+
-+	if (!page_has_buffers(page))
-+		return migrate_page(newpage, page);
-+
-+	head = page_buffers(page);
-+
-+	rc = migrate_page_remove_references(newpage, page, 3);
-+
-+	if (rc)
-+		return rc;
-+
-+	bh = head;
-+	do {
-+		get_bh(bh);
-+		lock_buffer(bh);
-+		bh = bh->b_this_page;
-+
-+	} while (bh != head);
-+
-+	ClearPagePrivate(page);
-+	set_page_private(newpage, page_private(page));
-+	set_page_private(page, 0);
-+	put_page(page);
-+	get_page(newpage);
-+
-+	bh = head;
-+	do {
-+		set_bh_page(bh, newpage, bh_offset(bh));
-+		bh = bh->b_this_page;
-+
-+	} while (bh != head);
-+
-+	SetPagePrivate(newpage);
-+
-+	migrate_page_copy(newpage, page);
-+
-+	bh = head;
-+	do {
-+		unlock_buffer(bh);
-+ 		put_bh(bh);
-+		bh = bh->b_this_page;
-+
-+	} while (bh != head);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(buffer_migrate_page);
-+
-+/*
-  * migrate_pages
-  *
-  * Two lists are passed to this function. The first list
-@@ -529,67 +592,6 @@
- }
- 
- /*
-- * Migration function for pages with buffers. This function can only be used
-- * if the underlying filesystem guarantees that no other references to "page"
-- * exist.
-- */
--int buffer_migrate_page(struct page *newpage, struct page *page)
--{
--	struct address_space *mapping = page->mapping;
--	struct buffer_head *bh, *head;
--	int rc;
--
--	if (!mapping)
--		return -EAGAIN;
--
--	if (!page_has_buffers(page))
--		return migrate_page(newpage, page);
--
--	head = page_buffers(page);
--
--	rc = migrate_page_remove_references(newpage, page, 3);
--
--	if (rc)
--		return rc;
--
--	bh = head;
--	do {
--		get_bh(bh);
--		lock_buffer(bh);
--		bh = bh->b_this_page;
--
--	} while (bh != head);
--
--	ClearPagePrivate(page);
--	set_page_private(newpage, page_private(page));
--	set_page_private(page, 0);
--	put_page(page);
--	get_page(newpage);
--
--	bh = head;
--	do {
--		set_bh_page(bh, newpage, bh_offset(bh));
--		bh = bh->b_this_page;
--
--	} while (bh != head);
--
--	SetPagePrivate(newpage);
--
--	migrate_page_copy(newpage, page);
--
--	bh = head;
--	do {
--		unlock_buffer(bh);
-- 		put_bh(bh);
--		bh = bh->b_this_page;
--
--	} while (bh != head);
--
--	return 0;
--}
--EXPORT_SYMBOL(buffer_migrate_page);
--
--/*
-  * Migrate the list 'pagelist' of pages to a certain destination.
-  *
-  * Specify destination with either non-NULL vma or dest_node >= 0
+The third patchset contains two improvements based on the read/write
+migration entries. First we stop incrementing / decrementing rss during
+migration. Second we use the migration entries for file backed pages.
+This will preserve file ptes during migration and allow repeated
+migration of processes. The old code removed those ptes and people
+were a bit surprised when the process suddenly got very small.
+
+Patchset against 2.6.17-rc3. There seem to be some bits leftover
+from the earlier patches (the removal of the page migration pagecache checks?)
+in Andrew's tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
