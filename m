@@ -1,30 +1,47 @@
-Date: Fri, 28 Apr 2006 17:36:50 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/7] page migration: Reorder functions in migrate.c
-Message-Id: <20060428173650.146a6605.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0604281712210.4170@schroedinger.engr.sgi.com>
+Date: Sat, 29 Apr 2006 09:44:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/7] page migration: synchronize from and to lists
+Message-Id: <20060429094449.6b1c9c52.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0604281732460.4311@schroedinger.engr.sgi.com>
 References: <20060428060302.30257.76871.sendpatchset@schroedinger.engr.sgi.com>
-	<20060428150806.057b0bac.akpm@osdl.org>
-	<Pine.LNX.4.64.0604281556220.3412@schroedinger.engr.sgi.com>
-	<20060428161830.7af8c3f0.akpm@osdl.org>
-	<Pine.LNX.4.64.0604281712210.4170@schroedinger.engr.sgi.com>
+	<20060428060323.30257.90761.sendpatchset@schroedinger.engr.sgi.com>
+	<20060428164619.4b8bc28c.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0604280830020.32339@schroedinger.engr.sgi.com>
+	<20060429092743.9548531d.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0604281732460.4311@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, lee.schermerhorn@hp.com, hugh@veritas.com
+Cc: akpm@osdl.org, linux-mm@kvack.org, lee.schermerhorn@hp.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-hm.  migrate_pages() locks two pages at the same time.  We've avoided doing
-that.
+On Fri, 28 Apr 2006 17:33:22 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-a) what prevents ab/ba deadlocks in the migration code?
+> On Sat, 29 Apr 2006, KAMEZAWA Hiroyuki wrote:
+> 
+> > On Fri, 28 Apr 2006 08:31:04 -0700 (PDT)
+> > Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > On Fri, 28 Apr 2006, KAMEZAWA Hiroyuki wrote:
+> > > 
+> > > > you should rotate "to" list in this case, I think.		
+> > > 
+> > > Hmmm.... Seems that the whole list scanning needs an overhaul. What do 
+> > > you thinkg about this?
+> > > 
+> > maybe work, but complicated..
+> > What benefits by this 1-1 ordering ?
+> 
+> You can control exactly where each page is migrated. Currently a page on 
+> from is migrated to some page on the to list.
+> 
+Then, array is sane interface rather than list, I think.
 
-b) if some other part of the kernel later decides to lock two pages at
-   the same time, what protocol should that code follow to avoid ab/ba
-   deadlocks?   lowest-pfn-first might be one.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
