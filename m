@@ -1,102 +1,196 @@
-Date: Fri, 28 Apr 2006 20:22:51 -0700 (PDT)
+Date: Fri, 28 Apr 2006 20:22:56 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032251.4999.54239.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060429032256.4999.45018.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 1/7] PM cleanup: Rename "ignrefs" to "migration"
+Subject: [PATCH 2/7] PM cleanup: Group functions
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-migrate is a better name since it is only used by page migration.
+page migration: Reorder functions in migrate.c
+
+Group all migration functions for struct address_space_operations
+together.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
----
 
- mm/rmap.c |   18 +++++++++---------
- 1 files changed, 9 insertions(+), 9 deletions(-)
-
-diff -puN mm/rmap.c~swapless-v2-try_to_unmap-rename-ignrefs-to-migration mm/rmap.c
---- devel/mm/rmap.c~swapless-v2-try_to_unmap-rename-ignrefs-to-migration	2006-04-13 17:09:50.000000000 -0700
-+++ devel-akpm/mm/rmap.c	2006-04-13 17:10:01.000000000 -0700
-@@ -578,7 +578,7 @@ void page_remove_rmap(struct page *page)
-  * repeatedly from either try_to_unmap_anon or try_to_unmap_file.
-  */
- static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
--				int ignore_refs)
-+				int migration)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
-@@ -602,7 +602,7 @@ static int try_to_unmap_one(struct page 
- 	 */
- 	if ((vma->vm_flags & VM_LOCKED) ||
- 			(ptep_clear_flush_young(vma, address, pte)
--				&& !ignore_refs)) {
-+				&& !migration)) {
- 		ret = SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -736,7 +736,7 @@ static void try_to_unmap_cluster(unsigne
- 	pte_unmap_unlock(pte - 1, ptl);
+Index: linux-2.6.17-rc3/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 17:11:42.779439413 -0700
++++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 17:24:03.935627108 -0700
+@@ -120,15 +120,6 @@
  }
  
--static int try_to_unmap_anon(struct page *page, int ignore_refs)
-+static int try_to_unmap_anon(struct page *page, int migration)
- {
- 	struct anon_vma *anon_vma;
- 	struct vm_area_struct *vma;
-@@ -747,7 +747,7 @@ static int try_to_unmap_anon(struct page
- 		return ret;
+ /*
+- * Non migratable page
+- */
+-int fail_migrate_page(struct page *newpage, struct page *page)
+-{
+-	return -EIO;
+-}
+-EXPORT_SYMBOL(fail_migrate_page);
+-
+-/*
+  * swapout a single page
+  * page is locked upon entry, unlocked on exit
+  */
+@@ -297,6 +288,17 @@
+ }
+ EXPORT_SYMBOL(migrate_page_copy);
  
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
--		ret = try_to_unmap_one(page, vma, ignore_refs);
-+		ret = try_to_unmap_one(page, vma, migration);
- 		if (ret == SWAP_FAIL || !page_mapped(page))
- 			break;
- 	}
-@@ -764,7 +764,7 @@ static int try_to_unmap_anon(struct page
++/************************************************************
++ *                    Migration functions
++ ***********************************************************/
++
++/* Always fail migration. Used for mappings that are not movable */
++int fail_migrate_page(struct page *newpage, struct page *page)
++{
++	return -EIO;
++}
++EXPORT_SYMBOL(fail_migrate_page);
++
+ /*
+  * Common logic to directly migrate a single page suitable for
+  * pages that do not use PagePrivate.
+@@ -330,6 +332,67 @@
+ EXPORT_SYMBOL(migrate_page);
+ 
+ /*
++ * Migration function for pages with buffers. This function can only be used
++ * if the underlying filesystem guarantees that no other references to "page"
++ * exist.
++ */
++int buffer_migrate_page(struct page *newpage, struct page *page)
++{
++	struct address_space *mapping = page->mapping;
++	struct buffer_head *bh, *head;
++	int rc;
++
++	if (!mapping)
++		return -EAGAIN;
++
++	if (!page_has_buffers(page))
++		return migrate_page(newpage, page);
++
++	head = page_buffers(page);
++
++	rc = migrate_page_remove_references(newpage, page, 3);
++
++	if (rc)
++		return rc;
++
++	bh = head;
++	do {
++		get_bh(bh);
++		lock_buffer(bh);
++		bh = bh->b_this_page;
++
++	} while (bh != head);
++
++	ClearPagePrivate(page);
++	set_page_private(newpage, page_private(page));
++	set_page_private(page, 0);
++	put_page(page);
++	get_page(newpage);
++
++	bh = head;
++	do {
++		set_bh_page(bh, newpage, bh_offset(bh));
++		bh = bh->b_this_page;
++
++	} while (bh != head);
++
++	SetPagePrivate(newpage);
++
++	migrate_page_copy(newpage, page);
++
++	bh = head;
++	do {
++		unlock_buffer(bh);
++ 		put_bh(bh);
++		bh = bh->b_this_page;
++
++	} while (bh != head);
++
++	return 0;
++}
++EXPORT_SYMBOL(buffer_migrate_page);
++
++/*
+  * migrate_pages
   *
-  * This function is only called from try_to_unmap for object-based pages.
-  */
--static int try_to_unmap_file(struct page *page, int ignore_refs)
-+static int try_to_unmap_file(struct page *page, int migration)
- {
- 	struct address_space *mapping = page->mapping;
- 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-@@ -778,7 +778,7 @@ static int try_to_unmap_file(struct page
+  * Two lists are passed to this function. The first list
+@@ -529,67 +592,6 @@
+ }
  
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
--		ret = try_to_unmap_one(page, vma, ignore_refs);
-+		ret = try_to_unmap_one(page, vma, migration);
- 		if (ret == SWAP_FAIL || !page_mapped(page))
- 			goto out;
- 	}
-@@ -863,16 +863,16 @@ out:
-  * SWAP_AGAIN	- we missed a mapping, try again later
-  * SWAP_FAIL	- the page is unswappable
-  */
--int try_to_unmap(struct page *page, int ignore_refs)
-+int try_to_unmap(struct page *page, int migration)
- {
- 	int ret;
- 
- 	BUG_ON(!PageLocked(page));
- 
- 	if (PageAnon(page))
--		ret = try_to_unmap_anon(page, ignore_refs);
-+		ret = try_to_unmap_anon(page, migration);
- 	else
--		ret = try_to_unmap_file(page, ignore_refs);
-+		ret = try_to_unmap_file(page, migration);
- 
- 	if (!page_mapped(page))
- 		ret = SWAP_SUCCESS;
-_
+ /*
+- * Migration function for pages with buffers. This function can only be used
+- * if the underlying filesystem guarantees that no other references to "page"
+- * exist.
+- */
+-int buffer_migrate_page(struct page *newpage, struct page *page)
+-{
+-	struct address_space *mapping = page->mapping;
+-	struct buffer_head *bh, *head;
+-	int rc;
+-
+-	if (!mapping)
+-		return -EAGAIN;
+-
+-	if (!page_has_buffers(page))
+-		return migrate_page(newpage, page);
+-
+-	head = page_buffers(page);
+-
+-	rc = migrate_page_remove_references(newpage, page, 3);
+-
+-	if (rc)
+-		return rc;
+-
+-	bh = head;
+-	do {
+-		get_bh(bh);
+-		lock_buffer(bh);
+-		bh = bh->b_this_page;
+-
+-	} while (bh != head);
+-
+-	ClearPagePrivate(page);
+-	set_page_private(newpage, page_private(page));
+-	set_page_private(page, 0);
+-	put_page(page);
+-	get_page(newpage);
+-
+-	bh = head;
+-	do {
+-		set_bh_page(bh, newpage, bh_offset(bh));
+-		bh = bh->b_this_page;
+-
+-	} while (bh != head);
+-
+-	SetPagePrivate(newpage);
+-
+-	migrate_page_copy(newpage, page);
+-
+-	bh = head;
+-	do {
+-		unlock_buffer(bh);
+- 		put_bh(bh);
+-		bh = bh->b_this_page;
+-
+-	} while (bh != head);
+-
+-	return 0;
+-}
+-EXPORT_SYMBOL(buffer_migrate_page);
+-
+-/*
+  * Migrate the list 'pagelist' of pages to a certain destination.
+  *
+  * Specify destination with either non-NULL vma or dest_node >= 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
