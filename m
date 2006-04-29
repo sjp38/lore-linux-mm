@@ -1,158 +1,238 @@
-Date: Fri, 28 Apr 2006 20:23:12 -0700 (PDT)
+Date: Fri, 28 Apr 2006 20:23:17 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032312.4999.78688.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060429032317.4999.6940.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 5/7] PM cleanup: Extract try_to_unmap from migration functions
+Subject: [PATCH 6/7] PM cleanup: Pass "mapping" to migration functions
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Extract try_to_unmap and rename remove_references -> move_mapping
+page migration: Change handling of address spaces.
 
-try_to_unmap may significantly change the page state by for example setting
-the dirty bit. It is therefore best to unmap in migrate_pages() before
-calling any migration functions.
+Pass a pointer to the address space in which the page is migrated
+to all migration function. This avoids repeatedly having to retrieve
+the address space pointer from the page and checking it for validity.
+The old page mapping will change once migration has gone to a certain
+step, so it is less confusing to have the pointer always available.
 
-migrate_page_remove_references() will then only move the new page in
-place of the old page in the mapping. Rename the function to
-migrate_page_move_mapping().
-
-This allows us to get rid of the special unmapping for the
-fallback path.
+Move the setting of the mapping and index for the new page into
+migrate_pages().
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.17-rc3/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 17:31:10.325193799 -0700
-+++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 17:42:24.342949272 -0700
-@@ -166,15 +166,14 @@
- }
- 
- /*
-- * Remove references for a page and establish the new page with the correct
-- * basic settings to be able to stop accesses to the page.
-+ * Remove or replace the page in the mapping.
-  *
-  * The number of remaining references must be:
-  * 1 for anonymous pages without a mapping
+--- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 18:12:57.786776854 -0700
++++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 18:40:22.939488970 -0700
+@@ -173,15 +173,11 @@
   * 2 for pages with a mapping
   * 3 for pages with a mapping and PagePrivate set.
   */
--static int migrate_page_remove_references(struct page *newpage,
-+static int migrate_page_move_mapping(struct page *newpage,
- 				struct page *page)
+-static int migrate_page_move_mapping(struct page *newpage,
+-				struct page *page)
++static int migrate_page_move_mapping(struct address_space *mapping,
++		struct page *newpage, struct page *page)
  {
- 	struct address_space *mapping = page_mapping(page);
-@@ -183,35 +182,6 @@
- 	if (!mapping)
- 		return -EAGAIN;
+-	struct address_space *mapping = page_mapping(page);
+ 	struct page **radix_pointer;
  
--	/*
--	 * Establish swap ptes for anonymous pages or destroy pte
--	 * maps for files.
--	 *
--	 * In order to reestablish file backed mappings the fault handlers
--	 * will take the radix tree_lock which may then be used to stop
--  	 * processses from accessing this page until the new page is ready.
--	 *
--	 * A process accessing via a swap pte (an anonymous page) will take a
--	 * page_lock on the old page which will block the process until the
--	 * migration attempt is complete. At that time the PageSwapCache bit
--	 * will be examined. If the page was migrated then the PageSwapCache
--	 * bit will be clear and the operation to retrieve the page will be
--	 * retried which will find the new page in the radix tree. Then a new
--	 * direct mapping may be generated based on the radix tree contents.
--	 *
--	 * If the page was not migrated then the PageSwapCache bit
--	 * is still set and the operation may continue.
--	 */
--	if (try_to_unmap(page, 1) == SWAP_FAIL)
--		/* A vma has VM_LOCKED set -> permanent failure */
--		return -EPERM;
--
--	/*
--	 * Give up if we were unable to remove all mappings.
--	 */
--	if (page_mapcount(page))
+-	if (!mapping)
 -		return -EAGAIN;
 -
  	write_lock_irq(&mapping->tree_lock);
  
  	radix_pointer = (struct page **)radix_tree_lookup_slot(
-@@ -310,7 +280,7 @@
+@@ -197,15 +193,8 @@
+ 
+ 	/*
+ 	 * Now we know that no one else is looking at the page.
+-	 *
+-	 * Certain minimal information about a page must be available
+-	 * in order for other subsystems to properly handle the page if they
+-	 * find it through the radix tree update before we are finished
+-	 * copying the page.
+ 	 */
+ 	get_page(newpage);
+-	newpage->index = page->index;
+-	newpage->mapping = page->mapping;
+ 	if (PageSwapCache(page)) {
+ 		SetPageSwapCache(newpage);
+ 		set_page_private(newpage, page_private(page));
+@@ -262,7 +251,8 @@
+  ***********************************************************/
+ 
+ /* Always fail migration. Used for mappings that are not movable */
+-int fail_migrate_page(struct page *newpage, struct page *page)
++int fail_migrate_page(struct address_space *mapping,
++			struct page *newpage, struct page *page)
+ {
+ 	return -EIO;
+ }
+@@ -274,13 +264,14 @@
+  *
+  * Pages are locked upon entry and exit.
+  */
+-int migrate_page(struct page *newpage, struct page *page)
++int migrate_page(struct address_space *mapping,
++		struct page *newpage, struct page *page)
+ {
+ 	int rc;
  
  	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
  
--	rc = migrate_page_remove_references(newpage, page);
-+	rc = migrate_page_move_mapping(newpage, page);
+-	rc = migrate_page_move_mapping(newpage, page);
++	rc = migrate_page_move_mapping(mapping, newpage, page);
  
  	if (rc)
  		return rc;
-@@ -349,7 +319,7 @@
+@@ -305,21 +296,18 @@
+  * if the underlying filesystem guarantees that no other references to "page"
+  * exist.
+  */
+-int buffer_migrate_page(struct page *newpage, struct page *page)
++int buffer_migrate_page(struct address_space *mapping,
++		struct page *newpage, struct page *page)
+ {
+-	struct address_space *mapping = page->mapping;
+ 	struct buffer_head *bh, *head;
+ 	int rc;
+ 
+-	if (!mapping)
+-		return -EAGAIN;
+-
+ 	if (!page_has_buffers(page))
+-		return migrate_page(newpage, page);
++		return migrate_page(mapping, newpage, page);
  
  	head = page_buffers(page);
  
--	rc = migrate_page_remove_references(newpage, page);
-+	rc = migrate_page_move_mapping(newpage, page);
+-	rc = migrate_page_move_mapping(newpage, page);
++	rc = migrate_page_move_mapping(mapping, newpage, page);
  
  	if (rc)
  		return rc;
-@@ -482,6 +452,33 @@
- 		lock_page(newpage);
+@@ -448,9 +436,6 @@
+ 			goto next;
+ 		}
  
+-		newpage = lru_to_page(to);
+-		lock_page(newpage);
+-
  		/*
-+		 * Establish swap ptes for anonymous pages or destroy pte
-+		 * maps for files.
-+		 *
-+		 * In order to reestablish file backed mappings the fault handlers
-+		 * will take the radix tree_lock which may then be used to stop
-+	  	 * processses from accessing this page until the new page is ready.
-+		 *
-+		 * A process accessing via a swap pte (an anonymous page) will take a
-+		 * page_lock on the old page which will block the process until the
-+		 * migration attempt is complete. At that time the PageSwapCache bit
-+		 * will be examined. If the page was migrated then the PageSwapCache
-+		 * bit will be clear and the operation to retrieve the page will be
-+		 * retried which will find the new page in the radix tree. Then a new
-+		 * direct mapping may be generated based on the radix tree contents.
-+		 *
-+		 * If the page was not migrated then the PageSwapCache bit
-+		 * is still set and the operation may continue.
-+		 */
-+		rc = -EPERM;
-+		if (try_to_unmap(page, 1) == SWAP_FAIL)
-+			/* A vma has VM_LOCKED set -> permanent failure */
-+			goto unlock_both;
+ 		 * Establish swap ptes for anonymous pages or destroy pte
+ 		 * maps for files.
+@@ -473,11 +458,18 @@
+ 		rc = -EPERM;
+ 		if (try_to_unmap(page, 1) == SWAP_FAIL)
+ 			/* A vma has VM_LOCKED set -> permanent failure */
+-			goto unlock_both;
++			goto unlock_page;
+ 
+ 		rc = -EAGAIN;
+ 		if (page_mapped(page))
+-			goto unlock_both;
++			goto unlock_page;
 +
-+		rc = -EAGAIN;
-+		if (page_mapped(page))
-+			goto unlock_both;
-+		/*
++		newpage = lru_to_page(to);
++		lock_page(newpage);
++		/* Prepare mapping for the new page.*/
++		newpage->index = page->index;
++		newpage->mapping = page->mapping;
++
+ 		/*
  		 * Pages are properly locked and writeback is complete.
  		 * Try to migrate the page.
- 		 */
-@@ -501,17 +498,6 @@
+@@ -494,7 +486,8 @@
+ 			 * own migration function. This is the most common
+ 			 * path for page migration.
+ 			 */
+-			rc = mapping->a_ops->migratepage(newpage, page);
++			rc = mapping->a_ops->migratepage(mapping,
++							newpage, page);
  			goto unlock_both;
                  }
  
--		/* Make sure the dirty bit is up to date */
--		if (try_to_unmap(page, 1) == SWAP_FAIL) {
--			rc = -EPERM;
--			goto unlock_both;
--		}
--
--		if (page_mapcount(page)) {
--			rc = -EAGAIN;
--			goto unlock_both;
--		}
--
- 		/*
- 		 * Default handling if a filesystem does not provide
- 		 * a migration function. We can only migrate clean
+@@ -524,7 +517,7 @@
+ 		 */
+ 		if (!page_has_buffers(page) ||
+ 		    try_to_release_page(page, GFP_KERNEL)) {
+-			rc = migrate_page(newpage, page);
++			rc = migrate_page(mapping, newpage, page);
+ 			goto unlock_both;
+ 		}
+ 
+@@ -553,12 +546,17 @@
+ 		unlock_page(page);
+ 
+ next:
+-		if (rc == -EAGAIN) {
+-			retry++;
+-		} else if (rc) {
+-			/* Permanent failure */
+-			list_move(&page->lru, failed);
+-			nr_failed++;
++		if (rc) {
++			if (newpage)
++				newpage->mapping = NULL;
++
++			if (rc == -EAGAIN)
++				retry++;
++			else {
++				/* Permanent failure */
++				list_move(&page->lru, failed);
++				nr_failed++;
++			}
+ 		} else {
+ 			if (newpage) {
+ 				/* Successful migration. Return page to LRU */
+Index: linux-2.6.17-rc3/include/linux/fs.h
+===================================================================
+--- linux-2.6.17-rc3.orig/include/linux/fs.h	2006-04-26 19:19:25.000000000 -0700
++++ linux-2.6.17-rc3/include/linux/fs.h	2006-04-28 18:12:58.597273361 -0700
+@@ -373,7 +373,8 @@
+ 	struct page* (*get_xip_page)(struct address_space *, sector_t,
+ 			int);
+ 	/* migrate the contents of a page to the specified target */
+-	int (*migratepage) (struct page *, struct page *);
++	int (*migratepage) (struct address_space *,
++			struct page *, struct page *);
+ };
+ 
+ struct backing_dev_info;
+@@ -1768,7 +1769,8 @@
+ extern ssize_t simple_read_from_buffer(void __user *, size_t, loff_t *, const void *, size_t);
+ 
+ #ifdef CONFIG_MIGRATION
+-extern int buffer_migrate_page(struct page *, struct page *);
++extern int buffer_migrate_page(struct address_space *,
++				struct page *, struct page *);
+ #else
+ #define buffer_migrate_page NULL
+ #endif
+Index: linux-2.6.17-rc3/include/linux/migrate.h
+===================================================================
+--- linux-2.6.17-rc3.orig/include/linux/migrate.h	2006-04-28 18:12:55.854279761 -0700
++++ linux-2.6.17-rc3/include/linux/migrate.h	2006-04-28 18:12:58.598249863 -0700
+@@ -7,12 +7,14 @@
+ #ifdef CONFIG_MIGRATION
+ extern int isolate_lru_page(struct page *p, struct list_head *pagelist);
+ extern int putback_lru_pages(struct list_head *l);
+-extern int migrate_page(struct page *, struct page *);
++extern int migrate_page(struct address_space *,
++			struct page *, struct page *);
+ extern int migrate_pages(struct list_head *l, struct list_head *t,
+ 		struct list_head *moved, struct list_head *failed);
+ extern int migrate_pages_to(struct list_head *pagelist,
+ 			struct vm_area_struct *vma, int dest);
+-extern int fail_migrate_page(struct page *, struct page *);
++extern int fail_migrate_page(struct address_space *,
++			struct page *, struct page *);
+ 
+ extern int migrate_prep(void);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
