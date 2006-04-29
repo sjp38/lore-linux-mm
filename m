@@ -1,73 +1,89 @@
-Date: Fri, 28 Apr 2006 20:23:01 -0700 (PDT)
+Date: Fri, 28 Apr 2006 20:23:06 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032301.4999.80540.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060429032306.4999.92029.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 3/7] PM cleanup: Remove useless definitions
+Subject: [PATCH 4/7] PM cleanup: Drop nr_refs in remove_references()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Remove unnecessarily exported functions
+page migration: Drop nr_refs parameter from migrate_page_remove_references()
 
-Remove the export for migrate_page_remove_references() and
-migrate_page_copy() that are unlikely to be used directly by
-filesystems implementing migration. The export was useful
-when buffer_migrate_page() lived in fs/buffer.c but it has now
-been moved to migrate.c in the migration reorg.
+The nr_refs parameter is not really useful since the number of remaining
+references is always
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+1 for anonymous pages without a mapping
+2 for pages with a mapping
+3 for pages with a mapping and PagePrivate set.
+
+Remove the early check for the number of references since we are
+checking page_mapcount() earlier. Ultimately only the refcount
+matters after the tree_lock has been obtained.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.coim>
 
 Index: linux-2.6.17-rc3/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 17:24:03.935627108 -0700
-+++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 17:26:13.866044400 -0700
-@@ -169,7 +169,7 @@
+--- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 17:26:13.866044400 -0700
++++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 17:31:10.325193799 -0700
+@@ -168,19 +168,19 @@
+ /*
   * Remove references for a page and establish the new page with the correct
   * basic settings to be able to stop accesses to the page.
++ *
++ * The number of remaining references must be:
++ * 1 for anonymous pages without a mapping
++ * 2 for pages with a mapping
++ * 3 for pages with a mapping and PagePrivate set.
   */
--int migrate_page_remove_references(struct page *newpage,
-+static int migrate_page_remove_references(struct page *newpage,
- 				struct page *page, int nr_refs)
+ static int migrate_page_remove_references(struct page *newpage,
+-				struct page *page, int nr_refs)
++				struct page *page)
  {
  	struct address_space *mapping = page_mapping(page);
-@@ -246,12 +246,11 @@
+ 	struct page **radix_pointer;
  
- 	return 0;
- }
--EXPORT_SYMBOL(migrate_page_remove_references);
+-	/*
+-	 * Avoid doing any of the following work if the page count
+-	 * indicates that the page is in use or truncate has removed
+-	 * the page.
+-	 */
+-	if (!mapping || page_mapcount(page) + nr_refs != page_count(page))
++	if (!mapping)
+ 		return -EAGAIN;
  
- /*
-  * Copy the page to its new location
-  */
--void migrate_page_copy(struct page *newpage, struct page *page)
-+static void migrate_page_copy(struct page *newpage, struct page *page)
- {
- 	copy_highpage(newpage, page);
+ 	/*
+@@ -218,7 +218,8 @@
+ 						&mapping->page_tree,
+ 						page_index(page));
  
-@@ -286,7 +285,6 @@
- 	if (PageWriteback(newpage))
- 		end_page_writeback(newpage);
- }
--EXPORT_SYMBOL(migrate_page_copy);
+-	if (!page_mapping(page) || page_count(page) != nr_refs ||
++	if (!page_mapping(page) ||
++			page_count(page) != 2 + !!PagePrivate(page) ||
+ 			*radix_pointer != page) {
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		return -EAGAIN;
+@@ -309,7 +310,7 @@
  
- /************************************************************
-  *                    Migration functions
-Index: linux-2.6.17-rc3/include/linux/migrate.h
-===================================================================
---- linux-2.6.17-rc3.orig/include/linux/migrate.h	2006-04-26 19:19:25.000000000 -0700
-+++ linux-2.6.17-rc3/include/linux/migrate.h	2006-04-28 17:26:13.867020902 -0700
-@@ -8,8 +8,6 @@
- extern int isolate_lru_page(struct page *p, struct list_head *pagelist);
- extern int putback_lru_pages(struct list_head *l);
- extern int migrate_page(struct page *, struct page *);
--extern void migrate_page_copy(struct page *, struct page *);
--extern int migrate_page_remove_references(struct page *, struct page *, int);
- extern int migrate_pages(struct list_head *l, struct list_head *t,
- 		struct list_head *moved, struct list_head *failed);
- extern int migrate_pages_to(struct list_head *pagelist,
+ 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
+ 
+-	rc = migrate_page_remove_references(newpage, page, 2);
++	rc = migrate_page_remove_references(newpage, page);
+ 
+ 	if (rc)
+ 		return rc;
+@@ -348,7 +349,7 @@
+ 
+ 	head = page_buffers(page);
+ 
+-	rc = migrate_page_remove_references(newpage, page, 3);
++	rc = migrate_page_remove_references(newpage, page);
+ 
+ 	if (rc)
+ 		return rc;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
