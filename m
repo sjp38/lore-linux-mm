@@ -1,138 +1,218 @@
-Date: Fri, 28 Apr 2006 20:23:22 -0700 (PDT)
+Date: Fri, 28 Apr 2006 20:23:32 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032322.4999.77950.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060429032332.4999.75597.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 7/7] PM cleanup: Move fallback handling into special function
+Subject: [PATCH 2/3] Swapless PM: Rip out swap based logic
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Add new fallback function
+Rip the page migration logic out
 
-Move the fallback code into a new fallback function and make the
-function behave like any other migration function. This requires
-retaking the lock if pageout() drops it.
+Remove all code that has to do with swapping during page migration.
+
+This also guts the ability to migrate pages to swap.  No one used that so lets
+let it go for good.
+
+Page migration should be a bit broken after this patch.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
 
+Index: linux-2.6.17-rc3/include/linux/rmap.h
+===================================================================
+--- linux-2.6.17-rc3.orig/include/linux/rmap.h	2006-04-26 19:19:25.000000000 -0700
++++ linux-2.6.17-rc3/include/linux/rmap.h	2006-04-28 20:06:12.757091693 -0700
+@@ -92,7 +92,6 @@
+  */
+ int page_referenced(struct page *, int is_locked);
+ int try_to_unmap(struct page *, int ignore_refs);
+-void remove_from_swap(struct page *page);
+ 
+ /*
+  * Called from mm/filemap_xip.c to unmap empty zero page
 Index: linux-2.6.17-rc3/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 18:12:58.595320357 -0700
-+++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 18:25:47.893218995 -0700
-@@ -349,6 +349,42 @@
+--- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 20:05:11.674943774 -0700
++++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 20:11:39.065947928 -0700
+@@ -70,10 +70,6 @@
+  */
+ int migrate_prep(void)
+ {
+-	/* Must have swap device for migration */
+-	if (nr_swap_pages <= 0)
+-		return -ENODEV;
+-
+ 	/*
+ 	 * Clear the LRU lists so pages can be isolated.
+ 	 * Note that pages may be moved off the LRU after we have
+@@ -250,52 +246,6 @@
  }
- EXPORT_SYMBOL(buffer_migrate_page);
  
-+static int fallback_migrate_page(struct address_space *mapping,
-+	struct page *newpage, struct page *page)
-+{
-+	/*
-+	 * Default handling if a filesystem does not provide
-+	 * a migration function. We can only migrate clean
-+	 * pages so try to write out any dirty pages first.
-+	 */
-+	if (PageDirty(page)) {
-+		switch (pageout(page, mapping)) {
-+		case PAGE_KEEP:
-+		case PAGE_ACTIVATE:
-+			return -EAGAIN;
-+
-+		case PAGE_SUCCESS:
-+			/* Relock since we lost the lock */
-+			lock_page(page);
-+			/* Must retry since page state may have changed */
-+			return -EAGAIN;
-+
-+		case PAGE_CLEAN:
-+			; /* try to migrate the page below */
-+		}
-+	}
-+
-+	/*
-+	 * Buffers are managed in a filesystem specific way.
-+	 * We must have no buffers or drop them.
-+	 */
-+	if (page_has_buffers(page) &&
-+	    !try_to_release_page(page, GFP_KERNEL))
-+		return -EAGAIN;
-+
-+	return migrate_page(mapping, newpage, page);
-+}
-+
  /*
-  * migrate_pages
+- * swapout a single page
+- * page is locked upon entry, unlocked on exit
+- */
+-static int swap_page(struct page *page)
+-{
+-	struct address_space *mapping = page_mapping(page);
+-
+-	if (page_mapped(page) && mapping)
+-		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
+-			goto unlock_retry;
+-
+-	if (PageDirty(page)) {
+-		/* Page is dirty, try to write it out here */
+-		switch(pageout(page, mapping)) {
+-		case PAGE_KEEP:
+-		case PAGE_ACTIVATE:
+-			goto unlock_retry;
+-
+-		case PAGE_SUCCESS:
+-			goto retry;
+-
+-		case PAGE_CLEAN:
+-			; /* try to free the page below */
+-		}
+-	}
+-
+-	if (PagePrivate(page)) {
+-		if (!try_to_release_page(page, GFP_KERNEL) ||
+-		    (!mapping && page_count(page) == 1))
+-			goto unlock_retry;
+-	}
+-
+-	if (remove_mapping(mapping, page)) {
+-		/* Success */
+-		unlock_page(page);
+-		return 0;
+-	}
+-
+-unlock_retry:
+-	unlock_page(page);
+-
+-retry:
+-	return -EAGAIN;
+-}
+-
+-/*
+  * Remove or replace the page in the mapping.
   *
-@@ -478,7 +514,7 @@
- 		if (!mapping)
- 			goto unlock_both;
- 
--		if (mapping->a_ops->migratepage) {
-+		if (mapping->a_ops->migratepage)
- 			/*
- 			 * Most pages have a mapping and most filesystems
- 			 * should provide a migration function. Anonymous
-@@ -488,56 +524,8 @@
- 			 */
- 			rc = mapping->a_ops->migratepage(mapping,
- 							newpage, page);
--			goto unlock_both;
--                }
--
--		/*
--		 * Default handling if a filesystem does not provide
--		 * a migration function. We can only migrate clean
--		 * pages so try to write out any dirty pages first.
--		 */
--		if (PageDirty(page)) {
--			switch (pageout(page, mapping)) {
--			case PAGE_KEEP:
--			case PAGE_ACTIVATE:
--				goto unlock_both;
--
--			case PAGE_SUCCESS:
--				unlock_page(newpage);
--				goto next;
--
--			case PAGE_CLEAN:
--				; /* try to migrate the page below */
--			}
--                }
--
--		/*
--		 * Buffers are managed in a filesystem specific way.
--		 * We must have no buffers or drop them.
--		 */
--		if (!page_has_buffers(page) ||
--		    try_to_release_page(page, GFP_KERNEL)) {
--			rc = migrate_page(mapping, newpage, page);
--			goto unlock_both;
+  * The number of remaining references must be:
+@@ -521,8 +471,7 @@
+  * Two lists are passed to this function. The first list
+  * contains the pages isolated from the LRU to be migrated.
+  * The second list contains new pages that the pages isolated
+- * can be moved to. If the second list is NULL then all
+- * pages are swapped out.
++ * can be moved to.
+  *
+  * The function returns after 10 attempts or if no pages
+  * are movable anymore because to has become empty
+@@ -578,29 +527,11 @@
+ 		 * Only wait on writeback if we have already done a pass where
+ 		 * we we may have triggered writeouts for lots of pages.
+ 		 */
+-		if (pass > 0) {
++		if (pass > 0)
+ 			wait_on_page_writeback(page);
+-		} else {
++		else
+ 			if (PageWriteback(page))
+ 				goto unlock_page;
 -		}
 -
 -		/*
--		 * On early passes with mapped pages simply
--		 * retry. There may be a lock held for some
--		 * buffers that may go away. Later
--		 * swap them out.
+-		 * Anonymous pages must have swap cache references otherwise
+-		 * the information contained in the page maps cannot be
+-		 * preserved.
 -		 */
--		if (pass > 4) {
--			/*
--			 * Persistently unable to drop buffers..... As a
--			 * measure of last resort we fall back to
--			 * swap_page().
--			 */
--			unlock_page(newpage);
--			newpage = NULL;
+-		if (PageAnon(page) && !PageSwapCache(page)) {
+-			if (!add_to_swap(page, GFP_KERNEL)) {
+-				rc = -ENOMEM;
+-				goto unlock_page;
+-			}
+-		}
+-
+-		if (!to) {
 -			rc = swap_page(page);
 -			goto next;
 -		}
-+		else
-+			rc = fallback_migrate_page(mapping, newpage, page);
  
- unlock_both:
- 		unlock_page(newpage);
+ 		/*
+ 		 * Establish swap ptes for anonymous pages or destroy pte
+Index: linux-2.6.17-rc3/mm/rmap.c
+===================================================================
+--- linux-2.6.17-rc3.orig/mm/rmap.c	2006-04-28 20:05:11.673967272 -0700
++++ linux-2.6.17-rc3/mm/rmap.c	2006-04-28 20:06:12.759044697 -0700
+@@ -205,44 +205,6 @@
+ 	return anon_vma;
+ }
+ 
+-#ifdef CONFIG_MIGRATION
+-/*
+- * Remove an anonymous page from swap replacing the swap pte's
+- * through real pte's pointing to valid pages and then releasing
+- * the page from the swap cache.
+- *
+- * Must hold page lock on page and mmap_sem of one vma that contains
+- * the page.
+- */
+-void remove_from_swap(struct page *page)
+-{
+-	struct anon_vma *anon_vma;
+-	struct vm_area_struct *vma;
+-	unsigned long mapping;
+-
+-	if (!PageSwapCache(page))
+-		return;
+-
+-	mapping = (unsigned long)page->mapping;
+-
+-	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
+-		return;
+-
+-	/*
+-	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
+-	 */
+-	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+-	spin_lock(&anon_vma->lock);
+-
+-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+-		remove_vma_swap(vma, page);
+-
+-	spin_unlock(&anon_vma->lock);
+-	delete_from_swap_cache(page);
+-}
+-EXPORT_SYMBOL(remove_from_swap);
+-#endif
+-
+ /*
+  * At what user virtual address is page expected in vma?
+  */
+Index: linux-2.6.17-rc3/mm/swapfile.c
+===================================================================
+--- linux-2.6.17-rc3.orig/mm/swapfile.c	2006-04-28 20:05:11.673967272 -0700
++++ linux-2.6.17-rc3/mm/swapfile.c	2006-04-28 20:06:12.760021199 -0700
+@@ -618,15 +618,6 @@
+ 	return 0;
+ }
+ 
+-#ifdef CONFIG_MIGRATION
+-int remove_vma_swap(struct vm_area_struct *vma, struct page *page)
+-{
+-	swp_entry_t entry = { .val = page_private(page) };
+-
+-	return unuse_vma(vma, entry, page);
+-}
+-#endif
+-
+ /*
+  * Scan swap_map from current position to next entry still in use.
+  * Recycle to start on reaching the end, returning 0 when empty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
