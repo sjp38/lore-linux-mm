@@ -1,56 +1,34 @@
-Date: Fri, 28 Apr 2006 20:23:43 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060429032343.4999.33245.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060429032246.4999.21714.sendpatchset@schroedinger.engr.sgi.com>
-Subject: {PATCH 1/2} More PM: do not inc/dec rss counters
+Date: Sun, 30 Apr 2006 01:07:15 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: i386 and PAE: pud_present()
+Message-ID: <2432524299CCD3CA89BB647D@[10.1.1.4]>
+In-Reply-To: <200604281027.22183.ak@suse.de>
+References: <aec7e5c30604280040p60cc7c7dqc6fb6fbdd9506a6b@mail.gmail.com>
+ <4451CA41.5070101@yahoo.com.au> <200604281027.22183.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Magnus Damm <magnus.damm@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-more page migration: Do not dec/inc rss counters
+--On Friday, April 28, 2006 10:27:21 +0200 Andi Kleen <ak@suse.de> wrote:
 
-If we install a migration entry then the rss not really decreases
-since the page is just moved somewhere else. We can save ourselves
-the work of decrementing and later incrementing which will just
-eventually cause cacheline bouncing.
+>> Take a look a little further down the page for the comment.
+>> 
+>> In i386 + PAE, pud is always present.
+> 
+> I think his problem is that the PGD is always present too (in
+> pgtables-nopud.h) Indeed looks strange.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+The PGD is always fully populated on i386 if PAE is enabled.  All three of
+the pmd pages are allocated at page table creation time and persist till
+the page table is deleted.
 
-Index: linux-2.6.17-rc3/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc3.orig/mm/migrate.c	2006-04-28 19:33:55.335332017 -0700
-+++ linux-2.6.17-rc3/mm/migrate.c	2006-04-28 19:37:31.941975877 -0700
-@@ -165,7 +165,6 @@
- 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
- 		goto out;
- 
--	inc_mm_counter(mm, anon_rss);
- 	get_page(new);
- 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
- 	if (is_write_migration_entry(entry))
-Index: linux-2.6.17-rc3/mm/rmap.c
-===================================================================
---- linux-2.6.17-rc3.orig/mm/rmap.c	2006-04-28 19:22:56.064823992 -0700
-+++ linux-2.6.17-rc3/mm/rmap.c	2006-04-28 19:37:31.941975877 -0700
-@@ -595,6 +595,7 @@
- 					list_add(&mm->mmlist, &init_mm.mmlist);
- 				spin_unlock(&mmlist_lock);
- 			}
-+			dec_mm_counter(mm, anon_rss);
- 		} else {
- 			/*
- 			 * Store the pfn of the page in a special migration
-@@ -606,7 +607,6 @@
- 		}
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 		BUG_ON(pte_file(*pte));
--		dec_mm_counter(mm, anon_rss);
- 	} else
- 		dec_mm_counter(mm, file_rss);
- 
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
