@@ -1,45 +1,32 @@
-Date: Sun, 30 Apr 2006 13:39:06 +0200
-From: Jens Axboe <axboe@suse.de>
+Message-ID: <44549D96.2050004@yahoo.com.au>
+Date: Sun, 30 Apr 2006 21:20:54 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: Lockless page cache test results
-Message-ID: <20060430113905.GF23137@suse.de>
 References: <20060426135310.GB5083@suse.de> <20060426095511.0cc7a3f9.akpm@osdl.org> <20060426174235.GC5002@suse.de> <20060426111054.2b4f1736.akpm@osdl.org> <Pine.LNX.4.64.0604261130450.19587@schroedinger.engr.sgi.com> <20060426114737.239806a2.akpm@osdl.org> <20060426184945.GL5002@suse.de> <Pine.LNX.4.64.0604261330310.20897@schroedinger.engr.sgi.com> <20060428140146.GA4657648@melbourne.sgi.com> <44548834.5050204@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <44548834.5050204@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: David Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
+To: David Chinner <dgc@sgi.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Jens Axboe <axboe@suse.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 30 2006, Nick Piggin wrote:
-> @@ -407,19 +422,10 @@
->  	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
->  
->  	if (error == 0) {
-> -		write_lock_irq(&mapping->tree_lock);
-> -		error = radix_tree_insert(&mapping->page_tree, offset, page);
-> -		if (!error) {
-> -			page_cache_get(page);
-> -			SetPageLocked(page);
-> -			page->mapping = mapping;
-> -			page->index = offset;
-> -			mapping->nrpages++;
-> -			pagecache_acct(1);
-> -		}
-> -		write_unlock_irq(&mapping->tree_lock);
-> +		error = __add_to_page_cache(page, mapping, offset);
->  		radix_tree_preload_end();
->  	}
-> +
->  	return error;
+Nick Piggin wrote:
 
-You killed a lock too many there. I'm sure it'd help scalability,
-though :-)
+> As well as lockless pagecache, I think we can batch tree_lock operations
+> in readahead. Would be interesting to see how much this patch helps.
+
+Btw. the patch introduces multiple locked pages in pagecache from a single
+thread, however there should be no new deadlocks or lock orderings
+introduced. They are always aquired because they are new pages, so will all
+be released. Visibility from other threads is no different to the case
+where multiple pages locked by multiple threads.
 
 -- 
-Jens Axboe
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
