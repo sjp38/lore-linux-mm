@@ -1,82 +1,169 @@
-Received: by pproxy.gmail.com with SMTP id i49so1120698pyi
-        for <linux-mm@kvack.org>; Sun, 30 Apr 2006 20:07:37 -0700 (PDT)
-Message-ID: <aec7e5c30604302007q78c5aec8n6e6da5f34b95b29b@mail.gmail.com>
-Date: Mon, 1 May 2006 12:07:37 +0900
-From: "Magnus Damm" <magnus.damm@gmail.com>
-Subject: Re: i386 and PAE: pud_present()
-In-Reply-To: <2432524299CCD3CA89BB647D@10.1.1.4>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-References: <aec7e5c30604280040p60cc7c7dqc6fb6fbdd9506a6b@mail.gmail.com>
-	 <4451CA41.5070101@yahoo.com.au> <200604281027.22183.ak@suse.de>
-	 <2432524299CCD3CA89BB647D@10.1.1.4>
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20060501133530.6379.66000.sendpatchset@skynet>
+Subject: [PATCH 0/7] Sizing zones and holes in an architecture independent manner V5
+Date: Mon,  1 May 2006 14:35:30 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On 4/30/06, Dave McCracken <dmccr@us.ibm.com> wrote:
->
-> --On Friday, April 28, 2006 10:27:21 +0200 Andi Kleen <ak@suse.de> wrote:
->
-> >> Take a look a little further down the page for the comment.
-> >>
-> >> In i386 + PAE, pud is always present.
-> >
-> > I think his problem is that the PGD is always present too (in
-> > pgtables-nopud.h) Indeed looks strange.
->
-> The PGD is always fully populated on i386 if PAE is enabled.  All three of
-> the pmd pages are allocated at page table creation time and persist till
-> the page table is deleted.
+This is V5 of the patchset to size zones and memory holes in
+an architecture-independent manner. This has been rebased against
+2.6.17-rc3-mm1 and as there were no objections against release V4, I would
+like to have it considered for merging. If there are merge conflicts with
+later trees, let me know what to rebase against.
 
-The following code snippet is from some kexec patch of mine. The
-function is used to build a new set of page tables which are used when
-jumping to the new kernel.
+The reasons why I'd like to this merged include;
 
-The code should be pretty archtecture independent - the same code
-works on x86 and x86_64. And x86/PAE with a workaround.
+ o Less architecture-specific code - particularly for x86 and ppc64
+ o More maintainable. Changes to zone layout need only be made in one place
+ o Zone-sizing and memory hole calculation is one less job that needs to be
+   done for new architecture ports
+ o With the architecture-independent representation, zone-based
+   anti-fragmentation needs a lot less architecture-specific code making it
+   more portable between architectures. This will be important for future
+   hugepage-availability work
+ o Nigel Cunningham has stated that that software suspend could potentially
+   use the architecture-independent representation to discover what pages
+   need to be saved during suspend
 
-#ifdef CONFIG_X86_PAE
-#undef pud_present
-#define pud_present(pud) (pud_val(pud) & _PAGE_PRESENT)
-#endif
+Changelog since V4
+o Rebase to 2.6.17-rc3-mm1
+o Calculate holes on x86 with SRAT correctly
 
-#define pa_page(page) __pa(page_address(page))
+Changelog since V3
+o Rebase to 2.6.17-rc2
+o Allow the active regions to be cleared. Needed by x86_64 when it decides
+  the SRAT table is bad half way through the registering of active regions
+o Fix for flatmem x86_64 machines booting
 
-static int create_mapping(struct page *root, struct page **pages,
-			  unsigned long va, unsigned long pa)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int k = 0;
+Changelog since V2
+o Fix a bug where holes in lower zones get double counted
+o Catch the case where a new range is registered that is within an range
+o Catch the case where a zone boundary is within a hole
+o Use the EFI map for registering ranges on x86_64+numa
+o On IA64+NUMA, add the active ranges before rounding for granules
+o On x86_64, remove e820_hole_size and e820_bootmem_free and use
+  arch-independent equivalents
+o On x86_64, remove the map walk in e820_end_of_ram()
+o Rename memory_present_with_active_regions, name ambiguous
+o Add absent_pages_in_range() for arches to call
 
-	pgd = (pgd_t *)page_address(root) + pgd_index(va);
-	if (!pgd_present(*pgd))
-		set_pgd(pgd, __pgd(pa_page(pages[k++]) | _KERNPG_TABLE));
+Changelog since V1
+o Correctly convert virtual and physical addresses to PFNs on ia64
+o Correctly convert physical addresses to PFN on older ppc 
+o When add_active_range() is called with overlapping pfn ranges, merge them
+o When a zone boundary occurs within a memory hole, account correctly
+o Minor whitespace damage cleanup
+o Debugging patch temporarily included
 
-	pud = pud_offset(pgd, va);
-	if (!pud_present(*pud))
-		set_pud(pud, __pud(pa_page(pages[k++]) | _KERNPG_TABLE));
+At a basic level, architectures define structures to record where active
+ranges of page frames are located. Once located, the code to calculate
+zone sizes and holes in each architecture is very similar.  Some of this
+zone and hole sizing code is difficult to read for no good reason. This
+set of patches eliminates the similar-looking architecture-specific code.
 
-	pmd = pmd_offset(pud, va);
-	if (!pmd_present(*pmd))
-		set_pmd(pmd, __pmd(pa_page(pages[k++]) | _KERNPG_TABLE));
+The patches introduce a mechanism where architectures register where the
+active ranges of page frames are with add_active_range(). When all areas
+have been discovered, free_area_init_nodes() is called to initialise
+the pgdat and zones. The zone sizes and holes are then calculated in an
+architecture independent manner.
 
-	pte = (pte_t *)page_address(pmd_page(*pmd)) + pte_index(va);
-	set_pte(pte, __pte(pa | _PAGE_KERNEL_EXEC));
+Patch 1 introduces the mechanism for registering and initialising PFN ranges
+Patch 2 changes ppc to use the mechanism - 128 arch-specific LOC removed
+Patch 3 changes x86 to use the mechanism - 142 arch-specific LOC removed
+Patch 4 changes x86_64 to use the mechanism - 94 arch-specific LOC removed
+Patch 5 changes ia64 to use the mechanism - 57 arch-specific LOC removed
 
-	return k;
-}
+At this point, there is a reduction of 421 architecture-specific lines of code
+and a net reduction of 25 lines. The arch-independent code is a lot easier
+to read in comparison to some of the arch-specific stuff, particularly in
+arch/i386/ .
 
-Any comments?
+For Patch 6, it was also noted that page_alloc.c has a *lot* of
+initialisation code which makes the file harder to read than it needs to
+be. Patch 6 creates a new file mem_init.c and moves a lot of initialisation
+code from page_alloc.c to it. After the patch is applied, there is still a net
+loss of 8 lines.
 
-/ magnus
+The patches have been successfully boot tested by me and verified that the
+zones are the correct size on
+
+o x86, flatmem with 1.5GiB of RAM
+o x86, NUMAQ
+o x86, NUMA, with SRAT
+o x86 with SRAT CONFIG_NUMA=n
+o PPC64, NUMA
+o PPC64, CONFIG_NUMA=n
+o Power, RS6000 (Had difficulty here with missing __udivdi3 symbol in pci_32.o)
+o x86_64, NUMA with SRAT
+o x86_64, NUMA with broken SRAT that falls back to k8topology discovery
+o x86_64, ACPI_NUMA, ACPI_MEMORY_HOTPLUG && !SPARSEMEM to trigger the
+  hotadd path without sparsemem fun in srat.c (SRAT broken on test machine and
+  I'm pretty sure the machine does not support physical memory hotadd anyway
+  so test may not have been effective other than being a compile test.)
+o x86_64, CONFIG_NUMA=n
+o x86_64, AMD64 desktop machine with flatmem
+
+Tony Luck has successfully tested for ia64 on Itanium with tiger_defconfig,
+gensparse_defconfig and defconfig. Bob Picco has also tested and debugged
+on IA64. Jack Steiner successfully boot tested on a mammoth SGI IA64-based
+machine. These were on patches against 2.6.17-rc1 but there have been no
+ia64-changes made between release 3 and 5 of these patches.
+
+There are differences in the zone sizes for x86_64 as the arch-specific code
+for x86_64 accounts the kernel image and the starting mem_maps as memory
+holes but the architecture-independent code accounts the memory as present.
+
+The net reduction seems small but the big benefit of this set of patches
+is the reduction of 421 lines of architecture-specific code, some of
+which is very hairy. There should be a greater net reduction when other
+architectures use the same mechanisms for zone and hole sizing but I lack
+the hardware to test on.
+
+Comments?
+
+Additional credit;
+	Dave Hansen for the initial suggestion and comments on early patches
+	Andy Whitcroft for reviewing early versions and catching numerous errors
+	Tony Luck for testing and debugging on IA64
+	Bob Picco for testing and fixing bugs related to pfn registration
+	Jack Steiner and Yasunori for testing on IA64
+
+ arch/i386/Kconfig           |    8 
+ arch/i386/kernel/setup.c    |   19 
+ arch/i386/kernel/srat.c     |  101 ---
+ arch/i386/mm/discontig.c    |   65 --
+ arch/ia64/Kconfig           |    3 
+ arch/ia64/mm/contig.c       |   60 --
+ arch/ia64/mm/discontig.c    |   41 -
+ arch/ia64/mm/init.c         |   12 
+ arch/powerpc/Kconfig        |   13 
+ arch/powerpc/mm/mem.c       |   53 --
+ arch/powerpc/mm/numa.c      |  157 ------
+ arch/ppc/Kconfig            |    3 
+ arch/ppc/mm/init.c          |   26 -
+ arch/x86_64/Kconfig         |    3 
+ arch/x86_64/kernel/e820.c   |  109 +---
+ arch/x86_64/kernel/setup.c  |    7 
+ arch/x86_64/mm/init.c       |   62 --
+ arch/x86_64/mm/k8topology.c |    3 
+ arch/x86_64/mm/numa.c       |   18 
+ arch/x86_64/mm/srat.c       |   11 
+ include/asm-ia64/meminit.h  |    1 
+ include/asm-x86_64/e820.h   |    5 
+ include/asm-x86_64/proto.h  |    2 
+ include/linux/mm.h          |   34 +
+ include/linux/mmzone.h      |   10 
+ mm/Makefile                 |    2 
+ mm/mem_init.c               | 1121 ++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c             |  750 -----------------------------
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
