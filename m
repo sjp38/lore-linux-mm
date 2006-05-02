@@ -1,87 +1,68 @@
-From: Keith Owens <kaos@sgi.com>
-Subject: Re: [RFC 1/3] LVHPT - Fault handler modifications 
-In-reply-to: Your message of "Tue, 02 May 2006 15:25:51 +1000."
-             <20060502052551.8990.16410.sendpatchset@wagner.orchestra.cse.unsw.EDU.AU>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Tue, 02 May 2006 18:04:08 +1000
-Message-ID: <9614.1146557048@kao2.melbourne.sgi.com>
+Message-ID: <4456D5ED.2040202@yahoo.com.au>
+Date: Tue, 02 May 2006 13:45:49 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [patch 00/14] remap_file_pages protection support
+References: <20060430172953.409399000@zion.home.lan>
+In-Reply-To: <20060430172953.409399000@zion.home.lan>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ian Wienand <ianw@gelato.unsw.edu.au>
-Cc: linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: blaisorblade@yahoo.it
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ian Wienand (on Tue, 02 May 2006 15:25:51 +1000) wrote:
->Firstly, we have stripped out common code in ivt.S into assembler
->macros in ivt-macro.S.  The comments before the macros should explain
->what each is doing.
+blaisorblade@yahoo.it wrote:
 
-Make that ivt.h to match the existing codebase, entry.S has entry.h.
-ivt-macro.S is not standalone assembler.
+> The first idea is to use this for UML - it must create a lot of single page
+> mappings, and managing them through separate VMAs is slow.
 
-These patches contain trailing whitespace on at least 15 lines.
+I don't know about this. The patches add some complexity, I guess because
+we now have vmas which cannot communicate the protectedness of the pages.
+Still, nobody was too concerned about nonlinear mappings doing the same
+for addressing. But this does seem to add more overhead to the common cases
+in the VM :(
 
->The main changes are
->
->vhpt_miss can no longer happen.  This fault is only raised when the
->walker does not have a mapping for the hashed address; with lvhpt the
->hash table is pinned with a single entry.
+Now I didn't follow the earlier discussions on this much, but let me try
+making a few silly comments to get things going again (cc'ed linux-mm).
 
-ia64_do_tlb_purge() purges the fxed TR entries on an MCA caused by
-invalid TLB entries, ia64_reload_tr() then reloads the fixed TR
-entries.  IA64_TR_LONG_VHPT must be added to both ia64_do_tlb_purge()
-and ia64_reload_tr().
+I think I would rather this all just folded under VM_NONLINEAR rather than
+having this extra MANYPROTS thing, no? (you're already doing that in one
+direction).
 
-compute_vhpt_size_numa() has the comment
+> 
+> Additional note: this idea, with some further refinements (which I'll code after
+> this chunk is accepted), will allow to reduce the number of used VMAs for most
+> userspace programs - in particular, it will allow to avoid creating one VMA for
+> one guard pages (which has PROT_NONE) - forcing PROT_NONE on that page will be
+> enough.
 
- /* In the NUMA case, we evaluate how much memory each node has
-  * and then try to size it to three times the physical memory
-  * of the node (as this gives us the best coverage.  As we pin
-  * this with a TLB entry, we need to make sure the size we
-  * choose is however suitable for the architecture.
-  */
+I think that's silly. Your VM_MANYPROTS|VM_NONLINEAR vmas will cause more
+overhead in faulting and reclaim.
 
-How will this work with cpu and memory hotplug?
+It loooks like it would take an hour or two just to code up a patch which
+puts a VM_GUARDPAGES flag into the vma, and tells the free area allocator
+to skip vm_start-1 .. vm_end+1. What kind of troubles has prevented
+something simple and easy like that from going in?
 
->+#ifdef CONFIG_IA64_LONG_FORMAT_VHPT
->+	LOAD_PTE_MISS r16, r17, r18, r22, page_fault
->...
->+#else
->+	LOAD_PTE_MISS r17, r18, page_fault
->+#endif
+> 
+> This will be useful since the VMA lookup at fault time can be a bottleneck for
+> some programs (I've received a report about this from Ulrich Drepper and I've
+> been told that also Val Henson from Intel is interested about this). I guess
+> that since we use RB-trees, the slowness is also due to the poor cache locality
+> of RB-trees (since RB nodes are within VMAs but aren't accessed together with
+> their content), compared for instance with radix trees where the lookup has high
+> cache locality (but they have however space usage problems, possibly bigger, on
+> 64-bit machines).
 
-I do not like LOAD_PTE_MISS being defined with different numbers and
-order of parameters depending on the config.  Use one LOAD_PTE_MISS
-macro that always takes ppte, pte, failfn, va and hpte (in that order).
-Then ignore va and hpte for the short form VHPT, hidden inside the
-macro definition.
+Let's try get back to the good old days when people actually reported
+their bugs (togther will *real* numbers) to the mailing lists. That way,
+everybody gets to think about and discuss the problem.
 
-BTW, load_pte_miss claims to take an hpte parameter, but it is not
-used.
-
-It is difficult to see what has really changed in ivt.S because of the
-change to macros and the addition of LONG_FORMAT_VHPT at the same time.
-Could you split the first patch in two?  One patch to add the macros
-and a second one to add LONG_FORMAT_VHPT would be much easier to
-understand.
-
-The macros use hardcoded work registers like r18, r19 and r21.  That is
-going to make it really awkward to maintain, I hate macros with hidden
-side effects.  Either pass the work registers to the macros or document
-what registers these macros clobber.
-
-arch/ia64/kernel/setup.c:+    extern int lvhpt_bits_clamp_setup(char *s);
-arch/ia64/kernel/setup.c:+    extern void __devinit ia64_tlb_early_init(void);
-arch/ia64/kernel/setup.c:+            extern void compute_vhpt_size(void);
-arch/ia64/kernel/smpboot.c:+extern unsigned int alloc_vhpt(int cpu);
-arch/ia64/mm/tlb.c:+          extern unsigned long vhpt_base[];
-
-Adding more extern to C files, yuck!  That's what headers are for.
-
-Could you explain how VHPT_PURGE works with LONG_FORMAT_VHPT=n?  I am
-puzzled why the patch has VHPT_PURGE not protected by #ifdef
-CONFIG_LONG_FORMAT_VHPT.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
