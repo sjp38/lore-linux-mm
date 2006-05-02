@@ -1,48 +1,38 @@
-Message-ID: <44574E49.3030600@yahoo.com.au>
-Date: Tue, 02 May 2006 22:19:21 +1000
+Message-ID: <44576BF5.8070903@yahoo.com.au>
+Date: Wed, 03 May 2006 00:25:57 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch 00/14] remap_file_pages protection support
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <4456D85E.6020403@yahoo.com.au> <20060502112409.GA28159@elte.hu>
-In-Reply-To: <20060502112409.GA28159@elte.hu>
+Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
+References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org>
+In-Reply-To: <44576688.6050607@mbligh.org>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: blaisorblade@yahoo.it, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-
-> originally i tested this feature with some minimal amount of RAM 
-> simulated by UML 128MB or so. That's just 32 thousand pages, but still 
-> the improvement was massive: context-switch times in UML were cut in 
-> half or more. Process-creation times improved 10-fold. With this feature 
-> included I accidentally (for the first time ever!) confused an UML shell 
-> prompt with a real shell prompt. (before that UML was so slow [even in 
-> "skas mode"] that you'd immediately notice it by the shell's behavior)
-
-Cool, thanks for the numbers.
-
+Martin J. Bligh wrote:
+>> Oh that's a 32bit kernel. I don't think the 32bit NUMA has ever worked
+>> anywhere but some Summit systems (at least every time I tried it it 
+>> blew up on me and nobody seems to use it regularly). Maybe it would be 
+>> finally time to mark it CONFIG_BROKEN though or just remove it (even 
+>> by design it doesn't work very well) 
 > 
-> the 'have 1 vma instead of 32,000 vmas' thing is a really, really big 
-> plus. It makes UML comparable to Xen, in rough terms of basic VM design.
 > 
-> Now imagine a somewhat larger setup - 16 GB RAM UML instance with 4 
-> million vmas per UML process ... Frankly, without 
-> sys_remap_file_pages_prot() the UML design is still somewhat of a toy.
+> Bollocks. It works fine, and is tested every single day, on every git
+> release, and every -mm tree.
 
-Yes, I guess I imagined the common case might have been slightly better,
-however with reasonable RAM utilisation, fragmentation means I wouldn't
-be surprised if it does easily get close to that worst theoretical case.
+Whatever the case, there definitely does not appear to be sufficient
+zone alignment enforced for the buddy allocator. I cannot see how it
+could work if zones are not aligned on 4MB boundaries.
 
-My request for numbers was more about the Intel/glibc people than Paolo:
-I do realise it is a problem for UML. I just like to see nice numbers :)
+Maybe some architectures / subarch code naturally does this for us,
+but Ingo is definitely hitting this bug because his config does not
+(align, that is).
 
-I think UML's really neat, so I'd love to see this get in. I don't see
-any fundamental sticking point, given a few iterations, and some more
-discussion.
+I've randomly added a couple more cc's.
 
 -- 
 SUSE Labs, Novell Inc.
