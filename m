@@ -1,46 +1,42 @@
-Date: Tue, 2 May 2006 13:24:09 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Message-ID: <20060502112409.GA28159@elte.hu>
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <4456D85E.6020403@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4456D85E.6020403@yahoo.com.au>
+Date: Tue, 02 May 2006 20:30:38 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [Patch 000/003] pgdat allocation and update for ia64 of memory hotplug.
+Message-Id: <20060502201614.CF14.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: blaisorblade@yahoo.it, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+Hello.
 
-> >Let's try get back to the good old days when people actually reported
-> >their bugs (togther will *real* numbers) to the mailing lists. That way,
-> >everybody gets to think about and discuss the problem.
-> 
-> Speaking of which, let's see some numbers for UML -- performance and 
-> memory. I don't doubt your claims, but I (and others) would be 
-> interested to see.
+These are parts of patches for new nodes addition v4.
+When new node is added, new pgdat must be allocated and initialized.
+But, ia64 has copies of node_data[] on each node. So, kernel has to
+allocate not only pgdat but also its copies area. and all of copies
+must be updated at hot-add. These are patches for it.
 
-firstly, thanks for the review feedback!
+This patch is for 2.6.17-rc3-mm1.
 
-originally i tested this feature with some minimal amount of RAM 
-simulated by UML 128MB or so. That's just 32 thousand pages, but still 
-the improvement was massive: context-switch times in UML were cut in 
-half or more. Process-creation times improved 10-fold. With this feature 
-included I accidentally (for the first time ever!) confused an UML shell 
-prompt with a real shell prompt. (before that UML was so slow [even in 
-"skas mode"] that you'd immediately notice it by the shell's behavior)
+Please apply.
 
-the 'have 1 vma instead of 32,000 vmas' thing is a really, really big 
-plus. It makes UML comparable to Xen, in rough terms of basic VM design.
+------------------------------------------------------------
 
-Now imagine a somewhat larger setup - 16 GB RAM UML instance with 4 
-million vmas per UML process ... Frankly, without 
-sys_remap_file_pages_prot() the UML design is still somewhat of a toy.
+Change log from v4 of node hot-add.
+  - update for 2.6.17-rc3-mm1.
 
-	Ingo
+V4 of post is here.
+<description>
+http://marc.theaimsgroup.com/?l=linux-mm&m=114258404023573&w=2
+<patches>
+http://marc.theaimsgroup.com/?l=linux-mm&w=2&r=1&s=memory+hotplug+node+v.4.&q=b
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
