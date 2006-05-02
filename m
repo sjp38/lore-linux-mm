@@ -1,33 +1,34 @@
-Message-Id: <4t153d$t4guc@azsmga001.ch.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [RFC 1/3] LVHPT - Fault handler modifications
-Date: Tue, 2 May 2006 10:40:37 -0700
+From: Ian Wienand <ianw@gelato.unsw.edu.au>
+Date: Wed, 3 May 2006 07:29:15 +1000
+Subject: Re: [RFC 2/3] LVHPT - Setup LVHPT
+Message-ID: <20060502212915.GA12900@cse.unsw.EDU.AU>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <20060502052551.8990.16410.sendpatchset@wagner.orchestra.cse.unsw.EDU.AU>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Ian Wienand' <ianw@gelato.unsw.edu.au>, linux-ia64@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ian Wienand wrote on Monday, May 01, 2006 10:26 PM
-> Firstly, we have stripped out common code in ivt.S into assembler
-> macros in ivt-macro.S.  The comments before the macros should explain
-> what each is doing.
+On Tue, May 02, 2006 at 08:03:16AM -0700, Luck, Tony wrote:
+> + 	help
+> + 	  The long format VHPT is an alternative hashed page table. Advantages
+> + 	  of the long format VHPT are lower memory usage when there are a large
+> + 	  number of processes in the system.
+> 
+> Is this really true?  Don't you still have all of the 3-level (or 4-level)
+> tree allocated to keep the machine independent code in mm/memory.c
+> happy in addition to the big block of memory that you are using on
+> each cpu for the LVHPT?  Where is the saving?
 
-I think at current state, it's way too early to extract out the common
-code into macros, because for long format vhpt, the low level handler is
-not even optimal.  And in the final form, it may not be the same as the
-short format vhpt (OK, the linux page table walk will be the same, but
-other part maybe not).
+Yes that does seem a bit miss-leading.  I guess the point was that
+with short format you dedicate the top areas of your region to page
+tables for each process, with long format it is static.
 
-I would like to experiment with a few algorithms for lvhpt and best thing
-to do in my opinion is to have parallel ivt.S (or ivt table to be precise).
-
-- Ken
+-i
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
