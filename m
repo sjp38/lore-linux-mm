@@ -1,43 +1,53 @@
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: [RFC 2/3] LVHPT - Setup LVHPT
-Date: Tue, 2 May 2006 08:03:16 -0700
-Message-ID: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com>
-From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [patch 00/14] remap_file_pages protection support
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <4456D5ED.2040202@yahoo.com.au>
+References: <20060430172953.409399000@zion.home.lan>
+	 <4456D5ED.2040202@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 02 May 2006 13:16:46 -0400
+Message-Id: <1146590207.5202.17.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ian Wienand <ianw@gelato.unsw.edu.au>, linux-ia64@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: blaisorblade@yahoo.it, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ian,
+On Tue, 2006-05-02 at 13:45 +1000, Nick Piggin wrote:
+> blaisorblade@yahoo.it wrote:
+> 
+> > The first idea is to use this for UML - it must create a lot of single page
+> > mappings, and managing them through separate VMAs is slow.
+> 
+> I don't know about this. The patches add some complexity, I guess because
+> we now have vmas which cannot communicate the protectedness of the pages.
+> Still, nobody was too concerned about nonlinear mappings doing the same
+> for addressing. But this does seem to add more overhead to the common cases
+> in the VM :(
+> 
+> Now I didn't follow the earlier discussions on this much, but let me try
+> making a few silly comments to get things going again (cc'ed linux-mm).
+> 
+> I think I would rather this all just folded under VM_NONLINEAR rather than
+> having this extra MANYPROTS thing, no? (you're already doing that in one
+> direction).
+<snip>
 
-Thanks for keeping this alive.  Previous measurements on long
-format VHPT were mostly close to neutral performance-wise with
-short format ... so this is still waiting for the killer-app in
-the form of another patch that actually uses features of the
-long format VHPT to do something that can't easily be done by
-the short format to give me an incentive to complicate the code
-by adding yet another CONFIG option.  In fact, I'd prefer to see
-a compelling use case for long format so that it would be clear
-that the right thing to do would be to just remove short format
-and replace it with long format, but I don't expect that things
-will ever be that simple :-(
+One way I've seen this done on other systems is to use something like a
+prio tree [e.g., see the shared policy support for shmem] for sub-vma
+protection ranges.  Most vmas [I'm guessing here] will have only the
+original protections or will be reprotected in toto.  So, one need only
+allocate/populate the protection tree when sub-vma protections are
+requested.   Then, one can test protections via the vma, perhaps with
+access/check macros to hide the existence of the protection tree.  Of
+course, adding a tree-like structure could introduce locking
+complications/overhead in some paths where we'd rather not [just
+guessing again].  Might be more overhead than just mucking with the ptes
+[for UML], but would keep the ptes in sync with the vma's view of
+"protectedness".
 
-+ 	help
-+ 	  The long format VHPT is an alternative hashed page table. Advantages
-+ 	  of the long format VHPT are lower memory usage when there are a large
-+ 	  number of processes in the system.
-
-Is this really true?  Don't you still have all of the 3-level (or 4-level)
-tree allocated to keep the machine independent code in mm/memory.c
-happy in addition to the big block of memory that you are using on
-each cpu for the LVHPT?  Where is the saving?
-
--Tony
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
