@@ -1,122 +1,43 @@
-Date: Tue, 02 May 2006 20:35:49 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [Patch 001/003] pgdat allocation and update for ia64 of memory hotplug.(hold pgdat address at system running)
-In-Reply-To: <20060502201614.CF14.Y-GOTO@jp.fujitsu.com>
-References: <20060502201614.CF14.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20060502203058.CF18.Y-GOTO@jp.fujitsu.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [RFC 2/3] LVHPT - Setup LVHPT
+Date: Tue, 2 May 2006 08:03:16 -0700
+Message-ID: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-mm <linux-mm@kvack.org>
+To: Ian Wienand <ianw@gelato.unsw.edu.au>, linux-ia64@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is preparing patch to make common code for updating of NODE_DATA()
-of ia64 between boottime and hotplug.
+Ian,
 
-Current code remembers pgdat address in mem_data which is used at just boot
-time. But its information can be used at hotplug time
-by moving to global value.
-The next patche use this array.
+Thanks for keeping this alive.  Previous measurements on long
+format VHPT were mostly close to neutral performance-wise with
+short format ... so this is still waiting for the killer-app in
+the form of another patch that actually uses features of the
+long format VHPT to do something that can't easily be done by
+the short format to give me an incentive to complicate the code
+by adding yet another CONFIG option.  In fact, I'd prefer to see
+a compelling use case for long format so that it would be clear
+that the right thing to do would be to just remove short format
+and replace it with long format, but I don't expect that things
+will ever be that simple :-(
 
++ 	help
++ 	  The long format VHPT is an alternative hashed page table. Advantages
++ 	  of the long format VHPT are lower memory usage when there are a large
++ 	  number of processes in the system.
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Is this really true?  Don't you still have all of the 3-level (or 4-level)
+tree allocated to keep the machine independent code in mm/memory.c
+happy in addition to the big block of memory that you are using on
+each cpu for the LVHPT?  Where is the saving?
 
- arch/ia64/mm/discontig.c |   19 ++++++++-----------
- 1 files changed, 8 insertions(+), 11 deletions(-)
-
-Index: pgdat11/arch/ia64/mm/discontig.c
-===================================================================
---- pgdat11.orig/arch/ia64/mm/discontig.c	2006-04-20 11:00:04.000000000 +0900
-+++ pgdat11/arch/ia64/mm/discontig.c	2006-04-20 11:00:46.000000000 +0900
-@@ -33,7 +33,6 @@
-  */
- struct early_node_data {
- 	struct ia64_node_data *node_data;
--	pg_data_t *pgdat;
- 	unsigned long pernode_addr;
- 	unsigned long pernode_size;
- 	struct bootmem_data bootmem_data;
-@@ -46,6 +45,8 @@ struct early_node_data {
- static struct early_node_data mem_data[MAX_NUMNODES] __initdata;
- static nodemask_t memory_less_mask __initdata;
- 
-+static pg_data_t *pgdat_list[MAX_NUMNODES];
-+
- /*
-  * To prevent cache aliasing effects, align per-node structures so that they
-  * start at addresses that are strided by node number.
-@@ -175,13 +176,13 @@ static void __init fill_pernode(int node
- 	pernode += PERCPU_PAGE_SIZE * cpus;
- 	pernode += node * L1_CACHE_BYTES;
- 
--	mem_data[node].pgdat = __va(pernode);
-+	pgdat_list[node] = __va(pernode);
- 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
- 
- 	mem_data[node].node_data = __va(pernode);
- 	pernode += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
- 
--	mem_data[node].pgdat->bdata = bdp;
-+	pgdat_list[node]->bdata = bdp;
- 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
- 
- 	cpu_data = per_cpu_node_setup(cpu_data, node);
-@@ -268,7 +269,7 @@ static int __init find_pernode_space(uns
- static int __init free_node_bootmem(unsigned long start, unsigned long len,
- 				    int node)
- {
--	free_bootmem_node(mem_data[node].pgdat, start, len);
-+	free_bootmem_node(pgdat_list[node], start, len);
- 
- 	return 0;
- }
-@@ -287,7 +288,7 @@ static void __init reserve_pernode_space
- 	int node;
- 
- 	for_each_online_node(node) {
--		pg_data_t *pdp = mem_data[node].pgdat;
-+		pg_data_t *pdp = pgdat_list[node];
- 
- 		if (node_isset(node, memory_less_mask))
- 			continue;
-@@ -317,12 +318,8 @@ static void __init reserve_pernode_space
-  */
- static void __init initialize_pernode_data(void)
- {
--	pg_data_t *pgdat_list[MAX_NUMNODES];
- 	int cpu, node;
- 
--	for_each_online_node(node)
--		pgdat_list[node] = mem_data[node].pgdat;
--
- 	/* Copy the pg_data_t list to each node and init the node field */
- 	for_each_online_node(node) {
- 		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
-@@ -372,7 +369,7 @@ static void __init *memory_less_node_all
- 	if (bestnode == -1)
- 		bestnode = anynode;
- 
--	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
-+	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
- 		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
- 
- 	return ptr;
-@@ -476,7 +473,7 @@ void __init find_memory(void)
- 		pernodesize = mem_data[node].pernode_size;
- 		map = pernode + pernodesize;
- 
--		init_bootmem_node(mem_data[node].pgdat,
-+		init_bootmem_node(pgdat_list[node],
- 				  map>>PAGE_SHIFT,
- 				  bdp->node_boot_start>>PAGE_SHIFT,
- 				  bdp->node_low_pfn);
-
--- 
-Yasunori Goto 
-
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
