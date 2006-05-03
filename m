@@ -1,76 +1,66 @@
 From: Blaisorblade <blaisorblade@yahoo.it>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Date: Wed, 3 May 2006 03:20:48 +0200
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <1146590207.5202.17.camel@localhost.localdomain>
-In-Reply-To: <1146590207.5202.17.camel@localhost.localdomain>
+Subject: Re: [patch 11/14] remap_file_pages protection support: pte_present should not trigger on PTE_FILE PROTNONE ptes
+Date: Wed, 3 May 2006 03:29:50 +0200
+References: <20060430172953.409399000@zion.home.lan> <20060430173025.752423000@zion.home.lan> <4456D7B8.2000004@yahoo.com.au>
+In-Reply-To: <4456D7B8.2000004@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200605030320.50055.blaisorblade@yahoo.it>
+Message-Id: <200605030329.51034.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>, Val Henson <val.henson@intel.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 02 May 2006 19:16, Lee Schermerhorn wrote:
-> On Tue, 2006-05-02 at 13:45 +1000, Nick Piggin wrote:
-> > blaisorblade@yahoo.it wrote:
+On Tuesday 02 May 2006 05:53, Nick Piggin wrote:
+> blaisorblade@yahoo.it wrote:
+> > From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+> >
+> > pte_present(pte) implies that pte_pfn(pte) is valid. Normally even with a
+> > _PAGE_PROTNONE pte this holds, but not when such a PTE is installed by
+> > the new install_file_pte; previously it didn't store protections, only
+> > file offsets, with the patches it also stores protections, and can set
+> > _PAGE_PROTNONE|_PAGE_FILE.
 
-> > I think I would rather this all just folded under VM_NONLINEAR rather
-> > than having this extra MANYPROTS thing, no? (you're already doing that in
-> > one direction).
+What could be done is to set a PTE with "no protection", use another bit 
+rather than _PAGE_PROTNONE. This wastes one more bit but doable.
 
-> One way I've seen this done on other systems
+> Why is this combination useful? Can't you just drop the _PAGE_FILE from
+> _PAGE_PROTNONE ptes?
 
-I'm curious, which ones?
+I must think on this, but the semantics are not entirely the same between the 
+two cases. You have no page attached when _PAGE_FILE is there, but a page is 
+attached to the PTE with only _PAGE_PROTNONE. Testing that via VM_MANYPROTS 
+is just as slow as-is (can be changed with code duplication for the linear 
+and non-linear cases).
 
-> is to use something like a 
-> prio tree [e.g., see the shared policy support for shmem] for sub-vma
-> protection ranges.
-Which sub-vma ranges? The ones created with mprotect?
+The application semantics can also be different when you remap as read/write 
+that page - the app could have stored an offset there (this is less definite 
+since you can't remap & keep the offset currently).
 
-I'm curious about what is the difference between this sub-tree and the main 
-tree... you have some point, but I miss which one :-) Actually when doing a 
-lookup in the main tree the extra nodes in the subtree are not searched, so 
-you get an advantage.
+Also, this wouldn't solve the problem, it would make the solution harder: how 
+do I know that there's no page to call page_remove_rmap() on, without 
+_PAGE_FILE?
 
-One possible point is that a VMA maps to one mmap() call (with splits from 
-mremap(),mprotect(),partial munmap()s), and then they use sub-VMAs instead of 
-VMA splits.
+I thought to change _PAGE_PROTNONE: it is used to hold a page present and 
+referenced but unaccessible. It seems it could be released when 
+_PAGE_PROTNONE is set, but for anonymous memory it's impossible. When I've 
+asked Hugh about this, he imagined the case when an application faults in a 
+page in a VMA then mprotects(PROT_NONE) it; the PTE is set as PROT_NONE. We 
+can avoid that in the VM_MAYSHARE case (VM_SHARED or PROT_SHARED was set but 
+the file is readonly), but not when anonymous memory is present - the 
+application could want it back.
 
-> Most vmas [I'm guessing here] will have only the 
-> original protections or will be reprotected in toto.
-
-> So, one need only 
-> allocate/populate the protection tree when sub-vma protections are
-> requested.   Then, one can test protections via the vma, perhaps with
-> access/check macros to hide the existence of the protection tree.  Of
-> course, adding a tree-like structure could introduce locking
-> complications/overhead in some paths where we'd rather not [just
-> guessing again].  Might be more overhead than just mucking with the ptes
-> [for UML], but would keep the ptes in sync with the vma's view of
-> "protectedness".
+> > To avoid additional overhead, I also considered adding likely() for
+> > _PAGE_PRESENT and unlikely() for the rest, but I'm uncertain about
+> > validity of possible [un]likely(pte_present()) occurrences.
 >
-> Lee
+> Not present pages are likely to be pretty common when unmapping.
 
-Ok, there are two different situations, I'm globally unconvinced until I 
-understand the usefulness of a different sub-tree.
-
-a) UML. The answer is _no_ to all guesses, since we must implement page tables 
-of a guest virtual machine via mmap() or remap_file_pages. And they're as 
-fragmented as they get (we get one-page-wide VMAs currently).
-
-b) the proposed glibc usage. The original Ulrich's request (which I cut down 
-because of problems with objrmap) was to have one mapping per DSO, including 
-code,data and guard page. So you have three protections in one VMA.
-
-However, this is doable via this remap_file_pages, adding something for 
-handling private VMAs (handling movement of the anonymous memory you get on 
-writes); but it's slow on swapout, since it stops using objrmap. So I've not 
-thought to do it.
+Ok, only unlikely for test on _PAGE_PROTNONE and ! _PAGE_FILE.
 -- 
 Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
 Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
