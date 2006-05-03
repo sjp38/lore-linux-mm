@@ -1,28 +1,33 @@
-From: Ian Wienand <ianw@gelato.unsw.edu.au>
-Date: Wed, 3 May 2006 17:49:03 +1000
-Subject: Re: [RFC 2/3] LVHPT - Setup LVHPT
-Message-ID: <20060503074903.GB4798@cse.unsw.EDU.AU>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com> <4t153d$t4bok@azsmga001.ch.intel.com>
+Message-ID: <445864C7.9050800@hob.de>
+Date: Wed, 03 May 2006 10:07:35 +0200
+From: Christian Hildner <christian.hildner@hob.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4t153d$t4bok@azsmga001.ch.intel.com>
+Subject: Re: [RFC 2/3] LVHPT - Setup LVHPT
+References: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com> <4t153d$t4bok@azsmga001.ch.intel.com> <20060503074903.GB4798@cse.unsw.EDU.AU>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: Ian Wienand <ianw@gelato.unsw.edu.au>
+Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 02, 2006 at 10:30:07AM -0700, Chen, Kenneth W wrote:
-> Boot time option to the rescue!  I have a patch that does just like that.
+Ian Wienand schrieb:
 
-Being relatively inexperienced, all this dynamic patching (SMP, page
-table, this) scares me in that what is executing diverges from what
-appears to be in source code, making difficult things even more
-difficult to debug.  Is there consensus that a long term goal should
-be that short and long formats should be dynamically selectable?
+>Being relatively inexperienced, all this dynamic patching (SMP, page
+>table, this) scares me in that what is executing diverges from what
+>appears to be in source code, making difficult things even more
+>difficult to debug.  Is there consensus that a long term goal should
+>be that short and long formats should be dynamically selectable?
+>
+Yes. So why not picking up Ken's idea of two parallel IVTs. Best 
+practice and probably the most readable solution might be the usage of 
+common macros for all the common entires (like EXTERNAL_INTERRUPT_CODE), 
+so that only the VHPT-specific entries would be coded directly in the 
+corrensponding ivt.S. Straightforward and without patching, code 
+generation, ...
 
--i
+Christian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
