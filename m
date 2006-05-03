@@ -1,49 +1,33 @@
-From: Andi Kleen <ak@suse.de>
+Date: Wed, 3 May 2006 19:00:25 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: RFC: RCU protected page table walking
-Date: Wed, 3 May 2006 18:46:51 +0200
-References: <4458CCDC.5060607@bull.net>
-In-Reply-To: <4458CCDC.5060607@bull.net>
+In-Reply-To: <200605031846.51657.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0605031847190.15463@blonde.wat.veritas.com>
+References: <4458CCDC.5060607@bull.net> <200605031846.51657.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200605031846.51657.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
-Cc: linux-mm@kvack.org, Zoltan.Menyhart@free.fr
+To: Andi Kleen <ak@suse.de>
+Cc: Zoltan Menyhart <Zoltan.Menyhart@bull.net>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Zoltan.Menyhart@free.fr
 List-ID: <linux-mm.kvack.org>
 
-s page table walking is not atomic, not even on an x86.
+On Wed, 3 May 2006, Andi Kleen wrote:
 > 
-> Let's consider the following scenario:
+> The page is not freed until all CPUs who had the mm mapped are flushed.
+> See mmu_gather in asm-generic/tlb.h
 > 
+> > Even if this security window is small, it does exist.
 > 
-> CPU #1:                      CPU #2:                 CPU #3
-> 
-> Starts walking
-> Got the ph. addr. of page Y
-> in internal reg. X
->                              free_pgtables():
->                              sets free page Y
+> It doesn't at least on architectures that use the generic tlbflush.h
 
-The page is not freed until all CPUs who had the mm mapped are flushed.
-See mmu_gather in asm-generic/tlb.h
+Those architectures (including i386 and x86_64) which #define their
+__pte_free_tlb etc. to tlb_remove_page are safe as is.  But Zoltan's
+ia64 #defines it to pte_free, which looks like it may free_page before
+the TLB flush.  But it is surprising if it has actually been unsafe
+there on ia64 - perhaps Christoph can explain how it is safe?
 
-
->                                                      Allocates page Y
-> Accesses page Y via reg. X
-> 
-> 
-> As CPU #1 is still keeping the same ph. address, it fetches an item
-> from a page that is no more its page.
-> 
-> Even if this security window is small, it does exist.
-
-It doesn't at least on architectures that use the generic tlbflush.h
-
--Andi
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
