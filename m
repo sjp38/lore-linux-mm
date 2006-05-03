@@ -1,33 +1,31 @@
-Message-ID: <445864C7.9050800@hob.de>
-Date: Wed, 03 May 2006 10:07:35 +0200
-From: Christian Hildner <christian.hildner@hob.de>
+Received: from ewiex01.ewi.utwente.nl (ewiex02.ewi.utwente.nl [130.89.10.121])
+	by denhaag.ewi.utwente.nl (8.13.6/8.13.6) with ESMTP id k43BiwHl001361
+	for <linux-mm@kvack.org>; Wed, 3 May 2006 13:44:58 +0200 (MEST)
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Subject: Re: [RFC 2/3] LVHPT - Setup LVHPT
-References: <B8E391BBE9FE384DAA4C5C003888BE6F066076B6@scsmsx401.amr.corp.intel.com> <4t153d$t4bok@azsmga001.ch.intel.com> <20060503074903.GB4798@cse.unsw.EDU.AU>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 8BIT
+Subject: Looking for pageTrace package
+Date: Wed, 3 May 2006 13:44:57 +0200
+Message-ID: <5DD2165A95E801438DAA9C1E0957EB5E0115C8D8@ewiex02.dynamic.ewi.utwente.nl>
+From: "Khatib, M.G. \(Mohammed\)" <M.G.Khatib@ewi.utwente.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ian Wienand <ianw@gelato.unsw.edu.au>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, "Luck, Tony" <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ian Wienand schrieb:
+Hi everybody,
 
->Being relatively inexperienced, all this dynamic patching (SMP, page
->table, this) scares me in that what is executing diverges from what
->appears to be in source code, making difficult things even more
->difficult to debug.  Is there consensus that a long term goal should
->be that short and long formats should be dynamically selectable?
->
-Yes. So why not picking up Ken's idea of two parallel IVTs. Best 
-practice and probably the most readable solution might be the usage of 
-common macros for all the common entires (like EXTERNAL_INTERRUPT_CODE), 
-so that only the VHPT-specific entries would be coded directly in the 
-corrensponding ivt.S. Straightforward and without patching, code 
-generation, ...
+I am looking for pageTrace package under this link
+http://hera.kernel.org/~marcelo/git/pagetrace/
 
-Christian
+I could not find the source code to compile. Can anybody tell me where I
+can find it? And what is the latest version?
+
+Thanks in advance!
+
+Ghiath
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
