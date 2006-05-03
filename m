@@ -1,75 +1,76 @@
 From: Blaisorblade <blaisorblade@yahoo.it>
 Subject: Re: [patch 00/14] remap_file_pages protection support
-Date: Wed, 3 May 2006 02:44:58 +0200
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au>
-In-Reply-To: <4456D5ED.2040202@yahoo.com.au>
+Date: Wed, 3 May 2006 03:20:48 +0200
+References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <1146590207.5202.17.camel@localhost.localdomain>
+In-Reply-To: <1146590207.5202.17.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200605030245.01457.blaisorblade@yahoo.it>
+Message-Id: <200605030320.50055.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>, Val Henson <val.henson@intel.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>, Val Henson <val.henson@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 02 May 2006 05:45, Nick Piggin wrote:
-> blaisorblade@yahoo.it wrote:
-> > The first idea is to use this for UML - it must create a lot of single
-> > page mappings, and managing them through separate VMAs is slow.
+On Tuesday 02 May 2006 19:16, Lee Schermerhorn wrote:
+> On Tue, 2006-05-02 at 13:45 +1000, Nick Piggin wrote:
+> > blaisorblade@yahoo.it wrote:
 
-> I think I would rather this all just folded under VM_NONLINEAR rather than
-> having this extra MANYPROTS thing, no? (you're already doing that in one
-> direction).
+> > I think I would rather this all just folded under VM_NONLINEAR rather
+> > than having this extra MANYPROTS thing, no? (you're already doing that in
+> > one direction).
 
-That step is _temporary_ if the extra usages are accepted.
+> One way I've seen this done on other systems
 
-Also, I reported (changelog of patch 03/14) a definite API bug you get if you 
-don't distinguish VM_MANYPROTS from VM_NONLINEAR. I'm pasting it here because 
-that changelog is rather long:
+I'm curious, which ones?
 
-"In fact, without this flag, we'd have indeed a regression with
-remap_file_pages VS mprotect, on uniform nonlinear VMAs.
+> is to use something like a 
+> prio tree [e.g., see the shared policy support for shmem] for sub-vma
+> protection ranges.
+Which sub-vma ranges? The ones created with mprotect?
 
-mprotect alters the VMA prots and walks each present PTE, ignoring installed
-ones, even when pte_file() is on; their saved prots will be restored on 
-faults,
-ignoring VMA ones and losing the mprotect() on them. So, in do_file_page(), we
-must restore anyway VMA prots when the VMA is uniform, as we used to do before
-this trail of patches."
+I'm curious about what is the difference between this sub-tree and the main 
+tree... you have some point, but I miss which one :-) Actually when doing a 
+lookup in the main tree the extra nodes in the subtree are not searched, so 
+you get an advantage.
 
-> > Additional note: this idea, with some further refinements (which I'll
-> > code after this chunk is accepted), will allow to reduce the number of
-> > used VMAs for most userspace programs - in particular, it will allow to
-> > avoid creating one VMA for one guard pages (which has PROT_NONE) -
-> > forcing PROT_NONE on that page will be enough.
+One possible point is that a VMA maps to one mmap() call (with splits from 
+mremap(),mprotect(),partial munmap()s), and then they use sub-VMAs instead of 
+VMA splits.
 
-> I think that's silly. Your VM_MANYPROTS|VM_NONLINEAR vmas will cause more
-> overhead in faulting and reclaim.
+> Most vmas [I'm guessing here] will have only the 
+> original protections or will be reprotected in toto.
 
-I know that problem. In fact for that we want VM_MANYPROTS without 
-VM_NONLINEAR.
+> So, one need only 
+> allocate/populate the protection tree when sub-vma protections are
+> requested.   Then, one can test protections via the vma, perhaps with
+> access/check macros to hide the existence of the protection tree.  Of
+> course, adding a tree-like structure could introduce locking
+> complications/overhead in some paths where we'd rather not [just
+> guessing again].  Might be more overhead than just mucking with the ptes
+> [for UML], but would keep the ptes in sync with the vma's view of
+> "protectedness".
+>
+> Lee
 
-> It loooks like it would take an hour or two just to code up a patch which
-> puts a VM_GUARDPAGES flag into the vma, and tells the free area allocator
-> to skip vm_start-1 .. vm_end+1
-we must refine which pages to skip (the example I saw has only one guard page, 
-if I'm not mistaken) but 
-> . What kind of troubles has prevented 
-> something simple and easy like that from going in?
+Ok, there are two different situations, I'm globally unconvinced until I 
+understand the usefulness of a different sub-tree.
 
-Fairly better idea... It's just the fact that the original proposal was wider, 
-and that we looked to the problem in the wrong way (+ we wanted anyway to 
-have the present work merged, so that wasn't a problem).
+a) UML. The answer is _no_ to all guesses, since we must implement page tables 
+of a guest virtual machine via mmap() or remap_file_pages. And they're as 
+fragmented as they get (we get one-page-wide VMAs currently).
 
-Ulrich wanted to have code+data(+guard on 64-bit) into the same VMA, but I 
-left the code+data VMA joining away, to think more with it, since currently 
-it's too slow on swapout.
+b) the proposed glibc usage. The original Ulrich's request (which I cut down 
+because of problems with objrmap) was to have one mapping per DSO, including 
+code,data and guard page. So you have three protections in one VMA.
 
-The other part is avoiding guard VMAs for thread stacks, and that could be 
-accomplished too by your proposal. Iff this work is held out, however.
+However, this is doable via this remap_file_pages, adding something for 
+handling private VMAs (handling movement of the anonymous memory you get on 
+writes); but it's slow on swapout, since it stops using objrmap. So I've not 
+thought to do it.
 -- 
 Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
 Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
