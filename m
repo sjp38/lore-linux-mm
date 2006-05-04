@@ -1,46 +1,43 @@
-Date: Thu, 4 May 2006 05:28:56 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: RE: RFC: RCU protected page table walking
-In-Reply-To: <4t16i2$tp1jo@orsmga001.jf.intel.com>
-Message-ID: <Pine.LNX.4.64.0605040501510.29813@blonde.wat.veritas.com>
-References: <4t16i2$tp1jo@orsmga001.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 4 May 2006 10:37:08 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
+Message-ID: <20060504083708.GA30853@elte.hu>
+References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060504013239.GG19859@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Christoph Lameter' <clameter@sgi.com>, Andi Kleen <ak@suse.de>, Zoltan Menyhart <Zoltan.Menyhart@bull.net>, linux-mm@kvack.org, Zoltan.Menyhart@free.fr, linux-i64@vger.kernel.org
+To: Bob Picco <bob.picco@hp.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 May 2006, Chen, Kenneth W wrote:
-> > On Wed, 3 May 2006, Hugh Dickins wrote:
-> > > Those architectures (including i386 and x86_64) which #define their
-> > > __pte_free_tlb etc. to tlb_remove_page are safe as is.  But Zoltan's
-> > > ia64 #defines it to pte_free, which looks like it may free_page before
-> > > the TLB flush.  But it is surprising if it has actually been unsafe
-> 
-> A while back ia64 reinstated per-cpu pgtable quicklist,
-> which bypasses tlb_gather/tlb_finish_mmu for page table pages.
+* Bob Picco <bob.picco@hp.com> wrote:
 
-Right you are, it was using tlb_remove_page until 2.6.12.  Forgive me,
-but that makes me a little more suspicious of whether it is now safe.
+> The patch below isn't compile tested or correct for those cases where 
+> alloc_remap is called or where arch code has allocated node_mem_map 
+> for CONFIG_FLAT_NODE_MEM_MAP. It's just conveying what I believe the 
+> issue is.
 
-> It should be safe AFAICT because TLB for user address and
-> vhpt are already flushed by the time pte_free_tlb() is called.
+thx. One pair of parentheses were missing i think - see the delta fix 
+below. I'll try it.
 
-I'm ia64-challenged, so VHPT is no more than a name to me; but I can
-easily believe that on ia64, once the pte has been cleared and the
-user address flushed from the TLB, then the page tables can be freed
-without waiting on further flushing.
+	Ingo
 
-However, are you sure that the TLB for user address has already been
-flushed at that point?  There is not necessarily any tlb_finish_mmu
-call in between the last tlb_remove_page of unmap_vmas and the first
-pte_free_tlb of free_pgtables.
-
-Hugh
-
-Hugh
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c
++++ linux/mm/page_alloc.c
+@@ -2296,7 +2296,7 @@ static void __init alloc_node_mem_map(st
+ 		 */
+ 		start = pgdat->node_start_pfn & ~((1 << (MAX_ORDER - 1)) - 1);
+ 		end = start + pgdat->node_spanned_pages;
+-		end = (end + ((1 << (MAX_ORDER - 1)) - 1) &
++		end = (end + ((1 << (MAX_ORDER - 1)) - 1)) &
+ 			~((1 << (MAX_ORDER - 1)) - 1);
+ 		size =  (end - start) * sizeof(struct page);
+ 		map = alloc_remap(pgdat->node_id, size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
