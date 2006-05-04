@@ -1,150 +1,79 @@
-Date: Thu, 4 May 2006 16:27:42 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: RFC: RCU protected page table walking
-In-Reply-To: <445A0784.2090803@bull.net>
-Message-ID: <Pine.LNX.4.64.0605041611340.13830@blonde.wat.veritas.com>
-References: <4458CCDC.5060607@bull.net> <200605041131.46254.ak@suse.de>
- <4459E663.10008@bull.net> <200605041400.34851.ak@suse.de> <445A0784.2090803@bull.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: "Bob Picco" <bob.picco@hp.com>
+Date: Thu, 4 May 2006 11:46:52 -0400
+Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
+Message-ID: <20060504154652.GA4530@localhost>
+References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <1146756066.22503.17.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1146756066.22503.17.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
-Cc: Andi Kleen <ak@suse.de>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, Christoph Lameter <clameter@sgi.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Zoltan.Menyhart@free.fr
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Bob Picco <bob.picco@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 May 2006, Zoltan Menyhart wrote:
-> Andi Kleen wrote:
+Dave Hansen wrote:	[Thu May 04 2006, 11:21:06AM EDT]
+> I haven't thought through it completely, but these two lines worry me:
 > 
-> > > >We don't free the pages until the other CPUs have been flushed
-> > > >synchronously.
-> > >
-> > >Do you mean the TLB entries mapping the leaf pages?
-> > >If yes, then I agree with you about them.
-> > >Yet I speak about the directory pages. Let's take an example:
-> > 
-> > x86 uses this for the directory pages too (well for PMD/PUD - PGD never
-> > goes away until final exit).
+> > + start = pgdat->node_start_pfn & ~((1 << (MAX_ORDER - 1)) - 1);
+> > + end = start + pgdat->node_spanned_pages;
 > 
-> The i386 branch:
+> Should the "end" be based off of the original "start", or the aligned
+> "start"?
+Yes. I failed to quilt refresh before sending. You mean end should be
+end = pgdat->node_start_pfn + pgdat->node_spanned_pages before rounding
+up.
 > 
-> tlb_remove_page():
->    // assuming !tlb_fast_mode(tlb)
->    tlb_flush_mmu():
->        tlb_flush():
->            flush_tlb_mm():
->                __flush_tlb();
->    free_pages_and_swap_cache();
+> (using decimal math to make it easy) ... 
 > 
-> __flush_tlb():
-> 	"movl %%cr3, %0;
-> 	"movl %0, %%cr3;  # flush TLB
+> Let's say that MAX_ORDER comes out to be 10 pages.  node_start_pfn is 9,
+> and the node's end pfn is 21.  node_spanned_pages will be 12.  "start"
+> will get rounded down to 0.  "end" will be "start" (0) +
+> node_spanned_pages (12), so 12.  "end" then gets rounded up to 20.
+> However, this is not sufficient space for the mem_map as the node
+> *actually* ended at 21.
 > 
-> Do I understand correctly that it purges the local TLBs only?
-
-__flush_tlb() purges the local TLBs only; but when you found the i386
-or x86_64 flush_tlb_mm() calling __flush_tlb() above, you were looking
-at the #ifndef CONFIG_SMP block of include/asm/tlbflush.h.  Go over to
-arch/{i386,x86_64}/kernel/smp.c to see what CONFIG_SMP flush_tlb_mm does.
-
-> > Actually x86-64 didn't
-> > fully at some point and it resulted in a nasty to track down bug.
-> > But it was fixed then. I really went all over this with a very fine
-> > comb back then and I'm pretty sure it's correct now :)
+> I think that "end" needs to be calculated without rounding down the
+> start_pfn, or the node_spanned_pages number needs to be rounded up in
+> the same way that "end" is.
 > 
-> Can you please indicate how the page table walking of the other
-> CPUs is "aborted"?
-
-I cannot answer for other architectures: you need to ask the specialist
-list of each architecture for its answer (or hope that a specialist in
-each is already reading this thread on linux-mm).  What's certain is
-that the issue is _supposed_ to be already covered safely on all arches,
-hence the care which has gone into include/asm-generic/tlb.h etc.  But
-you may be right that some architectures get it wrong, I cannot tell.
-
-I've CC'ed Ken Chen and linux-ia64 (as Christoph intended to), since
-that's your first concern; but I'm reluctant to CC lots of different
-architecture lists together myself.
-
-Hugh
-
-> > > >After the flush the other CPUs don't walk pages anymore.
+> Does that sound right? 
+Yes.
 > 
-> Can you please point me where it is documented that the HW walkers
-> abort on a TLB flush / purge?
+> Also, it might look nicer if there was an intermediate variable
+> something like this:
 > 
-> Yet I did verify that it is not (always) the case for the RISC-s.
+> 	#define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
+Yes.
 > 
-> E.g. arch/ia64/kernel/ivt.S:
+> Take a look at the loop below, I've also used ALIGN() from kernel.h for
+> the "end" alignment.  I think it is just a drop-in replacement.  
 > 
-> ENTRY(vhpt_miss)
-> ...
-> 	// r17 = pmd_offset(pud, addr)
-> // -->
-> (p7)    ld8 r20=[r17]	// get *pmd (may be 0)
+>         /* ia64 gets its own node_mem_map, before this, without bootmem */
+>         if (!pgdat->node_mem_map) {
+>                unsigned long size, start, end;
+>                struct page *map;
 > 
-> Assume we have reached the point indicated by "// -->":
-> we have got a valid address for the next level.
-> Assume "free_pgtables()" sets free these PMD / PTE pages.
-> The eventual TLB flushes do not do anything to the "ld8"
-> going to be executed.
+>                /*
+>                 * The zone's endpoints aren't required to be MAX_ORDER
+>                 * aligned but the node_mem_map endpoints must be in order
+>                 * for the buddy allocator to function correctly.
+>                 */
+>                start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+		 end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+>                end = start + pgdat->node_spanned_pages;
+>                end = ALIGN(end, MAX_ORDER_NR_PAGES);
+>                size =  (end - start) * sizeof(struct page);
+>                map = alloc_remap(pgdat->node_id, size);
+>                if (!map)
+>                        map = alloc_bootmem_node(pgdat, size);
+>                pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
+>        }
 > 
-> Can you explain please why you think that walking the
+> -- Dave
+bob
 > 
-> 	rx = ... -> pgd[i] -> pud[j] -> pmd[k] -> pte[l]
-> 
-> chain is safe in this condition, too?
-> 
-> Another example in arch/ppc/kernel/head_44x.S:
-> 
-> 	/* Data TLB Error Interrupt */
-> 	START_EXCEPTION(DataTLBError)
-> ...
-> 	// r11 -> PGD or PTE page, r12 = index * sizeof(void *)
-> // -->
-> 	lwzx    r11, r12, r11           /* Get pgd/pmd entry */
-> 
-> > >Can you explain please why they do not?
-> > 
-> > Because the PGD/PMD/PUD has been rewritten and they won't be able
-> > to find the old pages anymore.
-> 
-> As in the two examples above, the walkers have already picked up
-> references to the next levels, and these references were valid
-> at that moment.
-> 
-> > They also don't have it in their
-> > TLBs because that has been flushed.
-> 
-> Are you sure this is true for the RISC-s, too?
-> Even if an architecture does not play with TLB-s before really
-> finding a valid PTE?
-> 
-> > >There is a possibility that walking has already been started, but it has
-> > >not been completed yet, when "free_pgtables()" runs.
-> > 
-> > Yes, that is why we delay the freeing of the pages to prevent anything
-> > going wrong.
-> 
-> Can you explain please why the already-started walks, which do not
-> care for the TLB flushes, can be safe?
-> 
-> > What do you mean with "physical mode"?
-> 
-> Not using any TLB entry (or any HW supported address translation stuff)
-> to translate the data addresses before they go out of the CPU.
-> 
-> > >is insensitive to any TLB purges, therefore these purges do not make sure
-> > >that there is no other CPU just
-> > >in the middle of page table walking.
-> 
-> > A TLB Flush stops all MMU activity - or rather waits for it to finish.
-> 
-> This is what I am trying to say: not on all archtectures.
-> 
-> Thanks,
-> 
-> Zoltan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
