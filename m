@@ -1,84 +1,118 @@
-Message-ID: <4459BD39.3080006@shadowen.org>
-Date: Thu, 04 May 2006 09:37:13 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
+Date: Thu, 4 May 2006 11:14:22 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
-References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost>
-In-Reply-To: <20060504013239.GG19859@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20060504091422.GA2346@elte.hu>
+References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <20060504083708.GA30853@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060504083708.GA30853@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Bob Picco <bob.picco@hp.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Bob Picco wrote:
-> Nick Piggin wrote:	[Tue May 02 2006, 10:25:57AM EDT]
-> 
->>Martin J. Bligh wrote:
->>
->>>>Oh that's a 32bit kernel. I don't think the 32bit NUMA has ever worked
->>>>anywhere but some Summit systems (at least every time I tried it it 
->>>>blew up on me and nobody seems to use it regularly). Maybe it would be 
->>>>finally time to mark it CONFIG_BROKEN though or just remove it (even 
->>>>by design it doesn't work very well) 
->>>
->>>
->>>Bollocks. It works fine, and is tested every single day, on every git
->>>release, and every -mm tree.
->>
->>Whatever the case, there definitely does not appear to be sufficient
->>zone alignment enforced for the buddy allocator. I cannot see how it
->>could work if zones are not aligned on 4MB boundaries.
->>
->>Maybe some architectures / subarch code naturally does this for us,
->>but Ingo is definitely hitting this bug because his config does not
->>(align, that is).
->>
->>I've randomly added a couple more cc's.
->>
-> 
-> The patch below isn't compile tested or correct for those cases where
-> alloc_remap is called or where arch code has allocated node_mem_map for
-> CONFIG_FLAT_NODE_MEM_MAP. It's just conveying what I believe the issue is.
-> 
-> Andy added code to buddy allocator which doesn't require the zone's endpoints
-> to be aligned to MAX_ORDER. I think the issue is that the buddy
-> allocator requires the node_mem_map's endpoints to be MAX_ORDER aligned. 
-> Otherwise __page_find_buddy could compute a buddy not in node_mem_map
-> for partial MAX_ORDER regions at zone's endpoints. page_is_buddy will
-> detect that these pages at endpoints aren't PG_buddy (they were zeroed
-> out by bootmem allocator and not part of zone).  Of course the negative
-> here is we could waste a little memory but the positive is eliminating
-> all the old checks for zone boundary conditions.
+* Ingo Molnar <mingo@elte.hu> wrote:
 
-Yes this is correct.  The buddy location algorithm uses the relative pfn
-number to locate the buddy.  Both the old anew new free detect
-algorithms require a struct page exist for that buddy regardless of
-whether the page exists in memory.  Thus the node_mem_map needs to exist
-out to a MAX_ORDER boundry in both directions.  With real machines we
-would likely get this as memory is mostly in larger chunks than
-MAX_ORDER and generally maximally aligned.  From what I can see we could
-potentially not be allocating the end correctly but the rmap allocation
-would likely be larger than the request so we'd get away with it.
-
+> > The patch below isn't compile tested or correct for those cases where 
+> > alloc_remap is called or where arch code has allocated node_mem_map 
+> > for CONFIG_FLAT_NODE_MEM_MAP. It's just conveying what I believe the 
+> > issue is.
 > 
-> SPARSEMEM won't encounter this issue because of MAX_ORDER size
-> constraint when SPARSEMEM is configured. ia64 VIRTUAL_MEM_MAP doesn't
-> need the logic either because the holes and endpoints are handled
-> differently.  This leaves checking alloc_remap and other arches which
-> privately allocate for node_mem_map.
-> 
-> Any how I could be totally wrong but like I said this requires more
-> thought.
+> thx. One pair of parentheses were missing i think - see the delta fix 
+> below. I'll try it.
 
-I'll have a go at testing this to see what difference it makes.  I think
-there might be a problem with the buddy merging at zone boundries as we
-are anyhow (or the code commentry is incomplete), so am going to have a
-look at that at the same time.
+the same easy crash still happens if i enable CONFIG_NUMA:
 
--apw
+ zone c214e600 (HighMem):
+ pfn: 00037d00
+ zone->zone_start_pfn: 00037e00
+ zone->spanned_pages: 00007e00
+ zone->zone_start_pfn + zone->spanned_pages: 0003fc00
+
+ [<c010574a>] do_invalid_op+0x63/0x93
+ [<c0104a0b>] error_code+0x4f/0x54
+ [<c0164d48>] get_page_from_freelist+0x13e/0x565
+ [<c01651dd>] __alloc_pages+0x6e/0x325
+ [<c017a6c9>] alloc_page_vma+0x80/0x86
+ [<c016e2ae>] __handle_mm_fault+0x1e7/0xd00
+ [<c10fe9af>] do_page_fault+0x339/0x7c5
+ [<c0104a0b>] error_code+0x4f/0x54
+
+see the debug patch below.
+
+	Ingo
+
+----
+From: Ingo Molnar <mingo@elte.hu>
+
+do buddy zone size checks unconditionally.
+
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+
+----
+
+ mm/page_alloc.c |   31 ++++++++++++++++++++++++-------
+ 1 files changed, 24 insertions(+), 7 deletions(-)
+
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c
++++ linux/mm/page_alloc.c
+@@ -101,17 +101,32 @@ static int page_outside_zone_boundaries(
+ 			ret = 1;
+ 	} while (zone_span_seqretry(zone, seq));
+ 
++#define P(x) printk("%s: %08lx\n", #x, x)
++
++	if (ret) {
++		printk("zone %p (%s):\n", zone, zone->name);
++		P(pfn);
++		P(zone->zone_start_pfn);
++		P(zone->spanned_pages);
++		P(zone->zone_start_pfn + zone->spanned_pages);
++	}
++
+ 	return ret;
+ }
+ 
+ static int page_is_consistent(struct zone *zone, struct page *page)
+ {
+-#ifdef CONFIG_HOLES_IN_ZONE
+-	if (!pfn_valid(page_to_pfn(page)))
++	if (!pfn_valid(page_to_pfn(page))) {
++		printk("BUG: pfn: %08lx, page: %p\n",
++			page_to_pfn(page), page);
++		dump_stack();
+ 		return 0;
+-#endif
+-	if (zone != page_zone(page))
++	}
++	if (zone != page_zone(page)) {
++		printk("zone: %p != %p == page_zone(%p)\n",
++			zone, page_zone(page), page);
+ 		return 0;
++	}
+ 
+ 	return 1;
+ }
+@@ -309,10 +324,12 @@ __find_combined_index(unsigned long page
+  */
+ static inline int page_is_buddy(struct page *page, int order)
+ {
+-#ifdef CONFIG_HOLES_IN_ZONE
+-	if (!pfn_valid(page_to_pfn(page)))
++	if (!pfn_valid(page_to_pfn(page))) {
++		printk("BUG: pfn: %08lx, page: %p, order: %d\n",
++			page_to_pfn(page), page, order);
++		dump_stack();
+ 		return 0;
+-#endif
++	}
+ 
+ 	if (PageBuddy(page) && page_order(page) == order) {
+ 		BUG_ON(page_count(page) != 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
