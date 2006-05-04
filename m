@@ -1,94 +1,44 @@
-Message-ID: <4459C708.4030109@bull.net>
-Date: Thu, 04 May 2006 11:19:04 +0200
-From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
-MIME-Version: 1.0
-Subject: Re: RFC: RCU protected page table walking
-References: <4458CCDC.5060607@bull.net> <200605031846.51657.ak@suse.de>
-In-Reply-To: <200605031846.51657.ak@suse.de>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Thu, 4 May 2006 11:26:16 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
+Message-ID: <20060504092616.GA5831@elte.hu>
+References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <20060504083708.GA30853@elte.hu> <20060504091422.GA2346@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060504091422.GA2346@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-mm@kvack.org, Zoltan.Menyhart@free.fr
+To: Bob Picco <bob.picco@hp.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> s page table walking is not atomic, not even on an x86.
-> 
->>Let's consider the following scenario:
->>
->>
->>CPU #1:                      CPU #2:                 CPU #3
->>
->>Starts walking
->>Got the ph. addr. of page Y
->>in internal reg. X
->>                             free_pgtables():
->>                             sets free page Y
-> 
-> 
-> The page is not freed until all CPUs who had the mm mapped are flushed.
-> See mmu_gather in asm-generic/tlb.h
+* Ingo Molnar <mingo@elte.hu> wrote:
 
-Page table walking is in ph. mode, e.g. a PGD access is not sensitive to
-a TLB purge.
+> the same easy crash still happens if i enable CONFIG_NUMA:
 
-Here is the (simplified) IA64 implementation:
+btw., with CONFIG_NUMA off i get this warning during bootup:
 
-        free_pgtables(&tlb,...):
-            free_pgd_range(tlb,...):
-                free_pud_range(*tlb,...):
-                    free_pmd_range(tlb,...):
-                        free_pte_range(tlb,...):
-                            pmd_clear(pmd);
-                            pte_free_tlb(tlb, page):
-                                __pte_free_tlb(tlb, ptep):
-/* --> */                           pte_free(pte);
-                        pud_clear(pud);
-                        pmd_free_tlb(tlb, pmd):
-/* --> */                   pmd_free(pmd);
-                    pgd_clear(pgd);
-                    pud_free_tlb(tlb, pud):
-                        __pud_free_tlb(tlb, pudp):
-/* --> */                   pud_free(pud);
-                flush_tlb_pgtables((*tlb)->mm,...);
+BUG: pfn: 0003fff0, page: c404d840, order: 4
+ [<c0104e7f>] show_trace+0xd/0xf
+ [<c0104e96>] dump_stack+0x15/0x17
+ [<c0163312>] free_pages_bulk+0x207/0x370
+ [<c01642f9>] free_hot_cold_page+0x127/0x17c
+ [<c016438d>] free_hot_page+0xa/0xc
+ [<c01643e5>] __free_pages+0x56/0x6f
+ [<c0172e14>] __vunmap+0xc1/0xed
+ [<c0172f02>] vfree+0x3b/0x3e
+ [<c0128865>] build_sched_domains+0xaf2/0xcde
+ [<c0128a6a>] arch_init_sched_domains+0x19/0x1b
+ [<c1bd3a67>] sched_init_smp+0x18/0x349
+ [<c01003c6>] init+0xb9/0x2cb
+ [<c0102005>] kernel_thread_helper+0x5/0xb
 
-Or if you like, from asm-generic/tlb.h:
+but this is nonfatal and the system is robust afterwards. (this warning 
+is not present if CONFIG_NUMA is on) [Btw., in the NUMA test i also had 
+CONFIG_MIGRATION enabled.]
 
-	tlb_remove_page(tlb, page):
-	    if (tlb_fast_mode(tlb)) {
-	        free_page_and_swap_cache(page);
-	        return;
-	    }
-	    tlb->pages[tlb->nr++] = page;
-	    if (tlb->nr >= FREE_PTE_NR)
-	        tlb_flush_mmu(tlb, 0, 0):
-
-	            free_pages_and_swap_cache(tlb->pages, tlb->nr);
-
-As you can see, we do not care for the the eventual page table walkers.
-
->>As CPU #1 is still keeping the same ph. address, it fetches an item
->>from a page that is no more its page.
->>
->>Even if this security window is small, it does exist.
-> 
-> 
-> It doesn't at least on architectures that use the generic tlbflush.h
-
-As I showed above, the generic code is unaware of the other CPU's activity.
-
-The problem is:
-there is no requirement when we can release a directory page.
-
-What I propose is a way to make sure that the page table walkers will be
-able to finish their walks in safety; we release a directory page when
-no more walker can reference the page.
-
-Thanks,
-
-Zoltan
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
