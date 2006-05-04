@@ -1,118 +1,94 @@
-Date: Thu, 4 May 2006 11:14:22 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
-Message-ID: <20060504091422.GA2346@elte.hu>
-References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <20060504083708.GA30853@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060504083708.GA30853@elte.hu>
+Message-ID: <4459C708.4030109@bull.net>
+Date: Thu, 04 May 2006 11:19:04 +0200
+From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
+MIME-Version: 1.0
+Subject: Re: RFC: RCU protected page table walking
+References: <4458CCDC.5060607@bull.net> <200605031846.51657.ak@suse.de>
+In-Reply-To: <200605031846.51657.ak@suse.de>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bob Picco <bob.picco@hp.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm@kvack.org, Zoltan.Menyhart@free.fr
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
-
-> > The patch below isn't compile tested or correct for those cases where 
-> > alloc_remap is called or where arch code has allocated node_mem_map 
-> > for CONFIG_FLAT_NODE_MEM_MAP. It's just conveying what I believe the 
-> > issue is.
+Andi Kleen wrote:
+> s page table walking is not atomic, not even on an x86.
 > 
-> thx. One pair of parentheses were missing i think - see the delta fix 
-> below. I'll try it.
+>>Let's consider the following scenario:
+>>
+>>
+>>CPU #1:                      CPU #2:                 CPU #3
+>>
+>>Starts walking
+>>Got the ph. addr. of page Y
+>>in internal reg. X
+>>                             free_pgtables():
+>>                             sets free page Y
+> 
+> 
+> The page is not freed until all CPUs who had the mm mapped are flushed.
+> See mmu_gather in asm-generic/tlb.h
 
-the same easy crash still happens if i enable CONFIG_NUMA:
+Page table walking is in ph. mode, e.g. a PGD access is not sensitive to
+a TLB purge.
 
- zone c214e600 (HighMem):
- pfn: 00037d00
- zone->zone_start_pfn: 00037e00
- zone->spanned_pages: 00007e00
- zone->zone_start_pfn + zone->spanned_pages: 0003fc00
+Here is the (simplified) IA64 implementation:
 
- [<c010574a>] do_invalid_op+0x63/0x93
- [<c0104a0b>] error_code+0x4f/0x54
- [<c0164d48>] get_page_from_freelist+0x13e/0x565
- [<c01651dd>] __alloc_pages+0x6e/0x325
- [<c017a6c9>] alloc_page_vma+0x80/0x86
- [<c016e2ae>] __handle_mm_fault+0x1e7/0xd00
- [<c10fe9af>] do_page_fault+0x339/0x7c5
- [<c0104a0b>] error_code+0x4f/0x54
+        free_pgtables(&tlb,...):
+            free_pgd_range(tlb,...):
+                free_pud_range(*tlb,...):
+                    free_pmd_range(tlb,...):
+                        free_pte_range(tlb,...):
+                            pmd_clear(pmd);
+                            pte_free_tlb(tlb, page):
+                                __pte_free_tlb(tlb, ptep):
+/* --> */                           pte_free(pte);
+                        pud_clear(pud);
+                        pmd_free_tlb(tlb, pmd):
+/* --> */                   pmd_free(pmd);
+                    pgd_clear(pgd);
+                    pud_free_tlb(tlb, pud):
+                        __pud_free_tlb(tlb, pudp):
+/* --> */                   pud_free(pud);
+                flush_tlb_pgtables((*tlb)->mm,...);
 
-see the debug patch below.
+Or if you like, from asm-generic/tlb.h:
 
-	Ingo
+	tlb_remove_page(tlb, page):
+	    if (tlb_fast_mode(tlb)) {
+	        free_page_and_swap_cache(page);
+	        return;
+	    }
+	    tlb->pages[tlb->nr++] = page;
+	    if (tlb->nr >= FREE_PTE_NR)
+	        tlb_flush_mmu(tlb, 0, 0):
 
-----
-From: Ingo Molnar <mingo@elte.hu>
+	            free_pages_and_swap_cache(tlb->pages, tlb->nr);
 
-do buddy zone size checks unconditionally.
+As you can see, we do not care for the the eventual page table walkers.
 
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
+>>As CPU #1 is still keeping the same ph. address, it fetches an item
+>>from a page that is no more its page.
+>>
+>>Even if this security window is small, it does exist.
+> 
+> 
+> It doesn't at least on architectures that use the generic tlbflush.h
 
-----
+As I showed above, the generic code is unaware of the other CPU's activity.
 
- mm/page_alloc.c |   31 ++++++++++++++++++++++++-------
- 1 files changed, 24 insertions(+), 7 deletions(-)
+The problem is:
+there is no requirement when we can release a directory page.
 
-Index: linux/mm/page_alloc.c
-===================================================================
---- linux.orig/mm/page_alloc.c
-+++ linux/mm/page_alloc.c
-@@ -101,17 +101,32 @@ static int page_outside_zone_boundaries(
- 			ret = 1;
- 	} while (zone_span_seqretry(zone, seq));
- 
-+#define P(x) printk("%s: %08lx\n", #x, x)
-+
-+	if (ret) {
-+		printk("zone %p (%s):\n", zone, zone->name);
-+		P(pfn);
-+		P(zone->zone_start_pfn);
-+		P(zone->spanned_pages);
-+		P(zone->zone_start_pfn + zone->spanned_pages);
-+	}
-+
- 	return ret;
- }
- 
- static int page_is_consistent(struct zone *zone, struct page *page)
- {
--#ifdef CONFIG_HOLES_IN_ZONE
--	if (!pfn_valid(page_to_pfn(page)))
-+	if (!pfn_valid(page_to_pfn(page))) {
-+		printk("BUG: pfn: %08lx, page: %p\n",
-+			page_to_pfn(page), page);
-+		dump_stack();
- 		return 0;
--#endif
--	if (zone != page_zone(page))
-+	}
-+	if (zone != page_zone(page)) {
-+		printk("zone: %p != %p == page_zone(%p)\n",
-+			zone, page_zone(page), page);
- 		return 0;
-+	}
- 
- 	return 1;
- }
-@@ -309,10 +324,12 @@ __find_combined_index(unsigned long page
-  */
- static inline int page_is_buddy(struct page *page, int order)
- {
--#ifdef CONFIG_HOLES_IN_ZONE
--	if (!pfn_valid(page_to_pfn(page)))
-+	if (!pfn_valid(page_to_pfn(page))) {
-+		printk("BUG: pfn: %08lx, page: %p, order: %d\n",
-+			page_to_pfn(page), page, order);
-+		dump_stack();
- 		return 0;
--#endif
-+	}
- 
- 	if (PageBuddy(page) && page_order(page) == order) {
- 		BUG_ON(page_count(page) != 0);
+What I propose is a way to make sure that the page table walkers will be
+able to finish their walks in safety; we release a directory page when
+no more walker can reference the page.
+
+Thanks,
+
+Zoltan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
