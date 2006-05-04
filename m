@@ -1,60 +1,73 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: RFC: RCU protected page table walking
-Date: Thu, 4 May 2006 11:31:45 +0200
-References: <4458CCDC.5060607@bull.net> <Pine.LNX.4.64.0605031847190.15463@blonde.wat.veritas.com> <4459C8D0.7090609@bull.net>
-In-Reply-To: <4459C8D0.7090609@bull.net>
+Message-ID: <4459E663.10008@bull.net>
+Date: Thu, 04 May 2006 13:32:51 +0200
+From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: RFC: RCU protected page table walking
+References: <4458CCDC.5060607@bull.net> <Pine.LNX.4.64.0605031847190.15463@blonde.wat.veritas.com> <4459C8D0.7090609@bull.net> <200605041131.46254.ak@suse.de>
+In-Reply-To: <200605041131.46254.ak@suse.de>
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200605041131.46254.ak@suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
+To: Andi Kleen <ak@suse.de>
 Cc: Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Zoltan.Menyhart@free.fr
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 04 May 2006 11:26, Zoltan Menyhart wrote:
-> Hugh Dickins wrote:
-> > On Wed, 3 May 2006, Andi Kleen wrote:
-> > 
-> >>The page is not freed until all CPUs who had the mm mapped are flushed.
-> >>See mmu_gather in asm-generic/tlb.h
-> >>
-> >>
-> >>>Even if this security window is small, it does exist.
-> >>
-> >>It doesn't at least on architectures that use the generic tlbflush.h
-> > 
-> > 
-> > Those architectures (including i386 and x86_64) which #define their
-> > __pte_free_tlb etc. to tlb_remove_page are safe as is.
-> 
-> I cannot agree with you. Here is the generic sequence:
-> 
->     tlb_remove_page(tlb, page):
->         if (tlb_fast_mode(tlb)) {
->             free_page_and_swap_cache(page);
->             return;
->         }
->         tlb->pages[tlb->nr++] = page;
->         if (tlb->nr >= FREE_PTE_NR)
->             tlb_flush_mmu(tlb, 0, 0):
-> 
->                 free_pages_and_swap_cache(tlb->pages, tlb->nr); 
-> 
-> We set free the PTE, PMD and PUD pages either immediately or when
-> tlb->pages[] is full.
-> 
-> What can make sure that there is no active page table walker on
-> another CPU?
+Andi Kleen wrote:
 
-We don't free the pages until the other CPUs have been flushed synchronously. 
-After the flush the other CPUs don't walk pages anymore. The whole thing is
-batched because the synchronous flush can be pretty expensive.
+> We don't free the pages until the other CPUs have been flushed synchronously.
 
--Andi
+Do you mean the TLB entries mapping the leaf pages?
+If yes, then I agree with you about them.
+Yet I speak about the directory pages. Let's take an example:
+
+Assume:
+- A process with 2 threads, bound to their respective CPUs
+- One of them mapped a file and
+  this mapping requires a new PMD and a new PTE page
+- They read in some data pages
+- Time goes by without ever touching any of these pages again
+- The swapped removes the data pages (data flush, TLB purge)
+- (on IA64: due to the TLB pressure, the TLB entry mapping the PTE page
+  gets killed)
+
+There is no valid TLB entry concerning this mapped zone any more => the TLB
+purges around "free_pgtables()" can be considered as NO-OP-s.
+(In addition, walking the page tables in physical mode is insensitive to any
+TLB purges.)
+
+CPU #1 faults on attempting to touch this mapped zone.
+CPU #1 starts to walk the page tables in physical mode.
+Assume it has got the address of the PMD page, it is about to fetch "pmd[j]".
+
+CPU #2 executes "free_pgtables()" in the mean time: it sets free the PTE and
+the PGD pages (without knowing that CPU #1 has already got a PMD pointer).
+
+Someone else allocates these two pages and fills them in with some data.
+
+CPU #1 now fetches "pmd[j]" from a page of someone else. Without noticing
+anything, CPU #1 uses the illegal value to continue to access the PTE page.
+
+> After the flush the other CPUs don't walk pages anymore.
+
+Can you explain please why they do not?
+There is a possibility that walking has already been started, but it has
+not been completed yet, when "free_pgtables()" runs.
+
+> The whole thing is
+> batched because the synchronous flush can be pretty expensive.
+
+Walking the page tables in physical mode is insensitive to any TLB purges,
+therefore these purges do not make sure that there is no other CPU just
+in the middle of page table walking.
+
+I do a similar batching of the pages to be set free.
+The RCU mechanism makes sure that these pages will not be freed before
+the already started page table walkers finish their job.
+
+Thanks,
+
+Zoltan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
