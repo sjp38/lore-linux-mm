@@ -1,44 +1,55 @@
-Date: Thu, 4 May 2006 11:26:16 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
-Message-ID: <20060504092616.GA5831@elte.hu>
-References: <20060419112130.GA22648@elte.hu> <p73aca07whs.fsf@bragg.suse.de> <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <20060504083708.GA30853@elte.hu> <20060504091422.GA2346@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060504091422.GA2346@elte.hu>
+Message-ID: <4459C8D0.7090609@bull.net>
+Date: Thu, 04 May 2006 11:26:40 +0200
+From: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
+MIME-Version: 1.0
+Subject: Re: RFC: RCU protected page table walking
+References: <4458CCDC.5060607@bull.net> <200605031846.51657.ak@suse.de> <Pine.LNX.4.64.0605031847190.15463@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0605031847190.15463@blonde.wat.veritas.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bob Picco <bob.picco@hp.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andi Kleen <ak@suse.de>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Zoltan.Menyhart@free.fr
 List-ID: <linux-mm.kvack.org>
 
-* Ingo Molnar <mingo@elte.hu> wrote:
+Hugh Dickins wrote:
+> On Wed, 3 May 2006, Andi Kleen wrote:
+> 
+>>The page is not freed until all CPUs who had the mm mapped are flushed.
+>>See mmu_gather in asm-generic/tlb.h
+>>
+>>
+>>>Even if this security window is small, it does exist.
+>>
+>>It doesn't at least on architectures that use the generic tlbflush.h
+> 
+> 
+> Those architectures (including i386 and x86_64) which #define their
+> __pte_free_tlb etc. to tlb_remove_page are safe as is.
 
-> the same easy crash still happens if i enable CONFIG_NUMA:
+I cannot agree with you. Here is the generic sequence:
 
-btw., with CONFIG_NUMA off i get this warning during bootup:
+    tlb_remove_page(tlb, page):
+        if (tlb_fast_mode(tlb)) {
+            free_page_and_swap_cache(page);
+            return;
+        }
+        tlb->pages[tlb->nr++] = page;
+        if (tlb->nr >= FREE_PTE_NR)
+            tlb_flush_mmu(tlb, 0, 0):
 
-BUG: pfn: 0003fff0, page: c404d840, order: 4
- [<c0104e7f>] show_trace+0xd/0xf
- [<c0104e96>] dump_stack+0x15/0x17
- [<c0163312>] free_pages_bulk+0x207/0x370
- [<c01642f9>] free_hot_cold_page+0x127/0x17c
- [<c016438d>] free_hot_page+0xa/0xc
- [<c01643e5>] __free_pages+0x56/0x6f
- [<c0172e14>] __vunmap+0xc1/0xed
- [<c0172f02>] vfree+0x3b/0x3e
- [<c0128865>] build_sched_domains+0xaf2/0xcde
- [<c0128a6a>] arch_init_sched_domains+0x19/0x1b
- [<c1bd3a67>] sched_init_smp+0x18/0x349
- [<c01003c6>] init+0xb9/0x2cb
- [<c0102005>] kernel_thread_helper+0x5/0xb
+                free_pages_and_swap_cache(tlb->pages, tlb->nr); 
 
-but this is nonfatal and the system is robust afterwards. (this warning 
-is not present if CONFIG_NUMA is on) [Btw., in the NUMA test i also had 
-CONFIG_MIGRATION enabled.]
+We set free the PTE, PMD and PUD pages either immediately or when
+tlb->pages[] is full.
 
-	Ingo
+What can make sure that there is no active page table walker on
+another CPU?
+
+Thanks,
+
+Zoltan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
