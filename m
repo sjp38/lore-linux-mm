@@ -1,50 +1,45 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060505173707.9030.3383.sendpatchset@skynet>
+Message-Id: <20060505173727.9030.40142.sendpatchset@skynet>
 In-Reply-To: <20060505173446.9030.42837.sendpatchset@skynet>
 References: <20060505173446.9030.42837.sendpatchset@skynet>
-Subject: [PATCH 7/8] Allow HugeTLB allocations to use ZONE_EASYRCLM
-Date: Fri,  5 May 2006 18:37:07 +0100 (IST)
+Subject: [PATCH 8/8] Add documentation for extra boot parameters
+Date: Fri,  5 May 2006 18:37:27 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On ppc64 at least, a HugeTLB is the same size as a memory section. Hence,
-it causes no fragmentation that is worth caring about because a section can
-still be offlined.
-
-Once HugeTLB is allowed to use ZONE_EASYRCLM, the size of the zone becomes a
-"soft" area where HugeTLB allocations may be satisified. For example, take
-a situation where a system administrator is not willing to reserve HugeTLB
-pages at boot time. In this case, he can use kernelcore to size the EasyRclm
-zone which is still usable by normal processes. If a job starts that need
-HugeTLB pages, one could dd a file the size of physical memory, delete it
-and have a good chance of getting a number of HugeTLB pages. To get all of
-EasyRclm as HugeTLB pages, the ability to drain per-cpu pages is required.
+Once all patches are applied, two new command-line parameters exist -
+kernelcore and noeasyrclm. This patch adds the necessary documentation.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-rc3-mm1-zonesizing-106_ia64coremem/mm/hugetlb.c linux-2.6.17-rc3-mm1-zonesizing-107_hugetlb_use_easyrclm/mm/hugetlb.c
---- linux-2.6.17-rc3-mm1-zonesizing-106_ia64coremem/mm/hugetlb.c	2006-05-03 09:41:33.000000000 +0100
-+++ linux-2.6.17-rc3-mm1-zonesizing-107_hugetlb_use_easyrclm/mm/hugetlb.c	2006-05-03 09:50:27.000000000 +0100
-@@ -73,7 +73,7 @@ static struct page *dequeue_huge_page(st
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-rc3-mm1-zonesizing-107_hugetlb_use_easyrclm/Documentation/kernel-parameters.txt linux-2.6.17-rc3-mm1-zonesizing-108_docs/Documentation/kernel-parameters.txt
+--- linux-2.6.17-rc3-mm1-zonesizing-107_hugetlb_use_easyrclm/Documentation/kernel-parameters.txt	2006-05-03 09:41:30.000000000 +0100
++++ linux-2.6.17-rc3-mm1-zonesizing-108_docs/Documentation/kernel-parameters.txt	2006-05-03 09:51:12.000000000 +0100
+@@ -724,6 +724,22 @@ running once the system is up.
+ 	js=		[HW,JOY] Analog joystick
+ 			See Documentation/input/joystick.txt.
  
- 	for (z = zonelist->zones; *z; z++) {
- 		nid = (*z)->zone_pgdat->node_id;
--		if (cpuset_zone_allowed(*z, GFP_HIGHUSER) &&
-+		if (cpuset_zone_allowed(*z, GFP_RCLMUSER) &&
- 		    !list_empty(&hugepage_freelists[nid]))
- 			break;
- 	}
-@@ -103,7 +103,7 @@ static int alloc_fresh_huge_page(void)
- {
- 	static int nid = 0;
- 	struct page *page;
--	page = alloc_pages_node(nid, GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN,
-+	page = alloc_pages_node(nid, GFP_RCLMUSER|__GFP_COMP|__GFP_NOWARN,
- 					HUGETLB_PAGE_ORDER);
- 	nid = next_node(nid, node_online_map);
- 	if (nid == MAX_NUMNODES)
++	kernelcore=nn[KMG]	[KNL,IA-32,IA-64,PPC,X86-64] This parameter
++			specifies the amount of memory usable by the kernel.
++			The requested amount is spread evenly throughout
++			all nodes in the system. The remaining memory
++			in each node is used for EasyRclm pages. In the
++			event, a node is too small to have both kernelcore
++			and EasyRclm pages, kernelcore pages will take
++			priority and other nodes will have a larger
++			number of kernelcore pages.  The EasyRclm zone
++			is used for the allocation of pages on behalf
++			of a process and for HugeTLB pages. On ppc64,
++			it is likely that memory sections on this zone
++			can be offlined. Note that allocations like
++			PTEs-from-HighMem still use the HighMem zone if
++			it exists, and the Normal zone if it does not.
++
+ 	keepinitrd	[HW,ARM]
+ 
+ 	kstack=N	[IA-32,X86-64] Print N words from the kernel stack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
