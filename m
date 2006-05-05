@@ -1,39 +1,165 @@
-Received: from blonde.wat.veritas.com([10.10.97.26]) (1456 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1FbzcV-0001s0C@megami.veritas.com>
-	for <linux-mm@kvack.org>; Fri, 5 May 2006 05:41:19 -0700 (PDT)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Fri, 5 May 2006 13:41:12 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Any reason for passing "tlb" to "free_pgtables()" by address?
-In-Reply-To: <445B2EBD.4020803@bull.net>
-Message-ID: <Pine.LNX.4.64.0605051337520.6945@blonde.wat.veritas.com>
-References: <445B2EBD.4020803@bull.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: "Bob Picco" <bob.picco@hp.com>
+Date: Fri, 5 May 2006 09:55:03 -0400
+Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
+Message-ID: <20060505135503.GA5708@localhost>
+References: <20060502070618.GA10749@elte.hu> <200605020905.29400.ak@suse.de> <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au> <20060504013239.GG19859@localhost> <1146756066.22503.17.camel@localhost.localdomain> <20060504154652.GA4530@localhost> <20060504192528.GA26759@elte.hu> <20060504194334.GH19859@localhost> <445A7725.8030401@shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <445A7725.8030401@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zoltan Menyhart <Zoltan.Menyhart@bull.net>
-Cc: linux-mm@kvack.org, Zoltan.Menyhart@free.fr
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Bob Picco <bob.picco@hp.com>, Ingo Molnar <mingo@elte.hu>, Dave Hansen <haveblue@us.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 May 2006, Zoltan Menyhart wrote:
-> Apparently, there is no reason for passing "tlb" to "free_pgtables()"
-> by address, because there is no need for re-scheduling inside this
-> function => no other "mmu_gather" can / will be used.
+Andy Wihitcroft wrote:	[Thu May 04 2006, 05:50:29PM EDT]
+> Bob Picco wrote:
+> > Ingo Molnar wrote:	[Thu May 04 2006, 03:25:28PM EDT]
+> > 
+> >>* Bob Picco <bob.picco@hp.com> wrote:
+> >>
+> >>
+> >>>Dave Hansen wrote:	[Thu May 04 2006, 11:21:06AM EDT]
+> >>>
+> >>>>I haven't thought through it completely, but these two lines worry me:
+> >>>>
+> >>>>
+> >>>>>+ start = pgdat->node_start_pfn & ~((1 << (MAX_ORDER - 1)) - 1);
+> >>>>>+ end = start + pgdat->node_spanned_pages;
+> >>>>
+> >>>>Should the "end" be based off of the original "start", or the aligned
+> >>>>"start"?
+> >>>
+> >>>Yes. I failed to quilt refresh before sending. You mean end should be 
+> >>>end = pgdat->node_start_pfn + pgdat->node_spanned_pages before 
+> >>>rounding up.
+> >>
+> >>do you have an updated patch i should try?
+> >>
+> >>	Ingo
+> > 
+> > You can try this but don't believe it will change your outcome. I've
+> > booted this on ia64 with slight modification to eliminate
+> > VIRTUAL_MEM_MAP and have only DISCONTIGMEM. Your case is failing at the
+> > front edge of of the zone and not the ending edge which had a flaw in my
+> > first post of the patch. I would have expected the first patch to handle
+> > the front edge correctly.
+> > 
+> > I don't remember seeing your .config in the thread (or blind and unable
+> > to see it). Would you please send it my way.
+> > 
+> > I'm also hoping Andy has time to look into this.
+> > 
+> > bob
+> 
+> Yeah will have a look tommorrow my time.  Could you drop me the .config
+> too.  There is definatly some unstated requirements on alignment, which
+> I was testing today.  I presume its one of those thats being violated.
+> 
+> -apw
+I think the problem was my not looking closely at the full email thread. 
+I finally found time to read entire thread (found Ingo's config and boot logs). The patch below should fix Ingo's problem.  It's probably only required for 
+ZONE_HIGHMEM.  To be safe, I think we should apply it generically. 
 
-You're right.  Well, actually, it's been shown that there _is_ a need
-for rescheduling inside that function (high latency), but we've not
-yet settled on the right way to go about that - mmu_gathering needs
-overhaul to avoid disabling preemption, something both Nick and I
-have worked on intermittently.
+Not only must node_mem_map array be MAX_ORDER aligned but the the distance 
+between interior zones covered by node_mem_map must satisfy this alignment. 
+While in the buddy allocator before checking for a valid buddy the buddy page 
+must reside in the parent's zone too. ZONE_HIGHMEM doesn't satisfy the zone 
+alignment condition and requires this new check that the parent's buddy and 
+parent are within by the same zone.
 
-Personally I'd prefer not to make your change right now - it seems
-a shame to make that cosmetic change without addressing the real
-latency issue; but I've no strong feeling against your patch.
+The other possible solution is aligning HIGHMEM zone to satisfy MAX_ORDER.
+This I didn't pursue and possibly is what Andy refers to above.
 
-Hugh
+Adding a printk for the line with the zonenum mismatch condition caught two
+instances in boot up on my x86 which was configured similarly to Ingo's config.
+
+bob
+
+Index: linux-2.6.17-rc3/mm/page_alloc.c
+===================================================================
+--- linux-2.6.17-rc3.orig/mm/page_alloc.c	2006-04-27 09:44:02.000000000 -0400
++++ linux-2.6.17-rc3/mm/page_alloc.c	2006-05-05 07:42:40.000000000 -0400
+@@ -280,6 +280,15 @@ __find_combined_index(unsigned long page
+ 	return (page_idx & ~(1 << order));
+ }
+ 
++static inline int page_in_zone_hole(struct page *page)
++{
++#ifdef CONFIG_HOLES_IN_ZONE
++	if (!pfn_valid(page_to_pfn(page)))
++		return 1;
++#endif
++	return 0;
++}
++
+ /*
+  * This function checks whether a page is free && is the buddy
+  * we can do coalesce a page and its buddy if
+@@ -294,11 +303,6 @@ __find_combined_index(unsigned long page
+  */
+ static inline int page_is_buddy(struct page *page, int order)
+ {
+-#ifdef CONFIG_HOLES_IN_ZONE
+-	if (!pfn_valid(page_to_pfn(page)))
+-		return 0;
+-#endif
+-
+ 	if (PageBuddy(page) && page_order(page) == order) {
+ 		BUG_ON(page_count(page) != 0);
+ 		return 1;
+@@ -351,7 +355,11 @@ static inline void __free_one_page(struc
+ 		struct page *buddy;
+ 
+ 		buddy = __page_find_buddy(page, page_idx, order);
+-		if (!page_is_buddy(buddy, order))
++		if (page_in_zone_hole(buddy))
++			break;
++		else if (page_zonenum(buddy) != page_zonenum(page))
++			break;
++		else if (!page_is_buddy(buddy, order))
+ 			break;		/* Move the buddy up one level. */
+ 
+ 		list_del(&buddy->lru);
+@@ -2123,14 +2131,22 @@ static void __init alloc_node_mem_map(st
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	/* ia64 gets its own node_mem_map, before this, without bootmem */
+ 	if (!pgdat->node_mem_map) {
+-		unsigned long size;
++		unsigned long size, start, end;
+ 		struct page *map;
+ 
+-		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
++		/*
++		 * The zone's endpoints aren't required to be MAX_ORDER
++		 * aligned but the node_mem_map endpoints must be in order
++		 * for the buddy allocator to function correctly.
++		 */
++		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
++		end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
++		end = ALIGN(end, MAX_ORDER_NR_PAGES);
++		size =  (end - start) * sizeof(struct page);
+ 		map = alloc_remap(pgdat->node_id, size);
+ 		if (!map)
+ 			map = alloc_bootmem_node(pgdat, size);
+-		pgdat->node_mem_map = map;
++		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
+ 	}
+ #ifdef CONFIG_FLATMEM
+ 	/*
+Index: linux-2.6.17-rc3/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.17-rc3.orig/include/linux/mmzone.h	2006-04-27 09:44:02.000000000 -0400
++++ linux-2.6.17-rc3/include/linux/mmzone.h	2006-05-04 13:01:39.000000000 -0400
+@@ -22,6 +22,7 @@
+ #else
+ #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
+ #endif
++#define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
+ 
+ struct free_area {
+ 	struct list_head	free_list;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
