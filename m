@@ -1,70 +1,62 @@
-Message-ID: <445C6717.1000402@yahoo.com.au>
-Date: Sat, 06 May 2006 19:06:31 +1000
+Message-ID: <445C747A.7080205@yahoo.com.au>
+Date: Sat, 06 May 2006 20:03:38 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch 00/14] remap_file_pages protection support
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030245.01457.blaisorblade@yahoo.it>
-In-Reply-To: <200605030245.01457.blaisorblade@yahoo.it>
+Subject: Re: [patch 11/14] remap_file_pages protection support: pte_present
+ should not trigger on PTE_FILE PROTNONE ptes
+References: <20060430172953.409399000@zion.home.lan> <20060430173025.752423000@zion.home.lan> <4456D7B8.2000004@yahoo.com.au> <200605030329.51034.blaisorblade@yahoo.it>
+In-Reply-To: <200605030329.51034.blaisorblade@yahoo.it>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>, Val Henson <val.henson@intel.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Blaisorblade wrote:
-> On Tuesday 02 May 2006 05:45, Nick Piggin wrote:
+> On Tuesday 02 May 2006 05:53, Nick Piggin wrote:
 > 
 >>blaisorblade@yahoo.it wrote:
 >>
->>>The first idea is to use this for UML - it must create a lot of single
->>>page mappings, and managing them through separate VMAs is slow.
+>>>From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+>>>
+>>>pte_present(pte) implies that pte_pfn(pte) is valid. Normally even with a
+>>>_PAGE_PROTNONE pte this holds, but not when such a PTE is installed by
+>>>the new install_file_pte; previously it didn't store protections, only
+>>>file offsets, with the patches it also stores protections, and can set
+>>>_PAGE_PROTNONE|_PAGE_FILE.
 > 
 > 
->>I think I would rather this all just folded under VM_NONLINEAR rather than
->>having this extra MANYPROTS thing, no? (you're already doing that in one
->>direction).
-> 
-> 
-> That step is _temporary_ if the extra usages are accepted.
+> What could be done is to set a PTE with "no protection", use another bit 
+> rather than _PAGE_PROTNONE. This wastes one more bit but doable.
 
-Can we try to get the whole design right from the start?
-
-> 
-> Also, I reported (changelog of patch 03/14) a definite API bug you get if you 
-> don't distinguish VM_MANYPROTS from VM_NONLINEAR. I'm pasting it here because 
-> that changelog is rather long:
-> 
-> "In fact, without this flag, we'd have indeed a regression with
-> remap_file_pages VS mprotect, on uniform nonlinear VMAs.
-> 
-> mprotect alters the VMA prots and walks each present PTE, ignoring installed
-> ones, even when pte_file() is on; their saved prots will be restored on 
-> faults,
-> ignoring VMA ones and losing the mprotect() on them. So, in do_file_page(), we
-> must restore anyway VMA prots when the VMA is uniform, as we used to do before
-> this trail of patches."
-
-It is only a bug because you hadn't plugged the hole -- make it fix up pte_file
-ones as well.
-
-> Ulrich wanted to have code+data(+guard on 64-bit) into the same VMA, but I 
-> left the code+data VMA joining away, to think more with it, since currently 
-> it's too slow on swapout.
-
-Yes, and it would be ridiculous to do this with non linear protections anyway.
-If the vma code is so slow that glibc wants to merge code and data vmas together,
-then we obviously need to fix the data structure (which will help everyone)
-rather than hacking around it.
+I see.
 
 > 
-> The other part is avoiding guard VMAs for thread stacks, and that could be 
-> accomplished too by your proposal. Iff this work is held out, however.
+> 
+>>Why is this combination useful? Can't you just drop the _PAGE_FILE from
+>>_PAGE_PROTNONE ptes?
+> 
+> 
+> I must think on this, but the semantics are not entirely the same between the 
+> two cases.
 
-I see no reason why they couldn't both go in. In fact, having an mmap flag for
-adding guard regions around vmas (and perhaps eg. a system-wide / per-process
-option for stack) could almost go in tomorrow.
+And yes, this won't work. I was misunderstanding what was happening.
+
+I guess your problem is that you're overloading the pte protection bits
+for present ptes as protection bits for not present (file) ptes. I'd rather
+you just used a different encoding for file pte protections then.
+
+"Wasting" a bit seems much more preferable for this very uncommon case (for
+most people) rather than bloating pte_present check, which is called in
+practically every performance critical inner loop).
+
+That said, if the patch is i386/uml specific then I don't have much say in
+it. If Ingo/Linus and Jeff/Yourself, respectively, accept the patch, then
+fine.
+
+But I think you should drop the comment from the core code. It seems wrong.
 
 -- 
 SUSE Labs, Novell Inc.
