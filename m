@@ -1,46 +1,73 @@
-Message-ID: <445D6CFA.2080102@cyberone.com.au>
-Date: Sun, 07 May 2006 13:43:54 +1000
-From: Nick Piggin <piggin@cyberone.com.au>
+Message-ID: <445D75EB.5030909@yahoo.com.au>
+Date: Sun, 07 May 2006 14:22:03 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] tracking dirty pages in shared mappings
-References: <1146861313.3561.13.camel@lappy>	 <445CA22B.8030807@cyberone.com.au> <1146922446.3561.20.camel@lappy>	 <445CA907.9060002@cyberone.com.au> <1146929357.3561.28.camel@lappy> <445D41F0.800@cyberone.com.au>
-In-Reply-To: <445D41F0.800@cyberone.com.au>
+Subject: Re: [patch 00/14] remap_file_pages protection support
+References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com>
+In-Reply-To: <445CC949.7050900@redhat.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, clameter@sgi.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Ulrich Drepper <drepper@redhat.com>
+Cc: Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Peter Zijlstra wrote:
+Ulrich Drepper wrote:
+> Blaisorblade wrote:
 > 
->> On Sat, 2006-05-06 at 23:47 +1000, Nick Piggin wrote:
->>
->>
->>> Yep. Let's not distract from getting the basic mechanism working though.
->>> balance_dirty_pages would be patch 2..n ;)
->>>
->>
->> Attached are both a new version of the shared_mapping_dirty patch, and
->> balance_dirty_pages; to be applied in that order.
->> It makes my testcase survive and not OOM like it used to.
->>
+>>I've not seen the numbers indeed, I've been told of a problem with a "customer 
+>>program" and Ingo connected my work with this problem. Frankly, I've been 
+>>always astonished about how looking up a 10-level tree can be slow. Poor 
+>>cache locality is the only thing that I could think about.
 > 
-> Looks OK. I wonder if test_clear_page_dirty could skip the page_wrprotect
-> entirely? It would speed up cases like truncate that don't care. OTOH, it
-> looks like several filesystems do not use clear_page_dirty_for_io where
-> they possibly should be...
 > 
-> Perhaps you could consolidate both checks into test_set_page_writeback()?
+> It might be good if I explain a bit how much we use mmap in libc.  The
+> numbers can really add up quickly.
 
-Actually, you'll skip the slow path of taking the lock most of the
-times in situations like truncate because it will bail out after the
-page_mapped check. So doing anything further is probably a premature
-optimisation at this stage.
+[...]
+
+Thanks. Very informative.
+
+> Put all this together and non-trivial apps as written today (I don't say
+> they are high-quality apps) can easily have a few thousand, maybe even
+> 10,000 to 20,000 VMAs.  Firefox on my machine uses in the moment ~560
+> VMAs and this is with only a handful of threads.  Are these the numbers
+> the VM system is optimized for?  I think what our people running the
+> experiments at the customer site saw is that it's not.  The VMA
+> traversal showed up on the profile lists.
+
+Your % improvement numbers are of course only talking about memory
+usage improvements. Time complexity increases with the log of the
+number of VMAs, so while search within 100,000 vmas might have a CPU
+cost of 16 arbitrary units, it is only about 300% the cost in 40
+vmas (and not the 2,500,000% that the number of vmas suggests).
+
+Definitely reducing vmas would be good. If guard ranges around vmas
+can be implemented easily and reduce vmas by even 20%, it would come
+at an almost zero complexity cost to the kernel.
+
+However, I think another consideration is the vma lookup cache. I need
+to get around to looking at this again, but IMO it is inadequate for
+threaded applications. Currently we have one last-lookup cached vma
+for each mm. You get cacheline bouncing when updating the cache, and
+the locality becomes almost useless.
+
+I think possibly each thread should have a private vma cache, with
+room for at least its stack vma(s), (and several others, eg. code,
+data). Perhaps the per-mm cache could be dispensed with completely,
+although it might be useful eg. for the heap. And it might be helped
+with increased entries as well.
+
+I've got patches lying around to implement this stuff -- I'd be
+interested to have more detail about this problem, or distilled test
+cases.
 
 Nick
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
