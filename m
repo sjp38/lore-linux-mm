@@ -1,60 +1,72 @@
-Message-ID: <445DF3AB.9000009@yahoo.com.au>
-Date: Sun, 07 May 2006 23:18:35 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Re: [patch 11/14] remap_file_pages protection support: pte_present should not trigger on PTE_FILE PROTNONE ptes
+Date: Sun, 7 May 2006 19:50:58 +0200
+References: <20060430172953.409399000@zion.home.lan> <200605030329.51034.blaisorblade@yahoo.it> <445C747A.7080205@yahoo.com.au>
+In-Reply-To: <445C747A.7080205@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: assert/crash in __rmqueue() when enabling CONFIG_NUMA
-References: <44576688.6050607@mbligh.org> <44576BF5.8070903@yahoo.com.au>	 <20060504013239.GG19859@localhost>	 <1146756066.22503.17.camel@localhost.localdomain>	 <20060504154652.GA4530@localhost> <20060504192528.GA26759@elte.hu>	 <20060504194334.GH19859@localhost> <445A7725.8030401@shadowen.org>	 <20060505135503.GA5708@localhost>	 <1146839590.22503.48.camel@localhost.localdomain>	 <20060505145018.GI19859@localhost> <1146841064.22503.53.camel@localhost.localdomain> <445C5F36.3030207@yahoo.com.au> <445DF114.4090708@shadowen.org>
-In-Reply-To: <445DF114.4090708@shadowen.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200605071950.58712.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Bob Picco <bob.picco@hp.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft wrote:
+On Saturday 06 May 2006 12:03, Nick Piggin wrote:
+> Blaisorblade wrote:
+> > On Tuesday 02 May 2006 05:53, Nick Piggin wrote:
+> >>blaisorblade@yahoo.it wrote:
+> >>>From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+> >>>
+> >>>pte_present(pte) implies that pte_pfn(pte) is valid. Normally even with
+> >>> a _PAGE_PROTNONE pte this holds, but not when such a PTE is installed
+> >>> by the new install_file_pte; previously it didn't store protections,
+> >>> only file offsets, with the patches it also stores protections, and can
+> >>> set _PAGE_PROTNONE|_PAGE_FILE.
+> >
+> > What could be done is to set a PTE with "no protection", use another bit
+> > rather than _PAGE_PROTNONE. This wastes one more bit but doable.
 
-> I agree that there is no need for these checks to leak out of
-> page_is_buddy().  If its not there or in another zone, its not my buddy.
->  The allocator loop is nasty enough as it is.
+> I see.
 
-OK, glad you agree.
+> I guess your problem is that you're overloading the pte protection bits
+> for present ptes as protection bits for not present (file) ptes. I'd rather
+> you just used a different encoding for file pte protections then.
 
-> 
-> I think we need to do a couple of things:
-> 
-> 1) check the alignment of the zones matches the implied alignment
-> constraints and correct it as we go.
+Yes, this is what I said above, so we agree; and indeed this overloading was 
+decided when the present problem didn't trigger, so it can now change. As 
+detailed in the patch description, the previous PageReserved handling 
+prevented freeing page 0 and hided this.
 
-Yes. And preferably have checks in the generic page allocator setup
-code, so we can do something sane if the arch code gets it wrong.
+> "Wasting" a bit seems much more preferable for this very uncommon case (for
+> most people) rather than bloating pte_present check, which is called in
+> practically every performance critical inner loop).
 
-> 2) optionally allow an architecture to say its not aligning and doesn't
-> want to have to align its zone -- providing a config option to add the
-> zone index checks
-> 
-> I think the later is valuable for these test builds and potentially for
-> the embedded side where megabytes mean something.
+Yes, I thought about this problem, I wasn't sure how hard it was.
 
-Yes. Depends whether we fold it under the HOLES_IN_ZONE config. I guess
-HOLES_IN_ZONE is potentially quite a bit more expensive than the plain
-zone check, so having 2 config options may not be unreasonable.
+> That said, if the patch is i386/uml specific then I don't have much say in
+> it.
 
-Also, if the architecture doesn't align the ends of zones, *and* they are
-not adjacent to another zone, they need either CONFIG_HOLES_IN_ZONE or
-they need to provide dummy 'struct page's that never have PageBuddy set.
+It's presently specific, but will probably extend. Implementations for some 
+other archs were already sent and I've collected them (will send 
+afterwards,I've avoided excess bloat).
 
+> If Ingo/Linus and Jeff/Yourself, respectively, accept the patch, then 
+> fine.
 
-> 
-> I'm testing a patch for this at the moment and will drop it out when I'm
-> done.
+> But I think you should drop the comment from the core code. It seems wrong.
 
-Great!
-
+Yep, forgot there, thanks for reminding, I've now removed it.
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
+
+Chiacchiera con i tuoi amici in tempo reale! 
+ http://it.yahoo.com/mail_it/foot/*http://it.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
