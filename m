@@ -1,38 +1,30 @@
-Message-ID: <445ED495.3020401@yahoo.com.au>
-Date: Mon, 08 May 2006 15:18:13 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sun, 7 May 2006 23:43:54 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH] tracking dirty pages in shared mappings
+In-Reply-To: <1146929357.3561.28.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
+References: <1146861313.3561.13.camel@lappy>  <445CA22B.8030807@cyberone.com.au>
+ <1146922446.3561.20.camel@lappy>  <445CA907.9060002@cyberone.com.au>
+ <1146929357.3561.28.camel@lappy>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix can_share_swap_page() when !CONFIG_SWAP
-References: <Pine.LNX.4.64.0605071525550.2515@localhost.localdomain>
-In-Reply-To: <Pine.LNX.4.64.0605071525550.2515@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hua Zhong <hzhong@gmail.com>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hua Zhong wrote:
+On Sat, 6 May 2006, Peter Zijlstra wrote:
 
->Hi,
->
->can_share_swap_page() is used to check if the page has the last reference. This avoids allocating a new page for COW if it's the last page.
->
->However, if CONFIG_SWAP is not set, can_share_swap_page() is defined as 0, thus always causes a copy for the last COW page. The below simple patch fixes it.
->
->I'm not sure if it's the best fix. Maybe we should rename can_share_swap_page() and move it out of swapfile.c. Comments?
->
+> Attached are both a new version of the shared_mapping_dirty patch, and
+> balance_dirty_pages; to be applied in that order. 
 
-Looks like a good patch, nice catch. You should run it past Hugh but tend to
-agree it would be nice to reuse the out of line can_share_swap_page, 
-which would
-fold beautifully with PageSwapCache a constant 0.
+Would you please sent patches inline? It seems that you need to initialize 
+mapping to NULL in handle_pte_fault.
 
-Nick
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+You could defer the page dirtying by taking a reference on the page then 
+dropping the pte lock dirty the page and then drop the reference. That way 
+dirtying is running without the pte lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
