@@ -1,70 +1,40 @@
-Subject: [RFC][PATCH 2/2] throttle writers of shared mappings
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
-References: <1146861313.3561.13.camel@lappy>
-	 <445CA22B.8030807@cyberone.com.au> <1146922446.3561.20.camel@lappy>
-	 <445CA907.9060002@cyberone.com.au> <1146929357.3561.28.camel@lappy>
-	 <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 08 May 2006 21:24:23 +0200
-Message-Id: <1147116263.16600.5.camel@lappy>
-Mime-Version: 1.0
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
+Date: Mon, 8 May 2006 14:32:39 -0500
+References: <1146671004.24422.20.camel@wildcat.int.mccr.org>
+ <57DF992082E5BD7D36C9D441@[10.1.1.4]>
+ <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Message-ID: <200605081432.40287.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On Saturday 06 May 2006 10:25, Hugh Dickins wrote:
+<snip>
 
-Now that we can detect writers of shared mappings, throttle them.
-Avoids OOM by surprise.
+> How was Ray Bryant's shared,anonymous,fork,munmap,private bug of
+> 25 Jan resolved?  We didn't hear the end of that.
+>
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+I never heard anything back from Dave, either.
 
----
+> Hugh
+> -
 
- mm/memory.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+<snip>
 
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c	2006-05-08 18:20:49.000000000 +0200
-+++ linux-2.6/mm/memory.c	2006-05-08 18:35:26.000000000 +0200
-@@ -50,6 +50,7 @@
- #include <linux/init.h>
- #include <linux/mm_page_replace.h>
- #include <linux/backing-dev.h>
-+#include <linux/writeback.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -2183,8 +2184,11 @@ retry:
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	if (dirty) {
-+		struct address_space *mapping = page_mapping(new_page);
- 		set_page_dirty(new_page);
- 		put_page(new_page);
-+		if (mapping)
-+			balance_dirty_pages_ratelimited_nr(mapping, 1);
- 	}
- 	return ret;
- oom:
-@@ -2304,8 +2308,11 @@ static inline int handle_pte_fault(struc
- unlock:
- 	pte_unmap_unlock(pte, ptl);
- 	if (page) {
-+		struct address_space *mapping = page_mapping(page);
- 		set_page_dirty(page);
- 		put_page(page);
-+		if (mapping)
-+			balance_dirty_pages_ratelimited_nr(mapping, 1);
- 	}
- 	return VM_FAULT_MINOR;
- }
-
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
