@@ -1,79 +1,64 @@
-Date: Mon, 8 May 2006 23:52:02 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060509065202.24194.21864.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060509065146.24194.47401.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060509065146.24194.47401.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 4/5] page migration: Fix up remove_migration_ptes()
+Date: Tue, 9 May 2006 09:24:36 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 6/6] Break out memory initialisation code from page_alloc.c
+ to mem_init.c
+In-Reply-To: <445FF4B3.7020101@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0605090853270.27481@skynet.skynet.ie>
+References: <20060508141030.26912.93090.sendpatchset@skynet>
+ <20060508141231.26912.52976.sendpatchset@skynet> <445FF4B3.7020101@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix up remove_migration_ptes()
+On Tue, 9 May 2006, Nick Piggin wrote:
 
-Add the update_mmu/lazy_mmu_update() calls that most arches need
-and that IA64 needs for executable pages.
+> Mel Gorman wrote:
+>
+>> page_alloc.c contains a large amount of memory initialisation code. This 
+>> patch
+>> breaks out the initialisation code to a separate file to make page_alloc.c
+>> a bit easier to read.
+>> 
+>
+> I realise this is at the wrong end of your queue, but if you _can_ easily
+> break it out and submit it first, it would be a nice cleanup and would help
+> shrink your main patchset.
+>
 
-Also move the call to page_address_in_vma into remove_migrate_pte()
-and check for the possible -EFAULT return code.
+The split-out potentially affects 10 other patches currently in -mm and is 
+a merge headache for Andrew. My current understanding is that he wants to 
+drop patch 6/6 until a later time. I guess this would be still true if the 
+patch was at the other end of the queue.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Also, we're recently having some problems with architectures not aligning
+> zones correctly. Would it make sense to add these sorts of sanity checks,
+> and possibly forcing alignment corrections into your generic code?
+>
 
-Index: linux-2.6.17-rc3-mm1/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc3-mm1.orig/mm/migrate.c	2006-05-08 01:46:23.369211137 -0700
-+++ linux-2.6.17-rc3-mm1/mm/migrate.c	2006-05-08 23:11:42.859814459 -0700
-@@ -123,7 +123,7 @@ static inline int is_swap_pte(pte_t pte)
- /*
-  * Restore a potential migration pte to a working pte entry
-  */
--static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
-+static void remove_migration_pte(struct vm_area_struct *vma,
- 		struct page *old, struct page *new)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-@@ -133,6 +133,10 @@ static void remove_migration_pte(struct 
-  	pmd_t *pmd;
- 	pte_t *ptep, pte;
-  	spinlock_t *ptl;
-+	unsigned long addr = page_address_in_vma(new, vma);
-+
-+	if (addr == -EFAULT)
-+		return;
- 
-  	pgd = pgd_offset(mm, addr);
- 	if (!pgd_present(*pgd))
-@@ -175,6 +179,10 @@ static void remove_migration_pte(struct 
- 	else
- 		page_add_file_rmap(new);
- 
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(vma, addr, pte);
-+	lazy_mmu_prot_update(pte);
-+
- out:
- 	pte_unmap_unlock(ptep, ptl);
- }
-@@ -196,7 +204,7 @@ static void remove_file_migration_ptes(s
- 	spin_lock(&mapping->i_mmap_lock);
- 
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
--		remove_migration_pte(vma, page_address_in_vma(new, vma), old, new);
-+		remove_migration_pte(vma, old, new);
- 
- 	spin_unlock(&mapping->i_mmap_lock);
- }
-@@ -223,8 +231,7 @@ static void remove_anon_migration_ptes(s
- 	spin_lock(&anon_vma->lock);
- 
- 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
--		remove_migration_pte(vma, page_address_in_vma(new, vma),
--					old, new);
-+		remove_migration_pte(vma, old, new);
- 
- 	spin_unlock(&anon_vma->lock);
- }
+Yes, it is easy to force alignment corrections into the generic code. From 
+that thread, there was this comment from Andy Whitcroft and your response;
+
+> >1) check the alignment of the zones matches the implied alignment
+> > constraints and correct it as we go.
+> Yes. And preferably have checks in the generic page allocator setup
+> code, so we can do something sane if the arch code gets it wrong.
+
+With this patchset, it is trivial to move the start of highmem during 
+setup. free_area_init_nodes() is passed the PFN each zone starts at by the 
+architecture. If one wanted to force HIGHMEM to aligned, the 
+arch_max_high_pfn value could be rounded down to MAX_ORDER alignment in 
+free_area_init_nodes() before it calls free_area_init_node(). It doesn't 
+matter if the PFN is in a hole. From there, an aligned mem_map should be 
+allocated and memmap_init() will set the correct zone flags.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
