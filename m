@@ -1,35 +1,33 @@
-Message-ID: <446101BA.4000208@google.com>
-Date: Tue, 09 May 2006 13:55:22 -0700
-From: Martin Bligh <mbligh@google.com>
+Message-ID: <44611DAD.8020801@cyberone.com.au>
+Date: Wed, 10 May 2006 08:54:37 +1000
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/3] tracking dirty pages in shared mappings -V4
-References: <1146861313.3561.13.camel@lappy>	<445CA22B.8030807@cyberone.com.au>	<1146922446.3561.20.camel@lappy>	<445CA907.9060002@cyberone.com.au>	<1146929357.3561.28.camel@lappy>	<Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>	<1147116034.16600.2.camel@lappy>	<Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>	<1147207458.27680.19.camel@lappy> <17505.267.931504.918245@wombat.chubb.wattle.id.au>
-In-Reply-To: <17505.267.931504.918245@wombat.chubb.wattle.id.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH 2/3] throttle writers of shared mappings
+References: <1146861313.3561.13.camel@lappy>	 <445CA22B.8030807@cyberone.com.au> <1146922446.3561.20.camel@lappy>	 <445CA907.9060002@cyberone.com.au> <1146929357.3561.28.camel@lappy>	 <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>	 <1147116034.16600.2.camel@lappy>	 <Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com> <1147207460.27680.20.camel@lappy>
+In-Reply-To: <1147207460.27680.20.camel@lappy>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Chubb <peterc@gelato.unsw.edu.au>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Chubb wrote:
->>>>>>"Peter" == Peter Zijlstra <a.p.zijlstra@chello.nl> writes:
-> 
-> 
-> Peter> From: Peter Zijlstra <a.p.zijlstra@chello.nl> People expressed
-> Peter> the need to track dirty pages in shared mappings.
-> 
-> Peter> Linus outlined the general idea of doing that through making
-> Peter> clean writable pages write-protected and taking the write
-> Peter> fault.
-> 
-> What does this do to performance on TPC workloads?  How many extra
-> faults are there likely to be?
+Peter Zijlstra wrote:
 
-They all use large pages anyway ...
+>@@ -2304,8 +2308,11 @@ static inline int handle_pte_fault(struc
+> unlock:
+> 	pte_unmap_unlock(pte, ptl);
+> 	if (dirty_page) {
+>+		struct address_space *mapping = page_mapping(dirty_page);
+> 		set_page_dirty(dirty_page);
+> 		put_page(dirty_page);
+>+		if (mapping)
+>+			balance_dirty_pages_ratelimited_nr(mapping, 1);
+>  
+>
 
-M.
+Just use balance_dirty_pages()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
