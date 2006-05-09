@@ -1,35 +1,34 @@
-Message-ID: <445FF4B3.7020101@yahoo.com.au>
-Date: Tue, 09 May 2006 11:47:31 +1000
+Message-ID: <445FF78B.9060803@yahoo.com.au>
+Date: Tue, 09 May 2006 11:59:39 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] Break out memory initialisation code from page_alloc.c
- to mem_init.c
-References: <20060508141030.26912.93090.sendpatchset@skynet> <20060508141231.26912.52976.sendpatchset@skynet>
-In-Reply-To: <20060508141231.26912.52976.sendpatchset@skynet>
+Subject: Re: [PATCH] fix can_share_swap_page() when !CONFIG_SWAP
+References: <Pine.LNX.4.64.0605071525550.2515@localhost.localdomain> <445ED495.3020401@yahoo.com.au> <Pine.LNX.4.64.0605081335030.7003@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0605081335030.7003@blonde.wat.veritas.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Hua Zhong <hzhong@gmail.com>, linux-kernel@vger.kernel.org, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
+Hugh Dickins wrote:
 
->page_alloc.c contains a large amount of memory initialisation code. This patch
->breaks out the initialisation code to a separate file to make page_alloc.c
->a bit easier to read.
+>On Mon, 8 May 2006, Nick Piggin wrote:
+>
+>>Looks like a good patch, nice catch. You should run it past Hugh but tend to
+>>agree it would be nice to reuse the out of line can_share_swap_page, which
+>>would fold beautifully with PageSwapCache a constant 0.
+>>
+>
+>True; but I think Hua's patch is good as is for now, to fix
+>that inefficiency.  I do agree (as you know) that there's scope for
+>cleanup there, and that that function is badly named; but I'm still
+>unprepared to embark on the cleanup, so let's just get the fix in.
 >
 
-I realise this is at the wrong end of your queue, but if you _can_ easily
-break it out and submit it first, it would be a nice cleanup and would help
-shrink your main patchset.
-
-Also, we're recently having some problems with architectures not aligning
-zones correctly. Would it make sense to add these sorts of sanity checks,
-and possibly forcing alignment corrections into your generic code?
-
-Nick
+Sure. Queue it up for 2.6.18?
 --
 
 Send instant messages to your online friends http://au.messenger.yahoo.com 
