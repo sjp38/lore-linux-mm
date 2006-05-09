@@ -1,7 +1,7 @@
-Date: Tue, 9 May 2006 12:05:35 +0100
-Subject: [PATCH 2/3] x86 align highmem zone boundries with NUMA
-Message-ID: <20060509110535.GA9732@shadowen.org>
-References: <exportbomb.1147172704@pinky>
+Date: Tue, 9 May 2006 12:05:05 +0100
+Subject: [PATCH 0/3] Zone boundry alignment fixes
+Message-ID: <exportbomb.1147172704@pinky>
+References: <445DF3AB.9000009@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -12,36 +12,53 @@ To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Bob Picco <bob.picco@hp.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-x86 align highmem zone boundries with NUMA
+Ok.  Finally got my test bed working and got this lot tested.
 
-When in x86 NUMA mode we allocate struct pages's node local and map
-them into the kernel virtual address space in the remap space.
-This space cuts into the end of ZONE_NORMAL.  When we round
-ZONE_NORMAL down we must ensure we maintain the zone boundry
-constraint, we must round to MAX_ORDER.
+To summarise the problem , the buddy allocator currently requires
+that the boundries between zones occur at MAX_ORDER boundries.
+The specific case where we were tripping up on this was in x86 with
+NUMA enabled.  There we try to ensure that each node's stuct pages
+are in node local memory, in order to allow them to be virtually
+mapped we have to reduce the size of ZONE_NORMAL.  Here we are
+rounding the remap space up to a large page size to allow large
+page TLB entries to be used.  However, these are smaller than
+MAX_ORDER.  This can lead to bad buddy merges.  With VM_DEBUG enabled
+we detect the attempts to merge across this boundry and panic.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
- discontig.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletion(-)
-diff -upN reference/arch/i386/mm/discontig.c current/arch/i386/mm/discontig.c
---- reference/arch/i386/mm/discontig.c
-+++ current/arch/i386/mm/discontig.c
-@@ -304,10 +304,13 @@ unsigned long __init setup_memory(void)
- 	/* partially used pages are not usable - thus round upwards */
- 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
- 
--	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
-+	max_low_pfn = find_max_low_pfn() - reserve_pages;
- 	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
- 			reserve_pages, max_low_pfn + reserve_pages);
- 	printk("max_pfn = %ld\n", max_pfn);
-+
-+	system_max_low_pfn = max_low_pfn = zone_boundry_align_pfn(max_low_pfn);
-+
- #ifdef CONFIG_HIGHMEM
- 	highstart_pfn = highend_pfn = max_pfn;
- 	if (max_pfn > system_max_low_pfn)
+We have two basic options we can either apply the appropriate
+alignment when we make make the NUMA remap space, or we can 'fix'
+the assumption in the buddy allocator.  The fix for the buddy
+allocator involves adding conditionals to the free fast path and
+so it seems reasonable to at least favor realigning the remap space.
+
+Following this email are 3 patches:
+
+zone-init-check-and-report-unaligned-zone-boundries -- introduces
+  a zone alignement helper, and uses it to add a check to zone
+  initialisation for unaligned zone boundries,
+
+x86-align-highmem-zone-boundries-with-NUMA -- uses the zone alignment
+  helper to align the end of ZONE_NORMAL after the remap space has
+  been reserved, and
+
+zone-allow-unaligned-zone-boundries -- modifies the buddy allocator
+  so that we can allow unaligned zone boundries.  A new configuration
+  option is added to enable this functionality.
+
+The first two are the fixes for alignement in x86, these fix the
+panics thrown when VM_DEBUG is enabled.
+
+The last is a patch to support unaligned zone boundries.  As this
+(re)introduces a zone check into the free hot path it seems
+reasonable to only enable this should it be needed; for example
+we never need this if we have a single zone.  I have tested the
+failing system with this patch enabled and it also fixes the panic.
+I am inclined to suggest that it be included as it very clearly
+documents the alignment requirements for the buddy allocator.
+
+Comments.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
