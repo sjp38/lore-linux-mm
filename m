@@ -1,46 +1,37 @@
-Message-Id: <4t16i2$10ctb8@orsmga001.jf.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [PATCH 0/2][RFC] New version of shared page tables
-Date: Tue, 9 May 2006 19:07:43 -0700
+Date: Tue, 9 May 2006 20:22:46 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
+In-Reply-To: <445FA0CA.4010008@us.ibm.com>
+Message-ID: <Pine.LNX.4.64.0605092012170.8037@blonde.wat.veritas.com>
+References: <1146671004.24422.20.camel@wildcat.int.mccr.org>
+ <Pine.LNX.4.64.0605031650190.3057@blonde.wat.veritas.com>
+ <57DF992082E5BD7D36C9D441@[10.1.1.4]> <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com>
+ <445FA0CA.4010008@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <44600F9B.1060207@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Nick Piggin' <nickpiggin@yahoo.com.au>, Brian Twichell <tbrian@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Brian Twichell <tbrian@us.ibm.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote on Monday, May 08, 2006 8:42 PM
-> Brian Twichell wrote:
-> > In the case of x86-64, if pagetable sharing for small pages was 
-> > eliminated, we'd lose more than the 27-33% throughput improvement 
-> > observed when the bufferpools are in small pages.  We'd also lose a 
-> > significant chunk of the 3% improvement observed when the bufferpools 
-> > are in hugepages.  This occurs because there is still small page 
-> > pagetable sharing being achieved, minimally for database text, when 
-> > the bufferpools are in hugepages.  The performance counters indicated 
-> > that ITLB and DTLB page walks were reduced by 28% and 10%, 
-> > respectively, in the x86-64/hugepage case.
+On Mon, 8 May 2006, Brian Twichell wrote:
 > 
-> 
-> Aside, can you just enlighten me as to how TLB misses are improved on 
-> x86-64? As far as I knew, it doesn't have ASIDs so I wouldn't have thought
-> it could share TLBs anyway...
-> But I'm not up to scratch with modern implementations.
+> If we had to choose between pagetable sharing for small pages and hugepages,
+> we would be in favor of retaining pagetable sharing for small pages.  That is
+> where the discernable benefit is for customers that run with "out-of-the-box"
+> settings.  Also, there is still some benefit there on x86-64 for customers
+> that use hugepages for the bufferpools.
 
+Thanks for the further info, Brian.  Okay, the hugepage end of it does
+add a different kind of complexity, in an area already complex from the
+different arch implementations.  If you've found that a significant part
+of the hugepage test improvment is actually due to the smallpage changes,
+let's turn around what I said, and suggest Dave concentrate on getting the
+smallpage changes right, putting the hugepage part of it on the backburner
+at least for now (or if he's particularly keen still to present it, as 3/3).
 
-Allow me to jump in if I may:  The number of TLB misses did not change that
-much (both i-side and d-side and is expected).  What changed is the penalty
-of TLB misses are reduced: i.e., number of page table walk performed by the
-hardware are reduced. This is due to specialized buffering of information
-that reduces the need to perform page walks. With page table sharing, the
-overall size of page tables are reduced, in turn, it has a better hit rate
-on the buffered items and it helps to mitigate page walks upon a TLB miss.
-
-- Ken
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
