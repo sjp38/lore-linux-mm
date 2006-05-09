@@ -1,64 +1,58 @@
-Date: Tue, 9 May 2006 09:24:36 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] Break out memory initialisation code from page_alloc.c
- to mem_init.c
-In-Reply-To: <445FF4B3.7020101@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0605090853270.27481@skynet.skynet.ie>
-References: <20060508141030.26912.93090.sendpatchset@skynet>
- <20060508141231.26912.52976.sendpatchset@skynet> <445FF4B3.7020101@yahoo.com.au>
+Date: Tue, 9 May 2006 12:05:20 +0100
+Subject: [PATCH 1/3] zone init check and report unaligned zone boundries
+Message-ID: <20060509110520.GA9634@shadowen.org>
+References: <exportbomb.1147172704@pinky>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+Cc: Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>, Bob Picco <bob.picco@hp.com>, Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 May 2006, Nick Piggin wrote:
+zone init check and report unaligned zone boundries
 
-> Mel Gorman wrote:
->
->> page_alloc.c contains a large amount of memory initialisation code. This 
->> patch
->> breaks out the initialisation code to a separate file to make page_alloc.c
->> a bit easier to read.
->> 
->
-> I realise this is at the wrong end of your queue, but if you _can_ easily
-> break it out and submit it first, it would be a nice cleanup and would help
-> shrink your main patchset.
->
+We have a number of strict constraints on the layout of struct
+page's for use with the buddy allocator.  One of which is that zone
+boundries must occur at MAX_ORDER page boundries.  Add a check for
+this during init.
 
-The split-out potentially affects 10 other patches currently in -mm and is 
-a merge headache for Andrew. My current understanding is that he wants to 
-drop patch 6/6 until a later time. I guess this would be still true if the 
-patch was at the other end of the queue.
-
-> Also, we're recently having some problems with architectures not aligning
-> zones correctly. Would it make sense to add these sorts of sanity checks,
-> and possibly forcing alignment corrections into your generic code?
->
-
-Yes, it is easy to force alignment corrections into the generic code. From 
-that thread, there was this comment from Andy Whitcroft and your response;
-
-> >1) check the alignment of the zones matches the implied alignment
-> > constraints and correct it as we go.
-> Yes. And preferably have checks in the generic page allocator setup
-> code, so we can do something sane if the arch code gets it wrong.
-
-With this patchset, it is trivial to move the start of highmem during 
-setup. free_area_init_nodes() is passed the PFN each zone starts at by the 
-architecture. If one wanted to force HIGHMEM to aligned, the 
-arch_max_high_pfn value could be rounded down to MAX_ORDER alignment in 
-free_area_init_nodes() before it calls free_area_init_node(). It doesn't 
-matter if the PFN is in a hole. From there, an aligned mem_map should be 
-allocated and memmap_init() will set the correct zone flags.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ include/linux/mmzone.h |    5 +++++
+ mm/page_alloc.c        |    4 ++++
+ 2 files changed, 9 insertions(+)
+diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
+--- reference/include/linux/mmzone.h
++++ current/include/linux/mmzone.h
+@@ -388,6 +388,11 @@ static inline int is_dma(struct zone *zo
+ 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
+ }
+ 
++static inline unsigned long zone_boundry_align_pfn(unsigned long pfn)
++{
++	return pfn & ~((1 << MAX_ORDER) - 1);
++}
++
+ /* These two functions are used to setup the per zone pages min values */
+ struct ctl_table;
+ struct file;
+diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
+--- reference/mm/page_alloc.c
++++ current/mm/page_alloc.c
+@@ -2078,6 +2078,10 @@ static void __init free_area_init_core(s
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize;
+ 
++		if (zone_boundry_align_pfn(zone_start_pfn) != zone_start_pfn)
++			printk(KERN_CRIT "node %d zone %s missaligned "
++					"start pfn\n", nid, zone_names[j]);
++
+ 		realsize = size = zones_size[j];
+ 		if (zholes_size)
+ 			realsize -= zholes_size[j];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
