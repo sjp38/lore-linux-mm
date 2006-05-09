@@ -1,88 +1,66 @@
-Message-ID: <44600F9B.1060207@yahoo.com.au>
-Date: Tue, 09 May 2006 13:42:19 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 8 May 2006 22:41:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH 1/2] tracking dirty pages in shared mappings -V3
+In-Reply-To: <1147116034.16600.2.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>
+References: <1146861313.3561.13.camel@lappy>  <445CA22B.8030807@cyberone.com.au>
+ <1146922446.3561.20.camel@lappy>  <445CA907.9060002@cyberone.com.au>
+ <1146929357.3561.28.camel@lappy>  <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
+ <1147116034.16600.2.camel@lappy>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
-References: <1146671004.24422.20.camel@wildcat.int.mccr.org> <Pine.LNX.4.64.0605031650190.3057@blonde.wat.veritas.com> <57DF992082E5BD7D36C9D441@[10.1.1.4]> <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com> <445FA0CA.4010008@us.ibm.com>
-In-Reply-To: <445FA0CA.4010008@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brian Twichell <tbrian@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Brian Twichell wrote:
+On Mon, 8 May 2006, Peter Zijlstra wrote:
 
-> Hugh Dickins wrote:
->
->> Let me say (while perhaps others are still reading) that I'm seriously
->> wondering whether you should actually restrict your shared pagetable 
->> work
->> to the hugetlb case.  I realize that would be a disappointing limitation
->> to you, and would remove the 25%/50% improvement cases, leaving only the
->> 3%/4% last-ounce-of-performance cases.
->>
->> But it's worrying me a lot that these complications to core mm code will
->> _almost_ never apply to the majority of users, will get little testing
->> outside of specialist setups.  I'd feel safer to remove that "almost",
->> and consign shared pagetables to the hugetlb ghetto, if that would
->> indeed remove their handling from the common code paths.  (Whereas,
->> if we didn't have hugetlb, I would be arguing strongly for shared pts.)
->>
-> Hi,
->
-> In the case of x86-64, if pagetable sharing for small pages was 
-> eliminated, we'd lose more than the 27-33% throughput improvement 
-> observed when the bufferpools are in small pages.  We'd also lose a 
-> significant chunk of the 3% improvement observed when the bufferpools 
-> are in hugepages.  This occurs because there is still small page 
-> pagetable sharing being achieved, minimally for database text, when 
-> the bufferpools are in hugepages.  The performance counters indicated 
-> that ITLB and DTLB page walks were reduced by 28% and 10%, 
-> respectively, in the x86-64/hugepage case.
+> @@ -2077,6 +2078,7 @@ static int do_no_page(struct mm_struct *
+>  	unsigned int sequence = 0;
+>  	int ret = VM_FAULT_MINOR;
+>  	int anon = 0;
+> +	int dirty = 0;
+	dirtied_page = NULL ?
 
+> @@ -2150,6 +2152,11 @@ retry:
+>  		entry = mk_pte(new_page, vma->vm_page_prot);
+>  		if (write_access)
+>  			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 
-Aside, can you just enlighten me as to how TLB misses are improved on 
-x86-64? As far as
-I knew, it doesn't have ASIDs so I wouldn't have thought it could share 
-TLBs anyway...
-But I'm not up to scratch with modern implementations.
+A write fault to a shared mapping does not make the page dirty, just the 
+pte?
 
->
-> To be clear, all measurements discussed in my post were performed with 
-> kernels config'ed to share pagetables for both small pages and hugepages.
->
-> If we had to choose between pagetable sharing for small pages and 
-> hugepages, we would be in favor of retaining pagetable sharing for 
-> small pages.  That is where the discernable benefit is for customers 
-> that run with "out-of-the-box" settings.  Also, there is still some 
-> benefit there on x86-64 for customers that use hugepages for the 
-> bufferpools.
+>  			inc_mm_counter(mm, file_rss);
+>  			page_add_file_rmap(new_page);
+> +			if (write_access) {
+> +				get_page(new_page);
+> +				dirty++;
+				dirtied_page = new_page; ?
+				get_page(dirtied_page); ?
 
+> +	if (dirty) {
+> +		set_page_dirty(new_page);
+> +		put_page(new_page);
+> +	}
 
-Of course if it was free performance then we'd want it. The downsides 
-are that it
-is a significant complexity for a pretty small (3%) performance gain for 
-your apparent
-target workload, which is pretty uncommon among all Linux users.
+if (dirtied_page)
+		set_page_dirty(dirtied_page);
+		put_page(dirtied_page)
+?
 
-Ignoring the complexity, it is still not free. Sharing data across 
-processes adds to
-synchronisation overhead and hurts scalability. Some of these page fault 
-scalability
-scenarios have shown to be important enough that we have introduced 
-complexity _there_.
+> @@ -2235,6 +2250,7 @@ static inline int handle_pte_fault(struc
+>  	pte_t entry;
+>  	pte_t old_entry;
+>  	spinlock_t *ptl;
+> +	struct page *page = NULL;
+use dirtied_page instead to make it the same as the other function?
 
-And it seems customers running "out-of-the-box" settings really want to 
-start using
-hugepages if they're interested in getting the most performance 
-possible, no?
+> +int page_wrprotect(struct page *page)
 
----
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+The above and related functions look similar to code in 
+rmap.c and migrate.c. Could those be consolidated?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
