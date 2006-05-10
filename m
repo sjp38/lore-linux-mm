@@ -1,101 +1,65 @@
-Subject: [RFC][PATCH 3/3] optimize follow_pages()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1147207462.27680.21.camel@lappy>
-References: <1146861313.3561.13.camel@lappy>
-	 <445CA22B.8030807@cyberone.com.au> <1146922446.3561.20.camel@lappy>
-	 <445CA907.9060002@cyberone.com.au> <1146929357.3561.28.camel@lappy>
-	 <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
-	 <1147116034.16600.2.camel@lappy>
-	 <Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>
-	 <1147207462.27680.21.camel@lappy>
-Content-Type: text/plain
-Date: Wed, 10 May 2006 08:30:00 +0200
-Message-Id: <1147242603.4184.5.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Con Kolivas <kernel@kolivas.org>
+Subject: [PATCH] mm: cleanup swap unused warning
+Date: Wed, 10 May 2006 21:32:40 +1000
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200605102132.41217.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm <linux-mm@kvack.org>
+To: linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Ofcourse I got the return paths tangled :-(
+Are there any users of swp_entry_t when CONFIG_SWAP is not defined?
+
+This patch fixes a warning for !CONFIG_SWAP for me.
 
 ---
+if CONFIG_SWAP is not defined we get:
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+mm/vmscan.c: In function a??remove_mappinga??:
+mm/vmscan.c:387: warning: unused variable a??swapa??
 
-Christoph Lameter suggested I pull set_page_dirty() out from under the 
-pte lock.
-
-I reviewed the current calls and found the one in follow_page() a candidate
-for the same treatment.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Con Kolivas <kernel@kolivas.org>
 
 ---
+ include/linux/swap.h |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
- include/linux/mm.h |    1 +
- mm/memory.c        |   17 ++++++++++++++---
- 2 files changed, 15 insertions(+), 3 deletions(-)
-
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6.17-rc3-mm1/include/linux/swap.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h	2006-05-10 08:11:18.000000000 +0200
-+++ linux-2.6/include/linux/mm.h	2006-05-10 08:12:47.000000000 +0200
-@@ -1015,6 +1015,7 @@ struct page *follow_page(struct vm_area_
- #define FOLL_TOUCH	0x02	/* mark page accessed */
- #define FOLL_GET	0x04	/* do get_page on page */
- #define FOLL_ANON	0x08	/* give ZERO_PAGE if no pgtable */
-+#define FOLL_DIRTY	0x10	/* the page was dirtied */
+--- linux-2.6.17-rc3-mm1.orig/include/linux/swap.h	2006-05-10 21:14:41.000000000 +1000
++++ linux-2.6.17-rc3-mm1/include/linux/swap.h	2006-05-10 21:24:31.000000000 +1000
+@@ -67,13 +67,20 @@ union swap_header {
+ 	} info;
+ };
  
- #ifdef CONFIG_PROC_FS
- void vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c	2006-05-10 08:12:40.000000000 +0200
-+++ linux-2.6/mm/memory.c	2006-05-10 08:16:33.000000000 +0200
-@@ -962,18 +962,28 @@ struct page *follow_page(struct vm_area_
- 	if (unlikely(!page))
- 		goto unlock;
+- /* A swap entry has to fit into a "unsigned long", as
+-  * the entry is hidden in the "index" field of the
+-  * swapper address space.
+-  */
++/*
++ * A swap entry has to fit into a "unsigned long", as
++ * the entry is hidden in the "index" field of the
++ * swapper address space.
++ */
++#ifdef CONFIG_SWAP
+ typedef struct {
+ 	unsigned long val;
+ } swp_entry_t;
++#else
++typedef struct {
++	unsigned long val;
++} swp_entry_t __attribute__((__unused__));
++#endif
  
--	if (flags & FOLL_GET)
-+	if (flags & (FOLL_GET | FOLL_TOUCH))
- 		get_page(page);
- 	if (flags & FOLL_TOUCH) {
- 		if ((flags & FOLL_WRITE) &&
- 		    !pte_dirty(pte) && !PageDirty(page))
-+			flags |= FOLL_DIRTY;
-+	}
-+
-+	pte_unmap_unlock(ptep, ptl);
-+
-+	if (flags & FOLL_TOUCH) {
-+		if (flags & FOLL_DIRTY)
- 			set_page_dirty(page);
- 		mark_page_accessed(page);
- 	}
-+	if (!(flags & FOLL_GET))
-+		put_page(page);
-+	goto out;
-+
- unlock:
- 	pte_unmap_unlock(ptep, ptl);
--out:
--	return page;
-+	goto out;
- 
- no_page_table:
- 	/*
-@@ -986,6 +996,7 @@ no_page_table:
- 			get_page(page);
- 		BUG_ON(flags & FOLL_WRITE);
- 	}
-+out:
- 	return page;
- }
- 
+ /*
+  * current->reclaim_state points to one of these when a task is running
 
+-- 
+-ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
