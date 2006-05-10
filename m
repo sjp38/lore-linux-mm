@@ -1,32 +1,80 @@
-Subject: Re: [PATCH] mm: cleanup swap unused warning
-From: Daniel Walker <dwalker@mvista.com>
-In-Reply-To: <20060510043834.70f40ddc.akpm@osdl.org>
-References: <200605102132.41217.kernel@kolivas.org>
-	 <20060510043834.70f40ddc.akpm@osdl.org>
-Content-Type: text/plain
-Date: Wed, 10 May 2006 11:20:55 -0700
-Message-Id: <1147285256.21536.132.camel@c-67-180-134-207.hsd1.ca.comcast.net>
-Mime-Version: 1.0
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k4AJjSjk022481
+	for <linux-mm@kvack.org>; Wed, 10 May 2006 15:45:28 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k4AJjODO238686
+	for <linux-mm@kvack.org>; Wed, 10 May 2006 15:45:28 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k4AJjOQ6005451
+	for <linux-mm@kvack.org>; Wed, 10 May 2006 15:45:24 -0400
+Message-ID: <446242CB.4090106@us.ibm.com>
+Date: Wed, 10 May 2006 14:45:15 -0500
+From: Brian Twichell <tbrian@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
+References: <1146671004.24422.20.camel@wildcat.int.mccr.org> <Pine.LNX.4.64.0605031650190.3057@blonde.wat.veritas.com> <57DF992082E5BD7D36C9D441@[10.1.1.4]> <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com> <445FA0CA.4010008@us.ibm.com> <44600F9B.1060207@yahoo.com.au>
+In-Reply-To: <44600F9B.1060207@yahoo.com.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-05-10 at 04:38 -0700, Andrew Morton wrote:
-> Con Kolivas <kernel@kolivas.org> wrote:
-> >
-> > Are there any users of swp_entry_t when CONFIG_SWAP is not defined?
-> 
-> Well there shouldn't be.  Making accesses to swp_entry_t.val fail to
-> compile if !CONFIG_SWAP might be useful.
+Nick Piggin wrote:
 
-In mm/vmscan.c line 387 it defined swp_entry_t and sets val regardless
-of CONFIG_SWAP , but the value never really gets used .. Showed up in my
-warning reviews.
+> Brian Twichell wrote:
+>
+>>
+>> If we had to choose between pagetable sharing for small pages and 
+>> hugepages, we would be in favor of retaining pagetable sharing for 
+>> small pages.  That is where the discernable benefit is for customers 
+>> that run with "out-of-the-box" settings.  Also, there is still some 
+>> benefit there on x86-64 for customers that use hugepages for the 
+>> bufferpools.
+>
+>
+> Of course if it was free performance then we'd want it. The downsides 
+> are that it
+> is a significant complexity for a pretty small (3%) performance gain 
+> for your apparent
+> target workload, which is pretty uncommon among all Linux users.
 
-Daniel
+Our performance data demonstrated that the potential gain for the 
+non-hugepage case is much higher than 3%.
+
+>
+> Ignoring the complexity, it is still not free. Sharing data across 
+> processes adds to
+> synchronisation overhead and hurts scalability. Some of these page 
+> fault scalability
+> scenarios have shown to be important enough that we have introduced 
+> complexity _there_.
+
+True, but this needs to be balanced against the fact that pagetable 
+sharing will reduce the number of page faults when it is achieved.  
+Let's say you have N processes which touch all the pages in an M page 
+shared memory region.  Without shared pagetables this requires N*M page 
+faults; if pagetable sharing is achieved, only M pagefaults are required.
+
+>
+> And it seems customers running "out-of-the-box" settings really want 
+> to start using
+> hugepages if they're interested in getting the most performance 
+> possible, no?
+
+My perspective is that, once the customer is required to invoke "echo 
+XXX > /proc/sys/vm/nr_hugepages" they've left the "out-of-the-box" 
+domain, and entered the domain of hoping that the number of hugepages is 
+sufficient, because if it's not, they'll probably need to reboot, which 
+can be pretty inconvenient for a production transaction-processing 
+application.
+
+Cheers,
+Brian
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
