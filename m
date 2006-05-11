@@ -1,40 +1,71 @@
-Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k4ANiWnx007581
-	for <linux-mm@kvack.org>; Wed, 10 May 2006 18:44:32 -0500
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k4B03Q7p28588938
-	for <linux-mm@kvack.org>; Wed, 10 May 2006 17:03:26 -0700 (PDT)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k4ANiVnB36218288
-	for <linux-mm@kvack.org>; Wed, 10 May 2006 16:44:31 -0700 (PDT)
-Received: from christoph (helo=localhost)
-	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1FdyM3-0001zp-00
-	for <linux-mm@kvack.org>; Wed, 10 May 2006 16:44:31 -0700
-Date: Wed, 10 May 2006 16:42:01 -0700 (PDT)
-From: Christoph Lameter <christoph@engr.sgi.com>
-Subject: Re: [RFC] Hugetlb demotion for x86
-In-Reply-To: <1147287400.24029.81.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0605101633140.7639@schroedinger.engr.sgi.com>
-References: <1147287400.24029.81.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.64.0605101644200.7676@schroedinger.engr.sgi.com>
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+        by fgwmail6.fujitsu.co.jp (Fujitsu Gateway)
+        with ESMTP id k4B1l8qh008578 for <linux-mm@kvack.org>; Thu, 11 May 2006 10:47:08 +0900
+        (envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s6.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id k4B1l6Xh010246 for <linux-mm@kvack.org>; Thu, 11 May 2006 10:47:06 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s6.gw.fujitsu.co.jp (s6 [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E0AA9398104
+	for <linux-mm@kvack.org>; Thu, 11 May 2006 10:47:05 +0900 (JST)
+Received: from fjm505.ms.jp.fujitsu.com (fjm505.ms.jp.fujitsu.com [10.56.99.83])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0775939810A
+	for <linux-mm@kvack.org>; Thu, 11 May 2006 10:47:05 +0900 (JST)
+Received: from fjmscan502.ms.jp.fujitsu.com (fjmscan502.ms.jp.fujitsu.com [10.56.99.142])by fjm505.ms.jp.fujitsu.com with ESMTP id k4B1kSvh005242
+	for <linux-mm@kvack.org>; Thu, 11 May 2006 10:46:28 +0900
+Received: from unknown ([10.124.100.187])
+	by fjmscan502.ms.jp.fujitsu.com (8.13.1/8.12.11) with SMTP id k4B1kPhq004057
+	for <linux-mm@kvack.org>; Thu, 11 May 2006 10:46:28 +0900
+Date: Thu, 11 May 2006 10:49:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Question: what happens if writeing back to swap ends in error
+Message-Id: <20060511104901.572522a9.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.kernel.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Seems that the code is not modifying x86 code but all code. 
+Hi,
 
-An app should be getting an out of memory error and not a SIGBUS when 
-running out of memory.
+What happens when I/O request from swap_writeback() ends in I/O Error ?
 
-I thought we fixed the SIGBUS problems and were now reporting out of 
-memory? If there still is an issue then we better fix out of memory 
-handling. Provide a way for the app to trap OOM conditions?
+swap_writepage() (in mm/page_io.c) sets bio->bi_end_io as end_swap_bio_write().
+After I/O ends, bio_endio()->end_swap_bio_write() is called, I think.
+
+If that writeback was end in error, bio-bi_flags's BIO_UPTODATE is cleared.
+Then, page is marked with PG_error.
+==
+static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
+{
+        const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
+        struct page *page = bio->bi_io_vec[0].bv_page;
+
+        if (bio->bi_size)
+                return 1;
+
+        if (!uptodate)
+                SetPageError(page);
+        end_page_writeback(page);
+        bio_put(bio);
+        return 0;
+}
+==
+But here, PG_writeback is cleared, anyway.
+
+Now, shrink_list() doesn't handle PG_error.
+If the page is not accessed, page's state is !PageDirty() && !PageWriteback()
+and SwapCache and on LRU.
+Finally, page marked with PG_error is freed by shrink_list() and data in the
+page will be lost.
+
+correct ?
+
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
