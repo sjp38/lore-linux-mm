@@ -1,53 +1,48 @@
-Date: Thu, 11 May 2006 16:30:36 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Thu, 11 May 2006 16:44:48 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [RFC][PATCH 1/3] tracking dirty pages in shared mappings -V4
-In-Reply-To: <Pine.LNX.4.64.0605111546480.16571@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0605111616490.3866@g5.osdl.org>
-References: <1146861313.3561.13.camel@lappy> <445CA22B.8030807@cyberone.com.au>
- <1146922446.3561.20.camel@lappy> <445CA907.9060002@cyberone.com.au>
- <1146929357.3561.28.camel@lappy> <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
- <1147116034.16600.2.camel@lappy> <Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>
- <1147207458.27680.19.camel@lappy> <20060511080220.48688b40.akpm@osdl.org>
- <Pine.LNX.4.64.0605111546480.16571@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20060511164448.4686a2bd.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0605111616490.3866@g5.osdl.org>
+References: <1146861313.3561.13.camel@lappy>
+	<445CA22B.8030807@cyberone.com.au>
+	<1146922446.3561.20.camel@lappy>
+	<445CA907.9060002@cyberone.com.au>
+	<1146929357.3561.28.camel@lappy>
+	<Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
+	<1147116034.16600.2.camel@lappy>
+	<Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>
+	<1147207458.27680.19.camel@lappy>
+	<20060511080220.48688b40.akpm@osdl.org>
+	<Pine.LNX.4.64.0605111546480.16571@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0605111616490.3866@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, piggin@cyberone.com.au, ak@suse.de, rohitseth@google.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: clameter@sgi.com, a.p.zijlstra@chello.nl, piggin@cyberone.com.au, ak@suse.de, rohitseth@google.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Linus Torvalds <torvalds@osdl.org> wrote:
+>
+> What happened to the VM stress-test programs that we used to test the 
+> page-out with? I forget who kept a collection of them around, but they did 
+> things like trying to cause MM problems on purpose.
 
-On Thu, 11 May 2006, Christoph Lameter wrote:
-> On Thu, 11 May 2006, Andrew Morton wrote:
-> >
-> > It'd be nice to have more that a "simple test" done.  Bugs in this area
-> > will be subtle and will manifest in unpleasant ways.  That goes for both
-> > correctness and performance bugs.
-> 
-> Standard tests such as AIM7 will not trigger these paths. It is rather
-> unusual for small unix processes to have a shared writable mapping and 
-> therefore I doubt that the typical benchmarks may show much of a 
-> difference. These  types of mappings are more typical for large or 
-> specialized apps. Be sure that the tests actually do dirty 
-> pages in shared writeable mappings.
+I think that was me, back in my programming days.
 
-What happened to the VM stress-test programs that we used to test the 
-page-out with? I forget who kept a collection of them around, but they did 
-things like trying to cause MM problems on purpose. And I'm pretty sure 
-some of the nastiest ones used shared mappings, exactly because we've had 
-problems with the virtual scanning.
+> And I'm pretty sure 
+> some of the nastiest ones used shared mappings, exactly because we've had 
+> problems with the virtual scanning.
 
-I have a very distinct memory of somebody (I'd like to say Con, but that's 
-probably bogus) collecting a few programs that were known to cause nasty 
-problems (like the system just becoming totally unresponsive). For
-checking that things degraded reasonably before getting killed by OOM.
+http://www.zip.com.au/~akpm/linux/patches/stuff/ext3-tools.tar.gz
 
-I'm talking the 2.4.x timeframe, so it's a few years ago. It might not be 
-a real _benchmark_ per se, but I think it would be an interesting 
-data-point whether the system acts "better" with some of those tests..
+run-bash-shared-mapping.sh is a good stress-tester and deadlock-finder.
 
-		Linus
+Running fsx-linux (in mmap-read and mmap-write and read and write mode) in
+combination with memory pressure is a good correctness-tester.  Needs to be
+run on various filesystems too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
