@@ -1,73 +1,121 @@
-Message-ID: <44641A72.8050801@yahoo.com.au>
-Date: Fri, 12 May 2006 15:17:38 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
-References: <1146671004.24422.20.camel@wildcat.int.mccr.org> <Pine.LNX.4.64.0605031650190.3057@blonde.wat.veritas.com> <57DF992082E5BD7D36C9D441@[10.1.1.4]> <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com> <445FA0CA.4010008@us.ibm.com> <44600F9B.1060207@yahoo.com.au> <446242CB.4090106@us.ibm.com>
-In-Reply-To: <446242CB.4090106@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [RFC][PATCH 1/3] tracking dirty pages in shared mappings -V4
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20060511213045.32b41aa6.akpm@osdl.org>
+References: <1146861313.3561.13.camel@lappy>
+	 <445CA22B.8030807@cyberone.com.au> <1146922446.3561.20.camel@lappy>
+	 <445CA907.9060002@cyberone.com.au> <1146929357.3561.28.camel@lappy>
+	 <Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>
+	 <1147116034.16600.2.camel@lappy>
+	 <Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>
+	 <1147207458.27680.19.camel@lappy> <20060511080220.48688b40.akpm@osdl.org>
+	 <4463EA16.5090208@cyberone.com.au>  <20060511213045.32b41aa6.akpm@osdl.org>
+Content-Type: text/plain
+Date: Fri, 12 May 2006 09:06:01 +0200
+Message-Id: <1147417561.8951.17.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brian Twichell <tbrian@us.ibm.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nick Piggin <piggin@cyberone.com.au>, clameter@sgi.com, torvalds@osdl.org, ak@suse.de, rohitseth@google.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Brian Twichell wrote:
-> Nick Piggin wrote:
+On Thu, 2006-05-11 at 21:30 -0700, Andrew Morton wrote:
+> Nick Piggin <piggin@cyberone.com.au> wrote:
+> >
+> >  >So let's see.  We take a write fault, we mark the page dirty then we return
+> >  >to userspace which will proceed with the write and will mark the pte dirty.
+> >  >
+> >  >Later, the VM will write the page out.
+> >  >
+> >  >Later still, the pte will get cleaned by reclaim or by munmap or whatever
+> >  >and the page will be marked dirty and the page will again be written out. 
+> >  >Potentially needlessly.
+> >  >
+> > 
+> >  page_wrprotect also marks the page clean,
+> 
+> Oh.  I missed that when reading the comment which describes
+> page_wrprotect() (I do go on).
 
->> Of course if it was free performance then we'd want it. The downsides 
->> are that it
->> is a significant complexity for a pretty small (3%) performance gain 
->> for your apparent
->> target workload, which is pretty uncommon among all Linux users.
-> 
-> 
-> Our performance data demonstrated that the potential gain for the 
-> non-hugepage case is much higher than 3%.
+Yes, this name is not the best of names :-(
 
-The point is, there are hugepages. They were a significant additional
-complexity but the concession was made because they did provide a
-large speedup for databases.
+I was aware of this, but since in my mind the counting through
+protection 
+faults was the prime idea, I stuck to page_wrprotect().
 
-> 
->>
->> Ignoring the complexity, it is still not free. Sharing data across 
->> processes adds to
->> synchronisation overhead and hurts scalability. Some of these page 
->> fault scalability
->> scenarios have shown to be important enough that we have introduced 
->> complexity _there_.
-> 
-> 
-> True, but this needs to be balanced against the fact that pagetable 
-> sharing will reduce the number of page faults when it is achieved.  
-> Let's say you have N processes which touch all the pages in an M page 
-> shared memory region.  Without shared pagetables this requires N*M page 
-> faults; if pagetable sharing is achieved, only M pagefaults are required.
-> 
->>
->> And it seems customers running "out-of-the-box" settings really want 
->> to start using
->> hugepages if they're interested in getting the most performance 
->> possible, no?
-> 
-> 
-> My perspective is that, once the customer is required to invoke "echo 
-> XXX > /proc/sys/vm/nr_hugepages" they've left the "out-of-the-box" 
-> domain, and entered the domain of hoping that the number of hugepages is 
-> sufficient, because if it's not, they'll probably need to reboot, which 
-> can be pretty inconvenient for a production transaction-processing 
-> application.
+But I'm hard pressed to come up with a better one. Nick proposes:
+ page_mkclean()
+But that also doesn't cover the whole of it from my perspective.
 
-I think it is pretty easy to reserve hugepages at bootup. This is what
-a production transaction processing system will be doing, won't it?
-Especially if they're performance constrained and hugepages gives them
-a 30% performance boost.
+> > so this window is very small.
+> >  The window is that the fault path might set_page_dirty, then throttle
+> >  on writeout, and the page gets written out before it really gets dirtied
+> >  by the application (which then has to fault again).
+> 
+> : int test_clear_page_dirty(struct page *page)
+> : {
+> : 	struct address_space *mapping = page_mapping(page);
+> : 	unsigned long flags;
+> : 
+> : 	if (mapping) {
+> : 		write_lock_irqsave(&mapping->tree_lock, flags);
+> : 		if (TestClearPageDirty(page)) {
+> : 			radix_tree_tag_clear(&mapping->page_tree,
+> : 						page_index(page),
+> : 						PAGECACHE_TAG_DIRTY);
+> : 			write_unlock_irqrestore(&mapping->tree_lock, flags);
+> : 			/*
+> : 			 * We can continue to use `mapping' here because the
+> : 			 * page is locked, which pins the address_space
+> : 			 */
+> 
+> So if userspace modifies the page right here, and marks the pte dirty.
+> 
+> : 			if (mapping_cap_account_dirty(mapping)) {
+> : 				page_wrprotect(page);
+> 
+> We just lost that pte dirty bit, and hence the user's data.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+I thought that at the time we clean PAGECACHE_TAG_DIRTY the page is in
+flight to disk.
+Now that I look at it again, perhaps the page_wrprotect() call in
+clear_page_dirty_for_io()
+should be in test_set_page_writeback().
+
+> : 				dec_page_state(nr_dirty);
+> : 			}
+> : 			return 1;
+> : 		}
+> : 		write_unlock_irqrestore(&mapping->tree_lock, flags);
+> : 		return 0;
+> : 	}
+> : 	return TestClearPageDirty(page);
+> : }
+> : 
+> 
+> Which is just the sort of subtle and nasty problem I was referring to...
+> 
+> If that's correct then I guess we need the
+> 
+>                 if (ptep_clear_flush_dirty(vma, addr, pte) ||
+>                                 page_test_and_clear_dirty(page))
+>                         ret += set_page_dirty(page);
+> 
+> treatment in page_wrprotect().
+
+I would make that a BUG_ON(); the only way for a pte of a shared mapping
+to become 
+dirty is through the fault handler, and that should already call
+set_page_dirty() on it.
+
+> Now I suppose it's not really a dataloss race, because in practice the
+> kernel is about to write this page to backing store anwyay.  I guess.  I
+> cannot immediately think of any clear_page_dirty() callers for whom that
+> won't be true.
+> 
+> Someone please convince me that this has all been thought about and is solid
+> as a rock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
