@@ -1,5 +1,5 @@
-Message-ID: <44644196.9070402@cyberone.com.au>
-Date: Fri, 12 May 2006 18:04:38 +1000
+Message-ID: <4464424E.2080501@cyberone.com.au>
+Date: Fri, 12 May 2006 18:07:42 +1000
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 1/3] tracking dirty pages in shared mappings -V4
@@ -13,48 +13,30 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrew Morton <akpm@osdl.org>, clameter@sgi.com, torvalds@osdl.org, ak@suse.de, rohitseth@google.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+
 Peter Zijlstra wrote:
 
 >On Thu, 2006-05-11 at 21:30 -0700, Andrew Morton wrote:
 >
->>Nick Piggin <piggin@cyberone.com.au> wrote:
 >>
->>> >So let's see.  We take a write fault, we mark the page dirty then we return
->>> >to userspace which will proceed with the write and will mark the pte dirty.
->>> >
->>> >Later, the VM will write the page out.
->>> >
->>> >Later still, the pte will get cleaned by reclaim or by munmap or whatever
->>> >and the page will be marked dirty and the page will again be written out. 
->>> >Potentially needlessly.
->>> >
->>>
->>> page_wrprotect also marks the page clean,
->>>
->>Oh.  I missed that when reading the comment which describes
->>page_wrprotect() (I do go on).
+>>We just lost that pte dirty bit, and hence the user's data.
 >>
 >
->Yes, this name is not the best of names :-(
->
->I was aware of this, but since in my mind the counting through
->protection 
->faults was the prime idea, I stuck to page_wrprotect().
->
->But I'm hard pressed to come up with a better one. Nick proposes:
-> page_mkclean()
->But that also doesn't cover the whole of it from my perspective.
+>I thought that at the time we clean PAGECACHE_TAG_DIRTY the page is in
+>flight to disk.
 >
 
-What's your perspective?
+No.
 
-With mmap shared accounting, the _whole VM's_ perspective is that clean
-MAP_SHARED ptes are marked readonly.
+>Now that I look at it again, perhaps the page_wrprotect() call in
+>clear_page_dirty_for_io()
+>should be in test_set_page_writeback().
+>
 
-The logical operation is marking the page's ptes clean. The VM mechanism
-also marks the ptes readonly as a side effect of that. Think about it:
-writeback does not want to make the page write protected, it wants to make
-it clean.
+No. The logical operation is clearing the dirty bits from the ptes. Such
+an operation would be valid even if we didn't set the ptes readonly.
+
+And clearing dirty belongs in clear_page_dirty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
