@@ -1,341 +1,157 @@
-Message-ID: <4465E981.60302@yahoo.com.au>
-Date: Sun, 14 May 2006 00:13:21 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Sat, 13 May 2006 11:19:46 -0700
+From: Valerie Henson <val_henson@linux.intel.com>
 Subject: Re: [patch 00/14] remap_file_pages protection support
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au>
-In-Reply-To: <445D75EB.5030909@yahoo.com.au>
-Content-Type: multipart/mixed;
- boundary="------------070102070805060202000200"
+Message-ID: <20060513181945.GC9612@goober>
+References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au> <4465E981.60302@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4465E981.60302@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@redhat.com>
-Cc: Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ulrich Drepper <drepper@redhat.com>, Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------070102070805060202000200
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-
-Nick Piggin wrote:
-
-> I think possibly each thread should have a private vma cache, with
-> room for at least its stack vma(s), (and several others, eg. code,
-> data). Perhaps the per-mm cache could be dispensed with completely,
-> although it might be useful eg. for the heap. And it might be helped
-> with increased entries as well.
+On Sun, May 14, 2006 at 12:13:21AM +1000, Nick Piggin wrote:
 > 
-> I've got patches lying around to implement this stuff -- I'd be
-> interested to have more detail about this problem, or distilled test
-> cases.
+> OK, I got interested again, but can't get Val's ebizzy to give me
+> a find_vma constrained workload yet (though the numbers back up
+> my assertion that the vma cache is crap for threaded apps).
 
-OK, I got interested again, but can't get Val's ebizzy to give me
-a find_vma constrained workload yet (though the numbers back up
-my assertion that the vma cache is crap for threaded apps).
+Hey Nick,
 
-Without the patch, after bootup, the vma cache gets 208 364 hits out
-of 438 535 lookups (47.5%)
+Glad to see you're using it!  There are (at least) two ways to do what
+you want:
 
-./ebizzy -t16: 384.29user 754.61system 5:31.87elapsed 343%CPU
+1. Increase the number of threads - this gives you two vma's per
+   thread, one for stack, one for guard page:
 
-And ebizzy gets 7 373 078 hits out of 82 255 863 lookups (8.9%)
+   $ ./ebizzy -t 100
 
+2. Apply the patch at the end of this email and use -p "prevent
+   coalescing", -m "always mmap" and appropriate number of chunks,
+   size, and records to search - this works for me:
 
-With mm + 4 slot LRU per-thread cache (this patch):
-After boot, 303 767 / 439 918 = 69.0%
+   $ ./ebizzy -p -m -n 10000 -s 4096 -r 100000
 
-./ebizzy -t16: 388.73user 750.29system 5:30.24elapsed 344%CPU
+The original program mmapped everything with the same permissions and
+no alignment restrictions, so all the mmaps were coalesced into one.
+This version alternates PROT_WRITE permissions on the mmap'd areas
+after they are written, so you get lots of vma's:
 
-ebizzy hits: 53 024 083 / 82 055 195 = 64.6%
+val@goober:~/ebizzy$ ./ebizzy -p -m -n 10000 -s 4096 -r 100000
 
+[2]+  Stopped                 ./ebizzy -p -m -n 10000 -s 4096 -r 100000
+val@goober:~/ebizzy$ wc -l /proc/`pgrep ebizzy`/maps
+10019 /proc/10917/maps
 
-So on a non-threaded workload, hit rate is increased by about 50%;
-on a threaded workload it is increased by over 700%. In rbtree-walk
--constrained workloads, the total find_vma speedup should be linear
-to the hit ratio improvement.
+I haven't profiled to see if this brings find_vma to the top, though.
 
-I don't think my ebizzy numbers can justify the patch though...
+(The patch also moves around some other stuff so that options are in
+alphabetical order; apparently I thought 's' came after 'r' and before
+'R'...)
 
-Nick
+-VAL
 
--- 
-SUSE Labs, Novell Inc.
-
---------------070102070805060202000200
-Content-Type: text/plain;
- name="vma.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="vma.patch"
-
-Index: linux-2.6/mm/mmap.c
-===================================================================
---- linux-2.6.orig/mm/mmap.c	2006-05-13 23:31:13.000000000 +1000
-+++ linux-2.6/mm/mmap.c	2006-05-13 23:48:53.000000000 +1000
-@@ -30,6 +30,99 @@
- #include <asm/cacheflush.h>
- #include <asm/tlb.h>
+--- ebizzy.c.old	2006-05-13 10:18:58.000000000 -0700
++++ ebizzy.c	2006-05-13 11:01:42.000000000 -0700
+@@ -52,9 +52,10 @@
+ static unsigned int always_mmap;
+ static unsigned int never_mmap;
+ static unsigned int chunks;
++static unsigned int prevent_coalescing;
+ static unsigned int records;
+-static unsigned int chunk_size;
+ static unsigned int random_size;
++static unsigned int chunk_size;
+ static unsigned int threads;
+ static unsigned int verbose;
+ static unsigned int linear;
+@@ -76,9 +77,10 @@
+ 		"-m\t\t Always use mmap instead of malloc\n"
+ 		"-M\t\t Never use mmap\n"
+ 		"-n <num>\t Number of memory chunks to allocate\n"
++		"-p \t\t Prevent mmap coalescing\n"
+ 		"-r <num>\t Total number of records to search for\n"
+-		"-s <size>\t Size of memory chunks, in bytes\n"
+ 		"-R\t\t Randomize size of memory to copy and search\n"
++		"-s <size>\t Size of memory chunks, in bytes\n"
+ 		"-t <num>\t Number of threads\n"
+ 		"-v[v[v]]\t Be verbose (more v's for more verbose)\n"
+ 		"-z\t\t Linear search instead of binary search\n",
+@@ -98,7 +100,7 @@
+ 	cmd = argv[0];
+ 	opterr = 1;
  
-+static void vma_cache_touch(struct mm_struct *mm, struct vm_area_struct *vma)
-+{
-+	struct task_struct *curr = current;
-+	if (mm == curr->mm) {
-+		int i;
-+		if (curr->vma_cache_sequence != mm->vma_sequence) {
-+			curr->vma_cache_sequence = mm->vma_sequence;
-+			curr->vma_cache[0] = vma;
-+			for (i = 1; i < 4; i++)
-+				curr->vma_cache[i] = NULL;
-+		} else {
-+			int update_mm;
-+
-+			if (curr->vma_cache[0] == vma)
-+				return;
-+
-+			for (i = 1; i < 4; i++) {
-+				if (curr->vma_cache[i] == vma)
-+					break;
-+			}
-+			update_mm = 0;
-+			if (i == 4) {
-+				update_mm = 1;
-+				i = 3;
-+			}
-+			while (i != 0) {
-+				curr->vma_cache[i] = curr->vma_cache[i-1];
-+				i--;
-+			}
-+			curr->vma_cache[0] = vma;
-+
-+			if (!update_mm)
-+				return;
-+		}
-+	}
-+
-+	if (mm->vma_cache != vma) /* prevent cacheline bouncing */
-+		mm->vma_cache = vma;
-+}
-+
-+static void vma_cache_replace(struct mm_struct *mm, struct vm_area_struct *vma,
-+						struct vm_area_struct *repl)
-+{
-+	mm->vma_sequence++;
-+	if (unlikely(mm->vma_sequence == 0)) {
-+		struct task_struct *curr = current, *t;
-+		t = curr;
-+		rcu_read_lock();
-+		do {
-+			t->vma_cache_sequence = -1;
-+			t = next_thread(t);
-+		} while (t != curr);
-+		rcu_read_unlock();
-+	}
-+
-+	if (mm->vma_cache == vma)
-+		mm->vma_cache = repl;
-+}
-+
-+static inline void vma_cache_invalidate(struct mm_struct *mm, struct vm_area_struct *vma)
-+{
-+	vma_cache_replace(mm, vma, NULL);
-+}
-+
-+static struct vm_area_struct *vma_cache_find(struct mm_struct *mm,
-+						unsigned long addr)
-+{
-+	struct task_struct *curr;
-+	struct vm_area_struct *vma;
-+
-+	inc_page_state(vma_cache_query);
-+
-+	curr = current;
-+	if (mm == curr->mm && mm->vma_sequence == curr->vma_cache_sequence) {
-+		int i;
-+		for (i = 0; i < 4; i++) {
-+			vma = curr->vma_cache[i];
-+			if (vma && vma->vm_end > addr && vma->vm_start <= addr){
-+				inc_page_state(vma_cache_hit);
-+				return vma;
-+			}
-+		}
-+	}
-+
-+	vma = mm->vma_cache;
-+	if (vma && vma->vm_end > addr && vma->vm_start <= addr) {
-+		inc_page_state(vma_cache_hit);
-+		return vma;
-+	}
-+
-+	return NULL;
-+}
-+
- static void unmap_region(struct mm_struct *mm,
- 		struct vm_area_struct *vma, struct vm_area_struct *prev,
- 		unsigned long start, unsigned long end);
-@@ -460,8 +553,6 @@
+-	while ((c = getopt(argc, argv, "mMn:r:s:Rt:vz")) != -1) {
++	while ((c = getopt(argc, argv, "mMn:pr:Rs:t:vz")) != -1) {
+ 		switch (c) {
+ 		case 'm':
+ 			always_mmap = 1;
+@@ -111,19 +113,22 @@
+ 			if (chunks == 0)
+ 				usage();
+ 			break;
++		case 'p':
++			prevent_coalescing = 1;
++			break;
+ 		case 'r':
+ 			records = atoi(optarg);
+ 			if (records == 0)
+ 				usage();
+ 			break;
++		case 'R':
++			random_size = 1;
++			break;
+ 		case 's':
+ 			chunk_size = atoi(optarg);
+ 			if (chunk_size == 0)
+ 				usage();
+ 			break;
+-		case 'R':
+-			random_size = 1;
+-			break;
+ 		case 't':
+ 			threads = atoi(optarg);
+ 			if (threads == 0)
+@@ -141,7 +146,7 @@
+ 	}
+ 
+ 	if (verbose)
+-		printf("ebizzy 0.1, Copyright 2006 Intel Corporation\n"
++		printf("ebizzy 0.2, Copyright 2006 Intel Corporation\n"
+ 		       "Written by Val Henson <val_henson@linux.intel.com\n");
+ 
+ 	/*
+@@ -173,10 +178,11 @@
+ 		printf("always_mmap %u\n", always_mmap);
+ 		printf("never_mmap %u\n", never_mmap);
+ 		printf("chunks %u\n", chunks);
++		printf("prevent coalescing %u\n", prevent_coalescing);
+ 		printf("records %u\n", records);
+ 		printf("records per thread %u\n", records_per_thread);
+-		printf("chunk_size %u\n", chunk_size);
+ 		printf("random_size %u\n", random_size);
++		printf("chunk_size %u\n", chunk_size);
+ 		printf("threads %u\n", threads);
+ 		printf("verbose %u\n", verbose);
+ 		printf("linear %u\n", linear);
+@@ -251,9 +257,13 @@
  {
- 	prev->vm_next = vma->vm_next;
- 	rb_erase(&vma->vm_rb, &mm->mm_rb);
--	if (mm->mmap_cache == vma)
--		mm->mmap_cache = prev;
- }
+ 	int i, j;
  
- /*
-@@ -586,6 +677,7 @@
- 		 * us to remove next before dropping the locks.
- 		 */
- 		__vma_unlink(mm, next, vma);
-+		vma_cache_replace(mm, next, vma);
- 		if (file)
- 			__remove_shared_vm_struct(next, file, mapping);
- 		if (next->anon_vma)
-@@ -1384,8 +1476,8 @@
- 	if (mm) {
- 		/* Check the cache first. */
- 		/* (Cache hit rate is typically around 35%.) */
--		vma = mm->mmap_cache;
--		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
-+		vma = vma_cache_find(mm, addr);
-+		if (!vma) {
- 			struct rb_node * rb_node;
- 
- 			rb_node = mm->mm_rb.rb_node;
-@@ -1405,9 +1497,9 @@
- 				} else
- 					rb_node = rb_node->rb_right;
- 			}
--			if (vma)
--				mm->mmap_cache = vma;
- 		}
-+		if (vma)
-+			vma_cache_touch(mm, vma);
- 	}
- 	return vma;
- }
-@@ -1424,6 +1516,14 @@
- 	if (!mm)
- 		goto out;
- 
-+	vma = vma_cache_find(mm, addr);
-+	if (vma) {
-+		rb_node = rb_prev(&vma->vm_rb);
-+		if (rb_node)
-+			prev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-+		goto out;
+-	for (i = 0; i < chunks; i++)
++	for (i = 0; i < chunks; i++) {
+ 		for(j = 0; j < chunk_size / record_size; j++)
+ 			mem[i][j] = (record_t) j;
++		/* Prevent coalescing by alternating permissions */
++		if (prevent_coalescing && (i % 2) == 0)
++			mprotect(mem[i], chunk_size, PROT_READ);
 +	}
-+
- 	/* Guard against addr being lower than the first VMA */
- 	vma = mm->mmap;
- 
-@@ -1445,6 +1545,9 @@
- 	}
- 
- out:
-+	if (vma)
-+		vma_cache_touch(mm, vma);
-+
- 	*pprev = prev;
- 	return prev ? prev->vm_next : vma;
+ 	if (verbose)
+ 		printf("Wrote memory\n");
  }
-@@ -1686,6 +1789,7 @@
- 
- 	insertion_point = (prev ? &prev->vm_next : &mm->mmap);
- 	do {
-+		vma_cache_invalidate(mm, vma);
- 		rb_erase(&vma->vm_rb, &mm->mm_rb);
- 		mm->map_count--;
- 		tail_vma = vma;
-@@ -1698,7 +1802,6 @@
- 	else
- 		addr = vma ?  vma->vm_start : mm->mmap_base;
- 	mm->unmap_area(mm, addr);
--	mm->mmap_cache = NULL;		/* Kill the cache. */
- }
- 
- /*
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2006-05-13 23:31:05.000000000 +1000
-+++ linux-2.6/include/linux/page-flags.h	2006-05-13 23:31:44.000000000 +1000
-@@ -164,6 +164,9 @@
- 
- 	unsigned long pgrotated;	/* pages rotated to tail of the LRU */
- 	unsigned long nr_bounce;	/* pages for bounce buffers */
-+
-+	unsigned long vma_cache_hit;
-+	unsigned long vma_cache_query;
- };
- 
- extern void get_page_state(struct page_state *ret);
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2006-05-13 23:31:05.000000000 +1000
-+++ linux-2.6/mm/page_alloc.c	2006-05-13 23:31:44.000000000 +1000
-@@ -2389,6 +2389,9 @@
- 
- 	"pgrotated",
- 	"nr_bounce",
-+
-+	"vma_cache_hit",
-+	"vma_cache_query",
- };
- 
- static void *vmstat_start(struct seq_file *m, loff_t *pos)
-Index: linux-2.6/include/linux/sched.h
-===================================================================
---- linux-2.6.orig/include/linux/sched.h	2006-05-13 23:31:03.000000000 +1000
-+++ linux-2.6/include/linux/sched.h	2006-05-13 23:33:01.000000000 +1000
-@@ -293,9 +293,11 @@
- } while (0)
- 
- struct mm_struct {
--	struct vm_area_struct * mmap;		/* list of VMAs */
-+	struct vm_area_struct *mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
--	struct vm_area_struct * mmap_cache;	/* last find_vma result */
-+	struct vm_area_struct *vma_cache;
-+	unsigned long vma_sequence;
-+
- 	unsigned long (*get_unmapped_area) (struct file *filp,
- 				unsigned long addr, unsigned long len,
- 				unsigned long pgoff, unsigned long flags);
-@@ -734,6 +736,8 @@
- 	struct list_head ptrace_list;
- 
- 	struct mm_struct *mm, *active_mm;
-+	struct vm_area_struct *vma_cache[4];
-+	unsigned long vma_cache_sequence;
- 
- /* task state */
- 	struct linux_binfmt *binfmt;
-Index: linux-2.6/kernel/fork.c
-===================================================================
---- linux-2.6.orig/kernel/fork.c	2006-05-13 23:31:03.000000000 +1000
-+++ linux-2.6/kernel/fork.c	2006-05-13 23:32:59.000000000 +1000
-@@ -197,7 +197,7 @@
- 
- 	mm->locked_vm = 0;
- 	mm->mmap = NULL;
--	mm->mmap_cache = NULL;
-+	mm->vma_sequence = oldmm->vma_sequence+1;
- 	mm->free_area_cache = oldmm->mmap_base;
- 	mm->cached_hole_size = ~0UL;
- 	mm->map_count = 0;
-@@ -238,6 +238,10 @@
- 		tmp->vm_next = NULL;
- 		anon_vma_link(tmp);
- 		file = tmp->vm_file;
-+
-+		if (oldmm->vma_cache == mpnt)
-+			mm->vma_cache = tmp;
-+
- 		if (file) {
- 			struct inode *inode = file->f_dentry->d_inode;
- 			get_file(file);
-
---------------070102070805060202000200--
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
