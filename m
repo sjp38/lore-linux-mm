@@ -1,35 +1,42 @@
-Date: Sat, 13 May 2006 15:54:43 -0700
-From: Valerie Henson <val_henson@linux.intel.com>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Message-ID: <20060513225442.GE9612@goober>
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au> <4465E981.60302@yahoo.com.au> <20060513181945.GC9612@goober>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060513181945.GC9612@goober>
+Message-ID: <446753AA.7040700@shadowen.org>
+Date: Sun, 14 May 2006 16:58:34 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 1/3] tracking dirty pages in shared mappings -V4
+References: <1146861313.3561.13.camel@lappy>	<445CA22B.8030807@cyberone.com.au>	<1146922446.3561.20.camel@lappy>	<445CA907.9060002@cyberone.com.au>	<1146929357.3561.28.camel@lappy>	<Pine.LNX.4.64.0605072338010.18611@schroedinger.engr.sgi.com>	<1147116034.16600.2.camel@lappy>	<Pine.LNX.4.64.0605082234180.23795@schroedinger.engr.sgi.com>	<1147207458.27680.19.camel@lappy>	<20060511080220.48688b40.akpm@osdl.org>	<Pine.LNX.4.64.0605111546480.16571@schroedinger.engr.sgi.com>	<Pine.LNX.4.64.0605111616490.3866@g5.osdl.org> <20060511164448.4686a2bd.akpm@osdl.org>
+In-Reply-To: <20060511164448.4686a2bd.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ulrich Drepper <drepper@redhat.com>, Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Arjan van de Ven <arjan@linux.intel.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Linus Torvalds <torvalds@osdl.org>, clameter@sgi.com, a.p.zijlstra@chello.nl, piggin@cyberone.com.au, ak@suse.de, rohitseth@google.com, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 13, 2006 at 11:19:46AM -0700, Valerie Henson wrote:
-> The original program mmapped everything with the same permissions and
-> no alignment restrictions, so all the mmaps were coalesced into one.
-> This version alternates PROT_WRITE permissions on the mmap'd areas
-> after they are written, so you get lots of vma's:
+Andrew Morton wrote:
+> Linus Torvalds <torvalds@osdl.org> wrote:
+> 
+>>What happened to the VM stress-test programs that we used to test the 
+>>page-out with? I forget who kept a collection of them around, but they did 
+>>things like trying to cause MM problems on purpose.
+> 
+> 
+> I think that was me, back in my programming days.
+> 
+> 
+>>And I'm pretty sure 
+>>some of the nastiest ones used shared mappings, exactly because we've had 
+>>problems with the virtual scanning.
+> 
+> 
+> http://www.zip.com.au/~akpm/linux/patches/stuff/ext3-tools.tar.gz
+> 
+> run-bash-shared-mapping.sh is a good stress-tester and deadlock-finder.
 
-... Which is of course exactly the case that Blaisorblade's patches
-should coalesce into one vma.  So I wrote another option which uses
-holes instead - takes more memory initially, unfortunately.  Grab it
-from:
+Well my amd64 box ran run-bash-shared-mapping.sh for 6 hours without a
+peep or oops.  Machine seemed ok at the end.
 
-http://www.nmt.edu/~val/patches/ebizzy.tar.gz
-
--p for preventing coaelescing via protections, -P for preventing via
-holes.
-
--VAL
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
