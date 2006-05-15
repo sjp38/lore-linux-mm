@@ -1,44 +1,56 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k4FELZM0002935
-	for <linux-mm@kvack.org>; Mon, 15 May 2006 10:21:35 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k4FELZml200110
-	for <linux-mm@kvack.org>; Mon, 15 May 2006 10:21:35 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.13.3) with ESMTP id k4FELZWM011388
-	for <linux-mm@kvack.org>; Mon, 15 May 2006 10:21:35 -0400
-Subject: Re: [RFC] Hugetlb demotion for x86
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1147363859.24029.134.camel@localhost.localdomain>
-References: <1147287400.24029.81.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0605101633140.7639@schroedinger.engr.sgi.com>
-	 <1147363859.24029.134.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 15 May 2006 07:20:17 -0700
-Message-Id: <1147702817.6623.27.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 15 May 2006 23:44:35 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
+In-Reply-To: <20060515122728.GA29253@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0605152342520.30476@skynet.skynet.ie>
+References: <20060508141030.26912.93090.sendpatchset@skynet>
+ <20060508141211.26912.48278.sendpatchset@skynet> <20060514203158.216a966e.akpm@osdl.org>
+ <20060515122728.GA29253@skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Christoph Lameter <christoph@engr.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-05-11 at 11:10 -0500, Adam Litke wrote:
-> Yes, the SIGBUS issues are "fixed".  Now the application is killed
-> directly via VM_FAULT_OOM so it is not possible to handle the fault from
-> userspace.  For my libhugetlbfs-based fallback approach, I needed to
-> patch the kernel so that SIGBUS was delivered to the process like in the
-> days of old.
+> diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c
+> --- linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c	2006-05-15 10:37:55.000000000 +0100
+> +++ linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c	2006-05-15 13:10:42.000000000 +0100
+> @@ -2640,14 +2640,20 @@ void __init free_area_init_nodes(unsigne
+> {
+> 	unsigned long nid;
+> 	int zone_index;
+> +	unsigned long lowest_pfn = find_min_pfn_with_active_regions();
+> +
+> +	lowest_pfn = zone_boundary_align_pfn(lowest_pfn);
+> +	arch_max_dma_pfn = zone_boundary_align_pfn(arch_max_dma_pfn);
+> +	arch_max_dma32_pfn = zone_boundary_align_pfn(arch_max_dma32_pfn);
+> +	arch_max_low_pfn = zone_boundary_align_pfn(arch_max_low_pfn);
+> +	arch_max_high_pfn = zone_boundary_align_pfn(arch_max_high_pfn);
+>
+> 	/* Record where the zone boundaries are */
+> 	memset(arch_zone_lowest_possible_pfn, 0,
+> 				sizeof(arch_zone_lowest_possible_pfn));
+> 	memset(arch_zone_highest_possible_pfn, 0,
+> 				sizeof(arch_zone_highest_possible_pfn));
+> -	arch_zone_lowest_possible_pfn[ZONE_DMA] =
+> -					find_min_pfn_with_active_regions();
+> +	arch_zone_lowest_possible_pfn[ZONE_DMA] = lowest_pfn;
+> 	arch_zone_highest_possible_pfn[ZONE_DMA] = arch_max_dma_pfn;
+> 	arch_zone_highest_possible_pfn[ZONE_DMA32] = arch_max_dma32_pfn;
+> 	arch_zone_highest_possible_pfn[ZONE_NORMAL] = arch_max_low_pfn;
+>
 
-Maybe this could be off-by-default behavior that can be enabled with a
-special mmap flag or madvise, or something similar.  It seems that apps
-don't want to get SIGBUS for low memory.  But, if they have _asked_ for
-it, perhaps they'd be a bit more willing.
+Ok, this patch is broken in a number of ways. It doesn't help the IA64 
+problem at all and two other machine configurations failed with the patch 
+applied during regression testing. Please drop and I'll figure out what 
+the correct solution is to your IA64 machine not booting.
 
-(BTW, I fixed the bogus linux-mm cc, finally ;)
-
--- Dave
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
