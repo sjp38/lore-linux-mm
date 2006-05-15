@@ -1,69 +1,77 @@
-Message-ID: <44685FC1.2040505@shadowen.org>
-Date: Mon, 15 May 2006 12:02:25 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
+Date: Mon, 15 May 2006 13:27:29 +0100
 Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
-References: <20060508141030.26912.93090.sendpatchset@skynet>	<20060508141211.26912.48278.sendpatchset@skynet>	<20060514203158.216a966e.akpm@osdl.org>	<44683A09.2060404@shadowen.org>	<44685123.7040501@yahoo.com.au>	<446855AF.1090100@shadowen.org> <20060515192918.c3e2e895.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060515192918.c3e2e895.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20060515122728.GA29253@skynet.ie>
+References: <20060508141030.26912.93090.sendpatchset@skynet> <20060508141211.26912.48278.sendpatchset@skynet> <20060514203158.216a966e.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20060514203158.216a966e.akpm@osdl.org>
+From: mel@csn.ul.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nickpiggin@yahoo.com.au, akpm@osdl.org, mel@csn.ul.ie, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Mon, 15 May 2006 11:19:27 +0100
-> Andy Whitcroft <apw@shadowen.org> wrote:
+On (14/05/06 20:31), Andrew Morton didst pronounce:
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> >
+> > Size zones and holes in an architecture independent manner for ia64.
+> > 
 > 
+> This one makes my ia64 die very early in boot.   The trace is pretty useless.
 > 
->>Nick Piggin wrote:
->>
->>>Andy Whitcroft wrote:
->>>
->>>
->>>>Interesting.  You are correct there was no config component, at the time
->>>>I didn't have direct evidence that any architecture needed it, only that
->>>>we had an unchecked requirement on zones, a requirement that had only
->>>>recently arrived with the changes to free buddy detection.  I note that
->>>
->>>
->>>Recently arrived? Over a year ago with the no-buddy-bitmap patches,
->>>right? Just checking because I that's what I'm assuming broke it...
->>
->>Yep, sorry I forget I was out of the game for 6 months!  And yes that
->>was when the requirements were altered.
->>
+> config at http://www.zip.com.au/~akpm/linux/patches/stuff/config-ia64
 > 
-> When no-bitmap-buddy patches was included,
-> 
-> 1. bad_range() is not covered by CONFIG_VM_DEBUG. It always worked.
-> ==
-> static int bad_range(struct zone *zone, struct page *page)
-> {
->         if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
->                 return 1;
->         if (page_to_pfn(page) < zone->zone_start_pfn)
->                 return 1;
-> ==
-> And , this code
-> ==
->                 buddy = __page_find_buddy(page, page_idx, order);
-> 
->                 if (bad_range(zone, buddy))
->                         break;
-> ==
-> 
-> checked whether buddy is in zone and guarantees it to have page struct.
-> 
-> 
-> But clean-up/speed-up codes vanished these checks. (I don't know when this occurs)
-> Sorry for misses these things.
+> <log snipped>
 
-Heh, sorry to make it sound like it was you who was responsible.
+Curses. When I tried to reproduce this, the machine booted with my default
+config but died before initialising the console with your config. The machine
+is far away so I can't see the screen or restart the machine remotely so
+I can only assume it is dying for the same reasons yours did.
 
--apw
+> Note the misaligned pfns.
+> 
+> Andy's (misspelled) CONFIG_UNALIGNED_ZONE_BOUNDRIES patch didn't actually
+> include an update to any Kconfig files.  But hacking that in by hand didn't
+> help.
+
+It would not have helped in this case because the zone boundaries would still
+be in the wrong place for ia64. Below is a patch that aligns the zones on
+all architectures that use CONFIG_ARCH_POPULATES_NODE_MAP . That is currently
+i386, x86_64, powerpc, ppc and ia64. It does *not* align pgdat->node_start_pfn
+but I don't believe that it is necessary.
+
+I can't test it on ia64 until I get someone to restart the machine. The patch
+compiles and is currently boot-testing on a range of other machines. I hope
+to know within 5-6 hours if everything is ok.
+
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c
+--- linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c	2006-05-15 10:37:55.000000000 +0100
++++ linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c	2006-05-15 13:10:42.000000000 +0100
+@@ -2640,14 +2640,20 @@ void __init free_area_init_nodes(unsigne
+ {
+ 	unsigned long nid;
+ 	int zone_index;
++	unsigned long lowest_pfn = find_min_pfn_with_active_regions();
++
++	lowest_pfn = zone_boundary_align_pfn(lowest_pfn);
++	arch_max_dma_pfn = zone_boundary_align_pfn(arch_max_dma_pfn);
++	arch_max_dma32_pfn = zone_boundary_align_pfn(arch_max_dma32_pfn);
++	arch_max_low_pfn = zone_boundary_align_pfn(arch_max_low_pfn);
++	arch_max_high_pfn = zone_boundary_align_pfn(arch_max_high_pfn);
+ 
+ 	/* Record where the zone boundaries are */
+ 	memset(arch_zone_lowest_possible_pfn, 0,
+ 				sizeof(arch_zone_lowest_possible_pfn));
+ 	memset(arch_zone_highest_possible_pfn, 0,
+ 				sizeof(arch_zone_highest_possible_pfn));
+-	arch_zone_lowest_possible_pfn[ZONE_DMA] =
+-					find_min_pfn_with_active_regions();
++	arch_zone_lowest_possible_pfn[ZONE_DMA] = lowest_pfn;
+ 	arch_zone_highest_possible_pfn[ZONE_DMA] = arch_max_dma_pfn;
+ 	arch_zone_highest_possible_pfn[ZONE_DMA32] = arch_max_dma32_pfn;
+ 	arch_zone_highest_possible_pfn[ZONE_NORMAL] = arch_max_low_pfn;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
