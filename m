@@ -1,46 +1,44 @@
-Date: Tue, 16 May 2006 15:51:35 +0200
-From: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Message-ID: <20060516135135.GA28995@rhlx01.fht-esslingen.de>
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au> <4465E981.60302@yahoo.com.au> <20060513181945.GC9612@goober> <4469D3F8.8020305@yahoo.com.au>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k4GEqwPH005912
+	for <linux-mm@kvack.org>; Tue, 16 May 2006 10:52:58 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k4GEqnKh261058
+	for <linux-mm@kvack.org>; Tue, 16 May 2006 08:52:58 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k4GEqndI006318
+	for <linux-mm@kvack.org>; Tue, 16 May 2006 08:52:49 -0600
+Subject: Re: [PATCH] Register sysfs file for hotpluged new node
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com>
+References: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 16 May 2006 07:51:31 -0700
+Message-Id: <1147791091.6623.93.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4469D3F8.8020305@yahoo.com.au>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Valerie Henson <val_henson@linux.intel.com>, Ulrich Drepper <drepper@redhat.com>, Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 2006-05-16 at 21:23 +0900, Yasunori Goto wrote:
+> +       /*
+> +        * register this node to sysfs.
+> +        * this is depends on topology. So each arch has its own.
+> +        */
+> +       if (new_pgdat){
+> +               ret = arch_register_node(nid);
+> +               BUG_ON(ret);
+> +       } 
 
-On Tue, May 16, 2006 at 11:30:32PM +1000, Nick Piggin wrote:
-> I also tried running kbuild under UML, and could not make find_vma take
-> much time either [in this case, the per-thread vma cache patch roughly
-> doubles the number of hits, from about 15%->30% (in the host)].
-> 
-> So I guess it's time to go back into my hole. If anyone does come across
-> a find_vma constrained workload (especially with threads), I'd be very
-> interested.
+Please don't do BUG_ON()s for things like this.  Memory hotplug _should_
+handle failures from top to bottom and not screw you over.  It isn't a
+crime or a bug to be out of memory.  
 
-I cannot offer much other than some random confirmation that from my own
-oprofiling, whatever I did (often running a load test script consisting of
-launching 30 big apps at the same time), find_vma basically always showed up
-very prominently in the list of vmlinux-based code (always ranking within the
-top 4 or 5 kernel hotspots, such as timer interrupts, ACPI idle I/O etc.pp.).
-call-tracing showed it originating from mmap syscalls etc., and AFAIR quite
-some find_vma activity from oprofile itself.
-Profiling done on 512MB UP Athlon and P3/700, 2.6.16ish, current Debian.
-Sorry for the foggy report, I don't have those logs here right now.
+Have you run this past the ppc maintainers?
 
-So yes, improving that part should help in general, but I cannot quite
-say that my machines are "constrained" by it.
-
-But you probably knew that already, otherwise you wouldn't have poked
-in there... ;)
-
-Andreas Mohr
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
