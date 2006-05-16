@@ -1,41 +1,224 @@
-Date: Tue, 16 May 2006 13:24:22 +0200 (CEST)
-From: Roman Zippel <zippel@linux-m68k.org>
-Subject: Re: [PATCH] mm: cleanup swap unused warning
-In-Reply-To: <200605102132.41217.kernel@kolivas.org>
-Message-ID: <Pine.LNX.4.64.0605161322110.17704@scrub.home>
-References: <200605102132.41217.kernel@kolivas.org>
+Date: Tue, 16 May 2006 21:23:00 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH] Register sysfs file for hotpluged new node
+Message-Id: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811837-1682810690-1147778662=:17704"
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
----1463811837-1682810690-1147778662=:17704
-Content-Type: TEXT/PLAIN; charset=utf-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+Hello.
 
-Hi,
+This is the last part of patches for new nodes addition v4.
+It is to create sysfs file for new node.
 
-On Wed, 10 May 2006, Con Kolivas wrote:
+It adds arch specific functions 'arch_register_node()'
+and 'arch_unregister_node()' to call the generic
+function 'register_node()' and 'unregister_node()' respectively
+for each architecture. 
+The relationship between parent node and new node can/will be
+updated at arch_register_node() for each arch.
 
-> Are there any users of swp_entry_t when CONFIG_SWAP is not defined?
->=20
-> This patch fixes a warning for !CONFIG_SWAP for me.
->=20
-> ---
-> if CONFIG_SWAP is not defined we get:
->=20
-> mm/vmscan.c: In function =E2=80=98remove_mapping=E2=80=99:
-> mm/vmscan.c:387: warning: unused variable =E2=80=98swap=E2=80=99
+I defined this function just for ia64 in the previous patch.
+But, it would be compile error for other arch.
+So, I add x86 and powerpc.
 
-In similiar cases (e.g. spinlocks) we usually do something like this:
+x86-64 uses i386's topology.c. But, current i386's arch_register_node()
+is defined at include/asm-i386/node.h. x86-64 can't use it.
+So, I moved i386's arch_register_node() from it to i386's topology.c.
+Powerpc's one is just part of register_nodes().
 
-#define swap_free(swp)=09((void)(swp))
+Please apply.
 
-bye, Roman
----1463811837-1682810690-1147778662=:17704--
+-------------------------------------
+Change log from v4 of node hot-add.
+  - update for 2.6.17-rc4-mm1.
+  - define arch_register_node() for not only ia64 but also powerpc and x86.
+
+V4 of post is here.
+<description>
+http://marc.theaimsgroup.com/?l=linux-mm&m=114258404023573&w=2
+<patches>
+http://marc.theaimsgroup.com/?l=linux-mm&w=2&r=1&s=memory+hotplug+node+v.4.&q=b
+
+
+Signed-off-by: Keiichiro Tokunaga <tokuanga.keiich@jp.fujitsu.com>
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+ arch/i386/kernel/topology.c |   19 +++++++++++++++++++
+ arch/ia64/kernel/topology.c |   11 +++++++++++
+ arch/powerpc/kernel/sysfs.c |   33 +++++++++++++++++++++++----------
+ include/asm-i386/node.h     |   14 --------------
+ include/linux/node.h        |    2 ++
+ mm/memory_hotplug.c         |   10 ++++++++++
+ 6 files changed, 65 insertions(+), 24 deletions(-)
+
+Index: pgdat14/arch/ia64/kernel/topology.c
+===================================================================
+--- pgdat14.orig/arch/ia64/kernel/topology.c	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/arch/ia64/kernel/topology.c	2006-05-15 19:13:04.000000000 +0900
+@@ -68,6 +68,17 @@ EXPORT_SYMBOL(arch_register_cpu);
+ EXPORT_SYMBOL(arch_unregister_cpu);
+ #endif /*CONFIG_HOTPLUG_CPU*/
+ 
++#ifdef CONFIG_NUMA
++int arch_register_node(int num)
++{
++	return register_node(&sysfs_nodes[num], num, 0);
++}
++
++void arch_unregister_node(int num)
++{
++	unregister_node(&sysfs_nodes[num]);
++}
++#endif
+ 
+ static int __init topology_init(void)
+ {
+Index: pgdat14/include/linux/node.h
+===================================================================
+--- pgdat14.orig/include/linux/node.h	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/include/linux/node.h	2006-05-15 19:13:04.000000000 +0900
+@@ -28,6 +28,8 @@ struct node {
+ 
+ extern int register_node(struct node *, int, struct node *);
+ extern void unregister_node(struct node *node);
++extern int arch_register_node(int num);
++extern void arch_unregister_node(int num);
+ 
+ #define to_node(sys_device) container_of(sys_device, struct node, sysdev)
+ 
+Index: pgdat14/mm/memory_hotplug.c
+===================================================================
+--- pgdat14.orig/mm/memory_hotplug.c	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/mm/memory_hotplug.c	2006-05-16 12:06:16.000000000 +0900
+@@ -259,6 +259,16 @@ int add_memory(int nid, u64 start, u64 s
+ 	/* we online node here. we have no error path from here. */
+ 	node_set_online(nid);
+ 
++	/*
++	 * register this node to sysfs.
++	 * this is depends on topology. So each arch has its own.
++	 */
++	if (new_pgdat){
++		ret = arch_register_node(nid);
++		BUG_ON(ret);
++	}
++
++
+ 	/* register this memory as resource */
+ 	register_memory_resource(start, size);
+ 
+Index: pgdat14/arch/i386/kernel/topology.c
+===================================================================
+--- pgdat14.orig/arch/i386/kernel/topology.c	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/arch/i386/kernel/topology.c	2006-05-15 19:13:04.000000000 +0900
+@@ -78,6 +78,25 @@ EXPORT_SYMBOL(arch_unregister_cpu);
+ 
+ struct i386_node node_devices[MAX_NUMNODES];
+ 
++int arch_register_node(int num){
++	int p_node;
++	struct node *parent = NULL;
++
++	if (!node_online(num))
++		return 0;
++	p_node = parent_node(num);
++
++	if (p_node != num)
++		parent = &node_devices[p_node].node;
++
++	return register_node(&node_devices[num].node, num, parent);
++}
++
++void arch_unregister_node(int num)
++{
++	unregister_node(&node_devices[num].node);
++}
++
+ static int __init topology_init(void)
+ {
+ 	int i;
+Index: pgdat14/include/asm-i386/node.h
+===================================================================
+--- pgdat14.orig/include/asm-i386/node.h	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/include/asm-i386/node.h	2006-05-15 19:13:04.000000000 +0900
+@@ -12,18 +12,4 @@ struct i386_node {
+ };
+ extern struct i386_node node_devices[MAX_NUMNODES];
+ 
+-static inline int arch_register_node(int num){
+-	int p_node;
+-	struct node *parent = NULL;
+-
+-	if (!node_online(num))
+-		return 0;
+-	p_node = parent_node(num);
+-
+-	if (p_node != num)
+-		parent = &node_devices[p_node].node;
+-
+-	return register_node(&node_devices[num].node, num, parent);
+-}
+-
+ #endif /* _ASM_I386_NODE_H_ */
+Index: pgdat14/arch/powerpc/kernel/sysfs.c
+===================================================================
+--- pgdat14.orig/arch/powerpc/kernel/sysfs.c	2006-05-15 19:12:59.000000000 +0900
++++ pgdat14/arch/powerpc/kernel/sysfs.c	2006-05-15 19:13:04.000000000 +0900
+@@ -306,21 +306,34 @@ static struct notifier_block sysfs_cpu_n
+ #ifdef CONFIG_NUMA
+ static struct node node_devices[MAX_NUMNODES];
+ 
++int arch_register_node(int i)
++{
++	int error = 0;
++
++	if (node_online(i)){
++		int p_node = parent_node(i);
++		struct node *parent = NULL;
++
++		if (p_node != i)
++			parent = &node_devices[p_node];
++		error = register_node(&node_devices[i], i, parent);
++	}
++
++	return error;
++}
++
++void arch_unregister_node(int i)
++{
++	unregister_node(&node_devices[i]);
++}
++
+ static void register_nodes(void)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < MAX_NUMNODES; i++) {
+-		if (node_online(i)) {
+-			int p_node = parent_node(i);
+-			struct node *parent = NULL;
+-
+-			if (p_node != i)
+-				parent = &node_devices[p_node];
++	for (i = 0; i < MAX_NUMNODES; i++)
++		arch_register_node(i);
+ 
+-			register_node(&node_devices[i], i, parent);
+-		}
+-	}
+ }
+ 
+ int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
