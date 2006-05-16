@@ -1,64 +1,80 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: [PATCH] mm: cleanup swap unused warning
-Date: Tue, 16 May 2006 23:14:35 +1000
-References: <200605102132.41217.kernel@kolivas.org> <Pine.LNX.4.64.0605101604330.7472@schroedinger.engr.sgi.com> <200605162055.36957.kernel@kolivas.org>
-In-Reply-To: <200605162055.36957.kernel@kolivas.org>
+Message-ID: <4469D3F8.8020305@yahoo.com.au>
+Date: Tue, 16 May 2006 23:30:32 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200605162314.36059.kernel@kolivas.org>
+Subject: Re: [patch 00/14] remap_file_pages protection support
+References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au> <4465E981.60302@yahoo.com.au> <20060513181945.GC9612@goober>
+In-Reply-To: <20060513181945.GC9612@goober>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+To: Valerie Henson <val_henson@linux.intel.com>
+Cc: Ulrich Drepper <drepper@redhat.com>, Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 16 May 2006 20:55, Con Kolivas wrote:
-> Ok so if we fix it by making swp_entry_t __attribute__((__unused__) we
-> break swap migration code?
->
-> If we make swap_free() an empty static inline function then gcc compiles in
-> the variable needlessly and we won't know it.
+Valerie Henson wrote:
+> On Sun, May 14, 2006 at 12:13:21AM +1000, Nick Piggin wrote:
+> 
+>>OK, I got interested again, but can't get Val's ebizzy to give me
+>>a find_vma constrained workload yet (though the numbers back up
+>>my assertion that the vma cache is crap for threaded apps).
+> 
+> 
+> Hey Nick,
+> 
+> Glad to see you're using it!  There are (at least) two ways to do what
+> you want:
+> 
+> 1. Increase the number of threads - this gives you two vma's per
+>    thread, one for stack, one for guard page:
+> 
+>    $ ./ebizzy -t 100
+> 
+> 2. Apply the patch at the end of this email and use -p "prevent
+>    coalescing", -m "always mmap" and appropriate number of chunks,
+>    size, and records to search - this works for me:
+> 
+>    $ ./ebizzy -p -m -n 10000 -s 4096 -r 100000
+> 
+> The original program mmapped everything with the same permissions and
+> no alignment restrictions, so all the mmaps were coalesced into one.
+> This version alternates PROT_WRITE permissions on the mmap'd areas
+> after they are written, so you get lots of vma's:
+> 
+> val@goober:~/ebizzy$ ./ebizzy -p -m -n 10000 -s 4096 -r 100000
+> 
+> [2]+  Stopped                 ./ebizzy -p -m -n 10000 -s 4096 -r 100000
+> val@goober:~/ebizzy$ wc -l /proc/`pgrep ebizzy`/maps
+> 10019 /proc/10917/maps
+> 
+> I haven't profiled to see if this brings find_vma to the top, though.
+> 
 
-Rather than assume I checked the generated code and I was wrong (which is
-something I'm getting good at being).
+Hi Val,
 
-The variable is not compiled in so the empty static inline as suggested by
-Pekka suffices to silence this warning.
+Thanks, I've tried with your most recent ebizzy and with 256 threads and
+50,000 vmas (which gives really poor mmap_cache hits), I'm still unable
+to get find_vma above a few % of kernel time.
 
----
-if CONFIG_SWAP is not defined we get:
+With 50,000 vmas, my per-thread vma cache is much less effective, I guess
+because access is pretty random (hopefully more realistic patterns would
+get a bigger improvement).
 
-mm/vmscan.c: In function a??remove_mappinga??:
-mm/vmscan.c:387: warning: unused variable a??swapa??
+I also tried running kbuild under UML, and could not make find_vma take
+much time either [in this case, the per-thread vma cache patch roughly
+doubles the number of hits, from about 15%->30% (in the host)].
 
-Signed-off-by: Con Kolivas <kernel@kolivas.org>
+So I guess it's time to go back into my hole. If anyone does come across
+a find_vma constrained workload (especially with threads), I'd be very
+interested.
 
----
- include/linux/swap.h |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletion(-)
-
-Index: linux-2.6.17-rc4/include/linux/swap.h
-===================================================================
---- linux-2.6.17-rc4.orig/include/linux/swap.h	2006-05-16 23:07:35.000000000 +1000
-+++ linux-2.6.17-rc4/include/linux/swap.h	2006-05-16 23:08:08.000000000 +1000
-@@ -292,7 +292,10 @@ static inline void disable_swap_token(vo
- #define show_swap_cache_info()			/*NOTHING*/
- #define free_swap_and_cache(swp)		/*NOTHING*/
- #define swap_duplicate(swp)			/*NOTHING*/
--#define swap_free(swp)				/*NOTHING*/
-+static inline void swap_free(swp_entry_t swp)
-+{
-+}
-+
- #define read_swap_cache_async(swp,vma,addr)	NULL
- #define lookup_swap_cache(swp)			NULL
- #define valid_swaphandles(swp, off)		0
+Thanks,
+Nick
 
 -- 
--ck
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
