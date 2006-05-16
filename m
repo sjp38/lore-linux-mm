@@ -1,43 +1,39 @@
-Message-ID: <446934E3.5020204@yahoo.com.au>
-Date: Tue, 16 May 2006 12:11:47 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: Re: [PATCH] mm: cleanup swap unused warning
+Date: Tue, 16 May 2006 20:55:36 +1000
+References: <200605102132.41217.kernel@kolivas.org> <Pine.LNX.4.64.0605101604330.7472@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0605101604330.7472@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
-References: <20060508141030.26912.93090.sendpatchset@skynet>	<20060508141211.26912.48278.sendpatchset@skynet>	<20060514203158.216a966e.akpm@osdl.org>	<44683A09.2060404@shadowen.org>	<44685123.7040501@yahoo.com.au>	<446855AF.1090100@shadowen.org>	<20060515192918.c3e2e895.kamezawa.hiroyu@jp.fujitsu.com>	<44691D7C.5060208@yahoo.com.au> <20060516103415.ad964bdf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20060516103415.ad964bdf.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200605162055.36957.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: apw@shadowen.org, akpm@osdl.org, mel@csn.ul.ie, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-
+On Thursday 11 May 2006 09:04, Christoph Lameter wrote:
+> On Wed, 10 May 2006, Con Kolivas wrote:
+> > Are there any users of swp_entry_t when CONFIG_SWAP is not defined?
 >
->Andy's page_zone(page) == page_zone(buddy) check is good, I think.
->
->Making alignment is a difficult problem, I think. It complecates many things.
->We can avoid above check only when memory layout is ideal.
->
->BTW, How about following patch ?
->I don't want to  say "Oh, you have to re-compile your kernel with 
->CONFIG_UNALIGNED_ZONE on your new machine. you are unlucky." to users.
->
+> Yes, a migration entry is a form of swap entry.
 
-No, this is a function of the architecture code, not the specific
-machine it is running on.
+mm/vmscan.c: In function a??remove_mappinga??:
+mm/vmscan.c:387: warning: unused variable a??swapa??
 
-So if the architecture ensures alignment and no holes, then they don't
-need the overhead of CONFIG_UNALIGNED_ZONE or CONFIG_HOLES_IN_ZONE.
+Ok so if we fix it by making swp_entry_t __attribute__((__unused__) we break 
+swap migration code?
 
-If they do not ensure correct alignment, then they must enable
-CONFIG_UNALIGNED_ZONE, even if there may be actual systems which do
-result in aligned zones.
---
+If we make swap_free() an empty static inline function then gcc compiles in 
+the variable needlessly and we won't know it.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+For the moment let's continue putting up with the warning.
+
+-- 
+-ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
