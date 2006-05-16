@@ -1,71 +1,48 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k4GF7bP5029338
-	for <linux-mm@kvack.org>; Tue, 16 May 2006 11:07:37 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k4GF7YV1183460
-	for <linux-mm@kvack.org>; Tue, 16 May 2006 09:07:35 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.13.3) with ESMTP id k4GF6rIf002786
-	for <linux-mm@kvack.org>; Tue, 16 May 2006 09:07:34 -0600
-Subject: Re: [PATCH] Register sysfs file for hotpluged new node
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com>
-References: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 16 May 2006 07:55:12 -0700
-Message-Id: <1147791312.6623.95.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 16 May 2006 08:58:11 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] mm: cleanup swap unused warning
+In-Reply-To: <200605162055.36957.kernel@kolivas.org>
+Message-ID: <Pine.LNX.4.64.0605160853330.6065@schroedinger.engr.sgi.com>
+References: <200605102132.41217.kernel@kolivas.org>
+ <Pine.LNX.4.64.0605101604330.7472@schroedinger.engr.sgi.com>
+ <200605162055.36957.kernel@kolivas.org>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-186910767-1147795091=:6065"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-05-16 at 21:23 +0900, Yasunori Goto wrote:
-> +int arch_register_node(int num){
-> +       int p_node;
-> +       struct node *parent = NULL;
-> +
-> +       if (!node_online(num))
-> +               return 0;
-> +       p_node = parent_node(num);
-> +
-> +       if (p_node != num)
-> +               parent = &node_devices[p_node].node;
-> +
-> +       return register_node(&node_devices[num].node, num, parent);
-> +}
-> +
-> +void arch_unregister_node(int num)
-> +{
-> +       unregister_node(&node_devices[num].node);
-> +}
-...
-> +int arch_register_node(int i)
-> +{
-> +       int error = 0;
-> +
-> +       if (node_online(i)){
-> +               int p_node = parent_node(i);
-> +               struct node *parent = NULL;
-> +
-> +               if (p_node != i)
-> +                       parent = &node_devices[p_node];
-> +               error = register_node(&node_devices[i], i, parent);
-> +       }
-> +
-> +       return error;
-> +} 
+---1700579579-186910767-1147795091=:6065
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-While you're at it, can you consolidate these two functions?  I don't
-see too much of a reason for keeping them separate.  You can probably
-also kill the 'struct i386_node' since it is just a 'struct node'
-wrapper anyway.  
+On Tue, 16 May 2006, Con Kolivas wrote:
 
-I promise not to complain if you fix the i386 function's braces, too. ;)
+> On Thursday 11 May 2006 09:04, Christoph Lameter wrote:
+> > On Wed, 10 May 2006, Con Kolivas wrote:
+> > > Are there any users of swp_entry_t when CONFIG_SWAP is not defined?
+> >
+> > Yes, a migration entry is a form of swap entry.
+>=20
+> mm/vmscan.c: In function =FF=FFremove_mapping=FF=FF:
+> mm/vmscan.c:387: warning: unused variable =FF=FFswap=FF=FF
+>=20
+> Ok so if we fix it by making swp_entry_t __attribute__((__unused__) we br=
+eak=20
+> swap migration code?
 
--- Dave
+This will generally break page migration in mm.
+=20
+> If we make swap_free() an empty static inline function then gcc compiles =
+in=20
+> the variable needlessly and we won't know it.
+
+PageSwapCache() returns false if CONFIG_SWAP is not set and therefore no=20
+code is generated.
+
+---1700579579-186910767-1147795091=:6065--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
