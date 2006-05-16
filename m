@@ -1,40 +1,41 @@
-Date: Tue, 16 May 2006 18:47:43 +0200
-From: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Message-ID: <20060516164743.GA23893@rhlx01.fht-esslingen.de>
-References: <20060430172953.409399000@zion.home.lan> <4456D5ED.2040202@yahoo.com.au> <200605030225.54598.blaisorblade@yahoo.it> <445CC949.7050900@redhat.com> <445D75EB.5030909@yahoo.com.au> <4465E981.60302@yahoo.com.au> <20060513181945.GC9612@goober> <4469D3F8.8020305@yahoo.com.au> <20060516135135.GA28995@rhlx01.fht-esslingen.de> <20060516163111.GK9612@goober>
-Mime-Version: 1.0
+Date: Tue, 16 May 2006 16:09:07 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
+Message-ID: <2F9DB20EAB953ECFD816E9BF@[10.1.1.4]>
+In-Reply-To: <200605081432.40287.raybry@mpdtxmail.amd.com>
+References: <1146671004.24422.20.camel@wildcat.int.mccr.org>
+ <57DF992082E5BD7D36C9D441@[10.1.1.4]>
+ <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com>
+ <200605081432.40287.raybry@mpdtxmail.amd.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20060516163111.GK9612@goober>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valerie Henson <val_henson@linux.intel.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Blaisorblade <blaisorblade@yahoo.it>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
+To: Ray Bryant <raybry@mpdtxmail.amd.com>, Hugh Dickins <hugh@veritas.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Tue, May 16, 2006 at 09:31:12AM -0700, Valerie Henson wrote:
-> On Tue, May 16, 2006 at 03:51:35PM +0200, Andreas Mohr wrote:
-> > 
-> > I cannot offer much other than some random confirmation that from my own
-> > oprofiling, whatever I did (often running a load test script consisting of
-> > launching 30 big apps at the same time), find_vma basically always showed up
-> > very prominently in the list of vmlinux-based code (always ranking within the
-> > top 4 or 5 kernel hotspots, such as timer interrupts, ACPI idle I/O etc.pp.).
-> > call-tracing showed it originating from mmap syscalls etc., and AFAIR quite
-> > some find_vma activity from oprofile itself.
+--On Monday, May 08, 2006 14:32:39 -0500 Ray Bryant
+<raybry@mpdtxmail.amd.com> wrote:
+> On Saturday 06 May 2006 10:25, Hugh Dickins wrote:
+> <snip>
+>> How was Ray Bryant's shared,anonymous,fork,munmap,private bug of
+>> 25 Jan resolved?  We didn't hear the end of that.
+>> 
 > 
-> This is important: Which kernel?
+> I never heard anything back from Dave, either.
 
-I had some traces still showing find_vma prominently during a profiling run
-just yesterday, with a very fresh 2.6.17-rc4-ck1 (IOW, basically 2.6.17-rc4).
-I added some cache prefetching in the list traversal a while ago, and IIRC
-that improved profiling times there, but cache prefetching is very often
-a bandaid in search for a real solution: a better data-handling algorithm.
+My apologies.  As I recall your problem looked to be a race in an area
+where I was redoing the concurrency control.  I intended to ask you to
+retest when my new version came out.  Unfortunately the new version took
+awhile, and by the time I sent it out I forgot to ask you about it.
 
-Andreas Mohr
+I believe your problem should be fixed in recent versions.  If not, I'll
+make another pass at it.
+
+Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
