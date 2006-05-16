@@ -1,56 +1,67 @@
-Date: Mon, 15 May 2006 23:44:35 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
-In-Reply-To: <20060515122728.GA29253@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0605152342520.30476@skynet.skynet.ie>
-References: <20060508141030.26912.93090.sendpatchset@skynet>
- <20060508141211.26912.48278.sendpatchset@skynet> <20060514203158.216a966e.akpm@osdl.org>
- <20060515122728.GA29253@skynet.ie>
+Message-ID: <44691D7C.5060208@yahoo.com.au>
+Date: Tue, 16 May 2006 10:31:56 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
+References: <20060508141030.26912.93090.sendpatchset@skynet>	<20060508141211.26912.48278.sendpatchset@skynet>	<20060514203158.216a966e.akpm@osdl.org>	<44683A09.2060404@shadowen.org>	<44685123.7040501@yahoo.com.au>	<446855AF.1090100@shadowen.org> <20060515192918.c3e2e895.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20060515192918.c3e2e895.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, akpm@osdl.org, mel@csn.ul.ie, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-> diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c
-> --- linux-2.6.17-rc4-mm4-clean/mm/page_alloc.c	2006-05-15 10:37:55.000000000 +0100
-> +++ linux-2.6.17-rc4-mm4-ia64_force_alignment/mm/page_alloc.c	2006-05-15 13:10:42.000000000 +0100
-> @@ -2640,14 +2640,20 @@ void __init free_area_init_nodes(unsigne
-> {
-> 	unsigned long nid;
-> 	int zone_index;
-> +	unsigned long lowest_pfn = find_min_pfn_with_active_regions();
-> +
-> +	lowest_pfn = zone_boundary_align_pfn(lowest_pfn);
-> +	arch_max_dma_pfn = zone_boundary_align_pfn(arch_max_dma_pfn);
-> +	arch_max_dma32_pfn = zone_boundary_align_pfn(arch_max_dma32_pfn);
-> +	arch_max_low_pfn = zone_boundary_align_pfn(arch_max_low_pfn);
-> +	arch_max_high_pfn = zone_boundary_align_pfn(arch_max_high_pfn);
+KAMEZAWA Hiroyuki wrote:
+
+>On Mon, 15 May 2006 11:19:27 +0100
+>Andy Whitcroft <apw@shadowen.org> wrote:
 >
-> 	/* Record where the zone boundaries are */
-> 	memset(arch_zone_lowest_possible_pfn, 0,
-> 				sizeof(arch_zone_lowest_possible_pfn));
-> 	memset(arch_zone_highest_possible_pfn, 0,
-> 				sizeof(arch_zone_highest_possible_pfn));
-> -	arch_zone_lowest_possible_pfn[ZONE_DMA] =
-> -					find_min_pfn_with_active_regions();
-> +	arch_zone_lowest_possible_pfn[ZONE_DMA] = lowest_pfn;
-> 	arch_zone_highest_possible_pfn[ZONE_DMA] = arch_max_dma_pfn;
-> 	arch_zone_highest_possible_pfn[ZONE_DMA32] = arch_max_dma32_pfn;
-> 	arch_zone_highest_possible_pfn[ZONE_NORMAL] = arch_max_low_pfn;
+>>>
+>>>Recently arrived? Over a year ago with the no-buddy-bitmap patches,
+>>>right? Just checking because I that's what I'm assuming broke it...
+>>>
+>>Yep, sorry I forget I was out of the game for 6 months!  And yes that
+>>was when the requirements were altered.
+>>
+>>
+>When no-bitmap-buddy patches was included,
+>
+>1. bad_range() is not covered by CONFIG_VM_DEBUG. It always worked.
+>==
+>static int bad_range(struct zone *zone, struct page *page)
+>{
+>        if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
+>                return 1;
+>        if (page_to_pfn(page) < zone->zone_start_pfn)
+>                return 1;
+>==
+>And , this code
+>==
+>                buddy = __page_find_buddy(page, page_idx, order);
+>
+>                if (bad_range(zone, buddy))
+>                        break;
+>==
+>
+>checked whether buddy is in zone and guarantees it to have page struct.
 >
 
-Ok, this patch is broken in a number of ways. It doesn't help the IA64 
-problem at all and two other machine configurations failed with the patch 
-applied during regression testing. Please drop and I'll figure out what 
-the correct solution is to your IA64 machine not booting.
+Ah, my mistake indeed. Sorry.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>But clean-up/speed-up codes vanished these checks. (I don't know when this occurs)
+>Sorry for misses these things.
+>
+
+I think if anything they should be moved into page_is_buddy, however 
+page_to_pfn
+is expensive on some architectures, so it is something we want to be 
+able to opt
+out of if we do the correct alignment.
+
+--
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
