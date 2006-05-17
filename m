@@ -1,58 +1,87 @@
-Date: Wed, 17 May 2006 14:48:41 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] Register sysfs file for hotpluged new node
-In-Reply-To: <1147791091.6623.93.camel@localhost.localdomain>
-References: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com> <1147791091.6623.93.camel@localhost.localdomain>
-Message-Id: <20060517111236.21AC.Y-GOTO@jp.fujitsu.com>
+From: Blaisorblade <blaisorblade@yahoo.it>
+Subject: Re: [patch 00/14] remap_file_pages protection support
+Date: Wed, 17 May 2006 08:10:58 +0200
+References: <20060430172953.409399000@zion.home.lan> <20060516163111.GK9612@goober> <20060516164743.GA23893@rhlx01.fht-esslingen.de>
+In-Reply-To: <20060516164743.GA23893@rhlx01.fht-esslingen.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200605170810.59589.blaisorblade@yahoo.it>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
+Cc: Valerie Henson <val_henson@linux.intel.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 2006-05-16 at 21:23 +0900, Yasunori Goto wrote:
-> > +       /*
-> > +        * register this node to sysfs.
-> > +        * this is depends on topology. So each arch has its own.
-> > +        */
-> > +       if (new_pgdat){
-> > +               ret = arch_register_node(nid);
-> > +               BUG_ON(ret);
-> > +       } 
-> 
-> Please don't do BUG_ON()s for things like this.  Memory hotplug _should_
-> handle failures from top to bottom and not screw you over.  It isn't a
-> crime or a bug to be out of memory.  
+On Tuesday 16 May 2006 18:47, Andreas Mohr wrote:
+> Hi,
+>
+> On Tue, May 16, 2006 at 09:31:12AM -0700, Valerie Henson wrote:
+> > On Tue, May 16, 2006 at 03:51:35PM +0200, Andreas Mohr wrote:
+> > > I cannot offer much other than some random confirmation that from my
+> > > own oprofiling, whatever I did (often running a load test script
+> > > consisting of launching 30 big apps at the same time), find_vma
+> > > basically always showed up very prominently in the list of
+> > > vmlinux-based code (always ranking within the top 4 or 5 kernel
+> > > hotspots, such as timer interrupts, ACPI idle I/O etc.pp.).
+> > > call-tracing showed it originating from mmap syscalls etc., and AFAIR
+> > > quite some find_vma activity from oprofile itself.
+> >
+> > This is important: Which kernel?
 
-Basically, I would like to agree. 
-But, there is no way to roll back from here now.
-If online_node_map is set once, then new pgdat might be touched.
-There is no way to disable them.
+I'd also add (for all peoples): on which processors? L2 cache size probably 
+plays an important role, if (as I'm convinced) the problem are cache misses 
+during rb-tree traversal.
 
-And I suppose it is not good thing that creating sysfs file of new node
-before setting online_node_map. It means user interface is shown
-before system initialization completion.
+> I had some traces still showing find_vma prominently during a profiling run
+> just yesterday, with a very fresh 2.6.17-rc4-ck1 (IOW, basically
+> 2.6.17-rc4). I added some cache prefetching in the list traversal a while
+> ago, 
 
-(In addition, remove_memory() is not yet....)
+You mean the rb-tree traversal, I guess! Or was the base kernel so old?
 
-If return code of arch_register_node is ignored, 
-cpu hotplug will work without new node's file.
-When we tried cpu hotplug on it, it was cause of stack dump at last.
+> and IIRC that improved profiling times there, but cache prefetching is 
+> very often a bandaid in search for a real solution: a better data-handling
+> algorithm.
 
-> Have you run this past the ppc maintainers?
+Ok, finally I find the time to kick in and ask a couple of question.
 
-Nope. I just tried cross compile.
-I want powerpc box for test....
+The current algorithm is good but has poor cache locality (IMHO).
 
+First, since you can get find_vma on the profile, I've read (the article 
+talked about userspace apps but I think it applies to kernelspace too) that 
+oprofile can trace L2 cache misses.
 
-Thanks.
+I think such a profiling, if possible, would be particularly interesting: 
+there's no reason whatsoever for that lookup, even on a 32-level tree 
+(theoretical maximum since we have max 64K vmas and height_rbtree <= 2 logN), 
+should be so slow, unless you add cache misses into the picture. The fact 
+that cache prefetching helps shows this even more.
 
+The lookup has very poor cache locality: the rb-node (3 pointers i.e. 12 
+bytes, and we need only 2 pointers on searches) is surrounded by non-relevant 
+data we fetch (we don't need the VMA itself for nodes we traverse).
+
+For cache-locality the best data structure I know of are radix trees; but 
+changing the implementation is absolutely non-trivial (the find_vma_prev() 
+and friends API is tightly coupled with the rb-tree), and the size of the 
+tree grows with the virtual address space (which is a problem on 64-bit 
+archs); finally, you have locality when you do multiple searches, especially 
+for the root nodes, but not across different levels inside a single search.
 -- 
-Yasunori Goto 
+Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
+Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
+http://www.user-mode-linux.org/~blaisorblade
 
+	
+
+	
+		
+___________________________________ 
+Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
+http://mail.yahoo.it
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
