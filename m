@@ -1,41 +1,75 @@
-Date: Tue, 16 May 2006 16:09:07 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
-Message-ID: <2F9DB20EAB953ECFD816E9BF@[10.1.1.4]>
-In-Reply-To: <200605081432.40287.raybry@mpdtxmail.amd.com>
-References: <1146671004.24422.20.camel@wildcat.int.mccr.org>
- <57DF992082E5BD7D36C9D441@[10.1.1.4]>
- <Pine.LNX.4.64.0605061620560.5462@blonde.wat.veritas.com>
- <200605081432.40287.raybry@mpdtxmail.amd.com>
+Date: Wed, 17 May 2006 12:22:34 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] Register sysfs file for hotpluged new node
+In-Reply-To: <1147791312.6623.95.camel@localhost.localdomain>
+References: <20060516210608.A3E5.Y-GOTO@jp.fujitsu.com> <1147791312.6623.95.camel@localhost.localdomain>
+Message-Id: <20060517101339.21AA.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@mpdtxmail.amd.com>, Hugh Dickins <hugh@veritas.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---On Monday, May 08, 2006 14:32:39 -0500 Ray Bryant
-<raybry@mpdtxmail.amd.com> wrote:
-> On Saturday 06 May 2006 10:25, Hugh Dickins wrote:
-> <snip>
->> How was Ray Bryant's shared,anonymous,fork,munmap,private bug of
->> 25 Jan resolved?  We didn't hear the end of that.
->> 
+> On Tue, 2006-05-16 at 21:23 +0900, Yasunori Goto wrote:
+> > +int arch_register_node(int num){
+> > +       int p_node;
+> > +       struct node *parent = NULL;
+> > +
+> > +       if (!node_online(num))
+> > +               return 0;
+> > +       p_node = parent_node(num);
+> > +
+> > +       if (p_node != num)
+> > +               parent = &node_devices[p_node].node;
+> > +
+> > +       return register_node(&node_devices[num].node, num, parent);
+> > +}
+> > +
+> > +void arch_unregister_node(int num)
+> > +{
+> > +       unregister_node(&node_devices[num].node);
+> > +}
+> ...
+> > +int arch_register_node(int i)
+> > +{
+> > +       int error = 0;
+> > +
+> > +       if (node_online(i)){
+> > +               int p_node = parent_node(i);
+> > +               struct node *parent = NULL;
+> > +
+> > +               if (p_node != i)
+> > +                       parent = &node_devices[p_node];
+> > +               error = register_node(&node_devices[i], i, parent);
+> > +       }
+> > +
+> > +       return error;
+> > +} 
 > 
-> I never heard anything back from Dave, either.
+> While you're at it, can you consolidate these two functions?  I don't
+> see too much of a reason for keeping them separate.  You can probably
+> also kill the 'struct i386_node' since it is just a 'struct node'
+> wrapper anyway.  
 
-My apologies.  As I recall your problem looked to be a race in an area
-where I was redoing the concurrency control.  I intended to ask you to
-retest when my new version came out.  Unfortunately the new version took
-awhile, and by the time I sent it out I forgot to ask you about it.
+Hmmmmmmmm.
+I've worried that it can or can't be done. These codes look like midway of
+registering hierarchies, because all of arch's parent_node() is just
+parent_node(nid) = nid. I guess someone would like to make real code at
+here. But, these might be just wrecks too. :-(
 
-I believe your problem should be fixed in recent versions.  If not, I'll
-make another pass at it.
+Ok. I'll try consolidate once. If there is a person who would like to
+make something at here, he will complain. :-P
 
-Dave McCracken
+> I promise not to complain if you fix the i386 function's braces, too. ;)
+
+Oops. Indeed.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
