@@ -1,87 +1,124 @@
-From: Blaisorblade <blaisorblade@yahoo.it>
-Subject: Re: [patch 00/14] remap_file_pages protection support
-Date: Wed, 17 May 2006 08:10:58 +0200
-References: <20060430172953.409399000@zion.home.lan> <20060516163111.GK9612@goober> <20060516164743.GA23893@rhlx01.fht-esslingen.de>
-In-Reply-To: <20060516164743.GA23893@rhlx01.fht-esslingen.de>
+From: Con Kolivas <kernel@kolivas.org>
+Subject: [PATCH][respin] mm: cleanup swap unused warning
+Date: Wed, 17 May 2006 16:27:40 +1000
+References: <200605102132.41217.kernel@kolivas.org> <200605162314.36059.kernel@kolivas.org> <Pine.LNX.4.64.0605160859230.6065@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0605160859230.6065@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+  charset="utf-8"
+Content-Transfer-Encoding: 8BIT
 Content-Disposition: inline
-Message-Id: <200605170810.59589.blaisorblade@yahoo.it>
+Message-Id: <200605171627.41653.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Cc: Valerie Henson <val_henson@linux.intel.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, Val Henson <val.henson@intel.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 16 May 2006 18:47, Andreas Mohr wrote:
-> Hi,
+On Wednesday 17 May 2006 02:00, Christoph Lameter wrote:
+> On Tue, 16 May 2006, Con Kolivas wrote:
+> > The variable is not compiled in so the empty static inline as suggested
+> > by Pekka suffices to silence this warning.
 >
-> On Tue, May 16, 2006 at 09:31:12AM -0700, Valerie Henson wrote:
-> > On Tue, May 16, 2006 at 03:51:35PM +0200, Andreas Mohr wrote:
-> > > I cannot offer much other than some random confirmation that from my
-> > > own oprofiling, whatever I did (often running a load test script
-> > > consisting of launching 30 big apps at the same time), find_vma
-> > > basically always showed up very prominently in the list of
-> > > vmlinux-based code (always ranking within the top 4 or 5 kernel
-> > > hotspots, such as timer interrupts, ACPI idle I/O etc.pp.).
-> > > call-tracing showed it originating from mmap syscalls etc., and AFAIR
-> > > quite some find_vma activity from oprofile itself.
-> >
-> > This is important: Which kernel?
+> Maybe you could redo the whole thing? Is it a problem to make all the
+> similar functions inlines?
 
-I'd also add (for all peoples): on which processors? L2 cache size probably 
-plays an important role, if (as I'm convinced) the problem are cache misses 
-during rb-tree traversal.
+No problem.
 
-> I had some traces still showing find_vma prominently during a profiling run
-> just yesterday, with a very fresh 2.6.17-rc4-ck1 (IOW, basically
-> 2.6.17-rc4). I added some cache prefetching in the list traversal a while
-> ago, 
+---
+if CONFIG_SWAP is not defined we get:
 
-You mean the rb-tree traversal, I guess! Or was the base kernel so old?
+mm/vmscan.c: In function a??remove_mappinga??:
+mm/vmscan.c:387: warning: unused variable a??swapa??
 
-> and IIRC that improved profiling times there, but cache prefetching is 
-> very often a bandaid in search for a real solution: a better data-handling
-> algorithm.
+Convert defines in swap.h into blank inline functions to fix this warning
+and be consistent.
 
-Ok, finally I find the time to kick in and ask a couple of question.
+Signed-off-by: Con Kolivas <kernel@kolivas.org>
 
-The current algorithm is good but has poor cache locality (IMHO).
+---
+ include/linux/swap.h |   64 ++++++++++++++++++++++++++++++++++++++++++---------
+ 1 files changed, 53 insertions(+), 11 deletions(-)
 
-First, since you can get find_vma on the profile, I've read (the article 
-talked about userspace apps but I think it applies to kernelspace too) that 
-oprofile can trace L2 cache misses.
+Index: linux-2.6.17-rc4-mm1/include/linux/swap.h
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/include/linux/swap.h	2006-05-17 15:57:48.000000000 +1000
++++ linux-2.6.17-rc4-mm1/include/linux/swap.h	2006-05-17 16:21:03.000000000 +1000
+@@ -286,18 +286,60 @@ static inline void disable_swap_token(vo
+ #define free_pages_and_swap_cache(pages, nr) \
+ 	release_pages((pages), (nr), 0);
+ 
+-#define show_swap_cache_info()			/*NOTHING*/
+-#define free_swap_and_cache(swp)		/*NOTHING*/
+-#define swap_duplicate(swp)			/*NOTHING*/
+-#define swap_free(swp)				/*NOTHING*/
+-#define read_swap_cache_async(swp,vma,addr)	NULL
+-#define lookup_swap_cache(swp)			NULL
+-#define valid_swaphandles(swp, off)		0
++static inline void show_swap_cache_info(void)
++{
++}
++
++static inline void free_swap_and_cache(swp_entry_t swp)
++{
++}
++
++static inline int swap_duplicate(swp_entry_t swp)
++{
++	return 0;
++}
++
++static inline void swap_free(swp_entry_t swp)
++{
++}
++
++static inline struct page *read_swap_cache_async(swp_entry_t swp,
++			struct vm_area_struct *vma, unsigned long addr)
++{
++	return NULL;
++}
++
++static inline struct page *lookup_swap_cache(swp_entry_t swp)
++{
++	return NULL;
++}
++
++static inline int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
++{
++	return 0;
++}
++
+ #define can_share_swap_page(p)			(page_mapcount(p) == 1)
+-#define move_to_swap_cache(p, swp)		1
+-#define move_from_swap_cache(p, i, m)		1
+-#define __delete_from_swap_cache(p)		/*NOTHING*/
+-#define delete_from_swap_cache(p)		/*NOTHING*/
++
++static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
++{
++	return 1;
++}
++
++static inline int move_from_swap_cache(struct page *page, unsigned long index,
++					struct address_space *mapping)
++{
++	return 1;
++}
++
++static inline void __delete_from_swap_cache(struct page *page)
++{
++}
++
++static inline void delete_from_swap_cache(struct page *page)
++{
++}
++
+ #define swap_token_default_timeout		0
+ 
+ static inline int remove_exclusive_swap_page(struct page *p)
 
-I think such a profiling, if possible, would be particularly interesting: 
-there's no reason whatsoever for that lookup, even on a 32-level tree 
-(theoretical maximum since we have max 64K vmas and height_rbtree <= 2 logN), 
-should be so slow, unless you add cache misses into the picture. The fact 
-that cache prefetching helps shows this even more.
-
-The lookup has very poor cache locality: the rb-node (3 pointers i.e. 12 
-bytes, and we need only 2 pointers on searches) is surrounded by non-relevant 
-data we fetch (we don't need the VMA itself for nodes we traverse).
-
-For cache-locality the best data structure I know of are radix trees; but 
-changing the implementation is absolutely non-trivial (the find_vma_prev() 
-and friends API is tightly coupled with the rb-tree), and the size of the 
-tree grows with the virtual address space (which is a problem on 64-bit 
-archs); finally, you have locality when you do multiple searches, especially 
-for the root nodes, but not across different levels inside a single search.
 -- 
-Inform me of my mistakes, so I can keep imitating Homer Simpson's "Doh!".
-Paolo Giarrusso, aka Blaisorblade (Skype ID "PaoloGiarrusso", ICQ 215621894)
-http://www.user-mode-linux.org/~blaisorblade
-
-	
-
-	
-		
-___________________________________ 
-Yahoo! Mail: gratis 1GB per i messaggi e allegati da 10MB 
-http://mail.yahoo.it
+-ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
