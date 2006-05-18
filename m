@@ -1,303 +1,314 @@
-Date: Thu, 18 May 2006 11:21:16 -0700 (PDT)
+Date: Thu, 18 May 2006 11:21:31 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060518182116.20734.48633.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060518182131.20734.27190.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 1/5] page migration: simplify migrate_pages()
+Subject: [RFC 4/5] page migration: Support moving of individual pages
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, bls@sgi.com, jes@sgi.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-page migration: Simplify migrate_pages()
+Add support for sys_move_pages()
 
-Currently migrate_pages() is mess with lots of goto.
-Extract two functions from migrate_pages() and get rid of the gotos.
+move_pages() is used to move individual pages of a process. The function can
+be used to determine the location of pages and to move them onto the desired
+node. move_pages() returns status information for each page.
 
-Plus we can just unconditionally set the locked bit on the new page
-since we are the only one holding a reference. Locking is to
-stop others from accessing the page once we establish references
-to the new page.
+int move_pages(pid, number_of_pages_to_move,
+		addresses_of_pages[],
+		nodes[] or NULL,
+		status[],
+		flags);
 
-Remove the list_del from move_to_lru in order to have finer control
-over list processing.
+The addresses of pages is an array of unsigned longs pointing to the
+pages to be moved.
+
+The nodes array contains the node numbers that the pages should be moved
+to. If a NULL is passed then no pages are moved but the status array is
+updated.
+
+The status array contains a status indicating the result of the migration
+operation or the current state of the page if nodes == NULL.
+
+Possible page states:
+
+0..MAX_NUMNODES		The page is now on the indicated node.
+
+-ENOENT		Page is not present or target node is not present
+
+-EPERM		Page is mapped by multiple processes and can only
+		be moved if MPOL_MF_MOVE_ALL is specified. Or the
+		target node is not allowed by the current cpuset.
+		Or the page has been mlocked by a process/driver and
+		cannot be moved.
+
+-EBUSY		Page is busy and cannot be moved. Try again later.
+
+-EFAULT		Cannot read node information from node array.
+
+-ENOMEM		Unable to allocate memory on target node.
+
+-EIO		Unable to write back page. Page must be written
+		back since the page is dirty and the filesystem does not
+		provide a migration function.
+
+-EINVAL		Filesystem does not provide a migration function but also
+		has no ability to write back pages.
+
+The flags parameter indicates what types of pages to move:
+
+MPOL_MF_MOVE	Move pages that are only mapped by the process.
+MPOL_MF_MOVE_ALL Also move pages that are mapped by multiple processes.
+		Requires sufficient capabilities.
+
+Possible return codes from move_pages()
+
+-EINVAL		flags other than MPOL_MF_MOVE(_ALL) specified or an attempt
+		to migrate pages in a kernel thread.
+
+-EPERM		MPOL_MF_MOVE_ALL specified without sufficient priviledges.
+		or an attempt to move a process belonging to another user.
+
+-ESRCH		Process does not exist.
+
+-ENOMEM		Not enough memory to allocate control array.
+
+-EFAULT		Parameters could not be accessed.
+
+Test program for this may be found with the patches
+on ftp.kernel.org:/pub/linux/kernel/people/christoph/pmig/patches-2.6.17-rc4-mm1
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.17-rc4-mm1/mm/migrate.c
 ===================================================================
---- linux-2.6.17-rc4-mm1.orig/mm/migrate.c	2006-05-15 15:40:13.214835974 -0700
-+++ linux-2.6.17-rc4-mm1/mm/migrate.c	2006-05-18 09:41:59.814842493 -0700
-@@ -84,7 +84,6 @@ int migrate_prep(void)
+--- linux-2.6.17-rc4-mm1.orig/mm/migrate.c	2006-05-18 09:56:43.766958108 -0700
++++ linux-2.6.17-rc4-mm1/mm/migrate.c	2006-05-18 10:02:04.586936931 -0700
+@@ -25,6 +25,7 @@
+ #include <linux/cpu.h>
+ #include <linux/cpuset.h>
+ #include <linux/writeback.h>
++#include <linux/mempolicy.h>
  
- static inline void move_to_lru(struct page *page)
- {
--	list_del(&page->lru);
- 	if (PageActive(page)) {
- 		/*
- 		 * lru_cache_add_active checks that
-@@ -110,6 +109,7 @@ int putback_lru_pages(struct list_head *
- 	int count = 0;
+ #include "internal.h"
  
- 	list_for_each_entry_safe(page, page2, l, lru) {
-+		list_del(&page->lru);
- 		move_to_lru(page);
- 		count++;
- 	}
-@@ -534,11 +534,108 @@ static int fallback_migrate_page(struct 
+@@ -710,3 +711,176 @@ out:
+ 	return nr_failed + retry;
  }
  
- /*
-+ * Move a page to a newly allocated page
-+ * The page is locked and all ptes have been successfully removed.
-+ *
-+ * The new page will have replaced the old page if this function
-+ * is successful.
++#ifdef CONFIG_NUMA
++/*
++ * Move a list of individual pages
 + */
-+static int move_to_new_page(struct page *newpage, struct page *page)
++struct page_to_node {
++	struct page *page;
++	int node;
++	int status;
++};
++
++static struct page *new_page_node(struct page *p, unsigned long private)
 +{
-+	struct address_space *mapping;
-+	int rc;
++	struct page_to_node *pm = (struct page_to_node *)private;
 +
-+	/*
-+	 * Block others from accessing the page when we get around to
-+	 * establishing additional references. We are the only one
-+	 * holding a reference to the new page at this point.
-+	 */
-+	SetPageLocked(newpage);
++	while (pm->page && pm->page != p)
++		pm++;
 +
-+	/* Prepare mapping for the new page.*/
-+	newpage->index = page->index;
-+	newpage->mapping = page->mapping;
++	if (!pm->page)
++		return NULL;
 +
-+	mapping = page_mapping(page);
-+	if (!mapping)
-+		rc = migrate_page(mapping, newpage, page);
-+
-+	else if (mapping->a_ops->migratepage)
-+		/*
-+		 * Most pages have a mapping and most filesystems
-+		 * should provide a migration function. Anonymous
-+		 * pages are part of swap space which also has its
-+		 * own migration function. This is the most common
-+		 * path for page migration.
-+		 */
-+		rc = mapping->a_ops->migratepage(mapping,
-+						newpage, page);
-+	else
-+		rc = fallback_migrate_page(mapping, newpage, page);
-+
-+	if (!rc)
-+		remove_migration_ptes(page, newpage);
-+	else
-+		newpage->mapping = NULL;
-+
-+	unlock_page(newpage);
-+
-+	return rc;
++	return alloc_pages_node(pm->node, GFP_HIGHUSER, 0);
 +}
 +
 +/*
-+ * Obtain the lock on page, remove all ptes and migrate the page
-+ * to the newly allocated page in newpage.
++ * Move a list of pages in the address space of the currently executing
++ * process.
 + */
-+static int unmap_and_move(struct page *newpage, struct page *page, int force)
++asmlinkage long sys_move_pages(int pid, unsigned long nr_pages,
++			const unsigned long __user *pages,
++			const int __user *nodes,
++			int __user *status, int flags)
 +{
-+	int rc = 0;
++	int err = 0;
++	int i;
++	struct task_struct *task;
++	nodemask_t task_nodes;
++	struct mm_struct *mm;
++	struct page_to_node *pm = NULL;
++	LIST_HEAD(pagelist);
 +
-+	if (page_count(page) == 1)
-+		/* page was freed from under us. So we are done. */
-+		goto ret;
++	/* Check flags */
++	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
++		return -EINVAL;
 +
-+	rc = -EAGAIN;
-+	if (TestSetPageLocked(page)) {
-+		if (!force)
-+			goto ret;
-+		lock_page(page);
++	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
++		return -EPERM;
++
++	/* Find the mm_struct */
++	read_lock(&tasklist_lock);
++	task = pid ? find_task_by_pid(pid) : current;
++	if (!task) {
++		read_unlock(&tasklist_lock);
++		return -ESRCH;
 +	}
++	mm = get_task_mm(task);
++	read_unlock(&tasklist_lock);
 +
-+	if (PageWriteback(page)) {
-+		if (!force)
-+			goto unlock;
-+		wait_on_page_writeback(page);
-+	}
++	if (!mm)
++		return -EINVAL;
 +
 +	/*
-+	 * Establish migration ptes or remove ptes
++	 * Check if this process has the right to modify the specified
++	 * process. The right exists if the process has administrative
++	 * capabilities, superuser privileges or the same
++	 * userid as the target process.
 +	 */
-+	if (try_to_unmap(page, 1) != SWAP_FAIL) {
-+		if (!page_mapped(page))
-+			rc = move_to_new_page(newpage, page);
-+	} else
-+		/* A vma has VM_LOCKED set -> permanent failure */
-+		rc = -EPERM;
-+
-+	if (rc)
-+		remove_migration_ptes(page, page);
-+unlock:
-+	unlock_page(page);
-+ret:
-+	if (rc != -EAGAIN) {
-+		list_del(&newpage->lru);
-+		move_to_lru(newpage);
++	if ((current->euid != task->suid) && (current->euid != task->uid) &&
++	    (current->uid != task->suid) && (current->uid != task->uid) &&
++	    !capable(CAP_SYS_NICE)) {
++		err = -EPERM;
++		goto out2;
 +	}
-+	return rc;
-+}
 +
-+/*
-  * migrate_pages
-  *
-  * Two lists are passed to this function. The first list
-  * contains the pages isolated from the LRU to be migrated.
-- * The second list contains new pages that the pages isolated
-+ * The second list contains new pages that the isolated pages
-  * can be moved to.
-  *
-  * The function returns after 10 attempts or if no pages
-@@ -550,7 +647,7 @@ static int fallback_migrate_page(struct 
- int migrate_pages(struct list_head *from, struct list_head *to,
- 		  struct list_head *moved, struct list_head *failed)
- {
--	int retry;
-+	int retry = 1;
- 	int nr_failed = 0;
- 	int pass = 0;
- 	struct page *page;
-@@ -561,118 +658,33 @@ int migrate_pages(struct list_head *from
- 	if (!swapwrite)
- 		current->flags |= PF_SWAPWRITE;
- 
--redo:
--	retry = 0;
--
--	list_for_each_entry_safe(page, page2, from, lru) {
--		struct page *newpage = NULL;
--		struct address_space *mapping;
--
--		cond_resched();
--
--		rc = 0;
--		if (page_count(page) == 1)
--			/* page was freed from under us. So we are done. */
--			goto next;
--
--		if (to && list_empty(to))
--			break;
--
--		/*
--		 * Skip locked pages during the first two passes to give the
--		 * functions holding the lock time to release the page. Later we
--		 * use lock_page() to have a higher chance of acquiring the
--		 * lock.
--		 */
--		rc = -EAGAIN;
--		if (pass > 2)
--			lock_page(page);
--		else
--			if (TestSetPageLocked(page))
--				goto next;
--
--		/*
--		 * Only wait on writeback if we have already done a pass where
--		 * we we may have triggered writeouts for lots of pages.
--		 */
--		if (pass > 0)
--			wait_on_page_writeback(page);
--		else
--			if (PageWriteback(page))
--				goto unlock_page;
-+	for(pass = 0; pass < 10 && retry; pass++) {
-+		retry = 0;
- 
--		/*
--		 * Establish migration ptes or remove ptes
--		 */
--		rc = -EPERM;
--		if (try_to_unmap(page, 1) == SWAP_FAIL)
--			/* A vma has VM_LOCKED set -> permanent failure */
--			goto unlock_page;
--
--		rc = -EAGAIN;
--		if (page_mapped(page))
--			goto unlock_page;
--
--		newpage = lru_to_page(to);
--		lock_page(newpage);
--		/* Prepare mapping for the new page.*/
--		newpage->index = page->index;
--		newpage->mapping = page->mapping;
-+		list_for_each_entry_safe(page, page2, from, lru) {
- 
--		/*
--		 * Pages are properly locked and writeback is complete.
--		 * Try to migrate the page.
--		 */
--		mapping = page_mapping(page);
--		if (!mapping)
--			rc = migrate_page(mapping, newpage, page);
-+			if (list_empty(to))
-+				break;
- 
--		else if (mapping->a_ops->migratepage)
--			/*
--			 * Most pages have a mapping and most filesystems
--			 * should provide a migration function. Anonymous
--			 * pages are part of swap space which also has its
--			 * own migration function. This is the most common
--			 * path for page migration.
--			 */
--			rc = mapping->a_ops->migratepage(mapping,
--							newpage, page);
--		else
--			rc = fallback_migrate_page(mapping, newpage, page);
--
--		if (!rc)
--			remove_migration_ptes(page, newpage);
--
--		unlock_page(newpage);
-+			cond_resched();
- 
--unlock_page:
--		if (rc)
--			remove_migration_ptes(page, page);
-+			rc = unmap_and_move(lru_to_page(to), page, pass > 2);
- 
--		unlock_page(page);
--
--next:
--		if (rc) {
--			if (newpage)
--				newpage->mapping = NULL;
--
--			if (rc == -EAGAIN)
-+			switch(rc) {
-+			case -EAGAIN:
- 				retry++;
--			else {
-+				break;
-+			case 0:
-+				list_move(&page->lru, moved);
-+				break;
-+			default:
- 				/* Permanent failure */
- 				list_move(&page->lru, failed);
- 				nr_failed++;
-+				break;
- 			}
--		} else {
--			if (newpage) {
--				/* Successful migration. Return page to LRU */
--				move_to_lru(newpage);
--			}
--			list_move(&page->lru, moved);
- 		}
- 	}
--	if (retry && pass++ < 10)
--		goto redo;
- 
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
++	task_nodes = cpuset_mems_allowed(task);
++	pm = kmalloc(GFP_KERNEL, (nr_pages + 1) * sizeof(struct page_to_node));
++	if (!pm) {
++		err = -ENOMEM;
++		goto out2;
++	}
++
++	down_read(&mm->mmap_sem);
++
++	for(i = 0 ; i < nr_pages; i++) {
++		unsigned long addr;
++		int node;
++		struct vm_area_struct *vma;
++		struct page *page;
++
++		pm[i].page = ZERO_PAGE(0);
++
++		err = -EFAULT;
++		if (get_user(addr, pages + i))
++			goto putback;
++
++		vma = find_vma(mm, addr);
++		if (!vma)
++			goto set_status;
++
++		page = follow_page(vma, addr, FOLL_GET);
++		err = -ENOENT;
++		if (!page)
++			goto set_status;
++
++		pm[i].page = page;
++		if (!nodes) {
++			err = page_to_nid(page);
++			put_page(page);
++			goto set_status;
++		}
++
++		err = -EPERM;
++		if (page_mapcount(page) > 1 &&
++				!(flags & MPOL_MF_MOVE_ALL)) {
++			put_page(page);
++			goto set_status;
++		}
++
++
++		err = isolate_lru_page(page, &pagelist);
++		__put_page(page);
++		if (err)
++			goto remove;
++
++		err = -EFAULT;
++		if (get_user(node, nodes + i))
++			goto remove;
++
++		err = -ENOENT;
++		if (!node_online(node))
++			goto remove;
++
++		err = -EPERM;
++		if (!node_isset(node, task_nodes))
++			goto remove;
++
++		pm[i].node = node;
++		err = 0;
++		if (node != page_to_nid(page))
++			goto set_status;
++
++		err = node;
++remove:
++		list_del(&page->lru);
++		move_to_lru(page);
++set_status:
++		pm[i].status = err;
++	}
++	err = 0;
++	if (!nodes || list_empty(&pagelist))
++		goto out;
++
++	pm[nr_pages].page = NULL;
++
++	err = migrate_pages(&pagelist, new_page_node, (unsigned long)pm);
++	goto out;
++
++putback:
++	putback_lru_pages(&pagelist);
++
++out:
++	up_read(&mm->mmap_sem);
++	if (err >= 0)
++		/* Return status information */
++		for(i = 0; i < nr_pages; i++)
++			put_user(pm[i].status, status +i);
++
++	kfree(pm);
++out2:
++	mmput(mm);
++	return err;
++}
++#endif
++
+Index: linux-2.6.17-rc4-mm1/kernel/sys_ni.c
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/kernel/sys_ni.c	2006-05-11 16:31:53.000000000 -0700
++++ linux-2.6.17-rc4-mm1/kernel/sys_ni.c	2006-05-18 09:59:39.621304007 -0700
+@@ -87,6 +87,7 @@ cond_syscall(sys_inotify_init);
+ cond_syscall(sys_inotify_add_watch);
+ cond_syscall(sys_inotify_rm_watch);
+ cond_syscall(sys_migrate_pages);
++cond_syscall(sys_move_pages);
+ cond_syscall(sys_chown16);
+ cond_syscall(sys_fchown16);
+ cond_syscall(sys_getegid16);
+Index: linux-2.6.17-rc4-mm1/include/asm-ia64/unistd.h
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/include/asm-ia64/unistd.h	2006-05-15 15:40:11.023565789 -0700
++++ linux-2.6.17-rc4-mm1/include/asm-ia64/unistd.h	2006-05-18 09:59:39.623257011 -0700
+@@ -265,7 +265,7 @@
+ #define __NR_keyctl			1273
+ #define __NR_ioprio_set			1274
+ #define __NR_ioprio_get			1275
+-/* 1276 is available for reuse (was briefly sys_set_zone_reclaim) */
++#define __NR_move_pages			1276
+ #define __NR_inotify_init		1277
+ #define __NR_inotify_add_watch		1278
+ #define __NR_inotify_rm_watch		1279
+Index: linux-2.6.17-rc4-mm1/arch/ia64/kernel/entry.S
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/arch/ia64/kernel/entry.S	2006-05-15 15:40:06.642978421 -0700
++++ linux-2.6.17-rc4-mm1/arch/ia64/kernel/entry.S	2006-05-18 09:59:39.625210015 -0700
+@@ -1584,7 +1584,7 @@ sys_call_table:
+ 	data8 sys_keyctl
+ 	data8 sys_ioprio_set
+ 	data8 sys_ioprio_get			// 1275
+-	data8 sys_ni_syscall
++	data8 sys_move_pages
+ 	data8 sys_inotify_init
+ 	data8 sys_inotify_add_watch
+ 	data8 sys_inotify_rm_watch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
