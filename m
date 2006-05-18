@@ -1,34 +1,49 @@
-Date: Thu, 18 May 2006 11:14:16 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Thu, 18 May 2006 11:15:09 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Query re:  mempolicy for page cache pages
-Message-Id: <20060518111416.51de0127.akpm@osdl.org>
 In-Reply-To: <1147974599.5195.96.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0605181105550.20557@schroedinger.engr.sgi.com>
 References: <1147974599.5195.96.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, clameter@sgi.com, ak@suse.de, stevel@mvista.com
+Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Steve Longerbeam <stevel@mvista.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
->
-> 1) What ever happened to Steve's patch set?
+On Thu, 18 May 2006, Lee Schermerhorn wrote:
 
-They were based on Andi's 4-level-pagetable work.  Then we merged Nick's
-4-level-pagetable work instead, so
-numa-policies-for-file-mappings-mpol_mf_move.patch broke horridly and I
-dropped it.  Steve said he'd redo the patch based on the new pagetable code
-and would work with SGI on getting it benchmarked, but that obviously
-didn't happen.
+> Below I've included an overview of a patch set that I've been working
+> on.  I submitted a previous version [then called Page Cache Policy] back
+> ~20Apr.  I started working on this because Christoph seemed to consider
+> this a prerequisite for considering migrate-on-fault/lazy-migration/...
+> Since the previous post, I have addressed comments [from Christoph] and
+> kept the series up to date with the -mm tree.  
 
-I was a bit concerned about the expansion in sizeof(address_space), but we
-ended up agreeing that it's numa-only and NUMA machines tend to have lots
-of memory anyway.  That being said, it would still be better to have a
-pointer to a refcounted shared_policy in the address_space if poss, rather
-than aggregating the whole thing.
+The prequisite for automatic page migration schemes in the kernel is proof 
+that these automatic migrations consistently improve performance. We are 
+still waiting on data showing that this is the case.
+
+The particular automatic migration scheme that you proposed relies on 
+allocating pages according to the memory allocation policy. 
+
+The basic problem is first of all that the memory policies do not
+necessarily describe how the user wants memory to be allocated. The user
+may temporarily switch task policies to get specific allocation patterns.
+So moving memory may misplace memory. We got around that by 
+saying that we need to separately enable migration if a user 
+wants it.
+
+But even then we have the issue that the memory policies cannot 
+describe proper allocation at all since allocation policies are 
+ignored for file backed vmas. And this is the issue you are trying to 
+address.
+
+I think this is all far to complicated to do in kernel space and still 
+conceptually unclean. I would like to have all automatic migration schemes 
+confined to user space. We will add an API that allows some process
+to migrate pages at will.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
