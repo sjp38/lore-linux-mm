@@ -1,58 +1,34 @@
-From: Andi Kleen <ak@suse.de>
+Date: Thu, 18 May 2006 11:14:16 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Query re:  mempolicy for page cache pages
-Date: Thu, 18 May 2006 20:12:19 +0200
-References: <1147974599.5195.96.camel@localhost.localdomain>
+Message-Id: <20060518111416.51de0127.akpm@osdl.org>
 In-Reply-To: <1147974599.5195.96.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+References: <1147974599.5195.96.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200605182012.19570.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Steve Longerbeam <stevel@mvista.com>, Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, clameter@sgi.com, ak@suse.de, stevel@mvista.com
 List-ID: <linux-mm.kvack.org>
 
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+>
 > 1) What ever happened to Steve's patch set?
 
-It needed more work, but he just disappeared at some point.
+They were based on Andi's 4-level-pagetable work.  Then we merged Nick's
+4-level-pagetable work instead, so
+numa-policies-for-file-mappings-mpol_mf_move.patch broke horridly and I
+dropped it.  Steve said he'd redo the patch based on the new pagetable code
+and would work with SGI on getting it benchmarked, but that obviously
+didn't happen.
 
-
-
-> 
-> 2) Is this even a problem that needs solving, as Christoph seem to think
-> at one time?
-
-The problem that hasn't been worked out is how to add persistent 
-attributes to files. Steve avoided that by limiting his to only
-ELF executables and using a static header there, but i'm not
-sure that is a generally useful enough for mainline. Just temporary
-for mmaps seems very narrow in usefulness.
-
-And with xattrs was unclear if it would be costly or not and
-even worth it.
-
-At least in the general case just interleaving the file cache
-based on a global setting or on cpuset seemed to work well enough
-for most people.
-
-Let's ask it differently. Do you have a real application that
-would be improved by it? 
-
-
-> 2) As with shmem segments, the shared policies applied to shared
->    file mappings persist as long as the inode remains--i.e., until
->    the file is deleted or the inode recycled--whether or not any
->    task has the file mapped or even open.  We could, I suppose,
->    free the map on last close.
-
-The recycling is the problem. It's basically a lottery if the
-attributes are kept with high memory pressure or not.
-Doesn't seem like a robust approach.
-
--Andi
+I was a bit concerned about the expansion in sizeof(address_space), but we
+ended up agreeing that it's numa-only and NUMA machines tend to have lots
+of memory anyway.  That being said, it would still be better to have a
+pointer to a refcounted shared_policy in the address_space if poss, rather
+than aggregating the whole thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
