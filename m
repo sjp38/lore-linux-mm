@@ -1,65 +1,39 @@
-Message-ID: <446C8986.7010901@shadowen.org>
-Date: Thu, 18 May 2006 15:49:42 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Thu, 18 May 2006 16:54:57 +0100
+Subject: [PATCH 0/2] Zone boundary alignment fixes, cleanups v2
+Message-ID: <exportbomb.1147967697@pinky>
+References: <20060511005952.3d23897c.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] zone allow unaligned zone boundaries spelling fix
-References: <exportbomb.1147962048@pinky> <20060518142119.GA9521@shadowen.org>
-In-Reply-To: <20060518142119.GA9521@shadowen.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, bob.picco@hp.com, mingo@elte.hu, mbligh@mbligh.org, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, bob.picco@hp.com, mingo@elte.hu, mbligh@mbligh.org, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft wrote:
-> zone allow unaligned zone boundaries spelling fix
-> 
-> When the spelling of boundary was sorted out the config options
-> got missed.
-> 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> ---
->  include/linux/mmzone.h |    2 +-
->  mm/page_alloc.c        |    4 ++--
->  2 files changed, 3 insertions(+), 3 deletions(-)
-> diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
-> --- reference/include/linux/mmzone.h
-> +++ current/include/linux/mmzone.h
-> @@ -393,7 +393,7 @@ static inline int is_dma(struct zone *zo
->  
->  static inline unsigned long zone_boundary_align_pfn(unsigned long pfn)
->  {
-> -#ifdef CONFIG_UNALIGNED_ZONE_BOUNDRIES
-> +#ifdef CONFIG_UNALIGNED_ZONE_BOUNDARIES
->  	return pfn;
->  #else
->  	return pfn & ~((1 << MAX_ORDER) - 1);
-> diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
-> --- reference/mm/page_alloc.c
-> +++ current/mm/page_alloc.c
-> @@ -315,7 +315,7 @@ static inline int page_is_buddy(struct p
->  	if (!pfn_valid(page_to_pfn(buddy)))
->  		return 0;
->  #endif
-> -#ifdef CONFIG_UNALIGNED_ZONE_BOUNDRIES
-> +#ifdef CONFIG_UNALIGNED_ZONE_BOUNDARIES
->  	if (page_zone_id(page) != page_zone_id(buddy))
->  		return 0;
->  #endif
-> @@ -2232,7 +2232,7 @@ static void __meminit free_area_init_cor
->  		if (zone_boundary_align_pfn(zone_start_pfn) !=
->  					zone_start_pfn && j != 0 && size != 0)
->  			printk(KERN_CRIT "node %d zone %s missaligned "
-> -				"start pfn, enable UNALIGNED_ZONE_BOUNDRIES\n",
-> +				"start pfn, enable UNALIGNED_ZONE_BOUNDARIES\n",
->  							nid, zone_names[j]);
->  
->  		realsize = size = zones_size[j];
+[Lets try that again, here is the correct patch this time.]
 
-Ignore this patch.  Somehow the wrong version has escaped here.  Clearly
-wrong.
+[Sorry for the delay, we've been busy looking to see what is
+responsible for the ia64 issues with architecture independant
+zone sizing.]
+
+Following this email are two cleanup patches for the
+UNALIGNED_ZONE_BOUNDARIES support in -mm.
+
+zone-init-check-and-report-unaligned-zone-boundaries-fix --
+  we currently will pointlessly report zones as missaligned even
+  though they are empty and will report the first zone which can
+  never be missaligned assuming node_mem_map is aligned correctly.
+
+zone-allow-unaligned-zone-boundaries-spelling-fix -- when the
+  spelling errors in zone-allow-unaligned-zone-boundaries-spelling
+  were fixed the configuration options were not updated.
+
+Both of the above patches slot into the linux-2.6.17-rc4-mm1 patch
+set next to their main patches.  Amazingly, they will also apply
+on top of linux-2.6.17-rc4-mm1, I don't know what patch has been
+taking but it rocks.
 
 -apw
 
