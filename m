@@ -1,180 +1,137 @@
-Date: Thu, 18 May 2006 11:21:21 -0700 (PDT)
+Date: Thu, 18 May 2006 11:21:42 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060518182121.20734.23985.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060518182142.20734.92595.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 2/5] page migration: handle freeing of pages in migrate_pages()
+Subject: [RFC 6/6] page migration: Support a vma migration function
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, bls@sgi.com, jes@sgi.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Dispose of pages in migrate_pages()
+Hooks for calling vma specific migration functions
 
-Do not leave pages on the lists passed to migrate_pages(). Seems
-that we will not need any postprocessing of pages. This will simplify
-the handling of pages by the callers of migrate_pages().
+With this patch a vma may define a vma->vm_ops->migrate function.
+That function may perform page migration on its own (some vmas may
+not contain page structs and therefore cannot be handled by regular
+page migration. Pages in a vma may require special preparatory
+treatment before migration is possible etc) . Only mmap_sem is
+held when the migration function is called. The migrate() function
+gets passed two sets of nodemasks describing the source and the target
+of the migration. The flags parameter either contains
+
+MPOL_MF_MOVE	which means that only pages used exclusively by
+		the specified mm should be moved
+
+or
+
+MPOL_MF_MOVE_ALL which means that pages shared with other processes
+		should also be moved.
+
+The migration function returns 0 on success or an error condition.
+An error condition will prevent regular page migration from occurring.
+
+On its own this patch cannot be included since there are no users
+for this functionality. But it seems that the uncached allocator
+will need this functionality at some point.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.17-rc4-mm1/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/mm/migrate.c	2006-05-18 09:41:59.814842493 -0700
-+++ linux-2.6.17-rc4-mm1/mm/migrate.c	2006-05-18 09:44:09.438655508 -0700
-@@ -624,6 +624,15 @@ unlock:
- 	unlock_page(page);
- ret:
- 	if (rc != -EAGAIN) {
-+ 		/*
-+ 		 * A page that has been migrated has all references
-+ 		 * removed and will be freed. A page that has not been
-+ 		 * migrated will have kepts its references and be
-+ 		 * restored.
-+ 		 */
-+ 		list_del(&page->lru);
-+ 		move_to_lru(page);
-+
- 		list_del(&newpage->lru);
- 		move_to_lru(newpage);
- 	}
-@@ -640,12 +649,12 @@ ret:
-  *
-  * The function returns after 10 attempts or if no pages
-  * are movable anymore because to has become empty
-- * or no retryable pages exist anymore.
-+ * or no retryable pages exist anymore. All pages will be
-+ * retruned to the LRU or freed.
-  *
-- * Return: Number of pages not migrated when "to" ran empty.
-+ * Return: Number of pages not migrated.
-  */
--int migrate_pages(struct list_head *from, struct list_head *to,
--		  struct list_head *moved, struct list_head *failed)
-+int migrate_pages(struct list_head *from, struct list_head *to)
- {
- 	int retry = 1;
- 	int nr_failed = 0;
-@@ -675,11 +684,9 @@ int migrate_pages(struct list_head *from
- 				retry++;
- 				break;
- 			case 0:
--				list_move(&page->lru, moved);
- 				break;
- 			default:
- 				/* Permanent failure */
--				list_move(&page->lru, failed);
- 				nr_failed++;
- 				break;
- 			}
-@@ -689,6 +696,7 @@ int migrate_pages(struct list_head *from
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
- 
-+	putback_lru_pages(from);
- 	return nr_failed + retry;
- }
- 
-@@ -702,11 +710,10 @@ int migrate_pages_to(struct list_head *p
- 			struct vm_area_struct *vma, int dest)
- {
- 	LIST_HEAD(newlist);
--	LIST_HEAD(moved);
--	LIST_HEAD(failed);
- 	int err = 0;
- 	unsigned long offset = 0;
- 	int nr_pages;
-+	int nr_failed = 0;
- 	struct page *page;
- 	struct list_head *p;
- 
-@@ -740,26 +747,17 @@ redo:
- 		if (nr_pages > MIGRATE_CHUNK_SIZE)
- 			break;
- 	}
--	err = migrate_pages(pagelist, &newlist, &moved, &failed);
-+	err = migrate_pages(pagelist, &newlist);
- 
--	putback_lru_pages(&moved);	/* Call release pages instead ?? */
--
--	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
--		goto redo;
--out:
--	/* Return leftover allocated pages */
--	while (!list_empty(&newlist)) {
--		page = list_entry(newlist.next, struct page, lru);
--		list_del(&page->lru);
--		__free_page(page);
-+	if (err >= 0) {
-+		nr_failed += err;
-+		if (list_empty(&newlist) && !list_empty(pagelist))
-+			goto redo;
- 	}
--	list_splice(&failed, pagelist);
--	if (err < 0)
--		return err;
-+out:
- 
- 	/* Calculate number of leftover pages */
--	nr_pages = 0;
- 	list_for_each(p, pagelist)
--		nr_pages++;
--	return nr_pages;
-+		nr_failed++;
-+	return nr_failed;
- }
-Index: linux-2.6.17-rc4-mm1/include/linux/migrate.h
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/include/linux/migrate.h	2006-05-15 15:40:12.349655322 -0700
-+++ linux-2.6.17-rc4-mm1/include/linux/migrate.h	2006-05-18 09:42:45.070830541 -0700
-@@ -8,8 +8,7 @@ extern int isolate_lru_page(struct page 
- extern int putback_lru_pages(struct list_head *l);
- extern int migrate_page(struct address_space *,
- 			struct page *, struct page *);
--extern int migrate_pages(struct list_head *l, struct list_head *t,
--		struct list_head *moved, struct list_head *failed);
-+extern int migrate_pages(struct list_head *l, struct list_head *t);
- extern int migrate_pages_to(struct list_head *pagelist,
- 			struct vm_area_struct *vma, int dest);
- extern int fail_migrate_page(struct address_space *,
-@@ -22,8 +21,8 @@ extern int migrate_prep(void);
- static inline int isolate_lru_page(struct page *p, struct list_head *list)
- 					{ return -ENOSYS; }
- static inline int putback_lru_pages(struct list_head *l) { return 0; }
--static inline int migrate_pages(struct list_head *l, struct list_head *t,
--	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
-+static inline int migrate_pages(struct list_head *l, struct list_head *t)
-+					{ return -ENOSYS; }
- 
- static inline int migrate_pages_to(struct list_head *pagelist,
- 			struct vm_area_struct *vma, int dest) { return 0; }
 Index: linux-2.6.17-rc4-mm1/mm/mempolicy.c
 ===================================================================
---- linux-2.6.17-rc4-mm1.orig/mm/mempolicy.c	2006-05-15 15:40:13.211906469 -0700
-+++ linux-2.6.17-rc4-mm1/mm/mempolicy.c	2006-05-18 09:42:45.071807043 -0700
-@@ -603,11 +603,8 @@ int migrate_to_node(struct mm_struct *mm
- 	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nmask,
- 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+--- linux-2.6.17-rc4-mm1.orig/mm/mempolicy.c	2006-05-18 10:28:46.290423356 -0700
++++ linux-2.6.17-rc4-mm1/mm/mempolicy.c	2006-05-18 10:28:51.629936158 -0700
+@@ -631,6 +631,10 @@ int do_migrate_pages(struct mm_struct *m
  
--	if (!list_empty(&pagelist)) {
-+	if (!list_empty(&pagelist))
- 		err = migrate_pages_to(&pagelist, NULL, dest);
--		if (!list_empty(&pagelist))
--			putback_lru_pages(&pagelist);
--	}
- 	return err;
- }
+   	down_read(&mm->mmap_sem);
  
-@@ -773,9 +770,6 @@ long do_mbind(unsigned long start, unsig
- 			err = -EIO;
++	err = migrate_vmas(mm, from_nodes, to_nodes, flags);
++	if (err)
++		goto out;
++
+ /*
+  * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
+  * bit in 'to' is not also set in 'tmp'.  Clear the found 'source'
+@@ -690,7 +694,7 @@ int do_migrate_pages(struct mm_struct *m
+ 		if (err < 0)
+ 			break;
  	}
- 
--	if (!list_empty(&pagelist))
--		putback_lru_pages(&pagelist);
 -
- 	up_write(&mm->mmap_sem);
- 	mpol_free(new);
- 	return err;
++out:
+ 	up_read(&mm->mmap_sem);
+ 	if (err < 0)
+ 		return err;
+Index: linux-2.6.17-rc4-mm1/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/mm/migrate.c	2006-05-18 10:28:46.289446854 -0700
++++ linux-2.6.17-rc4-mm1/mm/migrate.c	2006-05-18 10:36:56.930910584 -0700
+@@ -894,3 +894,23 @@ out2:
+ }
+ #endif
+ 
++/*
++ * Call migration functions in the vma_ops that may prepare
++ * memory in a vm for migration. migration functions may perform
++ * the migration for vmas that do not have an underlying page struct.
++ */
++int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
++	const nodemask_t *from, unsigned long flags)
++{
++ 	struct vm_area_struct *vma;
++ 	int err = 0;
++
++ 	for(vma = mm->mmap; vma->vm_next && !err; vma = vma->vm_next) {
++ 		if (vma->vm_ops && vma->vm_ops->migrate) {
++ 			err = vma->vm_ops->migrate(vma, to, from, flags);
++ 			if (err)
++ 				break;
++ 		}
++ 	}
++ 	return err;
++}
+Index: linux-2.6.17-rc4-mm1/include/linux/mm.h
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/include/linux/mm.h	2006-05-15 15:40:12.355514333 -0700
++++ linux-2.6.17-rc4-mm1/include/linux/mm.h	2006-05-18 10:38:35.269541654 -0700
+@@ -209,6 +209,8 @@ struct vm_operations_struct {
+ 	int (*set_policy)(struct vm_area_struct *vma, struct mempolicy *new);
+ 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
+ 					unsigned long addr);
++	int (*migrate)(struct vm_area_struct *vma, const nodemask_t *from,
++		const nodemask_t *to, unsigned long flags);
+ #endif
+ };
+ 
+Index: linux-2.6.17-rc4-mm1/include/linux/migrate.h
+===================================================================
+--- linux-2.6.17-rc4-mm1.orig/include/linux/migrate.h	2006-05-18 10:28:46.291399858 -0700
++++ linux-2.6.17-rc4-mm1/include/linux/migrate.h	2006-05-18 10:37:43.795193223 -0700
+@@ -16,7 +16,9 @@ extern int fail_migrate_page(struct addr
+ 			struct page *, struct page *);
+ 
+ extern int migrate_prep(void);
+-
++extern int migrate_vmas(struct mm_struct *mm,
++		const nodemask_t *from, const nodemask_t *to,
++		unsigned long flags);
+ #else
+ 
+ static inline int isolate_lru_page(struct page *p, struct list_head *list)
+@@ -30,6 +32,13 @@ static inline int migrate_pages_to(struc
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ 
++static inline int migrate_vmas(struct mm_struct *mm,
++		const nodemask_t *from, const nodemask_t *to,
++		unsigned long flags)
++{
++	return -ENOSYS;
++}
++
+ /* Possible settings for the migrate_page() method in address_operations */
+ #define migrate_page NULL
+ #define fail_migrate_page NULL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
