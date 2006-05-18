@@ -1,50 +1,40 @@
-Message-ID: <446C2191.70300@yahoo.com.au>
-Date: Thu, 18 May 2006 17:26:09 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Thu, 18 May 2006 15:21:04 +0100
+Subject: [PATCH 1/2] zone init check and report unaligned zone boundaries fix
+Message-ID: <20060518142104.GA9407@shadowen.org>
+References: <exportbomb.1147962048@pinky>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: limit lowmem_reserve
-References: <200604021401.13331.kernel@kolivas.org> <200605180011.43216.kernel@kolivas.org> <446C1E25.4080408@yahoo.com.au> <200605181721.38735.kernel@kolivas.org>
-In-Reply-To: <200605181721.38735.kernel@kolivas.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Andrew Morton <akpm@osdl.org>, ck@vds.kolivas.org, linux list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, bob.picco@hp.com, mingo@elte.hu, mbligh@mbligh.org, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Con Kolivas wrote:
-> On Thursday 18 May 2006 17:11, Nick Piggin wrote:
-> 
->>If we're under memory pressure, kswapd will try to free up any candidate
->>zone, yes.
->>
->>
->>>On my test case this indeed happens and my ZONE_DMA never goes below 3000
->>>pages free. If I lower the reserve even further my pages free gets stuck
->>>at 3208 and can't free any more, and doesn't ever drop below that either.
->>>
->>>Here is the patch I was proposing
->>
->>What problem does that fix though?
-> 
-> 
-> It's a generic concern and I honestly don't know how significant it is which 
-> is why I'm asking if it needs attention. That concern being that any time 
-> we're under any sort of memory pressure, ZONE_DMA will undergo intense 
-> reclaim even though there may not really be anything specifically going on in 
-> ZONE_DMA. It just seems a waste of cycles doing that.
-> 
+zone init check and report unaligned zone boundaries fix
 
-If it doesn't have any/much pagecache or slab cache in it, there won't be
-intense reclaim; if it does then it can be reclaimed and the memory used.
+We are reporting bad boundaries for the first zone which is allowed
+to be missaligned because nodes are not allowed to be missaligned,
+and zones which have zero size.  Cull them.
 
-reclaim / allocation could be slightly smarter about scaling watermarks,
-however I don't think it is much of an issue at the moment.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ page_alloc.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletion(-)
+diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
+--- reference/mm/page_alloc.c
++++ current/mm/page_alloc.c
+@@ -2223,7 +2223,8 @@ static void __meminit free_area_init_cor
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize;
+ 
+-		if (zone_boundary_align_pfn(zone_start_pfn) != zone_start_pfn)
++		if (zone_boundary_align_pfn(zone_start_pfn) !=
++					zone_start_pfn && j != 0 && size != 0)
+ 			printk(KERN_CRIT "node %d zone %s missaligned "
+ 					"start pfn\n", nid, zone_names[j]);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
