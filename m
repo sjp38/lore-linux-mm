@@ -1,6 +1,6 @@
-Date: Thu, 18 May 2006 15:21:04 +0100
-Subject: [PATCH 1/2] zone init check and report unaligned zone boundaries fix
-Message-ID: <20060518142104.GA9407@shadowen.org>
+Date: Thu, 18 May 2006 15:21:20 +0100
+Subject: [PATCH 2/2] zone allow unaligned zone boundaries spelling fix
+Message-ID: <20060518142119.GA9521@shadowen.org>
 References: <exportbomb.1147962048@pinky>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,29 +12,49 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Andy Whitcroft <apw@shadowen.org>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, bob.picco@hp.com, mingo@elte.hu, mbligh@mbligh.org, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-zone init check and report unaligned zone boundaries fix
+zone allow unaligned zone boundaries spelling fix
 
-We are reporting bad boundaries for the first zone which is allowed
-to be missaligned because nodes are not allowed to be missaligned,
-and zones which have zero size.  Cull them.
+When the spelling of boundary was sorted out the config options
+got missed.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
- page_alloc.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletion(-)
+ include/linux/mmzone.h |    2 +-
+ mm/page_alloc.c        |    4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
+--- reference/include/linux/mmzone.h
++++ current/include/linux/mmzone.h
+@@ -393,7 +393,7 @@ static inline int is_dma(struct zone *zo
+ 
+ static inline unsigned long zone_boundary_align_pfn(unsigned long pfn)
+ {
+-#ifdef CONFIG_UNALIGNED_ZONE_BOUNDRIES
++#ifdef CONFIG_UNALIGNED_ZONE_BOUNDARIES
+ 	return pfn;
+ #else
+ 	return pfn & ~((1 << MAX_ORDER) - 1);
 diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
 --- reference/mm/page_alloc.c
 +++ current/mm/page_alloc.c
-@@ -2223,7 +2223,8 @@ static void __meminit free_area_init_cor
- 		struct zone *zone = pgdat->node_zones + j;
- 		unsigned long size, realsize;
- 
--		if (zone_boundary_align_pfn(zone_start_pfn) != zone_start_pfn)
-+		if (zone_boundary_align_pfn(zone_start_pfn) !=
-+					zone_start_pfn && j != 0 && size != 0)
+@@ -315,7 +315,7 @@ static inline int page_is_buddy(struct p
+ 	if (!pfn_valid(page_to_pfn(buddy)))
+ 		return 0;
+ #endif
+-#ifdef CONFIG_UNALIGNED_ZONE_BOUNDRIES
++#ifdef CONFIG_UNALIGNED_ZONE_BOUNDARIES
+ 	if (page_zone_id(page) != page_zone_id(buddy))
+ 		return 0;
+ #endif
+@@ -2232,7 +2232,7 @@ static void __meminit free_area_init_cor
+ 		if (zone_boundary_align_pfn(zone_start_pfn) !=
+ 					zone_start_pfn && j != 0 && size != 0)
  			printk(KERN_CRIT "node %d zone %s missaligned "
- 					"start pfn\n", nid, zone_names[j]);
+-				"start pfn, enable UNALIGNED_ZONE_BOUNDRIES\n",
++				"start pfn, enable UNALIGNED_ZONE_BOUNDARIES\n",
+ 							nid, zone_names[j]);
  
+ 		realsize = size = zones_size[j];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
