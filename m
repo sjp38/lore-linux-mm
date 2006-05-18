@@ -1,116 +1,86 @@
-Date: Thu, 18 May 2006 11:21:37 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060518182137.20734.98683.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 5/5] page migration: Detailed status for moving of individual pages
+Subject: Re: Query re:  mempolicy for page cache pages
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200605182012.19570.ak@suse.de>
+References: <1147974599.5195.96.camel@localhost.localdomain>
+	 <200605182012.19570.ak@suse.de>
+Content-Type: text/plain
+Date: Thu, 18 May 2006 14:29:53 -0400
+Message-Id: <1147976994.5195.123.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org, bls@sgi.com, jes@sgi.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Steve Longerbeam <stevel@mvista.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Detailed results for sys_move_pages()
+Thanks, Andi
 
-Pass a pointer to an integer to get_new_page() that may be used
-to indicate where the completion status of a migration operation should
-be placed. This allows sys_move_pags() to report back exactly what
-happened to each page.
+On Thu, 2006-05-18 at 20:12 +0200, Andi Kleen wrote:
+> > 1) What ever happened to Steve's patch set?
+> 
+> It needed more work, but he just disappeared at some point.
 
-Wish there would be a better way to do this. Looks a bit hacky.
+OK.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> > 
+> > 2) Is this even a problem that needs solving, as Christoph seem to think
+> > at one time?
+> 
+> The problem that hasn't been worked out is how to add persistent 
+> attributes to files. Steve avoided that by limiting his to only
+> ELF executables and using a static header there, but i'm not
+> sure that is a generally useful enough for mainline. Just temporary
+> for mmaps seems very narrow in usefulness.
+> 
+> And with xattrs was unclear if it would be costly or not and
+> even worth it.
 
-Index: linux-2.6.17-rc4-mm1/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/mm/migrate.c	2006-05-18 10:02:04.586936931 -0700
-+++ linux-2.6.17-rc4-mm1/mm/migrate.c	2006-05-18 10:06:17.159186880 -0700
-@@ -589,7 +589,8 @@ static int unmap_and_move(new_page_t get
- 			struct page *page, int force)
- {
- 	int rc = 0;
--	struct page *newpage = get_new_page(page, private);
-+	int *result = NULL;
-+	struct page *newpage = get_new_page(page, private, &result);
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -643,6 +644,12 @@ move_newpage:
- 	 * then this will free the page.
- 	 */
- 	move_to_lru(newpage);
-+	if (result) {
-+		if (rc)
-+			*result = rc;
-+		else
-+			*result = page_to_nid(newpage);
-+	}
- 	return rc;
- }
- 
-@@ -721,7 +728,8 @@ struct page_to_node {
- 	int status;
- };
- 
--static struct page *new_page_node(struct page *p, unsigned long private)
-+static struct page *new_page_node(struct page *p, unsigned long private,
-+		int **result)
- {
- 	struct page_to_node *pm = (struct page_to_node *)private;
- 
-@@ -731,6 +739,8 @@ static struct page *new_page_node(struct
- 	if (!pm->page)
- 		return NULL;
- 
-+	*result = &pm->status;
-+
- 	return alloc_pages_node(pm->node, GFP_HIGHUSER, 0);
- }
- 
-@@ -847,7 +857,7 @@ asmlinkage long sys_move_pages(int pid, 
- 			goto remove;
- 
- 		pm[i].node = node;
--		err = 0;
-+		err = -EAGAIN;
- 		if (node != page_to_nid(page))
- 			goto set_status;
- 
-Index: linux-2.6.17-rc4-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/mm/mempolicy.c	2006-05-18 09:48:12.491970088 -0700
-+++ linux-2.6.17-rc4-mm1/mm/mempolicy.c	2006-05-18 10:05:00.079975821 -0700
-@@ -588,7 +588,7 @@ static void migrate_page_add(struct page
- 		isolate_lru_page(page, pagelist);
- }
- 
--static struct page *new_node_page(struct page *page, unsigned long node)
-+static struct page *new_node_page(struct page *page, unsigned long node, int **x)
- {
- 	return alloc_pages_node(node, GFP_HIGHUSER, 0);
- }
-@@ -698,7 +698,7 @@ int do_migrate_pages(struct mm_struct *m
- 
- }
- 
--static struct page *new_vma_page(struct page *page, unsigned long private)
-+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
- {
- 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
- 
-Index: linux-2.6.17-rc4-mm1/include/linux/migrate.h
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/include/linux/migrate.h	2006-05-18 09:48:12.493923092 -0700
-+++ linux-2.6.17-rc4-mm1/include/linux/migrate.h	2006-05-18 10:05:00.080952323 -0700
-@@ -3,7 +3,7 @@
- 
- #include <linux/mm.h>
- 
--typedef struct page *new_page_t(struct page *, unsigned long private);
-+typedef struct page *new_page_t(struct page *, unsigned long private, int **);
- 
- #ifdef CONFIG_MIGRATION
- extern int isolate_lru_page(struct page *p, struct list_head *pagelist);
+I see...  Still, I find it "interesting" that an app doesn't have
+explicit control over shared file mappings except via the process
+policy.  I suppose if one applies explicit policy to all ones 
+vmas, then by process of elimination, the process policy would
+only apply to is file mappings.
+
+> 
+> At least in the general case just interleaving the file cache
+> based on a global setting or on cpuset seemed to work well enough
+> for most people.
+
+Yes, for not overburdening any single node.  Paul Jackson's 
+"spread" patches address this.  Actually, for [some of] our platforms,
+we can hardware interleave some % of memory at the cache line level.
+This shows up as a memory-only node.  Some folks claim it would be
+beneficial to be able to specify a page cache policy to prefer this
+hardware interleaved node for the page cache.   I see that Ray
+Bryant once proposed a patch to define a separate global and 
+optional per process policy to be used for page cache pages. This
+also "died on the vine"...
+
+> 
+> Let's ask it differently. Do you have a real application that
+> would be improved by it? 
+
+Uh, not at this point.  As I said, Chistoph said he "wished this were
+addressed" before thinking about migrate-on-fault, etc.  Since I wasn't
+getting any traction with the migration stuff, and this didn't look to
+difficult, I thought I'd look into it.
+> 
+> 
+> > 2) As with shmem segments, the shared policies applied to shared
+> >    file mappings persist as long as the inode remains--i.e., until
+> >    the file is deleted or the inode recycled--whether or not any
+> >    task has the file mapped or even open.  We could, I suppose,
+> >    free the map on last close.
+> 
+> The recycling is the problem. It's basically a lottery if the
+> attributes are kept with high memory pressure or not.
+> Doesn't seem like a robust approach.
+
+Unless, of course, the file remains mapped/open, right?  Then isn't 
+the inode and address_space guaranteed to hang around?
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
