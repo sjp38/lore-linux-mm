@@ -1,159 +1,120 @@
-Date: Thu, 18 May 2006 13:05:10 -0700
-From: Andrew Morton <akpm@osdl.org>
+Message-Id: <7.0.0.16.2.20060518171223.023cd660@llnl.gov>
+Date: Thu, 18 May 2006 19:39:06 -0700
+From: Dave Peterson <dsp@llnl.gov>
 Subject: Re: [PATCH] mm: avoid unnecessary OOM kills
-Message-Id: <20060518130510.29444628.akpm@osdl.org>
-In-Reply-To: <200605181729.k4IHToRU025597@calaveras.llnl.gov>
+In-Reply-To: <20060518130510.29444628.akpm@osdl.org>
 References: <200605181729.k4IHToRU025597@calaveras.llnl.gov>
+ <20060518130510.29444628.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Peterson <dsp@llnl.gov>
-Cc: linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, pj@sgi.com, ak@suse.de, linux-mm@kvack.org, garlick@llnl.gov, mgrondona@llnl.gov
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, pj@sgi.com, ak@suse.de, linux-mm@kvack.org, garlick@llnl.gov, mgrondona@llnl.gov, dave_peterson@pobox.com
 List-ID: <linux-mm.kvack.org>
 
-Dave Peterson <dsp@llnl.gov> wrote:
+At 01:05 PM 5/18/2006, Andrew Morton wrote: 
+>>  /* linux/mm/oom_kill.c */
+>> +extern volatile unsigned long oom_kill_in_progress;
 >
-> Below is a 2.6.17-rc4-mm1 patch that fixes a problem where the OOM killer was
-> unnecessarily killing system daemons in addition to memory-hogging user
-> processes.  The patch fixes things so that the following assertion is
-> satisfied:
-> 
->     If a failed attempt to allocate memory triggers the OOM killer, then the
->     failed attempt must have occurred _after_ any process previously shot by
->     the OOM killer has cleaned out its mm_struct.
-> 
-> Thus we avoid situations where concurrent invocations of the OOM killer cause
-> more processes to be shot than necessary to resolve the OOM condition.
-> 
-> ...
+>This shouldn't be volatile.
+
+Yes, I'll fix that.
+
+>> +/*
+>> + * Attempt to start an OOM kill operation.  Return 0 on success, or 1 if an
+>> + * OOM kill is already in progress.
+>> + */
+>> +static inline int oom_kill_start(void)
+>> +{
+>> +     return test_and_set_bit(0, &oom_kill_in_progress);
+>> +}
 >
-> --- linux-2.6.17-rc4-mm1.orig/include/linux/swap.h	2006-05-17 22:31:38.000000000 -0700
-> +++ linux-2.6.17-rc4-mm1/include/linux/swap.h	2006-05-17 22:33:54.000000000 -0700
-> @@ -155,6 +156,29 @@
->  #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
->  
->  /* linux/mm/oom_kill.c */
-> +extern volatile unsigned long oom_kill_in_progress;
+>Suggest this be called oom_kill_trystart().
 
-This shouldn't be volatile.
+Sounds good.  I'll change the name.
 
-> +/*
-> + * Attempt to start an OOM kill operation.  Return 0 on success, or 1 if an
-> + * OOM kill is already in progress.
-> + */
-> +static inline int oom_kill_start(void)
-> +{
-> +	return test_and_set_bit(0, &oom_kill_in_progress);
-> +}
+>> +volatile unsigned long oom_kill_in_progress = 0;
+>
+>This shouldn't be initialised to zero.  The kernel zeroes bss at startup.
 
-Suggest this be called oom_kill_trystart().
+Ok, I'll fix this.
 
-> ===================================================================
-> --- linux-2.6.17-rc4-mm1.orig/mm/oom_kill.c	2006-05-17 22:31:38.000000000 -0700
-> +++ linux-2.6.17-rc4-mm1/mm/oom_kill.c	2006-05-17 22:33:54.000000000 -0700
-> @@ -25,6 +25,8 @@
->  int sysctl_panic_on_oom;
->  /* #define DEBUG */
->  
-> +volatile unsigned long oom_kill_in_progress = 0;
+>>  /**
+>>   * badness - calculate a numeric value for how bad this task has been
+>>   * @p: task struct of which task we should calculate
+>> @@ -260,27 +262,31 @@
+>>       struct mm_struct *mm;
+>>       task_t * g, * q;
+>>  
+>> +     task_lock(p);
+>>       mm = p->mm;
+>>  
+>> -     /* WARNING: mm may not be dereferenced since we did not obtain its
+>> -     * value from get_task_mm(p).  This is OK since all we need to do is
+>> -     * compare mm to q->mm below.
+>> +     if (mm == NULL || mm == &init_mm) {
+>> +             task_unlock(p);
+>> +             return 1;
+>> +     }
+>> +
+>> +     set_bit(MM_FLAG_OOM_NOTIFY, &mm->flags);
+>> +     task_unlock(p);
+>
+>Putting task_lock() in here would be a fairly obvious way to address the
+>fragility which that comment describes.  But I have a feeling that we
+>discussed that a couple of weeks ago and found a problem with it, didn't we?
 
-This shouldn't be initialised to zero.  The kernel zeroes bss at startup.
+I think task_lock() works fine.  That's what I have above.
+When I generated the patch, it looks like I omitted the "-p" flag
+to diff.  Thus it looks like the code changes above are in badness()
+when they are actually in oom_kill_task().  My apologies (I know this
+makes things hard to read).  I'll fix this when I repost.
 
->  /**
->   * badness - calculate a numeric value for how bad this task has been
->   * @p: task struct of which task we should calculate
-> @@ -260,27 +262,31 @@
->  	struct mm_struct *mm;
->  	task_t * g, * q;
->  
-> +	task_lock(p);
->  	mm = p->mm;
->  
-> -	/* WARNING: mm may not be dereferenced since we did not obtain its
-> -	 * value from get_task_mm(p).  This is OK since all we need to do is
-> -	 * compare mm to q->mm below.
-> +	if (mm == NULL || mm == &init_mm) {
-> +		task_unlock(p);
-> +		return 1;
-> +	}
-> +
-> +	set_bit(MM_FLAG_OOM_NOTIFY, &mm->flags);
-> +	task_unlock(p);
+>So if process A did a successful oom_kill_start(), and processes B, C, D
+>and E all get into difficulty as well, they'll go into busywait loops.  The
+>cond_resched() will eventually save us from locking up, but it's a bit
+>unpleasant.
 
-Putting task_lock() in here would be a fairly obvious way to address the
-fragility which that comment describes.  But I have a feeling that we
-discussed that a couple of weeks ago and found a problem with it, didn't we?
+Hmm... that's a good point.  I kind of assumed the other processes
+would go to sleep somewhere inside one of the calls to
+get_page_from_freelist(), but it looks like this is not the case.
+Without my changes, all of the processes would call out_of_memory()
+and then loop back around to "restart".  However there's a call to
+schedule_timeout_interruptible() in out_of_memory() that processes B,
+C, D, and E will circumvent if my changes are applied.  I'll try to
+work out a solution to this and then repost.
 
-> ===================================================================
-> --- linux-2.6.17-rc4-mm1.orig/mm/page_alloc.c	2006-05-17 22:31:38.000000000 -0700
-> +++ linux-2.6.17-rc4-mm1/mm/page_alloc.c	2006-05-17 22:33:54.000000000 -0700
-> @@ -910,6 +910,36 @@
->  	return 1;
->  }
->  
-> +/* Try to allocate one more time before invoking the OOM killer. */
-> +static struct page * oom_alloc(gfp_t gfp_mask, unsigned int order,
-> +		struct zonelist *zonelist)
-> +{
-> +	struct page *page;
-> +
-> +	/* The use of oom_kill_start() below prevents parallel OOM kill
-> +	 * operations.  This fixes a problem where the OOM killer was observed
-> +	 * shooting system daemons in addition to memory-hogging user
-> +	 * processes.
-> +	 */
-> +	if (oom_kill_start())
-> +		return NULL;  /* previous OOM kill still in progress */
-> +
-> +	/* If we get this far, we _know_ that any previous OOM killer victim
-> +	 * has cleaned out its mm_struct.  Therefore we should pick a victim
-> +	 * to shoot if the allocation below fails.
-> +	 */
-> +	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
-> +			zonelist, ALLOC_WMARK_HIGH | ALLOC_CPUSET);
-> +
-> +	if (page) {
-> +		oom_kill_finish();  /* cancel OOM kill operation */
-> +		return page;
-> +	}
-> +
-> +	out_of_memory(zonelist, gfp_mask, order);
-> +	return NULL;
-> +}
-> +
->  /*
->   * get_page_from_freeliest goes through the zonelist trying to allocate
->   * a page.
-> @@ -1116,18 +1146,8 @@
->  		if (page)
->  			goto got_pg;
->  	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-> -		/*
-> -		 * Go through the zonelist yet one more time, keep
-> -		 * very high watermark here, this is only to catch
-> -		 * a parallel oom killing, we must fail if we're still
-> -		 * under heavy pressure.
-> -		 */
-> -		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-> -				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
-> -		if (page)
-> +		if ((page = oom_alloc(gfp_mask, order, zonelist)) != NULL)
->  			goto got_pg;
-> -
-> -		out_of_memory(zonelist, gfp_mask, order);
->  		goto restart;
->  	}
+On somewhat of a tangent, it seems less than ideal for the allocator
+to loop when memory is scarce (even if we may sleep on each
+iteration).  An alternative might be something like this: When a task
+calls __alloc_pages(), it goes through the zonelists looking for pages
+to allocate.  If this fails, the task adds itself to a queue and goes
+to sleep.  Then when kswapd() or someone else frees some pages, the
+pages are given to queued tasks, which are then awakened with their
+requests satisfied.  The memory allocator might optionally choose to
+awaken a task without satisfying its request.  Then __alloc_pages()
+would return NULL for that task.
 
-So if process A did a successful oom_kill_start(), and processes B, C, D
-and E all get into difficulty as well, they'll go into busywait loops.  The
-cond_resched() will eventually save us from locking up, but it's a bit
-unpleasant.
+I haven't thought through the details of implementing something like
+this in Linux.  Perhaps there are issues I'm not aware of that would
+make the above approach impractical.  However I'd be curious to hear
+your thoughts.
 
-And I'm trying to work out where process A will run oom_kill_finish() if
-`cancel' ends up being 0 in out_of_memory().  afaict, it doesn't, and the
-oom-killer will be accidentally disabled?
+>And I'm trying to work out where process A will run oom_kill_finish() if
+>`cancel' ends up being 0 in out_of_memory().  afaict, it doesn't, and the
+>oom-killer will be accidentally disabled?
+
+In this case, mmput() will call oom_kill_finish() once the mm_users
+count on the mm_struct of the OOM killer victim has reached zero and
+the mm_struct has been cleaned out.  Thus additional OOM kills are
+prevented until the victim has freed its memory.  Again, this is a bit
+unclear because I messed up generating the patch.  Sorry about that.
+Will fix shortly...
+
+I should probably also do a better job of adding comments along with
+my code changes.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
