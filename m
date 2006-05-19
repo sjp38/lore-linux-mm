@@ -1,57 +1,58 @@
-Message-ID: <446DD4CA.30606@shadowen.org>
-Date: Fri, 19 May 2006 15:23:06 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+From: "Ray Bryant" <raybry@mpdtxmail.amd.com>
+Subject: Re: [PATCH 0/2][RFC] New version of shared page tables
+Date: Fri, 19 May 2006 11:55:17 -0500
+References: <1146671004.24422.20.camel@wildcat.int.mccr.org>
+ <200605081432.40287.raybry@mpdtxmail.amd.com>
+ <2F9DB20EAB953ECFD816E9BF@[10.1.1.4]>
+In-Reply-To: <2F9DB20EAB953ECFD816E9BF@[10.1.1.4]>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
-References: <20060508141030.26912.93090.sendpatchset@skynet> <20060508141211.26912.48278.sendpatchset@skynet> <20060514203158.216a966e.akpm@osdl.org> <Pine.LNX.4.64.0605191447060.29077@skynet.skynet.ie>
-In-Reply-To: <Pine.LNX.4.64.0605191447060.29077@skynet.skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <200605191155.17880.raybry@mpdtxmail.amd.com>
+Content-Type: text/plain;
+ charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@osdl.org>, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Sun, 14 May 2006, Andrew Morton wrote:
-> 
->> Mel Gorman <mel@csn.ul.ie> wrote:
->>
->>>
->>> Size zones and holes in an architecture independent manner for ia64.
->>>
->>
->> This one makes my ia64 die very early in boot.   The trace is pretty
->> useless.
->>
->> config at http://www.zip.com.au/~akpm/linux/patches/stuff/config-ia64
->>
-> 
-> An indirect fix for this has been set out with a patchset with the
-> subject "[PATCH 0/2] Fixes for node alignment and flatmem assumptions" .
-> For arch-independent-zone-sizing, the issue was that FLATMEM assumes
-> that NODE_DATA(0)->node_start_pfn == 0. This is not the case with
-> arch-independent-zone-sizing and IA64. With
-> arch-independent-zone-sizing, a nodes node_start_pfn will be at the
-> first valid PFN.
-> 
->> <log snipped>
->>
->> Note the misaligned pfns.
->>
-> 
-> You will still get the message about misaligned PFNs on IA64. This is
-> because the lowest zone starts at the lowest available PFN which may not
-> be 0 or any other aligned number. It shouldn't make a different - or at
-> least I couldn't cause any problems.
+On Tuesday 16 May 2006 16:09, Dave McCracken wrote:
+> --On Monday, May 08, 2006 14:32:39 -0500 Ray Bryant
+>
+> <raybry@mpdtxmail.amd.com> wrote:
+> > On Saturday 06 May 2006 10:25, Hugh Dickins wrote:
+> > <snip>
+> >
+> >> How was Ray Bryant's shared,anonymous,fork,munmap,private bug of
+> >> 25 Jan resolved?  We didn't hear the end of that.
+> >
+> > I never heard anything back from Dave, either.
+>
+> My apologies.  As I recall your problem looked to be a race in an area
+> where I was redoing the concurrency control.  I intended to ask you to
+> retest when my new version came out.  Unfortunately the new version took
+> awhile, and by the time I sent it out I forgot to ask you about it.
+>
+> I believe your problem should be fixed in recent versions.  If not, I'll
+> make another pass at it.
+>
+> Dave McCracken
+>
 
-With the updates I sent out to the zone alignment checks yesterday this
-should now be ignored correctly without comment.  The first zone is
-allowed to be misaligned because we expect alignment of the mem_map.
-With bob picco's patch from your set we ensure it is so.
+Let me build up a kernel with the latest patches and give it a try.   
+(Sorry for delay, didn't see this note until today.)
 
--apw
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+Ray Bryant
+AMD Performance Labs                   Austin, Tx
+512-602-0038 (o)                 512-507-7807 (c)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
