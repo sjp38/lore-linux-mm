@@ -1,76 +1,51 @@
+Date: Fri, 19 May 2006 15:03:10 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060519134321.29021.99360.sendpatchset@skynet>
-In-Reply-To: <20060519134241.29021.84756.sendpatchset@skynet>
-References: <20060519134241.29021.84756.sendpatchset@skynet>
-Subject: [PATCH 2/2] FLATMEM relax requirement for memory to start at pfn 0
-Date: Fri, 19 May 2006 14:43:21 +0100 (IST)
+Subject: Re: [PATCH 5/6] Have ia64 use add_active_range() and free_area_init_nodes
+In-Reply-To: <20060514203158.216a966e.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0605191447060.29077@skynet.skynet.ie>
+References: <20060508141030.26912.93090.sendpatchset@skynet>
+ <20060508141211.26912.48278.sendpatchset@skynet> <20060514203158.216a966e.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu, mbligh@mbligh.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, davej@codemonkey.org.uk, tony.luck@intel.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andy Whitcroft <apw@shadowen.org>
+On Sun, 14 May 2006, Andrew Morton wrote:
 
-The FLATMEM memory model assumes that memory is in one contigious area
-based at pfn 0.  If we initialise node 0 to start at any other offset we
-will incorrectly map pfn's to the wrong struct page *.  The key to the
-memory model is the contigious nature of the memory not the location of it.
-Relax the requirement for the area to start at 0.
+> Mel Gorman <mel@csn.ul.ie> wrote:
+>>
+>> Size zones and holes in an architecture independent manner for ia64.
+>>
+>
+> This one makes my ia64 die very early in boot.   The trace is pretty useless.
+>
+> config at http://www.zip.com.au/~akpm/linux/patches/stuff/config-ia64
+>
 
+An indirect fix for this has been set out with a patchset with the subject 
+"[PATCH 0/2] Fixes for node alignment and flatmem assumptions" . For 
+arch-independent-zone-sizing, the issue was that FLATMEM assumes that 
+NODE_DATA(0)->node_start_pfn == 0. This is not the case with 
+arch-independent-zone-sizing and IA64. With arch-independent-zone-sizing, 
+a nodes node_start_pfn will be at the first valid PFN.
 
- page_alloc.c |   17 +++++++++++++----
- 1 files changed, 13 insertions(+), 4 deletions(-)
+> <log snipped>
+>
+> Note the misaligned pfns.
+>
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+You will still get the message about misaligned PFNs on IA64. This is 
+because the lowest zone starts at the lowest available PFN which may not 
+be 0 or any other aligned number. It shouldn't make a different - or at 
+least I couldn't cause any problems.
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c linux-2.6.17-rc4-mm1-102-FLATMEM-relax-requirement-for-memory-to-start-at-pfn-0/mm/page_alloc.c
---- linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c	2006-05-18 17:58:10.000000000 +0100
-+++ linux-2.6.17-rc4-mm1-102-FLATMEM-relax-requirement-for-memory-to-start-at-pfn-0/mm/page_alloc.c	2006-05-18 19:14:44.000000000 +0100
-@@ -2477,15 +2477,16 @@ static void __meminit free_area_init_cor
- 
- static void __init alloc_node_mem_map(struct pglist_data *pgdat)
- {
-+#ifdef CONFIG_FLAT_NODE_MEM_MAP
-+	struct page *map = pgdat->node_mem_map;
-+
- 	/* Skip empty nodes */
- 	if (!pgdat->node_spanned_pages)
- 		return;
- 
--#ifdef CONFIG_FLAT_NODE_MEM_MAP
- 	/* ia64 gets its own node_mem_map, before this, without bootmem */
--	if (!pgdat->node_mem_map) {
-+	if (!map) {
- 		unsigned long size, start, end;
--		struct page *map;
- 
- 		/*
- 		 * The zone's endpoints aren't required to be MAX_ORDER
-@@ -2500,13 +2501,21 @@ static void __init alloc_node_mem_map(st
- 		if (!map)
- 			map = alloc_bootmem_node(pgdat, size);
- 		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
-+
-+		/*
-+		 * With FLATMEM the global mem_map is used.  This is assumed
-+		 * to be based at pfn 0 such that 'pfn = page* - mem_map'
-+		 * is true. Adjust map relative to node_mem_map to
-+		 * maintain this relationship.
-+		 */
-+		map -= pgdat->node_start_pfn;
- 	}
- #ifdef CONFIG_FLATMEM
- 	/*
- 	 * With no DISCONTIG, the global mem_map is just set as node 0's
- 	 */
- 	if (pgdat == NODE_DATA(0))
--		mem_map = NODE_DATA(0)->node_mem_map;
-+		mem_map = map;
- #endif
- #endif /* CONFIG_FLAT_NODE_MEM_MAP */
- }
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
