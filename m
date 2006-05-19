@@ -1,81 +1,76 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060519134301.29021.71137.sendpatchset@skynet>
+Message-Id: <20060519134321.29021.99360.sendpatchset@skynet>
 In-Reply-To: <20060519134241.29021.84756.sendpatchset@skynet>
 References: <20060519134241.29021.84756.sendpatchset@skynet>
-Subject: [PATCH 1/2] Align the node_mem_map endpoints to a MAX_ORDER boundary
-Date: Fri, 19 May 2006 14:43:01 +0100 (IST)
+Subject: [PATCH 2/2] FLATMEM relax requirement for memory to start at pfn 0
+Date: Fri, 19 May 2006 14:43:21 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu, mbligh@mbligh.org
+Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, bob.picco@hp.com, ak@suse.de, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-From: Bob Picco <bob.picco@hp.com>
+From: Andy Whitcroft <apw@shadowen.org>
 
-Andy added code to buddy allocator which does not require the zone's
-endpoints to be aligned to MAX_ORDER. An issue is that the buddy
-allocator requires the node_mem_map's endpoints to be MAX_ORDER aligned.
-Otherwise __page_find_buddy could compute a buddy not in node_mem_map for
-partial MAX_ORDER regions at zone's endpoints. page_is_buddy will detect
-that these pages at endpoints are not PG_buddy (they were zeroed out by
-bootmem allocator and not part of zone). Of course the negative here is
-we could waste a little memory but the positive is eliminating all the
-old checks for zone boundary conditions.
-
-SPARSEMEM won't encounter this issue because of MAX_ORDER size constraint
-when SPARSEMEM is configured. ia64 VIRTUAL_MEM_MAP doesn't need the
-logic either because the holes and endpoints are handled differently.
-This leaves checking alloc_remap and other arches which privately allocate
-for node_mem_map.
+The FLATMEM memory model assumes that memory is in one contigious area
+based at pfn 0.  If we initialise node 0 to start at any other offset we
+will incorrectly map pfn's to the wrong struct page *.  The key to the
+memory model is the contigious nature of the memory not the location of it.
+Relax the requirement for the area to start at 0.
 
 
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |   14 +++++++++++---
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ page_alloc.c |   17 +++++++++++++----
+ 1 files changed, 13 insertions(+), 4 deletions(-)
 
-Signed-off-by: Bob Picco <bob.picco@hp.com>
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm1-clean/include/linux/mmzone.h linux-2.6.17-rc4-mm1-101-bob-node-alignment/include/linux/mmzone.h
---- linux-2.6.17-rc4-mm1-clean/include/linux/mmzone.h	2006-05-18 17:23:55.000000000 +0100
-+++ linux-2.6.17-rc4-mm1-101-bob-node-alignment/include/linux/mmzone.h	2006-05-18 17:52:13.000000000 +0100
-@@ -21,6 +21,7 @@
- #else
- #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
- #endif
-+#define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
+diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c linux-2.6.17-rc4-mm1-102-FLATMEM-relax-requirement-for-memory-to-start-at-pfn-0/mm/page_alloc.c
+--- linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c	2006-05-18 17:58:10.000000000 +0100
++++ linux-2.6.17-rc4-mm1-102-FLATMEM-relax-requirement-for-memory-to-start-at-pfn-0/mm/page_alloc.c	2006-05-18 19:14:44.000000000 +0100
+@@ -2477,15 +2477,16 @@ static void __meminit free_area_init_cor
  
- struct free_area {
- 	struct list_head	free_list;
-diff -rup -X /usr/src/patchset-0.5/bin//dontdiff linux-2.6.17-rc4-mm1-clean/mm/page_alloc.c linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c
---- linux-2.6.17-rc4-mm1-clean/mm/page_alloc.c	2006-05-18 17:23:55.000000000 +0100
-+++ linux-2.6.17-rc4-mm1-101-bob-node-alignment/mm/page_alloc.c	2006-05-18 17:58:10.000000000 +0100
-@@ -2484,14 +2484,22 @@ static void __init alloc_node_mem_map(st
- #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
+ {
++#ifdef CONFIG_FLAT_NODE_MEM_MAP
++	struct page *map = pgdat->node_mem_map;
++
+ 	/* Skip empty nodes */
+ 	if (!pgdat->node_spanned_pages)
+ 		return;
+ 
+-#ifdef CONFIG_FLAT_NODE_MEM_MAP
  	/* ia64 gets its own node_mem_map, before this, without bootmem */
- 	if (!pgdat->node_mem_map) {
--		unsigned long size;
-+		unsigned long size, start, end;
- 		struct page *map;
+-	if (!pgdat->node_mem_map) {
++	if (!map) {
+ 		unsigned long size, start, end;
+-		struct page *map;
  
--		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
-+		/*
-+		 * The zone's endpoints aren't required to be MAX_ORDER
-+		 * aligned but the node_mem_map endpoints must be in order
-+		 * for the buddy allocator to function correctly.
-+		 */
-+		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+		end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
-+		end = ALIGN(end, MAX_ORDER_NR_PAGES);
-+		size =  (end - start) * sizeof(struct page);
- 		map = alloc_remap(pgdat->node_id, size);
+ 		/*
+ 		 * The zone's endpoints aren't required to be MAX_ORDER
+@@ -2500,13 +2501,21 @@ static void __init alloc_node_mem_map(st
  		if (!map)
  			map = alloc_bootmem_node(pgdat, size);
--		pgdat->node_mem_map = map;
-+		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
+ 		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
++
++		/*
++		 * With FLATMEM the global mem_map is used.  This is assumed
++		 * to be based at pfn 0 such that 'pfn = page* - mem_map'
++		 * is true. Adjust map relative to node_mem_map to
++		 * maintain this relationship.
++		 */
++		map -= pgdat->node_start_pfn;
  	}
  #ifdef CONFIG_FLATMEM
  	/*
+ 	 * With no DISCONTIG, the global mem_map is just set as node 0's
+ 	 */
+ 	if (pgdat == NODE_DATA(0))
+-		mem_map = NODE_DATA(0)->node_mem_map;
++		mem_map = map;
+ #endif
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
