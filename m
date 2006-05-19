@@ -1,99 +1,49 @@
-Date: Fri, 19 May 2006 19:18:20 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] Register sysfs file for hotpluged new node take 2.
-In-Reply-To: <20060518143742.E2FB.Y-GOTO@jp.fujitsu.com>
-References: <20060518143742.E2FB.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20060519191327.9265.Y-GOTO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20060519134241.29021.84756.sendpatchset@skynet>
+Subject: [PATCH 0/2] Fixes for node alignment and flatmem assumptions
+Date: Fri, 19 May 2006 14:42:41 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <haveblue@us.ibm.com>
+To: akpm@osdl.org
+Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, haveblue@us.ibm.com, ak@suse.de, bob.picco@hp.com, mbligh@mbligh.org, linux-mm@kvack.org, apw@shadowen.org, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-Andrew-san.
+After almost 3 days of banging the head on the keyboard, it was discovered
+why arch-independent zone-sizing failed on IA64 for the configuration
+posted on http://www.zip.com.au/~akpm/linux/patches/stuff/config-ia64 .
 
-Sorry. I realize that I forgot to remove old sysfs structure of node for ia64
-in yesterday's patch. :-(
+The two patches in this set address the following;
 
-Please apply this too.
+1. The buddy allocator requires that the node_mem_map be aligned on
+   a MAX_ORDER boundary. Patch 1 from Bob Picco's patch aligns the
+   node_map_map correctly.
 
--------------
+2. This is the one that was giving me keyboard face. The FLATMEM memory
+   model assumes that
 
-Creating sysfs file for node is consolidated as generic code 
-by creating registrer_one_node() and node_devices[]. 
-But, ia64's boot time code remains old sysfs_nodes structure
-as an arch dependent code. This is to remove it.
+   mem_map[0] == NODE_DATA(0)->node_mem_map == PFN 0
 
-This patch is for 2.6.17-rc4-mm1 with 
-  + register-sysfs-file-for-hotpluged-new-node.patch
+   This is not the case on IA64 with arch-independent zone sizing because
+   NODE_DATA(0)->node_mem_map starts where the first valid page frame is. On
+   my test machine, that is PFN 1025 but it probably varies.  Patch 2 from Andy
+   Whitcroft relaxes the assumption that NODE_DATA(0)->node_mem_map == PFN 0 .
 
-I tested this on Tiger4 box with my multi nodes emulation.
+These patches apply to 2.6.17-rc4-mm1 and are independent of
+architecture-independent zone sizing. Patch 1 in particular fixes a
+real problem that is just difficult to trigger. However, once applied,
+have-ia64-use-add_active_range-and-free_area_init_nodes.patch will work again.
 
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
--------------
-
- arch/ia64/kernel/topology.c |   15 +++------------
- 1 files changed, 3 insertions(+), 12 deletions(-)
-
-Index: pgdat14/arch/ia64/kernel/topology.c
-===================================================================
---- pgdat14.orig/arch/ia64/kernel/topology.c	2006-05-19 14:54:37.000000000 +0900
-+++ pgdat14/arch/ia64/kernel/topology.c	2006-05-19 15:16:09.000000000 +0900
-@@ -26,9 +26,6 @@
- #include <asm/numa.h>
- #include <asm/cpu.h>
- 
--#ifdef CONFIG_NUMA
--static struct node *sysfs_nodes;
--#endif
- static struct ia64_cpu *sysfs_cpus;
- 
- int arch_register_cpu(int num)
-@@ -36,7 +33,7 @@ int arch_register_cpu(int num)
- 	struct node *parent = NULL;
- 	
- #ifdef CONFIG_NUMA
--	parent = &sysfs_nodes[cpu_to_node(num)];
-+	parent = &node_devices[cpu_to_node(num)];
- #endif /* CONFIG_NUMA */
- 
- #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
-@@ -59,7 +56,7 @@ void arch_unregister_cpu(int num)
- 
- #ifdef CONFIG_NUMA
- 	int node = cpu_to_node(num);
--	parent = &sysfs_nodes[node];
-+	parent = &node_devices[node];
- #endif /* CONFIG_NUMA */
- 
- 	return unregister_cpu(&sysfs_cpus[num].cpu, parent);
-@@ -74,17 +71,11 @@ static int __init topology_init(void)
- 	int i, err = 0;
- 
- #ifdef CONFIG_NUMA
--	sysfs_nodes = kzalloc(sizeof(struct node) * MAX_NUMNODES, GFP_KERNEL);
--	if (!sysfs_nodes) {
--		err = -ENOMEM;
--		goto out;
--	}
--
- 	/*
- 	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
- 	 */
- 	for_each_online_node(i) {
--		if ((err = register_node(&sysfs_nodes[i], i, 0)))
-+		if ((err = register_one_node(i)))
- 			goto out;
- 	}
- #endif
-
+2.6.17-rc4-mm1 with this patchset have been boot-tested by me
+and verified that /proc/zoneinfo is ok on x86, ppc64, x86_64 and
+ia64 in a variety of configurations. Bob Picco also says that both
+patches passed a test with mem=750M and 4Gb on a rx2600 (ia64) with
+large memory holes. They have also been successfully tested with
+have-ia64-use-add_active_range-and-free_area_init_nodes.patch added back in.
 -- 
-Yasunori Goto 
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
