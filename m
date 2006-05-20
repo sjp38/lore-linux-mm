@@ -1,83 +1,43 @@
-Date: Fri, 19 May 2006 17:46:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 4/5] page migration: Support moving of individual pages
-In-Reply-To: <20060519164539.401a8eec.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0605191730370.27242@schroedinger.engr.sgi.com>
-References: <20060518182111.20734.5489.sendpatchset@schroedinger.engr.sgi.com>
- <20060518182131.20734.27190.sendpatchset@schroedinger.engr.sgi.com>
- <20060519122757.4b4767b3.akpm@osdl.org> <Pine.LNX.4.64.0605191603110.26870@schroedinger.engr.sgi.com>
- <20060519164539.401a8eec.akpm@osdl.org>
+Date: Sat, 20 May 2006 21:18:54 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] Register sysfs file for hotpluged new node take 2.
+In-Reply-To: <1148058107.6623.160.camel@localhost.localdomain>
+References: <20060518143742.E2FB.Y-GOTO@jp.fujitsu.com> <1148058107.6623.160.camel@localhost.localdomain>
+Message-Id: <20060520104215.BBB9.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, bls@sgi.com, jes@sgi.com, lee.schermerhorn@hp.com, kamezawa.hiroyu@jp.fujitsu.com, mtk-manpages@gmx.net
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 May 2006, Andrew Morton wrote:
-
-> If we're returning this fine-grained info back to userspace (good) then we
-> should go all the way.  If that's hard to do with the current
-> map-it-onto-existing-errnos approach then we've hit the limits of that
-> approach.
-
-I think the level of detail of -Exx is sufficient. I will have to precheck
-the arguments passed before taking mmap sem in the next release. With that
-some of the clashes can be removed and I could just f.e. return -ENOENT
-if any invalid node was specified so that the -ENOENT page state is really
-no page there.
-
-> > The -Exx cocdes are in use thoughout the migration code for error 
-> > conditions. We could do another pass through all of this and define 
-> > specific error codes for page migration alone?
+> On Thu, 2006-05-18 at 14:50 +0900, Yasunori Goto wrote:
+> > +       if (new_pgdat) {
+> > +               ret = register_one_node(nid);
+> > +               /*
+> > +                * If sysfs file of new node can't create, cpu on the node
+> > +                * can't be hot-added. There is no rollback way now.
+> > +                * So, check by BUG_ON() to catch it reluctantly..
+> > +                */
+> > +               BUG_ON(ret);
+> > +       } 
 > 
-> They're syscall return codes, not page-migration-per-page-result codes.
-> 
-> I'd have thought that would produce a cleaner result, really.  I don't know
-> how much impact that would hav from a back-compatibility POV though.
+> How about we register the node in sysfs _before_ it is
+> set_node_online()'d?  Effectively an empty node with no memory and no
+> CPUs.  It might be a wee bit confusing to any user tools watching the
+> NUMA sysfs stuff, but I think it beats a BUG().
 
-I have used these thoughout the page migration code for error conditions 
-on pages since we thought this would be a good way to avoid defining error
-conditions for multiple function. Better try to keep it.
+Hmmm. I'm not sure what will happen when sysfs file is accessed by user
+at this time.  I think this issue should be going to be solved when
+__remove_memory() and pgdat offline will be created.
 
-> > Well I expecteed a longer discussion on how to do this, why are we doing 
-> > it this way etc etc before the patch got in and before I would have to 
-> > polish it up for prime time. Hopefully this whole thing does not become 
-> > too volatile.
-> 
-> The patches looked fairly straightforward to me.  Maybe I missed something ;)
+Thanks for your comment.
 
-Great! Will clean it up and do some more testing on it.
+-- 
+Yasunori Goto 
 
-Brian: Could you give me some feedback on this one as well? Could you do
-some testing with your framework for page migration?
-
-> > Page migration on a 32 bit platform? Do we really need that?
-> 
-> sys_migrate_pages is presently wired up in the x86 syscall table.  And it's
-> available in x86_64's 32-bit mode.
-
-Ok. I will look at that.
-
-> > Could be. But then its an integer status and not a character so I thought 
-> > that an int would be cleaner.
-> 
-> As it's just a status result it's hard to see that we'd ever need more
-> bits.  Might as well get the speed and space savings of using a char?
-
-This is just a temporary value and (oh.... yes) we are going up to 4k
-nodes right now and are still shooting for more. So the node number
-wont fit into a char, lets keep it an int.
-
-> > Ok. Will fix the numerous bugs next week unless there are more concerns on 
-> > a basic conceptual level.
-> 
-> Who else is interested in these features apart from the high-end ia64
-> people?
-
-The usual I guess: PowerPC and x86_64(opteron) high end machines plus the 
-i386 IBM NUMA machines. Is sparc64 now NUMA capable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
