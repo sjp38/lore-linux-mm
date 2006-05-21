@@ -1,49 +1,47 @@
-Date: Sun, 21 May 2006 17:20:53 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] Have x86_64 use add_active_range() and free_area_init_nodes
-In-Reply-To: <200605202327.19606.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0605211709530.16327@skynet.skynet.ie>
-References: <20060508141030.26912.93090.sendpatchset@skynet>
- <20060508141151.26912.15976.sendpatchset@skynet> <20060520135922.129a481d.akpm@osdl.org>
- <200605202327.19606.ak@suse.de>
+Message-ID: <4470547D.2030505@yahoo.com.au>
+Date: Sun, 21 May 2006 21:52:29 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [patch 2/2] mm: handle unaligned zones
+References: <4470232B.7040802@yahoo.com.au>	<44702358.1090801@yahoo.com.au>	<20060521021905.0f73e01a.akpm@osdl.org>	<4470417F.2000605@yahoo.com.au> <20060521035906.3a9997b0.akpm@osdl.org> <44705291.9070105@yahoo.com.au>
+In-Reply-To: <44705291.9070105@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, davej@codemonkey.org.uk, tony.luck@intel.com, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, apw@shadowen.org, mel@csn.ul.ie, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 May 2006, Andi Kleen wrote:
+Nick Piggin wrote:
+> Andrew Morton wrote:
+> 
+>> How about just throwing the pages away?  It sounds like a pretty rare
+>> problem.
+> 
+> 
+> Well that's what many architectures will end up doing, yes. But on
+> small or embedded platforms, 4MB - 1 is a whole lot of memory to be
+> throwing away.
+> 
+> Also, I'm not sure it is something we can be doing in generic code,
+> because some architectures apparently have very strange zone setups
+> (eg. zones from several pages interleaved within a single zone's
+> ->spanned_pages). So it doesn't sound like a simple matter of trying
+> to override the zones' intervals.
 
->
->> Anyway.  From the implementation I can see what the code is doing.  But I
->> see no description of what it is _supposed_ to be doing.  (The process of
->> finding differences between these two things is known as "debugging").  I
->> could kludge things by setting MAX_ACTIVE_REGIONS to 1000000, but enough.
->> I look forward to the next version ;)
->
-> Or we could just keep the working old code.
->
-> Can somebody remind me what this patch kit was supposed to fix or 
-> improve again?
->
-
-The current code for discovering the zone sizes and holes is sometimes 
-very hairy despite there being some similaries in each arch. This patch 
-kit will eliminiate some of the uglier code and have one place where zones 
-and holes can be sized. To me, that is a good idea once the bugs are 
-rattled out.
-
-On a related note, parts of the current zone-based anti-fragmentation 
-implementation are an architecture-specific mess because changing how 
-zones are sized is tricky with the current code. With this patch kit, 
-sizing zones for easily reclaimable pages is relatively straight-forward.
+Oh I see, yeah I guess you could throw away the pages forming the
+present fraction of the MAX_ORDER buddy...
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
+
+----- End forwarded message -----
+
+-- 
+"Time is of no importance, Mr. President, only life is important."
+Don't Email: <dont@kvack.org>.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
