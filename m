@@ -1,40 +1,64 @@
-From: Andi Kleen <ak@suse.de>
+Date: Mon, 22 May 2006 11:03:21 -0400 (EDT)
+From: James Morris <jmorris@namei.org>
 Subject: Re: Extract have_task_perm() from kill and migrate functions.
-Date: Mon, 22 May 2006 16:36:02 +0200
-References: <Pine.LNX.4.64.0605220719310.3432@schroedinger.engr.sgi.com>
 In-Reply-To: <Pine.LNX.4.64.0605220719310.3432@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0605221047070.25125@d.namei>
+References: <Pine.LNX.4.64.0605220719310.3432@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200605221636.02407.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Why is this on linux-mm? Wouldn't it more for linux-kernel?
+On Mon, 22 May 2006, Christoph Lameter wrote:
 
-> ptrace() has a variation on the have_task_perm() check in may_attach().
-> ptrace checks for uid equal to euid, suid, uid or gid equal to
-> egid sgid,gid. So one may not be able to kill a process explicyly
-> but be able to ptrace() (and then PTRACE_KILL it) if one is a member
-> of the same group? Weird.
+> +int have_task_perm(struct task_struct *t, int capability)
+> +{
+> +	if (capable(capability))
+> +		return 1;
+> +
+> +	return (current->euid == t->suid || current->euid == t->uid ||
+> +		  current->uid == t->suid || current->uid == t->uid);
+> +}
 
-Sounds like a bug yes. I would suggest to switch it to the stricter
-test from kill()
+There's another fairly common variant of this, for example, in 
+sys_get_robust_list():
+
+	if ((current->euid != p->euid) && (current->euid != p->uid) &&
+                                !capable(CAP_SYS_PTRACE))
+
+So I'd suggest a function for each.
+
+Not sure this stuff belongs in kernel/signal.c.  What about 
+kernel/capability.c and name the functions something like:
+
+task_cap_or_perm_euid(task, cap)
+task_cap_or_perm_suid(task, cap)
+
+As for the rights stored in various kernel structures, I gather you mean 
+examples like the calls in sys_shmctl().  In that case, perhaps make the 
+above wrappers for functions which take the uid/euid/suid values as 
+parameters:
+
+cap_or_perm_euid(uid, euid, cap)
+cap_or_perm_suid(uid, suid, cap)
+
+then
+
+static inline int task_cap_or_perm_euid(task, cap)
+{
+	return cap_or_perm_euid(task->uid, task->euid, cap);
+}
+
+Or similar.
 
 
-> 
-> Plus ptrace does not support eid comparision. So explicit rights
-> for ptracing cannot be set via the super user bit.
-
-That might even have a deeper meaning. I remember there were
-subtle bugs in this area long ago. But likely it is a bug too.
-
--Andi
+- James
+-- 
+James Morris
+<jmorris@namei.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
