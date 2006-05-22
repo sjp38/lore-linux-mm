@@ -1,113 +1,138 @@
-Date: Mon, 22 May 2006 20:31:22 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: tracking dirty pages patches
-Message-ID: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 22 May 2006 13:29:05 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: tracking dirty pages patches
+Message-Id: <20060522132905.6e1a711c.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: a.p.zijlstra@chello.nl, torvalds@osdl.org, dhowells@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Belated observations on your "tracking dirty pages" patches.
+Hugh Dickins <hugh@veritas.com> wrote:
+>
+> Belated observations on your "tracking dirty pages" patches.
 
-page_wrprotect is a nice use of rmap, but I see a couple of problems.
-One is in the lock ordering (there's info on mm lock ordering at the
-top of filemap.c, but I find the list at the top of rmap.c easier).
+Thanks, Hugh.
 
-set_page_dirty has always (awkwardly) been liable to be called from
-very low in the hierarchy; whereas you're assuming clear_page_dirty
-is called from much higher up.  And in most cases there's no problem
-(please cross-check to confirm that); but try_to_free_buffers in fs/
-buffer.c calls it while holding mapping->private_lock - page_wrprotect
-called from test_clear_page_dirty then violates the order.
+> page_wrprotect is a nice use of rmap, but I see a couple of problems.
+> One is in the lock ordering (there's info on mm lock ordering at the
+> top of filemap.c, but I find the list at the top of rmap.c easier).
+> 
+> set_page_dirty has always (awkwardly) been liable to be called from
+> very low in the hierarchy; whereas you're assuming clear_page_dirty
+> is called from much higher up.  And in most cases there's no problem
+> (please cross-check to confirm that); but try_to_free_buffers in fs/
+> buffer.c calls it while holding mapping->private_lock - page_wrprotect
+> called from test_clear_page_dirty then violates the order.
+> 
+> If we're lucky and that is indeed the only violation, maybe Andrew
+> can recommend a change to try_to_free_buffers to avoid it: I have
+> no appreciation of the issues at that end myself.
 
-If we're lucky and that is indeed the only violation, maybe Andrew
-can recommend a change to try_to_free_buffers to avoid it: I have
-no appreciation of the issues at that end myself.
+I had troubles with that as well - tree_lock is a very "inner" lock.  So I
+moved test_clear_page_dirty()'s call to page_wrprotect() to be outside
+tree_lock.
 
-The other worries are in page_wrprotect_one's block
-	entry = pte_mkclean(pte_wrprotect(*pte));
-	ptep_establish(vma, address, pte, entry);
-	update_mmu_cache(vma, address, entry);
-	lazy_mmu_prot_update(entry);
-ptep_establish, update_mmu_cache and lazy_mmu_prot_update are tricky
-arch-dependent functions which have hitherto only been used on the
-current task mm, whereas you're now using them from (perhaps) another.
+But I don't think you were referring to that - I am unable to evaluate your
+expression "the order".
 
-Well, no, I'm wrong: ptrace's get_user_pages has been using them
-from another process; but that's not so common a case as to reassure
-me there won't be issues on some architectures there.
+The running of page_wrprotect_file() inside private_lock is a worry, yes. 
+We can move the clear_page_dirty() call in try_to_free_buffers() to be
+outside private_lock.
 
-Quite likely ptep_establish and update_mmu_cache are okay for use in
-that way (needs careful checking of arches), at least they take a vma
-argument from which the mm can be found.  Whereas lazy_mmu_prot_update
-looks likely to be wrong, but only does something on ia64: you need
-to consult ia64 mm gurus to check what's needed there.  Maybe it'll
-just be a suboptimal issue (but more important now than in ptrace
-to make it optimal).
+But I don't know which particular ranking violation you've identified.
 
-Is there a problem with page_wrprotect on VM_LOCKED vmas?  I'm not
-sure: usually VM_LOCKED guarantees no faulting, you abandon that.
+> ...
+>
+> (Why does follow_pages set_page_dirty at all?  I _think_ it's in case
+> the get_user_pages caller forgets to set_page_dirty when releasing.
+> But that's not how we usually write kernel code, to hide mistakes most
+> of the time,
 
-Like others, I don't care for "VM_SharedWritable": you followed the
-VM_ReadHint macros, but this isn't a read hint, and those are weird.
+Yes, that would be bad.
 
-Personally, I much prefer the explicit
-	((vma->vm_flags & (VM_SHARED|VM_WRITE)) == (VM_SHARED|VM_WRITE))
-which is the usual style for vm_flags tests throughout mm (except for
-the hugetlb test designed to melt away without HUGETLB).  But I may be
-in a minority on that, Linus did put an is_cow_mapping() in memory.c
-recently, so maybe you'd follow that and say is_shared_writable().
+> and your mods may change the balance there.  Andrew will
+> remember better whether that set_page_dirty has stronger justification.)
 
-There's a clash and overlap between your "tracking dirty pages" patches
-and David Howell's "add notification of page becoming writable" patch.
-The merge of the two in 2.6.17-rc4-mm1 was wrong: your handle_pte_fault
-change meant it never reached David's page_mkwrite call in do_wp_page.
+It was added by the below, which nobody was terribly happy with at the
+time.  (Took me 5-10 minutes to hunt this down.  Insert rote comment about
+comments).
 
-Andrew has resolved that in -mm2 and -mm3 by dropping David's patches
-for the umpteenth time; but whatever happens to the rest of FS-Cache,
-I suspect the page_mkwrite patch will return (Anton wants it for NTFS,
-probably others will want it, but none are relying upon it yet).
 
-Please take a look at that patch (David reposted it on linux-kernel
-last Friday, as 08/14 of FS-Cache try #10): I went over it with him
-many months ago, and it fills in at least one gap you're missing...
 
-mprotect: we all forget mprotect, but mprotect(,,PROT_READ)
-followed by mprotect(,,PROT_WRITE) will give write permission to all
-those ptes you've carefully taken write permission from.  In the
-page_mkwrite patch, we found that was most easily fixed by using
-the !VM_SHARED vm_page_prot in place of the VM_SHARED one.  I
-expect you can simplify your patch a little by doing the same.
 
-msync: I rather think that with your changes, if they're to stay,
-then all the page table walking code can be removed from msync -
-since it already skipped vmas which were not VM_SHARED, and there's
-nothing to gain from syncing the !mapping_cap_account_dirty ones.
-I think MS_ASYNC becomes a no-op, and sys_msync so small it won't
-deserve its own msync.c (madvise.c wouldn't be a bad place for it).
-Or am I missing something?
+Date: Mon, 19 Jan 2004 18:43:46 +0000
+From: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: bk-commits-head@vger.kernel.org
+Subject: [PATCH] s390: endless loop in follow_page.
 
-I'm not convinced that optimize-follow_pages is a worthwhile optimization
-(in some cases you're adding an atomic inc and dec), and it's irrelevant
-to your tracking of dirty pages, but I don't feel strongly about it.
-Except, if it stays then it needs fixing: the flags 0 case is doing
-a put_page without having done a get_page.
 
-Though currently it seems only some powerpc #ifdef __DEBUG code is using
-follow_pages in that way: since that's not the common case, I think you'd
-best just remove the "if (flags & (FOLL_GET | FOLL_TOUCH))" condition
-from before the get_page.
+ChangeSet 1.1490.3.215, 2004/01/19 10:43:46-08:00, akpm@osdl.org
 
-(Why does follow_pages set_page_dirty at all?  I _think_ it's in case
-the get_user_pages caller forgets to set_page_dirty when releasing.
-But that's not how we usually write kernel code, to hide mistakes most
-of the time, and your mods may change the balance there.  Andrew will
-remember better whether that set_page_dirty has stronger justification.)
+	[PATCH] s390: endless loop in follow_page.
+	
+	From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+	
+	Fix endless loop in get_user_pages() on s390.  It happens only on s/390
+	because pte_dirty always returns 0.  For all other architectures this is an
+	optimization.
+	
+	In the case of "write && !pte_dirty(pte)" follow_page() returns NULL.  On all
+	architectures except s390 handle_pte_fault() will then create a pte with
+	pte_dirty(pte)==1 because write_access==1.  In the following, second call to
+	follow_page() all is fine.  With the physical dirty bit patch pte_dirty() is
+	always 0 for s/390 because the dirty bit doesn't live in the pte.
 
-Hugh
+
+# This patch includes the following deltas:
+#	           ChangeSet	1.1490.3.214 -> 1.1490.3.215
+#	         mm/memory.c	1.145   -> 1.146  
+#
+
+ memory.c |   21 +++++++++++++--------
+ 1 files changed, 13 insertions(+), 8 deletions(-)
+
+
+diff -Nru a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c	Mon Jan 19 15:47:24 2004
++++ b/mm/memory.c	Mon Jan 19 15:47:24 2004
+@@ -651,14 +651,19 @@
+ 	pte = *ptep;
+ 	pte_unmap(ptep);
+ 	if (pte_present(pte)) {
+-		if (!write || (pte_write(pte) && pte_dirty(pte))) {
+-			pfn = pte_pfn(pte);
+-			if (pfn_valid(pfn)) {
+-				struct page *page = pfn_to_page(pfn);
+-
+-				mark_page_accessed(page);
+-				return page;
+-			}
++		if (write && !pte_write(pte))
++			goto out;
++		if (write && !pte_dirty(pte)) {
++			struct page *page = pte_page(pte);
++			if (!PageDirty(page))
++				set_page_dirty(page);
++		}
++		pfn = pte_pfn(pte);
++		if (pfn_valid(pfn)) {
++			struct page *page = pfn_to_page(pfn);
++			
++			mark_page_accessed(page);
++			return page;
+ 		}
+ 	}
+ 
+-
+To unsubscribe from this list: send the line "unsubscribe bk-commits-head" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
