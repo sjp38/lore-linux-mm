@@ -1,61 +1,60 @@
-Date: Mon, 22 May 2006 01:44:04 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/2] Align the node_mem_map endpoints to a MAX_ORDER
- boundary
-Message-Id: <20060522014404.48e57958.akpm@osdl.org>
-In-Reply-To: <44717564.50607@shadowen.org>
-References: <20060519134241.29021.84756.sendpatchset@skynet>
-	<20060519134301.29021.71137.sendpatchset@skynet>
-	<20060519134948.10992ba1.akpm@osdl.org>
-	<44717564.50607@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 22 May 2006 10:06:48 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch 2/2] mm: handle unaligned zones
+In-Reply-To: <44705291.9070105@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0605221000480.14117@skynet.skynet.ie>
+References: <4470232B.7040802@yahoo.com.au> <44702358.1090801@yahoo.com.au>
+ <20060521021905.0f73e01a.akpm@osdl.org> <4470417F.2000605@yahoo.com.au>
+ <20060521035906.3a9997b0.akpm@osdl.org> <44705291.9070105@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: mel@csn.ul.ie, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, mbligh@mbligh.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, apw@shadowen.org, stable@kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft <apw@shadowen.org> wrote:
->
+On Sun, 21 May 2006, Nick Piggin wrote:
+
 > Andrew Morton wrote:
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> >>Andy added code to buddy allocator which does not require the zone's
-> >>endpoints to be aligned to MAX_ORDER. An issue is that the buddy
-> >>allocator requires the node_mem_map's endpoints to be MAX_ORDER aligned.
-> >>Otherwise __page_find_buddy could compute a buddy not in node_mem_map for
-> >>partial MAX_ORDER regions at zone's endpoints. page_is_buddy will detect
-> >>that these pages at endpoints are not PG_buddy (they were zeroed out by
-> >>bootmem allocator and not part of zone). Of course the negative here is
-> >>we could waste a little memory but the positive is eliminating all the
-> >>old checks for zone boundary conditions.
-> >>
-> >>SPARSEMEM won't encounter this issue because of MAX_ORDER size constraint
-> >>when SPARSEMEM is configured. ia64 VIRTUAL_MEM_MAP doesn't need the
-> >>logic either because the holes and endpoints are handled differently.
-> >>This leaves checking alloc_remap and other arches which privately allocate
-> >>for node_mem_map.
-> > 
-> > 
-> > Do we think we need this in 2.6.17?
-> 
-> I would say yes, it is a very low risk patch in my view and provides a
-> very large part of the protections we require.  i386 as our largest
-> userbase should be safe from zone/node alignment issues with just this
-> change.  Others need slightly more (the page_zone_idx check) which is
-> being discussed in another thread.
-> 
+>
+>> How about just throwing the pages away?  It sounds like a pretty rare
+>> problem.
+>
+> Well that's what many architectures will end up doing, yes. But on
+> small or embedded platforms, 4MB - 1 is a whole lot of memory to be
+> throwing away.
+>
+> Also, I'm not sure it is something we can be doing in generic code,
+> because some architectures apparently have very strange zone setups
+> (eg. zones from several pages interleaved within a single zone's
+> ->spanned_pages).
 
-Well I've largely lost the plot here (which happens often), and it appears
-that Nick has concerns with this approach (which also is not uncommon).
+I looked through a fair few arches code that sizes zones and I couldn't 
+find this or odd calls to set_page_links(). What arch interleaves pages 
+between zones like this? I am taking you mean that you can have a 
+situation where within one contiguous block of pages you have something 
+like;
 
-So could you guys please come to some sort of (rapid) consensus and tell me
-which patches from -mm3 (hopefully but an hour away) need to go into
-2.6.17?
+dddNNNdddNNNddd
 
-Thanks.
+Where d is a page in ZONE_DMA and N is a page in ZONE_NORMAL.
+
+The oddest I've seen is where nodes interleave like on PPC64. There you 
+can have pages for node 0 followed by pages for node 1 followed by node 0 
+again. But the zone start and end pfns stay in the same place.
+
+> So it doesn't sound like a simple matter of trying
+> to override the zones' intervals.
+>
+> -- 
+> SUSE Labs, Novell Inc.
+> Send instant messages to your online friends http://au.messenger.yahoo.com
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
