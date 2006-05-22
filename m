@@ -1,47 +1,61 @@
-Message-ID: <44717564.50607@shadowen.org>
-Date: Mon, 22 May 2006 09:25:08 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] Align the node_mem_map endpoints to a MAX_ORDER boundary
-References: <20060519134241.29021.84756.sendpatchset@skynet>	<20060519134301.29021.71137.sendpatchset@skynet> <20060519134948.10992ba1.akpm@osdl.org>
-In-Reply-To: <20060519134948.10992ba1.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 22 May 2006 01:44:04 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 1/2] Align the node_mem_map endpoints to a MAX_ORDER
+ boundary
+Message-Id: <20060522014404.48e57958.akpm@osdl.org>
+In-Reply-To: <44717564.50607@shadowen.org>
+References: <20060519134241.29021.84756.sendpatchset@skynet>
+	<20060519134301.29021.71137.sendpatchset@skynet>
+	<20060519134948.10992ba1.akpm@osdl.org>
+	<44717564.50607@shadowen.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, mbligh@mbligh.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: mel@csn.ul.ie, nickpiggin@yahoo.com.au, haveblue@us.ibm.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, mbligh@mbligh.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Mel Gorman <mel@csn.ul.ie> wrote:
+Andy Whitcroft <apw@shadowen.org> wrote:
+>
+> Andrew Morton wrote:
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > 
+> >>Andy added code to buddy allocator which does not require the zone's
+> >>endpoints to be aligned to MAX_ORDER. An issue is that the buddy
+> >>allocator requires the node_mem_map's endpoints to be MAX_ORDER aligned.
+> >>Otherwise __page_find_buddy could compute a buddy not in node_mem_map for
+> >>partial MAX_ORDER regions at zone's endpoints. page_is_buddy will detect
+> >>that these pages at endpoints are not PG_buddy (they were zeroed out by
+> >>bootmem allocator and not part of zone). Of course the negative here is
+> >>we could waste a little memory but the positive is eliminating all the
+> >>old checks for zone boundary conditions.
+> >>
+> >>SPARSEMEM won't encounter this issue because of MAX_ORDER size constraint
+> >>when SPARSEMEM is configured. ia64 VIRTUAL_MEM_MAP doesn't need the
+> >>logic either because the holes and endpoints are handled differently.
+> >>This leaves checking alloc_remap and other arches which privately allocate
+> >>for node_mem_map.
+> > 
+> > 
+> > Do we think we need this in 2.6.17?
 > 
->>Andy added code to buddy allocator which does not require the zone's
->>endpoints to be aligned to MAX_ORDER. An issue is that the buddy
->>allocator requires the node_mem_map's endpoints to be MAX_ORDER aligned.
->>Otherwise __page_find_buddy could compute a buddy not in node_mem_map for
->>partial MAX_ORDER regions at zone's endpoints. page_is_buddy will detect
->>that these pages at endpoints are not PG_buddy (they were zeroed out by
->>bootmem allocator and not part of zone). Of course the negative here is
->>we could waste a little memory but the positive is eliminating all the
->>old checks for zone boundary conditions.
->>
->>SPARSEMEM won't encounter this issue because of MAX_ORDER size constraint
->>when SPARSEMEM is configured. ia64 VIRTUAL_MEM_MAP doesn't need the
->>logic either because the holes and endpoints are handled differently.
->>This leaves checking alloc_remap and other arches which privately allocate
->>for node_mem_map.
+> I would say yes, it is a very low risk patch in my view and provides a
+> very large part of the protections we require.  i386 as our largest
+> userbase should be safe from zone/node alignment issues with just this
+> change.  Others need slightly more (the page_zone_idx check) which is
+> being discussed in another thread.
 > 
-> 
-> Do we think we need this in 2.6.17?
 
-I would say yes, it is a very low risk patch in my view and provides a
-very large part of the protections we require.  i386 as our largest
-userbase should be safe from zone/node alignment issues with just this
-change.  Others need slightly more (the page_zone_idx check) which is
-being discussed in another thread.
+Well I've largely lost the plot here (which happens often), and it appears
+that Nick has concerns with this approach (which also is not uncommon).
 
--apw
+So could you guys please come to some sort of (rapid) consensus and tell me
+which patches from -mm3 (hopefully but an hour away) need to go into
+2.6.17?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
