@@ -1,258 +1,149 @@
-Date: Tue, 23 May 2006 15:28:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: remove VM_LOCKED before remap_pfn_range and drop VM_SHM
-In-Reply-To: <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0605231524370.11985@schroedinger.engr.sgi.com>
+Subject: Re: tracking dirty pages patches
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
 References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
+Date: Wed, 24 May 2006 01:07:07 +0200
+Message-Id: <1148425627.10561.32.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, Rohit Seth <rohitseth@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 May 2006, Hugh Dickins wrote:
+On Mon, 2006-05-22 at 20:31 +0100, Hugh Dickins wrote:
+> Belated observations on your "tracking dirty pages" patches.
 
-> Oh yes, I'd noticed that subject going by, and meant to speak up
-> sometime.  I feel pretty strongly, and have so declared in the past,
-> that VM_LOCKED should _not_ guarantee that the same physical page is
-> used forever: get_user_pages is what's used to pin a physical page
-> for that effect.  I remember Arjan sharing this opinion.
+Thanks for the thorough examination, I always suspected there was
+something I'd overlooked, this being my first foray into these parts of
+the code.
+
+> page_wrprotect is a nice use of rmap, but I see a couple of problems.
+> One is in the lock ordering (there's info on mm lock ordering at the
+> top of filemap.c, but I find the list at the top of rmap.c easier).
 > 
-> You might discover a problem or two in letting page migration go that
-> way, I'm not saying there cannot be a problem; but I'd much rather
-> you try without adding a new flag unless it's proved necessary.
-> And I know Linus prefers not to go overboard with extra flags.
+> set_page_dirty has always (awkwardly) been liable to be called from
+> very low in the hierarchy; whereas you're assuming clear_page_dirty
+> is called from much higher up.  And in most cases there's no problem
+> (please cross-check to confirm that); but try_to_free_buffers in fs/
+> buffer.c calls it while holding mapping->private_lock - page_wrprotect
+> called from test_clear_page_dirty then violates the order.
 > 
-> You mentioned in one of the mails that went past that you'd seen
-> drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
-> copying other drivers which did so, but achieving nothing thereby,
-> to be cleaned up in due course?  (The pages aren't even on LRU.)
+> If we're lucky and that is indeed the only violation, maybe Andrew
+> can recommend a change to try_to_free_buffers to avoid it: I have
+> no appreciation of the issues at that end myself.
 
-Ok that seems to be the case. Also VM_SHM falls out once we deal with 
-this:
+Not really familiar with the code myself either, but from some
+inspection it seems safe to do so. ->private_lock seems to serialise
+access to the page buffers, not the page state.
 
+Will be in the next version.
 
-Remove VM_LOCKED before remap_pfn range from device drivers and get rid of 
-VM_SHM.
+> The other worries are in page_wrprotect_one's block
+> 	entry = pte_mkclean(pte_wrprotect(*pte));
+> 	ptep_establish(vma, address, pte, entry);
+> 	update_mmu_cache(vma, address, entry);
+> 	lazy_mmu_prot_update(entry);
+> ptep_establish, update_mmu_cache and lazy_mmu_prot_update are tricky
+> arch-dependent functions which have hitherto only been used on the
+> current task mm, whereas you're now using them from (perhaps) another.
+> 
+> Well, no, I'm wrong: ptrace's get_user_pages has been using them
+> from another process; but that's not so common a case as to reassure
+> me there won't be issues on some architectures there.
 
-remap_pfn_range() already sets VM_IO. There is no need to set VM_SHM since
-it does nothing. VM_LOCKED is of no use since the remap_pfn_range does
-not place pages on the LRU. The pages are therefore never subject to
-swap anyways. Remove all the vm_flags settings before calling
-remap_pfn_range.
+Christoph Lameter has cleared up the waters here, thanks!
 
-After removing all the vm_flag settings no use of VM_SHM is left.
-Drop it.
+> Quite likely ptep_establish and update_mmu_cache are okay for use in
+> that way (needs careful checking of arches), at least they take a vma
+> argument from which the mm can be found.  Whereas lazy_mmu_prot_update
+> looks likely to be wrong, but only does something on ia64: you need
+> to consult ia64 mm gurus to check what's needed there.  Maybe it'll
+> just be a suboptimal issue (but more important now than in ptrace
+> to make it optimal).
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Not much here, except to say: thanks for the discussions, they were very
+educative.
 
-Index: linux-2.6.17-rc4-mm3/drivers/video/igafb.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/drivers/video/igafb.c	2006-05-11 16:31:53.000000000 -0700
-+++ linux-2.6.17-rc4-mm3/drivers/video/igafb.c	2006-05-23 15:10:31.101159381 -0700
-@@ -232,9 +232,6 @@ static int igafb_mmap(struct fb_info *in
- 
- 	size = vma->vm_end - vma->vm_start;
- 
--	/* To stop the swapper from even considering these pages. */
--	vma->vm_flags |= (VM_SHM | VM_LOCKED);
--
- 	/* Each page, see which map applies */
- 	for (page = 0; page < size; ) {
- 		map_size = 0;
-Index: linux-2.6.17-rc4-mm3/drivers/sbus/char/flash.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/drivers/sbus/char/flash.c	2006-05-11 16:31:53.000000000 -0700
-+++ linux-2.6.17-rc4-mm3/drivers/sbus/char/flash.c	2006-05-23 15:10:31.102135883 -0700
-@@ -71,7 +71,6 @@ flash_mmap(struct file *file, struct vm_
- 	if (vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT)) > size)
- 		size = vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT));
- 
--	vma->vm_flags |= (VM_SHM | VM_LOCKED);
- 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
- 
- 	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
-Index: linux-2.6.17-rc4-mm3/drivers/char/mmtimer.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/drivers/char/mmtimer.c	2006-05-11 16:31:53.000000000 -0700
-+++ linux-2.6.17-rc4-mm3/drivers/char/mmtimer.c	2006-05-23 15:10:31.103112385 -0700
-@@ -329,7 +329,6 @@ static int mmtimer_mmap(struct file *fil
- 	if (PAGE_SIZE > (1 << 16))
- 		return -ENOSYS;
- 
--	vma->vm_flags |= (VM_IO | VM_SHM | VM_LOCKED );
- 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
- 
- 	mmtimer_addr = __pa(RTC_COUNTER_ADDR);
-Index: linux-2.6.17-rc4-mm3/arch/xtensa/kernel/pci.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/xtensa/kernel/pci.c	2006-05-23 15:10:16.963363024 -0700
-+++ linux-2.6.17-rc4-mm3/arch/xtensa/kernel/pci.c	2006-05-23 15:10:34.631214211 -0700
-@@ -350,17 +350,6 @@ __pci_mmap_make_offset(struct pci_dev *d
- }
- 
- /*
-- * Set vm_flags of VMA, as appropriate for this architecture, for a pci device
-- * mapping.
-- */
--static __inline__ void
--__pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma,
--		     enum pci_mmap_state mmap_state)
--{
--	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
--}
--
--/*
-  * Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
-  * device mapping.
-  */
-@@ -399,7 +388,6 @@ int pci_mmap_page_range(struct pci_dev *
- 	if (ret < 0)
- 		return ret;
- 
--	__pci_mmap_set_flags(dev, vma, mmap_state);
- 	__pci_mmap_set_pgprot(dev, vma, mmap_state, write_combine);
- 
- 	ret = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-Index: linux-2.6.17-rc4-mm3/arch/powerpc/kernel/pci_64.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/powerpc/kernel/pci_64.c	2006-05-23 15:10:16.675294926 -0700
-+++ linux-2.6.17-rc4-mm3/arch/powerpc/kernel/pci_64.c	2006-05-23 15:10:34.376347182 -0700
-@@ -875,7 +875,6 @@ int pci_mmap_page_range(struct pci_dev *
- 		return -EINVAL;
- 
- 	vma->vm_pgoff = offset >> PAGE_SHIFT;
--	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
- 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
- 						  vma->vm_page_prot,
- 						  mmap_state, write_combine);
-Index: linux-2.6.17-rc4-mm3/arch/i386/pci/i386.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/i386/pci/i386.c	2006-05-23 15:10:16.427263411 -0700
-+++ linux-2.6.17-rc4-mm3/arch/i386/pci/i386.c	2006-05-23 15:10:34.373417675 -0700
-@@ -276,8 +276,6 @@ int pci_mmap_page_range(struct pci_dev *
- 	/* Leave vm_pgoff as-is, the PCI space address is the physical
- 	 * address on this platform.
- 	 */
--	vma->vm_flags |= (VM_SHM | VM_LOCKED | VM_IO);
--
- 	prot = pgprot_val(vma->vm_page_prot);
- 	if (boot_cpu_data.x86 > 3)
- 		prot |= _PAGE_PCD | _PAGE_PWT;
-Index: linux-2.6.17-rc4-mm3/arch/ppc/kernel/pci.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/ppc/kernel/pci.c	2006-05-23 15:10:16.782710149 -0700
-+++ linux-2.6.17-rc4-mm3/arch/ppc/kernel/pci.c	2006-05-23 15:10:34.379276688 -0700
-@@ -1040,7 +1040,6 @@ int pci_mmap_page_range(struct pci_dev *
- 		return -EINVAL;
- 
- 	vma->vm_pgoff = offset >> PAGE_SHIFT;
--	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
- 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
- 						  vma->vm_page_prot,
- 						  mmap_state, write_combine);
-Index: linux-2.6.17-rc4-mm3/arch/powerpc/kernel/proc_ppc64.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/powerpc/kernel/proc_ppc64.c	2006-05-23 15:10:16.678224432 -0700
-+++ linux-2.6.17-rc4-mm3/arch/powerpc/kernel/proc_ppc64.c	2006-05-23 15:10:34.377323684 -0700
-@@ -115,8 +115,6 @@ static int page_map_mmap( struct file *f
- {
- 	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
- 
--	vma->vm_flags |= VM_SHM | VM_LOCKED;
--
- 	if ((vma->vm_end - vma->vm_start) > dp->size)
- 		return -EINVAL;
- 
-Index: linux-2.6.17-rc4-mm3/drivers/sbus/char/vfc_dev.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/drivers/sbus/char/vfc_dev.c	2006-05-23 15:08:28.409538512 -0700
-+++ linux-2.6.17-rc4-mm3/drivers/sbus/char/vfc_dev.c	2006-05-23 15:10:34.634143717 -0700
-@@ -623,7 +623,7 @@ static int vfc_mmap(struct file *file, s
- 		map_size = sizeof(struct vfc_regs);
- 
- 	vma->vm_flags |=
--		(VM_SHM | VM_LOCKED | VM_IO | VM_MAYREAD | VM_MAYWRITE | VM_MAYSHARE);
-+		(VM_MAYREAD | VM_MAYWRITE | VM_MAYSHARE);
- 	map_offset = (unsigned int) (long)dev->phys_regs;
- 	ret = io_remap_pfn_range(vma, vma->vm_start,
- 				  MK_IOSPACE_PFN(dev->which_io,
-Index: linux-2.6.17-rc4-mm3/arch/powerpc/kernel/pci_32.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/powerpc/kernel/pci_32.c	2006-05-23 15:10:16.674318424 -0700
-+++ linux-2.6.17-rc4-mm3/arch/powerpc/kernel/pci_32.c	2006-05-23 15:10:34.375370679 -0700
-@@ -1654,7 +1654,6 @@ int pci_mmap_page_range(struct pci_dev *
- 		return -EINVAL;
- 
- 	vma->vm_pgoff = offset >> PAGE_SHIFT;
--	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
- 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
- 						  vma->vm_page_prot,
- 						  mmap_state, write_combine);
-Index: linux-2.6.17-rc4-mm3/arch/cris/arch-v32/drivers/pci/bios.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/cris/arch-v32/drivers/pci/bios.c	2006-05-23 15:10:16.278835103 -0700
-+++ linux-2.6.17-rc4-mm3/arch/cris/arch-v32/drivers/pci/bios.c	2006-05-23 15:10:34.372441173 -0700
-@@ -27,8 +27,6 @@ int pci_mmap_page_range(struct pci_dev *
- 	/* Leave vm_pgoff as-is, the PCI space address is the physical
- 	 * address on this platform.
- 	 */
--	vma->vm_flags |= (VM_SHM | VM_LOCKED | VM_IO);
--
- 	prot = pgprot_val(vma->vm_page_prot);
- 	vma->vm_page_prot = __pgprot(prot);
- 
-Index: linux-2.6.17-rc4-mm3/arch/arm/kernel/bios32.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/arm/kernel/bios32.c	2006-05-23 15:10:16.265164074 -0700
-+++ linux-2.6.17-rc4-mm3/arch/arm/kernel/bios32.c	2006-05-23 15:10:34.369511667 -0700
-@@ -702,7 +702,6 @@ int pci_mmap_page_range(struct pci_dev *
- 	/*
- 	 * Mark this as IO
- 	 */
--	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
- 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
- 
- 	if (remap_pfn_range(vma, vma->vm_start, phys,
-Index: linux-2.6.17-rc4-mm3/arch/ia64/pci/pci.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/arch/ia64/pci/pci.c	2006-05-23 15:10:16.497571557 -0700
-+++ linux-2.6.17-rc4-mm3/arch/ia64/pci/pci.c	2006-05-23 15:20:27.401143385 -0700
-@@ -602,8 +602,6 @@ pci_mmap_page_range (struct pci_dev *dev
- 	 * Leave vm_pgoff as-is, the PCI space address is the physical
- 	 * address on this platform.
- 	 */
--	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
--
- 	if (write_combine && efi_range_is_wc(vma->vm_start,
- 					     vma->vm_end - vma->vm_start))
- 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-@@ -666,7 +664,6 @@ pci_mmap_legacy_page_range(struct pci_bu
- 
- 	vma->vm_pgoff += (unsigned long)addr >> PAGE_SHIFT;
- 	vma->vm_page_prot = prot;
--	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
- 
- 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
- 			    size, vma->vm_page_prot))
-Index: linux-2.6.17-rc4-mm3/include/linux/mm.h
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/include/linux/mm.h	2006-05-23 15:10:21.641784240 -0700
-+++ linux-2.6.17-rc4-mm3/include/linux/mm.h	2006-05-23 15:14:41.099348991 -0700
-@@ -145,7 +145,6 @@ extern unsigned int kobjsize(const void 
- 
- #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
- #define VM_GROWSUP	0x00000200
--#define VM_SHM		0x00000000	/* Means nothing: delete it later */
- #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
- #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
- 
+> Is there a problem with page_wrprotect on VM_LOCKED vmas?  I'm not
+> sure: usually VM_LOCKED guarantees no faulting, you abandon that.
+
+Also cleared up by Christoph, he is my hero for today ;-)
+
+> Like others, I don't care for "VM_SharedWritable": you followed the
+> VM_ReadHint macros, but this isn't a read hint, and those are weird.
+> 
+> Personally, I much prefer the explicit
+> 	((vma->vm_flags & (VM_SHARED|VM_WRITE)) == (VM_SHARED|VM_WRITE))
+> which is the usual style for vm_flags tests throughout mm (except for
+> the hugetlb test designed to melt away without HUGETLB).  But I may be
+> in a minority on that, Linus did put an is_cow_mapping() in memory.c
+> recently, so maybe you'd follow that and say is_shared_writable().
+
+OK, done, is_shared_writable() is it.
+
+> There's a clash and overlap between your "tracking dirty pages" patches
+> and David Howell's "add notification of page becoming writable" patch.
+> The merge of the two in 2.6.17-rc4-mm1 was wrong: your handle_pte_fault
+> change meant it never reached David's page_mkwrite call in do_wp_page.
+
+...
+
+> Please take a look at that patch (David reposted it on linux-kernel
+> last Friday, as 08/14 of FS-Cache try #10): I went over it with him
+> many months ago, and it fills in at least one gap you're missing...
+> 
+> mprotect: we all forget mprotect, but mprotect(,,PROT_READ)
+> followed by mprotect(,,PROT_WRITE) will give write permission to all
+> those ptes you've carefully taken write permission from.  In the
+> page_mkwrite patch, we found that was most easily fixed by using
+> the !VM_SHARED vm_page_prot in place of the VM_SHARED one.  I
+> expect you can simplify your patch a little by doing the same.
+
+Whee, this took me a while to understand, but I think I've got it.
+If I do what you propose to do, would there be any remaining users of
+the MAP_SHARED part of protection_map left?
+
+I shall try this approach tomorrow if I find some time.
+
+> msync: I rather think that with your changes, if they're to stay,
+> then all the page table walking code can be removed from msync -
+> since it already skipped vmas which were not VM_SHARED, and there's
+> nothing to gain from syncing the !mapping_cap_account_dirty ones.
+> I think MS_ASYNC becomes a no-op, and sys_msync so small it won't
+> deserve its own msync.c (madvise.c wouldn't be a bad place for it).
+> Or am I missing something?
+
+I vaguely remember some discussions on the semantics of these things.
+I'll reread and examine the code.
+
+> I'm not convinced that optimize-follow_pages is a worthwhile optimization
+> (in some cases you're adding an atomic inc and dec), and it's irrelevant
+> to your tracking of dirty pages, but I don't feel strongly about it.
+> Except, if it stays then it needs fixing: the flags 0 case is doing
+> a put_page without having done a get_page.
+
+Not sure on the benefit either, I just did it to educate myself on the
+subject (and blotched it on my way). Christoph kindly fixed the
+offending condition.
+
+I guess this patch could really do with some numbers if found that the
+set_page_dirty() is needed at all.
+
+> Though currently it seems only some powerpc #ifdef __DEBUG code is using
+> follow_pages in that way: since that's not the common case, I think you'd
+> best just remove the "if (flags & (FOLL_GET | FOLL_TOUCH))" condition
+> from before the get_page.
+> 
+> (Why does follow_pages set_page_dirty at all?  I _think_ it's in case
+> the get_user_pages caller forgets to set_page_dirty when releasing.
+> But that's not how we usually write kernel code, to hide mistakes most
+> of the time, and your mods may change the balance there.  Andrew will
+> remember better whether that set_page_dirty has stronger justification.)
+> 
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
