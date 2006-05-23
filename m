@@ -1,39 +1,115 @@
-Date: Tue, 23 May 2006 10:44:05 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060523174405.10156.45361.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060523174344.10156.66845.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060523174344.10156.66845.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [4/5] move_pages: x86_64 support
+Date: Tue, 23 May 2006 19:01:15 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/6] Have x86_64 use add_active_range() and free_area_init_nodes
+In-Reply-To: <20060520135922.129a481d.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0605231853410.8660@skynet.skynet.ie>
+References: <20060508141030.26912.93090.sendpatchset@skynet>
+ <20060508141151.26912.15976.sendpatchset@skynet> <20060520135922.129a481d.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Hugh Dickins <hugh@veritas.com>, linux-ia64@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: davej@codemonkey.org.uk, tony.luck@intel.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-sys_move_pages support for x86_64
+On Sat, 20 May 2006, Andrew Morton wrote:
 
-Only compile-tested.
+> Mel Gorman <mel@csn.ul.ie> wrote:
+>>
+>>
+>> Size zones and holes in an architecture independent manner for x86_64.
+>>
+>>
+>
+> I found a .config which triggers the cant-map-acpitables problem.
+>
+>
+> With that .config, and without this patch:
+>
+> Linux version 2.6.17-rc4-mm2 (akpm@box) (gcc version 4.1.0 20060304 (Red Hat 4.6
+> BIOS-provided physical RAM map:
+> BIOS-e820: 0000000000000000 - 000000000009fc00 (usable)
+> BIOS-e820: 000000000009fc00 - 00000000000a0000 (reserved)
+> BIOS-e820: 00000000000e0000 - 0000000000100000 (reserved)
+> BIOS-e820: 0000000000100000 - 00000000ca605000 (usable)
+> BIOS-e820: 00000000ca605000 - 00000000ca680000 (ACPI NVS)
+> BIOS-e820: 00000000ca680000 - 00000000cb5ef000 (usable)
+> BIOS-e820: 00000000cb5ef000 - 00000000cb5fc000 (reserved)
+> BIOS-e820: 00000000cb5fc000 - 00000000cb6a2000 (usable)
+> BIOS-e820: 00000000cb6a2000 - 00000000cb6eb000 (ACPI NVS)
+> BIOS-e820: 00000000cb6eb000 - 00000000cb6ef000 (usable)
+> BIOS-e820: 00000000cb6ef000 - 00000000cb6ff000 (ACPI data)
+> BIOS-e820: 00000000cb6ff000 - 00000000cb700000 (usable)
+> BIOS-e820: 00000000cb700000 - 00000000cc000000 (reserved)
+> BIOS-e820: 00000000ffe00000 - 0000000100000000 (reserved)
+> BIOS-e820: 0000000100000000 - 0000000130000000 (usable)
+> DMI 2.4 present.
+> ACPI: PM-Timer IO Port: 0x408
+> ACPI: LAPIC (acpi_id[0x01] lapic_id[0x00] enabled)
+> Processor #0 6:15 APIC version 20
+> ACPI: LAPIC (acpi_id[0x02] lapic_id[0x01] enabled)
+> Processor #1 6:15 APIC version 20
+> ACPI: LAPIC (acpi_id[0x03] lapic_id[0x82] disabled)
+> ACPI: LAPIC (acpi_id[0x04] lapic_id[0x83] disabled)
+> ACPI: LAPIC_NMI (acpi_id[0x01] dfl dfl lint[0x1])
+> ACPI: LAPIC_NMI (acpi_id[0x02] dfl dfl lint[0x1])
+> ACPI: IOAPIC (id[0x02] address[0xfec00000] gsi_base[0])
+> IOAPIC[0]: apic_id 2, version 32, address 0xfec00000, GSI 0-23
+> ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+>
+>
+> With that .config, and with this patch:
+>
+> Bootdata ok (command line is ro root=LABEL=/ earlyprintk=serial,ttyS0,9600,keep netconsole=4444@192.168.2.4/eth0,5147@192.168.2.33/00:0D:56:C6:C6:CC)
+> Linux version 2.6.17-rc4-mm2 (akpm@box) (gcc version 4.1.0 20060304 (Red Hat 4.1.0-3)) #33 SMP Sat May 20 12:08:03 PDT 2006
+> BIOS-provided physical RAM map:
+> BIOS-e820: 0000000000000000 - 000000000009fc00 (usable)
+> BIOS-e820: 000000000009fc00 - 00000000000a0000 (reserved)
+> BIOS-e820: 00000000000e0000 - 0000000000100000 (reserved)
+> BIOS-e820: 0000000000100000 - 00000000ca605000 (usable)
+> BIOS-e820: 00000000ca605000 - 00000000ca680000 (ACPI NVS)
+> BIOS-e820: 00000000ca680000 - 00000000cb5ef000 (usable)
+> BIOS-e820: 00000000cb5ef000 - 00000000cb5fc000 (reserved)
+> BIOS-e820: 00000000cb5fc000 - 00000000cb6a2000 (usable)
+> BIOS-e820: 00000000cb6a2000 - 00000000cb6eb000 (ACPI NVS)
+> BIOS-e820: 00000000cb6eb000 - 00000000cb6ef000 (usable)
+> BIOS-e820: 00000000cb6ef000 - 00000000cb6ff000 (ACPI data)
+> BIOS-e820: 00000000cb6ff000 - 00000000cb700000 (usable)
+> BIOS-e820: 00000000cb700000 - 00000000cc000000 (reserved)
+> BIOS-e820: 00000000ffe00000 - 0000000100000000 (reserved)
+> BIOS-e820: 0000000100000000 - 0000000130000000 (usable)
+> Too many memory regions, truncating
+> Too many memory regions, truncating
+> Too many memory regions, truncating
+> DMI 2.4 present.
+> ACPI: Unable to map RSDT header
+> Intel MultiProcessor Specification v1.4
+>    Virtual Wire compatibility mode.
+> OEM ID:  Product ID:  APIC at: 0xFEE00000
+>
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+I think I have figured out what went wrong here.
 
-Index: linux-2.6.17-rc4-mm1/include/asm-x86_64/unistd.h
-===================================================================
---- linux-2.6.17-rc4-mm1.orig/include/asm-x86_64/unistd.h	2006-05-21 00:18:04.000000000 +1000
-+++ linux-2.6.17-rc4-mm1/include/asm-x86_64/unistd.h	2006-05-21 00:19:33.000000000 +1000
-@@ -617,10 +617,12 @@
- __SYSCALL(__NR_sync_file_range, sys_sync_file_range)
- #define __NR_vmsplice		278
- __SYSCALL(__NR_vmsplice, sys_vmsplice)
-+#define __NR_move_pages		279
-+__SYSCALL(__NR_move_pages, sys_move_pages)
- 
- #ifdef __KERNEL__
- 
--#define __NR_syscall_max __NR_vmsplice
-+#define __NR_syscall_max __NR_move_pages
- 
- #ifndef __NO_STUBS
- 
+arch/i386/kernel/acpi/boot.c has a __acpi_map_table() function which uses 
+a variable end_pfn_map variable defined in arch/x86_64/kernel/e820.c . 
+Part of the arch-independent-zone-sizing patch calculates end_pfn_map from 
+early_node_map[] which only contains information on real RAM regions.
+
+On Christian's machine, there is no usable region after the ACPI table 
+data so early_node_map[] finishes just before the ACPI tables. This 
+results in the wrong value for end_pfn_map and the table fails to be 
+mapped. In Andrew's machines case, the regions got truncated and nothing 
+after ACPI NVS was recorded, including ACPI data which is why it fails to 
+boot.
+
+Am not ready to release another set of patches, but I think this was the 
+cause of magic failures on x86_64.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
