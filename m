@@ -1,78 +1,44 @@
-Date: Tue, 23 May 2006 20:21:34 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Tue, 23 May 2006 12:31:06 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: tracking dirty pages patches
-In-Reply-To: <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
  <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Hugh Dickins <hugh@veritas.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 May 2006, Christoph Lameter wrote:
-> On Mon, 22 May 2006, Hugh Dickins wrote:
+On Tue, 23 May 2006, Hugh Dickins wrote:
+
+> > On ia64 lazy_mmu_prot_update deals with the aliasing issues between the 
+> > icache and the dcache. For an executable page we need to flush the icache.
 > 
-> > The other worries are in page_wrprotect_one's block
-> > 	entry = pte_mkclean(pte_wrprotect(*pte));
-> > 	ptep_establish(vma, address, pte, entry);
-> > 	update_mmu_cache(vma, address, entry);
-> > 	lazy_mmu_prot_update(entry);
-> > ptep_establish, update_mmu_cache and lazy_mmu_prot_update are tricky
-> > arch-dependent functions which have hitherto only been used on the
-> > current task mm, whereas you're now using them from (perhaps) another.
+> And looking more closely, I now see it operates on the underlying struct
+> page and its kernel page_address(), nothing to do with userspace mm.
 > 
-> Page migration is also doing that in the version slated for 2.6.18 
-> in Andrew's tree.
+> Okay, but it's pointless for Peter to call it from page_wrprotect_one
+> (which is making no change to executability), isn't that so?
 
-Ah, yes, that's good support for Peter's use of update_mmu_cache, thanks.
+That is true for ia64. However, the name "lazy_mmu_prot_update" suggests
+that the intended scope is to cover protection updates in general. 
+And we definitely change the protections of the page.
 
-> > Well, no, I'm wrong: ptrace's get_user_pages has been using them
-> > from another process; but that's not so common a case as to reassure
-> > me there won't be issues on some architectures there.
-> 
-> > Quite likely ptep_establish and update_mmu_cache are okay for use in
-> > that way (needs careful checking of arches), at least they take a vma
-> > argument from which the mm can be found.  Whereas lazy_mmu_prot_update
-> > looks likely to be wrong, but only does something on ia64: you need
-> > to consult ia64 mm gurus to check what's needed there.  Maybe it'll
-> > just be a suboptimal issue (but more important now than in ptrace
-> > to make it optimal).
-> 
-> On ia64 lazy_mmu_prot_update deals with the aliasing issues between the 
-> icache and the dcache. For an executable page we need to flush the icache.
+Maybe we could rename lazy_mmu_prot_update? What does icache/dcache 
+aliasing have to do with page protection?
 
-And looking more closely, I now see it operates on the underlying struct
-page and its kernel page_address(), nothing to do with userspace mm.
+> You're right, silly of me not to look it up: yes, "memory-resident" is
+> the critical issue, so VM_LOCKED presents no problem to Peter's patch.
 
-Okay, but it's pointless for Peter to call it from page_wrprotect_one
-(which is making no change to executability), isn't that so?
-
-> > Is there a problem with page_wrprotect on VM_LOCKED vmas?  I'm not
-> > sure: usually VM_LOCKED guarantees no faulting, you abandon that.
-> 
-> mlock guarantees that the page is not swapped out. We already modify
-> the dirty bit and the protections on the VMLOCKED ptes via mprotect.
-
-You're right, silly of me not to look it up: yes, "memory-resident" is
-the critical issue, so VM_LOCKED presents no problem to Peter's patch.
-
-> > (Why does follow_pages set_page_dirty at all?  I _think_ it's in case
-> > the get_user_pages caller forgets to set_page_dirty when releasing.
-> > But that's not how we usually write kernel code, to hide mistakes most
-> > of the time, and your mods may change the balance there.  Andrew will
-> > remember better whether that set_page_dirty has stronger justification.)
-> 
-> follow_page() transfers the dirty bit from the pte to the page.
-
-No, that's not what it's doing (if pte_dirty it does no such thing).
-
-But thanks, you've cleared up several issues for me here.
-
-Hugh
+Page migration currently also assumes that VM_LOCKED means do not move the 
+page. At some point we may want to have a separate flag that guarantees
+that a page should not be moved. This would enable the moving of VM_LOCKED 
+pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
