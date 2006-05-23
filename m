@@ -1,53 +1,44 @@
-Date: Tue, 23 May 2006 14:16:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: tracking dirty pages patches
-In-Reply-To: <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0605231403580.11560@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: tracking dirty pages patches
+Date: Tue, 23 May 2006 14:17:05 -0700
+Message-ID: <000001c67eae$3e29bd90$e734030a@amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: 'Hugh Dickins' <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, Rohit Seth <rohitseth@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 May 2006, Hugh Dickins wrote:
-
-> > Page migration currently also assumes that VM_LOCKED means do not move the 
-> > page. At some point we may want to have a separate flag that guarantees
-> > that a page should not be moved. This would enable the moving of VM_LOCKED 
-> > pages.
+Hugh Dickins wrote on Tuesday, May 23, 2006 1:34 PM
+> On Tue, 23 May 2006, Christoph Lameter wrote:
+> > 
+> > That is true for ia64. However, the name "lazy_mmu_prot_update" suggests
+> > that the intended scope is to cover protection updates in general. 
+> > And we definitely change the protections of the page.
 > 
-> Oh yes, I'd noticed that subject going by, and meant to speak up
-> sometime.  I feel pretty strongly, and have so declared in the past,
-> that VM_LOCKED should _not_ guarantee that the same physical page is
-> used forever: get_user_pages is what's used to pin a physical page
-> for that effect.  I remember Arjan sharing this opinion.
+> True, and I now see Documentation/cachetlb.txt documents it that way.
+> Yet nothing but ia64 has any use for it.
 > 
-> You might discover a problem or two in letting page migration go that
-> way, I'm not saying there cannot be a problem; but I'd much rather
-> you try without adding a new flag unless it's proved necessary.
-> And I know Linus prefers not to go overboard with extra flags.
+> > Maybe we could rename lazy_mmu_prot_update? What does icache/dcache 
+> > aliasing have to do with page protection?
+> 
+> I'd strongly agree with you that it should be renamed: for a start,
+> why does it say "lazy"?  That's an architectural implementation detail.
+> 
+> Except that, instead of agreeing it should be renamed, I say it should
+> be deleted entirely.  It seems to represent that ia64 has an empty
+> update_mmu_cache, and someone decided to add a new interface instead
+> of giving ia64 that work to do in its update_mmu_cache.
 
-Ok. I thought that there would be a requirement to have such a flag 
-instead of VM_LOCKED.
- 
-> You mentioned in one of the mails that went past that you'd seen
-> drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
-> copying other drivers which did so, but achieving nothing thereby,
-> to be cleaned up in due course?  (The pages aren't even on LRU.)
+My memory recollects that it was done just like what you suggested:
+overloading update_mmu_cache for ia64, but it was vetoed by several mm
+experts.  And as a result a new function was introduced.
 
-Could be. I think Kame looked at the drivers. The memory hotplug people 
-are mostly interested in moving VM_LOCKED pages. I would like to support 
-them in that but we have currently no need to move mlocked pages.
-
-Pages that are not on the LRU cannot be moved by page migration. So maybe 
-that kind of condition is sufficient to pin memory.
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
