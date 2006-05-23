@@ -1,103 +1,122 @@
-Message-ID: <4472C529.2030306@yahoo.com.au>
-Date: Tue, 23 May 2006 18:17:45 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Tue, 23 May 2006 15:55:05 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: tracking dirty pages patches
-References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com> <20060522132905.6e1a711c.akpm@osdl.org>
 In-Reply-To: <20060522132905.6e1a711c.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.64.0605231454440.3700@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+ <20060522132905.6e1a711c.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, a.p.zijlstra@chello.nl, torvalds@osdl.org, dhowells@redhat.com, linux-mm@kvack.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <andrea@suse.de>, a.p.zijlstra@chello.nl, torvalds@osdl.org, dhowells@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-
->>and your mods may change the balance there.  Andrew will
->>remember better whether that set_page_dirty has stronger justification.)
+On Mon, 22 May 2006, Andrew Morton wrote:
+> Hugh Dickins <hugh@veritas.com> wrote:
+> > 
+> > set_page_dirty has always (awkwardly) been liable to be called from
+> > very low in the hierarchy; whereas you're assuming clear_page_dirty
+> > is called from much higher up.  And in most cases there's no problem
+> > (please cross-check to confirm that); but try_to_free_buffers in fs/
+> > buffer.c calls it while holding mapping->private_lock - page_wrprotect
+> > called from test_clear_page_dirty then violates the order.
+> > 
+> > If we're lucky and that is indeed the only violation, maybe Andrew
+> > can recommend a change to try_to_free_buffers to avoid it: I have
+> > no appreciation of the issues at that end myself.
 > 
+> I had troubles with that as well - tree_lock is a very "inner" lock.  So I
+> moved test_clear_page_dirty()'s call to page_wrprotect() to be outside
+> tree_lock.
+
+Ah.  I've only been looking at versions after that good change.
+
+> But I don't think you were referring to that
+
+Correct.
+
+>  - I am unable to evaluate your expression "the order".
+
+Sorry.  The order shown in rmap.c goes:
+
+ * mm->mmap_sem
+ *   page->flags PG_locked (lock_page)
+ *     mapping->i_mmap_lock
+ *       anon_vma->lock
+ *         mm->page_table_lock or pte_lock
+ *           zone->lru_lock (in mark_page_accessed, isolate_lru_page)
+ *           swap_lock (in swap_duplicate, swap_info_get)
+ *             mmlist_lock (in mmput, drain_mmlist and others)
+ *             mapping->private_lock (in __set_page_dirty_buffers)
+ *             inode_lock (in set_page_dirty's __mark_inode_dirty)
+ *               sb_lock (within inode_lock in fs/fs-writeback.c)
+ *               mapping->tree_lock (widely used, in set_page_dirty,
+ *                         in arch-dependent flush_dcache_mmap_lock,
+ *                         within inode_lock in __sync_single_inode)
+
+> The running of page_wrprotect_file() inside private_lock is a worry, yes. 
+> We can move the clear_page_dirty() call in try_to_free_buffers() to be
+> outside private_lock.
+
+That would be great (for Peter) if you know it to be safe.
+
+> But I don't know which particular ranking violation you've identified.
+
+page_wrprotect and callees take i_mmap_lock and pte_lock,
+neither of which should be taken while private_lock is held.
+
+> > ...
+> >
+> > (Why does follow_page set_page_dirty at all?  I _think_ it's in case
+> > the get_user_pages caller forgets to set_page_dirty when releasing.
+> > But that's not how we usually write kernel code, to hide mistakes most
+> > of the time,
+> 
+> Yes, that would be bad.
+
+It would, but you've shown I was wrong in thinking that.
+
+> > and your mods may change the balance there.  Andrew will
+> > remember better whether that set_page_dirty has stronger justification.)
 > 
 > It was added by the below, which nobody was terribly happy with at the
 > time.  (Took me 5-10 minutes to hunt this down.  Insert rote comment about
 > comments).
 
-Hmm, I couldn't find any discussion on lkml or linux-mm about it.
+Thanks so much for hunting it down, I should have done so myself.
 
-I wonder why it wasn't simply changed so as to return the page even if
-the pte was not marked dirty.
+I can well understand s390 looping on its always 0 pte_dirty test,
+but very much agree with Nick: the real question then becomes,
+what was the point of ever testing for pte_dirty there?
+and why don't we just remove the whole
+		if ((flags & FOLL_WRITE) &&
+		    !pte_dirty(pte) && !PageDirty(page))
+			set_page_dirty(page);
+from follow_page?
 
-> 
-> 
-> 
-> Date: Mon, 19 Jan 2004 18:43:46 +0000
-> From: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-> To: bk-commits-head@vger.kernel.org
-> Subject: [PATCH] s390: endless loop in follow_page.
-> 
-> 
-> ChangeSet 1.1490.3.215, 2004/01/19 10:43:46-08:00, akpm@osdl.org
-> 
-> 	[PATCH] s390: endless loop in follow_page.
-> 	
-> 	From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 	
-> 	Fix endless loop in get_user_pages() on s390.  It happens only on s/390
-> 	because pte_dirty always returns 0.  For all other architectures this is an
-> 	optimization.
-> 	
-> 	In the case of "write && !pte_dirty(pte)" follow_page() returns NULL.  On all
-> 	architectures except s390 handle_pte_fault() will then create a pte with
-> 	pte_dirty(pte)==1 because write_access==1.  In the following, second call to
-> 	follow_page() all is fine.  With the physical dirty bit patch pte_dirty() is
-> 	always 0 for s/390 because the dirty bit doesn't live in the pte.
-> 
-> 
-> # This patch includes the following deltas:
-> #	           ChangeSet	1.1490.3.214 -> 1.1490.3.215
-> #	         mm/memory.c	1.145   -> 1.146  
-> #
-> 
->  memory.c |   21 +++++++++++++--------
->  1 files changed, 13 insertions(+), 8 deletions(-)
-> 
-> 
-> diff -Nru a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c	Mon Jan 19 15:47:24 2004
-> +++ b/mm/memory.c	Mon Jan 19 15:47:24 2004
-> @@ -651,14 +651,19 @@
->  	pte = *ptep;
->  	pte_unmap(ptep);
->  	if (pte_present(pte)) {
-> -		if (!write || (pte_write(pte) && pte_dirty(pte))) {
-> -			pfn = pte_pfn(pte);
-> -			if (pfn_valid(pfn)) {
-> -				struct page *page = pfn_to_page(pfn);
-> -
-> -				mark_page_accessed(page);
-> -				return page;
-> -			}
-> +		if (write && !pte_write(pte))
-> +			goto out;
-> +		if (write && !pte_dirty(pte)) {
-> +			struct page *page = pte_page(pte);
-> +			if (!PageDirty(page))
-> +				set_page_dirty(page);
-> +		}
-> +		pfn = pte_pfn(pte);
-> +		if (pfn_valid(pfn)) {
-> +			struct page *page = pfn_to_page(pfn);
-> +			
-> +			mark_page_accessed(page);
-> +			return page;
->  		}
->  	}
->  
+That pte_dirty test first came in 2.4.4-final from
+ - Andrea Arkangeli: raw-io fixes
+I've just spent some frustrating hours thinking I'd be able to
+explain why it was necessary in the old 2.4 context, but actually
+I can't.  Vague memory of modifications vanishing under pressure
+because of race when pte_dirty was not set; yet the page count is
+raised without dropping page_table_lock, and mark_dirty_kiobuf was
+introduced in the same patch, to set dirty before releasing.  I've
+CC'ed Andrea, but it's a little (a lot!) unfair to expect him to
+explain it now.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+I do believe that dirty check now should be redundant.  But I
+said "should be" not "is" because I still haven't fixed drivers/scsi
+sg.c and st.c to use set_page_dirty_lock in place of SetPageDirty.
+
+Last time I was preparing that patch, I got distracted by the over-
+whelming feeling that it should be easier to do at interrupt time
+(as sg.c needs), but failed to find a satisfying way.  I'd better
+revisit that before trying to cut set_page_dirty from follow_page.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
