@@ -1,48 +1,78 @@
-Subject: Re: [1/5] follow_page: do not put_page if FOLL_GET not specified.
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060523174349.10156.22044.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060523174344.10156.66845.sendpatchset@schroedinger.engr.sgi.com>
-	 <20060523174349.10156.22044.sendpatchset@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 23 May 2006 20:29:10 +0200
-Message-Id: <1148408951.10561.10.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 23 May 2006 20:21:34 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: tracking dirty pages patches
+In-Reply-To: <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, linux-ia64@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-05-23 at 10:43 -0700, Christoph Lameter wrote:
-> follow: no put_page() if FOLL_GET not specified.
+On Tue, 23 May 2006, Christoph Lameter wrote:
+> On Mon, 22 May 2006, Hugh Dickins wrote:
 > 
-> Seems that one of the side effects of the dirty pages patch in
-> 2.6.17-rc4-mm3 is that follow_pages does a page_put if FOLL_GET is
-> not set in the flags passed to it. This breaks sys_move_pages()
-> page status determination.
+> > The other worries are in page_wrprotect_one's block
+> > 	entry = pte_mkclean(pte_wrprotect(*pte));
+> > 	ptep_establish(vma, address, pte, entry);
+> > 	update_mmu_cache(vma, address, entry);
+> > 	lazy_mmu_prot_update(entry);
+> > ptep_establish, update_mmu_cache and lazy_mmu_prot_update are tricky
+> > arch-dependent functions which have hitherto only been used on the
+> > current task mm, whereas you're now using them from (perhaps) another.
 > 
-> Only put_page if we did a get_page() before.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Page migration is also doing that in the version slated for 2.6.18 
+> in Andrew's tree.
 
-However, Andrew dropped the patches from -mm. I'll do a new series that
-incorporates the suggestions from Hugh.
+Ah, yes, that's good support for Peter's use of update_mmu_cache, thanks.
 
-> Index: linux-2.6.17-rc4-mm3/mm/memory.c
-> ===================================================================
-> --- linux-2.6.17-rc4-mm3.orig/mm/memory.c	2006-05-22 18:03:32.280767264 -0700
-> +++ linux-2.6.17-rc4-mm3/mm/memory.c	2006-05-23 10:01:48.917295988 -0700
-> @@ -964,7 +964,7 @@ struct page *follow_page(struct vm_area_
->  			set_page_dirty(page);
->  		mark_page_accessed(page);
->  	}
-> -	if (!(flags & FOLL_GET))
-> +	if (!(flags & FOLL_GET) && (flags & FOLL_TOUCH))
->  		put_page(page);
->  	goto out;
->  
+> > Well, no, I'm wrong: ptrace's get_user_pages has been using them
+> > from another process; but that's not so common a case as to reassure
+> > me there won't be issues on some architectures there.
+> 
+> > Quite likely ptep_establish and update_mmu_cache are okay for use in
+> > that way (needs careful checking of arches), at least they take a vma
+> > argument from which the mm can be found.  Whereas lazy_mmu_prot_update
+> > looks likely to be wrong, but only does something on ia64: you need
+> > to consult ia64 mm gurus to check what's needed there.  Maybe it'll
+> > just be a suboptimal issue (but more important now than in ptrace
+> > to make it optimal).
+> 
+> On ia64 lazy_mmu_prot_update deals with the aliasing issues between the 
+> icache and the dcache. For an executable page we need to flush the icache.
+
+And looking more closely, I now see it operates on the underlying struct
+page and its kernel page_address(), nothing to do with userspace mm.
+
+Okay, but it's pointless for Peter to call it from page_wrprotect_one
+(which is making no change to executability), isn't that so?
+
+> > Is there a problem with page_wrprotect on VM_LOCKED vmas?  I'm not
+> > sure: usually VM_LOCKED guarantees no faulting, you abandon that.
+> 
+> mlock guarantees that the page is not swapped out. We already modify
+> the dirty bit and the protections on the VMLOCKED ptes via mprotect.
+
+You're right, silly of me not to look it up: yes, "memory-resident" is
+the critical issue, so VM_LOCKED presents no problem to Peter's patch.
+
+> > (Why does follow_pages set_page_dirty at all?  I _think_ it's in case
+> > the get_user_pages caller forgets to set_page_dirty when releasing.
+> > But that's not how we usually write kernel code, to hide mistakes most
+> > of the time, and your mods may change the balance there.  Andrew will
+> > remember better whether that set_page_dirty has stronger justification.)
+> 
+> follow_page() transfers the dirty bit from the pte to the page.
+
+No, that's not what it's doing (if pte_dirty it does no such thing).
+
+But thanks, you've cleared up several issues for me here.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
