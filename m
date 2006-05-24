@@ -1,93 +1,81 @@
-Message-ID: <44739E2D.60406@yahoo.com.au>
-Date: Wed, 24 May 2006 09:43:41 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 23 May 2006 18:15:16 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Allow migration of mlocked pages
+Message-ID: <Pine.LNX.4.64.0605231801200.12600@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH (try #3)] mm: avoid unnecessary OOM kills
-References: <200605230032.k4N0WCIU023760@calaveras.llnl.gov> <4472A006.2090006@yahoo.com.au> <7.0.0.16.2.20060523094646.02429fd8@llnl.gov>
-In-Reply-To: <7.0.0.16.2.20060523094646.02429fd8@llnl.gov>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Peterson <dsp@llnl.gov>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, pj@sgi.com, ak@suse.de, linux-mm@kvack.org, garlick@llnl.gov, mgrondona@llnl.gov
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave Peterson wrote:
-> At 10:39 PM 5/22/2006, Nick Piggin wrote:
-> 
->>Does this fix observed problems on real (or fake) workloads? Can we have
->>some more information about that?
+Hugh clarified the role of VM_LOCKED. So we can now implement
+page migration for mlocked pages.
 
-[snip]
+Allow the migration of mlocked pages. This means that try_to_unmap
+must unmap mlocked pages in the migration case.
 
-OK, thanks.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
->>I still don't quite understand why all this mechanism is needed. Suppose
->>that we single-thread the oom kill path (which isn't unreasonable, unless
->>you need really good OOM throughput :P), isn't it enough to find that any
->>process has TIF_MEMDIE set in order to know that an OOM kill is in progress?
->>
->>down(&oom_sem);
->>for each process {
->> if TIF_MEMDIE
->>    goto oom_in_progress;
->> else
->>   calculate badness;
->>}
->>up(&oom_sem);
-> 
-> 
-> That would be another way to do things.  It's a tradeoff between either
-> 
->     option A: Each task that enters the OOM code path must loop over all
->               tasks to determine whether an OOM kill is in progress.
-> 
->     or...
-> 
->     option B: We must declare an oom_kill_in_progress variable and add
->               the following snippet of code to mmput():
-> 
->                 put_swap_token(mm);
-> +               if (unlikely(test_bit(MM_FLAG_OOM_NOTIFY, &mm->flags)))
-> +                       oom_kill_finish();  /* terminate pending OOM kill */
->                 mmdrop(mm);
-> 
-> I think either option is reasonable (although I have a slight preference
-> for B since it eliminates substantial looping through the tasklist).
-
-Don't you have to loop through the tasklist anyway? To find a task
-to kill?
-
-Either way, at the point of OOM, usually they should have gone through
-the LRU lists several times, so a little bit more CPU time shouldn't
-hurt.
-
-> 
-> 
->>Is all this really required? Shouldn't you just have in place the
->>mechanism to prevent concurrent OOM killings in the OOM code, and
->>so the page allocator doesn't have to bother with it at all (ie.
->>it can just call into the OOM killer, which may or may not actually
->>kill anything).
-> 
-> 
-> I agree it's desirable to keep the OOM killing logic as encapsulated
-> as possible.  However unless you are holding the oom kill semaphore
-> when you make your final attempt to allocate memory it's a bit racy.
-> Holding the OOM kill semaphore guarantees that our final allocation
-> failure before invoking the OOM killer occurred _after_ any previous
-> OOM kill victim freed its memory.  Thus we know we are not shooting
-> another process prematurely (i.e. before the memory-freeing effects
-> of our previous OOM kill have been felt).
-
-But there is so much fudge in it that I don't think it matters:
-pages could be freed from other sources, some reclaim might happen,
-the point at which OOM is declared is pretty arbitrary anyway, etc.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Index: linux-2.6.17-rc4-mm3/mm/rmap.c
+===================================================================
+--- linux-2.6.17-rc4-mm3.orig/mm/rmap.c	2006-05-23 15:10:22.484505490 -0700
++++ linux-2.6.17-rc4-mm3/mm/rmap.c	2006-05-23 18:13:25.532178041 -0700
+@@ -626,9 +626,8 @@ static int try_to_unmap_one(struct page 
+ 	 * If it's recently referenced (perhaps page_referenced
+ 	 * skipped over this mm) then we should reactivate it.
+ 	 */
+-	if ((vma->vm_flags & VM_LOCKED) ||
+-			(ptep_clear_flush_young(vma, address, pte)
+-				&& !migration)) {
++	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
++			(ptep_clear_flush_young(vma, address, pte)))) {
+ 		ret = SWAP_FAIL;
+ 		goto out_unmap;
+ 	}
+@@ -835,7 +834,7 @@ static int try_to_unmap_file(struct page
+ 
+ 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
+ 						shared.vm_set.list) {
+-		if (vma->vm_flags & VM_LOCKED)
++		if ((vma->vm_flags & VM_LOCKED) && !migration)
+ 			continue;
+ 		cursor = (unsigned long) vma->vm_private_data;
+ 		if (cursor > max_nl_cursor)
+@@ -869,7 +868,7 @@ static int try_to_unmap_file(struct page
+ 	do {
+ 		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
+ 						shared.vm_set.list) {
+-			if (vma->vm_flags & VM_LOCKED)
++			if ((vma->vm_flags & VM_LOCKED) && !migration)
+ 				continue;
+ 			cursor = (unsigned long) vma->vm_private_data;
+ 			while ( cursor < max_nl_cursor &&
+Index: linux-2.6.17-rc4-mm3/mm/migrate.c
+===================================================================
+--- linux-2.6.17-rc4-mm3.orig/mm/migrate.c	2006-05-23 15:10:24.505864687 -0700
++++ linux-2.6.17-rc4-mm3/mm/migrate.c	2006-05-23 17:27:20.617652640 -0700
+@@ -615,15 +615,13 @@ static int unmap_and_move(new_page_t get
+ 	/*
+ 	 * Establish migration ptes or remove ptes
+ 	 */
+-	if (try_to_unmap(page, 1) != SWAP_FAIL) {
+-		if (!page_mapped(page))
+-			rc = move_to_new_page(newpage, page);
+-	} else
+-		/* A vma has VM_LOCKED set -> permanent failure */
+-		rc = -EPERM;
++	try_to_unmap(page, 1);
++	if (!page_mapped(page))
++		rc = move_to_new_page(newpage, page);
+ 
+ 	if (rc)
+ 		remove_migration_ptes(page, page);
++
+ unlock:
+ 	unlock_page(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
