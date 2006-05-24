@@ -1,44 +1,32 @@
-Date: Wed, 24 May 2006 16:10:08 +0100 (BST)
+Date: Wed, 24 May 2006 16:23:31 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: tracking dirty pages patches
-In-Reply-To: <1148437514.3049.18.camel@laptopd505.fenrus.org>
-Message-ID: <Pine.LNX.4.64.0605241558380.12355@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
- <1148437514.3049.18.camel@laptopd505.fenrus.org>
+Subject: Re: Allow migration of mlocked pages
+In-Reply-To: <Pine.LNX.4.64.0605231801200.12600@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0605241616170.12355@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605231801200.12600@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: linux-mm@kvack.org, Rohit Seth <rohitseth@google.com>, David Howells <dhowells@redhat.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 May 2006, Arjan van de Ven wrote:
-> On Tue, 2006-05-23 at 21:34 +0100, Hugh Dickins wrote:
-> 
-> > You mentioned in one of the mails that went past that you'd seen
-> > drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
-> > copying other drivers which did so, but achieving nothing thereby,
-> > to be cleaned up in due course?  (The pages aren't even on LRU.)
-> 
-> I would like to know which, because in general this is a security hole:
-> Any driver that depends on locked meaning "doesn't move" can be fooled
-> by the user into becoming unlocked... (by virtue of having another
-> thread do an munlock on the memory). As such no kernel driver should 
-> depend on this, and as far as I know, no kernel driver actually does.
+On Tue, 23 May 2006, Christoph Lameter wrote:
 
-You'll have seen the list in Christoph's patch.  But they're all
-remap_pfn_range users, largely copied one from another, and their
-pages won't become freeable even if the user munlocks.
+> Hugh clarified the role of VM_LOCKED. So we can now implement
+> page migration for mlocked pages.
+> 
+> Allow the migration of mlocked pages. This means that try_to_unmap
+> must unmap mlocked pages in the migration case.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-However, that munlocking will lower locked_vm when it shouldn't
-touch it.  I suppose the ingenious might mmap and munmap such a
-driver in order to lock another mapping beyond RLIMIT_MEMLOCK.
-Perhaps that raises the priority of Christoph's patch?
+Acked-by: Hugh Dickins <hugh@veritas.com>
+
+But it does need to sit in -mm for a while; though just sitting
+there isn't going to get much testing done - any ideas on how
+we could expose migration of VM_LOCKED pages to wider testing?
 
 Hugh
 
