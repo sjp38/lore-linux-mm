@@ -1,56 +1,37 @@
-Date: Wed, 24 May 2006 15:12:10 +0100 (BST)
+Date: Wed, 24 May 2006 15:20:46 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: update_mmu_cache vs. lazy_mmu_prot_update
-In-Reply-To: <Pine.LNX.4.64.0605231433001.11697@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0605241453340.12355@blonde.wat.veritas.com>
-References: <000001c67eae$3e29bd90$e734030a@amr.corp.intel.com>
- <Pine.LNX.4.64.0605231433001.11697@schroedinger.engr.sgi.com>
+Subject: Re: tracking dirty pages patches
+In-Reply-To: <1148425627.10561.32.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0605241516430.12355@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+ <1148425627.10561.32.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, Rohit Seth <rohitseth@google.com>, linux-mm@kvack.org, agl@us.ibm.com, linux-ia64@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 May 2006, Christoph Lameter wrote:
-> On Tue, 23 May 2006, Chen, Kenneth W wrote:
+On Wed, 24 May 2006, Peter Zijlstra wrote:
+> On Mon, 2006-05-22 at 20:31 +0100, Hugh Dickins wrote:
 > 
-> > My memory recollects that it was done just like what you suggested:
-> > overloading update_mmu_cache for ia64, but it was vetoed by several mm
-> > experts.  And as a result a new function was introduced.
+> > I'm not convinced that optimize-follow_pages is a worthwhile optimization
+> > (in some cases you're adding an atomic inc and dec), and it's irrelevant
+> > to your tracking of dirty pages, but I don't feel strongly about it.
+> > Except, if it stays then it needs fixing: the flags 0 case is doing
+> > a put_page without having done a get_page.
 > 
-> lazy_mmu_prot_update is always called after update_mmu_cache except
-> when we change permissions (hugetlb_change_protection() and 
-> change_pte_range()). 
+> Not sure on the benefit either, I just did it to educate myself on the
+> subject (and blotched it on my way). Christoph kindly fixed the
+> offending condition.
 > 
-> So if we conflate those two then arches may have to be updated to avoid 
-> flushing the mmu if we only modified protections.
+> I guess this patch could really do with some numbers if found that the
+> set_page_dirty() is needed at all.
 
-Ah, I missed those two lone usages of lazy_mmu_prot_update, thanks.
-That makes sense, and fits with Ken's recollection: to have added
-update_mmu_cache in those two places would have slowed down the
-other architectures.
-
-> I think update_mmu_cache() should be dropped in page_wrprotect_one() in 
-> order to be consistent scheme. And avoiding mmu flushes will increase the 
-> performance of page_wrprotect_one.. lazy_mmu_prot_update must be there 
-> since we are changing permissions.
-
-Agreed.
-
-I'd still like to rename lazy_mmu_prot_update, and refactor it, but
-that can be a later unrelated cleanup.  What makes sense to me is to
-call it update_mmu_cache_prot, and #define the ia64 update_mmu_cache
-to that: so we can unclutter common code from most of the
-lazy_mmu_prot_update lines, leaving just those two significant
-instances of update_mmu_cache_prot that you highlight.
-
-And of the two instances of update_mmu_cache in mm/fremap.c:
-it seems to me that the first, in install_page, ought to have a
-lazy_mmu_prot_update (and will get it automatically by the #define
-I suggest); whereas the second, in install_file_pte, ought not to
-have an update_mmu_cache since it's installing a !present entry.
+Just drop that patch from the set.  It's a distraction from the rest,
+and I believe we'll optimize it much better by removing those tests
+and their set_page_dirty (but not immediately).
 
 Hugh
 
