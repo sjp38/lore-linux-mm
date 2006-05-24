@@ -1,81 +1,52 @@
-Date: Tue, 23 May 2006 18:15:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Allow migration of mlocked pages
-Message-ID: <Pine.LNX.4.64.0605231801200.12600@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: tracking dirty pages patches
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Wed, 24 May 2006 04:25:14 +0200
+Message-Id: <1148437514.3049.18.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, Rohit Seth <rohitseth@google.com>, David Howells <dhowells@redhat.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh clarified the role of VM_LOCKED. So we can now implement
-page migration for mlocked pages.
+On Tue, 2006-05-23 at 21:34 +0100, Hugh Dickins wrote:
+> > 
+> > Page migration currently also assumes that VM_LOCKED means do not move the 
+> > page. At some point we may want to have a separate flag that guarantees
+> > that a page should not be moved. This would enable the moving of VM_LOCKED 
+> > pages.
+> 
+> Oh yes, I'd noticed that subject going by, and meant to speak up
+> sometime.  I feel pretty strongly, and have so declared in the past,
+> that VM_LOCKED should _not_ guarantee that the same physical page is
+> used forever: get_user_pages is what's used to pin a physical page
+> for that effect.  I remember Arjan sharing this opinion.
 
-Allow the migration of mlocked pages. This means that try_to_unmap
-must unmap mlocked pages in the migration case.
+correct. 
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.17-rc4-mm3/mm/rmap.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/mm/rmap.c	2006-05-23 15:10:22.484505490 -0700
-+++ linux-2.6.17-rc4-mm3/mm/rmap.c	2006-05-23 18:13:25.532178041 -0700
-@@ -626,9 +626,8 @@ static int try_to_unmap_one(struct page 
- 	 * If it's recently referenced (perhaps page_referenced
- 	 * skipped over this mm) then we should reactivate it.
- 	 */
--	if ((vma->vm_flags & VM_LOCKED) ||
--			(ptep_clear_flush_young(vma, address, pte)
--				&& !migration)) {
-+	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
-+			(ptep_clear_flush_young(vma, address, pte)))) {
- 		ret = SWAP_FAIL;
- 		goto out_unmap;
- 	}
-@@ -835,7 +834,7 @@ static int try_to_unmap_file(struct page
- 
- 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
- 						shared.vm_set.list) {
--		if (vma->vm_flags & VM_LOCKED)
-+		if ((vma->vm_flags & VM_LOCKED) && !migration)
- 			continue;
- 		cursor = (unsigned long) vma->vm_private_data;
- 		if (cursor > max_nl_cursor)
-@@ -869,7 +868,7 @@ static int try_to_unmap_file(struct page
- 	do {
- 		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
- 						shared.vm_set.list) {
--			if (vma->vm_flags & VM_LOCKED)
-+			if ((vma->vm_flags & VM_LOCKED) && !migration)
- 				continue;
- 			cursor = (unsigned long) vma->vm_private_data;
- 			while ( cursor < max_nl_cursor &&
-Index: linux-2.6.17-rc4-mm3/mm/migrate.c
-===================================================================
---- linux-2.6.17-rc4-mm3.orig/mm/migrate.c	2006-05-23 15:10:24.505864687 -0700
-+++ linux-2.6.17-rc4-mm3/mm/migrate.c	2006-05-23 17:27:20.617652640 -0700
-@@ -615,15 +615,13 @@ static int unmap_and_move(new_page_t get
- 	/*
- 	 * Establish migration ptes or remove ptes
- 	 */
--	if (try_to_unmap(page, 1) != SWAP_FAIL) {
--		if (!page_mapped(page))
--			rc = move_to_new_page(newpage, page);
--	} else
--		/* A vma has VM_LOCKED set -> permanent failure */
--		rc = -EPERM;
-+	try_to_unmap(page, 1);
-+	if (!page_mapped(page))
-+		rc = move_to_new_page(newpage, page);
- 
- 	if (rc)
- 		remove_migration_ptes(page, page);
-+
- unlock:
- 	unlock_page(page);
- 
+> You mentioned in one of the mails that went past that you'd seen
+> drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
+> copying other drivers which did so, but achieving nothing thereby,
+> to be cleaned up in due course?  (The pages aren't even on LRU.)
+
+
+I would like to know which, because in general this is a security hole:
+Any driver that depends on locked meaning "doesn't move" can be fooled
+by the user into becoming unlocked... (by virtue of having another
+thread do an munlock on the memory). As such no kernel driver should 
+depend on this, and as far as I know, no kernel driver actually does.
+(early infiniband drivers used to, but they fixed that well before
+things got merged to use the get_user_pages API, exactly for this
+reason)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
