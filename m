@@ -1,41 +1,47 @@
-Date: Wed, 24 May 2006 13:32:53 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [5/5] move_pages: 32bit support (i386,x86_64 and ia64)
-Message-Id: <20060524133253.23fe19a2.akpm@osdl.org>
-In-Reply-To: <20060523174410.10156.43268.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060523174344.10156.66845.sendpatchset@schroedinger.engr.sgi.com>
-	<20060523174410.10156.43268.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 24 May 2006 21:37:00 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Allow migration of mlocked pages
+In-Reply-To: <Pine.LNX.4.64.0605240900210.15446@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0605242126200.25708@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605231801200.12600@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605241616170.12355@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0605240824050.15446@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605241640010.16435@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0605240900210.15446@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, Jens Axboe <axboe@suse.de>
-Cc: hugh@veritas.com, linux-ia64@vger.kernel.org, a.p.zijlstra@chello.nl, lee.schermerhorn@hp.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> sys_move_pages() support for 32bit (i386 plus ia64 and x86_64 compat layers)
+On Wed, 24 May 2006, Christoph Lameter wrote:
+> On Wed, 24 May 2006, Hugh Dickins wrote:
 > 
-> Add support for move_pages() on i386 and also add the
-> compat functions necessary to run 32 bit binaries on x86_64 and ia64.
+> > Oh, I'm not worried about whether ordinary VM_LOCKED pages will get
+> > migrated properly, I can't see any problem with that.  It's whether
+> > something somewhere is using mlock and somehow relying on the
+> > physical pages to be pinned.  I don't know what form that "somehow"
+> > would take, and I'm not saying there is or can be any such thing:
+> > just worried that we want wide exposure yet few testers migrate.
 > 
-> Add compat_sys_move_pages to both the x86_64 and the ia64 32bit binary
-> layer. Note that both are not up to date so I added the missing pieces.
-> Not sure if this is done the right way.
-> 
-> This probably needs some fixups:
-> 
-> 1. What about sys_vmsplice on x86_64?
-> 
-> 2. There is a whole range of syscalls missing for ia64 that I basically
->    interpolated from elsewhere.
+> All of these driver mappings are installed using remap_pfn_page. These are 
+> mappings that are not considered by page migration at all because:
 
-I dropped the ia64 bits - looks like that's all on death row anyway.
+Misunderstanding again.  I've no worries about those drivers
+you've supplied a patch for, what you've done there is surely okay.
 
-The omission of sys_vmsplice() from the x86 syscall table does appear to
-be, umm, a glaring omission.  Jens, what's up?
+I'm (slightly) worried there's some app out there that's been using
+mlock to pin physical pages.  My worry may be senseless: how can
+physical pages mean anything to it without a driver in the kernel
+to cooperate in the assumption?
+
+If it were a big worry, I wouldn't have sent you in this
+"migrate VM_LOCKED" direction at all.  I'm all for it, just
+cautioning that we want a period of exposure to varied testing.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
