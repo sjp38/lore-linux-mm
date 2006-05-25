@@ -1,54 +1,40 @@
-Subject: Re: tracking dirty pages patches
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0605241558380.12355@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
-	 <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
-	 <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
-	 <1148437514.3049.18.camel@laptopd505.fenrus.org>
-	 <Pine.LNX.4.64.0605241558380.12355@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Thu, 25 May 2006 04:26:33 +0200
-Message-Id: <1148523993.3052.6.camel@laptopd505.fenrus.org>
-Mime-Version: 1.0
+From: Andi Kleen <ak@suse.de>
+Subject: Re: dropping CONFIG_IA32_SUPPORT from ia64
+Date: Thu, 25 May 2006 05:30:59 +0200
+References: <B8E391BBE9FE384DAA4C5C003888BE6F0693FC5B@scsmsx401.amr.corp.intel.com> <200605241438.34303.bjorn.helgaas@hp.com>
+In-Reply-To: <200605241438.34303.bjorn.helgaas@hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200605250531.00108.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, Rohit Seth <rohitseth@google.com>, David Howells <dhowells@redhat.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>
+To: Bjorn Helgaas <bjorn.helgaas@hp.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, linux-ia64@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, debian-ia64@lists.debian.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-05-24 at 16:10 +0100, Hugh Dickins wrote:
-> On Wed, 24 May 2006, Arjan van de Ven wrote:
-> > On Tue, 2006-05-23 at 21:34 +0100, Hugh Dickins wrote:
-> > 
-> > > You mentioned in one of the mails that went past that you'd seen
-> > > drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
-> > > copying other drivers which did so, but achieving nothing thereby,
-> > > to be cleaned up in due course?  (The pages aren't even on LRU.)
-> > 
-> > I would like to know which, because in general this is a security hole:
-> > Any driver that depends on locked meaning "doesn't move" can be fooled
-> > by the user into becoming unlocked... (by virtue of having another
-> > thread do an munlock on the memory). As such no kernel driver should 
-> > depend on this, and as far as I know, no kernel driver actually does.
+> I'm a bit worried about this.  As I understand it, the Intel
+> software emulator is not open-source.  There may be distros
+> like Debian and customer environments where that's not a viable
+> alternative.
 > 
-> You'll have seen the list in Christoph's patch.  But they're all
-> remap_pfn_range users, largely copied one from another, and their
-> pages won't become freeable even if the user munlocks.
-
-that's not "real memory" though so not too relevant for the scenario I
-had in mind...
+> If we remove CONFIG_IA32_SUPPORT, every ia64 box will require
+> the Intel emulator (or QEMU or some other ill-defined solution)
+> in order to run ia32 code, even though every processor in the
+> field today supports ia32 in hardware.
 > 
-> However, that munlocking will lower locked_vm when it shouldn't
-> touch it.  I suppose the ingenious might mmap and munmap such a
-> driver in order to lock another mapping beyond RLIMIT_MEMLOCK.
-> Perhaps that raises the priority of Christoph's patch?
+> It doesn't feel right to me to remove functionality from machines
+> in the field and offer only a proprietary alternative.
 
-... but yes that also makes it a security issue, although a bit less
-severe I suppose
+You could just freeze the code down to "security fixes only". 
+This means new system calls wouldn't need to be added and most programs
+fallback if they don't see the latest and great syscalls anyways.
+On the other hand it is usually not very hard to add new syscalls
+and most of the other code is shared now anyways.
 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
