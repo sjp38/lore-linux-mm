@@ -1,41 +1,54 @@
-From: Matt Taggart <taggart@debian.org>
-Subject: Re: dropping CONFIG_IA32_SUPPORT from ia64 
-In-reply-to: <200605241438.34303.bjorn.helgaas@hp.com> 
-References: <B8E391BBE9FE384DAA4C5C003888BE6F0693FC5B@scsmsx401.amr.corp.intel.com> <200605241438.34303.bjorn.helgaas@hp.com>
-Date: Wed, 24 May 2006 19:32:44 -0600
-Message-Id: <20060525013244.C2F5937F81@carmen.fc.hp.com>
+Subject: Re: tracking dirty pages patches
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0605241558380.12355@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0605222022100.11067@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0605230917390.9731@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0605231937410.14985@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0605231223360.10836@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.64.0605232131560.19019@blonde.wat.veritas.com>
+	 <1148437514.3049.18.camel@laptopd505.fenrus.org>
+	 <Pine.LNX.4.64.0605241558380.12355@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Thu, 25 May 2006 04:26:33 +0200
+Message-Id: <1148523993.3052.6.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-ia64@vger.kernel.org, linux-mm@kvack.org, debian-ia64@lists.debian.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, Rohit Seth <rohitseth@google.com>, David Howells <dhowells@redhat.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Bjorn Helgaas writes...
-
-> If we remove CONFIG_IA32_SUPPORT, every ia64 box will require
-> the Intel emulator (or QEMU or some other ill-defined solution)
-> in order to run ia32 code, even though every processor in the
-> field today supports ia32 in hardware.
+On Wed, 2006-05-24 at 16:10 +0100, Hugh Dickins wrote:
+> On Wed, 24 May 2006, Arjan van de Ven wrote:
+> > On Tue, 2006-05-23 at 21:34 +0100, Hugh Dickins wrote:
+> > 
+> > > You mentioned in one of the mails that went past that you'd seen
+> > > drivers enforcing VM_LOCKED in vm_flags: aren't those just drivers
+> > > copying other drivers which did so, but achieving nothing thereby,
+> > > to be cleaned up in due course?  (The pages aren't even on LRU.)
+> > 
+> > I would like to know which, because in general this is a security hole:
+> > Any driver that depends on locked meaning "doesn't move" can be fooled
+> > by the user into becoming unlocked... (by virtue of having another
+> > thread do an munlock on the memory). As such no kernel driver should 
+> > depend on this, and as far as I know, no kernel driver actually does.
 > 
-> It doesn't feel right to me to remove functionality from machines
-> in the field and offer only a proprietary alternative.
+> You'll have seen the list in Christoph's patch.  But they're all
+> remap_pfn_range users, largely copied one from another, and their
+> pages won't become freeable even if the user munlocks.
 
-Debian is looking at implementing "multiarch", a way to have libraries
-for multiple binary targets install in the same system root.
+that's not "real memory" though so not too relevant for the scenario I
+had in mind...
+> 
+> However, that munlocking will lower locked_vm when it shouldn't
+> touch it.  I suppose the ingenious might mmap and munmap such a
+> driver in order to lock another mapping beyond RLIMIT_MEMLOCK.
+> Perhaps that raises the priority of Christoph's patch?
 
-  http://wiki.debian.org/multiarch
+... but yes that also makes it a security issue, although a bit less
+severe I suppose
 
-After amd64 systems, ia64 can benefit the most from multiarch. It would
-be a shame to see this not happen.
-
-I also agree with Bjorn that the propriatary tool shouldn't be the only
-way. To the Intel people on the lists that work on this, what is Intel's
-position on open sourcing this technology?
-
-Thanks,
-
--- 
-Matt Taggart
-taggart@debian.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
