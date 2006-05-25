@@ -1,12 +1,12 @@
-Date: Thu, 25 May 2006 10:03:32 -0700 (PDT)
+Date: Thu, 25 May 2006 10:06:46 -0700 (PDT)
 From: Christoph Lameter <christoph@lameter.com>
 Subject: Re: [PATCH 1/3] mm: tracking shared dirty pages
-In-Reply-To: <1148576422.10561.80.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0605251001080.30649@graphe.net>
+In-Reply-To: <1148576582.10561.83.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0605251004110.30707@graphe.net>
 References: <20060525135534.20941.91650.sendpatchset@lappy>
  <20060525135555.20941.36612.sendpatchset@lappy>
- <Pine.LNX.4.64.0605250856020.23726@schroedinger.engr.sgi.com>
- <1148576422.10561.80.camel@lappy>
+ <Pine.LNX.4.64.0605250921300.23726@schroedinger.engr.sgi.com>
+ <1148576582.10561.83.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,27 +17,19 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 25 May 2006, Peter Zijlstra wrote:
 
-> On Thu, 2006-05-25 at 09:21 -0700, Christoph Lameter wrote:
-> > On Thu, 25 May 2006, Peter Zijlstra wrote:
-> > 
-> > > @@ -1446,12 +1447,13 @@ static int do_wp_page(struct mm_struct *
-> > >  
-> > > -	if (unlikely(vma->vm_flags & VM_SHARED)) {
-> > > +	if (vma->vm_flags & VM_SHARED) {
-> > 
-> > You add this unlikely later again it seems. Why remove in the first place?
+> Ah, I see what you're saying here. Good point, David, Hugh?
 > 
-> I'm not sure I follow you, are you suggesting that we'll find the
-> condition to be unlikely still, even with most of the shared mappings
-> trapping this branch?
+> The reason I did it was because of Hugh's trick to use MAP_SHARED
+> protection and building on top of it naturally solves the patch conflict
+> Andrew would have had to resolve otherwise.
 
-No, I just saw the opposite in a later patch. It was the -1 patch that 
-does
+I guess what we wanted is a patch that addresses the concern of both 
+patches and not a combination of the patches. IMHO the dirty notification 
+of David's patch is possible with the shared dirty pages patch if we allow 
+the set_page_dirty method in address operations to sleep and return an 
+error code. However, this may raise some additional issues because we have 
+to check whenever we dirty a page.
 
-+       if (unlikely(vma->vm_flags & VM_SHARED)) {
-
-but thats a different context?
-\
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
