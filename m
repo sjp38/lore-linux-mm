@@ -1,63 +1,66 @@
-Date: Fri, 26 May 2006 08:39:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/3] mm: tracking shared dirty pages 
-In-Reply-To: <24747.1148653985@warthog.cambridge.redhat.com>
-Message-ID: <Pine.LNX.4.64.0605260825160.31609@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0605250921300.23726@schroedinger.engr.sgi.com>
- <20060525135534.20941.91650.sendpatchset@lappy> <20060525135555.20941.36612.sendpatchset@lappy>
-  <24747.1148653985@warthog.cambridge.redhat.com>
+Message-ID: <447A90DA.3020502@yahoo.com.au>
+Date: Mon, 29 May 2006 16:12:42 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH (try #3)] mm: avoid unnecessary OOM kills
+References: <200605230032.k4N0WCIU023760@calaveras.llnl.gov> <4472A006.2090006@yahoo.com.au> <7.0.0.16.2.20060523094646.02429fd8@llnl.gov> <44739E2D.60406@yahoo.com.au> <7.0.0.16.2.20060524073251.0237c250@llnl.gov>
+In-Reply-To: <7.0.0.16.2.20060524073251.0237c250@llnl.gov>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
+To: Dave Peterson <dsp@llnl.gov>
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, pj@sgi.com, ak@suse.de, linux-mm@kvack.org, garlick@llnl.gov, mgrondona@llnl.gov
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 May 2006, David Howells wrote:
+Dave Peterson wrote:
+> At 04:43 PM 5/23/2006, Nick Piggin wrote:
 
-> page_mkwrite() is called just before the _PTE_ is dirtied.  Take do_wp_page()
-> for example, set_page_dirty() is called after a lot of stuff, including some
-> stuff that marks the PTE dirty... by which time it's too late as another
-> thread sharing the page tables can come along and modify the page before the
-> first thread calls set_page_dirty().
+>>>I agree it's desirable to keep the OOM killing logic as encapsulated
+>>>as possible.  However unless you are holding the oom kill semaphore
+>>>when you make your final attempt to allocate memory it's a bit racy.
+>>>Holding the OOM kill semaphore guarantees that our final allocation
+>>>failure before invoking the OOM killer occurred _after_ any previous
+>>>OOM kill victim freed its memory.  Thus we know we are not shooting
+>>>another process prematurely (i.e. before the memory-freeing effects
+>>>of our previous OOM kill have been felt).
+>>
+>>But there is so much fudge in it that I don't think it matters:
+>>pages could be freed from other sources, some reclaim might happen,
+>>the point at which OOM is declared is pretty arbitrary anyway, etc.
+> 
+> 
+> There's definitely some fudge in it.  However the main scenario I'm
+> concerned with is where one big process is hogging most of the memory
+> (as opposed to a case where the collective memory-hogging effect of
+> lots of little processes triggers the OOM killer).  In the first case
+> we want to shoot the one big process and leave the little processes
+> undisturbed.
+> 
+> If the final allocation failure before invoking the OOM killer
+> occurs when we don't yet hold the OOM kill semaphore then I'd
+> be concerned about processes queueing up on the OOM kill semaphore
+> after they fail their memory allocations.  If only one of these
+> ends up getting awakened _after_ the death of the big memory hog,
+> then that process will enter the OOM killer and shoot a little
+> process unnecessarily.
+> 
+> Alternately (perhaps less likely), if your kernel is preemptible,
+> after the memory hog has been shot but not yet expired a process
+> may get preempted between its final allocation failure and its
+> choosing an OOM kill victim (with the memory hog expiring before
+> the preempted process gets rescheduled).  Then the preempted
+> process shoots a little process when rescheduled.
 
-Since we are terminating the application with extreme prejudice on an 
-error (SIGBUS) it does not matter if another process has written to the 
-page in the meantime.
+But just call into the oom killer, and let it queue up and/or do
+nothing according to whether there is still a task being shot or
+not.
 
-> And also as you pointed out, set_page_dirty() needs to be able to sleep.
-> There are places where it's called still, even with Peter's patch, with the
-> page table lock held - zap_pte_range() for example.  In that particular case,
-> dropping the lock for each PTE would be bad for performance.
+page allocation would then just try again.
 
-zap_pte_range would only have to dirty anonymous pages. The pages of 
-shared mappings would already be dirty.
-
-> Basically, you can look at it as page_mkwrite() is called upfront, and
-> set_page_dirty() is called at the end.
-
-The end is that the page is written back. I think we can still solve this 
-with set_page_dirty being called when a page is about to be dirtied or
-was dirtied.
-
-The page_mkwrite() method does not really allow the tracking of dirty 
-pages. It is a way to track the potentially dirty pages that is useful if 
-one is not able to track dirty pages. Moreover, unmapped dirtied pages do 
-not factor into that scheme probably because it was thought that they are
-already sufficiently tracked by nr_dirty. However, having two methods
-of accounting for dirty pages creates problems in correlating the number 
-of dirty pages. This is unnecessarily complex.
-
-In order to consistently reach the goal of of tracking dirty pages we 
-have to deal with set_page_dirty(). In the first stage lets just
-be satified with being able to throttle dirty pages by having an accurate
-nr_dirty.
-
-We can then avoid doing too many things on set_page_dirty so that we do 
-not have to sleep or return an error.  Maybe add the support for errors 
-(SIGBUS) later. But then we should consistently check everytime we dirty a 
-page be it mapped or unmapped.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
