@@ -1,38 +1,77 @@
-Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
-References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
-From: Jes Sorensen <jes@sgi.com>
-Date: 30 May 2006 03:59:43 -0400
-In-Reply-To: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <yq0irnot028.fsf@jaguar.mkp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <Pine.LNX.4.64.0605260825160.31609@schroedinger.engr.sgi.com> 
+References: <Pine.LNX.4.64.0605260825160.31609@schroedinger.engr.sgi.com>  <Pine.LNX.4.64.0605250921300.23726@schroedinger.engr.sgi.com> <20060525135534.20941.91650.sendpatchset@lappy> <20060525135555.20941.36612.sendpatchset@lappy> <24747.1148653985@warthog.cambridge.redhat.com> 
+Subject: Re: [PATCH 1/3] mm: tracking shared dirty pages 
+Date: Tue, 30 May 2006 09:00:35 +0100
+Message-ID: <12042.1148976035@warthog.cambridge.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Paul" == Paul Cameron Davies <pauld@cse.unsw.EDU.AU> writes:
+Christoph Lameter <clameter@sgi.com> wrote:
 
-Paul> This patch series provides the architectural independent
-Paul> interface.  It has been tested and benchmarked for IA64 using
-Paul> lmbench.  It also passes all relevant tests in the Linux Test
-Paul> Project (LTP) on IA64.  This patch should 5~also compile and run
-Paul> for i386.  To run on other architectures add CONFIG_DEFAULT_PT
-Paul> to the architectures config.  Turn off HugeTLB.
+> > page_mkwrite() is called just before the _PTE_ is dirtied.  Take
+> > do_wp_page() for example, set_page_dirty() is called after a lot of stuff,
+> > including some stuff that marks the PTE dirty... by which time it's too
+> > late as another thread sharing the page tables can come along and modify
+> > the page before the first thread calls set_page_dirty().
+> 
+> Since we are terminating the application with extreme prejudice on an 
+> error (SIGBUS) it does not matter if another process has written to the 
+> page in the meantime.
 
-Paul> Summary of performance degradation using lmbench on IA64: ~3.5%
-Paul> deterioration in fork latency on IA64.  ~1.0% deterioration in
-Paul> mmap latency on IA64
+Erm... Yes, it does matter, at least for AFS or NFS using FS-Cache, and whether
+or not we're generating a SIGBUS or just proceeding normally.  There are two
+cases I've come across:
 
-Paul,
+Firstly I use page_mkwrite() to make sure that the page is written to the cache
+before we let anyone modify it, just so that we've got a reasonable idea of
+what's in the cache.
 
-Let me just get it right as I am not sure I am reading it correctly.
-Are you saying that this patch causes a 3.5% fork performance
-degradation on ia64 or are you saying it is improving 3.5%?
+What we currently have is:
 
-Thanks,
-Jes
+	invoke page_mkwrite()
+	  - wait for page to be written to the cache
+	lock
+	modify PTE
+	unlock
+	invoke set_page_dirty()
+
+What your suggestion gives is:
+
+	lock
+	modify PTE
+	unlock
+	invoke set_page_dirty()
+	  - wait for page to be written to the cache
+
+But what can happen is:
+
+	CPU 1			CPU 2
+	=======================	=======================
+	write to page (faults)
+	lock
+	modify PTE
+	unlock
+				write to page (succeeds)
+	invoke set_page_dirty()
+	  - wait for page to be written to the cache
+	write to page (succeeds)
+
+That potentially lets data of uncertain state into the cache, which means we
+can't trust what's in the cache any longer.
+
+Secondly some filesystems want to use page_mkwrite() to prevent a write from
+occurring if a write to a shared writable mapping would require an allocation
+from a filesystem that's currently in an ENOSPC state.  That means that we may
+not change the PTE until we're sure that the allocation is guaranteed to
+succeed, and that means that the kernel isn't left with dirty pages attached to
+inodes it'd like to dispose of but can't because there's nowhere to write the
+data.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
