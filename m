@@ -1,43 +1,51 @@
-Date: Tue, 30 May 2006 19:31:52 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc][patch] remove racy sync_page?
-In-Reply-To: <447BD9CE.2020505@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0605301911480.10355@blonde.wat.veritas.com>
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
- <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
- <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
- <447BD31E.7000503@yahoo.com.au> <447BD9CE.2020505@yahoo.com.au>
+Date: Tue, 30 May 2006 13:21:52 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/3] mm: tracking shared dirty pages 
+In-Reply-To: <18903.1149011787@warthog.cambridge.redhat.com>
+Message-ID: <Pine.LNX.4.64.0605301317340.18290@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0605300953390.17716@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605300818080.16904@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605260825160.31609@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0605250921300.23726@schroedinger.engr.sgi.com>
+ <20060525135534.20941.91650.sendpatchset@lappy> <20060525135555.20941.36612.sendpatchset@lappy>
+ <24747.1148653985@warthog.cambridge.redhat.com> <12042.1148976035@warthog.cambridge.redhat.com>
+ <7966.1149006374@warthog.cambridge.redhat.com>  <18903.1149011787@warthog.cambridge.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, axboe@suse.de
+To: David Howells <dhowells@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 May 2006, Nick Piggin wrote:
+On Tue, 30 May 2006, David Howells wrote:
+
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> But for 2.6.17, how's this?
+> > On Tue, 30 May 2006, David Howells wrote:
+> > 
+> > > > If set_page_dirty cannot reserve the page then we know that some severe
+> > > > action is required. The FS method set_page_dirty() could:
+> > > 
+> > > But by the time set_page_dirty() is called, it's too late as the code
+> > > currently stands.  We've already marked the PTE writable and dirty.  The
+> > > page_mkwrite() op is called _first_.
+> > 
+> > We are in set_page_dirty and this would be part of set_page_dirty 
+> > processing.
+> 
+> Eh?  What do you mean "We are in set_page_dirty"?
 
-It was a great emperor's-clothes-like discovery.  But we've survived
-for so many years without noticing, does it have to be fixed right
-now for 2.6.17?  (I bet I'd be insisting yes if I'd found it.)
+We could do the reservation in as part of the set_page_dirty FS method.
 
-The thing I don't like about your lock_page_nosync (reasonable as
-it is) is that the one case you're using it, set_page_dirty_nolock,
-would be so much happier not to have to lock the page in the first
-place - it's only doing _that_ to stabilize page->mapping, and the
-lock_page forbids it from being called from anywhere that can't
-sleep, which is often just where we want to call it from.  Neil's
-suggestion, using a spin_lock against the mapping changing, would
-help there; but seems like more work than I'd want to get into.
+> Actually, I'm not sure that calling set_page_dirty() at the bottom of
+> do_wp_page() is necessarily a good idea.  It's possible that the page will be
+> marked dirty in do_wp_page() and then will get written back before the write
+> actually succeeds.  In other words the page may be marked dirty and cleaned up
+> all before the modification _actually_ occurs.  On the other hand, the common
+> case is probably that the store instruction will beat the writeback.
 
-So, although I think lock_page_nosync fixes the bug (at least in
-that one place we've identified there's likely to be such a bug),
-it seems to be aiming at the wrong target.  I'm pacing and thinking,
-doubt I'll come up with anything better, please don't hold breath.
-
-Hugh
+Yes we are aware of that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
