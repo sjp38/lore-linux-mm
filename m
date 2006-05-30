@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
-	(for <linux-mm@kvack.org>) By note With Smtp ;
-	Tue, 30 May 2006 17:23:49 +1000
+	(for <linux-mm@kvack.org>) By tone With Smtp ;
+	Tue, 30 May 2006 17:26:15 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:23:49 +1000 (EST)
-Subject: [Patch 7/17] PTI: Call Interface B
-Message-ID: <Pine.LNX.4.61.0605301721470.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:26:15 +1000 (EST)
+Subject: [Patch 8/17] PTI: Introduce dual iterators
+Message-ID: <Pine.LNX.4.61.0605301723510.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,319 +12,314 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Call lookup_page_table in rmap.c and filemap_xip.c
+The dual iterators (the copy iterators and move_page_tables) have
+  been placed in their own file (for clariy), and are include in
+  default-pt.h.
 
-  include/linux/default-pt.h |    6 --
-  mm/filemap_xip.c           |    8 +--
-  mm/memory.c                |   16 ------
-  mm/rmap.c                  |  113 
-++++++++++++++++-----------------------------
-  4 files changed, 51 insertions(+), 92 deletions(-)
-Index: linux-rc5/mm/rmap.c
+  include/linux/default-pt-dual-iterators.h |  220 
+++++++++++++++++++++++++++++++
+  include/linux/default-pt.h                |    1
+  include/linux/pt-common.h                 |   12 +
+  mm/memory.c                               |    8 -
+  4 files changed, 233 insertions(+), 8 deletions(-)
+Index: linux-rc5/include/linux/default-pt-dual-iterators.h
 ===================================================================
---- linux-rc5.orig/mm/rmap.c	2006-05-28 19:16:17.735766400 +1000
-+++ linux-rc5/mm/rmap.c	2006-05-28 19:16:25.534580800 +1000
-@@ -53,6 +53,7 @@
-  #include <linux/rmap.h>
-  #include <linux/rcupdate.h>
-  #include <linux/module.h>
-+#include <linux/default-pt.h>
-
-  #include <asm/tlbflush.h>
-
-@@ -281,49 +282,6 @@
-  }
-
-  /*
-- * Check that @page is mapped at @address into @mm.
-- *
-- * On success returns with pte mapped and locked.
-- */
--pte_t *page_check_address(struct page *page, struct mm_struct *mm,
--			  unsigned long address, spinlock_t **ptlp)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *pte;
--	spinlock_t *ptl;
--
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		return NULL;
--
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return NULL;
--
--	pmd = pmd_offset(pud, address);
--	if (!pmd_present(*pmd))
--		return NULL;
--
--	pte = pte_offset_map(pmd, address);
--	/* Make a quick check before getting the lock */
--	if (!pte_present(*pte)) {
--		pte_unmap(pte);
--		return NULL;
--	}
--
--	ptl = pte_lockptr(mm, pmd);
--	spin_lock(ptl);
--	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
--		*ptlp = ptl;
--		return pte;
--	}
--	pte_unmap_unlock(pte, ptl);
--	return NULL;
--}
--
--/*
-   * Subfunctions of page_referenced: page_referenced_one called
-   * repeatedly from either page_referenced_anon or page_referenced_file.
-   */
-@@ -333,17 +291,30 @@
-  	struct mm_struct *mm = vma->vm_mm;
-  	unsigned long address;
-  	pte_t *pte;
--	spinlock_t *ptl;
-+	pt_path_t pt_path;
-  	int referenced = 0;
-
-  	address = vma_address(page, vma);
-  	if (address == -EFAULT)
-  		goto out;
-
--	pte = page_check_address(page, mm, address, &ptl);
--	if (!pte)
-+	pte = lookup_page_table(mm, address, &pt_path);
-+	if(!pte)
-  		goto out;
-
-+	/* Make a quick check before getting the lock */
-+	if (!pte_present(*pte)) {
-+		pte_unmap(pte);
-+		goto out;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-rc5/include/linux/default-pt-dual-iterators.h	2006-05-28 
+19:17:13.397304560 +1000
+@@ -0,0 +1,220 @@
++#ifndef DEFAULT_PT_DUAL_ITERATORS_H
++#define DEFAULT_PT_DUAL_ITERATORS_H 1
++
++/******************************************************************************/
++/*                               DUAL ITERATORS 
+*/
++/******************************************************************************/
++
++/*
++ * copy_page_range dual iterator
++ */
++
++typedef void (*pte_rw_iterator_callback_t)(struct mm_struct *, struct 
+mm_struct *,
++		pte_t *, pte_t *, struct vm_area_struct *, unsigned long, 
+int *);
++
++
++static inline int copy_pte_range(struct mm_struct *dst_mm, struct 
+mm_struct *src_mm,
++		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct 
+*vma,
++		unsigned long addr, unsigned long end, 
+pte_rw_iterator_callback_t func)
++{
++	pte_t *src_pte, *dst_pte;
++	spinlock_t *src_ptl, *dst_ptl;
++	int progress = 0;
++	int rss[2];
++
++again:
++	rss[1] = rss[0] = 0;
++	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
++	if (!dst_pte)
++		return -ENOMEM;
++	src_pte = pte_offset_map_nested(src_pmd, addr);
++	src_ptl = pte_lockptr(src_mm, src_pmd);
++	spin_lock(src_ptl);
++
++	do {
++		/*
++		 * We are holding two locks at this point - either of them
++		 * could generate latencies in another task on another 
+CPU.
++		 */
++		if (progress >= 32) {
++			progress = 0;
++			if (need_resched() ||
++			    need_lockbreak(src_ptl) ||
++			    need_lockbreak(dst_ptl))
++				break;
++		}
++		if (pte_none(*src_pte)) {
++			progress++;
++			continue;
++		}
++		func(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
++		progress += 8;
++	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
++
++	spin_unlock(src_ptl);
++	pte_unmap_nested(src_pte - 1);
++	add_mm_rss(dst_mm, rss[0], rss[1]);
++	pte_unmap_unlock(dst_pte - 1, dst_ptl);
++	cond_resched();
++	if (addr != end)
++		goto again;
++	return 0;
++}
++
++static inline int copy_pmd_range(struct mm_struct *dst_mm, struct 
+mm_struct *src_mm,
++		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct 
+*vma,
++		unsigned long addr, unsigned long end, 
+pte_rw_iterator_callback_t func)
++{
++	pmd_t *src_pmd, *dst_pmd;
++	unsigned long next;
++
++	dst_pmd = pmd_alloc(dst_mm, dst_pud, addr);
++	if (!dst_pmd)
++		return -ENOMEM;
++	src_pmd = pmd_offset(src_pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(src_pmd))
++			continue;
++		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
++						vma, addr, next, func))
++			return -ENOMEM;
++	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
++	return 0;
++}
++
++static inline int copy_pud_range(struct mm_struct *dst_mm, struct 
+mm_struct *src_mm,
++		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct 
+*vma,
++		unsigned long addr, unsigned long end, 
+pte_rw_iterator_callback_t func)
++{
++	pud_t *src_pud, *dst_pud;
++	unsigned long next;
++
++	dst_pud = pud_alloc(dst_mm, dst_pgd, addr);
++	if (!dst_pud)
++		return -ENOMEM;
++	src_pud = pud_offset(src_pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(src_pud))
++			continue;
++		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
++						vma, addr, next, func))
++			return -ENOMEM;
++	} while (dst_pud++, src_pud++, addr = next, addr != end);
++	return 0;
++}
++
++static inline int copy_dual_iterator(struct mm_struct *dst_mm, struct 
+mm_struct *src_mm,
++		unsigned long addr, unsigned long end, struct 
+vm_area_struct *vma,
++		pte_rw_iterator_callback_t func)
++{
++	pgd_t *src_pgd;
++	pgd_t *dst_pgd;
++	unsigned long next;
++
++	dst_pgd = pgd_offset(dst_mm, addr);
++	src_pgd = pgd_offset(src_mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(src_pgd))
++			continue;
++
++		if (copy_pud_range(dst_mm, src_mm, dst_pgd,
++			src_pgd, vma, addr, next, func))
++			return -ENOMEM;
++
++	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
++	return 0;
++}
++
++/*
++ * move_page_tables dual iterator
++ */
++
++typedef void (*mremap_callback_t)(struct vm_area_struct *, struct 
+vm_area_struct *,
++			    pte_t *, pte_t *, unsigned long, unsigned 
+long);
++
++#define MREMAP_LATENCY_LIMIT	(64 * PAGE_SIZE)
++
++static inline void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
++		unsigned long old_addr, unsigned long old_end,
++		struct vm_area_struct *new_vma, pmd_t *new_pmd,
++		unsigned long new_addr, mremap_callback_t func)
++{
++	struct address_space *mapping = NULL;
++	struct mm_struct *mm = vma->vm_mm;
++	pte_t *old_pte, *new_pte;
++	spinlock_t *old_ptl, *new_ptl;
++
++	if (vma->vm_file) {
++		/*
++		 * Subtle point from Rajesh Venkatasubramanian: before
++		 * moving file-based ptes, we must lock vmtruncate out,
++		 * since it might clean the dst vma before the src vma,
++		 * and we propagate stale pages into the dst afterward.
++		 */
++		mapping = vma->vm_file->f_mapping;
++		spin_lock(&mapping->i_mmap_lock);
++		if (new_vma->vm_truncate_count &&
++		    new_vma->vm_truncate_count != vma->vm_truncate_count)
++			new_vma->vm_truncate_count = 0;
 +	}
 +
-+	lock_pte(mm, pt_path);
-+	if (!(pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte))) {
-+		unlock_pte(mm, pt_path);
-+		pte_unmap(pte);
-+		goto out;
++	/*
++	 * We don't have to worry about the ordering of src and dst
++	 * pte locks because exclusive mmap_sem prevents deadlock.
++	 */
++	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
++ 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
++	new_ptl = pte_lockptr(mm, new_pmd);
++	if (new_ptl != old_ptl)
++		spin_lock(new_ptl);
++
++	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
++				   new_pte++, new_addr += PAGE_SIZE)
++		func(vma, new_vma, old_pte, new_pte, old_addr, new_addr);
++
++	if (new_ptl != old_ptl)
++		spin_unlock(new_ptl);
++	pte_unmap_nested(new_pte - 1);
++	pte_unmap_unlock(old_pte - 1, old_ptl);
++	if (mapping)
++		spin_unlock(&mapping->i_mmap_lock);
++}
++
++static inline unsigned long move_page_tables(struct vm_area_struct *vma,
++		unsigned long old_addr, struct vm_area_struct *new_vma,
++		unsigned long new_addr, unsigned long len, 
+mremap_callback_t func)
++{
++	unsigned long extent, next, old_end;
++	pmd_t *old_pmd, *new_pmd;
++
++	old_end = old_addr + len;
++	flush_cache_range(vma, old_addr, old_end);
++
++	for (; old_addr < old_end; old_addr += extent, new_addr += extent) 
+{
++		cond_resched();
++		next = (old_addr + PMD_SIZE) & PMD_MASK;
++		if (next - 1 > old_end)
++			next = old_end;
++		extent = next - old_addr;
++		old_pmd = lookup_pmd(vma->vm_mm, old_addr);
++		if (!old_pmd)
++			continue;
++		new_pmd = build_pmd(vma->vm_mm, new_addr);
++		if (!new_pmd)
++			break;
++		next = (new_addr + PMD_SIZE) & PMD_MASK;
++		if (extent > next - new_addr)
++			extent = next - new_addr;
++		if (extent > MREMAP_LATENCY_LIMIT)
++			extent = MREMAP_LATENCY_LIMIT;
++		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
++				new_vma, new_pmd, new_addr, func);
 +	}
 +
-  	if (ptep_clear_flush_young(vma, address, pte))
-  		referenced++;
-
-@@ -354,7 +325,8 @@
-  		referenced++;
-
-  	(*mapcount)--;
--	pte_unmap_unlock(pte, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte);
-  out:
-  	return referenced;
-  }
-@@ -583,18 +555,31 @@
-  	struct mm_struct *mm = vma->vm_mm;
-  	unsigned long address;
-  	pte_t *pte;
-+	pt_path_t pt_path;
-  	pte_t pteval;
--	spinlock_t *ptl;
-  	int ret = SWAP_AGAIN;
-
-  	address = vma_address(page, vma);
-  	if (address == -EFAULT)
-  		goto out;
-
--	pte = page_check_address(page, mm, address, &ptl);
--	if (!pte)
-+	pte = lookup_page_table(mm, address, &pt_path);
-+	if(!pte)
-  		goto out;
-
-+	/* Make a quick check before getting the lock */
-+	if (!pte_present(*pte)) {
-+		pte_unmap(pte);
-+		goto out;
-+	}
++	return len + old_addr - old_end;	/* how much done */
++}
 +
-+	lock_pte(mm, pt_path);
-+	if (!(pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte))) {
-+		unlock_pte(mm, pt_path);
-+		pte_unmap(pte);
-+		goto out;
-+	}
++#endif
+Index: linux-rc5/include/linux/pt-common.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-rc5/include/linux/pt-common.h	2006-05-28 19:17:13.398304408 
++1000
+@@ -0,0 +1,12 @@
++#ifndef LINUX_PT_COMMON_H
++#define LINUX_PT_COMMON_H 1
 +
-  	/*
-  	 * If the page is mlock()d, we cannot swap it out.
-  	 * If it's recently referenced (perhaps page_referenced
-@@ -642,7 +627,8 @@
-  	page_cache_release(page);
-
-  out_unmap:
--	pte_unmap_unlock(pte, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte);
-  out:
-  	return ret;
-  }
-@@ -666,19 +652,14 @@
-   * there there won't be many ptes located within the scan cluster.  In 
-this case
-   * maybe we could scan further - to the end of the pte page, perhaps.
-   */
--#define CLUSTER_SIZE	min(32*PAGE_SIZE, PMD_SIZE)
--#define CLUSTER_MASK	(~(CLUSTER_SIZE - 1))
-
-  static void try_to_unmap_cluster(unsigned long cursor,
-  	unsigned int *mapcount, struct vm_area_struct *vma)
-  {
-  	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
-  	pte_t *pte;
-+	pt_path_t pt_path;
-  	pte_t pteval;
--	spinlock_t *ptl;
-  	struct page *page;
-  	unsigned long address;
-  	unsigned long end;
-@@ -690,19 +671,8 @@
-  	if (end > vma->vm_end)
-  		end = vma->vm_end;
-
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		return;
--
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return;
--
--	pmd = pmd_offset(pud, address);
--	if (!pmd_present(*pmd))
--		return;
--
--	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	pte = lookup_page_table(mm, address, &pt_path);
-+	lock_pte(mm, pt_path);
-
-  	/* Update high watermark before we lower rss */
-  	update_hiwater_rss(mm);
-@@ -733,7 +703,8 @@
-  		dec_mm_counter(mm, file_rss);
-  		(*mapcount)--;
-  	}
--	pte_unmap_unlock(pte - 1, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte);
-  }
-
-  static int try_to_unmap_anon(struct page *page, int ignore_refs)
++static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int 
+anon_rss)
++{
++	if (file_rss)
++		add_mm_counter(mm, file_rss, file_rss);
++	if (anon_rss)
++		add_mm_counter(mm, anon_rss, anon_rss);
++}
++
++#endif
 Index: linux-rc5/include/linux/default-pt.h
 ===================================================================
 --- linux-rc5.orig/include/linux/default-pt.h	2006-05-28 
-19:16:22.481045008 +1000
-+++ linux-rc5/include/linux/default-pt.h	2006-05-28 
 19:16:25.536580496 +1000
-@@ -144,10 +144,8 @@
-  void free_page_table_range(struct mmu_gather **tlb, unsigned long addr,
-  		unsigned long end, unsigned long floor, unsigned long 
-ceiling);
++++ linux-rc5/include/linux/default-pt.h	2006-05-28 
+19:17:13.398304408 +1000
+@@ -169,6 +169,7 @@
+  	*next_p = next;
+  }
 
--
--
--
--
-+#define CLUSTER_SIZE	min(32*PAGE_SIZE, PMD_SIZE)
-+#define CLUSTER_MASK	(~(CLUSTER_SIZE - 1))
++#include <linux/pt-common.h>
 
-  static inline void coallesce_vmas(struct vm_area_struct **vma_p,
-  		struct vm_area_struct **next_p)
+  #endif
+
 Index: linux-rc5/mm/memory.c
 ===================================================================
---- linux-rc5.orig/mm/memory.c	2006-05-28 19:16:24.599722920 +1000
-+++ linux-rc5/mm/memory.c	2006-05-28 19:16:25.545579128 +1000
-@@ -740,23 +740,10 @@
-  		if (!vma && in_gate_area(tsk, start)) {
-  			unsigned long pg = start & PAGE_MASK;
-  			struct vm_area_struct *gate_vma = 
-get_gate_vma(tsk);
--			pgd_t *pgd;
--			pud_t *pud;
--			pmd_t *pmd;
-  			pte_t *pte;
-  			if (write) /* user gate pages are read-only */
-  				return i ? : -EFAULT;
--			if (pg > TASK_SIZE)
--				pgd = pgd_offset_k(pg);
--			else
--				pgd = pgd_offset_gate(mm, pg);
--			BUG_ON(pgd_none(*pgd));
--			pud = pud_offset(pgd, pg);
--			BUG_ON(pud_none(*pud));
--			pmd = pmd_offset(pud, pg);
--			if (pmd_none(*pmd))
--				return i ? : -EFAULT;
--			pte = pte_offset_map(pmd, pg);
-+			pte = lookup_gate_area(mm, pg);
-  			if (pte_none(*pte)) {
-  				pte_unmap(pte);
-  				return i ? : -EFAULT;
-@@ -843,6 +830,7 @@
-  	} while (len);
-  	return i;
-  }
-+
-  EXPORT_SYMBOL(get_user_pages);
-
-  static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
-Index: linux-rc5/mm/filemap_xip.c
-===================================================================
---- linux-rc5.orig/mm/filemap_xip.c	2006-05-28 19:16:17.735766400 
-+1000
-+++ linux-rc5/mm/filemap_xip.c	2006-05-28 19:16:25.546578976 +1000
-@@ -13,6 +13,7 @@
-  #include <linux/module.h>
-  #include <linux/uio.h>
-  #include <linux/rmap.h>
-+#include <linux/default_pt.h>
-  #include <asm/tlbflush.h>
-  #include "filemap.h"
-
-@@ -173,8 +174,8 @@
-  	struct prio_tree_iter iter;
-  	unsigned long address;
-  	pte_t *pte;
-+	pt_path_t pt_path;
-  	pte_t pteval;
--	spinlock_t *ptl;
-  	struct page *page;
-
-  	spin_lock(&mapping->i_mmap_lock);
-@@ -184,7 +185,7 @@
-  			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-  		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-  		page = ZERO_PAGE(address);
--		pte = page_check_address(page, mm, address, &ptl);
-+		pte = lookup_page_table(mm, address, &pt_path);
-  		if (pte) {
-  			/* Nuke the page table entry. */
-  			flush_cache_page(vma, address, pte_pfn(*pte));
-@@ -192,7 +193,8 @@
-  			page_remove_rmap(page);
-  			dec_mm_counter(mm, file_rss);
-  			BUG_ON(pte_dirty(pteval));
--			pte_unmap_unlock(pte, ptl);
-+			unlock_pte(mm, pt_path);
-+			pte_unmap(pte);
-  			page_cache_release(page);
-  		}
+--- linux-rc5.orig/mm/memory.c	2006-05-28 19:16:25.545579128 +1000
++++ linux-rc5/mm/memory.c	2006-05-28 19:17:13.400304104 +1000
+@@ -114,14 +114,6 @@
   	}
+  }
+
+-static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int 
+anon_rss)
+-{
+-	if (file_rss)
+-		add_mm_counter(mm, file_rss, file_rss);
+-	if (anon_rss)
+-		add_mm_counter(mm, anon_rss, anon_rss);
+-}
+-
+  /*
+   * This function is called to print an error when a bad pte
+   * is found. For example, we might have a PFN-mapped pte in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
