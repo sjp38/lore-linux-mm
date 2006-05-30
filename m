@@ -1,53 +1,82 @@
-MIME-Version: 1.0
+Date: Tue, 30 May 2006 11:05:49 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: [rfc][patch] remove racy sync_page?
+Message-ID: <20060530090549.GF4199@suse.de>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <20060529201444.cd89e0d8.akpm@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17532.630.796436.488394@wombat.chubb.wattle.id.au>
-Date: Tue, 30 May 2006 18:29:42 +1000
-From: Peter Chubb <peterc@gelato.unsw.edu.au>
-Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
-In-Reply-To: <yq0irnot028.fsf@jaguar.mkp.net>
-References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
-	<yq0irnot028.fsf@jaguar.mkp.net>
+Content-Disposition: inline
+In-Reply-To: <20060529201444.cd89e0d8.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jes Sorensen <jes@sgi.com>
-Cc: pauld@gelato.unsw.edu.au, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Jes" == Jes Sorensen <jes@sgi.com> writes:
+On Mon, May 29 2006, Andrew Morton wrote:
+> On Tue, 30 May 2006 12:54:53 +1000
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+> > Andrew Morton wrote:
+> > 
+> > >On Tue, 30 May 2006 10:08:06 +1000
+> > >Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> > >
+> > >
+> > >>Which is what I want to know. I don't exactly have an interesting
+> > >>disk setup.
+> > >>
+> > >
+> > >You don't need one - just a single disk should show up such problems.  I
+> > >forget which workloads though.  Perhaps just a linear read (readahead
+> > >queues the I/O but doesn't unplug, subsequent lock_page() sulks).
+> > >
+> > 
+> > I guess so. Is plugging still needed now that the IO layer should
+> > get larger requests? Disabling it might result in a small initial
+> > request (although even that may be good for pipelining)...
+> 
+> Mysterious question, that.  A few years ago I think Jens tried pulling
+> unplugging out, but some devices still want it (magneto-optical
+> storage iirc).  And I think we did try removing it, and it caused
+> hurt.
 
->>>>> "Paul" == Paul Cameron Davies <pauld@cse.unsw.EDU.AU> writes:
-Paul> This patch series provides the architectural independent
-Paul> interface.  It has been tested and benchmarked for IA64 using
-Paul> lmbench.  It also passes all relevant tests in the Linux Test
-Paul> Project (LTP) on IA64.  This patch should 5~also compile and run
-Paul> for i386.  To run on other architectures add CONFIG_DEFAULT_PT
-Paul> to the architectures config.  Turn off HugeTLB.
+I did, back when we had problems due to the blk_plug_lock being a global
+one. I first wanted to investigate if plugging still made a difference,
+otherwise we could've just ripped it out back than and the problem would
+be solved. But it did get us about a 10% boost on normal SCSI drives
+(don't think I tested MO drives at all), so it was fixed up.
 
-Paul> Summary of performance degradation using lmbench on IA64: ~3.5%
-Paul> deterioration in fork latency on IA64.  ~1.0% deterioration in
-Paul> mmap latency on IA64
+> > sync_page wants to get either the current mapping, or a NULL one.
+> > The sync_page methods must then be able to handle running into a
+> > NULL mapping.
+> > 
+> > With splice, the mapping can change, so you can have the wrong
+> > sync_page callback run against the page.
+> 
+> Oh.
 
-Jes> Paul,
+Maybe I'm being dense, but I don't see a problem there. You _should_
+call the new mapping sync page if it has been migrated.
 
-Jes> Let me just get it right as I am not sure I am reading it
-Jes> correctly.  Are you saying that this patch causes a 3.5% fork
-Jes> performance degradation on ia64 or are you saying it is improving
-Jes> 3.5%?
+> > >>Well yes, writing to a page would be the main reason to set it dirty.
+> > >>Is splice broken as well? I'm not sure that it always has a ref on the
+> > >>inode when stealing a page.
+> > >>
+> > >
+> > >Whereabouts?
+> > >
+> > 
+> > The ->pin() calls in pipe_to_file and pipe_to_sendpage?
+> 
+> One for Jens...
 
-I believe that yes, there is currently a small performance degradation
-on IA64.  I think we'll get that back when we put a more appropriate
-page table under the interface.  And this is the first cut, and can be
-made more efficient anyway.
-
-I'm not sure whether Paul's benchmarked yet on x86, but that's the
-critical place where performance matters for this interface, because
-x86 will use the same page table (under the interface) as at
-present.
+splice never incs/decs any inode related reference counts, so if it
+needs to then yes it's broken. Any references to kernel code that deals
+with that?
 
 -- 
-Dr Peter Chubb  http://www.gelato.unsw.edu.au  peterc AT gelato.unsw.edu.au
-http://www.ertos.nicta.com.au           ERTOS within National ICT Australia
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
