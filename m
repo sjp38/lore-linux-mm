@@ -1,42 +1,71 @@
-Date: Tue, 30 May 2006 18:41:13 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1/3] mm: tracking shared dirty pages 
-In-Reply-To: <Pine.LNX.4.64.0605301030210.17905@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0605301834340.8737@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0605300818080.16904@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605260825160.31609@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605250921300.23726@schroedinger.engr.sgi.com>
- <20060525135534.20941.91650.sendpatchset@lappy> <20060525135555.20941.36612.sendpatchset@lappy>
- <24747.1148653985@warthog.cambridge.redhat.com> <12042.1148976035@warthog.cambridge.redhat.com>
-  <7966.1149006374@warthog.cambridge.redhat.com>
- <Pine.LNX.4.64.0605300953390.17716@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0605301819380.7566@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0605301030210.17905@schroedinger.engr.sgi.com>
+Date: Tue, 30 May 2006 10:55:15 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [rfc][patch] remove racy sync_page?
+In-Reply-To: <447BD63D.2080900@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
+ <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
+ <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
+ <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 May 2006, Christoph Lameter wrote:
-> On Tue, 30 May 2006, Hugh Dickins wrote:
-> 
-> > Your original question, whether they could be combined, was a good one;
-> > and I hoped you'd be right.  But I agree with David, they cannot, unless
-> > we sacrifice the guarantee that one or the other is there to give.  It's
-> > much like the relationship between ->prepare_write and ->commit_write.
-> 
-> Ok, so separate patch sets?
 
-They are separate patch sets (and rc5-mm1 has David's without Peter's).
-But they trample on nearby areas and share infrastructure, so I'm happy
-that they're looked at together.  Peter has helpfully arranged his to
-go on top of David's: that can be reversed later if it's decided that
-Peter's is wanted but David's not.
+On Tue, 30 May 2006, Nick Piggin wrote:
+> 
+> For workloads where plugging helps (ie. lots of smaller, contiguous
+> requests going into the IO layer), the request pattern should be
+> pretty good without plugging these days, due to multiple page
+> readahead and writeback.
 
-Hugh
+No.
+
+That's fundamentally wrong.
+
+The fact is, plugging is not about read-ahead and writeback. It's very 
+fundamentally about the _boundaries_ between multiple requests, and in 
+particular the time when the queue starts out empty so that we can build 
+up things for devices that wand big requests, but even more so for devices 
+where _seeking_ is very expensive.
+
+Those boundaries haven't gone anywhere. The fact that we do read-ahead and 
+write-back in chunks doesn't change anything: yes, we often have the "big 
+requests" thing handled, but (a) not always and (b) upper layers 
+fundamentally don't fix the seek issues.
+
+I want to know that the block layer could - if we wanted to - do things 
+like read-ahead for many distinct files, and for metadata. We don't 
+currently do much of that yet, but the point is, plugging _allows_ us to. 
+Exactly because it doesn't depend on upper layers feeding everything in 
+one go.
+
+Look at "sys_readahead()", and realize that it can be used to start IO for 
+read ahead _across_many_small_files_. Last I tried it, it was hugely 
+faster at populating the page cache than reading individual files (I used 
+to do it with BK to bring everything into cache so that the regular ops 
+would be fster - now git doesn't much need it).
+
+And maybe it was just my imagination, but the disk seemed quieter too. It 
+should be able to do better seek patterns at the beginning due to plugging 
+(ie we won't start IO after the first file, but after the request queue 
+fills up or something else needs to wait and we do an unplug event).
+
+THAT is what plugging is good for. Our read-ahead does well for large 
+requests, and that's important for some disk controllers in particular. 
+But plugging is about avoiding startign the IO too early.
+
+Think about the TCP plugging (which is actually newer, but perhaps easier 
+to explain): it's useful not for the big file case (just use large reads 
+and writes), but for the "different sources" case - for handling the gap 
+between a header and the actual file contents. Exactly because it plugs in 
+_between_ events. 
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
