@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
-	(for <linux-mm@kvack.org>) By tone With Smtp ;
-	Tue, 30 May 2006 17:38:29 +1000
+	(for <linux-mm@kvack.org>) By note With Smtp ;
+	Tue, 30 May 2006 17:39:55 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:38:28 +1000 (EST)
-Subject: [Patch 15/17] PTI: Abstract smaps iterator
-Message-ID: <Pine.LNX.4.61.0605301736390.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:39:54 +1000 (EST)
+Subject: [Patch 16/17] PTI: Abstract vmap build iterator
+Message-ID: <Pine.LNX.4.61.0605301738300.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,282 +12,287 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The smaps reporting iterator is abstracted to default-pt-iterators.h
-
-  fs/proc/task_mmu.c                        |  118 
-+++++++-----------------------
-  include/linux/default-pt-read-iterators.h |   70 +++++++++++++++++
-  include/linux/mm.h                        |    9 ++
-  3 files changed, 107 insertions(+), 90 deletions(-)
-Index: linux-rc5/fs/proc/task_mmu.c
+  include/linux/default-pt-build-iterators.h |  163 
++++++++++++++++++++++++++++++
+  include/linux/default-pt.h                 |    1
+  mm/vmalloc.c                               |   64 +----------
+  3 files changed, 172 insertions(+), 56 deletions(-)
+Index: linux-rc5/include/linux/default-pt-build-iterators.h
 ===================================================================
---- linux-rc5.orig/fs/proc/task_mmu.c	2006-05-28 20:31:35.996095344 
-+1000
-+++ linux-rc5/fs/proc/task_mmu.c	2006-05-28 20:31:48.947068464 
-+1000
-@@ -5,6 +5,7 @@
-  #include <linux/highmem.h>
-  #include <linux/pagemap.h>
-  #include <linux/mempolicy.h>
-+#include <linux/default-pt.h>
-
-  #include <asm/elf.h>
-  #include <asm/uaccess.h>
-@@ -109,15 +110,6 @@
-  	seq_printf(m, "%*c", len, ' ');
-  }
-
--struct mem_size_stats
--{
--	unsigned long resident;
--	unsigned long shared_clean;
--	unsigned long shared_dirty;
--	unsigned long private_clean;
--	unsigned long private_dirty;
--};
--
-  static int show_map_internal(struct seq_file *m, void *v, struct 
-mem_size_stats *mss)
-  {
-  	struct task_struct *task = m->private;
-@@ -198,88 +190,33 @@
-  	return show_map_internal(m, v, NULL);
-  }
-
--static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
-+void smaps_pte(struct vm_area_struct *vma, unsigned long addr, pte_t 
-*pte,
-+			   struct mem_size_stats *mss)
-  {
--	pte_t *pte, ptent;
--	spinlock_t *ptl;
-+	pte_t ptent;
-  	struct page *page;
--
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
--		ptent = *pte;
--		if (!pte_present(ptent))
--			continue;
--
--		mss->resident += PAGE_SIZE;
--
--		page = vm_normal_page(vma, addr, ptent);
--		if (!page)
--			continue;
--
--		if (page_mapcount(page) >= 2) {
--			if (pte_dirty(ptent))
--				mss->shared_dirty += PAGE_SIZE;
--			else
--				mss->shared_clean += PAGE_SIZE;
--		} else {
--			if (pte_dirty(ptent))
--				mss->private_dirty += PAGE_SIZE;
--			else
--				mss->private_clean += PAGE_SIZE;
--		}
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
--	cond_resched();
--}
--
--static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t 
-*pud,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		smaps_pte_range(vma, pmd, addr, next, mss);
--	} while (pmd++, addr = next, addr != end);
--}
--
--static inline void smaps_pud_range(struct vm_area_struct *vma, pgd_t 
-*pgd,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		smaps_pmd_range(vma, pud, addr, next, mss);
--	} while (pud++, addr = next, addr != end);
--}
--
--static inline void smaps_pgd_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pgd_t *pgd;
--	unsigned long next;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		smaps_pud_range(vma, pgd, addr, next, mss);
--	} while (pgd++, addr = next, addr != end);
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-rc5/include/linux/default-pt-build-iterators.h	2006-05-28 
+20:33:02.758988368 +1000
+@@ -0,0 +1,163 @@
++#ifndef _LINUX_DEFAULT_PT_BUILD_ITERATORS_H
++#define _LINUX_DEFAULT_PT_BUILD_ITERATORS_H 1
 +
-+	ptent = *pte;
-+	if (!pte_present(ptent))
-+		return;
++/******************************************************************************/
++/*                              BUILD ITERATORS 
+*/
++/******************************************************************************/
 +
-+	mss->resident += PAGE_SIZE;
-+
-+	page = vm_normal_page(vma, addr, ptent);
-+	if (!page)
-+		return;
-+
-+	if (page_mapcount(page) >= 2) {
-+		if (pte_dirty(ptent))
-+			mss->shared_dirty += PAGE_SIZE;
-+		else
-+			mss->shared_clean += PAGE_SIZE;
-+	} else {
-+		if (pte_dirty(ptent))
-+			mss->private_dirty += PAGE_SIZE;
-+		else
-+			mss->private_clean += PAGE_SIZE;
-+	}
-  }
-
-  static int show_smap(struct seq_file *m, void *v)
-@@ -289,7 +226,8 @@
-
-  	memset(&mss, 0, sizeof mss);
-  	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
--		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
-+		smaps_read_iterator(vma, vma->vm_start, vma->vm_end,
-+			&mss, smaps_pte);
-  	return show_map_internal(m, v, &mss);
-  }
-
-Index: linux-rc5/include/linux/default-pt-read-iterators.h
-===================================================================
---- linux-rc5.orig/include/linux/default-pt-read-iterators.h	2006-05-28 
-20:31:35.996095344 +1000
-+++ linux-rc5/include/linux/default-pt-read-iterators.h	2006-05-28 
-20:31:48.949070160 +1000
-@@ -499,4 +499,74 @@
-
-  #endif
-
 +/*
-+ * smaps_read_iterator: Called in task_mmu.c
++ * vmap build iterator. Called in vmalloc.c
 + */
 +
-+typedef void (*smaps_pte_callback_t)(struct vm_area_struct *, unsigned 
-long,
-+		pte_t *, struct mem_size_stats *);
++typedef int (*vmap_callback_t)(pte_t *, unsigned long, struct page ***,
++			pgprot_t);
 +
-+static inline void smaps_pte_range(struct vm_area_struct *vma, pmd_t 
-*pmd,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss, 
-smaps_pte_callback_t func)
++static inline int vmap_pte_range(pmd_t *pmd, unsigned long addr,
++			unsigned long end, pgprot_t prot,
++			struct page ***pages, vmap_callback_t func)
 +{
 +	pte_t *pte;
-+	spinlock_t *ptl;
++	int err;
 +
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	pte = pte_alloc_kernel(pmd, addr);
++	if (!pte)
++		return -ENOMEM;
 +	do {
-+		func(vma, addr, pte, mss);
++		err = func(pte, addr, pages, prot);
++		if(err)
++			return err;
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	pte_unmap_unlock(pte - 1, ptl);
-+	cond_resched();
++	return 0;
 +}
 +
-+static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t 
-*pud,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss, 
-smaps_pte_callback_t func)
++static inline int vmap_pmd_range(pud_t *pud, unsigned long addr,
++			unsigned long end, pgprot_t prot,
++			struct page ***pages, vmap_callback_t func)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
 +
-+	pmd = pmd_offset(pud, addr);
++	pmd = pmd_alloc(&init_mm, pud, addr);
++	if (!pmd)
++		return -ENOMEM;
 +	do {
 +		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		smaps_pte_range(vma, pmd, addr, next, mss, func);
++		if (vmap_pte_range(pmd, addr, next, prot, pages, func))
++			return -ENOMEM;
 +	} while (pmd++, addr = next, addr != end);
++	return 0;
 +}
 +
-+static inline void smaps_pud_range(struct vm_area_struct *vma, pgd_t 
-*pgd,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss, 
-smaps_pte_callback_t func)
++static inline int vmap_pud_range(pgd_t *pgd, unsigned long addr,
++			unsigned long end, pgprot_t prot,
++			struct page ***pages, vmap_callback_t func)
 +{
 +	pud_t *pud;
 +	unsigned long next;
 +
-+	pud = pud_offset(pgd, addr);
++	pud = pud_alloc(&init_mm, pgd, addr);
++	if (!pud)
++		return -ENOMEM;
 +	do {
 +		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		smaps_pmd_range(vma, pud, addr, next, mss, func);
++		if (vmap_pmd_range(pud, addr, next, prot, pages, func))
++			return -ENOMEM;
 +	} while (pud++, addr = next, addr != end);
++	return 0;
 +}
 +
-+static inline void smaps_read_iterator(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss, 
-smaps_pte_callback_t func)
++static inline int vmap_build_iterator(unsigned long addr,
++			unsigned long end, pgprot_t prot,
++			struct page ***pages, vmap_callback_t func)
 +{
 +	pgd_t *pgd;
 +	unsigned long next;
++	int err;
 +
-+	pgd = pgd_offset(vma->vm_mm, addr);
++	pgd = pgd_offset_k(addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		smaps_pud_range(vma, pgd, addr, next, mss, func);
++		err = vmap_pud_range(pgd, addr, next, prot, pages, func);
++		if (err)
++			break;
 +	} while (pgd++, addr = next, addr != end);
++	return 0;
 +}
 +
-  #endif
-Index: linux-rc5/include/linux/mm.h
-===================================================================
---- linux-rc5.orig/include/linux/mm.h	2006-05-28 20:31:35.997096192 
-+1000
-+++ linux-rc5/include/linux/mm.h	2006-05-28 20:31:48.949070160 
-+1000
-@@ -793,6 +793,15 @@
-
-  #include <linux/default-pt-mm.h>
-
-+struct mem_size_stats
-+{
-+	unsigned long resident;
-+	unsigned long shared_clean;
-+	unsigned long shared_dirty;
-+	unsigned long private_clean;
-+	unsigned long private_dirty;
-+};
++/*
++ * zeromap build iterator. Called in memory.c
++ */
 +
-  extern void free_area_init(unsigned long * zones_size);
-  extern void free_area_init_node(int nid, pg_data_t *pgdat,
-  	unsigned long * zones_size, unsigned long zone_start_pfn,
++typedef void (*zeromap_callback_t)(struct mm_struct *mm, pte_t *pte,
++		unsigned long addr, pgprot_t prot);
++
++static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
++			unsigned long addr, unsigned long end,
++			pgprot_t prot, zeromap_callback_t func)
++{
++	pte_t *pte;
++	spinlock_t *ptl;
++
++	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
++	if (!pte)
++		return -ENOMEM;
++	do {
++		func(mm, pte, addr, prot);
++	} while (pte++, addr += PAGE_SIZE, addr != end);
++	pte_unmap_unlock(pte - 1, ptl);
++	return 0;
++}
++
++static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
++			unsigned long addr, unsigned long end,
++			pgprot_t prot, zeromap_callback_t func)
++{
++	pmd_t *pmd;
++	unsigned long next;
++
++	pmd = pmd_alloc(mm, pud, addr);
++	if (!pmd)
++		return -ENOMEM;
++	do {
++		next = pmd_addr_end(addr, end);
++		if (zeromap_pte_range(mm, pmd, addr, next, prot, func))
++			return -ENOMEM;
++	} while (pmd++, addr = next, addr != end);
++	return 0;
++}
++
++static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
++			unsigned long addr, unsigned long end,
++			pgprot_t prot, zeromap_callback_t func)
++{
++	pud_t *pud;
++	unsigned long next;
++
++	pud = pud_alloc(mm, pgd, addr);
++	if (!pud)
++		return -ENOMEM;
++	do {
++		next = pud_addr_end(addr, end);
++		if (zeromap_pmd_range(mm, pud, addr, next, prot, func))
++			return -ENOMEM;
++	} while (pud++, addr = next, addr != end);
++	return 0;
++}
++
++static inline int zeromap_build_iterator(struct mm_struct *mm,
++			unsigned long addr, unsigned long end,
++			pgprot_t prot, zeromap_callback_t func)
++{
++	unsigned long next;
++	pgd_t *pgd;
++
++	pgd = pgd_offset(mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if(zeromap_pud_range(mm, pgd, addr, next, prot, func))
++		  	return -ENOMEM;
++	} while (pgd++, addr = next, addr != end);
++	return 0;
++}
++
++#endif
+Index: linux-rc5/include/linux/default-pt.h
+===================================================================
+--- linux-rc5.orig/include/linux/default-pt.h	2006-05-28 
+20:31:35.004254976 +1000
++++ linux-rc5/include/linux/default-pt.h	2006-05-28 
+20:33:02.759988216 +1000
+@@ -177,6 +177,7 @@
+  #include <linux/pt-common.h>
+  #include <linux/default-pt-dual-iterators.h>
+  #include <linux/default-pt-read-iterators.h>
++#include <linux/default-pt-build-iterators.h>
+
+  #endif
+
+Index: linux-rc5/mm/vmalloc.c
+===================================================================
+--- linux-rc5.orig/mm/vmalloc.c	2006-05-28 20:31:35.005255824 +1000
++++ linux-rc5/mm/vmalloc.c	2006-05-28 20:33:02.760988064 +1000
+@@ -43,75 +43,27 @@
+  	flush_tlb_kernel_range((unsigned long) area->addr, end);
+  }
+
+-static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page 
+***pages)
++static int vmap_pte(pte_t *pte, unsigned long addr,
++			struct page ***pages, pgprot_t prot)
+  {
+-	pte_t *pte;
++	struct page *page = **pages;
+
+-	pte = pte_alloc_kernel(pmd, addr);
+-	if (!pte)
++	WARN_ON(!pte_none(*pte));
++	if (!page)
+  		return -ENOMEM;
+-	do {
+-		struct page *page = **pages;
+-		WARN_ON(!pte_none(*pte));
+-		if (!page)
+-			return -ENOMEM;
+-		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+-		(*pages)++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	return 0;
+-}
+-
+-static inline int vmap_pmd_range(pud_t *pud, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page 
+***pages)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_alloc(&init_mm, pud, addr);
+-	if (!pmd)
+-		return -ENOMEM;
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (vmap_pte_range(pmd, addr, next, prot, pages))
+-			return -ENOMEM;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page 
+***pages)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_alloc(&init_mm, pgd, addr);
+-	if (!pud)
+-		return -ENOMEM;
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (vmap_pmd_range(pud, addr, next, prot, pages))
+-			return -ENOMEM;
+-	} while (pud++, addr = next, addr != end);
++	set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
++	(*pages)++;
+  	return 0;
+  }
+
+  int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page 
+***pages)
+  {
+-	pgd_t *pgd;
+-	unsigned long next;
+  	unsigned long addr = (unsigned long) area->addr;
+  	unsigned long end = addr + area->size - PAGE_SIZE;
+  	int err;
+
+  	BUG_ON(addr >= end);
+-	pgd = pgd_offset_k(addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		err = vmap_pud_range(pgd, addr, next, prot, pages);
+-		if (err)
+-			break;
+-	} while (pgd++, addr = next, addr != end);
++	err = vmap_build_iterator(addr, end, prot, pages, vmap_pte);
+  	flush_cache_vmap((unsigned long) area->addr, end);
+  	return err;
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
