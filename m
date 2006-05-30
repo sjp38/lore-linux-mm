@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
-	(for <linux-mm@kvack.org>) By note With Smtp ;
-	Tue, 30 May 2006 17:01:48 +1000
+	(for <linux-mm@kvack.org>) By tone With Smtp ;
+	Tue, 30 May 2006 17:06:28 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:01:47 +1000 (EST)
-Subject: [Patch 0/17] PTI: Explation of Clean Page Table Interface
-Message-ID: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:06:27 +1000 (EST)
+Subject: [Patch 1/17] PTI: Introduce simple interface
+Message-ID: <Pine.LNX.4.61.0605301701521.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,184 +12,350 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linux currently uses the same page table format regardless of
-architecture.  Access to the page table is open-coded in a variety of
-places.  Architectures that walk a different page table format in
-hardware set up a hardware-walkable cache in their native format, that
-then has to be kept in step with Linux's page table.
+PATCH 1
+  This patch introduces the page table interface with the exception of
+  the iterators (the iterators are introduced individually later on).
 
-The first step to allowing different page table formats is to split
-the page table implementation into separate files from its use.
-This patch series abstracts the page table implementation, and cleans
-it up, so that:
-    1.  All page table operations are in one place, making future
-        maintenance easier
-    2.  Generic code no longer knows what format the page table is,
-        opening the way to experimentation with different
-        page table formats.
+  default-pt.h contains the interface and much of its implementation.  This
+  includes the ability to create, destroy, build and lookup a page table.
 
-The interface is separated into two parts.  The first part is
-architecture independent. All architectures must run through
-this interface regardless of whether or not that architecture
-can or will ever want to change page tables.
+  default-pt.c is to contain the rest of the implementation of the default
+  page table.  Some implementation is moved from memory.c to here in this 
+patch.
 
-This patch series provides the architectural independent interface.
-It has been tested and benchmarked for IA64 using lmbench.  It also passes
-all relevant tests in the Linux Test Project (LTP) on IA64.  This patch
-should 5~also compile and run for i386.  To run on other architectures add
-CONFIG_DEFAULT_PT to the architectures config.  Turn off HugeTLB.
-
-Summary of performance degradation using lmbench on IA64:
-~3.5% deterioration in fork latency on IA64.
-~1.0% deterioration in mmap latency on IA64
-
-The interface has been designed in such a way so as to avoid changing
-kernel functionality, and causing minimal deterioration in performance.
-As a result there are a large number of iterators.  With feedback
-from the community it should be possible to patch the kernel to produce a 
-general
-set of iterators with a few specialised iterators.  (We actually have
-a guarded page table running under an interface with general iterators
-on an older kernel).
-
-                           BASIC FUNCTIONALITY
-
-This in contained in include/linux/default-pt.h and mm/default-pt.c
-
-/*
-  * This is the structure representing the path of the pte in
-  * the page table.  For efficiency reasons we store the partial
-  * path only
-  */
-typedef struct pt_struct { pmd_t *pmd; } pt_path_t;
-
-/* Create user page table */
-static inline int create_user_page_table(struct mm_struct *mm);
-
-/* Destroy user page table */
-static inline void destroy_user_page_table(struct mm_struct *mm);
-
-/* Look up user or kernel page table - saving the path */
-static inline pte_t *lookup_page_table(struct mm_struct *mm,
-                 unsigned long address, pt_path_t *pt_path);
-
-/* Lookup gate are of page table for fast system calls */
-static inline pte_t *lookup_gate_area(struct mm_struct *mm,
-                         unsigned long pg);
-/* Free page table range */
-void free_page_table_range(struct mmu_gather **tlb, unsigned long addr,
-         unsigned long end, unsigned long floor, unsigned long ceiling);
-
-/* Provided to keep free_pgtables implementation independent */
-static inline void coallesce_vmas(struct vm_area_struct **vma_p,
-                 struct vm_area_struct **next_p);
-
-                          PTI WORKER FUNCTIONS
-/*
-  * Locks the ptes notionally pointed to by the page table path.
-  */
-#define lock_pte(mm, pt_path)
-
-/*
-  * Unlocks the ptes notionally pointed to by the
-  * page table path.
-  */
-#define unlock_pte(mm, pt_path)
-
-/*
-  * Looks up a page table from a saved path.  It also
-  * locks the page table.
-  */
-#define lookup_page_table_fast(mm, pt_path, address)
-
-/*
-  * Check that the original pte hasn't change.
-  */
-#define atomic_pte_same(mm, pte, orig_pte, pt_path)
-
-                          THE ITERATORS
-
-Each iterator is passed a function and arguments to operate on
-the pte being iterated over.  There are three classes of iterator
-for slightly different purposes.
-
-1) Dual iterators - Build a page table while it reads a page table.
-
-Contained in default-pt-dual-iterators.h (included in default-pt.h)
-
-/* For duplicating page table regions for fork and mmap */
-static inline int copy_dual_iterator(struct mm_struct *dst_mm,
-         struct mm_struct *src_mm, unsigned long addr, unsigned long end,
-         struct vm_area_struct *vma, pte_rw_iterator_callback_t func);
-
-/* For mremap sys call - source and destination page table is the same
-    for this dual iterator */
-static inline unsigned long move_page_tables(struct vm_area_struct *vma,
-         unsigned long old_addr, struct vm_area_struct *new_vma,
-         unsigned long new_addr, unsigned long len, mremap_callback_t 
-func);
-
-2) Build iterators - build a page table between a range of addresses.
-
-Contained in default-pt-build-iterators.h (included in default-pt.h)
-
-static inline int vmap_pte_range(pmd_t *pmd, unsigned long addr,
-         unsigned long end, pgprot_t prot, struct page ***pages,
-         vmap_callback_t func)
-
-static inline int zeromap_build_iterator(struct mm_struct *mm,
-         unsigned long addr, unsigned long end,
-         pgprot_t prot, zeromap_callback_t func);
-
-static inline int remap_build_iterator(struct mm_struct *mm,
-         unsigned long addr, unsigned long end, unsigned long pfn,
-         pgprot_t prot, remap_pfn_callback_t func);
-
-3) Read iterators - read a page table between a range of addresses.
-
-Contained in default-pt-read-iterators.h (included in default-pt.h).
-
-static inline unsigned long unmap_page_range_iterator(struct mmu_gather 
-*tlb,
-         struct vm_area_struct *vma, unsigned long addr, unsigned long end,
-         long *zap_work, struct zap_details *details, zap_pte_callback_t 
-func);
-
-static inline void vunmap_read_iterator(unsigned long addr,
-         unsigned long end, vunmap_callback_t func);
-
-static inline unsigned long msync_read_iterator(struct vm_area_struct 
-*vma,
-         unsigned long addr, unsigned long end, msync_callback_t func);
-
-static inline void change_protection_read_iterator(struct vm_area_struct 
-*vma,
-         unsigned long addr, unsigned long end, pgprot_t newprot,
-         change_prot_callback_t func);
-
-static inline int unuse_vma_read_iterator(struct vm_area_struct *vma,
-         unsigned long addr, unsigned long end, swp_entry_t entry,
-         struct page *page, unuse_pte_callback_t func);
-
-static inline int check_policy_read_iterator(struct vm_area_struct *vma,
-         unsigned long addr, unsigned long end, const nodemask_t *nodes,
-         unsigned long flags, void *private, mempolicy_check_pte_t func);
-
-static inline void smaps_read_iterator(struct vm_area_struct *vma,
-         unsigned long addr, unsigned long end,
-         struct mem_size_stats *mss, smaps_pte_callback_t func);
-
-I am keen to hear from anyone planning to put a
-new page table implementation into the kernel. Is there
-anything in my patch that could be changed to better
-accommodate you?
-
-Results and progress will be documented on the Gelato@UNSW wiki in the 
-very near future.
-
-http://www.gelato.unsw.edu.au/IA64wiki/PageTableInterface
-
-Paul Davies on behalf of Gelato@UNSW.
+  include/linux/default-pt.h |  177 
++++++++++++++++++++++++++++++++++++++++++++++
+  mm/default-pt.c            |  140 +++++++++++++++++++++++++++++++++++
+  2 files changed, 317 insertions(+)
+Index: linux-rc5/include/linux/default-pt.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-rc5/include/linux/default-pt.h	2006-05-28 
+00:59:58.031357384 +1000
+@@ -0,0 +1,177 @@
++#ifndef _LINUX_DEFAULT_PT_H
++#define _LINUX_DEFAULT_PT_H
++
++#include <asm/pgalloc.h>
++#include <asm/pgtable.h>
++
++/*
++ * This is the structure representing the path of the pte in
++ * the page table.  For efficiency reasons we store the partial
++ * path only
++ */
++typedef struct pt_struct { pmd_t *pmd; } pt_path_t;
++
++static inline int create_user_page_table(struct mm_struct *mm)
++{
++	mm->pgd = pgd_alloc(NULL);
++
++	if (unlikely(!mm->pgd))
++		return 0;
++	return 1;
++}
++
++static inline void destroy_user_page_table(struct mm_struct *mm)
++{
++	pgd_free(mm->pgd);
++}
++
++static inline pte_t *lookup_page_table(struct mm_struct *mm,
++			unsigned long address, pt_path_t *pt_path)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	if (mm!=&init_mm) { /* Look up user page table */
++		pgd = pgd_offset(mm, address);
++		if (pgd_none_or_clear_bad(pgd))
++			return NULL;
++	} else { /* Look up kernel page table */
++		pgd = pgd_offset_k(address);
++		if (pgd_none_or_clear_bad(pgd))
++			return NULL;
++	}
++
++	pud = pud_offset(pgd, address);
++	if (pud_none_or_clear_bad(pud)) {
++		return NULL;
++	}
++
++	pmd = pmd_offset(pud, address);
++	if (pmd_none_or_clear_bad(pmd)) {
++		return NULL;
++	}
++
++	if(!pt_path)
++		pt_path->pmd = pmd;
++
++	return pte_offset_map(pmd, address);
++}
++
++static inline pte_t *lookup_gate_area(struct mm_struct *mm,
++			unsigned long pg)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
++
++	if (pg > TASK_SIZE)
++		pgd = pgd_offset_k(pg);
++	else
++		pgd = pgd_offset_gate(mm, pg);
++	BUG_ON(pgd_none(*pgd));
++	pud = pud_offset(pgd, pg);
++	BUG_ON(pud_none(*pud));
++	pmd = pmd_offset(pud, pg);
++	if (pmd_none(*pmd))
++		return NULL;
++	pte = pte_offset_map(pmd, pg);
++	return pte;
++}
++
++/*
++ * This function builds the page table atomically and saves
++ * the partial path for a fast lookup later on.
++ */
++static inline pte_t *build_page_table(struct mm_struct *mm,
++		unsigned long address, pt_path_t *pt_path)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset(mm, address);
++	pud = pud_alloc(mm, pgd, address);
++	if (!pud)
++		return NULL;
++	pmd = pmd_alloc(mm, pud, address);
++	if (!pmd)
++		return NULL;
++
++	pt_path->pmd = pmd;
++	return pte_alloc_map(mm, pmd, address);
++}
++
++/*
++ * Locks the ptes notionally pointed to by the page table path.
++ */
++#define lock_pte(mm, pt_path) \
++	({ spin_lock(pte_lockptr(mm, pt_path.pmd));})
++
++/*
++ * Unlocks the ptes notionally pointed to by the
++ * page table path.
++ */
++#define unlock_pte(mm, pt_path) \
++	({ spin_unlock(pte_lockptr(mm, pt_path.pmd)); })
++
++/*
++ * Looks up a page table from a saved path.  It also
++ * locks the page table.
++ */
++#define lookup_page_table_fast(mm, pt_path, address)	\
++({							\
++	spinlock_t *__ptl = pte_lockptr(mm, pt_path.pmd);	\
++	pte_t *__pte = pte_offset_map(pt_path.pmd, address);	\
++	spin_lock(__ptl);				\
++	__pte;						\
++})
++
++/*
++ * Check that the original pte hasn't change.
++ */
++#define atomic_pte_same(mm, pte, orig_pte, pt_path) \
++({ \
++	spinlock_t *ptl = pte_lockptr(mm, pt_path.pmd); \
++	int __same; \
++	spin_lock(ptl); \
++	__same = pte_same(*pte, orig_pte); \
++	spin_unlock(ptl); \
++	__same; \
++})
++
++void free_page_table_range(struct mmu_gather **tlb, unsigned long addr,
++		unsigned long end, unsigned long floor, unsigned long 
+ceiling);
++
++
++
++
++
++
++static inline void coallesce_vmas(struct vm_area_struct **vma_p,
++		struct vm_area_struct **next_p)
++{
++	struct vm_area_struct *vma, *next;
++
++	vma = *vma_p;
++	next = *next_p;
++
++	/*
++	 * Optimization: gather nearby vmas into one call down
++	 */
++	while (next && next->vm_start <= vma->vm_end + PMD_SIZE) {
++		vma = next;
++		next = vma->vm_next;
++		anon_vma_unlink(vma);
++		unlink_file_vma(vma);
++	}
++
++	*vma_p = vma;
++	*next_p = next;
++}
++
++
++#endif
++
++
+Index: linux-rc5/mm/default-pt.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-rc5/mm/default-pt.c	2006-05-28 00:59:12.228320504 +1000
+@@ -0,0 +1,140 @@
++#include <linux/kernel_stat.h>
++#include <linux/mm.h>
++#include <linux/hugetlb.h>
++#include <linux/mman.h>
++#include <linux/swap.h>
++#include <linux/highmem.h>
++#include <linux/pagemap.h>
++#include <linux/rmap.h>
++#include <linux/module.h>
++#include <linux/init.h>
++
++#include <asm/pgalloc.h>
++#include <asm/uaccess.h>
++#include <asm/tlb.h>
++#include <asm/tlbflush.h>
++#include <asm/pgtable.h>
++
++#include <linux/swapops.h>
++#include <linux/elf.h>
++#include <linux/default-pt.h>
++
++/*
++ * If a p?d_bad entry is found while walking page tables, report
++ * the error, before resetting entry to p?d_none.  Usually (but
++ * very seldom) called out from the p?d_none_or_clear_bad macros.
++ */
++
++void pgd_clear_bad(pgd_t *pgd)
++{
++	pgd_ERROR(*pgd);
++	pgd_clear(pgd);
++}
++
++void pud_clear_bad(pud_t *pud)
++{
++	pud_ERROR(*pud);
++	pud_clear(pud);
++}
++
++void pmd_clear_bad(pmd_t *pmd)
++{
++	pmd_ERROR(*pmd);
++	pmd_clear(pmd);
++}
++
++int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
++{
++	struct page *new = pte_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	pte_lock_init(new);
++	spin_lock(&mm->page_table_lock);
++	if (pmd_present(*pmd)) {	/* Another has populated it */
++		pte_lock_deinit(new);
++		pte_free(new);
++	} else {
++		mm->nr_ptes++;
++		inc_page_state(nr_page_table_pages);
++		pmd_populate(mm, pmd, new);
++	}
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++
++int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
++{
++	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&init_mm.page_table_lock);
++	if (pmd_present(*pmd))		/* Another has populated it */
++		pte_free_kernel(new);
++	else
++		pmd_populate_kernel(&init_mm, pmd, new);
++	spin_unlock(&init_mm.page_table_lock);
++	return 0;
++}
++
++#ifndef __PAGETABLE_PUD_FOLDED
++/*
++ * Allocate page upper directory.
++ * We've already handled the fast-path in-line.
++ */
++int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
++{
++	pud_t *new = pud_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&mm->page_table_lock);
++	if (pgd_present(*pgd))		/* Another has populated it */
++		pud_free(new);
++	else
++		pgd_populate(mm, pgd, new);
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++#else
++/* Workaround for gcc 2.96 */
++int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
++{
++	return 0;
++}
++#endif /* __PAGETABLE_PUD_FOLDED */
++
++#ifndef __PAGETABLE_PMD_FOLDED
++/*
++ * Allocate page middle directory.
++ * We've already handled the fast-path in-line.
++ */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	pmd_t *new = pmd_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&mm->page_table_lock);
++#ifndef __ARCH_HAS_4LEVEL_HACK
++	if (pud_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pud_populate(mm, pud, new);
++#else
++	if (pgd_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pgd_populate(mm, pud, new);
++#endif /* __ARCH_HAS_4LEVEL_HACK */
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++#else
++/* Workaround for gcc 2.96 */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	return 0;
++}
++#endif /* __PAGETABLE_PMD_FOLDED */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
