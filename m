@@ -1,48 +1,59 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 18:32:05 +1000 (EST)
+Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
+In-Reply-To: <yq0irnot028.fsf@jaguar.mkp.net>
+Message-ID: <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU>
+References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
+ <yq0irnot028.fsf@jaguar.mkp.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17532.305.602559.660069@gargle.gargle.HOWL>
-Date: Tue, 30 May 2006 12:24:17 +0400
-Subject: Re: [rfc][patch] remove racy sync_page?
-In-Reply-To: <447BD63D.2080900@yahoo.com.au>
-References: <447AC011.8050708@yahoo.com.au>
-	<20060529121556.349863b8.akpm@osdl.org>
-	<447B8CE6.5000208@yahoo.com.au>
-	<20060529183201.0e8173bc.akpm@osdl.org>
-	<447BB3FD.1070707@yahoo.com.au>
-	<Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
-	<447BD31E.7000503@yahoo.com.au>
-	<447BD63D.2080900@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
+To: Jes Sorensen <jes@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
- > Nick Piggin wrote:
- > > Linus Torvalds wrote:
- > > 
- > >>
- > >> Why do you think the IO layer should get larger requests?
- > > 
- > > 
- > > For workloads where plugging helps (ie. lots of smaller, contiguous
- > > requests going into the IO layer), should be pretty good these days
- > > due to multiple readahead and writeback.
- > 
- > Let me try again.
- > 
- > For workloads where plugging helps (ie. lots of smaller, contiguous
- > requests going into the IO layer), the request pattern should be
- > pretty good without plugging these days, due to multiple page
- > readahead and writeback.
+Hi Jes
 
-Pageout by VM scanner doesn't benefit from those, and it is still quite
-important in some workloads (e.g., mmap intensive).
+It is currently causing a degradation, but we are in the process
+of performance tuning.
 
-Nikita.
+There is a small cost associated with the PTI at the moment.
+
+Cheers
+
+Paul
+
+On Tue, 30 May 2006, Jes Sorensen wrote:
+
+>>>>>> "Paul" == Paul Cameron Davies <pauld@cse.unsw.EDU.AU> writes:
+>
+> Paul> This patch series provides the architectural independent
+> Paul> interface.  It has been tested and benchmarked for IA64 using
+> Paul> lmbench.  It also passes all relevant tests in the Linux Test
+> Paul> Project (LTP) on IA64.  This patch should 5~also compile and run
+> Paul> for i386.  To run on other architectures add CONFIG_DEFAULT_PT
+> Paul> to the architectures config.  Turn off HugeTLB.
+>
+> Paul> Summary of performance degradation using lmbench on IA64: ~3.5%
+> Paul> deterioration in fork latency on IA64.  ~1.0% deterioration in
+> Paul> mmap latency on IA64
+>
+> Paul,
+>
+> Let me just get it right as I am not sure I am reading it correctly.
+> Are you saying that this patch causes a 3.5% fork performance
+> degradation on ia64 or are you saying it is improving 3.5%?
+>
+> Thanks,
+> Jes
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
