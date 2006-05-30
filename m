@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
-	(for <linux-mm@kvack.org>) By tone With Smtp ;
-	Tue, 30 May 2006 17:18:29 +1000
+	(for <linux-mm@kvack.org>) By note With Smtp ;
+	Tue, 30 May 2006 17:21:30 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:18:28 +1000 (EST)
-Subject: [Patch 5/17] PTI: Clean up page fault handler
-Message-ID: <Pine.LNX.4.61.0605301716230.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:21:29 +1000 (EST)
+Subject: [Patch 6/17] PTI: call interface A
+Message-ID: <Pine.LNX.4.61.0605301718500.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,370 +12,337 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This file calls the simple page table interface to allow the page fault
-  handler to work independently of the default page table implementation.
+  Remove reference to pgds in fork.c and call create and destroy user page
+  table functions.
 
-  memory.c |  119 
-++++++++++++++++++++++++++++++++++++---------------------------
-  1 file changed, 68 insertions(+), 51 deletions(-)
+  Start calling lookup_page_table in memory.c
+
+  fs/exec.c     |   14 +++++++--
+  kernel/fork.c |   22 +++++++--------
+  mm/fremap.c   |   15 ++++++----
+  mm/memory.c   |   82 
+++++++++++++----------------------------------------------
+  4 files changed, 48 insertions(+), 85 deletions(-)
 Index: linux-rc5/mm/memory.c
 ===================================================================
---- linux-rc5.orig/mm/memory.c	2006-05-28 18:53:18.981556640 +1000
-+++ linux-rc5/mm/memory.c	2006-05-28 18:53:20.053393696 +1000
-@@ -57,6 +57,7 @@
-
-  #include <linux/swapops.h>
-  #include <linux/elf.h>
-+#include <linux/default-pt.h>
-
-  #ifndef CONFIG_NEED_MULTIPLE_NODES
-  /* use the per-pgdat data instead for discontigmem - mbligh */
-@@ -1145,6 +1146,18 @@
-   * (but do_wp_page is only called after already making such a check;
-   * and do_anonymous_page and do_no_page can safely check later on).
-   */
-+static inline int pte_unmap_same(struct mm_struct *mm, pt_path_t pt_path,
-+				pte_t *page_table, pte_t orig_pte)
-+{
-+	int same = 1;
-+#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-+	if (sizeof(pte_t) > sizeof(unsigned long))
-+		same = atomic_pte_same(mm, page_table, orig_pte, pt_path);
-+#endif
-+	pte_unmap(page_table);
-+	return same;
-+}
-+
-  static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
-  				pte_t *page_table, pte_t orig_pte)
-  {
-@@ -1220,13 +1233,16 @@
-   * We return with mmap_sem still held, but pte unmapped and unlocked.
-   */
-  static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		spinlock_t *ptl, pte_t orig_pte)
-+		unsigned long address, pte_t *page_table, pt_path_t 
-pt_path,
-+		pte_t orig_pte)
-  {
-  	struct page *old_page, *new_page;
-  	pte_t entry;
-  	int ret = VM_FAULT_MINOR;
-
-+	pmd_t *pmd;
-+	pmd = pt_path.pmd;
-+
-  	old_page = vm_normal_page(vma, address, orig_pte);
-  	if (!old_page)
-  		goto gotten;
-@@ -1251,7 +1267,8 @@
-  	 */
-  	page_cache_get(old_page);
-  gotten:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-
-  	if (unlikely(anon_vma_prepare(vma)))
-  		goto oom;
-@@ -1269,7 +1286,8 @@
-  	/*
-  	 * Re-check the pte - we dropped the lock
-  	 */
--	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	page_table = lookup_page_table_fast(mm, pt_path, address);
-+
-  	if (likely(pte_same(*page_table, orig_pte))) {
-  		if (old_page) {
-  			page_remove_rmap(old_page);
-@@ -1297,7 +1315,8 @@
-  	if (old_page)
-  		page_cache_release(old_page);
-  unlock:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-  	return ret;
-  oom:
-  	if (old_page)
-@@ -1646,16 +1665,18 @@
-   * We return with mmap_sem still held, but pte unmapped and unlocked.
-   */
-  static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
-+		unsigned long address, pte_t *page_table, pt_path_t 
-pt_path,
-  		int write_access, pte_t orig_pte)
-  {
--	spinlock_t *ptl;
-  	struct page *page;
-  	swp_entry_t entry;
-  	pte_t pte;
-  	int ret = VM_FAULT_MINOR;
-
--	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
-+	pmd_t *pmd;
-+	pmd = pt_path.pmd;
-+
-+	if (!pte_unmap_same(mm, pt_path, page_table, orig_pte))
-  		goto out;
-
-  	entry = pte_to_swp_entry(orig_pte);
-@@ -1669,7 +1690,7 @@
-  			 * Back out if somebody else faulted in this pte
-  			 * while we released the pte lock.
-  			 */
--			page_table = pte_offset_map_lock(mm, pmd, address, 
-&ptl);
-+			page_table = lookup_page_table_fast(mm, pt_path, 
-address);
-  			if (likely(pte_same(*page_table, orig_pte)))
-  				ret = VM_FAULT_OOM;
-  			goto unlock;
-@@ -1693,7 +1714,7 @@
-  	/*
-  	 * Back out if somebody else already faulted in this pte.
-  	 */
--	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	page_table = lookup_page_table_fast(mm, pt_path, address);
-  	if (unlikely(!pte_same(*page_table, orig_pte)))
-  		goto out_nomap;
-
-@@ -1722,7 +1743,7 @@
-
-  	if (write_access) {
-  		if (do_wp_page(mm, vma, address,
--				page_table, pmd, ptl, pte) == 
-VM_FAULT_OOM)
-+				page_table, pt_path, pte) == VM_FAULT_OOM)
-  			ret = VM_FAULT_OOM;
-  		goto out;
-  	}
-@@ -1731,11 +1752,13 @@
-  	update_mmu_cache(vma, address, pte);
-  	lazy_mmu_prot_update(pte);
-  unlock:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-  out:
-  	return ret;
-  out_nomap:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-  	unlock_page(page);
-  	page_cache_release(page);
-  	return ret;
-@@ -1747,11 +1770,10 @@
-   * We return with mmap_sem still held, but pte unmapped and unlocked.
-   */
-  static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct 
-*vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
-+		unsigned long address, pte_t *page_table, pt_path_t 
-pt_path,
-  		int write_access)
-  {
-  	struct page *page;
--	spinlock_t *ptl;
-  	pte_t entry;
-
-  	if (write_access) {
-@@ -1767,7 +1789,7 @@
-  		entry = mk_pte(page, vma->vm_page_prot);
-  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-
--		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-+		lookup_page_table_fast(mm, pt_path, address);
-  		if (!pte_none(*page_table))
-  			goto release;
-  		inc_mm_counter(mm, anon_rss);
-@@ -1779,8 +1801,8 @@
-  		page_cache_get(page);
-  		entry = mk_pte(page, vma->vm_page_prot);
-
--		ptl = pte_lockptr(mm, pmd);
--		spin_lock(ptl);
-+		lock_pte(mm, pt_path);
-+
-  		if (!pte_none(*page_table))
-  			goto release;
-  		inc_mm_counter(mm, file_rss);
-@@ -1793,7 +1815,8 @@
-  	update_mmu_cache(vma, address, entry);
-  	lazy_mmu_prot_update(entry);
-  unlock:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-  	return VM_FAULT_MINOR;
-  release:
-  	page_cache_release(page);
-@@ -1816,10 +1839,9 @@
-   * We return with mmap_sem still held, but pte unmapped and unlocked.
-   */
-  static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
-+		unsigned long address, pte_t *page_table, pt_path_t 
-pt_path,
-  		int write_access)
-  {
--	spinlock_t *ptl;
-  	struct page *new_page;
-  	struct address_space *mapping = NULL;
-  	pte_t entry;
-@@ -1827,6 +1849,9 @@
-  	int ret = VM_FAULT_MINOR;
-  	int anon = 0;
-
-+	pmd_t *pmd;
-+	pmd = pt_path.pmd;
-+
-  	pte_unmap(page_table);
-  	BUG_ON(vma->vm_flags & VM_PFNMAP);
-
-@@ -1868,14 +1893,17 @@
-  		anon = 1;
-  	}
-
--	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	page_table = lookup_page_table_fast(mm, pt_path, address);
-+
-  	/*
-  	 * For a file-backed vma, someone could have truncated or 
-otherwise
-  	 * invalidated this page.  If unmap_mapping_range got called,
-  	 * retry getting the page.
-  	 */
-  	if (mapping && unlikely(sequence != mapping->truncate_count)) {
--		pte_unmap_unlock(page_table, ptl);
-+		unlock_pte(mm, pt_path);
-+		pte_unmap(page_table);
-+
-  		page_cache_release(new_page);
-  		cond_resched();
-  		sequence = mapping->truncate_count;
-@@ -1918,7 +1946,8 @@
-  	update_mmu_cache(vma, address, entry);
-  	lazy_mmu_prot_update(entry);
-  unlock:
--	pte_unmap_unlock(page_table, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(page_table);
-  	return ret;
-  oom:
-  	page_cache_release(new_page);
-@@ -1935,13 +1964,13 @@
-   * We return with mmap_sem still held, but pte unmapped and unlocked.
-   */
-  static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, pte_t *page_table, pmd_t *pmd,
-+		unsigned long address, pte_t *page_table, pt_path_t 
-pt_path,
-  		int write_access, pte_t orig_pte)
-  {
-  	pgoff_t pgoff;
-  	int err;
-
--	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
-+	if (!pte_unmap_same(mm, pt_path, page_table, orig_pte))
-  		return VM_FAULT_MINOR;
-
-  	if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
-@@ -1978,36 +2007,35 @@
-   */
-  static inline int handle_pte_fault(struct mm_struct *mm,
-  		struct vm_area_struct *vma, unsigned long address,
--		pte_t *pte, pmd_t *pmd, int write_access)
-+		pte_t *pte, pt_path_t pt_path, int write_access)
-  {
-  	pte_t entry;
-  	pte_t old_entry;
--	spinlock_t *ptl;
-
-  	old_entry = entry = *pte;
-  	if (!pte_present(entry)) {
-  		if (pte_none(entry)) {
-  			if (!vma->vm_ops || !vma->vm_ops->nopage)
-  				return do_anonymous_page(mm, vma, address,
--					pte, pmd, write_access);
-+					pte, pt_path, write_access);
-  			return do_no_page(mm, vma, address,
--					pte, pmd, write_access);
-+					pte, pt_path, write_access);
-  		}
-  		if (pte_file(entry))
-  			return do_file_page(mm, vma, address,
--					pte, pmd, write_access, entry);
-+					pte, pt_path, write_access, 
-entry);
-  		return do_swap_page(mm, vma, address,
--					pte, pmd, write_access, entry);
-+					pte, pt_path, write_access, 
-entry);
-  	}
-
--	ptl = pte_lockptr(mm, pmd);
--	spin_lock(ptl);
-+	lock_pte(mm, pt_path);
-+
-  	if (unlikely(!pte_same(*pte, entry)))
-  		goto unlock;
-  	if (write_access) {
-  		if (!pte_write(entry))
-  			return do_wp_page(mm, vma, address,
--					pte, pmd, ptl, entry);
-+					pte, pt_path, entry);
-  		entry = pte_mkdirty(entry);
-  	}
-  	entry = pte_mkyoung(entry);
-@@ -2026,7 +2054,8 @@
-  			flush_tlb_page(vma, address);
-  	}
-  unlock:
--	pte_unmap_unlock(pte, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte);
-  	return VM_FAULT_MINOR;
-  }
-
-@@ -2036,30 +2065,18 @@
-  int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-  		unsigned long address, int write_access)
+--- linux-rc5.orig/mm/memory.c	2006-05-28 19:15:09.366160160 +1000
++++ linux-rc5/mm/memory.c	2006-05-28 19:15:10.203032936 +1000
+@@ -666,40 +666,17 @@
+  struct page *follow_page(struct vm_area_struct *vma, unsigned long 
+address,
+  			unsigned int flags)
   {
 -	pgd_t *pgd;
 -	pud_t *pud;
 -	pmd_t *pmd;
+  	pte_t *ptep, pte;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+  	struct page *page;
+  	struct mm_struct *mm = vma->vm_mm;
+-
+-	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+-	if (!IS_ERR(page)) {
+-		BUG_ON(flags & FOLL_GET);
+-		goto out;
+-	}
+-
+-	page = NULL;
+-	pgd = pgd_offset(mm, address);
+-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+-		goto no_page_table;
+-
+-	pud = pud_offset(pgd, address);
+-	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+-		goto no_page_table;
+
+-	pmd = pmd_offset(pud, address);
+-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
++	page = NULL;
++	ptep = lookup_page_table(mm, address, &pt_path);
++	if (!ptep)
+  		goto no_page_table;
+
+-	if (pmd_huge(*pmd)) {
+-		BUG_ON(flags & FOLL_GET);
+-		page = follow_huge_pmd(mm, address, pmd, flags & 
+FOLL_WRITE);
+-		goto out;
+-	}
+-
+-	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
++	lock_pte(mm, pt_path);
+  	if (!ptep)
+  		goto out;
+
+@@ -721,7 +698,8 @@
+  		mark_page_accessed(page);
+  	}
+  unlock:
+-	pte_unmap_unlock(ptep, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+  out:
+  	return page;
+
+@@ -967,14 +945,14 @@
+  {
+  	int retval;
   	pte_t *pte;
+-	spinlock_t *ptl;
 +	pt_path_t pt_path;
 
-  	__set_current_state(TASK_RUNNING);
-
-  	inc_page_state(pgfault);
-
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
--
--	pgd = pgd_offset(mm, address);
--	pud = pud_alloc(mm, pgd, address);
--	if (!pud)
--		return VM_FAULT_OOM;
--	pmd = pmd_alloc(mm, pud, address);
--	if (!pmd)
--		return VM_FAULT_OOM;
--	pte = pte_alloc_map(mm, pmd, address);
-+	pte = build_page_table(mm, address, &pt_path);
+  	retval = -EINVAL;
+  	if (PageAnon(page))
+  		goto out;
+  	retval = -ENOMEM;
+  	flush_dcache_page(page);
+-	pte = get_locked_pte(mm, addr, &ptl);
++	pte = build_page_table(mm, addr, &pt_path);
   	if (!pte)
-  		return VM_FAULT_OOM;
+  		goto out;
+  	retval = -EBUSY;
+@@ -989,7 +967,8 @@
 
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	return handle_pte_fault(mm, vma, address, pte, pt_path, 
-write_access);
+  	retval = 0;
+  out_unlock:
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+  out:
+  	return retval;
+  }
+@@ -1158,22 +1137,6 @@
+  	return same;
   }
 
-  EXPORT_SYMBOL_GPL(__handle_mm_fault);
+-static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+-				pte_t *page_table, pte_t orig_pte)
+-{
+-	int same = 1;
+-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+-	if (sizeof(pte_t) > sizeof(unsigned long)) {
+-		spinlock_t *ptl = pte_lockptr(mm, pmd);
+-		spin_lock(ptl);
+-		same = pte_same(*page_table, orig_pte);
+-		spin_unlock(ptl);
+-	}
+-#endif
+-	pte_unmap(page_table);
+-	return same;
+-}
+-
+  /*
+   * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+   * servicing faults for write access.  In the normal case, do always want
+@@ -2107,23 +2070,14 @@
+  {
+  	unsigned long addr = (unsigned long) vmalloc_addr;
+  	struct page *page = NULL;
+-	pgd_t *pgd = pgd_offset_k(addr);
+-	pud_t *pud;
+-	pmd_t *pmd;
+  	pte_t *ptep, pte;
+-
+-	if (!pgd_none(*pgd)) {
+-		pud = pud_offset(pgd, addr);
+-		if (!pud_none(*pud)) {
+-			pmd = pmd_offset(pud, addr);
+-			if (!pmd_none(*pmd)) {
+-				ptep = pte_offset_map(pmd, addr);
+-				pte = *ptep;
+-				if (pte_present(pte))
+-					page = pte_page(pte);
+-				pte_unmap(ptep);
+-			}
+-		}
++
++	ptep = lookup_page_table(&init_mm, addr, NULL);
++	if(ptep) {
++		pte = *ptep;
++		if (pte_present(pte))
++			page = pte_page(pte);
++		pte_unmap(ptep);
+  	}
+  	return page;
+  }
+Index: linux-rc5/fs/exec.c
+===================================================================
+--- linux-rc5.orig/fs/exec.c	2006-05-28 19:15:03.001127792 +1000
++++ linux-rc5/fs/exec.c	2006-05-28 19:15:10.205032632 +1000
+@@ -49,6 +49,7 @@
+  #include <linux/rmap.h>
+  #include <linux/acct.h>
+  #include <linux/cn_proc.h>
++#include <linux/default-pt.h>
+
+  #include <asm/uaccess.h>
+  #include <asm/mmu_context.h>
+@@ -307,17 +308,21 @@
+  {
+  	struct mm_struct *mm = vma->vm_mm;
+  	pte_t * pte;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+
+  	if (unlikely(anon_vma_prepare(vma)))
+  		goto out;
+
+  	flush_dcache_page(page);
+-	pte = get_locked_pte(mm, address, &ptl);
++
++	pte = build_page_table(mm, address, &pt_path);
++	lock_pte(mm, pt_path);
++
+  	if (!pte)
+  		goto out;
+  	if (!pte_none(*pte)) {
+-		pte_unmap_unlock(pte, ptl);
++		unlock_pte(mm, pt_path);
++		pte_unmap(pte);
+  		goto out;
+  	}
+  	inc_mm_counter(mm, anon_rss);
+@@ -325,7 +330,8 @@
+  	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
+  					page, vma->vm_page_prot))));
+  	page_add_new_anon_rmap(page, vma, address);
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+
+  	/* no need for flush_tlb */
+  	return;
+Index: linux-rc5/mm/fremap.c
+===================================================================
+--- linux-rc5.orig/mm/fremap.c	2006-05-28 19:15:03.001127792 +1000
++++ linux-rc5/mm/fremap.c	2006-05-28 19:15:10.215031112 +1000
+@@ -15,6 +15,7 @@
+  #include <linux/rmap.h>
+  #include <linux/module.h>
+  #include <linux/syscalls.h>
++#include <linux/default-pt.h>
+
+  #include <asm/mmu_context.h>
+  #include <asm/cacheflush.h>
+@@ -56,9 +57,9 @@
+  	int err = -ENOMEM;
+  	pte_t *pte;
+  	pte_t pte_val;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+
+-	pte = get_locked_pte(mm, addr, &ptl);
++	pte = build_page_table(mm, addr, &pt_path);
+  	if (!pte)
+  		goto out;
+
+@@ -85,7 +86,8 @@
+  	update_mmu_cache(vma, addr, pte_val);
+  	err = 0;
+  unlock:
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+  out:
+  	return err;
+  }
+@@ -101,9 +103,9 @@
+  	int err = -ENOMEM;
+  	pte_t *pte;
+  	pte_t pte_val;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+
+-	pte = get_locked_pte(mm, addr, &ptl);
++	pte = build_page_table(mm, addr, &pt_path);
+  	if (!pte)
+  		goto out;
+
+@@ -115,7 +117,8 @@
+  	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
+  	pte_val = *pte;
+  	update_mmu_cache(vma, addr, pte_val);
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+  	err = 0;
+  out:
+  	return err;
+Index: linux-rc5/kernel/fork.c
+===================================================================
+--- linux-rc5.orig/kernel/fork.c	2006-05-28 19:15:03.001127792 
++1000
++++ linux-rc5/kernel/fork.c	2006-05-28 19:15:10.216030960 +1000
+@@ -44,9 +44,9 @@
+  #include <linux/rmap.h>
+  #include <linux/acct.h>
+  #include <linux/cn_proc.h>
++#include <linux/default-pt.h>
+
+  #include <asm/pgtable.h>
+-#include <asm/pgalloc.h>
+  #include <asm/uaccess.h>
+  #include <asm/mmu_context.h>
+  #include <asm/cacheflush.h>
+@@ -286,22 +286,22 @@
+  	goto out;
+  }
+
+-static inline int mm_alloc_pgd(struct mm_struct * mm)
++static inline int mm_alloc_page_table(struct mm_struct * mm)
+  {
+-	mm->pgd = pgd_alloc(mm);
+-	if (unlikely(!mm->pgd))
++	if(!create_user_page_table(mm))
+  		return -ENOMEM;
+  	return 0;
+  }
+
+-static inline void mm_free_pgd(struct mm_struct * mm)
++static inline void mm_free_page_table(struct mm_struct * mm)
+  {
+-	pgd_free(mm->pgd);
++  	destroy_user_page_table(mm);
+  }
++
+  #else
+  #define dup_mmap(mm, oldmm)	(0)
+-#define mm_alloc_pgd(mm)	(0)
+-#define mm_free_pgd(mm)
++#define mm_alloc_page_table(mm)	(0)
++#define mm_free_page_table(mm)
+  #endif /* CONFIG_MMU */
+
+   __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
+@@ -327,7 +327,7 @@
+  	mm->free_area_cache = TASK_UNMAPPED_BASE;
+  	mm->cached_hole_size = ~0UL;
+
+-	if (likely(!mm_alloc_pgd(mm))) {
++	if (likely(!mm_alloc_page_table(mm))) {
+  		mm->def_flags = 0;
+  		return mm;
+  	}
+@@ -358,7 +358,7 @@
+  void fastcall __mmdrop(struct mm_struct *mm)
+  {
+  	BUG_ON(mm == &init_mm);
+-	mm_free_pgd(mm);
++	mm_free_page_table(mm);
+  	destroy_context(mm);
+  	free_mm(mm);
+  }
+@@ -490,7 +490,7 @@
+  	 * If init_new_context() failed, we cannot use mmput() to free the 
+mm
+  	 * because it calls destroy_context()
+  	 */
+-	mm_free_pgd(mm);
++	mm_free_page_table(mm);
+  	free_mm(mm);
+  	return NULL;
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
