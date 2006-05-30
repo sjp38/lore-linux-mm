@@ -1,409 +1,99 @@
-Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
-	(for <linux-mm@kvack.org>) By note With Smtp ;
-	Tue, 30 May 2006 17:10:04 +1000
-From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:10:03 +1000 (EST)
-Subject: [Patch 2/17] PTI: Abstract default page table A
-Message-ID: <Pine.LNX.4.61.0605301706450.10816@weill.orchestra.cse.unsw.EDU.AU>
+Message-ID: <447BEFCF.5000406@yahoo.com.au>
+Date: Tue, 30 May 2006 17:10:07 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [rfc][patch] remove racy sync_page?
+References: <447AC011.8050708@yahoo.com.au>	<20060529121556.349863b8.akpm@osdl.org>	<447B8CE6.5000208@yahoo.com.au>	<20060529183201.0e8173bc.akpm@osdl.org>	<447BB3FD.1070707@yahoo.com.au>	<Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>	<447BD31E.7000503@yahoo.com.au>	<447BD63D.2080900@yahoo.com.au> <17531.57913.151520.946557@cse.unsw.edu.au>
+In-Reply-To: <17531.57913.151520.946557@cse.unsw.edu.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Neil Brown <neilb@suse.de>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Add the default page table as a compulsory options in the i386 config
-  and the IA64 config (in the Kernel Hacking section).
+Neil Brown wrote:
+> On Tuesday May 30, nickpiggin@yahoo.com.au wrote:
+> 
+>>Nick Piggin wrote:
+>>
 
-  default-pt.c (default page table implementation) is now to be compiled 
-into
-  mm/Makefile.
+>>For workloads where plugging helps (ie. lots of smaller, contiguous
+>>requests going into the IO layer), the request pattern should be
+>>pretty good without plugging these days, due to multiple page
+>>readahead and writeback.
+> 
+> 
+> Can I please put in a vote for not thinking that every device is disk
+> drive?
+> 
+> I find plugging fairly important for raid5, particularly for write.
+> 
+> The more whole-stripe writes I can get, the better throughput I get.
+> So I tend to keep a raid5 array plugged while any requests are
+> arriving, and interpret 'plugged' to mean that incomplete stripes
+> don't get processed while full stripes (needing no pre-reading) do get
+> processed.
+> 
+> The only way "large requests" are going to replace plugging is they
+> are perfectly aligned, which I don't expect to ever see.
 
-  Delete the default page table implementation from memory.c (that was 
-moved
-  to default-pt.c in the previous patch).
+Fair enough, thanks for the input. I was more imagining that IO tends
+to come down in decent chunks, but obviously that's still not sufficient
+for some. OK.
 
-  Put page table tear down functions in default-pt.c (page table 
-implementation
-  from memory.c)
+> 
+> As for your original problem.... I wonder if PG_locked is protecting
+> too much?  It protects against IO and it also protects against ->mapping
+> changes.  So if you want to ensure that ->mapping won't change, you
+> need to wait for any pending read request to finish, which seems a bit
+> dumb.
 
-  arch/i386/Kconfig.debug |    9 ++
-  arch/ia64/Kconfig.debug |    9 ++
-  mm/Makefile             |    3
-  mm/default-pt.c         |  148 
-++++++++++++++++++++++++++++++++++++++++++++++++
-  mm/memory.c             |  121 ---------------------------------------
-  5 files changed, 169 insertions(+), 121 deletions(-)
-Index: linux-rc5/arch/ia64/Kconfig.debug
-===================================================================
---- linux-rc5.orig/arch/ia64/Kconfig.debug	2006-05-28 
-00:59:09.530730600 +1000
-+++ linux-rc5/arch/ia64/Kconfig.debug	2006-05-28 01:00:06.998994096 
-+1000
-@@ -3,6 +3,15 @@
-  source "lib/Kconfig.debug"
+I don't think that is the problem. set_page_dirty_lock is really
+unlikely to get held up on read IO: that'd mean there were two things
+writing into that page at the same time.
 
-  choice
-+	prompt "Page table selection"
-+	default DEFAULT-PT
-+
-+config  DEFAULT_PT
-+	bool "DEFAULT-PT"
-+
-+endchoice
-+
-+choice
-  	prompt "Physical memory granularity"
-  	default IA64_GRANULE_64MB
+ >
+> Maybe we need a new bit: PG_maplocked.  You are only allowed to change
+> ->mapping or ->index of you hold PG_locked and PG_maplocked, you are
+> not allowed to wait for PG_locked while holding PG_maplocked, and
+> you can read ->mapping or ->index while PG_locked or PG_maplocked are
+> held.
+> Think of PG_locked like a mutex and PG_maplocked like a spinlock (and
+> probably use bit_spinlock to get it).
 
-Index: linux-rc5/mm/Makefile
-===================================================================
---- linux-rc5.orig/mm/Makefile	2006-05-28 00:59:09.530730600 +1000
-+++ linux-rc5/mm/Makefile	2006-05-28 01:00:06.998994096 +1000
-@@ -6,6 +6,9 @@
-  mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o 
-\
-  			   mlock.o mmap.o mprotect.o mremap.o msync.o 
-rmap.o \
-  			   vmalloc.o
-+ifdef CONFIG_MMU
-+mmu-$(CONFIG_DEFAULT_PT)+= default-pt.o
-+endif
+Well the original problem is fixed by not doing the sync_page thing in
+set_page_dirty_lock. Is there any advantage to having another bit?
+Considering a) it will be very unlikely that a page is locked at the
+same time one would like to dirty it; and b) that would seem to imply
+adding extra atomic ops and barriers to reclaim and truncate (maybe
+others).
 
-  obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o 
-fadvise.o \
-  			   page_alloc.o page-writeback.o pdflush.o \
-Index: linux-rc5/mm/memory.c
-===================================================================
---- linux-rc5.orig/mm/memory.c	2006-05-28 00:59:09.530730600 +1000
-+++ linux-rc5/mm/memory.c	2006-05-28 01:00:06.999993944 +1000
-@@ -91,31 +91,6 @@
-  }
-  __setup("norandmaps", disable_randmaps);
+> 
+> Then set_page_dirty_lock would use PG_maplocked to get access to
+> ->mapping, and then hold a reference on the address_space while
+> calling into balance_dirty_pages ... I wonder how you hold a reference
+> on an address space...
 
--
--/*
-- * If a p?d_bad entry is found while walking page tables, report
-- * the error, before resetting entry to p?d_none.  Usually (but
-- * very seldom) called out from the p?d_none_or_clear_bad macros.
-- */
--
--void pgd_clear_bad(pgd_t *pgd)
--{
--	pgd_ERROR(*pgd);
--	pgd_clear(pgd);
--}
--
--void pud_clear_bad(pud_t *pud)
--{
--	pud_ERROR(*pud);
--	pud_clear(pud);
--}
--
--void pmd_clear_bad(pmd_t *pmd)
--{
--	pmd_ERROR(*pmd);
--	pmd_clear(pmd);
--}
--
-  /*
-   * Note: this doesn't free the actual pages themselves. That
-   * has been handled earlier when unmapping all the memory regions.
-@@ -298,41 +273,6 @@
-  	}
-  }
+inode. Presumably PG_maplocked would pin it? I don't understand
+why you've brought balance_dirty_pages into it, though.
 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
--{
--	struct page *new = pte_alloc_one(mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	pte_lock_init(new);
--	spin_lock(&mm->page_table_lock);
--	if (pmd_present(*pmd)) {	/* Another has populated it */
--		pte_lock_deinit(new);
--		pte_free(new);
--	} else {
--		mm->nr_ptes++;
--		inc_page_state(nr_page_table_pages);
--		pmd_populate(mm, pmd, new);
--	}
--	spin_unlock(&mm->page_table_lock);
--	return 0;
--}
--
--int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
--{
--	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	spin_lock(&init_mm.page_table_lock);
--	if (pmd_present(*pmd))		/* Another has populated it */
--		pte_free_kernel(new);
--	else
--		pmd_populate_kernel(&init_mm, pmd, new);
--	spin_unlock(&init_mm.page_table_lock);
--	return 0;
--}
--
-  static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int 
-anon_rss)
-  {
-  	if (file_rss)
-@@ -2284,67 +2224,6 @@
+> 
+> There are presumably few pieces of code that change ->mapping.  Once
+> they all take PG_maplocked as well as PG_locked, you can start freeing
+> up other code to take PG_maplocked instead of PG_locked....
+> 
+> Does that make sense at all?  Do we have any spare page bits?
 
-  EXPORT_SYMBOL_GPL(__handle_mm_fault);
+I'm sure it could be made to work, but I don't really see the point.
+If someone really wanted to do it, I guess the right way to go is have
+a PG_readin counterpart to PG_writeback (or even extend PG_writeback
+to PG_io)...
 
--#ifndef __PAGETABLE_PUD_FOLDED
--/*
-- * Allocate page upper directory.
-- * We've already handled the fast-path in-line.
-- */
--int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
--{
--	pud_t *new = pud_alloc_one(mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	spin_lock(&mm->page_table_lock);
--	if (pgd_present(*pgd))		/* Another has populated it */
--		pud_free(new);
--	else
--		pgd_populate(mm, pgd, new);
--	spin_unlock(&mm->page_table_lock);
--	return 0;
--}
--#else
--/* Workaround for gcc 2.96 */
--int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
--{
--	return 0;
--}
--#endif /* __PAGETABLE_PUD_FOLDED */
--
--#ifndef __PAGETABLE_PMD_FOLDED
--/*
-- * Allocate page middle directory.
-- * We've already handled the fast-path in-line.
-- */
--int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
--{
--	pmd_t *new = pmd_alloc_one(mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	spin_lock(&mm->page_table_lock);
--#ifndef __ARCH_HAS_4LEVEL_HACK
--	if (pud_present(*pud))		/* Another has populated it */
--		pmd_free(new);
--	else
--		pud_populate(mm, pud, new);
--#else
--	if (pgd_present(*pud))		/* Another has populated it */
--		pmd_free(new);
--	else
--		pgd_populate(mm, pud, new);
--#endif /* __ARCH_HAS_4LEVEL_HACK */
--	spin_unlock(&mm->page_table_lock);
--	return 0;
--}
--#else
--/* Workaround for gcc 2.96 */
--int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
--{
--	return 0;
--}
--#endif /* __PAGETABLE_PMD_FOLDED */
--
-  int make_pages_present(unsigned long addr, unsigned long end)
-  {
-  	int ret, len, write;
-Index: linux-rc5/mm/default-pt.c
-===================================================================
---- linux-rc5.orig/mm/default-pt.c	2006-05-28 01:00:04.790329864 
-+1000
-+++ linux-rc5/mm/default-pt.c	2006-05-28 01:00:07.000993792 +1000
-@@ -78,6 +78,154 @@
-  	return 0;
-  }
-
-+/*
-+ * Note: this doesn't free the actual pages themselves. That
-+ * has been handled earlier when unmapping all the memory regions.
-+ */
-+static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
-+{
-+	struct page *page = pmd_page(*pmd);
-+	pmd_clear(pmd);
-+	pte_lock_deinit(page);
-+	pte_free_tlb(tlb, page);
-+	dec_page_state(nr_page_table_pages);
-+	tlb->mm->nr_ptes--;
-+}
-+
-+static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-+				unsigned long addr, unsigned long end,
-+				unsigned long floor, unsigned long 
-ceiling)
-+{
-+	pmd_t *pmd;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	start = addr;
-+	pmd = pmd_offset(pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		free_pte_range(tlb, pmd);
-+	} while (pmd++, addr = next, addr != end);
-+
-+	start &= PUD_MASK;
-+	if (start < floor)
-+		return;
-+	if (ceiling) {
-+		ceiling &= PUD_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		return;
-+
-+	pmd = pmd_offset(pud, start);
-+	pud_clear(pud);
-+	pmd_free_tlb(tlb, pmd);
-+}
-+
-+static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-+				unsigned long addr, unsigned long end,
-+				unsigned long floor, unsigned long 
-ceiling)
-+{
-+	pud_t *pud;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	start = addr;
-+	pud = pud_offset(pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
-+	} while (pud++, addr = next, addr != end);
-+
-+	start &= PGDIR_MASK;
-+	if (start < floor)
-+		return;
-+	if (ceiling) {
-+		ceiling &= PGDIR_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		return;
-+
-+	pud = pud_offset(pgd, start);
-+	pgd_clear(pgd);
-+	pud_free_tlb(tlb, pud);
-+}
-+
-+/*
-+ * This function frees user-level page tables of a process.
-+ *
-+ * Must be called with pagetable lock held.
-+ */
-+void free_pgd_range(struct mmu_gather **tlb,
-+			unsigned long addr, unsigned long end,
-+			unsigned long floor, unsigned long ceiling)
-+{
-+	pgd_t *pgd;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	/*
-+	 * The next few lines have given us lots of grief...
-+	 *
-+	 * Why are we testing PMD* at this top level?  Because often
-+	 * there will be no work to do at all, and we'd prefer not to
-+	 * go all the way down to the bottom just to discover that.
-+	 *
-+	 * Why all these "- 1"s?  Because 0 represents both the bottom
-+	 * of the address space and the top of it (using -1 for the
-+	 * top wouldn't help much: the masks would do the wrong thing).
-+	 * The rule is that addr 0 and floor 0 refer to the bottom of
-+	 * the address space, but end 0 and ceiling 0 refer to the top
-+	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
-+	 * that end 0 case should be mythical).
-+	 *
-+	 * Wherever addr is brought up or ceiling brought down, we must
-+	 * be careful to reject "the opposite 0" before it confuses the
-+	 * subsequent tests.  But what about where end is brought down
-+	 * by PMD_SIZE below? no, end can't go down to 0 there.
-+	 *
-+	 * Whereas we round start (addr) and ceiling down, by different
-+	 * masks at different levels, in order to test whether a table
-+	 * now has no other vmas using it, so can be freed, we don't
-+	 * bother to round floor or end up - the tests don't need that.
-+	 */
-+
-+	addr &= PMD_MASK;
-+	if (addr < floor) {
-+		addr += PMD_SIZE;
-+		if (!addr)
-+			return;
-+	}
-+	if (ceiling) {
-+		ceiling &= PMD_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		end -= PMD_SIZE;
-+	if (addr > end - 1)
-+		return;
-+
-+	start = addr;
-+	pgd = pgd_offset((*tlb)->mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
-+	} while (pgd++, addr = next, addr != end);
-+
-+	if (!(*tlb)->fullmm)
-+		flush_tlb_pgtables((*tlb)->mm, start, end);
-+}
-+
-  #ifndef __PAGETABLE_PUD_FOLDED
-  /*
-   * Allocate page upper directory.
-Index: linux-rc5/arch/i386/Kconfig.debug
-===================================================================
---- linux-rc5.orig/arch/i386/Kconfig.debug	2006-05-28 
-00:59:09.530730600 +1000
-+++ linux-rc5/arch/i386/Kconfig.debug	2006-05-28 01:00:07.000993792 
-+1000
-@@ -2,6 +2,15 @@
-
-  source "lib/Kconfig.debug"
-
-+choice
-+	prompt "Page table selection"
-+	default DEFAULT-PT
-+
-+config  DEFAULT_PT
-+	bool "DEFAULT-PT"
-+
-+endchoice
-+
-  config EARLY_PRINTK
-  	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
-  	default y
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
