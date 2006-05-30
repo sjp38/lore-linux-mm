@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
 	(for <linux-mm@kvack.org>) By note With Smtp ;
-	Tue, 30 May 2006 17:34:51 +1000
+	Tue, 30 May 2006 17:36:37 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:34:51 +1000 (EST)
-Subject: [Patch 13/17] PTI: Abstract swap read iterator
-Message-ID: <Pine.LNX.4.61.0605301733260.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:36:36 +1000 (EST)
+Subject: [Patch 14/17] PTI: Abstract mempolicy iterator
+Message-ID: <Pine.LNX.4.61.0605301734530.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,67 +12,101 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Abstract the swap iterator from swapfile.c to default-pt-read-iterators.h
+Finish the swapfile abstraction.
 
-  include/linux/default-pt-read-iterators.h |   87 
-++++++++++++++++++++++++++++++
-  include/linux/default-pt.h                |    3 +
-  include/linux/swapops.h                   |    5 +
-  mm/mprotect.c                             |   75 
-+++++--------------------
-  mm/swapfile.c                             |   85 
------------------------------
-  5 files changed, 112 insertions(+), 143 deletions(-)
+  Abstract mempolicy iterator for NUMA.
+
+  include/linux/default-pt-read-iterators.h |   88 ++++++++++++++++++
+  include/linux/default-pt.h                |    1
+  mm/mempolicy.c                            |  144 
+++++++++----------------------
+  mm/swapfile.c                             |   19 +++
+  4 files changed, 146 insertions(+), 106 deletions(-)
+Index: linux-rc5/mm/swapfile.c
+===================================================================
+--- linux-rc5.orig/mm/swapfile.c	2006-05-28 20:30:09.237586464 
++1000
++++ linux-rc5/mm/swapfile.c	2006-05-28 20:30:20.677279104 +1000
+@@ -28,6 +28,7 @@
+  #include <linux/mutex.h>
+  #include <linux/capability.h>
+  #include <linux/syscalls.h>
++#include <linux/default-pt.h>
+
+  #include <asm/pgtable.h>
+  #include <asm/tlbflush.h>
+@@ -499,9 +500,25 @@
+  	activate_page(page);
+  }
+
++static int unuse_vma(struct vm_area_struct *vma,
++				swp_entry_t entry, struct page *page)
++{
++	unsigned long addr, end;
+
++	if (page->mapping) {
++		addr = page_address_in_vma(page, vma);
++		if (addr == -EFAULT)
++			return 0;
++		else
++			end = addr + PAGE_SIZE;
++	} else {
++		addr = vma->vm_start;
++		end = vma->vm_end;
++	}
+
+-
++	return unuse_vma_read_iterator(vma, addr, end,
++		entry, page, unuse_pte);
++}
+
+  static int unuse_mm(struct mm_struct *mm,
+  				swp_entry_t entry, struct page *page)
 Index: linux-rc5/include/linux/default-pt-read-iterators.h
 ===================================================================
 --- linux-rc5.orig/include/linux/default-pt-read-iterators.h	2006-05-28 
-20:27:01.010728312 +1000
+20:30:09.238587312 +1000
 +++ linux-rc5/include/linux/default-pt-read-iterators.h	2006-05-28 
-20:27:53.705717456 +1000
-@@ -324,4 +324,91 @@
-  	} while (pgd++, addr = next, addr != end);
+20:30:20.678279952 +1000
+@@ -410,5 +410,93 @@
+  	return 0;
   }
 
++#ifdef CONFIG_NUMA
++
 +/*
-+ * unuse_vma_read_iterator: Called in swapfile.c FIXME
++ * check_policy_read_iterator: Called in mempolicy.c
 + */
 +
-+typedef void (*unuse_pte_callback_t)(struct vm_area_struct *vma, pte_t 
-*pte,
-+				unsigned long addr, swp_entry_t entry, 
-struct page *page);
++typedef int (*mempolicy_check_pte_t)(struct vm_area_struct *vma, unsigned 
+long addr,
++		pte_t *pte, const nodemask_t *, unsigned long, void *);
 +
-+static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+				unsigned long addr, unsigned long end, 
-swp_entry_t entry,
-+				struct page *page, unuse_pte_callback_t 
-func)
++/* Scan through pages checking if pages follow certain conditions. */
++static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private, mempolicy_check_pte_t func)
 +{
-+	pte_t swp_pte = swp_entry_to_pte(entry);
++	pte_t *orig_pte;
 +	pte_t *pte;
 +	spinlock_t *ptl;
-+	int found = 0;
++	int ret;
 +
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 +	do {
-+		/*
-+		 * swapoff spends a _lot_ of time in this loop!
-+		 * Test inline before going to call unuse_pte.
-+		 */
-+		if (unlikely(pte_same(*pte, swp_pte))) {
-+			func(vma, pte++, addr, entry, page);
-+			found = 1;
++		ret = func(vma, addr, pte, nodes, flags, private);
++		if(ret)
 +			break;
-+		}
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	pte_unmap_unlock(pte - 1, ptl);
-+	return found;
++	pte_unmap_unlock(orig_pte, ptl);
++	return addr != end;
 +}
 +
-+static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-+				unsigned long addr, unsigned long end, 
-swp_entry_t entry,
-+				struct page *page, unuse_pte_callback_t 
++static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++		unsigned long addr, unsigned long end, const nodemask_t 
+*nodes,
++		unsigned long flags, void *private, mempolicy_check_pte_t 
 func)
 +{
 +	pmd_t *pmd;
@@ -83,17 +117,17 @@ func)
 +		next = pmd_addr_end(addr, end);
 +		if (pmd_none_or_clear_bad(pmd))
 +			continue;
-+		if (unuse_pte_range(vma, pmd, addr, next, entry, page, 
-func))
-+			return 1;
++		if (check_pte_range(vma, pmd, addr, next, nodes,
++				    flags, private, func))
++			return -EIO;
 +	} while (pmd++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-+				unsigned long addr, unsigned long end, 
-swp_entry_t entry,
-+				struct page *page, unuse_pte_callback_t 
++static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++		unsigned long addr, unsigned long end, const nodemask_t 
+*nodes,
++		unsigned long flags, void *private, mempolicy_check_pte_t 
 func)
 +{
 +	pud_t *pud;
@@ -104,17 +138,17 @@ func)
 +		next = pud_addr_end(addr, end);
 +		if (pud_none_or_clear_bad(pud))
 +			continue;
-+		if (unuse_pmd_range(vma, pud, addr, next, entry, page, 
-func))
-+			return 1;
++		if (check_pmd_range(vma, pud, addr, next, nodes,
++				    flags, private, func))
++			return -EIO;
 +	} while (pud++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+static inline int unuse_vma_read_iterator(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end, 
-swp_entry_t entry,
-+				struct page *page, unuse_pte_callback_t 
++static inline int check_policy_read_iterator(struct vm_area_struct *vma,
++		unsigned long addr, unsigned long end, const nodemask_t 
+*nodes,
++		unsigned long flags, void *private, mempolicy_check_pte_t 
 func)
 +{
 +	pgd_t *pgd;
@@ -125,260 +159,217 @@ func)
 +		next = pgd_addr_end(addr, end);
 +		if (pgd_none_or_clear_bad(pgd))
 +			continue;
-+		if (unuse_pud_range(vma, pgd, addr, next, entry, page, 
-func))
-+			return 1;
++		if (check_pud_range(vma, pgd, addr, next, nodes,
++				    flags, private, func))
++			return -EIO;
 +	} while (pgd++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+
-  #endif
-Index: linux-rc5/include/linux/default-pt.h
-===================================================================
---- linux-rc5.orig/include/linux/default-pt.h	2006-05-28 
-20:26:48.811582864 +1000
-+++ linux-rc5/include/linux/default-pt.h	2006-05-28 
-20:27:53.706717304 +1000
-@@ -1,6 +1,9 @@
-  #ifndef _LINUX_DEFAULT_PT_H
-  #define _LINUX_DEFAULT_PT_H
-
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
-+
-  #include <asm/tlb.h>
-  #include <asm/pgalloc.h>
-  #include <asm/pgtable.h>
-Index: linux-rc5/include/linux/swapops.h
-===================================================================
---- linux-rc5.orig/include/linux/swapops.h	2006-05-28 
-20:26:48.811582864 +1000
-+++ linux-rc5/include/linux/swapops.h	2006-05-28 20:27:53.706717304 
-+1000
-@@ -1,3 +1,6 @@
-+#ifndef _LINUX_SWAPOPS_H
-+#define _LINUX_SWAPOPS_H 1
-+
-  /*
-   * swapcache pages are stored in the swapper_space radix tree.  We want 
-to
-   * get good packing density in that tree, so the index should be dense in
-@@ -67,3 +70,5 @@
-  	BUG_ON(pte_file(__swp_entry_to_pte(arch_entry)));
-  	return __swp_entry_to_pte(arch_entry);
-  }
-+
 +#endif
-Index: linux-rc5/mm/mprotect.c
+
+  #endif
+Index: linux-rc5/mm/mempolicy.c
 ===================================================================
---- linux-rc5.orig/mm/mprotect.c	2006-05-28 20:26:48.811582864 
+--- linux-rc5.orig/mm/mempolicy.c	2006-05-28 20:30:09.238587312 
 +1000
-+++ linux-rc5/mm/mprotect.c	2006-05-28 20:27:53.704717608 +1000
-@@ -19,82 +19,41 @@
-  #include <linux/mempolicy.h>
-  #include <linux/personality.h>
-  #include <linux/syscalls.h>
-+#include <linux/rmap.h>
++++ linux-rc5/mm/mempolicy.c	2006-05-28 20:30:20.679280800 +1000
+@@ -87,6 +87,7 @@
+  #include <linux/seq_file.h>
+  #include <linux/proc_fs.h>
+  #include <linux/migrate.h>
 +#include <linux/default-pt.h>
 
-  #include <asm/uaccess.h>
-  #include <asm/pgtable.h>
-  #include <asm/cacheflush.h>
   #include <asm/tlbflush.h>
+  #include <asm/uaccess.h>
+@@ -199,111 +200,44 @@
+  static void migrate_page_add(struct page *page, struct list_head 
+*pagelist,
+  				unsigned long flags);
 
--static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
+-/* Scan through pages checking if pages follow certain conditions. */
+-static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
+-	pte_t *orig_pte;
 -	pte_t *pte;
 -	spinlock_t *ptl;
 -
--	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+-	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 -	do {
--		if (pte_present(*pte)) {
--			pte_t ptent;
+-		struct page *page;
+-		unsigned int nid;
 -
--			/* Avoid an SMP race with hardware updated 
-dirty/clean
--			 * bits by wiping the pte and then setting the new 
-pte
--			 * into place.
--			 */
--			ptent = pte_modify(ptep_get_and_clear(mm, addr, 
-pte), newprot);
--			set_pte_at(mm, addr, pte, ptent);
--			lazy_mmu_prot_update(ptent);
--		}
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
--}
--
--static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
+-		if (!pte_present(*pte))
 -			continue;
--		change_pte_range(mm, pmd, addr, next, newprot);
--	} while (pmd++, addr = next, addr != end);
--}
-+void change_prot_pte(struct mm_struct *mm, pte_t *pte,
-+	unsigned long address, pgprot_t newprot)
-
--static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
-  {
--	pud_t *pud;
--	unsigned long next;
-+	if (pte_present(*pte)) {
-+		pte_t ptent;
-
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
+-		page = vm_normal_page(vma, addr, *pte);
+-		if (!page)
 -			continue;
--		change_pmd_range(mm, pud, addr, next, newprot);
--	} while (pud++, addr = next, addr != end);
-+		/* Avoid an SMP race with hardware updated dirty/clean
-+		 * bits by wiping the pte and then setting the new pte
-+		 * into place.
-+		 */
-+		ptent = pte_modify(ptep_get_and_clear(mm, address, pte), 
-newprot);
-+		set_pte_at(mm, addr, pte, ptent);
-+		lazy_mmu_prot_update(ptent);
-+	}
-  }
-
-  static void change_protection(struct vm_area_struct *vma,
-  		unsigned long addr, unsigned long end, pgprot_t newprot)
-  {
--	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	unsigned long next;
-  	unsigned long start = addr;
-
-  	BUG_ON(addr >= end);
--	pgd = pgd_offset(mm, addr);
-+
-  	flush_cache_range(vma, addr, end);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		change_pud_range(mm, pgd, addr, next, newprot);
--	} while (pgd++, addr = next, addr != end);
-+	change_protection_read_iterator(vma, addr, end,
-+		newprot, change_prot_pte);
-  	flush_tlb_range(vma, start, end);
-  }
-
-Index: linux-rc5/mm/swapfile.c
-===================================================================
---- linux-rc5.orig/mm/swapfile.c	2006-05-28 20:26:48.811582864 
-+1000
-+++ linux-rc5/mm/swapfile.c	2006-05-28 20:27:53.707717152 +1000
-@@ -499,94 +499,9 @@
-  	activate_page(page);
-  }
-
--static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
--{
--	pte_t swp_pte = swp_entry_to_pte(entry);
--	pte_t *pte;
--	spinlock_t *ptl;
--	int found = 0;
--
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
 -		/*
--		 * swapoff spends a _lot_ of time in this loop!
--		 * Test inline before going to call unuse_pte.
+-		 * The check for PageReserved here is important to avoid
+-		 * handling zero pages and other pages that may have been
+-		 * marked special by the system.
+-		 *
+-		 * If the PageReserved would not be checked here then f.e.
+-		 * the location of the zero page could have an influence
+-		 * on MPOL_MF_STRICT, zero pages would be counted for
+-		 * the per node stats, and there would be useless attempts
+-		 * to put zero pages on the migration list.
 -		 */
--		if (unlikely(pte_same(*pte, swp_pte))) {
--			unuse_pte(vma, pte++, addr, entry, page);
--			found = 1;
+-		if (PageReserved(page))
+-			continue;
+-		nid = page_to_nid(page);
+-		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+-			continue;
+-
+-		if (flags & MPOL_MF_STATS)
+-			gather_stats(page, private, pte_dirty(*pte));
+-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+-			migrate_page_add(page, private, flags);
+-		else
 -			break;
--		}
 -	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
--	return found;
+-	pte_unmap_unlock(orig_pte, ptl);
+-	return addr != end;
 -}
-
--static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
+-
+-static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
 -	pmd_t *pmd;
 -	unsigned long next;
-
+-
 -	pmd = pmd_offset(pud, addr);
 -	do {
 -		next = pmd_addr_end(addr, end);
 -		if (pmd_none_or_clear_bad(pmd))
 -			continue;
--		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
--			return 1;
+-		if (check_pte_range(vma, pmd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pmd++, addr = next, addr != end);
 -	return 0;
 -}
 -
--static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
--{
+-static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
++int mempolicy_check_pte(struct vm_area_struct *vma, unsigned long addr,
++				pte_t *pte, const nodemask_t *nodes, 
+unsigned long flags,
++				void *private)
+  {
 -	pud_t *pud;
 -	unsigned long next;
++	struct page *page;
++	unsigned int nid;
 
 -	pud = pud_offset(pgd, addr);
 -	do {
 -		next = pud_addr_end(addr, end);
 -		if (pud_none_or_clear_bad(pud))
 -			continue;
--		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
--			return 1;
+-		if (check_pmd_range(vma, pud, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pud++, addr = next, addr != end);
 -	return 0;
 -}
--
--static int unuse_vma(struct vm_area_struct *vma,
--				swp_entry_t entry, struct page *page)
++	if (!pte_present(*pte))
++		return 0;
++	page = vm_normal_page(vma, addr, *pte);
++	if (!page)
++		return 0;
++	if (!page)
++			return 0;
++	/*
++	 * The check for PageReserved here is important to avoid
++	 * handling zero pages and other pages that may have been
++	 * marked special by the system.
++	 *
++	 * If the PageReserved would not be checked here then f.e.
++	 * the location of the zero page could have an influence
++	 * on MPOL_MF_STRICT, zero pages would be counted for
++	 * the per node stats, and there would be useless attempts
++	 * to put zero pages on the migration list.
++	 */
++	if (PageReserved(page))
++		return 0;
++	nid = page_to_nid(page);
++	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
++		return 0;
+
+-static inline int check_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
 -	pgd_t *pgd;
--	unsigned long addr, end, next;
--
--	if (page->mapping) {
--		addr = page_address_in_vma(page, vma);
--		if (addr == -EFAULT)
--			return 0;
--		else
--			end = addr + PAGE_SIZE;
--	} else {
--		addr = vma->vm_start;
--		end = vma->vm_end;
--	}
--
+-	unsigned long next;
++	if (flags & MPOL_MF_STATS)
++		gather_stats(page, private, pte_dirty(*pte));
++	else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++		migrate_page_add(page, private, flags);
++	else
++		return 1;
+
 -	pgd = pgd_offset(vma->vm_mm, addr);
 -	do {
 -		next = pgd_addr_end(addr, end);
 -		if (pgd_none_or_clear_bad(pgd))
 -			continue;
--		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
--			return 1;
+-		if (check_pud_range(vma, pgd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pgd++, addr = next, addr != end);
--	return 0;
--}
+  	return 0;
+  }
 
-  static int unuse_mm(struct mm_struct *mm,
-  				swp_entry_t entry, struct page *page)
+@@ -356,8 +290,8 @@
+  				endvma = end;
+  			if (vma->vm_start > start)
+  				start = vma->vm_start;
+-			err = check_pgd_range(vma, start, endvma, nodes,
+-						flags, private);
++			err = check_policy_read_iterator(vma, start, 
+endvma, nodes,
++						flags, private, 
+mempolicy_check_pte);
+  			if (err) {
+  				first = ERR_PTR(err);
+  				break;
+@@ -1833,8 +1767,8 @@
+  		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
+  		seq_printf(m, " huge");
+  	} else {
+-		check_pgd_range(vma, vma->vm_start, vma->vm_end,
+-				&node_online_map, MPOL_MF_STATS, md);
++		check_policy_read_iterator(vma, vma->vm_start, 
+vma->vm_end,
++				&node_online_map, MPOL_MF_STATS, md, 
+mempolicy_check_pte);
+  	}
+
+  	if (!md->pages)
+Index: linux-rc5/include/linux/default-pt.h
+===================================================================
+--- linux-rc5.orig/include/linux/default-pt.h	2006-05-28 
+20:30:09.238587312 +1000
++++ linux-rc5/include/linux/default-pt.h	2006-05-28 
+20:30:20.680281648 +1000
+@@ -3,6 +3,7 @@
+
+  #include <linux/swap.h>
+  #include <linux/swapops.h>
++#include <linux/rmap.h>
+
+  #include <asm/tlb.h>
+  #include <asm/pgalloc.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
