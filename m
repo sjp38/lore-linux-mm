@@ -1,10 +1,10 @@
 Received: From weill.orchestra.cse.unsw.EDU.AU ([129.94.242.49]) (ident-user root)
 	(for <linux-mm@kvack.org>) By tone With Smtp ;
-	Tue, 30 May 2006 17:31:43 +1000
+	Tue, 30 May 2006 17:33:22 +1000
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Tue, 30 May 2006 17:31:43 +1000 (EST)
-Subject: [Patch 11/17] PTI: Abstract vunmap read iterator
-Message-ID: <Pine.LNX.4.61.0605301730010.10816@weill.orchestra.cse.unsw.EDU.AU>
+Date: Tue, 30 May 2006 17:33:21 +1000 (EST)
+Subject: [Patch 12/17] PTI: Abstract msync build iterator
+Message-ID: <Pine.LNX.4.61.0605301731510.10816@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -12,169 +12,140 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Abstract the vunmap read iterator from vmalloc.c to
-  default-pt-read-iterators.h
+Abstract the msync iterator to default-pt-read-iterators.h
 
-  Put unmap_page_range in the read iterators file.
-
-  include/linux/default-pt-read-iterators.h |   62 ++++++++++++++++++++++
-  include/linux/default-pt.h                |    2
-  mm/memory.c                               |   84 
+  include/linux/default-pt-read-iterators.h |  162 
 ++++++++++++++++++++++++++++++
-  mm/vmalloc.c                              |   55 ++-----------------
-  4 files changed, 155 insertions(+), 48 deletions(-)
-Index: linux-rc5/include/linux/default-pt.h
-===================================================================
---- linux-rc5.orig/include/linux/default-pt.h	2006-05-28 
-19:21:07.728000400 +1000
-+++ linux-rc5/include/linux/default-pt.h	2006-05-28 
-19:21:12.138737536 +1000
-@@ -1,6 +1,7 @@
-  #ifndef _LINUX_DEFAULT_PT_H
-  #define _LINUX_DEFAULT_PT_H
-
-+#include <asm/tlb.h>
-  #include <asm/pgalloc.h>
-  #include <asm/pgtable.h>
-
-@@ -171,6 +172,7 @@
-
-  #include <linux/pt-common.h>
-  #include <linux/default-pt-dual-iterators.h>
-+#include <linux/default-pt-read-iterators.h>
-
-  #endif
-
-Index: linux-rc5/mm/memory.c
-===================================================================
---- linux-rc5.orig/mm/memory.c	2006-05-28 19:21:07.747016512 +1000
-+++ linux-rc5/mm/memory.c	2006-05-28 19:21:10.177075456 +1000
-@@ -273,6 +273,90 @@
-  	return 0;
-  }
-
-+static void zap_pte(pte_t *pte, struct mm_struct *mm, unsigned long addr,
-+		struct vm_area_struct *vma, long *zap_work, struct 
-zap_details *details,
-+		struct mmu_gather *tlb, int *anon_rss, int* file_rss)
-+{
-+	pte_t ptent = *pte;
-+	if (pte_none(ptent)) {
-+		(*zap_work)--;
-+		return;
-+	}
-+
-+	(*zap_work) -= PAGE_SIZE;
-+
-+	if (pte_present(ptent)) {
-+		struct page *page;
-+
-+		page = vm_normal_page(vma, addr, ptent);
-+		if (unlikely(details) && page) {
-+			/*
-+			 * unmap_shared_mapping_pages() wants to
-+			 * invalidate cache without truncating:
-+			 * unmap shared but keep private pages.
-+			 */
-+			if (details->check_mapping &&
-+				details->check_mapping != page->mapping)
-+				return;
-+			/*
-+			 * Each page->index must be checked when
-+			 * invalidating or truncating nonlinear.
-+			 */
-+			if (details->nonlinear_vma &&
-+				(page->index < details->first_index ||
-+				 page->index > details->last_index))
-+				return;
-+		}
-+		ptent = ptep_get_and_clear_full(mm, addr, pte,
-+ 
-tlb->fullmm);
-+		tlb_remove_tlb_entry(tlb, pte, addr);
-+		if (unlikely(!page))
-+			return;
-+		if (unlikely(details) && details->nonlinear_vma
-+			&& linear_page_index(details->nonlinear_vma,
-+					addr) != page->index)
-+			set_pte_at(mm, addr, pte,
-+					pgoff_to_pte(page->index));
-+		if (PageAnon(page))
-+			anon_rss--;
-+		else {
-+			if (pte_dirty(ptent))
-+				set_page_dirty(page);
-+			if (pte_young(ptent))
-+				mark_page_accessed(page);
-+			file_rss--;
-+		}
-+		page_remove_rmap(page);
-+		tlb_remove_page(tlb, page);
-+		return;
-+	}
-+	/*
-+	 * If details->check_mapping, we leave swap entries;
-+	 * if details->nonlinear_vma, we leave file entries.
-+	 */
-+	if (unlikely(details))
-+		return;
-+	if (!pte_file(ptent))
-+		free_swap_and_cache(pte_to_swp_entry(ptent));
-+	pte_clear_full(mm, addr, pte, tlb->fullmm);
-+}
-+
-+static unsigned long unmap_page_range(struct mmu_gather *tlb,
-+		struct vm_area_struct *vma, unsigned long addr, unsigned 
-long end,
-+		long *zap_work, struct zap_details *details)
-+{
-+	if (details && !details->check_mapping && !details->nonlinear_vma)
-+		details = NULL;
-+
-+	BUG_ON(addr >= end);
-+	tlb_start_vma(tlb, vma);
-+	addr = unmap_page_range_iterator(tlb, vma, addr, end, zap_work,
-+ 
-details, zap_pte);
-+	tlb_end_vma(tlb, vma);
-+
-+	return addr;
-+}
-+
-  #ifdef CONFIG_PREEMPT
-  # define ZAP_BLOCK_SIZE	(8 * PAGE_SIZE)
-  #else
+  mm/msync.c                                |   99 +++---------------
+  2 files changed, 180 insertions(+), 81 deletions(-)
 Index: linux-rc5/include/linux/default-pt-read-iterators.h
 ===================================================================
 --- linux-rc5.orig/include/linux/default-pt-read-iterators.h	2006-05-28 
-19:21:07.745014816 +1000
+20:24:53.251150720 +1000
 +++ linux-rc5/include/linux/default-pt-read-iterators.h	2006-05-28 
-19:21:12.660179344 +1000
-@@ -100,4 +100,66 @@
-  	return addr;
+20:25:15.227809760 +1000
+@@ -162,4 +162,166 @@
+  	} while (pgd++, addr = next, addr != end);
   }
 
 +/*
-+ * vunmap_read_iterator: Called in vmalloc.c
++ * msync_read_iterator: Called in msync.c
 + */
 +
-+typedef void (*vunmap_callback_t)(pte_t *, unsigned long);
++typedef int (*msync_callback_t)(pte_t *pte, unsigned long address,
++				struct vm_area_struct *vma, unsigned long 
+*ret);
 +
-+static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned 
-long end,
-+						vunmap_callback_t func )
++static inline unsigned long msync_pte_range(struct vm_area_struct *vma,
++				pmd_t *pmd, unsigned long addr,
++				unsigned long end, msync_callback_t func)
 +{
 +	pte_t *pte;
++	spinlock_t *ptl;
++	int progress = 0;
++	unsigned long ret = 0;
 +
-+	pte = pte_offset_kernel(pmd, addr);
++again:
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 +	do {
-+		func(pte, addr);
++		if (progress >= 64) {
++			progress = 0;
++			if (need_resched() || need_lockbreak(ptl))
++				break;
++		}
++		progress++;
++		if(!func(pte, addr, vma, &ret))
++			continue;
++		progress += 3;
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
++	pte_unmap_unlock(pte - 1, ptl);
++	cond_resched();
++	if (addr != end)
++		goto again;
++	return ret;
 +}
 +
-+static inline void vunmap_pmd_range(pud_t *pud, unsigned long addr,
-+						unsigned long end, 
-vunmap_callback_t func)
++static inline unsigned long msync_pmd_range(struct vm_area_struct *vma,
++			pud_t *pud, unsigned long addr,
++			unsigned long end, msync_callback_t func)
++{
++	pmd_t *pmd;
++	unsigned long next;
++	unsigned long ret = 0;
++
++	pmd = pmd_offset(pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(pmd))
++			continue;
++		ret += msync_pte_range(vma, pmd, addr, next, func);
++	} while (pmd++, addr = next, addr != end);
++	return ret;
++}
++
++static inline unsigned long msync_pud_range(struct vm_area_struct *vma,
++			pgd_t *pgd, unsigned long addr,
++			unsigned long end, msync_callback_t func)
++{
++	pud_t *pud;
++	unsigned long next;
++	unsigned long ret = 0;
++
++	pud = pud_offset(pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(pud))
++			continue;
++		ret += msync_pmd_range(vma, pud, addr, next, func);
++	} while (pud++, addr = next, addr != end);
++	return ret;
++}
++
++static inline unsigned long msync_read_iterator(struct vm_area_struct 
+*vma,
++				unsigned long addr, unsigned long end, 
+msync_callback_t func)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	pgd_t *pgd;
++	unsigned long next;
++	unsigned long ret=0;
++
++	pgd = pgd_offset(mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd)) {
++			continue;
++		}
++		ret += msync_pud_range(vma, pgd, addr, next, func);
++	} while (pgd++, addr = next, addr != end);
++	return ret;
++}
++
++/*
++ * change_protection_read_iterator: Called in mprotect.c
++ */
++
++typedef void (*change_prot_callback_t) (struct mm_struct *mm, pte_t *pte,
++	unsigned long address, pgprot_t newprot);
++
++static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
++		unsigned long addr, unsigned long end, pgprot_t newprot,
++		change_prot_callback_t func)
++{
++	pte_t *pte;
++	spinlock_t *ptl;
++
++	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	do {
++		func(mm, pte, addr, newprot);
++	} while (pte++, addr += PAGE_SIZE, addr != end);
++	pte_unmap_unlock(pte - 1, ptl);
++}
++
++static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
++		unsigned long addr, unsigned long end, pgprot_t newprot,
++		change_prot_callback_t func)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
@@ -184,13 +155,13 @@ vunmap_callback_t func)
 +		next = pmd_addr_end(addr, end);
 +		if (pmd_none_or_clear_bad(pmd))
 +			continue;
-+			vunmap_pte_range(pmd, addr, next, func);
++		change_pte_range(mm, pmd, addr, next, newprot, func);
 +	} while (pmd++, addr = next, addr != end);
 +}
 +
-+static inline void vunmap_pud_range(pgd_t *pgd, unsigned long addr,
-+						unsigned long end, 
-vunmap_callback_t func)
++static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
++		unsigned long addr, unsigned long end, pgprot_t newprot,
++		change_prot_callback_t func)
 +{
 +	pud_t *pud;
 +	unsigned long next;
@@ -200,109 +171,160 @@ vunmap_callback_t func)
 +		next = pud_addr_end(addr, end);
 +		if (pud_none_or_clear_bad(pud))
 +			continue;
-+		vunmap_pmd_range(pud, addr, next, func);
++		change_pmd_range(mm, pud, addr, next, newprot, func);
 +	} while (pud++, addr = next, addr != end);
 +}
 +
-+static inline void vunmap_read_iterator(unsigned long addr,
-+						unsigned long end, 
-vunmap_callback_t func)
++static inline void change_protection_read_iterator(struct vm_area_struct 
+*vma,
++	unsigned long addr, unsigned long end, pgprot_t newprot,
++	change_prot_callback_t func)
 +{
++	struct mm_struct *mm = vma->vm_mm;
 +	pgd_t *pgd;
 +	unsigned long next;
 +
-+	pgd = pgd_offset_k(addr);
++	pgd = pgd_offset(mm, addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
++		if (pgd_none_or_clear_bad(pgd)) {
 +			continue;
-+			vunmap_pud_range(pgd, addr, next, func);
++		}
++		change_pud_range(mm, pgd, addr, next, newprot, func);
 +	} while (pgd++, addr = next, addr != end);
 +}
 +
   #endif
-Index: linux-rc5/mm/vmalloc.c
+Index: linux-rc5/mm/msync.c
 ===================================================================
---- linux-rc5.orig/mm/vmalloc.c	2006-05-28 19:19:51.817221072 +1000
-+++ linux-rc5/mm/vmalloc.c	2006-05-28 19:21:10.880671600 +1000
-@@ -16,6 +16,8 @@
-  #include <linux/interrupt.h>
-
-  #include <linux/vmalloc.h>
+--- linux-rc5.orig/mm/msync.c	2006-05-28 20:24:53.252150568 +1000
++++ linux-rc5/mm/msync.c	2006-05-28 20:25:15.228809608 +1000
+@@ -16,89 +16,33 @@
+  #include <linux/writeback.h>
+  #include <linux/file.h>
+  #include <linux/syscalls.h>
 +#include <linux/rmap.h>
 +#include <linux/default-pt.h>
 
-  #include <asm/uaccess.h>
+  #include <asm/pgtable.h>
   #include <asm/tlbflush.h>
-@@ -24,63 +26,20 @@
-  DEFINE_RWLOCK(vmlist_lock);
-  struct vm_struct *vmlist;
 
--static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned 
-long end)
-+static void vunmap_pte(pte_t *pte, unsigned long address)
-  {
+-static unsigned long msync_pte_range(struct vm_area_struct *vma, pmd_t 
+*pmd,
+-				unsigned long addr, unsigned long end)
+-{
 -	pte_t *pte;
+-	spinlock_t *ptl;
+-	int progress = 0;
+-	unsigned long ret = 0;
 -
--	pte = pte_offset_kernel(pmd, addr);
+-again:
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 -	do {
--		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
--		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+-		struct page *page;
+-
+-		if (progress >= 64) {
+-			progress = 0;
+-			if (need_resched() || need_lockbreak(ptl))
+-				break;
+-		}
+-		progress++;
+-		if (!pte_present(*pte))
+-			continue;
+-		if (!pte_maybe_dirty(*pte))
+-			continue;
+-		page = vm_normal_page(vma, addr, *pte);
+-		if (!page)
+-			continue;
+-		if (ptep_clear_flush_dirty(vma, addr, pte) ||
+-				page_test_and_clear_dirty(page))
+-			ret += set_page_dirty(page);
+-		progress += 3;
 -	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(pte - 1, ptl);
+-	cond_resched();
+-	if (addr != end)
+-		goto again;
+-	return ret;
 -}
 -
--static inline void vunmap_pmd_range(pud_t *pud, unsigned long addr,
--						unsigned long end)
+-static inline unsigned long msync_pmd_range(struct vm_area_struct *vma,
+-			pud_t *pud, unsigned long addr, unsigned long end)
 -{
 -	pmd_t *pmd;
 -	unsigned long next;
+-	unsigned long ret = 0;
 -
 -	pmd = pmd_offset(pud, addr);
 -	do {
 -		next = pmd_addr_end(addr, end);
 -		if (pmd_none_or_clear_bad(pmd))
 -			continue;
--		vunmap_pte_range(pmd, addr, next);
+-		ret += msync_pte_range(vma, pmd, addr, next);
 -	} while (pmd++, addr = next, addr != end);
+-	return ret;
 -}
 -
--static inline void vunmap_pud_range(pgd_t *pgd, unsigned long addr,
--						unsigned long end)
--{
+-static inline unsigned long msync_pud_range(struct vm_area_struct *vma,
+-			pgd_t *pgd, unsigned long addr, unsigned long end)
++static int msync_pte(pte_t *pte, unsigned long address,
++				struct vm_area_struct *vma, unsigned long 
+*ret)
+  {
 -	pud_t *pud;
 -	unsigned long next;
+-	unsigned long ret = 0;
 -
 -	pud = pud_offset(pgd, addr);
 -	do {
 -		next = pud_addr_end(addr, end);
 -		if (pud_none_or_clear_bad(pud))
 -			continue;
--		vunmap_pmd_range(pud, addr, next);
+-		ret += msync_pmd_range(vma, pud, addr, next);
 -	} while (pud++, addr = next, addr != end);
-+	pte_t ptent = ptep_get_and_clear(&init_mm, address, pte);
-+	WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+-	return ret;
++	struct page *page;
++
++	if (!pte_present(*pte))
++		return 0;
++	if (!pte_maybe_dirty(*pte))
++		return 0;
++	page = vm_normal_page(vma, address, *pte);
++	if (!page)
++		return 0;
++	if (ptep_clear_flush_dirty(vma, address, pte) ||
++		page_test_and_clear_dirty(page))
++		 *ret += set_page_dirty(page);
++	return 1;
   }
 
-  void unmap_vm_area(struct vm_struct *area)
+  static unsigned long msync_page_range(struct vm_area_struct *vma,
+  				unsigned long addr, unsigned long end)
   {
 -	pgd_t *pgd;
 -	unsigned long next;
-  	unsigned long addr = (unsigned long) area->addr;
-  	unsigned long end = addr + area->size;
+-	unsigned long ret = 0;
+-
+  	/* For hugepages we can't go walking the page table normally,
+  	 * but that's ok, hugetlbfs is memory based, so we don't need
+  	 * to do anything more on an msync().
+@@ -107,15 +51,8 @@
+  		return 0;
 
   	BUG_ON(addr >= end);
--	pgd = pgd_offset_k(addr);
--	flush_cache_vunmap(addr, end);
+-	pgd = pgd_offset(vma->vm_mm, addr);
+  	flush_cache_range(vma, addr, end);
 -	do {
 -		next = pgd_addr_end(addr, end);
 -		if (pgd_none_or_clear_bad(pgd))
 -			continue;
--		vunmap_pud_range(pgd, addr, next);
+-		ret += msync_pud_range(vma, pgd, addr, next);
 -	} while (pgd++, addr = next, addr != end);
-+	flush_cache_vunmap(addr, end);
-+	vunmap_read_iterator(addr, end, vunmap_pte);
-  	flush_tlb_kernel_range((unsigned long) area->addr, end);
+-	return ret;
++	return msync_read_iterator(vma, addr, end, msync_pte);
   }
+
+  /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
