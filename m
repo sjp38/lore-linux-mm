@@ -1,33 +1,111 @@
-Date: Wed, 31 May 2006 04:24:31 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
-In-Reply-To: <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.64.0605310412530.5488@blonde.wat.veritas.com>
-References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
- <yq0irnot028.fsf@jaguar.mkp.net> <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU>
- <447C055A.9070906@sgi.com> <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU>
+From: Neil Brown <neilb@suse.de>
+Date: Wed, 31 May 2006 14:34:38 +1000
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <17533.7390.445811.302516@cse.unsw.edu.au>
+Subject: Re: [rfc][patch] remove racy sync_page?
+In-Reply-To: message from Nick Piggin on Tuesday May 30
+References: <447AC011.8050708@yahoo.com.au>
+	<20060529121556.349863b8.akpm@osdl.org>
+	<447B8CE6.5000208@yahoo.com.au>
+	<20060529183201.0e8173bc.akpm@osdl.org>
+	<447BB3FD.1070707@yahoo.com.au>
+	<Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
+	<447BD31E.7000503@yahoo.com.au>
+	<447BD63D.2080900@yahoo.com.au>
+	<17531.57913.151520.946557@cse.unsw.edu.au>
+	<447BEFCF.5000406@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Cc: Jes Sorensen <jes@sgi.com>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 May 2006, Paul Cameron Davies wrote:
+On Tuesday May 30, nickpiggin@yahoo.com.au wrote:
+> Neil Brown wrote:
+> > On Tuesday May 30, nickpiggin@yahoo.com.au wrote:
+> > 
+> > As for your original problem.... I wonder if PG_locked is protecting
+> > too much?  It protects against IO and it also protects against ->mapping
+> > changes.  So if you want to ensure that ->mapping won't change, you
+> > need to wait for any pending read request to finish, which seems a bit
+> > dumb.
 > 
-> What level of degradation in peformance in acceptable (if any)?
+> I don't think that is the problem. set_page_dirty_lock is really
+> unlikely to get held up on read IO: that'd mean there were two things
+> writing into that page at the same time.
 
-None.  What is the point in slowing it down, even on the architecture
-you are targeting, while making it all more complicated, moving
-significant code around from the .cs where we expect it into .hs?
+That's exactly my point - though I expand a bit more further down.
+i.e. set_page_dirty_lock is unlikely to get held up on a read IO, however
+it has to call into lock_page, and lock_page has no idea that it cannot be
+waiting for IO, and so it has to call sync_page just in case.
 
-And please, next time, make sure the patches can actually be applied:
-your mailer (pine) messed with the whitespace - quell-flowed-text is,
-I think, the feature you need to add, but mail yourself the patches
-first as a test to make sure they can be applied by recipients.
+> 
+>  >
+> > Maybe we need a new bit: PG_maplocked.  You are only allowed to change
+> > ->mapping or ->index of you hold PG_locked and PG_maplocked, you are
+> > not allowed to wait for PG_locked while holding PG_maplocked, and
+> > you can read ->mapping or ->index while PG_locked or PG_maplocked are
+> > held.
+> > Think of PG_locked like a mutex and PG_maplocked like a spinlock (and
+> > probably use bit_spinlock to get it).
+> 
+> Well the original problem is fixed by not doing the sync_page thing in
+> set_page_dirty_lock. Is there any advantage to having another bit?
+> Considering a) it will be very unlikely that a page is locked at the
+> same time one would like to dirty it; and b) that would seem to imply
+> adding extra atomic ops and barriers to reclaim and truncate (maybe
+> others).
 
-Hugh
+While I agree that avoiding the sync_page in this particular case is
+likely to solve the problem, it seems rather fragile.  Sometimes you
+need to call ->sync_page when waiting for a lock, sometimes you
+don't.  Why the difference?  Because there really are two different
+locks here masquerading as one.
+
+Yes there would be extra atomic ops at reclaim and truncate.  Is that
+a problem? I have no idea, but you sometimes need to break eggs to fix
+an omelette.  I suspect the extra bit would be very lightly
+contended.
+
+
+> 
+> > 
+> > Then set_page_dirty_lock would use PG_maplocked to get access to
+> > ->mapping, and then hold a reference on the address_space while
+> > calling into balance_dirty_pages ... I wonder how you hold a reference
+> > on an address space...
+> 
+> inode. Presumably PG_maplocked would pin it? I don't understand
+> why you've brought balance_dirty_pages into it, though.
+> 
+
+hmmmm.... no idea, sorry.
+I was trying to trace through set_page_dirty to see if it was safe to
+call it under a spinlock (or a bit_spinlock in this case).  I must
+have taken a wrong turn somewhere...
+
+> > 
+> > There are presumably few pieces of code that change ->mapping.  Once
+> > they all take PG_maplocked as well as PG_locked, you can start freeing
+> > up other code to take PG_maplocked instead of PG_locked....
+> > 
+> > Does that make sense at all?  Do we have any spare page bits?
+> 
+> I'm sure it could be made to work, but I don't really see the point.
+> If someone really wanted to do it, I guess the right way to go is have
+> a PG_readin counterpart to PG_writeback (or even extend PG_writeback
+> to PG_io)...
+
+Yes, PG_readin or PG_io would be better names, but might be hard to
+have a graceful transition to that sort of naming.
+
+And the point is that once you separated that function from PG_locked,
+lock_page would not need to wait for IO, and so would not need to call
+sync_page, and so your problem would evaporate.
+
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
