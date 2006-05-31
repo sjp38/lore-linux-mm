@@ -1,67 +1,44 @@
-Message-ID: <447DA010.1070005@yahoo.com.au>
-Date: Wed, 31 May 2006 23:54:24 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Wed, 31 May 2006 15:30:42 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [rfc][patch] remove racy sync_page?
-References: <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au> <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447D9A41.8040601@yahoo.com.au> <20060531134125.GQ29535@suse.de>
-In-Reply-To: <20060531134125.GQ29535@suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.64.0605310335180.4441@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0605311517340.24204@blonde.wat.veritas.com>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
+ <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
+ <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
+ <447BD31E.7000503@yahoo.com.au> <447BD9CE.2020505@yahoo.com.au>
+ <Pine.LNX.4.64.0605301911480.10355@blonde.wat.veritas.com> <447CE1A3.60507@yahoo.com.au>
+ <Pine.LNX.4.64.0605310335180.4441@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Jens Axboe wrote:
-> On Wed, May 31 2006, Nick Piggin wrote:
+On Wed, 31 May 2006, Hugh Dickins wrote:
 > 
->>Now having a mechanism for a task to batch up requests might be a
->>good idea. Eg.
->>
->>plug();
->>submit reads
->>unplug();
->>wait for page
+> Yes, I had noticed yours is a different issue.  I'm saying that if we
+> can "fix" set_page_dirty_nolock not to sleep, then your issue is fixed
+> (as least as it affects set_page_dirty_lock, which is all your patch
+> is dealing with, and we hope all it needs to deal with).  Because your
+> issue is with the sync_page in the lock_page of set_page_dirty_nolock,
+> and it's that particular lock_page which I'm trying to be rid of.
 > 
-> 
-> How's this different from what we have now? The plugging will happen
-> implicitly, if we need to. If the queue is already running, chances are
-> that there are requests there so you won't get to your first read first
-> anyways.
-> 
-> The unplug(); wait_for_page(); is already required unless you want to
-> wait for the plugging to time out (unlikely, since you are now waiting
-> for io completion on one of them).
-> 
-> 
->>I'd think this would give us the benefits of corse grained (per-queue)
->>plugging and more (e.g. it works when the request queue isn't empty).
->>And it would be simpler because the unplug point is explicit and doesn't
->>need to be kicked by lock_page or wait_on_page
-> 
-> 
-> I kind of like having the implicit unplug, for several reasons. One is
-> that people forget to unplug. We had all sorts of hangs there in 2.4 and
-> earlier because of that. Making the plugging implicit should help that
-> though. The other is that I don't see what the explicit unplug gains
-> you. Once you start waiting for one of the pages submitted, that is
-> exactly the point where you want to unplug in the first place.
+> I now think it can be done: in cases where TestSetPageLocked finds
+> the page already locked, then I believe we can fall back to inode_lock
+> to stabilize.  But I do need to consider the possibilities some more.
 
-OK I wasn't aware it was explicit in 2.4 and earlier.
+No, I'm wrong, and have been all along in thinking set_page_dirty_lock
+could be done better avoiding the lock_page.  inode_lock gives the hint:
+it's not irq safe, nor is mapping->private_lock, and both may be taken
+by set_page_dirty.  The lock_page in set_page_dirty_lock was the obvious
+reason it couldn't be used at interrupt time, but not the only reason.
 
-Two upsides I see to explicit: firstly, it works on non-empty queues. Less
-of a problem perhaps, but only because it is statistically less likely to
-be the next submitted, so there will still be some improvement.
+So your lock_page_nosync does look the best way forward to me now.
 
-Second, for async work (aio, readahead, writeback, writeout for page reclaim),
-the point where you wait is probably not the best place to unplug.
-
-Also, it would allow lock_page to be untangled.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
