@@ -1,94 +1,98 @@
-Message-ID: <447CE43A.6030700@yahoo.com.au>
-Date: Wed, 31 May 2006 10:32:58 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Tue, 30 May 2006 17:56:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [rfc][patch] remove racy sync_page?
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <447CE43A.6030700@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
+ <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
+ <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
+ <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
+ <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Tue, 30 May 2006, Nick Piggin wrote:
-> 
->>For workloads where plugging helps (ie. lots of smaller, contiguous
->>requests going into the IO layer), the request pattern should be
->>pretty good without plugging these days, due to multiple page
->>readahead and writeback.
-> 
-> 
-> No.
-> 
-> That's fundamentally wrong.
-> 
-> The fact is, plugging is not about read-ahead and writeback. It's very 
-> fundamentally about the _boundaries_ between multiple requests, and in 
-> particular the time when the queue starts out empty so that we can build 
-> up things for devices that wand big requests, but even more so for devices 
-> where _seeking_ is very expensive.
-> 
-> Those boundaries haven't gone anywhere. The fact that we do read-ahead and 
-> write-back in chunks doesn't change anything: yes, we often have the "big 
-> requests" thing handled, but (a) not always and (b) upper layers 
-> fundamentally don't fix the seek issues.
 
-The requests can only get merged if contiguous requests from the upper
-layers come down, right?
-
-So in a random IO workload, plugging is unlikely to help at all. In a
-contiguous IO workload, mpage should take *some* of the burden off
-plugging. But OK, it turns out not always, I accept that.
-
-
-
+On Wed, 31 May 2006, Nick Piggin wrote:
 > 
-> I want to know that the block layer could - if we wanted to - do things 
-> like read-ahead for many distinct files, and for metadata. We don't 
-> currently do much of that yet, but the point is, plugging _allows_ us to. 
-> Exactly because it doesn't depend on upper layers feeding everything in 
-> one go.
-> 
-> Look at "sys_readahead()", and realize that it can be used to start IO for 
-> read ahead _across_many_small_files_. Last I tried it, it was hugely 
-> faster at populating the page cache than reading individual files (I used 
-> to do it with BK to bring everything into cache so that the regular ops 
-> would be fster - now git doesn't much need it).
-> 
-> And maybe it was just my imagination, but the disk seemed quieter too. It 
-> should be able to do better seek patterns at the beginning due to plugging 
-> (ie we won't start IO after the first file, but after the request queue 
-> fills up or something else needs to wait and we do an unplug event).
-> 
-> THAT is what plugging is good for. Our read-ahead does well for large 
-> requests, and that's important for some disk controllers in particular. 
-> But plugging is about avoiding startign the IO too early.
+> The requests can only get merged if contiguous requests from the upper
+> layers come down, right?
 
-Why would plugging help if the requests can't get merged, though?
+It has nothing to do with merging. It has to do with IO patterns.
 
-> 
-> Think about the TCP plugging (which is actually newer, but perhaps easier 
-> to explain): it's useful not for the big file case (just use large reads 
-> and writes), but for the "different sources" case - for handling the gap 
-> between a header and the actual file contents. Exactly because it plugs in 
-> _between_ events. 
+Seeking.
 
-TCP plugging is a bit different because there is no page cache between
-the application and the device; and it is stream based so everything can
-be merged (within a single socket).
+Seeking is damn expensive - much more so than command issue. People forget 
+that sometimes.
 
-The same high level concept I agree, but I never said the concept was
-wrong; just hoped that as a heuristic, the block plugging was no longer
-useful. I've been set straight about that though ;)
+If you can sort the requests so that you don't have to seek back and 
+forth, that's often a HUGE win. 
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Yes, the requests will still be small, and yes, the IO might happen in 4kB 
+chunks, but it happens a lot faster if you do it in a good elevator 
+ordering and if you hit the track cache than if you seek back and forth.
+
+And part of that is that you have to submit multiple requests when you 
+start, and allow the elevator to work on it.
+
+Now, of course, if you have tons of reqeusts already in flight, you don't 
+care (you already have lots of work for the elevator), but at least in 
+desktop loads the "starting from idle" case is pretty common. Getting just 
+a few requests to start up with is good.
+
+(Yes, tagged queueing makes it less of an issue, of course. I know, I 
+know. But I _think_ a lot of disks will start seeking for an incoming 
+command the moment they see it, just to get the best latency, rather than 
+wait a millisecond or two to see if they get another request. So even 
+with tagged queuing, the elevator can help, _especially_ for the initial 
+request).
+
+> Why would plugging help if the requests can't get merged, though?
+
+Why do you think we _have_ an elevator in the first place?
+
+And just how well do you think it works if you submit one entry at a time 
+(regardless of how _big_ it is) and start IO on it immediately? Vs trying 
+to get several IO's out there, so that we can say "do this one first".
+
+Sometimes I think harddisks have gotten too quiet - people no longer hear 
+it when access patters are horrible. But the big issue with plugging was 
+only partially about request coalescing, and was always about trying to 
+get the _order_ right when you start to actually submit the requests to 
+the hardware.
+
+And yes, I realize that modern disks do remapping, and that we will never 
+do a "perfect" job. But it's still true that the block number has _some_ 
+(fairly big, in fact) relationship to the actual disk layout, and that 
+avoiding seeking is a big deal.
+
+Rotational latency is often an even bigger issue, of course, but we can't 
+do much about that. We really can't estimate where the head is, like 
+people used to try to do three decades ago. _That_ time is long past, but 
+we can try to avoid long seeks, and it's still true that you can get 
+blocks that are _close_ faster (if only because they may end up being on 
+the same cylinder and not need a seek).
+
+Even better than "same cylinder" is sometimes "same cache block" - disks 
+often do track caching, and they aren't necessarily all that smart about 
+it, so even if you don't read one huge contiguous block, it's much better 
+to read an area _close_ to another than seek back and forth, because 
+you're more likely to hit the disks own track cache.
+
+And I know, disks aren't as sensitive to long seeks as they used to be (a 
+short seek is almost as expensive as a long one, and a lot of it is the 
+head settling time), but as another example - I think for CD-ROMs you can 
+still have things like the motor spinning faster or slower depending on 
+where the read head is, for example, meaning that short seeks are cheaper 
+than long ones.
+
+(Maybe constant angular velocity is what people use, though. I dunno).
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
