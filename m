@@ -1,51 +1,85 @@
-Date: Wed, 31 May 2006 10:42:07 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [stable] [PATCH 0/2] Zone boundary alignment fixes, default configuration
-Message-ID: <20060531174207.GA14841@kroah.com>
-References: <447173EF.9090000@shadowen.org> <exportbomb.1148291574@pinky> <20060531001322.GJ18769@moss.sous-sol.org> <447D80ED.7070403@yahoo.com.au> <447D8725.4060506@shadowen.org>
+Date: Wed, 31 May 2006 19:50:10 +0200
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: [rfc][patch] remove racy sync_page?
+Message-ID: <20060531175010.GW29535@suse.de>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <20060529201444.cd89e0d8.akpm@osdl.org> <20060530090549.GF4199@suse.de> <447D9D9C.1030602@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <447D8725.4060506@shadowen.org>
+In-Reply-To: <447D9D9C.1030602@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Chris Wright <chrisw@sous-sol.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 31, 2006 at 01:08:05PM +0100, Andy Whitcroft wrote:
-> Nick Piggin wrote:
-> > Chris Wright wrote:
-> > 
-> >> * Andy Whitcroft (apw@shadowen.org) wrote:
+On Wed, May 31 2006, Nick Piggin wrote:
+> Hi Jens,
+> Sorry, I don't think I gave you any reply to this...
+
+No worries :)
+
+> Jens Axboe wrote:
+> >On Mon, May 29 2006, Andrew Morton wrote:
+> >
 > >>
-> >>> I think a concensus is forming that the checks for merging across
-> >>> zones were removed from the buddy allocator without anyone noticing.
-> >>> So I propose that the configuration option UNALIGNED_ZONE_BOUNDARIES
-> >>> default to on, and those architectures which have been auditied
-> >>> for alignment may turn it off.
-> >>
-> >>
-> >>
-> >> So what's the final outcome here for -stable?  The only
-> >> relevant patch upstream appears to be Bob Picco's patch
-> > 
-> > 
-> > I think you need zone checks? [ ie. page_zone(page) == page_zone(buddy) ]
-> > I had assumed Andy was going to do a patch for that.
+> >>Mysterious question, that.  A few years ago I think Jens tried pulling
+> >>unplugging out, but some devices still want it (magneto-optical
+> >>storage iirc).  And I think we did try removing it, and it caused
+> >>hurt.
+> >
+> >
+> >I did, back when we had problems due to the blk_plug_lock being a global
+> >one. I first wanted to investigate if plugging still made a difference,
+> >otherwise we could've just ripped it out back than and the problem would
+> >be solved. But it did get us about a 10% boost on normal SCSI drives
+> >(don't think I tested MO drives at all), so it was fixed up.
 > 
-> The stack for the full optional check in -mm seems like a lot for a
-> stable patch.  I think for stable we should just add the check for
-> unconditionally, its very light weight and safe that way.  Am just
-> putting together a patch for that now.  Will respond to this email
-> shortly with that patch once its been through a few tests.
+> Interesting. I'd like to know where from. I wonder if my idea of a
+> process context plug/unplug would solve it...
 
-But one of the -stable rules is that it fixes a real problem that people
-are having, not just a theoretical one.  Does this classify as such?
+As far as I recall, just doing a simple diff between source directories
+on the same drive was a pretty good example of where the plugging gained
+you some. A little on the benchmarks as well, iirc. I would have _loved_
+to rip plugging out at that point, so while I may not remember the
+details yet, don't think I did that work if I could have avoided it :-)
 
-thanks,
+> >>>With splice, the mapping can change, so you can have the wrong
+> >>>sync_page callback run against the page.
+> >>
+> >>Oh.
+> >
+> >
+> >Maybe I'm being dense, but I don't see a problem there. You _should_
+> >call the new mapping sync page if it has been migrated.
+> 
+> But can some other thread calling lock_page first find the old mapping,
+> and then run its ->sync_page which finds the new mapping? While it may
+> not matter for anyone in-tree, it does break the API so it would be
+> better to either fix it or rip it out than be silently buggy.
 
-greg k-h
+It looks ok to me, you can inspect fs/splice.c:pipe_to_file() and see if
+you can spot anything.
+
+> >>>The ->pin() calls in pipe_to_file and pipe_to_sendpage?
+> >>
+> >>One for Jens...
+> >
+> >
+> >splice never incs/decs any inode related reference counts, so if it
+> >needs to then yes it's broken. Any references to kernel code that deals
+> >with that?
+> 
+> Most code in the VM that has an inode/mapping gets called from the VFS,
+> which already does its thing somehow (I guess something like the file
+> pins the dentry which pins the inode). An iget might solve it. Or you
+> could use the lock_page_nosync() if/when the patch goes in (although I
+> don't want that to spread too far just yet).
+
+I'll be sure to look over that, thanks!
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
