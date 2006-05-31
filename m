@@ -1,42 +1,37 @@
-Date: Wed, 31 May 2006 08:11:10 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: [rfc][patch] remove racy sync_page?
-Message-ID: <20060531061110.GB29535@suse.de>
-References: <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au> <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447CF252.7010704@rtr.ca>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <447CF252.7010704@rtr.ca>
+Message-ID: <447D80ED.7070403@yahoo.com.au>
+Date: Wed, 31 May 2006 21:41:33 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [stable] [PATCH 0/2] Zone boundary alignment fixes, default configuration
+References: <447173EF.9090000@shadowen.org> <exportbomb.1148291574@pinky> <20060531001322.GJ18769@moss.sous-sol.org>
+In-Reply-To: <20060531001322.GJ18769@moss.sous-sol.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Lord <lkml@rtr.ca>
-Cc: Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 30 2006, Mark Lord wrote:
-> Linus wrote:
-> >(Yes, tagged queueing makes it less of an issue, of course. I know,
+Chris Wright wrote:
+> * Andy Whitcroft (apw@shadowen.org) wrote:
 > 
-> My observations with (S)ATA tagged/native queuing, is that it doesn't make
-> nearly the difference under Linux that it does under other OSs.
-> Probably because our block layer is so good at ordering requests,
-> either from plugging or simply from clever disk scheduling.
+>>I think a concensus is forming that the checks for merging across
+>>zones were removed from the buddy allocator without anyone noticing.
+>>So I propose that the configuration option UNALIGNED_ZONE_BOUNDARIES
+>>default to on, and those architectures which have been auditied
+>>for alignment may turn it off.
+> 
+> 
+> So what's the final outcome here for -stable?  The only
+> relevant patch upstream appears to be Bob Picco's patch
 
-Hmm well, I have seen 30% performance increase for a random read work
-load with NCQ, I'd say that is pretty nice. And of course there's the
-whole write cache issue, with NCQ you _could_ get away with playing more
-safe and disabling write back caching.
-
-NCQ helps us with something we can never fix in software - the
-rotational latency. Ordering is only a small part of the picture.
-
-Plus I think that more recent drives have a better NCQ implementation,
-the first models I tried were pure and utter crap. Lets just say it
-didn't instill a lot of confidence in firmware engineers at various
-unnamed drive companies.
+I think you need zone checks? [ ie. page_zone(page) == page_zone(buddy) ]
+I had assumed Andy was going to do a patch for that.
 
 -- 
-Jens Axboe
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
