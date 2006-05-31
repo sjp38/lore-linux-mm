@@ -1,44 +1,55 @@
-Date: Wed, 31 May 2006 15:30:42 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Wed, 31 May 2006 07:43:50 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [rfc][patch] remove racy sync_page?
-In-Reply-To: <Pine.LNX.4.64.0605310335180.4441@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0605311517340.24204@blonde.wat.veritas.com>
+In-Reply-To: <447D9A41.8040601@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0605310740530.24646@g5.osdl.org>
 References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
  <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
  <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
- <447BD31E.7000503@yahoo.com.au> <447BD9CE.2020505@yahoo.com.au>
- <Pine.LNX.4.64.0605301911480.10355@blonde.wat.veritas.com> <447CE1A3.60507@yahoo.com.au>
- <Pine.LNX.4.64.0605310335180.4441@blonde.wat.veritas.com>
+ <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
+ <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au>
+ <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447D9A41.8040601@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, axboe@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 May 2006, Hugh Dickins wrote:
+
+On Wed, 31 May 2006, Nick Piggin wrote:
 > 
-> Yes, I had noticed yours is a different issue.  I'm saying that if we
-> can "fix" set_page_dirty_nolock not to sleep, then your issue is fixed
-> (as least as it affects set_page_dirty_lock, which is all your patch
-> is dealing with, and we hope all it needs to deal with).  Because your
-> issue is with the sync_page in the lock_page of set_page_dirty_nolock,
-> and it's that particular lock_page which I'm trying to be rid of.
+> Now having a mechanism for a task to batch up requests might be a
+> good idea. Eg.
 > 
-> I now think it can be done: in cases where TestSetPageLocked finds
-> the page already locked, then I believe we can fall back to inode_lock
-> to stabilize.  But I do need to consider the possibilities some more.
+> plug();
+> submit reads
+> unplug();
+> wait for page
 
-No, I'm wrong, and have been all along in thinking set_page_dirty_lock
-could be done better avoiding the lock_page.  inode_lock gives the hint:
-it's not irq safe, nor is mapping->private_lock, and both may be taken
-by set_page_dirty.  The lock_page in set_page_dirty_lock was the obvious
-reason it couldn't be used at interrupt time, but not the only reason.
+What do you think we're _talking_ about?
 
-So your lock_page_nosync does look the best way forward to me now.
+What do you think my example of sys_readahead() was all about?
 
-Hugh
+WE DO HAVE EXACTLY THAT MECHANISM. IT'S CALLED PLUGGING!
+
+> I'd think this would give us the benefits of corse grained (per-queue) 
+> plugging and more (e.g. it works when the request queue isn't empty). 
+> And it would be simpler because the unplug point is explicit and doesn't 
+> need to be kicked by lock_page or wait_on_page
+
+What do you think plugging IS?
+
+It's _exactly_ what you're talking about. And yes, we used to have 
+explicit unplugging (a long long long time ago), and IT SUCKED. People 
+would forget, but even more importantly, people would do it even when not 
+needed because they didn't have a good place to do it because the waiter 
+was in a totally different path.
+
+The reason it's kicked by wait_on_page() is that is when it's needed.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
