@@ -1,98 +1,59 @@
-Date: Tue, 30 May 2006 17:56:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [rfc][patch] remove racy sync_page?
-In-Reply-To: <447CE43A.6030700@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
- <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
- <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
- <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
- <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au>
+From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Date: Wed, 31 May 2006 11:17:11 +1000 (EST)
+Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
+In-Reply-To: <447C055A.9070906@sgi.com>
+Message-ID: <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU>
+References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU>
+ <yq0irnot028.fsf@jaguar.mkp.net> <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU>
+ <447C055A.9070906@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
+To: Jes Sorensen <jes@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Jes
 
-On Wed, 31 May 2006, Nick Piggin wrote:
-> 
-> The requests can only get merged if contiguous requests from the upper
-> layers come down, right?
+I concede that I am acutely aware that 3.5% is just too high,  but we know 
+which abstractions are causing the problems.
 
-It has nothing to do with merging. It has to do with IO patterns.
+We will hope to nail down some of these problems in the next few weeks
+and then feed again.
 
-Seeking.
+What level of degradation in peformance in acceptable (if any)?
 
-Seeking is damn expensive - much more so than command issue. People forget 
-that sometimes.
 
-If you can sort the requests so that you don't have to seek back and 
-forth, that's often a HUGE win. 
+Cheers
 
-Yes, the requests will still be small, and yes, the IO might happen in 4kB 
-chunks, but it happens a lot faster if you do it in a good elevator 
-ordering and if you hit the track cache than if you seek back and forth.
+Paul Davies
 
-And part of that is that you have to submit multiple requests when you 
-start, and allow the elevator to work on it.
+On Tue, 30 May 2006, Jes Sorensen wrote:
 
-Now, of course, if you have tons of reqeusts already in flight, you don't 
-care (you already have lots of work for the elevator), but at least in 
-desktop loads the "starting from idle" case is pretty common. Getting just 
-a few requests to start up with is good.
-
-(Yes, tagged queueing makes it less of an issue, of course. I know, I 
-know. But I _think_ a lot of disks will start seeking for an incoming 
-command the moment they see it, just to get the best latency, rather than 
-wait a millisecond or two to see if they get another request. So even 
-with tagged queuing, the elevator can help, _especially_ for the initial 
-request).
-
-> Why would plugging help if the requests can't get merged, though?
-
-Why do you think we _have_ an elevator in the first place?
-
-And just how well do you think it works if you submit one entry at a time 
-(regardless of how _big_ it is) and start IO on it immediately? Vs trying 
-to get several IO's out there, so that we can say "do this one first".
-
-Sometimes I think harddisks have gotten too quiet - people no longer hear 
-it when access patters are horrible. But the big issue with plugging was 
-only partially about request coalescing, and was always about trying to 
-get the _order_ right when you start to actually submit the requests to 
-the hardware.
-
-And yes, I realize that modern disks do remapping, and that we will never 
-do a "perfect" job. But it's still true that the block number has _some_ 
-(fairly big, in fact) relationship to the actual disk layout, and that 
-avoiding seeking is a big deal.
-
-Rotational latency is often an even bigger issue, of course, but we can't 
-do much about that. We really can't estimate where the head is, like 
-people used to try to do three decades ago. _That_ time is long past, but 
-we can try to avoid long seeks, and it's still true that you can get 
-blocks that are _close_ faster (if only because they may end up being on 
-the same cylinder and not need a seek).
-
-Even better than "same cylinder" is sometimes "same cache block" - disks 
-often do track caching, and they aren't necessarily all that smart about 
-it, so even if you don't read one huge contiguous block, it's much better 
-to read an area _close_ to another than seek back and forth, because 
-you're more likely to hit the disks own track cache.
-
-And I know, disks aren't as sensitive to long seeks as they used to be (a 
-short seek is almost as expensive as a long one, and a lot of it is the 
-head settling time), but as another example - I think for CD-ROMs you can 
-still have things like the motor spinning faster or slower depending on 
-where the read head is, for example, meaning that short seeks are cheaper 
-than long ones.
-
-(Maybe constant angular velocity is what people use, though. I dunno).
-
-		Linus
+> Paul Cameron Davies wrote:
+>> Hi Jes
+>>
+>> It is currently causing a degradation, but we are in the process
+>> of performance tuning.
+>>
+>> There is a small cost associated with the PTI at the moment.
+>
+> Hi Paul,
+>
+> Bugger! I was hoping it was the other way round :( 3.5% falls into the
+> bucket of pretty expensive in my book, so I'll cross my fingers that
+> you nail the source of it.
+>
+> Cheers,
+> Jes
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
