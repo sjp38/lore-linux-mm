@@ -1,33 +1,47 @@
-Message-ID: <447CF252.7010704@rtr.ca>
-Date: Tue, 30 May 2006 21:33:06 -0400
-From: Mark Lord <lkml@rtr.ca>
+Message-ID: <447CFEAA.5070206@yahoo.com.au>
+Date: Wed, 31 May 2006 12:25:46 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch] remove racy sync_page?
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au> <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
+Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
+References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU> <yq0irnot028.fsf@jaguar.mkp.net> <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU> <447C055A.9070906@sgi.com> <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU>
+In-Reply-To: <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
+To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Cc: Jes Sorensen <jes@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus wrote:
-> (Yes, tagged queueing makes it less of an issue, of course. I know,
+Paul Cameron Davies wrote:
 
-My observations with (S)ATA tagged/native queuing, is that it doesn't make
-nearly the difference under Linux that it does under other OSs.
-Probably because our block layer is so good at ordering requests,
-either from plugging or simply from clever disk scheduling.
+> Hi Jes
+>
+> I concede that I am acutely aware that 3.5% is just too high,  but we 
+> know which abstractions are causing the problems.
+>
+> We will hope to nail down some of these problems in the next few weeks
+> and then feed again.
+>
+> What level of degradation in peformance in acceptable (if any)?
 
-> I know. But I _think_ a lot of disks will start seeking for an incoming 
-> command the moment they see it, just to get the best latency, rather than 
-> wait a millisecond or two to see if they get another request. So even 
-> with tagged queuing, the elevator can help, _especially_ for the initial 
-> request).
 
-Yup.  Agreed!
+For upstream inclusion? negative degradation, I'd assume: you're adding
+significant complexity so there has to be some justification for it...
+
+And unless it is something pretty significant, I'd almost bet that Linus,
+if nobody else, will veto it. Our radix-tree v->p data structure is
+fairly clean, performant, etc. It matches the logical->physical radix
+tree data structure we use for pagecache as well.
+
+BTW. I reckon your performance problems are due to indirect function
+calls.
+
+Nick
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
