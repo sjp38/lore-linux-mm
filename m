@@ -1,45 +1,63 @@
-Message-ID: <447D8725.4060506@shadowen.org>
-Date: Wed, 31 May 2006 13:08:05 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Message-ID: <447D8C99.2080009@aitel.hist.no>
+Date: Wed, 31 May 2006 14:31:21 +0200
+From: Helge Hafting <helge.hafting@aitel.hist.no>
 MIME-Version: 1.0
-Subject: Re: [stable] [PATCH 0/2] Zone boundary alignment fixes, default configuration
-References: <447173EF.9090000@shadowen.org> <exportbomb.1148291574@pinky> <20060531001322.GJ18769@moss.sous-sol.org> <447D80ED.7070403@yahoo.com.au>
-In-Reply-To: <447D80ED.7070403@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [rfc][patch] remove racy sync_page?
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au> <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Chris Wright wrote:
-> 
->> * Andy Whitcroft (apw@shadowen.org) wrote:
->>
->>> I think a concensus is forming that the checks for merging across
->>> zones were removed from the buddy allocator without anyone noticing.
->>> So I propose that the configuration option UNALIGNED_ZONE_BOUNDARIES
->>> default to on, and those architectures which have been auditied
->>> for alignment may turn it off.
->>
->>
->>
->> So what's the final outcome here for -stable?  The only
->> relevant patch upstream appears to be Bob Picco's patch
-> 
-> 
-> I think you need zone checks? [ ie. page_zone(page) == page_zone(buddy) ]
-> I had assumed Andy was going to do a patch for that.
+Linus Torvalds wrote:
+> On Wed, 31 May 2006, Nick Piggin wrote:
+>   
+>> The requests can only get merged if contiguous requests from the upper
+>> layers come down, right?
+>>     
+>
+> It has nothing to do with merging. It has to do with IO patterns.
+>
+> Seeking.
+>
+> Seeking is damn expensive - much more so than command issue. People forget 
+> that sometimes.
+>
+> If you can sort the requests so that you don't have to seek back and 
+> forth, that's often a HUGE win. 
+>
+> Yes, the requests will still be small, and yes, the IO might happen in 4kB 
+> chunks, but it happens a lot faster if you do it in a good elevator 
+> ordering and if you hit the track cache than if you seek back and forth.
+>   
+This is correct, but doesn't really explain why plugging might be good.
 
-The stack for the full optional check in -mm seems like a lot for a
-stable patch.  I think for stable we should just add the check for
-unconditionally, its very light weight and safe that way.  Am just
-putting together a patch for that now.  Will respond to this email
-shortly with that patch once its been through a few tests.
+If requests go to disk immediately and the disk is able to keep
+up with the seeks, then plugging doesn't help. This is a low-bandwith
+case of course, but servicing each request immediately will
+keep the latency lower.  The fact that the disk gets busier doesn't
+matter unless you worry about power consumption for the access arm.
 
--apw
+If lots of requests come in and we don't do plugging, then
+lots of the requests will be nicely sorted while waiting for
+the first seek.  And when this sorted lot goes to disk, further
+requests will be sorted.  I.e. congestion itself can work as dynamic
+plugging, giving longer and longer sorted queues until the disk keeps
+up with us.
+
+This should get us  just enough sorting for the disk to keep up
+with the bandwidth we demand, and therefore minimal latency
+for that bandwith.
+
+This is theory, and perhaps it doesn't quite reflect reaility.
+I cannot see why it shouldn't, though - it'd be interesting
+to know if I missed something obvious here.
+
+Helge Hafting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
