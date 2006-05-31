@@ -1,85 +1,83 @@
-Message-ID: <447DAEDE.5070305@yahoo.com.au>
-Date: Thu, 01 Jun 2006 00:57:34 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Wed, 31 May 2006 08:09:04 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [rfc][patch] remove racy sync_page?
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org> <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au> <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au> <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447D9A41.8040601@yahoo.com.au> <Pine.LNX.4.64.0605310740530.24646@g5.osdl.org>
 In-Reply-To: <Pine.LNX.4.64.0605310740530.24646@g5.osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.64.0605310755210.24646@g5.osdl.org>
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
+ <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
+ <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
+ <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
+ <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au>
+ <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447D9A41.8040601@yahoo.com.au>
+ <Pine.LNX.4.64.0605310740530.24646@g5.osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Wed, 31 May 2006, Nick Piggin wrote:
-> 
->>Now having a mechanism for a task to batch up requests might be a
->>good idea. Eg.
->>
->>plug();
->>submit reads
->>unplug();
->>wait for page
-> 
-> 
-> What do you think we're _talking_ about?
 
-Plugging. Emphasis on task.
-
-> 
-> What do you think my example of sys_readahead() was all about?
-> 
-> WE DO HAVE EXACTLY THAT MECHANISM. IT'S CALLED PLUGGING!
-
-It isn't exactly that. I'm thinking per-task rather than per-queue might
-be a better idea because a) you don't know what else is putting requests
-on the queue, and b) the point where you wait is not always the best place
-to unplug.
-
-> 
-> 
->>I'd think this would give us the benefits of corse grained (per-queue) 
->>plugging and more (e.g. it works when the request queue isn't empty). 
->>And it would be simpler because the unplug point is explicit and doesn't 
->>need to be kicked by lock_page or wait_on_page
-> 
-> 
-> What do you think plugging IS?
-> 
-> It's _exactly_ what you're talking about.
-
-Yes, and I'm talking about per-task vs per-queue plugging (because I want
-to get rid of the implicit unplug, because I want to make lock_page & co
-nicer).
-
-> And yes, we used to have 
-> explicit unplugging (a long long long time ago), and IT SUCKED. People 
-> would forget, but even more importantly, people would do it even when not 
-
-I don't see what the problem is. Locks also suck if you forget to unlock
-them.
-
-> needed because they didn't have a good place to do it because the waiter 
-> was in a totally different path.
-
-Example?
-
+On Wed, 31 May 2006, Linus Torvalds wrote:
 > 
 > The reason it's kicked by wait_on_page() is that is when it's needed.
 
-Yes, you already said that, and I showed cases where that isn't optimal.
+Btw, that's not how it has always been done.
 
-I don't know why you think this way of doing plugging is fundamentally
-right and anything else must be wrong... it is always heuristic, isn't
-it?
+For the longest time, it was actually triggered by scheduler activity, in 
+particular, plugging used to be a workqueue event that was triggered by 
+the scheduler (or any explicit points when you wanted it to be triggered 
+earlier).
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+So whenever you scheduled, _all_ plugs would be unplugged.
+
+It was specialized to wait_for_page() in order to avoid unnecessary 
+overhead in scheduling (making it more directed), and to allow you to 
+leave the request around for further merging/sorting even if a process had 
+to wait for something unrelated.
+
+But in particular, the old non-directed unplug didn't work well in SMP 
+environments (because _one_ CPU re-scheduling obviously doesn't mean 
+anything for the _other_ CPU that is actually working on setting up the 
+request queue).
+
+The point being that we could certainly do it somewhere else. Doing it in 
+wait_for_page() (and at least historically, in waiting for bh's) is really 
+nothing more than trying to have as few points as possible where it's 
+done, and at the same time not missing any.
+
+And yes, I'd _love_ to have better interfaces to let people take advantage 
+of this than sys_readahead(). sys_readahead() was a 5-minute hack that 
+actually does generate wonderful IO patterns, but it is also not all that 
+useful (too specialized, and non-portable).
+
+I tried at one point to make us do directory inode read-ahead (ie put the 
+inodes on a read-ahead queue when doing a directory listing), but that 
+failed miserably. All the low-level filesystems are very much designed to 
+have inode reading be synchronous, and it would have implied major surgery 
+to do (and, sadly, my preliminary numbers also seemed to say that it might 
+be a huge time waster, with enough users just wanting the filenames and 
+not the inodes).
+
+The thing is, right now we have very bad IO patterns for things that 
+traverse whole directory trees (like doign a "tar" or a "diff" of a tree 
+that is cold in the cache) because we have way too many serialization 
+points. We do a good job of prefetching within a file, but if you have 
+source trees etc, the median size for files is often smaller than a single 
+page, so the prefetching ends up being a non-issue most of the time, and 
+we do _zero_ prefetching between files ;/
+
+Now, the reason we don't do it is that it seems to be damn hard to do. No 
+question about that. Especially since it's only worth doing (obviously) on 
+the cold-cache case, and that's also when we likely have very little 
+information about what the access patterns might be.. Oh, well.
+
+Even with sys_readahead(), my simple "pre-read a whole tree" often ended 
+up waiting for inode IO (although at least the fact that several inodes 
+fit in one block gets _some_ of that).
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
