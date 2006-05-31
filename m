@@ -1,69 +1,46 @@
-Date: Wed, 31 May 2006 08:13:41 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [rfc][patch] remove racy sync_page?
-In-Reply-To: <447DAEDE.5070305@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0605310809250.24646@g5.osdl.org>
-References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org>
- <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org>
- <447BB3FD.1070707@yahoo.com.au> <Pine.LNX.4.64.0605292117310.5623@g5.osdl.org>
- <447BD31E.7000503@yahoo.com.au> <447BD63D.2080900@yahoo.com.au>
- <Pine.LNX.4.64.0605301041200.5623@g5.osdl.org> <447CE43A.6030700@yahoo.com.au>
- <Pine.LNX.4.64.0605301739030.24646@g5.osdl.org> <447D9A41.8040601@yahoo.com.au>
- <Pine.LNX.4.64.0605310740530.24646@g5.osdl.org> <447DAEDE.5070305@yahoo.com.au>
+Message-ID: <447DB4AB.9090008@yahoo.com.au>
+Date: Thu, 01 Jun 2006 01:22:19 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc][patch] remove racy sync_page?
+References: <447AC011.8050708@yahoo.com.au> <20060529121556.349863b8.akpm@osdl.org> <447B8CE6.5000208@yahoo.com.au> <20060529183201.0e8173bc.akpm@osdl.org> <447BB3FD.1070707@yahoo.com.au> <20060529201444.cd89e0d8.akpm@osdl.org> <20060530090549.GF4199@suse.de> <447D9D9C.1030602@yahoo.com.au> <Pine.LNX.4.64.0605311602020.26969@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0605311602020.26969@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com, axboe@suse.de
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jens Axboe <axboe@suse.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 1 Jun 2006, Nick Piggin wrote:
+Hugh Dickins wrote:
+> On Wed, 31 May 2006, Nick Piggin wrote:
 > 
-> > And yes, we used to have explicit unplugging (a long long long time ago),
-> > and IT SUCKED. People would forget, but even more importantly, people would
-> > do it even when not 
+>>Jens Axboe wrote:
+>>
+>>>Maybe I'm being dense, but I don't see a problem there. You _should_
+>>>call the new mapping sync page if it has been migrated.
+>>
+>>But can some other thread calling lock_page first find the old mapping,
+>>and then run its ->sync_page which finds the new mapping? While it may
+>>not matter for anyone in-tree, it does break the API so it would be
+>>better to either fix it or rip it out than be silently buggy.
 > 
-> I don't see what the problem is. Locks also suck if you forget to unlock
-> them.
-
-Locks are simple, and in fact are _made_ simple on purpose. We try very 
-hard to unlock in the same function that we lock, for example. Because if 
-we don't, bugs happen.
-
-That's simply not _practical_ for IO. Think about it. Quite often, the 
-waiting is done somewhere else than the actual submission.
-
-> > needed because they didn't have a good place to do it because the waiter was
-> > in a totally different path.
 > 
-> Example?
+> Splicing a page from one mapping to another is rather worrying/exciting,
+> but it does look safely done to me.  remove_mapping checks page_count
+> while page lock and old mapping->tree_lock are held, and gives up if
+> anyone else has an interest in the page.  And we already know it's
+> unsafe to lock_page without holding a reference to the page, don't we?
 
-Pretty much all of them.
+Oh, that's true. I had thought that splice allows stealing pages with
+an elevated refcount, which Jens was thinking about at one stage. But
+I see that code isn't in mainline. AFAIKS it would allow other
+->pin()ers to attempt to lock the page while it was being stolen.
 
-Where do you wait for IO?
-
-Would you perhaps say "wait_on_page()"?
-
-In other words, we really _do_ exactly what you think we should do.
-
-> I don't know why you think this way of doing plugging is fundamentally
-> right and anything else must be wrong... it is always heuristic, isn't
-> it?
-
-A _particular_ way of doing plugging is not "fundamentally right". I'm 
-perfectly happy with chaning the place we unplug, if people want that. 
-We've done it several times.
-
-But plugging as a _concept_ is definitely fundamentally right, exactly 
-because it allows us to have the notion of "plug + n*<random submit by 
-different paths> + unplug".
-
-And you were not suggesting moving unplugging around. You were suggesting 
-removing the feature. Which is when I said "no f*cking way!".
-
-		Linus
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
