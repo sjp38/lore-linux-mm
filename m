@@ -1,76 +1,31 @@
-Date: Thu, 1 Jun 2006 20:04:05 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: NCQ performance (was Re: [rfc][patch] remove racy sync_page?)
-Message-ID: <20060601180405.GP4400@suse.de>
-References: <20060601131921.GH4400@suse.de> <447F0023.8090206@argo.co.il> <20060601150320.GO4400@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060601150320.GO4400@suse.de>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: ECC error correction - page isolation
+Date: Thu, 1 Jun 2006 11:06:16 -0700
+Message-ID: <069061BE1B26524C85EC01E0F5CC3CC30163E1F1@rigel.headquarters.spacedev.com>
+From: "Brian Lindahl" <Brian.Lindahl@SpaceDev.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@argo.co.il>
-Cc: Mark Lord <lkml@rtr.ca>, Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mason@suse.com, andrea@suse.de, hugh@veritas.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 01 2006, Jens Axboe wrote:
-> On Thu, Jun 01 2006, Avi Kivity wrote:
-> > Jens Axboe wrote:
-> > >
-> > >Ok, I decided to rerun a simple random read work load (with fio), using
-> > >depths 1 and 32. The test is simple - it does random reads all over the
-> > >drive size with 4kb block sizes. The reads are O_DIRECT. The test
-> > >pattern was set to repeatable, so it's going through the same workload.
-> > >The test spans the first 32G of the drive and runtime is capped at 20
-> > >seconds.
-> > >
-> > 
-> > Did you modify the iodepth given to the test program, or to the drive? 
-> > If the former, then some of the performance increase came from the Linux 
-> > elevator.
-> > 
-> > Ideally exactly the same test would be run with the just the drive 
-> > parameters changed.
-> 
-> Just from the program. Since the software depth matched the software
-> depth, I'd be surprised if it made much of a difference here.  I can
-> rerun the same test tomorrow with the drive depth modified the and
-> software depth fixed at 32. Then the io scheduler can at least help the
-> drive without NCQ out somewhat.
+We have a board that gives us access to ECC error counts and ECC error status (4 bits, each corresponding to a different error). A background process performs a scrub (read, rewrite) on individual raw memory pages to activate the ECC. When the error count changes (an error is detected), I'd like to be able to isolate the page, if unused. The pages are scrubbed as raw physical addresses (page numbers) via a ioctl command on /dev/mem. Is there a facility that will allow me to map this physical address range to a page entity in the kernel so that I can isolate it and mark it as unusable, or reboot if it's active? Is there a better way to do this (i.e. avoiding the mapping phase and interact directly with physical page entities in the kernel)? Where should I begin my journey into mm in the kernel? What structures, functions and globals should I be looking at?
 
-Same test, but with iodepth=48 for both ncq depth 1 and ncq depth 31.
-This gives the io scheduler something to work with for both cases.
+Going this deep in the kernel is pretty foreign to me, so any help would be appreciated. Thanks in advance!
 
-sda:    Maxtor 7B300S0
-sdb:    Maxtor 7L320S0
-sdc:    SAMSUNG HD160JJ
-sdd:    HDS725050KLA360 (Hitachi 500GB drive)
+Brian Lindahl 
+Embedded Software Engineer 
+858-375-2077 
+brian.lindahl@spacedev.com 
+SpaceDev, Inc. 
+"We Make Space Happen"
+ 
+ 
+This email message and any information or files contained within or attached to this message may be privileged, confidential, proprietary and protected from disclosure and is intended only for the person or entity to which it is addressed.  This email is considered a business record and is therefore property of the SpaceDev, Inc.  Any direct or indirect review, re-transmission, dissemination, forwarding, printing, use, disclosure, or copying of this message or any part thereof or other use of or any file attached to this message, or taking of any action in reliance upon this information by persons or entities other than the intended recipient is prohibited.  If you received this message in error, please immediately inform the sender by reply e-mail and delete the message and any attachments and all copies of it from your system and destroy any hard copies of it.  No confidentiality or privilege is waived or lost by any mis-transmission.  SpaceDev, Inc. is neither liable for proper, complete transmission or the information contained in this communication, nor any delay in its receipt or any virus contained therein.  No representation, warranty or undertaking (express or implied) is given and no responsibility or liability is accepted by SpaceDev, Inc., as to the accuracy or the information contained herein or for any loss or damage (be it direct, indirect, special or other consequential) arising from reliance on it.
 
-drive           depth           KiB/sec         diff    diff 1/1
-----------------------------------------------------------------
-sda              1/1            397
-sda              1              513             +29%
-sda             31              673             +31+    +69%
-
-sdb              1/1            397
-sdb              1              535             +35%
-sdb             31              741             +38%    +87%
-
-sdc              1/1            372
-sdc              1              449             +21%
-sdc             31              507             +13%    +36%
-
-sdd              1/1            489
-sdd              1              650             +33%
-sdd             31              941             +45%    +92%
-
-Conclusions: the io scheduler helps, NCQ help - both combined helps a
-lot. The Samsung firmware looks bad. Additional requests in io scheduler
-when using NCQ doesn't help, except for the new firmware Maxtor.
-Suspect. NCQ still helps a lot, > 30% for all drives except the Samsung.
-
--- 
-Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
