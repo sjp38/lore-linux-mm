@@ -1,57 +1,28 @@
-Date: Fri, 2 Jun 2006 13:06:43 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] hugetlb: powerpc: Actively close unused htlb regions on
- vma close
-In-Reply-To: <1149257287.9693.6.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0606021301300.5492@schroedinger.engr.sgi.com>
-References: <1149257287.9693.6.camel@localhost.localdomain>
+From: "Eva" <crowlz2y@hotmail.com>
+Subject: check out this HYWI.PK Just published
+Date: Fri, 2 Jun 2006 22:11:57 -0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, linux-kernel@vger.kernel.org
+Content-Type: text/html;
+        charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20060602201137Z26619-1673+44@kvack.org>
+Return-Path: <crowlz2y@hotmail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Jun 2006, Adam Litke wrote:
-
-> The following patch introduces a architecture-specific vm_ops.close()
-> hook.  For all architectures besides powerpc, this is a no-op.  On
-> powerpc, the low and high segments are scanned to locate empty hugetlb
-> segments which can be made available for normal mappings.  Comments?
-
-IA64 has similar issues and uses the hook suggested by Hugh. However, we 
-have a permanently reserved memory area. I am a bit surprised about the 
-need to make address space available for normal mappings. Is this for 32 
-bit powerpc support?
-
-void hugetlb_free_pgd_range(struct mmu_gather **tlb,
-                        unsigned long addr, unsigned long end,
-                        unsigned long floor, unsigned long ceiling)
-{
-        /*
-         * This is called to free hugetlb page tables.
-         *
-         * The offset of these addresses from the base of the hugetlb
-         * region must be scaled down by HPAGE_SIZE/PAGE_SIZE so that
-         * the standard free_pgd_range will free the right page tables.
-         *
-         * If floor and ceiling are also in the hugetlb region, they
-         * must likewise be scaled down; but if outside, left unchanged.
-         */
-
-        addr = htlbpage_to_page(addr);
-        end  = htlbpage_to_page(end);
-        if (REGION_NUMBER(floor) == RGN_HPAGE)
-                floor = htlbpage_to_page(floor);
-        if (REGION_NUMBER(ceiling) == RGN_HPAGE)
-                ceiling = htlbpage_to_page(ceiling);
-
-        free_pgd_range(tlb, addr, end, floor, ceiling);
-}
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<html>
+<head>
+<title>You can make more money with insider information and stocck tips</title>
+</head><body bgcolor="#FFFFFF" text="#000000">
+<p>Top stoock tips from seasoned stockk analysts Climbing parameters of stocck booming and market growth<BR><BR><br>
+  Get HYWI.<span>P</span><i>K</i> First Thing Tomorrow, This sotck Going 
+  To Explode!<BR><BR><br>
+  Check out for Hot News!<BR><BR>Holl<strong>y</strong>woo<span>d</span> I<u>ntermediate, 
+  </u>Inc<strong>.</strong><BR><BR><BR><font size="4">Symbol: <strong>HY</strong><b>WI</b></font><BR><BR><BR>Don't 
+  forget to buy and earn on this stcok!</p>
+<p>Professional sttock advice that drives up the profits</p>
+<p>Read great new on this stcok<BR><BR><BR><BR><BR>____________________________<BR>There is no difference between a wise man and a fool when they fall in love You are never a loser till you quit trying 
+  The Devil rides upon a fiddlestick And why wilt thou, my son, be ravished with a strange woman, and embrace the bosom of a stranger? Manners maketh man Haste makes waste. <BR><BR>Any port in a storm A slip of the tongue is no fault of the mind and he who laughs is very unkind.<BR>Every dog has his day He who laughs last, thinks the slowest! If Fortune calls, offer him a seat  It is good to be knowledgeable, but better to be lovable <BR> 
+  In vino veritas  Better to be safe than.. punch a 5th grader. Every picture tells a story If oil ah float watah deh ah battam.	 Greedy folks have long arms  None so deaf as those who will not hear  Take care of the pennies and the pounds will take care of themselves </p>
+</body>
+</html>
