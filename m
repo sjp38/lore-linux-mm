@@ -1,52 +1,45 @@
-Message-ID: <447F94B3.7030807@yahoo.com.au>
-Date: Fri, 02 Jun 2006 11:30:27 +1000
+Message-ID: <447FAC32.9010606@yahoo.com.au>
+Date: Fri, 02 Jun 2006 13:10:42 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: ECC error correction - page isolation
-References: <069061BE1B26524C85EC01E0F5CC3CC30163E1F1@rigel.headquarters.spacedev.com> <200606020146.33703.ak@suse.de>
-In-Reply-To: <200606020146.33703.ak@suse.de>
+Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
+References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU> <yq0irnot028.fsf@jaguar.mkp.net> <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU> <447C055A.9070906@sgi.com> <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU> <447CFEAA.5070206@yahoo.com.au> <Pine.LNX.4.62.0606011313350.29379@weill.orchestra.cse.unsw.EDU.AU>
+In-Reply-To: <Pine.LNX.4.62.0606011313350.29379@weill.orchestra.cse.unsw.EDU.AU>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Brian Lindahl <Brian.Lindahl@spacedev.com>, linux-mm@kvack.org
+To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Cc: Jes Sorensen <jes@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
+Paul Cameron Davies wrote:
+> On Wed, 31 May 2006, Nick Piggin wrote:
 
-> If you get machine checks in normal accesses you have to bootstrap
-> yourself. This means it has to be handed off to a thread to be able
-> to take locks safely. For a scrubber that can be ignored. Doing 
-> it from arbitary context requires some tricks.
+>> And unless it is something pretty significant, I'd almost bet that Linus,
+>> if nobody else, will veto it. Our radix-tree v->p data structure is
+>> fairly clean, performant, etc. It matches the logical->physical radix
+>> tree data structure we use for pagecache as well.
 > 
-> Then you have to take a look at the struct page associated with
-> the address. If it's a rmap page (you'll need a 2.6 kernel) you
-> can walk the rmap chains to find the processes that have 
-> the page mapped. You can look at the PTEs and 
-> the page bits to see if it's dirty or not. For clean pages
-> the page can be just dropped. Otherwise you have
-> to kill the process (or send them a signal they could handle) 
 > 
-> There is no generic function to do the rmap walk right now, but it's not too 
-> hard. 
+> Being able to change the page table on a 64 bit machine will
+> be a huge advantage into the future when applications really start to
+> make use of the 64 bit address space.  The current trie (multi level
+> page table - MLPT) is not going to perform against more
+> sophisticated data structures in a sparsely occupied 64 bit address space
 
-Good summary. I'll just add a couple of things: in recent kernels
-we have a page migration facility which should be able to take care
-of moving process and pagecache pages for you, without walking rmap
-or killing the process (assuming you're talking about correctable
-ECC errors).
+OK, this is what I mean by better performing. It does not have to
+have *zero* performance regressions across the board, but simply
+something that tips the cost/benefit.
 
-This may not quite have the right in-kernel API for you use yet, but
-it shouldn't be difficult to add.
+That does imply that the framework itself would never get included,
+without something behind it that does perform better. Which I assume
+is your plan.
 
-> 
-> If it's kernel space there are several cases:
-> - Free page (count == 0). Easy: ignore it.
 
-Also, if you want to isolate the free page, you can allocate it,
-and tuck it away in a list somewhere (or just forget about it
-completely).
+The release early approach is a good one, so continue to post code
+and/or results on linux-mm. I do happen to think you'll have a pretty
+hard time getting this in at all, but good luck to you ;)
 
 -- 
 SUSE Labs, Novell Inc.
