@@ -1,76 +1,145 @@
-Message-ID: <447FAD6F.8010306@yahoo.com.au>
-Date: Fri, 02 Jun 2006 13:15:59 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: ECC error correction - page isolation
-References: <069061BE1B26524C85EC01E0F5CC3CC30163E1F1@rigel.headquarters.spacedev.com> <200606020146.33703.ak@suse.de> <447F94B3.7030807@yahoo.com.au> <200606020510.49877.ak@suse.de>
-In-Reply-To: <200606020510.49877.ak@suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k52E8SqN010040
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 10:08:28 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k52E8Sqs024852
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 10:08:28 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k52E8SjC021838
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 10:08:28 -0400
+Subject: [PATCH] hugetlb: powerpc: Actively close unused htlb regions on
+	vma close
+From: Adam Litke <agl@us.ibm.com>
+Content-Type: text/plain
+Date: Fri, 02 Jun 2006 09:08:06 -0500
+Message-Id: <1149257287.9693.6.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Brian Lindahl <Brian.Lindahl@spacedev.com>, linux-mm@kvack.org
+To: linuxppc-dev@ozlabs.org
+Cc: linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, linux-kernel@vger.kernel.org, "ADAM G. LITKE [imap]" <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
->>Good summary. I'll just add a couple of things: in recent kernels
->>we have a page migration facility which should be able to take care
->>of moving process and pagecache pages for you, without walking rmap
->>or killing the process (assuming you're talking about correctable
->>ECC errors).
-> 
-> 
-> I think he means uncorrected errors. Correctable errors can be fixed up
-> by a scrubber without anything else noticing.
+[PATCH] powerpc: Close hugetlb regions when unmapping VMAs
 
-Oh you're probably right.
+On powerpc, each segment can contain pages of only one size.  When a
+hugetlb mapping is requested, a segment is located and marked for use
+with huge pages.  This is a uni-directional operation -- hugetlb
+segments are never marked for use again with normal pages.  For long
+running processes which make use of a combination of normal and hugetlb
+mappings, this behavior can unduly constrain the virtual address space.
 
-> 
-> Ok if your system doesn't support getting rid of them without an atomic
-> operation you might need to "stop the world" on MP, but that's relatively
-> easy using stop_machine().
-> 
-> 
->>This may not quite have the right in-kernel API for you use yet, but
->>it shouldn't be difficult to add.
->>
->>
->>>If it's kernel space there are several cases:
->>>- Free page (count == 0). Easy: ignore it.
->>
->>Also, if you want to isolate the free page, you can allocate it,
->>and tuck it away in a list somewhere (or just forget about it
->>completely).
-> 
-> 
-> Normally it's rare that a bit breaks completely. Usually they just toggle
-> for some reason and are ok again if you rewrite them (how to do the rewrite without
-> triggering an MCE can be tricky BTW). Or the glitch wasn't in the RAM transistors
-> itself, but on some bus, then it might also be ok again on retry. 
-> 
-> What more often happens is that a DIMM (or rather a chip on a DIMM) breaks 
-> completely. In this case you need to remove the whole chip. This
-> can be often done in hardware using "chipkill" (which is kind a special
-> case of hardware RAM RAID).
-> 
-> Anyways you usually need to remove a large memory area, much bigger than a page, 
-> in this case  and it's more like memory hot unplug (which we don't quite 
-> support yet, but it's being worked on ...) 
-> 
-> Of course that's all for normal systems. If you're in a space craft (as I 
-> gather from the original poster's domain name) 
-> crossing the Van Allen belts or doing a solar storm it might be very different. 
-> But even then I would expect bits to more often just switch than break completely. 
-> Maybe for a Jupiter probe it's different and chips might really spoil.
+The following patch introduces a architecture-specific vm_ops.close()
+hook.  For all architectures besides powerpc, this is a no-op.  On
+powerpc, the low and high segments are scanned to locate empty hugetlb
+segments which can be made available for normal mappings.  Comments?
 
-Interesting background, Brian might find it useful. He did say he wanted
-to isolate the pages if they're unused, so perhaps non-transient errors
-can be detected. Or the system just wants to be overly paranoid?
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
+ arch/powerpc/mm/hugetlbpage.c |   39 ++++++++++++++++++++++++++++++++++++++-
+ include/asm-powerpc/pgtable.h |    1 +
+ include/linux/hugetlb.h       |    6 ++++++
+ mm/hugetlb.c                  |    1 +
+ 4 files changed, 46 insertions(+), 1 deletion(-)
+diff -upN reference/arch/powerpc/mm/hugetlbpage.c current/arch/powerpc/mm/hugetlbpage.c
+--- reference/arch/powerpc/mm/hugetlbpage.c
++++ current/arch/powerpc/mm/hugetlbpage.c
+@@ -297,7 +297,6 @@ void hugetlb_free_pgd_range(struct mmu_g
+ 	start = addr;
+ 	pgd = pgd_offset((*tlb)->mm, addr);
+ 	do {
+-		BUG_ON(! in_hugepage_area((*tlb)->mm->context, addr));
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+@@ -494,6 +493,44 @@ static int open_high_hpage_areas(struct 
+ 	return 0;
+ }
+ 
++/*
++ * Called when tearing down a hugetlb vma.  See if we can free up any
++ * htlb areas so normal pages can be mapped there again.
++ */
++void arch_hugetlb_close_vma(struct vm_area_struct *vma)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long i;
++	struct slb_flush_info fi;
++	u16 inuse, hiflush, loflush;
++
++	if (!mm)
++		return;
++
++	inuse = mm->context.low_htlb_areas;
++	for (i = 0; i < NUM_LOW_AREAS; i++)
++		if (prepare_low_area_for_htlb(mm, i) == 0)
++			inuse &= ~(1 << i);
++	loflush = inuse ^ mm->context.low_htlb_areas;
++	mm->context.low_htlb_areas = inuse;
++
++	inuse = mm->context.high_htlb_areas;
++	for (i = 0; i < NUM_HIGH_AREAS; i++)
++		if (prepare_high_area_for_htlb(mm, i) == 0)
++			inuse &= ~(1 << i);
++	hiflush = inuse ^ mm->context.high_htlb_areas;
++	mm->context.high_htlb_areas = inuse;
++
++	/* the context changes must make it to memory before the flush,
++	 * so that further SLB misses do the right thing. */
++	mb();
++	fi.mm = mm;
++	if ((fi.newareas = loflush))
++		on_each_cpu(flush_low_segments, &fi, 0, 1);
++	if ((fi.newareas = hiflush))
++		on_each_cpu(flush_high_segments, &fi, 0, 1);
++}
++
+ int prepare_hugepage_range(unsigned long addr, unsigned long len)
+ {
+ 	int err = 0;
+diff -upN reference/include/asm-powerpc/pgtable.h current/include/asm-powerpc/pgtable.h
+--- reference/include/asm-powerpc/pgtable.h
++++ current/include/asm-powerpc/pgtable.h
+@@ -155,6 +155,7 @@ extern unsigned long empty_zero_page[PAG
+ 
+ #define HAVE_ARCH_UNMAPPED_AREA
+ #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
++#define ARCH_HAS_HUGETLB_CLOSE_VMA
+ 
+ #endif
+ 
+diff -upN reference/include/linux/hugetlb.h current/include/linux/hugetlb.h
+--- reference/include/linux/hugetlb.h
++++ current/include/linux/hugetlb.h
+@@ -85,6 +85,12 @@ pte_t huge_ptep_get_and_clear(struct mm_
+ void hugetlb_prefault_arch_hook(struct mm_struct *mm);
+ #endif
+ 
++#ifndef ARCH_HAS_HUGETLB_CLOSE_VMA
++#define arch_hugetlb_close_vma(x)	0
++#else
++void arch_hugetlb_close_vma(struct vm_area_struct *vma);
++#endif
++
+ #else /* !CONFIG_HUGETLB_PAGE */
+ 
+ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
+--- reference/mm/hugetlb.c
++++ current/mm/hugetlb.c
+@@ -399,6 +399,7 @@ static struct page *hugetlb_nopage(struc
+ 
+ struct vm_operations_struct hugetlb_vm_ops = {
+ 	.nopage = hugetlb_nopage,
++	.close = arch_hugetlb_close_vma,
+ };
+ 
+ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
 
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
