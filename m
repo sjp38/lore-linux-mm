@@ -1,28 +1,148 @@
-From: "Eva" <crowlz2y@hotmail.com>
-Subject: check out this HYWI.PK Just published
-Date: Fri, 2 Jun 2006 22:11:57 -0100
-MIME-Version: 1.0
-Content-Type: text/html;
-        charset="Windows-1252"
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k52Kvkcw016603
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 16:57:46 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.8) with ESMTP id k52KvkLi110292
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 16:57:46 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k52Kvk67009788
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2006 16:57:46 -0400
+Subject: Re: [PATCH] hugetlb: powerpc: Actively close unused htlb regions
+	on vma close
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0606021301300.5492@schroedinger.engr.sgi.com>
+References: <1149257287.9693.6.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0606021301300.5492@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 02 Jun 2006 15:57:20 -0500
+Message-Id: <1149281841.9693.39.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <20060602201137Z26619-1673+44@kvack.org>
-Return-Path: <crowlz2y@hotmail.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
-<head>
-<title>You can make more money with insider information and stocck tips</title>
-</head><body bgcolor="#FFFFFF" text="#000000">
-<p>Top stoock tips from seasoned stockk analysts Climbing parameters of stocck booming and market growth<BR><BR><br>
-  Get HYWI.<span>P</span><i>K</i> First Thing Tomorrow, This sotck Going 
-  To Explode!<BR><BR><br>
-  Check out for Hot News!<BR><BR>Holl<strong>y</strong>woo<span>d</span> I<u>ntermediate, 
-  </u>Inc<strong>.</strong><BR><BR><BR><font size="4">Symbol: <strong>HY</strong><b>WI</b></font><BR><BR><BR>Don't 
-  forget to buy and earn on this stcok!</p>
-<p>Professional sttock advice that drives up the profits</p>
-<p>Read great new on this stcok<BR><BR><BR><BR><BR>____________________________<BR>There is no difference between a wise man and a fool when they fall in love You are never a loser till you quit trying 
-  The Devil rides upon a fiddlestick And why wilt thou, my son, be ravished with a strange woman, and embrace the bosom of a stranger? Manners maketh man Haste makes waste. <BR><BR>Any port in a storm A slip of the tongue is no fault of the mind and he who laughs is very unkind.<BR>Every dog has his day He who laughs last, thinks the slowest! If Fortune calls, offer him a seat  It is good to be knowledgeable, but better to be lovable <BR> 
-  In vino veritas  Better to be safe than.. punch a 5th grader. Every picture tells a story If oil ah float watah deh ah battam.	 Greedy folks have long arms  None so deaf as those who will not hear  Take care of the pennies and the pounds will take care of themselves </p>
-</body>
-</html>
+On Fri, 2006-06-02 at 13:06 -0700, Christoph Lameter wrote:
+> On Fri, 2 Jun 2006, Adam Litke wrote:
+> 
+> > The following patch introduces a architecture-specific vm_ops.close()
+> > hook.  For all architectures besides powerpc, this is a no-op.  On
+> > powerpc, the low and high segments are scanned to locate empty hugetlb
+> > segments which can be made available for normal mappings.  Comments?
+> 
+> IA64 has similar issues and uses the hook suggested by Hugh. However, we 
+> have a permanently reserved memory area. I am a bit surprised about the 
+> need to make address space available for normal mappings. Is this for 32 
+> bit powerpc support?
+
+I now have a working implementation using Hugh's suggestion and
+incorporating some suggestions from David Hansen... (attaching for
+reference).
+
+The real reason I want to "close" hugetlb regions (even on 64bit
+platforms) is so a process can replace a previous hugetlb mapping with
+normal pages when huge pages become scarce.  An example would be the
+hugetlb morecore (malloc) feature in libhugetlbfs :)
+
+[PATCH] powerpc: Close hugetlb regions when unmapping VMAs
+
+On powerpc, each segment can contain pages of only one size.  When a hugetlb
+mapping is requested, a segment is located and marked for use with huge pages.
+This is a uni-directional operation -- hugetlb segments are never marked for
+use again with normal pages.  For long running processes which make use of a
+combination of normal and hugetlb mappings, this behavior can unduly constrain
+the virtual address space.
+
+Changes since V1:
+ * Modifications limited to arch-specific code (hugetlb_free_pgd_range)
+ * Only scan segments covered by the range to be unmapped
+
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
+ hugetlbpage.c |   49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 49 insertions(+)
+diff -upN reference/arch/powerpc/mm/hugetlbpage.c current/arch/powerpc/mm/hugetlbpage.c
+--- reference/arch/powerpc/mm/hugetlbpage.c
++++ current/arch/powerpc/mm/hugetlbpage.c
+@@ -52,6 +52,7 @@
+ typedef struct { unsigned long pd; } hugepd_t;
+ 
+ #define hugepd_none(hpd)	((hpd).pd == 0)
++void close_hugetlb_areas(struct mm_struct *mm);
+ 
+ static inline pte_t *hugepd_page(hugepd_t hpd)
+ {
+@@ -303,6 +304,8 @@ void hugetlb_free_pgd_range(struct mmu_g
+ 			continue;
+ 		hugetlb_free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
+ 	} while (pgd++, addr = next, addr != end);
++
++	close_hugetlb_areas((*tlb)->mm);
+ }
+ 
+ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+@@ -518,6 +521,52 @@ int prepare_hugepage_range(unsigned long
+ 	return 0;
+ }
+ 
++void close_hugetlb_areas(struct mm_struct *mm, unsigned long start,
++		unsigned long end)
++{
++	unsigned long i;
++	struct slb_flush_info fi;
++	u16 inuse, hiflush, loflush, mask;
++
++	if (!mm)
++		return;
++
++	if (start < 0x100000000UL) {
++		mask = LOW_ESID_MASK(start, end - start);
++		inuse = mm->context.low_htlb_areas;
++		for (i = 0; i < NUM_LOW_AREAS; i++) {
++			if (!(mask & (1 << i)))
++				continue;
++			if (prepare_low_area_for_htlb(mm, i) == 0)
++				inuse &= ~(1 << i);
++		}
++		loflush = inuse ^ mm->context.low_htlb_areas;
++		mm->context.low_htlb_areas = inuse;
++	}
++
++	if (end > 0x100000000UL) {
++		mask = HTLB_AREA_MASK(start, end - start);
++		inuse = mm->context.high_htlb_areas;
++		for (i = 0; i < NUM_HIGH_AREAS; i++) {
++			if (!(mask & (1 << i)))
++				continue;
++			if (prepare_high_area_for_htlb(mm, i) == 0)
++				inuse &= ~(1 << i);
++		}
++		hiflush = inuse ^ mm->context.high_htlb_areas;
++		mm->context.high_htlb_areas = inuse;
++	}
++
++	/* the context changes must make it to memory before the flush,
++	 * so that further SLB misses do the right thing. */
++	mb();
++	fi.mm = mm;
++	if ((fi.newareas = loflush))
++		on_each_cpu(flush_low_segments, &fi, 0, 1);
++	if ((fi.newareas = hiflush))
++		on_each_cpu(flush_high_segments, &fi, 0, 1);
++}
++
+ struct page *
+ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
+ {
+
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
