@@ -1,49 +1,65 @@
-Message-ID: <447FAC32.9010606@yahoo.com.au>
-Date: Fri, 02 Jun 2006 13:10:42 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: ECC error correction - page isolation
+Date: Fri, 2 Jun 2006 05:10:49 +0200
+References: <069061BE1B26524C85EC01E0F5CC3CC30163E1F1@rigel.headquarters.spacedev.com> <200606020146.33703.ak@suse.de> <447F94B3.7030807@yahoo.com.au>
+In-Reply-To: <447F94B3.7030807@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [Patch 0/17] PTI: Explation of Clean Page Table Interface
-References: <Pine.LNX.4.61.0605301334520.10816@weill.orchestra.cse.unsw.EDU.AU> <yq0irnot028.fsf@jaguar.mkp.net> <Pine.LNX.4.61.0605301830300.22882@weill.orchestra.cse.unsw.EDU.AU> <447C055A.9070906@sgi.com> <Pine.LNX.4.62.0605311111020.13018@weill.orchestra.cse.unsw.EDU.AU> <447CFEAA.5070206@yahoo.com.au> <Pine.LNX.4.62.0606011313350.29379@weill.orchestra.cse.unsw.EDU.AU>
-In-Reply-To: <Pine.LNX.4.62.0606011313350.29379@weill.orchestra.cse.unsw.EDU.AU>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+Message-Id: <200606020510.49877.ak@suse.de>
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Cc: Jes Sorensen <jes@sgi.com>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Brian Lindahl <Brian.Lindahl@spacedev.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Cameron Davies wrote:
-> On Wed, 31 May 2006, Nick Piggin wrote:
+> Good summary. I'll just add a couple of things: in recent kernels
+> we have a page migration facility which should be able to take care
+> of moving process and pagecache pages for you, without walking rmap
+> or killing the process (assuming you're talking about correctable
+> ECC errors).
 
->> And unless it is something pretty significant, I'd almost bet that Linus,
->> if nobody else, will veto it. Our radix-tree v->p data structure is
->> fairly clean, performant, etc. It matches the logical->physical radix
->> tree data structure we use for pagecache as well.
+I think he means uncorrected errors. Correctable errors can be fixed up
+by a scrubber without anything else noticing.
+
+Ok if your system doesn't support getting rid of them without an atomic
+operation you might need to "stop the world" on MP, but that's relatively
+easy using stop_machine().
+
+> This may not quite have the right in-kernel API for you use yet, but
+> it shouldn't be difficult to add.
 > 
+> > 
+> > If it's kernel space there are several cases:
+> > - Free page (count == 0). Easy: ignore it.
 > 
-> Being able to change the page table on a 64 bit machine will
-> be a huge advantage into the future when applications really start to
-> make use of the 64 bit address space.  The current trie (multi level
-> page table - MLPT) is not going to perform against more
-> sophisticated data structures in a sparsely occupied 64 bit address space
+> Also, if you want to isolate the free page, you can allocate it,
+> and tuck it away in a list somewhere (or just forget about it
+> completely).
 
-OK, this is what I mean by better performing. It does not have to
-have *zero* performance regressions across the board, but simply
-something that tips the cost/benefit.
+Normally it's rare that a bit breaks completely. Usually they just toggle
+for some reason and are ok again if you rewrite them (how to do the rewrite without
+triggering an MCE can be tricky BTW). Or the glitch wasn't in the RAM transistors
+itself, but on some bus, then it might also be ok again on retry. 
 
-That does imply that the framework itself would never get included,
-without something behind it that does perform better. Which I assume
-is your plan.
+What more often happens is that a DIMM (or rather a chip on a DIMM) breaks 
+completely. In this case you need to remove the whole chip. This
+can be often done in hardware using "chipkill" (which is kind a special
+case of hardware RAM RAID).
 
+Anyways you usually need to remove a large memory area, much bigger than a page, 
+in this case  and it's more like memory hot unplug (which we don't quite 
+support yet, but it's being worked on ...) 
 
-The release early approach is a good one, so continue to post code
-and/or results on linux-mm. I do happen to think you'll have a pretty
-hard time getting this in at all, but good luck to you ;)
+Of course that's all for normal systems. If you're in a space craft (as I 
+gather from the original poster's domain name) 
+crossing the Van Allen belts or doing a solar storm it might be very different. 
+But even then I would expect bits to more often just switch than break completely. 
+Maybe for a Jupiter probe it's different and chips might really spoil.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
