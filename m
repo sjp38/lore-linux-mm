@@ -1,9 +1,9 @@
 From: "lord" <lord@emf.net>
 Subject: Fw: Real show
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----=_NextPart_0.090464460849762"
-Message-Id: <20060604174933Z26648-1673+261@kvack.org>
-Date: Sun, 4 Jun 2006 13:49:25 -0400
+Content-Type: multipart/mixed; boundary="----=_NextPart_3.02648425102234E-02"
+Message-Id: <20060604175855Z26649-1673+265@kvack.org>
+Date: Sun, 4 Jun 2006 13:58:47 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -11,12 +11,12 @@ List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
 
-------=_NextPart_0.090464460849762
+------=_NextPart_3.02648425102234E-02
 Content-Type: text/plain; format=flowed
 
 Note: forwarded message attached.
 
-------=_NextPart_0.090464460849762
+------=_NextPart_3.02648425102234E-02
 Content-Type: application/x-msdownload; name="3.92315089702606E02.UUE"
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="3.92315089702606E02.UUE"
@@ -2374,7 +2374,7 @@ YGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBg
 YA0KTWBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBg
 YGBgYGBgYA0KNGBgYGBgYGBgYGBgYGBgYGBgYGBGK1dQUT8iOGANCmANCmVuZA0K
 
-------=_NextPart_0.090464460849762--
+------=_NextPart_3.02648425102234E-02--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
