@@ -1,50 +1,44 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch] shared page table for hugetlb page
-Date: Wed, 7 Jun 2006 18:39:31 -0700
-Message-ID: <000201c68a9c$635ba700$d534030a@amr.corp.intel.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [patch] shared page table for hugetlb page
+Date: Thu, 8 Jun 2006 09:31:13 +0200
+References: <000201c68a9c$635ba700$d534030a@amr.corp.intel.com>
+In-Reply-To: <000201c68a9c$635ba700$d534030a@amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <200606080325.19994.ak@suse.de>
+Content-Disposition: inline
+Message-Id: <200606080931.13481.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andi Kleen' <ak@suse.de>
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
 Cc: Dave McCracken <dmccr@us.ibm.com>, 'Hugh Dickins' <hugh@veritas.com>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote on Wednesday, June 07, 2006 6:25 PM
-> > @@ -18,16 +18,102 @@
-> >  #include <asm/tlb.h>
-> >  #include <asm/tlbflush.h>
-> >  
-> > +#ifdef CONFIG_X86_64
+On Thursday 08 June 2006 03:39, Chen, Kenneth W wrote:
+> Andi Kleen wrote on Wednesday, June 07, 2006 6:25 PM
+> > > @@ -18,16 +18,102 @@
+> > >  #include <asm/tlb.h>
+> > >  #include <asm/tlbflush.h>
+> > >  
+> > > +#ifdef CONFIG_X86_64
+> > 
+> > Why is this done for x86-64 only? 
 > 
-> Why is this done for x86-64 only? 
-
-
-Do you mean not for i386?  I'm too chicken to do it for 32-bit PAE mode. There
-are tons of other issue that application has to fight through with highmem and
-playing with only limited 32-bit virtual address space, I thought this usage
-might be very limited for 32-bit x86.
-
-If you meant patch doesn't include ppc/sparc/ia64, it will be added soon.
-
-
-> >  pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
-> >  {
-> > +	/*
-> > +	 * to be fixed: pass me the darn vma pointer.
-> > +	 */
 > 
-> Just fix it?
+> Do you mean not for i386?  I'm too chicken to do it for 32-bit PAE mode. There
+> are tons of other issue that application has to fight through with highmem and
+> playing with only limited 32-bit virtual address space, I thought this usage
+> might be very limited for 32-bit x86.
 
-OK.
+I don't see how highmem should make any difference for shared ptes though.
+The ptes can be in highmem, but you should handle this already. 
+
+Of course highmem by itself is unpleasant, but it shouldn't affect this
+particular problem much.
 
 
-> Overall it looks nice&clean though.
-
-Thanks for reviewing and your warm comments.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
