@@ -1,496 +1,241 @@
-Date: Thu, 8 Jun 2006 16:02:44 -0700 (PDT)
+Date: Thu, 8 Jun 2006 16:02:55 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060608230244.25121.76440.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060608230255.25121.15659.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 01/14] Per zone counter functionality
+Subject: [PATCH 03/14] Conversion of nr_mapped to per zone counter
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Per zone counter infrastructure
+Conversion of nr_mapped to a per zone counter
 
-The counters that we currently have for the VM are split per processor. They
-count the counter increments/decrements occurring per cpu. However, this has
-no relation to the pages in use in a zone and we cannot tell f.e. how many
-ZONE_DMA pages are dirty. So we are blind to potentially inbalances in the use
-of various zones. In a NUMA system we cannot tell what pages are used for
-what purpose. If we knew then we could put measures into the VM to balance
-the use of memory between different zones and different nodes in a NUMA system.
+nr_mapped is important because it allows a determination how many pages of a
+zone are not mapped, which would allow a more efficient means of determining
+when we need to reclaim memory in a zone.
 
-For example it would be possible to limit the dirty pages per node so that
-fast local memory is kept available even if a process is dirtying huge amounts
-of pages.
+We take the nr_mapped field out of the page state structure and
+define a new per zone counter named NR_MAPPED.
 
-Another example is zone reclaim. We do not know how many unmapped pages
-exist per zone. So we just have to try to reclaim. If it is not working
-then we pause and try again later. It would be better if we knew when
-it makes sense to reclaim unmapped pages from a zone. This patchset allows
-the determination of the number of unmapped pages per zone. We can remove
-the zone reclaim interval with the counters introduced here.
-
-Futhermore the ability to have various usage statistics available will
-allow the development of new NUMA balancing algorithms that may be able
-to improve the decisionmaking in the scheduler of when to move a process
-to another node and hopefully will also enable automatic page migration
-through a user space program that can analyse the memory load distribution
-and then rebalance memory use in order to increase performance.
-
-The counter framework here implements differential counters for each processor
-in struct zone. The differential counters are consolidated when a threshold
-is exceeded (like done in the current implementation for nr_pageache), when
-slab reaping occurs or when a consolidation function is called.
-
-Consolidation uses atomic operations and accumulates counters per zone in
-the zone structure and also globally in the vm_stat array. VM functions can
-access the counts by simply indexing a global or zone specific array.
-
-The arrangement of counters in an array also simplifies processing when output
-has to be generated for /proc/*.
-
-Counter updates can be triggered by calling *_zone_page_state or
-__*_zone_page_state. The second function can be called if it is known that
-interrupts are disabled.
-
-Specially optimized increment and decrement functions are provided. These
-can avoid certain checks and use increment or decrement instructions that
-an architecture may provide.
+We replace the use of nr_mapped in various kernel locations. This avoids
+the looping over all processors in try_to_free_pages(), writeback, reclaim
+(swap + zone reclaim).
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.17-rc6-mm1/include/linux/mmzone.h
+Index: linux-2.6.17-rc6-mm1/drivers/base/node.c
 ===================================================================
---- linux-2.6.17-rc6-mm1.orig/include/linux/mmzone.h	2006-06-08 15:20:10.476033192 -0700
-+++ linux-2.6.17-rc6-mm1/include/linux/mmzone.h	2006-06-08 15:42:25.204930191 -0700
-@@ -46,6 +46,19 @@ struct zone_padding {
- #define ZONE_PADDING(name)
- #endif
+--- linux-2.6.17-rc6-mm1.orig/drivers/base/node.c	2006-06-08 15:20:05.426540998 -0700
++++ linux-2.6.17-rc6-mm1/drivers/base/node.c	2006-06-08 15:44:58.889749567 -0700
+@@ -44,18 +44,18 @@ static ssize_t node_read_meminfo(struct 
+ 	unsigned long inactive;
+ 	unsigned long active;
+ 	unsigned long free;
++	unsigned long nr_mapped;
  
-+enum zone_stat_item {
-+	NR_STAT_ITEMS };
-+
-+#ifdef CONFIG_SMP
-+typedef atomic_long_t vm_stat_t;
-+#define VM_STAT_GET(x) atomic_long_read(&(x))
-+#define VM_STAT_ADD(x,v) atomic_long_add(v, &(x))
-+#else
-+typedef unsigned long vm_stat_t;
-+#define VM_STAT_GET(x) (x)
-+#define VM_STAT_ADD(x,v) (x) += (v)
-+#endif
-+
- struct per_cpu_pages {
- 	int count;		/* number of pages in the list */
- 	int high;		/* high watermark, emptying needed */
-@@ -55,6 +68,10 @@ struct per_cpu_pages {
+ 	si_meminfo_node(&i, nid);
+ 	get_page_state_node(&ps, nid);
+ 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
++	nr_mapped = node_page_state(nid, NR_MAPPED);
  
- struct per_cpu_pageset {
- 	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
-+#ifdef CONFIG_SMP
-+	s8 vm_stat_diff[NR_STAT_ITEMS];
-+#endif
-+
- #ifdef CONFIG_NUMA
- 	unsigned long numa_hit;		/* allocated in intended node */
- 	unsigned long numa_miss;	/* allocated in non intended node */
-@@ -170,6 +187,8 @@ struct zone {
- 	/* A count of how many reclaimers are scanning this zone */
- 	atomic_t		reclaim_in_progress;
+ 	/* Check for negative values in these approximate counters */
+ 	if ((long)ps.nr_dirty < 0)
+ 		ps.nr_dirty = 0;
+ 	if ((long)ps.nr_writeback < 0)
+ 		ps.nr_writeback = 0;
+-	if ((long)ps.nr_mapped < 0)
+-		ps.nr_mapped = 0;
+ 	if ((long)ps.nr_slab < 0)
+ 		ps.nr_slab = 0;
  
-+	/* Zone statistics */
-+	vm_stat_t		vm_stat[NR_STAT_ITEMS];
- 	/*
- 	 * timestamp (in jiffies) of the last zone reclaim that did not
- 	 * result in freeing of pages. This is used to avoid repeated scans
-Index: linux-2.6.17-rc6-mm1/include/linux/page-flags.h
+@@ -84,7 +84,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.freeram - i.freehigh),
+ 		       nid, K(ps.nr_dirty),
+ 		       nid, K(ps.nr_writeback),
+-		       nid, K(ps.nr_mapped),
++		       nid, K(nr_mapped),
+ 		       nid, K(ps.nr_slab));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+Index: linux-2.6.17-rc6-mm1/fs/proc/proc_misc.c
 ===================================================================
---- linux-2.6.17-rc6-mm1.orig/include/linux/page-flags.h	2006-06-08 15:20:10.627391012 -0700
-+++ linux-2.6.17-rc6-mm1/include/linux/page-flags.h	2006-06-08 15:42:25.205906693 -0700
-@@ -233,6 +233,52 @@ extern void __mod_page_state_offset(unsi
-  } while (0)
+--- linux-2.6.17-rc6-mm1.orig/fs/proc/proc_misc.c	2006-06-08 15:20:08.334564156 -0700
++++ linux-2.6.17-rc6-mm1/fs/proc/proc_misc.c	2006-06-08 15:44:58.890726069 -0700
+@@ -190,7 +190,7 @@ static int meminfo_read_proc(char *page,
+ 		K(i.freeswap),
+ 		K(ps.nr_dirty),
+ 		K(ps.nr_writeback),
+-		K(ps.nr_mapped),
++		K(global_page_state(NR_MAPPED)),
+ 		K(ps.nr_slab),
+ 		K(allowed),
+ 		K(committed),
+Index: linux-2.6.17-rc6-mm1/mm/vmscan.c
+===================================================================
+--- linux-2.6.17-rc6-mm1.orig/mm/vmscan.c	2006-06-08 15:20:11.595104562 -0700
++++ linux-2.6.17-rc6-mm1/mm/vmscan.c	2006-06-08 15:44:58.891702571 -0700
+@@ -997,7 +997,7 @@ unsigned long try_to_free_pages(struct z
+ 	}
  
- /*
-+ * Zone based accounting with per cpu differentials.
-+ */
-+extern vm_stat_t vm_stat[NR_STAT_ITEMS];
-+
-+static inline unsigned long global_page_state(enum zone_stat_item item)
-+{
-+	long x = VM_STAT_GET(vm_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
-+static inline unsigned long zone_page_state(struct zone *zone,
-+					enum zone_stat_item item)
-+{
-+	long x = VM_STAT_GET(zone->vm_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
-+#ifdef CONFIG_NUMA
-+unsigned long node_page_state(int node, enum zone_stat_item);
-+#else
-+#define node_page_state(node, item) global_page_state(item)
-+#endif
-+
-+void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);
-+void __inc_zone_page_state(struct page *, enum zone_stat_item);
-+void __dec_zone_page_state(struct page *, enum zone_stat_item);
-+
-+#define __add_zone_page_state(__z, __i, __d) __mod_zone_page_state(__z, __i, __d)
-+#define __sub_zone_page_state(__z, __i, __d) __mod_zone_page_state(__z, __i,-(__d))
-+
-+void mod_zone_page_state(struct zone *, enum zone_stat_item, int);
-+void inc_zone_page_state(struct page *, enum zone_stat_item);
-+void dec_zone_page_state(struct page *, enum zone_stat_item);
-+
-+#define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
-+#define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
-+
-+/*
-  * Manipulation of page state flags
-  */
- #define PageLocked(page)		\
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+-		sc.nr_mapped = read_page_state(nr_mapped);
++		sc.nr_mapped = global_page_state(NR_MAPPED);
+ 		sc.nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+@@ -1082,7 +1082,7 @@ loop_again:
+ 	total_scanned = 0;
+ 	nr_reclaimed = 0;
+ 	sc.may_writepage = !laptop_mode,
+-	sc.nr_mapped = read_page_state(nr_mapped);
++	sc.nr_mapped = global_page_state(NR_MAPPED);
+ 
+ 	inc_page_state(pageoutrun);
+ 
+@@ -1417,7 +1417,7 @@ unsigned long shrink_all_memory(unsigned
+ 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+ 			unsigned long nr_to_scan = nr_pages - ret;
+ 
+-			sc.nr_mapped = read_page_state(nr_mapped);
++			sc.nr_mapped = global_page_state(NR_MAPPED);
+ 			sc.nr_scanned = 0;
+ 
+ 			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
+@@ -1559,7 +1559,7 @@ static int __zone_reclaim(struct zone *z
+ 	struct scan_control sc = {
+ 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+ 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+-		.nr_mapped = read_page_state(nr_mapped),
++		.nr_mapped = global_page_state(NR_MAPPED),
+ 		.swap_cluster_max = max_t(unsigned long, nr_pages,
+ 					SWAP_CLUSTER_MAX),
+ 		.gfp_mask = gfp_mask,
+Index: linux-2.6.17-rc6-mm1/mm/page-writeback.c
+===================================================================
+--- linux-2.6.17-rc6-mm1.orig/mm/page-writeback.c	2006-06-08 15:20:11.553114973 -0700
++++ linux-2.6.17-rc6-mm1/mm/page-writeback.c	2006-06-08 15:44:58.892679074 -0700
+@@ -111,7 +111,7 @@ static void get_writeback_state(struct w
+ {
+ 	wbs->nr_dirty = read_page_state(nr_dirty);
+ 	wbs->nr_unstable = read_page_state(nr_unstable);
+-	wbs->nr_mapped = read_page_state(nr_mapped);
++	wbs->nr_mapped = global_page_state(NR_MAPPED);
+ 	wbs->nr_writeback = read_page_state(nr_writeback);
+ }
+ 
 Index: linux-2.6.17-rc6-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.17-rc6-mm1.orig/mm/page_alloc.c	2006-06-08 15:20:11.552138471 -0700
-+++ linux-2.6.17-rc6-mm1/mm/page_alloc.c	2006-06-08 15:43:40.691466807 -0700
-@@ -628,8 +628,279 @@ static int rmqueue_bulk(struct zone *zon
- 	return i;
- }
+--- linux-2.6.17-rc6-mm1.orig/mm/page_alloc.c	2006-06-08 15:44:55.859663761 -0700
++++ linux-2.6.17-rc6-mm1/mm/page_alloc.c	2006-06-08 15:44:58.893655576 -0700
+@@ -1815,7 +1815,7 @@ void show_free_areas(void)
+ 		ps.nr_unstable,
+ 		nr_free_pages(),
+ 		ps.nr_slab,
+-		ps.nr_mapped,
++		global_page_state(NR_MAPPED),
+ 		ps.nr_page_table_pages);
  
-+/*
-+ * Manage combined zone based / global counters
-+ *
-+ * vm_stat contains the global counters
-+ */
-+vm_stat_t vm_stat[NR_STAT_ITEMS];
-+
-+static inline void zone_page_state_add(long x, struct zone *zone,
-+				 enum zone_stat_item item)
-+{
-+	VM_STAT_ADD(zone->vm_stat[item], x);
-+	VM_STAT_ADD(vm_stat[item], x);
-+}
-+
-+#ifdef CONFIG_SMP
-+
-+#define STAT_THRESHOLD 32
-+
-+/*
-+ * Determine pointer to currently valid differential byte given a zone and
-+ * the item number.
-+ *
-+ * Preemption must be off
-+ */
-+static inline s8 *diff_pointer(struct zone *zone, enum zone_stat_item item)
-+{
-+	return &zone_pcp(zone, smp_processor_id())->vm_stat_diff[item];
-+}
-+
-+/*
-+ * For use when we know that interrupts are disabled.
-+ */
-+void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	s8 *p;
-+	long x;
-+
-+	p = diff_pointer(zone, item);
-+	x = delta + *p;
-+
-+	if (unlikely(x > STAT_THRESHOLD || x < -STAT_THRESHOLD)) {
-+		zone_page_state_add(x, zone, item);
-+		x = 0;
-+	}
-+
-+	*p = x;
-+}
-+EXPORT_SYMBOL(__mod_zone_page_state);
-+
-+/*
-+ * For an unknown interrupt state
-+ */
-+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__mod_zone_page_state(zone, item, delta);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(mod_zone_page_state);
-+
-+/*
-+ * Optimized increment and decrement functions.
-+ *
-+ * These are only for a single page and therefore can take a struct page *
-+ * argument instead of struct zone *. This allows the inclusion of the code
-+ * generated for page_zone(page) into the optimized functions.
-+ *
-+ * No overflow check is necessary and therefore the differential can be
-+ * incremented or decremented in place which may allow the compilers to
-+ * generate better code.
-+ *
-+ * The increment or decrement is known and therefore one boundary check can
-+ * be omitted.
-+ *
-+ * Some processors have inc/dec instructions that are atomic vs an interrupt.
-+ * However, the code must first determine the differential location in a zone
-+ * based on the processor number and then inc/dec the counter. There is no
-+ * guarantee without disabling preemption that the processor will not change
-+ * in between and therefore the atomicity vs. interrupt cannot be exploited
-+ * in a useful way here.
-+ */
-+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	struct zone *zone = page_zone(page);
-+	s8 *p = diff_pointer(zone, item);
-+
-+	(*p)++;
-+
-+	if (unlikely(*p > STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+}
-+EXPORT_SYMBOL(__inc_zone_page_state);
-+
-+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	struct zone *zone = page_zone(page);
-+	s8 *p = diff_pointer(zone, item);
-+
-+	(*p)--;
-+
-+	if (unlikely(*p < -STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+}
-+EXPORT_SYMBOL(__dec_zone_page_state);
-+
-+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+	struct zone *zone;
-+	s8 *p;
-+
-+	zone = page_zone(page);
-+	local_irq_save(flags);
-+	p = diff_pointer(zone, item);
-+
-+	(*p)++;
-+
-+	if (unlikely(*p > STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_zone_page_state);
-+
-+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+	struct zone *zone;
-+	s8 *p;
-+
-+	zone = page_zone(page);
-+	local_irq_save(flags);
-+	p = diff_pointer(zone, item);
-+
-+	(*p)--;
-+
-+	if (unlikely(*p < -STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(dec_zone_page_state);
-+
-+/*
-+ * Update the zone counters for one cpu.
-+ */
-+void refresh_cpu_vm_stats(int cpu)
-+{
-+	struct zone *zone;
-+	int i;
-+	unsigned long flags;
-+
-+	for_each_zone(zone) {
-+		struct per_cpu_pageset *pcp;
-+
-+		pcp = zone_pcp(zone, cpu);
-+
-+		for (i = 0; i < NR_STAT_ITEMS; i++)
-+			if (pcp->vm_stat_diff[i]) {
-+				local_irq_save(flags);
-+				zone_page_state_add(pcp->vm_stat_diff[i],
-+					zone, i);
-+				pcp->vm_stat_diff[i] = 0;
-+				local_irq_restore(flags);
-+			}
-+	}
-+}
-+
-+static void __refresh_cpu_vm_stats(void *dummy)
-+{
-+	refresh_cpu_vm_stats(smp_processor_id());
-+}
-+
-+/*
-+ * Consolidate all counters.
-+ *
-+ * Note that the result is less inaccurate but still inaccurate
-+ * if concurrent processes are allowed to run. 
-+ */
-+void refresh_vm_stats(void)
-+{
-+	on_each_cpu(__refresh_cpu_vm_stats, NULL, 0, 1);
-+}
-+EXPORT_SYMBOL(refresh_vm_stats);
-+
-+#else /* CONFIG_SMP */
-+
-+/*
-+ * We do not maintain differentials in a single processor configuration.
-+ * The functions directly modify the zone and global counters.
-+ */
-+
-+void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	zone_page_state_add(delta, zone, item);
-+}
-+EXPORT_SYMBOL(__mod_zone_page_state);
-+
-+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add(delta, zone, item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(mod_zone_page_state);
-+
-+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	zone_page_state_add(1, page_zone(page), item);
-+}
-+EXPORT_SYMBOL(__inc_zone_page_state);
-+
-+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	zone_page_state_add(-1, page_zone(page), item);
-+}
-+EXPORT_SYMBOL(__dec_zone_page_state);
-+
-+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add(1, page_zone(page), item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_zone_page_state);
-+
-+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add( -1, page_zone(page), item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(dec_zone_page_state);
-+#endif
-+
- #ifdef CONFIG_NUMA
- /*
-+ * Determine the per node value of a stat item. This is done by cycling
-+ * through all the zones of a node.
-+ */
-+unsigned long node_page_state(int node, enum zone_stat_item item)
-+{
-+	struct zone *zones = NODE_DATA(node)->node_zones;
-+	int i;
-+	long v = 0;
-+
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		v += VM_STAT_GET(zones[i].vm_stat[item]);
-+	if (v < 0)
-+		v = 0;
-+	return v;
-+}
-+EXPORT_SYMBOL(node_page_state);
-+
-+/*
-  * Called from the slab reaper to drain pagesets on a particular node that
-  * belong to the currently executing processor.
-  * Note that this function must be called with the thread pinned to
-@@ -2278,6 +2549,7 @@ static void __meminit free_area_init_cor
- 		zone->nr_scan_inactive = 0;
- 		zone->nr_active = 0;
- 		zone->nr_inactive = 0;
-+		memset(zone->vm_stat, 0, sizeof(zone->vm_stat));
- 		atomic_set(&zone->reclaim_in_progress, 0);
- 		if (!size)
- 			continue;
-@@ -2661,7 +2933,8 @@ static int page_alloc_cpu_notify(struct 
- 		}
+ 	for_each_zone(zone) {
+@@ -2801,13 +2801,13 @@ struct seq_operations zoneinfo_op = {
  
- 		local_irq_enable();
--	}
-+		refresh_cpu_vmstats(cpu);
-+	} 
- 	return NOTIFY_OK;
- }
- #endif /* CONFIG_HOTPLUG_CPU */
-Index: linux-2.6.17-rc6-mm1/include/linux/gfp.h
+ static char *vmstat_text[] = {
+ 	/* Zoned VM counters */
++	"nr_mapped",
+ 
+ 	/* Page state */
+ 	"nr_dirty",
+ 	"nr_writeback",
+ 	"nr_unstable",
+ 	"nr_page_table_pages",
+-	"nr_mapped",
+ 	"nr_slab",
+ 
+ 	"pgpgin",
+Index: linux-2.6.17-rc6-mm1/mm/rmap.c
 ===================================================================
---- linux-2.6.17-rc6-mm1.orig/include/linux/gfp.h	2006-06-08 15:20:10.249484712 -0700
-+++ linux-2.6.17-rc6-mm1/include/linux/gfp.h	2006-06-08 15:43:40.689513803 -0700
-@@ -163,4 +163,12 @@ void drain_node_pages(int node);
- static inline void drain_node_pages(int node) { };
+--- linux-2.6.17-rc6-mm1.orig/mm/rmap.c	2006-06-08 15:20:11.579480529 -0700
++++ linux-2.6.17-rc6-mm1/mm/rmap.c	2006-06-08 15:44:58.894632078 -0700
+@@ -455,7 +455,7 @@ static void __page_set_anon_rmap(struct 
+ 	 * nr_mapped state can be updated without turning off
+ 	 * interrupts because it is not modified via interrupt.
+ 	 */
+-	__inc_page_state(nr_mapped);
++	__inc_zone_page_state(page, NR_MAPPED);
+ }
+ 
+ /**
+@@ -499,7 +499,7 @@ void page_add_new_anon_rmap(struct page 
+ void page_add_file_rmap(struct page *page)
+ {
+ 	if (atomic_inc_and_test(&page->_mapcount))
+-		__inc_page_state(nr_mapped);
++		__inc_zone_page_state(page, NR_MAPPED);
+ }
+ 
+ /**
+@@ -531,7 +531,7 @@ void page_remove_rmap(struct page *page)
+ 		 */
+ 		if (page_test_and_clear_dirty(page))
+ 			set_page_dirty(page);
+-		__dec_page_state(nr_mapped);
++		__dec_zone_page_state(page, NR_MAPPED);
+ 	}
+ }
+ 
+Index: linux-2.6.17-rc6-mm1/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.17-rc6-mm1.orig/include/linux/mmzone.h	2006-06-08 15:42:25.204930191 -0700
++++ linux-2.6.17-rc6-mm1/include/linux/mmzone.h	2006-06-08 15:44:58.895608580 -0700
+@@ -47,6 +47,9 @@ struct zone_padding {
  #endif
  
-+#ifdef CONFIG_SMP
-+void refresh_cpu_vm_stats(int);
-+void refresh_vm_stats(void);
-+#else
-+static inline void refresh_cpu_vm_stats(int cpu) { };
-+static inline void refresh_vm_stats(void) { };
-+#endif
+ enum zone_stat_item {
++	NR_MAPPED,	/* mapped into pagetables.
++			   only modified from process context */
 +
- #endif /* __LINUX_GFP_H */
-Index: linux-2.6.17-rc6-mm1/mm/slab.c
+ 	NR_STAT_ITEMS };
+ 
+ #ifdef CONFIG_SMP
+Index: linux-2.6.17-rc6-mm1/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.17-rc6-mm1.orig/mm/slab.c	2006-06-08 15:20:11.585339541 -0700
-+++ linux-2.6.17-rc6-mm1/mm/slab.c	2006-06-08 15:42:25.210789203 -0700
-@@ -3826,6 +3826,7 @@ next:
- 	check_irq_on();
- 	mutex_unlock(&cache_chain_mutex);
- 	next_reap_node();
-+	refresh_cpu_vm_stats(smp_processor_id());
- 	/* Set up the next iteration */
- 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
+--- linux-2.6.17-rc6-mm1.orig/include/linux/page-flags.h	2006-06-08 15:42:25.205906693 -0700
++++ linux-2.6.17-rc6-mm1/include/linux/page-flags.h	2006-06-08 15:44:58.896585082 -0700
+@@ -123,8 +123,6 @@ struct page_state {
+ 	unsigned long nr_writeback;	/* Pages under writeback */
+ 	unsigned long nr_unstable;	/* NFS unstable pages */
+ 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
+-	unsigned long nr_mapped;	/* mapped into pagetables.
+-					 * only modified from process context */
+ 	unsigned long nr_slab;		/* In slab */
+ #define GET_PAGE_STATE_LAST nr_slab
+ 
+Index: linux-2.6.17-rc6-mm1/mm/swap_prefetch.c
+===================================================================
+--- linux-2.6.17-rc6-mm1.orig/mm/swap_prefetch.c	2006-06-08 15:20:11.590222051 -0700
++++ linux-2.6.17-rc6-mm1/mm/swap_prefetch.c	2006-06-08 15:44:58.896585082 -0700
+@@ -394,7 +394,7 @@ static int prefetch_suitable(void)
+ 		 * even if the slab is being allocated on a remote node. This
+ 		 * would be expensive to fix and not of great significance.
+ 		 */
+-		limit = ps.nr_mapped + ps.nr_slab + ps.nr_dirty +
++		limit = global_page_state(NR_MAPPED) + ps.nr_slab + ps.nr_dirty +
+ 			ps.nr_unstable + total_swapcache_pages;
+ 		if (limit > ns->prefetch_watermark) {
+ 			node_clear(node, sp_stat.prefetch_nodes);
+Index: linux-2.6.17-rc6-mm1/arch/i386/mm/pgtable.c
+===================================================================
+--- linux-2.6.17-rc6-mm1.orig/arch/i386/mm/pgtable.c	2006-06-05 17:57:02.000000000 -0700
++++ linux-2.6.17-rc6-mm1/arch/i386/mm/pgtable.c	2006-06-08 15:45:17.903220642 -0700
+@@ -61,7 +61,7 @@ void show_mem(void)
+ 	get_page_state(&ps);
+ 	printk(KERN_INFO "%lu pages dirty\n", ps.nr_dirty);
+ 	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
+-	printk(KERN_INFO "%lu pages mapped\n", ps.nr_mapped);
++	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_MAPPED));
+ 	printk(KERN_INFO "%lu pages slab\n", ps.nr_slab);
+ 	printk(KERN_INFO "%lu pages pagetables\n", ps.nr_page_table_pages);
  }
 
 --
