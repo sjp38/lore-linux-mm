@@ -1,34 +1,134 @@
-Date: Thu, 8 Jun 2006 13:20:35 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [PATCH] mm: tracking dirty pages -v6
-In-Reply-To: <5c49b0ed0606081310q5771e8d1s55acef09b405922b@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0606081318161.5498@g5.osdl.org>
-References: <20060525135534.20941.91650.sendpatchset@lappy>
- <Pine.LNX.4.64.0606062056540.1507@blonde.wat.veritas.com>
- <1149770654.4408.71.camel@lappy> <5c49b0ed0606081310q5771e8d1s55acef09b405922b@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 8 Jun 2006 16:02:39 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 00/14] Zoned VM counters V2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nate Diller <nate.diller@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
+Zone based VM statistics are necessary to be able to determine what the state
+of memory in one zone is. In a NUMA system this can be helpful for local
+reclaim and other memory optimizations that may be able to shift VM load
+in order to get more balanced memory use.
 
-On Thu, 8 Jun 2006, Nate Diller wrote:
-> 
-> Does this mean that processes dirtying pages via mmap are now subject
-> to write throttling?  That could dramatically change the performance
-> for tasks with a working set larger than 10% of memory.
+It is also helpful to know how the computing load affects the memory
+allocations on various zones.
 
-Exactly. Except it's not a "working set", it's a "dirty set".
+The patchset introduces a framework for counters that is a cross between the
+existing page_stats --which are simply global counters split per cpu-- and
+the approach of deferred incremental updates implemented for nr_pagecache.
 
-Which is the whole (and only) point of the whole patch.
+Small per cpu 8 bit counters are added to struct zone. If the counter
+exceeds certain thresholds then the counters are accumulated in an array of
+atomic_long in the zone and in a global array that sums up all
+zone values.
 
-If you want to live on the edge, you can set the dirty_balance trigger to 
-something much higher, it's entirely configurable if I remember correctly.
+Access to VM counter information for a zone and for the whole machine
+is then possible by simply indexing an array (Thanks to Nick Piggin for
+pointing out that approach). The access to the total number of pages of
+various types does no longer require the summing up of all per cpu counters.
 
-		Linus
+Benefits of this patchset right now:
+
+- zone_reclaim_interval vanishes since VM stats can now determine
+  when it is worth to scan for reclaimable pages.
+
+- loops over all processors are avoided in writeback and
+  reclaim paths.
+
+- Get rid of the nr_pagecache atomic for the single processor case
+  (Marcelo's idea).
+
+- Accurate counters in /sys/devices/system/node/node*/meminfo. Current
+  counters are based on where the pages were allocated so the counters
+  were not useful to show the actual use of pages on a node.
+
+- Detailed VM counters available in more /proc and /sys status files.
+
+References to earlier discussions:
+V1 http://marc.theaimsgroup.com/?l=linux-kernel&m=113511649910826&w=2
+Earlier approaches:  http://marc.theaimsgroup.com/?l=linux-kernel&m=113460596414687&w=2
+
+Performance test with AIM7 did not show any regressions. Seems to be a tad
+faster even. Tested on ia64/ NUMA. Builds fine on i386, SMP / UP.
+
+Changelog
+
+V1->V2:
+
+- Cleanup code, resequence and base patches on 2.6.17-rc6-mm1
+- Reduce interrupt holdoffs
+- Add zone reclaim interval removal patch
+- Rename EVENT_COUNTER to VM_EVENT_COUNTERS (also all variables and functions)
+
+The patchset consists of 14 patches. These are:
+
+01/14 Per zone counter infrastructure
+
+Sets up the functionality to handle per zone counters but does not
+define any.
+
+02/14 Add zoned counters to /proc/vmstat
+
+Adds the display of zoned counters
+
+03/14 Conversion of nr_mapped to a per zone counter
+
+Converts nr_mapped and sets up the first per zone counters. This allows
+optimizations in various places that avoid looping over counters from all
+processors.
+
+04/14 Conversion of nr_pagecache to a per zone counter
+
+Replace the single atomic variable with a per cpu counter. For UP this means
+that no atomic operations have to be used for nr_pagecache anymore. Remove
+special nr_pagecache code.
+
+05/14 Use zoned counters instead of zone_reclaim_interval
+
+Replace the zone_reclaim_interval logic with a check for
+unmapped pages.
+
+06/14 Extend proc per node, per zone stats by adding per zone counters
+
+Adds new counters to various places where we display counters.
+
+07/14 Conversion of nr_slab to a per zone counter
+
+This avoids looping over processors in the reclaim code and allows accurate
+accounting of slab use per zone.
+
+08/14 Conversion of nr_pagetable to a per zone counter
+
+Allows accurate accounting of pagetable pages per zone.
+
+09/14 Conversion of nr_dirty to a per zone counter
+
+Avoids loop over processors in writeback state determination
+
+10/14 Conversion of nr_writeback to a per zone counter
+
+Avoids loop over processors in writeback state determination.
+
+11/14 Conversio of nr_unstable to a per zone counter
+
+Avoids loop over proessors in writeback state determination.
+
+12/14 Remove get_page_state functions
+
+There is no need anymoore for the get_page_state function. So remove it.
+
+13/14 Convert nr_bounce to a per zone counter
+
+nr_bounce also counts a type of page.
+
+14/14 Remove writeback structures
+
+There is really no need anymore to cache writeback information since
+the counters are readily available. Remove the writeback information
+structure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
