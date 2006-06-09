@@ -1,32 +1,31 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Re: zoned VM stats: nr_slab is accurate, fix comment
-Date: Sat, 10 Jun 2006 08:44:29 +1000
-References: <Pine.LNX.4.64.0606091122560.520@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0606091122560.520@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Date: Fri, 9 Jun 2006 16:07:30 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Light weight counter 1/1 Framework
+Message-Id: <20060609160730.5a67ae6b.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0606091537350.3036@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0606091216320.1174@schroedinger.engr.sgi.com>
+	<20060609143333.39b29109.akpm@osdl.org>
+	<Pine.LNX.4.64.0606091537350.3036@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200606100844.29953.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, npiggin@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, ak@suse.de, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 10 June 2006 04:26, Christoph Lameter wrote:
-> nr_slab is accurate with the zoned VM stats. Remove the comment
-> that states otherwise in swap_prefetch.c
+Christoph Lameter <clameter@sgi.com> wrote:
+>
+> Eventcounter fixups
 
-Thanks
+This is getting to be a bit of a pain.  Could you please spend more time
+reviewing and testing patches before sending them?
 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Says he, staring at this:
 
-Acked-by: Con Kolivas <kernel@kolivas.org>
-
--- 
--ck
+mm/page_alloc.c: In function 'page_alloc_cpu_notify':
+mm/page_alloc.c:2891: error: 'per_cpu__page_states' undeclared (first use in this function)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
