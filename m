@@ -1,7 +1,7 @@
-Date: Fri, 9 Jun 2006 16:07:30 -0700
+Date: Fri, 9 Jun 2006 16:15:31 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Light weight counter 1/1 Framework
-Message-Id: <20060609160730.5a67ae6b.akpm@osdl.org>
+Message-Id: <20060609161531.249de5e1.akpm@osdl.org>
 In-Reply-To: <Pine.LNX.4.64.0606091537350.3036@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0606091216320.1174@schroedinger.engr.sgi.com>
 	<20060609143333.39b29109.akpm@osdl.org>
@@ -19,13 +19,16 @@ Christoph Lameter <clameter@sgi.com> wrote:
 >
 > Eventcounter fixups
 
-This is getting to be a bit of a pain.  Could you please spend more time
-reviewing and testing patches before sending them?
+And the kernel still doesn't actually compile with this patch applied.  You
+need to also apply light-weight-counters-counter-conversion.patch to make
+page_alloc.c compile.  So either we break git-bisect or I fold two
+inappropriate patches together or I need to patchwrangle it somehow.
 
-Says he, staring at this:
+<checks>
 
-mm/page_alloc.c: In function 'page_alloc_cpu_notify':
-mm/page_alloc.c:2891: error: 'per_cpu__page_states' undeclared (first use in this function)
+Yes, I need to fold them all together.
+
+And fix the unused-variable warnings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
