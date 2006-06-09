@@ -1,83 +1,142 @@
-Received: by nf-out-0910.google.com with SMTP id c29so556627nfb
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2006 07:42:18 -0700 (PDT)
-Message-ID: <4489898F.9080805@innova-card.com>
-Date: Fri, 09 Jun 2006 16:45:35 +0200
-Reply-To: Franck <vagabon.xyz@gmail.com>
+From: "Abu M. Muttalib" <abum@aftek.com>
+Subject: FW: significance of process "events/0"
+Date: Fri, 9 Jun 2006 20:45:23 +0530
+Message-ID: <BKEKJNIHLJDCFGDBOHGMIEKNCOAA.abum@aftek.com>
 MIME-Version: 1.0
-Subject: [SPARSEMEM] confusing uses of SPARSEM_EXTREME
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-From: Franck Bui-Huu <fbh.work@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-arm-kernel@lists.arm.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Is it me or the use of CONFIG_SPARSEMEM_EXTREME is really confusing in
-mm/sparce.c ? Shouldn't we use CONFIG_SPARSEMEM_STATIC instead like
-the following patch suggests ?
+Hi Abu,
 
--- >8 --
-Subject: [PATCH] Remove confusing uses of SPARSEMEM_EXTREME
+Oops, I forgot to CC the list. That's done now.
+I suggest you to resend your reply to the list...
 
-CONFIG_SPARSEMEM_EXTREME is used in sparce.c whereas
-CONFIG_SPARSEMEM_STATIC seems to be more appropriate.
+Hope someone has a clue...
 
-Signed-off-by: Franck Bui-Huu <vagabon.xyz@gmail.com> 
+    :-)
 
----
+    Michael.
+> Hi Mick,
+>
+> Thats exactly I want to know. My target after this causes an OOM.
+>
+> ~Abu.
+>
+> -----Original Message-----
+> From: Michael Opdenacker [mailto:michael-lists@free-electrons.com]
+> Sent: Friday, June 09, 2006 7:46 PM
+> To: Abu M. Muttalib
+> Subject: Re: significance of process "events/0"
+>
+>
+> Hi Abu,
+>   
+>> While running few of the application on target board, running kernel
+>>     
+> 2.6.13
+>   
+>> compiled for ARM architecture, I get the following ps listings:
+>>
+>>   PID  Uid     VmSize Stat Command
+>>     1 yoku        528 S   init [3]
+>>     2 yoku            SWN [ksoftirqd/0]
+>>     3 yoku            SW< [events/0]
+>>     4 yoku            SW< [khelper]
+>>     5 yoku            SW< [kthread]
+>>    18 yoku            SW< [kblockd/0]
+>>    43 yoku            SW  [pdflush]
+>>    44 yoku            SW  [pdflush]
+>>    46 yoku            SW< [aio/0]
+>>    45 yoku            SW  [kswapd0]
+>>   634 yoku            SW  [mtdblockd]
+>>   664 yoku            SWN [jffs2_gcd_mtd1]
+>>   773 yoku            SW  [affixd]
+>>   800 yoku        540 S   disc_mgr
+>>   807 yoku        764 S   btsrv --managekey --nomanagepin
+>>   808 yoku        424 S   BT_ActivityMgr
+>>   809 yoku        256 S   /root/pwr_key_monitor
+>>   839 yoku        840 S   btsdpd -d
+>>   863 yoku       1316 S   /bin/sh
+>>   879 yoku       1416 S   /root/Angelia
+>>   889 yoku       1416 S   /root/Angelia
+>>   890 yoku       1416 S   /root/Angelia
+>>   891 yoku       1416 S   /root/Angelia
+>>   898 yoku       1416 S   /root/Angelia
+>>   899 yoku       1416 S   /root/Angelia
+>>   900 yoku       1416 S   /root/Angelia
+>>   901 yoku       1416 S   /root/Angelia
+>>   902 yoku       1416 S < /root/Angelia
+>>  1101 yoku            Z < [events/0]
+>>  1103 yoku            Z < [events/0]
+>>  1178 yoku            Z < [events/0]
+>>  1180 yoku            Z < [events/0]
+>>  1255 yoku            Z < [events/0]
+>>  1257 yoku            Z < [events/0]
+>>  1332 yoku            Z < [events/0]
+>>  1334 yoku            Z < [events/0]
+>>  1411 yoku            Z < [events/0]
+>>  1413 yoku            Z < [events/0]
+>>  1488 yoku            Z < [events/0]
+>>  1490 yoku            Z < [events/0]
+>>  1565 yoku            Z < [events/0]
+>>  1567 yoku            Z < [events/0]
+>>  1642 yoku            Z < [events/0]
+>>  1644 yoku            Z < [events/0]
+>>  1719 yoku            Z < [events/0]
+>>  1721 yoku            Z < [events/0]
+>>  1796 yoku            Z < [events/0]
+>>  1798 yoku            Z < [events/0]
+>>  1873 yoku            Z < [events/0]
+>>  1875 yoku            Z < [events/0]
+>>  1950 yoku            Z < [events/0]
+>>  1952 yoku            Z < [events/0]
+>>  2027 yoku            Z < [events/0]
+>>  2029 yoku            Z < [events/0]
+>>  2104 yoku            Z < [events/0]
+>>  2106 yoku            Z < [events/0]
+>>  2181 yoku            Z < [events/0]
+>>  2183 yoku            Z < [events/0]
+>>  2258 yoku            Z < [events/0]
+>>  2260 yoku            Z < [events/0]
+>>  2337 yoku            Z < [events/0]
+>>  2339 yoku            Z < [events/0]
+>>
+>> I fail to understand what is the relevance of process "events/0"?
+>>
+>>     
+> [events/n] is a kernel thread implementing the default work queue on CPU
+> #n , which kernel code can use to run code in process context. See
+> http://www.linuxjournal.com/article/6916 for more details.
+>
+> I just wonder why ps shows many such [events/0]  processes (in Zombie
+> state), instead of just one (like on my GNU/Linux PC, for example)...
+>
+> Cheers,
+>
+>     Michael.
+>
+> --
+> Michael Opdenacker, Free Electrons
+> Free Embedded Linux Training Materials
+> on http://free-electrons.com/training
+> (More than 1000 pages!)
+>
+>
+>
+>   
 
-include/linux/mmzone.h |    2 +-
-mm/sparse.c            |    6 +++---
-2 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ebfc238..35f38b0 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -551,7 +551,7 @@ #define SECTION_NR_TO_ROOT(sec)	((sec) /
- #define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
- #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
- 
--#ifdef CONFIG_SPARSEMEM_EXTREME
-+#ifndef CONFIG_SPARSEMEM_STATIC
- extern struct mem_section *mem_section[NR_SECTION_ROOTS];
- #else
- extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 0a51f36..341d935 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -16,7 +16,7 @@ #include <asm/dma.h>
-  *
-  * 1) mem_section	- memory sections, mem_map's for valid memory
-  */
--#ifdef CONFIG_SPARSEMEM_EXTREME
-+#ifndef CONFIG_SPARSEMEM_STATIC
- struct mem_section *mem_section[NR_SECTION_ROOTS]
- 	____cacheline_internodealigned_in_smp;
- #else
-@@ -25,7 +25,7 @@ struct mem_section mem_section[NR_SECTIO
- #endif
- EXPORT_SYMBOL(mem_section);
- 
--#ifdef CONFIG_SPARSEMEM_EXTREME
-+#ifndef CONFIG_SPARSEMEM_STATIC
- static struct mem_section *sparse_index_alloc(int nid)
- {
- 	struct mem_section *section = NULL;
-@@ -67,7 +67,7 @@ out:
- 	spin_unlock(&index_init_lock);
- 	return ret;
- }
--#else /* !SPARSEMEM_EXTREME */
-+#else /* SPARSEMEM_STATIC */
- static inline int sparse_index_init(unsigned long section_nr, int nid)
- {
- 	return 0;
 -- 
-1.3.3.g8701
+Michael Opdenacker, Free Electrons
+Free Embedded Linux Training Materials
+on http://free-electrons.com/training
+(More than 1000 pages!)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
