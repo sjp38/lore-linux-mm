@@ -1,213 +1,83 @@
-Date: Fri, 9 Jun 2006 13:57:43 +0100
-Subject: Re: [PATCH 0/5] Sizing zones and holes in an architecture independent manner V7
-Message-ID: <20060609125742.GA31718@skynet.ie>
-References: <20060606134710.21419.48239.sendpatchset@skynet.skynet.ie> <200606071216.24640.ak@suse.de> <Pine.LNX.4.64.0606071118230.20653@skynet.skynet.ie> <200606071720.22242.ak@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200606071720.22242.ak@suse.de>
-From: mel@csn.ul.ie (Mel Gorman)
+Received: by nf-out-0910.google.com with SMTP id c29so556627nfb
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2006 07:42:18 -0700 (PDT)
+Message-ID: <4489898F.9080805@innova-card.com>
+Date: Fri, 09 Jun 2006 16:45:35 +0200
+Reply-To: Franck <vagabon.xyz@gmail.com>
+MIME-Version: 1.0
+Subject: [SPARSEMEM] confusing uses of SPARSEM_EXTREME
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+From: Franck Bui-Huu <fbh.work@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, davej@codemonkey.org.uk, tony.luck@intel.com, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (07/06/06 17:20), Andi Kleen didst pronounce:
-> 
-> > Ok, while true, I'm not sure how it affects performance. The only "real" 
-> > value affected by present_pages is the number of patches that are 
-> > allocated in batches to the per-cpu allocator.
-> 
-> It affects the low/high water marks in the VM zone balancer.
-> 
-> Especially for the 16MB DMA zone it can make a difference if you
-> account 4MB kernel in there or not.
-> 
+Is it me or the use of CONFIG_SPARSEMEM_EXTREME is really confusing in
+mm/sparce.c ? Shouldn't we use CONFIG_SPARSEMEM_STATIC instead like
+the following patch suggests ?
 
-Ok, the following patch will account for memmap usage on all
-architectures. Optionally, a set_dma_reserve() may be called to account
-for pages in ZONE_DMA that will never be usable. In this patch, only
-x86_64 uses it.
+-- >8 --
+Subject: [PATCH] Remove confusing uses of SPARSEMEM_EXTREME
 
-After this patch is applied, the zone->present_pages figures are very
-similar before and after arch-independent zone-sizing and the watermarks
-are the same.
+CONFIG_SPARSEMEM_EXTREME is used in sparce.c whereas
+CONFIG_SPARSEMEM_STATIC seems to be more appropriate.
 
+Signed-off-by: Franck Bui-Huu <vagabon.xyz@gmail.com> 
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/arch/x86_64/mm/init.c linux-2.6.17-rc6-mm1-106-account_kernel_mmap/arch/x86_64/mm/init.c
---- linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/arch/x86_64/mm/init.c	2006-06-08 13:45:07.000000000 +0100
-+++ linux-2.6.17-rc6-mm1-106-account_kernel_mmap/arch/x86_64/mm/init.c	2006-06-09 09:18:55.000000000 +0100
-@@ -660,8 +660,10 @@ void __init reserve_bootmem_generic(unsi
- #else       		
- 	reserve_bootmem(phys, len);    
- #endif
--	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
-+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
- 		dma_reserve += len / PAGE_SIZE;
-+		set_dma_reserve(dma_reserve);
-+	}
- }
+---
+
+include/linux/mmzone.h |    2 +-
+mm/sparse.c            |    6 +++---
+2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index ebfc238..35f38b0 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -551,7 +551,7 @@ #define SECTION_NR_TO_ROOT(sec)	((sec) /
+ #define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
+ #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
  
- int kern_addr_valid(unsigned long addr) 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/include/linux/mm.h linux-2.6.17-rc6-mm1-106-account_kernel_mmap/include/linux/mm.h
---- linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/include/linux/mm.h	2006-06-08 13:42:53.000000000 +0100
-+++ linux-2.6.17-rc6-mm1-106-account_kernel_mmap/include/linux/mm.h	2006-06-09 09:18:55.000000000 +0100
-@@ -969,6 +969,7 @@ extern void free_bootmem_with_active_reg
- 						unsigned long max_low_pfn);
- extern void sparse_memory_present_with_active_regions(int nid);
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
-+extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long);
- extern void setup_per_zone_pages_min(void);
- extern void mem_init(void);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/mm/page_alloc.c linux-2.6.17-rc6-mm1-106-account_kernel_mmap/mm/page_alloc.c
---- linux-2.6.17-rc6-mm1-105-ia64_use_init_nodes/mm/page_alloc.c	2006-06-08 13:42:53.000000000 +0100
-+++ linux-2.6.17-rc6-mm1-106-account_kernel_mmap/mm/page_alloc.c	2006-06-09 09:18:55.000000000 +0100
-@@ -88,6 +88,7 @@ int min_free_kbytes = 1024;
- 
- unsigned long __meminitdata nr_kernel_pages;
- unsigned long __meminitdata nr_all_pages;
-+unsigned long __initdata dma_reserve;
- 
- #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
-   /*
-@@ -2459,6 +2460,20 @@ unsigned long __init zone_absent_pages_i
- 				arch_zone_lowest_possible_pfn[zone_type],
- 				arch_zone_highest_possible_pfn[zone_type]);
- }
-+
-+/* Return the zone index a PFN is in */
-+int memmap_zone_idx(struct page *lmem_map)
-+{
-+	int i;
-+	unsigned long phys_addr = virt_to_phys(lmem_map);
-+	unsigned long pfn = phys_addr >> PAGE_SHIFT;
-+
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		if (pfn < arch_zone_highest_possible_pfn[i])
-+			break;
-+
-+	return i;
-+}
+-#ifdef CONFIG_SPARSEMEM_EXTREME
++#ifndef CONFIG_SPARSEMEM_STATIC
+ extern struct mem_section *mem_section[NR_SECTION_ROOTS];
  #else
- static inline unsigned long zone_spanned_pages_in_node(int nid,
- 					unsigned long zone_type,
-@@ -2476,6 +2491,11 @@ static inline unsigned long zone_absent_
- 
- 	return zholes_size[zone_type];
- }
-+
-+static inline int memmap_zone_idx(struct page *lmem_map)
-+{
-+	return MAX_NR_ZONES;
-+}
+ extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 0a51f36..341d935 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -16,7 +16,7 @@ #include <asm/dma.h>
+  *
+  * 1) mem_section	- memory sections, mem_map's for valid memory
+  */
+-#ifdef CONFIG_SPARSEMEM_EXTREME
++#ifndef CONFIG_SPARSEMEM_STATIC
+ struct mem_section *mem_section[NR_SECTION_ROOTS]
+ 	____cacheline_internodealigned_in_smp;
+ #else
+@@ -25,7 +25,7 @@ struct mem_section mem_section[NR_SECTIO
  #endif
+ EXPORT_SYMBOL(mem_section);
  
- static void __init calculate_node_totalpages(struct pglist_data *pgdat,
-@@ -2499,6 +2519,58 @@ static void __init calculate_node_totalp
- 							realtotalpages);
+-#ifdef CONFIG_SPARSEMEM_EXTREME
++#ifndef CONFIG_SPARSEMEM_STATIC
+ static struct mem_section *sparse_index_alloc(int nid)
+ {
+ 	struct mem_section *section = NULL;
+@@ -67,7 +67,7 @@ out:
+ 	spin_unlock(&index_init_lock);
+ 	return ret;
  }
- 
-+#ifdef CONFIG_FLAT_NODE_MEM_MAP
-+/* Account for mem_map for CONFIG_FLAT_NODE_MEM_MAP */
-+unsigned long __meminit account_memmap(struct pglist_data *pgdat,
-+						int zone_index)
-+{
-+	unsigned long pages = 0;
-+	if (zone_index == memmap_zone_idx(pgdat->node_mem_map)) {
-+		pages = pgdat->node_spanned_pages;
-+		pages = (pages * sizeof(struct page)) >> PAGE_SHIFT;
-+		printk(KERN_DEBUG "%lu pages used for memmap\n", pages);
-+	}
-+	return pages;
-+}
-+#else
-+/* Account for mem_map for CONFIG_SPARSEMEM */
-+unsigned long account_memmap(struct pglist_data *pgdat, int zone_index)
-+{
-+	unsigned long pages = 0;
-+	unsigned long memmap_pfn;
-+	struct page *memmap_addr;
-+	int pnum;
-+	unsigned long pgdat_startpfn, pgdat_endpfn;
-+	struct mem_section *section;
-+
-+	pgdat_startpfn = pgdat->node_start_pfn;
-+	pgdat_endpfn = pgdat_startpfn + pgdat->node_spanned_pages;
-+
-+	/* Go through valid sections looking for memmap */
-+	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-+		if (!valid_section_nr(pnum))
-+			continue;
-+
-+		section = __nr_to_section(pnum);
-+		if (!section_has_mem_map(section))
-+			continue;
-+
-+		memmap_addr = __section_mem_map_addr(section);
-+		memmap_pfn = (unsigned long)memmap_addr >> PAGE_SHIFT;
-+
-+		if (memmap_pfn < pgdat_startpfn || memmap_pfn >= pgdat_endpfn)
-+			continue;
-+
-+		if (zone_index == memmap_zone_idx(memmap_addr))
-+			pages += (PAGES_PER_SECTION * sizeof(struct page));
-+	}
-+
-+	pages >>= PAGE_SHIFT;
-+	printk(KERN_DEBUG "%lu pages used for SPARSE memmap\n", pages);
-+	return pages;
-+}
-+#endif
-+
- /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -2525,6 +2597,15 @@ static void __meminit free_area_init_cor
- 		size = zone_spanned_pages_in_node(nid, j, zones_size);
- 		realsize = size - zone_absent_pages_in_node(nid, j,
- 								zholes_size);
-+
-+		realsize -= account_memmap(pgdat, j);
-+		/* Account for reserved DMA pages */
-+		if (j == ZONE_DMA && realsize > dma_reserve) {
-+			realsize -= dma_reserve;
-+			printk(KERN_DEBUG "%lu pages DMA reserved\n",
-+								dma_reserve);
-+		}
-+
- 		if (j < ZONE_HIGHMEM)
- 			nr_kernel_pages += realsize;
- 		nr_all_pages += realsize;
-@@ -2849,6 +2930,21 @@ void __init free_area_init_nodes(unsigne
- }
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
- 
-+/**
-+ * set_dma_reserve - Account the specified number of pages reserved in ZONE_DMA
-+ * @new_dma_reserve - The number of pages to mark reserved
-+ *
-+ * The per-cpu batchsize and zone watermarks are determined by present_pages.
-+ * In the DMA zone, a significant percentage may be consumed by kernel image
-+ * and other unfreeable allocations which can skew the watermarks badly. This
-+ * function may optionally be used to account for unfreeable pages in
-+ * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize
-+ */
-+void __init set_dma_reserve(unsigned long new_dma_reserve)
-+{
-+	dma_reserve = new_dma_reserve;
-+}
-+
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- static bootmem_data_t contig_bootmem_data;
- struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
-
+-#else /* !SPARSEMEM_EXTREME */
++#else /* SPARSEMEM_STATIC */
+ static inline int sparse_index_init(unsigned long section_nr, int nid)
+ {
+ 	return 0;
 -- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.3.3.g8701
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
