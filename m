@@ -1,32 +1,41 @@
-Date: Thu, 8 Jun 2006 21:01:01 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 06/14] Add per zone counters to zone node and global VM
- statistics
-Message-Id: <20060608210101.155e8d4f.akpm@osdl.org>
-In-Reply-To: <20060608230310.25121.77780.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
-	<20060608230310.25121.77780.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 01/14] Per zone counter functionality
+Date: Fri, 9 Jun 2006 06:28:57 +0200
+References: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com> <20060608230244.25121.76440.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20060608230244.25121.76440.sendpatchset@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200606090628.57497.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, hugh@veritas.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, marcelo.tosatti@cyclades.com
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Jun 2006 16:03:10 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+> +/*
+> + * For an unknown interrupt state
+> + */
+> +void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+> +				int delta)
+> +{
+> +	unsigned long flags;
+> +
+> +	local_irq_save(flags);
+> +	__mod_zone_page_state(zone, item, delta);
+> +	local_irq_restore(flags);
 
-> --- linux-2.6.17-rc6-mm1.orig/mm/page_alloc.c	2006-06-08 14:29:46.317675014 -0700
-> +++ linux-2.6.17-rc6-mm1/mm/page_alloc.c	2006-06-08 14:57:05.712250246 -0700
-> @@ -628,6 +628,8 @@ static int rmqueue_bulk(struct zone *zon
->  	return i;
->  }
->  
-> +char *vm_stat_item_descr[NR_STAT_ITEMS] = { "mapped","pagecache" };
+It would be nicer to use some variant of local_t - then you could do that
+without turning off interrupts (which some CPUs like P4 don't like)
 
-static?
+There currently is not 1 byte local_t but it could be added.
+
+Mind you it would only make sense when most of the calls are not already
+with interrupts disabled.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
