@@ -1,34 +1,50 @@
-Date: Fri, 9 Jun 2006 16:15:31 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Light weight counter 1/1 Framework
-Message-Id: <20060609161531.249de5e1.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0606091537350.3036@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0606091216320.1174@schroedinger.engr.sgi.com>
-	<20060609143333.39b29109.akpm@osdl.org>
-	<Pine.LNX.4.64.0606091537350.3036@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: acting on all tasks mapping a dirty page
+Date: Fri, 9 Jun 2006 17:31:04 -0700
+Message-ID: <069061BE1B26524C85EC01E0F5CC3CC30163E20E@rigel.headquarters.spacedev.com>
+From: "Brian Lindahl" <Brian.Lindahl@SpaceDev.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, ak@suse.de, hugh@veritas.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> Eventcounter fixups
+Given a dirty physical page, I need to perform a certain action on each process (task) that maps to it. To do this, I mark each 'mm' by tracing the list of vma's in the page's mapping. I later iterate over the task list and perform an action on each 'mm' that is marked. Because each task has it's own pte, I think I have to scan the vma list for a mapping twice.
 
-And the kernel still doesn't actually compile with this patch applied.  You
-need to also apply light-weight-counters-counter-conversion.patch to make
-page_alloc.c compile.  So either we break git-bisect or I fold two
-inappropriate patches together or I need to patchwrangle it somehow.
+/* locks ignored for brevity, assume atomic */
 
-<checks>
+struct page * page; /* = some page */
+int pte_dirty = 0;
 
-Yes, I need to fold them all together.
+vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
+  pte_dirty; /* = via page_check_address, is the pte dirty? */
 
-And fix the unused-variable warnings.
+if (pte_dirty)
+  vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
+    mark(vma->vm_mm);
+
+struct task_struct * task; /* = task_list */
+for(; task; task = task->next_task)
+  if (task->mm->marked)
+    do_action(task);
+
+Is there a better way to do this? Less importantly, is there a way to avoid two vma_prio_tree_foreach's? I didn't want to assume that the pte reference is identical for all mappings for any given page, but it looks that way. If this is true, then I can simply scan it once and use the result from the examination of pte dirty on the first vma (rather, it's owning mm)?
+
+Thanks!
+
+Brian Lindahl 
+Embedded Software Engineer 
+858-375-2077 
+brian.lindahl@spacedev.com 
+SpaceDev, Inc. 
+"We Make Space Happen"
+ 
+ 
+This email message and any information or files contained within or attached to this message may be privileged, confidential, proprietary and protected from disclosure and is intended only for the person or entity to which it is addressed.  This email is considered a business record and is therefore property of the SpaceDev, Inc.  Any direct or indirect review, re-transmission, dissemination, forwarding, printing, use, disclosure, or copying of this message or any part thereof or other use of or any file attached to this message, or taking of any action in reliance upon this information by persons or entities other than the intended recipient is prohibited.  If you received this message in error, please immediately inform the sender by reply e-mail and delete the message and any attachments and all copies of it from your system and destroy any hard copies of it.  No confidentiality or privilege is waived or lost by any mis-transmission.  SpaceDev, Inc. is neither liable for proper, complete transmission or the information contained in this communication, nor any delay in its receipt or any virus contained therein.  No representation, warranty or undertaking (express or implied) is given and no responsibility or liability is accepted by SpaceDev, Inc., as to the accuracy or the information contained herein or for any loss or damage (be it direct, indirect, special or other consequential) arising from reliance on it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
