@@ -1,33 +1,57 @@
-Date: Fri, 9 Jun 2006 19:42:36 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of
- physical pages backing it
-Message-Id: <20060609194236.4b997b9a.akpm@osdl.org>
-In-Reply-To: <1149903235.31417.84.camel@galaxy.corp.google.com>
-References: <1149903235.31417.84.camel@galaxy.corp.google.com>
+Date: Sat, 10 Jun 2006 13:32:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: zoned VM stats: Add NR_ANON
+Message-Id: <20060610133207.df05aa29.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0606091152490.916@schroedinger.engr.sgi.com>
+References: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
+	<20060608230305.25121.97821.sendpatchset@schroedinger.engr.sgi.com>
+	<20060608210056.9b2f3f13.akpm@osdl.org>
+	<Pine.LNX.4.64.0606091152490.916@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rohitseth@google.com
-Cc: Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, hugh@veritas.com, npiggin@suse.de, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 09 Jun 2006 18:33:55 -0700
-Rohit Seth <rohitseth@google.com> wrote:
+On Fri, 9 Jun 2006 11:54:07 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Below is a patch that adds number of physical pages that each vma is
-> using in a process.  Exporting this information to user space
-> using /proc/<pid>/maps interface.
+> Note that this will change the meaning of the number of mapped pages
+> reported in /proc/vmstat /proc/meminfo and in the per node statistics.
+> This may affect user space tools that monitor these counters!
+> 
+> However, NR_MAPPED then works like NR_DIRTY. It is only valid for
+> pagecache pages.
 
-Ouch, that's an awful lot of open-coded incs and decs.  Isn't there some
-more centralised place we can do this?
+> Index: linux-2.6.17-rc6-mm1/mm/rmap.c
+> ===================================================================
+> --- linux-2.6.17-rc6-mm1.orig/mm/rmap.c	2006-06-09 10:30:51.768993888 -0700
+> +++ linux-2.6.17-rc6-mm1/mm/rmap.c	2006-06-09 11:26:59.389471258 -0700
+> @@ -455,7 +455,7 @@ static void __page_set_anon_rmap(struct 
+>  	 * nr_mapped state can be updated without turning off
+>  	 * interrupts because it is not modified via interrupt.
+>  	 */
+> -	__inc_zone_page_state(page, NR_MAPPED);
+> +	__inc_zone_page_state(page, NR_ANON);
+>  }
+>  
+>  /**
+> @@ -531,7 +531,7 @@ void page_remove_rmap(struct page *page)
+>  		 */
+>  		if (page_test_and_clear_dirty(page))
+>  			set_page_dirty(page);
+> -		__dec_zone_page_state(page, NR_MAPPED);
+> +		__dec_zone_page_state(page, PageAnon(page) ? NR_ANON : NR_MAPPED);
+>  	}
+>  }
 
-What locking protects vma.nphys (can we call this nr_present or something?)
+Can this accounting catch  page migration ?  TBD ?
+Now all coutners are counted per zone, migration should be cared.
 
-Will this patch do the right thing with weird vmas such as the gate vma and
-mmaps of device memory, etc?
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
