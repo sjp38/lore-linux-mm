@@ -1,57 +1,33 @@
-Date: Sat, 10 Jun 2006 13:32:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 9 Jun 2006 21:52:46 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: zoned VM stats: Add NR_ANON
-Message-Id: <20060610133207.df05aa29.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0606091152490.916@schroedinger.engr.sgi.com>
+In-Reply-To: <20060610133207.df05aa29.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0606092149220.4820@schroedinger.engr.sgi.com>
 References: <20060608230239.25121.83503.sendpatchset@schroedinger.engr.sgi.com>
-	<20060608230305.25121.97821.sendpatchset@schroedinger.engr.sgi.com>
-	<20060608210056.9b2f3f13.akpm@osdl.org>
-	<Pine.LNX.4.64.0606091152490.916@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20060608230305.25121.97821.sendpatchset@schroedinger.engr.sgi.com>
+ <20060608210056.9b2f3f13.akpm@osdl.org> <Pine.LNX.4.64.0606091152490.916@schroedinger.engr.sgi.com>
+ <20060610133207.df05aa29.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, hugh@veritas.com, npiggin@suse.de, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Jun 2006 11:54:07 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Sat, 10 Jun 2006, KAMEZAWA Hiroyuki wrote:
 
-> Note that this will change the meaning of the number of mapped pages
-> reported in /proc/vmstat /proc/meminfo and in the per node statistics.
-> This may affect user space tools that monitor these counters!
-> 
-> However, NR_MAPPED then works like NR_DIRTY. It is only valid for
-> pagecache pages.
+> Can this accounting catch  page migration ?  TBD ?
+> Now all coutners are counted per zone, migration should be cared.
 
-> Index: linux-2.6.17-rc6-mm1/mm/rmap.c
-> ===================================================================
-> --- linux-2.6.17-rc6-mm1.orig/mm/rmap.c	2006-06-09 10:30:51.768993888 -0700
-> +++ linux-2.6.17-rc6-mm1/mm/rmap.c	2006-06-09 11:26:59.389471258 -0700
-> @@ -455,7 +455,7 @@ static void __page_set_anon_rmap(struct 
->  	 * nr_mapped state can be updated without turning off
->  	 * interrupts because it is not modified via interrupt.
->  	 */
-> -	__inc_zone_page_state(page, NR_MAPPED);
-> +	__inc_zone_page_state(page, NR_ANON);
->  }
->  
->  /**
-> @@ -531,7 +531,7 @@ void page_remove_rmap(struct page *page)
->  		 */
->  		if (page_test_and_clear_dirty(page))
->  			set_page_dirty(page);
-> -		__dec_zone_page_state(page, NR_MAPPED);
-> +		__dec_zone_page_state(page, PageAnon(page) ? NR_ANON : NR_MAPPED);
->  	}
->  }
+Page migration removes the reverse mapping for the old page and installs 
+the mappings to the new page later. This means that the counters are taken 
+care of.
 
-Can this accounting catch  page migration ?  TBD ?
-Now all coutners are counted per zone, migration should be cared.
+try_to_unmap_one removes the mapping and decrements the zone counter.
 
--Kame
+remove_migration_pte adds the mapping to the new page and increments the 
+relevant zone counter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
