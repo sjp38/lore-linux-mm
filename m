@@ -1,101 +1,87 @@
-Date: Mon, 12 Jun 2006 14:14:28 -0700 (PDT)
+Date: Mon, 12 Jun 2006 14:14:23 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060612211428.20862.63424.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060612211423.20862.41488.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 20/21] Conversion of nr_bounce to per zone counter
+Subject: [PATCH 19/21] swap_prefetch: Conversion of nr_unstable to ZVC
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: conversion of nr_bounce to per zone counter
+Subject: swap_prefetch: conversion of nr_unstable to per zone counter
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Conversion of nr_bounce to a per zone counter
-
-nr_bounce is only used for proc output.  So it could be left as an
-event counter.  However, the event counters are not accurate and nr_bounce is
-categorizing types of pages in a zone.  So we really need this to also be a
-per zone counter.
+The determination of the vm state is now not that expensive
+anymore after we remove the use of the page state.
+Remove the logic to avoid the expensive checks.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-rc6-cl/drivers/base/node.c
+Index: linux-2.6.17-rc6-cl/mm/swap_prefetch.c
 ===================================================================
---- linux-2.6.17-rc6-cl.orig/drivers/base/node.c	2006-06-12 13:03:17.226722868 -0700
-+++ linux-2.6.17-rc6-cl/drivers/base/node.c	2006-06-12 13:03:40.552426736 -0700
-@@ -65,6 +65,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Anonymous:    %8lu kB\n"
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d Unstable:     %8lu kB\n"
-+		       "Node %d Bounce:       %8lu kB\n"
- 		       "Node %d Slab:         %8lu kB\n",
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
-@@ -82,6 +83,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_ANON)),
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE)),
-+		       nid, K(node_page_state(nid, NR_BOUNCE)),
- 		       nid, K(node_page_state(nid, NR_SLAB)));
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
-Index: linux-2.6.17-rc6-cl/include/linux/mmzone.h
-===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/mmzone.h	2006-06-12 13:03:17.229652374 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/mmzone.h	2006-06-12 13:03:40.553403238 -0700
-@@ -56,6 +56,7 @@ enum zone_stat_item {
- 	NR_DIRTY,
- 	NR_WRITEBACK,
- 	NR_UNSTABLE,	/* NFS unstable pages */
-+	NR_BOUNCE,
- 	NR_STAT_ITEMS };
+--- linux-2.6.17-rc6-cl.orig/mm/swap_prefetch.c	2006-06-12 12:55:39.368358636 -0700
++++ linux-2.6.17-rc6-cl/mm/swap_prefetch.c	2006-06-12 12:55:41.321362692 -0700
+@@ -298,7 +298,7 @@ static int prefetch_suitable(void)
+ {
+ 	unsigned long limit;
+ 	struct zone *z;
+-	int node, ret = 0, test_pagestate = 0;
++	int node, ret = 0;
  
- struct per_cpu_pages {
-Index: linux-2.6.17-rc6-cl/mm/highmem.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/highmem.c	2006-06-05 17:57:02.000000000 -0700
-+++ linux-2.6.17-rc6-cl/mm/highmem.c	2006-06-12 13:03:40.553403238 -0700
-@@ -316,7 +316,7 @@ static void bounce_end_io(struct bio *bi
- 			continue;
- 
- 		mempool_free(bvec->bv_page, pool);	
--		dec_page_state(nr_bounce);
-+		dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
+ 	/* Purposefully racy */
+ 	if (test_bit(0, &swapped.busy)) {
+@@ -306,19 +306,6 @@ static int prefetch_suitable(void)
+ 		goto out;
  	}
  
- 	bio_endio(bio_orig, bio_orig->bi_size, err);
-@@ -397,7 +397,7 @@ static void __blk_queue_bounce(request_q
- 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
- 		to->bv_len = from->bv_len;
- 		to->bv_offset = from->bv_offset;
--		inc_page_state(nr_bounce);
-+		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+-	/*
+-	 * get_page_state and above_background_load are expensive so we only
+-	 * perform them every SWAP_CLUSTER_MAX prefetched_pages.
+-	 * We test to see if we're above_background_load as disk activity
+-	 * even at low priority can cause interrupt induced scheduling
+-	 * latencies.
+-	 */
+-	if (!(sp_stat.prefetched_pages % SWAP_CLUSTER_MAX)) {
+-		if (above_background_load())
+-			goto out;
+-		test_pagestate = 1;
+-	}
+-
+ 	clear_current_prefetch_free();
  
- 		if (rw == WRITE) {
- 			char *vto, *vfrom;
-Index: linux-2.6.17-rc6-cl/mm/vmstat.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/vmstat.c	2006-06-12 13:03:33.967873583 -0700
-+++ linux-2.6.17-rc6-cl/mm/vmstat.c	2006-06-12 13:03:54.972432138 -0700
-@@ -471,6 +471,7 @@ static char *vmstat_text[] = {
- 	"nr_dirty",
- 	"nr_writeback",
- 	"nr_unstable",
-+	"nr_bounce",
+ 	/*
+@@ -357,7 +344,6 @@ static int prefetch_suitable(void)
+ 	 */
+ 	for_each_node_mask(node, sp_stat.prefetch_nodes) {
+ 		struct node_stats *ns = &sp_stat.node[node];
+-		struct page_state ps;
  
- 	/* Event counters */
- 	"pgpgin",
-@@ -518,7 +519,6 @@ static char *vmstat_text[] = {
- 	"allocstall",
+ 		/*
+ 		 * We check to see that pages are not being allocated
+@@ -375,11 +361,6 @@ static int prefetch_suitable(void)
+ 		} else
+ 			ns->last_free = ns->current_free;
  
- 	"pgrotated",
--	"nr_bounce",
- };
- 
- /*
+-		if (!test_pagestate)
+-			continue;
+-
+-		get_page_state_node(&ps, node);
+-
+ 		/* We shouldn't prefetch when we are doing writeback */
+ 		if (node_page_state(node, NR_WRITEBACK)) {
+ 			node_clear(node, sp_stat.prefetch_nodes);
+@@ -394,7 +375,8 @@ static int prefetch_suitable(void)
+ 			node_page_state(node, NR_ANON) +
+ 			node_page_state(node, NR_SLAB) +
+ 			node_page_state(node, NR_DIRTY) +
+-			ps.nr_unstable + total_swapcache_pages;
++			node_page_state(node, NR_UNSTABLE) +
++			total_swapcache_pages;
+ 		if (limit > ns->prefetch_watermark) {
+ 			node_clear(node, sp_stat.prefetch_nodes);
+ 			continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
