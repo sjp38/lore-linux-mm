@@ -1,50 +1,30 @@
-Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of
-	physical pages backing it
-From: Rohit Seth <rohitseth@google.com>
-Reply-To: rohitseth@google.com
-In-Reply-To: <20060609194236.4b997b9a.akpm@osdl.org>
-References: <1149903235.31417.84.camel@galaxy.corp.google.com>
-	 <20060609194236.4b997b9a.akpm@osdl.org>
-Content-Type: text/plain
-Date: Mon, 12 Jun 2006 10:49:23 -0700
-Message-Id: <1150134563.9576.25.camel@galaxy.corp.google.com>
-Mime-Version: 1.0
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH]: Adding a counter in vma to indicate the number =?utf-8?q?of=09physical_pages_backing?= it
+Date: Mon, 12 Jun 2006 19:58:40 +0200
+References: <1149903235.31417.84.camel@galaxy.corp.google.com> <448A762F.7000105@yahoo.com.au> <1150133795.9576.19.camel@galaxy.corp.google.com>
+In-Reply-To: <1150133795.9576.19.camel@galaxy.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200606121958.41127.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
+To: rohitseth@google.com
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-06-09 at 19:42 -0700, Andrew Morton wrote:
-> On Fri, 09 Jun 2006 18:33:55 -0700
-> Rohit Seth <rohitseth@google.com> wrote:
-> 
-> > Below is a patch that adds number of physical pages that each vma is
-> > using in a process.  Exporting this information to user space
-> > using /proc/<pid>/maps interface.
-> 
-> Ouch, that's an awful lot of open-coded incs and decs.  Isn't there some
-> more centralised place we can do this?
-> 
+> It is just the price of those walks that makes smaps not an attractive
+> solution for monitoring purposes.
 
-I'll look into this.  Possibly combining it with mm counters.
+It just shouldn't be used for that. It's a debugging hack and not really 
+suitable for monitoring even with optimizations.
 
-> What locking protects vma.nphys (can we call this nr_present or something?)
-> 
+For monitoring if the current numa statistics are not good enough
+you should probably propose new counters.
 
-I'll need to use the same atomic counters as mm.   And Yes nr_present is
-a better name.
-
-> Will this patch do the right thing with weird vmas such as the gate vma and
-> mmaps of device memory, etc?
-> 
-
-I think so.  (though strictly speaking those special vmas are less
-interesting).  But final solution (if we do decide to implement this
-counter) will address that.
-
--rohit
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
