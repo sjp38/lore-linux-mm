@@ -1,277 +1,78 @@
-Date: Mon, 12 Jun 2006 14:13:10 -0700 (PDT)
+Date: Mon, 12 Jun 2006 14:13:16 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060612211310.20862.738.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060612211315.20862.820.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 05/21] Conversion of nr_pagecache to per zone counter
+Subject: [PATCH 06/21] Remove nr_mapped from scan controls structure
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: conversion of nr_pagecache to per zone counter
+Subject: zoned VM stats: Remove nr_mapped from scan control
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Currently a single atomic variable is used to establish the size of the page
-cache in the whole machine. The zoned VM counters have the same method of
-implementation as the nr_pagecache code but also allow the determination of
-the pagecache size per zone.
-
-Remove the special implementation for nr_pagecache and make it a zoned
-counter.
-
-Updates of the page cache counters are always performed with interrupts off.
-We can therefore use the __ variant here.
+We can now access the number of pages in a mapped state in an inexpensive
+way in shrink_active_list.  So drop the nr_mapped field from scan_control.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-rc6-cl/arch/sparc64/kernel/sys_sunos32.c
+Index: linux-2.6.17-rc6-cl/mm/vmscan.c
 ===================================================================
---- linux-2.6.17-rc6-cl.orig/arch/sparc64/kernel/sys_sunos32.c	2006-06-12 12:42:42.240680230 -0700
-+++ linux-2.6.17-rc6-cl/arch/sparc64/kernel/sys_sunos32.c	2006-06-12 13:00:50.575648675 -0700
-@@ -155,7 +155,7 @@ asmlinkage int sunos_brk(u32 baddr)
- 	 * simple, it hopefully works in most obvious cases.. Easy to
- 	 * fool it, but this should catch most mistakes.
- 	 */
--	freepages = get_page_cache_size();
-+	freepages = global_page_state(NR_PAGECACHE);
- 	freepages >>= 1;
- 	freepages += nr_free_pages();
- 	freepages += nr_swap_pages;
-Index: linux-2.6.17-rc6-cl/arch/sparc/kernel/sys_sunos.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/arch/sparc/kernel/sys_sunos.c	2006-06-12 12:42:42.249468748 -0700
-+++ linux-2.6.17-rc6-cl/arch/sparc/kernel/sys_sunos.c	2006-06-12 13:00:50.577601679 -0700
-@@ -196,7 +196,7 @@ asmlinkage int sunos_brk(unsigned long b
- 	 * simple, it hopefully works in most obvious cases.. Easy to
- 	 * fool it, but this should catch most mistakes.
- 	 */
--	freepages = get_page_cache_size();
-+	freepages = global_page_state(NR_PAGECACHE);
- 	freepages >>= 1;
- 	freepages += nr_free_pages();
- 	freepages += nr_swap_pages;
-Index: linux-2.6.17-rc6-cl/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/fs/proc/proc_misc.c	2006-06-12 12:57:23.383401642 -0700
-+++ linux-2.6.17-rc6-cl/fs/proc/proc_misc.c	2006-06-12 13:00:50.578578181 -0700
-@@ -142,7 +142,8 @@ static int meminfo_read_proc(char *page,
- 	allowed = ((totalram_pages - hugetlb_total_pages())
- 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
+--- linux-2.6.17-rc6-cl.orig/mm/vmscan.c	2006-06-10 17:25:04.636700267 -0700
++++ linux-2.6.17-rc6-cl/mm/vmscan.c	2006-06-10 19:50:44.835034840 -0700
+@@ -48,8 +48,6 @@ struct scan_control {
+ 	/* Incremented by the number of inactive pages that were scanned */
+ 	unsigned long nr_scanned;
  
--	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
-+	cached = global_page_state(NR_PAGECACHE) -
-+			total_swapcache_pages - i.bufferram;
- 	if (cached < 0)
- 		cached = 0;
+-	unsigned long nr_mapped;	/* From page_state */
+-
+ 	/* This context's GFP mask */
+ 	gfp_t gfp_mask;
  
-Index: linux-2.6.17-rc6-cl/include/linux/pagemap.h
-===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/pagemap.h	2006-06-12 12:42:50.853428498 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/pagemap.h	2006-06-12 13:00:50.579554683 -0700
-@@ -115,51 +115,6 @@ int add_to_page_cache_lru(struct page *p
- extern void remove_from_page_cache(struct page *page);
- extern void __remove_from_page_cache(struct page *page);
- 
--extern atomic_t nr_pagecache;
--
--#ifdef CONFIG_SMP
--
--#define PAGECACHE_ACCT_THRESHOLD        max(16, NR_CPUS * 2)
--DECLARE_PER_CPU(long, nr_pagecache_local);
--
--/*
-- * pagecache_acct implements approximate accounting for pagecache.
-- * vm_enough_memory() do not need high accuracy. Writers will keep
-- * an offset in their per-cpu arena and will spill that into the
-- * global count whenever the absolute value of the local count
-- * exceeds the counter's threshold.
-- *
-- * MUST be protected from preemption.
-- * current protection is mapping->page_lock.
-- */
--static inline void pagecache_acct(int count)
--{
--	long *local;
--
--	local = &__get_cpu_var(nr_pagecache_local);
--	*local += count;
--	if (*local > PAGECACHE_ACCT_THRESHOLD || *local < -PAGECACHE_ACCT_THRESHOLD) {
--		atomic_add(*local, &nr_pagecache);
--		*local = 0;
--	}
--}
--
--#else
--
--static inline void pagecache_acct(int count)
--{
--	atomic_add(count, &nr_pagecache);
--}
--#endif
--
--static inline unsigned long get_page_cache_size(void)
--{
--	int ret = atomic_read(&nr_pagecache);
--	if (unlikely(ret < 0))
--		ret = 0;
--	return ret;
--}
--
- /*
-  * Return byte-offset into filesystem object for page.
-  */
-Index: linux-2.6.17-rc6-cl/mm/filemap.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/filemap.c	2006-06-12 12:42:52.024254482 -0700
-+++ linux-2.6.17-rc6-cl/mm/filemap.c	2006-06-12 13:00:50.581507687 -0700
-@@ -126,7 +126,7 @@ void __remove_from_page_cache(struct pag
- 	radix_tree_delete(&mapping->page_tree, page->index);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
--	pagecache_acct(-1);
-+	__dec_zone_page_state(page, NR_PAGECACHE);
- }
- EXPORT_SYMBOL(__remove_from_page_cache);
- 
-@@ -424,7 +424,7 @@ int add_to_page_cache(struct page *page,
- 			page->mapping = mapping;
- 			page->index = offset;
- 			mapping->nrpages++;
--			pagecache_acct(1);
-+			__inc_zone_page_state(page, NR_PAGECACHE);
- 		}
- 		write_unlock_irq(&mapping->tree_lock);
- 		radix_tree_preload_end();
-Index: linux-2.6.17-rc6-cl/mm/mmap.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/mmap.c	2006-06-12 12:42:52.037925511 -0700
-+++ linux-2.6.17-rc6-cl/mm/mmap.c	2006-06-12 13:00:50.582484189 -0700
-@@ -96,7 +96,7 @@ int __vm_enough_memory(long pages, int c
- 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
- 		unsigned long n;
- 
--		free = get_page_cache_size();
-+		free = global_page_state(NR_PAGECACHE);
- 		free += nr_swap_pages;
+@@ -749,7 +747,8 @@ static void shrink_active_list(unsigned 
+ 		 * how much memory
+ 		 * is mapped.
+ 		 */
+-		mapped_ratio = (sc->nr_mapped * 100) / vm_total_pages;
++		mapped_ratio = (global_page_state(NR_MAPPED) * 100) /
++					vm_total_pages;
  
  		/*
-Index: linux-2.6.17-rc6-cl/mm/nommu.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/nommu.c	2006-06-05 17:57:02.000000000 -0700
-+++ linux-2.6.17-rc6-cl/mm/nommu.c	2006-06-12 13:00:50.583460691 -0700
-@@ -1122,7 +1122,7 @@ int __vm_enough_memory(long pages, int c
- 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
- 		unsigned long n;
+ 		 * Now decide how much we really want to unmap some pages.  The
+@@ -996,7 +995,6 @@ unsigned long try_to_free_pages(struct z
+ 	}
  
--		free = get_page_cache_size();
-+		free = global_page_state(NR_PAGECACHE);
- 		free += nr_swap_pages;
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+-		sc.nr_mapped = global_page_state(NR_MAPPED);
+ 		sc.nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+@@ -1081,7 +1079,6 @@ loop_again:
+ 	total_scanned = 0;
+ 	nr_reclaimed = 0;
+ 	sc.may_writepage = !laptop_mode,
+-	sc.nr_mapped = global_page_state(NR_MAPPED);
  
- 		/*
-Index: linux-2.6.17-rc6-cl/mm/page_alloc.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/page_alloc.c	2006-06-12 12:57:23.385354646 -0700
-+++ linux-2.6.17-rc6-cl/mm/page_alloc.c	2006-06-12 13:00:50.584437193 -0700
-@@ -2231,16 +2231,11 @@ static int page_alloc_cpu_notify(struct 
- 				 unsigned long action, void *hcpu)
- {
- 	int cpu = (unsigned long)hcpu;
--	long *count;
- 	unsigned long *src, *dest;
+ 	inc_page_state(pageoutrun);
  
- 	if (action == CPU_DEAD) {
- 		int i;
+@@ -1416,7 +1413,6 @@ unsigned long shrink_all_memory(unsigned
+ 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+ 			unsigned long nr_to_scan = nr_pages - ret;
  
--		/* Drain local pagecache count. */
--		count = &per_cpu(nr_pagecache_local, cpu);
--		atomic_add(*count, &nr_pagecache);
--		*count = 0;
- 		local_irq_disable();
- 		__drain_pages(cpu);
+-			sc.nr_mapped = global_page_state(NR_MAPPED);
+ 			sc.nr_scanned = 0;
  
-Index: linux-2.6.17-rc6-cl/mm/swap_state.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/swap_state.c	2006-06-12 12:42:52.062338063 -0700
-+++ linux-2.6.17-rc6-cl/mm/swap_state.c	2006-06-12 13:00:50.585413695 -0700
-@@ -89,7 +89,7 @@ static int __add_to_swap_cache(struct pa
- 			SetPageSwapCache(page);
- 			set_page_private(page, entry.val);
- 			total_swapcache_pages++;
--			pagecache_acct(1);
-+			__inc_zone_page_state(page, NR_PAGECACHE);
- 		}
- 		write_unlock_irq(&swapper_space.tree_lock);
- 		radix_tree_preload_end();
-@@ -135,7 +135,7 @@ void __delete_from_swap_cache(struct pag
- 	set_page_private(page, 0);
- 	ClearPageSwapCache(page);
- 	total_swapcache_pages--;
--	pagecache_acct(-1);
-+	__dec_zone_page_state(page, NR_PAGECACHE);
- 	INC_CACHE_INFO(del_total);
- }
- 
-Index: linux-2.6.17-rc6-cl/include/linux/mmzone.h
-===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/mmzone.h	2006-06-12 12:57:23.383401642 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/mmzone.h	2006-06-12 13:00:50.585413695 -0700
-@@ -49,7 +49,7 @@ struct zone_padding {
- enum zone_stat_item {
- 	NR_MAPPED,	/* mapped into pagetables.
- 			   only modified from process context */
--
-+	NR_PAGECACHE,
- 	NR_STAT_ITEMS };
- 
- struct per_cpu_pages {
-Index: linux-2.6.17-rc6-cl/arch/s390/appldata/appldata_mem.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/arch/s390/appldata/appldata_mem.c	2006-06-12 12:42:42.183066607 -0700
-+++ linux-2.6.17-rc6-cl/arch/s390/appldata/appldata_mem.c	2006-06-12 13:00:50.586390197 -0700
-@@ -130,7 +130,8 @@ static void appldata_get_mem_data(void *
- 	mem_data->totalhigh = P2K(val.totalhigh);
- 	mem_data->freehigh  = P2K(val.freehigh);
- 	mem_data->bufferram = P2K(val.bufferram);
--	mem_data->cached    = P2K(atomic_read(&nr_pagecache) - val.bufferram);
-+	mem_data->cached    = P2K(global_page_state(NR_PAGECACHE)
-+				- val.bufferram);
- 
- 	si_swapinfo(&val);
- 	mem_data->totalswap = P2K(val.totalswap);
-Index: linux-2.6.17-rc6-cl/drivers/base/node.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/drivers/base/node.c	2006-06-12 12:57:23.382425140 -0700
-+++ linux-2.6.17-rc6-cl/drivers/base/node.c	2006-06-12 13:00:50.587366699 -0700
-@@ -69,6 +69,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d LowFree:      %8lu kB\n"
- 		       "Node %d Dirty:        %8lu kB\n"
- 		       "Node %d Writeback:    %8lu kB\n"
-+		       "Node %d PageCache:    %8lu kB\n"
- 		       "Node %d Mapped:       %8lu kB\n"
- 		       "Node %d Slab:         %8lu kB\n",
- 		       nid, K(i.totalram),
-@@ -82,6 +83,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.freeram - i.freehigh),
- 		       nid, K(ps.nr_dirty),
- 		       nid, K(ps.nr_writeback),
-+		       nid, K(node_page_state(nid, NR_PAGECACHE)),
- 		       nid, K(node_page_state(nid, NR_MAPPED)),
- 		       nid, K(ps.nr_slab));
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
-Index: linux-2.6.17-rc6-cl/mm/vmstat.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/vmstat.c	2006-06-12 13:00:45.074036260 -0700
-+++ linux-2.6.17-rc6-cl/mm/vmstat.c	2006-06-12 13:01:24.304028650 -0700
-@@ -464,6 +464,7 @@ struct seq_operations fragmentation_op =
- static char *vmstat_text[] = {
- 	/* Zoned VM counters */
- 	"nr_mapped",
-+	"nr_pagecache",
- 
- 	/* Page state */
- 	"nr_dirty",
+ 			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
+@@ -1558,7 +1554,6 @@ static int __zone_reclaim(struct zone *z
+ 	struct scan_control sc = {
+ 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+ 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+-		.nr_mapped = global_page_state(NR_MAPPED),
+ 		.swap_cluster_max = max_t(unsigned long, nr_pages,
+ 					SWAP_CLUSTER_MAX),
+ 		.gfp_mask = gfp_mask,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
