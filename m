@@ -1,180 +1,41 @@
-Date: Mon, 12 Jun 2006 14:13:31 -0700 (PDT)
+Date: Mon, 12 Jun 2006 14:13:41 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060612211331.20862.69229.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060612211341.20862.95937.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 09/21] zone_reclaim: remove /proc/sys/vm/zone_reclaim_interval
+Subject: [PATCH 11/21] swap_prefetch: Conversion of nr_slab to ZVC
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: use per zone counters to remove zone_reclaim_interval
-From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-The zone_reclaim_interval was necessary because we were not able to determine
-how many unmapped pages exist in a zone.  Therefore we had to scan in
-intervals to figure out if any pages were unmapped.
-
-With the zoned counters and NR_ANON we now know the number of pagecache pages
-and the number of mapped pages in a zone.  So we can simply skip the reclaim
-if there is an insufficient number of unmapped pages. We use SWAP_CLUSTER_MAX
-as the boundary.
-
-Drop all support for zone_reclaim_interval.
+This removes a potential problem for swap_prefetch. Use NR_SLAB
+and remove the comment stating the problem.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-rc6-cl/include/linux/mmzone.h
+Index: linux-2.6.17-rc6-cl/mm/swap_prefetch.c
 ===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/mmzone.h	2006-06-12 13:33:11.045379511 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/mmzone.h	2006-06-12 13:37:33.840632482 -0700
-@@ -183,12 +183,6 @@ struct zone {
- 
- 	/* Zone statistics */
- 	atomic_long_t		vm_stat[NR_STAT_ITEMS];
--	/*
--	 * timestamp (in jiffies) of the last zone reclaim that did not
--	 * result in freeing of pages. This is used to avoid repeated scans
--	 * if all memory in the zone is in use.
--	 */
--	unsigned long		last_unsuccessful_zone_reclaim;
- 
- 	/*
- 	 * prev_priority holds the scanning priority for this zone.  It is
-Index: linux-2.6.17-rc6-cl/include/linux/swap.h
-===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/swap.h	2006-06-12 12:42:51.046775908 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/swap.h	2006-06-12 13:33:11.120570168 -0700
-@@ -190,7 +190,6 @@ extern long vm_total_pages;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
--extern int zone_reclaim_interval;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
- #else
- #define zone_reclaim_mode 0
-Index: linux-2.6.17-rc6-cl/include/linux/sysctl.h
-===================================================================
---- linux-2.6.17-rc6-cl.orig/include/linux/sysctl.h	2006-06-12 12:42:51.074117966 -0700
-+++ linux-2.6.17-rc6-cl/include/linux/sysctl.h	2006-06-12 13:33:11.121546670 -0700
-@@ -191,7 +191,6 @@ enum
- 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
- 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
- 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
--	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
- 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
- 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
- 	VM_SWAP_PREFETCH=35,	/* swap prefetch */
-Index: linux-2.6.17-rc6-cl/kernel/sysctl.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/kernel/sysctl.c	2006-06-12 12:42:51.948087320 -0700
-+++ linux-2.6.17-rc6-cl/kernel/sysctl.c	2006-06-12 13:33:11.123499674 -0700
-@@ -1015,15 +1015,6 @@ static ctl_table vm_table[] = {
- 		.strategy	= &sysctl_intvec,
- 		.extra1		= &zero,
- 	},
--	{
--		.ctl_name	= VM_ZONE_RECLAIM_INTERVAL,
--		.procname	= "zone_reclaim_interval",
--		.data		= &zone_reclaim_interval,
--		.maxlen		= sizeof(zone_reclaim_interval),
--		.mode		= 0644,
--		.proc_handler	= &proc_dointvec_jiffies,
--		.strategy	= &sysctl_jiffies,
--	},
- #endif
- #ifdef CONFIG_X86_32
- 	{
-Index: linux-2.6.17-rc6-cl/mm/vmscan.c
-===================================================================
---- linux-2.6.17-rc6-cl.orig/mm/vmscan.c	2006-06-12 13:33:11.047332515 -0700
-+++ linux-2.6.17-rc6-cl/mm/vmscan.c	2006-06-12 13:33:11.124476176 -0700
-@@ -1530,11 +1530,6 @@ int zone_reclaim_mode __read_mostly;
- #define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
- 
- /*
-- * Mininum time between zone reclaim scans
-- */
--int zone_reclaim_interval __read_mostly = 30*HZ;
--
--/*
-  * Priority for ZONE_RECLAIM. This determines the fraction of pages
-  * of a node considered for each zone_reclaim. 4 scans 1/16th of
-  * a zone.
-@@ -1599,16 +1594,6 @@ static int __zone_reclaim(struct zone *z
- 
- 	p->reclaim_state = NULL;
- 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
--
--	if (nr_reclaimed == 0) {
--		/*
--		 * We were unable to reclaim enough pages to stay on node.  We
--		 * now allow off node accesses for a certain time period before
--		 * trying again to reclaim pages from the local zone.
--		 */
--		zone->last_unsuccessful_zone_reclaim = jiffies;
--	}
--
- 	return nr_reclaimed >= nr_pages;
- }
- 
-@@ -1618,13 +1603,17 @@ int zone_reclaim(struct zone *zone, gfp_
- 	int node_id;
- 
- 	/*
--	 * Do not reclaim if there was a recent unsuccessful attempt at zone
--	 * reclaim.  In that case we let allocations go off node for the
--	 * zone_reclaim_interval.  Otherwise we would scan for each off-node
--	 * page allocation.
-+	 * Do not reclaim if there are not enough reclaimable pages in this
-+	 * zone that would satify this allocations.
-+	 *
-+	 * All unmapped pagecache pages are reclaimable.
-+	 *
-+	 * Both counters may be temporarily off a bit so we use
-+	 * SWAP_CLUSTER_MAX as the boundary. It may also be good to
-+	 * leave a few frequently used unmapped pagecache pages around.
- 	 */
--	if (time_before(jiffies,
--		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
-+	if (zone_page_state(zone, NR_PAGECACHE) -
-+		zone_page_state(zone, NR_MAPPED) < SWAP_CLUSTER_MAX)
- 			return 0;
- 
- 	/*
-Index: linux-2.6.17-rc6-cl/Documentation/sysctl/vm.txt
-===================================================================
---- linux-2.6.17-rc6-cl.orig/Documentation/sysctl/vm.txt	2006-06-12 12:42:42.519959822 -0700
-+++ linux-2.6.17-rc6-cl/Documentation/sysctl/vm.txt	2006-06-12 13:36:53.817719845 -0700
-@@ -28,7 +28,6 @@ Currently, these files are in /proc/sys/
- - block_dump
- - drop-caches
- - zone_reclaim_mode
--- zone_reclaim_interval
- - panic_on_oom
- - swap_prefetch
- - readahead_ratio
-@@ -172,18 +171,6 @@ in all nodes of the system.
- 
- ================================================================
- 
--zone_reclaim_interval:
--
--The time allowed for off node allocations after zone reclaim
--has failed to reclaim enough pages to allow a local allocation.
--
--Time is set in seconds and set by default to 30 seconds.
--
--Reduce the interval if undesired off node allocations occur. However, too
--frequent scans will have a negative impact onoff node allocation performance.
--
--=============================================================
--
- panic_on_oom
- 
- This enables or disables panic on out-of-memory feature.  If this is set to 1,
+--- linux-2.6.17-rc6-cl.orig/mm/swap_prefetch.c	2006-06-12 11:30:59.995187077 -0700
++++ linux-2.6.17-rc6-cl/mm/swap_prefetch.c	2006-06-12 11:55:06.458392224 -0700
+@@ -389,14 +389,11 @@ static int prefetch_suitable(void)
+ 		/*
+ 		 * >2/3 of the ram on this node is mapped, slab, swapcache or
+ 		 * dirty, we need to leave some free for pagecache.
+-		 * Note that currently nr_slab is innacurate on numa because
+-		 * nr_slab is incremented on the node doing the accounting
+-		 * even if the slab is being allocated on a remote node. This
+-		 * would be expensive to fix and not of great significance.
+ 		 */
+ 		limit = node_page_state(node, NR_MAPPED) +
+ 			node_page_state(node, NR_ANON) +
+-			ps.nr_slab + ps.nr_dirty +
++			node_page_state(node, NR_SLAB) +
++			ps.nr_dirty +
+ 			ps.nr_unstable + total_swapcache_pages;
+ 		if (limit > ns->prefetch_watermark) {
+ 			node_clear(node, sp_stat.prefetch_nodes);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
