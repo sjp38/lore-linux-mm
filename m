@@ -1,34 +1,28 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of physical pages backing it
-Date: Mon, 12 Jun 2006 13:17:44 +0200
-References: <1149903235.31417.84.camel@galaxy.corp.google.com> <1150042142.3131.82.camel@laptopd505.fenrus.org>
-In-Reply-To: <1150042142.3131.82.camel@laptopd505.fenrus.org>
+Date: Mon, 12 Jun 2006 14:49:34 +0200 (MEST)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of
+ physical pages backing it
+In-Reply-To: <200606121317.44139.ak@suse.de>
+Message-ID: <Pine.LNX.4.61.0606121449140.1125@yvahk01.tjqt.qr>
+References: <1149903235.31417.84.camel@galaxy.corp.google.com>
+ <1150042142.3131.82.camel@laptopd505.fenrus.org> <200606121317.44139.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200606121317.44139.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: rohitseth@google.com, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Arjan van de Ven <arjan@infradead.org>, rohitseth@google.com, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 11 June 2006 18:09, Arjan van de Ven wrote:
-> On Fri, 2006-06-09 at 18:33 -0700, Rohit Seth wrote:
-> > Below is a patch that adds number of physical pages that each vma is
-> > using in a process.  Exporting this information to user space
-> > using /proc/<pid>/maps interface.
-> 
-> is it really worth bloating the vma struct for this? there are quite a
-> few workloads that have a gazilion vma's, and this patch adds both
-> memory usage and cache pressure to those workloads...
+>
+>I agree it's a bad idea. smaps is only a debugging kludge anyways
+>and it's not a good idea to we bloat core data structures for it.
+>
+Is there a way to disable it (smaps), then?
 
-I agree it's a bad idea. smaps is only a debugging kludge anyways
-and it's not a good idea to we bloat core data structures for it.
 
--Andi
+Jan Engelhardt
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
