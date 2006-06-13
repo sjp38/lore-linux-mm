@@ -1,68 +1,59 @@
-Message-ID: <07898474019789.F25AFDC8E0@C2LF>
-From: "Elmo" <viners3hu@hotmail.com>
-Subject: tremendous lift Urgent email
-Date: Tue, 13 Jun 2006 09:46:33 +0800
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH]: Adding a counter in vma to indicate the number =?iso-8859-15?q?of=09physical_pages_backing?= it
+Date: Tue, 13 Jun 2006 05:51:23 +0200
+References: <1149903235.31417.84.camel@galaxy.corp.google.com> <200606121958.41127.ak@suse.de> <1150141369.9576.43.camel@galaxy.corp.google.com>
+In-Reply-To: <1150141369.9576.43.camel@galaxy.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/html;
-        charset="Windows-1252"
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
-Return-Path: <viners3hu@hotmail.com>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200606130551.23825.ak@suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: rohitseth@google.com
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head>
-<body bgcolor="#FFFFFF" text="#000000">
-<p>Growth stockk picks and stocck recommendations<font size="3"><br>
-  Allert Issued - Watch FCYI.PK Trade Today!<br>
-  Falcon Energy, Inc.<br>
-  SYMBOL: <b>FCYI.PK</b></font><br>
-  Current Price: 1.02<br>
-  Global score: EXCELLENT !<br>
-  Investor Action: BUY FAST ! <br>
-  <br>
-  Before we start with the profile of <font size="3">FCYI.PK</font> we would like 
-  to mention something very important: A Big PR Campaign is moving this week . 
-  And it will go all week so it would be best to get in Now.<br>
-  <br>
-  <i>Recent News</i><BR><BR><br>
-  VANCOUVER, British Columbia--(BUSINESS WIRE)--June 9, 2006--Falcon Energy, Inc. 
-  (Pinnk Sheeets:FCYI.PK - News) is pleased to announce that it has fully acquired 
-  the exploration licenses for five mining properties in the mineral rich region 
-  of Mongolia. Management felt that the opportunity presented by these properties 
-  was significant enough to forgo a planned participation by a second resource 
-  company. These licenses will be held for a minimum of three years and grant 
-  Falcon Energy Inc. access to the mineral rights for the licensed properties. 
-  Exploitable mineral resources found in the area in which the licenses are held 
-  include: Gold, base metals such as Copper, Molybdenum, Lead and Zinc as well 
-  as Fluorite and Uranium.<br>
-  <br>
-  Gas production continues steadily from Falcon Energy's Richmount Westlock property 
-  in Alberta, Canada. This opportunity has proven itself out as the property and 
-  investment have benefited from the surge in natural gas prices since the well 
-  was first tied in May of 2005. The market price (NYMEX) for natural gas at that 
-  time was approximately $6.50 per MMBTU but in the last year prices stayed over 
-  10.00 per MMBTU for a 5 month period with several spikes above the $14.00 range. 
-  The company is pleased that the investment continues to provide consistent revenue 
-  for the company and its shareholders.<br>
-  <br>
-  Falcon Energy Inc. has also announced that due to the confirmed addition of 
-  its mining exploration properties in Mongolia, that it will shortly be expanding 
-  the executive team to assist in managing this new opportunity. Details will 
-  be forthcoming. <br>
-  <BR><BR><BR>Market pulses announced and stoock booming analyzed<br>
-  <i><br>
-  Conclusion</i>:<BR><br>
-  The Examples Above Show The Awesome, Earning Potential of Little Known Companies 
-  That Explode Onto Investor's Radar Screens; Many of You Are Already Familiar 
-  with This. Is <font size="3"><b>FCYI.PK</b></font> Poised and Positioned to 
-  Do that For You? Then You May Feel the Time Has Come to Act... And Please Watch 
-  this One Trade tomorrow! Go <font size="3"><b>FCYI.PK</b></font>. </p>
-<p> inevstment tips and stockk recommendations helping to earn more Best performing sstocks analyzed and explained <BR><BR>..........<br>
-  Only knife ah know whah in pumpkin belly.	 Some are Wise and Some are Otherwise A false balance is abomination to the LORD: but a just weight is his delight. Every Cook Praises His Own Broth I have found at my age going bra-less pulls all the wrinkles out of my face.  Every cloud has a silver lining Better wed over the mixen than over the moor <BR>A fair exchange is no robbery. To know the road ahead, ask those coming back Lil finger point to de big thumb and sey nah guh. When the wine is in, the wit is out  Never be afraid to sit awhile and think <BR><BR><BR>Beauty without grace is like a hook without bait. . 
-  Everyday is a fresh slate Mouth cut trousers nah ah fit Massa. An ant may well destroy a whole dam  Slow fire ah boil hard cow-heel. Dont make love at the garden gate, love is blind but the neighbours aint<BR><BR>Two Dogs Fight for a Bone, and a Third Runs Away With it  Abstinence makes the heart go wander. Dont make love at the garden gate, love is blind but the neighbours aint Tis better to get things for free, than to work up a sweat  Blue are the hills that are far away 
-  The young man thinks the old mans stupid but the old man KNOWS the young man is Turtle can't walk if he nah push he head outa he shell. Flies Come to Feasts Unasked</p>
-</body>
-</html>
+On Monday 12 June 2006 21:42, Rohit Seth wrote:
+> On Mon, 2006-06-12 at 19:58 +0200, Andi Kleen wrote:
+> > > It is just the price of those walks that makes smaps not an attractive
+> > > solution for monitoring purposes.
+> > 
+> > It just shouldn't be used for that. It's a debugging hack and not really 
+> > suitable for monitoring even with optimizations.
+> > 
+> > For monitoring if the current numa statistics are not good enough
+> > you should probably propose new counters.
+> 
+> 
+> numa stats are giving different data.  The proposed vma->nr_phys is the
+> new counter that can provide a detailed information about physical mem
+> usage at each virtual mem segment level.  
+
+And for what do you need that?
+
+It's somewhat useful to debug the NUMA tuning of your app (although
+there are other ways to do that too) but do you
+really need it for normal runtime monitoring? 
+
+
+> I think having this 
+> information in each vma keeps the impact (of adding new counter) to very
+> low.
+> 
+> Second question is to advertize this value to user space.  Please let me
+> know what suites the most among /proc, /sys or system call (or if there
+> is any other mechanism then let me know) for a per process per segment
+> related information.
+
+I think we first need to identify the basic need.
+Don't see why we even need per VMA information so far.
+
+-Andi
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
