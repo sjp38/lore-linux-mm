@@ -1,32 +1,46 @@
-Date: Tue, 13 Jun 2006 08:55:33 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: zoned vm counters: per zone counter functionality
-In-Reply-To: <448E4F05.9040804@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0606130854480.29796@schroedinger.engr.sgi.com>
-References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
- <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
- <448E4F05.9040804@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH]: Adding a counter in vma to indicate the number
+	of	physical pages backing it
+From: Rohit Seth <rohitseth@google.com>
+Reply-To: rohitseth@google.com
+In-Reply-To: <200606130551.23825.ak@suse.de>
+References: <1149903235.31417.84.camel@galaxy.corp.google.com>
+	 <200606121958.41127.ak@suse.de>
+	 <1150141369.9576.43.camel@galaxy.corp.google.com>
+	 <200606130551.23825.ak@suse.de>
+Content-Type: text/plain
+Date: Tue, 13 Jun 2006 09:59:08 -0700
+Message-Id: <1150217948.9576.67.camel@galaxy.corp.google.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>
+To: Andi Kleen <ak@suse.de>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jun 2006, Nick Piggin wrote:
+On Tue, 2006-06-13 at 05:51 +0200, Andi Kleen wrote:
+> On Monday 12 June 2006 21:42, Rohit Seth wrote:
 
-> Is there any point in using a more meaningful namespace prefix than NR_
-> for the zone_stat_items?
 > 
+> > I think having this information in each vma keeps the impact (of adding new counter) to very
+> > low.
+> > 
+> > Second question is to advertize this value to user space.  Please let me
+> > know what suites the most among /proc, /sys or system call (or if there
+> > is any other mechanism then let me know) for a per process per segment
+> > related information.
 > 
-> > +enum zone_stat_item {
-> > +	NR_STAT_ITEMS };
-> > +
+> I think we first need to identify the basic need.
+> Don't see why we even need per VMA information so far.
 
-How about
+This information is for user land applications to have the knowledge of
+which virtual ranges are getting actively used and which are not.
+This information then can be fed into a new system call
+sys_change_page_activation(pid, start_va, len, flag).  The purpose of
+this system call would be to give hints to kernel that certain physical
+pages are okay to be inactivated (or vice versa).   
 
-NR_VM_ZONE_STAT_ITEMS ?
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
