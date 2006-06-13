@@ -1,34 +1,41 @@
-Message-ID: <448E4F05.9040804@yahoo.com.au>
-Date: Tue, 13 Jun 2006 15:37:09 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id m2so2710705ugc
+        for <Linux-mm@kvack.org>; Mon, 12 Jun 2006 22:53:48 -0700 (PDT)
+Message-ID: <787b0d920606122253o4f1a9e18x1ca49c3ce005696f@mail.gmail.com>
+Date: Tue, 13 Jun 2006 01:53:48 -0400
+From: "Albert Cahalan" <acahalan@gmail.com>
+Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of physical_pages_backing it
 MIME-Version: 1.0
-Subject: Re: zoned vm counters: per zone counter functionality
-References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com> <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>
+To: linux-kernel@vger.kernel.org, ak@suse.de, rohitseth@google.com, akpm@osdl.org, Linux-mm@kvack.org, arjan@infradead.org, jengelh@linux01.gwdg.de
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+Quoting two different people:
 
-Looks like a nice patchset. I really like that you've moved the counters
-out of page alloc.
+> BTW, what is smaps used for (who uses it), anyway?
+...
+> smaps is only a debugging kludge anyways and it's
+> not a good idea to we bloat core data structures for it.
 
-Is there any point in using a more meaningful namespace prefix than NR_
-for the zone_stat_items?
+I'd be using it in procps for the pmap command if it
+were not so horribly nasty. I may eventually get around
+to using it, but maybe it's just too gross to tolerate.
+That mess should never have slipped into the kernel.
+Just take a look at /proc/self/smaps some time. Wow.
 
+A month or two ago I supplied a patch to replace smaps
+with something sanely parsable. I was essentially told
+that we already have this lovely smaps dungheap that I
+should just use, but a couple people were eager to see
+the patch go in.
 
-> +enum zone_stat_item {
-> +	NR_STAT_ITEMS };
-> +
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Anyway, I need smaps stuff plus info about locked memory
+and page sizes. Solaris provides this. People seem to
+like it. I guess it's for performance tuning of app code or
+maybe for scalibility predictions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
