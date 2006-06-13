@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 13 Jun 2006 13:21:42 +0200
-Message-Id: <20060613112142.27913.27440.sendpatchset@lappy>
+Date: Tue, 13 Jun 2006 13:22:13 +0200
+Message-Id: <20060613112213.27913.71168.sendpatchset@lappy>
 In-Reply-To: <20060613112120.27913.71986.sendpatchset@lappy>
 References: <20060613112120.27913.71986.sendpatchset@lappy>
-Subject: [PATCH 2/6] mm: balance dirty pages
+Subject: [PATCH 5/6] mm: small cleanup of install_page()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -12,83 +12,28 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Now that we can detect writers of shared mappings, throttle them.
-Avoids OOM by surprise.
-
-Changes -v2:
-
- - small helper function (Andrew Morton)
+Smallish cleanup to install_page(), could save a memory read
+(haven't checked the asm output) and sure looks nicer.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
 
- include/linux/writeback.h |    1 +
- mm/memory.c               |    5 +++--
- mm/page-writeback.c       |   10 ++++++++++
- 3 files changed, 14 insertions(+), 2 deletions(-)
-
-Index: linux-2.6/mm/memory.c
+Index: linux-2.6/mm/fremap.c
 ===================================================================
---- linux-2.6.orig/mm/memory.c	2006-06-08 16:28:39.000000000 +0200
-+++ linux-2.6/mm/memory.c	2006-06-08 16:29:01.000000000 +0200
-@@ -48,6 +48,7 @@
- #include <linux/rmap.h>
- #include <linux/module.h>
- #include <linux/init.h>
-+#include <linux/writeback.h>
+--- linux-2.6.orig/mm/fremap.c	2006-06-08 13:47:29.000000000 +0200
++++ linux-2.6/mm/fremap.c	2006-06-08 13:50:44.000000000 +0200
+@@ -79,9 +79,9 @@ int install_page(struct mm_struct *mm, s
+ 		inc_mm_counter(mm, file_rss);
  
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -1525,7 +1526,7 @@ gotten:
+ 	flush_icache_page(vma, page);
+-	set_pte_at(mm, addr, pte, mk_pte(page, prot));
++	pte_val = mk_pte(page, prot);
++	set_pte_at(mm, addr, pte, pte_val);
+ 	page_add_file_rmap(page);
+-	pte_val = *pte;
+ 	update_mmu_cache(vma, addr, pte_val);
+ 	err = 0;
  unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	if (dirty_page) {
--		set_page_dirty(dirty_page);
-+		set_page_dirty_balance(dirty_page);
- 		put_page(dirty_page);
- 	}
- 	return ret;
-@@ -2155,7 +2156,7 @@ retry:
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	if (dirty_page) {
--		set_page_dirty(dirty_page);
-+		set_page_dirty_balance(dirty_page);
- 		put_page(dirty_page);
- 	}
- 	return ret;
-Index: linux-2.6/include/linux/writeback.h
-===================================================================
---- linux-2.6.orig/include/linux/writeback.h	2006-06-08 16:28:25.000000000 +0200
-+++ linux-2.6/include/linux/writeback.h	2006-06-08 16:28:44.000000000 +0200
-@@ -114,6 +114,7 @@ int sync_page_range(struct inode *inode,
- 			loff_t pos, loff_t count);
- int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
- 			   loff_t pos, loff_t count);
-+void set_page_dirty_balance(struct page *page);
- 
- /* pdflush.c */
- extern int nr_pdflush_threads;	/* Global so it can be exported to sysctl
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c	2006-06-08 16:28:39.000000000 +0200
-+++ linux-2.6/mm/page-writeback.c	2006-06-08 16:28:44.000000000 +0200
-@@ -255,6 +255,16 @@ static void balance_dirty_pages(struct a
- 		pdflush_operation(background_writeout, 0);
- }
- 
-+void set_page_dirty_balance(struct page *page)
-+{
-+	if (set_page_dirty(page)) {
-+		struct address_space *mapping = page_mapping(page);
-+
-+		if (mapping)
-+			balance_dirty_pages_ratelimited(mapping);
-+	}
-+}
-+
- /**
-  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
-  * @mapping: address_space which was dirtied
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
