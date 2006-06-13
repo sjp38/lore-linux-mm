@@ -1,43 +1,33 @@
-Message-ID: <448E3EA8.3020807@yahoo.com.au>
-Date: Tue, 13 Jun 2006 14:27:20 +1000
+Message-ID: <448E4F05.9040804@yahoo.com.au>
+Date: Tue, 13 Jun 2006 15:37:09 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of physical
- pages backing it
-References: <1149903235.31417.84.camel@galaxy.corp.google.com> <200606121958.41127.ak@suse.de> <1150141369.9576.43.camel@galaxy.corp.google.com> <200606130551.23825.ak@suse.de>
-In-Reply-To: <200606130551.23825.ak@suse.de>
+Subject: Re: zoned vm counters: per zone counter functionality
+References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com> <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: rohitseth@google.com, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
+Hi Christoph,
 
->On Monday 12 June 2006 21:42, Rohit Seth wrote:
->
->>I think having this 
->>information in each vma keeps the impact (of adding new counter) to very
->>low.
->>
->>Second question is to advertize this value to user space.  Please let me
->>know what suites the most among /proc, /sys or system call (or if there
->>is any other mechanism then let me know) for a per process per segment
->>related information.
->>
->
->I think we first need to identify the basic need.
->Don't see why we even need per VMA information so far.
->
+Looks like a nice patchset. I really like that you've moved the counters
+out of page alloc.
 
-Exactly. There is no question that walking page tables will be slower
-than having a counter like your patch does; the question is why we
-need it.
+Is there any point in using a more meaningful namespace prefix than NR_
+for the zone_stat_items?
 
---
 
+> +enum zone_stat_item {
+> +	NR_STAT_ITEMS };
+> +
+
+-- 
+SUSE Labs, Novell Inc.
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
