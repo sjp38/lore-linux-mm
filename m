@@ -1,28 +1,70 @@
-Date: Wed, 14 Jun 2006 06:37:41 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: zoned vm counters: per zone counter functionality
-In-Reply-To: <448F64A0.9090705@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0606140636130.780@blonde.wat.veritas.com>
-References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com>
- <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com>
- <448E4F05.9040804@yahoo.com.au> <Pine.LNX.4.64.0606130854480.29796@schroedinger.engr.sgi.com>
- <448F64A0.9090705@yahoo.com.au>
+From: "Abu M. Muttalib" <abum@aftek.com>
+Subject: vfork implementation...
+Date: Wed, 14 Jun 2006 15:11:58 +0530
+Message-ID: <BKEKJNIHLJDCFGDBOHGMGEEECPAA.abum@aftek.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, akpm@osdl.org, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jun 2006, Nick Piggin wrote:
-> 
-> Hmm, then NR_ANON would become VM_ZONE_STAT_NR_ANON? That might be a bit
-> long for your tastes, maybe the prefix could be hidden by "clever" macros?
+Hi,
 
-Don't even begin to think of "clever" macros.
+This mail is intended for Robert Love, I hope I can find him on the list.
 
-Hugh
+Please refer to Pg 24 of chapter 2 of Linux Kernel Development.
+
+As mentioned in the description of vfork call, it is said that child is not
+allowed to write to the address space, but in the following example its not
+so. The child is able to write to the process address space. This program
+was tested with Linux Kernel 2.6.9. Why is it so?
+
+fork.c
+----------------------------------------------------------------------------
+---------------------------------------
+#include <stdio.h>
+
+unsigned char *glob_var = NULL;
+
+void main()
+{
+	int pid = -8,i;
+	pid = vfork();
+
+	if(pid < 0)
+		printf("\n FORK ERROR \n");
+
+	if(pid == 0)
+	{
+		unsigned char * local_var = NULL;
+		local_var = (unsigned char *)malloc(5);
+		strcpy(local_var,"ABCD");
+		glob_var = local_var;
+		printf("\nCHILD :Value of glob_var is  %X local_var is %X glob_var is %c
+\n",glob_var,local_var,*glob_var);
+		for(i=0;i<4;i++)
+		{
+			printf("\n CHAR is %c \n",glob_var[i]);
+		}
+		printf("\nCHILD1 :Value of glob_var is %X %c\n",glob_var,*(glob_var));
+	}
+
+	if(pid > 0)
+	{
+		printf("\nParent : Value of glob_var is  %X %c\n",glob_var,*(glob_var));
+		free(glob_var);
+		printf("\nParent : Value of glob_var is %X %c\n",glob_var,*(glob_var));
+		exit(0);
+	}
+}
+----------------------------------------------------------------------------
+---------------------------------------
+
+Regards,
+Abu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
