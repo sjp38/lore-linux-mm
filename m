@@ -1,67 +1,48 @@
-Subject: Re: [PATCH]: Adding a counter in vma to indicate the number of
-	physical pages backing it
-From: Rohit Seth <rohitseth@google.com>
-Reply-To: rohitseth@google.com
-In-Reply-To: <Pine.LNX.4.64.0606131814110.4501@blonde.wat.veritas.com>
-References: <1149903235.31417.84.camel@galaxy.corp.google.com>
-	 <200606121958.41127.ak@suse.de>
-	 <1150141369.9576.43.camel@galaxy.corp.google.com>
-	 <200606130551.23825.ak@suse.de>
-	 <1150217948.9576.67.camel@galaxy.corp.google.com>
-	 <Pine.LNX.4.64.0606131814110.4501@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Tue, 13 Jun 2006 11:09:28 -0700
-Message-Id: <1150222169.17423.21.camel@galaxy.corp.google.com>
-Mime-Version: 1.0
+Message-ID: <448F64A0.9090705@yahoo.com.au>
+Date: Wed, 14 Jun 2006 11:21:36 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: zoned vm counters: per zone counter functionality
+References: <20060612211244.20862.41106.sendpatchset@schroedinger.engr.sgi.com> <20060612211255.20862.39044.sendpatchset@schroedinger.engr.sgi.com> <448E4F05.9040804@yahoo.com.au> <Pine.LNX.4.64.0606130854480.29796@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0606130854480.29796@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, Linux-mm@kvack.org, Linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>, Con Kolivas <kernel@kolivas.org>, Marcelo Tosatti <marcelo@kvack.org>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-06-13 at 18:28 +0100, Hugh Dickins wrote:
-> On Tue, 13 Jun 2006, Rohit Seth wrote:
-> > On Tue, 2006-06-13 at 05:51 +0200, Andi Kleen wrote:
-> > > 
-> > > I think we first need to identify the basic need.
-> > > Don't see why we even need per VMA information so far.
-> > 
-> > This information is for user land applications to have the knowledge of
-> > which virtual ranges are getting actively used and which are not.
-> > This information then can be fed into a new system call
-> > sys_change_page_activation(pid, start_va, len, flag).  The purpose of
-> > this system call would be to give hints to kernel that certain physical
-> > pages are okay to be inactivated (or vice versa).   
-> 
-> Then perhaps you want a sys_report_page_activation(pid, start_va, len, ...)
-> which would examine and report on the range in question, instead of adding
-> your count to so many vmas on which this will never be used.
-> 
+Christoph Lameter wrote:
 
-That will reduce the cost of not traversing the whole process address
-space.  But still for a given length, we will need to traverse the PTs.
-On a positive side, this interface can give more specific information to
-user in terms of page attributes.  I'm fine with this interface if
-others are okay.  Andi?
+>On Tue, 13 Jun 2006, Nick Piggin wrote:
+>
+>
+>>Is there any point in using a more meaningful namespace prefix than NR_
+>>for the zone_stat_items?
+>>
+>>
+>>
+>>>+enum zone_stat_item {
+>>>+	NR_STAT_ITEMS };
+>>>+
+>>>
+>
+>How about
+>
+>NR_VM_ZONE_STAT_ITEMS ?
+>
+>
+>
 
-> Though your syscall sounds like pid_madvise: perhaps the call name
-> should be less specific and left to the flags (come, gentle syscall
-> multiplexing flames, and warm me).
-> 
+I guess that's OK.
 
-Agreed.  
+Hmm, then NR_ANON would become VM_ZONE_STAT_NR_ANON? That might be a bit
+long for your tastes, maybe the prefix could be hidden by "clever" macros?
 
-> Looking through the existing fields of a vma, it seems a vm_area_struct
-> would commonly be on clean cachelines: your count making one of them
-> now commonly and bouncily dirty.
+--
 
-The additional cost of this counter will be long size of extra memory
-per segment, an atomic operation when ptl is used and dirtying an
-additional cache line.  I overlooked the last two cost factors earlier.
-
-
--rohit
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
