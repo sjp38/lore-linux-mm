@@ -1,32 +1,29 @@
-Received: from wip-ec-wd.wipro.com (localhost.wipro.com [127.0.0.1])
-	by localhost (Postfix) with ESMTP id 2E9C3205FE
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2006 15:41:56 +0530 (IST)
-Received: from blr-ec-bh02.wipro.com (blr-ec-bh02.wipro.com [10.201.50.92])
-	by wip-ec-wd.wipro.com (Postfix) with ESMTP id 192CC205E7
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2006 15:41:56 +0530 (IST)
-Content-class: urn:content-classes:message
+Received: by wx-out-0102.google.com with SMTP id t13so418867wxc
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2006 04:20:22 -0700 (PDT)
+Message-ID: <84144f020606160420n5e1c16f3s94c4d47551be0fff@mail.gmail.com>
+Date: Fri, 16 Jun 2006 14:20:21 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: Memory Leak Detection and Kernel Memory monitoring tool
+In-Reply-To: <05B7784238A51247A0A9FB4B348CECAE01D7686A@PNE-HJN-MBX01.wipro.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: Memory Leak Detection and Kernel Memory monitoring tool
-Date: Fri, 16 Jun 2006 15:43:58 +0530
-Message-ID: <05B7784238A51247A0A9FB4B348CECAE01D7686A@PNE-HJN-MBX01.wipro.com>
-From: <kaustav.majumdar@wipro.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <AcaRI8wQZTxlnEvkSZKzcK/VjpZN+AACMtwA>
+	 <05B7784238A51247A0A9FB4B348CECAE01D7686A@PNE-HJN-MBX01.wipro.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "kaustav.majumdar@wipro.com" <kaustav.majumdar@wipro.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-    My team is developing a device driver for a PCMCIA based USB device. We're currently trying to test the performance of our driver. However we're unable to figure out a reliable method of detecting memory leaks caused by our driver code. Neither have we been able to find a tool which shows % utilization of kernel memory used by our driver. I suppose applying kmemleak patch is a good way of detecting these leaks. But there is no patch available for kernel 2.6.15.4 (on fedora core 4). 
- 
-About the memory monitoring, there are quite a few tools available at the application level (like free and top which are available with the operating system itself). But none for the kernel level. 
- 
-Please suggest other feasible ways of detecting leaks and monitoring kernel memory utilization.
- 
-Regards
-Kaustav Majumdar
+On 6/16/06, kaustav.majumdar@wipro.com <kaustav.majumdar@wipro.com> wrote:
+> Please suggest other feasible ways of detecting leaks and monitoring kernel memory
+> utilization.
+
+Well, there's CONFIG_DEBUG_SLAB_LEAK starting with 2.6.16, I think.
+
+                                            Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
