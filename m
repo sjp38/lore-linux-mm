@@ -1,85 +1,104 @@
-Date: Sun, 18 Jun 2006 02:04:48 -0400
-From: "Greentable Casino" <greentable-casino@emailaccount.com>
-Message-ID: <10118.element@plausible>
-Subject: Green Table Casino gibt Ihnen 300 Euro GRATIS!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
-Return-Path: <greentable-casino@emailaccount.com>
-To: linux-mm@kvack.org
+Date: Sun, 18 Jun 2006 11:41:57 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] rfc: fix splice mapping race?
+Message-ID: <20060618094157.GD14452@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@engr.sgi.com>, Jens Axboe <axboe@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html><head>
-<meta http-equiv=Content-Type content=text/html;charset=iso-8859-1>
-</head>
-<body 
-style="BACKGROUND-IMAGE: url(http://greentable-game.info/pics/back.gif); BACKGROUND-REPEAT: repeat-x" 
-bgColor=#244802 leftMargin=0 topMargin=0 rightMargin=0>
-<div align=center>
-<table cellSpacing=0 cellPadding=0 width=500 align=center BORDER=0>
-  <tbody>
-  <tr>
-    <td align=right>&nbsp; </td></tr></tbody></table></div><a 
-name=top></a>
-<table 
-style="BORDER-RIGHT: #c6fc04 1px solid; BORDER-TOP: #c6fc04 1px solid; BORDER-LEFT: #c6fc04 1px solid; BORDER-bOTTOM: #c6fc04 1px solid" 
-cellSpacing=0 cellPadding=0 width=500 align=center BORDER=0>
-  <tbody>
-  <tr>
-    <td BACKGROUND=http://greentable-game.info/pics/back1.jpg 
-      bgColor=#fdf5e1><table cellSpacing=0 cellPadding=0 width="100%" 
-      align=center BORDER=0>
-        <tbody>
-        <tr>
-          <td><img height=150 alt="" 
-            src="http://greentable-game.info/pics/head.jpg" width=500 
-          BORDER=0></td></tr>
-        <tr>
-          <td>
-            <table cellSpacing=0 cellPadding=0 width="100%" BORDER=0>
-              <tbody>
-              <tr>
-                <td>
-                  <center>
-                  <table cellSpacing=0 cellPadding=0 width="100%" BORDER=0>
-                    <tbody>
-                    <tr>
-                      <center><font 
-                      style="font: bold 15px tahoma; WIDTH: 450px; COLOR: red">
-                      <div align=center>Welcome to the Green Table Casino! 
-                      </div></font></center></tr>
-                    <tr>
-                      <td>
-                        <div dir=ltr style="MARGIN-RIGHT: 0px" 
-                        align=justify>
-<br><p><span style='font-size:10.0pt;font-family:Tahoma'><strong><a 
-                        style="COLOR: #ff2400" 
-                        href="http://greentable-game.info">Green Table 
-                        Casino</a></strong> gibt Ihnen ? 300 GRATIS. <br>
-<br>
-Mit 71 Casinospielen, LIVE DEALERS, schnellem Download der Casinosoftware +
-Flash Version (kein Download notwendig), schnellen Gewinnauszahlungen,
-riesengrossen Jackpots und fairen Gewinnchancen... einfach unwiderstehlich! <o:p></o:p></span></p>
+Hi, I would be interested in confirmation/comments for this patch.
 
-<p><span style='font-size:10.0pt;font-family:Tahoma'>
-Solide, vertrauenswurdig und renommiert, mit 100% iger Sicherheit, Datenschutz
-und einem Kundenservice, der rund um die Uhr arbeitet. Jetzt spielen!<o:p></o:p></span></p>
-</div>
-</td></tr></tbody></table></center></td></tr></tbody></table></td></tr></tbody></table></td></tr>
-  <tr>
-    <td><img height=22 alt="" 
-      src="http://greentable-game.info/pics/bottom.jpg" 
-width=500></td></tr></tbody></table><br>
-<table align=center bgColor=#333333 BORDER=0>
-  <tbody>
-  <tr>
-    <td align=middle bgColor=#ffffff><font face=Tahoma color=#333333 
-      size=2><b>Up to 15% Extra bonus</b></font><br><a 
-      href="http://greentable-game.info"><img alt="" 
-      src="http://greentable-game.info/pics/payment_ico1.gif" 
-  BORDER=0></a></td></tr></tbody></table>
-<div align=center><font face=Tahoma color=#000000 size=1><b><br>If you do not 
-wish to receive e-mails from <a href="http://greentable-game.info">Green Table 
-Casino</a>,<br>please click <a 
-href="http://greentable-game.info/opt-out/opt-out.php">unsubscribe</a>. 
-</b></font><br><br></div></body></html>
+I believe splice is unsafe to access the page mapping obtained
+when the page was unlocked: the page could subsequently be truncated
+and the mapping reclaimed (see set_page_dirty_lock comments).
+
+Modify the remove_mapping precondition to ensure the caller has
+locked the page and obtained the correct mapping. Modify callers to
+ensure the mapping is the correct one.
+
+In page migration, detect the missing mapping early and bail out if
+that is the case: the page is not going to get un-truncated, so
+retrying is just a waste of time.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+ 
+
+Index: linux-2.6/fs/splice.c
+===================================================================
+--- linux-2.6.orig/fs/splice.c
++++ linux-2.6/fs/splice.c
+@@ -55,9 +55,12 @@ static int page_cache_pipe_buf_steal(str
+ 				     struct pipe_buffer *buf)
+ {
+ 	struct page *page = buf->page;
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping;
+ 
+ 	lock_page(page);
++	mapping = page_mapping(page);
++	if (!mapping)
++		goto out_failed;
+ 
+ 	WARN_ON(!PageUptodate(page));
+ 
+@@ -74,6 +77,7 @@ static int page_cache_pipe_buf_steal(str
+ 		try_to_release_page(page, mapping_gfp_mask(mapping));
+ 
+ 	if (!remove_mapping(mapping, page)) {
++out_failed:
+ 		unlock_page(page);
+ 		return 1;
+ 	}
+Index: linux-2.6/mm/migrate.c
+===================================================================
+--- linux-2.6.orig/mm/migrate.c
++++ linux-2.6/mm/migrate.c
+@@ -136,9 +136,13 @@ static int swap_page(struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 
+-	if (page_mapped(page) && mapping)
++	if (!mapping)
++		return -EINVAL; /* page truncated. signal permanent failure */
++
++	if (page_mapped(page)) {
+ 		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
+ 			goto unlock_retry;
++	}
+ 
+ 	if (PageDirty(page)) {
+ 		/* Page is dirty, try to write it out here */
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -362,8 +362,8 @@ pageout_t pageout(struct page *page, str
+ 
+ int remove_mapping(struct address_space *mapping, struct page *page)
+ {
+-	if (!mapping)
+-		return 0;		/* truncate got there first */
++	BUG_ON(!PageLocked(page));
++	BUG_ON(mapping != page->mapping);
+ 
+ 	write_lock_irq(&mapping->tree_lock);
+ 
+@@ -532,7 +532,7 @@ static unsigned long shrink_page_list(st
+ 				goto free_it;
+ 		}
+ 
+-		if (!remove_mapping(mapping, page))
++		if (!mapping || !remove_mapping(mapping, page))
+ 			goto keep_locked;
+ 
+ free_it:
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
