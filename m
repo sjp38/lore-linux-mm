@@ -1,55 +1,71 @@
+Subject: Re: [RFC][PATCH] inactive_clean
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 19 Jun 2006 19:53:47 +0200
-Message-Id: <20060619175347.24655.67680.sendpatchset@lappy>
-In-Reply-To: <20060619175243.24655.76005.sendpatchset@lappy>
-References: <20060619175243.24655.76005.sendpatchset@lappy>
-Subject: [PATCH 6/6] mm: remove some update_mmu_cache() calls
+In-Reply-To: <Pine.LNX.4.64.0606190837450.1184@schroedinger.engr.sgi.com>
+References: <1150719606.28517.83.camel@lappy>
+	 <Pine.LNX.4.64.0606190837450.1184@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 19 Jun 2006 20:10:23 +0200
+Message-Id: <1150740624.28517.108.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, Nick Piggin <piggin@cyberone.com.au>, linux-mm <linux-mm@kvack.org>, Nikita Danilov <nikita@clusterfs.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Christoph Lameter <clameter@sgi.com>
+On Mon, 2006-06-19 at 08:45 -0700, Christoph Lameter wrote:
+> On Mon, 19 Jun 2006, Peter Zijlstra wrote:
+> 
+> > My previous efforts at tracking dirty pages focused on shared pages.
+> > But shared pages are not all and, quite often even a small part of the
+> > problem. Most 'normal' workloads are dominated by anonymous pages.
+> 
+> Shared pages are the major problem because we have no way of tracking 
+> their dirty state. Shared file mapped pages are a problem because they require 
+> writeout which will not occur if we are not aware of them. The dirty state 
+> of anonymous pages typically does not matter because these pages are 
+> thrown away when a process terminates.
+> 
+> > So, in order to guarantee easily freeable pages we also have to look
+> > at anonymous memory. Thinking about it I arrived at something Rik
+> > invented long ago: the inactive_clean list - a third LRU list consisting
+> > of clean page
+> 
+> I fail to see the point. What is the problem with anonymous memory? Swap?
 
-This may be a bit controversial but it does not seem to
-make sense to use the update_mmu_cache macro when we reuse
-the page. We are only fiddling around with the protections,
-the dirty and accessed bits.
+http://linux-mm.org/NetworkStorageDeadlock
 
-With the call to update_mmu_cache the way of using the macros
-would be different from mprotect() and page_mkclean(). I'd
-rather have everything work the same way. If this breaks on some
-arches then also mprotect and page_mkclean() are broken.
-The use of mprotect() is rare, we may have breakage in some
-arches that we just have not seen yet.
+Basically, we want to free memory, but freeing costs more memory than we
+currently have available.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/memory.c |    2 --
- 1 file changed, 2 deletions(-)
+This patch creates a pool of pages that can be evicted without IO, but
+can also be taken back into service, again without IO - hence not
+'wasting' memory being free.
 
-Index: 2.6-mm/mm/memory.c
-===================================================================
---- 2.6-mm.orig/mm/memory.c	2006-06-19 16:21:16.000000000 +0200
-+++ 2.6-mm/mm/memory.c	2006-06-19 16:21:25.000000000 +0200
-@@ -1514,7 +1514,6 @@ static int do_wp_page(struct mm_struct *
- 		entry = pte_mkyoung(orig_pte);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		ptep_set_access_flags(vma, address, page_table, entry, 1);
--		update_mmu_cache(vma, address, entry);
- 		lazy_mmu_prot_update(entry);
- 		ret |= VM_FAULT_WRITE;
- 		goto unlock;
-@@ -2317,7 +2316,6 @@ static inline int handle_pte_fault(struc
- 	entry = pte_mkyoung(entry);
- 	if (!pte_same(old_entry, entry)) {
- 		ptep_set_access_flags(vma, address, pte, entry, write_access);
--		update_mmu_cache(vma, address, entry);
- 		lazy_mmu_prot_update(entry);
- 	} else {
- 		/*
+The problem is currently being circumvented on several levels with local
+mempools, these fragment the available free memory and require extra
+complexity to manage.
+
+Yes, raising the number of free pages will have the same effect, however
+it wastes memory from another point of view.
+
+Neither of these approaches will really solve the 'Network' problem,
+because it does not come with a finite bound of memory. Any networked
+storage can require inf. amount of memory for a single writeback.
+Usually things are not that bad, esp. with dedicated storage networks
+that avoid too much protocols stacks.
+
+The only solution for the networked problem is in dropping non-critical
+packets when we start to run low.
+
+Also this does give more leeway to make things like cluster pageout:
+http://linuxhacker.ru/~nikita/patches/2.6.15-rc1/05-cluster-pageout.patch
+work.
+
+In the end, I want to be able to run a diskless system, with networked
+swap and, have stuff like cluster pageout working without the machine
+going funny on me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
