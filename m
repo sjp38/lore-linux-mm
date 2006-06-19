@@ -1,48 +1,35 @@
-Date: Mon, 19 Jun 2006 08:45:37 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH] inactive_clean
-In-Reply-To: <1150719606.28517.83.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0606190837450.1184@schroedinger.engr.sgi.com>
-References: <1150719606.28517.83.camel@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon, 19 Jun 2006 19:52:43 +0200
+Message-Id: <20060619175243.24655.76005.sendpatchset@lappy>
+Subject: [PATCH 0/6] mm: tracking dirty pages -v9
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andi Kleen <ak@suse.de>, Rohit Seth <rohitseth@google.com>, Andrew Morton <akpm@osdl.org>, mbligh@google.com, hugh@veritas.com, riel@redhat.com, andrea@suse.de, arjan@infradead.org, apw@shadowen.org, mel@csn.ul.ie, marcelo@kvack.org, anton@samba.org, paulmck@us.ibm.com, Nick Piggin <piggin@cyberone.com.au>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jun 2006, Peter Zijlstra wrote:
+The latest version of the tracking dirty pages patch-set.
+On request against -mm.
 
-> My previous efforts at tracking dirty pages focused on shared pages.
-> But shared pages are not all and, quite often even a small part of the
-> problem. Most 'normal' workloads are dominated by anonymous pages.
+This version handles VM_PFNMAP vmas and the COW case of shared RO mappings.
 
-Shared pages are the major problem because we have no way of tracking 
-their dirty state. Shared file mapped pages are a problem because they require 
-writeout which will not occur if we are not aware of them. The dirty state 
-of anonymous pages typically does not matter because these pages are 
-thrown away when a process terminates.
+follow_page() got a comment for being weird, but in the light of the 
+set_page_dirty() call that can not yet be removed does something sane.
 
-> So, in order to guarantee easily freeable pages we also have to look
-> at anonymous memory. Thinking about it I arrived at something Rik
-> invented long ago: the inactive_clean list - a third LRU list consisting
-> of clean pages.
+copy_one_pte() also does the right thing, although I wonder why it clears
+the dirty bit for children?
 
-I fail to see the point. What is the problem with anonymous memory? Swap?
+f_op->open() - sets a backing_dev_info
+f_op->mmap() - modifies both vma->vm_flags and vma->vm_page_prot
 
-> The thing I like least about the current impl. is that all clean pages
-> are unmapped; I'd like to have them mapped but read-only and trap the
-> write faults (next step?).
+Since our condition depends on both the backing_dev_info and vma->vm_flags
+it cannot set vma->vm_page_prot before f_op->mmap().
 
-This is some sort of swap problem?
+However this means that !VM_PFNMAP vmas that are shared writable but do not
+provide a f_op->nopage() and whos backing_dev_info does not have 
+BDI_CAP_NO_ACCT_DIRTY, are left writable.
 
-> Also, setting the clean watermarks needs more thought.
-> 
-> Comments?
-
-I am not clear what issue you are trying to solve. Seem that this is 
-something entirely different. 
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
