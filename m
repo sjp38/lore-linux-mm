@@ -1,26 +1,33 @@
-Date: Tue, 20 Jun 2006 13:57:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: zoned-vm-stats-add-nr_anon.patch
-In-Reply-To: <44986056.5040300@google.com>
-Message-ID: <Pine.LNX.4.64.0606201356560.12341@schroedinger.engr.sgi.com>
-References: <44985E9E.1070603@google.com> <Pine.LNX.4.64.0606201347470.12229@schroedinger.engr.sgi.com>
- <44986056.5040300@google.com>
+Message-ID: <44986180.4000107@google.com>
+Date: Tue, 20 Jun 2006 13:58:40 -0700
+From: Martin Bligh <mbligh@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: zoned-vm-stats-add-nr_anon.patch
+References: <44985E9E.1070603@google.com> <Pine.LNX.4.64.0606201347470.12229@schroedinger.engr.sgi.com> <44986056.5040300@google.com> <Pine.LNX.4.64.0606201356560.12341@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0606201356560.12341@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@google.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jun 2006, Martin Bligh wrote:
+Christoph Lameter wrote:
+> On Tue, 20 Jun 2006, Martin Bligh wrote:
+> 
+> 
+>>Sure. Naming is important, IMHO. People reading code make involuntary
+>>assumptions as they read code, it's inevitable.
+> 
+> 
+> Ok. I will make a pass over all the counter before sending the next 
+> patchset to Andrew and make sure that they get a proper suffix if their 
+> role is restricted.
 
-> Sure. Naming is important, IMHO. People reading code make involuntary
-> assumptions as they read code, it's inevitable.
+Awesome - thanks very much.
 
-Ok. I will make a pass over all the counter before sending the next 
-patchset to Andrew and make sure that they get a proper suffix if their 
-role is restricted.
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
