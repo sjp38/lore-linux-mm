@@ -1,33 +1,46 @@
-Message-ID: <44986180.4000107@google.com>
-Date: Tue, 20 Jun 2006 13:58:40 -0700
-From: Martin Bligh <mbligh@google.com>
-MIME-Version: 1.0
-Subject: Re: zoned-vm-stats-add-nr_anon.patch
-References: <44985E9E.1070603@google.com> <Pine.LNX.4.64.0606201347470.12229@schroedinger.engr.sgi.com> <44986056.5040300@google.com> <Pine.LNX.4.64.0606201356560.12341@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0606201356560.12341@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
+Subject: Re: [patch 0/3] 2.6.17 radix-tree: updates and lockless
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20060408134635.22479.79269.sendpatchset@linux.site>
+References: <20060408134635.22479.79269.sendpatchset@linux.site>
+Content-Type: text/plain
+Date: Wed, 21 Jun 2006 08:08:10 +1000
+Message-Id: <1150841290.1901.27.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Paul McKenney <Paul.McKenney@us.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 20 Jun 2006, Martin Bligh wrote:
+On Tue, 2006-06-20 at 16:48 +0200, Nick Piggin wrote:
+> I've finally ported the RCU radix tree over my radix tree direct-data patch
+> (the latter patch has been in -mm for a while now).
 > 
+> I've also done the last step required for submission, which was to make a
+> small userspace RCU test harness, and wire up the rtth so that it can handle
+> multiple threads to test the lockless capability. The RCU test harness uses
+> an implementation somewhat like Paul's paper's quiescent state bitmask
+> approach; with infrequent quiescent state updates, performance isn't bad.
 > 
->>Sure. Naming is important, IMHO. People reading code make involuntary
->>assumptions as they read code, it's inevitable.
+> This quickly flushed out several obscure bugs just when running on my dual
+> G5. After fixing those, I racked up about 100 CPU hours of testing on
+> SUSE's 64-way Altix without problem. Also passes the normal battery of
+> single threaded rtth tests.
 > 
-> 
-> Ok. I will make a pass over all the counter before sending the next 
-> patchset to Andrew and make sure that they get a proper suffix if their 
-> role is restricted.
+> I'd like to hear views regarding merging these patches for 2.6.18. Initially
+> the lockless code would not come into effect (good - one thing at a time)
+> until tree_lock can start getting lifted in -mm and 2.6.19.
 
-Awesome - thanks very much.
+I'm all about it. As I said earlier, I discovered that pp64 has been
+abusing radix tree expecting them to work lockless in it's interrupt
+management for ages (at least insert vs. search). Fortunatley, the race
+is rare enough that it might never have been happening in practice but
+still... It would kill me to have to add a big global spinlock on
+interrupt handling to fix that so yeah, go for it !
 
-M.
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
