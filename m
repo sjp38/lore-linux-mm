@@ -1,48 +1,42 @@
-Date: Wed, 21 Jun 2006 10:06:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 00/14] Zoned VM counters V5
-In-Reply-To: <44997596.7050903@google.com>
-Message-ID: <Pine.LNX.4.64.0606211001370.19596@schroedinger.engr.sgi.com>
+Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
+	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k5LJUwnl006208
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 12:30:58 -0700
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k5LH8E8s14916426
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 10:08:14 -0700 (PDT)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k5LH8EnB42434568
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 10:08:14 -0700 (PDT)
+Received: from christoph (helo=localhost)
+	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
+	id 1Ft6Ba-00057c-00
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 10:08:14 -0700
+Date: Wed, 21 Jun 2006 10:01:28 -0700 (PDT)
+From: Christoph Lameter <christoph@engr.sgi.com>
+Subject: Re: [PATCH 06/14] Split NR_ANON_PAGES off from NR_FILE_MAPPED
+In-Reply-To: <44996F34.1010805@google.com>
+Message-ID: <Pine.LNX.4.64.0606211000230.19596@schroedinger.engr.sgi.com>
 References: <20060621154419.18741.76233.sendpatchset@schroedinger.engr.sgi.com>
- <44997596.7050903@google.com>
+ <20060621154450.18741.47417.sendpatchset@schroedinger.engr.sgi.com>
+ <44996F34.1010805@google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.64.0606211008060.19596@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Martin J. Bligh" <mbligh@google.com>
-Cc: akpm@osdl.org, linux-mm <linux-mm@kvack.org>
+Cc: akpm@osdl.org, linux-mm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 21 Jun 2006, Martin J. Bligh wrote:
 
-> Having the per-cpu counters with a global overflow seems like a really
-> nice way to do counters to me - is it worth doing this as a more
-> generalized counter type so that others could use it?
+> Isn't this still the number of mapped anon pages, rather than the total
+> number of anon pages?
 
-Yes later patches also use the counters for other things. Please check out 
-the patch that uses these for numa counters etc.
+All anonymous pages are mapped. If an anonymous page is unmapped then it 
+is freed.
 
-> OTOH, I'm unsure why we're only using 8 bits in struct zone, which isn't
-> size critical. Is it just so you can pack vast numbers of different stats into
-> a single cacheline?
-
-I would like to add some stats in the future. 8 bits is sufficient if the 
-threshold is less than 64 (currently its 32). If we ever get higher then 
-we can simply go to a bigger base size.
-
-However, the space used by that array is
- 
-<nr-of-counters>*<nr_of_processors>*<nr_of_zones>
-
-There are systems that have around 1k nodes and 4k processors. Lets say 
-we have 16 counters then we get to
-
-1k*4k*16 = 64Mbyte just for the counters.
-
-This doubles for a short and quadruples for an int.
-
-Also smaller counters help keep the pcp structure in one cacheline and 
-reduces the cache footprint. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
