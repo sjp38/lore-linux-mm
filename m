@@ -1,68 +1,136 @@
-Date: Wed, 21 Jun 2006 16:12:58 -0400
-From: Sonny Rao <sonny@burdell.org>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k5LIfpLn018460
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 14:41:52 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k5LIfpkB189718
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 14:41:51 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k5LIfpFH031610
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 14:41:51 -0400
+Date: Wed, 21 Jun 2006 13:41:29 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
 Subject: Re: Possible bug in do_execve()
-Message-ID: <20060621201258.GB10052@kevlar.burdell.org>
-References: <20060620022506.GA3673@kevlar.burdell.org> <20060621184129.GB16576@sergelap.austin.ibm.com> <20060621185508.GA9234@kevlar.burdell.org> <20060621190910.GC16576@sergelap.austin.ibm.com> <20060621192726.GA10052@kevlar.burdell.org> <20060621194250.GD16576@sergelap.austin.ibm.com>
+Message-ID: <20060621184129.GB16576@sergelap.austin.ibm.com>
+References: <20060620022506.GA3673@kevlar.burdell.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060621194250.GD16576@sergelap.austin.ibm.com>
+In-Reply-To: <20060620022506.GA3673@kevlar.burdell.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Serge E. Hallyn" <serue@us.ibm.com>
+To: Sonny Rao <sonny@burdell.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, anton@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 21, 2006 at 02:42:50PM -0500, Serge E. Hallyn wrote:
-> Quoting Sonny Rao (sonny@burdell.org):
-> > On Wed, Jun 21, 2006 at 02:09:10PM -0500, Serge E. Hallyn wrote:
-> > <snip>
-> > > > Yeah, I proposed a similar patch to Anton, and it would quiet the
-> > > > warning on powerpc, but that's not the point.  It happens that powerpc
-> > > > doesn't use 0 as a context id, but that may not be true on another
-> > > > architecture.  That's really what I'm concerned about.
-> > > 
-> > > FWIW, ppc and cris do the NO_CONTEXT check, while others don't
-> > > even have a arch-specific 'mm->context.id'.
-> > 
-> > Good point.  I probably stated that concern too narrowly.  Probably
-> > what I should say is: What is the pre-condition for calling
-> > destroy_context() ?  Is it that init_new_context() must have
-> > succeeded?  Or is it merely that mm.context has been zeroed
-> > out?
+Quoting Sonny Rao (sonny@burdell.org):
+> While doing some stress testing with a reduced number of MMU contexts,
+> I found that an error path in exec seemed to call destroy_context()
+> via mmdrop() immediately after init_new_context() failed.
 > 
-> Right, that may be the right question.  If that's the case, then the
-> problem is really include/linux/sched.h:__mmdrop() which is what's
-> calling destroy_context().  Separating that out becomes a pretty
-> big patch affecting at least all mmput() and mmdrop() callers.
-
-So mmdrop() inlines to an atomic_dec_and_test on mm_count and a call
-to __mmdrop which makes three calls : mm_free_pgd(), destroy_context(),
-and free_mm().  I _think_ that in this case __mmdrop() will always get
-called.
-
-We know that the destroy_context() is unnecessary, but mm_free_pgd()
-and free_mm() are necessary.
-
-I was thinking we _could_ open code these calls in exec.c but that seems
-like a "Really Bad Idea" w.r.t abstraction/maintenance etc,
-and the alternative is to make another function/macro just for this
-special case, which also seems like a poor choice.
-
-> > It seems to assume that mm->context is valid before doing a check.
-> > 
-> > Since I don't have a sparc64 box, I can't check to see if this
-> > actually breaks things or not.
+> specifically I got some warning from the idr code through powerpc
+> mmu_context code:
 > 
-> So we can either go through all arch's and make sure destroy_context is
-> safe for invalid context, or split mmput() and destroy_context()...
+> idr_remove called for id=0 which is not allocated.
+> Call Trace:
+> [C0000003C9E73820] [C00000000000E760] .show_stack+0x74/0x1b4 (unreliable)
+> [C0000003C9E738D0] [C000000000212F30] .idr_remove+0x1c4/0x274
+> [C0000003C9E73990] [C00000000002CA14] .destroy_context+0x2c/0x60
+> [C0000003C9E73A20] [C00000000004CDAC] .__mmdrop+0x50/0x80
+> [C0000003C9E73AB0] [C0000000000C9E38] .do_execve+0x218/0x290
+> [C0000003C9E73B60] [C00000000000F28C] .sys_execve+0x74/0xf8
+> [C0000003C9E73C00] [C00000000000871C] syscall_exit+0x0/0x40
+> --- Exception: c01 at .execve+0x8/0x14
+>     LR = .____call_usermodehelper+0xdc/0xf4
+> [C0000003C9E73EF0] [C000000000065388] .____call_usermodehelper+0xb0/0xf4 (unreliable)
+> [C0000003C9E73F90] [C000000000023928] .kernel_thread+0x4c/0x68
 > 
-> The former seems easier, but the latter seems more robust in the face of
-> future code changes I guess.
+> 
+> Here's the code in do_execve():
+> 
+>         retval = init_new_context(current, bprm->mm);
+>         if (retval < 0)
+>                 goto out_mm
+> 
+> <snip>
+> 
+> out_mm:
+>         if (bprm->mm)
+>                 mmdrop(bprm->mm);
+> 
+> mmdrop() then calls destroy_context().
+> There's a similar path in compat_do_execve().
+> 
+> 
+> Anton pointed out a comment in fork.c, which seems to inidcate
+> incorrect behavior in the exec code. 
+> 
+> >From dup_mm() in fork.c:
+> 
+>       if (init_new_context(tsk, mm))
+>                 goto fail_nocontext;
+> 
+> <snip>
+> 
+> fail_nocontext:
+>         /*                                                              
+>          * If init_new_context() failed, we cannot use mmput() to free the mm
+>          * because it calls destroy_context()
+>          */
+>         mm_free_pgd(mm);
+>         free_mm(mm);
+>         return NULL;
+> 
+> 
+> 
+> Is the behavior in do_execve() correct?
 
-Yes, the former does seem easier, and perhaps easiest is to do that
-and document what the pre-conditions are so future developers at least
-have a clue.
+Well, I assume the intent is for out_mm: to clean up from mm_alloc(),
+not from 'init_new_context'.  So I think that code is correct.
+This bug appears to be powerpc-specific, so would the following patch
+be reasonable?
+
+Note it is entirely untested, just to show where i think this should
+be solved.  But I could try compile+boot test tonight.
+
+thanks,
+-serge
+
+From: Serge E. Hallyn <hallyn@sergelap.(none)>
+Date: Wed, 21 Jun 2006 13:37:27 -0500
+Subject: [PATCH] powerpc: check for proper mm->context before destroying
+
+arch/powerpc/mm/mmu_context_64.c:destroy_context() can be called
+from __mmput() in do_execve() if init_new_context() failed.  This
+can result in idr_remove() being called for an invalid context.
+
+So, don't call idr_remove if there is no context.
+
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+
+---
+
+ arch/powerpc/mm/mmu_context_64.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+ee74da9d3c122b92541dd6b7670731bd4a033f04
+diff --git a/arch/powerpc/mm/mmu_context_64.c b/arch/powerpc/mm/mmu_context_64.c
+index 714a84d..552d590 100644
+--- a/arch/powerpc/mm/mmu_context_64.c
++++ b/arch/powerpc/mm/mmu_context_64.c
+@@ -55,6 +55,9 @@ again:
+ 
+ void destroy_context(struct mm_struct *mm)
+ {
++	if (mm->context.id == NO_CONTEXT)
++		return;
++
+ 	spin_lock(&mmu_context_lock);
+ 	idr_remove(&mmu_context_idr, mm->context.id);
+ 	spin_unlock(&mmu_context_lock);
+-- 
+1.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
