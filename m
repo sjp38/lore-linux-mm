@@ -1,39 +1,70 @@
-Message-ID: <44998C4F.8090502@google.com>
-Date: Wed, 21 Jun 2006 11:13:35 -0700
-From: Martin Bligh <mbligh@google.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/tracking dirty pages: update get_dirty_limits for
- mmap tracking
-References: <5c49b0ed0606211001s452c080cu3f55103a130b78f1@mail.gmail.com>
-In-Reply-To: <5c49b0ed0606211001s452c080cu3f55103a130b78f1@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 21 Jun 2006 14:55:08 -0400
+From: Sonny Rao <sonny@burdell.org>
+Subject: Re: Possible bug in do_execve()
+Message-ID: <20060621185508.GA9234@kevlar.burdell.org>
+References: <20060620022506.GA3673@kevlar.burdell.org> <20060621184129.GB16576@sergelap.austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060621184129.GB16576@sergelap.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nate Diller <nate.diller@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>, Hans Reiser <reiser@namesys.com>, "E. Gryaznova" <grev@namesys.com>
+To: "Serge E. Hallyn" <serue@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, anton@samba.org
 List-ID: <linux-mm.kvack.org>
 
-> -int vm_dirty_ratio = 40;
-> +int vm_dirty_ratio = 80;
+On Wed, Jun 21, 2006 at 01:41:29PM -0500, Serge E. Hallyn wrote:
+<snip>
+> > Is the behavior in do_execve() correct?
+> 
+> Well, I assume the intent is for out_mm: to clean up from mm_alloc(),
+> not from 'init_new_context'.  So I think that code is correct.
+> This bug appears to be powerpc-specific, so would the following patch
+> be reasonable?
+> 
+> Note it is entirely untested, just to show where i think this should
+> be solved.  But I could try compile+boot test tonight.
+> 
+> thanks,
+> -serge
+> 
+> From: Serge E. Hallyn <hallyn@sergelap.(none)>
+> Date: Wed, 21 Jun 2006 13:37:27 -0500
+> Subject: [PATCH] powerpc: check for proper mm->context before destroying
+> 
+> arch/powerpc/mm/mmu_context_64.c:destroy_context() can be called
+> from __mmput() in do_execve() if init_new_context() failed.  This
+> can result in idr_remove() being called for an invalid context.
+> 
+> So, don't call idr_remove if there is no context.
+> 
+> Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+> 
+> ---
+> 
+>  arch/powerpc/mm/mmu_context_64.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+> 
+> ee74da9d3c122b92541dd6b7670731bd4a033f04
+> diff --git a/arch/powerpc/mm/mmu_context_64.c b/arch/powerpc/mm/mmu_context_64.c
+> index 714a84d..552d590 100644
+> --- a/arch/powerpc/mm/mmu_context_64.c
+> +++ b/arch/powerpc/mm/mmu_context_64.c
+> @@ -55,6 +55,9 @@ again:
+>  
+>  void destroy_context(struct mm_struct *mm)
+>  {
+> +	if (mm->context.id == NO_CONTEXT)
+> +		return;
+> +
+>  	spin_lock(&mmu_context_lock);
+>  	idr_remove(&mmu_context_idr, mm->context.id);
+>  	spin_unlock(&mmu_context_lock);
 
-I don't think you can do that. Because ...
-
->     unsigned long available_memory = total_pages;
-...
-> +    dirty = (vm_dirty_ratio * available_memory) / 100;
-
-... there are other things in memory besides pagecache. Limiting
-dirty pages to 80% of pagecache might be fine, but not 80%
-of total memory.
-
-dirty = (vm_dirty_ratio * (nr_active + nr_inactive)) / 100
-
-might be more sensible. Frankly the whole thing is a crock
-anyway, because we should be counting easily freeable clean
-pages, not dirty pages, but still.
-
-M.
+Yeah, I proposed a similar patch to Anton, and it would quiet the
+warning on powerpc, but that's not the point.  It happens that powerpc
+doesn't use 0 as a context id, but that may not be true on another
+architecture.  That's really what I'm concerned about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
