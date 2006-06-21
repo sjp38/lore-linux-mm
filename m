@@ -1,601 +1,305 @@
 Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k5LFkJnx029987
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 10:46:19 -0500
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k5LFkXnx030010
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 10:46:33 -0500
 Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k5LG2Y7p35969006
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 09:02:35 -0700 (PDT)
+	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k5LG2n7p35969367
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 09:02:49 -0700 (PDT)
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k5LFkInB42414120
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 08:46:18 -0700 (PDT)
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k5LFkWnB42445966
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 08:46:32 -0700 (PDT)
 Received: from christoph (helo=localhost)
 	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1Ft4uI-0004wC-00
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 08:46:18 -0700
-Date: Wed, 21 Jun 2006 08:44:30 -0700 (PDT)
+	id 1Ft4uW-0004wS-00
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2006 08:46:32 -0700
+Date: Wed, 21 Jun 2006 08:44:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060621154430.18741.99957.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060621154440.18741.39333.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060621154419.18741.76233.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060621154419.18741.76233.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 02/14] Basic ZVC (zoned vm counter) implementation
+Subject: [PATCH 04/14] Conversion of nr_pagecache to per zone counter
 ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.64.0606210846130.18960@schroedinger.engr.sgi.com>
+ReSent-Message-ID: <Pine.LNX.4.64.0606210846270.18960@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: per zone counter functionality
+Subject: zoned vm counters: conversion of nr_pagecache to per zone counter
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Martin Bligh <mbligh@google.com>, linux-mm@vger.kernel.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Per zone counter infrastructure
+Currently a single atomic variable is used to establish the size of the page
+cache in the whole machine. The zoned VM counters have the same method of
+implementation as the nr_pagecache code but also allow the determination of
+the pagecache size per zone.
 
-The counters that we currently have for the VM are split per processor.
-The processor however has not much to do with the zone these pages belong
-to. We cannot tell f.e. how many ZONE_DMA pages are dirty.
+Remove the special implementation for nr_pagecache and make it a zoned
+counter named NR_FILE_PAGES.
 
-So we are blind to potentially inbalances in the usage of memory in various
-zones.  F.e. in a NUMA system we cannot tell how many pages are dirty on
-a particular node.  If we knew then we could put measures into the VM to balance
-the use of memory between different zones and different nodes in a NUMA
-system. For example it would be possible to limit the dirty pages per node
-so that fast local memory is kept available even if a process is dirtying
-huge amounts of pages.
-
-Another example is zone reclaim.  We do not know how many unmapped pages exist
-per zone.  So we just have to try to reclaim.  If it is not working then we
-pause and try again later.  It would be better if we knew when it makes sense
-to reclaim unmapped pages from a zone.  This patchset allows the determination
-of the number of unmapped pages per zone.  We can remove the zone reclaim
-interval with the counters introduced here.
-
-Futhermore the ability to have various usage statistics available will allow
-the development of new NUMA balancing algorithms that may be able to improve
-the decision making in the scheduler of when to move a process to another node
-and hopefully will also enable automatic page migration through a user space
-program that can analyse the memory load distribution and then rebalance
-memory use in order to increase performance.
-
-The counter framework here implements differential counters for each processor
-in struct zone.  The differential counters are consolidated when a threshold
-is exceeded (like done in the current implementation for nr_pageache), when
-slab reaping occurs or when a consolidation function is called.
-
-Consolidation uses atomic operations and accumulates counters per zone in the
-zone structure and also globally in the vm_stat array.  VM functions can
-access the counts by simply indexing a global or zone specific array.
-
-The arrangement of counters in an array also simplifies processing when output
-has to be generated for /proc/*.
-
-Counters can be updated by calling inc/dec_zone_page_state or
-_inc/dec_zone_page_state analogous to *_page_state. The second group of
-functions can be called if it is known that interrupts are disabled.
-
-Special optimized increment and decrement functions are provided.  These can
-avoid certain checks and use increment or decrement instructions that an
-architecture may provide.
-
-We also add a new CONFIG_DMA_IS_NORMAL that signifies that an architecture
-can do DMA to all memory and therefore ZONE_NORMAL will not be populated.
-This is only currently set for IA64 SGI SN2 and currently only affects
-node_page_state(). In the best case node_page_state can be reduced to
-retrieving a single counter for the one zone on the node.
+Updates of the page cache counters are always performed with interrupts off.
+We can therefore use the __ variant here.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-mm1/include/linux/mmzone.h
+Index: linux-2.6.17-mm1/arch/sparc64/kernel/sys_sunos32.c
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-21 07:33:56.667598796 -0700
-@@ -47,6 +47,9 @@ struct zone_padding {
- #define ZONE_PADDING(name)
- #endif
+--- linux-2.6.17-mm1.orig/arch/sparc64/kernel/sys_sunos32.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/sparc64/kernel/sys_sunos32.c	2006-06-21 07:36:17.677405206 -0700
+@@ -155,7 +155,7 @@ asmlinkage int sunos_brk(u32 baddr)
+ 	 * simple, it hopefully works in most obvious cases.. Easy to
+ 	 * fool it, but this should catch most mistakes.
+ 	 */
+-	freepages = get_page_cache_size();
++	freepages = global_page_state(NR_FILE_PAGES);
+ 	freepages >>= 1;
+ 	freepages += nr_free_pages();
+ 	freepages += nr_swap_pages;
+Index: linux-2.6.17-mm1/arch/sparc/kernel/sys_sunos.c
+===================================================================
+--- linux-2.6.17-mm1.orig/arch/sparc/kernel/sys_sunos.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/sparc/kernel/sys_sunos.c	2006-06-21 07:36:17.678381708 -0700
+@@ -196,7 +196,7 @@ asmlinkage int sunos_brk(unsigned long b
+ 	 * simple, it hopefully works in most obvious cases.. Easy to
+ 	 * fool it, but this should catch most mistakes.
+ 	 */
+-	freepages = get_page_cache_size();
++	freepages = global_page_state(NR_FILE_PAGES);
+ 	freepages >>= 1;
+ 	freepages += nr_free_pages();
+ 	freepages += nr_swap_pages;
+Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-21 07:34:08.376833270 -0700
++++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-21 07:36:17.679358210 -0700
+@@ -142,7 +142,8 @@ static int meminfo_read_proc(char *page,
+ 	allowed = ((totalram_pages - hugetlb_total_pages())
+ 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
  
-+enum zone_stat_item {
-+	NR_VM_ZONE_STAT_ITEMS };
-+
- struct per_cpu_pages {
- 	int count;		/* number of pages in the list */
- 	int high;		/* high watermark, emptying needed */
-@@ -56,6 +59,10 @@ struct per_cpu_pages {
+-	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
++	cached = global_page_state(NR_FILE_PAGES) -
++			total_swapcache_pages - i.bufferram;
+ 	if (cached < 0)
+ 		cached = 0;
  
- struct per_cpu_pageset {
- 	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
-+#ifdef CONFIG_SMP
-+	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
-+#endif
-+
- #ifdef CONFIG_NUMA
- 	unsigned long numa_hit;		/* allocated in intended node */
- 	unsigned long numa_miss;	/* allocated in non intended node */
-@@ -166,6 +173,8 @@ struct zone {
- 	/* A count of how many reclaimers are scanning this zone */
- 	atomic_t		reclaim_in_progress;
+Index: linux-2.6.17-mm1/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.17-mm1.orig/include/linux/pagemap.h	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/include/linux/pagemap.h	2006-06-21 07:36:17.680334712 -0700
+@@ -106,51 +106,6 @@ int add_to_page_cache_lru(struct page *p
+ extern void remove_from_page_cache(struct page *page);
+ extern void __remove_from_page_cache(struct page *page);
  
-+	/* Zone statistics */
-+	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
- 	/*
- 	 * timestamp (in jiffies) of the last zone reclaim that did not
- 	 * result in freeing of pages. This is used to avoid repeated scans
+-extern atomic_t nr_pagecache;
+-
+-#ifdef CONFIG_SMP
+-
+-#define PAGECACHE_ACCT_THRESHOLD        max(16, NR_CPUS * 2)
+-DECLARE_PER_CPU(long, nr_pagecache_local);
+-
+-/*
+- * pagecache_acct implements approximate accounting for pagecache.
+- * vm_enough_memory() do not need high accuracy. Writers will keep
+- * an offset in their per-cpu arena and will spill that into the
+- * global count whenever the absolute value of the local count
+- * exceeds the counter's threshold.
+- *
+- * MUST be protected from preemption.
+- * current protection is mapping->page_lock.
+- */
+-static inline void pagecache_acct(int count)
+-{
+-	long *local;
+-
+-	local = &__get_cpu_var(nr_pagecache_local);
+-	*local += count;
+-	if (*local > PAGECACHE_ACCT_THRESHOLD || *local < -PAGECACHE_ACCT_THRESHOLD) {
+-		atomic_add(*local, &nr_pagecache);
+-		*local = 0;
+-	}
+-}
+-
+-#else
+-
+-static inline void pagecache_acct(int count)
+-{
+-	atomic_add(count, &nr_pagecache);
+-}
+-#endif
+-
+-static inline unsigned long get_page_cache_size(void)
+-{
+-	int ret = atomic_read(&nr_pagecache);
+-	if (unlikely(ret < 0))
+-		ret = 0;
+-	return ret;
+-}
+-
+ /*
+  * Return byte-offset into filesystem object for page.
+  */
+Index: linux-2.6.17-mm1/mm/filemap.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/filemap.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/filemap.c	2006-06-21 07:36:17.682287716 -0700
+@@ -120,7 +120,7 @@ void __remove_from_page_cache(struct pag
+ 	radix_tree_delete(&mapping->page_tree, page->index);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+-	pagecache_acct(-1);
++	__dec_zone_page_state(page, NR_FILE_PAGES);
+ }
+ 
+ void remove_from_page_cache(struct page *page)
+@@ -415,7 +415,7 @@ int add_to_page_cache(struct page *page,
+ 			page->mapping = mapping;
+ 			page->index = offset;
+ 			mapping->nrpages++;
+-			pagecache_acct(1);
++			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 		}
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		radix_tree_preload_end();
+Index: linux-2.6.17-mm1/mm/mmap.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/mmap.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/mmap.c	2006-06-21 07:36:17.684240720 -0700
+@@ -96,7 +96,7 @@ int __vm_enough_memory(long pages, int c
+ 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
+ 		unsigned long n;
+ 
+-		free = get_page_cache_size();
++		free = global_page_state(NR_FILE_PAGES);
+ 		free += nr_swap_pages;
+ 
+ 		/*
+Index: linux-2.6.17-mm1/mm/nommu.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/nommu.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/nommu.c	2006-06-21 07:36:17.684240720 -0700
+@@ -1122,7 +1122,7 @@ int __vm_enough_memory(long pages, int c
+ 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
+ 		unsigned long n;
+ 
+-		free = get_page_cache_size();
++		free = global_page_state(NR_FILE_PAGES);
+ 		free += nr_swap_pages;
+ 
+ 		/*
 Index: linux-2.6.17-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-21 07:33:51.539010735 -0700
-+++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-21 07:33:56.668575298 -0700
-@@ -1971,6 +1971,7 @@ static void __init free_area_init_core(s
- 		zone->nr_scan_inactive = 0;
- 		zone->nr_active = 0;
- 		zone->nr_inactive = 0;
-+		zap_zone_vm_stats(zone);
- 		atomic_set(&zone->reclaim_in_progress, 0);
- 		if (!size)
- 			continue;
-@@ -2072,6 +2073,7 @@ static int page_alloc_cpu_notify(struct 
+--- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-21 07:34:08.379762776 -0700
++++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-21 07:36:17.686193724 -0700
+@@ -2049,16 +2049,11 @@ static int page_alloc_cpu_notify(struct 
+ 				 unsigned long action, void *hcpu)
+ {
+ 	int cpu = (unsigned long)hcpu;
+-	long *count;
+ 	unsigned long *src, *dest;
+ 
+ 	if (action == CPU_DEAD) {
+ 		int i;
+ 
+-		/* Drain local pagecache count. */
+-		count = &per_cpu(nr_pagecache_local, cpu);
+-		atomic_add(*count, &nr_pagecache);
+-		*count = 0;
+ 		local_irq_disable();
+ 		__drain_pages(cpu);
+ 
+Index: linux-2.6.17-mm1/mm/swap_state.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/swap_state.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/swap_state.c	2006-06-21 07:36:17.686193724 -0700
+@@ -87,7 +87,7 @@ static int __add_to_swap_cache(struct pa
+ 			SetPageSwapCache(page);
+ 			set_page_private(page, entry.val);
+ 			total_swapcache_pages++;
+-			pagecache_acct(1);
++			__inc_zone_page_state(page, NR_FILE_PAGES);
  		}
- 
- 		local_irq_enable();
-+		refresh_cpu_vm_stats(cpu);
- 	}
- 	return NOTIFY_OK;
+ 		write_unlock_irq(&swapper_space.tree_lock);
+ 		radix_tree_preload_end();
+@@ -132,7 +132,7 @@ void __delete_from_swap_cache(struct pag
+ 	set_page_private(page, 0);
+ 	ClearPageSwapCache(page);
+ 	total_swapcache_pages--;
+-	pagecache_acct(-1);
++	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
  }
-Index: linux-2.6.17-mm1/mm/slab.c
+ 
+Index: linux-2.6.17-mm1/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/slab.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/mm/slab.c	2006-06-21 07:33:56.671504804 -0700
-@@ -3763,6 +3763,7 @@ next:
- 	check_irq_on();
- 	mutex_unlock(&cache_chain_mutex);
- 	next_reap_node();
-+	refresh_cpu_vm_stats(smp_processor_id());
- 	/* Set up the next iteration */
- 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
- }
-Index: linux-2.6.17-mm1/include/linux/vmstat.h
+--- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-21 07:34:08.377809772 -0700
++++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-21 07:36:17.687170225 -0700
+@@ -50,7 +50,7 @@ struct zone_padding {
+ enum zone_stat_item {
+ 	NR_FILE_MAPPED,	/* mapped into pagetables.
+ 			   only modified from process context */
+-
++	NR_FILE_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ struct per_cpu_pages {
+Index: linux-2.6.17-mm1/arch/s390/appldata/appldata_mem.c
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-21 07:28:50.423904770 -0700
-+++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-21 07:33:56.671504804 -0700
-@@ -2,6 +2,9 @@
- #define _LINUX_VMSTAT_H
+--- linux-2.6.17-mm1.orig/arch/s390/appldata/appldata_mem.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/s390/appldata/appldata_mem.c	2006-06-21 07:36:17.688146727 -0700
+@@ -130,7 +130,8 @@ static void appldata_get_mem_data(void *
+ 	mem_data->totalhigh = P2K(val.totalhigh);
+ 	mem_data->freehigh  = P2K(val.freehigh);
+ 	mem_data->bufferram = P2K(val.bufferram);
+-	mem_data->cached    = P2K(atomic_read(&nr_pagecache) - val.bufferram);
++	mem_data->cached    = P2K(global_page_state(NR_FILE_PAGES)
++				- val.bufferram);
  
- #include <linux/types.h>
-+#include <linux/config.h>
-+#include <linux/mmzone.h>
-+#include <asm/atomic.h>
- 
- /*
-  * Global page accounting.  One instance per CPU.  Only unsigned longs are
-@@ -131,5 +134,84 @@ extern void __mod_page_state_offset(unsi
- 	mod_page_state_offset(state_zone_offset(zone, member), (delta)); \
-  } while (0)
- 
-+/*
-+ * Zone based page accounting with per cpu differentials.
-+ */
-+extern atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
-+
-+static inline unsigned long global_page_state(enum zone_stat_item item)
-+{
-+	long x = atomic_long_read(&vm_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
-+static inline unsigned long zone_page_state(struct zone *zone,
-+					enum zone_stat_item item)
-+{
-+	long x = atomic_long_read(&zone->vm_stat[item]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
-+#ifdef CONFIG_NUMA
-+/*
-+ * Determine the per node value of a stat item. This function
-+ * is called frequently in a NUMA machine, so try to be as
-+ * frugal as possible.
-+ */
-+static inline unsigned long node_page_state(int node,
-+				 enum zone_stat_item item)
-+{
-+	struct zone *zones = NODE_DATA(node)->node_zones;
-+
-+	return
-+#ifndef CONFIG_DMA_IS_NORMAL
-+#if !defined(CONFIG_DMA_IS_DMA32) && BITS_PER_LONG >= 64
-+		zone_page_state(&zones[ZONE_DMA32], item) +
-+#endif
-+		zone_page_state(&zones[ZONE_NORMAL], item) +
-+#endif
-+#ifdef CONFIG_HIGHMEM
-+		zone_page_state(&zones[ZONE_HIGHMEM], item) +
-+#endif
-+		zone_page_state(&zones[ZONE_DMA], item);
-+}
-+#else
-+#define node_page_state(node, item) global_page_state(item)
-+#endif
-+
-+void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);
-+void __inc_zone_page_state(struct page *, enum zone_stat_item);
-+void __dec_zone_page_state(struct page *, enum zone_stat_item);
-+
-+#define __add_zone_page_state(__z, __i, __d) __mod_zone_page_state(__z, __i, __d)
-+#define __sub_zone_page_state(__z, __i, __d) __mod_zone_page_state(__z, __i,-(__d))
-+
-+void mod_zone_page_state(struct zone *, enum zone_stat_item, int);
-+void inc_zone_page_state(struct page *, enum zone_stat_item);
-+void dec_zone_page_state(struct page *, enum zone_stat_item);
-+
-+#define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
-+#define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
-+
-+static inline void zap_zone_vm_stats(struct zone *zone) {
-+	memset(zone->vm_stat, 0, sizeof(zone->vm_stat));
-+}
-+
-+#ifdef CONFIG_SMP
-+void refresh_cpu_vm_stats(int);
-+void refresh_vm_stats(void);
-+#else
-+static inline void refresh_cpu_vm_stats(int cpu) { }
-+static inline void refresh_vm_stats(void) { }
-+#endif
-+
- #endif /* _LINUX_VMSTAT_H */
- 
-Index: linux-2.6.17-mm1/arch/ia64/Kconfig
+ 	si_swapinfo(&val);
+ 	mem_data->totalswap = P2K(val.totalswap);
+Index: linux-2.6.17-mm1/drivers/base/node.c
 ===================================================================
---- linux-2.6.17-mm1.orig/arch/ia64/Kconfig	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/arch/ia64/Kconfig	2006-06-21 07:33:56.672481306 -0700
-@@ -70,6 +70,11 @@ config DMA_IS_DMA32
- 	bool
- 	default y
- 
-+config DMA_IS_NORMAL
-+	bool
-+	depends on IA64_SGI_SN2
-+	default y
-+
- choice
- 	prompt "System type"
- 	default IA64_GENERIC
+--- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-21 07:34:08.375856768 -0700
++++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-21 07:36:17.689123229 -0700
+@@ -68,6 +68,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d LowFree:      %8lu kB\n"
+ 		       "Node %d Dirty:        %8lu kB\n"
+ 		       "Node %d Writeback:    %8lu kB\n"
++		       "Node %d FilePages:    %8lu kB\n"
+ 		       "Node %d Mapped:       %8lu kB\n"
+ 		       "Node %d Slab:         %8lu kB\n",
+ 		       nid, K(i.totalram),
+@@ -81,6 +82,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.freeram - i.freehigh),
+ 		       nid, K(ps.nr_dirty),
+ 		       nid, K(ps.nr_writeback),
++		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+ 		       nid, K(ps.nr_slab));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
 Index: linux-2.6.17-mm1/mm/vmstat.c
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-21 07:28:50.424881272 -0700
-+++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-21 07:33:56.673457808 -0700
-@@ -3,10 +3,15 @@
-  *
-  *  Manages VM statistics
-  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
-+ *
-+ *  zoned VM statistics
-+ *  Copyright (C) 2006 Silicon Graphics, Inc.,
-+ *		Christoph Lameter <christoph@lameter.com>
+--- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-21 07:34:08.382692282 -0700
++++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-21 07:36:17.689123229 -0700
+@@ -20,12 +20,6 @@
   */
+ static DEFINE_PER_CPU(struct page_state, page_states) = {0};
  
- #include <linux/config.h>
- #include <linux/mm.h>
-+#include <linux/module.h>
- 
- /*
-  * Accumulate the page_state information across all CPUs.
-@@ -143,6 +148,259 @@ void get_zone_counts(unsigned long *acti
- 	}
- }
- 
-+/*
-+ * Manage combined zone based / global counters
-+ *
-+ * vm_stat contains the global counters
-+ */
-+atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
-+
-+static inline void zone_page_state_add(long x, struct zone *zone,
-+				 enum zone_stat_item item)
-+{
-+	atomic_long_add(x, &zone->vm_stat[item]);
-+	atomic_long_add(x, &vm_stat[item]);
-+}
-+
-+#ifdef CONFIG_SMP
-+
-+#define STAT_THRESHOLD 32
-+
-+/*
-+ * Determine pointer to currently valid differential byte given a zone and
-+ * the item number.
-+ *
-+ * Preemption must be off
-+ */
-+static inline s8 *diff_pointer(struct zone *zone, enum zone_stat_item item)
-+{
-+	return &zone_pcp(zone, smp_processor_id())->vm_stat_diff[item];
-+}
-+
-+/*
-+ * For use when we know that interrupts are disabled.
-+ */
-+void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	s8 *p;
-+	long x;
-+
-+	p = diff_pointer(zone, item);
-+	x = delta + *p;
-+
-+	if (unlikely(x > STAT_THRESHOLD || x < -STAT_THRESHOLD)) {
-+		zone_page_state_add(x, zone, item);
-+		x = 0;
-+	}
-+
-+	*p = x;
-+}
-+EXPORT_SYMBOL(__mod_zone_page_state);
-+
-+/*
-+ * For an unknown interrupt state
-+ */
-+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+					int delta)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__mod_zone_page_state(zone, item, delta);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(mod_zone_page_state);
-+
-+/*
-+ * Optimized increment and decrement functions.
-+ *
-+ * These are only for a single page and therefore can take a struct page *
-+ * argument instead of struct zone *. This allows the inclusion of the code
-+ * generated for page_zone(page) into the optimized functions.
-+ *
-+ * No overflow check is necessary and therefore the differential can be
-+ * incremented or decremented in place which may allow the compilers to
-+ * generate better code.
-+ *
-+ * The increment or decrement is known and therefore one boundary check can
-+ * be omitted.
-+ *
-+ * Some processors have inc/dec instructions that are atomic vs an interrupt.
-+ * However, the code must first determine the differential location in a zone
-+ * based on the processor number and then inc/dec the counter. There is no
-+ * guarantee without disabling preemption that the processor will not change
-+ * in between and therefore the atomicity vs. interrupt cannot be exploited
-+ * in a useful way here.
-+ */
-+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	struct zone *zone = page_zone(page);
-+	s8 *p = diff_pointer(zone, item);
-+
-+	(*p)++;
-+
-+	if (unlikely(*p > STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+}
-+EXPORT_SYMBOL(__inc_zone_page_state);
-+
-+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	struct zone *zone = page_zone(page);
-+	s8 *p = diff_pointer(zone, item);
-+
-+	(*p)--;
-+
-+	if (unlikely(*p < -STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+}
-+EXPORT_SYMBOL(__dec_zone_page_state);
-+
-+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+	struct zone *zone;
-+	s8 *p;
-+
-+	zone = page_zone(page);
-+	local_irq_save(flags);
-+	p = diff_pointer(zone, item);
-+
-+	(*p)++;
-+
-+	if (unlikely(*p > STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_zone_page_state);
-+
-+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+	struct zone *zone;
-+	s8 *p;
-+
-+	zone = page_zone(page);
-+	local_irq_save(flags);
-+	p = diff_pointer(zone, item);
-+
-+	(*p)--;
-+
-+	if (unlikely(*p < -STAT_THRESHOLD)) {
-+		zone_page_state_add(*p, zone, item);
-+		*p = 0;
-+	}
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(dec_zone_page_state);
-+
-+/*
-+ * Update the zone counters for one cpu.
-+ */
-+void refresh_cpu_vm_stats(int cpu)
-+{
-+	struct zone *zone;
-+	int i;
-+	unsigned long flags;
-+
-+	for_each_zone(zone) {
-+		struct per_cpu_pageset *pcp;
-+
-+		pcp = zone_pcp(zone, cpu);
-+
-+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+			if (pcp->vm_stat_diff[i]) {
-+				local_irq_save(flags);
-+				zone_page_state_add(pcp->vm_stat_diff[i],
-+					zone, i);
-+				pcp->vm_stat_diff[i] = 0;
-+				local_irq_restore(flags);
-+			}
-+	}
-+}
-+
-+static void __refresh_cpu_vm_stats(void *dummy)
-+{
-+	refresh_cpu_vm_stats(smp_processor_id());
-+}
-+
-+/*
-+ * Consolidate all counters.
-+ *
-+ * Note that the result is less inaccurate but still inaccurate
-+ * if concurrent processes are allowed to run.
-+ */
-+void refresh_vm_stats(void)
-+{
-+	on_each_cpu(__refresh_cpu_vm_stats, NULL, 0, 1);
-+}
-+EXPORT_SYMBOL(refresh_vm_stats);
-+
-+#else /* CONFIG_SMP */
-+
-+/*
-+ * We do not maintain differentials in a single processor configuration.
-+ * The functions directly modify the zone and global counters.
-+ */
-+
-+void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+				int delta)
-+{
-+	zone_page_state_add(delta, zone, item);
-+}
-+EXPORT_SYMBOL(__mod_zone_page_state);
-+
-+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-+ 				int delta)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add(delta, zone, item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(mod_zone_page_state);
-+
-+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	zone_page_state_add(1, page_zone(page), item);
-+}
-+EXPORT_SYMBOL(__inc_zone_page_state);
-+
-+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	zone_page_state_add(-1, page_zone(page), item);
-+}
-+EXPORT_SYMBOL(__dec_zone_page_state);
-+
-+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add(1, page_zone(page), item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(inc_zone_page_state);
-+
-+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	zone_page_state_add( -1, page_zone(page), item);
-+	local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL(dec_zone_page_state);
-+#endif
-+
- #ifdef CONFIG_PROC_FS
- 
- #include <linux/seq_file.h>
-@@ -204,6 +462,9 @@ struct seq_operations fragmentation_op =
- };
- 
- static char *vmstat_text[] = {
-+	/* Zoned VM counters */
-+
-+	/* Page state */
- 	"nr_dirty",
- 	"nr_writeback",
- 	"nr_unstable",
-@@ -297,6 +558,11 @@ static int zoneinfo_show(struct seq_file
- 			   zone->nr_scan_active, zone->nr_scan_inactive,
- 			   zone->spanned_pages,
- 			   zone->present_pages);
-+
-+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+			seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
-+					zone_page_state(zone, i));
-+
- 		seq_printf(m,
- 			   "\n        protection: (%lu",
- 			   zone->lowmem_reserve[0]);
-@@ -368,19 +634,25 @@ struct seq_operations zoneinfo_op = {
- 
- static void *vmstat_start(struct seq_file *m, loff_t *pos)
+-atomic_t nr_pagecache = ATOMIC_INIT(0);
+-EXPORT_SYMBOL(nr_pagecache);
+-#ifdef CONFIG_SMP
+-DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
+-#endif
+-
+ static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
  {
-+	unsigned long *v;
- 	struct page_state *ps;
-+	int i;
+ 	unsigned cpu;
+@@ -464,6 +458,7 @@ struct seq_operations fragmentation_op =
+ static char *vmstat_text[] = {
+ 	/* Zoned VM counters */
+ 	"nr_mapped",
++	"nr_file_pages",
  
- 	if (*pos >= ARRAY_SIZE(vmstat_text))
- 		return NULL;
- 
--	ps = kmalloc(sizeof(*ps), GFP_KERNEL);
--	m->private = ps;
--	if (!ps)
-+	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long)
-+			+ sizeof(*ps), GFP_KERNEL);
-+	m->private = v;
-+	if (!v)
- 		return ERR_PTR(-ENOMEM);
-+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+		v[i] = global_page_state(i);
-+	ps = (struct page_state *)(v + NR_VM_ZONE_STAT_ITEMS);
- 	get_full_page_state(ps);
- 	ps->pgpgin /= 2;		/* sectors -> kbytes */
- 	ps->pgpgout /= 2;
--	return (unsigned long *)ps + *pos;
-+	return v + *pos;
- }
- 
- static void *vmstat_next(struct seq_file *m, void *arg, loff_t *pos)
+ 	/* Page state */
+ 	"nr_dirty",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
