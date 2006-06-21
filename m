@@ -1,61 +1,42 @@
-Message-ID: <44997D9E.8040304@google.com>
-Date: Wed, 21 Jun 2006 10:10:54 -0700
-From: Martin Bligh <mbligh@google.com>
-MIME-Version: 1.0
+Date: Wed, 21 Jun 2006 10:16:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 00/14] Zoned VM counters V5
-References: <20060621154419.18741.76233.sendpatchset@schroedinger.engr.sgi.com> <44997596.7050903@google.com> <Pine.LNX.4.64.0606211001370.19596@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0606211001370.19596@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <44997D9E.8040304@google.com>
+Message-ID: <Pine.LNX.4.64.0606211012590.20071@schroedinger.engr.sgi.com>
+References: <20060621154419.18741.76233.sendpatchset@schroedinger.engr.sgi.com>
+ <44997596.7050903@google.com> <Pine.LNX.4.64.0606211001370.19596@schroedinger.engr.sgi.com>
+ <44997D9E.8040304@google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Martin Bligh <mbligh@google.com>
 Cc: akpm@osdl.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 21 Jun 2006, Martin J. Bligh wrote:
-> 
-> 
->>Having the per-cpu counters with a global overflow seems like a really
->>nice way to do counters to me - is it worth doing this as a more
->>generalized counter type so that others could use it?
-> 
-> 
-> Yes later patches also use the counters for other things. Please check out 
-> the patch that uses these for numa counters etc.
+On Wed, 21 Jun 2006, Martin Bligh wrote:
 
-OK, but looked like the original implementation was sort of tied to
-zones / the VM, at least in terminology, and code placement. I'll look
-at it again ...
+> > Yes later patches also use the counters for other things. Please check out
+> > the patch that uses these for numa counters etc.
+> 
+> OK, but looked like the original implementation was sort of tied to
+> zones / the VM, at least in terminology, and code placement. I'll look
+> at it again ...
 
->>OTOH, I'm unsure why we're only using 8 bits in struct zone, which isn't
->>size critical. Is it just so you can pack vast numbers of different stats into
->>a single cacheline?
-> 
-> 
-> I would like to add some stats in the future. 8 bits is sufficient if the 
-> threshold is less than 64 (currently its 32). If we ever get higher then 
-> we can simply go to a bigger base size.
-> 
-> However, the space used by that array is
->  
-> <nr-of-counters>*<nr_of_processors>*<nr_of_zones>
-> 
-> There are systems that have around 1k nodes and 4k processors. Lets say 
-> we have 16 counters then we get to
-> 
-> 1k*4k*16 = 64Mbyte just for the counters.
-> 
-> This doubles for a short and quadruples for an int.
-> 
-> Also smaller counters help keep the pcp structure in one cacheline and 
-> reduces the cache footprint. 
+Yes it is. This one is useful only for zone related information.
 
-Sure, but for a normal sized system, the smaller the per-cpu portion,
-the more atomic ops you'll end up doing, surely?
+> > Also smaller counters help keep the pcp structure in one cacheline and
+> > reduces the cache footprint. 
+> 
+> Sure, but for a normal sized system, the smaller the per-cpu portion,
+> the more atomic ops you'll end up doing, surely?
 
-M.
+So we now do two atomic ops for every 32 increments (threshold). If we 
+increment the threshhold then we reduce the atomic overhead but this also 
+influences the inaccurary of the global and per zone counter because 
+there is the potential of more counter update deferrals. Keeping the 
+threshold low makes the global and per zone counter more up to date.
+I think 32 is a good compromise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
