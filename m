@@ -1,161 +1,199 @@
-Date: Thu, 22 Jun 2006 14:31:23 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622213123.32391.87337.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060622213102.32391.19996.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060622213102.32391.19996.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 4/4] Drop rcu field
+Subject: Re: [PATCH 1/6] mm: tracking shared dirty pages
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
+References: <20060619175243.24655.76005.sendpatchset@lappy>
+	 <20060619175253.24655.96323.sendpatchset@lappy>
+	 <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Fri, 23 Jun 2006 01:02:27 +0200
+Message-Id: <1151017347.15744.135.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: "Paul E. McKenney" <paulmck@us.ibm.com>, Jens Axboe <axboe@suse.de>, Dave Miller <davem@redhat.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Ingo Molnar <mingo@elte.hu>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-file RCU optimization: Drop rcu field and restore old name for fu_list.
+On Thu, 2006-06-22 at 21:52 +0100, Hugh Dickins wrote:
+> On Mon, 19 Jun 2006, Peter Zijlstra wrote:
 
-The slab has its own RCU blocks so no need to have that in the files
-structure.
+> > +static inline int is_shared_writable(unsigned int flags)
+> > +{
+> > +	return (flags & (VM_SHARED|VM_WRITE|VM_PFNMAP)) ==
+> > +		(VM_SHARED|VM_WRITE);
+> > +}
+> > +
+> 
+> Andrew asked for the inclusion of VM_PFNMAP to be commented there,
+> I don't believe that's enough: a function called "is_shared_writable"
+> should be testing precisely that, or people will misuse it.
+> 
+> Either you change the name to "is_shared_writable_but_not_pfnmap"
+> or somesuch, or you split out the VM_PFNMAP test, or you do away
+> with the function and make the tests explicit inline.  As before,
+> my instinctive preference is the latter: I really want to see what's
+> being tested (especially in do_wp_page); but perhaps it'll just look
+> too ugly all over - give it a try and see.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+*sight*, thats it, explicit it will be :-)
 
-Index: linux-2.6.17/drivers/char/tty_io.c
-===================================================================
---- linux-2.6.17.orig/drivers/char/tty_io.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/drivers/char/tty_io.c	2006-06-22 14:11:00.687890471 -0700
-@@ -1046,7 +1046,7 @@ static void do_tty_hangup(void *data)
- 	check_tty_count(tty, "do_tty_hangup");
- 	file_list_lock();
- 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
--	list_for_each_entry(filp, &tty->tty_files, f_u.fu_list) {
-+	list_for_each_entry(filp, &tty->tty_files, f_list) {
- 		if (filp->f_op->write == redirected_tty_write)
- 			cons_filp = filp;
- 		if (filp->f_op->write != tty_write)
-Index: linux-2.6.17/fs/dquot.c
-===================================================================
---- linux-2.6.17.orig/fs/dquot.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/fs/dquot.c	2006-06-22 14:11:00.688866973 -0700
-@@ -693,7 +693,7 @@ static void add_dquot_ref(struct super_b
- restart:
- 	file_list_lock();
- 	list_for_each(p, &sb->s_files) {
--		struct file *filp = list_entry(p, struct file, f_u.fu_list);
-+		struct file *filp = list_entry(p, struct file, f_list);
- 		struct inode *inode = filp->f_dentry->d_inode;
- 		if (filp->f_mode & FMODE_WRITE && dqinit_needed(inode, type)) {
- 			struct dentry *dentry = dget(filp->f_dentry);
-Index: linux-2.6.17/security/selinux/selinuxfs.c
-===================================================================
---- linux-2.6.17.orig/security/selinux/selinuxfs.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/security/selinux/selinuxfs.c	2006-06-22 14:11:00.690819977 -0700
-@@ -901,7 +901,7 @@ static void sel_remove_bools(struct dent
- 
- 	file_list_lock();
- 	list_for_each(p, &sb->s_files) {
--		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-+		struct file * filp = list_entry(p, struct file, f_list);
- 		struct dentry * dentry = filp->f_dentry;
- 
- 		if (dentry->d_parent != de) {
-Index: linux-2.6.17/include/linux/fs.h
-===================================================================
---- linux-2.6.17.orig/include/linux/fs.h	2006-06-22 13:16:13.317087178 -0700
-+++ linux-2.6.17/include/linux/fs.h	2006-06-22 14:11:00.691796479 -0700
-@@ -631,14 +631,7 @@ struct file_ra_state {
- #define RA_FLAG_INCACHE 0x02	/* file is already in cache */
- 
- struct file {
--	/*
--	 * fu_list becomes invalid after file_free is called and queued via
--	 * fu_rcuhead for RCU freeing
--	 */
--	union {
--		struct list_head	fu_list;
--		struct rcu_head 	fu_rcuhead;
--	} f_u;
-+	struct list_head	f_list;
- 	struct dentry		*f_dentry;
- 	struct vfsmount         *f_vfsmnt;
- 	const struct file_operations	*f_op;
-Index: linux-2.6.17/fs/file_table.c
-===================================================================
---- linux-2.6.17.orig/fs/file_table.c	2006-06-22 14:09:51.989993240 -0700
-+++ linux-2.6.17/fs/file_table.c	2006-06-22 14:11:00.692772981 -0700
-@@ -43,7 +43,7 @@ static void filp_constructor(void *data,
- 			return;
- 
- 	memset(f, 0, sizeof(*f));
--	INIT_LIST_HEAD(&f->f_u.fu_list);
-+	INIT_LIST_HEAD(&f->f_list);
- 	atomic_set(&f->f_count, 0);
- 	rwlock_init(&f->f_owner.lock);
- 	eventpoll_init_file(f);
-@@ -265,15 +265,15 @@ void file_move(struct file *file, struct
- 	if (!list)
- 		return;
- 	file_list_lock();
--	list_move(&file->f_u.fu_list, list);
-+	list_move(&file->f_list, list);
- 	file_list_unlock();
- }
- 
- void file_kill(struct file *file)
- {
--	if (!list_empty(&file->f_u.fu_list)) {
-+	if (!list_empty(&file->f_list)) {
- 		file_list_lock();
--		list_del_init(&file->f_u.fu_list);
-+		list_del_init(&file->f_list);
- 		file_list_unlock();
- 	}
- }
-@@ -285,7 +285,7 @@ int fs_may_remount_ro(struct super_block
- 	/* Check that no files are currently opened for writing. */
- 	file_list_lock();
- 	list_for_each(p, &sb->s_files) {
--		struct file *file = list_entry(p, struct file, f_u.fu_list);
-+		struct file *file = list_entry(p, struct file, f_list);
- 		struct inode *inode = file->f_dentry->d_inode;
- 
- 		/* File with pending delete? */
-Index: linux-2.6.17/fs/super.c
-===================================================================
---- linux-2.6.17.orig/fs/super.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/fs/super.c	2006-06-22 14:11:00.692772981 -0700
-@@ -513,7 +513,7 @@ static void mark_files_ro(struct super_b
- 	struct file *f;
- 
- 	file_list_lock();
--	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
-+	list_for_each_entry(f, &sb->s_files, f_list) {
- 		if (S_ISREG(f->f_dentry->d_inode->i_mode) && file_count(f))
- 			f->f_mode &= ~FMODE_WRITE;
- 	}
-Index: linux-2.6.17/security/selinux/hooks.c
-===================================================================
---- linux-2.6.17.orig/security/selinux/hooks.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/security/selinux/hooks.c	2006-06-22 14:11:00.695702488 -0700
-@@ -1611,7 +1611,7 @@ static inline void flush_unauthorized_fi
- 
- 	if (tty) {
- 		file_list_lock();
--		file = list_entry(tty->tty_files.next, typeof(*file), f_u.fu_list);
-+		file = list_entry(tty->tty_files.next, typeof(*file), f_list);
- 		if (file) {
- 			/* Revalidate access to controlling tty.
- 			   Use inode_has_perm on the tty inode directly rather
-Index: linux-2.6.17/fs/proc/generic.c
-===================================================================
---- linux-2.6.17.orig/fs/proc/generic.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17/fs/proc/generic.c	2006-06-22 14:11:00.696678990 -0700
-@@ -557,7 +557,7 @@ static void proc_kill_inodes(struct proc
- 	 */
- 	file_list_lock();
- 	list_for_each(p, &sb->s_files) {
--		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-+		struct file * filp = list_entry(p, struct file, f_list);
- 		struct dentry * dentry = filp->f_dentry;
- 		struct inode * inode;
- 		const struct file_operations *fops;
+> > +	/*
+> > +	 * This is not fully correct in the light of trapping write faults
+> > +	 * for writable shared mappings. However since we're going to mark
+> > +	 * the page dirty anyway some few lines downward, we might as well
+> > +	 * take the write fault now.
+> > +	 */
+> 
+> I don't understand what you're getting at here: please explain,
+> what is not fully correct and why?  In mail first, then we can
+> decide what the comment should say, or if it should be removed.
+> follow_page isn't making a pte writable, so what's the issue?
+
+I have no idea either, I reread this part earlier today and found it one
+big brainfart. It does indeed seem to do the right thing.
+
+> > -	if (unlikely(vma->vm_flags & VM_SHARED)) {
+> > +	if (unlikely(is_shared_writable(vma->vm_flags))) {
+> 
+> Most interesting line in the series, yes, and I'd find it
+> easier to think through if it showed the flags test explicitly:
+> 	if ((vma->vm_flags & (VM_SHARED|VM_WRITE|VM_PFNMAP)) ==
+> 		(VM_SHARED|VM_WRITE))
+> 
+> Yes, Andrew, you're right it's a change in behaviour from David's
+> page_mkwrite patch.  I've realized that when I was originally
+> reviewing David's patch, I believed do_wp_page was mistaken to be
+> doing COW on VM_SHARED areas.  But Linus has since asserted very
+> forcefully that it's intentional, that ptrace poke on a VM_SHARED
+> area which is currently not !VM_WRITE should COW it, so I mentioned
+> that to Peter.
+> 
+> Has he got the test right there now?  Ummm... maybe: my brain
+> exploded weeks ago.  Several strangenesses collide here, I'll
+> try again tomorrow, maybe others will argue it to certainty before.
+
+I don't think the VM_PFNMAP is needed here, but it doesn't hurt either.
+Like said, I'll do explicits from now on.
+
+> > @@ -1084,18 +1086,13 @@ munmap_back:
+> >  		error = file->f_op->mmap(file, vma);
+> >  		if (error)
+> >  			goto unmap_and_free_vma;
+> > +
+> 
+> Do you really need this blank line?
+
+:-) uhu..
+
+> > +	/*
+> > +	 * Tracking of dirty pages for shared writable mappings. Do this by
+> > +	 * write protecting writable pages, and mark dirty in the write fault.
+> > +	 *
+> > +	 * Modify vma->vm_page_prot (the default protection for new pages)
+> > +	 * to this effect.
+> > +	 *
+> > +	 * Cannot do before because the condition depends on:
+> > +	 *  - backing_dev_info having the right capabilities
+> > +	 *    (set by f_op->open())
+> 
+> Is that so, backing_dev_info set by f_op->open()?
+> And how would that be a problem here if it were so?
+
+useless information indeed, a remnant from old times when I placed the
+vm_page_prot modification between the two calls, shall remove.
+
+> > +	 *  - vma->vm_flags being fully set
+> > +	 *    (finished in f_op->mmap(), which could call remap_pfn_range())
+> > +	 *
+> > +	 *  Also, cannot reset vma->vm_page_prot from vma->vm_flags because
+> > +	 *  f_op->mmap() can modify it.
+> > +	 */
+> > +	if (is_shared_writable(vm_flags) && vma->vm_file)
+> > +		mapping = vma->vm_file->f_mapping;
+> > +	if ((mapping && mapping_cap_account_dirty(mapping)) ||
+> > +			(vma->vm_ops && vma->vm_ops->page_mkwrite))
+> 
+> The only way "mapping" might be set is just above.
+> Wouldn't it all be clearer (though more indented) if you said
+> 
+> 	if (is_shared_writable(vm_flags) && vma->vm_file) {
+> 		mapping = vma->vm_file->f_mapping;
+> 		if ((mapping && mapping_cap_account_dirty(mapping)) ||
+> 				(vma->vm_ops && vma->vm_ops->page_mkwrite)) {
+> 			vma->vm_page_prot = whatever;
+> 		}
+> 	}
+> 
+> Or no need for "mapping" here at all if you change
+> mapping_cap_account_dirty(vma->vm_file->f_mapping)
+> to do the right thing with NULL.
+
+Made it one big if stmt, perhaps too big, we'll see.
+
+> 
+> > +		vma->vm_page_prot =
+> > +			__pgprot(pte_val
+> > +				(pte_wrprotect
+> > +				 (__pte(pgprot_val(vma->vm_page_prot)))));
+> > +
+> 
+> In other mail I've suggested saving vm_page_prot above, and
+> changing it here only if the driver's ->mmap did not change it.
+
+Yes, that was a very good suggestion and has already been incorporated,
+thanks.
+
+> I remain uneasy about interfering with the permissions expected by
+> strange drivers, but can't really justify my paranoia.  Certainly
+> you're right to exclude VM_PFNMAPs from this interference, that's
+> important; I'd be less uneasy if you also exclude VM_INSERTPAGEs,
+> they're strange too - but at least they're dealing with proper struct
+> pages, so should be able to handle an unexpected do_wp_page; that
+> leaves the driver nopage cases, which again should be okay now you're
+> (one way or another) protecting specially added vm_page_prot flags.
+
+VM_INSERTPAGE thou shall have.
+
+> I guess I'm just paranoid; it's irritating me that we do not have
+> the right backing_dev_infos in place and having to hack around it.
+
+Sad situation but true.
+
+> > +static int page_mkclean_file(struct address_space *mapping, struct page *page)
+> > +{
+> > +	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+> > +	struct vm_area_struct *vma;
+> > +	struct prio_tree_iter iter;
+> > +	int ret = 0;
+> > +
+> > +	BUG_ON(PageAnon(page));
+> > +
+> > +	spin_lock(&mapping->i_mmap_lock);
+> > +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> > +		int protect = mapping_cap_account_dirty(mapping) &&
+> > +			is_shared_writable(vma->vm_flags);
+> > +		ret += page_mkclean_one(page, vma, protect);
+> 
+> You have a good point here, one I'd completely missed: because a vma
+> may have been recently mprotected !VM_WRITE, you have to check readonly
+> mappings too.  Perhaps worth a comment.  But I think "is_shared_writable"
+> is not the best test here: just test for VM_SHARED vmas, they're the
+> only ones which can be mprotected to/from shared writable.  And then
+> I think you don't need to pass down an additional "protect" argument?
+> It's only being called for mapping_cap_account_dirty mappings anyway,
+> isn't it?
+
+Well, no, not anymore. I thought to make it actually do what its name
+said it does: clean the page's PTEs (I am even pondering about
+implementing the anonymous branch).
+
+In that light, its now called for each page.
+
+
+New patch will follow shortly since I can't seem to sleep anyway...
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
