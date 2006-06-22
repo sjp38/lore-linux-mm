@@ -1,12 +1,12 @@
-Subject: Re: [PATCH 1/6] mm: tracking shared dirty pages
+Subject: [PATCH] mm: tracking shared dirty pages -v10
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 In-Reply-To: <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
 References: <20060619175243.24655.76005.sendpatchset@lappy>
 	 <20060619175253.24655.96323.sendpatchset@lappy>
 	 <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
 Content-Type: text/plain
-Date: Fri, 23 Jun 2006 01:02:27 +0200
-Message-Id: <1151017347.15744.135.camel@lappy>
+Date: Fri, 23 Jun 2006 01:39:49 +0200
+Message-Id: <1151019590.15744.144.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,184 +15,529 @@ To: Hugh Dickins <hugh@veritas.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-06-22 at 21:52 +0100, Hugh Dickins wrote:
-> On Mon, 19 Jun 2006, Peter Zijlstra wrote:
+Preview of the goodness,
 
-> > +static inline int is_shared_writable(unsigned int flags)
-> > +{
-> > +	return (flags & (VM_SHARED|VM_WRITE|VM_PFNMAP)) ==
-> > +		(VM_SHARED|VM_WRITE);
-> > +}
-> > +
-> 
-> Andrew asked for the inclusion of VM_PFNMAP to be commented there,
-> I don't believe that's enough: a function called "is_shared_writable"
-> should be testing precisely that, or people will misuse it.
-> 
-> Either you change the name to "is_shared_writable_but_not_pfnmap"
-> or somesuch, or you split out the VM_PFNMAP test, or you do away
-> with the function and make the tests explicit inline.  As before,
-> my instinctive preference is the latter: I really want to see what's
-> being tested (especially in do_wp_page); but perhaps it'll just look
-> too ugly all over - give it a try and see.
+I'll repost the whole thing tomorrow after I've updated the other
+patches, esp. the msync one. I seem to be too tired to make any sense
+out of that atm.
 
-*sight*, thats it, explicit it will be :-)
+(PS, 2.6.17-mm1 UML doesn't seem to boot)
 
-> > +	/*
-> > +	 * This is not fully correct in the light of trapping write faults
-> > +	 * for writable shared mappings. However since we're going to mark
-> > +	 * the page dirty anyway some few lines downward, we might as well
-> > +	 * take the write fault now.
-> > +	 */
-> 
-> I don't understand what you're getting at here: please explain,
-> what is not fully correct and why?  In mail first, then we can
-> decide what the comment should say, or if it should be removed.
-> follow_page isn't making a pte writable, so what's the issue?
-
-I have no idea either, I reread this part earlier today and found it one
-big brainfart. It does indeed seem to do the right thing.
-
-> > -	if (unlikely(vma->vm_flags & VM_SHARED)) {
-> > +	if (unlikely(is_shared_writable(vma->vm_flags))) {
-> 
-> Most interesting line in the series, yes, and I'd find it
-> easier to think through if it showed the flags test explicitly:
-> 	if ((vma->vm_flags & (VM_SHARED|VM_WRITE|VM_PFNMAP)) ==
-> 		(VM_SHARED|VM_WRITE))
-> 
-> Yes, Andrew, you're right it's a change in behaviour from David's
-> page_mkwrite patch.  I've realized that when I was originally
-> reviewing David's patch, I believed do_wp_page was mistaken to be
-> doing COW on VM_SHARED areas.  But Linus has since asserted very
-> forcefully that it's intentional, that ptrace poke on a VM_SHARED
-> area which is currently not !VM_WRITE should COW it, so I mentioned
-> that to Peter.
-> 
-> Has he got the test right there now?  Ummm... maybe: my brain
-> exploded weeks ago.  Several strangenesses collide here, I'll
-> try again tomorrow, maybe others will argue it to certainty before.
-
-I don't think the VM_PFNMAP is needed here, but it doesn't hurt either.
-Like said, I'll do explicits from now on.
-
-> > @@ -1084,18 +1086,13 @@ munmap_back:
-> >  		error = file->f_op->mmap(file, vma);
-> >  		if (error)
-> >  			goto unmap_and_free_vma;
-> > +
-> 
-> Do you really need this blank line?
-
-:-) uhu..
-
-> > +	/*
-> > +	 * Tracking of dirty pages for shared writable mappings. Do this by
-> > +	 * write protecting writable pages, and mark dirty in the write fault.
-> > +	 *
-> > +	 * Modify vma->vm_page_prot (the default protection for new pages)
-> > +	 * to this effect.
-> > +	 *
-> > +	 * Cannot do before because the condition depends on:
-> > +	 *  - backing_dev_info having the right capabilities
-> > +	 *    (set by f_op->open())
-> 
-> Is that so, backing_dev_info set by f_op->open()?
-> And how would that be a problem here if it were so?
-
-useless information indeed, a remnant from old times when I placed the
-vm_page_prot modification between the two calls, shall remove.
-
-> > +	 *  - vma->vm_flags being fully set
-> > +	 *    (finished in f_op->mmap(), which could call remap_pfn_range())
-> > +	 *
-> > +	 *  Also, cannot reset vma->vm_page_prot from vma->vm_flags because
-> > +	 *  f_op->mmap() can modify it.
-> > +	 */
-> > +	if (is_shared_writable(vm_flags) && vma->vm_file)
-> > +		mapping = vma->vm_file->f_mapping;
-> > +	if ((mapping && mapping_cap_account_dirty(mapping)) ||
-> > +			(vma->vm_ops && vma->vm_ops->page_mkwrite))
-> 
-> The only way "mapping" might be set is just above.
-> Wouldn't it all be clearer (though more indented) if you said
-> 
-> 	if (is_shared_writable(vm_flags) && vma->vm_file) {
-> 		mapping = vma->vm_file->f_mapping;
-> 		if ((mapping && mapping_cap_account_dirty(mapping)) ||
-> 				(vma->vm_ops && vma->vm_ops->page_mkwrite)) {
-> 			vma->vm_page_prot = whatever;
-> 		}
-> 	}
-> 
-> Or no need for "mapping" here at all if you change
-> mapping_cap_account_dirty(vma->vm_file->f_mapping)
-> to do the right thing with NULL.
-
-Made it one big if stmt, perhaps too big, we'll see.
-
-> 
-> > +		vma->vm_page_prot =
-> > +			__pgprot(pte_val
-> > +				(pte_wrprotect
-> > +				 (__pte(pgprot_val(vma->vm_page_prot)))));
-> > +
-> 
-> In other mail I've suggested saving vm_page_prot above, and
-> changing it here only if the driver's ->mmap did not change it.
-
-Yes, that was a very good suggestion and has already been incorporated,
-thanks.
-
-> I remain uneasy about interfering with the permissions expected by
-> strange drivers, but can't really justify my paranoia.  Certainly
-> you're right to exclude VM_PFNMAPs from this interference, that's
-> important; I'd be less uneasy if you also exclude VM_INSERTPAGEs,
-> they're strange too - but at least they're dealing with proper struct
-> pages, so should be able to handle an unexpected do_wp_page; that
-> leaves the driver nopage cases, which again should be okay now you're
-> (one way or another) protecting specially added vm_page_prot flags.
-
-VM_INSERTPAGE thou shall have.
-
-> I guess I'm just paranoid; it's irritating me that we do not have
-> the right backing_dev_infos in place and having to hack around it.
-
-Sad situation but true.
-
-> > +static int page_mkclean_file(struct address_space *mapping, struct page *page)
-> > +{
-> > +	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > +	struct vm_area_struct *vma;
-> > +	struct prio_tree_iter iter;
-> > +	int ret = 0;
-> > +
-> > +	BUG_ON(PageAnon(page));
-> > +
-> > +	spin_lock(&mapping->i_mmap_lock);
-> > +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-> > +		int protect = mapping_cap_account_dirty(mapping) &&
-> > +			is_shared_writable(vma->vm_flags);
-> > +		ret += page_mkclean_one(page, vma, protect);
-> 
-> You have a good point here, one I'd completely missed: because a vma
-> may have been recently mprotected !VM_WRITE, you have to check readonly
-> mappings too.  Perhaps worth a comment.  But I think "is_shared_writable"
-> is not the best test here: just test for VM_SHARED vmas, they're the
-> only ones which can be mprotected to/from shared writable.  And then
-> I think you don't need to pass down an additional "protect" argument?
-> It's only being called for mapping_cap_account_dirty mappings anyway,
-> isn't it?
-
-Well, no, not anymore. I thought to make it actually do what its name
-said it does: clean the page's PTEs (I am even pondering about
-implementing the anonymous branch).
-
-In that light, its now called for each page.
+-------------------------------------------------------
 
 
-New patch will follow shortly since I can't seem to sleep anyway...
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
+Tracking of dirty pages in shared writeable mmap()s.
+
+The idea is simple: write protect clean shared writeable pages,
+catch the write-fault, make writeable and set dirty. On page write-back
+clean all the PTE dirty bits and write protect them once again.
+
+The implementation is a tad harder, mainly because the default
+backing_dev_info capabilities were too loosely maintained. Hence it is
+not enough to test the backing_dev_info for cap_account_dirty.
+
+The current heuristic is as follows, a VMA is eligible when:
+ - its shared writeable 
+    (vm_flags & (VM_WRITE|VM_SHARED)) == (VM_WRITE|VM_SHARED)
+ - it is not a PFN mapping
+    (vm_flags & VM_PFNMAP) == 0
+ - the backing_dev_info is cap_account_dirty
+    mapping_cap_account_dirty(vma->vm_file->f_mapping)
+ - f_op->mmap() didn't change the default page protection
+
+NOTE: the last rule is only checked in do_mmap_pgoff(), other code-
+paths assume they will not be reached in that case.
+
+Page from remap_pfn_range() are explicitly excluded because their
+COW semantics are already horrid enough (see vm_normal_page() in
+do_wp_page()) and because they don't have a backing store anyway.
+
+copy_one_pte() cleans child PTEs, not wrong in the current context,
+but why?
+
+mprotect() is taught about the new behaviour as well.
+
+Cleaning the pages on write-back is done with page_mkclean() a new
+rmap call. It can be called on any page, but is currently only
+implemented for mapped pages (does it make sense to also implement
+anon pages?), if the page is found the be of a trackable VMA it
+will also wrprotect the PTE.
+
+Finally, in fs/buffers.c:try_to_free_buffers(); remove clear_page_dirty()
+from under ->private_lock. This seems to be save, since ->private_lock 
+is used to serialize access to the buffers, not the page itself.
+This is needed because clear_page_dirty() will call into page_mkclean()
+and would thereby violate locking order.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+Changes in -v10
+
+ - 2.6.17-mm1
+ - Drop the ugly duckling pgprotting, Hugh suggested resetting the
+   vma->vm_page_prot when f_op->mmap() didn't modify it. If it were
+   modified we're not interested anyway.
+ - abandon is_shared_writable() because its actually spelled writeable
+   and it didn't actually mean that any more.
+ - Comments all round.
+
+Changes in -v9
+
+ - respin against latest -mm.
+
+Changes in -v8
+
+ - access_process_vm() and other force users of get_user_pages() can
+   induce COW of read-only shared mappings.
+
+Changes in -v7
+
+ - changed is_shared_writable() to exclude VM_PFNMAP'ed regions.
+ - Hugh's tiresome problem wasn't fully solved, now using the ugly duckling
+   method.
+
+Changes in -v6
+
+ - make page_mkclean_one() modify the pte more like change_pte_range() 
+   (suggested by Christoph Lameter)
+ - made is_shared_writable() take vm_flags, it now resembles is_cow_mapping().
+ - fixed the mprotect() bug (spotted by Hugh Dickins)
+ - hopefully fixed the tiresome issue of do_mmap_pgoff() trampling on
+   driver specific vm_page_prot settings (spotted by Hugh Dickins)
+ - made a new version of the page_mkwrite() patch to go on top of all this.
+   This so that Linus could merge this very early on in 2.6.18.
+
+Changes in -v5
+
+ - rename page_wrprotect() to page_mkclean() (suggested by Nick Piggin)
+ - added comment to test_clear_page_dirty() (Andrew Morton)
+ - cleanup page_wrprotect() (Andrew Morton)
+ - renamed VM_SharedWritable() to is_shared_writable()
+ - fs/buffers.c try_to_free_buffers(): remove clear_page_dirty() from under
+   ->private_lock. This seems to be save, since ->private_lock is used to
+   serialize access to the buffers, not the page itself.
+ - rebased on top of David Howells' page_mkwrite() patch.
+
+Changes in -v4:
+
+ - small cleanup as suggested by Christoph Lameter.
+
+Changes in -v3:
+
+ - move set_page_dirty() outside pte lock (suggested by Christoph Lameter)
+
+Changes in -v2:
+
+ - only wrprotect pages from dirty capable mappings. (Nick Piggin)
+ - move the writefault handling from do_wp_page() into handle_pte_fault(). 
+   (Nick Piggin)
+ - revert to the old install_page interface. (Nick Piggin)
+ - also clear the pte dirty bit when we make pages read-only again.
+   (spotted by Rik van Riel)
+ - make page_wrprotect() return the number of reprotected ptes.
+
+ fs/buffer.c                 |    2 -
+ include/linux/backing-dev.h |   13 +++++---
+ include/linux/rmap.h        |    8 +++++
+ mm/memory.c                 |   29 ++++++++++++++----
+ mm/mmap.c                   |   40 ++++++++++++++++++++-----
+ mm/mprotect.c               |   17 ++++++++--
+ mm/page-writeback.c         |    9 +++++
+ mm/rmap.c                   |   69 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 163 insertions(+), 24 deletions(-)
+
+Index: 2.6-mm/mm/memory.c
+===================================================================
+--- 2.6-mm.orig/mm/memory.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/mm/memory.c	2006-06-23 01:08:11.000000000 +0200
+@@ -1458,14 +1458,19 @@ static int do_wp_page(struct mm_struct *
+ {
+ 	struct page *old_page, *new_page;
+ 	pte_t entry;
+-	int reuse, ret = VM_FAULT_MINOR;
++	int reuse = 0, ret = VM_FAULT_MINOR;
++	struct page *dirty_page = NULL;
+ 
+ 	old_page = vm_normal_page(vma, address, orig_pte);
+ 	if (!old_page)
+ 		goto gotten;
+ 
+-	if (unlikely((vma->vm_flags & (VM_SHARED|VM_WRITE)) ==
+-				(VM_SHARED|VM_WRITE))) {
++	/*
++	 * Only catch write-faults on shared writable pages, read-only
++	 * shared pages can get COWed by get_user_pages(.write=1, .force=1).
++	 */
++	if (unlikely(((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
++					(VM_WRITE|VM_SHARED)))) {
+ 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
+ 			/*
+ 			 * Notify the address space that the page is about to
+@@ -1494,13 +1499,12 @@ static int do_wp_page(struct mm_struct *
+ 			if (!pte_same(*page_table, orig_pte))
+ 				goto unlock;
+ 		}
+-
++		dirty_page = old_page;
++		get_page(dirty_page);
+ 		reuse = 1;
+ 	} else if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
+ 		reuse = can_share_swap_page(old_page);
+ 		unlock_page(old_page);
+-	} else {
+-		reuse = 0;
+ 	}
+ 
+ 	if (reuse) {
+@@ -1566,6 +1570,10 @@ gotten:
+ 		page_cache_release(old_page);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
++	if (dirty_page) {
++		set_page_dirty(dirty_page);
++		put_page(dirty_page);
++	}
+ 	return ret;
+ oom:
+ 	if (old_page)
+@@ -2098,6 +2106,7 @@ static int do_no_page(struct mm_struct *
+ 	unsigned int sequence = 0;
+ 	int ret = VM_FAULT_MINOR;
+ 	int anon = 0;
++	struct page *dirty_page = NULL;
+ 
+ 	pte_unmap(page_table);
+ 	BUG_ON(vma->vm_flags & VM_PFNMAP);
+@@ -2192,6 +2201,10 @@ retry:
+ 		} else {
+ 			inc_mm_counter(mm, file_rss);
+ 			page_add_file_rmap(new_page);
++			if (write_access) {
++				dirty_page = new_page;
++				get_page(dirty_page);
++			}
+ 		}
+ 	} else {
+ 		/* One of our sibling threads was faster, back out. */
+@@ -2204,6 +2217,10 @@ retry:
+ 	lazy_mmu_prot_update(entry);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
++	if (dirty_page) {
++		set_page_dirty(dirty_page);
++		put_page(dirty_page);
++	}
+ 	return ret;
+ oom:
+ 	page_cache_release(new_page);
+Index: 2.6-mm/mm/mmap.c
+===================================================================
+--- 2.6-mm.orig/mm/mmap.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/mm/mmap.c	2006-06-23 01:31:44.000000000 +0200
+@@ -25,6 +25,7 @@
+ #include <linux/mount.h>
+ #include <linux/mempolicy.h>
+ #include <linux/rmap.h>
++#include <linux/backing-dev.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -888,6 +889,7 @@ unsigned long do_mmap_pgoff(struct file 
+ 	struct rb_node ** rb_link, * rb_parent;
+ 	int accountable = 1;
+ 	unsigned long charged = 0, reqprot = prot;
++	pgprot_t vm_page_prot;
+ 
+ 	if (file) {
+ 		if (is_file_hugepages(file))
+@@ -1065,8 +1067,8 @@ munmap_back:
+ 	vma->vm_start = addr;
+ 	vma->vm_end = addr + len;
+ 	vma->vm_flags = vm_flags;
+-	vma->vm_page_prot = protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
++	vma->vm_page_prot = vm_page_prot = protection_map[vm_flags &
++		(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
+ 	vma->vm_pgoff = pgoff;
+ 
+ 	if (file) {
+@@ -1090,12 +1092,6 @@ munmap_back:
+ 			goto free_vma;
+ 	}
+ 
+-	/* Don't make the VMA automatically writable if it's shared, but the
+-	 * backer wishes to know when pages are first written to */
+-	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+-		vma->vm_page_prot =
+-			protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC)];
+-
+ 	/* We set VM_ACCOUNT in a shared mapping's vm_flags, to inform
+ 	 * shmem_zero_setup (perhaps called through /dev/zero's ->mmap)
+ 	 * that memory reservation must be checked; but that reservation
+@@ -1113,6 +1109,34 @@ munmap_back:
+ 	pgoff = vma->vm_pgoff;
+ 	vm_flags = vma->vm_flags;
+ 
++	/*
++	 * Tracking of dirty pages for shared writable mappings. Do this by
++	 * write protecting writable pages, and mark dirty in the write fault.
++	 *
++	 * Cannot do before because the condition depends on:
++	 *  - backing_dev_info having the right capabilities
++	 *  - vma->vm_flags being fully set
++	 *    (finished in f_op->mmap(), which could call remap_pfn_range())
++	 *
++	 * If f_op->mmap() changed vma->vm_page_prot its a funny mapping
++	 * and we won't touch it.
++	 * NOTE: in a perfect world backing_dev_info would have the proper
++	 * capabilities.
++	 *
++	 * OR
++	 *
++	 * Don't make the VMA automatically writable if it's shared, but the
++	 * backer wishes to know when pages are first written to.
++	 */
++	if ((pgprot_val(vma->vm_page_prot) == pgprot_val(vm_page_prot) &&
++	     ((vm_flags & (VM_WRITE|VM_SHARED|VM_PFNMAP|VM_INSERTPAGE)) ==
++			  (VM_WRITE|VM_SHARED)) &&
++	     vma->vm_file && vma->vm_file->f_mapping &&
++	     mapping_cap_account_dirty(vma->vm_file->f_mapping)) ||
++	    (vma->vm_ops && vma->vm_ops->page_mkwrite))
++		vma->vm_page_prot =
++			protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC)];
++
+ 	if (!file || !vma_merge(mm, prev, addr, vma->vm_end,
+ 			vma->vm_flags, NULL, file, pgoff, vma_policy(vma))) {
+ 		file = vma->vm_file;
+Index: 2.6-mm/mm/mprotect.c
+===================================================================
+--- 2.6-mm.orig/mm/mprotect.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/mm/mprotect.c	2006-06-23 01:35:24.000000000 +0200
+@@ -21,6 +21,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/backing-dev.h>
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+ #include <asm/cacheflush.h>
+@@ -176,10 +177,20 @@ mprotect_fixup(struct vm_area_struct *vm
+ 	}
+ 
+ success:
+-	/* Don't make the VMA automatically writable if it's shared, but the
+-	 * backer wishes to know when pages are first written to */
++	/*
++	 * Tracking of dirty pages logic (see comment in do_mmap_pgoff)
++	 *
++	 * OR
++	 *
++	 * Don't make the VMA automatically writable if it's shared, but the
++	 * backer wishes to know when pages are first written to.
++	 */
+ 	mask = VM_READ|VM_WRITE|VM_EXEC|VM_SHARED;
+-	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
++	if ((((newflags & (VM_WRITE|VM_SHARED|VM_PFNMAP|VM_INSERTPAGE)) ==
++			  (VM_WRITE|VM_SHARED)) &&
++	     vma->vm_file && vma->vm_file->f_mapping &&
++	     mapping_cap_account_dirty(vma->vm_file->f_mapping)) ||
++	    (vma->vm_ops && vma->vm_ops->page_mkwrite))
+ 		mask &= ~VM_SHARED;
+ 
+ 	newprot = protection_map[newflags & mask];
+Index: 2.6-mm/mm/page-writeback.c
+===================================================================
+--- 2.6-mm.orig/mm/page-writeback.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/mm/page-writeback.c	2006-06-23 00:27:09.000000000 +0200
+@@ -29,6 +29,7 @@
+ #include <linux/sysctl.h>
+ #include <linux/cpu.h>
+ #include <linux/syscalls.h>
++#include <linux/rmap.h>
+ 
+ /*
+  * The maximum number of pages to writeout in a single bdflush/kupdate
+@@ -566,7 +567,7 @@ int do_writepages(struct address_space *
+ 		return 0;
+ 	wbc->for_writepages = 1;
+ 	if (mapping->a_ops->writepages)
+-		ret =  mapping->a_ops->writepages(mapping, wbc);
++		ret = mapping->a_ops->writepages(mapping, wbc);
+ 	else
+ 		ret = generic_writepages(mapping, wbc);
+ 	wbc->for_writepages = 0;
+@@ -728,6 +729,11 @@ int test_clear_page_dirty(struct page *p
+ 						page_index(page),
+ 						PAGECACHE_TAG_DIRTY);
+ 			write_unlock_irqrestore(&mapping->tree_lock, flags);
++			/*
++			 * We can continue to use `mapping' here because the
++			 * page is locked, which pins the address_space
++			 */
++			page_mkclean(page);
+ 			if (mapping_cap_account_dirty(mapping))
+ 				dec_page_state(nr_dirty);
+ 			return 1;
+@@ -759,6 +765,7 @@ int clear_page_dirty_for_io(struct page 
+ 
+ 	if (mapping) {
+ 		if (TestClearPageDirty(page)) {
++			page_mkclean(page);
+ 			if (mapping_cap_account_dirty(mapping))
+ 				dec_page_state(nr_dirty);
+ 			return 1;
+Index: 2.6-mm/mm/rmap.c
+===================================================================
+--- 2.6-mm.orig/mm/rmap.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/mm/rmap.c	2006-06-23 01:14:39.000000000 +0200
+@@ -53,6 +53,7 @@
+ #include <linux/rmap.h>
+ #include <linux/rcupdate.h>
+ #include <linux/module.h>
++#include <linux/backing-dev.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -434,6 +435,74 @@ int page_referenced(struct page *page, i
+ 	return referenced;
+ }
+ 
++static int page_mkclean_one(struct page *page, struct vm_area_struct *vma, int protect)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address;
++	pte_t *pte, entry;
++	spinlock_t *ptl;
++	int ret = 0;
++
++	address = vma_address(page, vma);
++	if (address == -EFAULT)
++		goto out;
++
++	pte = page_check_address(page, mm, address, &ptl);
++	if (!pte)
++		goto out;
++
++	if (!(pte_dirty(*pte) || (protect && pte_write(*pte))))
++		goto unlock;
++
++	entry = ptep_get_and_clear(mm, address, pte);
++	entry = pte_mkclean(entry);
++	if (protect)
++		entry = pte_wrprotect(entry);
++	ptep_establish(vma, address, pte, entry);
++	lazy_mmu_prot_update(entry);
++	ret = 1;
++
++unlock:
++	pte_unmap_unlock(pte, ptl);
++out:
++	return ret;
++}
++
++static int page_mkclean_file(struct address_space *mapping, struct page *page)
++{
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	struct vm_area_struct *vma;
++	struct prio_tree_iter iter;
++	int ret = 0;
++
++	BUG_ON(PageAnon(page));
++
++	spin_lock(&mapping->i_mmap_lock);
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
++		int protect = mapping_cap_account_dirty(mapping) &&
++	((vma->vm_flags & (VM_WRITE|VM_SHARED|VM_PFNMAP|VM_INSERTPAGE)) ==
++	 		  (VM_WRITE|VM_SHARED));
++		ret += page_mkclean_one(page, vma, protect);
++	}
++	spin_unlock(&mapping->i_mmap_lock);
++	return ret;
++}
++
++int page_mkclean(struct page *page)
++{
++	int ret = 0;
++
++	BUG_ON(!PageLocked(page));
++
++	if (page_mapped(page)) {
++		struct address_space *mapping = page_mapping(page);
++		if (mapping)
++			ret = page_mkclean_file(mapping, page);
++	}
++
++	return ret;
++}
++
+ /**
+  * page_set_anon_rmap - setup new anonymous rmap
+  * @page:	the page to add the mapping to
+Index: 2.6-mm/include/linux/rmap.h
+===================================================================
+--- 2.6-mm.orig/include/linux/rmap.h	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/include/linux/rmap.h	2006-06-23 00:27:09.000000000 +0200
+@@ -103,6 +103,14 @@ pte_t *page_check_address(struct page *,
+  */
+ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
+ 
++/*
++ * Cleans the PTEs of shared mappings.
++ * (and since clean PTEs should also be readonly, write protects them too)
++ *
++ * returns the number of cleaned PTEs.
++ */
++int page_mkclean(struct page *);
++
+ #else	/* !CONFIG_MMU */
+ 
+ #define anon_vma_init()		do {} while (0)
+Index: 2.6-mm/fs/buffer.c
+===================================================================
+--- 2.6-mm.orig/fs/buffer.c	2006-06-22 17:59:07.000000000 +0200
++++ 2.6-mm/fs/buffer.c	2006-06-23 00:27:09.000000000 +0200
+@@ -2983,6 +2983,7 @@ int try_to_free_buffers(struct page *pag
+ 
+ 	spin_lock(&mapping->private_lock);
+ 	ret = drop_buffers(page, &buffers_to_free);
++	spin_unlock(&mapping->private_lock);
+ 	if (ret) {
+ 		/*
+ 		 * If the filesystem writes its buffers by hand (eg ext3)
+@@ -2994,7 +2995,6 @@ int try_to_free_buffers(struct page *pag
+ 		 */
+ 		clear_page_dirty(page);
+ 	}
+-	spin_unlock(&mapping->private_lock);
+ out:
+ 	if (buffers_to_free) {
+ 		struct buffer_head *bh = buffers_to_free;
+Index: 2.6-mm/include/linux/backing-dev.h
+===================================================================
+--- 2.6-mm.orig/include/linux/backing-dev.h	2006-06-22 08:39:46.000000000 +0200
++++ 2.6-mm/include/linux/backing-dev.h	2006-06-23 00:41:01.000000000 +0200
+@@ -97,11 +97,14 @@ static inline int bdi_rw_congested(struc
+ #define bdi_cap_account_dirty(bdi) \
+ 	(!((bdi)->capabilities & BDI_CAP_NO_ACCT_DIRTY))
+ 
+-#define mapping_cap_writeback_dirty(mapping) \
+-	bdi_cap_writeback_dirty((mapping)->backing_dev_info)
+-
+-#define mapping_cap_account_dirty(mapping) \
+-	bdi_cap_account_dirty((mapping)->backing_dev_info)
++#define mapping_cap_writeback_dirty(__mapping)				\
++({	typeof(__mapping) mapping = (__mapping);			\
++	(mapping && bdi_cap_writeback_dirty(mapping->backing_dev_info));\
++})
+ 
++#define mapping_cap_account_dirty(__mapping)				\
++({	typeof(__mapping) mapping = (__mapping);			\
++  	(mapping && bdi_cap_account_dirty(mapping->backing_dev_info));	\
++})
+ 
+ #endif		/* _LINUX_BACKING_DEV_H */
 
 
 --
