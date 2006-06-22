@@ -1,52 +1,50 @@
-Date: Thu, 22 Jun 2006 18:21:27 +0100 (BST)
+Date: Thu, 22 Jun 2006 18:35:35 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 4/6] mm: optimize the new mprotect() code a bit
-In-Reply-To: <20060619175326.24655.90153.sendpatchset@lappy>
-Message-ID: <Pine.LNX.4.64.0606221811170.4977@blonde.wat.veritas.com>
+Subject: Re: [PATCH 6/6] mm: remove some update_mmu_cache() calls
+In-Reply-To: <Pine.LNX.4.64.0606220935130.28760@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0606221824260.13355@blonde.wat.veritas.com>
 References: <20060619175243.24655.76005.sendpatchset@lappy>
- <20060619175326.24655.90153.sendpatchset@lappy>
+ <20060619175347.24655.67680.sendpatchset@lappy>
+ <Pine.LNX.4.64.0606221646000.4977@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0606220935130.28760@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jun 2006, Peter Zijlstra wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On Thu, 22 Jun 2006, Christoph Lameter wrote:
+> On Thu, 22 Jun 2006, Hugh Dickins wrote:
 > 
-> mprotect() resets the page protections, which could result in extra write
-> faults for those pages whos dirty state we track using write faults
-> and are dirty already.
+> > The answer I expect is that update_mmu_cache is essential there in
+> > do_wp_page (reuse case) and handle_pte_fault, on at least some if
+> > not all of those arches which implement it.  That without those
+> > lines, they'll fault and refault endlessly, since the "MMU cache"
+> > has not been updated with the write permission.
 > 
-> @@ -43,7 +44,13 @@ static void change_pte_range(struct mm_s
->  			 * bits by wiping the pte and then setting the new pte
->  			 * into place.
->  			 */
-> -			ptent = pte_modify(ptep_get_and_clear(mm, addr, pte), newprot);
-> +			ptent = ptep_get_and_clear(mm, addr, pte);
-> +			ptent = pte_modify(ptent, newprot);
-> +			/* Avoid taking write faults for pages we know to be
-> +			 * dirty.
-> +			 */
-> +			if (is_accountable && pte_dirty(ptent))
-> +				ptent = pte_mkwrite(ptent);
->  			set_pte_at(mm, addr, pte, ptent);
->  			lazy_mmu_prot_update(ptent);
+> Yes a likely scenario.
+>  
+> > But omitted from mprotect, since that's dealing with a batch of
+> > pages, perhaps none of which will be faulted in the near future:
+> > a waste of resources to update for all those entries.
+> 
+> So we intentially allow mprotect to be racy?
 
-Thanks for adding that comment, I completely misread this when you
-first showed it to me, and didn't get the point at all.  (But you're
-a little too fond of "/* Multiline" comments: in this case, with no
-blank line above, it'd look better with a "/*" lone line to separate
-from the pte_modify code.)
+It's intentionally allowed to be racy (ambiguous whether a racing
+thread sees protections before or protections after) up until the
+flush_tlb_range.  Should be well-defined from there on.
+Or am I misunderstanding you?
 
-Yes, I guess that is worth doing, though it's a bit sad and ugly:
-goes right against the simplicity of working with vm_page_prot.
+> > But now I wonder, why does do_wp_page reuse case flush_cache_page?
+> 
+> Some arches may have virtual caches?
 
-Could you change "is_accountable" to "dirty_accountable" throughout?
-We've various different kinds of accounting going on hereabouts,
-I think it'd be more understandable as "dirty_accountable".
+Sorry, I don't get it, you'll have to spell it out to me in detail.
+We have a page mapped for reading, we're about to map that same page
+for writing too.  We have no modifications to flush yet,
+why flush_cache_page there?
 
 Hugh
 
