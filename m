@@ -1,165 +1,290 @@
-Date: Thu, 22 Jun 2006 09:40:40 -0700 (PDT)
+Date: Thu, 22 Jun 2006 09:40:25 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622164040.28809.90930.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060622164025.28809.40553.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 07/14] zone_reclaim: remove /proc/sys/vm/zone_reclaim_interval
+Subject: [PATCH 04/14] Conversion of nr_pagecache to per zone counter
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: use per zone counters to remove zone_reclaim_interval
+Subject: zoned vm counters: conversion of nr_pagecache to per zone counter
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-The zone_reclaim_interval was necessary because we were not able to determine
-how many unmapped pages exist in a zone.  Therefore we had to scan in
-intervals to figure out if any pages were unmapped.
+Currently a single atomic variable is used to establish the size of the page
+cache in the whole machine. The zoned VM counters have the same method of
+implementation as the nr_pagecache code but also allow the determination of
+the pagecache size per zone.
 
-With the zoned counters and NR_ANON_PAGES we now know the number of pagecache pages
-and the number of mapped pages in a zone. So we can simply skip the reclaim
-if there is an insufficient number of unmapped pages. We use SWAP_CLUSTER_MAX
-as the boundary.
+Remove the special implementation for nr_pagecache and make it a zoned
+counter named NR_FILE_PAGES.
 
-Drop all support for /proc/sys/vm/zone_reclaim_interval.
+Updates of the page cache counters are always performed with interrupts off.
+We can therefore use the __ variant here.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-mm1/include/linux/mmzone.h
+Index: linux-2.6.17-mm1/arch/sparc64/kernel/sys_sunos32.c
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-21 07:37:46.333038070 -0700
-+++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-21 07:38:54.090553468 -0700
-@@ -179,12 +179,6 @@ struct zone {
- 
- 	/* Zone statistics */
- 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
--	/*
--	 * timestamp (in jiffies) of the last zone reclaim that did not
--	 * result in freeing of pages. This is used to avoid repeated scans
--	 * if all memory in the zone is in use.
--	 */
--	unsigned long		last_unsuccessful_zone_reclaim;
- 
- 	/*
- 	 * prev_priority holds the scanning priority for this zone.  It is
-Index: linux-2.6.17-mm1/include/linux/swap.h
+--- linux-2.6.17-mm1.orig/arch/sparc64/kernel/sys_sunos32.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/sparc64/kernel/sys_sunos32.c	2006-06-21 07:36:17.677405206 -0700
+@@ -155,7 +155,7 @@ asmlinkage int sunos_brk(u32 baddr)
+ 	 * simple, it hopefully works in most obvious cases.. Easy to
+ 	 * fool it, but this should catch most mistakes.
+ 	 */
+-	freepages = get_page_cache_size();
++	freepages = global_page_state(NR_FILE_PAGES);
+ 	freepages >>= 1;
+ 	freepages += nr_free_pages();
+ 	freepages += nr_swap_pages;
+Index: linux-2.6.17-mm1/arch/sparc/kernel/sys_sunos.c
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/swap.h	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/include/linux/swap.h	2006-06-21 07:38:54.091529970 -0700
-@@ -194,7 +194,6 @@ extern pageout_t pageout(struct page *pa
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
--extern int zone_reclaim_interval;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
- #else
- #define zone_reclaim_mode 0
-Index: linux-2.6.17-mm1/kernel/sysctl.c
+--- linux-2.6.17-mm1.orig/arch/sparc/kernel/sys_sunos.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/sparc/kernel/sys_sunos.c	2006-06-21 07:36:17.678381708 -0700
+@@ -196,7 +196,7 @@ asmlinkage int sunos_brk(unsigned long b
+ 	 * simple, it hopefully works in most obvious cases.. Easy to
+ 	 * fool it, but this should catch most mistakes.
+ 	 */
+-	freepages = get_page_cache_size();
++	freepages = global_page_state(NR_FILE_PAGES);
+ 	freepages >>= 1;
+ 	freepages += nr_free_pages();
+ 	freepages += nr_swap_pages;
+Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
 ===================================================================
---- linux-2.6.17-mm1.orig/kernel/sysctl.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/kernel/sysctl.c	2006-06-21 07:38:54.094459475 -0700
-@@ -905,15 +905,6 @@ static ctl_table vm_table[] = {
- 		.strategy	= &sysctl_intvec,
- 		.extra1		= &zero,
- 	},
--	{
--		.ctl_name	= VM_ZONE_RECLAIM_INTERVAL,
--		.procname	= "zone_reclaim_interval",
--		.data		= &zone_reclaim_interval,
--		.maxlen		= sizeof(zone_reclaim_interval),
--		.mode		= 0644,
--		.proc_handler	= &proc_dointvec_jiffies,
--		.strategy	= &sysctl_jiffies,
--	},
- #endif
- 	{ .ctl_name = 0 }
- };
-Index: linux-2.6.17-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/vmscan.c	2006-06-21 07:38:28.451518977 -0700
-+++ linux-2.6.17-mm1/mm/vmscan.c	2006-06-21 07:38:54.095435977 -0700
-@@ -1384,11 +1384,6 @@ int zone_reclaim_mode __read_mostly;
- #define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
+--- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-21 07:34:08.376833270 -0700
++++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-21 07:36:17.679358210 -0700
+@@ -142,7 +142,8 @@ static int meminfo_read_proc(char *page,
+ 	allowed = ((totalram_pages - hugetlb_total_pages())
+ 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
  
- /*
-- * Mininum time between zone reclaim scans
-- */
--int zone_reclaim_interval __read_mostly = 30*HZ;
+-	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
++	cached = global_page_state(NR_FILE_PAGES) -
++			total_swapcache_pages - i.bufferram;
+ 	if (cached < 0)
+ 		cached = 0;
+ 
+Index: linux-2.6.17-mm1/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.17-mm1.orig/include/linux/pagemap.h	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/include/linux/pagemap.h	2006-06-21 07:36:17.680334712 -0700
+@@ -106,51 +106,6 @@ int add_to_page_cache_lru(struct page *p
+ extern void remove_from_page_cache(struct page *page);
+ extern void __remove_from_page_cache(struct page *page);
+ 
+-extern atomic_t nr_pagecache;
+-
+-#ifdef CONFIG_SMP
+-
+-#define PAGECACHE_ACCT_THRESHOLD        max(16, NR_CPUS * 2)
+-DECLARE_PER_CPU(long, nr_pagecache_local);
 -
 -/*
-  * Priority for ZONE_RECLAIM. This determines the fraction of pages
-  * of a node considered for each zone_reclaim. 4 scans 1/16th of
-  * a zone.
-@@ -1452,16 +1447,6 @@ static int __zone_reclaim(struct zone *z
- 
- 	p->reclaim_state = NULL;
- 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
+- * pagecache_acct implements approximate accounting for pagecache.
+- * vm_enough_memory() do not need high accuracy. Writers will keep
+- * an offset in their per-cpu arena and will spill that into the
+- * global count whenever the absolute value of the local count
+- * exceeds the counter's threshold.
+- *
+- * MUST be protected from preemption.
+- * current protection is mapping->page_lock.
+- */
+-static inline void pagecache_acct(int count)
+-{
+-	long *local;
 -
--	if (nr_reclaimed == 0) {
--		/*
--		 * We were unable to reclaim enough pages to stay on node.  We
--		 * now allow off node accesses for a certain time period before
--		 * trying again to reclaim pages from the local zone.
--		 */
--		zone->last_unsuccessful_zone_reclaim = jiffies;
+-	local = &__get_cpu_var(nr_pagecache_local);
+-	*local += count;
+-	if (*local > PAGECACHE_ACCT_THRESHOLD || *local < -PAGECACHE_ACCT_THRESHOLD) {
+-		atomic_add(*local, &nr_pagecache);
+-		*local = 0;
 -	}
+-}
 -
- 	return nr_reclaimed >= nr_pages;
+-#else
+-
+-static inline void pagecache_acct(int count)
+-{
+-	atomic_add(count, &nr_pagecache);
+-}
+-#endif
+-
+-static inline unsigned long get_page_cache_size(void)
+-{
+-	int ret = atomic_read(&nr_pagecache);
+-	if (unlikely(ret < 0))
+-		ret = 0;
+-	return ret;
+-}
+-
+ /*
+  * Return byte-offset into filesystem object for page.
+  */
+Index: linux-2.6.17-mm1/mm/filemap.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/filemap.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/filemap.c	2006-06-21 07:36:17.682287716 -0700
+@@ -120,7 +120,7 @@ void __remove_from_page_cache(struct pag
+ 	radix_tree_delete(&mapping->page_tree, page->index);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+-	pagecache_acct(-1);
++	__dec_zone_page_state(page, NR_FILE_PAGES);
  }
  
-@@ -1471,13 +1456,17 @@ int zone_reclaim(struct zone *zone, gfp_
- 	int node_id;
- 
- 	/*
--	 * Do not reclaim if there was a recent unsuccessful attempt at zone
--	 * reclaim.  In that case we let allocations go off node for the
--	 * zone_reclaim_interval.  Otherwise we would scan for each off-node
--	 * page allocation.
-+	 * Do not reclaim if there are not enough reclaimable pages in this
-+	 * zone that would satify this allocations.
-+	 *
-+	 * All unmapped pagecache pages are reclaimable.
-+	 *
-+	 * Both counters may be temporarily off a bit so we use
-+	 * SWAP_CLUSTER_MAX as the boundary. It may also be good to
-+	 * leave a few frequently used unmapped pagecache pages around.
- 	 */
--	if (time_before(jiffies,
--		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
-+	if (zone_page_state(zone, NR_FILE_PAGES) -
-+		zone_page_state(zone, NR_FILE_MAPPED) < SWAP_CLUSTER_MAX)
- 			return 0;
- 
- 	/*
-Index: linux-2.6.17-mm1/Documentation/sysctl/vm.txt
+ void remove_from_page_cache(struct page *page)
+@@ -415,7 +415,7 @@ int add_to_page_cache(struct page *page,
+ 			page->mapping = mapping;
+ 			page->index = offset;
+ 			mapping->nrpages++;
+-			pagecache_acct(1);
++			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 		}
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		radix_tree_preload_end();
+Index: linux-2.6.17-mm1/mm/mmap.c
 ===================================================================
---- linux-2.6.17-mm1.orig/Documentation/sysctl/vm.txt	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/Documentation/sysctl/vm.txt	2006-06-21 07:39:34.186698961 -0700
-@@ -28,7 +28,6 @@ Currently, these files are in /proc/sys/
- - block_dump
- - drop-caches
- - zone_reclaim_mode
--- zone_reclaim_interval
+--- linux-2.6.17-mm1.orig/mm/mmap.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/mmap.c	2006-06-21 07:36:17.684240720 -0700
+@@ -96,7 +96,7 @@ int __vm_enough_memory(long pages, int c
+ 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
+ 		unsigned long n;
  
- ==============================================================
+-		free = get_page_cache_size();
++		free = global_page_state(NR_FILE_PAGES);
+ 		free += nr_swap_pages;
  
-@@ -166,15 +165,3 @@ use of files and builds up large slab ca
- shrink operation is global, may take a long time and free slabs
- in all nodes of the system.
+ 		/*
+Index: linux-2.6.17-mm1/mm/nommu.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/nommu.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/nommu.c	2006-06-21 07:36:17.684240720 -0700
+@@ -1122,7 +1122,7 @@ int __vm_enough_memory(long pages, int c
+ 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
+ 		unsigned long n;
  
--================================================================
+-		free = get_page_cache_size();
++		free = global_page_state(NR_FILE_PAGES);
+ 		free += nr_swap_pages;
+ 
+ 		/*
+Index: linux-2.6.17-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-21 07:34:08.379762776 -0700
++++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-21 07:36:17.686193724 -0700
+@@ -2049,16 +2049,11 @@ static int page_alloc_cpu_notify(struct 
+ 				 unsigned long action, void *hcpu)
+ {
+ 	int cpu = (unsigned long)hcpu;
+-	long *count;
+ 	unsigned long *src, *dest;
+ 
+ 	if (action == CPU_DEAD) {
+ 		int i;
+ 
+-		/* Drain local pagecache count. */
+-		count = &per_cpu(nr_pagecache_local, cpu);
+-		atomic_add(*count, &nr_pagecache);
+-		*count = 0;
+ 		local_irq_disable();
+ 		__drain_pages(cpu);
+ 
+Index: linux-2.6.17-mm1/mm/swap_state.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/swap_state.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/swap_state.c	2006-06-21 07:36:17.686193724 -0700
+@@ -87,7 +87,7 @@ static int __add_to_swap_cache(struct pa
+ 			SetPageSwapCache(page);
+ 			set_page_private(page, entry.val);
+ 			total_swapcache_pages++;
+-			pagecache_acct(1);
++			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 		}
+ 		write_unlock_irq(&swapper_space.tree_lock);
+ 		radix_tree_preload_end();
+@@ -132,7 +132,7 @@ void __delete_from_swap_cache(struct pag
+ 	set_page_private(page, 0);
+ 	ClearPageSwapCache(page);
+ 	total_swapcache_pages--;
+-	pagecache_acct(-1);
++	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
+ }
+ 
+Index: linux-2.6.17-mm1/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-21 07:34:08.377809772 -0700
++++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-21 07:36:17.687170225 -0700
+@@ -50,7 +50,7 @@ struct zone_padding {
+ enum zone_stat_item {
+ 	NR_FILE_MAPPED,	/* mapped into pagetables.
+ 			   only modified from process context */
 -
--zone_reclaim_interval:
++	NR_FILE_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ struct per_cpu_pages {
+Index: linux-2.6.17-mm1/arch/s390/appldata/appldata_mem.c
+===================================================================
+--- linux-2.6.17-mm1.orig/arch/s390/appldata/appldata_mem.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/arch/s390/appldata/appldata_mem.c	2006-06-21 07:36:17.688146727 -0700
+@@ -130,7 +130,8 @@ static void appldata_get_mem_data(void *
+ 	mem_data->totalhigh = P2K(val.totalhigh);
+ 	mem_data->freehigh  = P2K(val.freehigh);
+ 	mem_data->bufferram = P2K(val.bufferram);
+-	mem_data->cached    = P2K(atomic_read(&nr_pagecache) - val.bufferram);
++	mem_data->cached    = P2K(global_page_state(NR_FILE_PAGES)
++				- val.bufferram);
+ 
+ 	si_swapinfo(&val);
+ 	mem_data->totalswap = P2K(val.totalswap);
+Index: linux-2.6.17-mm1/drivers/base/node.c
+===================================================================
+--- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-21 07:34:08.375856768 -0700
++++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-21 07:36:17.689123229 -0700
+@@ -68,6 +68,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d LowFree:      %8lu kB\n"
+ 		       "Node %d Dirty:        %8lu kB\n"
+ 		       "Node %d Writeback:    %8lu kB\n"
++		       "Node %d FilePages:    %8lu kB\n"
+ 		       "Node %d Mapped:       %8lu kB\n"
+ 		       "Node %d Slab:         %8lu kB\n",
+ 		       nid, K(i.totalram),
+@@ -81,6 +82,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.freeram - i.freehigh),
+ 		       nid, K(ps.nr_dirty),
+ 		       nid, K(ps.nr_writeback),
++		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+ 		       nid, K(ps.nr_slab));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+Index: linux-2.6.17-mm1/mm/vmstat.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-21 07:34:08.382692282 -0700
++++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-21 07:36:17.689123229 -0700
+@@ -20,12 +20,6 @@
+  */
+ static DEFINE_PER_CPU(struct page_state, page_states) = {0};
+ 
+-atomic_t nr_pagecache = ATOMIC_INIT(0);
+-EXPORT_SYMBOL(nr_pagecache);
+-#ifdef CONFIG_SMP
+-DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
+-#endif
 -
--The time allowed for off node allocations after zone reclaim
--has failed to reclaim enough pages to allow a local allocation.
--
--Time is set in seconds and set by default to 30 seconds.
--
--Reduce the interval if undesired off node allocations occur. However, too
--frequent scans will have a negative impact onoff node allocation performance.
--
+ static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
+ {
+ 	unsigned cpu;
+@@ -464,6 +458,7 @@ struct seq_operations fragmentation_op =
+ static char *vmstat_text[] = {
+ 	/* Zoned VM counters */
+ 	"nr_mapped",
++	"nr_file_pages",
+ 
+ 	/* Page state */
+ 	"nr_dirty",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
