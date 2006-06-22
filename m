@@ -1,189 +1,133 @@
-Date: Thu, 22 Jun 2006 09:41:01 -0700 (PDT)
+Date: Thu, 22 Jun 2006 09:41:11 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622164101.28809.84628.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060622164111.28809.391.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 11/14] Conversion of nr_writeback to per zone counter
+Subject: [PATCH 13/14] Conversion of nr_bounce to per zone counter
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: conversion of nr_writeback to per zone counter
+Subject: zoned vm counters: conversion of nr_bounce to per zone counter
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Conversion of nr_writeback to per zone counter.
+Conversion of nr_bounce to a per zone counter
 
-This removes the last page_state counter from arch/i386/mm/pgtable.c
-so we drop the page_state from there.
+nr_bounce is only used for proc output.  So it could be left as an
+event counter.  However, the event counters may not be accurate and nr_bounce
+is categorizing types of pages in a zone.  So we really need this to also be a
+per zone counter.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 
-Index: linux-2.6.17-mm1/arch/i386/mm/pgtable.c
-===================================================================
---- linux-2.6.17-mm1.orig/arch/i386/mm/pgtable.c	2006-06-22 08:43:21.308619504 -0700
-+++ linux-2.6.17-mm1/arch/i386/mm/pgtable.c	2006-06-22 08:49:30.151016328 -0700
-@@ -30,7 +30,6 @@ void show_mem(void)
- 	struct page *page;
- 	pg_data_t *pgdat;
- 	unsigned long i;
--	struct page_state ps;
- 	unsigned long flags;
- 
- 	printk(KERN_INFO "Mem-info:\n");
-@@ -58,9 +57,9 @@ void show_mem(void)
- 	printk(KERN_INFO "%d pages shared\n", shared);
- 	printk(KERN_INFO "%d pages swap cached\n", cached);
- 
--	get_page_state(&ps);
- 	printk(KERN_INFO "%lu pages dirty\n", global_page_state(NR_FILE_DIRTY));
--	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
-+	printk(KERN_INFO "%lu pages writeback\n",
-+					global_page_state(NR_WRITEBACK));
- 	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
- 	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
- 	printk(KERN_INFO "%lu pages pagetables\n",
 Index: linux-2.6.17-mm1/drivers/base/node.c
 ===================================================================
---- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-22 08:43:21.309596006 -0700
-+++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-22 08:49:30.151992830 -0700
-@@ -48,9 +48,6 @@ static ssize_t node_read_meminfo(struct 
- 	get_page_state_node(&ps, nid);
- 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
- 
--	/* Check for negative values in these approximate counters */
--	if ((long)ps.nr_writeback < 0)
--		ps.nr_writeback = 0;
- 
- 	n = sprintf(buf, "\n"
- 		       "Node %d MemTotal:     %8lu kB\n"
-@@ -79,7 +76,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.totalram - i.totalhigh),
- 		       nid, K(i.freeram - i.freehigh),
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
--		       nid, K(ps.nr_writeback),
-+		       nid, K(node_page_state(nid, NR_WRITEBACK)),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+--- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-22 08:55:49.724221334 -0700
++++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-22 09:15:08.668078402 -0700
+@@ -64,6 +64,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d AnonPages:    %8lu kB\n"
+ 		       "Node %d PageTables:   %8lu kB\n"
+ 		       "Node %d NFS Unstable: %8lu kB\n"
++		       "Node %d Bounce:       %8lu kB\n"
+ 		       "Node %d Slab:         %8lu kB\n",
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
+@@ -81,6 +82,7 @@ static ssize_t node_read_meminfo(struct 
  		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-22 08:43:21.314478516 -0700
-+++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-22 08:49:30.152969332 -0700
-@@ -191,7 +191,7 @@ static int meminfo_read_proc(char *page,
- 		K(i.totalswap),
- 		K(i.freeswap),
- 		K(global_page_state(NR_FILE_DIRTY)),
--		K(ps.nr_writeback),
-+		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
- 		K(global_page_state(NR_SLAB)),
+ 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
+ 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
++		       nid, K(node_page_state(nid, NR_BOUNCE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB)));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
 Index: linux-2.6.17-mm1/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-22 08:43:21.315455018 -0700
-+++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-22 08:49:30.152969332 -0700
-@@ -55,6 +55,7 @@ enum zone_stat_item {
- 	NR_SLAB,	/* Pages used by slab allocator */
- 	NR_PAGETABLE,	/* used for pagetables */
+--- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-22 08:55:49.727150841 -0700
++++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-22 09:15:08.669054904 -0700
+@@ -57,6 +57,7 @@ enum zone_stat_item {
  	NR_FILE_DIRTY,
-+	NR_WRITEBACK,
+ 	NR_WRITEBACK,
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
++	NR_BOUNCE,
  	NR_VM_ZONE_STAT_ITEMS };
  
  struct per_cpu_pages {
-Index: linux-2.6.17-mm1/include/linux/page-flags.h
+Index: linux-2.6.17-mm1/mm/highmem.c
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/page-flags.h	2006-06-21 07:45:02.657540879 -0700
-+++ linux-2.6.17-mm1/include/linux/page-flags.h	2006-06-22 08:49:30.153945834 -0700
-@@ -164,7 +164,7 @@
- 	do {								\
- 		if (!test_and_set_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			inc_page_state(nr_writeback);			\
-+			inc_zone_page_state(page, NR_WRITEBACK);	\
- 	} while (0)
- #define TestSetPageWriteback(page)					\
- 	({								\
-@@ -172,14 +172,14 @@
- 		ret = test_and_set_bit(PG_writeback,			\
- 					&(page)->flags);		\
- 		if (!ret)						\
--			inc_page_state(nr_writeback);			\
-+			inc_zone_page_state(page, NR_WRITEBACK);	\
- 		ret;							\
- 	})
- #define ClearPageWriteback(page)					\
- 	do {								\
- 		if (test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			dec_page_state(nr_writeback);			\
-+			dec_zone_page_state(page, NR_WRITEBACK);	\
- 	} while (0)
- #define TestClearPageWriteback(page)					\
- 	({								\
-@@ -187,7 +187,7 @@
- 		ret = test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags);			\
- 		if (ret)						\
--			dec_page_state(nr_writeback);			\
-+			dec_zone_page_state(page, NR_WRITEBACK);	\
- 		ret;							\
- 	})
+--- linux-2.6.17-mm1.orig/mm/highmem.c	2006-06-17 18:49:35.000000000 -0700
++++ linux-2.6.17-mm1/mm/highmem.c	2006-06-22 09:15:08.670031406 -0700
+@@ -316,7 +316,7 @@ static void bounce_end_io(struct bio *bi
+ 			continue;
  
-Index: linux-2.6.17-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-22 08:43:21.317408022 -0700
-+++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-22 08:49:30.155898838 -0700
-@@ -1310,7 +1310,7 @@ void show_free_areas(void)
- 		active,
- 		inactive,
- 		global_page_state(NR_FILE_DIRTY),
--		ps.nr_writeback,
-+		global_page_state(NR_WRITEBACK),
- 		ps.nr_unstable,
- 		nr_free_pages(),
- 		global_page_state(NR_SLAB),
-Index: linux-2.6.17-mm1/mm/page-writeback.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page-writeback.c	2006-06-22 08:43:21.318384524 -0700
-+++ linux-2.6.17-mm1/mm/page-writeback.c	2006-06-22 08:49:30.155898838 -0700
-@@ -113,7 +113,7 @@ static void get_writeback_state(struct w
- 	wbs->nr_unstable = read_page_state(nr_unstable);
- 	wbs->nr_mapped = global_page_state(NR_FILE_MAPPED) +
- 				global_page_state(NR_ANON_PAGES);
--	wbs->nr_writeback = read_page_state(nr_writeback);
-+	wbs->nr_writeback = global_page_state(NR_WRITEBACK);
- }
+ 		mempool_free(bvec->bv_page, pool);	
+-		dec_page_state(nr_bounce);
++		dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
+ 	}
  
- /*
+ 	bio_endio(bio_orig, bio_orig->bi_size, err);
+@@ -397,7 +397,7 @@ static void __blk_queue_bounce(request_q
+ 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
+ 		to->bv_len = from->bv_len;
+ 		to->bv_offset = from->bv_offset;
+-		inc_page_state(nr_bounce);
++		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+ 
+ 		if (rw == WRITE) {
+ 			char *vto, *vfrom;
 Index: linux-2.6.17-mm1/mm/vmstat.c
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-22 08:43:21.318384524 -0700
-+++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-22 08:49:30.156875341 -0700
-@@ -463,9 +463,9 @@ static char *vmstat_text[] = {
- 	"nr_slab",
- 	"nr_page_table_pages",
+--- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-22 08:56:55.160603832 -0700
++++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-22 09:15:08.671007908 -0700
+@@ -443,6 +443,7 @@ static char *vmstat_text[] = {
  	"nr_dirty",
-+	"nr_writeback",
- 
- 	/* Page state */
--	"nr_writeback",
+ 	"nr_writeback",
  	"nr_unstable",
++	"nr_bounce",
  
+ 	/* Event counters */
  	"pgpgin",
+@@ -490,7 +491,6 @@ static char *vmstat_text[] = {
+ 	"allocstall",
+ 
+ 	"pgrotated",
+-	"nr_bounce",
+ };
+ 
+ /*
+Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-22 08:55:49.730080347 -0700
++++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-22 09:15:08.671984410 -0700
+@@ -171,6 +171,7 @@ static int meminfo_read_proc(char *page,
+ 		"Slab:         %8lu kB\n"
+ 		"PageTables:   %8lu kB\n"
+ 		"NFS Unstable: %8lu kB\n"
++		"Bounce:       %8lu kB\n"
+ 		"CommitLimit:  %8lu kB\n"
+ 		"Committed_AS: %8lu kB\n"
+ 		"VmallocTotal: %8lu kB\n"
+@@ -196,6 +197,7 @@ static int meminfo_read_proc(char *page,
+ 		K(global_page_state(NR_SLAB)),
+ 		K(global_page_state(NR_PAGETABLE)),
+ 		K(global_page_state(NR_UNSTABLE_NFS)),
++		K(global_page_state(NR_BOUNCE)),
+ 		K(allowed),
+ 		K(committed),
+ 		(unsigned long)VMALLOC_TOTAL >> 10,
 Index: linux-2.6.17-mm1/include/linux/vmstat.h
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-22 08:43:32.863567390 -0700
-+++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-22 08:49:41.977433405 -0700
-@@ -21,7 +21,6 @@
-  * commented here.
-  */
- struct page_state {
--	unsigned long nr_writeback;	/* Pages under writeback */
- 	unsigned long nr_unstable;	/* NFS unstable pages */
- #define GET_PAGE_STATE_LAST nr_unstable
+--- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-22 09:15:20.479846399 -0700
++++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-22 09:15:22.334223666 -0700
+@@ -70,7 +70,6 @@ struct page_state {
+ 	unsigned long allocstall;	/* direct reclaim calls */
  
+ 	unsigned long pgrotated;	/* pages rotated to tail of the LRU */
+-	unsigned long nr_bounce;	/* pages for bounce buffers */
+ };
+ 
+ extern void get_full_page_state(struct page_state *ret);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
