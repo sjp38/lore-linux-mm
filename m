@@ -1,74 +1,102 @@
-Subject: Re: [PATCH 1/6] mm: tracking shared dirty pages
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060621225639.4c8bad93.akpm@osdl.org>
-References: <20060619175243.24655.76005.sendpatchset@lappy>
-	 <20060619175253.24655.96323.sendpatchset@lappy>
-	 <20060621225639.4c8bad93.akpm@osdl.org>
-Content-Type: text/plain
-Date: Thu, 22 Jun 2006 13:33:51 +0200
-Message-Id: <1150976031.15744.122.camel@lappy>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k5MBxXFT010031
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2006 07:59:34 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k5MBxiUM031090
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2006 05:59:45 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k5MBxXon015465
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2006 05:59:33 -0600
+Date: Thu, 22 Jun 2006 06:59:07 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: Possible bug in do_execve()
+Message-ID: <20060622115907.GD27074@sergelap.austin.ibm.com>
+References: <20060620022506.GA3673@kevlar.burdell.org> <20060621184129.GB16576@sergelap.austin.ibm.com> <20060621185508.GA9234@kevlar.burdell.org> <20060621190910.GC16576@sergelap.austin.ibm.com> <20060621192726.GA10052@kevlar.burdell.org> <20060621194250.GD16576@sergelap.austin.ibm.com> <20060621201258.GB10052@kevlar.burdell.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060621201258.GB10052@kevlar.burdell.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de, torvalds@osdl.org
+To: Sonny Rao <sonny@burdell.org>
+Cc: "Serge E. Hallyn" <serue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, anton@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-06-21 at 22:56 -0700, Andrew Morton wrote:
-> On Mon, 19 Jun 2006 19:52:53 +0200
-
-> > +		vma->vm_page_prot =
-> > +			__pgprot(pte_val
-> > +				(pte_wrprotect
-> > +				 (__pte(pgprot_val(vma->vm_page_prot)))));
-> > +
+Quoting Sonny Rao (sonny@burdell.org):
+> > > It seems to assume that mm->context is valid before doing a check.
+> > > 
+> > > Since I don't have a sparc64 box, I can't check to see if this
+> > > actually breaks things or not.
+> > 
+> > So we can either go through all arch's and make sure destroy_context is
+> > safe for invalid context, or split mmput() and destroy_context()...
+> > 
+> > The former seems easier, but the latter seems more robust in the face of
+> > future code changes I guess.
 > 
-> Is there really no simpler way?
+> Yes, the former does seem easier, and perhaps easiest is to do that
+> and document what the pre-conditions are so future developers at least
+> have a clue.
 
-	pgprot_t prot_shared = protection_map[vm_flags & 
-		(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
-	pgprot_t prot_priv = protection_map[vm_flags & 
-		(VM_READ|VM_WRITE|VM_EXEC)];
+Hmm, but document it where, since there is no single destroy_context()
+definition?  At the mmput() and __mmdrop() definitions in kernel/fork.c?
 
-	typeof(pgprot_val(prot_shared)) mask = 
-		~(pgprot_val(prot_shared) ^ pgprot_val(prot_priv));
+(like so: ?)
 
-	pgprot_val(vma->vm_page_prot) &= mask;
-	pgprot_val(vma->vm_page_prot) |= 
-		(pgprot_val(prot_priv) & mask);
+-serge
 
-its more readable, but barely so.
+From: Serge E. Hallyn <hallyn@sergelap.(none)>
+Date: Wed, 21 Jun 2006 13:37:27 -0500
+Subject: [PATCH] powerpc: check for proper mm->context before destroying
 
-BTW, is there a difference between:
-  (VM_READ|VM_WRITE|VM_EXEC)
-and
-  (VM_READ|VM_EXEC|VM_SHARED)
-in this context?
+arch/powerpc/mm/mmu_context_64.c:destroy_context() can be called
+from __mmput() in do_execve() if init_new_context() failed.  This
+can result in idr_remove() being called for an invalid context.
 
-Or I can make it a generic arch specific function and override for i386
-and x86-64. That way I can also cleanup drivers/char/drm/drm_vm.c where
-I found this thing.
+So, don't call idr_remove if there is no context.
 
-include/asm-generic/pgtable.h
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
 
-#ifndef __HAVE_ARCH_PGPROT_WRPROTECT
-#define pgprot_wrprotect(prot) \
-({ (prot) = __pgprot(pte_val \
-		(pte_wrprotect	\
-		(__pte(pgprot_val(prot))))) \
-})
-#endif
+---
 
-include/asm-{i386,x86-64}/pgtable.h
+ arch/powerpc/mm/mmu_context_64.c |    3 +++
+ kernel/fork.c                    |    4 ++++
+ 2 files changed, 7 insertions(+), 0 deletions(-)
 
-#define pgprot_wrprotect(prot) ({ pgprot_val(prot) &= ~_PAGE_RW; })
-#define __HAVE_ARCH_PGPROT_WRPROTECT
-
-I can go through some other archs and see what I can do.
-
-Hmm, now that I look at this, might give a include-dependency problem.
-Awell, thoughts, comments?
+d4fdebfda2170615db87f5aaf45b8478e223824a
+diff --git a/arch/powerpc/mm/mmu_context_64.c b/arch/powerpc/mm/mmu_context_64.c
+index 714a84d..552d590 100644
+--- a/arch/powerpc/mm/mmu_context_64.c
++++ b/arch/powerpc/mm/mmu_context_64.c
+@@ -55,6 +55,9 @@ again:
+ 
+ void destroy_context(struct mm_struct *mm)
+ {
++	if (mm->context.id == NO_CONTEXT)
++		return;
++
+ 	spin_lock(&mmu_context_lock);
+ 	idr_remove(&mmu_context_idr, mm->context.id);
+ 	spin_unlock(&mmu_context_lock);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index ac8100e..0fe51aa 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -354,6 +354,10 @@ struct mm_struct * mm_alloc(void)
+  * Called when the last reference to the mm
+  * is dropped: either by a lazy thread or by
+  * mmput. Free the page directory and the mm.
++ *
++ * Arch-specific destroy_context() implementations
++ * should be aware that this can be called when
++ * the mm->context initialization has failed.
+  */
+ void fastcall __mmdrop(struct mm_struct *mm)
+ {
+-- 
+1.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
