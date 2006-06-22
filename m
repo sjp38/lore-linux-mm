@@ -1,229 +1,154 @@
-Date: Thu, 22 Jun 2006 09:40:56 -0700 (PDT)
+Date: Thu, 22 Jun 2006 09:40:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622164056.28809.87834.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060622164046.28809.63132.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 10/14] Conversion of nr_dirty to per zone counter
+Subject: [PATCH 08/14] Conversion of nr_slab to per zone counter
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: conversion of nr_dirty to per zone counter
+Subject: zoned vm counters: conversion of nr_slab to per zone counter
 From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-This makes nr_dirty a per zone counter.  Looping over all processors is
-avoided during writeback state determination.
+- Allows reclaim to access counter without looping over processor counts.
 
-The counter aggregation for nr_dirty had to be undone in the NFS layer since
-we summed up the page counts from multiple zones. Someone more familiar with
-NFS should probably review what I have done.
+- Allows accurate statistics on how many pages are used in a zone by
+  the slab. This may become useful to balance slab allocations over
+  various zones.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 
 Index: linux-2.6.17-mm1/arch/i386/mm/pgtable.c
 ===================================================================
---- linux-2.6.17-mm1.orig/arch/i386/mm/pgtable.c	2006-06-22 08:37:08.449894359 -0700
-+++ linux-2.6.17-mm1/arch/i386/mm/pgtable.c	2006-06-22 08:43:21.308619504 -0700
-@@ -59,7 +59,7 @@ void show_mem(void)
- 	printk(KERN_INFO "%d pages swap cached\n", cached);
- 
- 	get_page_state(&ps);
--	printk(KERN_INFO "%lu pages dirty\n", ps.nr_dirty);
-+	printk(KERN_INFO "%lu pages dirty\n", global_page_state(NR_FILE_DIRTY));
+--- linux-2.6.17-mm1.orig/arch/i386/mm/pgtable.c	2006-06-21 08:06:14.414759983 -0700
++++ linux-2.6.17-mm1/arch/i386/mm/pgtable.c	2006-06-22 08:23:00.263168234 -0700
+@@ -62,7 +62,7 @@ void show_mem(void)
+ 	printk(KERN_INFO "%lu pages dirty\n", ps.nr_dirty);
  	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
  	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
- 	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
-Index: linux-2.6.17-mm1/drivers/base/node.c
-===================================================================
---- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-22 08:37:08.455753371 -0700
-+++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-22 08:43:21.309596006 -0700
-@@ -49,8 +49,6 @@ static ssize_t node_read_meminfo(struct 
- 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
- 
- 	/* Check for negative values in these approximate counters */
--	if ((long)ps.nr_dirty < 0)
--		ps.nr_dirty = 0;
- 	if ((long)ps.nr_writeback < 0)
- 		ps.nr_writeback = 0;
- 
-@@ -80,7 +78,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.freehigh),
- 		       nid, K(i.totalram - i.totalhigh),
- 		       nid, K(i.freeram - i.freehigh),
--		       nid, K(ps.nr_dirty),
-+		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
- 		       nid, K(ps.nr_writeback),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
-Index: linux-2.6.17-mm1/fs/buffer.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/buffer.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/fs/buffer.c	2006-06-22 08:43:21.311549010 -0700
-@@ -854,7 +854,7 @@ int __set_page_dirty_buffers(struct page
- 		write_lock_irq(&mapping->tree_lock);
- 		if (page->mapping) {	/* Race with truncate? */
- 			if (mapping_cap_account_dirty(mapping))
--				inc_page_state(nr_dirty);
-+				__inc_zone_page_state(page, NR_FILE_DIRTY);
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_DIRTY);
-Index: linux-2.6.17-mm1/fs/fs-writeback.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/fs-writeback.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/fs/fs-writeback.c	2006-06-22 08:43:21.312525512 -0700
-@@ -462,7 +462,7 @@ void sync_inodes_sb(struct super_block *
- 	struct writeback_control wbc = {
- 		.sync_mode	= wait ? WB_SYNC_ALL : WB_SYNC_HOLD,
- 	};
--	unsigned long nr_dirty = read_page_state(nr_dirty);
-+	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
- 	unsigned long nr_unstable = read_page_state(nr_unstable);
- 
- 	wbc.nr_to_write = nr_dirty + nr_unstable +
-Index: linux-2.6.17-mm1/fs/nfs/pagelist.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/nfs/pagelist.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/fs/nfs/pagelist.c	2006-06-22 08:43:21.313502014 -0700
-@@ -315,6 +315,7 @@ nfs_scan_lock_dirty(struct nfs_inode *nf
- 						req->wb_index, NFS_PAGE_TAG_DIRTY);
- 				nfs_list_remove_request(req);
- 				nfs_list_add_request(req, dst);
-+				dec_zone_page_state(req->wb_page, NR_FILE_DIRTY);
- 				res++;
- 			}
- 		}
-Index: linux-2.6.17-mm1/fs/nfs/write.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/nfs/write.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/fs/nfs/write.c	2006-06-22 08:43:21.314478516 -0700
-@@ -501,7 +501,7 @@ nfs_mark_request_dirty(struct nfs_page *
- 	nfs_list_add_request(req, &nfsi->dirty);
- 	nfsi->ndirty++;
- 	spin_unlock(&nfsi->req_lock);
--	inc_page_state(nr_dirty);
-+	inc_zone_page_state(req->wb_page, NR_FILE_DIRTY);
- 	mark_inode_dirty(inode);
+-	printk(KERN_INFO "%lu pages slab\n", ps.nr_slab);
++	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
+ 	printk(KERN_INFO "%lu pages pagetables\n", ps.nr_page_table_pages);
  }
  
-@@ -602,7 +602,6 @@ nfs_scan_dirty(struct inode *inode, stru
- 	if (nfsi->ndirty != 0) {
- 		res = nfs_scan_lock_dirty(nfsi, dst, idx_start, npages);
- 		nfsi->ndirty -= res;
--		sub_page_state(nr_dirty,res);
- 		if ((nfsi->ndirty == 0) != list_empty(&nfsi->dirty))
- 			printk(KERN_ERR "NFS: desynchronized value of nfs_i.ndirty.\n");
- 	}
+Index: linux-2.6.17-mm1/drivers/base/node.c
+===================================================================
+--- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-22 08:22:54.960761923 -0700
++++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-22 08:23:00.264144736 -0700
+@@ -53,8 +53,6 @@ static ssize_t node_read_meminfo(struct 
+ 		ps.nr_dirty = 0;
+ 	if ((long)ps.nr_writeback < 0)
+ 		ps.nr_writeback = 0;
+-	if ((long)ps.nr_slab < 0)
+-		ps.nr_slab = 0;
+ 
+ 	n = sprintf(buf, "\n"
+ 		       "Node %d MemTotal:     %8lu kB\n"
+@@ -86,7 +84,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+ 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
+-		       nid, K(ps.nr_slab));
++		       nid, K(node_page_state(nid, NR_SLAB)));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+ }
 Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
 ===================================================================
---- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-22 08:37:08.450870861 -0700
-+++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-22 08:43:21.314478516 -0700
-@@ -190,7 +190,7 @@ static int meminfo_read_proc(char *page,
- 		K(i.freeram-i.freehigh),
- 		K(i.totalswap),
- 		K(i.freeswap),
--		K(ps.nr_dirty),
-+		K(global_page_state(NR_FILE_DIRTY)),
+--- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-22 08:22:54.955879413 -0700
++++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-22 08:23:00.265121238 -0700
+@@ -194,7 +194,7 @@ static int meminfo_read_proc(char *page,
  		K(ps.nr_writeback),
  		K(global_page_state(NR_ANON_PAGES)),
  		K(global_page_state(NR_FILE_MAPPED)),
+-		K(ps.nr_slab),
++		K(global_page_state(NR_SLAB)),
+ 		K(allowed),
+ 		K(committed),
+ 		K(ps.nr_page_table_pages),
 Index: linux-2.6.17-mm1/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-22 08:37:08.451847363 -0700
-+++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-22 08:43:21.315455018 -0700
-@@ -54,6 +54,7 @@ enum zone_stat_item {
+--- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-22 08:22:58.091427601 -0700
++++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-22 08:23:00.266097740 -0700
+@@ -52,6 +52,7 @@ enum zone_stat_item {
+ 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+ 			   only modified from process context */
  	NR_FILE_PAGES,
- 	NR_SLAB,	/* Pages used by slab allocator */
- 	NR_PAGETABLE,	/* used for pagetables */
-+	NR_FILE_DIRTY,
++	NR_SLAB,	/* Pages used by slab allocator */
  	NR_VM_ZONE_STAT_ITEMS };
  
  struct per_cpu_pages {
 Index: linux-2.6.17-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-22 08:37:08.454776869 -0700
-+++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-22 08:43:21.317408022 -0700
-@@ -1309,7 +1309,7 @@ void show_free_areas(void)
- 		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
- 		active,
- 		inactive,
--		ps.nr_dirty,
-+		global_page_state(NR_FILE_DIRTY),
+--- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-22 08:19:49.773977174 -0700
++++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-22 08:23:00.267074242 -0700
+@@ -1313,7 +1313,7 @@ void show_free_areas(void)
  		ps.nr_writeback,
  		ps.nr_unstable,
  		nr_free_pages(),
-Index: linux-2.6.17-mm1/mm/page-writeback.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page-writeback.c	2006-06-22 08:22:54.960761923 -0700
-+++ linux-2.6.17-mm1/mm/page-writeback.c	2006-06-22 08:43:21.318384524 -0700
-@@ -109,7 +109,7 @@ struct writeback_state
+-		ps.nr_slab,
++		global_page_state(NR_SLAB),
+ 		global_page_state(NR_FILE_MAPPED),
+ 		ps.nr_page_table_pages);
  
- static void get_writeback_state(struct writeback_state *wbs)
- {
--	wbs->nr_dirty = read_page_state(nr_dirty);
-+	wbs->nr_dirty = global_page_state(NR_FILE_DIRTY);
- 	wbs->nr_unstable = read_page_state(nr_unstable);
- 	wbs->nr_mapped = global_page_state(NR_FILE_MAPPED) +
- 				global_page_state(NR_ANON_PAGES);
-@@ -638,7 +638,7 @@ int __set_page_dirty_nobuffers(struct pa
- 			if (mapping2) { /* Race with truncate? */
- 				BUG_ON(mapping2 != mapping);
- 				if (mapping_cap_account_dirty(mapping))
--					inc_page_state(nr_dirty);
-+					__inc_zone_page_state(page, NR_FILE_DIRTY);
- 				radix_tree_tag_set(&mapping->page_tree,
- 					page_index(page), PAGECACHE_TAG_DIRTY);
- 			}
-@@ -725,9 +725,9 @@ int test_clear_page_dirty(struct page *p
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_DIRTY);
--			write_unlock_irqrestore(&mapping->tree_lock, flags);
- 			if (mapping_cap_account_dirty(mapping))
--				dec_page_state(nr_dirty);
-+				__dec_zone_page_state(page, NR_FILE_DIRTY);
-+			write_unlock_irqrestore(&mapping->tree_lock, flags);
- 			return 1;
- 		}
- 		write_unlock_irqrestore(&mapping->tree_lock, flags);
-@@ -758,7 +758,7 @@ int clear_page_dirty_for_io(struct page 
- 	if (mapping) {
- 		if (TestClearPageDirty(page)) {
- 			if (mapping_cap_account_dirty(mapping))
--				dec_page_state(nr_dirty);
-+				dec_zone_page_state(page, NR_FILE_DIRTY);
- 			return 1;
- 		}
- 		return 0;
+Index: linux-2.6.17-mm1/mm/slab.c
+===================================================================
+--- linux-2.6.17-mm1.orig/mm/slab.c	2006-06-21 08:04:57.511312216 -0700
++++ linux-2.6.17-mm1/mm/slab.c	2006-06-22 08:23:00.270003748 -0700
+@@ -1469,7 +1469,7 @@ static void *kmem_getpages(struct kmem_c
+ 	i = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		atomic_add(i, &slab_reclaim_pages);
+-	add_page_state(nr_slab, i);
++	add_zone_page_state(page_zone(page), NR_SLAB, i);
+ 	while (i--) {
+ 		__SetPageSlab(page);
+ 		page++;
+@@ -1491,7 +1491,7 @@ static void kmem_freepages(struct kmem_c
+ 		__ClearPageSlab(page);
+ 		page++;
+ 	}
+-	sub_page_state(nr_slab, nr_freed);
++	sub_zone_page_state(page_zone(page), NR_SLAB, nr_freed);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	free_pages((unsigned long)addr, cachep->gfporder);
 Index: linux-2.6.17-mm1/mm/vmstat.c
 ===================================================================
---- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-22 08:37:08.457706375 -0700
-+++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-22 08:43:21.318384524 -0700
-@@ -462,9 +462,9 @@ static char *vmstat_text[] = {
+--- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-22 08:22:54.961738425 -0700
++++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-22 08:23:00.270003748 -0700
+@@ -460,13 +460,13 @@ static char *vmstat_text[] = {
+ 	"nr_anon_pages",
+ 	"nr_mapped",
  	"nr_file_pages",
- 	"nr_slab",
- 	"nr_page_table_pages",
-+	"nr_dirty",
++	"nr_slab",
  
  	/* Page state */
--	"nr_dirty",
+ 	"nr_dirty",
  	"nr_writeback",
  	"nr_unstable",
+ 	"nr_page_table_pages",
+-	"nr_slab",
  
+ 	"pgpgin",
+ 	"pgpgout",
 Index: linux-2.6.17-mm1/include/linux/vmstat.h
 ===================================================================
---- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-22 08:37:27.048350906 -0700
-+++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-22 08:43:32.863567390 -0700
-@@ -21,7 +21,6 @@
-  * commented here.
-  */
- struct page_state {
--	unsigned long nr_dirty;		/* Dirty writeable pages */
+--- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-22 08:10:13.219810354 -0700
++++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-22 08:23:17.482805961 -0700
+@@ -25,8 +25,7 @@ struct page_state {
  	unsigned long nr_writeback;	/* Pages under writeback */
  	unsigned long nr_unstable;	/* NFS unstable pages */
- #define GET_PAGE_STATE_LAST nr_unstable
+ 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
+-	unsigned long nr_slab;		/* In slab */
+-#define GET_PAGE_STATE_LAST nr_slab
++#define GET_PAGE_STATE_LAST nr_page_table_pages
+ 
+ 	/*
+ 	 * The below are zeroed by get_page_state().  Use get_full_page_state()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
