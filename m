@@ -1,213 +1,125 @@
-Date: Thu, 22 Jun 2006 09:40:20 -0700 (PDT)
+Date: Thu, 22 Jun 2006 09:40:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622164020.28809.86723.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 03/14] Convert nr_mapped to per zone counter
+Message-Id: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 00/14] Zoned VM counters V6
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: conversion of nr_mapped to per zone counter
-From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-nr_mapped is important because it allows a determination of how many pages of
-a zone are not mapped, which would allow a more efficient means of determining
-when we need to reclaim memory in a zone.
+reliable whereas event counters do not need to be.
 
-We take the nr_mapped field out of the page state structure and define a new
-per zone counter named NR_FILE_MAPPED (the anonymous pages will be split
-off from NR_MAPPED in the next patch).
+Zone based VM statistics are necessary to be able to determine what the state
+of memory in one zone is. In a NUMA system this can be helpful for local
+reclaim and other memory optimizations that may be able to shift VM load
+in order to get more balanced memory use.
 
-We replace the use of nr_mapped in various kernel locations.  This avoids the
-looping over all processors in try_to_free_pages(), writeback, reclaim (swap +
-zone reclaim).
+It is also useful to know how the computing load affects the memory
+allocations on various zones. This patchset allows the retrieval of that
+data from userspace.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+The patchset introduces a framework for counters that is a cross between the
+existing page_stats --which are simply global counters split per cpu-- and
+the approach of deferred incremental updates implemented for nr_pagecache.
 
-Index: linux-2.6.17-mm1/arch/i386/mm/pgtable.c
-===================================================================
---- linux-2.6.17-mm1.orig/arch/i386/mm/pgtable.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/arch/i386/mm/pgtable.c	2006-06-21 08:06:14.414759983 -0700
-@@ -61,7 +61,7 @@ void show_mem(void)
- 	get_page_state(&ps);
- 	printk(KERN_INFO "%lu pages dirty\n", ps.nr_dirty);
- 	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
--	printk(KERN_INFO "%lu pages mapped\n", ps.nr_mapped);
-+	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
- 	printk(KERN_INFO "%lu pages slab\n", ps.nr_slab);
- 	printk(KERN_INFO "%lu pages pagetables\n", ps.nr_page_table_pages);
- }
-Index: linux-2.6.17-mm1/drivers/base/node.c
-===================================================================
---- linux-2.6.17-mm1.orig/drivers/base/node.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/drivers/base/node.c	2006-06-21 08:06:14.415736485 -0700
-@@ -53,8 +53,6 @@ static ssize_t node_read_meminfo(struct 
- 		ps.nr_dirty = 0;
- 	if ((long)ps.nr_writeback < 0)
- 		ps.nr_writeback = 0;
--	if ((long)ps.nr_mapped < 0)
--		ps.nr_mapped = 0;
- 	if ((long)ps.nr_slab < 0)
- 		ps.nr_slab = 0;
- 
-@@ -83,7 +81,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.freeram - i.freehigh),
- 		       nid, K(ps.nr_dirty),
- 		       nid, K(ps.nr_writeback),
--		       nid, K(ps.nr_mapped),
-+		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(ps.nr_slab));
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
-Index: linux-2.6.17-mm1/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.17-mm1.orig/fs/proc/proc_misc.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/fs/proc/proc_misc.c	2006-06-21 08:06:14.416712987 -0700
-@@ -190,7 +190,7 @@ static int meminfo_read_proc(char *page,
- 		K(i.freeswap),
- 		K(ps.nr_dirty),
- 		K(ps.nr_writeback),
--		K(ps.nr_mapped),
-+		K(global_page_state(NR_FILE_MAPPED)),
- 		K(ps.nr_slab),
- 		K(allowed),
- 		K(committed),
-Index: linux-2.6.17-mm1/include/linux/mmzone.h
-===================================================================
---- linux-2.6.17-mm1.orig/include/linux/mmzone.h	2006-06-21 08:04:57.507406207 -0700
-+++ linux-2.6.17-mm1/include/linux/mmzone.h	2006-06-21 08:06:14.418665992 -0700
-@@ -48,6 +48,9 @@ struct zone_padding {
- #endif
- 
- enum zone_stat_item {
-+	NR_FILE_MAPPED,	/* mapped into pagetables.
-+			   only modified from process context */
-+
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- struct per_cpu_pages {
-Index: linux-2.6.17-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page_alloc.c	2006-06-21 08:04:57.509359211 -0700
-+++ linux-2.6.17-mm1/mm/page_alloc.c	2006-06-21 08:06:14.419642494 -0700
-@@ -1314,7 +1314,7 @@ void show_free_areas(void)
- 		ps.nr_unstable,
- 		nr_free_pages(),
- 		ps.nr_slab,
--		ps.nr_mapped,
-+		global_page_state(NR_FILE_MAPPED),
- 		ps.nr_page_table_pages);
- 
- 	for_each_zone(zone) {
-Index: linux-2.6.17-mm1/mm/page-writeback.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page-writeback.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/mm/page-writeback.c	2006-06-21 08:06:14.420618996 -0700
-@@ -111,7 +111,7 @@ static void get_writeback_state(struct w
- {
- 	wbs->nr_dirty = read_page_state(nr_dirty);
- 	wbs->nr_unstable = read_page_state(nr_unstable);
--	wbs->nr_mapped = read_page_state(nr_mapped);
-+	wbs->nr_mapped = global_page_state(NR_FILE_MAPPED);
- 	wbs->nr_writeback = read_page_state(nr_writeback);
- }
- 
-Index: linux-2.6.17-mm1/mm/rmap.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/rmap.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/mm/rmap.c	2006-06-21 08:06:14.421595498 -0700
-@@ -493,7 +493,7 @@ static void __page_set_anon_rmap(struct 
- 	 * nr_mapped state can be updated without turning off
- 	 * interrupts because it is not modified via interrupt.
- 	 */
--	__inc_page_state(nr_mapped);
-+	__inc_zone_page_state(page, NR_FILE_MAPPED);
- }
- 
- /**
-@@ -537,7 +537,7 @@ void page_add_new_anon_rmap(struct page 
- void page_add_file_rmap(struct page *page)
- {
- 	if (atomic_inc_and_test(&page->_mapcount))
--		__inc_page_state(nr_mapped);
-+		__inc_zone_page_state(page, NR_FILE_MAPPED);
- }
- 
- /**
-@@ -569,7 +569,7 @@ void page_remove_rmap(struct page *page)
- 		 */
- 		if (page_test_and_clear_dirty(page))
- 			set_page_dirty(page);
--		__dec_page_state(nr_mapped);
-+		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 	}
- }
- 
-Index: linux-2.6.17-mm1/mm/vmscan.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/vmscan.c	2006-06-17 18:49:35.000000000 -0700
-+++ linux-2.6.17-mm1/mm/vmscan.c	2006-06-21 08:06:14.422572000 -0700
-@@ -972,7 +972,7 @@ unsigned long try_to_free_pages(struct z
- 	}
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
--		sc.nr_mapped = read_page_state(nr_mapped);
-+		sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
- 		sc.nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
-@@ -1062,7 +1062,7 @@ loop_again:
- 	total_scanned = 0;
- 	nr_reclaimed = 0;
- 	sc.may_writepage = !laptop_mode;
--	sc.nr_mapped = read_page_state(nr_mapped);
-+	sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
- 
- 	inc_page_state(pageoutrun);
- 
-@@ -1412,7 +1412,7 @@ static int __zone_reclaim(struct zone *z
- 	struct scan_control sc = {
- 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
- 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
--		.nr_mapped = read_page_state(nr_mapped),
-+		.nr_mapped = global_page_state(NR_FILE_MAPPED),
- 		.swap_cluster_max = max_t(unsigned long, nr_pages,
- 					SWAP_CLUSTER_MAX),
- 		.gfp_mask = gfp_mask,
-Index: linux-2.6.17-mm1/mm/vmstat.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/vmstat.c	2006-06-21 08:04:57.514241722 -0700
-+++ linux-2.6.17-mm1/mm/vmstat.c	2006-06-21 08:06:14.423548502 -0700
-@@ -463,13 +463,13 @@ struct seq_operations fragmentation_op =
- 
- static char *vmstat_text[] = {
- 	/* Zoned VM counters */
-+	"nr_mapped",
- 
- 	/* Page state */
- 	"nr_dirty",
- 	"nr_writeback",
- 	"nr_unstable",
- 	"nr_page_table_pages",
--	"nr_mapped",
- 	"nr_slab",
- 
- 	"pgpgin",
-Index: linux-2.6.17-mm1/include/linux/vmstat.h
-===================================================================
---- linux-2.6.17-mm1.orig/include/linux/vmstat.h	2006-06-21 08:04:57.512288718 -0700
-+++ linux-2.6.17-mm1/include/linux/vmstat.h	2006-06-22 08:10:13.219810354 -0700
-@@ -25,8 +25,6 @@ struct page_state {
- 	unsigned long nr_writeback;	/* Pages under writeback */
- 	unsigned long nr_unstable;	/* NFS unstable pages */
- 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
--	unsigned long nr_mapped;	/* mapped into pagetables.
--					 * only modified from process context */
- 	unsigned long nr_slab;		/* In slab */
- #define GET_PAGE_STATE_LAST nr_slab
- 
+Small per cpu 8 bit counters are added to struct zone. If the counter
+exceeds certain thresholds then the counters are accumulated in an array of
+atomic_long in the zone and in a global array that sums up all
+zone values. The small 8 bit counters are next to the per cpu page pointers
+and so they will be in high in the cpu cache when pages are allocated and
+freed.
+
+Access to VM counter information for a zone and for the whole machine
+is then possible by simply indexing an array (Thanks to Nick Piggin for
+pointing out that approach). The access to the total number of pages of
+various types does no longer require the summing up of all per cpu counters.
+
+Benefits of this patchset right now:
+
+- Ability for UP and SMP configuration to determine how memory
+  is balanced between the DMA, NORMAL and HIGHMEM zones.
+
+- loops over all processors are avoided in writeback and
+  reclaim paths. We can avoid caching the writeback information
+  because the needed information is directly accessible.
+
+- Special handling for nr_pagecache removed.
+
+- zone_reclaim_interval vanishes since VM stats can now determine
+  when it is worth to do local reclaim.
+
+- Fast inline per node page state determination.
+
+- Accurate counters in /sys/devices/system/node/node*/meminfo. Current
+  counters are counting simply which processor allocated a page somewhere
+  and guestimate based on that. So the counters were not useful to show
+  the actual distribution of page use on a specific zone.
+
+- The swap_prefetch patch requires per node statistics in order to
+  figure out when processors of a node can prefetch. This patch provides
+  some of the needed numbers.
+
+- Detailed VM counters available in more /proc and /sys status files.
+
+References to earlier discussions:
+V1 http://marc.theaimsgroup.com/?l=linux-kernel&m=113511649910826&w=2
+V2 http://marc.theaimsgroup.com/?l=linux-kernel&m=114980851924230&w=2
+V3 http://marc.theaimsgroup.com/?l=linux-kernel&m=115014697910351&w=2
+V4 http://marc.theaimsgroup.com/?l=linux-kernel&m=115024767318740&w=2
+
+Performance tests with AIM7 did not show any regressions. Seems to be a tad
+faster even. Tested on ia64/NUMA. Builds fine on i386, SMP / UP. Includes
+fixes for s390/arm/uml arch code.
+
+Changelog
+
+V1->V2:
+- Cleanup code, resequence and base patches on 2.6.17-rc6-mm1
+- Reduce interrupt holdoffs
+- Add zone reclaim interval removal patch
+
+V2->V3:
+- Against temp tree by Andrew. (2.6.17-rc6-mm2 - old patches)
+  Temp patch at http://www.zip.com.au/~akpm/linux/patches/stuff/cl.bz2
+- Incorporate additional fixes for arch code.
+- Create vmstat.c/h from pieces of page_alloc.c.
+- Do the swap prefetch support patches the right way.
+- Reorganize patchset so that the tree compiles after each
+  patch (However, swap prefetch/reiser4 patches are separate.
+  So if a swap prefetch patch follows then two patches must
+  be applied for the kernel to compile again).
+- Do various prescribed tests. Make sure that there is no remaining
+  reference to page state in some arch code.
+- Optimize the node_page_state function so that it can be used inline.
+
+V3->V4:
+- nr_pagecache definition was not cleaned up in V3.
+- Fix nfs issues with NR_UNSTABLE where the page reference was not valid
+  and with NR_DIRTY.
+- Update swap_prefetch patches after feedback from Colin.
+- Rename NR_STAT_ITEMS to NR_VM_ZONE_STAT_ITEMS.
+- IA64: Make CONFIG_DMA_IS_NORMAL depend on SGI_SN2. Others
+  may be added in the future.
+- Fix order issues with vmstat
+- Limit crossposting
+
+V4->V5:
+- Drop special patches for swap prefetch and reiser4
+- Rediff against 2.6.17-mm1.
+- Rename NR_UNSTABLE -> NR_UNSTABLE_NFS
+- Rename NR_DIRTY -> NR_FILE_DIRTY
+- Rename NR_MAPPED -> NR_FILE_MAPPED
+- Rename NR_PAGECACHE -> NR_FILE_PAGES
+- Rename NR_ANON -> NR_ANON_PAGES
+- Update strings displayed in /proc files but leave established strings as is.
+
+V5->V6
+- Restore the removal of individual counters from the page state that
+  was deferred into a later patch when going from V2->V3. This also
+  caused the removal of get_page_state_node and get_page_state() to
+  drop out of the patch that converted nr_unstable.
+- Fix mailing list address.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
