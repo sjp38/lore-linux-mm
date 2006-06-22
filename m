@@ -1,221 +1,151 @@
-Date: Thu, 22 Jun 2006 09:41:17 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060622164117.28809.4346.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060622164004.28809.8446.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 14/14] Remove useless struct wbs
+Date: Thu, 22 Jun 2006 18:55:51 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/3] radix-tree: RCU lockless readside
+Message-ID: <20060622165551.GB23109@wotan.suse.de>
+References: <20060408134635.22479.79269.sendpatchset@linux.site> <20060408134707.22479.33814.sendpatchset@linux.site> <20060622014949.GA2202@us.ibm.com> <20060622154518.GA23109@wotan.suse.de> <20060622163032.GC1295@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060622163032.GC1295@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-Subject: zoned vm counters: remove useless writeback structure
-From: Christoph Lameter <clameter@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
+To: "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul McKenney <Paul.McKenney@us.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Remove writeback state
+On Thu, Jun 22, 2006 at 09:30:32AM -0700, Paul E. McKenney wrote:
+> On Thu, Jun 22, 2006 at 05:45:18PM +0200, Nick Piggin wrote:
+> > 
+> > I'll probably put a little table in radix-tree.h to summarise the
+> > API synchronisation requirements, OK?
+> 
+> Makes sense to me -- except will that feed into the docbook stuff?
+> It seems to me to be really important to get these sorts of requirements
+> included in the docbook stuff.  I have had too many people show me
+> code that assumed that RCU somehow synchronizes updates, so it is
+> good to call out these requirements early and often.
 
-We can remove some functions now that were needed to calculate the page state
-for writeback control since these statistics are now directly available.
+I'm not a docbook expert, but that's a good point. Will RFComments
+on the comments when I'm done ;)
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
-Index: linux-2.6.17-mm1/mm/page-writeback.c
-===================================================================
---- linux-2.6.17-mm1.orig/mm/page-writeback.c	2006-06-21 07:45:22.931676221 -0700
-+++ linux-2.6.17-mm1/mm/page-writeback.c	2006-06-21 07:45:30.543509618 -0700
-@@ -99,23 +99,6 @@ EXPORT_SYMBOL(laptop_mode);
- 
- static void background_writeout(unsigned long _min_pages);
- 
--struct writeback_state
--{
--	unsigned long nr_dirty;
--	unsigned long nr_unstable;
--	unsigned long nr_mapped;
--	unsigned long nr_writeback;
--};
--
--static void get_writeback_state(struct writeback_state *wbs)
--{
--	wbs->nr_dirty = global_page_state(NR_FILE_DIRTY);
--	wbs->nr_unstable = global_page_state(NR_UNSTABLE_NFS);
--	wbs->nr_mapped = global_page_state(NR_FILE_MAPPED) +
--				global_page_state(NR_ANON_PAGES);
--	wbs->nr_writeback = global_page_state(NR_WRITEBACK);
--}
--
- /*
-  * Work out the current dirty-memory clamping and background writeout
-  * thresholds.
-@@ -134,8 +117,8 @@ static void get_writeback_state(struct w
-  * clamping level.
-  */
- static void
--get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
--		struct address_space *mapping)
-+get_dirty_limits(long *pbackground, long *pdirty,
-+					struct address_space *mapping)
- {
- 	int background_ratio;		/* Percentages */
- 	int dirty_ratio;
-@@ -145,8 +128,6 @@ get_dirty_limits(struct writeback_state 
- 	unsigned long available_memory = total_pages;
- 	struct task_struct *tsk;
- 
--	get_writeback_state(wbs);
--
- #ifdef CONFIG_HIGHMEM
- 	/*
- 	 * If this mapping can only allocate from low memory,
-@@ -157,7 +138,9 @@ get_dirty_limits(struct writeback_state 
- #endif
- 
- 
--	unmapped_ratio = 100 - (wbs->nr_mapped * 100) / total_pages;
-+	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
-+				global_page_state(NR_ANON_PAGES)) * 100) /
-+					total_pages;
- 
- 	dirty_ratio = vm_dirty_ratio;
- 	if (dirty_ratio > unmapped_ratio / 2)
-@@ -190,7 +173,6 @@ get_dirty_limits(struct writeback_state 
-  */
- static void balance_dirty_pages(struct address_space *mapping)
- {
--	struct writeback_state wbs;
- 	long nr_reclaimable;
- 	long background_thresh;
- 	long dirty_thresh;
-@@ -207,11 +189,12 @@ static void balance_dirty_pages(struct a
- 			.nr_to_write	= write_chunk,
- 		};
- 
--		get_dirty_limits(&wbs, &background_thresh,
--					&dirty_thresh, mapping);
--		nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
--		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
--			break;
-+		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
-+		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-+					global_page_state(NR_UNSTABLE_NFS);
-+		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <=
-+			dirty_thresh)
-+				break;
- 
- 		if (!dirty_exceeded)
- 			dirty_exceeded = 1;
-@@ -224,11 +207,14 @@ static void balance_dirty_pages(struct a
- 		 */
- 		if (nr_reclaimable) {
- 			writeback_inodes(&wbc);
--			get_dirty_limits(&wbs, &background_thresh,
--					&dirty_thresh, mapping);
--			nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
--			if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
--				break;
-+			get_dirty_limits(&background_thresh,
-+					 	&dirty_thresh, mapping);
-+			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-+					global_page_state(NR_UNSTABLE_NFS);
-+			if (nr_reclaimable +
-+				global_page_state(NR_WRITEBACK)
-+					<= dirty_thresh)
-+						break;
- 			pages_written += write_chunk - wbc.nr_to_write;
- 			if (pages_written >= write_chunk)
- 				break;		/* We've done our duty */
-@@ -236,8 +222,9 @@ static void balance_dirty_pages(struct a
- 		blk_congestion_wait(WRITE, HZ/10);
- 	}
- 
--	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh && dirty_exceeded)
--		dirty_exceeded = 0;
-+	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
-+		<= dirty_thresh && dirty_exceeded)
-+			dirty_exceeded = 0;
- 
- 	if (writeback_in_progress(bdi))
- 		return;		/* pdflush is already working this queue */
-@@ -299,12 +286,11 @@ EXPORT_SYMBOL(balance_dirty_pages_rateli
- 
- void throttle_vm_writeout(void)
- {
--	struct writeback_state wbs;
- 	long background_thresh;
- 	long dirty_thresh;
- 
-         for ( ; ; ) {
--		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
-+		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
- 
-                 /*
-                  * Boost the allowable dirty threshold a bit for page
-@@ -312,8 +298,9 @@ void throttle_vm_writeout(void)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
- 
--                if (wbs.nr_unstable + wbs.nr_writeback <= dirty_thresh)
--                        break;
-+                if (global_page_state(NR_UNSTABLE_NFS) +
-+			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-+                        	break;
-                 blk_congestion_wait(WRITE, HZ/10);
-         }
- }
-@@ -335,12 +322,12 @@ static void background_writeout(unsigned
- 	};
- 
- 	for ( ; ; ) {
--		struct writeback_state wbs;
- 		long background_thresh;
- 		long dirty_thresh;
- 
--		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
--		if (wbs.nr_dirty + wbs.nr_unstable < background_thresh
-+		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
-+		if (global_page_state(NR_FILE_DIRTY) +
-+			global_page_state(NR_UNSTABLE_NFS) < background_thresh
- 				&& min_pages <= 0)
- 			break;
- 		wbc.encountered_congestion = 0;
-@@ -364,12 +351,9 @@ static void background_writeout(unsigned
-  */
- int wakeup_pdflush(long nr_pages)
- {
--	if (nr_pages == 0) {
--		struct writeback_state wbs;
--
--		get_writeback_state(&wbs);
--		nr_pages = wbs.nr_dirty + wbs.nr_unstable;
--	}
-+	if (nr_pages == 0)
-+		nr_pages = global_page_state(NR_FILE_DIRTY) +
-+				global_page_state(NR_UNSTABLE_NFS);
- 	return pdflush_operation(background_writeout, nr_pages);
- }
- 
-@@ -400,7 +384,6 @@ static void wb_kupdate(unsigned long arg
- 	unsigned long start_jif;
- 	unsigned long next_jif;
- 	long nr_to_write;
--	struct writeback_state wbs;
- 	struct writeback_control wbc = {
- 		.bdi		= NULL,
- 		.sync_mode	= WB_SYNC_NONE,
-@@ -412,11 +395,11 @@ static void wb_kupdate(unsigned long arg
- 
- 	sync_supers();
- 
--	get_writeback_state(&wbs);
- 	oldest_jif = jiffies - dirty_expire_interval;
- 	start_jif = jiffies;
- 	next_jif = start_jif + dirty_writeback_interval;
--	nr_to_write = wbs.nr_dirty + wbs.nr_unstable +
-+	nr_to_write = global_page_state(NR_FILE_DIRTY) +
-+			global_page_state(NR_UNSTABLE_NFS) +
- 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
- 	while (nr_to_write > 0) {
- 		wbc.encountered_congestion = 0;
+> > 
+> > Does the single rcu_dereference in radix_tree_gang_lookup look OK?
+> 
+> Well, it does put a memory barrier in the right place on Alpha, but the
+> intent would be more clear to me if the rcu_dereference() were on the
+> assignments to each element of the results array.  And there would be
+> no additional overhead on most architectures.
+> 
+> So I would much prefer the rcu_dereference() be on the assignment to
+> the results array.
+
+No problem, will change.
+
+> > Ah indeed, that's confusing. Yes, the lookup_tag must exclude updates.
+> > I guess I got too mechanical in my conversion... however, tag lookups
+> > can be RCUified without a great deal of trouble, so I might take this
+> > opportunity.
+> 
+> The tag lookups would then find anything that (1) had been tagged in a
+> prior operation and (2) had not been deleted in the meantime, right?
+
+Yes. Where "prior" is only really prior as guaranteed by some
+synchronising (or otherwise dependent) operation. But I don't
+need to tell you that ;)
+
+> And the caller could hold a lock across both the tagging and tag
+> lookup if greater certainty was desired.  I could imagine this sort
+> of semantic being useful for deferred operations on ranges of memory,
+> where new additions would have the operation implicit in creation and any
+> deletions would no longer need the operation to be performed (or might
+> be performed as part of deletion operation), but have not actually used
+> this sort of thing myself.
+> 
+> So I must defer to people who have used tagging and tagged lookups
+> in anger.
+
+We use tagged lookups for writeout and synching -- slow IO related
+which is why I had not converted it over to lockless. But it could
+use lockless tagged lookups: eg. so long as sync catches all the
+pages that we *know* to be dirty at the time of the sync, that's
+fine.
+
+> > I've tried to get that message across in the radix_tree_lookup_slot
+> > comment, if they're using RCU lookups. Enough? I guess I'll add it
+> > to the locking summary too.
+> 
+> This is what I saw in the radix_tree_lookup_slot() comment:
+> 
+> + *   radix_tree_lookup_slot    -    lookup a slot in a radix tree
+> + *   @root:          radix tree root
+> + *   @index:         index key
+> + *
+> + *   Lookup the slot corresponding to the position @index in the radix tree
+> + *   @root. This is useful for update-if-exists operations.
+> + *
+> + *   This function cannot be called under rcu_read_lock, it must be
+> + *   excluded from writers, as must the returned slot.
+> 
+> This comment does not make the RCU-protection point clear to me.
+> The constraint is that if you use RCU radix-tree lookups, then you must
+> use synchronize_rcu() or call_rcu() when freeing any elements removed
+> from the radix tree via radix_tree_delete().
+> 
+> Or am I missing something here?
+
+Well the pagecache uses pointers to struct page. struct page is never
+freed, so we can forget the whole thing ;)
+(mem unplug may want to free them, so in that case they would have to
+synchronize_rcu).
+
+But I guess for less specialised users, RCU would be the usual way to
+go... ah I see, I must have got out of synch somewhere. I have comments
+along these lines for radix_tree_lookup_slot:
+
++ *     This function can be called under rcu_read_lock, however it is the
++ *     duty of the caller to manage the lifetimes of the leaf nodes (ie.
++ *     they would usually be RCU protected as well). Also, dereferencing
++ *     the slot pointer would require rcu_dereference, and modifying it
++ *     would require rcu_assign_pointer.
+
+
+
+> > > Rough notes, FYA:
+> 
+> You went through all these as well?  Hope you have recovered from the
+> bout of insomnia!  ;-)
+
+Pretty well gone through them.
+
+> 
+> > > o	Don't the items placed into the radix tree need to be protected
+> > > 	by RCU?  If not, how does the radix tree avoid handing a pointer
+> > > 	to something that has recently been removed, that the caller to
+> > > 	radix_tree_delete() might have already freed?
+> > 
+> > Yes, they'll need to be protected by something. In the lockless pagecache,
+> > they are never freed, so that isn't an issue. But other users (Ben's
+> > irq patch perhaps, unless it uses the slot pointers directly) will have to
+> > be careful.
+> 
+> Ah!  If they are never freed, there is still a need to take care when
+> reusing them.  One approach is to prevent them from being reused until
+> after a grace period has elapsed, another is to use revalidation checks
+> after lookup.  Either way, one needs to allow for the fact that a
+> lookup might hand you something that has just been deleted.
+
+Yep, validation checks are done after lookup. The core of it, the
+``page_cache_get_speculative'' function isn't that big.
+
+> > I'll send out an incremental diff with changes.
+> 
+> Looking forward to it!  Maybe not as anxiously as Ben Herrenschmidt, but
+> so it goes.  ;-)
+
+Well I couldn't ask you to spend any more time on it, but if you
+get interested and take a peek, that'll be a bonus for me ;)
+
+Thanks again
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
