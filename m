@@ -1,32 +1,29 @@
-In-reply-to: <Pine.LNX.4.64.0606231042350.6483@g5.osdl.org> (message from
-	Linus Torvalds on Fri, 23 Jun 2006 10:49:15 -0700 (PDT))
+Message-ID: <449C2EC2.8050602@google.com>
+Date: Fri, 23 Jun 2006 11:11:14 -0700
+From: Martin Bligh <mbligh@google.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
-References: <20060619175243.24655.76005.sendpatchset@lappy>
- <20060619175253.24655.96323.sendpatchset@lappy>
- <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
- <1151019590.15744.144.camel@lappy> <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>
- <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com> <Pine.LNX.4.64.0606231042350.6483@g5.osdl.org>
-Message-Id: <E1Ftq54-0002Og-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Fri, 23 Jun 2006 20:08:34 +0200
+References: <20060619175243.24655.76005.sendpatchset@lappy>  <20060619175253.24655.96323.sendpatchset@lappy>  <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>  <1151019590.15744.144.camel@lappy>  <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>  <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com>  <Pine.LNX.4.64.0606230955230.6265@schroedinger.engr.sgi.com> <1151083338.30819.28.camel@lappy> <Pine.LNX.4.64.0606231048020.6519@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0606231048020.6519@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@osdl.org
-Cc: hugh@veritas.com, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> Well, I've got two reasons to want to fast-track it:
+>>I intent to make swap over NFS work next.
 > 
->  - it's exactly what I wanted to see, so I'm obviously personally happy 
->    with the patch
+> 
+> I am still a bit unclear on what you mean by "work." The only 
+> issue may be to consider the amount of swap pages about to be written out 
+> for write throttling.
 
-Heh, IIRC you rejected the idea of doing a fault on dirtying for
-performance reasons, during the discussion of VM deadlocks in FUSE.
+I had assumed this was a sick joke. Please tell me people aren't
+really swapping over NFS. That's *insane*.
 
-Anyway, I'm more than happy, since David and Peter basically solved
-the problem, so shared writable mappings should now be possible to do.
-
-Miklos
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
