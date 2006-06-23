@@ -1,67 +1,37 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k5NHDxll021472
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2006 13:14:00 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k5NHDx6g288406
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2006 13:13:59 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k5NHDxOr003681
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2006 13:13:59 -0400
-Subject: Re: [RFC] patch [1/1] x86_64 numa aware sparsemem add_memory
-	functinality
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1150868581.8518.28.camel@keithlap>
-References: <1150868581.8518.28.camel@keithlap>
+Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0606230955230.6265@schroedinger.engr.sgi.com>
+References: <20060619175243.24655.76005.sendpatchset@lappy>
+	 <20060619175253.24655.96323.sendpatchset@lappy>
+	 <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
+	 <1151019590.15744.144.camel@lappy>
+	 <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>
+	 <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com>
+	 <Pine.LNX.4.64.0606230955230.6265@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 23 Jun 2006 10:13:53 -0700
-Message-Id: <1151082833.10877.13.camel@localhost.localdomain>
+Date: Fri, 23 Jun 2006 19:22:18 +0200
+Message-Id: <1151083338.30819.28.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kmannth@us.ibm.com
-Cc: lhms-devel <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, konrad <darnok@us.ibm.com>, Prarit Bhargava--redhat <prarit@redhat.com>, ak@suse.de
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
->  int add_memory(u64 start, u64 size)
->  {
-> -       struct pglist_data *pgdat = NODE_DATA(0);
-> +       struct pglist_data *pgdat = NODE_DATA(new_memory_to_node(start,start+size));
->         struct zone *zone = pgdat->node_zones + MAX_NR_ZONES-2;
+On Fri, 2006-06-23 at 10:00 -0700, Christoph Lameter wrote:
 
-How about just having new_memory_to_node() take the range and return the
-pgdat?  Should make that line a bit shorter.
+> Also Peter has made the tracking configurable. So there is a way
+> to switch it off if it is harmful for some situations.
 
-> -#ifndef RESERVE_HOTADD 
-> +#if !defined(RESERVE_HOTADD) && !defined(CONFIG_MEMORY_HOTPLUG)
->  #define hotadd_percent 0       /* Ignore all settings */
->  #endif
->  static u8 pxm2node[256] = { [0 ... 255] = 0xff };
-> @@ -219,9 +219,9 @@
->         allocated += mem;
->         return 1;
->  }
-> -
-> +#endif
->  /*
+Oh?
 
-Could this use another Kconfig option which gives a name to this
-condition?
+> You mean anonymous pages? Anonymous pages are always dirty unless
+> you consider swap and we currently do not take account of dirty anonymous 
+> pages. With swap we already have performance problems and maybe there are
+> additional issues to fix in that area. But these are secondary.
 
-> +#ifdef RESERVE_HOTADD
->         if (!hotadd_enough_memory(&nodes_add[node]))  {
->                 printk(KERN_ERR "SRAT: Hotplug area too large\n");
->                 return -1;
->         }
-> -
-> +#endif 
-
-This #ifdef is probably better handled by an #ifdef in the header for
-hotadd_enough_memory().
-
--- Dave
+I intent to make swap over NFS work next.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
