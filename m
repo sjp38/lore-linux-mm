@@ -1,8 +1,8 @@
-Date: Fri, 23 Jun 2006 10:52:08 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 23 Jun 2006 10:56:44 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
 In-Reply-To: <1151083338.30819.28.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0606231048020.6519@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0606231055520.6483@g5.osdl.org>
 References: <20060619175243.24655.76005.sendpatchset@lappy>
  <20060619175253.24655.96323.sendpatchset@lappy>
  <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
@@ -15,30 +15,17 @@ Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
+
 On Fri, 23 Jun 2006, Peter Zijlstra wrote:
-
-> On Fri, 2006-06-23 at 10:00 -0700, Christoph Lameter wrote:
-> 
-> > Also Peter has made the tracking configurable. So there is a way
-> > to switch it off if it is harmful for some situations.
-> 
-> Oh?
-
-mapping_cap_account_dirty is not a way for a fs to switch this on and off?
-
-> > You mean anonymous pages? Anonymous pages are always dirty unless
-> > you consider swap and we currently do not take account of dirty anonymous 
-> > pages. With swap we already have performance problems and maybe there are
-> > additional issues to fix in that area. But these are secondary.
 > 
 > I intent to make swap over NFS work next.
 
-I am still a bit unclear on what you mean by "work." The only 
-issue may be to consider the amount of swap pages about to be written out 
-for write throttling.
+Doesn't it work already? Is there some throttling that doesn't work?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
