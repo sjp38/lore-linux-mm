@@ -1,5 +1,5 @@
-Message-ID: <449BA06A.2030507@yahoo.com.au>
-Date: Fri, 23 Jun 2006 18:03:54 +1000
+Message-ID: <449BA8BB.3070402@yahoo.com.au>
+Date: Fri, 23 Jun 2006 18:39:23 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [patch 3/3] radix-tree: RCU lockless readside
@@ -69,17 +69,40 @@ Andrew Morton wrote:
 > 
 > Not sure why, either.  It all looks like an equivalent transformation to
 > me.
-
-Ahh crap, sorry.
-
-I'll see if I can work it out. Will make another good addition to
-rtth (which I'm going to have to sort out and get synched up with
-you soon).
-
 > 
 > fwiw, here's what I tested:
 
-Thanks.
+
+Arggh, line 755 has an extra semicolon. I caught and fixed this in the rtth
+tree, but obviously forgot to transfer it over.
+
+> @@ -741,15 +740,19 @@ __lookup_tag(struct radix_tree_node *slo
+>  			for ( ; j < RADIX_TREE_MAP_SIZE; j++) {
+>  				index++;
+>  				if (tag_get(slot, tag, j)) {
+> -					BUG_ON(slot->slots[j] == NULL);
+> -					results[nr_found++] = slot->slots[j];
+> -					if (nr_found == max_items)
+> -						goto out;
+> +					struct radix_tree_node *node = slot->slots[j];
+> +					if (node) {
+> +						results[nr_found++] = rcu_dereference(node);
+> +						if (nr_found == max_items)
+> +							goto out;
+> +					}
+>  				}
+>  			}
+>  		}
+>  		shift -= RADIX_TREE_MAP_SHIFT;
+> -		slot = slot->slots[i];
+> +		slot = rcu_dereference(slot->slots[i]);
+> +		if (slot == NULL);
+> +			break;
+>  	}
+
+                          ^^^^^^^^
+
+Up there.
 
 -- 
 SUSE Labs, Novell Inc.
