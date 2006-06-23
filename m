@@ -1,30 +1,32 @@
-Date: Fri, 23 Jun 2006 19:41:45 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
-Message-ID: <20060623184145.GA22172@infradead.org>
-References: <20060619175243.24655.76005.sendpatchset@lappy> <20060619175253.24655.96323.sendpatchset@lappy> <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com> <1151019590.15744.144.camel@lappy> <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org> <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com> <Pine.LNX.4.64.0606230955230.6265@schroedinger.engr.sgi.com> <1151083338.30819.28.camel@lappy> <Pine.LNX.4.64.0606231055520.6483@g5.osdl.org>
+Date: Fri, 23 Jun 2006 14:58:28 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: linux-mm remailer eats [PATCH xx/yy] subject lines?
+Message-ID: <20060623185828.GB13617@kvack.org>
+References: <Pine.LNX.4.64.0606221141450.30988@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0606231055520.6483@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0606221141450.30988@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 23, 2006 at 10:56:44AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 23 Jun 2006, Peter Zijlstra wrote:
-> > 
-> > I intent to make swap over NFS work next.
-> 
-> Doesn't it work already? Is there some throttling that doesn't work?
+On Thu, Jun 22, 2006 at 11:43:50AM -0700, Christoph Lameter wrote:
+> We noticed that many of my emails to this list have the [PATCH ...] 
+> subject part removed from it. The mails to lkml arrive just fine. The cc 
+> that I am getting is also okay. Anyone have a clue?
 
-With the current code it definitly doesn't.  The swap code calls ->bmap
-to do block mappings at swapon time and then uses bios directly. This
-obviously can't work on anything but blockdevice-based filesystems.
+That shouldn't be happening unless bogofilter is catching it as spam.  The 
+few items that are marked unsure are usually approved by me within a short 
+period of time.  If you have a particular example, I can dig through the 
+logs to see what happened.
+
+		-ben
+-- 
+"Time is of no importance, Mr. President, only life is important."
+Don't Email: <dont@kvack.org>.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
