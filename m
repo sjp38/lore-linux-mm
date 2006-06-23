@@ -1,36 +1,47 @@
-Message-ID: <40251800059346.67596546F4@VNK1JD>
-From: "Fritz" <RaquelHugginsz1@counsellor.com>
-Subject: Hot and new Better degree - better pay
-Date: Fri, 23 Jun 2006 22:00:28 +0900
-MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
-Return-Path: <PatsyHigginscd@artlover.com>
-To: linux-mm@kvack.org
+Date: Fri, 23 Jun 2006 11:08:08 -0400
+From: Jeff Dike <jdike@addtoit.com>
+Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
+Message-ID: <20060623150808.GA4427@ccure.user-mode-linux.org>
+References: <20060619175243.24655.76005.sendpatchset@lappy> <20060619175253.24655.96323.sendpatchset@lappy> <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com> <1151019590.15744.144.camel@lappy> <20060623031012.GA8395@ccure.user-mode-linux.org> <20060622203123.affde061.akpm@osdl.org> <449B6790.9010806@zytor.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <449B6790.9010806@zytor.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@osdl.org>, a.p.zijlstra@chello.nl, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Degree - higher pay
-Fa st Trac k De gree Pr ogram
+On Thu, Jun 22, 2006 at 09:01:20PM -0700, H. Peter Anvin wrote:
+> No, it's not.  It's a problem with O=, apparently; this patch fixes it:
+> 
+> http://www.kernel.org/git/?p=linux/kernel/git/hpa/linux-2.6-klibc.git;a=commitdiff;h=4e51186fb663b57ac7c53517947510d2e1e9de01;hp=79317ba49e3f83d40f37b59fcdd5bd7c7635ee32
 
-Obtain the de gree you deserve, based on your present knowledge and life
-experience. A prosperous future, money earning power, and the Admiration of all.
+That works, thanks!
 
-Deg rees from an Established, Prestigi ous, Leading Institution.
-Your de gree will show exactly what you really can do.
+Back to the original problem - 2.6.17-mm1 UML not booting.  If you add
+stderr=1 to the command line, you'll see this:
 
-Get the Job, Promotion, Business Opportunity and Social Advancement you Desire!
-Eliminates classrooms and traveling.
+	timer_init : request_irq failed - errno = 38
+	NET: Registered protocol family 2
+	irq 0, desc: 081debe0, depth: 0, count: 0, unhandled: 0
+	->handle_irq():  0808af80, handle_bad_irq+0x0/0x1b7
+	->chip(): 081d9320, 0x81d9320
+	->action(): 00000000
+	   IRQ_NOPROBE set
+	unexpected IRQ 00
+	BUG: failure at include2/asm/hardirq.h:22/ack_bad_irq()!
+	Kernel panic - not syncing: BUG!
 
-Achieve your Ba chelors, Maste rs, M BA, or Ph D
-in the field of your expertise.
+which means that the genirq stuff needs UML work, which I was working
+on anyway because UML could already be made to crash like this.
+Except now, it always does.
 
-Professional and affordable! Call now - your Graduatio n is a phone call away.
+				Jeff
 
-Please call:
-  1-206-600-6825 
-Calls returned promptly
-
-
-
-Appearances are deceptive  Many people know how to say nothing; few know when All lay loads on a willing horse! The female of the species is more deadly than the male Beauty is in the eye of the beholder See Naples and die Give Neither Counsel Nor Salt till You Are Asked For It To the jaundiced eye all things look yellow Life is just a bowl of cherries.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
