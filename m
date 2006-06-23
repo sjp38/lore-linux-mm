@@ -1,59 +1,32 @@
-Date: Fri, 23 Jun 2006 08:27:02 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
-In-Reply-To: <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>
-Message-ID: <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com>
-References: <20060619175243.24655.76005.sendpatchset@lappy>
- <20060619175253.24655.96323.sendpatchset@lappy>
- <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
- <1151019590.15744.144.camel@lappy> <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>
+Message-ID: <449B98D1.3010005@namesys.com>
+Date: Fri, 23 Jun 2006 00:31:29 -0700
+From: Hans Reiser <reiser@namesys.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm/tracking dirty pages: update get_dirty_limits for
+ mmap tracking
+References: <5c49b0ed0606211001s452c080cu3f55103a130b78f1@mail.gmail.com>	 <20060621180857.GA6948@wotan.suse.de> <5c49b0ed0606211525i57628af5yaef46ee4e1820339@mail.gmail.com>
+In-Reply-To: <5c49b0ed0606211525i57628af5yaef46ee4e1820339@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
+To: Nate Diller <nate.diller@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Linus Torvalds <torvalds@osdl.org>, "E. Gryaznova" <grev@namesys.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jun 2006, Linus Torvalds wrote:
-> On Fri, 23 Jun 2006, Peter Zijlstra wrote:
-> >
-> > Preview of the goodness,
-> 
-> Do people agree about this thing? If we want it in 2.6.18, we should merge 
-> this soon. I'd prefer to not leave something like this to be a last-minute 
-> thing before the merge window closes, and I get the feeling that we're 
-> getting to where this should just go in sooner rather than later.
-> 
-> Comments? Hugh, does the last version address all your concerns?
+Nate, you should note that A: increasing to 80% was my idea, and B: the
+data from the benchmarks provide no indication that it is a good idea.
 
-Not even looked at the preview yet, but as far as mechanism goes,
-I'm sure it won't be worse than a few fixups away from good.
+That said, it is very possible that C: the benchmark is flawed, because
+the variance is so high that I am suspicious that something is wrong
+with the benchmark, and D: that the implementation is flawed in some way
+we don't yet see.
 
-However, I've never understood why it should be fasttracked into
-2.6.18: we usually let such patchsets cook for a cycle in -mm.
-2.6.N-rc can get wider exposure than 2.6.(N-1)-mm, reveal problems
-missed all the while in -mm, but a cycle in -mm is still worthwhile.
+All that said, I cannot say that we have anything here that suggests the
+change is a good change.   My intuition says it should be a good change,
+but the data does not.  Not yet. 
 
-My pathetically slow responses have hindered Peter's good work, yes,
-but I don't think they've affected the overall appropriate timing.
-
-Is there any particular reason why 2.6.18 rather than 2.6.19 be
-the release that fixes this issue that's been around forever?
-
-And have we even seen stats for it yet?  We know that it shouldn't
-affect the vast majority of loads (not mapping shared writable), but
-it won't be fixing any problem on them either; and we've had reports
-that it does fix the issue, but at what perf cost? (I may have missed)
-
-Several people also have doubts as to whether it's right to be
-focussing just on shared writable here, whether the private also
-needs tweaking.  I'm undecided.  Can be considered a separate
-issue, but a cycle in -mm would help settle that question too.
-
-But if you want to push for 2.6.18, I won't be aggrieved.
-
-Hugh
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
