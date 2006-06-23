@@ -1,44 +1,53 @@
-Date: Fri, 23 Jun 2006 11:08:08 -0400
-From: Jeff Dike <jdike@addtoit.com>
+Date: Fri, 23 Jun 2006 10:00:56 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] mm: tracking shared dirty pages -v10
-Message-ID: <20060623150808.GA4427@ccure.user-mode-linux.org>
-References: <20060619175243.24655.76005.sendpatchset@lappy> <20060619175253.24655.96323.sendpatchset@lappy> <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com> <1151019590.15744.144.camel@lappy> <20060623031012.GA8395@ccure.user-mode-linux.org> <20060622203123.affde061.akpm@osdl.org> <449B6790.9010806@zytor.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <449B6790.9010806@zytor.com>
+In-Reply-To: <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0606230955230.6265@schroedinger.engr.sgi.com>
+References: <20060619175243.24655.76005.sendpatchset@lappy>
+ <20060619175253.24655.96323.sendpatchset@lappy>
+ <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
+ <1151019590.15744.144.camel@lappy> <Pine.LNX.4.64.0606222305210.6483@g5.osdl.org>
+ <Pine.LNX.4.64.0606230759480.19782@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@osdl.org>, a.p.zijlstra@chello.nl, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de, torvalds@osdl.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 22, 2006 at 09:01:20PM -0700, H. Peter Anvin wrote:
-> No, it's not.  It's a problem with O=, apparently; this patch fixes it:
-> 
-> http://www.kernel.org/git/?p=linux/kernel/git/hpa/linux-2.6-klibc.git;a=commitdiff;h=4e51186fb663b57ac7c53517947510d2e1e9de01;hp=79317ba49e3f83d40f37b59fcdd5bd7c7635ee32
+On Fri, 23 Jun 2006, Hugh Dickins wrote:
 
-That works, thanks!
+> Not even looked at the preview yet, but as far as mechanism goes,
+> I'm sure it won't be worse than a few fixups away from good.
 
-Back to the original problem - 2.6.17-mm1 UML not booting.  If you add
-stderr=1 to the command line, you'll see this:
+Sounds good.
+ 
+> And have we even seen stats for it yet?  We know that it shouldn't
+> affect the vast majority of loads (not mapping shared writable), but
+> it won't be fixing any problem on them either; and we've had reports
+> that it does fix the issue, but at what perf cost? (I may have missed)
 
-	timer_init : request_irq failed - errno = 38
-	NET: Registered protocol family 2
-	irq 0, desc: 081debe0, depth: 0, count: 0, unhandled: 0
-	->handle_irq():  0808af80, handle_bad_irq+0x0/0x1b7
-	->chip(): 081d9320, 0x81d9320
-	->action(): 00000000
-	   IRQ_NOPROBE set
-	unexpected IRQ 00
-	BUG: failure at include2/asm/hardirq.h:22/ack_bad_irq()!
-	Kernel panic - not syncing: BUG!
+I do not think that statistics are that important. One of the primary
+advantages is that this fixes up a way to deadlock the machine through
+dirtying too many pages. The other side effect is that dirty page
+writeout can begin before an application terminates. We have had cases
+where dirty memory was sitting for weeks in a machine because the process
+did not terminate. These are major VM issues that need a resolution.
 
-which means that the genirq stuff needs UML work, which I was working
-on anyway because UML could already be made to crash like this.
-Except now, it always does.
+Also Peter has made the tracking configurable. So there is a way
+to switch it off if it is harmful for some situations.
 
-				Jeff
+> Several people also have doubts as to whether it's right to be
+> focussing just on shared writable here, whether the private also
+> needs tweaking.  I'm undecided.  Can be considered a separate
+> issue, but a cycle in -mm would help settle that question too.
+
+You mean anonymous pages? Anonymous pages are always dirty unless
+you consider swap and we currently do not take account of dirty anonymous 
+pages. With swap we already have performance problems and maybe there are
+additional issues to fix in that area. But these are secondary.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
