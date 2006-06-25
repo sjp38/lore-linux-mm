@@ -1,30 +1,31 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Use Zoned VM Counters for NUMA statistics V3
-Date: Sun, 25 Jun 2006 17:24:23 +0200
-References: <Pine.LNX.4.64.0606241650050.16114@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0606241650050.16114@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Sun, 25 Jun 2006 18:39:30 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] 2.6.17: lockless pagecache
+Message-ID: <20060625163930.GB3006@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200606251724.23783.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Remove the special statistics for numa and replace them with
-> zoned vm counters. This has the side effect that global sums of these 
-> events now show up in /proc/vmstat.
-> 
-> Also take the opportunity to move the zone_statistics() function from
-> page_alloc.c into vmstat.c.
+Updated lockless pagecache patchset available here:
 
-Ok for me.
+ftp://ftp.kernel.org/pub/linux/kernel/people/npiggin/patches/lockless/2.6.17/lockless.patch.gz
 
--Andi
+This should hopefully be my last release using the old (2.6.17)
+indirect radix-tree, and I'll switch to the direct radix-tree in
+future.
+
+Changes since last release:
+- lots of radix-tree cleanups and bugs fixed
+- radix-tree tag lookups may be lockless
+- added some missing memory barriers
+- lockless pagevec_lookup_tag
+
+The last item allowed me to remove the last few read-lockers,
+which is nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
