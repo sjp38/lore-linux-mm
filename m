@@ -1,78 +1,67 @@
-Received: by py-out-1112.google.com with SMTP id i49so1504805pyi
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2006 02:29:41 -0700 (PDT)
-Message-ID: <6bffcb0e0606260229i219d4f43m629986d5d3563ccb@mail.gmail.com>
-Date: Mon, 26 Jun 2006 11:29:41 +0200
-From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
-Subject: Re: [patch] 2.6.17: lockless pagecache
-In-Reply-To: <449F7857.4070806@yahoo.com.au>
+Date: Mon, 26 Jun 2006 16:35:10 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 0/5] mm: tracking dirty pages -v11
+In-Reply-To: <20060623223103.11513.50991.sendpatchset@lappy>
+Message-ID: <Pine.LNX.4.64.0606261603260.17119@blonde.wat.veritas.com>
+References: <20060623223103.11513.50991.sendpatchset@lappy>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20060625163930.GB3006@wotan.suse.de>
-	 <6bffcb0e0606251026gbd121dam83c1b763b8cba02d@mail.gmail.com>
-	 <449F7857.4070806@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On 26/06/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> Michal Piotrowski wrote:
-> > Hi Nick,
-> >
-> > On 25/06/06, Nick Piggin <npiggin@suse.de> wrote:
-> >
-> >> Updated lockless pagecache patchset available here:
-> >>
-> >> ftp://ftp.kernel.org/pub/linux/kernel/people/npiggin/patches/lockless/2.6.17/lockless.patch.gz
-> >>
-> >>
-> >
-> > "make O=/dir oldconfig" doesn't work.
-> >
-> > [michal@ltg01-fedora linux-work]$ LANG="C" make O=../linux-work-obj/
-> > oldconfig
->
-> Hmm, I can't see how I did that.
->
-> npiggin@didi:~/x$ zcat lockless.patch.gz | diffstat
->   drivers/mtd/devices/block2mtd.c |    7 -
->   fs/buffer.c                     |    4
->   fs/inode.c                      |    2
->   include/asm-arm/cacheflush.h    |    4
->   include/asm-parisc/cacheflush.h |    4
->   include/linux/fs.h              |    2
->   include/linux/mm.h              |    6
->   include/linux/page-flags.h      |   26 ++--
->   include/linux/pagemap.h         |   74 ++++++++++++
->   include/linux/radix-tree.h      |   67 +++++++++++
->   include/linux/swap.h            |    1
->   lib/radix-tree.c                |  240 +++++++++++++++++++++++++++------------
->   mm/filemap.c                    |  242 ++++++++++++++++++++++++++++++----------
->   mm/hugetlb.c                    |    8 -
->   mm/migrate.c                    |   21 ++-
->   mm/page-writeback.c             |   40 ++----
->   mm/readahead.c                  |    7 -
->   mm/swap_state.c                 |   43 +++++--
->   mm/swapfile.c                   |    6
->   mm/truncate.c                   |    6
->   mm/vmscan.c                     |   20 ++-
->   21 files changed, 619 insertions(+), 211 deletions(-)
->
-> I recall there was a bit of noise recently about problems building
-> into an external working directory?
+On Sat, 24 Jun 2006, Peter Zijlstra wrote:
+> 
+> I hope to have addressed all Hugh's latest comments in this version.
+> Its against 2.6.17-mm1, however I wasted most of the day trying to 
+> test it on that kernel. But due to various circumstances that failed.
 
-Sorry for noise - it's 2.6.17 problem. I didn't notice this.
+Looks good - I'm happy that we leave the do_wp_page test reordering
+(to fix up that third order ptrace poke issue) to a subsequent patch,
+it's better separated.
 
-Regards,
-Michal
+> So I've tested something like this against something 2.6.17'ish and 
+> respun against the -mm lineup.
 
--- 
-Michal K. K. Piotrowski
-LTG - Linux Testers Group
-(http://www.stardust.webpages.pl/ltg/wiki/)
+Your next (final?) spin should be against Linus' current git tree,
+http://ftp.kernel.org/pub/linux/kernel/v2.6/snapshots/patch-2.6.17-git10.bz2
+is the latest snapshot patch if you're not using git itself.  That will
+suit Andrew better too: he prefers patches against Linus' current tree,
+except when the changes are to work that's only in -mm.
+
+You ought to respin, because the vma_wants_writenotify mods in mprotect.c
+affect later patches in your series, giving rejects at present.  It does
+look _much_ better with Linus' vma_wants_writenotify.  I did think of
+asking you for that, but it seemed unfair because I knew you'd want
+to use it in mprotect, and then get in trouble with backing-dev.h:
+which you've solved by #including that now in mm.h - a pity,
+but an unavoidable decision.
+
+Given the reordering you had to make in mprotect_fixup to get its tests
+working right (a little naughty!), I'd now do away with the "mask"
+variable, and just work directly on "newflags" itself; but up to you.
+
+> I've taken Hugh's msync changes too, looks a lot better and does indeed
+> fix some boundary cases.
+
+Thanks for reviewing: please add my
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+to that msync one.
+
+In the respin of 1/5 you enquired:
+> Bah Bah Bah, why didn't the page_mkwrite() patch re-protect clean pages?
+> And is it a Bad-Thing (tm) that that can happen now?
+
+You'll need a reply from David for the definitive answer, but I think
+page_mkwrite is only wanting to know about the _first_ write to the
+page e.g. so that it can allocate space on disk for that page.  And
+many (most) calls to page_mkwrite won't be for that first write at
+all, the filesystem already has to work out the irrelevant calls:
+so it's no great problem that you'll be making some more such calls.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
