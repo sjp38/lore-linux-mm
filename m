@@ -1,31 +1,45 @@
-Message-ID: <44A01BBB.3070903@yahoo.com.au>
-Date: Tue, 27 Jun 2006 03:39:07 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Mon, 26 Jun 2006 11:09:33 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [rfc][patch] fixes for several oom killer problems
-References: <20060626162038.GB7573@wotan.suse.de>
+Message-Id: <20060626110933.8fe47858.pj@sgi.com>
 In-Reply-To: <20060626162038.GB7573@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+References: <20060626162038.GB7573@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "David S. Peterson" <dsp@llnl.gov>, Paul Jackson <pj@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, dsp@llnl.gov
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Hi,
-> 
-> We have reports of OOM killer panicing the system even if there are
-> tasks currently exiting and/or plenty able to be freed.
-> 
+Acked-by: Paul Jackson <pj@sgi.com>
 
-BTW, I should credit Jan Beulich with spotting some of the issues
-and helping to debug the problem.
++	/*
++	 * If p's nodes don't overlap ours, it may still help to kill p
++	 * because p may have allocated or otherwise mapped memory on
++	 * this node before. However it will be less likely.
++	 */
++	if (!cpuset_excl_nodes_overlap(p))
++		points /= 4;
+
+Good.
+
+
+ int cpuset_excl_nodes_overlap(const struct task_struct *p)
+ {
+ 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
+-	int overlap = 0;		/* do cpusets overlap? */
++	int overlap = 1;		/* do cpusets overlap? */
+
+Good.
+
+Thanks, Nick and Jan.
 
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
