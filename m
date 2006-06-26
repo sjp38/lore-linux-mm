@@ -1,67 +1,179 @@
-Date: Mon, 26 Jun 2006 16:35:10 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 0/5] mm: tracking dirty pages -v11
-In-Reply-To: <20060623223103.11513.50991.sendpatchset@lappy>
-Message-ID: <Pine.LNX.4.64.0606261603260.17119@blonde.wat.veritas.com>
-References: <20060623223103.11513.50991.sendpatchset@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 26 Jun 2006 18:20:38 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [rfc][patch] fixes for several oom killer problems
+Message-ID: <20060626162038.GB7573@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "David S. Peterson" <dsp@llnl.gov>, Paul Jackson <pj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Jun 2006, Peter Zijlstra wrote:
-> 
-> I hope to have addressed all Hugh's latest comments in this version.
-> Its against 2.6.17-mm1, however I wasted most of the day trying to 
-> test it on that kernel. But due to various circumstances that failed.
+Hi,
 
-Looks good - I'm happy that we leave the do_wp_page test reordering
-(to fix up that third order ptrace poke issue) to a subsequent patch,
-it's better separated.
+We have reports of OOM killer panicing the system even if there are
+tasks currently exiting and/or plenty able to be freed.
 
-> So I've tested something like this against something 2.6.17'ish and 
-> respun against the -mm lineup.
+The main problem is the cpuset_excl_nodes_overlap causing an immediate
+panic if current is exiting; I haven't got confirmation of whether
+or not a minimal patch for that is effective.
 
-Your next (final?) spin should be against Linus' current git tree,
-http://ftp.kernel.org/pub/linux/kernel/v2.6/snapshots/patch-2.6.17-git10.bz2
-is the latest snapshot patch if you're not using git itself.  That will
-suit Andrew better too: he prefers patches against Linus' current tree,
-except when the changes are to work that's only in -mm.
+The minimal patch basically involved ripping out the test completely.
+I'd rather something more comprehensive in mainline, and I spotted
+several other issues as well.
 
-You ought to respin, because the vma_wants_writenotify mods in mprotect.c
-affect later patches in your series, giving rejects at present.  It does
-look _much_ better with Linus' vma_wants_writenotify.  I did think of
-asking you for that, but it seemed unfair because I knew you'd want
-to use it in mprotect, and then get in trouble with backing-dev.h:
-which you've solved by #including that now in mm.h - a pity,
-but an unavoidable decision.
+---
 
-Given the reordering you had to make in mprotect_fixup to get its tests
-working right (a little naughty!), I'd now do away with the "mask"
-variable, and just work directly on "newflags" itself; but up to you.
+Fix several OOM killer problems.
 
-> I've taken Hugh's msync changes too, looks a lot better and does indeed
-> fix some boundary cases.
+Big ones:
+- cpuset_excl_nodes_overlap always returns 0 if current is exiting. This
+  caused customer's systems to panic in the OOM killer when processes were
+  having trouble getting memory for the final put_user in mm_release. Even
+  though there were lots of processes to kill. Fix this by just causing
+  cpuset_excl_nodes_overlap to reduce the badness rather than disallow it
+  (it may still be pinning memory somehow on this node or that this task
+  may use).
 
-Thanks for reviewing: please add my
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
-to that msync one.
+- If current *is* exiting, it should actually be allowed to access reserved
+  memory rather than OOM kill something else. Can't do this via a straight
+  check in page_alloc.c because that would allow multiple tasks to use up
+  reserves. Instead cause current to wind up marking itself as TIF_MEMDIE.
 
-In the respin of 1/5 you enquired:
-> Bah Bah Bah, why didn't the page_mkwrite() patch re-protect clean pages?
-> And is it a Bad-Thing (tm) that that can happen now?
+- In cpuset_excl_nodes_overlap, return 1 for PF_EXITING tasks. This retains
+  parity with !CONFIG_CPUSETS case.
 
-You'll need a reply from David for the definitive answer, but I think
-page_mkwrite is only wanting to know about the _first_ write to the
-page e.g. so that it can allocate space on disk for that page.  And
-many (most) calls to page_mkwrite won't be for that first write at
-all, the filesystem already has to work out the irrelevant calls:
-so it's no great problem that you'll be making some more such calls.
+Little ones:
+- PF_SWAPOFF processes cause select_bad_process to return straight away.
+  Instead, give them high priority and ensure no parallel OOM kills are
+  happening at the same time.
 
-Hugh
+- cpuset_exlc_nodes_overlap may still free up some memory we're allowed to
+  use. Kernel allocated memory, memory touched first by other processes or
+  when we were in a different group. Cause this just to minimise the
+  badness of a process.
+
+- Skip kernel threads, rather than having them return 0 from badness.
+  Theoretically, badness might truncate all results to 0, thus a kernel
+  thread might be picked first, causing an infinite loop.
+
+- Skip PF_DEAD tasks, for similar reasons.
+
+- Print the name of the task that invoked the OOM killer. Could make
+  debugging easier.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/mm/oom_kill.c
+===================================================================
+--- linux-2.6.orig/mm/oom_kill.c
++++ linux-2.6/mm/oom_kill.c
+@@ -57,6 +57,12 @@ unsigned long badness(struct task_struct
+ 	}
+ 
+ 	/*
++	 * swapoff can easily use up all memory, so kill those first.
++	 */
++	if (p->flags & PF_SWAPOFF)
++		return ULONG_MAX;
++
++	/*
+ 	 * The memory size of the process is the basis for the badness.
+ 	 */
+ 	points = mm->total_vm;
+@@ -125,6 +131,15 @@ unsigned long badness(struct task_struct
+ 	if (cap_t(p->cap_effective) & CAP_TO_MASK(CAP_SYS_RAWIO))
+ 		points /= 4;
+ 
++
++	/*
++	 * If p's nodes don't overlap ours, it may still help to kill p
++	 * because p may have allocated or otherwise mapped memory on
++	 * this node before. However it will be less likely.
++	 */
++	if (!cpuset_excl_nodes_overlap(p))
++		points /= 4;
++
+ 	/*
+ 	 * Adjust the score by oomkilladj.
+ 	 */
+@@ -190,25 +205,35 @@ static struct task_struct *select_bad_pr
+ 		unsigned long points;
+ 		int releasing;
+ 
++		/* skip kernel threads */
++		if (!p->mm)
++			continue;
+ 		/* skip the init task with pid == 1 */
+ 		if (p->pid == 1)
+ 			continue;
+-		if (p->oomkilladj == OOM_DISABLE)
+-			continue;
+-		/* If p's nodes don't overlap ours, it won't help to kill p. */
+-		if (!cpuset_excl_nodes_overlap(p))
+-			continue;
+ 
+ 		/*
+ 		 * This is in the process of releasing memory so for wait it
+ 		 * to finish before killing some other task by mistake.
++		 *
++		 * However, if p is the current task, we allow the 'kill' to
++		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
++		 * which will allow it to gain access to memory reserves in
++		 * the process of exiting and releasing its resources.
+ 		 */
+ 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
+ 						p->flags & PF_EXITING;
+-		if (releasing && !(p->flags & PF_DEAD))
++		if (releasing) {
++			/* PF_DEAD tasks have already released their mm */
++			if (p->flags & PF_DEAD)
++				continue;
++			if (p == current) {
++				chosen = p;
++				*ppoints = ULONG_MAX;
++				continue;
++			}
+ 			return ERR_PTR(-1UL);
+-		if (p->flags & PF_SWAPOFF)
+-			return p;
++		}
+ 
+ 		points = badness(p, uptime.tv_sec);
+ 		if (points > *ppoints || !chosen) {
+@@ -216,6 +241,7 @@ static struct task_struct *select_bad_pr
+ 			*ppoints = points;
+ 		}
+ 	} while_each_thread(g, p);
++
+ 	return chosen;
+ }
+ 
+@@ -319,8 +345,8 @@ void out_of_memory(struct zonelist *zone
+ 	unsigned long points = 0;
+ 
+ 	if (printk_ratelimit()) {
+-		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
+-			gfp_mask, order);
++		printk(KERN_WARNING "%s invoked oom-killer: "
++			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n", current->comm, gfp_mask, order, current->oomkilladj);
+ 		dump_stack();
+ 		show_mem();
+ 	}
+Index: linux-2.6/kernel/cpuset.c
+===================================================================
+--- linux-2.6.orig/kernel/cpuset.c
++++ linux-2.6/kernel/cpuset.c
+@@ -2362,7 +2362,7 @@ EXPORT_SYMBOL_GPL(cpuset_mem_spread_node
+ int cpuset_excl_nodes_overlap(const struct task_struct *p)
+ {
+ 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
+-	int overlap = 0;		/* do cpusets overlap? */
++	int overlap = 1;		/* do cpusets overlap? */
+ 
+ 	task_lock(current);
+ 	if (current->flags & PF_EXITING) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
