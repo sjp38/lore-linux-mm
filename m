@@ -1,43 +1,62 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k5RIjdOV010717
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 14:45:39 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k5RIjsan186436
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 12:45:54 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k5RIjcuZ007210
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 12:45:38 -0600
+Received: by wr-out-0506.google.com with SMTP id i11so282639wra
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2006 11:51:28 -0700 (PDT)
+Message-ID: <29495f1d0606271151w164202e8uce762b155a93ff1f@mail.gmail.com>
+Date: Tue, 27 Jun 2006 11:51:25 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
 Subject: Re: slow hugetlb from 2.6.15
-From: Badari Pulavarty <pbadari@gmail.com>
 In-Reply-To: <20060627182325.GE6380@blackhole.websupport.sk>
-References: <20060627182325.GE6380@blackhole.websupport.sk>
-Content-Type: text/plain
-Date: Tue, 27 Jun 2006 11:47:37 -0700
-Message-Id: <1151434062.8918.7.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20060627182325.GE6380@blackhole.websupport.sk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: stanojr@blackhole.websupport.sk
-Cc: linux-mm <linux-mm@kvack.org>
+To: "stanojr@blackhole.websupport.sk" <stanojr@blackhole.websupport.sk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-06-27 at 20:23 +0200, stanojr@blackhole.websupport.sk
-wrote:
+On 6/27/06, stanojr@blackhole.websupport.sk
+<stanojr@blackhole.websupport.sk> wrote:
 > hello
-> 
-> look at this benchmark http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
-> i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16 on that web
+>
+> look at this benchmark
+> http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
+> i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16 on
+> that web
 > (in comparing to standard 4kb page)
-> its feature or bug ? 
+> its feature or bug ?
+> i am just interested where can be hugepages used, but if they are slower than
+> normal pages its pointless to use it :)
 
-Most likely, its due to new feature - demand paging for large pages :)
-Doing mlock() on mmaped area help ?
+I believe your benchmark is measuring the time in such a way to make
+current kernels look worse than older ones.
+
+Basically, newer kernels (the ones that have the performance issue
+you're seeing) use demand faulting of hugepages.
+
+Thus, timing only the bench() call, as is done now, causes the newer
+kernels to appear to take longer, as the pages must be zero'd, and the
+page tables must be set up, as part of the bench() invocation (first
+use).
+
+In contrast, the older kernels would have done that up front, and thus
+that time was not being accounted for in the bench() run.
+
+There are a few ways to make sure this is the case:
+
+1) Time the mmap, bench and unmap calls all together.
+
+2) Add memset(addr, 1, LENGTH) and memset(addr, 0, LENGTH) calls
+*before* bench(), to fault in the hugepages before running bench().
+
+If the numbers return to normal after this, then the analysis above
+should be accurate. If not, we do have a problem.
+
+Thanks to Andy Whitcroft and Mel Gorman for insight into the potential problem.
 
 Thanks,
-Badari
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
