@@ -1,45 +1,25 @@
-Date: Mon, 26 Jun 2006 11:09:33 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [rfc][patch] fixes for several oom killer problems
-Message-Id: <20060626110933.8fe47858.pj@sgi.com>
-In-Reply-To: <20060626162038.GB7573@wotan.suse.de>
-References: <20060626162038.GB7573@wotan.suse.de>
+Date: Tue, 27 Jun 2006 20:23:25 +0200
+From: stanojr@blackhole.websupport.sk
+Subject: slow hugetlb from 2.6.15
+Message-ID: <20060627182325.GE6380@blackhole.websupport.sk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, dsp@llnl.gov
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Acked-by: Paul Jackson <pj@sgi.com>
+hello
 
-+	/*
-+	 * If p's nodes don't overlap ours, it may still help to kill p
-+	 * because p may have allocated or otherwise mapped memory on
-+	 * this node before. However it will be less likely.
-+	 */
-+	if (!cpuset_excl_nodes_overlap(p))
-+		points /= 4;
+look at this benchmark http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
+i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16 on that web
+(in comparing to standard 4kb page)
+its feature or bug ? 
+i am just interested where can be hugepages used, but if they are slower than normal pages
+its pointless to use it :) 
 
-Good.
-
-
- int cpuset_excl_nodes_overlap(const struct task_struct *p)
- {
- 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
--	int overlap = 0;		/* do cpusets overlap? */
-+	int overlap = 1;		/* do cpusets overlap? */
-
-Good.
-
-Thanks, Nick and Jan.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+stanojr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
