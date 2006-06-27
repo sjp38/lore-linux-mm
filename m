@@ -1,62 +1,43 @@
-Received: by wr-out-0506.google.com with SMTP id i11so282639wra
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2006 11:51:28 -0700 (PDT)
-Message-ID: <29495f1d0606271151w164202e8uce762b155a93ff1f@mail.gmail.com>
-Date: Tue, 27 Jun 2006 11:51:25 -0700
-From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
-Subject: Re: slow hugetlb from 2.6.15
-In-Reply-To: <20060627182325.GE6380@blackhole.websupport.sk>
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: slow hugetlb from 2.6.15
+Date: Tue, 27 Jun 2006 12:23:10 -0700
+Message-ID: <000001c69a1f$2171af00$e234030a@amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20060627182325.GE6380@blackhole.websupport.sk>
+In-Reply-To: <1151434062.8918.7.camel@dyn9047017100.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "stanojr@blackhole.websupport.sk" <stanojr@blackhole.websupport.sk>
-Cc: linux-mm@kvack.org
+To: 'Badari Pulavarty' <pbadari@gmail.com>, stanojr@blackhole.websupport.sk
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 6/27/06, stanojr@blackhole.websupport.sk
-<stanojr@blackhole.websupport.sk> wrote:
-> hello
->
-> look at this benchmark
-> http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
-> i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16 on
-> that web
-> (in comparing to standard 4kb page)
-> its feature or bug ?
-> i am just interested where can be hugepages used, but if they are slower than
-> normal pages its pointless to use it :)
+Badari Pulavarty wrote on Tuesday, June 27, 2006 11:48 AM
+> On Tue, 2006-06-27 at 20:23 +0200, stanojr@blackhole.websupport.sk wrote:
+> > hello
+> > 
+> > look at this benchmark http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
+> > i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16
+> > on that web (in comparing to standard 4kb page)
+> > its feature or bug ? 
+> 
+> Most likely, its due to new feature - demand paging for large pages :)
+> Doing mlock() on mmaped area help ?
 
-I believe your benchmark is measuring the time in such a way to make
-current kernels look worse than older ones.
 
-Basically, newer kernels (the ones that have the performance issue
-you're seeing) use demand faulting of hugepages.
+The original code measures not only the access time, but also page fault
+path, that explains the huge difference with hugetlb between 2.6.12 and
+2.6.16.  The former kernel prefaults, thus fault time is all done at mmap
+call and is not counted at all in the timing measurement, while the latter
+measurement includes faulting of hugetlb page.  Though it is a mystery to
+see that faulting on hugetlb page is significantly longer than faulting a
+normal page.
 
-Thus, timing only the bench() call, as is done now, causes the newer
-kernels to appear to take longer, as the pages must be zero'd, and the
-page tables must be set up, as part of the bench() invocation (first
-use).
+Yes, mlock() would take the variation out of the equation (if such call is
+made outside the measurement).
 
-In contrast, the older kernels would have done that up front, and thus
-that time was not being accounted for in the bench() run.
-
-There are a few ways to make sure this is the case:
-
-1) Time the mmap, bench and unmap calls all together.
-
-2) Add memset(addr, 1, LENGTH) and memset(addr, 0, LENGTH) calls
-*before* bench(), to fault in the hugepages before running bench().
-
-If the numbers return to normal after this, then the analysis above
-should be accurate. If not, we do have a problem.
-
-Thanks to Andy Whitcroft and Mel Gorman for insight into the potential problem.
-
-Thanks,
-Nish
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
