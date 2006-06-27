@@ -1,25 +1,23 @@
-Date: Tue, 27 Jun 2006 20:23:25 +0200
-From: stanojr@blackhole.websupport.sk
-Subject: slow hugetlb from 2.6.15
-Message-ID: <20060627182325.GE6380@blackhole.websupport.sk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 27 Jun 2006 20:28:01 +0200
+Message-Id: <20060627182801.20891.11456.sendpatchset@lappy>
+Subject: [PATCH 0/5] mm: tracking dirty pages -v13
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-hello
+Hi,
 
-look at this benchmark http://www-unix.mcs.anl.gov/~kazutomo/hugepage/note.html
-i try benchmark it on latest 2.6.17.1 (x86 and x86_64) and it slow like 2.6.16 on that web
-(in comparing to standard 4kb page)
-its feature or bug ? 
-i am just interested where can be hugepages used, but if they are slower than normal pages
-its pointless to use it :) 
+Hopefully the last version. 
+Patches are against mainline again.
 
-stanojr
+The 'big' change since last, is that I added a flags parameter to
+vma_wants_writenotify(). These flags allow to skip some tests.
+This cleans up the subtlety in mprotect_fixup().
+
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
