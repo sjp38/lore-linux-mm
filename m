@@ -1,40 +1,37 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k5RLpWV7004604
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 17:51:32 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k5RLp08S241872
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 15:51:01 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k5RLpV4g013347
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2006 15:51:32 -0600
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
 Subject: RE: slow hugetlb from 2.6.15
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <000001c69a1f$2171af00$e234030a@amr.corp.intel.com>
-References: <000001c69a1f$2171af00$e234030a@amr.corp.intel.com>
-Content-Type: text/plain
-Date: Tue, 27 Jun 2006 14:51:13 -0700
-Message-Id: <1151445073.24103.37.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Tue, 27 Jun 2006 15:00:09 -0700
+Message-ID: <000101c69a35$0fee2f90$e234030a@amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <1151445073.24103.37.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+To: 'Dave Hansen' <haveblue@us.ibm.com>
 Cc: 'Badari Pulavarty' <pbadari@gmail.com>, stanojr@blackhole.websupport.sk, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-06-27 at 12:23 -0700, Chen, Kenneth W wrote:
->   Though it is a mystery to
-> see that faulting on hugetlb page is significantly longer than
-> faulting a
-> normal page.
+Dave Hansen wrote on Tuesday, June 27, 2006 2:51 PM
+> On Tue, 2006-06-27 at 12:23 -0700, Chen, Kenneth W wrote:
+> >   Though it is a mystery to
+> > see that faulting on hugetlb page is significantly longer than
+> > faulting a normal page.
+> 
+> There's an awful lot more data to zero when allocating a page which is
+> 1000 times bigger.  It would be really interesting to see kernel
+> profiles, but my money is on clear_huge_page().
 
-There's an awful lot more data to zero when allocating a page which is
-1000 times bigger.  It would be really interesting to see kernel
-profiles, but my money is on clear_huge_page().
 
--- Dave
+I was under the impression that the test code will touch equal amount of
+memory for both hugetlb page and normal pages.  Yes, faulting one hugetlb
+page will require zeroing 1024 times more memory than a normal page, but
+yet it will be 1024 times less of number of page fault.  I was referring
+to time required to fault 1 hugetlb page at 4MB versus 1024 normal page
+fault at 4KB. I wasn't expecting the former to be longer than the latter.
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
