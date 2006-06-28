@@ -1,109 +1,71 @@
-Subject: [RFC][PATCH] mm: fixup do_wp_page()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0606231933060.7524@blonde.wat.veritas.com>
-References: <20060619175243.24655.76005.sendpatchset@lappy>
-	 <20060619175253.24655.96323.sendpatchset@lappy>
-	 <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
-	 <1151019590.15744.144.camel@lappy>
-	 <Pine.LNX.4.64.0606231933060.7524@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Wed, 28 Jun 2006 16:58:31 +0200
-Message-Id: <1151506711.5383.24.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 28 Jun 2006 18:41:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 1/5] mm: tracking shared dirty pages
+In-Reply-To: <20060627182814.20891.36856.sendpatchset@lappy>
+Message-ID: <Pine.LNX.4.64.0606281810370.16318@blonde.wat.veritas.com>
+References: <20060627182801.20891.11456.sendpatchset@lappy>
+ <20060627182814.20891.36856.sendpatchset@lappy>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-06-23 at 20:06 +0100, Hugh Dickins wrote:
+On Tue, 27 Jun 2006, Peter Zijlstra wrote:
+> @@ -796,6 +797,44 @@ struct shrinker;
+>  extern struct shrinker *set_shrinker(int, shrinker_t);
+>  extern void remove_shrinker(struct shrinker *shrinker);
+>  
+> +#define VM_NOTIFY_NO_PROT	0x01
+> +#define VM_NOTIFY_NO_MKWRITE	0x02
+> +
+> +/*
+> + * Some shared mappigns will want the pages marked read-only
+> + * to track write events. If so, we'll downgrade vm_page_prot
+> + * to the private version (using protection_map[] without the
+> + * VM_SHARED bit).
+> + */
+> +static inline int vma_wants_writenotify(struct vm_area_struct *vma, int flags)
+> +{
+> +	unsigned int vm_flags = vma->vm_flags;
+> +
+> +	/* If it was private or non-writable, the write bit is already clear */
+> +	if ((vm_flags & (VM_WRITE|VM_SHARED)) != ((VM_WRITE|VM_SHARED)))
+> +		return 0;
+> +
+> +	/* The backer wishes to know when pages are first written to? */
+> +	if (!(flags & VM_NOTIFY_NO_MKWRITE) &&
+> +			vma->vm_ops && vma->vm_ops->page_mkwrite)
+> +		return 1;
+> +
+> +	/* The open routine did something to the protections already? */
+> +	if (!(flags & VM_NOTIFY_NO_PROT) &&
+> +			pgprot_val(vma->vm_page_prot) !=
+> +			pgprot_val(protection_map[vm_flags &
+> +				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]))
+> +		return 0;
 
-> But grrr, sigh, damn, argh - I now realize it's right to the first
-> order (normal case) and to the second order (ptrace poke), but not
-> to the third order (ptrace poke anon page here to be COWed -
-> perhaps can't occur without intervening mprotects).
-> 
-> That's not an issue for you at all (there are other places which
-> are inconsistent on whether such pages are private or shared e.g.
-> copy_one_pte does not wrprotect them), but could be a problem for
-> David's page_mkwrite - there's a danger of passing it an anonymous
-> page, which (depending on what the ->page_mkwrite actually does)
-> could go seriously wrong.
-> 
-> I guess it ought to be restructured
-> 	if (PageAnon(old_page)) {
-> 		...
-> 	} else if (shared writable vma) {
-> 		...
-> 	}
-> and a patch to do that should precede your dirty page patches
-> (and the only change your dirty page patches need add here on top
-> of that would be the dirty_page = old_page, get_page(dirty_page)).
-> 
-> Oh, it looks like Linus is keen to go ahead with your patches in
-> 2.6.18, so in that case it'll be easier to go ahead with the patch
-> as you have it, and fix up this order-3 issue on top afterwards -
-> it's not something testers are going to be hitting every day,
-> especially without any ->page_mkwrite implementations.
+Sorry to be such a bore, but this is far from an improvement.
 
-How about something like this? This should make all anonymous write
-faults do as before the page_mkwrite patch.
+Try to resist adding flags to condition how a function behaves:
+there are a million places where it's necessary or accepted, but
+avoid it if you reasonably can.  And negative flags are particularly
+hard to understand ("SKIP" would have been easier than "NO").
 
-As for copy_one_pte(), I'm not sure what you meant, shared writable
-anonymous pages need not be write protected as far as I can see.
-If you meant to say, anonymous or file-backed, then copy_one_pte() still
-does the right thing. If the source is untouched/clean it will still be
-wrprotected and this state will be copied, if its dirtied and made
-writeable we don't need the notification anymore anyway and hence the
-regular copy is still correct.
+Just separate out the pgprot_val check from vma_wants_writenotify,
+making that additional test in the case of do_mmap_pgoff.  Or if
+you prefer, go back to how you had it before, with mprotect_fixup
+making sure that that test will succeed.
 
-Peter
+In the case of page_mkclean, I see no need for vma_wants_writenotify
+at all: you're overdesigning for some imaginary use of page_mkclean.
+Just apply to the VM_SHARED vmas, with page_mkclean_one saying
+	if (!pte_dirty(*pte) && !pte_write(*pte))
+		goto unlock;
 
----
- mm/memory.c |   19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
-
-Index: linux-2.6-dirty/mm/memory.c
-===================================================================
---- linux-2.6-dirty.orig/mm/memory.c	2006-06-28 13:16:15.000000000 +0200
-+++ linux-2.6-dirty/mm/memory.c	2006-06-28 16:18:51.000000000 +0200
-@@ -1466,11 +1466,21 @@ static int do_wp_page(struct mm_struct *
- 		goto gotten;
- 
- 	/*
--	 * Only catch write-faults on shared writable pages, read-only
--	 * shared pages can get COWed by get_user_pages(.write=1, .force=1).
-+	 * Take out anonymous pages first, anonymous shared vmas are
-+	 * not accountable.
- 	 */
--	if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
-+	if (PageAnon(old_page)) {
-+		if (!TestSetPageLocked(old_page)) {
-+			reuse = can_share_swap_page(old_page);
-+			unlock(old_page);
-+		}
-+	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
- 					(VM_WRITE|VM_SHARED))) {
-+		/*
-+		 * Only catch write-faults on shared writable pages,
-+		 * read-only shared pages can get COWed by
-+		 * get_user_pages(.write=1, .force=1).
-+		 */
- 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
- 			/*
- 			 * Notify the address space that the page is about to
-@@ -1502,9 +1512,6 @@ static int do_wp_page(struct mm_struct *
- 		dirty_page = old_page;
- 		get_page(dirty_page);
- 		reuse = 1;
--	} else if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
--		reuse = can_share_swap_page(old_page);
--		unlock_page(old_page);
- 	}
- 
- 	if (reuse) {
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
