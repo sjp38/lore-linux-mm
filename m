@@ -1,58 +1,109 @@
-Date: Tue, 27 Jun 2006 17:57:47 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/5] mm: tracking shared dirty pages
-Message-Id: <20060627175747.521c6733.akpm@osdl.org>
-In-Reply-To: <20060627182814.20891.36856.sendpatchset@lappy>
-References: <20060627182801.20891.11456.sendpatchset@lappy>
-	<20060627182814.20891.36856.sendpatchset@lappy>
+Subject: [RFC][PATCH] mm: fixup do_wp_page()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0606231933060.7524@blonde.wat.veritas.com>
+References: <20060619175243.24655.76005.sendpatchset@lappy>
+	 <20060619175253.24655.96323.sendpatchset@lappy>
+	 <Pine.LNX.4.64.0606222126310.26805@blonde.wat.veritas.com>
+	 <1151019590.15744.144.camel@lappy>
+	 <Pine.LNX.4.64.0606231933060.7524@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Wed, 28 Jun 2006 16:58:31 +0200
+Message-Id: <1151506711.5383.24.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de, torvalds@osdl.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <christoph@lameter.com>, Martin Bligh <mbligh@google.com>, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
-> Tracking of dirty pages in shared writeable mmap()s.
+On Fri, 2006-06-23 at 20:06 +0100, Hugh Dickins wrote:
 
-I mangled this a bit to fit it on top of Christoph's vm counters rewrite
-(mm/page-writeback.c).
+> But grrr, sigh, damn, argh - I now realize it's right to the first
+> order (normal case) and to the second order (ptrace poke), but not
+> to the third order (ptrace poke anon page here to be COWed -
+> perhaps can't occur without intervening mprotects).
+> 
+> That's not an issue for you at all (there are other places which
+> are inconsistent on whether such pages are private or shared e.g.
+> copy_one_pte does not wrprotect them), but could be a problem for
+> David's page_mkwrite - there's a danger of passing it an anonymous
+> page, which (depending on what the ->page_mkwrite actually does)
+> could go seriously wrong.
+> 
+> I guess it ought to be restructured
+> 	if (PageAnon(old_page)) {
+> 		...
+> 	} else if (shared writable vma) {
+> 		...
+> 	}
+> and a patch to do that should precede your dirty page patches
+> (and the only change your dirty page patches need add here on top
+> of that would be the dirty_page = old_page, get_page(dirty_page)).
+> 
+> Oh, it looks like Linus is keen to go ahead with your patches in
+> 2.6.18, so in that case it'll be easier to go ahead with the patch
+> as you have it, and fix up this order-3 issue on top afterwards -
+> it's not something testers are going to be hitting every day,
+> especially without any ->page_mkwrite implementations.
 
-I worry about the changes to __set_page_dirty_nobuffers() and
-test_clear_page_dirty().
+How about something like this? This should make all anonymous write
+faults do as before the page_mkwrite patch.
 
-They both already require that the page be locked (or that the
-address_space be otherwise pinned).  But I'm not sure we get that right at
-present.  With these changes, our exposure to that gets worse, and we
-additionally are exposed to the possibility of the page itself being
-reclaimed, and not just the address_space.
+As for copy_one_pte(), I'm not sure what you meant, shared writable
+anonymous pages need not be write protected as far as I can see.
+If you meant to say, anonymous or file-backed, then copy_one_pte() still
+does the right thing. If the source is untouched/clean it will still be
+wrprotected and this state will be copied, if its dirtied and made
+writeable we don't need the notification anymore anyway and hence the
+regular copy is still correct.
 
-So ho hum.  I'll stick this:
+Peter
 
---- a/mm/page-writeback.c~mm-tracking-shared-dirty-pages-checks
-+++ a/mm/page-writeback.c
-@@ -625,6 +625,7 @@ EXPORT_SYMBOL(write_one_page);
-  */
- int __set_page_dirty_nobuffers(struct page *page)
- {
-+	WARN_ON_ONCE(!PageLocked(page));
- 	if (!TestSetPageDirty(page)) {
- 		struct address_space *mapping = page_mapping(page);
- 		struct address_space *mapping2;
-@@ -722,6 +723,7 @@ int test_clear_page_dirty(struct page *p
- 	struct address_space *mapping = page_mapping(page);
- 	unsigned long flags;
+---
+ mm/memory.c |   19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
+
+Index: linux-2.6-dirty/mm/memory.c
+===================================================================
+--- linux-2.6-dirty.orig/mm/memory.c	2006-06-28 13:16:15.000000000 +0200
++++ linux-2.6-dirty/mm/memory.c	2006-06-28 16:18:51.000000000 +0200
+@@ -1466,11 +1466,21 @@ static int do_wp_page(struct mm_struct *
+ 		goto gotten;
  
-+	WARN_ON_ONCE(!PageLocked(page));
- 	if (mapping) {
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		if (TestClearPageDirty(page)) {
-_
+ 	/*
+-	 * Only catch write-faults on shared writable pages, read-only
+-	 * shared pages can get COWed by get_user_pages(.write=1, .force=1).
++	 * Take out anonymous pages first, anonymous shared vmas are
++	 * not accountable.
+ 	 */
+-	if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
++	if (PageAnon(old_page)) {
++		if (!TestSetPageLocked(old_page)) {
++			reuse = can_share_swap_page(old_page);
++			unlock(old_page);
++		}
++	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+ 					(VM_WRITE|VM_SHARED))) {
++		/*
++		 * Only catch write-faults on shared writable pages,
++		 * read-only shared pages can get COWed by
++		 * get_user_pages(.write=1, .force=1).
++		 */
+ 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
+ 			/*
+ 			 * Notify the address space that the page is about to
+@@ -1502,9 +1512,6 @@ static int do_wp_page(struct mm_struct *
+ 		dirty_page = old_page;
+ 		get_page(dirty_page);
+ 		reuse = 1;
+-	} else if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
+-		reuse = can_share_swap_page(old_page);
+-		unlock_page(old_page);
+ 	}
+ 
+ 	if (reuse) {
 
-in there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
