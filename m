@@ -1,37 +1,58 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: slow hugetlb from 2.6.15
-Date: Tue, 27 Jun 2006 15:00:09 -0700
-Message-ID: <000101c69a35$0fee2f90$e234030a@amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Date: Tue, 27 Jun 2006 17:57:47 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 1/5] mm: tracking shared dirty pages
+Message-Id: <20060627175747.521c6733.akpm@osdl.org>
+In-Reply-To: <20060627182814.20891.36856.sendpatchset@lappy>
+References: <20060627182801.20891.11456.sendpatchset@lappy>
+	<20060627182814.20891.36856.sendpatchset@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <1151445073.24103.37.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Dave Hansen' <haveblue@us.ibm.com>
-Cc: 'Badari Pulavarty' <pbadari@gmail.com>, stanojr@blackhole.websupport.sk, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh@veritas.com, dhowells@redhat.com, christoph@lameter.com, mbligh@google.com, npiggin@suse.de, torvalds@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote on Tuesday, June 27, 2006 2:51 PM
-> On Tue, 2006-06-27 at 12:23 -0700, Chen, Kenneth W wrote:
-> >   Though it is a mystery to
-> > see that faulting on hugetlb page is significantly longer than
-> > faulting a normal page.
-> 
-> There's an awful lot more data to zero when allocating a page which is
-> 1000 times bigger.  It would be really interesting to see kernel
-> profiles, but my money is on clear_huge_page().
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>
+> Tracking of dirty pages in shared writeable mmap()s.
 
+I mangled this a bit to fit it on top of Christoph's vm counters rewrite
+(mm/page-writeback.c).
 
-I was under the impression that the test code will touch equal amount of
-memory for both hugetlb page and normal pages.  Yes, faulting one hugetlb
-page will require zeroing 1024 times more memory than a normal page, but
-yet it will be 1024 times less of number of page fault.  I was referring
-to time required to fault 1 hugetlb page at 4MB versus 1024 normal page
-fault at 4KB. I wasn't expecting the former to be longer than the latter.
+I worry about the changes to __set_page_dirty_nobuffers() and
+test_clear_page_dirty().
 
-- Ken
+They both already require that the page be locked (or that the
+address_space be otherwise pinned).  But I'm not sure we get that right at
+present.  With these changes, our exposure to that gets worse, and we
+additionally are exposed to the possibility of the page itself being
+reclaimed, and not just the address_space.
+
+So ho hum.  I'll stick this:
+
+--- a/mm/page-writeback.c~mm-tracking-shared-dirty-pages-checks
++++ a/mm/page-writeback.c
+@@ -625,6 +625,7 @@ EXPORT_SYMBOL(write_one_page);
+  */
+ int __set_page_dirty_nobuffers(struct page *page)
+ {
++	WARN_ON_ONCE(!PageLocked(page));
+ 	if (!TestSetPageDirty(page)) {
+ 		struct address_space *mapping = page_mapping(page);
+ 		struct address_space *mapping2;
+@@ -722,6 +723,7 @@ int test_clear_page_dirty(struct page *p
+ 	struct address_space *mapping = page_mapping(page);
+ 	unsigned long flags;
+ 
++	WARN_ON_ONCE(!PageLocked(page));
+ 	if (mapping) {
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		if (TestClearPageDirty(page)) {
+_
+
+in there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
