@@ -1,49 +1,440 @@
-Message-ID: <70820449478192.373BCAEAC0@BRK0C4RV>
-From: "Floyd " <FloydMurillo@dublin.com>
-Subject: large growth on marcket, read an announcement
-Date: Thu, 6 Jul 2006 10:34:25 +0300
+From: "Abu M. Muttalib" <abum@aftek.com>
+Subject: Commenting out out_of_memory() function in __alloc_pages()
+Date: Fri, 7 Jul 2006 15:16:37 +0530
+Message-ID: <BKEKJNIHLJDCFGDBOHGMAEBKDCAA.abum@aftek.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
-Return-Path: <FloydMurillo@writeme.com>
-To: linux-mm@kvack.org
+Content-Type: multipart/mixed;
+	boundary="----=_NextPart_000_0024_01C6A1D8.57723C30"
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-It?s a difficult job accepting you were wrong. Agree with that? Don?t let emotions guide you. Make use of worthy facts some of which you will learn just by keeping reading this. 
+This is a multi-part message in MIME format.
 
-Experts see a solid trading opportunity in this stock. Use this during your next trading day, and you?ll be among the winners.
+------=_NextPart_000_0024_01C6A1D8.57723C30
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-Get GDKI.PK First Thing Today, This Is Going To Explode! 
+Hi,
 
-Check out for Hot News!
+I am getting the Out of memory.
 
-GOLDMARK INDUSTRIES (GD KI)
-CURRENT_PRICE: $4.75 GET IT NOW!
+To circumvent the problem, I have commented the call to "out_of_memory(),
+and replaced "goto restart" with "goto nopage".
 
-Before we start with the profile of GDK I we would like to mention something very important: There is a Big PR Campaign startiing this week . And it will go all week so it would be best to get in now.
+At "nopage:" lable I have added a call to "schedule()" and then "return
+NULL" after "schedule()".
 
-Company Profile
+I tried the modified kernel with a test application, the test application is
+mallocing memory in a loop. Unlike as expected the process gets killed. On
+second run of the same application I am getting the page allocation failure
+as expected but subsequently the system hangs.
 
-Goldmark Industries, specializes in the  production and distribution of Music, Feature Fillms and Television entertainment for North America's most rapidly growing demographic, with a total consumer-based purchasing power of over 1 Trillion dollars: the Hip-Hop community.
+I am attaching the test application and the log herewith.
 
-Current News
+I am getting this exception with kernel 2.6.13. With kernel
+2.4.19-rmka7-pxa1 there was no problem.
 
-Goldmark Industries, Inc. (GDKI - News) is excited to announce that the Company is embarking into a new business direction. The Company is making an aggrressive move into the multi-billion-dollar Urban Entertainment industry. The Hip-Hop Entertainment industry generates several billion dollars per year in product sales with an estimated consumer-based purchasing power well into the hundreds of bi||ions of dollars and topping over one trillion worldwide. Goldmark Industries is committed to providing the best in all forms of urban entertainmeent to the 45 Million Hip-Hop consumers in North America. Goldmark Industries is preparing to stand at the forefront of the Hip Hop consumer market, offering a wide range of urban entertainment services in Music, Feature Films, Television, Home Video/DVD and Major Events. As such, Goldmark is poised to build its management team by attracting seasoned professionals with extensive experience in this dynamically growing industry sector.
+Why its so? What can I do to alleviate the OOM problem?
 
-The Company looks forward to announcing a string of exciting corporate developments over the next few days outlining management changes and project aacquisitions. Goldmark Industries will be focusing on the following categories of Urban Entertainment:
+Thanks in anticipation and regards,
+Abu.
 
-Music Production
-Goldmark Industries' music department is committted to discovering the world's most talented Hip-Hop & R&B artists. Positioned to contribute to the success of the world's leading music production and distribution companies, Goldmark Industries has built a strong foundation for continual growth and achievement. With a visionary approach, high standards and
-a management team that attracts the most exciting and original artists of our time, Goldmark Industries is set to stand at the forefront of the Hip-Hop music community.
+------=_NextPart_000_0024_01C6A1D8.57723C30
+Content-Type: text/plain;
+	name="mail_oom_test_6.TXT"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment;
+	filename="mail_oom_test_6.TXT"
 
-Motion Picture Production
-Goldmark Industries' motion picture department specializes in the financing, production and distribution of feature films directed towards the urban community. Whether working with highly successful Hollywood executives or up-and-coming independent filmmakers, Goldmark Industries iss able to provide consulting and production services from the best in the business. Goldmark Industries aims to produce and distribute some 10-20 films a year, committed to matching the success of some of the leading production companies. Television Production Goldmark Industries' televisiion department is positioned to become a leading force behind the financing, production, distribution and marketing of television entertainment for the Hip-Hop community, including primetime series, telefilm and mini-series. Goldmark Industries is in the process of teaming up with some exciting television producers and networks worldwide, building a dynamic and powerful television production
-team that consistently proves to be the best in the business. For more information, check the company current news aannounced on July5.
+sh-3.00# ./test1=07
 
-Conclusion:
-The Examples Above Show The Awesome, Earning Potential of Little Known Companies That Explode Onto Investor's Radar Screens; Many of You Are Already Familiar with This. Is GD KI Poised and Positioned to Do that For You? Then You May Feel the Time Has Come to Act... And Please Watch this One Trade tomorrow! Go G DKI.
+OOM Test: Counter =3D 0
+....
+OOM Test: Counter =3D 6635
+, OOM: Out of Memory would have been called....<4>test1: page allocation =
+failure. order:0, mode:0xd2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:2=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         588kB (0kB HighMem)=0A=
+=0DActive:2178 inactive:230 dirty:0 writeback:0 unstable:0 free:147 =
+slab:367 mapped:2178 pagetables:43=0A=
+=0DDMA free:588kB min:512kB low:640kB high:768kB active:8712kB =
+inactive:920kB present:16384kB pages_scanned:4851 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 9*4kB 3*8kB 1*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 588kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D218 free pages=0A=
+=0D625 reserved pages=0A=
+=0D367 slab pages=0A=
+=0D0 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0DVM: killing process test1=0A=
+=0DKilled
+sh-3.00# ./test1
 
-Significant profits should be expected when you work with a promising stock not yet overexposed ? just like this one.
+OOM Test: Counter =3D 0
+....
+OOM Test: Counter =3D 6416
+, OOM: Out of Memory would have been called....<4>test1: page allocation =
+failure. order:0, mode:0x201d0=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:2=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         672kB (0kB HighMem)=0A=
+=0DActive:2187 inactive:170 dirty:0 writeback:0 unstable:0 free:168 =
+slab:365 mapped:2125 pagetables:43=0A=
+=0DDMA free:672kB min:512kB low:640kB high:768kB active:8748kB =
+inactive:680kB present:16384kB pages_scanned:2939 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 28*4kB 6*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 672kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D239 free pages=0A=
+=0D625 reserved pages=0A=
+=0D365 slab pages=0A=
+=0D13 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0DError -5 while decompressing!=0A=
+=0Dc01e42f4(2388)->c0754000(4096)=0A=
+=0DError -3 while decompressing!=0A=
+=0Dc01e4c48(2531)->c0caf000(4096)=0A=
+=0DError -3 while decompressing!=0A=
+=0Dc01e562b(2643)->c0914000(4096)=0A=
+=0D, OOM: Out of Memory would have been called....<4>test1: page =
+allocation failure. order:0, mode:0x201d2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:3=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         600kB (0kB HighMem)=0A=
+=0DActive:2267 inactive:113 dirty:0 writeback:0 unstable:0 free:150 =
+slab:365 mapped:2125 pagetables:43=0A=
+=0DDMA free:600kB min:512kB low:640kB high:768kB active:9068kB =
+inactive:452kB present:16384kB pages_scanned:222 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 22*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 600kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D222 free pages=0A=
+=0D625 reserved pages=0A=
+=0D365 slab pages=0A=
+=0D13 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....<4>init: page =
+allocation failure. order:0, mode:0x201d0=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:3=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         696kB (0kB HighMem)=0A=
+=0DActive:2220 inactive:136 dirty:0 writeback:0 unstable:0 free:174 =
+slab:365 mapped:2125 pagetables:43=0A=
+=0DDMA free:696kB min:512kB low:640kB high:768kB active:8880kB =
+inactive:544kB present:16384kB pages_scanned:6729 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 44*4kB 1*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 696kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D246 free pages=0A=
+=0D625 reserved pages=0A=
+=0D365 slab pages=0A=
+=0D3 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0DError -5 while decompressing!=0A=
+=0Dc01e7949(2386)->c040d000(4096)=0A=
+=0DError -3 while decompressing!=0A=
+=0Dc01e829b(2297)->c05e9000(4096)=0A=
+=0D, OOM: Out of Memory would have been called....<4>init: page =
+allocation failure. order:0, mode:0x201d2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:4=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         600kB (0kB HighMem)=0A=
+=0DActive:2189 inactive:166 dirty:0 writeback:0 unstable:0 free:150 =
+slab:364 mapped:2125 pagetables:43=0A=
+=0DDMA free:600kB min:512kB low:640kB high:768kB active:8756kB =
+inactive:664kB present:16384kB pages_scanned:7675 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 20*4kB 1*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 600kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D223 free pages=0A=
+=0D625 reserved pages=0A=
+=0D364 slab pages=0A=
+=0D1 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....<4>test1: page =
+allocation failure. order:0, mode:0x201d0=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:4=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:1=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         600kB (0kB HighMem)=0A=
+=0DActive:2291 inactive:64 dirty:0 writeback:0 unstable:0 free:150 =
+slab:364 mapped:2125 pagetables:43=0A=
+=0DDMA free:600kB min:512kB low:640kB high:768kB active:9164kB =
+inactive:256kB present:16384kB pages_scanned:10106 all_unreclaimable? yes=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 20*4kB 1*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 600kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D223 free pages=0A=
+=0D625 reserved pages=0A=
+=0D364 slab pages=0A=
+=0D2 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....<4>init: page =
+allocation failure. order:0, mode:0x201d2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:4=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:0=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         512kB (0kB HighMem)=0A=
+=0DActive:2296 inactive:125 dirty:0 writeback:0 unstable:0 free:128 =
+slab:364 mapped:2127 pagetables:43=0A=
+=0DDMA free:512kB min:512kB low:640kB high:768kB active:9184kB =
+inactive:500kB present:16384kB pages_scanned:10106 all_unreclaimable? yes=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 512kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D200 free pages=0A=
+=0D625 reserved pages=0A=
+=0D364 slab pages=0A=
+=0D34 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....<4>init: page =
+allocation failure. order:0, mode:0x201d2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:4=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:0=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         512kB (0kB HighMem)=0A=
+=0DActive:2296 inactive:125 dirty:0 writeback:0 unstable:0 free:128 =
+slab:364 mapped:2127 pagetables:43=0A=
+=0DDMA free:512kB min:512kB low:640kB high:768kB active:9184kB =
+inactive:500kB present:16384kB pages_scanned:10106 all_unreclaimable? yes=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 512kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D200 free pages=0A=
+=0D625 reserved pages=0A=
+=0D364 slab pages=0A=
+=0D34 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....<4>test1: page =
+allocation failure. order:0, mode:0x201d2=0A=
+=0DMem-info:=0A=
+=0DDMA per-cpu:=0A=
+=0Dcpu 0 hot: low 2, high 6, batch 1 used:4=0A=
+=0Dcpu 0 cold: low 0, high 2, batch 1 used:0=0A=
+=0DNormal per-cpu: empty=0A=
+=0DHighMem per-cpu: empty=0A=
+=0DFree pages:         512kB (0kB HighMem)=0A=
+=0DActive:2296 inactive:125 dirty:0 writeback:0 unstable:0 free:128 =
+slab:364 mapped:2133 pagetables:43=0A=
+=0DDMA free:512kB min:512kB low:640kB high:768kB active:9184kB =
+inactive:500kB present:16384kB pages_scanned:10106 all_unreclaimable? yes=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DNormal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB =
+present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DHighMem free:0kB min:128kB low:160kB high:192kB active:0kB =
+inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no=0A=
+=0Dlowmem_reserve[]: 0 0 0=0A=
+=0DDMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 1*512kB =
+0*1024kB =3D 512kB=0A=
+=0DNormal: empty=0A=
+=0DHighMem: empty=0A=
+=0DSwap cache: add 0, delete 0, find 0/0, race 0+0=0A=
+=0DFree swap  =3D 0kB=0A=
+=0DTotal swap =3D 0kB=0A=
+=0DFree swap:            0kB=0A=
+=0D4096 pages of RAM=0A=
+=0D200 free pages=0A=
+=0D625 reserved pages=0A=
+=0D364 slab pages=0A=
+=0D40 pages shared=0A=
+=0D0 pages swap cached=0A=
+=0D, OOM: Out of Memory would have been called....VM: killing process =
+test1=0A=
+=0D
 
-Luck is important, but I hope you leave really few factors to chance. Play smart, and you?ll be the winner!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------=_NextPart_000_0024_01C6A1D8.57723C30
+Content-Type: application/octet-stream;
+	name="test1.c"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment;
+	filename="test1.c"
+
+#include<stdio.h>=0A=
+#include<string.h>=0A=
+=0A=
+main()=0A=
+{=0A=
+	char* buff;=0A=
+	int count;=0A=
+	=0A=
+	count=3D0;=0A=
+	while(1)=0A=
+	{=0A=
+		printf("\nOOM Test: Counter =3D %d", count);=0A=
+		buff =3D (char*) malloc(1024);=0A=
+	//	memset(buff,'\0',1024);=0A=
+		count++;=0A=
+			=0A=
+		if (buff=3D=3DNULL)=0A=
+		{=0A=
+			printf("\nOOM Test: Memory allocation error");=0A=
+		}=0A=
+	}=0A=
+}=0A=
+
+------=_NextPart_000_0024_01C6A1D8.57723C30--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
