@@ -1,36 +1,64 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.6/8.13.6) with ESMTP id k68Bhoja160262
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Sat, 8 Jul 2006 11:43:50 GMT
-Received: from d12av03.megacenter.de.ibm.com (d12av03.megacenter.de.ibm.com [9.149.165.213])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k68BkcJe084850
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Sat, 8 Jul 2006 13:46:38 +0200
-Received: from d12av03.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av03.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k68Bhn07026892
-	for <linux-mm@kvack.org>; Sat, 8 Jul 2006 13:43:50 +0200
-Date: Sat, 8 Jul 2006 13:42:01 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 0/6] Sizing zones and holes in an architecture independent manner V8
-Message-ID: <20060708114201.GA9419@osiris.boeblingen.de.ibm.com>
-References: <20060708111042.28664.14732.sendpatchset@skynet.skynet.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060708111042.28664.14732.sendpatchset@skynet.skynet.ie>
+Received: from pd4mr7so.prod.shaw.ca (pd4mr7so-qfe3.prod.shaw.ca [10.0.141.84])
+ by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0J230031OJMHXGD0@l-daemon> for linux-mm@kvack.org; Sat,
+ 08 Jul 2006 12:06:17 -0600 (MDT)
+Received: from pn2ml10so.prod.shaw.ca ([10.0.121.80])
+ by pd4mr7so.prod.shaw.ca (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar
+ 15 2004)) with ESMTP id <0J2300KGSJMH5ED0@pd4mr7so.prod.shaw.ca> for
+ linux-mm@kvack.org; Sat, 08 Jul 2006 12:06:17 -0600 (MDT)
+Received: from [192.168.1.113] ([70.64.1.86])
+ by l-daemon (Sun ONE Messaging Server 6.0 HotFix 1.01 (built Mar 15 2004))
+ with ESMTP id <0J2300GH7JMGSZ90@l-daemon> for linux-mm@kvack.org; Sat,
+ 08 Jul 2006 12:06:17 -0600 (MDT)
+Date: Sat, 08 Jul 2006 12:06:13 -0600
+From: Robert Hancock <hancockr@shaw.ca>
+Subject: Re: Commenting out out_of_memory() function in __alloc_pages()
+In-reply-to: <fa.AmXizdwfdZtqgKFSMcRp3U0QZXI@ifi.uio.no>
+Message-id: <44AFF415.2020305@shaw.ca>
+MIME-version: 1.0
+Content-type: text/plain; charset=ISO-8859-1; format=flowed
+Content-transfer-encoding: 7bit
+References: <fa.AmXizdwfdZtqgKFSMcRp3U0QZXI@ifi.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+To: "Abu M. Muttalib" <abum@aftek.com>
+Cc: kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 08, 2006 at 12:10:42PM +0100, Mel Gorman wrote:
-> There are differences in the zone sizes for x86_64 as the arch-specific code
-> for x86_64 accounts the kernel image and the starting mem_maps as memory
-> holes but the architecture-independent code accounts the memory as present.
+Abu M. Muttalib wrote:
+> Hi,
+> 
+> I am getting the Out of memory.
+> 
+> To circumvent the problem, I have commented the call to "out_of_memory(),
+> and replaced "goto restart" with "goto nopage".
+> 
+> At "nopage:" lable I have added a call to "schedule()" and then "return
+> NULL" after "schedule()".
 
-Shouldn't this be the same for all architectures? Or to put it in other words:
-why does only x86_64 account the kernel image as memory hole?
+Bad idea - in the configuration you have, the system may need the 
+out-of-memory killer to free up memory, otherwise the system can 
+deadlock due to all memory being exhausted.
+
+> 
+> I tried the modified kernel with a test application, the test application is
+> mallocing memory in a loop. Unlike as expected the process gets killed. On
+> second run of the same application I am getting the page allocation failure
+> as expected but subsequently the system hangs.
+> 
+> I am attaching the test application and the log herewith.
+> 
+> I am getting this exception with kernel 2.6.13. With kernel
+> 2.4.19-rmka7-pxa1 there was no problem.
+> 
+> Why its so? What can I do to alleviate the OOM problem?
+
+Please see Documentation/vm/overcommit-accounting in the kernel source tree.
+
+-- 
+Robert Hancock      Saskatoon, SK, Canada
+To email, remove "nospam" from hancockr@nospamshaw.ca
+Home Page: http://www.roberthancock.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
