@@ -1,41 +1,69 @@
-Date: Mon, 10 Jul 2006 16:31:30 +0100
-Subject: Re: [PATCH 6/6] Account for memmap and optionally the kernel image as holes
-Message-ID: <20060710153129.GA26077@skynet.ie>
-References: <20060708111243.28664.74956.sendpatchset@skynet.skynet.ie> <20060708111042.28664.14732.sendpatchset@skynet.skynet.ie> <7220.1152531055@warthog.cambridge.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <7220.1152531055@warthog.cambridge.redhat.com>
-From: mel@skynet.ie (Mel Gorman)
+Date: Mon, 10 Jul 2006 12:22:16 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Agenda for NUMA BOF @OLS & NUMA paper
+Message-ID: <Pine.LNX.4.64.0607101146170.5556@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, linux-mm@kvack.org, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Marcelo Tosatti <marcelo@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, dgc@sgi.com, Ravikiran G Thirumalai <kiran@scalex86.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, jes@sgi.com, Adam Litke <agl@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On (10/07/06 12:30), David Howells didst pronounce:
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > +unsigned long __initdata dma_reserve;
-> 
-> Should this be static?  Or should it be predeclared in a header file
-> somewhere?
-> 
+I have given a number of talks about various NUMA issues in the last 
+months and tried to put the most important points together in a 
+paper that begins to explain NUMA from scratch and then gets into some 
+of the current issues. That paper is available at 
+http://ftp.kernel.org/pub/linux/kernel/people/christoph/pmig/numamemory.pdf
 
-It should be static as it's set by set_dma_reserve(). Thanks.
+Also there will be a NUMA BOF at the OLS on Thursday July 20th 18:00
+in Room B. Some of the items that we may discuss are 
+mentioned at the end of the paper.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.17-mm6-106-account_kernel_mmap/mm/page_alloc.c linux-2.6.17-mm6-107-fixstatic/mm/page_alloc.c
---- linux-2.6.17-mm6-106-account_kernel_mmap/mm/page_alloc.c	2006-07-10 15:55:09.000000000 +0100
-+++ linux-2.6.17-mm6-107-fixstatic/mm/page_alloc.c	2006-07-10 16:03:26.000000000 +0100
-@@ -87,7 +87,7 @@ int min_free_kbytes = 1024;
- 
- unsigned long __meminitdata nr_kernel_pages;
- unsigned long __meminitdata nr_all_pages;
--unsigned long __initdata dma_reserve;
-+static unsigned long __initdata dma_reserve;
- 
- #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
-   /*
+Here is a one liner for each subject that may be useful to discuss. I'd be 
+interested in hearing if there are any other issues that would need our 
+attention or maybe some of these are not that important (Probably too many 
+subjects already ...). Maybe this thread will allow those who will not be 
+at the OLS to give us some imput.
+
+A. Scalability
+	- Lockless page cache / Concurrent page cache
+	- Page Dirty handling (per node write throttling?)
+	- How to effectively deal with per cpu data at high
+		processor counts (f.e. 1024p)
+	- Issues with the number of objects increasing by the
+		power of two for higher counts (f.e. alien slab caches, 
+		pagesets)
+	- Effective per node slab reclaim for dentry and inode cache.
+	- TLB pressure issues for large memory (huge pages???)
+
+B. Page Migration
+	- Automatic page migration approaches
+	- Use of page migration to defragment memory
+	- Memory hotplug and page migration
+
+C. Memory Policies / Cpusets
+	- Memory policies for the page cache?
+	- Is the current situation okay that memory policies apply only
+		to a single zone per node? (Okay for SGI because we only 
+		have a single zone per node.... but how about others?)
+	- Cpuset interference with subsystems managing their own
+	  locality (vmalloc, slab, drivers).
+
+D. Scheduler
+	- Accounting for interrupt load?
+	- Fairer cpu load balancing
+
+General future vision things:
+	- Increasing scheduler complexity for NUMA.
+	- NUMA scheduler in user space that can be much more intelligent
+		than possible in the kernel?
+	- Functional overlap between memory policies and cpusets.
+		Is there some scheme to unify these two and make it
+		more general?
+	- General memory balancing / dirty load balancing. Is there some
+	  scheme to make it better and avoid some of the current manual
+	  tuning?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
