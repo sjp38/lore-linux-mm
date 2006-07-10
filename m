@@ -1,69 +1,61 @@
-Date: Mon, 10 Jul 2006 12:22:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Agenda for NUMA BOF @OLS & NUMA paper
-Message-ID: <Pine.LNX.4.64.0607101146170.5556@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 10 Jul 2006 21:31:19 +0200
+From: Jan-Benedict Glaw <jbglaw@lug-owl.de>
+Subject: Re: Agenda for NUMA BOF @OLS & NUMA paper
+Message-ID: <20060710193119.GJ22573@lug-owl.de>
+References: <Pine.LNX.4.64.0607101146170.5556@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="Kgh2FNDOY+603hGA"
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0607101146170.5556@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Marcelo Tosatti <marcelo@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, dgc@sgi.com, Ravikiran G Thirumalai <kiran@scalex86.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, jes@sgi.com, Adam Litke <agl@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Nick Piggin <nickpiggin@yahoo.com.au>, Marcelo Tosatti <marcelo@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Jackson <pj@sgi.com>, dgc@sgi.com, Ravikiran G Thirumalai <kiran@scalex86.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, jes@sgi.com, Adam Litke <agl@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, steiner@sgi.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-I have given a number of talks about various NUMA issues in the last 
-months and tried to put the most important points together in a 
-paper that begins to explain NUMA from scratch and then gets into some 
-of the current issues. That paper is available at 
-http://ftp.kernel.org/pub/linux/kernel/people/christoph/pmig/numamemory.pdf
+--Kgh2FNDOY+603hGA
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Also there will be a NUMA BOF at the OLS on Thursday July 20th 18:00
-in Room B. Some of the items that we may discuss are 
-mentioned at the end of the paper.
+On Mon, 2006-07-10 12:22:16 -0700, Christoph Lameter <clameter@sgi.com> wro=
+te:
+> I have given a number of talks about various NUMA issues in the last=20
+> months and tried to put the most important points together in a=20
+> paper that begins to explain NUMA from scratch and then gets into some=20
+> of the current issues. That paper is available at=20
+> http://ftp.kernel.org/pub/linux/kernel/people/christoph/pmig/numamemory.p=
+df
 
-Here is a one liner for each subject that may be useful to discuss. I'd be 
-interested in hearing if there are any other issues that would need our 
-attention or maybe some of these are not that important (Probably too many 
-subjects already ...). Maybe this thread will allow those who will not be 
-at the OLS to give us some imput.
+Erm, that's not a PDF file, but an OOo document...
 
-A. Scalability
-	- Lockless page cache / Concurrent page cache
-	- Page Dirty handling (per node write throttling?)
-	- How to effectively deal with per cpu data at high
-		processor counts (f.e. 1024p)
-	- Issues with the number of objects increasing by the
-		power of two for higher counts (f.e. alien slab caches, 
-		pagesets)
-	- Effective per node slab reclaim for dentry and inode cache.
-	- TLB pressure issues for large memory (huge pages???)
+MfG, JBG
 
-B. Page Migration
-	- Automatic page migration approaches
-	- Use of page migration to defragment memory
-	- Memory hotplug and page migration
+--=20
+Jan-Benedict Glaw       jbglaw@lug-owl.de    . +49-172-7608481             =
+_ O _
+"Eine Freie Meinung in  einem Freien Kopf    | Gegen Zensur | Gegen Krieg  =
+_ _ O
+ f=C3=BCr einen Freien Staat voll Freier B=C3=BCrger"  | im Internet! |   i=
+m Irak!   O O O
+ret =3D do_actions((curr | FREE_SPEECH) & ~(NEW_COPYRIGHT_LAW | DRM | TCPA)=
+);
 
-C. Memory Policies / Cpusets
-	- Memory policies for the page cache?
-	- Is the current situation okay that memory policies apply only
-		to a single zone per node? (Okay for SGI because we only 
-		have a single zone per node.... but how about others?)
-	- Cpuset interference with subsystems managing their own
-	  locality (vmalloc, slab, drivers).
+--Kgh2FNDOY+603hGA
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-D. Scheduler
-	- Accounting for interrupt load?
-	- Fairer cpu load balancing
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
 
-General future vision things:
-	- Increasing scheduler complexity for NUMA.
-	- NUMA scheduler in user space that can be much more intelligent
-		than possible in the kernel?
-	- Functional overlap between memory policies and cpusets.
-		Is there some scheme to unify these two and make it
-		more general?
-	- General memory balancing / dirty load balancing. Is there some
-	  scheme to make it better and avoid some of the current manual
-	  tuning?
+iD8DBQFEsqsHHb1edYOZ4bsRApGJAKCIr8v42E7OAQUhxNlKEN9/DkEpDACdEUGM
+CnhrpOyqj52BoIi6HzwsTbk=
+=Achl
+-----END PGP SIGNATURE-----
+
+--Kgh2FNDOY+603hGA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
