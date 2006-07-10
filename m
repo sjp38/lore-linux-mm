@@ -1,32 +1,23 @@
-Message-ID: <44B11D99.5090303@yahoo.com.au>
-Date: Mon, 10 Jul 2006 01:15:37 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Commenting out out_of_memory() function in __alloc_pages()
-References: <BKEKJNIHLJDCFGDBOHGMIEFJDCAA.abum@aftek.com>
-In-Reply-To: <BKEKJNIHLJDCFGDBOHGMIEFJDCAA.abum@aftek.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20060708111243.28664.74956.sendpatchset@skynet.skynet.ie> 
+References: <20060708111243.28664.74956.sendpatchset@skynet.skynet.ie>  <20060708111042.28664.14732.sendpatchset@skynet.skynet.ie> 
+Subject: Re: [PATCH 6/6] Account for memmap and optionally the kernel image as holes 
+Date: Mon, 10 Jul 2006 12:30:55 +0100
+Message-ID: <7220.1152531055@warthog.cambridge.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Abu M. Muttalib" <abum@aftek.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Robert Hancock <hancockr@shaw.ca>, chase.venters@clientec.com, kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@osdl.org, davej@codemonkey.org.uk, tony.luck@intel.com, linux-mm@kvack.org, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-Abu M. Muttalib wrote:
->>Abu, I guess you have turned on CONFIG_EMBEDDED and disabled everything
->>you don't need, turned off full sized data structures, removed everything
->>else you don't need from the kernel config, turned off kernel debugging
->>(especially slab debugging).
-> 
-> 
-> Do you mean that I have configured kernel with CONFIG_EMBEDDED option??
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-I am guessing you have, if you a concerned about memory usage. Have you?
+> +unsigned long __initdata dma_reserve;
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Should this be static?  Or should it be predeclared in a header file
+somewhere?
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
