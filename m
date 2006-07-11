@@ -1,85 +1,54 @@
-Date: Tue, 11 Jul 2006 04:12:09 -0700
-From: Andrew Morton <akpm@osdl.org>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.13.6/8.13.6) with ESMTP id k6BBEVmj105368
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2006 11:14:31 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6BBHOsZ145522
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2006 13:17:24 +0200
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6BBEUEg007486
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2006 13:14:30 +0200
 Subject: Re: [patch] out of memory notifier - 2nd try.
-Message-Id: <20060711041209.1c9cee49.akpm@osdl.org>
-In-Reply-To: <20060711105148.GA28648@skybase>
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <20060711041209.1c9cee49.akpm@osdl.org>
 References: <20060711105148.GA28648@skybase>
+	 <20060711041209.1c9cee49.akpm@osdl.org>
+Content-Type: text/plain
+Date: Tue, 11 Jul 2006 13:14:31 +0200
+Message-Id: <1152616472.18034.0.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jul 2006 12:51:48 +0200
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+On Tue, 2006-07-11 at 04:12 -0700, Andrew Morton wrote:
+> On Tue, 11 Jul 2006 12:51:48 +0200
+> Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+> 
+> > Hi folks,
+> > I did not get any negative nor positive feedback on my proposed out of
+> > memory notifier patch. I'm optimistic that this means that nobody has
+> > anything against it ..
+> 
+> I have some negative feedback! ;)
 
-> Hi folks,
-> I did not get any negative nor positive feedback on my proposed out of
-> memory notifier patch. I'm optimistic that this means that nobody has
-> anything against it ..
+Cool, thanks. I'll fix it.
 
-I have some negative feedback! ;)
+-- 
+blue skies,
+  Martin.
 
->  cmm_alloc_pages(long pages, long *counter, struct cmm_page_array **list)
->  {
-> -	struct cmm_page_array *pa;
-> +	struct cmm_page_array *pa, *npa;
->  	unsigned long page;
->  
-> -	pa = *list;
->  	while (pages) {
->  		page = __get_free_page(GFP_NOIO);
+Martin Schwidefsky
+Linux for zSeries Development & Services
+IBM Deutschland Entwicklung GmbH
 
-There's a strong convention of
+"Reality continues to ruin my life." - Calvin.
 
-	struct page *page;
-	struct page *pages;
-
-Calling your locals which don't point at struct page's "page" makes the
-code harder to follow for experienced kernel developers.
-
-
->  static int
->  cmm_thread(void *dummy)
->  {
-> @@ -419,6 +452,7 @@ cmm_init (void)
->  #ifdef CONFIG_CMM_IUCV
->  	smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
->  #endif
-> +	register_oom_notifier(&cmm_oom_nb);
->  	INIT_WORK(&cmm_thread_starter, (void *) cmm_start_thread, NULL);
->  	init_waitqueue_head(&cmm_thread_wait);
->  	init_timer(&cmm_timer);
-> @@ -428,6 +462,7 @@ cmm_init (void)
->  static void
->  cmm_exit(void)
->  {
-> +	unregister_oom_notifier(&cmm_oom_nb);
-
-But I think the oom-handler callback could be executing while it gets
-unregistered and rmmodded.
-
-> +static struct notifier_block *oom_notify_list = 0;
-
-Unneeded initialisation.
-
-> +int register_oom_notifier(struct notifier_block *nb)
-> +{
-> +	return notifier_chain_register(&oom_notify_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(register_oom_notifier);
-> +
-> +int unregister_oom_notifier(struct notifier_block *nb)
-> +{
-> +	return notifier_chain_unregister(&oom_notify_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-
-If one of the locked notifier-chain APIs was used (ie: blocking_notifier*),
-I think the above race wouldn't be present.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
