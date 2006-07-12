@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:37:57 +0200
-Message-Id: <20060712143757.16998.46090.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:38:09 +0200
+Message-Id: <20060712143809.16998.77765.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 5/39] mm: pgrep: add a use-once insertion hint
+Subject: [PATCH 6/39] mm: pgrep: generice __pagevec_*_add
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,72 +12,176 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Allow for a use-once hint.
-
-API:
-
-give a hint to the page replace algorithm:
-
-	void pgrep_hint_use_once(struct page *);
+Since PG_active is already used to discriminate between active and inactive
+lists, use it to collapse the two pagevec add functions and make it a generic
+helper function.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_page_replace.h    |    1 +
- include/linux/mm_use_once_policy.h |    4 ++++
- mm/filemap.c                       |   12 ++++++++++++
- 3 files changed, 17 insertions(+)
+ include/linux/mm_inline.h |    6 ++++
+ mm/swap.c                 |   31 ++++++++++++++++++++
+ mm/useonce.c              |   68 ++--------------------------------------------
+ 3 files changed, 41 insertions(+), 64 deletions(-)
 
-Index: linux-2.6/mm/filemap.c
+Index: linux-2.6/mm/useonce.c
 ===================================================================
---- linux-2.6.orig/mm/filemap.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/filemap.c	2006-07-12 16:08:18.000000000 +0200
-@@ -412,6 +412,18 @@ int add_to_page_cache(struct page *page,
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
- 			page_cache_get(page);
-+			/*
-+			 * shmem_getpage()
-+			 *   lookup_swap_cache()
-+			 *   TestSetPageLocked()
-+			 *   move_from_swap_cache()
-+			 *     add_to_page_cache()
-+			 *
-+			 * That path calls us with a LRU page instead of a new
-+			 * page. Don't set the hint for LRU pages.
-+			 */
-+			if (!PageLocked(page))
-+				pgrep_hint_use_once(page);
- 			SetPageLocked(page);
- 			page->mapping = mapping;
- 			page->index = offset;
-Index: linux-2.6/include/linux/mm_page_replace.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:54.000000000 +0200
-@@ -9,6 +9,7 @@
- #include <linux/mm_inline.h>
+--- linux-2.6.orig/mm/useonce.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/useonce.c	2006-07-12 16:11:49.000000000 +0200
+@@ -11,64 +11,6 @@
+ static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
+ static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
  
- /* void pgrep_hint_active(struct page *); */
-+/* void pgrep_hint_use_once(struct page *); */
- extern void fastcall pgrep_add(struct page *);
- /* void __pgrep_add(struct zone *, struct page *); */
- /* void pgrep_add_drain(void); */
-Index: linux-2.6/include/linux/mm_use_once_policy.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:54.000000000 +0200
-@@ -8,6 +8,10 @@ static inline void pgrep_hint_active(str
- 	SetPageActive(page);
+-/*
+- * Add the passed pages to the LRU, then drop the caller's refcount
+- * on them.  Reinitialises the caller's pagevec.
+- */
+-void __pagevec_pgrep_add(struct pagevec *pvec)
+-{
+-	int i;
+-	struct zone *zone = NULL;
+-
+-	for (i = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		struct zone *pagezone = page_zone(page);
+-
+-		if (pagezone != zone) {
+-			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
+-			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-		BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		add_page_to_inactive_list(zone, page);
+-	}
+-	if (zone)
+-		spin_unlock_irq(&zone->lru_lock);
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+-	pagevec_reinit(pvec);
+-}
+-
+-EXPORT_SYMBOL(__pagevec_pgrep_add);
+-
+-static void __pagevec_lru_add_active(struct pagevec *pvec)
+-{
+-	int i;
+-	struct zone *zone = NULL;
+-
+-	for (i = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		struct zone *pagezone = page_zone(page);
+-
+-		if (pagezone != zone) {
+-			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
+-			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-		BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		BUG_ON(PageActive(page));
+-		SetPageActive(page);
+-		add_page_to_active_list(zone, page);
+-	}
+-	if (zone)
+-		spin_unlock_irq(&zone->lru_lock);
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+-	pagevec_reinit(pvec);
+-}
+-
+ static inline void lru_cache_add(struct page *page)
+ {
+ 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs);
+@@ -85,18 +27,16 @@ static inline void lru_cache_add_active(
+ 
+ 	page_cache_get(page);
+ 	if (!pagevec_add(pvec, page))
+-		__pagevec_lru_add_active(pvec);
++		__pagevec_pgrep_add(pvec);
+ 	put_cpu_var(lru_add_active_pvecs);
  }
  
-+static inline void pgrep_hint_use_once(struct page *page)
+ void fastcall pgrep_add(struct page *page)
+ {
+-	if (PageActive(page)) {
+-		ClearPageActive(page);
++	if (PageActive(page))
+ 		lru_cache_add_active(page);
+-	} else {
++	else
+ 		lru_cache_add(page);
+-	}
+ }
+ 
+ void __pgrep_add_drain(unsigned int cpu)
+@@ -107,5 +47,5 @@ void __pgrep_add_drain(unsigned int cpu)
+ 		__pagevec_pgrep_add(pvec);
+ 	pvec = &per_cpu(lru_add_active_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+-		__pagevec_lru_add_active(pvec);
++		__pagevec_pgrep_add(pvec);
+ }
+Index: linux-2.6/mm/swap.c
+===================================================================
+--- linux-2.6.orig/mm/swap.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/swap.c	2006-07-12 16:11:50.000000000 +0200
+@@ -335,6 +335,37 @@ unsigned pagevec_lookup_tag(struct pagev
+ 
+ EXPORT_SYMBOL(pagevec_lookup_tag);
+ 
++/*
++ * Add the passed pages to the LRU, then drop the caller's refcount
++ * on them.  Reinitialises the caller's pagevec.
++ */
++void __pagevec_pgrep_add(struct pagevec *pvec)
 +{
++	int i;
++	struct zone *zone = NULL;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		struct zone *pagezone = page_zone(page);
++
++		if (pagezone != zone) {
++			if (zone)
++				spin_unlock_irq(&zone->lru_lock);
++			zone = pagezone;
++			spin_lock_irq(&zone->lru_lock);
++		}
++		BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++		__pgrep_add(zone, page);
++	}
++	if (zone)
++		spin_unlock_irq(&zone->lru_lock);
++	release_pages(pvec->pages, pvec->nr, pvec->cold);
++	pagevec_reinit(pvec);
 +}
 +
++EXPORT_SYMBOL(__pagevec_pgrep_add);
++
+ #ifdef CONFIG_SMP
+ /*
+  * We tolerate a little inaccuracy to avoid ping-ponging the counter between
+Index: linux-2.6/include/linux/mm_inline.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_inline.h	2006-06-23 21:47:11.000000000 +0200
++++ linux-2.6/include/linux/mm_inline.h	2006-07-12 16:11:44.000000000 +0200
+@@ -1,3 +1,7 @@
++#ifndef _LINUX_MM_INLINE_H_
++#define _LINUX_MM_INLINE_H_
++
++#ifdef __KERNEL__
+ 
  static inline void
- __pgrep_add(struct zone *zone, struct page *page)
- {
+ add_page_to_active_list(struct zone *zone, struct page *page)
+@@ -39,3 +43,5 @@ del_page_from_lru(struct zone *zone, str
+ 	}
+ }
+ 
++#endif /* __KERNEL__ */
++#endif /* _LINUX_MM_INLINE_H_ */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
