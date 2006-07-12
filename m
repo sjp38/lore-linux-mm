@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:39:40 +0200
-Message-Id: <20060712143940.16998.41841.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:39:52 +0200
+Message-Id: <20060712143952.16998.5353.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 14/39] mm: pgrep: manage page-state
+Subject: [PATCH 15/39] mm: pgrep: abstract page removal
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -14,120 +14,187 @@ From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 API:
 
-Copy/Clear the reclaim page state:
+Remove the specified page from the page reclaim data structures.
 
-	void pgrep_copy_state(struct page *, struct page *);
-	void pgrep_clear_state(struct page *);
+	void __pgrep_remove(struct zone *zone, struct page *page);
 
-Query activeness of the page, where 'active' is taken to mean: not likely
-to be in the next candidate group.
+NOTE: isolate_lru_page{,s}() become generic functions.
 
-	int pgrep_is_active(struct page *);
-	
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl
-
- include/linux/mm_page_replace.h    |    3 +++
- include/linux/mm_use_once_policy.h |   17 +++++++++++++++++
- mm/mempolicy.c                     |    2 +-
- mm/migrate.c                       |    5 ++---
- mm/vmscan.c                        |    1 +
- 5 files changed, 24 insertions(+), 4 deletions(-)
+ include/linux/mm_page_replace.h    |    1 +
+ include/linux/mm_use_once_policy.h |    9 +++++++++
+ include/linux/swap.h               |    6 +++---
+ mm/migrate.c                       |    5 +----
+ mm/swap.c                          |    6 ++++--
+ mm/useonce.c                       |    8 ++------
+ mm/vmscan.c                        |   12 +++++-------
+ 7 files changed, 25 insertions(+), 22 deletions(-)
 
 Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
 --- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:45.000000000 +0200
-@@ -81,6 +81,9 @@ typedef enum {
- extern unsigned long pgrep_shrink_zone(int priority, struct zone *zone,
- 					struct scan_control *sc);
- /* void __pgrep_rotate_reclaimable(struct zone *, struct page *); */
-+/* void pgrep_copy_state(struct page *, struct page *); */
-+/* void pgrep_clear_state(struct page *); */
-+/* int pgrep_is_active(struct page *); */
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:44.000000000 +0200
+@@ -84,6 +84,7 @@ extern unsigned long pgrep_shrink_zone(i
+ /* void pgrep_copy_state(struct page *, struct page *); */
+ /* void pgrep_clear_state(struct page *); */
+ /* int pgrep_is_active(struct page *); */
++/* void __pgrep_remove(struct zone *zone, struct page *page); */
  
  
  #ifdef CONFIG_MM_POLICY_USEONCE
 Index: linux-2.6/include/linux/mm_use_once_policy.h
 ===================================================================
 --- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:45.000000000 +0200
-@@ -103,5 +103,22 @@ static inline void __pgrep_rotate_reclai
- 	}
++++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:44.000000000 +0200
+@@ -120,5 +120,14 @@ static inline int pgrep_is_active(struct
+ 	return PageActive(page);
  }
  
-+static inline void pgrep_copy_state(struct page *dpage, struct page *spage)
++static inline void __pgrep_remove(struct zone *zone, struct page *page)
 +{
-+	if (PageActive(spage))
-+		SetPageActive(dpage);
-+}
-+
-+static inline void pgrep_clear_state(struct page *page)
-+{
++	list_del(&page->lru);
 +	if (PageActive(page))
-+		ClearPageActive(page);
-+}
-+
-+static inline int pgrep_is_active(struct page *page)
-+{
-+	return PageActive(page);
++		zone->nr_active--;
++	else
++		zone->nr_inactive--;
 +}
 +
  #endif /* __KERNEL__ */
  #endif /* _LINUX_MM_USEONCE_POLICY_H */
-Index: linux-2.6/mm/mempolicy.c
-===================================================================
---- linux-2.6.orig/mm/mempolicy.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/mempolicy.c	2006-07-12 16:11:43.000000000 +0200
-@@ -1749,7 +1749,7 @@ static void gather_stats(struct page *pa
- 	if (PageSwapCache(page))
- 		md->swapcache++;
- 
--	if (PageActive(page))
-+	if (pgrep_is_active(page))
- 		md->active++;
- 
- 	if (PageWriteback(page))
 Index: linux-2.6/mm/migrate.c
 ===================================================================
---- linux-2.6.orig/mm/migrate.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/migrate.c	2006-07-12 16:11:45.000000000 +0200
-@@ -262,12 +262,11 @@ void migrate_page_copy(struct page *newp
- 		SetPageReferenced(newpage);
- 	if (PageUptodate(page))
- 		SetPageUptodate(newpage);
--	if (PageActive(page))
--		SetPageActive(newpage);
- 	if (PageChecked(page))
- 		SetPageChecked(newpage);
- 	if (PageMappedToDisk(page))
- 		SetPageMappedToDisk(newpage);
-+	pgrep_copy_state(newpage, page);
+--- linux-2.6.orig/mm/migrate.c	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/mm/migrate.c	2006-07-12 16:11:44.000000000 +0200
+@@ -53,10 +53,7 @@ int isolate_lru_page(struct page *page, 
+ 			ret = 0;
+ 			get_page(page);
+ 			ClearPageLRU(page);
+-			if (PageActive(page))
+-				del_page_from_active_list(zone, page);
+-			else
+-				del_page_from_inactive_list(zone, page);
++			__pgrep_remove(zone, page);
+ 			list_add_tail(&page->lru, pagelist);
+ 		}
+ 		spin_unlock_irq(&zone->lru_lock);
+Index: linux-2.6/mm/swap.c
+===================================================================
+--- linux-2.6.orig/mm/swap.c	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/mm/swap.c	2006-07-12 16:11:44.000000000 +0200
+@@ -140,7 +140,8 @@ void fastcall __page_cache_release(struc
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		BUG_ON(!PageLRU(page));
+ 		__ClearPageLRU(page);
+-		del_page_from_lru(zone, page);
++		__pgrep_remove(zone, page);
++		pgrep_clear_state(page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
+ 	free_hot_page(page);
+@@ -191,7 +192,8 @@ void release_pages(struct page **pages, 
+ 			}
+ 			BUG_ON(!PageLRU(page));
+ 			__ClearPageLRU(page);
+-			del_page_from_lru(zone, page);
++			__pgrep_remove(zone, page);
++			pgrep_clear_state(page);
+ 		}
  
- 	if (PageDirty(page)) {
- 		clear_page_dirty_for_io(page);
-@@ -275,8 +274,8 @@ void migrate_page_copy(struct page *newp
-  	}
+ 		if (!pagevec_add(&pages_to_free, page)) {
+Index: linux-2.6/mm/useonce.c
+===================================================================
+--- linux-2.6.orig/mm/useonce.c	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/mm/useonce.c	2006-07-12 16:11:43.000000000 +0200
+@@ -73,11 +73,9 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_scan;
+ 		unsigned long nr_freed;
  
- 	ClearPageSwapCache(page);
--	ClearPageActive(page);
- 	ClearPagePrivate(page);
-+	pgrep_clear_state(page);
- 	set_page_private(page, 0);
- 	page->mapping = NULL;
+-		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
++		nr_taken = isolate_lru_pages(zone, sc->swap_cluster_max,
+ 					     &zone->inactive_list,
+ 					     &page_list, &nr_scan);
+-		zone->nr_inactive -= nr_taken;
+-		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
  
+ 		nr_scanned += nr_scan;
+@@ -155,10 +153,8 @@ static void shrink_active_list(unsigned 
+ 
+ 	pgrep_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+-	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
++	pgmoved = isolate_lru_pages(zone, nr_pages, &zone->active_list,
+ 				    &l_hold, &pgscanned);
+-	zone->pages_scanned += pgscanned;
+-	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
 --- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:45.000000000 +0200
-@@ -473,6 +473,7 @@ unsigned long shrink_page_list(struct li
- 			goto keep_locked;
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:44.000000000 +0200
+@@ -514,7 +514,7 @@ keep:
+  *
+  * returns how many pages were moved onto *@dst.
+  */
+-unsigned long isolate_lru_pages(unsigned long nr_to_scan,
++unsigned long isolate_lru_pages(struct zone *zone, unsigned long nr_to_scan,
+ 		struct list_head *src, struct list_head *dst,
+ 		unsigned long *scanned)
+ {
+@@ -523,14 +523,11 @@ unsigned long isolate_lru_pages(unsigned
+ 	unsigned long scan;
  
- free_it:
-+		pgrep_clear_state(page);
- 		unlock_page(page);
- 		nr_reclaimed++;
- 		if (!pagevec_add(&freed_pvec, page))
+ 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+-		struct list_head *target;
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+ 
+ 		BUG_ON(!PageLRU(page));
+ 
+-		list_del(&page->lru);
+-		target = src;
+ 		if (likely(get_page_unless_zero(page))) {
+ 			/*
+ 			 * Be careful not to clear PageLRU until after we're
+@@ -538,14 +535,15 @@ unsigned long isolate_lru_pages(unsigned
+ 			 * page release code relies on it.
+ 			 */
+ 			ClearPageLRU(page);
+-			target = dst;
++			__pgrep_remove(zone, page);
++			list_add(&page->lru, dst);
+ 			nr_taken++;
+ 		} /* else it is being freed elsewhere */
+-
+-		list_add(&page->lru, target);
++		else list_move(&page->lru, src);
+ 	}
+ 
+ 	*scanned = scan;
++	zone->pages_scanned += scan;
+ 	return nr_taken;
+ }
+ 
+Index: linux-2.6/include/linux/swap.h
+===================================================================
+--- linux-2.6.orig/include/linux/swap.h	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/include/linux/swap.h	2006-07-12 16:09:18.000000000 +0200
+@@ -174,9 +174,9 @@ extern void release_pages(struct page **
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+ extern unsigned long shrink_page_list(struct list_head *page_list,
+ 					struct scan_control *sc);
+-extern unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+-		struct list_head *src, struct list_head *dst,
+-		unsigned long *scanned);
++extern unsigned long isolate_lru_pages(struct zone *zone,
++		unsigned long nr_to_scan, struct list_head *src,
++		struct list_head *dst, unsigned long *scanned);
+ extern int should_reclaim_mapped(struct zone *zone);
+ extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
