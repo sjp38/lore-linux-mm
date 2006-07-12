@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:38:44 +0200
-Message-Id: <20060712143844.16998.45206.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:39:06 +0200
+Message-Id: <20060712143906.16998.42974.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 9/39] mm: pgrep: move struct scan_control around
+Subject: [PATCH 11/39] mm: pgrep: replace mark_page_accessed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,84 +12,116 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Move struct scan_control to the general pgrep header so that all
-policies can make use of it.
+Abstract the page activation.
+
+API:
+
+Mark a page as accessed.
+
+	void pgrep_mark_accessed(struct page *);
+
+XXX: go through tree and rename mark_page_accessed() ?
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_page_replace.h |   23 +++++++++++++++++++++++
- mm/vmscan.c                     |   23 -----------------------
- 2 files changed, 23 insertions(+), 23 deletions(-)
+ include/linux/mm_page_replace.h    |    1 +
+ include/linux/mm_use_once_policy.h |   26 ++++++++++++++++++++++++++
+ mm/swap.c                          |   28 +---------------------------
+ 3 files changed, 28 insertions(+), 27 deletions(-)
 
+Index: linux-2.6/include/linux/mm_use_once_policy.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:47.000000000 +0200
+@@ -24,6 +24,32 @@ __pgrep_add(struct zone *zone, struct pa
+ 		add_page_to_inactive_list(zone, page);
+ }
+ 
++/*
++ * Mark a page as having seen activity.
++ *
++ * inactive,unreferenced	->	inactive,referenced
++ * inactive,referenced		->	active,unreferenced
++ * active,unreferenced		->	active,referenced
++ */
++static inline void pgrep_mark_accessed(struct page *page)
++{
++	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
++		struct zone *zone = page_zone(page);
++
++		spin_lock_irq(&zone->lru_lock);
++		if (PageLRU(page) && !PageActive(page)) {
++			del_page_from_inactive_list(zone, page);
++			SetPageActive(page);
++			add_page_to_active_list(zone, page);
++			inc_page_state(pgactivate);
++		}
++		spin_unlock_irq(&zone->lru_lock);
++		ClearPageReferenced(page);
++	} else if (!PageReferenced(page)) {
++		SetPageReferenced(page);
++	}
++}
++
+ /* Called without lock on whether page is mapped, so answer is unstable */
+ static inline int page_mapping_inuse(struct page *page)
+ {
 Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:51.000000000 +0200
-@@ -8,6 +8,29 @@
- #include <linux/pagevec.h>
- #include <linux/mm_inline.h>
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:08:28.000000000 +0200
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:49.000000000 +0200
+@@ -77,6 +77,7 @@ typedef enum {
  
-+struct scan_control {
-+	/* Incremented by the number of inactive pages that were scanned */
-+	unsigned long nr_scanned;
-+
-+	unsigned long nr_mapped;	/* From page_state */
-+
-+	/* This context's GFP mask */
-+	gfp_t gfp_mask;
-+
-+	int may_writepage;
-+
-+	/* Can pages be swapped as part of reclaim? */
-+	int may_swap;
-+
-+	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
-+	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
-+	 * In this context, it doesn't matter that we scan the
-+	 * whole list at once. */
-+	int swap_cluster_max;
-+
-+	unsigned long nr_writeout;      /* page against which writeout was started */
-+};
-+
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+ /* reclaim_t pgrep_reclaimable(struct page *); */
+ /* int pgrep_activate(struct page *page); */
++/* void pgrep_mark_accessed(struct page *); */
  
- #ifdef ARCH_HAS_PREFETCH
-Index: linux-2.6/mm/vmscan.c
+ 
+ #ifdef CONFIG_MM_POLICY_USEONCE
+Index: linux-2.6/mm/swap.c
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:51.000000000 +0200
-@@ -43,29 +43,6 @@
+--- linux-2.6.orig/mm/swap.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/swap.c	2006-07-12 16:11:47.000000000 +0200
+@@ -98,37 +98,11 @@ int rotate_reclaimable_page(struct page 
+ }
  
- #include "internal.h"
- 
--struct scan_control {
--	/* Incremented by the number of inactive pages that were scanned */
--	unsigned long nr_scanned;
--
--	unsigned long nr_mapped;	/* From page_state */
--
--	/* This context's GFP mask */
--	gfp_t gfp_mask;
--
--	int may_writepage;
--
--	/* Can pages be swapped as part of reclaim? */
--	int may_swap;
--
--	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
--	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
--	 * In this context, it doesn't matter that we scan the
--	 * whole list at once. */
--	int swap_cluster_max;
--
--	unsigned long nr_writeout;	/* page against which writeout was started */
--};
--
  /*
-  * The list of shrinker callbacks used by to apply pressure to
-  * ageable caches.
+- * FIXME: speed this up?
+- */
+-void fastcall activate_page(struct page *page)
+-{
+-	struct zone *zone = page_zone(page);
+-
+-	spin_lock_irq(&zone->lru_lock);
+-	if (PageLRU(page) && !PageActive(page)) {
+-		del_page_from_inactive_list(zone, page);
+-		SetPageActive(page);
+-		add_page_to_active_list(zone, page);
+-		inc_page_state(pgactivate);
+-	}
+-	spin_unlock_irq(&zone->lru_lock);
+-}
+-
+-/*
+  * Mark a page as having seen activity.
+- *
+- * inactive,unreferenced	->	inactive,referenced
+- * inactive,referenced		->	active,unreferenced
+- * active,unreferenced		->	active,referenced
+  */
+ void fastcall mark_page_accessed(struct page *page)
+ {
+-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+-		activate_page(page);
+-		ClearPageReferenced(page);
+-	} else if (!PageReferenced(page)) {
+-		SetPageReferenced(page);
+-	}
++	pgrep_mark_accessed(page);
+ }
+ 
+ EXPORT_SYMBOL(mark_page_accessed);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
