@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:41:14 +0200
-Message-Id: <20060712144114.16998.58510.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:41:25 +0200
+Message-Id: <20060712144125.16998.94552.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 22/39] mm: pgrep: per policy PG_flags
+Subject: [PATCH 23/39] mm: pgrep: nonresident page tracking hooks
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,105 +12,172 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Abstract the replacement policy specific pageflags.
+Add hooks for nonresident page tracking.
+The policy has to define MM_POLICY_HAS_NONRESIDENT when it makes
+use of these.
+
+API:
+
+Remeber a page - insert it into the nonresident page tracking.
+
+	void pgrep_remember(struct zone *, struct page *);
+
+Forget about a page - remove it from the nonresident page tracking.
+
+	void pgrep_forget(struct address_space *, unsigned long);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_use_once_policy.h |    8 ++++++++
- include/linux/page-flags.h         |    7 +------
- mm/hugetlb.c                       |    2 +-
- mm/page_alloc.c                    |    6 +++---
- 4 files changed, 13 insertions(+), 10 deletions(-)
+ include/linux/mm_page_replace.h    |    2 ++
+ include/linux/mm_use_once_policy.h |    3 +++
+ mm/memory.c                        |   28 ++++++++++++++++++++++++++++
+ mm/swapfile.c                      |   12 ++++++++++--
+ mm/vmscan.c                        |    2 ++
+ 5 files changed, 45 insertions(+), 2 deletions(-)
 
 Index: linux-2.6/include/linux/mm_use_once_policy.h
 ===================================================================
 --- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:09:19.000000000 +0200
-+++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:36.000000000 +0200
-@@ -5,6 +5,14 @@
++++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:35.000000000 +0200
+@@ -165,6 +165,9 @@ static inline void __pgrep_remove(struct
+ 		zone->policy.nr_inactive--;
+ }
  
- #include <linux/fs.h>
- #include <linux/rmap.h>
-+#include <linux/page-flags.h>
++#define pgrep_remember(z, p) do { } while (0)
++#define pgrep_forget(m, i) do { } while (0)
 +
-+#define PG_active	PG_reclaim1
+ static inline unsigned long __pgrep_nr_pages(struct zone *zone)
+ {
+ 	return zone->policy.nr_active + zone->policy.nr_inactive;
+Index: linux-2.6/include/linux/mm_page_replace.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:09:19.000000000 +0200
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:35.000000000 +0200
+@@ -88,6 +88,8 @@ extern unsigned long pgrep_shrink_zone(i
+ /* int pgrep_is_active(struct page *); */
+ /* void __pgrep_remove(struct zone *zone, struct page *page); */
+ extern void pgrep_reinsert(struct list_head *);
++/* void pgrep_remember(struct zone *, struct page*); */
++/* void pgrep_forget(struct address_space *, unsigned long); */
+ extern void pgrep_show(struct zone *);
+ extern void pgrep_zoneinfo(struct zone *, struct seq_file *);
+ extern void __pgrep_counts(unsigned long *, unsigned long *,
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/memory.c	2006-07-12 16:09:19.000000000 +0200
+@@ -603,6 +603,31 @@ int copy_page_range(struct mm_struct *ds
+ 	return 0;
+ }
+ 
++#if defined MM_POLICY_HAS_NONRESIDENT
++static void free_file(struct vm_area_struct *vma,
++				unsigned long offset)
++{
++	struct address_space *mapping;
++	struct page *page;
 +
-+#define PageActive(page)	test_bit(PG_active, &(page)->flags)
-+#define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
-+#define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
-+#define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
++	if (!vma ||
++	    !vma->vm_file ||
++	    !vma->vm_file->f_mapping)
++		return;
++
++	mapping = vma->vm_file->f_mapping;
++	page = find_get_page(mapping, offset);
++	if (page) {
++		page_cache_release(page);
++		return;
++	}
++
++	pgrep_forget(mapping, offset);
++}
++#else
++#define free_file(a,b) do { } while (0)
++#endif
++
+ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma, pmd_t *pmd,
+ 				unsigned long addr, unsigned long end,
+@@ -618,6 +643,7 @@ static unsigned long zap_pte_range(struc
+ 	do {
+ 		pte_t ptent = *pte;
+ 		if (pte_none(ptent)) {
++			free_file(vma, pte_to_pgoff(ptent));
+ 			(*zap_work)--;
+ 			continue;
+ 		}
+@@ -677,6 +703,8 @@ static unsigned long zap_pte_range(struc
+ 			continue;
+ 		if (!pte_file(ptent))
+ 			free_swap_and_cache(pte_to_swp_entry(ptent));
++		else
++			free_file(vma, pte_to_pgoff(ptent));
+ 		pte_clear_full(mm, addr, pte, tlb->fullmm);
+ 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
  
- static inline void
- add_page_to_active_list(struct zone *zone, struct page *page)
-Index: linux-2.6/include/linux/page-flags.h
+Index: linux-2.6/mm/swapfile.c
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2006-07-12 16:07:30.000000000 +0200
-+++ linux-2.6/include/linux/page-flags.h	2006-07-12 16:11:30.000000000 +0200
-@@ -70,7 +70,7 @@
+--- linux-2.6.orig/mm/swapfile.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/swapfile.c	2006-07-12 16:09:19.000000000 +0200
+@@ -28,6 +28,7 @@
+ #include <linux/mutex.h>
+ #include <linux/capability.h>
+ #include <linux/syscalls.h>
++#include <linux/mm_page_replace.h>
  
- #define PG_dirty	 	 4
- #define PG_lru			 5
--#define PG_active		 6
-+#define PG_reclaim1		 6	/* reserved by the mm reclaim code */
- #define PG_slab			 7	/* slab debug (Suparna wants this) */
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -300,7 +301,8 @@ void swap_free(swp_entry_t entry)
  
- #define PG_checked		 8	/* kill me in 2.5.<early>. */
-@@ -259,11 +259,6 @@ extern void __mod_page_state_offset(unsi
- #define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
- #define __ClearPageLRU(page)	__clear_bit(PG_lru, &(page)->flags)
- 
--#define PageActive(page)	test_bit(PG_active, &(page)->flags)
--#define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
--#define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
--#define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
--
- #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
- #define __SetPageSlab(page)	__set_bit(PG_slab, &(page)->flags)
- #define __ClearPageSlab(page)	__clear_bit(PG_slab, &(page)->flags)
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2006-07-12 16:09:19.000000000 +0200
-+++ linux-2.6/mm/page_alloc.c	2006-07-12 16:11:30.000000000 +0200
-@@ -149,7 +149,7 @@ static void bad_page(struct page *page)
- 	page->flags &= ~(1 << PG_lru	|
- 			1 << PG_private |
- 			1 << PG_locked	|
--			1 << PG_active	|
-+			1 << PG_reclaim1 |
- 			1 << PG_dirty	|
- 			1 << PG_reclaim |
- 			1 << PG_slab    |
-@@ -379,7 +379,7 @@ static inline int free_pages_check(struc
- 			1 << PG_lru	|
- 			1 << PG_private |
- 			1 << PG_locked	|
--			1 << PG_active	|
-+			1 << PG_reclaim1 |
- 			1 << PG_reclaim	|
- 			1 << PG_slab	|
- 			1 << PG_swapcache |
-@@ -527,7 +527,7 @@ static int prep_new_page(struct page *pa
- 			1 << PG_lru	|
- 			1 << PG_private	|
- 			1 << PG_locked	|
--			1 << PG_active	|
-+			1 << PG_reclaim1 |
- 			1 << PG_dirty	|
- 			1 << PG_reclaim	|
- 			1 << PG_slab    |
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c	2006-07-12 16:07:32.000000000 +0200
-+++ linux-2.6/mm/hugetlb.c	2006-07-12 16:11:30.000000000 +0200
-@@ -291,7 +291,7 @@ static void update_and_free_page(struct 
- 	nr_huge_pages_node[page_zone(page)->zone_pgdat->node_id]--;
- 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
- 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
--				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
-+				1 << PG_dirty | 1 << PG_reclaim1 | 1 << PG_reserved |
- 				1 << PG_private | 1<< PG_writeback);
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		swap_entry_free(p, swp_offset(entry));
++		if (!swap_entry_free(p, swp_offset(entry)))
++			pgrep_forget(&swapper_space, entry.val);
+ 		spin_unlock(&swap_lock);
  	}
- 	page[1].lru.next = NULL;
+ }
+@@ -397,12 +399,18 @@ void free_swap_and_cache(swp_entry_t ent
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
++		switch (swap_entry_free(p, swp_offset(entry))) {
++		case 1:
+ 			page = find_get_page(&swapper_space, entry.val);
+ 			if (page && unlikely(TestSetPageLocked(page))) {
+ 				page_cache_release(page);
+ 				page = NULL;
+ 			}
++			break;
++
++		case 0:
++			pgrep_forget(&swapper_space, entry.val);
++			break;
+ 		}
+ 		spin_unlock(&swap_lock);
+ 	}
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:09:19.000000000 +0200
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:35.000000000 +0200
+@@ -308,6 +308,7 @@ int remove_mapping(struct address_space 
+ 
+ 	if (PageSwapCache(page)) {
+ 		swp_entry_t swap = { .val = page_private(page) };
++		pgrep_remember(page_zone(page), page);
+ 		__delete_from_swap_cache(page);
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		swap_free(swap);
+@@ -315,6 +316,7 @@ int remove_mapping(struct address_space 
+ 		return 1;
+ 	}
+ 
++	pgrep_remember(page_zone(page), page);
+ 	__remove_from_page_cache(page);
+ 	write_unlock_irq(&mapping->tree_lock);
+ 	__put_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
