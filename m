@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:38:09 +0200
-Message-Id: <20060712143809.16998.77765.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:38:21 +0200
+Message-Id: <20060712143821.16998.55209.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 6/39] mm: pgrep: generice __pagevec_*_add
+Subject: [PATCH 7/39] mm: pgrep: abstract the activation logic
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,176 +12,200 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Since PG_active is already used to discriminate between active and inactive
-lists, use it to collapse the two pagevec add functions and make it a generic
-helper function.
+Abstract page activation and the reclaimable condition.
+
+API:
+
+wether the page is reclaimable
+
+	reclaim_t pgrep_reclaimable(struct page *);
+
+	RECLAIM_KEEP		- keep the page
+	RECLAIM_ACTIVATE	- keep the page and activate
+	RECLAIM_REFERENCED	- try to pageout even though referenced
+	RECLAIM_OK		- try to pageout
+	
+activate the page
+	
+	int pgrep_activate(struct page *page);
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_inline.h |    6 ++++
- mm/swap.c                 |   31 ++++++++++++++++++++
- mm/useonce.c              |   68 ++--------------------------------------------
- 3 files changed, 41 insertions(+), 64 deletions(-)
+ include/linux/mm_page_replace.h    |   11 ++++++++
+ include/linux/mm_use_once_policy.h |   48 +++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                        |   42 ++++++++++----------------------
+ 3 files changed, 72 insertions(+), 29 deletions(-)
 
-Index: linux-2.6/mm/useonce.c
+Index: linux-2.6/include/linux/mm_use_once_policy.h
 ===================================================================
---- linux-2.6.orig/mm/useonce.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/useonce.c	2006-07-12 16:11:49.000000000 +0200
-@@ -11,64 +11,6 @@
- static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
- static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
+--- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:50.000000000 +0200
+@@ -3,6 +3,9 @@
  
--/*
-- * Add the passed pages to the LRU, then drop the caller's refcount
-- * on them.  Reinitialises the caller's pagevec.
-- */
--void __pagevec_pgrep_add(struct pagevec *pvec)
--{
--	int i;
--	struct zone *zone = NULL;
--
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
--
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		add_page_to_inactive_list(zone, page);
--	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	release_pages(pvec->pages, pvec->nr, pvec->cold);
--	pagevec_reinit(pvec);
--}
--
--EXPORT_SYMBOL(__pagevec_pgrep_add);
--
--static void __pagevec_lru_add_active(struct pagevec *pvec)
--{
--	int i;
--	struct zone *zone = NULL;
--
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
--
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		BUG_ON(PageActive(page));
--		SetPageActive(page);
--		add_page_to_active_list(zone, page);
--	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	release_pages(pvec->pages, pvec->nr, pvec->cold);
--	pagevec_reinit(pvec);
--}
--
- static inline void lru_cache_add(struct page *page)
+ #ifdef __KERNEL__
+ 
++#include <linux/fs.h>
++#include <linux/rmap.h>
++
+ static inline void pgrep_hint_active(struct page *page)
  {
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs);
-@@ -85,18 +27,16 @@ static inline void lru_cache_add_active(
- 
- 	page_cache_get(page);
- 	if (!pagevec_add(pvec, page))
--		__pagevec_lru_add_active(pvec);
-+		__pagevec_pgrep_add(pvec);
- 	put_cpu_var(lru_add_active_pvecs);
+ 	SetPageActive(page);
+@@ -21,5 +24,50 @@ __pgrep_add(struct zone *zone, struct pa
+ 		add_page_to_inactive_list(zone, page);
  }
  
- void fastcall pgrep_add(struct page *page)
- {
--	if (PageActive(page)) {
--		ClearPageActive(page);
-+	if (PageActive(page))
- 		lru_cache_add_active(page);
--	} else {
-+	else
- 		lru_cache_add(page);
--	}
- }
- 
- void __pgrep_add_drain(unsigned int cpu)
-@@ -107,5 +47,5 @@ void __pgrep_add_drain(unsigned int cpu)
- 		__pagevec_pgrep_add(pvec);
- 	pvec = &per_cpu(lru_add_active_pvecs, cpu);
- 	if (pagevec_count(pvec))
--		__pagevec_lru_add_active(pvec);
-+		__pagevec_pgrep_add(pvec);
- }
-Index: linux-2.6/mm/swap.c
-===================================================================
---- linux-2.6.orig/mm/swap.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/swap.c	2006-07-12 16:11:50.000000000 +0200
-@@ -335,6 +335,37 @@ unsigned pagevec_lookup_tag(struct pagev
- 
- EXPORT_SYMBOL(pagevec_lookup_tag);
- 
-+/*
-+ * Add the passed pages to the LRU, then drop the caller's refcount
-+ * on them.  Reinitialises the caller's pagevec.
-+ */
-+void __pagevec_pgrep_add(struct pagevec *pvec)
++/* Called without lock on whether page is mapped, so answer is unstable */
++static inline int page_mapping_inuse(struct page *page)
 +{
-+	int i;
-+	struct zone *zone = NULL;
++	struct address_space *mapping;
 +
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		struct zone *pagezone = page_zone(page);
++	/* Page is in somebody's page tables. */
++	if (page_mapped(page))
++		return 1;
 +
-+		if (pagezone != zone) {
-+			if (zone)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = pagezone;
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+		BUG_ON(PageLRU(page));
-+		SetPageLRU(page);
-+		__pgrep_add(zone, page);
-+	}
-+	if (zone)
-+		spin_unlock_irq(&zone->lru_lock);
-+	release_pages(pvec->pages, pvec->nr, pvec->cold);
-+	pagevec_reinit(pvec);
++	/* Be more reluctant to reclaim swapcache than pagecache */
++	if (PageSwapCache(page))
++		return 1;
++
++	mapping = page_mapping(page);
++	if (!mapping)
++		return 0;
++
++	/* File is mmap'd by somebody? */
++	return mapping_mapped(mapping);
 +}
 +
-+EXPORT_SYMBOL(__pagevec_pgrep_add);
++static inline reclaim_t pgrep_reclaimable(struct page *page)
++{
++	int referenced;
 +
- #ifdef CONFIG_SMP
- /*
-  * We tolerate a little inaccuracy to avoid ping-ponging the counter between
-Index: linux-2.6/include/linux/mm_inline.h
++	if (PageActive(page))
++		BUG();
++
++	referenced = page_referenced(page, 1);
++	/* In active use or really unfreeable?  Activate it. */
++	if (referenced && page_mapping_inuse(page))
++		return RECLAIM_ACTIVATE;
++
++	if (referenced)
++		return RECLAIM_REFERENCED;
++
++	return RECLAIM_OK;
++}
++
++static inline int pgrep_activate(struct page *page)
++{
++	SetPageActive(page);
++	return 1;
++}
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_USEONCE_POLICY_H */
+Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm_inline.h	2006-06-23 21:47:11.000000000 +0200
-+++ linux-2.6/include/linux/mm_inline.h	2006-07-12 16:11:44.000000000 +0200
-@@ -1,3 +1,7 @@
-+#ifndef _LINUX_MM_INLINE_H_
-+#define _LINUX_MM_INLINE_H_
-+
-+#ifdef __KERNEL__
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:53.000000000 +0200
+@@ -17,6 +17,17 @@ extern void __pgrep_add_drain(unsigned i
+ extern int pgrep_add_drain_all(void);
+ extern void __pagevec_pgrep_add(struct pagevec *);
  
- static inline void
- add_page_to_active_list(struct zone *zone, struct page *page)
-@@ -39,3 +43,5 @@ del_page_from_lru(struct zone *zone, str
- 	}
++typedef enum {
++	RECLAIM_KEEP,
++	RECLAIM_ACTIVATE,
++	RECLAIM_REFERENCED,
++	RECLAIM_OK,
++} reclaim_t;
++
++/* reclaim_t pgrep_reclaimable(struct page *); */
++/* int pgrep_activate(struct page *page); */
++
++
+ #ifdef CONFIG_MM_POLICY_USEONCE
+ #include <linux/mm_use_once_policy.h>
+ #else
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:08:18.000000000 +0200
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:53.000000000 +0200
+@@ -229,27 +229,6 @@ unsigned long shrink_slab(unsigned long 
+ 	return ret;
  }
  
-+#endif /* __KERNEL__ */
-+#endif /* _LINUX_MM_INLINE_H_ */
+-/* Called without lock on whether page is mapped, so answer is unstable */
+-static inline int page_mapping_inuse(struct page *page)
+-{
+-	struct address_space *mapping;
+-
+-	/* Page is in somebody's page tables. */
+-	if (page_mapped(page))
+-		return 1;
+-
+-	/* Be more reluctant to reclaim swapcache than pagecache */
+-	if (PageSwapCache(page))
+-		return 1;
+-
+-	mapping = page_mapping(page);
+-	if (!mapping)
+-		return 0;
+-
+-	/* File is mmap'd by somebody? */
+-	return mapping_mapped(mapping);
+-}
+-
+ static inline int is_page_cache_freeable(struct page *page)
+ {
+ 	return page_count(page) - !!PagePrivate(page) == 2;
+@@ -419,7 +398,7 @@ static unsigned long shrink_page_list(st
+ 		struct address_space *mapping;
+ 		struct page *page;
+ 		int may_enter_fs;
+-		int referenced;
++		int referenced = 0;
+ 
+ 		cond_resched();
+ 
+@@ -429,8 +408,6 @@ static unsigned long shrink_page_list(st
+ 		if (TestSetPageLocked(page))
+ 			goto keep;
+ 
+-		BUG_ON(PageActive(page));
+-
+ 		sc->nr_scanned++;
+ 
+ 		if (!sc->may_swap && page_mapped(page))
+@@ -443,10 +420,17 @@ static unsigned long shrink_page_list(st
+ 		if (PageWriteback(page))
+ 			goto keep_locked;
+ 
+-		referenced = page_referenced(page, 1);
+-		/* In active use or really unfreeable?  Activate it. */
+-		if (referenced && page_mapping_inuse(page))
++		switch (pgrep_reclaimable(page)) {
++		case RECLAIM_KEEP:
++			goto keep_locked;
++		case RECLAIM_ACTIVATE:
+ 			goto activate_locked;
++		case RECLAIM_REFERENCED:
++			referenced = 1;
++			break;
++		case RECLAIM_OK:
++			break;
++		}
+ 
+ #ifdef CONFIG_SWAP
+ 		/*
+@@ -549,8 +533,8 @@ free_it:
+ 		continue;
+ 
+ activate_locked:
+-		SetPageActive(page);
+-		pgactivate++;
++		if (pgrep_activate(page))
++			pgactivate++;
+ keep_locked:
+ 		unlock_page(page);
+ keep:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
