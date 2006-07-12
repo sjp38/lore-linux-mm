@@ -1,63 +1,92 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:37:11 +0200
-Message-Id: <20060712143711.16998.38962.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:37:23 +0200
+Message-Id: <20060712143723.16998.2147.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 1/39] mm: disuse activate_page()
+Subject: [PATCH 2/39] mm: adjust blk_congestion_wait() logic
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Get rid of activate_page() callers.
+The new page reclaim implementations can require a lot more scanning
+in order to find a suiteable page. This causes kswapd to constantly hit:
 
-Instead, page activation is achieved through mark_page_accessed()
-interface.
+ 	blk_congestion_wait(WRITE, HZ/10);
 
-Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+without there being any submitted IO.
+
+Count the number of async pages submitted by pageout() and only wait
+for congestion when the last priority level has submitted more than
+half SWAP_CLUSTER_MAX pages for IO.
+
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/swap.h |    1 -
- mm/swapfile.c        |    4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ mm/vmscan.c |   11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/include/linux/swap.h
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/include/linux/swap.h	2006-07-12 16:07:30.000000000 +0200
-+++ linux-2.6/include/linux/swap.h	2006-07-12 16:11:58.000000000 +0200
-@@ -165,7 +165,6 @@ extern unsigned int nr_free_pagecache_pa
- /* linux/mm/swap.c */
- extern void FASTCALL(lru_cache_add(struct page *));
- extern void FASTCALL(lru_cache_add_active(struct page *));
--extern void FASTCALL(activate_page(struct page *));
- extern void FASTCALL(mark_page_accessed(struct page *));
- extern void lru_add_drain(void);
- extern int lru_add_drain_all(void);
-Index: linux-2.6/mm/swapfile.c
-===================================================================
---- linux-2.6.orig/mm/swapfile.c	2006-07-12 16:07:32.000000000 +0200
-+++ linux-2.6/mm/swapfile.c	2006-07-12 16:11:36.000000000 +0200
-@@ -496,7 +496,7 @@ static void unuse_pte(struct vm_area_str
- 	 * Move the page to the active list so it is not
- 	 * immediately swapped out again after swapon.
- 	 */
--	activate_page(page);
-+	mark_page_accessed(page);
+--- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:07:32.000000000 +0200
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:58.000000000 +0200
+@@ -61,6 +61,8 @@ struct scan_control {
+ 	 * In this context, it doesn't matter that we scan the
+ 	 * whole list at once. */
+ 	int swap_cluster_max;
++
++	unsigned long nr_writeout;	/* page against which writeout was started */
+ };
+ 
+ /*
+@@ -407,6 +409,7 @@ static unsigned long shrink_page_list(st
+ 	struct pagevec freed_pvec;
+ 	int pgactivate = 0;
+ 	unsigned long nr_reclaimed = 0;
++	int writeout = 0;
+ 
+ 	cond_resched();
+ 
+@@ -488,8 +491,10 @@ static unsigned long shrink_page_list(st
+ 			case PAGE_ACTIVATE:
+ 				goto activate_locked;
+ 			case PAGE_SUCCESS:
+-				if (PageWriteback(page) || PageDirty(page))
++				if (PageWriteback(page) || PageDirty(page)) {
++					writeout++;
+ 					goto keep;
++				}
+ 				/*
+ 				 * A synchronous write - probably a ramdisk.  Go
+ 				 * ahead and try to reclaim the page.
+@@ -555,6 +560,7 @@ keep:
+ 	if (pagevec_count(&freed_pvec))
+ 		__pagevec_release_nonlru(&freed_pvec);
+ 	mod_page_state(pgactivate, pgactivate);
++	sc->nr_writeout += writeout;
+ 	return nr_reclaimed;
  }
  
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -598,7 +598,7 @@ static int unuse_mm(struct mm_struct *mm
- 		 * Activate page so shrink_cache is unlikely to unmap its
- 		 * ptes while lock is dropped, so swapoff can make progress.
+@@ -1123,6 +1129,7 @@ scan:
+ 		 * pages behind kswapd's direction of progress, which would
+ 		 * cause too much scanning of the lower zones.
  		 */
--		activate_page(page);
-+		mark_page_accessed(page);
- 		unlock_page(page);
- 		down_read(&mm->mmap_sem);
- 		lock_page(page);
++		sc.nr_writeout = 0;
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+ 			int nr_slab;
+@@ -1170,7 +1177,7 @@ scan:
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+ 		 */
+-		if (total_scanned && priority < DEF_PRIORITY - 2)
++		if (sc.nr_writeout > SWAP_CLUSTER_MAX/2)
+ 			blk_congestion_wait(WRITE, HZ/10);
+ 
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
