@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:38:21 +0200
-Message-Id: <20060712143821.16998.55209.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:38:33 +0200
+Message-Id: <20060712143833.16998.19358.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 7/39] mm: pgrep: abstract the activation logic
+Subject: [PATCH 8/39] mm: pgrep: move useful macros around
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,200 +12,98 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Abstract page activation and the reclaimable condition.
-
-API:
-
-wether the page is reclaimable
-
-	reclaim_t pgrep_reclaimable(struct page *);
-
-	RECLAIM_KEEP		- keep the page
-	RECLAIM_ACTIVATE	- keep the page and activate
-	RECLAIM_REFERENCED	- try to pageout even though referenced
-	RECLAIM_OK		- try to pageout
-	
-activate the page
-	
-	int pgrep_activate(struct page *page);
+move macro's out of vmscan into the generic page replace header so the
+rest of the world can use them too.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_page_replace.h    |   11 ++++++++
- include/linux/mm_use_once_policy.h |   48 +++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                        |   42 ++++++++++----------------------
- 3 files changed, 72 insertions(+), 29 deletions(-)
+ include/linux/mm_page_replace.h |   30 ++++++++++++++++++++++++++++++
+ mm/vmscan.c                     |   30 ------------------------------
+ 2 files changed, 30 insertions(+), 30 deletions(-)
 
-Index: linux-2.6/include/linux/mm_use_once_policy.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:50.000000000 +0200
-@@ -3,6 +3,9 @@
- 
- #ifdef __KERNEL__
- 
-+#include <linux/fs.h>
-+#include <linux/rmap.h>
-+
- static inline void pgrep_hint_active(struct page *page)
- {
- 	SetPageActive(page);
-@@ -21,5 +24,50 @@ __pgrep_add(struct zone *zone, struct pa
- 		add_page_to_inactive_list(zone, page);
- }
- 
-+/* Called without lock on whether page is mapped, so answer is unstable */
-+static inline int page_mapping_inuse(struct page *page)
-+{
-+	struct address_space *mapping;
-+
-+	/* Page is in somebody's page tables. */
-+	if (page_mapped(page))
-+		return 1;
-+
-+	/* Be more reluctant to reclaim swapcache than pagecache */
-+	if (PageSwapCache(page))
-+		return 1;
-+
-+	mapping = page_mapping(page);
-+	if (!mapping)
-+		return 0;
-+
-+	/* File is mmap'd by somebody? */
-+	return mapping_mapped(mapping);
-+}
-+
-+static inline reclaim_t pgrep_reclaimable(struct page *page)
-+{
-+	int referenced;
-+
-+	if (PageActive(page))
-+		BUG();
-+
-+	referenced = page_referenced(page, 1);
-+	/* In active use or really unfreeable?  Activate it. */
-+	if (referenced && page_mapping_inuse(page))
-+		return RECLAIM_ACTIVATE;
-+
-+	if (referenced)
-+		return RECLAIM_REFERENCED;
-+
-+	return RECLAIM_OK;
-+}
-+
-+static inline int pgrep_activate(struct page *page)
-+{
-+	SetPageActive(page);
-+	return 1;
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_USEONCE_POLICY_H */
 Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
 --- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:53.000000000 +0200
-@@ -17,6 +17,17 @@ extern void __pgrep_add_drain(unsigned i
- extern int pgrep_add_drain_all(void);
- extern void __pagevec_pgrep_add(struct pagevec *);
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:52.000000000 +0200
+@@ -8,6 +8,36 @@
+ #include <linux/pagevec.h>
+ #include <linux/mm_inline.h>
  
-+typedef enum {
-+	RECLAIM_KEEP,
-+	RECLAIM_ACTIVATE,
-+	RECLAIM_REFERENCED,
-+	RECLAIM_OK,
-+} reclaim_t;
++#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 +
-+/* reclaim_t pgrep_reclaimable(struct page *); */
-+/* int pgrep_activate(struct page *page); */
++#ifdef ARCH_HAS_PREFETCH
++#define prefetch_prev_lru_page(_page, _base, _field)			\
++	do {								\
++		if ((_page)->lru.prev != _base) {			\
++			struct page *prev;				\
++									\
++			prev = lru_to_page(&(_page->lru));		\
++			prefetch(&prev->_field);			\
++		}							\
++	} while (0)
++#else
++#define prefetch_prev_lru_page(_page, _base, _field) do { } while (0)
++#endif
 +
++#ifdef ARCH_HAS_PREFETCHW
++#define prefetchw_prev_lru_page(_page, _base, _field)			\
++	do {								\
++		if ((_page)->lru.prev != _base) {			\
++			struct page *prev;				\
++									\
++			prev = lru_to_page(&(_page->lru));		\
++			prefetchw(&prev->_field);			\
++		}							\
++	} while (0)
++#else
++#define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
++#endif
 +
- #ifdef CONFIG_MM_POLICY_USEONCE
- #include <linux/mm_use_once_policy.h>
- #else
+ /* void pgrep_hint_active(struct page *); */
+ /* void pgrep_hint_use_once(struct page *); */
+ extern void fastcall pgrep_add(struct page *);
 Index: linux-2.6/mm/vmscan.c
 ===================================================================
 --- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:08:18.000000000 +0200
-+++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:53.000000000 +0200
-@@ -229,27 +229,6 @@ unsigned long shrink_slab(unsigned long 
- 	return ret;
- }
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:52.000000000 +0200
+@@ -77,36 +77,6 @@ struct shrinker {
+ 	long			nr;	/* objs pending delete */
+ };
  
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
+-#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 -
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
+-#ifdef ARCH_HAS_PREFETCH
+-#define prefetch_prev_lru_page(_page, _base, _field)			\
+-	do {								\
+-		if ((_page)->lru.prev != _base) {			\
+-			struct page *prev;				\
+-									\
+-			prev = lru_to_page(&(_page->lru));		\
+-			prefetch(&prev->_field);			\
+-		}							\
+-	} while (0)
+-#else
+-#define prefetch_prev_lru_page(_page, _base, _field) do { } while (0)
+-#endif
 -
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
+-#ifdef ARCH_HAS_PREFETCHW
+-#define prefetchw_prev_lru_page(_page, _base, _field)			\
+-	do {								\
+-		if ((_page)->lru.prev != _base) {			\
+-			struct page *prev;				\
+-									\
+-			prev = lru_to_page(&(_page->lru));		\
+-			prefetchw(&prev->_field);			\
+-		}							\
+-	} while (0)
+-#else
+-#define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
+-#endif
 -
--	mapping = page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	return page_count(page) - !!PagePrivate(page) == 2;
-@@ -419,7 +398,7 @@ static unsigned long shrink_page_list(st
- 		struct address_space *mapping;
- 		struct page *page;
- 		int may_enter_fs;
--		int referenced;
-+		int referenced = 0;
- 
- 		cond_resched();
- 
-@@ -429,8 +408,6 @@ static unsigned long shrink_page_list(st
- 		if (TestSetPageLocked(page))
- 			goto keep;
- 
--		BUG_ON(PageActive(page));
--
- 		sc->nr_scanned++;
- 
- 		if (!sc->may_swap && page_mapped(page))
-@@ -443,10 +420,17 @@ static unsigned long shrink_page_list(st
- 		if (PageWriteback(page))
- 			goto keep_locked;
- 
--		referenced = page_referenced(page, 1);
--		/* In active use or really unfreeable?  Activate it. */
--		if (referenced && page_mapping_inuse(page))
-+		switch (pgrep_reclaimable(page)) {
-+		case RECLAIM_KEEP:
-+			goto keep_locked;
-+		case RECLAIM_ACTIVATE:
- 			goto activate_locked;
-+		case RECLAIM_REFERENCED:
-+			referenced = 1;
-+			break;
-+		case RECLAIM_OK:
-+			break;
-+		}
- 
- #ifdef CONFIG_SWAP
- 		/*
-@@ -549,8 +533,8 @@ free_it:
- 		continue;
- 
- activate_locked:
--		SetPageActive(page);
--		pgactivate++;
-+		if (pgrep_activate(page))
-+			pgactivate++;
- keep_locked:
- 		unlock_page(page);
- keep:
+ /*
+  * From 0 .. 100.  Higher means more swappy.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
