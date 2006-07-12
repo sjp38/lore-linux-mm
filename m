@@ -1,9 +1,9 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 12 Jul 2006 16:40:39 +0200
-Message-Id: <20060712144039.16998.75589.sendpatchset@lappy>
+Date: Wed, 12 Jul 2006 16:40:51 +0200
+Message-Id: <20060712144051.16998.64559.sendpatchset@lappy>
 In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
 References: <20060712143659.16998.6444.sendpatchset@lappy>
-Subject: [PATCH 19/39] mm: pgrep: info functions
+Subject: [PATCH 20/39] mm: pgrep: page count functions
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -12,169 +12,137 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Isolate the printing of various policy related information.
+Abstract the various page counts used to drive the scanner.
 
 API:
 
-print the zone information for show_free_areas():
+give the 'active', 'inactive' and free count for the selected pgdat.
+(free interpretation of '' words)
 
-	void pgrep_show(struct zone *);
+    void __pgrep_counts(unsigned long *, unsigned long *,
+			    unsigned long *, struct zone *);
 
-print the zone information for zoneinfo_show():
+total number of pages in the policies care
 
-	void pgrep_zoneinfo(struct zone *, struct seq_file *);
+    unsigned long __pgrep_nr_pages(struct zone *);
+
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 
- include/linux/mm_page_replace.h |    3 ++
- mm/page_alloc.c                 |   44 +--------------------------------
- mm/useonce.c                    |   52 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 42 deletions(-)
+ include/linux/mm_page_replace.h    |    3 +++
+ include/linux/mm_use_once_policy.h |    5 +++++
+ mm/page_alloc.c                    |   12 +-----------
+ mm/useonce.c                       |   15 +++++++++++++++
+ mm/vmscan.c                        |    6 +++---
+ 5 files changed, 27 insertions(+), 14 deletions(-)
 
 Index: linux-2.6/include/linux/mm_page_replace.h
 ===================================================================
---- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:39.000000000 +0200
-@@ -6,6 +6,7 @@
- #include <linux/mmzone.h>
- #include <linux/mm.h>
- #include <linux/pagevec.h>
-+#include <linux/seq_file.h>
- 
- struct scan_control {
- 	/* Incremented by the number of inactive pages that were scanned */
-@@ -87,6 +88,8 @@ extern unsigned long pgrep_shrink_zone(i
- /* int pgrep_is_active(struct page *); */
- /* void __pgrep_remove(struct zone *zone, struct page *page); */
+--- linux-2.6.orig/include/linux/mm_page_replace.h	2006-07-12 16:09:19.000000000 +0200
++++ linux-2.6/include/linux/mm_page_replace.h	2006-07-12 16:11:36.000000000 +0200
+@@ -90,6 +90,9 @@ extern unsigned long pgrep_shrink_zone(i
  extern void pgrep_reinsert(struct list_head *);
-+extern void pgrep_show(struct zone *);
-+extern void pgrep_zoneinfo(struct zone *, struct seq_file *);
+ extern void pgrep_show(struct zone *);
+ extern void pgrep_zoneinfo(struct zone *, struct seq_file *);
++extern void __pgrep_counts(unsigned long *, unsigned long *,
++				  unsigned long *, struct zone *);
++/* unsigned long __pgrep_nr_pages(struct zone *); */
  
  #ifdef CONFIG_MM_POLICY_USEONCE
  #include <linux/mm_use_once_policy.h>
 Index: linux-2.6/mm/useonce.c
 ===================================================================
---- linux-2.6.orig/mm/useonce.c	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/mm/useonce.c	2006-07-12 16:11:39.000000000 +0200
-@@ -310,3 +310,55 @@ unsigned long pgrep_shrink_zone(int prio
- 	atomic_dec(&zone->reclaim_in_progress);
- 	return nr_reclaimed;
+--- linux-2.6.orig/mm/useonce.c	2006-07-12 16:09:19.000000000 +0200
++++ linux-2.6/mm/useonce.c	2006-07-12 16:11:38.000000000 +0200
+@@ -362,3 +362,18 @@ void pgrep_zoneinfo(struct zone *zone, s
+ 		   zone->spanned_pages,
+ 		   zone->present_pages);
  }
 +
-+#define K(x) ((x) << (PAGE_SHIFT-10))
-+
-+void pgrep_show(struct zone *zone)
++void __pgrep_counts(unsigned long *active, unsigned long *inactive,
++			   unsigned long *free, struct zone *zones)
 +{
-+	printk("%s"
-+	       " free:%lukB"
-+	       " min:%lukB"
-+	       " low:%lukB"
-+	       " high:%lukB"
-+	       " active:%lukB"
-+	       " inactive:%lukB"
-+	       " present:%lukB"
-+	       " pages_scanned:%lu"
-+	       " all_unreclaimable? %s"
-+	       "\n",
-+	       zone->name,
-+	       K(zone->free_pages),
-+	       K(zone->pages_min),
-+	       K(zone->pages_low),
-+	       K(zone->pages_high),
-+	       K(zone->nr_active),
-+	       K(zone->nr_inactive),
-+	       K(zone->present_pages),
-+	       zone->pages_scanned,
-+	       (zone->all_unreclaimable ? "yes" : "no")
-+	      );
-+}
++	int i;
 +
-+void pgrep_zoneinfo(struct zone *zone, struct seq_file *m)
-+{
-+	seq_printf(m,
-+		   "\n  pages free     %lu"
-+		   "\n        min      %lu"
-+		   "\n        low      %lu"
-+		   "\n        high     %lu"
-+		   "\n        active   %lu"
-+		   "\n        inactive %lu"
-+		   "\n        scanned  %lu (a: %lu i: %lu)"
-+		   "\n        spanned  %lu"
-+		   "\n        present  %lu",
-+		   zone->free_pages,
-+		   zone->pages_min,
-+		   zone->pages_low,
-+		   zone->pages_high,
-+		   zone->nr_active,
-+		   zone->nr_inactive,
-+		   zone->pages_scanned,
-+		   zone->nr_scan_active, zone->nr_scan_inactive,
-+		   zone->spanned_pages,
-+		   zone->present_pages);
++	*active = 0;
++	*inactive = 0;
++	*free = 0;
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		*active += zones[i].nr_active;
++		*inactive += zones[i].nr_inactive;
++		*free += zones[i].free_pages;
++	}
 +}
 Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2006-07-12 16:09:18.000000000 +0200
-+++ linux-2.6/mm/page_alloc.c	2006-07-12 16:11:39.000000000 +0200
-@@ -1457,28 +1457,7 @@ void show_free_areas(void)
- 		int i;
+--- linux-2.6.orig/mm/page_alloc.c	2006-07-12 16:09:19.000000000 +0200
++++ linux-2.6/mm/page_alloc.c	2006-07-12 16:11:37.000000000 +0200
+@@ -1332,17 +1332,7 @@ EXPORT_SYMBOL(mod_page_state_offset);
+ void __get_zone_counts(unsigned long *active, unsigned long *inactive,
+ 			unsigned long *free, struct pglist_data *pgdat)
+ {
+-	struct zone *zones = pgdat->node_zones;
+-	int i;
+-
+-	*active = 0;
+-	*inactive = 0;
+-	*free = 0;
+-	for (i = 0; i < MAX_NR_ZONES; i++) {
+-		*active += zones[i].nr_active;
+-		*inactive += zones[i].nr_inactive;
+-		*free += zones[i].free_pages;
+-	}
++	__pgrep_counts(active, inactive, free, pgdat->node_zones);
+ }
  
- 		show_node(zone);
--		printk("%s"
--			" free:%lukB"
--			" min:%lukB"
--			" low:%lukB"
--			" high:%lukB"
--			" active:%lukB"
--			" inactive:%lukB"
--			" present:%lukB"
--			" pages_scanned:%lu"
--			" all_unreclaimable? %s"
--			"\n",
--			zone->name,
--			K(zone->free_pages),
--			K(zone->pages_min),
--			K(zone->pages_low),
--			K(zone->pages_high),
--			K(zone->nr_active),
--			K(zone->nr_inactive),
--			K(zone->present_pages),
--			zone->pages_scanned,
--			(zone->all_unreclaimable ? "yes" : "no")
--			);
-+		pgrep_show(zone);
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
- 			printk(" %lu", zone->lowmem_reserve[i]);
-@@ -2252,26 +2231,7 @@ static int zoneinfo_show(struct seq_file
+ void get_zone_counts(unsigned long *active,
+Index: linux-2.6/include/linux/mm_use_once_policy.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_use_once_policy.h	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/include/linux/mm_use_once_policy.h	2006-07-12 16:11:38.000000000 +0200
+@@ -157,5 +157,10 @@ static inline void __pgrep_remove(struct
+ 		zone->nr_inactive--;
+ }
  
- 		spin_lock_irqsave(&zone->lock, flags);
- 		seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
--		seq_printf(m,
--			   "\n  pages free     %lu"
--			   "\n        min      %lu"
--			   "\n        low      %lu"
--			   "\n        high     %lu"
--			   "\n        active   %lu"
--			   "\n        inactive %lu"
--			   "\n        scanned  %lu (a: %lu i: %lu)"
--			   "\n        spanned  %lu"
--			   "\n        present  %lu",
--			   zone->free_pages,
--			   zone->pages_min,
--			   zone->pages_low,
--			   zone->pages_high,
--			   zone->nr_active,
--			   zone->nr_inactive,
--			   zone->pages_scanned,
--			   zone->nr_scan_active, zone->nr_scan_inactive,
--			   zone->spanned_pages,
--			   zone->present_pages);
-+		pgrep_zoneinfo(zone, m);
- 		seq_printf(m,
- 			   "\n        protection: (%lu",
- 			   zone->lowmem_reserve[0]);
++static inline unsigned long __pgrep_nr_pages(struct zone *zone)
++{
++	return zone->nr_active + zone->nr_inactive;
++}
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_USEONCE_POLICY_H */
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c	2006-07-12 16:09:18.000000000 +0200
++++ linux-2.6/mm/vmscan.c	2006-07-12 16:11:36.000000000 +0200
+@@ -671,7 +671,7 @@ unsigned long try_to_free_pages(struct z
+ 			continue;
+ 
+ 		zone->temp_priority = DEF_PRIORITY;
+-		lru_pages += zone->nr_active + zone->nr_inactive;
++		lru_pages += __pgrep_nr_pages(zone);
+ 	}
+ 
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+@@ -812,7 +812,7 @@ scan:
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+ 
+-			lru_pages += zone->nr_active + zone->nr_inactive;
++			lru_pages += __pgrep_nr_pages(zone);
+ 		}
+ 
+ 		/*
+@@ -853,7 +853,7 @@ scan:
+ 			if (zone->all_unreclaimable)
+ 				continue;
+ 			if (nr_slab == 0 && zone->pages_scanned >=
+-				    (zone->nr_active + zone->nr_inactive) * 4)
++				    __pgrep_nr_pages(zone) * 4)
+ 				zone->all_unreclaimable = 1;
+ 			/*
+ 			 * If we've done a decent amount of scanning and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
