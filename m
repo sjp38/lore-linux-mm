@@ -1,88 +1,96 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Thu, 13 Jul 2006 14:29:10 +1000
-Message-Id: <20060713042910.9978.15862.sendpatchset@localhost.localdomain>
+Date: Thu, 13 Jul 2006 14:29:30 +1000
+Message-Id: <20060713042930.9978.28392.sendpatchset@localhost.localdomain>
 In-Reply-To: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
 References: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
-Subject: [PATCH 15/18] PTI - Change protection iterator abstraction
+Subject: [PATCH 17/18] PTI - Swapfile iterator abstraction
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-1) Abstracts change protection iterator from mprotect.c and 
-puts it in pt_default.c
-
-2)  Abstracts smaps iterator from fs/proc/mmu_task.c and 
+Abstracts swapfile iterator from swapfile.c and 
 puts it in pt_default.c
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- fs/proc/task_mmu.c |  105 ++++++++++++-----------------------------------------
- mm/mprotect.c      |   73 +++++++-----------------------------
- mm/pt-default.c    |   77 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 116 insertions(+), 139 deletions(-)
-Index: linux-2.6.17.2/mm/mprotect.c
+ pt-default.c |   79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ swapfile.c   |   77 ++-------------------------------------------------------
+ 2 files changed, 83 insertions(+), 73 deletions(-)
+Index: linux-2.6.17.2/mm/swapfile.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/mprotect.c	2006-07-09 01:41:14.098069592 +1000
-+++ linux-2.6.17.2/mm/mprotect.c	2006-07-09 01:41:21.556935672 +1000
-@@ -19,82 +19,37 @@
- #include <linux/mempolicy.h>
- #include <linux/personality.h>
+--- linux-2.6.17.2.orig/mm/swapfile.c	2006-06-30 10:17:23.000000000 +1000
++++ linux-2.6.17.2/mm/swapfile.c	2006-07-08 22:00:07.309931488 +1000
+@@ -28,6 +28,7 @@
+ #include <linux/mutex.h>
+ #include <linux/capability.h>
  #include <linux/syscalls.h>
 +#include <linux/pt.h>
  
- #include <asm/uaccess.h>
  #include <asm/pgtable.h>
- #include <asm/cacheflush.h>
  #include <asm/tlbflush.h>
+@@ -483,7 +484,7 @@
+  * just let do_wp_page work it out if a write is requested later - to
+  * force COW, vm_page_prot omits write permission from any private vma.
+  */
+-static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
++void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
+ 		unsigned long addr, swp_entry_t entry, struct page *page)
+ {
+ 	inc_mm_counter(vma->vm_mm, anon_rss);
+@@ -499,72 +500,10 @@
+ 	activate_page(page);
+ }
  
--static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
+-static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
 -{
+-	pte_t swp_pte = swp_entry_to_pte(entry);
 -	pte_t *pte;
 -	spinlock_t *ptl;
+-	int found = 0;
 -
--	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 -	do {
--		if (pte_present(*pte)) {
--			pte_t ptent;
--
--			/* Avoid an SMP race with hardware updated dirty/clean
--			 * bits by wiping the pte and then setting the new pte
--			 * into place.
--			 */
--			ptent = pte_modify(ptep_get_and_clear(mm, addr, pte), newprot);
--			set_pte_at(mm, addr, pte, ptent);
--			lazy_mmu_prot_update(ptent);
+-		/*
+-		 * swapoff spends a _lot_ of time in this loop!
+-		 * Test inline before going to call unuse_pte.
+-		 */
+-		if (unlikely(pte_same(*pte, swp_pte))) {
+-			unuse_pte(vma, pte++, addr, entry, page);
+-			found = 1;
+-			break;
 -		}
 -	} while (pte++, addr += PAGE_SIZE, addr != end);
 -	pte_unmap_unlock(pte - 1, ptl);
+-	return found;
 -}
 -
--static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
-+void change_prot_pte(struct mm_struct *mm, pte_t *pte,
-+	unsigned long address, pgprot_t newprot)
- {
+-static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
+-{
 -	pmd_t *pmd;
 -	unsigned long next;
-+	if (pte_present(*pte)) {
-+		pte_t ptent;
- 
+-
 -	pmd = pmd_offset(pud, addr);
 -	do {
 -		next = pmd_addr_end(addr, end);
 -		if (pmd_none_or_clear_bad(pmd))
 -			continue;
--		change_pte_range(mm, pmd, addr, next, newprot);
+-		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
+-			return 1;
 -	} while (pmd++, addr = next, addr != end);
+-	return 0;
 -}
 -
--static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
--		unsigned long addr, unsigned long end, pgprot_t newprot)
+-static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
 -{
 -	pud_t *pud;
 -	unsigned long next;
@@ -92,63 +100,75 @@ Index: linux-2.6.17.2/mm/mprotect.c
 -		next = pud_addr_end(addr, end);
 -		if (pud_none_or_clear_bad(pud))
 -			continue;
--		change_pmd_range(mm, pud, addr, next, newprot);
+-		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
+-			return 1;
 -	} while (pud++, addr = next, addr != end);
-+		/* Avoid an SMP race with hardware updated dirty/clean
-+		 * bits by wiping the pte and then setting the new pte
-+		 * into place.
-+		 */
-+		ptent = pte_modify(ptep_get_and_clear(mm, address, pte), newprot);
-+		set_pte_at(mm, addr, pte, ptent);
-+		lazy_mmu_prot_update(ptent);
-+	}
- }
- 
- static void change_protection(struct vm_area_struct *vma,
- 		unsigned long addr, unsigned long end, pgprot_t newprot)
+-	return 0;
+-}
+-
+ static int unuse_vma(struct vm_area_struct *vma,
+ 				swp_entry_t entry, struct page *page)
  {
--	struct mm_struct *mm = vma->vm_mm;
 -	pgd_t *pgd;
--	unsigned long next;
- 	unsigned long start = addr;
+-	unsigned long addr, end, next;
++	unsigned long addr, end;
  
- 	BUG_ON(addr >= end);
--	pgd = pgd_offset(mm, addr);
- 	flush_cache_range(vma, addr, end);
+ 	if (page->mapping) {
+ 		addr = page_address_in_vma(page, vma);
+@@ -577,15 +516,7 @@
+ 		end = vma->vm_end;
+ 	}
+ 
+-	pgd = pgd_offset(vma->vm_mm, addr);
 -	do {
 -		next = pgd_addr_end(addr, end);
 -		if (pgd_none_or_clear_bad(pgd))
 -			continue;
--		change_pud_range(mm, pgd, addr, next, newprot);
+-		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
+-			return 1;
 -	} while (pgd++, addr = next, addr != end);
-+	change_protection_read_iterator(vma, addr, end, newprot);
- 	flush_tlb_range(vma, start, end);
+-	return 0;
++	return unuse_vma_read_iterator(vma, addr, end, entry, page);
  }
  
+ static int unuse_mm(struct mm_struct *mm,
 Index: linux-2.6.17.2/mm/pt-default.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-09 01:41:14.098069592 +1000
-+++ linux-2.6.17.2/mm/pt-default.c	2006-07-09 01:43:23.620379208 +1000
-@@ -836,3 +836,80 @@
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
+--- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-08 21:53:14.552151216 +1000
++++ linux-2.6.17.2/mm/pt-default.c	2006-07-08 22:01:25.216087952 +1000
+@@ -1042,3 +1042,82 @@
+ 
+ 	return len + old_addr - old_end;	/* how much done */
  }
 +
-+static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+		unsigned long addr, unsigned long end, pgprot_t newprot)
++static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
++	pte_t swp_pte = swp_entry_to_pte(entry);
 +	pte_t *pte;
 +	spinlock_t *ptl;
++	int found = 0;
 +
-+	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 +	do {
-+		change_prot_pte(mm, pte, addr, newprot);
++		/*
++		 * swapoff spends a _lot_ of time in this loop!
++		 * Test inline before going to call unuse_pte.
++		 */
++		if (unlikely(pte_same(*pte, swp_pte))) {
++			unuse_pte(vma, pte++, addr, entry, page);
++			found = 1;
++			break;
++		}
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
 +	pte_unmap_unlock(pte - 1, ptl);
++	return found;
 +}
 +
-+static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
-+		unsigned long addr, unsigned long end, pgprot_t newprot)
++static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
@@ -158,12 +178,15 @@ Index: linux-2.6.17.2/mm/pt-default.c
 +		next = pmd_addr_end(addr, end);
 +		if (pmd_none_or_clear_bad(pmd))
 +			continue;
-+		change_pte_range(mm, pmd, addr, next, newprot);
++		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
++			return 1;
 +	} while (pmd++, addr = next, addr != end);
++	return 0;
 +}
 +
-+static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
-+		unsigned long addr, unsigned long end, pgprot_t newprot)
++static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
 +	pud_t *pud;
 +	unsigned long next;
@@ -173,169 +196,29 @@ Index: linux-2.6.17.2/mm/pt-default.c
 +		next = pud_addr_end(addr, end);
 +		if (pud_none_or_clear_bad(pud))
 +			continue;
-+		change_pmd_range(mm, pud, addr, next, newprot);
++		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
++			return 1;
 +	} while (pud++, addr = next, addr != end);
++	return 0;
 +}
 +
-+void change_protection_read_iterator(struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end, pgprot_t newprot)
++int unuse_vma_read_iterator(struct vm_area_struct *vma,
++				unsigned long addr, unsigned long end, swp_entry_t entry,
++				struct page *page)
 +{
-+	struct mm_struct *mm = vma->vm_mm;
 +	pgd_t *pgd;
 +	unsigned long next;
 +
-+	pgd = pgd_offset(mm, addr);
++	pgd = pgd_offset(vma->vm_mm, addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd)) {
++		if (pgd_none_or_clear_bad(pgd))
 +			continue;
-+		}
-+		change_pud_range(mm, pgd, addr, next, newprot);
++		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
++			return 1;
 +	} while (pgd++, addr = next, addr != end);
++	return 0;
 +}
-+
-+static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss)
-+{
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	do {
-+
-+		smaps_one_pte(vma, addr, pte, mss);
-+	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	pte_unmap_unlock(pte - 1, ptl);
-+	cond_resched();
-+}
-+
-Index: linux-2.6.17.2/fs/proc/task_mmu.c
-===================================================================
---- linux-2.6.17.2.orig/fs/proc/task_mmu.c	2006-07-09 01:41:14.099069440 +1000
-+++ linux-2.6.17.2/fs/proc/task_mmu.c	2006-07-09 01:41:21.557935520 +1000
-@@ -190,88 +190,33 @@
- 	return show_map_internal(m, v, NULL);
- }
- 
--static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
-+void smaps_one_pte(struct vm_area_struct *vma, unsigned long addr, pte_t *pte,
-+			   struct mem_size_stats *mss)
- {
--	pte_t *pte, ptent;
--	spinlock_t *ptl;
-+	pte_t ptent;
- 	struct page *page;
- 
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
--		ptent = *pte;
--		if (!pte_present(ptent))
--			continue;
--
--		mss->resident += PAGE_SIZE;
--
--		page = vm_normal_page(vma, addr, ptent);
--		if (!page)
--			continue;
--
--		if (page_mapcount(page) >= 2) {
--			if (pte_dirty(ptent))
--				mss->shared_dirty += PAGE_SIZE;
--			else
--				mss->shared_clean += PAGE_SIZE;
--		} else {
--			if (pte_dirty(ptent))
--				mss->private_dirty += PAGE_SIZE;
--			else
--				mss->private_clean += PAGE_SIZE;
--		}
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
--	cond_resched();
--}
--
--static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		smaps_pte_range(vma, pmd, addr, next, mss);
--	} while (pmd++, addr = next, addr != end);
--}
--
--static inline void smaps_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		smaps_pmd_range(vma, pud, addr, next, mss);
--	} while (pud++, addr = next, addr != end);
--}
--
--static inline void smaps_pgd_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				struct mem_size_stats *mss)
--{
--	pgd_t *pgd;
--	unsigned long next;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		smaps_pud_range(vma, pgd, addr, next, mss);
--	} while (pgd++, addr = next, addr != end);
-+	ptent = *pte;
-+	if (!pte_present(ptent))
-+		return;
-+
-+	mss->resident += PAGE_SIZE;
-+
-+	page = vm_normal_page(vma, addr, ptent);
-+	if (!page)
-+		return;
-+
-+	if (page_mapcount(page) >= 2) {
-+		if (pte_dirty(ptent))
-+			mss->shared_dirty += PAGE_SIZE;
-+		else
-+			mss->shared_clean += PAGE_SIZE;
-+	} else {
-+		if (pte_dirty(ptent))
-+			mss->private_dirty += PAGE_SIZE;
-+		else
-+			mss->private_clean += PAGE_SIZE;
-+	}
- }
- 
- static int show_smap(struct seq_file *m, void *v)
-@@ -281,7 +226,7 @@
- 
- 	memset(&mss, 0, sizeof mss);
- 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
--		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
-+		smaps_read_range(vma, vma->vm_start, vma->vm_end, &mss);
- 	return show_map_internal(m, v, &mss);
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
