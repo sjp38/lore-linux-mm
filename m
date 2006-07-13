@@ -1,282 +1,284 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Thu, 13 Jul 2006 14:28:15 +1000
-Message-Id: <20060713042815.9978.49789.sendpatchset@localhost.localdomain>
+Date: Thu, 13 Jul 2006 14:28:30 +1000
+Message-Id: <20060713042830.9978.36957.sendpatchset@localhost.localdomain>
 In-Reply-To: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
 References: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
-Subject: [PATCH 10/18] PTI - Copy iterator abstraction
+Subject: [PATCH 11/18] PTI - Unmap page range abstraction
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-Abstracts copy_page_range iterator from memory.c to pt_default.c
+Abstracts unmap_page_range iterator from memory.c to pt_default.c
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- memory.c     |  108 +------------------------------------------------------
- pt-default.c |  114 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 116 insertions(+), 106 deletions(-)
-Index: linux-2.6.17.2/mm/pt-default.c
-===================================================================
---- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-08 19:37:21.480345200 +1000
-+++ linux-2.6.17.2/mm/pt-default.c	2006-07-08 19:39:36.358840552 +1000
-@@ -285,3 +285,117 @@
- 	return 0;
- }
- #endif /* __PAGETABLE_PMD_FOLDED */
-+
-+static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end)
-+{
-+	pte_t *src_pte, *dst_pte;
-+	spinlock_t *src_ptl, *dst_ptl;
-+	int progress = 0;
-+	int rss[2];
-+
-+again:
-+	rss[1] = rss[0] = 0;
-+	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
-+	if (!dst_pte)
-+		return -ENOMEM;
-+	src_pte = pte_offset_map_nested(src_pmd, addr);
-+	src_ptl = pte_lockptr(src_mm, src_pmd);
-+	spin_lock(src_ptl);
-+
-+	do {
-+		/*
-+		 * We are holding two locks at this point - either of them
-+		 * could generate latencies in another task on another CPU.
-+		 */
-+		if (progress >= 32) {
-+			progress = 0;
-+			if (need_resched() ||
-+			    need_lockbreak(src_ptl) ||
-+			    need_lockbreak(dst_ptl))
-+				break;
-+		}
-+		if (pte_none(*src_pte)) {
-+			progress++;
-+			continue;
-+		}
-+		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
-+		progress += 8;
-+	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
-+
-+	spin_unlock(src_ptl);
-+	pte_unmap_nested(src_pte - 1);
-+	add_mm_rss(dst_mm, rss[0], rss[1]);
-+	pte_unmap_unlock(dst_pte - 1, dst_ptl);
-+	cond_resched();
-+	if (addr != end)
-+		goto again;
-+	return 0;
-+}
-+
-+static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end)
-+{
-+	pmd_t *src_pmd, *dst_pmd;
-+	unsigned long next;
-+
-+	dst_pmd = pmd_alloc(dst_mm, dst_pud, addr);
-+	if (!dst_pmd)
-+		return -ENOMEM;
-+	src_pmd = pmd_offset(src_pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(src_pmd))
-+			continue;
-+		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
-+						vma, addr, next))
-+			return -ENOMEM;
-+	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end)
-+{
-+	pud_t *src_pud, *dst_pud;
-+	unsigned long next;
-+
-+	dst_pud = pud_alloc(dst_mm, dst_pgd, addr);
-+	if (!dst_pud)
-+		return -ENOMEM;
-+	src_pud = pud_offset(src_pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(src_pud))
-+			continue;
-+		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
-+						vma, addr, next))
-+			return -ENOMEM;
-+	} while (dst_pud++, src_pud++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+int copy_dual_iterator(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		unsigned long addr, unsigned long end, struct vm_area_struct *vma)
-+{
-+	pgd_t *src_pgd;
-+	pgd_t *dst_pgd;
-+	unsigned long next;
-+
-+	dst_pgd = pgd_offset(dst_mm, addr);
-+	src_pgd = pgd_offset(src_mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(src_pgd))
-+			continue;
-+
-+		if (copy_pud_range(dst_mm, src_mm, dst_pgd,
-+			src_pgd, vma, addr, next))
-+			return -ENOMEM;
-+
-+	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
-+	return 0;
-+}
+ memory.c     |   96 +++++++----------------------------------------------------
+ pt-default.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+), 83 deletions(-)
 Index: linux-2.6.17.2/mm/memory.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/memory.c	2006-07-08 19:37:21.480345200 +1000
-+++ linux-2.6.17.2/mm/memory.c	2006-07-08 19:41:49.099660880 +1000
-@@ -193,7 +193,7 @@
-  * covered by this vma.
-  */
- 
--static inline void
-+void
- copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
- 		unsigned long addr, int *rss)
-@@ -246,103 +246,9 @@
- 	set_pte_at(dst_mm, addr, dst_pte, pte);
+--- linux-2.6.17.2.orig/mm/memory.c	2006-07-08 19:43:34.673611200 +1000
++++ linux-2.6.17.2/mm/memory.c	2006-07-08 19:59:51.146361032 +1000
+@@ -269,23 +269,14 @@
+ 	return copy_dual_iterator(dst_mm, src_mm, addr, end, vma);
  }
  
--static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end)
--{
--	pte_t *src_pte, *dst_pte;
--	spinlock_t *src_ptl, *dst_ptl;
--	int progress = 0;
--	int rss[2];
+-static unsigned long zap_pte_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pmd_t *pmd,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
++void zap_one_pte(pte_t *pte, struct mm_struct *mm, unsigned long addr,
++		struct vm_area_struct *vma, long *zap_work, struct zap_details *details,
++			 struct mmu_gather *tlb, int *anon_rss, int* file_rss)
+ {
+-	struct mm_struct *mm = tlb->mm;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-	int file_rss = 0;
+-	int anon_rss = 0;
 -
--again:
--	rss[1] = rss[0] = 0;
--	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
--	if (!dst_pte)
--		return -ENOMEM;
--	src_pte = pte_offset_map_nested(src_pmd, addr);
--	src_ptl = pte_lockptr(src_mm, src_pmd);
--	spin_lock(src_ptl);
--
+-	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 -	do {
--		/*
--		 * We are holding two locks at this point - either of them
--		 * could generate latencies in another task on another CPU.
--		 */
--		if (progress >= 32) {
--			progress = 0;
--			if (need_resched() ||
--			    need_lockbreak(src_ptl) ||
--			    need_lockbreak(dst_ptl))
--				break;
--		}
--		if (pte_none(*src_pte)) {
--			progress++;
+ 		pte_t ptent = *pte;
+ 		if (pte_none(ptent)) {
+ 			(*zap_work)--;
 -			continue;
--		}
--		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
--		progress += 8;
--	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
++			return;
+ 		}
+ 
+ 		(*zap_work) -= PAGE_SIZE;
+@@ -302,7 +293,7 @@
+ 				 */
+ 				if (details->check_mapping &&
+ 				    details->check_mapping != page->mapping)
+-					continue;
++					return;
+ 				/*
+ 				 * Each page->index must be checked when
+ 				 * invalidating or truncating nonlinear.
+@@ -310,90 +301,40 @@
+ 				if (details->nonlinear_vma &&
+ 				    (page->index < details->first_index ||
+ 				     page->index > details->last_index))
+-					continue;
++					return;
+ 			}
+ 			ptent = ptep_get_and_clear_full(mm, addr, pte,
+ 							tlb->fullmm);
+ 			tlb_remove_tlb_entry(tlb, pte, addr);
+ 			if (unlikely(!page))
+-				continue;
++				return;
+ 			if (unlikely(details) && details->nonlinear_vma
+ 			    && linear_page_index(details->nonlinear_vma,
+ 						addr) != page->index)
+ 				set_pte_at(mm, addr, pte,
+ 					   pgoff_to_pte(page->index));
+ 			if (PageAnon(page))
+-				anon_rss--;
++				(*anon_rss)--;
+ 			else {
+ 				if (pte_dirty(ptent))
+ 					set_page_dirty(page);
+ 				if (pte_young(ptent))
+ 					mark_page_accessed(page);
+-				file_rss--;
++				(*file_rss)--;
+ 			}
+ 			page_remove_rmap(page);
+ 			tlb_remove_page(tlb, page);
+-			continue;
++			return;
+ 		}
+ 		/*
+ 		 * If details->check_mapping, we leave swap entries;
+ 		 * if details->nonlinear_vma, we leave file entries.
+ 		 */
+ 		if (unlikely(details))
+-			continue;
++			return;
+ 		if (!pte_file(ptent))
+ 			free_swap_and_cache(pte_to_swp_entry(ptent));
+ 		pte_clear_full(mm, addr, pte, tlb->fullmm);
+-	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
 -
--	spin_unlock(src_ptl);
--	pte_unmap_nested(src_pte - 1);
--	add_mm_rss(dst_mm, rss[0], rss[1]);
--	pte_unmap_unlock(dst_pte - 1, dst_ptl);
--	cond_resched();
--	if (addr != end)
--		goto again;
--	return 0;
+-	add_mm_rss(mm, file_rss, anon_rss);
+-	pte_unmap_unlock(pte - 1, ptl);
+-
+-	return addr;
 -}
 -
--static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pud_t *dst_pud, pud_t *src_pud, struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end)
+-static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pud_t *pud,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
 -{
--	pmd_t *src_pmd, *dst_pmd;
+-	pmd_t *pmd;
 -	unsigned long next;
 -
--	dst_pmd = pmd_alloc(dst_mm, dst_pud, addr);
--	if (!dst_pmd)
--		return -ENOMEM;
--	src_pmd = pmd_offset(src_pud, addr);
+-	pmd = pmd_offset(pud, addr);
 -	do {
 -		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(src_pmd))
+-		if (pmd_none_or_clear_bad(pmd)) {
+-			(*zap_work)--;
 -			continue;
--		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
--						vma, addr, next))
--			return -ENOMEM;
--	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
--	return 0;
+-		}
+-		next = zap_pte_range(tlb, vma, pmd, addr, next,
+-						zap_work, details);
+-	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
+-
+-	return addr;
 -}
 -
--static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end)
+-static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pgd_t *pgd,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
 -{
--	pud_t *src_pud, *dst_pud;
+-	pud_t *pud;
 -	unsigned long next;
 -
--	dst_pud = pud_alloc(dst_mm, dst_pgd, addr);
--	if (!dst_pud)
--		return -ENOMEM;
--	src_pud = pud_offset(src_pgd, addr);
+-	pud = pud_offset(pgd, addr);
 -	do {
 -		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(src_pud))
+-		if (pud_none_or_clear_bad(pud)) {
+-			(*zap_work)--;
 -			continue;
--		if (copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
--						vma, addr, next))
--			return -ENOMEM;
--	} while (dst_pud++, src_pud++, addr = next, addr != end);
--	return 0;
--}
+-		}
+-		next = zap_pmd_range(tlb, vma, pud, addr, next,
+-						zap_work, details);
+-	} while (pud++, addr = next, (addr != end && *zap_work > 0));
 -
- int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		struct vm_area_struct *vma)
- {
--	pgd_t *src_pgd, *dst_pgd;
--	unsigned long next;
- 	unsigned long addr = vma->vm_start;
- 	unsigned long end = vma->vm_end;
- 
-@@ -360,17 +266,7 @@
- 	if (is_vm_hugetlb_page(vma))
- 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
- 
--	dst_pgd = pgd_offset(dst_mm, addr);
--	src_pgd = pgd_offset(src_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(src_pgd))
--			continue;
--		if (copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
--						vma, addr, next))
--			return -ENOMEM;
--	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
--	return 0;
-+	return copy_dual_iterator(dst_mm, src_mm, addr, end, vma);
+-	return addr;
  }
  
- static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ static unsigned long unmap_page_range(struct mmu_gather *tlb,
+@@ -401,24 +342,13 @@
+ 				unsigned long addr, unsigned long end,
+ 				long *zap_work, struct zap_details *details)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+ 	if (details && !details->check_mapping && !details->nonlinear_vma)
+ 		details = NULL;
+ 
+ 	BUG_ON(addr >= end);
+ 	tlb_start_vma(tlb, vma);
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd)) {
+-			(*zap_work)--;
+-			continue;
+-		}
+-		next = zap_pud_range(tlb, vma, pgd, addr, next,
+-						zap_work, details);
+-	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
++
++	addr = unmap_page_range_iterator(tlb, vma, addr, end, zap_work, details);
+ 	tlb_end_vma(tlb, vma);
+ 
+ 	return addr;
+Index: linux-2.6.17.2/mm/pt-default.c
+===================================================================
+--- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-08 19:43:34.672611352 +1000
++++ linux-2.6.17.2/mm/pt-default.c	2006-07-08 19:58:22.610820480 +1000
+@@ -399,3 +399,90 @@
+ 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+ 	return 0;
+ }
++
++static unsigned long zap_pte_range(struct mmu_gather *tlb,
++				struct vm_area_struct *vma, pmd_t *pmd,
++				unsigned long addr, unsigned long end,
++				long *zap_work, struct zap_details *details)
++{
++	struct mm_struct *mm = tlb->mm;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int file_rss = 0;
++	int anon_rss = 0;
++
++	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	do {
++		zap_one_pte(pte, mm, addr, vma, zap_work, details, tlb, &anon_rss, &file_rss);
++	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
++
++	add_mm_rss(mm, file_rss, anon_rss);
++	pte_unmap_unlock(pte - 1, ptl);
++
++	return addr;
++}
++
++static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
++				struct vm_area_struct *vma, pud_t *pud,
++				unsigned long addr, unsigned long end,
++				long *zap_work, struct zap_details *details)
++{
++	pmd_t *pmd;
++	unsigned long next;
++
++	pmd = pmd_offset(pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(pmd)) {
++			(*zap_work)--;
++			continue;
++		}
++		next = zap_pte_range(tlb, vma, pmd, addr, next,
++						zap_work, details);
++	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
++
++	return addr;
++}
++
++static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
++				struct vm_area_struct *vma, pgd_t *pgd,
++				unsigned long addr, unsigned long end,
++				long *zap_work, struct zap_details *details)
++{
++	pud_t *pud;
++	unsigned long next;
++
++	pud = pud_offset(pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(pud)) {
++			(*zap_work)--;
++			continue;
++		}
++		next = zap_pmd_range(tlb, vma, pud, addr, next,
++						zap_work, details);
++	} while (pud++, addr = next, (addr != end && *zap_work > 0));
++
++	return addr;
++}
++
++unsigned long unmap_page_range_iterator(struct mmu_gather *tlb,
++		struct vm_area_struct *vma, unsigned long addr, unsigned long end,
++		long *zap_work, struct zap_details *details)
++{
++	pgd_t *pgd;
++	unsigned long next;
++
++	pgd = pgd_offset(vma->vm_mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd)) {
++			(*zap_work)--;
++			continue;
++		}
++		next = zap_pud_range(tlb, vma, pgd, addr, next, zap_work,
++							 details);
++	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
++
++	return addr;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
