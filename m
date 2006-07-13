@@ -1,26 +1,49 @@
-Date: Thu, 13 Jul 2006 08:38:53 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/39] mm: 2.6.17-pr1 - generic page-replacement framework
- and 4 new policies
-In-Reply-To: <20060712143659.16998.6444.sendpatchset@lappy>
-Message-ID: <Pine.LNX.4.64.0607130838360.27189@schroedinger.engr.sgi.com>
-References: <20060712143659.16998.6444.sendpatchset@lappy>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 13 Jul 2006 10:00:38 -0700
+Message-Id: <200607131700.k6DH0c5t001038@agluck-lia64.sc.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: [PATCH] ia64: race flushing icache in COW path
 Sender: owner-linux-mm@kvack.org
+From: Anil Keshavamurthy <anil.s.keshavamurthy@intel.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org
+To: torvalds@osdl.org, akpm@osdl.org
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Jul 2006, Peter Zijlstra wrote:
+There is a race condition that showed up in a threaded JIT environment. The
+situation is that a process with a JIT code page forks, so the page is marked
+read-only, then some threads are created in the child.  One of the threads
+attempts to add a new code block to the JIT page, so a copy-on-write fault is
+taken, and the kernel allocates a new page, copies the data, installs the new
+pte, and then calls lazy_mmu_prot_update() to flush caches to make sure that
+the icache and dcache are in sync.  Unfortunately, the other thread runs right
+after the new pte is installed, but before the caches have been flushed. It
+tries to execute some old JIT code that was already in this page, but it sees
+some garbage in the i-cache from the previous users of the new physical page.
 
-> with OLS around the corner, I thought I'd repost all my page-replacement work
-> so people can get a quick peek at the current status. 
-> This should help discussion next week.
+Fix: we must make the caches consistent before installing the pte. This is
+an ia64 only fix because lazy_mmu_prot_update() is a no-op on all other
+architectures.
 
-Ummm... Some high level discussion on what you are doing here and why 
-would be helpful.
+Signed-off-by: Anil Keshavamurthy <anil.s.keshavamurthy@intel.com>
+Signed-off-by: Tony Luck <tony.luck@intel.com>
+
+---
+
+diff --git a/mm/memory.c b/mm/memory.c
+index dc0d82c..de8bc85 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1549,9 +1549,9 @@ gotten:
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		lazy_mmu_prot_update(entry);
+ 		ptep_establish(vma, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
+-		lazy_mmu_prot_update(entry);
+ 		lru_cache_add_active(new_page);
+ 		page_add_new_anon_rmap(new_page, vma, address);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
