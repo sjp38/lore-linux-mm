@@ -1,9 +1,9 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Thu, 13 Jul 2006 14:27:00 +1000
-Message-Id: <20060713042700.9978.85075.sendpatchset@localhost.localdomain>
+Date: Thu, 13 Jul 2006 14:27:10 +1000
+Message-Id: <20060713042710.9978.65098.sendpatchset@localhost.localdomain>
 In-Reply-To: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
 References: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
-Subject: [PATCH 3/18] PTI - Abstract default page table
+Subject: [PATCH 4/18] PTI - Abstract default page table
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -11,311 +11,303 @@ Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
 This patch does the following:
-1) Starts abstraction of page table implementation from memory.c to 
-   pt-default.c 
-   * Add mm/pt-default.c to contain majority of page table implementation
-   for the Linux default page table.
-   * Add pt-default.c to mm/Makefile
-   * Move page table allocation functions from memory.c to pt-default.c
-2) Carried over from previous patch
-   * pgtable.h & mmu_context.h references to pgd are removed for i386.
-   * init_task.h reference to pgd removed.
+1) Continues page table abstraction from memory.c to pt-default.c
+ * More allocations functions moved across.
+ * Page table deallocation iterator put into pt-default.c
+ * Removed free_pgd_range prototype from mm.h
+2) Calls coallesce vmas in free_pgtables to remove direct reference 
+to PMD_SIZE.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- arch/i386/mm/fault.c           |    2 
- include/asm-i386/mmu_context.h |    5 -
- include/asm-i386/pgtable.h     |    2 
- mm/Makefile                    |    2 
- mm/memory.c                    |   87 ---------------------------------
- mm/pt-default.c                |  105 +++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 110 insertions(+), 93 deletions(-)
-Index: linux-2.6.17.2/mm/Makefile
-===================================================================
---- linux-2.6.17.2.orig/mm/Makefile	2006-07-07 21:31:11.155866904 +1000
-+++ linux-2.6.17.2/mm/Makefile	2006-07-07 21:31:13.847457720 +1000
-@@ -5,7 +5,7 @@
- mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
--			   vmalloc.o
-+			   vmalloc.o pt-default.o
- 
- obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
- 			   page_alloc.o page-writeback.o pdflush.o \
-Index: linux-2.6.17.2/mm/pt-default.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.17.2/mm/pt-default.c	2006-07-07 22:06:38.839684032 +1000
-@@ -0,0 +1,105 @@
-+#include <linux/kernel_stat.h>
-+#include <linux/mm.h>
-+#include <linux/hugetlb.h>
-+#include <linux/mman.h>
-+#include <linux/swap.h>
-+#include <linux/highmem.h>
-+#include <linux/pagemap.h>
-+#include <linux/rmap.h>
-+#include <linux/module.h>
-+#include <linux/init.h>
-+#include <linux/pt.h>
-+
-+#include <asm/uaccess.h>
-+#include <asm/tlb.h>
-+#include <asm/tlbflush.h>
-+#include <asm/pgtable.h>
-+
-+#include <linux/swapops.h>
-+#include <linux/elf.h>
-+
-+/*
-+ * If a p?d_bad entry is found while walking page tables, report
-+ * the error, before resetting entry to p?d_none.  Usually (but
-+ * very seldom) called out from the p?d_none_or_clear_bad macros.
-+ */
-+
-+void pgd_clear_bad(pgd_t *pgd)
-+{
-+	pgd_ERROR(*pgd);
-+	pgd_clear(pgd);
-+}
-+
-+void pud_clear_bad(pud_t *pud)
-+{
-+	pud_ERROR(*pud);
-+	pud_clear(pud);
-+}
-+
-+void pmd_clear_bad(pmd_t *pmd)
-+{
-+	pmd_ERROR(*pmd);
-+	pmd_clear(pmd);
-+}
-+
-+int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-+{
-+	struct page *new = pte_alloc_one(mm, address);
-+	if (!new)
-+		return -ENOMEM;
-+
-+	pte_lock_init(new);
-+	spin_lock(&mm->page_table_lock);
-+	if (pmd_present(*pmd)) {	/* Another has populated it */
-+		pte_lock_deinit(new);
-+		pte_free(new);
-+	} else {
-+		mm->nr_ptes++;
-+		inc_page_state(nr_page_table_pages);
-+		pmd_populate(mm, pmd, new);
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
-+}
-+
-+int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
-+{
-+	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
-+	if (!new)
-+		return -ENOMEM;
-+
-+	spin_lock(&init_mm.page_table_lock);
-+	if (pmd_present(*pmd))		/* Another has populated it */
-+		pte_free_kernel(new);
-+	else
-+		pmd_populate_kernel(&init_mm, pmd, new);
-+	spin_unlock(&init_mm.page_table_lock);
-+	return 0;
-+}
-+
-+#ifndef __PAGETABLE_PUD_FOLDED
-+/*
-+ * Allocate page upper directory.
-+ * We've already handled the fast-path in-line.
-+ */
-+int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
-+{
-+	pud_t *new = pud_alloc_one(mm, address);
-+	if (!new)
-+		return -ENOMEM;
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (pgd_present(*pgd))		/* Another has populated it */
-+		pud_free(new);
-+	else
-+		pgd_populate(mm, pgd, new);
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
-+}
-+#else
-+/* Workaround for gcc 2.96 */
-+int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
-+{
-+	return 0;
-+}
-+#endif /* __PAGETABLE_PUD_FOLDED */
-Index: linux-2.6.17.2/arch/i386/mm/fault.c
-===================================================================
---- linux-2.6.17.2.orig/arch/i386/mm/fault.c	2006-07-07 21:31:11.168864928 +1000
-+++ linux-2.6.17.2/arch/i386/mm/fault.c	2006-07-07 21:31:13.848457568 +1000
-@@ -222,7 +222,7 @@
- 	pmd_t *pmd, *pmd_k;
- 
- 	pgd += index;
--	pgd_k = init_mm.pgd + index;
-+	pgd_k = init_mm.pt.pgd + index;
- 
- 	if (!pgd_present(*pgd_k))
- 		return NULL;
-Index: linux-2.6.17.2/include/asm-i386/mmu_context.h
-===================================================================
---- linux-2.6.17.2.orig/include/asm-i386/mmu_context.h	2006-07-07 21:31:11.168864928 +1000
-+++ linux-2.6.17.2/include/asm-i386/mmu_context.h	2006-07-07 21:31:13.849457416 +1000
-@@ -39,8 +39,7 @@
- 		cpu_set(cpu, next->cpu_vm_mask);
- 
- 		/* Re-load page tables */
--		load_cr3(next->pgd);
--
-+		load_cr3(get_root_pt(next));
- 		/*
- 		 * load the LDT, if the LDT is different:
- 		 */
-@@ -56,7 +55,7 @@
- 			/* We were in lazy tlb mode and leave_mm disabled 
- 			 * tlb flush IPI delivery. We must reload %cr3.
- 			 */
--			load_cr3(next->pgd);
-+			load_cr3(get_root_pt(next));
- 			load_LDT_nolock(&next->context, cpu);
- 		}
- 	}
-Index: linux-2.6.17.2/include/asm-i386/pgtable.h
-===================================================================
---- linux-2.6.17.2.orig/include/asm-i386/pgtable.h	2006-07-07 21:31:11.167865080 +1000
-+++ linux-2.6.17.2/include/asm-i386/pgtable.h	2006-07-07 21:31:13.850457264 +1000
-@@ -339,7 +339,7 @@
-  * pgd_offset() returns a (pgd_t *)
-  * pgd_index() is used get the offset into the pgd page's array of pgd_t's;
-  */
--#define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
-+#define pgd_offset(mm, address) ((mm)->pt.pgd+pgd_index(address))
- 
- /*
-  * a shortcut which implies the use of the kernel's pgd, instead
+ include/linux/mm.h |    2 
+ mm/memory.c        |   53 ---------------
+ mm/pt-default.c    |  182 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 185 insertions(+), 52 deletions(-)
 Index: linux-2.6.17.2/mm/memory.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/memory.c	2006-07-07 21:31:13.820461824 +1000
-+++ linux-2.6.17.2/mm/memory.c	2006-07-07 22:06:48.655191848 +1000
-@@ -91,31 +91,6 @@
- }
- __setup("norandmaps", disable_randmaps);
+--- linux-2.6.17.2.orig/mm/memory.c	2006-07-09 00:06:01.159110960 +1000
++++ linux-2.6.17.2/mm/memory.c	2006-07-09 00:06:01.707027664 +1000
+@@ -252,23 +252,10 @@
+ 		anon_vma_unlink(vma);
+ 		unlink_file_vma(vma);
  
--
--/*
-- * If a p?d_bad entry is found while walking page tables, report
-- * the error, before resetting entry to p?d_none.  Usually (but
-- * very seldom) called out from the p?d_none_or_clear_bad macros.
-- */
--
--void pgd_clear_bad(pgd_t *pgd)
--{
--	pgd_ERROR(*pgd);
--	pgd_clear(pgd);
--}
--
--void pud_clear_bad(pud_t *pud)
--{
--	pud_ERROR(*pud);
--	pud_clear(pud);
--}
--
--void pmd_clear_bad(pmd_t *pmd)
--{
--	pmd_ERROR(*pmd);
--	pmd_clear(pmd);
--}
--
- /*
-  * Note: this doesn't free the actual pages themselves. That
-  * has been handled earlier when unmapping all the memory regions.
-@@ -298,41 +273,6 @@
+-		if (is_vm_hugetlb_page(vma)) {
+-			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
+-				floor, next? next->vm_start: ceiling);
+-		} else {
+-			/*
+-			 * Optimization: gather nearby vmas into one call down
+-			 */
+-			while (next && next->vm_start <= vma->vm_end + PMD_SIZE
+-			       && !is_vm_hugetlb_page(next)) {
+-				vma = next;
+-				next = vma->vm_next;
+-				anon_vma_unlink(vma);
+-				unlink_file_vma(vma);
+-			}
+-			free_pgd_range(tlb, addr, vma->vm_end,
++		coallesce_vmas(&vma, &next);
++
++		free_page_table_range(tlb, addr, vma->vm_end,
+ 				floor, next? next->vm_start: ceiling);
+-		}
+ 		vma = next;
  	}
  }
- 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
--{
--	struct page *new = pte_alloc_one(mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	pte_lock_init(new);
--	spin_lock(&mm->page_table_lock);
--	if (pmd_present(*pmd)) {	/* Another has populated it */
--		pte_lock_deinit(new);
--		pte_free(new);
--	} else {
--		mm->nr_ptes++;
--		inc_page_state(nr_page_table_pages);
--		pmd_populate(mm, pmd, new);
--	}
--	spin_unlock(&mm->page_table_lock);
--	return 0;
--}
--
--int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
--{
--	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
--	if (!new)
--		return -ENOMEM;
--
--	spin_lock(&init_mm.page_table_lock);
--	if (pmd_present(*pmd))		/* Another has populated it */
--		pte_free_kernel(new);
--	else
--		pmd_populate_kernel(&init_mm, pmd, new);
--	spin_unlock(&init_mm.page_table_lock);
--	return 0;
--}
--
- /*
-  * This function is called to print an error when a bad pte
-  * is found. For example, we might have a PFN-mapped pte in
-@@ -2276,33 +2216,6 @@
+@@ -2216,40 +2203,6 @@
  
  EXPORT_SYMBOL_GPL(__handle_mm_fault);
  
--#ifndef __PAGETABLE_PUD_FOLDED
+-#ifndef __PAGETABLE_PMD_FOLDED
 -/*
-- * Allocate page upper directory.
+- * Allocate page middle directory.
 - * We've already handled the fast-path in-line.
 - */
--int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+-int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 -{
--	pud_t *new = pud_alloc_one(mm, address);
+-	pmd_t *new = pmd_alloc_one(mm, address);
 -	if (!new)
 -		return -ENOMEM;
 -
 -	spin_lock(&mm->page_table_lock);
--	if (pgd_present(*pgd))		/* Another has populated it */
--		pud_free(new);
+-#ifndef __ARCH_HAS_4LEVEL_HACK
+-	if (pud_present(*pud))		/* Another has populated it */
+-		pmd_free(new);
 -	else
--		pgd_populate(mm, pgd, new);
+-		pud_populate(mm, pud, new);
+-#else
+-	if (pgd_present(*pud))		/* Another has populated it */
+-		pmd_free(new);
+-	else
+-		pgd_populate(mm, pud, new);
+-#endif /* __ARCH_HAS_4LEVEL_HACK */
 -	spin_unlock(&mm->page_table_lock);
 -	return 0;
 -}
 -#else
 -/* Workaround for gcc 2.96 */
--int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+-int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 -{
 -	return 0;
 -}
--#endif /* __PAGETABLE_PUD_FOLDED */
+-#endif /* __PAGETABLE_PMD_FOLDED */
 -
- #ifndef __PAGETABLE_PMD_FOLDED
- /*
-  * Allocate page middle directory.
+ int make_pages_present(unsigned long addr, unsigned long end)
+ {
+ 	int ret, len, write;
+Index: linux-2.6.17.2/mm/pt-default.c
+===================================================================
+--- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-09 00:06:01.149112480 +1000
++++ linux-2.6.17.2/mm/pt-default.c	2006-07-09 00:06:01.707027664 +1000
+@@ -42,6 +42,154 @@
+ 	pmd_clear(pmd);
+ }
+ 
++/*
++ * Note: this doesn't free the actual pages themselves. That
++ * has been handled earlier when unmapping all the memory regions.
++ */
++static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
++{
++	struct page *page = pmd_page(*pmd);
++	pmd_clear(pmd);
++	pte_lock_deinit(page);
++	pte_free_tlb(tlb, page);
++	dec_page_state(nr_page_table_pages);
++	tlb->mm->nr_ptes--;
++}
++
++static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
++				unsigned long addr, unsigned long end,
++				unsigned long floor, unsigned long ceiling)
++{
++	pmd_t *pmd;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	pmd = pmd_offset(pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(pmd))
++			continue;
++		free_pte_range(tlb, pmd);
++	} while (pmd++, addr = next, addr != end);
++
++	start &= PUD_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PUD_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pmd = pmd_offset(pud, start);
++	pud_clear(pud);
++	pmd_free_tlb(tlb, pmd);
++}
++
++static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
++				unsigned long addr, unsigned long end,
++				unsigned long floor, unsigned long ceiling)
++{
++	pud_t *pud;
++	unsigned long next;
++	unsigned long start;
++
++	start = addr;
++	pud = pud_offset(pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(pud))
++			continue;
++		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
++	} while (pud++, addr = next, addr != end);
++
++	start &= PGDIR_MASK;
++	if (start < floor)
++		return;
++	if (ceiling) {
++		ceiling &= PGDIR_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		return;
++
++	pud = pud_offset(pgd, start);
++	pgd_clear(pgd);
++	pud_free_tlb(tlb, pud);
++}
++
++/*
++ * This function frees user-level page tables of a process.
++ *
++ * Must be called with pagetable lock held.
++ */
++void free_page_table_range(struct mmu_gather **tlb,
++			unsigned long addr, unsigned long end,
++			unsigned long floor, unsigned long ceiling)
++{
++	pgd_t *pgd;
++	unsigned long next;
++	unsigned long start;
++
++	/*
++	 * The next few lines have given us lots of grief...
++	 *
++	 * Why are we testing PMD* at this top level?  Because often
++	 * there will be no work to do at all, and we'd prefer not to
++	 * go all the way down to the bottom just to discover that.
++	 *
++	 * Why all these "- 1"s?  Because 0 represents both the bottom
++	 * of the address space and the top of it (using -1 for the
++	 * top wouldn't help much: the masks would do the wrong thing).
++	 * The rule is that addr 0 and floor 0 refer to the bottom of
++	 * the address space, but end 0 and ceiling 0 refer to the top
++	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
++	 * that end 0 case should be mythical).
++	 *
++	 * Wherever addr is brought up or ceiling brought down, we must
++	 * be careful to reject "the opposite 0" before it confuses the
++	 * subsequent tests.  But what about where end is brought down
++	 * by PMD_SIZE below? no, end can't go down to 0 there.
++	 *
++	 * Whereas we round start (addr) and ceiling down, by different
++	 * masks at different levels, in order to test whether a table
++	 * now has no other vmas using it, so can be freed, we don't
++	 * bother to round floor or end up - the tests don't need that.
++	 */
++
++	addr &= PMD_MASK;
++	if (addr < floor) {
++		addr += PMD_SIZE;
++		if (!addr)
++			return;
++	}
++	if (ceiling) {
++		ceiling &= PMD_MASK;
++		if (!ceiling)
++			return;
++	}
++	if (end - 1 > ceiling - 1)
++		end -= PMD_SIZE;
++	if (addr > end - 1)
++		return;
++
++	start = addr;
++	pgd = pgd_offset((*tlb)->mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd))
++			continue;
++		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
++	} while (pgd++, addr = next, addr != end);
++
++	if (!(*tlb)->fullmm)
++		flush_tlb_pgtables((*tlb)->mm, start, end);
++}
++
+ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
+ {
+ 	struct page *new = pte_alloc_one(mm, address);
+@@ -103,3 +251,37 @@
+ 	return 0;
+ }
+ #endif /* __PAGETABLE_PUD_FOLDED */
++
++#ifndef __PAGETABLE_PMD_FOLDED
++/*
++ * Allocate page middle directory.
++ * We've already handled the fast-path in-line.
++ */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	pmd_t *new = pmd_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&mm->page_table_lock);
++#ifndef __ARCH_HAS_4LEVEL_HACK
++	if (pud_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pud_populate(mm, pud, new);
++#else
++	if (pgd_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pgd_populate(mm, pud, new);
++#endif /* __ARCH_HAS_4LEVEL_HACK */
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++#else
++/* Workaround for gcc 2.96 */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	return 0;
++}
++#endif /* __PAGETABLE_PMD_FOLDED */
+Index: linux-2.6.17.2/include/linux/mm.h
+===================================================================
+--- linux-2.6.17.2.orig/include/linux/mm.h	2006-07-09 00:06:00.654187720 +1000
++++ linux-2.6.17.2/include/linux/mm.h	2006-07-09 00:06:01.714026600 +1000
+@@ -702,8 +702,6 @@
+ 		struct vm_area_struct *start_vma, unsigned long start_addr,
+ 		unsigned long end_addr, unsigned long *nr_accounted,
+ 		struct zap_details *);
+-void free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+-		unsigned long end, unsigned long floor, unsigned long ceiling);
+ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
