@@ -1,310 +1,283 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Thu, 13 Jul 2006 14:27:20 +1000
-Message-Id: <20060713042720.9978.18521.sendpatchset@localhost.localdomain>
+Date: Thu, 13 Jul 2006 14:27:35 +1000
+Message-Id: <20060713042735.9978.49829.sendpatchset@localhost.localdomain>
 In-Reply-To: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
 References: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
-Subject: [PATCH 5/18] PTI - Abstract default page table
+Subject: [PATCH 6/18] PTI - Abstract default page table
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-t		This patch does the following:
-1) Continues page table abstraction from memory.c to pt-default.c
- * page table deallocation iterator removed from memory.c
+1) Abstraction of page table implementation in mm.h to pt-mm.h
+ * Removes implementation from mm.h
 
-2) Abstraction of page table implementation in mm.h to pt-mm.h
- * Puts implementation in mm.h into pt-mm.h
+2) Abstraction of page table implementation from asm-generic/pgtable.h
+to asm-generic/pt-pgtable.h
+
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/pt-mm.h |  118 +++++++++++++++++++++++++++++++++++++++
- mm/memory.c           |  148 --------------------------------------------------
- 2 files changed, 118 insertions(+), 148 deletions(-)
-Index: linux-2.6.17.2/include/linux/pt-mm.h
+ asm-generic/pgtable.h    |   73 --------------------------------------------
+ asm-generic/pt-pgtable.h |   77 +++++++++++++++++++++++++++++++++++++++++++++++
+ linux/mm.h               |   71 -------------------------------------------
+ 3 files changed, 79 insertions(+), 142 deletions(-)
+Index: linux-2.6.17.2/include/linux/mm.h
+===================================================================
+--- linux-2.6.17.2.orig/include/linux/mm.h	2006-07-07 23:44:23.659612400 +1000
++++ linux-2.6.17.2/include/linux/mm.h	2006-07-08 00:01:41.280244328 +1000
+@@ -798,76 +798,7 @@
+ 
+ extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
+ 
+-int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+-int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
+-int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
+-int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+-
+-/*
+- * The following ifdef needed to get the 4level-fixup.h header to work.
+- * Remove it when 4level-fixup.h has been removed.
+- */
+-#if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
+-static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+-{
+-	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
+-		NULL: pud_offset(pgd, address);
+-}
+-
+-static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+-{
+-	return (unlikely(pud_none(*pud)) && __pmd_alloc(mm, pud, address))?
+-		NULL: pmd_offset(pud, address);
+-}
+-#endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
+-
+-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+-/*
+- * We tuck a spinlock to guard each pagetable page into its struct page,
+- * at page->private, with BUILD_BUG_ON to make sure that this will not
+- * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
+- * When freeing, reset page->mapping so free_pages_check won't complain.
+- */
+-#define __pte_lockptr(page)	&((page)->ptl)
+-#define pte_lock_init(_page)	do {					\
+-	spin_lock_init(__pte_lockptr(_page));				\
+-} while (0)
+-#define pte_lock_deinit(page)	((page)->mapping = NULL)
+-#define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+-#else
+-/*
+- * We use mm->page_table_lock to guard all pagetable pages of the mm.
+- */
+-#define pte_lock_init(page)	do {} while (0)
+-#define pte_lock_deinit(page)	do {} while (0)
+-#define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+-#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+-
+-#define pte_offset_map_lock(mm, pmd, address, ptlp)	\
+-({							\
+-	spinlock_t *__ptl = pte_lockptr(mm, pmd);	\
+-	pte_t *__pte = pte_offset_map(pmd, address);	\
+-	*(ptlp) = __ptl;				\
+-	spin_lock(__ptl);				\
+-	__pte;						\
+-})
+-
+-#define pte_unmap_unlock(pte, ptl)	do {		\
+-	spin_unlock(ptl);				\
+-	pte_unmap(pte);					\
+-} while (0)
+-
+-#define pte_alloc_map(mm, pmd, address)			\
+-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
+-		NULL: pte_offset_map(pmd, address))
+-
+-#define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
+-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
+-		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
+-
+-#define pte_alloc_kernel(pmd, address)			\
+-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
+-		NULL: pte_offset_kernel(pmd, address))
++#include <linux/pt-mm.h>
+ 
+ extern void free_area_init(unsigned long * zones_size);
+ extern void free_area_init_node(int nid, pg_data_t *pgdat,
+Index: linux-2.6.17.2/include/asm-generic/pt-pgtable.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.17.2/include/linux/pt-mm.h	2006-07-08 23:56:38.660308704 +1000
-@@ -0,0 +1,118 @@
-+#ifndef _LINUX_PT_MM_H
-+#define _LINUX_PT_MM_H 1
++++ linux-2.6.17.2/include/asm-generic/pt-pgtable.h	2006-07-08 00:14:10.398361064 +1000
+@@ -0,0 +1,77 @@
++#ifndef _ASM_GENERIC_DEFAULT_PGTABLE_H
++#define _ASM_GENERIC_DEFAULT_PGTABLE_H 1
 +
-+int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
-+int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
-+int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
-+int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
++#ifndef __HAVE_ARCH_PGD_OFFSET_GATE
++#define pgd_offset_gate(mm, addr)	pgd_offset(mm, addr)
++#endif
 +
 +/*
-+ * The following ifdef needed to get the 4level-fixup.h header to work.
-+ * Remove it when 4level-fixup.h has been removed.
++ * When walking page tables, get the address of the next boundary,
++ * or the end address of the range if that comes earlier.  Although no
++ * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
 + */
-+#if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
-+static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
-+{
-+	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
-+		NULL: pud_offset(pgd, address);
-+}
 +
-+static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
-+{
-+	return (unlikely(pud_none(*pud)) && __pmd_alloc(mm, pud, address))?
-+		NULL: pmd_offset(pud, address);
-+}
-+#endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
-+
-+static inline pmd_t *lookup_pmd(struct mm_struct *mm, unsigned long addr)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (pgd_none_or_clear_bad(pgd))
-+		return NULL;
-+
-+	pud = pud_offset(pgd, addr);
-+	if (pud_none_or_clear_bad(pud))
-+		return NULL;
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (pmd_none_or_clear_bad(pmd))
-+		return NULL;
-+
-+	return pmd;
-+}
-+
-+static inline pmd_t *build_pmd(struct mm_struct *mm, unsigned long addr)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd=NULL;
-+
-+	pgd = pgd_offset(mm, addr);
-+	pud = pud_alloc(mm, pgd, addr);
-+	if (!pud)
-+		return NULL;
-+
-+	pmd = pmd_alloc(mm, pud, addr);
-+	if (!pmd)
-+		return NULL;
-+
-+	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-+		return NULL;
-+
-+	return pmd;
-+}
-+
-+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-+/*
-+ * We tuck a spinlock to guard each pagetable page into its struct page,
-+ * at page->private, with BUILD_BUG_ON to make sure that this will not
-+ * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
-+ * When freeing, reset page->mapping so free_pages_check won't complain.
-+ */
-+#define __pte_lockptr(page)	&((page)->ptl)
-+#define pte_lock_init(_page)	do {					\
-+	spin_lock_init(__pte_lockptr(_page));				\
-+} while (0)
-+#define pte_lock_deinit(page)	((page)->mapping = NULL)
-+#define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
-+#else
-+/*
-+ * We use mm->page_table_lock to guard all pagetable pages of the mm.
-+ */
-+#define pte_lock_init(page)	do {} while (0)
-+#define pte_lock_deinit(page)	do {} while (0)
-+#define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
-+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
-+
-+#define pte_offset_map_lock(mm, pmd, address, ptlp)	\
-+({							\
-+	spinlock_t *__ptl = pte_lockptr(mm, pmd);	\
-+	pte_t *__pte = pte_offset_map(pmd, address);	\
-+	*(ptlp) = __ptl;				\
-+	spin_lock(__ptl);				\
-+	__pte;						\
++#define pgd_addr_end(addr, end)						\
++({	unsigned long __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;	\
++	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
 +})
 +
-+#define pte_unmap_unlock(pte, ptl)	do {		\
-+	spin_unlock(ptl);				\
-+	pte_unmap(pte);					\
-+} while (0)
++#ifndef pud_addr_end
++#define pud_addr_end(addr, end)						\
++({	unsigned long __boundary = ((addr) + PUD_SIZE) & PUD_MASK;	\
++	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
++})
++#endif
 +
-+#define pte_alloc_map(mm, pmd, address)			\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-+		NULL: pte_offset_map(pmd, address))
++#ifndef pmd_addr_end
++#define pmd_addr_end(addr, end)						\
++({	unsigned long __boundary = ((addr) + PMD_SIZE) & PMD_MASK;	\
++	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
++})
++#endif
 +
-+#define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-+		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
++#ifndef __ASSEMBLY__
++/*
++ * When walking page tables, we usually want to skip any p?d_none entries;
++ * and any p?d_bad entries - reporting the error before resetting to none.
++ * Do the tests inline, but report and clear the bad entry in mm/memory.c.
++ */
++void pgd_clear_bad(pgd_t *);
++void pud_clear_bad(pud_t *);
++void pmd_clear_bad(pmd_t *);
 +
-+#define pte_alloc_kernel(pmd, address)			\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
-+		NULL: pte_offset_kernel(pmd, address))
++static inline int pgd_none_or_clear_bad(pgd_t *pgd)
++{
++	if (pgd_none(*pgd))
++		return 1;
++	if (unlikely(pgd_bad(*pgd))) {
++		pgd_clear_bad(pgd);
++		return 1;
++	}
++	return 0;
++}
 +
++static inline int pud_none_or_clear_bad(pud_t *pud)
++{
++	if (pud_none(*pud))
++		return 1;
++	if (unlikely(pud_bad(*pud))) {
++		pud_clear_bad(pud);
++		return 1;
++	}
++	return 0;
++}
++
++static inline int pmd_none_or_clear_bad(pmd_t *pmd)
++{
++	if (pmd_none(*pmd))
++		return 1;
++	if (unlikely(pmd_bad(*pmd))) {
++		pmd_clear_bad(pmd);
++		return 1;
++	}
++	return 0;
++}
++#endif /* !__ASSEMBLY__ */
 +
 +#endif
-Index: linux-2.6.17.2/mm/memory.c
+Index: linux-2.6.17.2/include/asm-generic/pgtable.h
 ===================================================================
---- linux-2.6.17.2.orig/mm/memory.c	2006-07-08 23:56:33.707061712 +1000
-+++ linux-2.6.17.2/mm/memory.c	2006-07-08 23:56:57.978371912 +1000
-@@ -91,154 +91,6 @@
- }
- __setup("norandmaps", disable_randmaps);
+--- linux-2.6.17.2.orig/include/asm-generic/pgtable.h	2006-06-30 10:17:23.000000000 +1000
++++ linux-2.6.17.2/include/asm-generic/pgtable.h	2006-07-08 00:19:21.834250720 +1000
+@@ -151,10 +151,6 @@
+ #define page_test_and_clear_young(page) (0)
+ #endif
+ 
+-#ifndef __HAVE_ARCH_PGD_OFFSET_GATE
+-#define pgd_offset_gate(mm, addr)	pgd_offset(mm, addr)
+-#endif
+-
+ #ifndef __HAVE_ARCH_LAZY_MMU_PROT_UPDATE
+ #define lazy_mmu_prot_update(pte)	do { } while (0)
+ #endif
+@@ -163,73 +159,6 @@
+ #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+ #endif
  
 -/*
-- * Note: this doesn't free the actual pages themselves. That
-- * has been handled earlier when unmapping all the memory regions.
+- * When walking page tables, get the address of the next boundary,
+- * or the end address of the range if that comes earlier.  Although no
+- * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
 - */
--static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
--{
--	struct page *page = pmd_page(*pmd);
--	pmd_clear(pmd);
--	pte_lock_deinit(page);
--	pte_free_tlb(tlb, page);
--	dec_page_state(nr_page_table_pages);
--	tlb->mm->nr_ptes--;
--}
 -
--static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				unsigned long floor, unsigned long ceiling)
--{
--	pmd_t *pmd;
--	unsigned long next;
--	unsigned long start;
+-#define pgd_addr_end(addr, end)						\
+-({	unsigned long __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;	\
+-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+-})
 -
--	start = addr;
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		free_pte_range(tlb, pmd);
--	} while (pmd++, addr = next, addr != end);
+-#ifndef pud_addr_end
+-#define pud_addr_end(addr, end)						\
+-({	unsigned long __boundary = ((addr) + PUD_SIZE) & PUD_MASK;	\
+-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+-})
+-#endif
 -
--	start &= PUD_MASK;
--	if (start < floor)
--		return;
--	if (ceiling) {
--		ceiling &= PUD_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		return;
+-#ifndef pmd_addr_end
+-#define pmd_addr_end(addr, end)						\
+-({	unsigned long __boundary = ((addr) + PMD_SIZE) & PMD_MASK;	\
+-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+-})
+-#endif
 -
--	pmd = pmd_offset(pud, start);
--	pud_clear(pud);
--	pmd_free_tlb(tlb, pmd);
--}
--
--static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				unsigned long floor, unsigned long ceiling)
--{
--	pud_t *pud;
--	unsigned long next;
--	unsigned long start;
--
--	start = addr;
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
--	} while (pud++, addr = next, addr != end);
--
--	start &= PGDIR_MASK;
--	if (start < floor)
--		return;
--	if (ceiling) {
--		ceiling &= PGDIR_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		return;
--
--	pud = pud_offset(pgd, start);
--	pgd_clear(pgd);
--	pud_free_tlb(tlb, pud);
--}
--
+-#ifndef __ASSEMBLY__
 -/*
-- * This function frees user-level page tables of a process.
-- *
-- * Must be called with pagetable lock held.
+- * When walking page tables, we usually want to skip any p?d_none entries;
+- * and any p?d_bad entries - reporting the error before resetting to none.
+- * Do the tests inline, but report and clear the bad entry in mm/memory.c.
 - */
--void free_pgd_range(struct mmu_gather **tlb,
--			unsigned long addr, unsigned long end,
--			unsigned long floor, unsigned long ceiling)
+-void pgd_clear_bad(pgd_t *);
+-void pud_clear_bad(pud_t *);
+-void pmd_clear_bad(pmd_t *);
+-
+-static inline int pgd_none_or_clear_bad(pgd_t *pgd)
 -{
--	pgd_t *pgd;
--	unsigned long next;
--	unsigned long start;
--
--	/*
--	 * The next few lines have given us lots of grief...
--	 *
--	 * Why are we testing PMD* at this top level?  Because often
--	 * there will be no work to do at all, and we'd prefer not to
--	 * go all the way down to the bottom just to discover that.
--	 *
--	 * Why all these "- 1"s?  Because 0 represents both the bottom
--	 * of the address space and the top of it (using -1 for the
--	 * top wouldn't help much: the masks would do the wrong thing).
--	 * The rule is that addr 0 and floor 0 refer to the bottom of
--	 * the address space, but end 0 and ceiling 0 refer to the top
--	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
--	 * that end 0 case should be mythical).
--	 *
--	 * Wherever addr is brought up or ceiling brought down, we must
--	 * be careful to reject "the opposite 0" before it confuses the
--	 * subsequent tests.  But what about where end is brought down
--	 * by PMD_SIZE below? no, end can't go down to 0 there.
--	 *
--	 * Whereas we round start (addr) and ceiling down, by different
--	 * masks at different levels, in order to test whether a table
--	 * now has no other vmas using it, so can be freed, we don't
--	 * bother to round floor or end up - the tests don't need that.
--	 */
--
--	addr &= PMD_MASK;
--	if (addr < floor) {
--		addr += PMD_SIZE;
--		if (!addr)
--			return;
+-	if (pgd_none(*pgd))
+-		return 1;
+-	if (unlikely(pgd_bad(*pgd))) {
+-		pgd_clear_bad(pgd);
+-		return 1;
 -	}
--	if (ceiling) {
--		ceiling &= PMD_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		end -= PMD_SIZE;
--	if (addr > end - 1)
--		return;
--
--	start = addr;
--	pgd = pgd_offset((*tlb)->mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
--	} while (pgd++, addr = next, addr != end);
--
--	if (!(*tlb)->fullmm)
--		flush_tlb_pgtables((*tlb)->mm, start, end);
+-	return 0;
 -}
 -
- void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
- 		unsigned long floor, unsigned long ceiling)
- {
+-static inline int pud_none_or_clear_bad(pud_t *pud)
+-{
+-	if (pud_none(*pud))
+-		return 1;
+-	if (unlikely(pud_bad(*pud))) {
+-		pud_clear_bad(pud);
+-		return 1;
+-	}
+-	return 0;
+-}
+-
+-static inline int pmd_none_or_clear_bad(pmd_t *pmd)
+-{
+-	if (pmd_none(*pmd))
+-		return 1;
+-	if (unlikely(pmd_bad(*pmd))) {
+-		pmd_clear_bad(pmd);
+-		return 1;
+-	}
+-	return 0;
+-}
+-#endif /* !__ASSEMBLY__ */
++#include <asm-generic/pt-pgtable.h>
+ 
+ #endif /* _ASM_GENERIC_PGTABLE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
