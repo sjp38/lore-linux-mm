@@ -1,194 +1,236 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Thu, 13 Jul 2006 14:29:20 +1000
-Message-Id: <20060713042920.9978.67470.sendpatchset@localhost.localdomain>
+Date: Thu, 13 Jul 2006 14:29:40 +1000
+Message-Id: <20060713042940.9978.24934.sendpatchset@localhost.localdomain>
 In-Reply-To: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
 References: <20060713042630.9978.66924.sendpatchset@localhost.localdomain>
-Subject: [PATCH 16/18] PTI - Mremap iterator abstraction
+Subject: [PATCH 18/18] PTI - Mempolicy iterator abstraction
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-1) Abstracts mremap iterator from mremap.c and 
-puts it in pt_default.c
-
-2)  Finishes abstracting smaps iterator from fs/proc/mmu_task.c and 
+Abstracts mempolicy iterator from mempolicy.c and 
 puts it in pt_default.c
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- mremap.c     |  136 ++++-------------------------------------------------------
- pt-default.c |  129 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 140 insertions(+), 125 deletions(-)
-Index: linux-2.6.17.2/mm/mremap.c
+ mempolicy.c  |  140 +++++++++++++++--------------------------------------------
+ pt-default.c |   83 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 120 insertions(+), 103 deletions(-)
+Index: linux-2.6.17.2/mm/mempolicy.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/mremap.c	2006-07-09 01:42:40.596919768 +1000
-+++ linux-2.6.17.2/mm/mremap.c	2006-07-09 01:43:41.324687744 +1000
-@@ -18,139 +18,25 @@
- #include <linux/highmem.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
+--- linux-2.6.17.2.orig/mm/mempolicy.c	2006-06-30 10:17:23.000000000 +1000
++++ linux-2.6.17.2/mm/mempolicy.c	2006-07-08 22:04:39.561542952 +1000
+@@ -87,6 +87,7 @@
+ #include <linux/seq_file.h>
+ #include <linux/proc_fs.h>
+ #include <linux/migrate.h>
 +#include <linux/pt.h>
  
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
  #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -199,111 +200,44 @@
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
  
--static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
-+void mremap_move_pte(struct vm_area_struct *vma,
-+		struct vm_area_struct *new_vma, pte_t *old_pte, pte_t *new_pte,
-+		unsigned long old_addr, unsigned long new_addr)
- {
--	pgd_t *pgd;
--	pud_t *pud;
+-/* Scan through pages checking if pages follow certain conditions. */
+-static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pte_t *orig_pte;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-
+-	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	do {
+-		struct page *page;
+-		unsigned int nid;
+-
+-		if (!pte_present(*pte))
+-			continue;
+-		page = vm_normal_page(vma, addr, *pte);
+-		if (!page)
+-			continue;
+-		/*
+-		 * The check for PageReserved here is important to avoid
+-		 * handling zero pages and other pages that may have been
+-		 * marked special by the system.
+-		 *
+-		 * If the PageReserved would not be checked here then f.e.
+-		 * the location of the zero page could have an influence
+-		 * on MPOL_MF_STRICT, zero pages would be counted for
+-		 * the per node stats, and there would be useless attempts
+-		 * to put zero pages on the migration list.
+-		 */
+-		if (PageReserved(page))
+-			continue;
+-		nid = page_to_nid(page);
+-		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+-			continue;
+-
+-		if (flags & MPOL_MF_STATS)
+-			gather_stats(page, private, pte_dirty(*pte));
+-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+-			migrate_page_add(page, private, flags);
+-		else
+-			break;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(orig_pte, ptl);
+-	return addr != end;
+-}
+-
+-static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
 -	pmd_t *pmd;
--
--	pgd = pgd_offset(mm, addr);
--	if (pgd_none_or_clear_bad(pgd))
--		return NULL;
--
--	pud = pud_offset(pgd, addr);
--	if (pud_none_or_clear_bad(pud))
--		return NULL;
+-	unsigned long next;
 -
 -	pmd = pmd_offset(pud, addr);
--	if (pmd_none_or_clear_bad(pmd))
--		return NULL;
-+  	pte_t pte;
- 
--	return pmd;
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		if (check_pte_range(vma, pmd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
 -}
 -
--static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
+-static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
++int mempolicy_check_one_pte(struct vm_area_struct *vma, unsigned long addr,
++				pte_t *pte, const nodemask_t *nodes, unsigned long flags,
++				void *private)
+ {
+-	pud_t *pud;
+-	unsigned long next;
++	struct page *page;
++	unsigned int nid;
+ 
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		if (check_pmd_range(vma, pud, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
++	if (!pte_present(*pte))
++		return 0;
++	page = vm_normal_page(vma, addr, *pte);
++	if (!page)
++		return 0;
++	if (!page)
++			return 0;
++	/*
++	 * The check for PageReserved here is important to avoid
++	 * handling zero pages and other pages that may have been
++	 * marked special by the system.
++	 *
++	 * If the PageReserved would not be checked here then f.e.
++	 * the location of the zero page could have an influence
++	 * on MPOL_MF_STRICT, zero pages would be counted for
++	 * the per node stats, and there would be useless attempts
++	 * to put zero pages on the migration list.
++	 */
++	if (PageReserved(page))
++		return 0;
++	nid = page_to_nid(page);
++	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
++		return 0;
+ 
+-static inline int check_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
 -	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--
--	pgd = pgd_offset(mm, addr);
--	pud = pud_alloc(mm, pgd, addr);
--	if (!pud)
--		return NULL;
--
--	pmd = pmd_alloc(mm, pud, addr);
--	if (!pmd)
--		return NULL;
--
--	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
--		return NULL;
--
--	return pmd;
--}
--
--static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
--		unsigned long old_addr, unsigned long old_end,
--		struct vm_area_struct *new_vma, pmd_t *new_pmd,
--		unsigned long new_addr)
--{
--	struct address_space *mapping = NULL;
--	struct mm_struct *mm = vma->vm_mm;
--	pte_t *old_pte, *new_pte, pte;
--	spinlock_t *old_ptl, *new_ptl;
--
--	if (vma->vm_file) {
--		/*
--		 * Subtle point from Rajesh Venkatasubramanian: before
--		 * moving file-based ptes, we must lock vmtruncate out,
--		 * since it might clean the dst vma before the src vma,
--		 * and we propagate stale pages into the dst afterward.
--		 */
--		mapping = vma->vm_file->f_mapping;
--		spin_lock(&mapping->i_mmap_lock);
--		if (new_vma->vm_truncate_count &&
--		    new_vma->vm_truncate_count != vma->vm_truncate_count)
--			new_vma->vm_truncate_count = 0;
--	}
--
--	/*
--	 * We don't have to worry about the ordering of src and dst
--	 * pte locks because exclusive mmap_sem prevents deadlock.
--	 */
--	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-- 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
--	new_ptl = pte_lockptr(mm, new_pmd);
--	if (new_ptl != old_ptl)
--		spin_lock(new_ptl);
--
--	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
--				   new_pte++, new_addr += PAGE_SIZE) {
--		if (pte_none(*old_pte))
--			continue;
--		pte = ptep_clear_flush(vma, old_addr, old_pte);
--		/* ZERO_PAGE can be dependant on virtual addr */
--		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
--		set_pte_at(mm, new_addr, new_pte, pte);
--	}
--
--	if (new_ptl != old_ptl)
--		spin_unlock(new_ptl);
--	pte_unmap_nested(new_pte - 1);
--	pte_unmap_unlock(old_pte - 1, old_ptl);
--	if (mapping)
--		spin_unlock(&mapping->i_mmap_lock);
--}
--
--#define LATENCY_LIMIT	(64 * PAGE_SIZE)
--
--static unsigned long move_page_tables(struct vm_area_struct *vma,
--		unsigned long old_addr, struct vm_area_struct *new_vma,
--		unsigned long new_addr, unsigned long len)
--{
--	unsigned long extent, next, old_end;
--	pmd_t *old_pmd, *new_pmd;
--
--	old_end = old_addr + len;
--	flush_cache_range(vma, old_addr, old_end);
--
--	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
--		cond_resched();
--		next = (old_addr + PMD_SIZE) & PMD_MASK;
--		if (next - 1 > old_end)
--			next = old_end;
--		extent = next - old_addr;
--		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
--		if (!old_pmd)
--			continue;
--		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
--		if (!new_pmd)
--			break;
--		next = (new_addr + PMD_SIZE) & PMD_MASK;
--		if (extent > next - new_addr)
--			extent = next - new_addr;
--		if (extent > LATENCY_LIMIT)
--			extent = LATENCY_LIMIT;
--		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
--				new_vma, new_pmd, new_addr);
--	}
-+  	if (pte_none(*old_pte))
-+		return;
+-	unsigned long next;
++	if (flags & MPOL_MF_STATS)
++		gather_stats(page, private, pte_dirty(*pte));
++	else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++		migrate_page_add(page, private, flags);
++	else
++		return 1;
  
--	return len + old_addr - old_end;	/* how much done */
-+	pte = ptep_clear_flush(vma, old_addr, old_pte);
-+	/* ZERO_PAGE can be dependant on virtual addr */
-+	pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
-+	set_pte_at(vma->vm_mm, new_addr, new_pte, pte);
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		if (check_pud_range(vma, pgd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pgd++, addr = next, addr != end);
+ 	return 0;
  }
  
- static unsigned long move_vma(struct vm_area_struct *vma,
+@@ -356,7 +290,7 @@
+ 				endvma = end;
+ 			if (vma->vm_start > start)
+ 				start = vma->vm_start;
+-			err = check_pgd_range(vma, start, endvma, nodes,
++			err = check_policy_read_iterator(vma, start, endvma, nodes,
+ 						flags, private);
+ 			if (err) {
+ 				first = ERR_PTR(err);
+@@ -1833,7 +1767,7 @@
+ 		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
+ 		seq_printf(m, " huge");
+ 	} else {
+-		check_pgd_range(vma, vma->vm_start, vma->vm_end,
++		check_policy_read_iterator(vma, vma->vm_start, vma->vm_end,
+ 				&node_online_map, MPOL_MF_STATS, md);
+ 	}
+ 
 Index: linux-2.6.17.2/mm/pt-default.c
 ===================================================================
---- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-09 01:43:23.620379208 +1000
-+++ linux-2.6.17.2/mm/pt-default.c	2006-07-09 01:43:52.910926368 +1000
-@@ -913,3 +913,132 @@
- 	cond_resched();
+--- linux-2.6.17.2.orig/mm/pt-default.c	2006-07-08 22:01:25.216087952 +1000
++++ linux-2.6.17.2/mm/pt-default.c	2006-07-08 22:06:07.221216656 +1000
+@@ -1121,3 +1121,86 @@
+ 	} while (pgd++, addr = next, addr != end);
+ 	return 0;
  }
- 
-+static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss)
++
++#ifdef CONFIG_NUMA
++/* Scan through pages checking if pages follow certain conditions. */
++static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
++{
++	pte_t *orig_pte;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int ret;
++
++	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	do {
++		ret = mempolicy_check_one_pte(vma, addr, pte, nodes, flags, private);
++		if(ret)
++			break;
++	} while (pte++, addr += PAGE_SIZE, addr != end);
++	pte_unmap_unlock(orig_pte, ptl);
++	return addr != end;
++}
++
++static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
@@ -198,13 +240,17 @@ Index: linux-2.6.17.2/mm/pt-default.c
 +		next = pmd_addr_end(addr, end);
 +		if (pmd_none_or_clear_bad(pmd))
 +			continue;
-+		smaps_pte_range(vma, pmd, addr, next, mss);
++		if (check_pte_range(vma, pmd, addr, next, nodes,
++				    flags, private))
++			return -EIO;
 +	} while (pmd++, addr = next, addr != end);
++	return 0;
 +}
 +
-+static inline void smaps_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss)
++static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
 +{
 +	pud_t *pud;
 +	unsigned long next;
@@ -214,13 +260,17 @@ Index: linux-2.6.17.2/mm/pt-default.c
 +		next = pud_addr_end(addr, end);
 +		if (pud_none_or_clear_bad(pud))
 +			continue;
-+		smaps_pmd_range(vma, pud, addr, next, mss);
++		if (check_pmd_range(vma, pud, addr, next, nodes,
++				    flags, private))
++			return -EIO;
 +	} while (pud++, addr = next, addr != end);
++	return 0;
 +}
 +
-+void smaps_read_range(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss)
++int check_policy_read_iterator(struct vm_area_struct *vma,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
 +{
 +	pgd_t *pgd;
 +	unsigned long next;
@@ -230,91 +280,13 @@ Index: linux-2.6.17.2/mm/pt-default.c
 +		next = pgd_addr_end(addr, end);
 +		if (pgd_none_or_clear_bad(pgd))
 +			continue;
-+		smaps_pud_range(vma, pgd, addr, next, mss);
++		if (check_pud_range(vma, pgd, addr, next, nodes,
++				    flags, private))
++			return -EIO;
 +	} while (pgd++, addr = next, addr != end);
++	return 0;
 +}
-+
-+#define MREMAP_LATENCY_LIMIT	(64 * PAGE_SIZE)
-+
-+static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
-+		unsigned long old_addr, unsigned long old_end,
-+		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-+		unsigned long new_addr)
-+{
-+	struct address_space *mapping = NULL;
-+	struct mm_struct *mm = vma->vm_mm;
-+	pte_t *old_pte, *new_pte;
-+	spinlock_t *old_ptl, *new_ptl;
-+
-+	if (vma->vm_file) {
-+		/*
-+		 * Subtle point from Rajesh Venkatasubramanian: before
-+		 * moving file-based ptes, we must lock vmtruncate out,
-+		 * since it might clean the dst vma before the src vma,
-+		 * and we propagate stale pages into the dst afterward.
-+		 */
-+		mapping = vma->vm_file->f_mapping;
-+		spin_lock(&mapping->i_mmap_lock);
-+		if (new_vma->vm_truncate_count &&
-+		    new_vma->vm_truncate_count != vma->vm_truncate_count)
-+			new_vma->vm_truncate_count = 0;
-+	}
-+
-+	/*
-+	 * We don't have to worry about the ordering of src and dst
-+	 * pte locks because exclusive mmap_sem prevents deadlock.
-+	 */
-+	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-+ 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
-+	new_ptl = pte_lockptr(mm, new_pmd);
-+	if (new_ptl != old_ptl)
-+		spin_lock(new_ptl);
-+
-+	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
-+				   new_pte++, new_addr += PAGE_SIZE)
-+		mremap_move_pte(vma, new_vma, old_pte, new_pte, old_addr, new_addr);
-+
-+	if (new_ptl != old_ptl)
-+		spin_unlock(new_ptl);
-+	pte_unmap_nested(new_pte - 1);
-+	pte_unmap_unlock(old_pte - 1, old_ptl);
-+	if (mapping)
-+		spin_unlock(&mapping->i_mmap_lock);
-+}
-+
-+unsigned long move_page_tables(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len)
-+{
-+	unsigned long extent, next, old_end;
-+	pmd_t *old_pmd, *new_pmd;
-+
-+	old_end = old_addr + len;
-+	flush_cache_range(vma, old_addr, old_end);
-+
-+	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
-+		cond_resched();
-+		next = (old_addr + PMD_SIZE) & PMD_MASK;
-+		if (next - 1 > old_end)
-+			next = old_end;
-+		extent = next - old_addr;
-+		old_pmd = lookup_pmd(vma->vm_mm, old_addr);
-+		if (!old_pmd)
-+			continue;
-+		new_pmd = build_pmd(vma->vm_mm, new_addr);
-+		if (!new_pmd)
-+			break;
-+		next = (new_addr + PMD_SIZE) & PMD_MASK;
-+		if (extent > next - new_addr)
-+			extent = next - new_addr;
-+		if (extent > MREMAP_LATENCY_LIMIT)
-+			extent = MREMAP_LATENCY_LIMIT;
-+			move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-+				new_vma, new_pmd, new_addr);
-+	}
-+
-+	return len + old_addr - old_end;	/* how much done */
-+}
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
