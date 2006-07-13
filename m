@@ -1,79 +1,71 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k6DHFMQa029829
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2006 13:15:22 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6DHFMGa276772
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2006 13:15:22 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6DHFM5A023324
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2006 13:15:22 -0400
-Subject: [PATCH] update /proc/meminfo Buffers documentation
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Thu, 13 Jul 2006 10:15:17 -0700
-Message-Id: <20060713171517.8B324CD3@localhost.localdomain>
+Date: Thu, 13 Jul 2006 15:16:02 -0400 (EDT)
+From: Jason Baron <jbaron@redhat.com>
+Subject: Re: [PATCH] ia64: race flushing icache in COW path
+In-Reply-To: <200607131700.k6DH0c5t001038@agluck-lia64.sc.intel.com>
+Message-ID: <Pine.LNX.4.64.0607131514430.12852@dhcp83-20.boston.redhat.com>
+References: <200607131700.k6DH0c5t001038@agluck-lia64.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: pbadari@us.ibm.com, Dave Hansen <haveblue@us.ibm.com>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: torvalds@osdl.org, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The filesystems/proc.txt meminfo documentation is a wee bit inaccurate
-with respect to buffers.  They can get a bit bigger than 20MB, and I have
-proof ;).  I copied a description that Badari gave me on IRC for this
-patch.
+On Thu, 13 Jul 2006, Luck, Tony wrote:
 
-$ cat /proc/meminfo
-MemTotal:     16375148 kB
-MemFree:       9372524 kB
-Buffers:        818276 kB
-Cached:        4923044 kB
-SwapCached:          0 kB
-Active:        3517596 kB
-Inactive:      2437724 kB
-HighTotal:    14548952 kB
-HighFree:      9355304 kB
-LowTotal:      1826196 kB
-LowFree:         17220 kB
-SwapTotal:    32611940 kB
-SwapFree:     32610724 kB
-Dirty:            5932 kB
-Writeback:           0 kB
-Mapped:         231172 kB
-Slab:           977396 kB
-CommitLimit:  40799512 kB
-Committed_AS:  1373664 kB
-PageTables:       7412 kB
-VmallocTotal:   116728 kB
-VmallocUsed:     16408 kB
-VmallocChunk:   100104 kB
-HugePages_Total:     0
-HugePages_Free:      0
-Hugepagesize:     2048 kB
+> From: Anil Keshavamurthy <anil.s.keshavamurthy@intel.com>
+> 
+> There is a race condition that showed up in a threaded JIT environment. The
+> situation is that a process with a JIT code page forks, so the page is marked
+> read-only, then some threads are created in the child.  One of the threads
+> attempts to add a new code block to the JIT page, so a copy-on-write fault is
+> taken, and the kernel allocates a new page, copies the data, installs the new
+> pte, and then calls lazy_mmu_prot_update() to flush caches to make sure that
+> the icache and dcache are in sync.  Unfortunately, the other thread runs right
+> after the new pte is installed, but before the caches have been flushed. It
+> tries to execute some old JIT code that was already in this page, but it sees
+> some garbage in the i-cache from the previous users of the new physical page.
+> 
+> Fix: we must make the caches consistent before installing the pte. This is
+> an ia64 only fix because lazy_mmu_prot_update() is a no-op on all other
+> architectures.
+> 
+> Signed-off-by: Anil Keshavamurthy <anil.s.keshavamurthy@intel.com>
+> Signed-off-by: Tony Luck <tony.luck@intel.com>
+> 
+> ---
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index dc0d82c..de8bc85 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1549,9 +1549,9 @@ gotten:
+>  		flush_cache_page(vma, address, pte_pfn(orig_pte));
+>  		entry = mk_pte(new_page, vma->vm_page_prot);
+>  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +		lazy_mmu_prot_update(entry);
+>  		ptep_establish(vma, address, page_table, entry);
+>  		update_mmu_cache(vma, address, entry);
+> -		lazy_mmu_prot_update(entry);
+>  		lru_cache_add_active(new_page);
+>  		page_add_new_anon_rmap(new_page, vma, address);
+>  
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 
----
+lazy_mmu_prot_update() is used in a number of other places *after* the pte 
+is established. An explanation as to why this case is different, would be 
+interesting.
 
- lxc-dave/Documentation/filesystems/proc.txt |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+thanks,
 
-diff -puN Documentation/filesystems/proc.txt~update-meminfo-documentation Documentation/filesystems/proc.txt
---- lxc/Documentation/filesystems/proc.txt~update-meminfo-documentation	2006-07-13 10:07:18.000000000 -0700
-+++ lxc-dave/Documentation/filesystems/proc.txt	2006-07-13 10:07:19.000000000 -0700
-@@ -389,8 +389,9 @@ VmallocChunk:   111088 kB
-     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-               bits and the kernel binary code)
-      MemFree: The sum of LowFree+HighFree
--     Buffers: Relatively temporary storage for raw disk blocks
--              shouldn't get tremendously large (20MB or so)
-+     Buffers: Relatively temporary storage for raw disk blocks.  Also
-+	      used for caching filesystem metadata (like directories,
-+	      indirect blocks, inode maps, block maps etc..).
-       Cached: in-memory cache for files read from the disk (the
-               pagecache).  Doesn't include SwapCached
-   SwapCached: Memory that once was swapped out, is swapped back in but
-_
+-Jason 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
