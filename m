@@ -1,44 +1,61 @@
-Date: Mon, 31 Jul 2006 19:34:27 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 2/2] mm: lockless pagecache
-In-Reply-To: <44CE2365.6040605@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0607311923020.11821@blonde.wat.veritas.com>
-References: <20060726063941.GB32107@wotan.suse.de> <44CE2365.6040605@shadowen.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
-List-ID: <linux-mm.kvack.org>
+From: "Mouhammad Tayseer Alquoatli" <idoit.ief@gmail.com>
+Subject: Re: Commenting out out_of_memory() function in __alloc_pages()
+Date: Thu, 13 Jul 2006 08:12:36 +0300
+Message-ID: <d8c9df6c0607122212n47e05d33vf7ec6092b0c20669@mail.gmail.com>
+References: <BKEKJNIHLJDCFGDBOHGMEEJMDCAA.abum@aftek.com>
+	 <BKEKJNIHLJDCFGDBOHGMOEJMDCAA.abum@aftek.com>
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_Part_4430_24293665.1152767556236"
+Return-path: <kernelnewbies-bounce@nl.linux.org>
+In-Reply-To: <BKEKJNIHLJDCFGDBOHGMOEJMDCAA.abum@aftek.com>
+Sender: kernelnewbies-bounce@nl.linux.org
+Errors-to: kernelnewbies-bounce@nl.linux.org
+List-help: <mailto:ecartis@nl.linux.org?Subject=help>
+List-unsubscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=unsubscribe>
+List-software: Ecartis version 1.0.0
+List-subscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=subscribe>
+List-owner: <mailto:ecartis-owner@nl.linux.org>
+List-post: <mailto:kernelnewbies@nl.linux.org>
+List-archive: <http://mail.nl.linux.org/kernelnewbies/>
+To: "Abu M. Muttalib" <abum@aftek.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, nickpiggin@yahoo.com.au, Robert Hancock <hancockr@shaw.ca>, chase.venters@clientec.com, kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Robin Holt <holt@sgi.com>
+List-Id: linux-mm.kvack.org
 
-On Mon, 31 Jul 2006, Andy Whitcroft wrote:
-> > Index: linux-2.6/mm/filemap.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/filemap.c
-> > +++ linux-2.6/mm/filemap.c
-> > @@ -613,11 +613,22 @@ struct page *find_trylock_page(struct ad
-> ....
-> 
-> This one has me puzzled.  This seem to no longer lock the page at all when
-> returning it.  It seems the semantics of this has changed wildly. Also
-> find_lock_page below still seems to lock the page, the semantic seems
-> maintained there?  I think I am expecting to find a TestSetPageLocked()
-> in the new version too?
+------=_Part_4430_24293665.1152767556236
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Whereas find_get_page, which should be the centre-piece of the patch,
-is unchanged and using read_lock_irq(&mapping->tree_lock) as before.
+On 7/11/06, Abu M. Muttalib <abum@aftek.com> wrote:
+>
+> Where the function alloc_pages is defined? A silly question, but I am not
+> able to find out.
 
-It looks like the code seen in find_trylock_page is actually what should
-be in find_get_page.  It doesn't matter too much what find_trylock_page
-does, since it's deprecated and nothing in tree now uses it; but it ought
-to TestSetPageLocked and page_cache_release somewhere, to suit remaining
-out-of-tree users.
 
-Hugh
+Hi
+it's defined in /include/linux/gfp.h
+
+
+>
+>
+
+
+-- 
+Mouhammad Tayseer Alquoatli
+
+------=_Part_4430_24293665.1152767556236
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+<br><br><div><span class="gmail_quote">On 7/11/06, <b class="gmail_sendername">Abu M. Muttalib</b> &lt;<a href="mailto:abum@aftek.com">abum@aftek.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Where the function alloc_pages is defined? A silly question, but I am not<br>able to find out.</blockquote><div><br>Hi<br>it's defined in /include/linux/gfp.h <br></div><br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br><br></blockquote></div><br><br clear="all"><br>-- <br>Mouhammad Tayseer Alquoatli
+
+------=_Part_4430_24293665.1152767556236--
 
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Kernelnewbies: Help each other learn about the Linux kernel.
+Archive:       http://mail.nl.linux.org/kernelnewbies/
+FAQ:           http://kernelnewbies.org/faq/
