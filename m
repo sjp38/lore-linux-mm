@@ -1,41 +1,32 @@
-Subject: Re: [PATCH 1/2] mm: nonresident page tracking
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <215036450607140155w67df26fan5b2342ead686ce8b@mail.gmail.com>
-References: <20060711182936.31293.58306.sendpatchset@lappy>
-	 <20060711182943.31293.3449.sendpatchset@lappy>
-	 <215036450607140155w67df26fan5b2342ead686ce8b@mail.gmail.com>
-Content-Type: text/plain
-Date: Fri, 14 Jul 2006 16:19:59 +0200
-Message-Id: <1152886799.15525.21.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [PATCH] ia64: race flushing icache in COW path
+Date: Fri, 14 Jul 2006 10:11:53 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A3CC204@scsmsx411.amr.corp.intel.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Feng Jin <lkmaillist@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jason Baron <jbaron@redhat.com>, torvalds@osdl.org, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-07-14 at 16:55 +0800, Feng Jin wrote:
-> Hi,
-> 
-> I have applied the patch on 2.6.18-rc1-mm1, and when boot my system,
-> kernel panic occured, :(
-> I have tyied debug it with kdb, but panic occured at startup, although
-> I have add kdb=early, but it still
-> could not debug it. 
-> attachment is my config file.
+@@ -1980,6 +1980,7 @@ static int do_swap_page(struct mm_struct
+ 	}
+ 
+ 	flush_icache_page(vma, page);
++	lazy_mmu_prot_update(pte);
+ 	set_pte_at(mm, address, page_table, pte);
+ 	page_add_anon_rmap(page, vma, address);
+ 
 
->From the fact that the patch doesn't apply cleanly to .18-rc1-mm1, and
-that when I fixup the rejects it does boot, I can reach no other
-conclusion than that you blotched it somehow.
+At first sight, this looks redundant ... but then I saw that
+on ia64 "flush_icache_page()" is actually a no-op.  Perhaps
+we can enter this in the next obfuscated C competition.
 
-This patch was against mainline from the day of the post.
-
-As for your suggestion of putting #ifdef CONFIG_MM_NONRESIDENT all over
-the place; have you seen how the nonresident.h file declares empty stubs
-for the functions?
-
-Peter
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
