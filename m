@@ -1,71 +1,53 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k6I48Wth032261
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k6I48xdf016295
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2006 00:08:32 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6I48V6k305524
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2006 00:08:59 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6I48xnd163816
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2006 22:08:31 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6I48VFY020891
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2006 22:08:31 -0600
-Date: Mon, 17 Jul 2006 22:08:30 -0600
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2006 22:08:59 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6I48wc5006922
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2006 22:08:58 -0600
+Date: Mon, 17 Jul 2006 22:08:57 -0600
 From: Dave Kleikamp <shaggy@austin.ibm.com>
-Message-Id: <20060718040828.11926.51545.sendpatchset@kleikamp.austin.ibm.com>
+Message-Id: <20060718040852.11926.82852.sendpatchset@kleikamp.austin.ibm.com>
 In-Reply-To: <20060718040804.11926.76333.sendpatchset@kleikamp.austin.ibm.com>
 References: <20060718040804.11926.76333.sendpatchset@kleikamp.austin.ibm.com>
-Subject: [RFC:PATCH 003/008] Handle tail pages in kmap & kmap_atomic
+Subject: [RFC:PATCH 006/008] Don't need to zero past end-of-file in file tail
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 Cc: Dave Kleikamp <shaggy@austin.ibm.com>, Dave McCracken <dmccr@us.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Handle tail pages in kmap & kmap_atomic
+Don't need to zero past end-of-file in file tail
 
-TODO: possibly move to mm.h: lowmem_page_address()
+It will always be unpacked if the file is later grown
 
 Signed-off-by: Dave Kleikamp <shaggy@austin.ibm.com>
 ---
-diff -Nurp linux002/include/asm-powerpc/io.h linux003/include/asm-powerpc/io.h
---- linux002/include/asm-powerpc/io.h	2006-06-17 20:49:35.000000000 -0500
-+++ linux003/include/asm-powerpc/io.h	2006-07-17 23:04:38.000000000 -0500
-@@ -250,7 +250,9 @@ static inline void * phys_to_virt(unsign
- /*
-  * Change "struct page" to physical address.
-  */
--#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-+#define page_to_phys(page)	(PageTail(page) ?			\
-+				__pa((page)->mapping->tail) :		\
-+				page_to_pfn(page) << PAGE_SHIFT)
+diff -Nurp linux005/mm/truncate.c linux006/mm/truncate.c
+--- linux005/mm/truncate.c	2006-06-17 20:49:35.000000000 -0500
++++ linux006/mm/truncate.c	2006-07-17 23:04:38.000000000 -0500
+@@ -14,11 +14,16 @@
+ #include <linux/pagevec.h>
+ #include <linux/buffer_head.h>	/* grr. try_to_release_page,
+ 				   do_invalidatepage */
++#include <linux/file_tail.h>
  
- /* We do NOT want virtual merging, it would put too much pressure on
-  * our iommu allocator. Instead, we want drivers to be smart enough
-diff -Nurp linux002/include/linux/highmem.h linux003/include/linux/highmem.h
---- linux002/include/linux/highmem.h	2006-06-17 20:49:35.000000000 -0500
-+++ linux003/include/linux/highmem.h	2006-07-17 23:04:38.000000000 -0500
-@@ -33,12 +33,21 @@ static inline unsigned int nr_free_highp
- static inline void *kmap(struct page *page)
+ 
+ static inline void truncate_partial_page(struct page *page, unsigned partial)
  {
- 	might_sleep();
+-	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
 +#ifdef CONFIG_FILE_TAILS
-+	return PageTail(page) ? page->mapping->tail : page_address(page);
-+#else
- 	return page_address(page);
++	if (PageTail(page))
++		return;
 +#endif
++	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE - partial);
+ 	if (PagePrivate(page))
+ 		do_invalidatepage(page, partial);
  }
- 
- #define kunmap(page) do { (void) (page); } while (0)
- 
-+#ifdef CONFIG_FILE_TAILS
-+#define kmap_atomic(page, idx) \
-+       	(PageTail(page) ? (page)->mapping->tail : page_address(page))
-+#else
- #define kmap_atomic(page, idx)		page_address(page)
-+#endif
- #define kunmap_atomic(addr, idx)	do { } while (0)
- #define kmap_atomic_pfn(pfn, idx)	page_address(pfn_to_page(pfn))
- #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
 
 -- 
 David Kleikamp
