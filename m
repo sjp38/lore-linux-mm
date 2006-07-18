@@ -1,88 +1,47 @@
-Date: Tue, 18 Jul 2006 06:29:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mm: inactive-clean list
-In-Reply-To: <1153224998.2041.15.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0607180557440.30245@schroedinger.engr.sgi.com>
-References: <1153167857.31891.78.camel@lappy>
- <Pine.LNX.4.64.0607172035140.28956@schroedinger.engr.sgi.com>
- <1153224998.2041.15.camel@lappy>
+Message-ID: <44BCE86A.4030602@mbligh.org>
+Date: Tue, 18 Jul 2006 09:55:54 -0400
+From: "Martin J. Bligh" <mbligh@mbligh.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: inactive-clean list
+References: <1153167857.31891.78.camel@lappy>  <Pine.LNX.4.64.0607172035140.28956@schroedinger.engr.sgi.com> <1153224998.2041.15.camel@lappy> <Pine.LNX.4.64.0607180557440.30245@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0607180557440.30245@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Jul 2006, Peter Zijlstra wrote:
-
-> > I thought we wanted to just track the number of unmapped clean pages and 
-> > insure that they do not go under a certain limit? That would not require
-> > any locking changes but just a new zoned counter and a check in the dirty
-> > handling path.
+Christoph Lameter wrote:
+> On Tue, 18 Jul 2006, Peter Zijlstra wrote:
 > 
-> The problem I see with that is that we cannot create new unmapped clean
-> pages. Where will we get new pages to satisfy our demand when there is
-> nothing mmap'ed.
+> 
+>>>I thought we wanted to just track the number of unmapped clean pages and 
+>>>insure that they do not go under a certain limit? That would not require
+>>>any locking changes but just a new zoned counter and a check in the dirty
+>>>handling path.
+>>
+>>The problem I see with that is that we cannot create new unmapped clean
+>>pages. Where will we get new pages to satisfy our demand when there is
+>>nothing mmap'ed.
+> 
+> 
+> Hmmm... I am not sure that we both have this straight yet.
+> 
+> Adding logic to determine the number of clean pages is not necessary. The 
+> number of clean pages in the pagecache can be determined by:
+> 
+> global_page_state(NR_FILE_PAGES) - global_page_state(NR_FILE_DIRTY) 
 
-Hmmm... I am not sure that we both have this straight yet.
+It's not that simple. We also need to deal with other types of 
+non-freeable pages, such as memlocked.
 
-Adding logic to determine the number of clean pages is not necessary. The 
-number of clean pages in the pagecache can be determined by:
-
-global_page_state(NR_FILE_PAGES) - global_page_state(NR_FILE_DIRTY) 
-
-That number can be increased by writeout and so I think we want this to
-be checked in the throttling path. Swapout is only useful for 
-anonymous pages. Dirty anonymous pages are not tracked and do not 
-contribute to the NR_FILE_DIRTY (formerly nr_dirty). We only track
-the number of anonymous pages in NR_ANON_PAGES. Swapout could be used 
-to reduce NR_ANON_PAGES if memory becomes tight.
-
-The intend of insuring that a certain number of clean pages exist seems to
-be to guarantee that a certain amount of memory is freeable without
-having to go through a filesystem.
-
-Pages that are available without file system activity are:
-
-1. The already free pages.
-
-2. The clean pagecache pages.
-
-For a zone this is
-
-zone->free_pages + zone_page_state(zone, NR_FILE_PAGES) - 
-zone_page_state(zone, NR_FILE_DIRTY)
-
-If this goes below a certain limit then we either have to:
-
-1. If NR_FILE_DIRTY is significant then we can increase the number
-   of reclaimable pages by writing them out.
-
-2. If NR_FILE_DIRTY and NR_FILE_PAGES are low then writeout does 
-   not help us. NR_ANON_PAGES is likely big. So we could swap some
-   anonymous pages out to increase zone->free_pages instead. Performance
-   wise this is a bad move. So we should prefer writeout.
-
-However, the above scheme assumes that all pagecache pages can ne
-unmapped if necessary. This may not be desirable since we may then
-have no executable pages available anymore and create a significant
-amount of disk traffic. If we would track the number of dirty unmapped
-pages (by addding NR_UNMAPPED_DIRTY) then we could guarantee available
-memory that would leave the pages in use by processes alone.
-
-If we impose a limit on the number of free pages + the number of unmapped
-clean pagecache pages then we have a reserve memory pool that can be
-accessed without too much impact on performance. Its basically another
-trigger for writeout.
-
-
-
-
-
-
-
-
+Someone remind me why we can't remove the memlocked pages from the LRU
+again? Apart from needing a refcount of how many times they're memlocked
+(or we just shove them back whenever they're unlocked, and let it fall
+out again when we walk the list, but that doesn't fix the accounting
+problem).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
