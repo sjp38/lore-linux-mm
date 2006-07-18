@@ -1,287 +1,53 @@
-Subject: [PATCH] mm: use-once cleanup
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Content-Type: text/plain
-Date: Mon, 17 Jul 2006 22:40:28 +0200
-Message-Id: <1153168829.31891.89.camel@lappy>
-Mime-Version: 1.0
+Message-ID: <44BC39AF.7070600@redhat.com>
+Date: Mon, 17 Jul 2006 21:30:23 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: [RFC] pageout IO problem and possible solution
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, riel <riel@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: torvalds@osdl.org
+Cc: linux-mm@kvack.org, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Something that I forgot during the VM summit yesterday.
 
-This is yet another implementation of the PG_useonce cleanup spoken of
-during the VM summit.
+One of the problems that network block devices and network swap can
+have is that the VM can end up submitting too much I/O at once for
+swapout.  This, in turn, could leave not enough free memory to finish
+the IO, leaving the system stuck.
 
-The idea is to mark a page PG_useonce on pagecache entry and modify the
-page_referenced() check to retry on the inactive list instead of
-promotion to the active list when PG_useonce is set. PG_useonce is
-cleared on first use.
+A related problem can happen with local disk subsystems, where we
+submit a gazillion pages for writeout simultaneously and end up
+causing horrible latency problems...
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/mm_inline.h  |    2 ++
- include/linux/page-flags.h |    5 +++++
- mm/filemap.c               |   22 +++++++++++++---------
- mm/page_alloc.c            |    9 ++++++---
- mm/shmem.c                 |    7 ++-----
- mm/swap.c                  |   11 ++---------
- mm/vmscan.c                |   36 +++++++++++-------------------------
- 7 files changed, 41 insertions(+), 51 deletions(-)
+There are a number of solutions possible in the 2.6 kernel.
 
-Index: linux-2.6/include/linux/mm_inline.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_inline.h	2006-07-17 22:31:06.000000000 +0200
-+++ linux-2.6/include/linux/mm_inline.h	2006-07-17 22:35:32.000000000 +0200
-@@ -37,5 +37,7 @@ del_page_from_lru(struct zone *zone, str
- 	} else {
- 		zone->nr_inactive--;
- 	}
-+	if (PageUseOnce(page))
-+		ClearPageUseOnce(page);
- }
- 
-Index: linux-2.6/include/linux/page-flags.h
-===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2006-07-17 22:31:09.000000000 +0200
-+++ linux-2.6/include/linux/page-flags.h	2006-07-17 22:39:14.000000000 +0200
-@@ -86,6 +86,7 @@
- #define PG_nosave_free		18	/* Free, should not be written */
- #define PG_buddy		19	/* Page is free, on buddy lists */
- 
-+#define PG_useonce		20	/* Page is new to the pagecache */
- 
- #if (BITS_PER_LONG > 32)
- /*
-@@ -247,6 +248,10 @@
- #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
-+#define PageUseOnce(page)	test_bit(PG_useonce, &(page)->flags)
-+#define SetPageUseOnce(page)	set_bit(PG_useonce, &(page)->flags)
-+#define ClearPageUseOnce(page)	clear_bit(PG_useonce, &(page)->flags)
-+
- struct page;	/* forward declaration */
- 
- int test_clear_page_dirty(struct page *page);
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2006-07-17 22:31:17.000000000 +0200
-+++ linux-2.6/mm/filemap.c	2006-07-17 22:35:32.000000000 +0200
-@@ -444,6 +444,18 @@ int add_to_page_cache(struct page *page,
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
- 			page_cache_get(page);
-+			/*
-+			 * shmem_getpage()
-+			 *   lookup_swap_cache()
-+			 *   TestSetPageLocked()
-+			 *   move_from_swap_cache()
-+			 *     add_to_page_cache()
-+			 *
-+			 * That path calls us with a LRU page instead of a new
-+			 * page. Don't set the hint for LRU pages.
-+			 */
-+			if (!PageLocked(page))
-+				SetPageUseOnce(page);
- 			SetPageLocked(page);
- 			page->mapping = mapping;
- 			page->index = offset;
-@@ -884,7 +896,6 @@ void do_generic_mapping_read(struct addr
- 	unsigned long offset;
- 	unsigned long last_index;
- 	unsigned long next_index;
--	unsigned long prev_index;
- 	loff_t isize;
- 	struct page *cached_page;
- 	int error;
-@@ -893,7 +904,6 @@ void do_generic_mapping_read(struct addr
- 	cached_page = NULL;
- 	index = *ppos >> PAGE_CACHE_SHIFT;
- 	next_index = index;
--	prev_index = ra.prev_page;
- 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
- 	offset = *ppos & ~PAGE_CACHE_MASK;
- 
-@@ -940,13 +950,7 @@ page_ok:
- 		if (mapping_writably_mapped(mapping))
- 			flush_dcache_page(page);
- 
--		/*
--		 * When (part of) the same page is read multiple times
--		 * in succession, only mark it as accessed the first time.
--		 */
--		if (prev_index != index)
--			mark_page_accessed(page);
--		prev_index = index;
-+		mark_page_accessed(page);
- 
- 		/*
- 		 * Ok, we have the page, and it's up-to-date, so
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2006-07-17 22:31:17.000000000 +0200
-+++ linux-2.6/mm/page_alloc.c	2006-07-17 22:38:25.000000000 +0200
-@@ -154,7 +154,8 @@ static void bad_page(struct page *page)
- 			1 << PG_slab    |
- 			1 << PG_swapcache |
- 			1 << PG_writeback |
--			1 << PG_buddy );
-+			1 << PG_buddy |
-+			1 << PG_useonce);
- 	set_page_count(page, 0);
- 	reset_page_mapcount(page);
- 	page->mapping = NULL;
-@@ -389,7 +390,8 @@ static inline int free_pages_check(struc
- 			1 << PG_swapcache |
- 			1 << PG_writeback |
- 			1 << PG_reserved |
--			1 << PG_buddy ))))
-+			1 << PG_buddy |
-+			1 << PF_useonce ))))
- 		bad_page(page);
- 	if (PageDirty(page))
- 		__ClearPageDirty(page);
-@@ -538,7 +540,8 @@ static int prep_new_page(struct page *pa
- 			1 << PG_swapcache |
- 			1 << PG_writeback |
- 			1 << PG_reserved |
--			1 << PG_buddy ))))
-+			1 << PG_buddy |
-+			1 << PG_useonce ))))
- 		bad_page(page);
- 
- 	/*
-Index: linux-2.6/mm/shmem.c
-===================================================================
---- linux-2.6.orig/mm/shmem.c	2006-07-17 22:31:17.000000000 +0200
-+++ linux-2.6/mm/shmem.c	2006-07-17 22:35:32.000000000 +0200
-@@ -1567,11 +1567,8 @@ static void do_shmem_file_read(struct fi
- 			 */
- 			if (mapping_writably_mapped(mapping))
- 				flush_dcache_page(page);
--			/*
--			 * Mark the page accessed if we read the beginning.
--			 */
--			if (!offset)
--				mark_page_accessed(page);
-+
-+			mark_page_accessed(page);
- 		} else {
- 			page = ZERO_PAGE(0);
- 			page_cache_get(page);
-Index: linux-2.6/mm/swap.c
-===================================================================
---- linux-2.6.orig/mm/swap.c	2006-07-17 22:31:18.000000000 +0200
-+++ linux-2.6/mm/swap.c	2006-07-17 22:35:32.000000000 +0200
-@@ -114,19 +114,11 @@ void fastcall activate_page(struct page 
- 
- /*
-  * Mark a page as having seen activity.
-- *
-- * inactive,unreferenced	->	inactive,referenced
-- * inactive,referenced		->	active,unreferenced
-- * active,unreferenced		->	active,referenced
-  */
- void fastcall mark_page_accessed(struct page *page)
- {
--	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
--		activate_page(page);
--		ClearPageReferenced(page);
--	} else if (!PageReferenced(page)) {
-+	if (!PageReferenced(page))
- 		SetPageReferenced(page);
--	}
- }
- 
- EXPORT_SYMBOL(mark_page_accessed);
-@@ -153,6 +145,7 @@ void fastcall lru_cache_add_active(struc
- 	struct pagevec *pvec = &get_cpu_var(lru_add_active_pvecs);
- 
- 	page_cache_get(page);
-+	ClearPageUseOnce(page);
- 	if (!pagevec_add(pvec, page))
- 		__pagevec_lru_add_active(pvec);
- 	put_cpu_var(lru_add_active_pvecs);
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c	2006-07-17 22:31:18.000000000 +0200
-+++ linux-2.6/mm/vmscan.c	2006-07-17 22:35:32.000000000 +0200
-@@ -227,27 +227,6 @@ unsigned long shrink_slab(unsigned long 
- 	return ret;
- }
- 
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
--
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
--
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
--
--	mapping = page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	return page_count(page) - !!PagePrivate(page) == 2;
-@@ -456,8 +435,13 @@ static unsigned long shrink_page_list(st
- 
- 		referenced = page_referenced(page, 1);
- 		/* In active use or really unfreeable?  Activate it. */
--		if (referenced && page_mapping_inuse(page))
-+		if (referenced) {
-+			if (PageUseOnce(page)) {
-+				ClearPageUseOnce(page);
-+				goto keep_locked;
-+			}
- 			goto activate_locked;
-+		}
- 
- #ifdef CONFIG_SWAP
- 		/*
-@@ -551,6 +535,7 @@ static unsigned long shrink_page_list(st
- 			goto keep_locked;
- 
- free_it:
-+		ClearPageUseOnce(page);
- 		unlock_page(page);
- 		nr_reclaimed++;
- 		if (!pagevec_add(&freed_pvec, page))
-@@ -724,6 +709,7 @@ static void shrink_active_list(unsigned 
- 	struct page *page;
- 	struct pagevec pvec;
- 	int reclaim_mapped = 0;
-+	int referenced;
- 
- 	if (sc->may_swap) {
- 		long mapped_ratio;
-@@ -780,10 +766,10 @@ static void shrink_active_list(unsigned 
- 		cond_resched();
- 		page = lru_to_page(&l_hold);
- 		list_del(&page->lru);
-+		referenced = page_referenced(page, 0);
- 		if (page_mapped(page)) {
--			if (!reclaim_mapped ||
--			    (total_swap_pages == 0 && PageAnon(page)) ||
--			    page_referenced(page, 0)) {
-+			if (referenced || !reclaim_mapped ||
-+			    (total_swap_pages == 0 && PageAnon(page))) {
- 				list_add(&page->lru, &l_active);
- 				continue;
- 			}
+The first one would be to limit the amount of writes in progress
+through the block layer ->congested test, but allowing less I/O
+in flight if we are doing pageout and/or memory is low.
+
+The second one would be to introduce the inactive_laundry list
+from 2.4-rmap.  This eats a bit from the already scarce page
+flags though.
+
+Either of these approaches should work I suspect, as long as we
+also throttle kswapd when there is too much I/O in flight.  I am
+not sure the current kernel does this, or has an exception for
+kswapd.
+
+I am not sure what the threshold for I/O in flight should be
+though.
+
+Maybe let there be as many pages in flight as we have (free +
+easily reclaimable free) pages around, to reduce the chance of
+a deadlock to something really really low?
+
+Maybe that is not high enough to achieve the best throughput
+on some high-end I/O subsystems?
+
+Any ideas?
 
 
 --
