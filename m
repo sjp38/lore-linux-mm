@@ -1,8 +1,8 @@
-Date: Tue, 18 Jul 2006 06:59:22 -0700 (PDT)
+Date: Tue, 18 Jul 2006 07:03:12 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] mm: inactive-clean list
 In-Reply-To: <44BCE86A.4030602@mbligh.org>
-Message-ID: <Pine.LNX.4.64.0607180657160.30887@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0607180659310.30887@schroedinger.engr.sgi.com>
 References: <1153167857.31891.78.camel@lappy>
  <Pine.LNX.4.64.0607172035140.28956@schroedinger.engr.sgi.com>
  <1153224998.2041.15.camel@lappy> <Pine.LNX.4.64.0607180557440.30245@schroedinger.engr.sgi.com>
@@ -17,14 +17,24 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 18 Jul 2006, Martin J. Bligh wrote:
 
-> Someone remind me why we can't remove the memlocked pages from the LRU
-> again? Apart from needing a refcount of how many times they're memlocked
-> (or we just shove them back whenever they're unlocked, and let it fall
-> out again when we walk the list, but that doesn't fix the accounting
-> problem).
+> > Adding logic to determine the number of clean pages is not necessary. The
+> > number of clean pages in the pagecache can be determined by:
+> > 
+> > global_page_state(NR_FILE_PAGES) - global_page_state(NR_FILE_DIRTY) 
+> 
+> It's not that simple. We also need to deal with other types of non-freeable
+> pages, such as memlocked.
 
-We simply do not unmap memlocked pages (see try_to_unmap). And therefore
-they are not reclaimable.
+mlocked is an exceptional case. The problem is that the information if a 
+page is mlocked is only available via the vma. One has to
+scan the reverse list and check all the vmas for the flag.
+
+Is mlock that important?
+
+What other types of non freeable pages could exist?
+
+Maybe slab allocations and direct kernel allocations? We have only
+limited means to reclaim those pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
