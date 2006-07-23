@@ -1,122 +1,37 @@
-Message-ID: <86723454217294.CB78AF00AC@DEZBE>
-From: "Hal" <Hal.Miranda@earthling.net>
-Subject: Hottest new offer Make other men envy you and girls worship you Most efficient products for men
-Date: Fri, 21 Jul 2006 17:56:28 -0500
+Message-ID: <44C30E33.2090402@redhat.com>
+Date: Sun, 23 Jul 2006 01:50:43 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/html;
-        charset="Windows-1252"
+Subject: Re: [PATCH] mm: inactive-clean list
+References: <1153167857.31891.78.camel@lappy>
+In-Reply-To: <1153167857.31891.78.camel@lappy>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <Hal.Muller@gardener.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
-<body bgcolor="#FFFFFF">
-<p>A banker is a fellow who lends you his umbrella when the sun is shining, but wants it back the minute it begins to rain. Beauty is in the eye of the beholder If you get it overnight, you can lose it just as quick  As you sow, so shall you reap In a battle between elephants, the ants get squashed It's always darkest before.. daylight savings time.</p>
-<table width="86%" border="0">
-  <tr> 
-    <td width="27%"> </td>
-    <td width="4%"> </td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%"> </td>
-  </tr>
-  <tr> 
-    <td width="27%"> </td>
-    <td width="4%"><b><font size="4">CHE</font></b></td>
-    <td width="7%"><b><font size="4"></font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%"> </td>
-  </tr>
-  <tr> 
-    <td width="27%">dc5</td>
-    <td width="4%"><b><font size="4"></font></b></td>
-    <td width="7%"><b><font size="4">AP</font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%">ew8</td>
-  </tr>
-  <tr> 
-    <td width="27%">n6d</td>
-    <td width="4%"><b><font size="4"></font></b></td>
-    <td width="7%"><b><font size="4"></font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%">s1dq</td>
-  </tr>
-  <tr> 
-    <td width="27%">6uk</td>
-    <td width="4%"><b><font size="4">VIA</font></b></td>
-    <td width="7%"><b><font size="4"></font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%">9kx</td>
-  </tr>
-  <tr> 
-    <td width="27%">1p0</td>
-    <td width="4%"><b><font size="4"></font></b></td>
-    <td width="7%"><b><font size="4">GRA</font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%">mix</td>
-  </tr>
-  <tr> 
-    <td width="27%" height="17">ese</td>
-    <td width="4%" height="17"><b><font size="4"></font></b></td>
-    <td width="7%" height="17"><b><font size="4"></font></b></td>
-    <td width="7%" height="17"> </td>
-    <td width="7%" height="17"> </td>
-    <td width="2%" height="17"> </td>
-    <td width="6%" height="17"> </td>
-    <td width="40%" height="17">qp3</td>
-  </tr>
-  <tr> 
-    <td width="27%">s3w</td>
-    <td width="4%"><b><font size="4">CIA</font></b></td>
-    <td width="7%"><b><font size="4"></font></b></td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%">tbf</td>
-  </tr>
-  <tr> 
-    <td width="27%"> </td>
-    <td width="4%"><b><font size="4"></font></b></td>
-    <td width="7%"><b><font size="4">LIS</font></b></td>
-    <td width="7%"><b></b></td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%"> </td>
-  </tr>
-  <tr> 
-    <td width="27%"><a href="http://www.graciousfi.com"><b>http://www.jasperedcl.com</b></a></td>
-    <td width="4%"> </td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="7%"> </td>
-    <td width="2%"> </td>
-    <td width="6%"> </td>
-    <td width="40%"> </td>
-  </tr>
-</table>
-<p>You are just a couple of clicks away from our great prices and handy shipment Make your girlfriend or wife speechless with increased hardness, richer orgsms and more power in bed These brands keep thousands and thousands of their customers pleased worldwide 
+Peter Zijlstra wrote:
+> This patch implements the inactive_clean list spoken of during the VM summit.
+> The LRU tail pages will be unmapped and ready to free, but not freeed.
+> This gives reclaim an extra chance.
 
- Aaah, a man who runs through airport swing-doors is going to Bangkok. There's no fool like an old fool. Keep your powder dry  On the Turf all men are equal, and under it  Have you ever noticed? anybody going slower than you is an idiot, and anyone going faster than you is a maniac It takes one day to destroy a house but to build a new one will take months, perhaps years </p>
-</body>
-</html>
+This patch makes it possible to implement Martin Schwidefsky's
+hypervisor-based fast page reclaiming for architectures without
+millicode - ie. Xen, UML and all other non-s390 architectures.
+
+That could be a big help in heavily loaded virtualized environments.
+
+The fact that it helps prevent the iSCSI memory deadlock is a
+huge bonus too, of course :)
+
+-- 
+The answer is 42.  What is *your* question?
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
