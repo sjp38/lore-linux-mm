@@ -1,37 +1,57 @@
-Message-ID: <40958807032621.E123CE2821@XSHR2>
-From: "bennett" <bennettbezel@arcticmail.com>
-Subject: This stock shows accumulation pattern and is more than worth your attention., Enjoy the newest
-Date: Sun, 23 Jul 2006 18:13:44 +0200
-MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
+Subject: [PATCH] Add maintainer for memory management
+From: Steven Rostedt <rostedt@goodmis.org>
+Content-Type: text/plain
+Date: Mon, 24 Jul 2006 00:01:47 -0400
+Message-Id: <1153713707.4002.43.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Return-Path: <bennettcrestfallen@technologist.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stop missing out on monster trading opportunities! Act now and win with these stocks which are about to hit it big! 
-There will be huge amounts of promotion related to this stock.
+I recently realized that there's no listing of a memory management
+maintainer in the MAINTAINERS file. And didn't know about
+linux-mm@kvack.org before Ingo enlightened me.  So I've decided to add
+one.  Since Christoph is the first person to come in my mind as the
+proper maintainer, (and I haven't asked him if he wants this title :)
+I'll let him either add others to the list, or replace his name
+altogether.
 
-The alert is ON! 
+(I also used the email that he had in slab.c)
 
-Get QEGY First Thing Today!
-This Is Going To Explode!
-Check out for HOT NEWS!
+Note: If someone else is more likely the person than Christoph, don't be
+offended that I didn't choose you.  It's just that Christoph has
+responded the most whenever I mention anything about memory. So I chose
+that as my criteria, than looking at who submits the most memory
+patches.
+
+-- Steve
+
+Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+
+Index: linux-2.6.18-rc2/MAINTAINERS
+===================================================================
+--- linux-2.6.18-rc2.orig/MAINTAINERS	2006-07-23 23:32:13.000000000 -0400
++++ linux-2.6.18-rc2/MAINTAINERS	2006-07-23 23:34:10.000000000 -0400
+@@ -1884,6 +1884,12 @@ S:     linux-scsi@vger.kernel.org
+ W:     http://megaraid.lsilogic.com
+ S:     Maintained
+ 
++MEMORY MANAGEMENT
++P:	Christoph Lameter
++M:	christoph@lameter.com
++L:	linux-mm@kvack.org
++S:	Maintained
++
+ MEMORY TECHNOLOGY DEVICES (MTD)
+ P:	David Woodhouse
+ M:	dwmw2@infradead.org
 
 
-QUANTUM ENERGY INC (QEGY) 
-CURRENT_PRICE: $2.34 GET IT N0W!
-
-About the company Quantum Energy is a publicly traded growth orientated oil and gas exploration company. The objective is to seek out and define opportunities that represent a low risk 0pp0rtunity to develop positive cash flow. As well, the company aims to define larger projects that can be developed with Joint Venture partners or be entered into by a Joint Venture.
-
-Red Hot News 
-QUANTUM ENERGY INC. PURCHASES NEW FACILITY CORSICANA TEXAS.
-
-July 20, 2006 Quantum Energy, Inc. (QEGY) announced that its joint venture partner, JMT Resources, Ltd. has entered into a contract to purchase a ten acre facility yard in Corsicana, Texas. The acquisition was formerly the facilities yard for Mobile Oil, and is adjacent to the Corsicana Field, which it operates. The site contains an assortment of oil field equipment that the joint venture partnership will utilize in its field operations. The acquisition also gives the JV partnership surface ownership of its water injection disposal well, which is in the permitting process with the Texas Railroad Commission. Ownership of this parcel will reduce operating costs; it will also give the JV partnership the option to add more injection disposal wells on this site, while housing its own redevelopment operations.
-
-Due to the substantially increased Barnett Shale drilling activities in Johnson and surrounding counties, there is an enormous need for disposal options of high chloride (salt) water, which is used in the stimulation of Barnett Shale wells. Operators in the area are required to dispose of this treated water in sanctioned disposal zones. In this area, the zone most prevalently used is the Woodbine, which is the depth of the well the partnership is currently permitting. Demand for disposal facilities is substantial. Operators have resorted to trucking their treated water several hours from location for disposal. Current disposal rates are $2 per barrel and trucks will carry 150 to 200 barrel capacities. It is estimated that the JV partnership will be able to dispose of approximately 5,000 barrels of treated water per day. This operation will allow the JV partnership to attain substantial cash flow from this ancillary oil field operation reducing its reliance on outside capital. It is expected that the water disposal well will be operational during the fourth quarter of 2006. This facility would also be available for disposal of waste water recovered from the Nacatoch wells in the JV Polymer project as well. Ultimately, the disposal fluid from the polymer will be quite significant once the project passes from the pilot phase into full development. Correspondingly, the availability of the water disposal well that is owned by the JV partnership will lead to reduced costs and higher efficiencies. 
-
-Take signal and start earning with this overlooked but booming stock now.
-
-Don?t knock on wood ? just learn to be a pro trader, and the rest will flow!
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
