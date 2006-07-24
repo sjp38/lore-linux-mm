@@ -1,370 +1,44 @@
-From: "Abu M. Muttalib" <abum@aftek.com>
-Subject: RE: Commenting out out_of_memory() function in __alloc_pages()
-Date: Mon, 24 Jul 2006 15:14:39 +0530
-Message-ID: <BKEKJNIHLJDCFGDBOHGMGEPDDDAA.abum@aftek.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: [PATCH] Add maintainer for memory management
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20060724001128.6d513d20.rdunlap@xenotime.net>
+References: <1153713707.4002.43.camel@localhost.localdomain>
+	 <20060724001128.6d513d20.rdunlap@xenotime.net>
+Content-Type: text/plain
+Date: Mon, 24 Jul 2006 07:56:33 -0400
+Message-Id: <1153742193.4002.48.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.4.64.0607111025320.19812@turbotaz.ourhouse>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chase Venters <chase.venters@clientec.com>
-Cc: Robin Holt <holt@sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, nickpiggin@yahoo.com.au, Robert Hancock <hancockr@shaw.ca>, kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: "Randy.Dunlap" <rdunlap@xenotime.net>
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 2006-07-24 at 00:11 -0700, Randy.Dunlap wrote:
 
-In the same context I want to know whether kernel 2.6.13 broken?
+> Christoph L. is very NUMA & big-iron focused.  He also breaks
+> things (at least builds if not working code) a bit too often IMO.
 
-I got oom, and as per the documentation and code of out_of_memory, all the
-processes, which share the same memory address as the process chosen to be
-killed, i.e. threads, will be killed. But in my case its not the case
-always.
+Like I said, the criteria was who responded the most. I actually don't
+keep track of the mm work and someone else is probably better at
+deciding this. But since it doesn't exist _at_all_ in MAINTAINERS I
+figured that if I post this, it will soon be added.
 
-At times the process chosen, "Angelia", is killed will all its threads but
-at other times, only some of the threads get killed and the print from oom
-killer (function out_of_memory) comes repeatedly but no process is killed.
-Why its so?
+> 
+> Andrew, Nick, Peter Zijlstra, Pekka, Manfred, Hugh Dickins
+> are all a better choice IMO.  However, if Andrew & Linus want
+> to merge that one...
 
-Anticipation and regards,
-Abu.
+Even if Christoph is not chosen, please do add a MEMORY MANAGEMENT in
+the MAINTAINERS.  I don't want to keep looking back in my email logs to
+remember what that mm email list was called again.
 
-----------------------------------------------------------------------------
-----------------------------------------------------------------
-oom-killer: gfp_mask=0x201d0, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:1
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         712kB (0kB HighMem)
-Active:1359 inactive:122 dirty:0 writeback:0 unstable:0 free:178 slab:469
-mapped:1244 pagetables:452
-DMA free:712kB min:512kB low:640kB high:768kB active:5436kB inactive:488kB
-present:16384kB pages_scanned:5261 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 48*4kB 7*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-712kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-285 free pages
-631 reserved pages
-469 slab pages
-950 pages shared
-0 pages swap cached
-Out of Memory: Killed process 1137 (Angelia).
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:1
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         712kB (0kB HighMem)
-Active:1308 inactive:173 dirty:0 writeback:0 unstable:0 free:178 slab:469
-mapped:1244 pagetables:452
-DMA free:712kB min:512kB low:640kB high:768kB active:5232kB inactive:692kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 48*4kB 7*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-712kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-285 free pages
-631 reserved pages
-469 slab pages
-950 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:1
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         712kB (0kB HighMem)
-Active:1308 inactive:173 dirty:0 writeback:0 unstable:0 free:178 slab:469
-mapped:1244 pagetables:452
-DMA free:712kB min:512kB low:640kB high:768kB active:5232kB inactive:692kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 48*4kB 7*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-712kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-285 free pages
-631 reserved pages
-469 slab pages
-950 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1314 inactive:232 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5256kB inactive:928kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-989 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1314 inactive:232 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5256kB inactive:928kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-989 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1314 inactive:232 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5256kB inactive:928kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-989 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1314 inactive:232 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5256kB inactive:928kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-989 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1314 inactive:232 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5256kB inactive:928kB
-present:16384kB pages_scanned:7971 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-989 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1347 inactive:203 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5388kB inactive:812kB
-present:16384kB pages_scanned:8037 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-985 pages shared
-0 pages swap cached
-oom-killer: gfp_mask=0x201d2, order=0
-Mem-info:
-DMA per-cpu:
-cpu 0 hot: low 2, high 6, batch 1 used:2
-cpu 0 cold: low 0, high 2, batch 1 used:0
-Normal per-cpu: empty
-HighMem per-cpu: empty
-Free pages:         512kB (0kB HighMem)
-Active:1347 inactive:203 dirty:0 writeback:0 unstable:0 free:128 slab:470
-mapped:1250 pagetables:452
-DMA free:512kB min:512kB low:640kB high:768kB active:5388kB inactive:812kB
-present:16384kB pages_scanned:8037 all_unreclaimable? yes
-lowmem_reserve[]: 0 0 0
-Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB present:0kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-HighMem free:0kB min:128kB low:160kB high:192kB active:0kB inactive:0kB
-present:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0
-DMA: 0*4kB 6*8kB 1*16kB 0*32kB 1*64kB 1*128kB 1*256kB 0*512kB 0*1024kB =
-512kB
-Normal: empty
-HighMem: empty
-Swap cache: add 0, delete 0, find 0/0, race 0+0
-Free swap  = 0kB
-Total swap = 0kB
-Free swap:            0kB
-4096 pages of RAM
-234 free pages
-631 reserved pages
-470 slab pages
-985 pages shared
-0 pages swap cached
-----------------------------------------------------------------------------
-----------------------------------------------------------------
+Also, I would like to see linux-arch mentioned in the MAINTAINERS file
+since before I new about it, I just emailed every arch maintainer that I
+could find in the list separately, when making a change that all archs
+needed.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
