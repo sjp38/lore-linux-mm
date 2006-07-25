@@ -1,13 +1,117 @@
-Message-ID: <18207970469831.A3DBF98743@CLKRGG>
-From: "Thomas" <Thomascretaceous@graphic-designer.com>
-Subject: Just take this and become a real man!
-Date: Mon, 24 Jul 2006 19:30:30 -0400
+Received: from  ([::ffff:212.65.3.74] HELO siso-eb-i34d.silicon-software.de) (auth=eike-kernel@sf-tec.de)
+	by mail.sf-mail.de (Qsmtpd 0.9) with (DHE-RSA-AES256-SHA encrypted) ESMTPSA
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2006 11:01:49 +0200
+From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Subject: [PATCH][Doc] Add kerneldocs for some functions in mm/memory.c
+Date: Tue, 25 Jul 2006 11:03:34 +0200
 MIME-Version: 1.0
 Content-Type: text/plain;
-        charset="Windows-1252"
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-Path: <Thomasblush@moscowmail.com>
+Content-Disposition: inline
+Message-Id: <200607251103.34787.eike-kernel@sf-tec.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Good day to you Sir! Thousands of couples broke down because of them, making both parties unhappy. With all the reasons combated, Extra-Time is the unmatched comprehensive non-hormonal solution. Want to make your intercourse lasting and rewarding than ever before? Find what you need: http://florexx.com/gall/get/ You'll make your equipment suit the task - and she'll worship you for that!
+These functions are already documented quite well with long comments.
+Now add kerneldoc style header to make this turn up in everyones favorite
+doc format.
+
+Signed-off-by: Rolf Eike Beer <eike-kernel@sf-tec.de>
+
+---
+commit 39c068bce1d63f6c1345c1ddfda1841d9fd20c74
+tree dbaacbfd0d8049251eb821f7b35d169767044ddf
+parent 1bf23f2d14d5e8da05d7ea05505ef92cd780f69f
+author Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 25 Jul 2006 10:58:33 +0200
+committer Rolf Eike Beer <beer@siso-eb-i34d.silicon-software.de> Tue, 25 Jul 2006 10:58:33 +0200
+
+ mm/memory.c |   34 +++++++++++++++++++++++++++-------
+ 1 files changed, 27 insertions(+), 7 deletions(-)
+
+
+NOTE:
+
+This needs some review. I was searching for a documentation of this 
+functions, so what I write down here is what I think to have learned.
+Might be slightly or completely wrong.
+
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 109e986..5a8885d 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1226,7 +1226,12 @@ out:
+ 	return retval;
+ }
+ 
+-/*
++/**
++ * vm_insert_page - insert single page into user vma
++ * @vma: user vma to map to
++ * @addr: target user address of this page
++ * @page: source kernel page
++ *
+  * This allows drivers to insert individual pages they've allocated
+  * into a user vma.
+  *
+@@ -1318,7 +1323,16 @@ static inline int remap_pud_range(struct
+ 	return 0;
+ }
+ 
+-/*  Note: this is only safe if the mm semaphore is held when called. */
++/**
++ * remap_pfn_range - remap kernel memory to userspace
++ * @vma: user vma to map to
++ * @addr: target user address to start at
++ * @pfn: physical address of kernel memory
++ * @size: size of map area
++ * @prot: page protection flags for this mapping
++ *
++ *  Note: this is only safe if the mm semaphore is held when called.
++ */
+ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+ 		    unsigned long pfn, unsigned long size, pgprot_t prot)
+ {
+@@ -1785,9 +1799,10 @@ void unmap_mapping_range(struct address_
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+ 
+-/*
+- * Handle all mappings that got truncated by a "truncate()"
+- * system call.
++/**
++ * vmtruncate - unmap mappings "freed" by truncate() syscall
++ * @inode: inode of the file used
++ * @offset: file offset to start truncating
+  *
+  * NOTE! We have to be ready to update the memory sharing
+  * between the file and the memory map for a potential last
+@@ -1856,11 +1871,16 @@ int vmtruncate_range(struct inode *inode
+ }
+ EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
+ 
+-/* 
++/**
++ * swapin_readahead - swap in pages in hope we need them soon
++ * @entry: swap entry of this memory
++ * @addr: address to start
++ * @vma: user vma this addresses belong to
++ *
+  * Primitive swap readahead code. We simply read an aligned block of
+  * (1 << page_cluster) entries in the swap area. This method is chosen
+  * because it doesn't cost us any seek time.  We also make sure to queue
+- * the 'original' request together with the readahead ones...  
++ * the 'original' request together with the readahead ones...
+  *
+  * This has been extended to use the NUMA policies from the mm triggering
+  * the readahead.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
