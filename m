@@ -1,37 +1,60 @@
-Date: Tue, 25 Jul 2006 17:05:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] mm: inactive-clean list
-In-Reply-To: <44C6B111.9010502@redhat.com>
-Message-ID: <Pine.LNX.4.64.0607251702560.464@schroedinger.engr.sgi.com>
-References: <1153167857.31891.78.camel@lappy> <44C30E33.2090402@redhat.com>
- <Pine.LNX.4.64.0607241109190.25634@schroedinger.engr.sgi.com>
- <44C518D6.3090606@redhat.com> <Pine.LNX.4.64.0607251324140.30939@schroedinger.engr.sgi.com>
- <44C68F0E.2050100@redhat.com> <Pine.LNX.4.64.0607251600001.32387@schroedinger.engr.sgi.com>
- <44C6B111.9010502@redhat.com>
+Message-ID: <44C702AF.7080705@yahoo.com.au>
+Date: Wed, 26 Jul 2006 15:50:39 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: lockless pagecache followups
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>, Paul McKenney <paul.mckenney@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, James Bottomley <James.Bottomley@SteelEye.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Jul 2006, Rik van Riel wrote:
+Hi,
 
-> > Well, I read the whole thing before I replied and I could not figure this
-> > one out. Maybe I am too dumb to understand. Could you please explain
-> > yourself in more detail
-> 
-> Page state transitions can be very expensive in a virtualized
-> environment, so it would be good if we had fewer transitions.
+I'm going to submit my lockless pagecache patch to -mm. So I should
+clarify a few questions I didn't have time or thought capacity to
+answer in my OLS presentation when they were asked:
 
-So the hypervisor indeed tracks each individual page state? Note that I do 
-not propose to change the page state but a counter for page states. I am 
-bit confused about how not touching a page can cause page state 
-transitions. But then I do not know much about hypervisors. What magic is 
-going on in the background that could enable the hypervisor to track 
-counter increments?
+- The numbers in the presentation were with !CONFIG_PREEMPT kernels.
 
+- I believe the speculative reference retry mechanism *could* use a
+   seqlock rather than PG_nonewrefs + pagecache recheck. So that was a
+   good question :) However, this doesn't fix the "all pages have an
+   unstable refcount" problem.
+
+   Also, it means readers will contend cachelines with writers in
+   different parts of the file, and does make a finer grained write
+   side possibly more difficult in some parts. So I prefer the
+   custom locking protocol.
+
+- The flush_dcache_mmap_lock AFAIKS(?) is logically a different lock
+   from the pagecache tree_lock. I guess it just uses tree_lock
+   because it can. So that path should be sped up with the rwlock
+   -> spinlock conversion, and reduced contention from find_get_page.
+
+   If there are any problems in this area, I'd like to know what
+   they are.
+
+- Comments have been improved.
+
+- I still can't see how the lockless gang lookup could deadlock. If the
+   radix-tree lookup finds 0 candidates, find_get_pages will return. The
+   only time it retries is when the radix-tree lookup has found at least
+   1 page, and the first page found has been moved.
+
+- One question I would have liked asked is "why not use RCU for
+   freeing the pages", although maybe that's obvious ;) It would solve
+   the unstable refcount, and the atomic_inc_not_zero problems, however
+   I think RCU would be too much burden on the pagecache freeing side.
+
+Thanks,
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
