@@ -1,7 +1,7 @@
-Date: Wed, 26 Jul 2006 08:39:41 +0200
+Date: Wed, 26 Jul 2006 09:46:29 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 2/2] mm: lockless pagecache
-Message-ID: <20060726063941.GB32107@wotan.suse.de>
+Subject: [patch] update some mm/ comments
+Message-ID: <20060726074629.GC16531@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -10,383 +10,236 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Combine page_cache_get_speculative with lockless radix tree lookups to
-introduce lockless page cache lookups (ie. no mapping->tree_lock on
-the read-side).
+Comments about the comments, anyone?
 
-The only atomicity changes this introduces is that the gang pagecache
-lookup functions now behave as if they are implemented with multiple
-find_get_page calls, rather than operating on a snapshot of the pages.
-In practice, this atomicity guarantee is not used anyway, and it is
-difficult to see how it could be. Gang pagecache lookups are designed
-to replace individual lookups, so these semantics are natural.
-
-Swapcache can no longer use find_get_page, because it has a different
-method of encoding swapcache position into the page. Introduce a new
-find_get_swap_page for it.
+---
+Let's try to keep mm/ comments more useful and up to date. This is a start.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
- include/linux/swap.h |    1
- mm/filemap.c         |  161 +++++++++++++++++++++++++++++++++++++--------------
- mm/page-writeback.c  |    8 --
- mm/readahead.c       |    7 --
- mm/swap_state.c      |   27 +++++++-
- mm/swapfile.c        |    2
- 6 files changed, 150 insertions(+), 56 deletions(-)
-
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h
++++ linux-2.6/include/linux/page-flags.h
+@@ -13,24 +13,25 @@
+  * PG_reserved is set for special pages, which can never be swapped out. Some
+  * of them might not even exist (eg empty_bad_page)...
+  *
+- * The PG_private bitflag is set if page->private contains a valid value.
++ * The PG_private bitflag is set on pagecache pages if they contain filesystem
++ * specific data (which is normally at page->private). It can be used by
++ * private allocations for its own usage.
++ *
++ * During initiation of disk I/O, PG_locked is set. This bit is set before I/O
++ * and cleared when writeback _starts_ or when read _completes_. PG_writeback
++ * is set before writeback starts and cleared when it finishes.
+  *
+- * During disk I/O, PG_locked is used. This bit is set before I/O and
+- * reset when I/O completes. page_waitqueue(page) is a wait queue of all tasks
+- * waiting for the I/O on this page to complete.
++ * PG_locked also pins a page in pagecache, and blocks truncation of the file
++ * while it is held.
++ *
++ * page_waitqueue(page) is a wait queue of all tasks waiting for the page
++ * to become unlocked.
+  *
+  * PG_uptodate tells whether the page's contents is valid.  When a read
+  * completes, the page becomes uptodate, unless a disk I/O error happened.
+  *
+- * For choosing which pages to swap out, inode pages carry a PG_referenced bit,
+- * which is set any time the system accesses that page through the (mapping,
+- * index) hash table.  This referenced bit, together with the referenced bit
+- * in the page tables, is used to manipulate page->age and move the page across
+- * the active, inactive_dirty and inactive_clean lists.
+- *
+- * Note that the referenced bit, the page->lru list_head and the active,
+- * inactive_dirty and inactive_clean lists are protected by the
+- * zone->lru_lock, and *NOT* by the usual PG_locked bit!
++ * PG_referenced, PG_reclaim are used for page reclaim for anonymous and
++ * file-backed pagecache (see mm/vmscan.c).
+  *
+  * PG_error is set to indicate that an I/O error occurred on this page.
+  *
+@@ -42,6 +43,10 @@
+  * space, they need to be kmapped separately for doing IO on the pages.  The
+  * struct page (these bits with information) are always mapped into kernel
+  * address space...
++ *
++ * PG_buddy is set to indicate that the page is free and in the buddy system
++ * (see mm/page_alloc.c).
++ *
+  */
+ 
+ /*
+@@ -74,7 +79,7 @@
+ #define PG_checked		 8	/* kill me in 2.5.<early>. */
+ #define PG_arch_1		 9
+ #define PG_reserved		10
+-#define PG_private		11	/* Has something at ->private */
++#define PG_private		11	/* If pagecache, has fs-private data */
+ 
+ #define PG_writeback		12	/* Page is under writeback */
+ #define PG_nosave		13	/* Used for system suspend/resume */
+@@ -83,7 +88,7 @@
+ 
+ #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
+ #define PG_reclaim		17	/* To be reclaimed asap */
+-#define PG_nosave_free		18	/* Free, should not be written */
++#define PG_nosave_free		18	/* Used for system suspend/resume */
+ #define PG_buddy		19	/* Page is free, on buddy lists */
+ 
+ 
 Index: linux-2.6/mm/filemap.c
 ===================================================================
 --- linux-2.6.orig/mm/filemap.c
 +++ linux-2.6/mm/filemap.c
-@@ -613,11 +613,22 @@ struct page *find_trylock_page(struct ad
- {
- 	struct page *page;
- 
--	read_lock_irq(&mapping->tree_lock);
-+	rcu_read_lock();
-+repeat:
- 	page = radix_tree_lookup(&mapping->page_tree, offset);
--	if (page && TestSetPageLocked(page))
--		page = NULL;
--	read_unlock_irq(&mapping->tree_lock);
-+	if (page) {
-+		page = page_cache_get_speculative(page);
-+		if (unlikely(!page))
-+			goto repeat;
-+		/* Has the page been truncated? */
-+		if (unlikely(page->mapping != mapping
-+				|| page->index != offset)) {
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+	}
-+	rcu_read_unlock();
-+
- 	return page;
- }
- EXPORT_SYMBOL(find_trylock_page);
-@@ -637,26 +648,25 @@ struct page *find_lock_page(struct addre
- {
- 	struct page *page;
- 
--	read_lock_irq(&mapping->tree_lock);
- repeat:
-+	rcu_read_lock();
- 	page = radix_tree_lookup(&mapping->page_tree, offset);
- 	if (page) {
--		page_cache_get(page);
--		if (TestSetPageLocked(page)) {
--			read_unlock_irq(&mapping->tree_lock);
--			__lock_page(page);
--			read_lock_irq(&mapping->tree_lock);
--
--			/* Has the page been truncated while we slept? */
--			if (unlikely(page->mapping != mapping ||
--				     page->index != offset)) {
--				unlock_page(page);
--				page_cache_release(page);
--				goto repeat;
--			}
-+		page = page_cache_get_speculative(page);
-+		rcu_read_unlock();
-+		if (unlikely(!page))
-+			goto repeat;
-+		lock_page(page);
-+		/* Has the page been truncated? */
-+		if (unlikely(page->mapping != mapping
-+				|| page->index != offset)) {
-+			unlock_page(page);
-+			page_cache_release(page);
-+			goto repeat;
- 		}
--	}
--	read_unlock_irq(&mapping->tree_lock);
-+	} else
-+		rcu_read_unlock();
-+
- 	return page;
- }
- EXPORT_SYMBOL(find_lock_page);
-@@ -724,16 +734,40 @@ EXPORT_SYMBOL(find_or_create_page);
- unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 			    unsigned int nr_pages, struct page **pages)
- {
-+
- 	unsigned int i;
--	unsigned int ret;
-+	unsigned int nr_found;
- 
--	read_lock_irq(&mapping->tree_lock);
--	ret = radix_tree_gang_lookup(&mapping->page_tree,
-+	rcu_read_lock();
-+repeat:
-+	nr_found = radix_tree_gang_lookup(&mapping->page_tree,
- 				(void **)pages, start, nr_pages);
--	for (i = 0; i < ret; i++)
--		page_cache_get(pages[i]);
--	read_unlock_irq(&mapping->tree_lock);
--	return ret;
-+	for (i = 0; i < nr_found; i++) {
-+		struct page *page;
-+		page = page_cache_get_speculative(pages[i]);
-+		if (unlikely(!page)) {
-+bail:
-+			/*
-+			 * must return at least 1 page, so caller continues
-+			 * calling in.
-+			 */
-+			if (i == 0)
-+				goto repeat;
-+			break;
-+		}
-+
-+		/* Has the page been truncated? */
-+		if (unlikely(page->mapping != mapping
-+				|| page->index < start)) {
-+			page_cache_release(page);
-+			goto bail;
-+		}
-+
-+		/* ensure we don't pick up pages that have moved behind us */
-+		start = page->index+1;
-+	}
-+	rcu_read_unlock();
-+	return i;
- }
- 
- /**
-@@ -752,19 +786,35 @@ unsigned find_get_pages_contig(struct ad
- 			       unsigned int nr_pages, struct page **pages)
- {
- 	unsigned int i;
--	unsigned int ret;
-+	unsigned int nr_found;
- 
--	read_lock_irq(&mapping->tree_lock);
--	ret = radix_tree_gang_lookup(&mapping->page_tree,
-+	rcu_read_lock();
-+repeat:
-+	nr_found = radix_tree_gang_lookup(&mapping->page_tree,
- 				(void **)pages, index, nr_pages);
--	for (i = 0; i < ret; i++) {
--		if (pages[i]->mapping == NULL || pages[i]->index != index)
-+	for (i = 0; i < nr_found; i++) {
-+		struct page *page;
-+		page = page_cache_get_speculative(pages[i]);
-+		if (unlikely(!page)) {
-+bail:
-+			/*
-+			 * must return at least 1 page, so caller continues
-+			 * calling in.
-+			 */
-+			if (i == 0)
-+				goto repeat;
- 			break;
-+		}
- 
--		page_cache_get(pages[i]);
-+		/* Has the page been truncated? */
-+		if (unlikely(page->mapping != mapping
-+				|| page->index != index)) {
-+			page_cache_release(page);
-+			goto bail;
-+		}
- 		index++;
- 	}
--	read_unlock_irq(&mapping->tree_lock);
-+	rcu_read_unlock();
- 	return i;
- }
- 
-@@ -783,17 +833,40 @@ unsigned find_get_pages_tag(struct addre
- 			int tag, unsigned int nr_pages, struct page **pages)
- {
- 	unsigned int i;
--	unsigned int ret;
-+	unsigned int nr_found;
-+	pgoff_t start = *index;
- 
--	read_lock_irq(&mapping->tree_lock);
--	ret = radix_tree_gang_lookup_tag(&mapping->page_tree,
--				(void **)pages, *index, nr_pages, tag);
--	for (i = 0; i < ret; i++)
--		page_cache_get(pages[i]);
--	if (ret)
--		*index = pages[ret - 1]->index + 1;
--	read_unlock_irq(&mapping->tree_lock);
--	return ret;
-+	rcu_read_lock();
-+repeat:
-+	nr_found = radix_tree_gang_lookup_tag(&mapping->page_tree,
-+				(void **)pages, start, nr_pages, tag);
-+	for (i = 0; i < nr_found; i++) {
-+		struct page *page;
-+		page = page_cache_get_speculative(pages[i]);
-+		if (unlikely(!page)) {
-+bail:
-+			/*
-+			 * must return at least 1 page, so caller continues
-+			 * calling in.
-+			 */
-+			if (i == 0)
-+				goto repeat;
-+			break;
-+		}
-+
-+		/* Has the page been truncated? */
-+		if (unlikely(page->mapping != mapping
-+				|| page->index < start)) {
-+			page_cache_release(page);
-+			goto bail;
-+		}
-+
-+		/* ensure we don't pick up pages that have moved behind us */
-+		start = page->index+1;
-+	}
-+	rcu_read_unlock();
-+	*index = start;
-+	return i;
- }
- 
- /**
-Index: linux-2.6/mm/readahead.c
-===================================================================
---- linux-2.6.orig/mm/readahead.c
-+++ linux-2.6/mm/readahead.c
-@@ -282,27 +282,26 @@ __do_page_cache_readahead(struct address
- 	/*
- 	 * Preallocate as many pages as we will need.
- 	 */
--	read_lock_irq(&mapping->tree_lock);
- 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
- 		pgoff_t page_offset = offset + page_idx;
- 		
- 		if (page_offset > end_index)
- 			break;
- 
-+		/* Don't need mapping->tree_lock - lookup can be racy */
-+		rcu_read_lock();
- 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
-+		rcu_read_unlock();
- 		if (page)
- 			continue;
- 
--		read_unlock_irq(&mapping->tree_lock);
- 		page = page_cache_alloc_cold(mapping);
--		read_lock_irq(&mapping->tree_lock);
- 		if (!page)
- 			break;
- 		page->index = page_offset;
- 		list_add(&page->lru, &page_pool);
- 		ret++;
- 	}
--	read_unlock_irq(&mapping->tree_lock);
- 
- 	/*
- 	 * Now start the IO.  We ignore I/O errors - if the page is not
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -803,17 +803,15 @@ int test_set_page_writeback(struct page 
- EXPORT_SYMBOL(test_set_page_writeback);
- 
- /*
-- * Return true if any of the pages in the mapping are marged with the
-+ * Return true if any of the pages in the mapping are marked with the
-  * passed tag.
+@@ -582,8 +582,8 @@ EXPORT_SYMBOL(__lock_page);
+  * @mapping: the address_space to search
+  * @offset: the page index
+  *
+- * A rather lightweight function, finding and getting a reference to a
+- * hashed page atomically.
++ * Is there a pagecache struct page at the given (mapping, offset) tuple?
++ * If yes, increment its refcount and return it; if no, return NULL.
   */
- int mapping_tagged(struct address_space *mapping, int tag)
+ struct page * find_get_page(struct address_space *mapping, unsigned long offset)
  {
--	unsigned long flags;
- 	int ret;
--
--	read_lock_irqsave(&mapping->tree_lock, flags);
-+	rcu_read_lock();
- 	ret = radix_tree_tagged(&mapping->page_tree, tag);
--	read_unlock_irqrestore(&mapping->tree_lock, flags);
-+	rcu_read_unlock();
- 	return ret;
- }
- EXPORT_SYMBOL(mapping_tagged);
-Index: linux-2.6/include/linux/swap.h
-===================================================================
---- linux-2.6.orig/include/linux/swap.h
-+++ linux-2.6/include/linux/swap.h
-@@ -226,6 +226,7 @@ extern int move_from_swap_cache(struct p
- 		struct address_space *);
- extern void free_page_and_swap_cache(struct page *);
- extern void free_pages_and_swap_cache(struct page **, int);
-+extern struct page * find_get_swap_page(swp_entry_t);
- extern struct page * lookup_swap_cache(swp_entry_t);
- extern struct page * read_swap_cache_async(swp_entry_t, struct vm_area_struct *vma,
- 					   unsigned long addr);
-Index: linux-2.6/mm/swap_state.c
-===================================================================
---- linux-2.6.orig/mm/swap_state.c
-+++ linux-2.6/mm/swap_state.c
-@@ -293,6 +293,29 @@ void free_pages_and_swap_cache(struct pa
+@@ -972,7 +972,7 @@ page_not_up_to_date:
+ 		/* Get exclusive access to the page ... */
+ 		lock_page(page);
+ 
+-		/* Did it get unhashed before we got the lock? */
++		/* Did it get truncated before we got the lock? */
+ 		if (!page->mapping) {
+ 			unlock_page(page);
+ 			page_cache_release(page);
+@@ -1490,7 +1490,7 @@ page_not_uptodate:
  	}
- }
+ 	lock_page(page);
  
-+struct page *find_get_swap_page(swp_entry_t entry)
-+{
-+	struct page *page;
-+
-+	rcu_read_lock();
-+repeat:
-+	page = radix_tree_lookup(&swapper_space.page_tree, entry.val);
-+	if (page) {
-+		page = page_cache_get_speculative(page);
-+		if (unlikely(!page))
-+			goto repeat;
-+		/* Has the page been truncated? */
-+		if (unlikely(!PageSwapCache(page)
-+				|| page_private(page) != entry.val)) {
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+	}
-+	rcu_read_unlock();
-+
-+	return page;
-+}
-+
- /*
-  * Lookup a swap entry in the swap cache. A found page will be returned
-  * unlocked and with its refcount incremented - we rely on the kernel
-@@ -303,7 +326,7 @@ struct page * lookup_swap_cache(swp_entr
- {
- 	struct page *page;
+-	/* Did it get unhashed while we waited for it? */
++	/* Did it get truncated while we waited for it? */
+ 	if (!page->mapping) {
+ 		unlock_page(page);
+ 		page_cache_release(page);
+@@ -1612,7 +1612,7 @@ no_cached_page:
+ page_not_uptodate:
+ 	lock_page(page);
  
--	page = find_get_page(&swapper_space, entry.val);
-+	page = find_get_swap_page(entry);
- 
- 	if (page)
- 		INC_CACHE_INFO(find_success);
-@@ -330,7 +353,7 @@ struct page *read_swap_cache_async(swp_e
- 		 * called after lookup_swap_cache() failed, re-calling
- 		 * that would confuse statistics.
- 		 */
--		found_page = find_get_page(&swapper_space, entry.val);
-+		found_page = find_get_swap_page(entry);
- 		if (found_page)
- 			break;
- 
-Index: linux-2.6/mm/swapfile.c
+-	/* Did it get unhashed while we waited for it? */
++	/* Did it get truncated while we waited for it? */
+ 	if (!page->mapping) {
+ 		unlock_page(page);
+ 		goto err;
+Index: linux-2.6/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -400,7 +400,7 @@ void free_swap_and_cache(swp_entry_t ent
- 	p = swap_info_get(entry);
- 	if (p) {
- 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
--			page = find_get_page(&swapper_space, entry.val);
-+			page = find_get_swap_page(entry);
- 			if (page && unlikely(TestSetPageLocked(page))) {
- 				page_cache_release(page);
- 				page = NULL;
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -218,7 +218,8 @@ struct inode;
+  * Each physical page in the system has a struct page associated with
+  * it to keep track of whatever it is we are using the page for at the
+  * moment. Note that we have no way to track which tasks are using
+- * a page.
++ * a page, though if it is a pagecache page, rmap structures can tell us
++ * who is mapping it.
+  */
+ struct page {
+ 	unsigned long flags;		/* Atomic flags, some possibly
+@@ -292,8 +293,7 @@ struct page {
+  */
+ 
+ /*
+- * Drop a ref, return true if the logical refcount fell to zero (the page has
+- * no users)
++ * Drop a ref, return true if the refcount fell to zero (the page has no users)
+  */
+ static inline int put_page_testzero(struct page *page)
+ {
+@@ -348,43 +348,55 @@ void split_page(struct page *page, unsig
+  * For the non-reserved pages, page_count(page) denotes a reference count.
+  *   page_count() == 0 means the page is free. page->lru is then used for
+  *   freelist management in the buddy allocator.
+- *   page_count() == 1 means the page is used for exactly one purpose
+- *   (e.g. a private data page of one process).
++ *   page_count() > 0  means the page has been allocated.
+  *
+- * A page may be used for kmalloc() or anyone else who does a
+- * __get_free_page(). In this case the page_count() is at least 1, and
+- * all other fields are unused but should be 0 or NULL. The
+- * management of this page is the responsibility of the one who uses
+- * it.
++ * Pages are allocated by the slab allocator in order to provide memory
++ * to kmalloc and kmem_cache_alloc. In this case, the management of the
++ * page, and the fields in 'struct page' are the responsibility of mm/slab.c
++ * unless a particular usage is carefully commented. (the responsibility of
++ * freeing the kmalloc memory is the caller's, of course).
++ *
++ * A page may be used by anyone else who does a __get_free_page().
++ * In this case, page_count still tracks the references, and should only
++ * be used through the normal accessor functions. The top bits of page->flags
++ * and page->virtual store page management information, but all other fields
++ * are unused and could be used privately, carefully. The management of this
++ * page is the responsibility of the one who allocated it, and those who have
++ * subsequently been given references to it.
+  *
+- * The other pages (we may call them "process pages") are completely
++ * The other pages (we may call them "pagecache pages") are completely
+  * managed by the Linux memory manager: I/O, buffers, swapping etc.
+  * The following discussion applies only to them.
+  *
+- * A page may belong to an inode's memory mapping. In this case,
+- * page->mapping is the pointer to the inode, and page->index is the
+- * file offset of the page, in units of PAGE_CACHE_SIZE.
++ * A pagecache page contains an opaque `private' member, which belongs to the
++ * page's address_space. Usually, this is the address of a circular list of
++ * the page's disk buffers. PG_private must be set to tell the VM to call
++ * into the filesystem to release these pages.
++ *
++ * A page may belong to an inode's memory mapping. In this case, page->mapping
++ * is the pointer to the inode, and page->index is the file offset of the page,
++ * in units of PAGE_CACHE_SIZE.
++ *
++ * If pagecache pages are not associated with an inode, they are said to be
++ * anonymous pages. These may become associated with the swapcache, and in that
++ * case PG_swapcache is set, and page->private is an offset into the swapcache.
++ *
++ * In either case (swapcache or inode backed), the pagecache itself holds one
++ * reference to the page. Setting PG_private should also increment the
++ * refcount. The each user mapping also has a reference to the page.
++ *
++ * The pagecache pages are stored in a per-mapping radix tree, which is
++ * rooted at mapping->page_tree, and indexed by offset.
++ * Where 2.4 and early 2.6 kernels kept dirty/clean pages in per-address_space
++ * lists, we instead now tag pages as dirty/writeback in the radix tree.
+  *
+- * A page contains an opaque `private' member, which belongs to the
+- * page's address_space.  Usually, this is the address of a circular
+- * list of the page's disk buffers.
+- *
+- * For pages belonging to inodes, the page_count() is the number of
+- * attaches, plus 1 if `private' contains something, plus one for
+- * the page cache itself.
+- *
+- * Instead of keeping dirty/clean pages in per address-space lists, we instead
+- * now tag pages as dirty/under writeback in the radix tree.
+- *
+- * There is also a per-mapping radix tree mapping index to the page
+- * in memory if present. The tree is rooted at mapping->root.  
+- *
+- * All process pages can do I/O:
++ * All pagecache pages may be subject to I/O:
+  * - inode pages may need to be read from disk,
+  * - inode pages which have been modified and are MAP_SHARED may need
+- *   to be written to disk,
+- * - private pages which have been modified may need to be swapped out
+- *   to swap space and (later) to be read back into memory.
++ *   to be written back to the inode on disk,
++ * - anonymous pages (including MAP_PRIVATE file mappings) which have been
++ *   modified may need to be swapped out to swap space and (later) to be read
++ *   back into memory.
+  */
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
