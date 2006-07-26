@@ -1,58 +1,39 @@
-Message-ID: <44C7AF31.9000507@colorfullife.com>
-Date: Wed, 26 Jul 2006 20:06:41 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+From: "Roderick Rivas" <Kerrytemple@yahoo.com>
+Subject: !  Ingram news
+Date: Wed, 26 Jul 2006 11:17:13 -0700
 MIME-Version: 1.0
-Subject: Re: [patch 2/2] slab: always consider arch mandated alignment
-References: <Pine.LNX.4.64.0607220748160.13737@schroedinger.engr.sgi.com> <20060722162607.GA10550@osiris.ibm.com> <Pine.LNX.4.64.0607221241130.14513@schroedinger.engr.sgi.com> <20060723073500.GA10556@osiris.ibm.com> <Pine.LNX.4.64.0607230558560.15651@schroedinger.engr.sgi.com> <20060723162427.GA10553@osiris.ibm.com> <20060726085113.GD9592@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.58.0607261303270.17613@sbz-30.cs.Helsinki.FI> <20060726101340.GE9592@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.58.0607261325070.17986@sbz-30.cs.Helsinki.FI> <20060726105204.GF9592@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.58.0607261411420.17986@sbz-30.cs.Helsinki.FI>
-In-Reply-To: <Pine.LNX.4.58.0607261411420.17986@sbz-30.cs.Helsinki.FI>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.Helsinki.FI>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Content-Type: text/html;
+        charset="Windows-1251"
+Content-Transfer-Encoding: 8bit
+Message-Id: <20060726181748Z26589-9897+1602@kvack.org>
+Return-Path: <Josefinahyman@ubi.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka J Enberg wrote:
-
->On Wed, 26 Jul 2006, Heiko Carstens wrote:
->  
->
->>We only specify ARCH_KMALLOC_MINALIGN, since that aligns only the kmalloc
->>caches, but it doesn't disable debugging on other caches that are created
->>via kmem_cache_create() where an alignment of e.g. 0 is specified.
->>
->>The point of the first patch is: why should the slab cache be allowed to chose
->>an aligment that is less than what the caller specified? This does very likely
->>break things.
->>    
->>
->
->Ah, yes, you are absolutely right. We need to respect caller mandated 
->alignment too. How about this?
->
->  
->
-Good catch - I obviously never tested the code for an HWCACHE_ALIGN cache...
-
-
->			Pekka
->
->[PATCH] slab: respect architecture and caller mandated alignment
->
->Ensure cache alignment is always at minimum what the architecture or 
->caller mandates even if slab debugging is enabled.
->
->Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
->  
->
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
-
---
-    Manfred
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<HTML><HEAD>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV>
+  <p>Ever-Lasting Glory International Group </p>
+  <p>Ticket: <strong>SSUF</strong> </p><DIV><font face="Tahoma"><SPAN 
+style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">chaos corroboree confident bobcat bode carruthers bronchitis abysmal boylston aldrin briefcase achilles awe argus boss banshee bombard aristocratic burl ashland blowback bison cocoon clement apocrypha bidirectional corrosive coleman datum bangor anecdotal difluoride bastion councilman asbestos abstruse brownish deterring cope declassify calcutta acrobat coolidge audacious apology barricade beardsley backbone</span></font></DIV>
+  <p>This tightly held company has rocketed up in price on every great news release. More spectacular news expected this week. <br>
+    All our members should get in on this one early before it blows up. </p>
+  <p>Homerun Stock of the Year! </p>
+  <p>Wednesday, July 26, 2006<br>
+    Sports-Stuff.com Inc. (Pink Sheets: <strong>SSUF</strong>   Buy  Aggressively <br>
+    Last Trade: <strong>.17</strong><br>
+    Short Term:<strong> .60 </strong><br>
+  </p><DIV><font face="Tahoma"><SPAN 
+style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">bootstrapping astor absurd dna butterfield aren't cochran brindisi chuckwalla bible aristotelian barnett compilation coalesce acetylene actinometer brickbat contraband appall algebra cutlass abeyance diameter churchmen afterimage birthday altitude aspirin delineate dogtrot caliphate antonym clomp alleviate apport dactylic culprit agricola bridget barstow cetus broad abrupt camelot clara bantu bereft bedazzle</span></font></DIV>
+  <p>Breaking News Release: </p>
+  <p>Sports-Stuff Announces Distribution and Development Deal With Sports-Insider Limited, a World Leader in SMS Sports-Casting <br>
+    Friday July 21, 4:00 pm ET </p><DIV><font face="Tahoma"><SPAN 
+style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">coplanar defendant compensate alphabetic animadvert ascription aldermen delicacy bring discussion commensurate bylaw attainder bolshevist almighty arrow cranny caustic belove carr bold chinaman cruise bookish bianco bop amy circulate bubble boise collide coyote anticipate berra assassin arizona already collapsible aeolian codify awesome canoe berlitz diffract cadent diocese dispersion achilles</span></font></DIV>
+  <p>A publisher and distributor of SMS alerts, mobile web sites, ringtones and mobile video games for the sports and entertainment industry, today announced a distribution and development partnership with Sports-Insider Limited, a world leader in SMS Sports-casting. </p>
+  <p>Watch this one go Higher and Higher ALL WEEK!!!<br>
+  </p>
+</DIV>
+<DIV><font face="Tahoma"><SPAN 
+style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">caper cartwheel chester antarctic buick ala defraud chopin crosswalk delouse anheuser dalhousie annex catalpa albert cancer declare cantaloupe caret cyclorama anomalous cuisine commentary connive assessor alsop chadwick confess bawdy breakwater district abridge apogee aberrate cesare dogleg bootlegged breach ameliorate appall apostate bimolecular card burglar annoyance blythe bey chimera</span></font></DIV>
+</BODY></HTML>
