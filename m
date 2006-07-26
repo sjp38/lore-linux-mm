@@ -1,18 +1,18 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.7/8.13.7) with ESMTP id k6Q8qtu8026792
+	by mtagate2.de.ibm.com (8.13.7/8.13.7) with ESMTP id k6Q8rhBQ117868
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 08:52:57 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6Q8uCiX154668
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 08:53:43 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k6Q8uxpX103248
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 10:56:12 +0200
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6Q8qmf3009717
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 09:52:49 +0100
-Date: Wed, 26 Jul 2006 10:50:28 +0200
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 10:57:00 +0200
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k6Q8rX0u030181
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2006 09:53:33 +0100
+Date: Wed, 26 Jul 2006 10:51:13 +0200
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [patch 1/2] slab: always consider caller mandated alignment
-Message-ID: <20060726085028.GC9592@osiris.boeblingen.de.ibm.com>
+Subject: [patch 2/2] slab: always consider arch mandated alignment
+Message-ID: <20060726085113.GD9592@osiris.boeblingen.de.ibm.com>
 References: <20060722110601.GA9572@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.64.0607220748160.13737@schroedinger.engr.sgi.com> <20060722162607.GA10550@osiris.ibm.com> <Pine.LNX.4.64.0607221241130.14513@schroedinger.engr.sgi.com> <20060723073500.GA10556@osiris.ibm.com> <Pine.LNX.4.64.0607230558560.15651@schroedinger.engr.sgi.com> <20060723162427.GA10553@osiris.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -25,33 +25,33 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+Since ARCH_KMALLOC_MINALIGN didn't work on s390 I tried ARCH_SLAB_MINALIGN
+instead, just to find out that it didn't work too.
 In case of CONFIG_DEBUG_SLAB kmem_cache_create() creates caches with an
-alignment lesser than ARCH_KMALLOC_MINALIGN. This breaks s390 (32bit),
-since it needs an eight byte alignment. Also it doesn't behave like it's
-decribed in mm/slab.c :
+alignment lesser than ARCH_SLAB_MINALIGN, which it shouldn't according to
+this comment in mm/slab.c :
 
- * Enforce a minimum alignment for the kmalloc caches.
- * Usually, the kmalloc caches are cache_line_size() aligned, except when
- * DEBUG and FORCED_DEBUG are enabled, then they are BYTES_PER_WORD aligned.
- * Some archs want to perform DMA into kmalloc caches and need a guaranteed
- * alignment larger than BYTES_PER_WORD. ARCH_KMALLOC_MINALIGN allows that.
- * Note that this flag disables some debug features.
+ * Enforce a minimum alignment for all caches.
+ * Intended for archs that get misalignment faults even for BYTES_PER_WORD
+ * aligned buffers. Includes ARCH_KMALLOC_MINALIGN.
+ * If possible: Do not enable this flag for CONFIG_DEBUG_SLAB, it disables
+ * some debug features.
 
 For example the following might happen if kmem_cache_create() gets called
-with -- size: 64; align: 8; flags with SLAB_HWCACHE_ALIGN, SLAB_RED_ZONE and
-SLAB_STORE_USER set.
+with -- size: 64; align: 0; flags with SLAB_HWCACHE_ALIGN, SLAB_RED_ZONE and
+SLAB_STORE_USER set. ARCH_SLAB_MINALIGN is 8.
 These are the steps as numbered in kmem_cache_create() where 5) is after the
 "if (flags & SLAB_RED_ZONE)" statement.
 
-1) align: 8 ralign 64 
-2) align: 8 ralign 64 
-3) align: 8 ralign 64 
+1) align: 0 ralign 64
+2) align: 0 ralign 64
+3) align: 0 ralign 64
 4) align: 64 ralign 64
-5) align: 4 ralign 64 
+5) align: 4 ralign 64
 
-Note that in this case in step 3) the flags SLAB_RED_ZONE and SLAB_STORE_USER
+Note that in this case in step 2) the flags SLAB_RED_ZONE and SLAB_STORE_USER
 don't get masked out and that this causes an BYTES_PER_WORD alignment in
-step 5) which breaks s390.
+step 5) which is lesser than ARCH_SLAB_MINALIGN.
 
 Cc: Christoph Lameter <clameter@sgi.com>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>
@@ -63,18 +63,18 @@ Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 
 Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2006-07-24 09:41:36.000000000 +0200
-+++ linux-2.6/mm/slab.c	2006-07-26 09:55:54.000000000 +0200
-@@ -2109,6 +2109,9 @@
+--- linux-2.6.orig/mm/slab.c	2006-07-26 09:55:54.000000000 +0200
++++ linux-2.6/mm/slab.c	2006-07-26 09:57:07.000000000 +0200
+@@ -2103,6 +2103,9 @@
  		if (ralign > BYTES_PER_WORD)
  			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
  	}
-+	if (align > BYTES_PER_WORD)
++	if (BYTES_PER_WORD < ARCH_SLAB_MINALIGN)
 +		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 +
- 	/*
- 	 * 4) Store it. Note that the debug code below can reduce
- 	 *    the alignment to BYTES_PER_WORD.
+ 	/* 3) caller mandated alignment: disables debug if necessary */
+ 	if (ralign < align) {
+ 		ralign = align;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
