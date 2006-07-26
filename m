@@ -1,33 +1,51 @@
-Date: Wed, 26 Jul 2006 07:03:59 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [PATCH 0/39] mm: 2.6.17-pr1 - generic page-replacement framework and 4 new policies
-Message-ID: <20060726100359.GA20096@dmt>
-References: <20060712143659.16998.6444.sendpatchset@lappy> <Pine.LNX.4.64.0607130838360.27189@schroedinger.engr.sgi.com> <1152982981.31891.46.camel@lappy> <Pine.LNX.4.64.0607152049290.11274@schroedinger.engr.sgi.com>
+Date: Wed, 26 Jul 2006 13:05:43 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.Helsinki.FI>
+Subject: Re: [patch 2/2] slab: always consider arch mandated alignment
+In-Reply-To: <20060726085113.GD9592@osiris.boeblingen.de.ibm.com>
+Message-ID: <Pine.LNX.4.58.0607261303270.17613@sbz-30.cs.Helsinki.FI>
+References: <20060722110601.GA9572@osiris.boeblingen.de.ibm.com>
+ <Pine.LNX.4.64.0607220748160.13737@schroedinger.engr.sgi.com>
+ <20060722162607.GA10550@osiris.ibm.com> <Pine.LNX.4.64.0607221241130.14513@schroedinger.engr.sgi.com>
+ <20060723073500.GA10556@osiris.ibm.com> <Pine.LNX.4.64.0607230558560.15651@schroedinger.engr.sgi.com>
+ <20060723162427.GA10553@osiris.ibm.com> <20060726085113.GD9592@osiris.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0607152049290.11274@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 15, 2006 at 08:50:06PM -0700, Christoph Lameter wrote:
-> On Sat, 15 Jul 2006, Peter Zijlstra wrote:
-> 
-> > Now on the why, I still believe one of the advanced page replacement
-> > algorithms are better than the currently implemented. If only because
-> > they have access to more information, namely that provided by the
-> > nonresident page tracking. (Which, as shown by Rik's OLS entry this
-> > year, provides more interresting uses)
-> 
-> Could you show us some workloads where this makes a significant 
-> difference?
+On Wed, 26 Jul 2006, Heiko Carstens wrote:
+> Since ARCH_KMALLOC_MINALIGN didn't work on s390 I tried ARCH_SLAB_MINALIGN
+> instead, just to find out that it didn't work too.
+> In case of CONFIG_DEBUG_SLAB kmem_cache_create() creates caches with an
+> alignment lesser than ARCH_SLAB_MINALIGN, which it shouldn't according to
+> this comment in mm/slab.c :
 
-http://www.linux-mm.org/PageReplacementTesting for instance.
+[snip]
 
-Check the CLOCKPro/ARC papers for more details.
+> Index: linux-2.6/mm/slab.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slab.c	2006-07-26 09:55:54.000000000 +0200
+> +++ linux-2.6/mm/slab.c	2006-07-26 09:57:07.000000000 +0200
+> @@ -2103,6 +2103,9 @@
+>  		if (ralign > BYTES_PER_WORD)
+>  			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
+>  	}
+> +	if (BYTES_PER_WORD < ARCH_SLAB_MINALIGN)
+> +		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
+> +
+>  	/* 3) caller mandated alignment: disables debug if necessary */
+>  	if (ralign < align) {
+>  		ralign = align;
+
+This is similar to my patch and should be enough to fix the problem. The 
+first patch seems bogus and I don't really understand why you would need 
+it.
+
+					Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
