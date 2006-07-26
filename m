@@ -1,40 +1,43 @@
-Date: Wed, 26 Jul 2006 19:59:31 -0400
-From: Dave Jones <davej@redhat.com>
+Date: Thu, 27 Jul 2006 00:59:44 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [PATCH] vm/agp: remove private page protection map
-Message-ID: <20060726235931.GA5687@redhat.com>
-References: <Pine.LNX.4.64.0607181905140.26533@skynet.skynet.ie> <Pine.LNX.4.64.0607262135440.11629@blonde.wat.veritas.com> <Pine.LNX.4.64.0607270023120.23571@skynet.skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.64.0607270023120.23571@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0607270059220.17518@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0607181905140.26533@skynet.skynet.ie>
+ <Pine.LNX.4.64.0607262135440.11629@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0607270023120.23571@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Airlie <airlied@linux.ie>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Dave Jones <davej@codemonkey.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Dave Jones <davej@codemonkey.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 27, 2006 at 12:24:27AM +0100, Dave Airlie wrote:
- > >
- > >I'm happy with the intent of your vm_get_page_prot() patch (and would
- > >like to extend it to other places after, minimizing references to the
- > >protection_map[]).  But there's a few aspects which distress me - the
- > >u8 type nowhere else in mm, the requirement that caller mask the arg,
- > >agp_convert_mmap_flags still using its own conversion from PROT_ to VM_
- > >while there's an inline in mm.h (though why someone thought to optimize
- > >and so obscure that version puzzles me!).  Would you be happy to insert
- > >your Sign-off in the replacement below?
- > 
- > No worries, I think davej can drop my one from his tree as well and take 
- > this..
+On Thu, 27 Jul 2006, Dave Airlie wrote:
+> > agp_convert_mmap_flags still using its own conversion from PROT_ to VM_
+> > while there's an inline in mm.h (though why someone thought to optimize
 
-Done, and pushed out to agpgart.git
+My mistake: calc_vm_prot_bits() is actually in include/linux/mman.h
+(which you are already #including, so no problem).
 
-Thanks,
+> > AGP keeps its own copy of the protection_map, upcoming DRM changes will
+> > also require access to this map from modules.
+> >
+> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> 
+> Signed-of-by: Dave Airlie <airlied@linux.ie>
 
-		Dave
+Thanks.  By the way, I hope you noticed that some architectures
+(arm, m68k, sparc, sparc64) may adjust protection_map[] at startup:
+so the old agp_convert_mmap_flags would supply the compiled in prot,
+whereas the new agp_convert_mmap_flags supplies the adjusted prot.
 
--- 
-http://www.codemonkey.org.uk
+I assume this is either irrelevant to you (no AGP on some arches?)
+or an improvement (the adjusted prot more appropriate); but if you
+weren't aware of it, please do check that those do what you want.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
