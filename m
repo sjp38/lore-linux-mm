@@ -1,67 +1,108 @@
-Date: Wed, 26 Jul 2006 12:47:05 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/2] slab: always consider arch mandated alignment
-In-Reply-To: <44C7C46C.4090201@colorfullife.com>
-Message-ID: <Pine.LNX.4.64.0607261239170.7520@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0607220748160.13737@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0607221241130.14513@schroedinger.engr.sgi.com>
- <20060723073500.GA10556@osiris.ibm.com> <Pine.LNX.4.64.0607230558560.15651@schroedinger.engr.sgi.com>
- <20060723162427.GA10553@osiris.ibm.com> <20060726085113.GD9592@osiris.boeblingen.de.ibm.com>
- <Pine.LNX.4.58.0607261303270.17613@sbz-30.cs.Helsinki.FI>
- <20060726101340.GE9592@osiris.boeblingen.de.ibm.com>
- <Pine.LNX.4.58.0607261325070.17986@sbz-30.cs.Helsinki.FI>
- <20060726105204.GF9592@osiris.boeblingen.de.ibm.com>
- <Pine.LNX.4.58.0607261411420.17986@sbz-30.cs.Helsinki.FI>
- <44C7AF31.9000507@colorfullife.com> <Pine.LNX.4.64.0607261118001.6608@schroedinger.engr.sgi.com>
- <44C7B842.5060606@colorfullife.com> <Pine.LNX.4.64.0607261153220.6896@schroedinger.engr.sgi.com>
- <44C7C261.6050602@colorfullife.com> <Pine.LNX.4.64.0607261229430.7132@schroedinger.engr.sgi.com>
- <44C7C46C.4090201@colorfullife.com>
+Date: Wed, 26 Jul 2006 21:39:49 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] vm/agp: remove private page protection map
+In-Reply-To: <Pine.LNX.4.64.0607181905140.26533@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0607262135440.11629@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0607181905140.26533@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Dave Airlie <airlied@linux.ie>
+Cc: Andrew Morton <akpm@osdl.org>, Dave Jones <davej@codemonkey.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jul 2006, Manfred Spraul wrote:
+On Tue, 18 Jul 2006, Dave Airlie wrote:
+> AGP keeps its own copy of the protection_map, upcoming DRM changes
+> will also require access to this map from modules.
 
-> Christoph Lameter wrote:
-> 
-> > A slab user is setting alignment in order to optimize performance not for
-> > correctness. Most users that I know of can live with misalignments. If that
-> > would not be the case then this code would never have worked.
-> >  
-> 
-> Which users do you know that set align and that can live with misalignments?
-> As I wrote, there are no such users in my (i386) kernel.
-
-The users of SLAB_HWCACHE_ALIGN can live with that.
-
-Systems running with slab debugging on must be very buggy at this point or 
-we were very lucky:
-
-The list is a bit strange:
-
->* the pmd structure (4096: hardware requirement)
-
-It is already exempted from debug since the size is 4096.
-
->* the pgd structure (32 bytes: hardware requirement)
-
-We were lucky on that one in the past? This should break.
-
->* the task structure (16 byte. fxsave)
-
-Would only break if floating point is used I think.
-
->* sigqueue, pid: both request 4 byte alignment (based on __alignof__()). 
->Doesn't affect debugging.
-So also not relevant.
+I'm happy with the intent of your vm_get_page_prot() patch (and would
+like to extend it to other places after, minimizing references to the
+protection_map[]).  But there's a few aspects which distress me - the
+u8 type nowhere else in mm, the requirement that caller mask the arg,
+agp_convert_mmap_flags still using its own conversion from PROT_ to VM_
+while there's an inline in mm.h (though why someone thought to optimize
+and so obscure that version puzzles me!).  Would you be happy to insert
+your Sign-off in the replacement below?
 
 
-We now want to say that SLAB_HWCACHE_ALIGN is only a suggestion to be 
-disposed of if debug is on whereas an explicitly specified alignment must be enforced?
+AGP keeps its own copy of the protection_map, upcoming DRM changes will
+also require access to this map from modules.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+
+ drivers/char/agp/frontend.c |   27 ++-------------------------
+ include/linux/mm.h          |    1 +
+ mm/mmap.c                   |    7 +++++++
+ 3 files changed, 10 insertions(+), 25 deletions(-)
+
+--- 2.6.18-rc2-git6/drivers/char/agp/frontend.c	2006-07-16 00:17:07.000000000 +0100
++++ linux/drivers/char/agp/frontend.c	2006-07-26 20:32:10.000000000 +0100
+@@ -151,35 +151,12 @@ static void agp_add_seg_to_client(struct
+ 	client->segments = seg;
+ }
+ 
+-/* Originally taken from linux/mm/mmap.c from the array
+- * protection_map.
+- * The original really should be exported to modules, or
+- * some routine which does the conversion for you
+- */
+-
+-static const pgprot_t my_protect_map[16] =
+-{
+-	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
+-	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
+-};
+-
+ static pgprot_t agp_convert_mmap_flags(int prot)
+ {
+-#define _trans(x,bit1,bit2) \
+-((bit1==bit2)?(x&bit1):(x&bit1)?bit2:0)
+-
+ 	unsigned long prot_bits;
+-	pgprot_t temp;
+-
+-	prot_bits = _trans(prot, PROT_READ, VM_READ) |
+-	    _trans(prot, PROT_WRITE, VM_WRITE) |
+-	    _trans(prot, PROT_EXEC, VM_EXEC);
+-
+-	prot_bits |= VM_SHARED;
+ 
+-	temp = my_protect_map[prot_bits & 0x0000000f];
+-
+-	return temp;
++	prot_bits = calc_vm_prot_bits(prot) | VM_SHARED;
++	return vm_get_page_prot(prot_bits);
+ }
+ 
+ static int agp_create_segment(struct agp_client *client, struct agp_region *region)
+--- 2.6.18-rc2-git6/include/linux/mm.h	2006-07-16 00:17:31.000000000 +0100
++++ linux/include/linux/mm.h	2006-07-26 20:33:59.000000000 +0100
+@@ -1012,6 +1012,7 @@ static inline unsigned long vma_pages(st
+ 	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+ }
+ 
++pgprot_t vm_get_page_prot(unsigned long vm_flags);
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ struct page *vmalloc_to_page(void *addr);
+ unsigned long vmalloc_to_pfn(void *addr);
+--- 2.6.18-rc2-git6/mm/mmap.c	2006-07-16 00:17:39.000000000 +0100
++++ linux/mm/mmap.c	2006-07-26 20:40:12.000000000 +0100
+@@ -60,6 +60,13 @@ pgprot_t protection_map[16] = {
+ 	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
+ };
+ 
++pgprot_t vm_get_page_prot(unsigned long vm_flags)
++{
++	return protection_map[vm_flags &
++				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
++}
++EXPORT_SYMBOL(vm_get_page_prot);
++
+ int sysctl_overcommit_memory = OVERCOMMIT_GUESS;  /* heuristic overcommit */
+ int sysctl_overcommit_ratio = 50;	/* default is 50% */
+ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
