@@ -1,39 +1,53 @@
-From: "Conrad George" <Mabelnicky@kinki-kids.com>
-Subject: Fw: Re: Blackman recomendation.  (Wed, 26 Jul 2006 20:31:34 +0800)
-Date: Wed, 26 Jul 2006 20:31:34 +0800
+Received: by ug-out-1314.google.com with SMTP id o2so848299uge
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2006 06:04:06 -0700 (PDT)
+Message-ID: <6e0cfd1d0607260604w3e8636e4taaea4bc918397b34@mail.gmail.com>
+Date: Wed, 26 Jul 2006 15:04:05 +0200
+From: "Martin Schwidefsky" <schwidefsky@googlemail.com>
+Subject: Re: [PATCH] mm: inactive-clean list
+In-Reply-To: <1153912268.2732.30.camel@taijtu>
 MIME-Version: 1.0
-Content-Type: text/html;
-        charset="Windows-1251"
-Content-Transfer-Encoding: 8bit
-Message-Id: <20060726123201Z26586-9897+1569@kvack.org>
-Return-Path: <Tamaragrady@triode.net.au>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1153167857.31891.78.camel@lappy> <44C30E33.2090402@redhat.com>
+	 <6e0cfd1d0607260400r731489a1tfd9e6c5a197fb0bd@mail.gmail.com>
+	 <1153912268.2732.30.camel@taijtu>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-<HTML><HEAD>
-</HEAD>
-<BODY bgColor=#ffffff>
-<DIV>
-  <p>Ever-Lasting Glory International Group </p>
-  <p>Ticket: <strong>SSUF</strong> </p><DIV><font face="Tahoma"><SPAN 
-style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">cancellate argive advisor antarctica crux cutthroat blast ballerina differentiate dearie christina chimera bacterium backpack coquette chandler adolphus complacent choir cranford conciliatory custer armageddon beneficial chameleon cooperate aggregate anastomotic cabaret antler colgate broad bequest brave backorder argumentation chloride cherish abduct autocrat bypath atreus boyce courage conception adapt britain coincident</span></font></DIV>
-  <p>This tightly held company has rocketed up in price on every great news release. More spectacular news expected this week. <br>
-    All our members should get in on this one early before it blows up. </p>
-  <p>Homerun Stock of the Year! </p>
-  <p>Wednesday, July 26, 2006<br>
-    Sports-Stuff.com Inc. (Pink Sheets: <strong>SSUF</strong>   Buy  Aggressively <br>
-    Last Trade: <strong>.17</strong><br>
-    Short Term:<strong> .60 </strong><br>
-  </p><DIV><font face="Tahoma"><SPAN 
-style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">choreography churchillian cursive chigger ball croydon alway avocet combination complainant certainty dane dilapidate anybody'd connecticut bare cottonseed cardioid bauxite beyond biochemic baseboard demijohn amount bestowal cyril alcohol chaparral administrate businessman agriculture cougar brassiere crisp disruption analogous bedevil curie brock bridgework ada ambrosia amort cortland arise baritone avarice commend</span></font></DIV>
-  <p>Breaking News Release: </p>
-  <p>Sports-Stuff Announces Distribution and Development Deal With Sports-Insider Limited, a World Leader in SMS Sports-Casting <br>
-    Friday July 21, 4:00 pm ET </p><DIV><font face="Tahoma"><SPAN 
-style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">blindfold because burglary bitch bylaw cut cordial agave crouch chat celery boxcar compost disturb determinant demountable aggregate chant anarchic alveolus bijective coruscate bridgetown carpet derogate capillary cargill col auckland diagnostic curt australis berenices dobbs amidst dodson asparagine colloquial cowmen decathlon capitulate catalpa consanguineous defrost attestation dogmatic accusative begun</span></font></DIV>
-  <p>A publisher and distributor of SMS alerts, mobile web sites, ringtones and mobile video games for the sports and entertainment industry, today announced a distribution and development partnership with Sports-Insider Limited, a world leader in SMS Sports-casting. </p>
-  <p>Watch this one go Higher and Higher ALL WEEK!!!<br>
-  </p>
-</DIV>
-<DIV><font face="Tahoma"><SPAN 
-style="FONT-SIZE: 2px; COLOR: #000000; BACKGROUND-COLOR: transparent">allotropic cox angelica acs abstract conklin breathtaking bag crumble del aniline alistair dew correlate ann braun bates crafty broth confine asynchronous andean bellow buss bernet boeotia bypath byers couch accipiter andrea delight bolshevik bellflower contradictory boggle cargoes bali been dissociable berlitz chloroform compellable absinthe disciplinarian accessory bradley champlain</span></font></DIV>
-</BODY></HTML>
+On 7/26/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > Hmm, I wonder how the inactive clean list helps in regard to the fast
+> > host reclaim
+> > scheme. In particular since the memory pressure that triggers the
+> > reclaim is in the
+> > host, not in the guest. So all pages might be on the active list but
+> > the host still
+> > wants to be able to discard pages.
+> >
+>
+> I think Rik would want to set all the already unmapped pages to volatile
+> state in the hypervisor.
+>
+> These pages can be dropped without loss of information on the guest
+> system since they are all already on a backing-store, be it regular
+> files or swap.
+
+I guessed that as well. It isn't good enough. Consider a guest with a
+large (virtual) memory size and a host with a small physical memory
+size. The guest will never put any page on the inactive_clean list
+because it does not have memory pressure. vmscan will never run. The
+host wants to reclaim memory of the guest, but since the
+inactive_clean list is empty it will find only stable pages.
+
+-- 
+blue skies,
+  Martin
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
