@@ -1,71 +1,110 @@
-Date: Thu, 27 Jul 2006 01:12:04 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] mm: use-once cleanup
-Message-Id: <20060727011204.87033366.akpm@osdl.org>
-In-Reply-To: <44C86FB9.6090709@redhat.com>
-References: <1153168829.31891.89.camel@lappy>
-	<44C86FB9.6090709@redhat.com>
+Date: Thu, 27 Jul 2006 12:19:45 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: non syncing lock_page
+Message-ID: <20060727101945.GD18140@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, torvalds@osdl.org, piggin@cyberone.com.au, linux-kernel@vger.kernel.org
+To: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Jul 2006 03:48:09 -0400
-Rik van Riel <riel@redhat.com> wrote:
+Sent this one a while back, but we decided it didn't need to be in
+2.6.17. Any new comments on the patch?
 
-> Peter Zijlstra wrote:
-> > Hi,
-> > 
-> > This is yet another implementation of the PG_useonce cleanup spoken of
-> > during the VM summit.
-> 
-> After getting bitten by rsync yet again, I guess it's time to insist
-> that this patch gets merged...
-> 
-> Andrew, could you merge this?  Pretty please? ;)
-> 
+---
 
-Guys, this is a performance patch, right?
+lock_page needs the caller to have a reference on the page->mapping inode
+due to sync_page, ergo set_page_dirty_lock is obviously buggy according to
+its comments.
 
-One which has no published performance testing results, right?
+Solve it by introducing a new lock_page_nosync which does not do a sync_page. 
 
-It would be somewhat odd to merge it under these circumstances.
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-And this applies to all of these
-hey-this-is-cool-but-i-didnt-bother-testing-it MM patches which people are
-throwing around.  This stuff is *hard*.  It has a bad tendency to cause
-nasty problems which only become known months after the code is merged.
-
-I shouldn't have to describe all this, but
-
-- Identify the workloads which it's supposed to improve, set up tests,
-  run tests, publish results.
-
-- Identify the workloads which it's expected to damage, set up tests, run
-  tests, publish results.
-
-- Identify workloads which aren't expected to be impacted, make a good
-  effort at demonstrating that they are not impacted.
-
-- Perform stability/stress testing, publish results.
-
-Writing the code is about 5% of the effort for this sort of thing.
-
-Yes, we can toss it in the tree and see what happens.  But it tends to be
-the case that unless someone does targetted testing such as the above,
-regressions simply aren't noticed for long periods of time.  <wonders which
-schmuck gets to do the legwork when people report problems>
-
-Just the (unchangelogged) changes to the when-to-call-mark_page_accessed()
-logic are a big deal.  Probably these should be a separate patch -
-separately changelogged, separately tested, separately justified.
-
-Performance testing is *everything* for this sort of patch and afaict none
-has been done, so it's as if it hadn't been written, no?
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -130,14 +130,29 @@ static inline pgoff_t linear_page_index(
+ }
+ 
+ extern void FASTCALL(__lock_page(struct page *page));
++extern void FASTCALL(__lock_page_nosync(struct page *page));
+ extern void FASTCALL(unlock_page(struct page *page));
+ 
++/*
++ * lock_page may only be called if we have the page's inode pinned.
++ */
+ static inline void lock_page(struct page *page)
+ {
+ 	might_sleep();
+ 	if (TestSetPageLocked(page))
+ 		__lock_page(page);
+ }
++
++/*
++ * lock_page_nosync should only be used if we can't pin the page's inode.
++ * Doesn't play quite so well with block device plugging.
++ */
++static inline void lock_page_nosync(struct page *page)
++{
++	might_sleep();
++	if (TestSetPageLocked(page))
++		__lock_page_nosync(page);
++}
+ 	
+ /*
+  * This is exported only for wait_on_page_locked/wait_on_page_writeback.
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -488,6 +488,12 @@ struct page *page_cache_alloc_cold(struc
+ EXPORT_SYMBOL(page_cache_alloc_cold);
+ #endif
+ 
++static int __sleep_on_page_lock(void *word)
++{
++	io_schedule();
++	return 0;
++}
++
+ /*
+  * In order to wait for pages to become available there must be
+  * waitqueues associated with pages. By using a hash table of
+@@ -577,6 +583,17 @@ void fastcall __lock_page(struct page *p
+ }
+ EXPORT_SYMBOL(__lock_page);
+ 
++/*
++ * Variant of lock_page that does not require the caller to hold a reference
++ * on the page's mapping.
++ */
++void fastcall __lock_page_nosync(struct page *page)
++{
++	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
++	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
++							TASK_UNINTERRUPTIBLE);
++}
++
+ /**
+  * find_get_page - find and get a page reference
+  * @mapping: the address_space to search
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -690,7 +690,7 @@ int set_page_dirty_lock(struct page *pag
+ {
+ 	int ret;
+ 
+-	lock_page(page);
++	lock_page_nosync(page);
+ 	ret = set_page_dirty(page);
+ 	unlock_page(page);
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
