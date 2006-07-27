@@ -1,52 +1,64 @@
-Received: by ug-out-1314.google.com with SMTP id c2so195671ugf
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2006 04:16:46 -0700 (PDT)
-Message-ID: <6e0cfd1d0607270416g1248e93fi123b6ada852ff242@mail.gmail.com>
-Date: Thu, 27 Jul 2006 13:16:45 +0200
-From: "Martin Schwidefsky" <schwidefsky@googlemail.com>
-Subject: Re: [PATCH] mm: inactive-clean list
-In-Reply-To: <1153925104.2762.11.camel@taijtu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: [PATCH] mm: swap write failure fixup
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Content-Type: text/plain
+Date: Thu, 27 Jul 2006 15:01:15 +0200
+Message-Id: <1154005275.30621.19.camel@taijtu>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1153167857.31891.78.camel@lappy> <44C30E33.2090402@redhat.com>
-	 <6e0cfd1d0607260400r731489a1tfd9e6c5a197fb0bd@mail.gmail.com>
-	 <1153912268.2732.30.camel@taijtu>
-	 <6e0cfd1d0607260604w3e8636e4taaea4bc918397b34@mail.gmail.com>
-	 <1153925104.2762.11.camel@taijtu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On 7/26/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> Wouldn't we typically have all free pages > min_free in state U?
-> Also wouldn't all R/O mapped pages not also be V, all R/W mapped pages
-> and unmapped page-cache pages P like you state in your paper.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Ahh, ok, I misunderstood. You want to keep the state changes for clean
-page cache pages, I assumed that you only want to make pages volatile
-if the get on the inactive_clean list and leave them stable if they
-are on one of the other two lists.
+Currently we can silently drop data if the write to swap failed. It usually
+doesn't result in data-corruption because on page-in the process will receive
+SIGBUS (assuming write-failure implies read-failure).
 
-> This patch would just increase the number of V pages with the tail end
-> of the guest LRU, which are typically the pages you would want to evict
-> (perhaps even add 5th guest state to indicate that these V pages are
-> preferable over the others?)
+This assumption might or might not be valid.
 
-Yes, that would help for architectures that cannot implement the
-potential-volatile state.
+This patch will avoid the page being discarded after a failed write. But
+will print a warning the sysadmin _should_ take to heart, if a lot of swap
+space becomes un-writeable, OOM is not far off.
 
-> But isn't it so that for the gross over-commit scenario you outline the
-> host OS will have to swap out S pages eventually?
+Tested by making the write fail 'randomly' once every 50 writes or so.
 
-My point was that you really have to distinguish between host memory
-pressure and guest memory pressure.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ mm/page_io.c |   16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
 
--- 
-blue skies,
-  Martin
+Index: linux-2.6/mm/page_io.c
+===================================================================
+--- linux-2.6.orig/mm/page_io.c
++++ linux-2.6/mm/page_io.c
+@@ -52,8 +52,22 @@ static int end_swap_bio_write(struct bio
+ 	if (bio->bi_size)
+ 		return 1;
+ 
+-	if (!uptodate)
++	if (!uptodate) {
+ 		SetPageError(page);
++		/*
++		 * We failed to write the page out to swap-space.
++		 * Re-dirty the page in order to avoid it being reclaimed.
++		 * Also print a dire warning that things will go BAD (tm)
++		 * very quickly.
++		 *
++		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
++		 */
++		set_page_dirty(page);
++		printk(KERN_ALERT "Write-error on swap-device (%d:%d)\n",
++				imajor(bio->bi_bdev->bd_inode),
++				iminor(bio->bi_bdev->bd_inode));
++		ClearPageReclaim(page);
++	}
+ 	end_page_writeback(page);
+ 	bio_put(bio);
+ 	return 0;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
