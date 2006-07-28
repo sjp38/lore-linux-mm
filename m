@@ -1,26 +1,18 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060515210614.30275.39068.sendpatchset@linux.site>
+Message-Id: <20060515210631.30275.91145.sendpatchset@linux.site>
 In-Reply-To: <20060515210529.30275.74992.sendpatchset@linux.site>
 References: <20060515210529.30275.74992.sendpatchset@linux.site>
-Subject: [patch 5/9] oom: handle current exiting
-Date: Fri, 28 Jul 2006 09:21:28 +0200 (CEST)
+Subject: [patch 7/9] oom: swapoff tasks tweak
+Date: Fri, 28 Jul 2006 09:21:45 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-If current *is* exiting, it should actually be allowed to access reserved
-memory rather than OOM kill something else. Can't do this via a straight check
-in page_alloc.c because that would allow multiple tasks to use up reserves.
-Instead cause current to OOM-kill itself which will mark it as TIF_MEMDIE.
-
-The current procedure of simply aborting the OOM-kill if a task is exiting
-can lead to OOM deadlocks.
-
-In the case of killing a PF_EXITING task, don't make a lot of noise about it.
-This becomes more important in future patches, where we can "kill" OOM_DISABLE
-tasks.
+PF_SWAPOFF processes currently cause select_bad_process to return straight
+away. Instead, give them high priority, so we will kill them first, however
+we also first ensure no parallel OOM kills are happening at the same time.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
@@ -28,67 +20,28 @@ Index: linux-2.6/mm/oom_kill.c
 ===================================================================
 --- linux-2.6.orig/mm/oom_kill.c
 +++ linux-2.6/mm/oom_kill.c
-@@ -208,11 +208,26 @@ static struct task_struct *select_bad_pr
- 		/*
- 		 * This is in the process of releasing memory so wait for it
- 		 * to finish before killing some other task by mistake.
-+		 *
-+		 * However, if p is the current task, we allow the 'kill' to
-+		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
-+		 * which will allow it to gain access to memory reserves in
-+		 * the process of exiting and releasing its resources.
-+		 * Otherwise we could get an OOM deadlock.
- 		 */
- 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
- 						p->flags & PF_EXITING;
--		if (releasing && !(p->flags & PF_DEAD))
-+		if (releasing) {
-+			/* PF_DEAD tasks have already released their mm */
-+			if (p->flags & PF_DEAD)
-+				continue;
-+			if (p->flags & PF_EXITING && p == current) {
-+				chosen = p;
-+				*ppoints = ULONG_MAX;
-+				break;
-+			}
- 			return ERR_PTR(-1UL);
-+		}
- 		if (p->flags & PF_SWAPOFF)
- 			return p;
- 
-@@ -246,8 +261,11 @@ static void __oom_kill_task(struct task_
- 		return;
+@@ -58,6 +58,12 @@ unsigned long badness(struct task_struct
  	}
- 	task_unlock(p);
--	printk(KERN_ERR "%s: Killed process %d (%s).\n",
-+
-+	if (message) {
-+		printk(KERN_ERR "%s: Killed process %d (%s).\n",
- 				message, p->pid, p->comm);
-+	}
  
  	/*
- 	 * We give our sacrificial lamb high priority and access to
-@@ -298,8 +316,17 @@ static int oom_kill_process(struct task_
- 	struct task_struct *c;
- 	struct list_head *tsk;
- 
--	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li and "
--		"children.\n", p->pid, p->comm, points);
-+	/*
-+	 * If the task is already exiting, don't alarm the sysadmin or kill
-+	 * its children or threads, just set TIF_MEMDIE so it can die quickly
++	 * swapoff can easily use up all memory, so kill those first.
 +	 */
-+	if (p->flags & PF_EXITING) {
-+		__oom_kill_task(p, NULL);
-+		return 0;
-+	}
++	if (p->flags & PF_SWAPOFF)
++		return ULONG_MAX;
 +
-+	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li"
-+			" and children.\n", p->pid, p->comm, points);
- 	/* Try to kill a child first */
- 	list_for_each(tsk, &p->children) {
- 		c = list_entry(tsk, struct task_struct, sibling);
++	/*
+ 	 * The memory size of the process is the basis for the badness.
+ 	 */
+ 	points = mm->total_vm;
+@@ -228,8 +234,6 @@ static struct task_struct *select_bad_pr
+ 		}
+ 		if (p->oomkilladj == OOM_DISABLE)
+ 			continue;
+-		if (p->flags & PF_SWAPOFF)
+-			return p;
+ 
+ 		points = badness(p, uptime.tv_sec);
+ 		if (points > *ppoints || !chosen) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
