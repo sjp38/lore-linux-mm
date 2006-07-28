@@ -1,41 +1,38 @@
-Date: Fri, 28 Jul 2006 00:44:10 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 0/9] oom: various fixes and improvements for 2.6.18-rc2
-Message-Id: <20060728004410.63bba676.akpm@osdl.org>
-In-Reply-To: <20060515210529.30275.74992.sendpatchset@linux.site>
+Date: Fri, 28 Jul 2006 02:06:11 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [patch 3/9] cpuset: oom panic fix
+Message-Id: <20060728020611.67ad343a.pj@sgi.com>
+In-Reply-To: <20060515210556.30275.63352.sendpatchset@linux.site>
 References: <20060515210529.30275.74992.sendpatchset@linux.site>
+	<20060515210556.30275.63352.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: linux-mm@kvack.org
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jul 2006 09:20:44 +0200 (CEST)
-Nick Piggin <npiggin@suse.de> wrote:
+Nick wrote:
+> Change to returning 0 in this case.
 
-> These are some various OOM killer fixes that I have accumulated. Some of
-> the more important ones are in SLES10, and were developed in response to
-> issues coming up in stress testing.
-> 
-> The other small fixes haven't been widely tested, but they're issues I
-> spotted when working in this area.
-> 
-> Comments?
+I think that comment is a typo, and should be instead:
 
-They all look good to me (although I haven't grappled with the cpuset ones
-yet).
+> Change to returning 1 in this case.
 
-The "oom: reclaim_mapped on oom" one is kinda funny.  Back in 2.5.early I
-decided that we were probably donig too much scanning before declaring oom
-so I randomly reduced it by a factor of, iirc, four.  Under the assumption
-that someone would start hitting early ooms and would get in there and tune
-it for real.  It took five years ;)
+Other than that nit:
 
-Which of these patches have been well-tested and which are the more
-speculative ones?
+Acked-by: Paul Jackson <pj@sgi.com>
+
+I haven't actually seen a test case in hand for this one,
+but it sure seems like "the right thing to do (tm)", and
+I understand Nick has seen it fix a real problem.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
