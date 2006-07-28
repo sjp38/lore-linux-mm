@@ -1,20 +1,29 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20060515210538.30275.44220.sendpatchset@linux.site>
+Message-Id: <20060515210547.30275.23248.sendpatchset@linux.site>
 In-Reply-To: <20060515210529.30275.74992.sendpatchset@linux.site>
 References: <20060515210529.30275.74992.sendpatchset@linux.site>
-Subject: [patch 1/9] oom: use unreclaimable info
-Date: Fri, 28 Jul 2006 09:20:52 +0200 (CEST)
+Subject: [patch 2/9] oom: reclaim_mapped on oom
+Date: Fri, 28 Jul 2006 09:21:01 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-__alloc_pages currently starts shooting if page reclaim has failed to free up
-swap_cluster_max pages in one run through the priorities. This is not always a
-good indicator on its own, so make use of the all_unreclaimable logic as
-well: don't consider going OOM until all zones we're interested in are
-unreclaimable.
+Potentially it takes several scans of the lru lists before we can even start
+reclaiming pages.
+
+mapped pages, with young ptes can take 2 passes on the active list + one on
+the inactive list. But reclaim_mapped may not always kick in instantly, so
+it could take even more than that.
+
+Raise the threshold for marking a zone as all_unreclaimable from a factor of
+4 time the pages in the zone to 6.  Introduce a mechanism to force
+reclaim_mapped if we've reached a factor 3 and still haven't made progress.
+
+Previously, a customer doing stress testing was able to easily OOM the box
+after using only a small fraction of its swap (~100MB). After the patches, it
+would only OOM after having used up all swap (~800MB).
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
@@ -22,42 +31,45 @@ Index: linux-2.6/mm/vmscan.c
 ===================================================================
 --- linux-2.6.orig/mm/vmscan.c
 +++ linux-2.6/mm/vmscan.c
-@@ -62,6 +62,8 @@ struct scan_control {
- 	int swap_cluster_max;
- 
- 	int swappiness;
-+
-+	int all_unreclaimable;
- };
- 
- /*
-@@ -925,6 +927,7 @@ static unsigned long shrink_zones(int pr
- 	unsigned long nr_reclaimed = 0;
- 	int i;
- 
-+	sc->all_unreclaimable = 1;
- 	for (i = 0; zones[i] != NULL; i++) {
- 		struct zone *zone = zones[i];
- 
-@@ -941,6 +944,8 @@ static unsigned long shrink_zones(int pr
- 		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 			continue;	/* Let kswapd poll it */
- 
-+		sc->all_unreclaimable = 0;
-+
- 		nr_reclaimed += shrink_zone(priority, zone, sc);
- 	}
+@@ -697,6 +697,11 @@ done:
  	return nr_reclaimed;
-@@ -1021,6 +1026,9 @@ unsigned long try_to_free_pages(struct z
- 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
- 			blk_congestion_wait(WRITE, HZ/10);
+ }
+ 
++static inline int zone_is_near_oom(struct zone *zone)
++{
++	return zone->pages_scanned >= (zone->nr_active + zone->nr_inactive)*3;
++}
++
+ /*
+  * This moves pages from the active list to the inactive list.
+  *
+@@ -732,6 +737,9 @@ static void shrink_active_list(unsigned 
+ 		long distress;
+ 		long swap_tendency;
+ 
++		if (zone_is_near_oom(zone))
++			goto force_reclaim_mapped;
++
+ 		/*
+ 		 * `distress' is a measure of how much trouble we're having
+ 		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
+@@ -767,6 +775,7 @@ static void shrink_active_list(unsigned 
+ 		 * memory onto the inactive list.
+ 		 */
+ 		if (swap_tendency >= 100)
++force_reclaim_mapped:
+ 			reclaim_mapped = 1;
  	}
-+	/* top priority shrink_caches still had more to do? don't OOM, then */
-+	if (!sc.all_unreclaimable)
-+		ret = 1;
- out:
- 	for (i = 0; zones[i] != 0; i++) {
- 		struct zone *zone = zones[i];
+ 
+@@ -1161,7 +1170,7 @@ scan:
+ 			if (zone->all_unreclaimable)
+ 				continue;
+ 			if (nr_slab == 0 && zone->pages_scanned >=
+-				    (zone->nr_active + zone->nr_inactive) * 4)
++				    (zone->nr_active + zone->nr_inactive) * 6)
+ 				zone->all_unreclaimable = 1;
+ 			/*
+ 			 * If we've done a decent amount of scanning and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
