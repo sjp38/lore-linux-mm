@@ -1,13 +1,41 @@
-Message-ID: <59752753447563.10AD40963D@QG1J>
-From: "Sheridan" <barbelldenude@witty.com>
-Subject: Hey, buddy, you must be very disappointed of it! 
-Date: Sat, 29 Jul 2006 16:46:49 +0900
+Received: by wr-out-0506.google.com with SMTP id 71so111523wra
+        for <linux-mm@kvack.org>; Sat, 29 Jul 2006 10:58:02 -0700 (PDT)
+Message-ID: <44CBA1AD.4060602@gmail.com>
+Date: Sat, 29 Jul 2006 19:57:42 +0159
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
+Subject: swsusp regression (s2dsk) [Was: 2.6.18-rc2-mm1]
+References: <20060727015639.9c89db57.akpm@osdl.org>
+In-Reply-To: <20060727015639.9c89db57.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-Path: <cavemenaudiotape@2die4.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, pavel@suse.cz, linux-pm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yo! Why don't you leave the crowd of men who try to combat this? Keep her satisfied forever with Extra-Time which makes you Mr. Long Laster. Lack control over your squirting? Partner unhappy with the time you last in bed? Come on in: http://tredhisdom.com/gall/get/ You will never see her face frustrated again. No arguments and no complaints!
+Andrew Morton napsal(a):
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.18-rc2/2.6.18-rc2-mm1/
+
+Hello,
+
+I have problems with swsusp again. While suspending, the very last thing kernel
+writes is 'restoring higmem' and then hangs, hardly. No sysrq response at all.
+Here is a snapshot of the screen:
+http://www.fi.muni.cz/~xslaby/sklad/swsusp_higmem.gif
+
+It's SMP system (HT), higmem enabled (1 gig of ram).
+
+regards,
+-- 
+<a href="http://www.fi.muni.cz/~xslaby/">Jiri Slaby</a>
+faculty of informatics, masaryk university, brno, cz
+e-mail: jirislaby gmail com, gpg pubkey fingerprint:
+B674 9967 0407 CE62 ACC8  22A0 32CC 55C3 39D4 7A7E
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
