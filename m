@@ -1,23 +1,30 @@
-Received: by nf-out-0910.google.com with SMTP id x30so145327nfb
-        for <linux-mm@kvack.org>; Sat, 29 Jul 2006 16:57:57 -0700 (PDT)
-Message-ID: <44CBF60C.3090508@gmail.com>
-Date: Sun, 30 Jul 2006 01:57:41 +0159
+Received: by nf-out-0910.google.com with SMTP id x30so145384nfb
+        for <linux-mm@kvack.org>; Sat, 29 Jul 2006 16:58:34 -0700 (PDT)
+Message-ID: <44CBF631.5070005@gmail.com>
+Date: Sun, 30 Jul 2006 01:58:18 +0159
 From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
 Subject: Re: swsusp regression (s2dsk) [Was: 2.6.18-rc2-mm1]
-References: <20060727015639.9c89db57.akpm@osdl.org> <44CBA1AD.4060602@gmail.com> <200607292059.59106.rjw@sisk.pl> <44CBE9D5.9030707@gmail.com> <20060729232216.GB1983@elf.ucw.cz>
-In-Reply-To: <20060729232216.GB1983@elf.ucw.cz>
+References: <20060727015639.9c89db57.akpm@osdl.org> <200607292059.59106.rjw@sisk.pl> <44CBE9D5.9030707@gmail.com> <200607300110.01943.rjw@sisk.pl>
+In-Reply-To: <200607300110.01943.rjw@sisk.pl>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Jiri Slaby <jirislaby@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-pm@osdl.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Jiri Slaby <jirislaby@gmail.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, pavel@suse.cz, linux-pm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek napsal(a):
-> Hi!
-> 
+Rafael J. Wysocki napsal(a):
+> On Sunday 30 July 2006 01:06, Jiri Slaby wrote:
+>> Rafael J. Wysocki napsal(a):
+>>> Hi,
+>>>
+>>> On Saturday 29 July 2006 19:58, Jiri Slaby wrote:
+>>>> Andrew Morton napsal(a):
+>>>>> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.18-rc2/2.6.18-rc2-mm1/
+>>>> Hello,
+>>>>
 >>>> I have problems with swsusp again. While suspending, the very last thing kernel
 >>>> writes is 'restoring higmem' and then hangs, hardly. No sysrq response at all.
 >>>> Here is a snapshot of the screen:
@@ -30,11 +37,11 @@ Pavel Machek napsal(a):
 >>> Does vanila .18-rc2 work?
 >> Yup, it does.
 > 
-> Can you try up kernel, no highmem? (mem=512M)?
+> Hm, in fact this may be a problem with any device driver.
+> 
+> Could you please boot the system with init=/bin/bash and try to suspend?
 
-It writes then:
-p16v: status 0xffffffff, mask 0x00001000, pvoice f7c04a20, use 0
-in endless loop when resuming -- after reading from swap.
+No change.
 
 regards,
 -- 
