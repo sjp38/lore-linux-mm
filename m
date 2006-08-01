@@ -1,206 +1,216 @@
-Date: Tue, 1 Aug 2006 10:45:14 +0200
+Date: Tue, 1 Aug 2006 11:04:28 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/2] mm: speculative get_page
-Message-ID: <20060801084514.GA17452@wotan.suse.de>
-References: <20060726063905.GA32107@wotan.suse.de> <44CE234A.60203@shadowen.org>
+Subject: Re: [patch 2/2] mm: lockless pagecache
+Message-ID: <20060801090428.GB17452@wotan.suse.de>
+References: <20060726063941.GB32107@wotan.suse.de> <44CE2365.6040605@shadowen.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <44CE234A.60203@shadowen.org>
+In-Reply-To: <44CE2365.6040605@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 31, 2006 at 04:35:38PM +0100, Andy Whitcroft wrote:
+On Mon, Jul 31, 2006 at 04:36:05PM +0100, Andy Whitcroft wrote:
 > Nick Piggin wrote:
+> >Combine page_cache_get_speculative with lockless radix tree lookups to
+> >introduce lockless page cache lookups (ie. no mapping->tree_lock on
+> >the read-side).
 > >
-> >This patch introduces the core locking protocol to the pagecache
-> >(ie. adds page_cache_get_speculative, and tweaks some update-side
-> >code to make it work).
+> >The only atomicity changes this introduces is that the gang pagecache
+> >lookup functions now behave as if they are implemented with multiple
+> >find_get_page calls, rather than operating on a snapshot of the pages.
+> >In practice, this atomicity guarantee is not used anyway, and it is
+> >difficult to see how it could be. Gang pagecache lookups are designed
+> >to replace individual lookups, so these semantics are natural.
+> >
+> >Swapcache can no longer use find_get_page, because it has a different
+> >method of encoding swapcache position into the page. Introduce a new
+> >find_get_swap_page for it.
 > >
 > >Signed-off-by: Nick Piggin <npiggin@suse.de>
-> 
-> Ok, this one is a bit scarey but here goes.
-
-Thanks for reviewing!
-
-Will send out an incremental patch...
-
-> 
-> First question is about performance.  I seem to remember from your OLS 
-> paper that there was good scaling improvements with this.  Was there any 
-> benefit to simple cases (one process on SMP)?  There seems to be a good 
-> deal less locking in here, well without preempt etc anyhow.
-
-The single thread find_get_page numbers were improved, yes. Highlights
-were on UP compiled kernel, P4 was about 3x faster and SMP kernel, G5
-was about 2x faster working on a cache hot struct page. Cache cold
-numbers were improved too.
-
-Of course, this is a very tiny function anyway, performed within a
-larger context... but at least we don't regress here.
-
-Gang lookups I still haven't instrumeted fully - the difference would
-be much less there I expect.
-
-> 
-> > include/linux/page-flags.h |    7 +++
-> > include/linux/pagemap.h    |  103 
-> > +++++++++++++++++++++++++++++++++++++++++++++
-> > mm/filemap.c               |    4 +
-> > mm/migrate.c               |   11 ++++
-> > mm/swap_state.c            |    4 +
-> > mm/vmscan.c                |   12 +++--
-> > 6 files changed, 137 insertions(+), 4 deletions(-)
 > >
-> >Index: linux-2.6/include/linux/page-flags.h
-> >===================================================================
-> >--- linux-2.6.orig/include/linux/page-flags.h
-> >+++ linux-2.6/include/linux/page-flags.h
-> >@@ -86,6 +86,8 @@
-> > #define PG_nosave_free		18	/* Free, should not be 
-> > written */
-> > #define PG_buddy		19	/* Page is free, on buddy lists */
+> > include/linux/swap.h |    1
+> > mm/filemap.c         |  161 
+> > +++++++++++++++++++++++++++++++++++++--------------
+> > mm/page-writeback.c  |    8 --
+> > mm/readahead.c       |    7 --
+> > mm/swap_state.c      |   27 +++++++-
+> > mm/swapfile.c        |    2
+> > 6 files changed, 150 insertions(+), 56 deletions(-)
+> >
+> 
+> It seems in these routines you have two different placements for the rcu 
+> locking.  Either outside or inside the repeat.  Should we assume that 
+> those where the locks are outside the repeat: loop have very light payloads?
+
+Yeah, I think the "inside" rcu locking is just used where we have to
+sleep. Indeed the loop should be very light I expect it will almost
+never retry, and only rarely spin on NoNewRefs.
+
+> >@@ -613,11 +613,22 @@ struct page *find_trylock_page(struct ad
+> > {
+> > 	struct page *page;
 > > 
-> >+#define PG_nonewrefs		20	/* Block concurrent pagecache lookups
-> >+					 * while testing refcount */
-> 
-> As always ... page flags :(.  It seems pretty key to the stabilisation 
-> of _count, however are we really relying on that?  (See next comment ...)
-
-Yeah it is a page flag. I think we do need it. Am I allowed to trade
-PG_reserved for it? ;)
-
-> >+/*
-> >+ * speculatively take a reference to a page.
-> >+ * If the page is free (_count == 0), then _count is untouched, and NULL
-> >+ * is returned. Otherwise, _count is incremented by 1 and page is 
-> >returned.
-> >+ *
-> >+ * This function must be run in the same rcu_read_lock() section as has
-> >+ * been used to lookup the page in the pagecache radix-tree: this allows
-> >+ * allocators to use a synchronize_rcu() to stabilize _count.
-> 
-> Ok, so that makes sense from the algorithm as we take an additional 
-> reference somewhere within the 'rcu read lock'.  To get a stable count 
-> we have to ensure there is no-one is in the read side.  However, the 
-> commentary says we can use synchronize_rcu to get a stable count.  Is 
-> that correct?  All that synchronize_rcu() guarentees is that all 
-> concurrent readers at the start of the call will have finished when it 
-> returns, there is no guarentee that there will be no new readers since 
-> the start of the call, not in parallel with its completion?  Setting 
-
-There will be no new readers, because if you have newly allocated this
-page, lookups can no longer find it in pagecache after a synchronize_rcu.
-The important word is "allocators" (ie. not pagecache) -- but I don't
-think I have made that clear: will fix.
-
-> PageNoNewRefs will not prevent a new reader upping the reference count 
-> either as they wait after they have bumped it.  So do we really have a 
-> way to stablise _count here?  I am likely missing something, educate me :).
-
-We can't stabilise _count for pagecache pages. What we can do is prevent
-any new *references* from being handed out via the pagecache (although
-they may indeed increment _count, we don't give them the pointer).
-
-> 
-> Now I cannot see any users of this effect in either of the patches in 
-> this set so perhaps we do not care?
-
-synchronize_rcu(), no. I imagine it will become needed for memory hot
-unplug if we're freeing up mem_map[]s. Other users might just find it
-convenient, but so far I think I converted all users to something else
-which tended to be cleaner anyway.
-
-> >+	if (unlikely(!get_page_unless_zero(page)))
-> >+		return NULL; /* page has been freed */
+> >-	read_lock_irq(&mapping->tree_lock);
+> >+	rcu_read_lock();
+> >+repeat:
+> > 	page = radix_tree_lookup(&mapping->page_tree, offset);
+> >-	if (page && TestSetPageLocked(page))
+> >-		page = NULL;
+> >-	read_unlock_irq(&mapping->tree_lock);
+> >+	if (page) {
+> >+		page = page_cache_get_speculative(page);
+> >+		if (unlikely(!page))
+> >+			goto repeat;
+> >+		/* Has the page been truncated? */
+> >+		if (unlikely(page->mapping != mapping
+> >+				|| page->index != offset)) {
+> >+			page_cache_release(page);
+> >+			goto repeat;
+> >+		}
+> >+	}
+> >+	rcu_read_unlock();
 > >+
-> >+	/*
-> >+	 * Note that get_page_unless_zero provides a memory barrier.
-> >+	 * This is needed to ensure PageNoNewRefs is evaluated after the
-> >+	 * page refcount has been raised. See below comment.
-> >+	 */
+> > 	return page;
+> > }
+> 
+> This one has me puzzled.  This seem to no longer lock the page at all 
+> when returning it.  It seems the semantics of this has changed wildly. 
+> Also find_lock_page below still seems to lock the page, the semantic 
+> seems maintained there?  I think I am expecting to find a 
+> TestSetPageLocked() in the new version too?
+
+Yeah, looks like I stuffed up merging it. Didn't notice because nobody
+uses find_trylock_page (as Hugh points out, this should be the find_get_page
+body, and find_trylock should be unchanged).
+
+> >+	rcu_read_lock();
+> >+repeat:
+> >+	nr_found = radix_tree_gang_lookup(&mapping->page_tree,
+> > 				(void **)pages, start, nr_pages);
+> >-	for (i = 0; i < ret; i++)
+> >-		page_cache_get(pages[i]);
+> >-	read_unlock_irq(&mapping->tree_lock);
+> >-	return ret;
+> >+	for (i = 0; i < nr_found; i++) {
+> >+		struct page *page;
+> >+		page = page_cache_get_speculative(pages[i]);
+> >+		if (unlikely(!page)) {
+> >+bail:
+> >+			/*
+> >+			 * must return at least 1 page, so caller continues
+> >+			 * calling in.
+> 
+> Although that is a resonable semantic, several callers seem to expect 
+> all or nothing semantics here.  Mostly the direct callers to 
+> find_get_pages().  The callers using pagevec_lookup() at least seem to 
+> cope with a partial left fill as implemented here.
+
+I don't see any problems with find_get_pages callers (splice and ramfs).
+(hmm, ramfs should be moved over to find_get_pages_contig). You see, if
+the pages being looked up are getting chucked out of pagecache anyway,
+then then it could be valid to return.
+
+Actually: find_get_pages is a little iffy, but ramfs is happy with that.
+Maybe I'll reintroduce my find_get_pages_nonatomic, and leave fgps under
+lock.
+
+pagevec_lookup users seem to be fine. Maybe an API rename is in order
+for them too, though.
+
+> 
+> >+			 */
+> >+			if (i == 0)
+> >+				goto repeat;
+> >+			break;
+> >+		}
 > >+
-> >+	while (unlikely(PageNoNewRefs(page)))
-> >+		cpu_relax();
+> >+		/* Has the page been truncated? */
+> >+		if (unlikely(page->mapping != mapping
+> >+				|| page->index < start)) {
+> >+			page_cache_release(page);
+> >+			goto bail;
+> 
+> I have looked at this check for a while now and I can say I am troubled 
+> by it.  We do not know which page we are looking up so can we truly say 
+> the index check here is sufficient?  Also, could not the start= below 
+> lead us to follow a moving page and skip pages?  Perhaps there is no way 
+
+Hmm, it may move upwards and lead us to skip I think. Good point, I'll
+look at that.
+
+> to get any sort of guarentee with this interface before or after this 
+> change; and all is well?  Tell me it is :).
+
+Well the gang lookups were generally introduced to replace multiple calls
+to fgp, so callers don't use the requirement of an atomic snapshot. However
+you can still use the tree_lock to get the old semantics.
+
+> 
+> >+		}
 > >+
-> >+	/*
-> >+	 * smp_rmb is to ensure the load of page->flags (for PageNoNewRefs())
-> >+	 * is performed before a future load used to ensure the page is
-> >+	 * the correct on (usually: page->mapping and page->index).
-> 
-> "the correct on[e]"
-
-Yep.
-
-> 
-> Ok, this is a little confusing mostly I think because you don't provide 
-> a corresponding read side example.  Or it should read.  "smp_rmb is 
-> required to ensure the load ...., provided within get_page_unless_zero()."
-
-This is the read-side example (only the page->mapping test is done by callers).
-
-> 
-> Also, I do wonder if there should be some way to indicate that we need a 
-> barrier, and that we're stealing the one before or after which we get 
-> for free.
-> 
-> 	if (unlikely(!get_page_unless_zero(page)))
-> 		return NULL; /* page has been freed */
-> 	/* smp_rmb() */
-
-But you really need the commenting to show which accesses you are
-interested in ordering, and who else cares.
-
-> >Index: linux-2.6/mm/vmscan.c
-> >===================================================================
-> >--- linux-2.6.orig/mm/vmscan.c
-> >+++ linux-2.6/mm/vmscan.c
-> >@@ -380,6 +380,8 @@ int remove_mapping(struct address_space 
-> > 	if (!mapping)
-> > 		return 0;		/* truncate got there first */
+> >+		/* ensure we don't pick up pages that have moved behind us */
+> >+		start = page->index+1;
+> >+	}
+> >+	rcu_read_unlock();
+> >+	return i;
+> > }
 > > 
-> >+	SetPageNoNewRefs(page);
-> >+	smp_wmb();
-> > 	write_lock_irq(&mapping->tree_lock);
-> 
-> Ok.  Do we need the smp_wmb() here?  Would not the write_lock_irq() 
-> provide a full barrier already.
-
-No, only an acquire barrier (in this case, the store to page->flags
-may leak as far as the write_unlock_irq at the end of the crit section).
-
-> >Index: linux-2.6/mm/filemap.c
-> >===================================================================
-> >--- linux-2.6.orig/mm/filemap.c
-> >+++ linux-2.6/mm/filemap.c
-> >@@ -440,6 +440,8 @@ int add_to_page_cache(struct page *page,
-> > 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> > /**
+> >@@ -752,19 +786,35 @@ unsigned find_get_pages_contig(struct ad
+> > 			       unsigned int nr_pages, struct page **pages)
+> > {
+> > 	unsigned int i;
+> >-	unsigned int ret;
+> >+	unsigned int nr_found;
 > > 
-> > 	if (error == 0) {
-> >+		SetPageNoNewRefs(page);
-> >+		smp_wmb();
-> > 		write_lock_irq(&mapping->tree_lock);
+> >-	read_lock_irq(&mapping->tree_lock);
+> >-	ret = radix_tree_gang_lookup(&mapping->page_tree,
+> >+	rcu_read_lock();
+> >+repeat:
+> >+	nr_found = radix_tree_gang_lookup(&mapping->page_tree,
+> > 				(void **)pages, index, nr_pages);
+> >-	for (i = 0; i < ret; i++) {
+> >-		if (pages[i]->mapping == NULL || pages[i]->index != index)
+> >+	for (i = 0; i < nr_found; i++) {
+> >+		struct page *page;
+> >+		page = page_cache_get_speculative(pages[i]);
+> >+		if (unlikely(!page)) {
+> >+bail:
+> >+			/*
+> >+			 * must return at least 1 page, so caller continues
+> >+			 * calling in.
+> >+			 */
+> >+			if (i == 0)
+> >+				goto repeat;
+> > 			break;
+> >+		}
+> > 
+> >-		page_cache_get(pages[i]);
+> >+		/* Has the page been truncated? */
+> >+		if (unlikely(page->mapping != mapping
+> >+				|| page->index != index)) {
+> >+			page_cache_release(page);
+> >+			goto bail;
+> >+		}
 > 
-> Again, do we not have an implicit barrier in write_lock_irq().
+> Ok, normally this construct is checking against the page at 
+> (mapping,index) so it is very unlikely that the index does not match. 
+> However in this case we are doing a contiguity scan, so in fact the 
+> likelyhood of this missmatching is more defined by the likelyhood of 
+> contiguity in the mapping.  The check originally had no such hints?  Is 
+> it appropriate to have a hint here?
 
-ditto
+Yes. We have nothing protecting the page against being truncated or
+moved by splice (wheras previously tree_lock would do it).
 
-> 
-> > 		error = radix_tree_insert(&mapping->page_tree, offset, page);
-> > 		if (!error) {
-> >@@ -451,6 +453,8 @@ int add_to_page_cache(struct page *page,
-> > 			__inc_zone_page_state(page, NR_FILE_PAGES);
-> > 		}
-> > 		write_unlock_irq(&mapping->tree_lock);
-> >+		smp_wmb();
-> >+		ClearPageNoNewRefs(page);
-> 
-> Again, do we not have an implicit barrier in the unlock.
+Thanks again for the review. I'll try to fix up the outstanding
+issues you identified.
 
-Only release: the store can go as far up as the write_lock_irq.
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
