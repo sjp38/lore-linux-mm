@@ -1,42 +1,51 @@
-Subject: Re: Regression in 2.6.18-rc2-mm1:  mbind() not binding
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1154534801.5145.69.camel@localhost>
-References: <1154534801.5145.69.camel@localhost>
-Content-Type: text/plain
-Date: Wed, 02 Aug 2006 16:28:11 -0400
-Message-Id: <1154550491.5145.111.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k72Ktao9014664
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2006 16:55:36 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k72KtZO6211912
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2006 14:55:35 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k72KtZX5022675
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2006 14:55:35 -0600
+Subject: [RFC][PATCH] enable VMSPLIT for highmem kernels
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Wed, 02 Aug 2006 13:55:33 -0700
+Message-Id: <20060802205533.CBD06E21@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-02 at 12:06 -0400, Lee Schermerhorn wrote:
-> Just a heads up:  it appears that mbind() does not work--e.g. on
-> anonymous pages--in 2.6.18-rc2-mm1.
-> 
-> Found with my memtoy tool, available at:
-> 	http://free.linux.hp.com/~lts/Tools/memtoy-latest.tar.gz
-> 
-> Requires a NUMA platform or fakenuma kernel to see this.  I'm not sure
-> yet whether the specified policy is not being installed, or it's just
-> being ignored at allocation time.  Note that default policy works:  when
-> I change the cpu/node affinity of the test, allocation tracks to new
-> node.  This indicates that get_mempolicy(...,  MPOL_F_NODE|MPOL_F_ADDR)
-> isn't lying to me.
-> 
-> Works in 2.6.18-rc2.  I've just grabbed the broken out series, and will
-> attempt to isolate the patch.  If anyone else has come across this and
-> already knows what's causing it--that would save me some effort.
 
-Update:  looks like only the MPOL_BIND policy is affected.  Preferred
-and Interleaved seem to work.  Maybe something to do with zone lists?
-Still investigating.
+---
 
-Lee
+ lxc-dave/arch/i386/Kconfig |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletion(-)
 
+diff -puN arch/i386/Kconfig~split-for-pae arch/i386/Kconfig
+--- lxc/arch/i386/Kconfig~split-for-pae	2006-08-02 12:58:55.000000000 -0700
++++ lxc-dave/arch/i386/Kconfig	2006-08-02 13:02:55.000000000 -0700
+@@ -497,7 +497,7 @@ config HIGHMEM64G
+ endchoice
+ 
+ choice
+-	depends on EXPERIMENTAL && !X86_PAE
++	depends on EXPERIMENTAL
+ 	prompt "Memory split" if EMBEDDED
+ 	default VMSPLIT_3G
+ 	help
+@@ -519,6 +519,7 @@ choice
+ 	config VMSPLIT_3G
+ 		bool "3G/1G user/kernel split"
+ 	config VMSPLIT_3G_OPT
++		depends on !HIGHMEM
+ 		bool "3G/1G user/kernel split (for full 1G low memory)"
+ 	config VMSPLIT_2G
+ 		bool "2G/2G user/kernel split"
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
