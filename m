@@ -1,37 +1,26 @@
-Subject: Regression in 2.6.18-rc2-mm1:  mbind() not binding
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Wed, 02 Aug 2006 12:06:41 -0400
-Message-Id: <1154534801.5145.69.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <97625654359160.53AE58A2CB@PDCUFAW>
+From: "Rodolfo" <belvederecoffman@cheerful.com>
+Subject: You are just a couple of clicks away from our great prices and handy shipment Delight in
+Date: Wed, 2 Aug 2006 13:53:42 -0400
+MIME-Version: 1.0
+Content-Type: text/plain;
+        charset="Windows-1252"
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, linux-mm <linux-mm@kvack.org>
+Return-Path: <democracycathedral@umpire.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just a heads up:  it appears that mbind() does not work--e.g. on
-anonymous pages--in 2.6.18-rc2-mm1.
+Good Day! 
+ Would you like to please your lovely partner completely? Every man wishes it.  
+ Get a several month supply of everything you need ? in seconds Achieve astounding results in bed with these products designed to make any man a winner 
 
-Found with my memtoy tool, available at:
-	http://free.linux.hp.com/~lts/Tools/memtoy-latest.tar.gz
+ Find what you need here: http://www.wangheeni.com
 
-Requires a NUMA platform or fakenuma kernel to see this.  I'm not sure
-yet whether the specified policy is not being installed, or it's just
-being ignored at allocation time.  Note that default policy works:  when
-I change the cpu/node affinity of the test, allocation tracks to new
-node.  This indicates that get_mempolicy(...,  MPOL_F_NODE|MPOL_F_ADDR)
-isn't lying to me.
+ Millions of people enjoy goods from these brands, and they are more than happy 
 
-Works in 2.6.18-rc2.  I've just grabbed the broken out series, and will
-attempt to isolate the patch.  If anyone else has come across this and
-already knows what's causing it--that would save me some effort.
+Rodolfo Ryan
 
-Lee
+Because I have called, and ye refused; I have stretched out my hand, and no man regarded. First things first  Even in laughter the heart may ache, and joy may end in grief 
+Can one go upon hot coals, and his feet not be burned? After dark all cats are leopards It is what is in the mind when sober, that comes out of the mouth when drunk  The nearer to the church, the farther from God The tongue that brings healing is a tree of life, but a deceitful tongue crushes the spirit 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+When I turned myself over to God, i took my life out the hands of an idiot
