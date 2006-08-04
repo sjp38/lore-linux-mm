@@ -1,88 +1,124 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k74LcnSZ028439
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 4 Aug 2006 17:38:49 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.6/NCO/VER7.0) with ESMTP id k74LcldJ201950
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 4 Aug 2006 15:38:49 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k74Lclpt016585
-	for <linux-mm@kvack.org>; Fri, 4 Aug 2006 15:38:47 -0600
-Subject: [PATCH] enable VMSPLIT for highmem kernels
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 04 Aug 2006 14:38:45 -0700
-Message-Id: <20060804213845.986D69FA@localhost.localdomain>
+Date: Fri, 4 Aug 2006 16:54:17 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: mempolicies: fix policy_zone check
+Message-ID: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-I'll assume that the complete lack of commenting on this patch
-mean that everyone agrees with me. :)  Time for -mm I guess.
+There is a check in zonelist_policy that compares pieces of the bitmap 
+obtained from a gfp mask via GFP_ZONETYPES with a zone number in function
+zonelist_policy().
 
---
+The bitmap is an ORed mask of __GFP_DMA, __GFP_DMA32 and __GFP_HIGHMEM.
+The policy_zone is a zone number with the possible values of ZONE_DMA,
+ZONE_DMA32, ZONE_HIGHMEM and ZONE_NORMAL. These are two different domains 
+of values.
 
-The current VMSPLIT Kconfig option is disabled whenever highmem
-is on.  This is a bit screwy because the people who need to
-change VMSPLIT the most tend to be the ones *with* highmem and
-constrained lowmem.
+For some reason seemed to work before the zone reduction patchset (It 
+definitely works on SGI boxes since we just have one zone and the check 
+cannot fail).
 
-So, remove the highmem dependency.  But, re-include the
-dependency for the "full 1GB of lowmem" option.  You can't have
-the full 1GB of lowmem and highmem because of the need for the
-vmalloc(), kmap(), etc... areas.
+With the zone reduction patchset this check definitely fails on systems 
+with two zones if the system actually has memory in both zones.
 
-I thought there would be at least a bit of tweaking to do to
-get it to work, but everything seems OK.
+This is because ZONE_NORMAL is selected using no __GFP flag at
+all and thus gfp_zone(gfpmask) == 0. ZONE_DMA is selected when __GFP_DMA 
+is set. __GFP_DMA is 0x01.  So gfp_zone(gfpmask) == 1.
 
-Boot tested on a 4GB x86 machine, and a 12GB 3-node NUMA-Q:
+policy_zone is set to ZONE_NORMAL (==1) if ZONE_NORMAL and ZONE_DMA are
+populated.
 
-elm3b82:~# cat /proc/meminfo
-MemTotal:      3695412 kB
-MemFree:       3659540 kB
-...
-LowTotal:      2909008 kB
-LowFree:       2892324 kB
-...
-elm3b82:~# zgrep PAE /proc/config.gz
-CONFIG_X86_PAE=y
+For ZONE_NORMAL gfp_zone(<no _GFP_DMA>) yields 0 which is < 
+policy_zone(ZONE_NORMAL) and so policy is not applied to regular memory 
+allocations!
 
-larry:~# cat /proc/meminfo
-MemTotal:     11845900 kB
-MemFree:      11786748 kB
-...
-LowTotal:      2855180 kB
-LowFree:       2830092 kB
+Instead gfp_zone(__GFP_DMA) == 1 which results in policy being applied
+to DMA allocations!
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+What we realy want in that place is to establish the highest allowable
+zone for a given gfp_mask. If the highest zone is higher or equal to the
+policy_zone then memory policies need to be applied. We have such
+a highest_zone() function in page_alloc.c.
 
- lxc-dave/arch/i386/Kconfig |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletion(-)
+So move the highest_zone() function from mm/page_alloc.c into
+include/linux/gfp.h.  On the way we simplify the function and use the new
+zone_type that was also introduced with the zone reduction patchset plus we
+also specify the right type for the gfp flags parameter.
 
-diff -puN arch/i386/Kconfig~split-for-pae arch/i386/Kconfig
---- lxc/arch/i386/Kconfig~split-for-pae	2006-08-03 09:01:32.000000000 -0700
-+++ lxc-dave/arch/i386/Kconfig	2006-08-04 14:38:34.000000000 -0700
-@@ -497,7 +497,7 @@ config HIGHMEM64G
- endchoice
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+
+Index: test/mm/mempolicy.c
+===================================================================
+--- test.orig/mm/mempolicy.c	2006-07-15 14:53:08.000000000 -0700
++++ test/mm/mempolicy.c	2006-08-04 12:31:17.000000000 -0700
+@@ -1096,7 +1096,7 @@
+ 	case MPOL_BIND:
+ 		/* Lower zones don't get a policy applied */
+ 		/* Careful: current->mems_allowed might have moved */
+-		if (gfp_zone(gfp) >= policy_zone)
++		if (highest_zone(gfp) >= policy_zone)
+ 			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
+ 				return policy->v.zonelist;
+ 		/*FALL THROUGH*/
+Index: test/include/linux/gfp.h
+===================================================================
+--- test.orig/include/linux/gfp.h	2006-08-04 12:16:03.000000000 -0700
++++ test/include/linux/gfp.h	2006-08-04 12:31:14.000000000 -0700
+@@ -85,6 +85,21 @@
+ 	return zone;
+ }
  
- choice
--	depends on EXPERIMENTAL && !X86_PAE
-+	depends on EXPERIMENTAL
- 	prompt "Memory split" if EMBEDDED
- 	default VMSPLIT_3G
- 	help
-@@ -519,6 +519,7 @@ choice
- 	config VMSPLIT_3G
- 		bool "3G/1G user/kernel split"
- 	config VMSPLIT_3G_OPT
-+		depends on !HIGHMEM
- 		bool "3G/1G user/kernel split (for full 1G low memory)"
- 	config VMSPLIT_2G
- 		bool "2G/2G user/kernel split"
-_
++static inline enum zone_type highest_zone(gfp_t flags)
++{
++	if (flags & __GFP_DMA)
++		return ZONE_DMA;
++#ifdef CONFIG_ZONE_DMA32
++	if (flags & __GFP_DMA32)
++		return ZONE_DMA32;
++#endif
++#ifdef CONFIG_HIGHMEM
++	if (flags & __GFP_HIGHMEM)
++		return ZONE_HIGHMEM;
++#endif
++	return ZONE_NORMAL;
++}
++
+ /*
+  * There is only one page-allocator function, and two main namespaces to
+  * it. The alloc_page*() variants return 'struct page *' and as such
+Index: test/mm/page_alloc.c
+===================================================================
+--- test.orig/mm/page_alloc.c	2006-08-04 12:16:13.000000000 -0700
++++ test/mm/page_alloc.c	2006-08-04 12:55:21.000000000 -0700
+@@ -1466,22 +1466,6 @@
+ 	return nr_zones;
+ }
+ 
+-static inline int highest_zone(int zone_bits)
+-{
+-	int res = ZONE_NORMAL;
+-#ifdef CONFIG_HIGHMEM
+-	if (zone_bits & (__force int)__GFP_HIGHMEM)
+-		res = ZONE_HIGHMEM;
+-#endif
+-#ifdef CONFIG_ZONE_DMA32
+-	if (zone_bits & (__force int)__GFP_DMA32)
+-		res = ZONE_DMA32;
+-#endif
+-	if (zone_bits & (__force int)__GFP_DMA)
+-		res = ZONE_DMA;
+-	return res;
+-}
+-
+ #ifdef CONFIG_NUMA
+ #define MAX_NODE_LOAD (num_online_nodes())
+ static int __meminitdata node_load[MAX_NUMNODES];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
