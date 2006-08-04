@@ -1,33 +1,28 @@
-Received: by wr-out-0506.google.com with SMTP id i11so15402wra
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2006 08:56:24 -0700 (PDT)
-Message-ID: <84144f020608040856u17855491k9426b064ce9feec2@mail.gmail.com>
-Date: Fri, 4 Aug 2006 18:56:23 +0300
+Received: by ug-out-1314.google.com with SMTP id o2so93288uge
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2006 08:59:15 -0700 (PDT)
+Message-ID: <84144f020608040859o7e7b9a83p492e936af8a6e921@mail.gmail.com>
+Date: Fri, 4 Aug 2006 18:59:15 +0300
 From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [hch: [PATCH 1/3] slab: clean up leak tracking ifdefs a little bit]
-In-Reply-To: <20060804151621.GD29422@lst.de>
+Subject: Re: [PATCH 2/2] slab: optimize kmalloc_node the same way as kmalloc
+In-Reply-To: <20060804151546.GB29422@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20060804151621.GD29422@lst.de>
+References: <20060804151546.GB29422@lst.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@lst.de>
-Cc: linux-mm@kvack.org
+Cc: akpm@osdl.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
-
 On 8/4/06, Christoph Hellwig <hch@lst.de> wrote:
-> +#ifndef CONFIG_DEBUG_SLAB
->  void *__kmalloc(size_t size, gfp_t flags)
->  {
-> -#ifndef CONFIG_DEBUG_SLAB
-> -       return __do_kmalloc(size, flags, NULL);
-> -#else
->         return __do_kmalloc(size, flags, __builtin_return_address(0));
+> +static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 
-Other way around. You want to pass NULL when debugging is disabled.
+[snip]
+
+I think the optimization was left out on purpose as kmalloc_node() is
+slow anyway. No objections from me though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
