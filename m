@@ -1,9 +1,10 @@
-Date: Fri, 4 Aug 2006 16:55:52 -0700 (PDT)
+Date: Fri, 4 Aug 2006 16:57:22 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Apply type enum zone_type
-In-Reply-To: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0608041654380.5573@schroedinger.engr.sgi.com>
+Subject: linearly index zone->node_zonelists[]
+In-Reply-To: <Pine.LNX.4.64.0608041654380.5573@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0608041656150.5573@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0608041654380.5573@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,175 +13,220 @@ To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-After we have done this we can now do some typing cleanup.
+I wonder why we need this bitmask indexing into zone->node_zonelists[]?
 
-The memory policy layer keeps a policy_zone that specifies
-the zone that gets memory policies applied. This variable
-can now be of type enum zone_type.
+We always start with the highest zone and then include all lower zones
+if we build zonelists.
 
-The check_highest_zone function and the build_zonelists funnctionm must
-then also take a enum zone_type parameter.
+Are there really cases where we need allocation from ZONE_DMA or
+ZONE_HIGHMEM but not ZONE_NORMAL? It seems that the current implementation
+of highest_zone() makes that already impossible.
 
-Plus there are a number of loops over zones that also should use
-zone_type.
+If we go linear on the index then gfp_zone() == highest_zone() and a lot
+of definitions fall by the wayside.
 
-We run into some troubles at some points with functions that need a
-zone_type variable to become -1. Fix that up.
+We can now revert back to the use of gfp_zone() in mempolicy.c ;-)
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc2-mm1/mm/mempolicy.c
+Index: linux-2.6.18-rc2-mm1/include/linux/gfp.h
 ===================================================================
---- linux-2.6.18-rc2-mm1.orig/mm/mempolicy.c	2006-08-04 16:07:11.000000000 -0700
-+++ linux-2.6.18-rc2-mm1/mm/mempolicy.c	2006-08-04 16:07:12.000000000 -0700
-@@ -105,7 +105,7 @@
+--- linux-2.6.18-rc2-mm1.orig/include/linux/gfp.h	2006-08-04 15:25:00.000000000 -0700
++++ linux-2.6.18-rc2-mm1/include/linux/gfp.h	2006-08-04 16:07:39.000000000 -0700
+@@ -12,9 +12,6 @@
+  *
+  * Zone modifiers (see linux/mmzone.h - low three bits)
+  *
+- * These may be masked by GFP_ZONEMASK to make allocations with this bit
+- * set fall back to ZONE_NORMAL.
+- *
+  * Do not put any conditional on these. If necessary modify the definitions
+  * without the underscores and use the consistently. The definitions here may
+  * be used in bit comparisons.
+@@ -78,14 +75,7 @@
+ #define GFP_DMA32	__GFP_DMA32
  
- /* Highest zone. An specific allocation for a zone below that is not
-    policied. */
--int policy_zone = ZONE_DMA;
-+enum zone_type policy_zone = ZONE_DMA;
  
- struct mempolicy default_policy = {
- 	.refcnt = ATOMIC_INIT(1), /* never free it */
-@@ -137,7 +137,8 @@
- static struct zonelist *bind_zonelist(nodemask_t *nodes)
+-static inline int gfp_zone(gfp_t gfp)
+-{
+-	int zone = GFP_ZONEMASK & (__force int) gfp;
+-	BUG_ON(zone >= GFP_ZONETYPES);
+-	return zone;
+-}
+-
+-static inline enum zone_type highest_zone(gfp_t flags)
++static inline enum zone_type gfp_zone(gfp_t flags)
  {
- 	struct zonelist *zl;
--	int num, max, nd, k;
-+	int num, max, nd;
-+	enum zone_type k;
- 
- 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
- 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
-Index: linux-2.6.18-rc2-mm1/include/linux/mempolicy.h
-===================================================================
---- linux-2.6.18-rc2-mm1.orig/include/linux/mempolicy.h	2006-08-04 16:07:11.000000000 -0700
-+++ linux-2.6.18-rc2-mm1/include/linux/mempolicy.h	2006-08-04 16:07:12.000000000 -0700
-@@ -162,9 +162,9 @@
- 		unsigned long addr);
- extern unsigned slab_node(struct mempolicy *policy);
- 
--extern int policy_zone;
-+extern enum zone_type policy_zone;
- 
--static inline void check_highest_zone(int k)
-+static inline void check_highest_zone(enum zone_type k)
- {
- 	if (k > policy_zone)
- 		policy_zone = k;
+ 	if (flags & __GFP_DMA)
+ 		return ZONE_DMA;
 Index: linux-2.6.18-rc2-mm1/mm/page_alloc.c
 ===================================================================
---- linux-2.6.18-rc2-mm1.orig/mm/page_alloc.c	2006-08-04 16:07:11.000000000 -0700
-+++ linux-2.6.18-rc2-mm1/mm/page_alloc.c	2006-08-04 16:07:12.000000000 -0700
-@@ -652,7 +652,8 @@
-  */
- void drain_node_pages(int nodeid)
- {
--	int i, z;
-+	int i;
-+	enum zone_type z;
- 	unsigned long flags;
- 
- 	for (z = 0; z < MAX_NR_ZONES; z++) {
-@@ -1232,7 +1233,8 @@
- #ifdef CONFIG_NUMA
- unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
- {
--	unsigned int i, sum = 0;
-+	unsigned int sum = 0;
-+	enum zone_type i;
- 
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		sum += pgdat->node_zones[i].free_pages;
-@@ -1290,7 +1292,7 @@
-  */
- unsigned long nr_free_inactive_pages_node(int nid)
- {
--	unsigned int i;
-+	enum zone_type i;
- 	unsigned long sum = 0;
- 	struct zone *zones = NODE_DATA(nid)->node_zones;
- 
-@@ -1448,21 +1450,22 @@
-  * Add all populated zones of a node to the zonelist.
-  */
- static int __meminit build_zonelists_node(pg_data_t *pgdat,
--			struct zonelist *zonelist, int nr_zones, int zone_type)
-+			struct zonelist *zonelist, int nr_zones, enum zone_type zone_type)
- {
- 	struct zone *zone;
- 
- 	BUG_ON(zone_type >= MAX_NR_ZONES);
-+	zone_type++;
- 
- 	do {
-+		zone_type--;
- 		zone = pgdat->node_zones + zone_type;
- 		if (populated_zone(zone)) {
- 			zonelist->zones[nr_zones++] = zone;
- 			check_highest_zone(zone_type);
- 		}
--		zone_type--;
- 
--	} while (zone_type >= 0);
-+	} while (zone_type);
- 	return nr_zones;
- }
- 
-@@ -1531,10 +1534,11 @@
+--- linux-2.6.18-rc2-mm1.orig/mm/page_alloc.c	2006-08-04 16:07:12.000000000 -0700
++++ linux-2.6.18-rc2-mm1/mm/page_alloc.c	2006-08-04 16:07:39.000000000 -0700
+@@ -1534,14 +1534,14 @@
  
  static void __meminit build_zonelists(pg_data_t *pgdat)
  {
--	int i, j, k, node, local_node;
-+	int i, j, node, local_node;
+-	int i, j, node, local_node;
++	int j, node, local_node;
++	enum zone_type i;
  	int prev_node, load;
  	struct zonelist *zonelist;
  	nodemask_t used_mask;
-+	enum zone_type k;
+-	enum zone_type k;
  
  	/* initialize zonelists */
- 	for (i = 0; i < GFP_ZONETYPES; i++) {
-@@ -1718,7 +1722,7 @@
- 		unsigned long *zones_size, unsigned long *zholes_size)
+-	for (i = 0; i < GFP_ZONETYPES; i++) {
++	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		zonelist = pgdat->node_zonelists + i;
+ 		zonelist->zones[0] = NULL;
+ 	}
+@@ -1571,13 +1571,11 @@
+ 			node_load[node] += load;
+ 		prev_node = node;
+ 		load--;
+-		for (i = 0; i < GFP_ZONETYPES; i++) {
++		for (i = 0; i < MAX_NR_ZONES; i++) {
+ 			zonelist = pgdat->node_zonelists + i;
+ 			for (j = 0; zonelist->zones[j] != NULL; j++);
+ 
+-			k = highest_zone(i);
+-
+-	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
++	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
+ 			zonelist->zones[j] = NULL;
+ 		}
+ 	}
+@@ -1587,19 +1585,16 @@
+ 
+ static void __meminit build_zonelists(pg_data_t *pgdat)
  {
- 	unsigned long realtotalpages, totalpages = 0;
--	int i;
-+	enum zone_type i;
+-	int i, node, local_node;
+-	enum zone_type k;
+-	enum zone_type j;
++	int node, local_node;
++	enum zone_type i,j;
  
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		totalpages += zones_size[i];
-@@ -2207,7 +2211,7 @@
- {
- 	struct pglist_data *pgdat;
- 	unsigned long reserve_pages = 0;
--	int i, j;
-+	enum zone_type i, j;
+ 	local_node = pgdat->node_id;
+-	for (i = 0; i < GFP_ZONETYPES; i++) {
++	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		struct zonelist *zonelist;
  
- 	for_each_online_pgdat(pgdat) {
- 		for (i = 0; i < MAX_NR_ZONES; i++) {
-@@ -2240,7 +2244,7 @@
- static void setup_per_zone_lowmem_reserve(void)
- {
- 	struct pglist_data *pgdat;
--	int j, idx;
-+	enum zone_type j, idx;
+ 		zonelist = pgdat->node_zonelists + i;
  
- 	for_each_online_pgdat(pgdat) {
- 		for (j = 0; j < MAX_NR_ZONES; j++) {
-@@ -2249,9 +2253,12 @@
+-		j = 0;
+-		k = highest_zone(i);
+- 		j = build_zonelists_node(pgdat, zonelist, j, k);
++ 		j = build_zonelists_node(pgdat, zonelist, 0, i);
+  		/*
+  		 * Now we build the zonelist so that it contains the zones
+  		 * of all the other nodes.
+@@ -1611,12 +1606,12 @@
+ 		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
+ 			if (!node_online(node))
+ 				continue;
+-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
++			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
+ 		}
+ 		for (node = 0; node < local_node; node++) {
+ 			if (!node_online(node))
+ 				continue;
+-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
++			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
+ 		}
  
- 			zone->lowmem_reserve[j] = 0;
+ 		zonelist->zones[j] = NULL;
+Index: linux-2.6.18-rc2-mm1/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.18-rc2-mm1.orig/include/linux/mmzone.h	2006-08-04 15:08:57.000000000 -0700
++++ linux-2.6.18-rc2-mm1/include/linux/mmzone.h	2006-08-04 16:07:39.000000000 -0700
+@@ -136,60 +136,18 @@
+ 	MAX_NR_ZONES
+ };
  
--			for (idx = j-1; idx >= 0; idx--) {
-+			idx = j;
-+			while (idx) {
- 				struct zone *lower_zone;
+-
+ /*
+  * When a memory allocation must conform to specific limitations (such
+  * as being suitable for DMA) the caller will pass in hints to the
+  * allocator in the gfp_mask, in the zone modifier bits.  These bits
+  * are used to select a priority ordered list of memory zones which
+- * match the requested limits.  GFP_ZONEMASK defines which bits within
+- * the gfp_mask should be considered as zone modifiers.  Each valid
+- * combination of the zone modifier bits has a corresponding list
+- * of zones (in node_zonelists).  Thus for two zone modifiers there
+- * will be a maximum of 4 (2 ** 2) zonelists, for 3 modifiers there will
+- * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
+- * combinations of zone modifiers in "zone modifier space".
+- *
+- * As an optimisation any zone modifier bits which are only valid when
+- * no other zone modifier bits are set (loners) should be placed in
+- * the highest order bits of this field.  This allows us to reduce the
+- * extent of the zonelists thus saving space.  For example in the case
+- * of three zone modifier bits, we could require up to eight zonelists.
+- * If the left most zone modifier is a "loner" then the highest valid
+- * zonelist would be four allowing us to allocate only five zonelists.
+- * Use the first form for GFP_ZONETYPES when the left most bit is not
+- * a "loner", otherwise use the second.
+- *
+- * NOTE! Make sure this matches the zones in <linux/gfp.h>
++ * match the requested limits. See gfp_zone() in include/linux/gfp.h
+  */
  
-+				idx--;
-+
- 				if (sysctl_lowmem_reserve_ratio[idx] < 1)
- 					sysctl_lowmem_reserve_ratio[idx] = 1;
+-#ifdef CONFIG_ZONE_DMA32
+-
+-#ifdef CONFIG_HIGHMEM
+-#define GFP_ZONETYPES		((GFP_ZONEMASK + 1) / 2 + 1)    /* Loner */
+-#define GFP_ZONEMASK		0x07
+-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
+-#else
+-#define GFP_ZONETYPES		((0x07 + 1) / 2 + 1)    /* Loner */
+-/* Mask __GFP_HIGHMEM */
+-#define GFP_ZONEMASK		0x05
+-#define ZONES_SHIFT		2
+-#endif
+-
++#if !defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_HIGHMEM)
++#define ZONES_SHIFT 1
+ #else
+-#ifdef CONFIG_HIGHMEM
+-
+-#define GFP_ZONEMASK		0x03
+-#define ZONES_SHIFT		2
+-#define GFP_ZONETYPES		3
+-
+-#else
+-
+-#define GFP_ZONEMASK		0x01
+-#define ZONES_SHIFT		1
+-#define GFP_ZONETYPES		2
+-
+-#endif
++#define ZONES_SHIFT 2
+ #endif
  
+ struct zone {
+@@ -364,7 +322,7 @@
+ struct bootmem_data;
+ typedef struct pglist_data {
+ 	struct zone node_zones[MAX_NR_ZONES];
+-	struct zonelist node_zonelists[GFP_ZONETYPES];
++	struct zonelist node_zonelists[MAX_NR_ZONES];
+ 	int nr_zones;
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	struct page *node_mem_map;
+Index: linux-2.6.18-rc2-mm1/mm/mempolicy.c
+===================================================================
+--- linux-2.6.18-rc2-mm1.orig/mm/mempolicy.c	2006-08-04 16:07:12.000000000 -0700
++++ linux-2.6.18-rc2-mm1/mm/mempolicy.c	2006-08-04 16:07:39.000000000 -0700
+@@ -1097,7 +1097,7 @@
+ 	case MPOL_BIND:
+ 		/* Lower zones don't get a policy applied */
+ 		/* Careful: current->mems_allowed might have moved */
+-		if (highest_zone(gfp) >= policy_zone)
++		if (gfp_zone(gfp) >= policy_zone)
+ 			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
+ 				return policy->v.zonelist;
+ 		/*FALL THROUGH*/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
