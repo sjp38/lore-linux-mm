@@ -1,43 +1,37 @@
-Date: Fri, 4 Aug 2006 19:05:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: mempolicies: fix policy_zone check
-In-Reply-To: <200608050349.49114.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0608041901260.6160@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
- <200608050349.49114.ak@suse.de>
+Message-ID: <44D41607.1060201@yahoo.com.au>
+Date: Sat, 05 Aug 2006 13:52:39 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch][rfc] possible lock_page fix for Andrea's nopage vs invalidate
+ race?
+References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: akpm@osdl.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 5 Aug 2006, Andi Kleen wrote:
-
-> On Saturday 05 August 2006 01:54, Christoph Lameter wrote:
+Hugh Dickins wrote:
+> (David, I've added you to CC because way down below
+> there's an issue of interaction with page_mkwrite.)
 > 
-> > So move the highest_zone() function from mm/page_alloc.c into
-> > include/linux/gfp.h.  On the way we simplify the function and use the new
-> > zone_type that was also introduced with the zone reduction patchset plus we
-> > also specify the right type for the gfp flags parameter.
+> On Tue, 1 Aug 2006, Nick Piggin wrote:
 > 
-> The function is a bit big to inline. Better keep it in page_alloc.c, but
-> make it global.
+>>Just like to get some thoughts on another possible approach to this
+>>problem, and whether my changelog and implementation actually capture
+> 
+> 
+> Good changelog, promising implementation.
 
-Basically we have a maximum of 2 comparisons (no architecture 
-supports 4 zones) in the function with a simple constant return.
+... thanks for the thorough review, Hugh, as always. I'll find
+time to respond early next week.
 
-Most modern processors can do that kind of thing inline without jumps and 
-its just a few instructions (likely less than a function call). On most 
-platforms that only support DMA and NORMAL we only have a single 
-comparison.
-
-Also having that function inline allows optimizations if the gfp flag is 
-partially or fully known. If the compiler sees
-
-gfp_zone(__GFP_HIGHMEM | blablabla) then it can substitute ZONE_HIGHMEM .
-gfp_zone(GFP_USER) can be determined at compile time etc.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
