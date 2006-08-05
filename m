@@ -1,26 +1,31 @@
 From: Andi Kleen <ak@suse.de>
-Subject: Re: linearly index zone->node_zonelists[]
-Date: Sat, 5 Aug 2006 03:50:38 +0200
-References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0608041654380.5573@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0608041656150.5573@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608041656150.5573@schroedinger.engr.sgi.com>
+Subject: Re: mempolicies: fix policy_zone check
+Date: Sat, 5 Aug 2006 03:49:49 +0200
+References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200608050350.38241.ak@suse.de>
+Message-Id: <200608050349.49114.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@osdl.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 05 August 2006 01:57, Christoph Lameter wrote:
-> I wonder why we need this bitmask indexing into zone->node_zonelists[]?
+On Saturday 05 August 2006 01:54, Christoph Lameter wrote:
 
-Yes I always wondered that too.
+> So move the highest_zone() function from mm/page_alloc.c into
+> include/linux/gfp.h.  On the way we simplify the function and use the new
+> zone_type that was also introduced with the zone reduction patchset plus we
+> also specify the right type for the gfp flags parameter.
 
-It's probably a good idea to change this yes.
+The function is a bit big to inline. Better keep it in page_alloc.c, but
+make it global.
+
+Other than that it looks ok.
 
 -Andi
 
