@@ -1,11 +1,10 @@
-Date: Fri, 4 Aug 2006 19:01:09 -0700 (PDT)
+Date: Fri, 4 Aug 2006 19:05:31 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Apply type enum zone_type
-In-Reply-To: <200608050338.47642.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0608041900180.6160@schroedinger.engr.sgi.com>
+Subject: Re: mempolicies: fix policy_zone check
+In-Reply-To: <200608050349.49114.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0608041901260.6160@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0608041654380.5573@schroedinger.engr.sgi.com>
- <200608050338.47642.ak@suse.de>
+ <200608050349.49114.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,19 +15,29 @@ List-ID: <linux-mm.kvack.org>
 
 On Sat, 5 Aug 2006, Andi Kleen wrote:
 
-> > We run into some troubles at some points with functions that need a
-> > zone_type variable to become -1. Fix that up.
+> On Saturday 05 August 2006 01:54, Christoph Lameter wrote:
 > 
-> enums are not really type checked, so it seems somewhat pointless
-> to do this change.
+> > So move the highest_zone() function from mm/page_alloc.c into
+> > include/linux/gfp.h.  On the way we simplify the function and use the new
+> > zone_type that was also introduced with the zone reduction patchset plus we
+> > also specify the right type for the gfp flags parameter.
+> 
+> The function is a bit big to inline. Better keep it in page_alloc.c, but
+> make it global.
 
-It helps to clarify what types of values can be expected from a variable.
-We have that in various places.
+Basically we have a maximum of 2 comparisons (no architecture 
+supports 4 zones) in the function with a simple constant return.
 
-> If you really wanted strict type checking you would need typedef struct
-> and accessors.
+Most modern processors can do that kind of thing inline without jumps and 
+its just a few instructions (likely less than a function call). On most 
+platforms that only support DMA and NORMAL we only have a single 
+comparison.
 
-Right. We definitely do not want that overhead.
+Also having that function inline allows optimizations if the gfp flag is 
+partially or fully known. If the compiler sees
+
+gfp_zone(__GFP_HIGHMEM | blablabla) then it can substitute ZONE_HIGHMEM .
+gfp_zone(GFP_USER) can be determined at compile time etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
