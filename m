@@ -1,44 +1,35 @@
-Date: Mon, 7 Aug 2006 11:11:15 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 1/2] mm: speculative get_page
-In-Reply-To: <20060726063905.GA32107@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0608071058510.9318@blonde.wat.veritas.com>
-References: <20060726063905.GA32107@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: mempolicies: fix policy_zone check
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0608041717470.5792@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608041646550.5573@schroedinger.engr.sgi.com>
+	 <20060804170834.fe14ffe8.akpm@osdl.org>
+	 <Pine.LNX.4.64.0608041717470.5792@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 07 Aug 2006 09:40:03 -0400
+Message-Id: <1154958003.5181.4.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-A basic question I need to understand before going further...
+On Fri, 2006-08-04 at 17:18 -0700, Christoph Lameter wrote:
+> On Fri, 4 Aug 2006, Andrew Morton wrote:
+> 
+>  > Do these patches fix Lee's "Regression in 2.6.18-rc2-mm1:  mbind() not binding"?
+> 
+> Yes. It only not binds for a two zone NUMA configuration though as 
+> explained in the patch.
 
-On Wed, 26 Jul 2006, Nick Piggin wrote:
-> + *
-> + * This forms the core of the lockless pagecache locking protocol, where
-> + * the lookup-side (eg. find_get_page) has the following pattern:
-> + * 1. find page in radix tree
-> + * 2. conditionally increment refcount
-> + * 3. wait for PageNoNewRefs
+Ack.  I tested an earlier version of the fix for Christoph on Friday on
+our platform but had to leave, incommunicado for the weekend, before his
+final patch went out.
 
-(Better say
-         wait while PageNoNewRefs
-)
+Lee
 
-> + * 4. check the page is still in pagecache
-> + *
-> + * Remove-side (that cares about _count, eg. reclaim) has the following:
-> + * A. SetPageNoNewRefs
-> + * B. check refcount is correct
-> + * C. remove page
-> + * D. ClearPageNoNewRefs
 
-Yes, I understand why remove_mapping and migrate_page_move_mapping
-(on page) do the PageNoNewRefs business; but why do add_to_page_cache,
-__add_to_swap_cache and migrate_page_move_mapping (on newpage) do it?
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
