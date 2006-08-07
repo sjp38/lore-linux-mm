@@ -1,37 +1,44 @@
-Message-ID: <44D41607.1060201@yahoo.com.au>
-Date: Sat, 05 Aug 2006 13:52:39 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 7 Aug 2006 11:11:15 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 1/2] mm: speculative get_page
+In-Reply-To: <20060726063905.GA32107@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0608071058510.9318@blonde.wat.veritas.com>
+References: <20060726063905.GA32107@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [patch][rfc] possible lock_page fix for Andrea's nopage vs invalidate
- race?
-References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> (David, I've added you to CC because way down below
-> there's an issue of interaction with page_mkwrite.)
-> 
-> On Tue, 1 Aug 2006, Nick Piggin wrote:
-> 
->>Just like to get some thoughts on another possible approach to this
->>problem, and whether my changelog and implementation actually capture
-> 
-> 
-> Good changelog, promising implementation.
+A basic question I need to understand before going further...
 
-... thanks for the thorough review, Hugh, as always. I'll find
-time to respond early next week.
+On Wed, 26 Jul 2006, Nick Piggin wrote:
+> + *
+> + * This forms the core of the lockless pagecache locking protocol, where
+> + * the lookup-side (eg. find_get_page) has the following pattern:
+> + * 1. find page in radix tree
+> + * 2. conditionally increment refcount
+> + * 3. wait for PageNoNewRefs
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+(Better say
+         wait while PageNoNewRefs
+)
+
+> + * 4. check the page is still in pagecache
+> + *
+> + * Remove-side (that cares about _count, eg. reclaim) has the following:
+> + * A. SetPageNoNewRefs
+> + * B. check refcount is correct
+> + * C. remove page
+> + * D. ClearPageNoNewRefs
+
+Yes, I understand why remove_mapping and migrate_page_move_mapping
+(on page) do the PageNoNewRefs business; but why do add_to_page_cache,
+__add_to_swap_cache and migrate_page_move_mapping (on newpage) do it?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
