@@ -1,123 +1,88 @@
-Date: Tue, 8 Aug 2006 09:56:55 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC] Slab: Enforce clean node lists per zone, add policy support
- and fallback
-Message-ID: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
+Message-ID: <44D8C24F.8010808@shadowen.org>
+Date: Tue, 08 Aug 2006 17:56:47 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
+ ignore cpuset/memory policy restrictions.
+References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, kiran@scalex86.org, ak@suse.de
+To: Christoph Lameter <clameter@SGI.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, pj@SGI.com, jes@SGI.com
 List-ID: <linux-mm.kvack.org>
 
-There are certainly issues for non-NUMA at this point and also we need to 
-check how the slab behavior changes when memory gets low.
+Christoph Lameter wrote:
+> Add a new gfp flag __GFP_THISNODE to avoid fallback to other nodes. This flag
+> is essential if a kernel component requires memory to be located on a
+> certain node. It will be needed for alloc_pages_node() to force allocation
+> on the indicated node and for alloc_pages() to force allocation on the
+> current node.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.18-rc3-mm2/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.18-rc3-mm2.orig/mm/page_alloc.c	2006-08-07 20:21:28.431331931 -0700
+> +++ linux-2.6.18-rc3-mm2/mm/page_alloc.c	2006-08-08 09:23:23.323396326 -0700
+> @@ -916,6 +916,9 @@ get_page_from_freelist(gfp_t gfp_mask, u
+>  	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+>  	 */
+>  	do {
+> +		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+> +			(*z)->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+> +				break;
+>  		if ((alloc_flags & ALLOC_CPUSET) &&
+>  				!cpuset_zone_allowed(*z, gfp_mask))
+>  			continue;
 
+Would this not be a very good example of an overlapping GFP_foo bits?. 
+If this bit were just passed through with the GFP_DMA etc then we could 
+build lists per-node which only include the node, then put those in the 
+zonelist[GFP_THISNODE|GFP_DMA] etc?
 
-This patch insures that the slab node lists only contain slabs that
-belong to that specific node. All slab allocations use __GFP_THISNODE
-when calling into the page allocator. If an allocation fails then
-we fall back in the slab allocator according to the zonelists
-appropriate for a certain context.
+-apw
 
-Currently the allocations may be redirected via cpusets to other nodes. 
-This results in remote pages on nodelists and that in turn results in 
-interrupt latency issues during cache draining. Plus the slab is handing 
-out memory as local when it is really remote.
-
-Fallback for slab memory allocations therefore occurs within the slab
-allocator and not in the page allocator. This is necessary in order
-to be able to use the existing pools of objects on the nodes that
-we fall back to before adding more pages to a slab.
-
-The fallback function insures that the nodes we fall back to obey
-cpuset restrictions of the current context. We do not allocate
-slabs outside of the current cpuset context like before.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.18-rc3-mm2/mm/slab.c
-===================================================================
---- linux-2.6.18-rc3-mm2.orig/mm/slab.c	2006-08-08 09:45:56.472181039 -0700
-+++ linux-2.6.18-rc3-mm2/mm/slab.c	2006-08-08 09:47:43.582735013 -0700
-@@ -2226,7 +2226,7 @@ kmem_cache_create (const char *name, siz
- 	cachep->colour = left_over / cachep->colour_off;
- 	cachep->slab_size = slab_size;
- 	cachep->flags = flags;
--	cachep->gfpflags = 0;
-+	cachep->gfpflags = __GFP_THISNODE | __GFP_NORETRY | __GFP_NOWARN;
- 	if (flags & SLAB_CACHE_DMA)
- 		cachep->gfpflags |= GFP_DMA;
- 	cachep->buffer_size = size;
-@@ -3049,6 +3049,11 @@ static __always_inline void *__cache_all
- 
- 	local_irq_save(save_flags);
- 	objp = ____cache_alloc(cachep, flags);
-+#ifdef CONFIG_NUMA
-+	/* __cache_alloc_node knows how to locate memory on other nodes */
-+	if (!objp)
-+		objp = __cache_alloc_node(cachep, flags, numa_node_id());
-+#endif
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    caller);
-@@ -3067,7 +3072,7 @@ static void *alternate_node_alloc(struct
- {
- 	int nid_alloc, nid_here;
- 
--	if (in_interrupt())
-+	if (in_interrupt() || (flags & __GFP_THISNODE))
- 		return NULL;
- 	nid_alloc = nid_here = numa_node_id();
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
-@@ -3083,6 +3088,27 @@ static void *alternate_node_alloc(struct
- }
- 
- /*
-+ * Fall back function if there was no memory availabel and no objects on a
-+ * certain node and we are allowed to fall back. We mimick the behavior of
-+ * the page allocator. We fall back according to a zonelist determined by
-+ * the policy layer while obeying cpuset constraints.
-+ */
-+void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
-+{
-+	struct zonelist *zonelist = mpol_zonelist(flags, 0, NULL, 0);
-+	struct zone **z;
-+	void *obj = NULL;
-+
-+	for (z = zonelist->zones; *z && !obj; z++)
-+		if (zone_idx(*z) == ZONE_NORMAL &&
-+				cpuset_zone_allowed(*z, flags))
-+			obj = __cache_alloc_node(cache,
-+					flags | __GFP_THISNODE,
-+					(*z)->zone_pgdat->node_id);
-+	return obj;
-+}
-+
-+/*
-  * A interface to enable slab creation on nodeid
-  */
- static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-@@ -3135,11 +3161,15 @@ retry:
- must_grow:
- 	spin_unlock(&l3->list_lock);
- 	x = cache_grow(cachep, flags, nodeid);
-+	if (x)
-+		goto retry;
- 
--	if (!x)
--		return NULL;
-+	if (!(flags & __GFP_THISNODE))
-+		/* Unable to grow the cache. Fall back to other nodes. */
-+		return fallback_alloc(cachep, flags);
-+
-+	return NULL;
- 
--	goto retry;
- done:
- 	return obj;
- }
+> Index: linux-2.6.18-rc3-mm2/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.18-rc3-mm2.orig/include/linux/gfp.h	2006-08-07 20:21:01.808957041 -0700
+> +++ linux-2.6.18-rc3-mm2/include/linux/gfp.h	2006-08-08 09:20:41.727897528 -0700
+> @@ -45,6 +45,7 @@ struct vm_area_struct;
+>  #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+>  #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+>  #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+> +#define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
+>  
+>  #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+> Index: linux-2.6.18-rc3-mm2/mm/mempolicy.c
+> ===================================================================
+> --- linux-2.6.18-rc3-mm2.orig/mm/mempolicy.c	2006-08-07 20:21:01.810910045 -0700
+> +++ linux-2.6.18-rc3-mm2/mm/mempolicy.c	2006-08-08 09:20:41.729850533 -0700
+> @@ -1278,7 +1278,7 @@ struct page *alloc_pages_current(gfp_t g
+>  
+>  	if ((gfp & __GFP_WAIT) && !in_interrupt())
+>  		cpuset_update_task_memory_state();
+> -	if (!pol || in_interrupt())
+> +	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
+>  		pol = &default_policy;
+>  	if (pol->policy == MPOL_INTERLEAVE)
+>  		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
+> Index: linux-2.6.18-rc3-mm2/kernel/cpuset.c
+> ===================================================================
+> --- linux-2.6.18-rc3-mm2.orig/kernel/cpuset.c	2006-08-07 20:21:07.429702734 -0700
+> +++ linux-2.6.18-rc3-mm2/kernel/cpuset.c	2006-08-08 09:20:41.730827035 -0700
+> @@ -2282,7 +2282,7 @@ int __cpuset_zone_allowed(struct zone *z
+>  	const struct cpuset *cs;	/* current cpuset ancestors */
+>  	int allowed;			/* is allocation in zone z allowed? */
+>  
+> -	if (in_interrupt())
+> +	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
+>  		return 1;
+>  	node = z->zone_pgdat->node_id;
+>  	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
