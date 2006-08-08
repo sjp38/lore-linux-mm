@@ -1,59 +1,66 @@
+Date: Tue, 8 Aug 2006 23:17:32 +0200
+From: Thomas Graf <tgraf@suug.ch>
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060808135721.5af713fb@localhost.localdomain>
-References: <20060808193325.1396.58813.sendpatchset@lappy>
-	 <20060808193345.1396.16773.sendpatchset@lappy>
-	 <20060808135721.5af713fb@localhost.localdomain>
-Content-Type: text/plain
-Date: Tue, 08 Aug 2006 23:05:21 +0200
-Message-Id: <1155071122.23134.31.camel@lappy>
+Message-ID: <20060808211731.GR14627@postel.suug.ch>
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193345.1396.16773.sendpatchset@lappy>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060808193345.1396.16773.sendpatchset@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Hemminger <shemminger@osdl.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-08-08 at 13:57 -0700, Stephen Hemminger wrote:
-> On Tue, 08 Aug 2006 21:33:45 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > 
-> > The core of the VM deadlock avoidance framework.
-> > 
-> > From the 'user' side of things it provides a function to mark a 'struct sock'
-> > as SOCK_MEMALLOC, meaning this socket may dip into the memalloc reserves on
-> > the receive side.
-> > 
-> > From the net_device side of things, the extra 'struct net_device *' argument
-> > to {,__}netdev_alloc_skb() is used to attribute/account the memalloc usage.
-> > Converted drivers will make use of this new API and will set NETIF_F_MEMALLOC
-> > to indicate the driver fully supports this feature.
-> > 
-> > When a SOCK_MEMALLOC socket is marked, the device is checked for this feature
-> > and tries to increase the memalloc pool; if both succeed, the device is marked
-> > with IFF_MEMALLOC, indicating to {,__}netdev_alloc_skb() that it is OK to dip
-> > into the memalloc pool.
-> > 
-> > Memalloc sk_buff allocations are not done from the SLAB but are done using 
-> > alloc_pages(). sk_buff::memalloc records this exception so that kfree_skbmem()
-> > can do the right thing.
-> > 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Signed-off-by: Daniel Phillips <phillips@google.com>
-> > 
-> 
-> How much of this is just building special case support for large allocations
-> for jumbo frames? Wouldn't it make more sense to just fix those drivers to
-> do scatter and add the support hooks for that?
+* Peter Zijlstra <a.p.zijlstra@chello.nl> 2006-08-08 21:33
+> +struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+> +		unsigned length, gfp_t gfp_mask)
+> +{
+> +	struct sk_buff *skb;
+> +
+> +	if (dev && (dev->flags & IFF_MEMALLOC)) {
+> +		WARN_ON(gfp_mask & (__GFP_NOMEMALLOC | __GFP_MEMALLOC));
+> +		gfp_mask &= ~(__GFP_NOMEMALLOC | __GFP_MEMALLOC);
+> +
+> +		if ((skb = ___netdev_alloc_skb(dev, length,
+> +					       gfp_mask | __GFP_NOMEMALLOC)))
+> +			goto done;
+> +		if (dev_reserve_used(dev) >= dev->rx_reserve)
+> +			goto out;
+> +		if (!(skb = ___netdev_alloc_skb(dev, length,
+> +						gfp_mask | __GFP_MEMALLOC)))
+> +			goto out;
+> +		atomic_inc(&dev->rx_reserve_used);
+> +	} else
+> +		if (!(skb = ___netdev_alloc_skb(dev, length, gfp_mask)))
+> +			goto out;
+> +
+> +done:
+> +	skb->dev = dev;
+> +out:
+> +	return skb;
+> +}
+> +
 
-Only some of the horrors in __alloc_skb(), esp those related to the
-order argument. OTOH, yes I would very much like all the jumbo capable
-driver to do proper scather/gather on fragments, alas drivers are not my
-storng point.
+>  void __kfree_skb(struct sk_buff *skb)
+>  {
+> +	struct net_device *dev = skb->dev;
+> +
+>  	dst_release(skb->dst);
+>  #ifdef CONFIG_XFRM
+>  	secpath_put(skb->sp);
+> @@ -389,6 +480,8 @@ void __kfree_skb(struct sk_buff *skb)
+>  #endif
+>  
+>  	kfree_skbmem(skb);
+> +	if (dev && (dev->flags & IFF_MEMALLOC))
+> +		dev_unreserve_skb(dev);
+>  }
 
-If someone (preferably the maintainers) will contribute patches....
+skb->dev is not guaranteed to still point to the "allocating" device
+once the skb is freed again so reserve/unreserve isn't symmetric.
+You'd need skb->alloc_dev or something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
