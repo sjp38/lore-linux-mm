@@ -1,36 +1,40 @@
-Date: Tue, 8 Aug 2006 10:59:18 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
- ignore cpuset/memory policy restrictions.
-In-Reply-To: <20060808104752.3e7052dd.pj@sgi.com>
-Message-ID: <Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0608081748070.24142@skynet.skynet.ie>
- <Pine.LNX.4.64.0608081001220.27866@schroedinger.engr.sgi.com>
- <20060808104752.3e7052dd.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 8 Aug 2006 11:16:52 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] Slab: Enforce clean node lists per zone, add policy
+ support and fallback
+Message-Id: <20060808111652.571f85db.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: mel@csn.ul.ie, akpm@osdl.org, linux-mm@kvack.org, jes@sgi.com, apw@shadowen.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, kiran@scalex86.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Aug 2006, Paul Jackson wrote:
+Christoph wrote:
+> Currently the allocations may be redirected via cpusets to other nodes. 
 
-> So far, only alloc_pages_exact_node is needed, not "a whole selection."
+Minor picky point of terminology ... I wouldn't say that cpusets
+"redirect" the allocation, but "force" or "constrain" it.  To my way
+of speaking, a "redirect" would apply if the rule was "allocations
+on node 6 should be satisfied on (redirected to) node 9", for
+example.  A forced constraint applies if the rule is "I don't care
+what you asked for buddy - you're getting node 9, period."
 
-Ok then we can only allocate pages on exactly one node only via this 
-particular function call and not through other subsystem allocators. This 
-may fit the urgent needs for node specific allocations that I found so 
-far.
+Separate point - I think we already have a workaround in place for
+the migration case to keep cpuset constraints out of the way.  See
+the overwriting of tsk->mems_allowed in the kernel/cpuset.c routine
+cpuset_migrate_mm().  With Christoph's new __GFP_THISNODE, or whatever
+alloc_pages_exact_node() with limited zonelist equivalent we come up
+with, we don't need both that and the cpuset_migrate_mm() workaround.
 
-However, doing so  means we cannot get vmalloced memory on a 
-particular node, we cannot get dma memory on a particular node. We cannot 
-indicate to the slab allocator that we want memory on a particular node. 
-These are all things that we need. If we would look at the users at all 
-the _node allocators then we surely will find users of kmalloc_node and 
-vmalloc_node etc that expect memory on exactly that node.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
