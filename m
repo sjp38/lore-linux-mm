@@ -1,37 +1,57 @@
-Date: Tue, 8 Aug 2006 13:35:33 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
- ignore cpuset/memory policy restrictions.
-Message-Id: <20060808133533.673edc84.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608081142130.29355@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0608081748070.24142@skynet.skynet.ie>
-	<Pine.LNX.4.64.0608081001220.27866@schroedinger.engr.sgi.com>
-	<20060808104752.3e7052dd.pj@sgi.com>
-	<Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
-	<20060808111855.531e4e29.pj@sgi.com>
-	<Pine.LNX.4.64.0608081142130.29355@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <44D8F919.7000006@intel.com>
+Date: Tue, 08 Aug 2006 13:50:33 -0700
+From: Auke Kok <auke-jan.h.kok@intel.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 3/9] e1000 driver conversion
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193355.1396.71047.sendpatchset@lappy>
+In-Reply-To: <20060808193355.1396.71047.sendpatchset@lappy>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: mel@csn.ul.ie, akpm@osdl.org, linux-mm@kvack.org, jes@sgi.com, apw@shadowen.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> Sure. Some examples
+Peter Zijlstra wrote:
+> Update the driver to make use of the NETIF_F_MEMALLOC feature.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Daniel Phillips <phillips@google.com>
+> 
+> ---
+>  drivers/net/e1000/e1000_main.c |   11 +++++------
+>  1 file changed, 5 insertions(+), 6 deletions(-)
+> 
+> Index: linux-2.6/drivers/net/e1000/e1000_main.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/net/e1000/e1000_main.c
+> +++ linux-2.6/drivers/net/e1000/e1000_main.c
+> @@ -4020,8 +4020,6 @@ e1000_alloc_rx_buffers(struct e1000_adap
+>  		 */
+>  		skb_reserve(skb, NET_IP_ALIGN);
+>  
+> -		skb->dev = netdev;
+> -
+>  		buffer_info->skb = skb;
+>  		buffer_info->length = adapter->rx_buffer_len;
+>  map_skb:
+> @@ -4135,8 +4136,6 @@ e1000_alloc_rx_buffers_ps(struct e1000_a
+>  		 */
+>  		skb_reserve(skb, NET_IP_ALIGN);
+>  
+> -		skb->dev = netdev;
+> -
+>  		buffer_info->skb = skb;
+>  		buffer_info->length = adapter->rx_ps_bsize0;
+>  		buffer_info->dma = pci_map_single(pdev, skb->data,
+> -
 
-Hmmm ... more than I realized.
+can we really delete these??
 
-These __GFP_THISNODE patches seem reasonable to me.
+Cheers,
 
-Acked-by: Paul Jackson <pj@sgi.com>
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Auke
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
