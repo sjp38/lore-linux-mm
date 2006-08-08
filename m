@@ -1,34 +1,28 @@
-Date: Tue, 8 Aug 2006 11:18:55 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
- ignore cpuset/memory policy restrictions.
-Message-Id: <20060808111855.531e4e29.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0608081748070.24142@skynet.skynet.ie>
-	<Pine.LNX.4.64.0608081001220.27866@schroedinger.engr.sgi.com>
-	<20060808104752.3e7052dd.pj@sgi.com>
-	<Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 Aug 2006 19:19:47 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch][rfc] possible lock_page fix for Andrea's nopage vs
+ invalidate race?
+In-Reply-To: <44D7E584.10109@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0608081918320.30256@blonde.wat.veritas.com>
+References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
+ <44D74B98.3030305@yahoo.com.au> <Pine.LNX.4.64.0608071752040.20812@blonde.wat.veritas.com>
+ <44D7E584.10109@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: mel@csn.ul.ie, akpm@osdl.org, linux-mm@kvack.org, jes@sgi.com, apw@shadowen.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> If we would look at the users at all 
-> the _node allocators then we surely will find users of kmalloc_node and 
-> vmalloc_node etc that expect memory on exactly that node.
+On Tue, 8 Aug 2006, Nick Piggin wrote:
+> 
+> I wonder if we should have the i_size check (under the page lock) in
+> do_no_page or down in the ->nopage implementations?
 
-Perhaps.  Do you know of any specific examples needing this?
+I'm inclined to say down in the ->nopage implementations.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
