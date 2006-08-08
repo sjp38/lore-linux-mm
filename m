@@ -1,36 +1,48 @@
-Date: Tue, 8 Aug 2006 11:32:44 -0700 (PDT)
+Date: Tue, 8 Aug 2006 11:49:48 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Slab: Enforce clean node lists per zone, add policy support
- and fallback
-In-Reply-To: <20060808111652.571f85db.pj@sgi.com>
-Message-ID: <Pine.LNX.4.64.0608081129410.28922@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
- <20060808111652.571f85db.pj@sgi.com>
+Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
+ ignore cpuset/memory policy restrictions.
+In-Reply-To: <20060808111855.531e4e29.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64.0608081142130.29355@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0608081748070.24142@skynet.skynet.ie>
+ <Pine.LNX.4.64.0608081001220.27866@schroedinger.engr.sgi.com>
+ <20060808104752.3e7052dd.pj@sgi.com> <Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
+ <20060808111855.531e4e29.pj@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Paul Jackson <pj@sgi.com>
-Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, kiran@scalex86.org, ak@suse.de
+Cc: mel@csn.ul.ie, akpm@osdl.org, linux-mm@kvack.org, jes@sgi.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Aug 2006, Paul Jackson wrote:
 
-> Separate point - I think we already have a workaround in place for
-> the migration case to keep cpuset constraints out of the way.  See
-> the overwriting of tsk->mems_allowed in the kernel/cpuset.c routine
-> cpuset_migrate_mm().  With Christoph's new __GFP_THISNODE, or whatever
-> alloc_pages_exact_node() with limited zonelist equivalent we come up
-> with, we don't need both that and the cpuset_migrate_mm() workaround.
+> Christoph wrote:
+> > If we would look at the users at all 
+> > the _node allocators then we surely will find users of kmalloc_node and 
+> > vmalloc_node etc that expect memory on exactly that node.
+> 
+> Perhaps.  Do you know of any specific examples needing this?
 
-You are confusing two issues in the migration code. The case of 
-sys_migrate_page was fixed by you by changing the cpuset context. Thats 
-fine and we do not need __GFP_THISNODE there because the page are to be 
-allocated in conformity with a cpuset context of a process.
+Sure. Some examples
 
-In the case of sys_move_pages we move individual pages to particular 
-nodes. There we do not want to have cpuset redirection by constraints or 
-mempolicy influences.
+For kmalloc_node()  look at vmalloc.c and slab.c for starters.
+
+For vmalloc_node see drivers/oprofile/buffer.c
+net/ipv4/netfilter/... various places.
+
+This is going to increase with the more NUMA awareness throughout the 
+kernel.
+
+Interesting constructs in ip_tables.c:
+
+counters = vmalloc_node(countersize, numa_node_id());
+
+It seems what they really want is:
+
+counters = __vmalloc(countersize, __GFP_THISNODE, PAGE_KERNEL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
