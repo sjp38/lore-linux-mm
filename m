@@ -1,28 +1,29 @@
-Date: Tue, 8 Aug 2006 19:19:47 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch][rfc] possible lock_page fix for Andrea's nopage vs
- invalidate race?
-In-Reply-To: <44D7E584.10109@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0608081918320.30256@blonde.wat.veritas.com>
-References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com>
- <44D74B98.3030305@yahoo.com.au> <Pine.LNX.4.64.0608071752040.20812@blonde.wat.veritas.com>
- <44D7E584.10109@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 8 Aug 2006 11:29:58 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] Slab: Enforce clean node lists per zone, add policy
+ support and fallback
+Message-Id: <20060808112958.12b71fb4.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, David Howells <dhowells@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, kiran@scalex86.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Aug 2006, Nick Piggin wrote:
-> 
-> I wonder if we should have the i_size check (under the page lock) in
-> do_no_page or down in the ->nopage implementations?
+Rather than special casing __cache_alloc_node() to handle the
+fallback to other nodes when __GFP_THISNODE was -not- set, it might be
+clearer to go the custom, single node zonelist (MPOL_BIND-like?)
+approach, with no __GFP_THISNODE flag, for the few calls that do
+require exact node placement.
 
-I'm inclined to say down in the ->nopage implementations.
-
-Hugh
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
