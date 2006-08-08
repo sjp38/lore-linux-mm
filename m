@@ -1,11 +1,11 @@
-Message-ID: <44D7E584.10109@yahoo.com.au>
-Date: Tue, 08 Aug 2006 11:14:44 +1000
+Message-ID: <44D7E641.6090306@yahoo.com.au>
+Date: Tue, 08 Aug 2006 11:17:53 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [patch][rfc] possible lock_page fix for Andrea's nopage vs invalidate
  race?
-References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com> <44D74B98.3030305@yahoo.com.au> <Pine.LNX.4.64.0608071752040.20812@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0608071752040.20812@blonde.wat.veritas.com>
+References: <44CF3CB7.7030009@yahoo.com.au> <Pine.LNX.4.64.0608031526400.15351@blonde.wat.veritas.com> <44D74B98.3030305@yahoo.com.au> <44D75526.4050108@yahoo.com.au> <Pine.LNX.4.64.0608071620001.13736@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0608071620001.13736@blonde.wat.veritas.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,59 +17,21 @@ List-ID: <linux-mm.kvack.org>
 Hugh Dickins wrote:
 > On Tue, 8 Aug 2006, Nick Piggin wrote:
 > 
->>Hugh Dickins wrote:
+>>Nick Piggin wrote:
 >>
->>>Hmmm, page_mkwrite when called from do_wp_page would not expect to
->>>be holding page lock: we don't want it called with in one case and
->>>without in the other.  Maybe do_no_page needs to unlock_page before
->>>calling page_mkwrite, lock_page after, and check page->mapping when
->>>VM_NOPAGE_LOCKED??
->>
->>That's pretty foul. I'll take a bit of a look. Is it really a problem
->>to call in either state, if it is well documented? (we could even
->>send a flag down if needed). I thought filesystem code loved this
->>kind of spaghetti locking?
+>>>Generic pagecache doesn't have an mmap method, which is where
+>>>I stopped looking. I guess you could add the |= to filemap_nopage,
+>>>but that's much uglier.
 > 
 > 
-> Agreed foul.  David's helpful mail reassures not an immediate problem,
-> but I'm pretty sure other future uses of page_mkwrite would need to
-> know if the page is held locked or not.  Yes, could be done by a flag,
-> though that's not pretty (gives the ->page_mkwrite implementation much
-> the same schizophrenia as I was disliking here in do_no_page).
+> You can't |= vm_flags in nopage, mmap_sem isn't exclusive there.
 
-But it would be better to do it in the theoretical page_mkwrite that
-cares, maybe? Imagine one that did want to have the page locked.
+Well you *could*. So long as nobody else modifies vm_flags under
+a read lock ;)
 
-Well I'll leave this issue alone for the next iteration.
+> But what's the matter with generic_file_mmap?
 
-> 
-> 
->>I don't think ->populate has ever particularly troubled itself with
->>these kinds of theoretical races. I was really hoping to fix linear
->>pagecache first before getting bogged down with nonlinear.
-> 
-> 
-> install_page has had mapping & i_size check for quite a while, but
-> perhaps by theoretical races you mean Andrea's invalidate case.
-> The nonlinear case is much less a concern than MAP_POPULATE
-> (though I don't know if anyone really uses that).
-
-Sure but it doesn't do any truncate_count checking. So nothing in my
-patch will make it worse than it already is.
-
-> 
-> 
->>After thinking about it a bit more, I think I've found my filemap_nopage
->>wanting. Suppose i_size is shrunk and the page truncated before the
->>first find_lock_page. OK, no we'll allocate a new page, add it to the
->>pagecache, and do a ->readpage().
-> 
-> 
-> I've got a bit lost between merges against different trees,
-> I'll let you sort that one out.
-
-I wonder if we should have the i_size check (under the page lock) in
-do_no_page or down in the ->nopage implementations?
+Umm... I don't know. Maybe my eyes?
 
 -- 
 SUSE Labs, Novell Inc.
