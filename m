@@ -1,37 +1,37 @@
-Subject: Re: [RFC][PATCH 4/9] e100 driver conversion
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <44D8F074.8060001@intel.com>
-References: <20060808193325.1396.58813.sendpatchset@lappy>
-	 <20060808193405.1396.14701.sendpatchset@lappy> <44D8F074.8060001@intel.com>
-Content-Type: text/plain
-Date: Tue, 08 Aug 2006 22:18:03 +0200
-Message-Id: <1155068284.23134.23.camel@lappy>
+Date: Tue, 8 Aug 2006 13:35:33 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
+ ignore cpuset/memory policy restrictions.
+Message-Id: <20060808133533.673edc84.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608081142130.29355@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0608081748070.24142@skynet.skynet.ie>
+	<Pine.LNX.4.64.0608081001220.27866@schroedinger.engr.sgi.com>
+	<20060808104752.3e7052dd.pj@sgi.com>
+	<Pine.LNX.4.64.0608081052460.28259@schroedinger.engr.sgi.com>
+	<20060808111855.531e4e29.pj@sgi.com>
+	<Pine.LNX.4.64.0608081142130.29355@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Auke Kok <auke-jan.h.kok@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: mel@csn.ul.ie, akpm@osdl.org, linux-mm@kvack.org, jes@sgi.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-08-08 at 13:13 -0700, Auke Kok wrote:
-> Peter Zijlstra wrote:
-> > Update the driver to make use of the netdev_alloc_skb() API and the
-> > NETIF_F_MEMALLOC feature.
-> 
-> this should be done in two separate patches. I should take care of the netdev_alloc_skb()
-> part too for e100 (which I've already queued internally), also since ixgb still needs it.
-> 
-> do you have any plans to visit ixgb for this change too?
+> Sure. Some examples
 
-Well, all drivers are queued, these were just the ones I have hardware
-for in running systems (except wireless).
+Hmmm ... more than I realized.
 
-Since this patch-set is essentially a RFC, your patch will likely hit
-mainline ere this one, at that point I'll rebase.
+These __GFP_THISNODE patches seem reasonable to me.
 
-For future patches I'll split up in two if people are so inclined.
+Acked-by: Paul Jackson <pj@sgi.com>
 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
