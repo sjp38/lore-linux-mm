@@ -1,44 +1,38 @@
-Date: Tue, 8 Aug 2006 12:20:29 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] Slab: Enforce clean node lists per zone, add policy
- support and fallback
-Message-Id: <20060808122029.01e91c2a.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608081129410.28922@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080951240.27620@schroedinger.engr.sgi.com>
-	<20060808111652.571f85db.pj@sgi.com>
-	<Pine.LNX.4.64.0608081129410.28922@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 08 Aug 2006 21:33:35 +0200
+Message-Id: <20060808193335.1396.67083.sendpatchset@lappy>
+In-Reply-To: <20060808193325.1396.58813.sendpatchset@lappy>
+References: <20060808193325.1396.58813.sendpatchset@lappy>
+Subject: [RFC][PATCH 1/9] pfn_to_kaddr() for UML
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, kiran@scalex86.org, ak@suse.de
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-> You are confusing two issues in the migration code. The case of 
-> sys_migrate_page was fixed by you by changing the cpuset context. Thats 
-> fine and we do not need __GFP_THISNODE there because the page are to be 
-> allocated in conformity with a cpuset context of a process.
+Update UML with a proper 'pfn_to_kaddr()' definition, the VM deadlock
+avoidance framework uses it.
 
-Ah - ok.  Yes, I was looking for the constraints of the new, destination
-cpuset, rather than the tasks curent cpuset.  And I was not looking for
-exact __GFP_THISNODE placement.  So I was talking about a separate case.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Daniel Phillips <phillips@google.com>
 
-Minor confusion with a confusion ... I don't know why you mentioned
-'sys_migrate_page' -- that wasn't what I was referring to.  I was
-referring to my cpuset_migrate_mm() hack, which is involved in the two
-cases:
-    1) a task is put in a cpuset that is marked 'memory_migrate', or
-    2) a task is in a cpuset marked 'memory_migrate' and that cpusets
-       'mems' are changed.
+---
+ include/asm-um/page.h |    2 ++
+ 1 file changed, 2 insertions(+)
 
-In any case ... nevermind ;).
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Index: linux-2.6/include/asm-um/page.h
+===================================================================
+--- linux-2.6.orig/include/asm-um/page.h
++++ linux-2.6/include/asm-um/page.h
+@@ -111,6 +111,8 @@ extern unsigned long uml_physmem;
+ #define pfn_valid(pfn) ((pfn) < max_mapnr)
+ #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
+ 
++#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
++
+ extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
+ #define HAVE_ARCH_VALIDATE
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
