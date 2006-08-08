@@ -1,78 +1,73 @@
-Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k78Gdanx021971
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2006 11:39:36 -0500
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k78GjpDu45137087
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2006 09:45:52 -0700 (PDT)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k78GdanB50699928
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2006 09:39:36 -0700 (PDT)
-Received: from christoph (helo=localhost)
-	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1GAUcC-0007DI-00
-	for <linux-mm@kvack.org>; Tue, 08 Aug 2006 09:39:36 -0700
-Date: Tue, 8 Aug 2006 09:39:36 -0700 (PDT)
+Date: Tue, 8 Aug 2006 09:45:01 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC] Profiling: Require buffer allocation on the correct node
-Message-ID: <Pine.LNX.4.64.0608080938330.27620@schroedinger.engr.sgi.com>
+Subject: Cleanup: Add zone pointer to get_page_from_freelist
+Message-ID: <Pine.LNX.4.64.0608080943520.27620@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(depends on __GFP_THISNODE being available. See earlier patchset)
+There are frequent references to *z in get_page_from_freelist.
 
-Profiling really suffers with off node buffers. Fail if no memory is available
-on the nodes. The profiling code is already set up to deal with these 
-failures should they occur.
+Add an explicit zone variable that can be used in all these places.
+
+(This patch should follow the __GFP_THISNODE patch series).
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc3-mm2/kernel/profile.c
+Index: linux-2.6.18-rc3-mm2/mm/page_alloc.c
 ===================================================================
---- linux-2.6.18-rc3-mm2.orig/kernel/profile.c	2006-07-29 23:15:36.000000000 -0700
-+++ linux-2.6.18-rc3-mm2/kernel/profile.c	2006-08-08 09:27:35.592010690 -0700
-@@ -309,13 +309,17 @@ static int __devinit profile_cpu_callbac
- 		node = cpu_to_node(cpu);
- 		per_cpu(cpu_profile_flip, cpu) = 0;
- 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
--			page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-+			page = alloc_pages_node(node,
-+					GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-+					0);
- 			if (!page)
- 				return NOTIFY_BAD;
- 			per_cpu(cpu_profile_hits, cpu)[1] = page_address(page);
- 		}
- 		if (!per_cpu(cpu_profile_hits, cpu)[0]) {
--			page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-+			page = alloc_pages_node(node,
-+					GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-+					0);
- 			if (!page)
- 				goto out_free;
- 			per_cpu(cpu_profile_hits, cpu)[0] = page_address(page);
-@@ -491,12 +495,16 @@ static int __init create_hash_tables(voi
- 		int node = cpu_to_node(cpu);
- 		struct page *page;
+--- linux-2.6.18-rc3-mm2.orig/mm/page_alloc.c	2006-08-08 09:23:23.323396326 -0700
++++ linux-2.6.18-rc3-mm2/mm/page_alloc.c	2006-08-08 09:43:26.038138979 -0700
+@@ -910,35 +910,37 @@ get_page_from_freelist(gfp_t gfp_mask, u
+ 	struct zone **z = zonelist->zones;
+ 	struct page *page = NULL;
+ 	int classzone_idx = zone_idx(*z);
++	struct zone *zone;
  
--		page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-+		page = alloc_pages_node(node,
-+				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-+				0);
- 		if (!page)
- 			goto out_cleanup;
- 		per_cpu(cpu_profile_hits, cpu)[1]
- 				= (struct profile_hit *)page_address(page);
--		page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-+		page = alloc_pages_node(node,
-+				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-+				0);
- 		if (!page)
- 			goto out_cleanup;
- 		per_cpu(cpu_profile_hits, cpu)[0]
+ 	/*
+ 	 * Go through the zonelist once, looking for a zone with enough free.
+ 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 	 */
+ 	do {
++		zone = *z;
+ 		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+-			(*z)->zone_pgdat != zonelist->zones[0]->zone_pgdat))
++			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+ 				break;
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+-				!cpuset_zone_allowed(*z, gfp_mask))
++				!cpuset_zone_allowed(zone, gfp_mask))
+ 			continue;
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+ 			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = (*z)->pages_min;
++				mark = zone->pages_min;
+ 			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = (*z)->pages_low;
++				mark = zone->pages_low;
+ 			else
+-				mark = (*z)->pages_high;
+-			if (!zone_watermark_ok(*z, order, mark,
++				mark = zone->pages_high;
++			if (!zone_watermark_ok(zone , order, mark,
+ 				    classzone_idx, alloc_flags))
+ 				if (!zone_reclaim_mode ||
+-				    !zone_reclaim(*z, gfp_mask, order))
++				    !zone_reclaim(zone, gfp_mask, order))
+ 					continue;
+ 		}
+ 
+-		page = buffered_rmqueue(zonelist, *z, order, gfp_mask);
++		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
+ 		if (page) {
+ 			break;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
