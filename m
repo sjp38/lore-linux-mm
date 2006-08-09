@@ -1,45 +1,91 @@
+Message-ID: <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
+In-Reply-To: <1155132032.12225.65.camel@twins>
+References: <20060808193325.1396.58813.sendpatchset@lappy>
+    <20060808193345.1396.16773.sendpatchset@lappy>
+    <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
+    <44D92B78.20408@google.com>
+    <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
+    <1155128046.12225.40.camel@twins>
+    <39903.81.207.0.53.1155131329.squirrel@81.207.0.53>
+    <1155132032.12225.65.camel@twins>
+Date: Wed, 9 Aug 2006 20:34:02 +0200 (CEST)
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060809161816.GA14627@postel.suug.ch>
-References: <20060808193345.1396.16773.sendpatchset@lappy>
-	 <20060808211731.GR14627@postel.suug.ch> <44D93BB3.5070507@google.com>
-	 <20060808.183920.41636471.davem@davemloft.net>
-	 <44D976E6.5010106@google.com> <20060809131942.GY14627@postel.suug.ch>
-	 <1155132440.12225.70.camel@twins>  <20060809161816.GA14627@postel.suug.ch>
-Content-Type: text/plain
-Date: Wed, 09 Aug 2006 18:19:54 +0200
-Message-Id: <1155140394.12225.88.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: "Indan Zupancic" <indan@nul.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Graf <tgraf@suug.ch>
-Cc: Daniel Phillips <phillips@google.com>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 18:18 +0200, Thomas Graf wrote:
-> * Peter Zijlstra <a.p.zijlstra@chello.nl> 2006-08-09 16:07
-> > I think Daniel was thinking of adding struct net_device *
-> > sk_buff::alloc_dev,
-> > I know I was after reading the first few mails. However if adding a
-> > field 
-> > there is strict no-no....
-> > 
-> > /me takes a look at struct sk_buff
-> > 
-> > Hmm, what does sk_buff::input_dev do? That seems to store the initial
-> > device?
-> 
-> No, skb->input_dev is used when redirecting packets around in the
-> stack and may change. Even if it would keep its value the reference
-> to the netdevice is not valid anymore when you free the skb as the
-> skb was queued and the refcnt acquired in __netifx_rx_schedule()
-> has been released again thus making it possible for the netdevice
-> to disappear.
+On Wed, August 9, 2006 16:00, Peter Zijlstra said:
+> On Wed, 2006-08-09 at 15:48 +0200, Indan Zupancic wrote:
+>> On Wed, August 9, 2006 14:54, Peter Zijlstra said:
+>> > On Wed, 2006-08-09 at 14:02 +0200, Indan Zupancic wrote:
+>> >>  That avoids lots of checks and should guarantee that the
+>> >> accounting is correct, except in the case when the IFF_MEMALLOC flag is
+>> >> cleared and the counter is set to zero manually. Can't that be avoided and
+>> >> just let it decrease to zero naturally?
+>> >
+>> > That would put the atomic op on the free path unconditionally, I think
+>> > davem gets nightmares from that.
+>>
+>> I confused SOCK_MEMALLOC with sk_buff::memalloc, sorry. What I meant was
+>> to unconditionally decrement the reserved usage only when memalloc is true
+>> on the free path. That way all skbs that increased the reserve also decrease
+>> it, and the counter should never go below zero.
+>
+> OK, so far so good, except we loose the notion of getting memory back
+> from regular skbs.
 
-Bah, tricky stuff that.
+I don't understand this, regular skbs don't have anything to do with
+rx_reserve_used as far as I can see. I'm only talking about keeping
+that field up to date and correct. rx_reserve_used is only increased
+by a skb when memalloc is set to true on that skb, so only if that field
+is set rx_reserve_used needs to be reduced when the skb is freed.
 
-disregards this part from -v2 then :-(
+Why is it needed for the protocol specific code to call dev_unreserve_skb?
+
+Only problem is if the device can change. rx_reserve_used should probably
+be updated when that happens, as a skb can't use reserved memory on a device
+it was moved away from. (right?)
+
+>> Also as far as I can see it should be possible to replace all atomic
+>> "if (unlikely(dev_reserve_used(skb->dev)))" checks witha check if
+>> memalloc is set. That should make davem happy, as there aren't any
+>> atomic instructions left in hot paths.
+>
+> dev_reserve_used() uses atomic_read() which isn't actually a LOCK'ed
+> instruction, so that should not matter.
+
+Perhaps, but the main reason to check memalloc instead of using
+dev_reserve_used is because the latter doesn't tell which skb did the
+reservation.
+
+>> If IFF_MEMALLOC is set new skbs set memalloc and increase the reserve.
+>
+> Not quite, if IFF_MEMALLOC is set new skbs _could_ get memalloc set. We
+> only fall back to alloc_pages() if the regular path fails to alloc. If the
+> skb is backed by a page (as opposed to kmem_cache fluff) sk_buff::memalloc
+> is set.
+
+Yes, true. But doesn't matter for the rx_reserve_used accounting, as long as
+memalloc set means that it did increase rx_reserve_used.
+
+> Also, I've been thinking (more pain), should I not up the reserve for
+> each SOCK_MEMALLOC socket.
+
+Up rx_reserve_used or the total ammount of reserved memory? Probably 'no' for
+both though, as it's either device specific or skb dependent.
+
+I'm slowly getting a clearer image of the big picture, I'll take another look
+when you post the updated code.
+
+Greetings,
+
+Indan
 
 
 --
