@@ -1,31 +1,42 @@
-Message-ID: <44D977D8.5070306@google.com>
-Date: Tue, 08 Aug 2006 22:51:20 -0700
+Message-ID: <44D97822.5010007@google.com>
+Date: Tue, 08 Aug 2006 22:52:34 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 8/9] 3c59x driver conversion
-References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193447.1396.59301.sendpatchset@lappy> <44D9191E.7080203@garzik.org>
-In-Reply-To: <44D9191E.7080203@garzik.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060809054648.GD17446@2ka.mipt.ru>
+In-Reply-To: <20060809054648.GD17446@2ka.mipt.ru>
+Content-Type: text/plain; charset=KOI8-R; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, netdev@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik wrote:
-> Peter Zijlstra wrote:
->> Update the driver to make use of the netdev_alloc_skb() API and the
->> NETIF_F_MEMALLOC feature.
+Evgeniy Polyakov wrote:
+> On Tue, Aug 08, 2006 at 09:33:25PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
 > 
-> NETIF_F_MEMALLOC does not exist in the upstream tree...  nor should it, 
-> IMO.
+>>   http://lwn.net/Articles/144273/
+>>   "Kernel Summit 2005: Convergence of network and storage paths"
+>>
+>>We believe that an approach very much like today's patch set is
+>>necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
+>>We further believe that a properly working version of at least one of
+>>these subsystems is critical to the viability of Linux as a modern
+>>storage platform.
+> 
+> There is another approach for that - do not use slab allocator for
+> network dataflow at all. It automatically has all you pros amd if
+> implemented correctly can have a lot of additional usefull and
+> high-performance features like full zero-copy and total fragmentation
+> avoidance.
 
-Elaborate please.  Do you think that all drivers should be updated to
-fix the broken blockdev semantics, making NETIF_F_MEMALLOC redundant?
-If so, I trust you will help audit for it?
+Agreed.  But probably more intrusive than davem would be happy with
+at this point.
 
-> netdev_alloc_skb() is in the tree, and that's fine.
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
