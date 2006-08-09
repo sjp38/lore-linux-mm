@@ -1,36 +1,38 @@
-Date: Tue, 08 Aug 2006 18:39:20 -0700 (PDT)
-Message-Id: <20060808.183920.41636471.davem@davemloft.net>
+Date: Tue, 08 Aug 2006 18:41:44 -0700 (PDT)
+Message-Id: <20060808.184144.71088399.davem@davemloft.net>
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <44D93BB3.5070507@google.com>
+In-Reply-To: <44D93BEE.4000001@google.com>
 References: <20060808193345.1396.16773.sendpatchset@lappy>
-	<20060808211731.GR14627@postel.suug.ch>
-	<44D93BB3.5070507@google.com>
+	<20060808.151020.94555184.davem@davemloft.net>
+	<44D93BEE.4000001@google.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 From: Daniel Phillips <phillips@google.com>
-Date: Tue, 08 Aug 2006 18:34:43 -0700
+Date: Tue, 08 Aug 2006 18:35:42 -0700
 Return-Path: <owner-linux-mm@kvack.org>
 To: phillips@google.com
-Cc: tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Can you please characterize the conditions under which skb->dev changes
-> after the alloc?  Are there writings on this subtlety?
+> David Miller wrote:
+> > I think the new atomic operation that will seemingly occur on every
+> > device SKB free is unacceptable.
+> 
+> Alternate suggestion?
 
-The packet scheduler and classifier can redirect packets to different
-devices, and can the netfilter layer.
+Sorry, I have none.  But you're unlikely to get your changes
+considered seriously unless you can avoid any new overhead your patch
+has which is of this level.
 
-The setting of skb->dev is wholly transient and you cannot rely upon
-it to be the same as when you set it on allocation.
-
-Even simple things like the bonding device change skb->dev on every
-receive.
-
-I think you need to study the networking stack a little more before
-you continue to play in this delicate area :-)
+We're busy trying to make these data structures smaller, and eliminate
+atomic operations, as much as possible.  Therefore anything which adds
+new datastructure elements and new atomic operations will be met with
+fierce resistence unless it results an equal or greater shrink of
+datastructures elsewhere or removes atomic operations elsewhere in
+the critical path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
