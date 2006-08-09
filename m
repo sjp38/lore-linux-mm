@@ -1,42 +1,31 @@
-Message-ID: <44D976E6.5010106@google.com>
-Date: Tue, 08 Aug 2006 22:47:18 -0700
+Message-ID: <44D977D8.5070306@google.com>
+Date: Tue, 08 Aug 2006 22:51:20 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-References: <20060808193345.1396.16773.sendpatchset@lappy>	<20060808211731.GR14627@postel.suug.ch>	<44D93BB3.5070507@google.com> <20060808.183920.41636471.davem@davemloft.net>
-In-Reply-To: <20060808.183920.41636471.davem@davemloft.net>
+Subject: Re: [RFC][PATCH 8/9] 3c59x driver conversion
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193447.1396.59301.sendpatchset@lappy> <44D9191E.7080203@garzik.org>
+In-Reply-To: <44D9191E.7080203@garzik.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Jeff Garzik <jeff@garzik.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, netdev@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: Daniel Phillips <phillips@google.com>
-  >>Can you please characterize the conditions under which skb->dev changes
->>after the alloc?  Are there writings on this subtlety?
+Jeff Garzik wrote:
+> Peter Zijlstra wrote:
+>> Update the driver to make use of the netdev_alloc_skb() API and the
+>> NETIF_F_MEMALLOC feature.
 > 
-> The packet scheduler and classifier can redirect packets to different
-> devices, and can the netfilter layer.
-> 
-> The setting of skb->dev is wholly transient and you cannot rely upon
-> it to be the same as when you set it on allocation.
->
-> Even simple things like the bonding device change skb->dev on every
-> receive.
+> NETIF_F_MEMALLOC does not exist in the upstream tree...  nor should it, 
+> IMO.
 
-Thankyou, this is easily fixed.
+Elaborate please.  Do you think that all drivers should be updated to
+fix the broken blockdev semantics, making NETIF_F_MEMALLOC redundant?
+If so, I trust you will help audit for it?
 
-> I think you need to study the networking stack a little more before
-> you continue to play in this delicate area :-)
-
-The VM deadlock is also delicate.  Perhaps we can work together.
-
-Regards,
-
-Daniel
+> netdev_alloc_skb() is in the tree, and that's fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
