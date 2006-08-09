@@ -1,28 +1,37 @@
-Date: Tue, 08 Aug 2006 22:56:53 -0700 (PDT)
-Message-Id: <20060808.225653.85409729.davem@davemloft.net>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <44D97822.5010007@google.com>
-References: <20060808193325.1396.58813.sendpatchset@lappy>
-	<20060809054648.GD17446@2ka.mipt.ru>
-	<44D97822.5010007@google.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-ID: <44D980EB.5010608@garzik.org>
+Date: Wed, 09 Aug 2006 02:30:03 -0400
+From: Jeff Garzik <jeff@garzik.org>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 8/9] 3c59x driver conversion
+References: <20060808193447.1396.59301.sendpatchset@lappy>	<44D9191E.7080203@garzik.org>	<44D977D8.5070306@google.com> <20060808.225537.112622421.davem@davemloft.net>
+In-Reply-To: <20060808.225537.112622421.davem@davemloft.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Daniel Phillips <phillips@google.com>
-Date: Tue, 08 Aug 2006 22:52:34 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: phillips@google.com
-Cc: johnpol@2ka.mipt.ru, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: phillips@google.com, a.p.zijlstra@chello.nl, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Agreed.  But probably more intrusive than davem would be happy with
-> at this point.
+David Miller wrote:
+> From: Daniel Phillips <phillips@google.com>
+> Date: Tue, 08 Aug 2006 22:51:20 -0700
+> 
+>> Elaborate please.  Do you think that all drivers should be updated to
+>> fix the broken blockdev semantics, making NETIF_F_MEMALLOC redundant?
+>> If so, I trust you will help audit for it?
+> 
+> I think he's saying that he doesn't think your code is yet a
+> reasonable way to solve the problem, and therefore doesn't belong
+> upstream.
 
-I'm much more happy with Evgeniy's network tree allocator, which has a
-real design and well thought our long term consequences, than your
-work.
+Pretty much.  It is completely non-sensical to add NETIF_F_MEMALLOC, 
+when it should be blindingly obvious that every net driver will be 
+allocating memory, and every net driver could potentially be used with 
+NBD and similar situations.
+
+	Jeff
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
