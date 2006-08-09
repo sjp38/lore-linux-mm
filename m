@@ -1,37 +1,35 @@
-Date: Wed, 9 Aug 2006 10:34:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
- ignore cpuset/memory policy restrictions.
-Message-Id: <20060809103433.99f14cb7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <44D93B60.7030507@google.com>
+Date: Tue, 08 Aug 2006 18:33:20 -0700
+From: Daniel Phillips <phillips@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <20060808193325.1396.58813.sendpatchset@lappy>	<20060808193345.1396.16773.sendpatchset@lappy> <20060808135721.5af713fb@localhost.localdomain>
+In-Reply-To: <20060808135721.5af713fb@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, pj@sgi.com, jes@sgi.com, apw@shadowen.org
+To: Stephen Hemminger <shemminger@osdl.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Aug 2006 09:33:46 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Stephen Hemminger wrote:
+> How much of this is just building special case support for large allocations
+> for jumbo frames? Wouldn't it make more sense to just fix those drivers to
+> do scatter and add the support hooks for that?
 
-> Add a new gfp flag __GFP_THISNODE to avoid fallback to other nodes. This flag
-> is essential if a kernel component requires memory to be located on a
-> certain node. It will be needed for alloc_pages_node() to force allocation
-> on the indicated node and for alloc_pages() to force allocation on the
-> current node.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
+Short answer: none of it is.  If it happens to handle jumbo frames nicely
+that is mainly a lucky accident, and we do need to check that they actually
+works.
 
-Hm, passing a nodemask as argment to alloc_page_???()is too more complicated
-than GFP_THISNODE ? (it will increase # of args but...)
+Minor rant: the whole skb_alloc familly has degenerated into an unholy
+mess and could use some rethinking.  I believe the current patch gets as
+far as three _'s at the beginning of a function, this shows it is high
+time to reroll the api.
 
--Kame
+Regards,
 
-
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
