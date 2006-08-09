@@ -1,127 +1,60 @@
-Message-ID: <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
-In-Reply-To: <44D92B78.20408@google.com>
-References: <20060808193325.1396.58813.sendpatchset@lappy>   
-    <20060808193345.1396.16773.sendpatchset@lappy>
-    <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
-    <44D92B78.20408@google.com>
-Date: Wed, 9 Aug 2006 14:02:36 +0200 (CEST)
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: "Indan Zupancic" <indan@nul.nu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20060809054648.GD17446@2ka.mipt.ru>
+References: <20060808193325.1396.58813.sendpatchset@lappy>
+	 <20060809054648.GD17446@2ka.mipt.ru>
+Content-Type: text/plain
+Date: Wed, 09 Aug 2006 14:37:20 +0200
+Message-Id: <1155127040.12225.25.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@google.com>
-Cc: netdev@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, August 9, 2006 2:25, Daniel Phillips said:
-> Indan Zupancic wrote:
->> Hello,
->> Saw the patch on lkml, and wondered about some things.
->> On Tue, August 8, 2006 21:33, Peter Zijlstra said:
->>
->>>+static inline void dev_unreserve_skb(struct net_device *dev)
->>>+{
->>>+	if (atomic_dec_return(&dev->rx_reserve_used) < 0)
->>>+		atomic_inc(&dev->);
->>>+}
->>>+
->>
->> This looks strange. Is it possible for rx_reserve_used to become negative?
->> A quick look at the code says no, except in the one case where there isn't a
->> "if (unlikely(dev_reserve_used(skb->dev)))" check:
->
-> Yes, you can see what I'm trying to do there, I was short an atomic op to
-> do it,  My ugly solution may well be... probably is racy.  Let's rewrite
-> it with something better.  We want the atomic op that some people call
-> "monus": decrement unless zero.
+On Wed, 2006-08-09 at 09:46 +0400, Evgeniy Polyakov wrote:
+> On Tue, Aug 08, 2006 at 09:33:25PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
+> >    http://lwn.net/Articles/144273/
+> >    "Kernel Summit 2005: Convergence of network and storage paths"
+> > 
+> > We believe that an approach very much like today's patch set is
+> > necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
+> > We further believe that a properly working version of at least one of
+> > these subsystems is critical to the viability of Linux as a modern
+> > storage platform.
+> 
+> There is another approach for that - do not use slab allocator for
+> network dataflow at all. It automatically has all you pros amd if
+> implemented correctly can have a lot of additional usefull and
+> high-performance features like full zero-copy and total fragmentation
+> avoidance.
 
-Currently atomic_inc_not_zero(), atomic_add_unless() and atomic_cmpxchg()
-exist, so making an atomic_dec_not_zero() should be easy.
+On your site where you explain the Network Tree Allocator:
 
->>>@@ -389,6 +480,8 @@ void __kfree_skb(struct sk_buff *skb)
->>> #endif
->>>
->>> 	kfree_skbmem(skb);
->>>+	if (dev && (dev->flags & IFF_MEMALLOC))
->>>+		dev_unreserve_skb(dev);
->>> }
->>
->> So it seems that that < 0 check in dev_unreserve_skb() was only added to handle
->> this case (though there seems to be a race between those two atomic ops).
->> Isn't it better to remove that check and just do:
->>
->> if (dev && (dev->flags & IFF_MEMALLOC) && dev_reserve_used(dev))
->
-> Seems to me that unreserve is also called from each protocol handler.
-> Agreed, the < 0 check is fairly sickening.
+ http://tservice.net.ru/~s0mbre/blog/devel/networking/nta/index.html
 
-Yes, but those all do that (racy) "if (unlikely(dev_reserve_used(skb->dev)))"
-check. Adding another racy check doesn't improve the situation.
+You only test the fragmentation scenario with the full scale of sizes.
+Fragmentation will look different if you use a limited number of sizes
+that share no factors (other than the block size); try 19, 37 and 79 
+blocks with 1:1:1 ratio.
 
+Also, I have yet to see how you will do full zero-copy receives; full 
+zero-copy would mean getting the data from driver DMA to user-space
+without
+a single copy. The to user-space part almost requires that each packet
+live
+on its own page.
 
->> The use of atomic seems a bit dubious. Either it's necessary, in which case
->> changes depending on tests seem unsafe as they're not atomic and something
->> crucial could change between the read and the check, or normal reads and writes
->> combined with barriers would be sufficient. All in all it seems better to
->> move that "if (unlikely(dev_reserve_used(skb->dev)))" check into
->> dev_unreserve_skb(), and make the whole atomic if necessary. Then let
->> dev_unreserve_skb() return wether rx_reserve_used was positive.
->> Getting rid of dev_reserve_used() and using the atomic_read directly might be
->> better, as it is set with the bare atomic instructions too and rarely used without
->> dev_unreserve_skb().
->
-> Barriers should work for this reserve accounting, but is that better than
-> an atomic op?  I don't know, let's let the barrier mavens opine.
+As for the VM deadlock avoidance; I see no zero overhead allocation path
+-
+you do not want to deadlock your allocator. I see no critical resource 
+isolation (our SOCK_MEMALLOC). Without these things your allocator might
+improve the status quo but it will not aid in avoiding the deadlock we
+try
+to tackle here.
 
-The atomic ops are fine, but if you do two atomic ops then that as a whole
-isn't atomic any more and often racy. That's what seems to be the case
-here.
-
-> IMHO the cleanest thing to do is code up "monus", in fact I dimly recall
-> somebody already added something similar.
-
-I'm not sure, to me it looks like dev_unreserve_skb() is always called
-without really knowing if it is justified or not, or else there wouldn't
-be a chance that the counter became negative. So avoiding the negative
-reserve usage seems like papering over bad accounting.
-
-The assumption made seems to be that if there's reserve used, then it must
-be us using it, and it's unreserved. So it appears that either that
-assumption is wrong, and we can unreserve for others while we never
-reserved for ourselves, or it is correct, in which case it probably makes
-more sense to check for the IFF_MEMALLOC flag.
-
-All in all it seems like a per skb flag which tells us if this skb was the
-one reserving anything is missing. Or rx_reserve_used must be updated for
-all in flight skbs whenever the IFF_MEMALLOC flag changes, so that we can
-be sure that the accounting works correctly. Oh wait, isn't that what the
-memalloc flag is for? So shouldn't it be sufficient to check only with
-sk_is_memalloc()? That avoids lots of checks and should guarantee that the
-accounting is correct, except in the case when the IFF_MEMALLOC flag is
-cleared and the counter is set to zero manually. Can't that be avoided and
-just let it decrease to zero naturally? So checking IFF_MEMALLOC for new
-skbs and use sk_is_memalloc() for existing ones seems workable, if I'm not
-missing anything (I think I do).
-
-> Side note: please don't be shy, just reply-all in future so the discussion
-> stays public.  Part of what we do is try to share our development process
-> so people see not only what we have done, but why we did it.  (And sometimes
-> so they can see what dumb mistakes we make, but I won't get into that...)
-
-Yes, I know, but as I don't have much kernel programming experience I
-didn't want to add unnecessary noise.
-
-> I beg for forgiveness in advance having taken the liberty of CCing this
-> reply to lkml.
-
-No problem.
-
-Greetings,
-
-Indan
 
 
 --
