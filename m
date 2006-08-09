@@ -1,111 +1,97 @@
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060809130752.GA17953@2ka.mipt.ru>
+Message-ID: <39903.81.207.0.53.1155131329.squirrel@81.207.0.53>
+In-Reply-To: <1155128046.12225.40.camel@twins>
 References: <20060808193325.1396.58813.sendpatchset@lappy>
-	 <20060809054648.GD17446@2ka.mipt.ru> <1155127040.12225.25.camel@twins>
-	 <20060809130752.GA17953@2ka.mipt.ru>
-Content-Type: text/plain
-Date: Wed, 09 Aug 2006 15:32:33 +0200
-Message-Id: <1155130353.12225.53.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+    <20060808193345.1396.16773.sendpatchset@lappy>
+    <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
+    <44D92B78.20408@google.com>
+    <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
+    <1155128046.12225.40.camel@twins>
+Date: Wed, 9 Aug 2006 15:48:49 +0200 (CEST)
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+From: "Indan Zupancic" <indan@nul.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 17:07 +0400, Evgeniy Polyakov wrote:
-> On Wed, Aug 09, 2006 at 02:37:20PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > On Wed, 2006-08-09 at 09:46 +0400, Evgeniy Polyakov wrote:
-> > > On Tue, Aug 08, 2006 at 09:33:25PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > > >    http://lwn.net/Articles/144273/
-> > > >    "Kernel Summit 2005: Convergence of network and storage paths"
-> > > > 
-> > > > We believe that an approach very much like today's patch set is
-> > > > necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
-> > > > We further believe that a properly working version of at least one of
-> > > > these subsystems is critical to the viability of Linux as a modern
-> > > > storage platform.
-> > > 
-> > > There is another approach for that - do not use slab allocator for
-> > > network dataflow at all. It automatically has all you pros amd if
-> > > implemented correctly can have a lot of additional usefull and
-> > > high-performance features like full zero-copy and total fragmentation
-> > > avoidance.
-> > 
-> > On your site where you explain the Network Tree Allocator:
-> > 
-> >  http://tservice.net.ru/~s0mbre/blog/devel/networking/nta/index.html
-> > 
-> > You only test the fragmentation scenario with the full scale of sizes.
-> > Fragmentation will look different if you use a limited number of sizes
-> > that share no factors (other than the block size); try 19, 37 and 79 
-> > blocks with 1:1:1 ratio.
-     ^^^^^^
+On Wed, August 9, 2006 14:54, Peter Zijlstra said:
+> On Wed, 2006-08-09 at 14:02 +0200, Indan Zupancic wrote:
+>>  That avoids lots of checks and should guarantee that the
+>> accounting is correct, except in the case when the IFF_MEMALLOC flag is
+>> cleared and the counter is set to zero manually. Can't that be avoided and
+>> just let it decrease to zero naturally?
+>
+> That would put the atomic op on the free path unconditionally, I think
+> davem gets nightmares from that.
 
-> 19, 37 and 79 will be rounded by SLAB to 32, 64 and 128 bytes, with NTA it 
-> will be 32, 64 and 96 bytes. NTA wins in each allocation which is not
-> power-of-two (I use 32 bytes alignemnt, as the smallest one which SLAB
-> uses). And as you saw in the blog, network tree allocator is faster
-> than SLAB one, although it can have different side effects which are not
-> yet 100% discovered.
+I confused SOCK_MEMALLOC with sk_buff::memalloc, sorry. What I meant was
+to unconditionally decrement the reserved usage only when memalloc is true
+on the free path. That way all skbs that increased the reserve also decrease
+it, and the counter should never go below zero.
 
-So that would end up being 19*32 = 608 bytes, etc..
-As for speed, sure.
+Also as far as I can see it should be possible to replace all atomic
+"if (unlikely(dev_reserve_used(skb->dev)))" checks witha check if
+memalloc is set. That should make davem happy, as there aren't any
+atomic instructions left in hot paths.
 
-> > Also, I have yet to see how you will do full zero-copy receives; full 
-> > zero-copy would mean getting the data from driver DMA to user-space
-> > without
-> > a single copy. The to user-space part almost requires that each packet
-> > live
-> > on its own page.
-> 
-> Each page can easily have several packets inside.
+If IFF_MEMALLOC is set new skbs set memalloc and increase the reserve.
+When the skb is being destroyed it doesn't matter if IFF_MEMALLOC is set
+or not, only if that skb used reserves and thus only the memalloc flag
+needs to be checked. This means that changing the IFF_MEMALLOC doesn't
+affect in-flight skbs but only newly created ones, and there's no need to
+update in-flight skbs whenever the flag is changed as all should go well.
 
-For sure, the problem is: do you know for which user-space process a
-packet
-is going to be before you receive it?
++int sk_set_memalloc(struct sock *sk)
++{
++	struct inet_sock *inet = inet_sk(sk);
++	struct net_device *dev = ip_dev_find(inet->rcv_saddr);
++	int err = 0;
++
++	if (!dev)
++		return -ENODEV;
++
++	if (!(dev->features & NETIF_F_MEMALLOC)) {
++		err = -EPERM;
++		goto out;
++	}
++
++	if (atomic_read(&dev->memalloc_socks) == 0) {
++		spin_lock(&dev->memalloc_lock);
++		if (atomic_read(&dev->memalloc_socks) == 0) {
++			dev->memalloc_reserve =
++				dev->rx_reserve * skb_pages(dev->mtu);
++			err = adjust_memalloc_reserve(dev->memalloc_reserve);
++			if (err) {
++				spin_unlock(&dev->memalloc_lock);
++				printk(KERN_WARNING
++			"%s: Unable to allocate RX reserve, error: %d\n",
++					dev->name, err);
++				goto out;
++			}
++			sock_set_flag(sk, SOCK_MEMALLOC);
++			dev->flags |= IFF_MEMALLOC;
++		}
++		atomic_inc(&dev->memalloc_socks);
++		spin_unlock(&dev->memalloc_lock);
++	} else
++		atomic_inc(&dev->memalloc_socks);
++
++out:
++	dev_put(dev);
++	return err;
++}
 
-> > As for the VM deadlock avoidance; I see no zero overhead allocation path
-> > - you do not want to deadlock your allocator. I see no critical resource 
-> > isolation (our SOCK_MEMALLOC). Without these things your allocator might
-> > improve the status quo but it will not aid in avoiding the deadlock we
-> > try to tackle here.
-> 
-> Because such reservation is not needed at all.
-> SLAB OOM can be handled by reserving pool using SOCK_MEMALLOC and
-> similar hacks, and different allocator, which obviously work with own
-> pool of pages, can not suffer from SLAB problems.
-> 
-> You say "critical resource isolation", but it is not the case - consider
-> NFS over UDP - remote side will not stop sending just because receiving 
-> socket code drops data due to OOM, or IPsec or compression, which can
-> requires reallocation. There is no "critical resource isolation", since
-> reserved pool _must_ be used by everyone in the kernel network stack.
+It seems that here SOCK_MEMALLOC is only set on the first socket.
+Shouldn't it be set on all sockets instead?
 
-The idea is to drop all !NFS packets (or even more specific only keep
-those
-NFS packets that belong to the critical mount), and everybody doing
-critical
-IO over layered networks like IPSec or other tunnel constructs asks for 
-trouble - Just DON'T do that.
+Greetings,
 
-Dropping these non-essential packets makes sure the reserve memory
-doesn't 
-get stuck in some random blocked user-space process, hence you can make 
-progress.
+Indan
 
-> And as you saw fragmentation issues are handled very good in NTA, just
-> consider usual packet with data with 1500 MTU - 500 bytes are wasted.
-> If you use jumbo frames... it is posible to end up with 32k allocation
-> for 9k jumbo frame with some hardware.
-
-Sure, SLAB does suck at some things, and I don't argue that NTA will
-not 
-improve. Its just that 'total fragmentation avoidance' it too strong
-and 
-this deadlock avoidance needs more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
