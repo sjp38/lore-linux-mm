@@ -1,6 +1,6 @@
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
+In-Reply-To: <1155152744.23134.67.camel@lappy>
 References: <20060808193325.1396.58813.sendpatchset@lappy>
 	 <20060808193345.1396.16773.sendpatchset@lappy>
 	 <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
@@ -10,9 +10,10 @@ References: <20060808193325.1396.58813.sendpatchset@lappy>
 	 <39903.81.207.0.53.1155131329.squirrel@81.207.0.53>
 	 <1155132032.12225.65.camel@twins>
 	 <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
+	 <1155152744.23134.67.camel@lappy>
 Content-Type: text/plain
-Date: Wed, 09 Aug 2006 21:45:44 +0200
-Message-Id: <1155152744.23134.67.camel@lappy>
+Date: Wed, 09 Aug 2006 22:19:12 +0200
+Message-Id: <1155154752.13508.5.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,94 +22,41 @@ To: Indan Zupancic <indan@nul.nu>
 Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 20:34 +0200, Indan Zupancic wrote:
-> On Wed, August 9, 2006 16:00, Peter Zijlstra said:
-> > On Wed, 2006-08-09 at 15:48 +0200, Indan Zupancic wrote:
-> >> On Wed, August 9, 2006 14:54, Peter Zijlstra said:
-> >> > On Wed, 2006-08-09 at 14:02 +0200, Indan Zupancic wrote:
-> >> >>  That avoids lots of checks and should guarantee that the
-> >> >> accounting is correct, except in the case when the IFF_MEMALLOC flag is
-> >> >> cleared and the counter is set to zero manually. Can't that be avoided and
-> >> >> just let it decrease to zero naturally?
-> >> >
-> >> > That would put the atomic op on the free path unconditionally, I think
-> >> > davem gets nightmares from that.
-> >>
-> >> I confused SOCK_MEMALLOC with sk_buff::memalloc, sorry. What I meant was
-> >> to unconditionally decrement the reserved usage only when memalloc is true
-> >> on the free path. That way all skbs that increased the reserve also decrease
-> >> it, and the counter should never go below zero.
-> >
-> > OK, so far so good, except we loose the notion of getting memory back
-> > from regular skbs.
+On Wed, 2006-08-09 at 21:45 +0200, Peter Zijlstra wrote:
+> On Wed, 2006-08-09 at 20:34 +0200, Indan Zupancic wrote:
+
+> > Why is it needed for the protocol specific code to call dev_unreserve_skb?
 > 
-> I don't understand this, regular skbs don't have anything to do with
-> rx_reserve_used as far as I can see. I'm only talking about keeping
-> that field up to date and correct. rx_reserve_used is only increased
-> by a skb when memalloc is set to true on that skb, so only if that field
-> is set rx_reserve_used needs to be reduced when the skb is freed.
-
-I know what you ment, and if you've looked at -v2 you'll see that I've
-done this, basically because its easier. However the thought behind the
-other semantics is, any skb freed will reduce memory pressure.
-
-> Why is it needed for the protocol specific code to call dev_unreserve_skb?
-
-It uses this to get an indication of memory pressure; if we have
-memalloc'ed skbs memory pressure must be high, hence we must drop all
-non critical packets. But you are right in that this is a problematic
-area; the mapping from skb to device is non trivial.
-
-Your suggestion of testing skb->memalloc might work just as good; indeed
-if we have regressed into the fallback allocator we know we have
-pressure.
-
-> Only problem is if the device can change. rx_reserve_used should probably
-> be updated when that happens, as a skb can't use reserved memory on a device
-> it was moved away from. (right?)
-
-Well yes, this is a problem, only today have I understood how volatile
-the mapping actually is. I think you are right in that transferring the
-accounting from the old to the new device is correct solution.
-
-However this brings us the problem of limiting the fallback allocator;
-currently this is done in __netdev_alloc_skb where rx_reserve_used it
-compared against rx_reserve. If we transfer accounting away this will
-not work anymore. I'll have to think about this case, perhaps we already
-have a problem here.
-
-> >> Also as far as I can see it should be possible to replace all atomic
-> >> "if (unlikely(dev_reserve_used(skb->dev)))" checks witha check if
-> >> memalloc is set. That should make davem happy, as there aren't any
-> >> atomic instructions left in hot paths.
-> >
-> > dev_reserve_used() uses atomic_read() which isn't actually a LOCK'ed
-> > instruction, so that should not matter.
+> It uses this to get an indication of memory pressure; if we have
+> memalloc'ed skbs memory pressure must be high, hence we must drop all
+> non critical packets. But you are right in that this is a problematic
+> area; the mapping from skb to device is non trivial.
 > 
-> Perhaps, but the main reason to check memalloc instead of using
-> dev_reserve_used is because the latter doesn't tell which skb did the
-> reservation.
-
-Very good point indeed.
-
-> >> If IFF_MEMALLOC is set new skbs set memalloc and increase the reserve.
-> >
-> > Not quite, if IFF_MEMALLOC is set new skbs _could_ get memalloc set. We
-> > only fall back to alloc_pages() if the regular path fails to alloc. If the
-> > skb is backed by a page (as opposed to kmem_cache fluff) sk_buff::memalloc
-> > is set.
+> Your suggestion of testing skb->memalloc might work just as good; indeed
+> if we have regressed into the fallback allocator we know we have
+> pressure.
 > 
-> Yes, true. But doesn't matter for the rx_reserve_used accounting, as long as
-> memalloc set means that it did increase rx_reserve_used.
+> > Only problem is if the device can change. rx_reserve_used should probably
+> > be updated when that happens, as a skb can't use reserved memory on a device
+> > it was moved away from. (right?)
 > 
-> > Also, I've been thinking (more pain), should I not up the reserve for
-> > each SOCK_MEMALLOC socket.
+> Well yes, this is a problem, only today have I understood how volatile
+> the mapping actually is. I think you are right in that transferring the
+> accounting from the old to the new device is correct solution.
 > 
-> Up rx_reserve_used or the total ammount of reserved memory? Probably 'no' for
-> both though, as it's either device specific or skb dependent.
+> However this brings us the problem of limiting the fallback allocator;
+> currently this is done in __netdev_alloc_skb where rx_reserve_used it
+> compared against rx_reserve. If we transfer accounting away this will
+> not work anymore. I'll have to think about this case, perhaps we already
+> have a problem here.
 
-I came up with yes, if for each socket you gain a request queue, the
-number of in-flight pages is proportional to the number of sockets.
+Humm, if we do not use dev_reserve_used in the protocols anymore, the
+only place that still uses it is the fallback limit. If we could solve
+that in another way we might be able to get rid of it all together. That
+would save the pain of managing the accounting transferal on skb::dev
+assignments too.
+
+Daniel, any ideas? I'm fighting to stay awake... ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
