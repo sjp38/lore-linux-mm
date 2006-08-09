@@ -1,36 +1,42 @@
-Date: Wed, 9 Aug 2006 09:46:48 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-Message-ID: <20060809054648.GD17446@2ka.mipt.ru>
-References: <20060808193325.1396.58813.sendpatchset@lappy>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <20060808193325.1396.58813.sendpatchset@lappy>
+Message-ID: <44D976E6.5010106@google.com>
+Date: Tue, 08 Aug 2006 22:47:18 -0700
+From: Daniel Phillips <phillips@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <20060808193345.1396.16773.sendpatchset@lappy>	<20060808211731.GR14627@postel.suug.ch>	<44D93BB3.5070507@google.com> <20060808.183920.41636471.davem@davemloft.net>
+In-Reply-To: <20060808.183920.41636471.davem@davemloft.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: David Miller <davem@davemloft.net>
+Cc: tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 08, 2006 at 09:33:25PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
->    http://lwn.net/Articles/144273/
->    "Kernel Summit 2005: Convergence of network and storage paths"
+David Miller wrote:
+> From: Daniel Phillips <phillips@google.com>
+  >>Can you please characterize the conditions under which skb->dev changes
+>>after the alloc?  Are there writings on this subtlety?
 > 
-> We believe that an approach very much like today's patch set is
-> necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
-> We further believe that a properly working version of at least one of
-> these subsystems is critical to the viability of Linux as a modern
-> storage platform.
+> The packet scheduler and classifier can redirect packets to different
+> devices, and can the netfilter layer.
+> 
+> The setting of skb->dev is wholly transient and you cannot rely upon
+> it to be the same as when you set it on allocation.
+>
+> Even simple things like the bonding device change skb->dev on every
+> receive.
 
-There is another approach for that - do not use slab allocator for
-network dataflow at all. It automatically has all you pros amd if
-implemented correctly can have a lot of additional usefull and
-high-performance features like full zero-copy and total fragmentation
-avoidance.
+Thankyou, this is easily fixed.
 
--- 
-	Evgeniy Polyakov
+> I think you need to study the networking stack a little more before
+> you continue to play in this delicate area :-)
+
+The VM deadlock is also delicate.  Perhaps we can work together.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
