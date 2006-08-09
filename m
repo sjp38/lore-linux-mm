@@ -1,30 +1,38 @@
-Date: Tue, 08 Aug 2006 18:38:08 -0700 (PDT)
-Message-Id: <20060808.183808.74747814.davem@davemloft.net>
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <44D93B60.7030507@google.com>
-References: <20060808193345.1396.16773.sendpatchset@lappy>
-	<20060808135721.5af713fb@localhost.localdomain>
-	<44D93B60.7030507@google.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-ID: <44D93CD0.5070905@yahoo.com.au>
+Date: Wed, 09 Aug 2006 11:39:28 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: 2.6.18-rc3-mm2: rcu radix tree patches break page migration
+References: <Pine.LNX.4.64.0608071556530.23088@schroedinger.engr.sgi.com>	<44D7E7DF.1080106@yahoo.com.au>	<Pine.LNX.4.64.0608072041010.24071@schroedinger.engr.sgi.com>	<44D82508.9020409@yahoo.com.au>	<Pine.LNX.4.64.0608080918150.27507@schroedinger.engr.sgi.com> <20060808102511.64dcf5dc.akpm@osdl.org>
+In-Reply-To: <20060808102511.64dcf5dc.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Daniel Phillips <phillips@google.com>
-Date: Tue, 08 Aug 2006 18:33:20 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: phillips@google.com
-Cc: shemminger@osdl.org, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-> Minor rant: the whole skb_alloc familly has degenerated into an unholy
-> mess and could use some rethinking.  I believe the current patch gets as
-> far as three _'s at the beginning of a function, this shows it is high
-> time to reroll the api.
+Andrew Morton wrote:
 
-I think it is merely an expression of how dynamic are the operations
-that people want to perform on SKBs, and how important it is for
-performance to implement COW semantics for the data.
+>On Tue, 8 Aug 2006 09:19:08 -0700 (PDT)
+>Christoph Lameter <clameter@sgi.com> wrote:
+>
+>
+>>The radix tree rcu code runs into trouble when we use radix_tree_lookup
+>>slot and use the slot to update the page reference.
+>>
+>
+>"trouble"?  Do we know what it is?  What are the implications of this for
+>the rcu radix-tree patches?
+>
+
+I must have broken lookup_slot (luckily regular pagecache ops are not
+affected). I'm looking at it...
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
