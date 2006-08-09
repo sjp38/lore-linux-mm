@@ -1,132 +1,114 @@
-Date: Wed, 9 Aug 2006 23:29:45 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-Message-ID: <20060809192945.GB2102@2ka.mipt.ru>
-References: <20060808193325.1396.58813.sendpatchset@lappy> <20060809054648.GD17446@2ka.mipt.ru> <1155127040.12225.25.camel@twins> <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins>
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
+References: <20060808193325.1396.58813.sendpatchset@lappy>
+	 <20060808193345.1396.16773.sendpatchset@lappy>
+	 <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
+	 <44D92B78.20408@google.com>
+	 <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
+	 <1155128046.12225.40.camel@twins>
+	 <39903.81.207.0.53.1155131329.squirrel@81.207.0.53>
+	 <1155132032.12225.65.camel@twins>
+	 <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
+Content-Type: text/plain
+Date: Wed, 09 Aug 2006 21:45:44 +0200
+Message-Id: <1155152744.23134.67.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <1155130353.12225.53.camel@twins>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: Indan Zupancic <indan@nul.nu>
+Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 09, 2006 at 03:32:33PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > > > >    http://lwn.net/Articles/144273/
-> > > > >    "Kernel Summit 2005: Convergence of network and storage paths"
-> > > > > 
-> > > > > We believe that an approach very much like today's patch set is
-> > > > > necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
-> > > > > We further believe that a properly working version of at least one of
-> > > > > these subsystems is critical to the viability of Linux as a modern
-> > > > > storage platform.
-> > > > 
-> > > > There is another approach for that - do not use slab allocator for
-> > > > network dataflow at all. It automatically has all you pros amd if
-> > > > implemented correctly can have a lot of additional usefull and
-> > > > high-performance features like full zero-copy and total fragmentation
-> > > > avoidance.
-> > > 
-> > > On your site where you explain the Network Tree Allocator:
-> > > 
-> > >  http://tservice.net.ru/~s0mbre/blog/devel/networking/nta/index.html
-> > > 
-> > > You only test the fragmentation scenario with the full scale of sizes.
-> > > Fragmentation will look different if you use a limited number of sizes
-> > > that share no factors (other than the block size); try 19, 37 and 79 
-> > > blocks with 1:1:1 ratio.
->      ^^^^^^
+On Wed, 2006-08-09 at 20:34 +0200, Indan Zupancic wrote:
+> On Wed, August 9, 2006 16:00, Peter Zijlstra said:
+> > On Wed, 2006-08-09 at 15:48 +0200, Indan Zupancic wrote:
+> >> On Wed, August 9, 2006 14:54, Peter Zijlstra said:
+> >> > On Wed, 2006-08-09 at 14:02 +0200, Indan Zupancic wrote:
+> >> >>  That avoids lots of checks and should guarantee that the
+> >> >> accounting is correct, except in the case when the IFF_MEMALLOC flag is
+> >> >> cleared and the counter is set to zero manually. Can't that be avoided and
+> >> >> just let it decrease to zero naturally?
+> >> >
+> >> > That would put the atomic op on the free path unconditionally, I think
+> >> > davem gets nightmares from that.
+> >>
+> >> I confused SOCK_MEMALLOC with sk_buff::memalloc, sorry. What I meant was
+> >> to unconditionally decrement the reserved usage only when memalloc is true
+> >> on the free path. That way all skbs that increased the reserve also decrease
+> >> it, and the counter should never go below zero.
+> >
+> > OK, so far so good, except we loose the notion of getting memory back
+> > from regular skbs.
 > 
-> > 19, 37 and 79 will be rounded by SLAB to 32, 64 and 128 bytes, with NTA it 
-> > will be 32, 64 and 96 bytes. NTA wins in each allocation which is not
-> > power-of-two (I use 32 bytes alignemnt, as the smallest one which SLAB
-> > uses). And as you saw in the blog, network tree allocator is faster
-> > than SLAB one, although it can have different side effects which are not
-> > yet 100% discovered.
+> I don't understand this, regular skbs don't have anything to do with
+> rx_reserve_used as far as I can see. I'm only talking about keeping
+> that field up to date and correct. rx_reserve_used is only increased
+> by a skb when memalloc is set to true on that skb, so only if that field
+> is set rx_reserve_used needs to be reduced when the skb is freed.
+
+I know what you ment, and if you've looked at -v2 you'll see that I've
+done this, basically because its easier. However the thought behind the
+other semantics is, any skb freed will reduce memory pressure.
+
+> Why is it needed for the protocol specific code to call dev_unreserve_skb?
+
+It uses this to get an indication of memory pressure; if we have
+memalloc'ed skbs memory pressure must be high, hence we must drop all
+non critical packets. But you are right in that this is a problematic
+area; the mapping from skb to device is non trivial.
+
+Your suggestion of testing skb->memalloc might work just as good; indeed
+if we have regressed into the fallback allocator we know we have
+pressure.
+
+> Only problem is if the device can change. rx_reserve_used should probably
+> be updated when that happens, as a skb can't use reserved memory on a device
+> it was moved away from. (right?)
+
+Well yes, this is a problem, only today have I understood how volatile
+the mapping actually is. I think you are right in that transferring the
+accounting from the old to the new device is correct solution.
+
+However this brings us the problem of limiting the fallback allocator;
+currently this is done in __netdev_alloc_skb where rx_reserve_used it
+compared against rx_reserve. If we transfer accounting away this will
+not work anymore. I'll have to think about this case, perhaps we already
+have a problem here.
+
+> >> Also as far as I can see it should be possible to replace all atomic
+> >> "if (unlikely(dev_reserve_used(skb->dev)))" checks witha check if
+> >> memalloc is set. That should make davem happy, as there aren't any
+> >> atomic instructions left in hot paths.
+> >
+> > dev_reserve_used() uses atomic_read() which isn't actually a LOCK'ed
+> > instruction, so that should not matter.
 > 
-> So that would end up being 19*32 = 608 bytes, etc..
-> As for speed, sure.
+> Perhaps, but the main reason to check memalloc instead of using
+> dev_reserve_used is because the latter doesn't tell which skb did the
+> reservation.
 
-NTA aligns data to 32bytes, SLAB to power of two, so overhead becomes
-extremely large for unaligned access for almost every sizes.
+Very good point indeed.
 
-> > > Also, I have yet to see how you will do full zero-copy receives; full 
-> > > zero-copy would mean getting the data from driver DMA to user-space
-> > > without
-> > > a single copy. The to user-space part almost requires that each packet
-> > > live
-> > > on its own page.
-> > 
-> > Each page can easily have several packets inside.
+> >> If IFF_MEMALLOC is set new skbs set memalloc and increase the reserve.
+> >
+> > Not quite, if IFF_MEMALLOC is set new skbs _could_ get memalloc set. We
+> > only fall back to alloc_pages() if the regular path fails to alloc. If the
+> > skb is backed by a page (as opposed to kmem_cache fluff) sk_buff::memalloc
+> > is set.
 > 
-> For sure, the problem is: do you know for which user-space process a
-> packet
-> is going to be before you receive it?
-
-That is not a problem for sniffer, if some process wants that data it
-can be copied, it can be checked if neighbour packet is for the same
-socket and do not copy in that case - there are a lot of things which
-can be done, when data _is_ in place. NTA allows zero-copy access to
-the whole network traffic, how system is going to work with it is
-another task.
-
-> > > As for the VM deadlock avoidance; I see no zero overhead allocation path
-> > > - you do not want to deadlock your allocator. I see no critical resource 
-> > > isolation (our SOCK_MEMALLOC). Without these things your allocator might
-> > > improve the status quo but it will not aid in avoiding the deadlock we
-> > > try to tackle here.
-> > 
-> > Because such reservation is not needed at all.
-> > SLAB OOM can be handled by reserving pool using SOCK_MEMALLOC and
-> > similar hacks, and different allocator, which obviously work with own
-> > pool of pages, can not suffer from SLAB problems.
-> > 
-> > You say "critical resource isolation", but it is not the case - consider
-> > NFS over UDP - remote side will not stop sending just because receiving 
-> > socket code drops data due to OOM, or IPsec or compression, which can
-> > requires reallocation. There is no "critical resource isolation", since
-> > reserved pool _must_ be used by everyone in the kernel network stack.
+> Yes, true. But doesn't matter for the rx_reserve_used accounting, as long as
+> memalloc set means that it did increase rx_reserve_used.
 > 
-> The idea is to drop all !NFS packets (or even more specific only keep
-> those
-> NFS packets that belong to the critical mount), and everybody doing
-> critical
-> IO over layered networks like IPSec or other tunnel constructs asks for 
-> trouble - Just DON'T do that.
-
-Well, such approach does not scale well - either it must be generic
-enough to fully solve the problem, or solve it at least at the most
-casees, but when you turn anything off - that is not what is expected
-I suppose.
-
-> Dropping these non-essential packets makes sure the reserve memory
-> doesn't 
-> get stuck in some random blocked user-space process, hence you can make 
-> progress.
-
-It still requires to receive and analyze the packet before deciding to
-drop it. Different allocator is just next step in idea of reserved pool.
-
-> > And as you saw fragmentation issues are handled very good in NTA, just
-> > consider usual packet with data with 1500 MTU - 500 bytes are wasted.
-> > If you use jumbo frames... it is posible to end up with 32k allocation
-> > for 9k jumbo frame with some hardware.
+> > Also, I've been thinking (more pain), should I not up the reserve for
+> > each SOCK_MEMALLOC socket.
 > 
-> Sure, SLAB does suck at some things, and I don't argue that NTA will
-> not 
-> improve. Its just that 'total fragmentation avoidance' it too strong
-> and 
-> this deadlock avoidance needs more.
+> Up rx_reserve_used or the total ammount of reserved memory? Probably 'no' for
+> both though, as it's either device specific or skb dependent.
 
-Well, you approach seems to solve the problem.
-It's extrapolation ends up in different allocator, which solves the
-problem too.
-So... Different people - different opinions.
-
--- 
-	Evgeniy Polyakov
+I came up with yes, if for each socket you gain a request queue, the
+number of in-flight pages is proportional to the number of sockets.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
