@@ -1,38 +1,34 @@
-Date: Tue, 08 Aug 2006 18:41:44 -0700 (PDT)
-Message-Id: <20060808.184144.71088399.davem@davemloft.net>
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <44D93BEE.4000001@google.com>
-References: <20060808193345.1396.16773.sendpatchset@lappy>
-	<20060808.151020.94555184.davem@davemloft.net>
-	<44D93BEE.4000001@google.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 Aug 2006 19:00:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
+ ignore cpuset/memory policy restrictions.
+In-Reply-To: <20060809103433.99f14cb7.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0608081857560.31758@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+ <20060809103433.99f14cb7.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Daniel Phillips <phillips@google.com>
-Date: Tue, 08 Aug 2006 18:35:42 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: phillips@google.com
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, pj@sgi.com, jes@sgi.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-> David Miller wrote:
-> > I think the new atomic operation that will seemingly occur on every
-> > device SKB free is unacceptable.
-> 
-> Alternate suggestion?
+On Wed, 9 Aug 2006, KAMEZAWA Hiroyuki wrote:
 
-Sorry, I have none.  But you're unlikely to get your changes
-considered seriously unless you can avoid any new overhead your patch
-has which is of this level.
+> Hm, passing a nodemask as argment to alloc_page_???()is too more complicated
+> than GFP_THISNODE ? (it will increase # of args but...)
 
-We're busy trying to make these data structures smaller, and eliminate
-atomic operations, as much as possible.  Therefore anything which adds
-new datastructure elements and new atomic operations will be met with
-fierce resistence unless it results an equal or greater shrink of
-datastructures elsewhere or removes atomic operations elsewhere in
-the critical path.
+The node is passed via alloc_pages_node() etc already. If one uses 
+__GFP_THISNODE with alloc_pages_node() then you will get the page on the 
+indicated node regardless of cpusets. Currently cpuset constraints may 
+lead to allocation on a different node.
+
+If you use __GFP_THISNODE with an allocator that does not allow the 
+specification of a node then you will get memory from the local node 
+without regard to memory policies and cpuset constraints. In that usage 
+scenario __GFP_THISNODE then behaves as if it would be 
+Andy's GFP_LOCAL_NODE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
