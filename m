@@ -1,61 +1,83 @@
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060809054648.GD17446@2ka.mipt.ru>
+In-Reply-To: <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
 References: <20060808193325.1396.58813.sendpatchset@lappy>
-	 <20060809054648.GD17446@2ka.mipt.ru>
+	 <20060808193345.1396.16773.sendpatchset@lappy>
+	 <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
+	 <44D92B78.20408@google.com>
+	 <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
 Content-Type: text/plain
-Date: Wed, 09 Aug 2006 14:37:20 +0200
-Message-Id: <1155127040.12225.25.camel@twins>
+Date: Wed, 09 Aug 2006 14:54:06 +0200
+Message-Id: <1155128046.12225.40.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: Indan Zupancic <indan@nul.nu>
+Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 09:46 +0400, Evgeniy Polyakov wrote:
-> On Tue, Aug 08, 2006 at 09:33:25PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> >    http://lwn.net/Articles/144273/
-> >    "Kernel Summit 2005: Convergence of network and storage paths"
-> > 
-> > We believe that an approach very much like today's patch set is
-> > necessary for NBD, iSCSI, AoE or the like ever to work reliably. 
-> > We further believe that a properly working version of at least one of
-> > these subsystems is critical to the viability of Linux as a modern
-> > storage platform.
+On Wed, 2006-08-09 at 14:02 +0200, Indan Zupancic wrote:
+> On Wed, August 9, 2006 2:25, Daniel Phillips said:
+> >  .... We want the atomic op that some people call
+> > "monus": decrement unless zero.
 > 
-> There is another approach for that - do not use slab allocator for
-> network dataflow at all. It automatically has all you pros amd if
-> implemented correctly can have a lot of additional usefull and
-> high-performance features like full zero-copy and total fragmentation
-> avoidance.
+> Currently atomic_inc_not_zero(), atomic_add_unless() and atomic_cmpxchg()
+> exist, so making an atomic_dec_not_zero() should be easy.
 
-On your site where you explain the Network Tree Allocator:
+atomic_add_unless() - will nicely do, thanks.
 
- http://tservice.net.ru/~s0mbre/blog/devel/networking/nta/index.html
+> I'm not sure, to me it looks like dev_unreserve_skb() is always called
+> without really knowing if it is justified or not, or else there wouldn't
+> be a chance that the counter became negative. So avoiding the negative
+> reserve usage seems like papering over bad accounting.
 
-You only test the fragmentation scenario with the full scale of sizes.
-Fragmentation will look different if you use a limited number of sizes
-that share no factors (other than the block size); try 19, 37 and 79 
-blocks with 1:1:1 ratio.
+It was indeed called too often it seems, once when deciding to drop the
+skb
+and again then actually freeing the skb.
 
-Also, I have yet to see how you will do full zero-copy receives; full 
-zero-copy would mean getting the data from driver DMA to user-space
-without
-a single copy. The to user-space part almost requires that each packet
-live
-on its own page.
+> The assumption made seems to be that if there's reserve used, then it must
+> be us using it, and it's unreserved. So it appears that either that
+> assumption is wrong, and we can unreserve for others while we never
+> reserved for ourselves, or it is correct, in which case it probably makes
+> more sense to check for the IFF_MEMALLOC flag.
 
-As for the VM deadlock avoidance; I see no zero overhead allocation path
--
-you do not want to deadlock your allocator. I see no critical resource 
-isolation (our SOCK_MEMALLOC). Without these things your allocator might
-improve the status quo but it will not aid in avoiding the deadlock we
-try
-to tackle here.
+Changed it to only dec_not_zero on free for IFF_MEMALLOC devices.
+I'm thinking of making kfree_skbmem -> skb_release_data return whether
+they
+released the actual data and also depend on that.
 
+> All in all it seems like a per skb flag which tells us if this skb was the
+> one reserving anything is missing.
 
+struct sk_buff::memalloc
+
+However the idea is that freeing non memalloc skbs also returns memory
+(albeit
+to the slab and not the free page list).
+
+>  Or rx_reserve_used must be updated for
+> all in flight skbs whenever the IFF_MEMALLOC flag changes, so that we can
+> be sure that the accounting works correctly. 
+
+Yes
+
+> Oh wait, isn't that what the
+> memalloc flag is for? So shouldn't it be sufficient to check only with
+> sk_is_memalloc()?
+
+See previous comment.
+
+>  That avoids lots of checks and should guarantee that the
+> accounting is correct, except in the case when the IFF_MEMALLOC flag is
+> cleared and the counter is set to zero manually. Can't that be avoided and
+> just let it decrease to zero naturally?
+
+That would put the atomic op on the free path unconditionally, I think
+davem
+gets nightmares from that.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
