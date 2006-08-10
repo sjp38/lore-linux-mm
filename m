@@ -1,43 +1,48 @@
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060809.165431.118952392.davem@davemloft.net>
-References: <1155127040.12225.25.camel@twins>
-	 <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins>
-	 <20060809.165431.118952392.davem@davemloft.net>
+In-Reply-To: <20060809.165846.107940575.davem@davemloft.net>
+References: <44D976E6.5010106@google.com>
+	 <20060809131942.GY14627@postel.suug.ch> <1155132440.12225.70.camel@twins>
+	 <20060809.165846.107940575.davem@davemloft.net>
 Content-Type: text/plain
-Date: Thu, 10 Aug 2006 08:06:28 +0200
-Message-Id: <1155189988.12225.100.camel@twins>
+Date: Thu, 10 Aug 2006 08:25:59 +0200
+Message-Id: <1155191159.12225.108.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: johnpol@2ka.mipt.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
+Cc: tgraf@suug.ch, phillips@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 16:54 -0700, David Miller wrote:
+On Wed, 2006-08-09 at 16:58 -0700, David Miller wrote:
 > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Wed, 09 Aug 2006 15:32:33 +0200
+> Date: Wed, 09 Aug 2006 16:07:20 +0200
 > 
-> > The idea is to drop all !NFS packets (or even more specific only
-> > keep those NFS packets that belong to the critical mount), and
-> > everybody doing critical IO over layered networks like IPSec or
-> > other tunnel constructs asks for trouble - Just DON'T do that.
+> > Hmm, what does sk_buff::input_dev do? That seems to store the initial
+> > device?
 > 
-> People are doing I/O over IP exactly for it's ubiquity and
-> flexibility.  It seems a major limitation of the design if you cancel
-> out major components of this flexibility.
+> You can run grep on the tree just as easily as I can which is what I
+> did to answer this question.  It only takes a few seconds of your
+> time to grep the source tree for things like "skb->input_dev", so
+> would you please do that before asking more questions like this?
 
-We're not, that was a bit of my own frustration leaking out; I think 
-this whole push to IP based storage is a bit silly. I'm just not going 
-to help the admin who's server just hangs because his VPN key expired.
+That is exactly what I did, but I wanted a bit of confirmation. Sorry if
+it 
+offends you, but I'm a bit new to this network thing.
 
-Running critical resources remotely like this is tricky, and every 
-hop/layer you put in between increases the risk of something going bad.
-The only setup I think even remotely sane is a dedicated network in the
-very same room - not unlike FC but cheaper (which I think is the whole
-push behind this, eth is cheap)
+> It does store the initial device, but as Thomas tried so hard to
+> explain to you guys these device pointers in the skb are transient and
+> you cannot refer to them outside of packet receive processing.
 
+Yes, I understood that after Thomas' last mail.
+
+> The reason is that there is no refcounting performed on these devices
+> when they are attached to the skb, for performance reasons, and thus
+> the device can be downed, the module for it removed, etc. long before
+> the skb is freed up.
+
+I understood that, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
