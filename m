@@ -1,80 +1,77 @@
-Message-ID: <62799.194.109.238.121.1155172885.squirrel@194.109.238.121>
-In-Reply-To: <1155152744.23134.67.camel@lappy>
-References: <20060808193325.1396.58813.sendpatchset@lappy>
-    <20060808193345.1396.16773.sendpatchset@lappy>
-    <42414.81.207.0.53.1155080443.squirrel@81.207.0.53>
-    <44D92B78.20408@google.com>
-    <35608.81.207.0.53.1155124956.squirrel@81.207.0.53>
-    <1155128046.12225.40.camel@twins>
-    <39903.81.207.0.53.1155131329.squirrel@81.207.0.53>
-    <1155132032.12225.65.camel@twins>
-    <62411.194.109.238.121.1155148442.squirrel@194.109.238.121>
-    <1155152744.23134.67.camel@lappy>
-Date: Thu, 10 Aug 2006 03:21:25 +0200 (CEST)
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: "Indan Zupancic" <indan@nul.nu>
+Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k7A2Finx020475
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2006 21:15:44 -0500
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k7A2LgDu45425455
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2006 19:21:42 -0700 (PDT)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k7A2FinB50868892
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2006 19:15:44 -0700 (PDT)
+Received: from christoph (helo=localhost)
+	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
+	id 1GB05I-0001QO-00
+	for <linux-mm@kvack.org>; Wed, 09 Aug 2006 19:15:44 -0700
+Date: Wed, 9 Aug 2006 19:14:40 -0700 (PDT)
+From: Christoph Lameter <christoph@engr.sgi.com>
+Subject: Define easier to handle GFP_THISNODE
+Message-ID: <Pine.LNX.4.64.0608091858300.5361@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.64.0608091915370.5464@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Daniel Phillips <phillips@google.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@osdl.org
+Cc: linux-mm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, August 9, 2006 21:45, Peter Zijlstra said:
-> On Wed, 2006-08-09 at 20:34 +0200, Indan Zupancic wrote:
->> Why is it needed for the protocol specific code to call dev_unreserve_skb?
->
-> It uses this to get an indication of memory pressure; if we have
-> memalloc'ed skbs memory pressure must be high, hence we must drop all
-> non critical packets. But you are right in that this is a problematic
-> area; the mapping from skb to device is non trivial.
->
-> Your suggestion of testing skb->memalloc might work just as good; indeed
-> if we have regressed into the fallback allocator we know we have
-> pressure.
+In many places we will need to use the same combination of flags.
+Specify a single GFP_THISNODE definition for ease of use in gfp.h.
 
-You seem to have explained dev_reserve_used usage, not the dev_unreserve_skb calls.
-But I've just found -v2 and see that they're gone now, great. -v2 looks much better.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
->> Only problem is if the device can change. rx_reserve_used should probably
->> be updated when that happens, as a skb can't use reserved memory on a device
->> it was moved away from. (right?)
->
-> Well yes, this is a problem, only today have I understood how volatile
-> the mapping actually is. I think you are right in that transferring the
-> accounting from the old to the new device is correct solution.
->
-> However this brings us the problem of limiting the fallback allocator;
-> currently this is done in __netdev_alloc_skb where rx_reserve_used it
-> compared against rx_reserve. If we transfer accounting away this will
-> not work anymore. I'll have to think about this case, perhaps we already
-> have a problem here.
-
-The point of the reservations is to avoid deadlocks, and they're always big
-enough to hold all in-flight skbs, right? So what about solving the whole
-device problem by using a global counter and limit instead of per device?
-
-The question is whether traffic on one device can starve traffic on other
-devices or not, and how big a problem that is. It probably can, tricky stuff.
-Though getting rid of the per device stuff would simplify a lot...
-
->> > Also, I've been thinking (more pain), should I not up the reserve for
->> > each SOCK_MEMALLOC socket.
->>
->> Up rx_reserve_used or the total ammount of reserved memory? Probably 'no' for
->> both though, as it's either device specific or skb dependent.
->
-> I came up with yes, if for each socket you gain a request queue, the
-> number of in-flight pages is proportional to the number of sockets.
-
-Yes, seems so.
-
-Good night,
-
-Indan
-
+Index: linux-2.6.18-rc3-mm2/include/linux/gfp.h
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/include/linux/gfp.h	2006-08-08 09:20:41.727897528 -0700
++++ linux-2.6.18-rc3-mm2/include/linux/gfp.h	2006-08-09 18:40:35.417771186 -0700
+@@ -67,6 +67,8 @@ struct vm_area_struct;
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+ 			 __GFP_HIGHMEM)
+ 
++#define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
++
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
+ 
+Index: linux-2.6.18-rc3-mm2/mm/migrate.c
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/mm/migrate.c	2006-08-08 09:25:41.388119893 -0700
++++ linux-2.6.18-rc3-mm2/mm/migrate.c	2006-08-09 18:40:35.418747688 -0700
+@@ -745,9 +745,7 @@ static struct page *new_page_node(struct
+ 
+ 	*result = &pm->status;
+ 
+-	return alloc_pages_node(pm->node,
+-		GFP_HIGHUSER | __GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY,
+-		0);
++	return alloc_pages_node(pm->node, GFP_HIGHUSER | GFP_THISNODE, 0);
+ }
+ 
+ /*
+Index: linux-2.6.18-rc3-mm2/arch/ia64/kernel/uncached.c
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/arch/ia64/kernel/uncached.c	2006-08-09 18:40:32.653293682 -0700
++++ linux-2.6.18-rc3-mm2/arch/ia64/kernel/uncached.c	2006-08-09 18:41:04.237278284 -0700
+@@ -98,8 +98,7 @@ static int uncached_add_chunk(struct unc
+ 
+ 	/* attempt to allocate a granule's worth of cached memory pages */
+ 
+-	page = alloc_pages_node(nid, GFP_KERNEL | __GFP_ZERO |
+-				 __GFP_THISNODE | __GFP_NORETRY | __GFP_NOWARN,
++	page = alloc_pages_node(nid, GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
+ 				IA64_GRANULE_SHIFT-PAGE_SHIFT);
+ 	if (!page) {
+ 		mutex_unlock(&uc_pool->add_chunk_mutex);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
