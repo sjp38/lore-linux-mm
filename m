@@ -1,48 +1,78 @@
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060809.165846.107940575.davem@davemloft.net>
-References: <44D976E6.5010106@google.com>
-	 <20060809131942.GY14627@postel.suug.ch> <1155132440.12225.70.camel@twins>
-	 <20060809.165846.107940575.davem@davemloft.net>
-Content-Type: text/plain
-Date: Thu, 10 Aug 2006 08:25:59 +0200
-Message-Id: <1155191159.12225.108.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 Aug 2006 19:38:10 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-ID: <Pine.LNX.4.64.0608091934180.5464@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: tgraf@suug.ch, phillips@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-09 at 16:58 -0700, David Miller wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Wed, 09 Aug 2006 16:07:20 +0200
-> 
-> > Hmm, what does sk_buff::input_dev do? That seems to store the initial
-> > device?
-> 
-> You can run grep on the tree just as easily as I can which is what I
-> did to answer this question.  It only takes a few seconds of your
-> time to grep the source tree for things like "skb->input_dev", so
-> would you please do that before asking more questions like this?
+I see some strange vmalloc_node constructs in the netfilter code. Looks as 
+if they were trying to bypass memory policies with vmalloc_node().
+That works but they have not considered that cpusets can also
+influence the allocation. With GFP_THISNODE we can give them now
+what they wanted: A node local allocation regardless of what settings
+the currently executing process has.
 
-That is exactly what I did, but I wanted a bit of confirmation. Sorry if
-it 
-offends you, but I'm a bit new to this network thing.
+However, vmalloc() currently does not pass a gfp flag. Define a macro
+that uses __vmalloc() to pass GFP_THISNODE.
 
-> It does store the initial device, but as Thomas tried so hard to
-> explain to you guys these device pointers in the skb are transient and
-> you cannot refer to them outside of packet receive processing.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Yes, I understood that after Thomas' last mail.
-
-> The reason is that there is no refcounting performed on these devices
-> when they are attached to the skb, for performance reasons, and thus
-> the device can be downed, the module for it removed, etc. long before
-> the skb is freed up.
-
-I understood that, thanks.
+Index: linux-2.6.18-rc3-mm2/net/ipv4/netfilter/arp_tables.c
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/net/ipv4/netfilter/arp_tables.c	2006-07-29 23:15:36.000000000 -0700
++++ linux-2.6.18-rc3-mm2/net/ipv4/netfilter/arp_tables.c	2006-08-09 19:26:37.776299432 -0700
+@@ -723,7 +723,7 @@ static int copy_entries_to_user(unsigned
+ 	 * about).
+ 	 */
+ 	countersize = sizeof(struct xt_counters) * private->number;
+-	counters = vmalloc_node(countersize, numa_node_id());
++	counters = vmalloc_flags(countersize, GFP_THISNODE);
+ 
+ 	if (counters == NULL)
+ 		return -ENOMEM;
+Index: linux-2.6.18-rc3-mm2/net/ipv4/netfilter/ip_tables.c
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/net/ipv4/netfilter/ip_tables.c	2006-07-29 23:15:36.000000000 -0700
++++ linux-2.6.18-rc3-mm2/net/ipv4/netfilter/ip_tables.c	2006-08-09 19:26:18.463039994 -0700
+@@ -809,8 +809,7 @@ static inline struct xt_counters * alloc
+ 	   (other than comefrom, which userspace doesn't care
+ 	   about). */
+ 	countersize = sizeof(struct xt_counters) * private->number;
+-	counters = vmalloc_node(countersize, numa_node_id());
+-
++	counters = vmalloc_flags(countersize, GFP_THISNODE);
+ 	if (counters == NULL)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -1365,7 +1364,7 @@ do_add_counters(void __user *user, unsig
+ 	if (len != size + num_counters * sizeof(struct xt_counters))
+ 		return -EINVAL;
+ 
+-	paddc = vmalloc_node(len - size, numa_node_id());
++	paddc = vmalloc_flags(len - size, GFP_THISNODE);
+ 	if (!paddc)
+ 		return -ENOMEM;
+ 
+Index: linux-2.6.18-rc3-mm2/include/linux/vmalloc.h
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/include/linux/vmalloc.h	2006-08-07 20:21:00.586376498 -0700
++++ linux-2.6.18-rc3-mm2/include/linux/vmalloc.h	2006-08-09 19:25:24.544497518 -0700
+@@ -52,7 +52,10 @@ extern void vunmap(void *addr);
+ 
+ extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
+ 							unsigned long pgoff);
+- 
++
++#define vmalloc_flags(__s, __f) \
++	__vmalloc((__s), (__f)|__GFP_HIGHMEM|GFP_KERNEL, PAGE_KERNEL)
++
+ /*
+  *	Lowlevel-APIs (not for driver use!)
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
