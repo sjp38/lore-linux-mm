@@ -1,41 +1,36 @@
-Message-ID: <40710.81.207.0.53.1155257131.squirrel@81.207.0.53>
-In-Reply-To: <1155228640.5696.55.camel@twins>
-References: <1155216769.5696.23.camel@twins>
-    <20060810140240.GA28989@2ka.mipt.ru> <1155221191.5696.43.camel@twins>
-    <20060810162229.GA27364@2ka.mipt.ru> <1155228640.5696.55.camel@twins>
-Date: Fri, 11 Aug 2006 02:45:31 +0200 (CEST)
-Subject: Re: [RFC][PATCH] VM deadlock prevention core -v3
-From: "Indan Zupancic" <indan@nul.nu>
+Message-ID: <44DBED4C.6040604@redhat.com>
+Date: Thu, 10 Aug 2006 22:37:00 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193345.1396.16773.sendpatchset@lappy> <20060808211731.GR14627@postel.suug.ch>
+In-Reply-To: <20060808211731.GR14627@postel.suug.ch>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, Daniel Phillips <phillips@google.com>, David Miller <davem@davemloft.net>, Thomas Graf <tgraf@suug.ch>
+To: Thomas Graf <tgraf@suug.ch>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, August 10, 2006 18:50, Peter Zijlstra said:
-> You are right if the reserve wasn't device bound - which I will abandon
-> because you are right that with multi-path routing, bridge device and
-> other advanced goodies this scheme is broken in that there is no
-> unambiguous mapping from sockets to devices.
+Thomas Graf wrote:
 
-The natural thing seems to make reserves socket bound, but that has
-overhead too and the simplicity of a global reserve is very tempting.
+> skb->dev is not guaranteed to still point to the "allocating" device
+> once the skb is freed again so reserve/unreserve isn't symmetric.
+> You'd need skb->alloc_dev or something.
 
-What about adding a flag to sk_set_memalloc() which says if memalloc is on
-or off on the socket? (Or add sk_unset_memalloc). That way it's possible
-to switch it off again, which doesn't seem like that a bad idea, because
-then it can be turned on only when the socket can be used to reduce total
-memory usage. Also if it is turned off again when no more memory can be
-freed by using this socket, it will solve the starvation problem as a
-starved socket now has a new chance to do its thing.
+There's another consequence of this property of the network
+stack.
 
-Greetings,
+Every network interface must be able to fall back to these
+MEMALLOC allocations, because the memory critical socket
+could be on another network interface.  Hence, we cannot
+know which network interfaces should (not) be marked MEMALLOC.
 
-Indan
-
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
