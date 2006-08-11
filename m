@@ -1,52 +1,19 @@
-Date: Thu, 10 Aug 2006 20:16:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
- ignore cpuset/memory policy restrictions.
-In-Reply-To: <20060810124137.6da0fdef.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0608102010150.12657@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
- <20060810124137.6da0fdef.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 11 Aug 2006 02:16:26 -0700
+Message-Id: <200608110916.k7B9GQWw023318@zach-dev.vmware.com>
+Subject: [PATCH 0/9] i386 MMU paravirtualization patches
+From: Zachary Amsden <zach@vmware.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, pj@sgi.com, jes@sgi.com, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@suse.de>, Zachary Amsden <zach@vmware.com>, Chris Wright <chrisw@osdl.org>, Rusty Russell <rusty@rustcorp.com.au>, Jeremy Fitzhardinge <jeremy@goop.org>, Virtualization Mailing List <virtualization@lists.osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>Zachary Amsden <zach@vmware.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Aug 2006, Andrew Morton wrote:
+These patches provide the infrastructure for paravirtualized MMU operations
+while at the same time cleaning up and optimizing the pagetable accessors for
+i386.  They should be largely uncontroversial and are well tested.  There are
+still some performance gains to be had for paravirtualization, but it is more
+important to get the native code base that will enable them checked in first.
 
-> This adds a little bit of overhead to non-numa kernels.  I think that
-> overhead could be eliminated if we were to do
-
-The overhead is really minimal. The parameter we are testing is passed on 
-later and the test is unlikely.
-
-I would rather avoid fiddling around with making __GFP_xxx conditional.
-We have seen  to what problems this could lead. The #ifdef is less harmful
-if placed in get_page_from_freelist.
-
-How about this one:
-
-Index: linux-2.6.18-rc3-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.18-rc3-mm2.orig/mm/page_alloc.c	2006-08-09 18:37:06.434599531 -0700
-+++ linux-2.6.18-rc3-mm2/mm/page_alloc.c	2006-08-10 20:13:53.674465629 -0700
-@@ -918,12 +918,14 @@ get_page_from_freelist(gfp_t gfp_mask, u
- 	 */
- 	do {
- 		zone = *z;
-+#ifdef CONFIG_NUMA
- 		if (unlikely((gfp_mask & __GFP_THISNODE) &&
- 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
- 				break;
- 		if ((alloc_flags & ALLOC_CPUSET) &&
- 				!cpuset_zone_allowed(zone, gfp_mask))
- 			continue;
-+#endif
- 
- 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
- 			unsigned long mark;
+Zach
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
