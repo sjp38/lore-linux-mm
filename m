@@ -1,33 +1,33 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: Profiling: Require buffer allocation on the correct node
-Date: Thu, 10 Aug 2006 05:21:19 +0200
-References: <Pine.LNX.4.64.0608091914470.5464@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608091914470.5464@schroedinger.engr.sgi.com>
+Message-ID: <44DC068C.5050205@osdl.org>
+Date: Thu, 10 Aug 2006 21:24:44 -0700
+From: Stephen Hemminger <shemminger@osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <44D976E6.5010106@google.com>	<20060809131942.GY14627@postel.suug.ch>	<1155132440.12225.70.camel@twins> <20060809.165846.107940575.davem@davemloft.net>
+In-Reply-To: <20060809.165846.107940575.davem@davemloft.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200608100521.19783.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: a.p.zijlstra@chello.nl, tgraf@suug.ch, phillips@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 10 August 2006 04:18, Christoph Lameter wrote:
-> Profiling really suffers with off node buffers. Fail if no memory is available
-> on the nodes. The profiling code can deal with these failures should
-> they occur.
-
-At least for Opterons and other small NUMAs I have my doubts this is a good strategy.
-However it probably shouldn't happen very often, but if it happened it would be 
-the wrong thing.
-
-In general shouldn't there be a printk at least? Doing such things silently is a bit
-nasty.
-
--Andi
+David Miller wrote:
+> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Date: Wed, 09 Aug 2006 16:07:20 +0200
+>
+>   
+>> Hmm, what does sk_buff::input_dev do? That seems to store the initial
+>> device?
+>>     
+>
+> You can run grep on the tree just as easily as I can which is what I
+> did to answer this question.  It only takes a few seconds of your
+> time to grep the source tree for things like "skb->input_dev", so
+> would you please do that before asking more questions like this?
+>   
+C'mon cscope is your friend for this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
