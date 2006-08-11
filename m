@@ -1,102 +1,79 @@
-Date: Fri, 11 Aug 2006 02:19:32 -0700
-Message-Id: <200608110919.k7B9JWJh023348@zach-dev.vmware.com>
-Subject: [PATCH 5/9] 00mm6 kpte flush.patch
+Date: Fri, 11 Aug 2006 02:20:09 -0700
+Message-Id: <200608110920.k7B9K9nn023354@zach-dev.vmware.com>
+Subject: [PATCH 6/9] 00mm9 optimize ptep establish for pae.patch
 From: Zachary Amsden <zach@vmware.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@suse.de>, Zachary Amsden <zach@vmware.com>, Chris Wright <chrisw@osdl.org>, Rusty Russell <rusty@rustcorp.com.au>, Jeremy Fitzhardinge <jeremy@goop.org>, Virtualization Mailing List <virtualization@lists.osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>Zachary Amsden <zach@vmware.com>
 List-ID: <linux-mm.kvack.org>
 
-Create a new PTE function which combines clearing a kernel PTE with the
-subsequent flush.  This allows the two to be easily combined into a single
-hypercall or paravirt-op.  More subtly, reverse the order of the flush for
-kmap_atomic.  Instead of flushing on establishing a mapping, flush on
-clearing a mapping.  This eliminates the possibility of leaving stale
-kmap entries which may still have valid TLB mappings.  This is required
-for direct mode hypervisors, which need to reprotect all mappings of a
-given page when changing the page type from a normal page to a protected
-page (such as a page table or descriptor table page).  But it also provides
-some nicer semantics for real hardware, by providing extra debug-proofing
-against using stale mappings, as well as ensuring that no stale mappings
-exist when changing the cacheability attributes of a page, which could
-lead to cache conflicts when two different types of mappings exist for the
-same page.
+The ptep_establish macro is only used on user-level PTEs, for P->P mapping
+changes.  Since these always happen under protection of the pagetable lock, the
+strong synchronization of a 64-bit cmpxchg is not needed, in fact, not
+even a lock prefix needs to be used.  We can simply instead clear the P-bit,
+followed by a normal set.  The write ordering is still important to avoid the
+possibility of the TLB snooping a partially written PTE and getting a bad
+mapping installed.
 
 Signed-off-by: Zachary Amsden <zach@vmware.com>
 
 ===================================================================
---- a/arch/i386/mm/highmem.c
-+++ b/arch/i386/mm/highmem.c
-@@ -44,22 +44,19 @@ void *kmap_atomic(struct page *page, enu
+--- a/include/asm-i386/pgtable-2level.h
++++ b/include/asm-i386/pgtable-2level.h
+@@ -16,6 +16,7 @@
+ #define set_pte(pteptr, pteval) (*(pteptr) = pteval)
+ #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
+ #define set_pte_atomic(pteptr, pteval) set_pte(pteptr,pteval)
++#define set_pte_present(mm,addr,ptep,pteval) set_pte_at(mm,addr,ptep,pteval)
+ #define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
  
- 	idx = type + KM_TYPE_NR*smp_processor_id();
- 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
--#ifdef CONFIG_DEBUG_HIGHMEM
- 	if (!pte_none(*(kmap_pte-idx)))
- 		BUG();
--#endif
- 	set_pte(kmap_pte-idx, mk_pte(page, kmap_prot));
--	__flush_tlb_one(vaddr);
- 
- 	return (void*) vaddr;
+ #define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
+===================================================================
+--- a/include/asm-i386/pgtable-3level.h
++++ b/include/asm-i386/pgtable-3level.h
+@@ -57,6 +57,21 @@ static inline void set_pte(pte_t *ptep, 
+ 	ptep->pte_low = pte.pte_low;
  }
+ #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
++
++/*
++ * Since this is only called on user PTEs, and the page fault handler
++ * must handle the already racy situation of simultaneous page faults,
++ * we are justified in merely clearing the PTE present bit, followed
++ * by a set.  The ordering here is important.
++ */
++static inline void set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
++{
++	ptep->pte_low = 0;
++	smp_wmb();
++	ptep->pte_high = pte.pte_high;
++	smp_wmb();
++	ptep->pte_low = pte.pte_low;
++}
  
- void kunmap_atomic(void *kvaddr, enum km_type type)
- {
--#ifdef CONFIG_DEBUG_HIGHMEM
- 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
- 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
- 
-+#ifdef CONFIG_DEBUG_HIGHMEM
- 	if (vaddr >= PAGE_OFFSET && vaddr < (unsigned long)high_memory) {
- 		dec_preempt_count();
- 		preempt_check_resched();
-@@ -68,14 +65,14 @@ void kunmap_atomic(void *kvaddr, enum km
- 
- 	if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx))
- 		BUG();
--
-+#endif
- 	/*
--	 * force other mappings to Oops if they'll try to access
--	 * this pte without first remap it
-+	 * Force other mappings to Oops if they'll try to access this pte
-+	 * without first remap it.  Keeping stale mappings around is a bad idea
-+	 * also, in case the page changes cacheability attributes or becomes
-+	 * a protected page in a hypervisor.
- 	 */
--	pte_clear(&init_mm, vaddr, kmap_pte-idx);
--	__flush_tlb_one(vaddr);
--#endif
-+	kpte_clear_flush(kmap_pte-idx, vaddr);
- 
- 	dec_preempt_count();
- 	preempt_check_resched();
-@@ -94,7 +91,6 @@ void *kmap_atomic_pfn(unsigned long pfn,
- 	idx = type + KM_TYPE_NR*smp_processor_id();
- 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
- 	set_pte(kmap_pte-idx, pfn_pte(pfn, kmap_prot));
--	__flush_tlb_one(vaddr);
- 
- 	return (void*) vaddr;
- }
+ #define __HAVE_ARCH_SET_PTE_ATOMIC
+ #define set_pte_atomic(pteptr,pteval) \
 ===================================================================
 --- a/include/asm-i386/pgtable.h
 +++ b/include/asm-i386/pgtable.h
-@@ -441,6 +441,13 @@ extern pte_t *lookup_address(unsigned lo
- #define pte_unmap_nested(pte) do { } while (0)
- #endif
+@@ -269,6 +269,17 @@ do {									\
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
  
-+/* Clear a kernel PTE and flush it from the TLB */
-+#define kpte_clear_flush(ptep, vaddr)					\
++/*
++ * Rules for using ptep_establish: the pte MUST be a user pte, and
++ * must be a present->present transition.
++ */
++#define __HAVE_ARCH_PTEP_ESTABLISH
++#define ptep_establish(vma, address, ptep, pteval)			\
 +do {									\
-+	pte_clear(&init_mm, vaddr, ptep);				\
-+	__flush_tlb_one(vaddr);						\
++	set_pte_present((vma)->vm_mm, address, ptep, pteval);		\
++	flush_tlb_page(vma, address);					\
 +} while (0)
 +
- /*
-  * The i386 doesn't have any external MMU info: the kernel page
-  * tables contain all the necessary information.
+ #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+ #define ptep_clear_flush_dirty(vma, address, ptep)			\
+ ({									\
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
