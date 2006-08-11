@@ -1,36 +1,52 @@
-Message-ID: <44DBED4C.6040604@redhat.com>
-Date: Thu, 10 Aug 2006 22:37:00 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Thu, 10 Aug 2006 20:16:31 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [1/3] Add __GFP_THISNODE to avoid fallback to other nodes and
+ ignore cpuset/memory policy restrictions.
+In-Reply-To: <20060810124137.6da0fdef.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0608102010150.12657@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608080930380.27620@schroedinger.engr.sgi.com>
+ <20060810124137.6da0fdef.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193345.1396.16773.sendpatchset@lappy> <20060808211731.GR14627@postel.suug.ch>
-In-Reply-To: <20060808211731.GR14627@postel.suug.ch>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Graf <tgraf@suug.ch>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, pj@sgi.com, jes@sgi.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Thomas Graf wrote:
+On Thu, 10 Aug 2006, Andrew Morton wrote:
 
-> skb->dev is not guaranteed to still point to the "allocating" device
-> once the skb is freed again so reserve/unreserve isn't symmetric.
-> You'd need skb->alloc_dev or something.
+> This adds a little bit of overhead to non-numa kernels.  I think that
+> overhead could be eliminated if we were to do
 
-There's another consequence of this property of the network
-stack.
+The overhead is really minimal. The parameter we are testing is passed on 
+later and the test is unlikely.
 
-Every network interface must be able to fall back to these
-MEMALLOC allocations, because the memory critical socket
-could be on another network interface.  Hence, we cannot
-know which network interfaces should (not) be marked MEMALLOC.
+I would rather avoid fiddling around with making __GFP_xxx conditional.
+We have seen  to what problems this could lead. The #ifdef is less harmful
+if placed in get_page_from_freelist.
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+How about this one:
+
+Index: linux-2.6.18-rc3-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.18-rc3-mm2.orig/mm/page_alloc.c	2006-08-09 18:37:06.434599531 -0700
++++ linux-2.6.18-rc3-mm2/mm/page_alloc.c	2006-08-10 20:13:53.674465629 -0700
+@@ -918,12 +918,14 @@ get_page_from_freelist(gfp_t gfp_mask, u
+ 	 */
+ 	do {
+ 		zone = *z;
++#ifdef CONFIG_NUMA
+ 		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+ 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+ 				break;
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+ 				!cpuset_zone_allowed(zone, gfp_mask))
+ 			continue;
++#endif
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
