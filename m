@@ -1,38 +1,31 @@
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Sat, 12 Aug 2006 16:14:25 +0200
-Message-Id: <20060812141425.30842.35004.sendpatchset@lappy>
-In-Reply-To: <20060812141415.30842.78695.sendpatchset@lappy>
-References: <20060812141415.30842.78695.sendpatchset@lappy>
-Subject: [RFC][PATCH 1/4] pfn_to_kaddr() for UML
+Date: Sat, 12 Aug 2006 16:14:15 +0200
+Message-Id: <20060812141415.30842.78695.sendpatchset@lappy>
+Subject: [RFC][PATCH 0/4] VM deadlock prevention -v4
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 Cc: Indan Zupancic <indan@nul.nu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Update UML with a proper 'pfn_to_kaddr()' definition, the SROG allocator
-uses it.
+Hi,
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Daniel Phillips <phillips@google.com>
+here the latest effort, it includes a whole new trivial allocator with a
+horrid name and an almost full rewrite of the deadlock prevention core.
+This version does not do anything per device and hence does not depend 
+on the new netdev_alloc_skb() API.
 
----
- include/asm-um/page.h |    2 ++
- 1 file changed, 2 insertions(+)
+The reason to add a second allocator to the receive side is twofold:
+1) it allows easy detection of the memory pressure / OOM situation;
+2) it allows the receive path to be unbounded and go at full speed when
+   resources permit.
 
-Index: linux-2.6/include/asm-um/page.h
-===================================================================
---- linux-2.6.orig/include/asm-um/page.h
-+++ linux-2.6/include/asm-um/page.h
-@@ -111,6 +111,8 @@ extern unsigned long uml_physmem;
- #define pfn_valid(pfn) ((pfn) < max_mapnr)
- #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
- 
-+#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
-+
- extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
- #define HAVE_ARCH_VALIDATE
- 
+The choice of using the global memalloc reserve as a mempool makes that
+the new allocator has to release pages as soon as possible; if we were
+to hoard pages in the allocator the memalloc reserve would not get 
+replenished readily.
+
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
