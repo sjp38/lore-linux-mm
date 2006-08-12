@@ -1,67 +1,46 @@
-Subject: Re: rename *MEMALLOC flags (was: Re: [RFC][PATCH 3/4] deadlock
-	prevention core)
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <33037.81.207.0.53.1155396500.squirrel@81.207.0.53>
+Message-ID: <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>
+In-Reply-To: <20060812141415.30842.78695.sendpatchset@lappy>
 References: <20060812141415.30842.78695.sendpatchset@lappy>
-	 <20060812141445.30842.47336.sendpatchset@lappy>
-	 <44DDE8B6.8000900@garzik.org> <1155395201.13508.44.camel@lappy>
-	 <33037.81.207.0.53.1155396500.squirrel@81.207.0.53>
-Content-Type: text/plain
-Date: Sat, 12 Aug 2006 17:34:36 +0200
-Message-Id: <1155396877.13508.58.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sat, 12 Aug 2006 18:51:29 +0200 (CEST)
+Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
+From: "Indan Zupancic" <indan@nul.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Indan Zupancic <indan@nul.nu>
-Cc: Jeff Garzik <jeff@garzik.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2006-08-12 at 17:28 +0200, Indan Zupancic wrote:
-> On Sat, August 12, 2006 17:06, Peter Zijlstra said:
-> > On Sat, 2006-08-12 at 10:41 -0400, Jeff Garzik wrote:
-> >> Peter Zijlstra wrote:
-> >> > Index: linux-2.6/include/linux/gfp.h
-> >> > ===================================================================
-> >> > --- linux-2.6.orig/include/linux/gfp.h	2006-08-12 12:56:06.000000000 +0200
-> >> > +++ linux-2.6/include/linux/gfp.h	2006-08-12 12:56:09.000000000 +0200
-> >> > @@ -46,6 +46,7 @@ struct vm_area_struct;
-> >> >  #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
-> >> >  #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-> >> >  #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs
-> >> */
-> >> > +#define __GFP_MEMALLOC  ((__force gfp_t)0x40000u) /* Use emergency reserves */
-> >>
-> >> This symbol name has nothing to do with its purpose.  The entire area of
-> >> code you are modifying could be described as having something to do with
-> >> 'memalloc'.
-> >>
-> >> GFP_EMERGENCY or GFP_USE_RESERVES or somesuch would be a far better
-> >> symbol name.
-> >>
-> >> I recognize that is matches with GFP_NOMEMALLOC, but that doesn't change
-> >> the situation anyway.  In fact, a cleanup patch to rename GFP_NOMEMALLOC
-> >> would be nice.
-> >
-> > I'm rather bad at picking names, but here goes:
-> >
-> > PF_MEMALLOC      -> PF_EMERGALLOC
-> > __GFP_NOMEMALLOC -> __GFP_NOEMERGALLOC
-> > __GFP_MEMALLOC   -> __GFP_EMERGALLOC
-    SOCK_MEMALLOC    -> SOCK_EMERGALLOC
-> >
-> > Is that suitable and shall I prepare patches? Or do we want more ppl to
-> > chime in and have a few more rounds?
-> 
-> Pardon my ignorance, but if we're doing cleanup anyway, why not use only one flag instead of two?
-> Why is __GFP_NOMEMALLOC needed when not setting __GFP_MEMALLOC could mean the same? Or else what
-> is the expected behaviour if both flags are set?
+On Sat, August 12, 2006 16:14, Peter Zijlstra said:
+> Hi,
+>
+> here the latest effort, it includes a whole new trivial allocator with a
+> horrid name and an almost full rewrite of the deadlock prevention core.
+> This version does not do anything per device and hence does not depend
+> on the new netdev_alloc_skb() API.
+>
+> The reason to add a second allocator to the receive side is twofold:
+> 1) it allows easy detection of the memory pressure / OOM situation;
+> 2) it allows the receive path to be unbounded and go at full speed when
+>    resources permit.
+>
+> The choice of using the global memalloc reserve as a mempool makes that
+> the new allocator has to release pages as soon as possible; if we were
+> to hoard pages in the allocator the memalloc reserve would not get
+> replenished readily.
 
-__GFP_NOMEMALLOC is most authorative; its use is (afaik) to negate
-PF_MEMALLOC.
+Version 2 had about 250 new lines of code, while v3 has close to 600, when
+including the SROG code. And that while things should have become simpler.
+So why use SROG instead of the old alloc_pages() based code? And why couldn't
+you use a slightly modified SLOB instead of writing a new allocator?
+It looks like overkill to me.
 
-I agree that having both seems odd, but I haven't spend any significant
-time on trying to find a 'nicer' solution.
+Greetings,
+
+Indan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
