@@ -1,66 +1,52 @@
-Message-ID: <44DDEC1F.6010603@redhat.com>
-Date: Sat, 12 Aug 2006 10:56:31 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-References: <20060808193325.1396.58813.sendpatchset@lappy> <20060809054648.GD17446@2ka.mipt.ru> <1155127040.12225.25.camel@twins> <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins> <44DD4E3A.4040000@redhat.com> <20060812084713.GA29523@2ka.mipt.ru> <1155374390.13508.15.camel@lappy> <20060812093706.GA13554@2ka.mipt.ru> <44DDE857.3080703@redhat.com> <20060812144921.GA25058@2ka.mipt.ru>
-In-Reply-To: <20060812144921.GA25058@2ka.mipt.ru>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: rename *MEMALLOC flags (was: Re: [RFC][PATCH 3/4] deadlock
+	prevention core)
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <44DDE8B6.8000900@garzik.org>
+References: <20060812141415.30842.78695.sendpatchset@lappy>
+	 <20060812141445.30842.47336.sendpatchset@lappy>
+	 <44DDE8B6.8000900@garzik.org>
+Content-Type: text/plain
+Date: Sat, 12 Aug 2006 17:06:41 +0200
+Message-Id: <1155395201.13508.44.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
+To: Jeff Garzik <jeff@garzik.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Indan Zupancic <indan@nul.nu>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Evgeniy Polyakov wrote:
-> On Sat, Aug 12, 2006 at 10:40:23AM -0400, Rik van Riel (riel@redhat.com) wrote:
->> Evgeniy Polyakov wrote:
->>> On Sat, Aug 12, 2006 at 11:19:49AM +0200, Peter Zijlstra 
->>> (a.p.zijlstra@chello.nl) wrote:
->>>>> As you described above, memory for each packet must be allocated (either
->>>> >from SLAB or from reserve), so network needs special allocator in OOM
->>>>> condition, and that allocator should be separated from SLAB's one which 
->>>>> got OOM, so my purpose is just to use that different allocator (with
->>>>> additional features) for netroking always.
->>> No it is not. There are socket queues and they are limited. Things like
->>> TCP behave even better.
->> Ahhh, but there are two allocators in play here.
->>
->> The first one allocates the memory for receiving packets.
->> This can be one pool, as long as it is isolated from
->> other things in the system it is fine.
->>
->> The second allocator allocates more memory for socket
->> buffers.  The memory critical sockets should get their
->> memory from a mempool, once normal socket memory
->> allocations start failing.
->>
->> This means our allocation differentiation only needs
->> to happen at the socket stage.
->>
->> Or am I overlooking something?
+On Sat, 2006-08-12 at 10:41 -0400, Jeff Garzik wrote:
+> Peter Zijlstra wrote:
+> > Index: linux-2.6/include/linux/gfp.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/gfp.h	2006-08-12 12:56:06.000000000 +0200
+> > +++ linux-2.6/include/linux/gfp.h	2006-08-12 12:56:09.000000000 +0200
+> > @@ -46,6 +46,7 @@ struct vm_area_struct;
+> >  #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+> >  #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+> >  #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+> > +#define __GFP_MEMALLOC  ((__force gfp_t)0x40000u) /* Use emergency reserves */
 > 
-> Yep. Socket allocations end up with alloc_skb() which is essentialy the
-> same as what is being done for receiving path skbs.
-> If you really want to separate critical from non-critical sockets, it is
-> much better not to play with alloc_skb() but directly forbid it in
-> appropriate socket allocation function like sock_alloc_send_skb().
+> This symbol name has nothing to do with its purpose.  The entire area of 
+> code you are modifying could be described as having something to do with 
+> 'memalloc'.
+> 
+> GFP_EMERGENCY or GFP_USE_RESERVES or somesuch would be a far better 
+> symbol name.
+> 
+> I recognize that is matches with GFP_NOMEMALLOC, but that doesn't change 
+> the situation anyway.  In fact, a cleanup patch to rename GFP_NOMEMALLOC 
+> would be nice.
 
-The problem is the RECEIVE side.
+I'm rather bad at picking names, but here goes:
 
-> What I suggested in previous e-mail is to separate networking
-> allocations from other system allocations, so problem in main allocator
-> and it's OOM would never affect network path.
+PF_MEMALLOC      -> PF_EMERGALLOC
+__GFP_NOMEMALLOC -> __GFP_NOEMERGALLOC
+__GFP_MEMALLOC   -> __GFP_EMERGALLOC
 
-That solves half of the problem.  We still need to make sure we
-do not allocate memory to non-critical sockets when the system
-is almost out of memory.
-
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Is that suitable and shall I prepare patches? Or do we want more ppl to
+chime in and have a few more rounds?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
