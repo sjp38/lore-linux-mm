@@ -1,8 +1,9 @@
-Message-ID: <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>
-In-Reply-To: <20060812141415.30842.78695.sendpatchset@lappy>
+Message-ID: <44640.81.207.0.53.1155403862.squirrel@81.207.0.53>
+In-Reply-To: <20060812141445.30842.47336.sendpatchset@lappy>
 References: <20060812141415.30842.78695.sendpatchset@lappy>
-Date: Sat, 12 Aug 2006 18:51:29 +0200 (CEST)
-Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
+    <20060812141445.30842.47336.sendpatchset@lappy>
+Date: Sat, 12 Aug 2006 19:31:02 +0200 (CEST)
+Subject: Re: [RFC][PATCH 3/4] deadlock prevention core
 From: "Indan Zupancic" <indan@nul.nu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -14,28 +15,28 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Ev
 List-ID: <linux-mm.kvack.org>
 
 On Sat, August 12, 2006 16:14, Peter Zijlstra said:
-> Hi,
->
-> here the latest effort, it includes a whole new trivial allocator with a
-> horrid name and an almost full rewrite of the deadlock prevention core.
-> This version does not do anything per device and hence does not depend
-> on the new netdev_alloc_skb() API.
->
-> The reason to add a second allocator to the receive side is twofold:
-> 1) it allows easy detection of the memory pressure / OOM situation;
-> 2) it allows the receive path to be unbounded and go at full speed when
->    resources permit.
->
-> The choice of using the global memalloc reserve as a mempool makes that
-> the new allocator has to release pages as soon as possible; if we were
-> to hoard pages in the allocator the memalloc reserve would not get
-> replenished readily.
+> +struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask, int fclone)
+> +{
+> +	struct sk_buff *skb;
+> +
+> +	skb = ___alloc_skb(size, gfp_mask & ~__GFP_MEMALLOC, fclone);
+> +
+> +	if (!skb && (gfp_mask & __GFP_MEMALLOC) && memalloc_skbs_available())
+> +		skb = ___alloc_skb(size, gfp_mask, fclone);
+> +
+> +	return skb;
+> +}
+> +
 
-Version 2 had about 250 new lines of code, while v3 has close to 600, when
-including the SROG code. And that while things should have become simpler.
-So why use SROG instead of the old alloc_pages() based code? And why couldn't
-you use a slightly modified SLOB instead of writing a new allocator?
-It looks like overkill to me.
+I'd drop the memalloc_skbs_available() check, as that's already done by
+___alloc_skb.
+
+> +static DEFINE_SPINLOCK(memalloc_lock);
+> +static int memalloc_socks;
+> +static unsigned long memalloc_reserve;
+
+Why is this a long? adjust_memalloc_reserve() takes an int.
+Is it needed at all, considering var_free_kbytes already exists?
 
 Greetings,
 
