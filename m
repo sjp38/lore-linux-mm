@@ -1,15 +1,12 @@
-Message-ID: <44410.81.207.0.53.1155411901.squirrel@81.207.0.53>
-In-Reply-To: <1155408431.13508.110.camel@lappy>
+Message-ID: <46805.81.207.0.53.1155413148.squirrel@81.207.0.53>
+In-Reply-To: <1155408846.13508.115.camel@lappy>
 References: <20060812141415.30842.78695.sendpatchset@lappy>
-    <20060812141445.30842.47336.sendpatchset@lappy>
-    <44640.81.207.0.53.1155403862.squirrel@81.207.0.53>
-    <1155404697.13508.81.camel@lappy>
-    <40048.81.207.0.53.1155405282.squirrel@81.207.0.53>
-    <1155406120.13508.87.camel@lappy>
-    <57504.81.207.0.53.1155407532.squirrel@81.207.0.53>
-    <1155408431.13508.110.camel@lappy>
-Date: Sat, 12 Aug 2006 21:45:01 +0200 (CEST)
-Subject: Re: [RFC][PATCH 3/4] deadlock prevention core
+    <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>
+    <1155404014.13508.72.camel@lappy>
+    <47227.81.207.0.53.1155406611.squirrel@81.207.0.53>
+    <1155408846.13508.115.camel@lappy>
+Date: Sat, 12 Aug 2006 22:05:48 +0200 (CEST)
+Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
 From: "Indan Zupancic" <indan@nul.nu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -20,91 +17,35 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, August 12, 2006 20:47, Peter Zijlstra said:
-> Ah right, I did that in v3, with a similar comment, but I realised that
-> the inbound reserve need not be per socket, and that the comment was
-> ambiguous enough to allow this reading.
+On Sat, August 12, 2006 20:54, Peter Zijlstra said:
+>  - single allocation group per packet - that is, when I free a packet
+> and all its associated object I get my memory back.
 
-True, but better to change the comment than to confuse people.
-Lots of it is outdated because reservations aren't per device anymore.
+This is easy.
 
-Changes to your version:
-- Got rid of memalloc_socks.
-- Don't include inetdevice.h (it isn't needed anymore, right?)
-- Updated comment.
+>  - not waste too much space managing the various objects
 
-(I'm editing the diff, so this won't apply)
+This too, when ignoring clones and COW.
 
-Index: linux-2.6/net/core/sock.c
-===================================================================
---- linux-2.6.orig/net/core/sock.c	2006-08-12 12:56:06.000000000 +0200
-+++ linux-2.6/net/core/sock.c	2006-08-12 13:02:59.000000000 +0200
-@@ -111,6 +111,8 @@
- #include <linux/poll.h>
- #include <linux/tcp.h>
- #include <linux/init.h>
-+#include <linux/blkdev.h>
+> skb operations want to allocate various sk_buffs for the same data
+> clones. Also, it wants to be able to break the COW or realloc the data.
 
- #include <asm/uaccess.h>
- #include <asm/system.h>
-@@ -195,6 +197,78 @@ __u32 sysctl_rmem_default = SK_RMEM_MAX;
- /* Maximal space eaten by iovec or ancilliary data plus some space */
- int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
+So this seems to be what adds all the complexity.
 
-+static DEFINE_SPINLOCK(memalloc_lock);
-+static int memalloc_socks;
-+static unsigned long memalloc_reserve;
-+
-+atomic_t memalloc_skbs_used;
-+EXPORT_SYMBOL_GPL(memalloc_skbs_used);
-+
-+/**
-+ *        sk_adjust_memalloc - adjust the global memalloc reserve
-+ *        @nr_socks: number of new %SOCK_MEMALLOC sockets
-+ *
-+ *        This function adjusts the memalloc reserve based on system demand.
-+ *        For each %SOCK_MEMALLOC socket 2 * %MAX_PHYS_SEGMENTS pages are
-+ *        reserved for outbound traffic (assumption: each %SOCK_MEMALLOC
-+ *        socket will have a %request_queue associated).
-+ *
-+ *        Pages for inbound traffic are already reserved.
-+ *
-+ *        2 * %MAX_PHYS_SEGMENTS - the request queue can hold up to 150%,
-+ *                the remaining 50% goes to being sure we can write packets
-+ *                for the outgoing pages.
-+ */
-+static DEFINE_SPINLOCK(memalloc_lock);
-+static int memalloc_socks;
-+
-+atomic_t memalloc_skbs_used;
-+EXPORT_SYMBOL_GPL(memalloc_skbs_used);
-+
-+int sk_adjust_memalloc(int nr_socks)
-+{
-+	unsigned long flags;
-+	unsigned int reserve;
-+	int err;
-+
-+	spin_lock_irqsave(&memalloc_lock, flags);
-+
-+	memalloc_socks += nr_socks;
-+	BUG_ON(memalloc_socks < 0);
-+
-+	reserve = nr_socks * 2 * MAX_PHYS_SEGMENTS;	/* outbound */
-+
-+	err = adjust_memalloc_reserve(reserve);
-+	spin_unlock_irqrestore(&memalloc_lock, flags);
-+	if (err) {
-+		printk(KERN_WARNING
-+			"Unable to adjust RX reserve by %lu, error: %d\n",
-+			reserve, err);
-+	}
-+	return err;
-+}
-+EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
+> So I tried manual packing (parts of that you have seen in previous
+> attempts). This gets hard when you want to do unlimited clones and COW
+> breaks. To do either you need to go link several pages.
 
-What's missing now is an adjust_memalloc_reserve(5 * MAX_CONCURRENT_SKBS)
-call in some init code.
+It gets messy quite quickly, yes.
+
+> So needing a list of pages and wanting packing gave me SROG. The biggest
+> wart is having to deal with higher order pages. Explicitly coding in
+> knowledge of the object you're packing just makes the code bigger - such
+> is the power of abstraction.
+
+I assume you meant "Not explicitly coding in", or else I'm tempted to disagree.
+Abstraction that has only one user which uses it in one way only adds bloat.
+But looking at the code a bit more I'm afraid you're right.
 
 Greetings,
 
