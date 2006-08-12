@@ -1,69 +1,81 @@
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id l71NaVv7006342
-	for <linux-mm@kvack.org>; Thu, 2 Aug 2007 00:36:32 +0100
-Received: from an-out-0708.google.com (anac8.prod.google.com [10.100.54.8])
-	by zps36.corp.google.com with ESMTP id l71NaGhK018639
-	for <linux-mm@kvack.org>; Wed, 1 Aug 2007 16:36:20 -0700
-Received: by an-out-0708.google.com with SMTP id c8so66942ana
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2007 16:36:16 -0700 (PDT)
-Message-ID: <b040c32a0708011636x74f61aefvf2ecaa280cc990fc@mail.gmail.com>
-Date: Wed, 1 Aug 2007 16:36:15 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: [patch] hugetlb: allow extending ftruncate on hugetlbfs
+Message-ID: <01c6be69$6d116d60$6ff3d359@atter>
+From: "Eunice Cox" <atter@katzmanberry.com>
+Subject: Haben Sie wieder Spass am Leben!   complaint about  -- format designed for the way 
+Date: Sat, 12 Aug 2006 23:45:43 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_01C6BE2E.C0B29560"
+Return-Path: <atter@katzmanberry.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For historical reason, expanding ftruncate that increases file size on
-hugetlbfs is not allowed due to pages were pre-faulted and lack of
-fault handler.  Now that we have demand faulting on hugetlb since
-2.6.15, there is no reason to hold back that limitation.
+This is a multi-part message in MIME format.
 
-This will make hugetlbfs behave more like a normal fs. I'm writing a
-user level code that uses hugetlbfs but will fall back to tmpfs if
-there are no hugetlb page available in the system.  Having hugetlbfs
-specific ftruncate behavior is a bit quirky and I would like to remove
-that artificial limitation.
+------=_NextPart_000_0007_01C6BE2E.C0B29560
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: <kenchen@google.com>
+Haben Sie endlich wieder Spass am Leben!
 
+Preise die keine Konkurrenz kennen 
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index c848a19..a255aac 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -313,21 +313,15 @@ hugetlb_vmtruncate_list(struct prio_tree
- 	}
- }
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- keine versteckte Kosten
+- Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
 
--/*
-- * Expanding truncates are not allowed.
-- */
- static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
- {
- 	pgoff_t pgoff;
- 	struct address_space *mapping = inode->i_mapping;
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
--	if (offset > inode->i_size)
--		return -EINVAL;
--
- 	BUG_ON(offset & ~HPAGE_MASK);
- 	pgoff = offset >> PAGE_SHIFT;
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://eqfra.movesince.com/?999704986061
 
--	inode->i_size = offset;
-+	i_size_write(inode, offset);
- 	spin_lock(&mapping->i_mmap_lock);
- 	if (!prio_tree_empty(&mapping->i_mmap))
- 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0007_01C6BE2E.C0B29560
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
+<META content=3D"MSHTML 4.71.1712.3" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Warum nehme ich Ciia=
+aaaaalis? Es ist einfach ein angenehmens Gef&#252;hl. Man brauch sich nicht=
+ auf die Err. ..ektion zu konzentrieren. Beim Sex ist man viel entspannter,=
+ mann kann auch mal die Muskeln im Genitalbereich lockern, ohne das die Err=
+ ..ektion im Glied nachlasst. Dadurch ist eine lange Verz&#246;gerung der =
+Ejakulation m&#246;glich. Man ist beim Sex generell lockerer und entspannte=
+r, und kommt auch nicht mehr so schnell ausser Athem, weil man eben locker =
+und entspannt ist, ausser nat&#252;rlich der kleine Freund :-)</strong></p>=
+<p><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ein=
+ Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit e=
+inklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so lan=
+g und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche woh=
+l bald einen Nachf&#252;llpack.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- keine versteckte Kosten<br>- Kostenlose, arztliche Telefon-Beratung<br>- =
+Diskrete Verpackung und Zahlung<br>- Kein langes Warten - Auslieferung inne=
+rhalb von 2-3 Tagen<br>- Kein peinlicher Arztbesuch erforderlich<br>- Beque=
+m und diskret online bestellen.<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://eqfra.movesince.com/?999704986061" target=3D"_blank">Vier Dosen gib=
+t's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Mo=
+ment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_01C6BE2E.C0B29560--
