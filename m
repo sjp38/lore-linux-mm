@@ -1,70 +1,77 @@
-Message-ID: <57504.81.207.0.53.1155407532.squirrel@81.207.0.53>
-In-Reply-To: <1155406120.13508.87.camel@lappy>
-References: <20060812141415.30842.78695.sendpatchset@lappy>
-    <20060812141445.30842.47336.sendpatchset@lappy>
-    <44640.81.207.0.53.1155403862.squirrel@81.207.0.53>
-    <1155404697.13508.81.camel@lappy>
-    <40048.81.207.0.53.1155405282.squirrel@81.207.0.53>
-    <1155406120.13508.87.camel@lappy>
-Date: Sat, 12 Aug 2006 20:32:12 +0200 (CEST)
 Subject: Re: [RFC][PATCH 3/4] deadlock prevention core
-From: "Indan Zupancic" <indan@nul.nu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <57504.81.207.0.53.1155407532.squirrel@81.207.0.53>
+References: <20060812141415.30842.78695.sendpatchset@lappy>
+	 <20060812141445.30842.47336.sendpatchset@lappy>
+	 <44640.81.207.0.53.1155403862.squirrel@81.207.0.53>
+	 <1155404697.13508.81.camel@lappy>
+	 <40048.81.207.0.53.1155405282.squirrel@81.207.0.53>
+	 <1155406120.13508.87.camel@lappy>
+	 <57504.81.207.0.53.1155407532.squirrel@81.207.0.53>
+Content-Type: text/plain
+Date: Sat, 12 Aug 2006 20:47:11 +0200
+Message-Id: <1155408431.13508.110.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Indan Zupancic <indan@nul.nu>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, August 12, 2006 20:08, Peter Zijlstra said:
-> On Sat, 2006-08-12 at 19:54 +0200, Indan Zupancic wrote:
->> True, but currently memalloc_reserve isn't used in a sensible way,
->> or I'm missing something.
->
-> Well, I'm somewhat reluctant to stick network related code into mm/, it
-> seems well separated now.
+On Sat, 2006-08-12 at 20:32 +0200, Indan Zupancic wrote:
+> On Sat, August 12, 2006 20:08, Peter Zijlstra said:
+> > On Sat, 2006-08-12 at 19:54 +0200, Indan Zupancic wrote:
+> >> True, but currently memalloc_reserve isn't used in a sensible way,
+> >> or I'm missing something.
+> >
+> > Well, I'm somewhat reluctant to stick network related code into mm/, it
+> > seems well separated now.
+> 
+> What I had in mind was something like:
+> 
+> +static DEFINE_SPINLOCK(memalloc_lock);
+> +static int memalloc_socks;
+> +
+> +atomic_t memalloc_skbs_used;
+> +EXPORT_SYMBOL_GPL(memalloc_skbs_used);
+> +
+> +int sk_adjust_memalloc(int nr_socks)
+> +{
+> +	unsigned long flags;
+> +	unsigned int reserve;
+> +	int err;
+> +
+> +	spin_lock_irqsave(&memalloc_lock, flags);
+> +
+> +	memalloc_socks += nr_socks;
+> +	BUG_ON(memalloc_socks < 0);
+> +
+> +	reserve = nr_socks * (2 * MAX_PHYS_SEGMENTS + 	/* outbound */
+> +			      5 * MAX_CONCURRENT_SKBS);	/* inbound */
+> +
+> +	err = adjust_memalloc_reserve(reserve);
+> +	spin_unlock_irqrestore(&memalloc_lock, flags);
+> +	if (err) {
+> +		printk(KERN_WARNING
+> +			"Unable to change RX reserve to: %lu, error: %d\n",
+> +			reserve, err);
+> +	}
+> +	return err;
+> +}
+> 
+> The original code missed the brackets, so 5 * MAX_CONCURRENT_SKBS wasn't done
+> per socket. But the comment said it was per socket, so I added in this version.
 
-What I had in mind was something like:
+Ah right, I did that in v3, with a similar comment, but I realised that
+the inbound reserve need not be per socket, and that the comment was
+ambiguous enough to allow this reading.
 
-+static DEFINE_SPINLOCK(memalloc_lock);
-+static int memalloc_socks;
-+
-+atomic_t memalloc_skbs_used;
-+EXPORT_SYMBOL_GPL(memalloc_skbs_used);
-+
-+int sk_adjust_memalloc(int nr_socks)
-+{
-+	unsigned long flags;
-+	unsigned int reserve;
-+	int err;
-+
-+	spin_lock_irqsave(&memalloc_lock, flags);
-+
-+	memalloc_socks += nr_socks;
-+	BUG_ON(memalloc_socks < 0);
-+
-+	reserve = nr_socks * (2 * MAX_PHYS_SEGMENTS + 	/* outbound */
-+			      5 * MAX_CONCURRENT_SKBS);	/* inbound */
-+
-+	err = adjust_memalloc_reserve(reserve);
-+	spin_unlock_irqrestore(&memalloc_lock, flags);
-+	if (err) {
-+		printk(KERN_WARNING
-+			"Unable to change RX reserve to: %lu, error: %d\n",
-+			reserve, err);
-+	}
-+	return err;
-+}
+Why not per socket, its used to place an upper bound, its not
+calculating one, its setting one.
 
-The original code missed the brackets, so 5 * MAX_CONCURRENT_SKBS wasn't done
-per socket. But the comment said it was per socket, so I added in this version.
-
-Greetings,
-
-Indan
-
+Like you can see in memalloc_skbs_inc(), it limits to
+MAX_CONCURRENT_SKBS.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
