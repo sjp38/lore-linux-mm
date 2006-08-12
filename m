@@ -1,148 +1,49 @@
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Sat, 12 Aug 2006 16:14:55 +0200
-Message-Id: <20060812141455.30842.41506.sendpatchset@lappy>
-In-Reply-To: <20060812141415.30842.78695.sendpatchset@lappy>
-References: <20060812141415.30842.78695.sendpatchset@lappy>
-Subject: [RFC][PATCH 4/4] deadlock prevention for NBD
+Message-ID: <44DDE857.3080703@redhat.com>
+Date: Sat, 12 Aug 2006 10:40:23 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060809054648.GD17446@2ka.mipt.ru> <1155127040.12225.25.camel@twins> <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins> <44DD4E3A.4040000@redhat.com> <20060812084713.GA29523@2ka.mipt.ru> <1155374390.13508.15.camel@lappy> <20060812093706.GA13554@2ka.mipt.ru>
+In-Reply-To: <20060812093706.GA13554@2ka.mipt.ru>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Indan Zupancic <indan@nul.nu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
+Evgeniy Polyakov wrote:
+> On Sat, Aug 12, 2006 at 11:19:49AM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
+>>> As you described above, memory for each packet must be allocated (either
+>>> from SLAB or from reserve), so network needs special allocator in OOM
+>>> condition, and that allocator should be separated from SLAB's one which 
+>>> got OOM, so my purpose is just to use that different allocator (with
+>>> additional features) for netroking always.
+> 
+> No it is not. There are socket queues and they are limited. Things like
+> TCP behave even better.
 
-Use sk_set_memalloc() on the nbd socket.
+Ahhh, but there are two allocators in play here.
 
-Limit each request to 1 page, so that the request throttling also limits the
-number of in-flight pages and force the IO scheduler to NOOP as anything else
-doesn't make sense anyway.
+The first one allocates the memory for receiving packets.
+This can be one pool, as long as it is isolated from
+other things in the system it is fine.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Daniel Phillips <phillips@google.com>
+The second allocator allocates more memory for socket
+buffers.  The memory critical sockets should get their
+memory from a mempool, once normal socket memory
+allocations start failing.
 
----
- block/elevator.c       |    5 +++++
- block/ll_rw_blk.c      |   12 ++++++++++--
- drivers/block/nbd.c    |   12 +++++++++++-
- include/linux/blkdev.h |    9 +++++++++
- 4 files changed, 35 insertions(+), 3 deletions(-)
+This means our allocation differentiation only needs
+to happen at the socket stage.
 
-Index: linux-2.6/block/ll_rw_blk.c
-===================================================================
---- linux-2.6.orig/block/ll_rw_blk.c	2006-08-12 15:38:01.000000000 +0200
-+++ linux-2.6/block/ll_rw_blk.c	2006-08-12 15:38:11.000000000 +0200
-@@ -1899,6 +1899,14 @@ EXPORT_SYMBOL(blk_init_queue);
- request_queue_t *
- blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
- {
-+	return blk_init_queue_node_elv(rfn, lock, node_id, NULL);
-+}
-+EXPORT_SYMBOL(blk_init_queue_node);
-+
-+request_queue_t *
-+blk_init_queue_node_elv(request_fn_proc *rfn, spinlock_t *lock, int node_id,
-+		char *elv_name)
-+{
- 	request_queue_t *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
- 
- 	if (!q)
-@@ -1939,7 +1947,7 @@ blk_init_queue_node(request_fn_proc *rfn
- 	/*
- 	 * all done
- 	 */
--	if (!elevator_init(q, NULL)) {
-+	if (!elevator_init(q, elv_name)) {
- 		blk_queue_congestion_threshold(q);
- 		return q;
- 	}
-@@ -1947,7 +1955,7 @@ blk_init_queue_node(request_fn_proc *rfn
- 	blk_put_queue(q);
- 	return NULL;
- }
--EXPORT_SYMBOL(blk_init_queue_node);
-+EXPORT_SYMBOL(blk_init_queue_node_elv);
- 
- int blk_get_queue(request_queue_t *q)
- {
-Index: linux-2.6/drivers/block/nbd.c
-===================================================================
---- linux-2.6.orig/drivers/block/nbd.c	2006-08-12 15:38:01.000000000 +0200
-+++ linux-2.6/drivers/block/nbd.c	2006-08-12 15:50:33.000000000 +0200
-@@ -361,8 +361,13 @@ static void nbd_do_it(struct nbd_device 
- 
- 	BUG_ON(lo->magic != LO_MAGIC);
- 
-+	if (sk_set_memalloc(lo->sock->sk))
-+		printk(KERN_WARNING
-+				"failed to set SO_MEMALLOC on NBD socket\n");
-+
- 	while ((req = nbd_read_stat(lo)) != NULL)
- 		nbd_end_request(req);
-+
- 	return;
- }
- 
-@@ -628,11 +633,16 @@ static int __init nbd_init(void)
- 		 * every gendisk to have its very own request_queue struct.
- 		 * These structs are big so we dynamically allocate them.
- 		 */
--		disk->queue = blk_init_queue(do_nbd_request, &nbd_lock);
-+		disk->queue = blk_init_queue_node_elv(do_nbd_request,
-+				&nbd_lock, -1, "noop");
- 		if (!disk->queue) {
- 			put_disk(disk);
- 			goto out;
- 		}
-+		blk_queue_pin_elevator(disk->queue);
-+		blk_queue_max_segment_size(disk->queue, PAGE_SIZE);
-+		blk_queue_max_hw_segments(disk->queue, 1);
-+		blk_queue_max_phys_segments(disk->queue, 1);
- 	}
- 
- 	if (register_blkdev(NBD_MAJOR, "nbd")) {
-Index: linux-2.6/include/linux/blkdev.h
-===================================================================
---- linux-2.6.orig/include/linux/blkdev.h	2006-08-12 15:38:01.000000000 +0200
-+++ linux-2.6/include/linux/blkdev.h	2006-08-12 15:38:11.000000000 +0200
-@@ -444,6 +444,12 @@ struct request_queue
- #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
- #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
- #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
-+#define QUEUE_FLAG_ELVPINNED	9	/* pin the current elevator */
-+
-+static inline void blk_queue_pin_elevator(struct request_queue *q)
-+{
-+	set_bit(QUEUE_FLAG_ELVPINNED, &q->queue_flags);
-+}
- 
- enum {
- 	/*
-@@ -696,6 +702,9 @@ static inline void elv_dispatch_add_tail
- /*
-  * Access functions for manipulating queue properties
-  */
-+extern request_queue_t *blk_init_queue_node_elv(request_fn_proc *rfn,
-+					spinlock_t *lock, int node_id,
-+					char *elv_name);
- extern request_queue_t *blk_init_queue_node(request_fn_proc *rfn,
- 					spinlock_t *lock, int node_id);
- extern request_queue_t *blk_init_queue(request_fn_proc *, spinlock_t *);
-Index: linux-2.6/block/elevator.c
-===================================================================
---- linux-2.6.orig/block/elevator.c	2006-08-12 15:38:01.000000000 +0200
-+++ linux-2.6/block/elevator.c	2006-08-12 15:38:11.000000000 +0200
-@@ -861,6 +861,11 @@ ssize_t elv_iosched_store(request_queue_
- 	size_t len;
- 	struct elevator_type *e;
- 
-+	if (test_bit(QUEUE_FLAG_ELVPINNED, &q->queue_flags)) {
-+		printk(KERN_ERR "elevator: cannot switch elevator, pinned\n");
-+		return count;
-+	}
-+
- 	elevator_name[sizeof(elevator_name) - 1] = '\0';
- 	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
- 	len = strlen(elevator_name);
+Or am I overlooking something?
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
