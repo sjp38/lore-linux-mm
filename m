@@ -1,60 +1,115 @@
-Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <47227.81.207.0.53.1155406611.squirrel@81.207.0.53>
+Message-ID: <44410.81.207.0.53.1155411901.squirrel@81.207.0.53>
+In-Reply-To: <1155408431.13508.110.camel@lappy>
 References: <20060812141415.30842.78695.sendpatchset@lappy>
-	 <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>
-	 <1155404014.13508.72.camel@lappy>
-	 <47227.81.207.0.53.1155406611.squirrel@81.207.0.53>
-Content-Type: text/plain
-Date: Sat, 12 Aug 2006 20:54:06 +0200
-Message-Id: <1155408846.13508.115.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+    <20060812141445.30842.47336.sendpatchset@lappy>
+    <44640.81.207.0.53.1155403862.squirrel@81.207.0.53>
+    <1155404697.13508.81.camel@lappy>
+    <40048.81.207.0.53.1155405282.squirrel@81.207.0.53>
+    <1155406120.13508.87.camel@lappy>
+    <57504.81.207.0.53.1155407532.squirrel@81.207.0.53>
+    <1155408431.13508.110.camel@lappy>
+Date: Sat, 12 Aug 2006 21:45:01 +0200 (CEST)
+Subject: Re: [RFC][PATCH 3/4] deadlock prevention core
+From: "Indan Zupancic" <indan@nul.nu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Indan Zupancic <indan@nul.nu>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2006-08-12 at 20:16 +0200, Indan Zupancic wrote:
-> On Sat, August 12, 2006 19:33, Peter Zijlstra said:
-> > Simpler yes, but also more complete; the old patches had serious issues
-> > with the alternative allocation scheme.
-> 
-> It sure is more complete, and looks nicer, but the price is IMHO too high.
-> I'm curious what those serious issues are, and if they can't be fixed.
-> 
-> > As for why SROG, because trying to stick all the semantics needed for
-> > all skb operations into the old approach was nasty, I had it almost
-> > complete but it was horror (and more code than the SROG approach).
-> 
-> What was missing or wrong in the old approach? Can't you use the new
-> approach, but use alloc_pages() instead of SROG?
-> 
-> Sorry if I bug you so, but I'm also trying to increase my knowledge here. ;-)
+On Sat, August 12, 2006 20:47, Peter Zijlstra said:
+> Ah right, I did that in v3, with a similar comment, but I realised that
+> the inbound reserve need not be per socket, and that the comment was
+> ambiguous enough to allow this reading.
 
-I'm almost sorry I threw that code out, you'd understand instantly..
+True, but better to change the comment than to confuse people.
+Lots of it is outdated because reservations aren't per device anymore.
 
-Lemme see what I can do to explain; what I need/want is:
- - single allocation group per packet - that is, when I free a packet
-and all its associated object I get my memory back.
- - not waste too much space managing the various objects
+Changes to your version:
+- Got rid of memalloc_socks.
+- Don't include inetdevice.h (it isn't needed anymore, right?)
+- Updated comment.
 
-skb operations want to allocate various sk_buffs for the same data
-clones. Also, it wants to be able to break the COW or realloc the data.
+(I'm editing the diff, so this won't apply)
 
-The trivial approach would be one page (or higher alloc page) per
-object, and that will work quite well, except that it'll waste a _lot_
-of memory. 
+Index: linux-2.6/net/core/sock.c
+===================================================================
+--- linux-2.6.orig/net/core/sock.c	2006-08-12 12:56:06.000000000 +0200
++++ linux-2.6/net/core/sock.c	2006-08-12 13:02:59.000000000 +0200
+@@ -111,6 +111,8 @@
+ #include <linux/poll.h>
+ #include <linux/tcp.h>
+ #include <linux/init.h>
++#include <linux/blkdev.h>
 
-So I tried manual packing (parts of that you have seen in previous
-attempts). This gets hard when you want to do unlimited clones and COW
-breaks. To do either you need to go link several pages.
+ #include <asm/uaccess.h>
+ #include <asm/system.h>
+@@ -195,6 +197,78 @@ __u32 sysctl_rmem_default = SK_RMEM_MAX;
+ /* Maximal space eaten by iovec or ancilliary data plus some space */
+ int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
 
-So needing a list of pages and wanting packing gave me SROG. The biggest
-wart is having to deal with higher order pages. Explicitly coding in
-knowledge of the object you're packing just makes the code bigger - such
-is the power of abstraction.
++static DEFINE_SPINLOCK(memalloc_lock);
++static int memalloc_socks;
++static unsigned long memalloc_reserve;
++
++atomic_t memalloc_skbs_used;
++EXPORT_SYMBOL_GPL(memalloc_skbs_used);
++
++/**
++ *        sk_adjust_memalloc - adjust the global memalloc reserve
++ *        @nr_socks: number of new %SOCK_MEMALLOC sockets
++ *
++ *        This function adjusts the memalloc reserve based on system demand.
++ *        For each %SOCK_MEMALLOC socket 2 * %MAX_PHYS_SEGMENTS pages are
++ *        reserved for outbound traffic (assumption: each %SOCK_MEMALLOC
++ *        socket will have a %request_queue associated).
++ *
++ *        Pages for inbound traffic are already reserved.
++ *
++ *        2 * %MAX_PHYS_SEGMENTS - the request queue can hold up to 150%,
++ *                the remaining 50% goes to being sure we can write packets
++ *                for the outgoing pages.
++ */
++static DEFINE_SPINLOCK(memalloc_lock);
++static int memalloc_socks;
++
++atomic_t memalloc_skbs_used;
++EXPORT_SYMBOL_GPL(memalloc_skbs_used);
++
++int sk_adjust_memalloc(int nr_socks)
++{
++	unsigned long flags;
++	unsigned int reserve;
++	int err;
++
++	spin_lock_irqsave(&memalloc_lock, flags);
++
++	memalloc_socks += nr_socks;
++	BUG_ON(memalloc_socks < 0);
++
++	reserve = nr_socks * 2 * MAX_PHYS_SEGMENTS;	/* outbound */
++
++	err = adjust_memalloc_reserve(reserve);
++	spin_unlock_irqrestore(&memalloc_lock, flags);
++	if (err) {
++		printk(KERN_WARNING
++			"Unable to adjust RX reserve by %lu, error: %d\n",
++			reserve, err);
++	}
++	return err;
++}
++EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
+
+What's missing now is an adjust_memalloc_reserve(5 * MAX_CONCURRENT_SKBS)
+call in some init code.
+
+Greetings,
+
+Indan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
