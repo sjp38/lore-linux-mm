@@ -1,36 +1,31 @@
-Received: by nf-out-0910.google.com with SMTP id p46so1424887nfa
-        for <linux-mm@kvack.org>; Sat, 12 Aug 2006 14:43:46 -0700 (PDT)
-Message-ID: <6e88e8570608121443i44991d96y15c4e7ff662f1121@mail.gmail.com>
-Date: Sat, 12 Aug 2006 23:43:46 +0200
-From: "Nikola Gidalov" <ngidalov@gmail.com>
-Subject: mmap maped memory trace
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Sat, 12 Aug 2006 17:46:07 -0700 (PDT)
+Message-Id: <20060812.174607.44371641.davem@davemloft.net>
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20060812093706.GA13554@2ka.mipt.ru>
+References: <20060812084713.GA29523@2ka.mipt.ru>
+	<1155374390.13508.15.camel@lappy>
+	<20060812093706.GA13554@2ka.mipt.ru>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Date: Sat, 12 Aug 2006 13:37:06 +0400
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: johnpol@2ka.mipt.ru
+Cc: a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
 List-ID: <linux-mm.kvack.org>
 
-Dear kernel experts,
+> Does it? I though it is possible to only have 64k of working sockets per
+> device in TCP.
 
-I'd like to ask you how it is possible to to be notified in the driver
-module whenever the user of driver writes to the mmap-ed memory from
-the driver.
+Where does this limit come from?
 
-I'm making a virtual 8bpp framebuffer driver. The user of the fb
-driver uses mmap to map the framebuffer memory. In the driver I use
-the vmalloc memory and map the memory to the user space when the user
-calls mmap.
-Now , I'd like to intercept the "memory-write" operation to my mmaped
-memory, to convert the 8bpp value to 32bpp and to write the 32bpp
-value to the real framebuffer on the fly.
-Changing the clients to use 32bpp framebuffer directly os not an option.
-
-With kind regards,
-
-Nikola
+You think there is something magic about 64K local ports,
+but if remote IP addresses in the TCP socket IDs are all
+different, number of possible TCP sockets is only limited
+by "number of client IPs * 64K" and ram :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
