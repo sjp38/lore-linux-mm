@@ -1,49 +1,45 @@
-Message-ID: <44DF9817.8070509@google.com>
-Date: Sun, 13 Aug 2006 14:22:31 -0700
+Message-ID: <44DFA225.1020508@google.com>
+Date: Sun, 13 Aug 2006 15:05:25 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-References: <44D976E6.5010106@google.com>	<20060809131942.GY14627@postel.suug.ch>	<1155132440.12225.70.camel@twins> <20060809.165846.107940575.davem@davemloft.net>
-In-Reply-To: <20060809.165846.107940575.davem@davemloft.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193345.1396.16773.sendpatchset@lappy> <20060808211731.GR14627@postel.suug.ch> <44DBED4C.6040604@redhat.com>
+In-Reply-To: <44DBED4C.6040604@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: a.p.zijlstra@chello.nl, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Thomas Graf <tgraf@suug.ch>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
->>Hmm, what does sk_buff::input_dev do? That seems to store the initial
->>device?
+Rik van Riel wrote:
+> Thomas Graf wrote:
+>> skb->dev is not guaranteed to still point to the "allocating" device
+>> once the skb is freed again so reserve/unreserve isn't symmetric.
+>> You'd need skb->alloc_dev or something.
 > 
-> You can run grep on the tree just as easily as I can which is what I
-> did to answer this question.  It only takes a few seconds of your
-> time to grep the source tree for things like "skb->input_dev", so
-> would you please do that before asking more questions like this?
+> There's another consequence of this property of the network
+> stack.
 > 
-> It does store the initial device, but as Thomas tried so hard to
-> explain to you guys these device pointers in the skb are transient and
-> you cannot refer to them outside of packet receive processing.
+> Every network interface must be able to fall back to these
+> MEMALLOC allocations, because the memory critical socket
+> could be on another network interface.  Hence, we cannot
+> know which network interfaces should (not) be marked MEMALLOC.
 
-Thomas did a great job of explaining and without any flaming or ad
-hominem attacks.
+Good point.  We do however know which interfaces should be marked
+capable of carrying block IO traffic: the ones that have been fixed,
+audited and tested.  We might then allow the network block device to
+specify which interface(s) will actually carry the traffic.
 
-We have now formed a decent plan for doing the accounting in a stable
-way without adding new fields to sk_buff, thankyou for the catch.
+The advantage of being specific about which devices are carrying at
+least one block io socket is, we can skip the reserve accounting for
+the other interfaces.  But is the extra layer of configuration gack a
+better idea than just doing the accounting for every device, provided
+the system is in reclaim?
 
-> The reason is that there is no refcounting performed on these devices
-> when they are attached to the skb, for performance reasons, and thus
-> the device can be downed, the module for it removed, etc. long before
-> the skb is freed up.
-
-The virtual block device can refcount the network device on virtual
-device create and un-refcount on virtual device delete.  We need to
-add that to the core patch and maybe package it nicely so the memalloc
-reserve/unreserve happens at the same time, in a tidy little library
-function to share with other virtual devices like iSCSI that also need
-some anti-deadlock lovin.
+By the way, another way to avoid impact on the normal case is an
+experimental option such as CONFIG_PREVENT_NETWORK_BLOCKIO_DEADLOCK.
 
 Regards,
 
