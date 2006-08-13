@@ -1,31 +1,31 @@
-Date: Sat, 12 Aug 2006 17:46:07 -0700 (PDT)
-Message-Id: <20060812.174607.44371641.davem@davemloft.net>
+Date: Sat, 12 Aug 2006 17:46:51 -0700 (PDT)
+Message-Id: <20060812.174651.113732891.davem@davemloft.net>
 Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <20060812093706.GA13554@2ka.mipt.ru>
-References: <20060812084713.GA29523@2ka.mipt.ru>
-	<1155374390.13508.15.camel@lappy>
+In-Reply-To: <1155377887.13508.27.camel@lappy>
+References: <1155374390.13508.15.camel@lappy>
 	<20060812093706.GA13554@2ka.mipt.ru>
+	<1155377887.13508.27.camel@lappy>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Date: Sat, 12 Aug 2006 13:37:06 +0400
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Sat, 12 Aug 2006 12:18:07 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: johnpol@2ka.mipt.ru
-Cc: a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
+To: a.p.zijlstra@chello.nl
+Cc: johnpol@2ka.mipt.ru, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
 List-ID: <linux-mm.kvack.org>
 
-> Does it? I though it is possible to only have 64k of working sockets per
-> device in TCP.
+> 65535 sockets * 128 packets * 16384 bytes/packet = 
+> 1^16 * 1^7 * 1^14 = 1^(16+7+14) = 1^37 = 128G of memory per IP
+> 
+> And systems with a lot of IP numbers are not unthinkable.
 
-Where does this limit come from?
+TCP restricts the amount of global memory that may be consumed
+by all TCP sockets via the tcp_mem[] sysctl.
 
-You think there is something magic about 64K local ports,
-but if remote IP addresses in the TCP socket IDs are all
-different, number of possible TCP sockets is only limited
-by "number of client IPs * 64K" and ram :-)
+Otherwise several forms of DoS attacks would be possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
