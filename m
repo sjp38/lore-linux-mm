@@ -1,40 +1,50 @@
-Message-ID: <44DF834E.4020302@garzik.org>
-Date: Sun, 13 Aug 2006 15:53:50 -0400
-From: Jeff Garzik <jeff@garzik.org>
+Message-ID: <44DF888F.1010601@google.com>
+Date: Sun, 13 Aug 2006 13:16:15 -0700
+From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 8/9] 3c59x driver conversion
-References: <20060808193447.1396.59301.sendpatchset@lappy>	<44D9191E.7080203@garzik.org>	<44D977D8.5070306@google.com> <20060808.225537.112622421.davem@davemloft.net> <44DF7FB9.8020003@google.com>
-In-Reply-To: <44DF7FB9.8020003@google.com>
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+References: <1155127040.12225.25.camel@twins>	 <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins>	 <20060809.165431.118952392.davem@davemloft.net> <1155189988.12225.100.camel@twins>
+In-Reply-To: <1155189988.12225.100.camel@twins>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@google.com>
-Cc: David Miller <davem@davemloft.net>, a.p.zijlstra@chello.nl, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: David Miller <davem@davemloft.net>, johnpol@2ka.mipt.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips wrote:
-> That is why it has not yet been submitted upstream.  Respectfully, I
-> do not think that jgarzik has yet put in the work to know if this anti
-> deadlock technique is reasonable or not, and he was only commenting
-> on some superficial blemish.  I still don't get his point, if there
-> was one.  He seems to be arguing in favor of a jump-off-the-cliff
-> approach to driver conversion.  If he wants to do the work and take
-> the blame when some driver inevitably breaks because of being edited
-> in a hurry then he is welcome to submit the necessary additional
-> patches.  Until then, there are about 3 nics that actually matter to
-> network storage at the moment, all of them GigE.
+Peter Zijlstra wrote:
+> On Wed, 2006-08-09 at 16:54 -0700, David Miller wrote:
+>>People are doing I/O over IP exactly for it's ubiquity and
+>>flexibility.  It seems a major limitation of the design if you cancel
+>>out major components of this flexibility.
+> 
+> We're not, that was a bit of my own frustration leaking out; I think 
+> this whole push to IP based storage is a bit silly. I'm just not going 
+> to help the admin who's server just hangs because his VPN key expired.
+>
+> Running critical resources remotely like this is tricky, and every 
+> hop/layer you put in between increases the risk of something going bad.
+> The only setup I think even remotely sane is a dedicated network in the
+> very same room - not unlike FC but cheaper (which I think is the whole
+> push behind this, eth is cheap)
 
-Quite whining and blaming the reviewer for a poor approach.
+Indeed.  The rest of the corner cases like netfilter, layered protocol and
+so on need to be handled, however they do not need to be handled right now
+in order to make remote storage on a lan work properly.  The sane thing for
+the immediate future is to flag each socket as safe for remote block IO or
+not, then gradually widen the scope of what is safe.  We need to set up an
+opt in strategy for network block IO that views such network subsystems as
+ipfilter as not safe by default, until somebody puts in the work to make
+them safe.
 
-A "this driver is sane, VM-wise" flag is just plain stupid, and clearly 
-fragments drivers.
+But really, if you expect to run reliable block IO to Zanzibar over an ssh
+tunnel through a firewall, then you might also consider taking up bungie
+jumping with the cord tied to your neck.
 
-In Linux, "temporary flags"... aren't.
+Regards,
 
-	Jeff
-
-
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
