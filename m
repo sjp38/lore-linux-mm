@@ -1,40 +1,41 @@
-Date: Sun, 13 Aug 2006 13:52:05 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-Message-ID: <20060813095205.GA5458@2ka.mipt.ru>
-References: <20060812084713.GA29523@2ka.mipt.ru> <1155374390.13508.15.camel@lappy> <20060812093706.GA13554@2ka.mipt.ru> <20060812.174607.44371641.davem@davemloft.net> <20060813090620.GB14960@2ka.mipt.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <20060813090620.GB14960@2ka.mipt.ru>
+Message-ID: <44DF7FB9.8020003@google.com>
+Date: Sun, 13 Aug 2006 12:38:33 -0700
+From: Daniel Phillips <phillips@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 8/9] 3c59x driver conversion
+References: <20060808193447.1396.59301.sendpatchset@lappy>	<44D9191E.7080203@garzik.org>	<44D977D8.5070306@google.com> <20060808.225537.112622421.davem@davemloft.net>
+In-Reply-To: <20060808.225537.112622421.davem@davemloft.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
+Cc: jeff@garzik.org, a.p.zijlstra@chello.nl, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 13, 2006 at 01:06:21PM +0400, Evgeniy Polyakov (johnpol@2ka.mipt.ru) wrote:
-> On Sat, Aug 12, 2006 at 05:46:07PM -0700, David Miller (davem@davemloft.net) wrote:
-> > From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-> > Date: Sat, 12 Aug 2006 13:37:06 +0400
-> > 
-> > > Does it? I though it is possible to only have 64k of working sockets per
-> > > device in TCP.
-> > 
-> > Where does this limit come from?
-> > 
-> > You think there is something magic about 64K local ports,
-> > but if remote IP addresses in the TCP socket IDs are all
-> > different, number of possible TCP sockets is only limited
-> > by "number of client IPs * 64K" and ram :-)
-> 
-> I talked about working sockets, but not about how many of them system
-> can have at all :)
+David Miller wrote:
+> I think he's saying that he doesn't think your code is yet a
+> reasonable way to solve the problem, and therefore doesn't belong
+> upstream.
 
-working -> bound.
+That is why it has not yet been submitted upstream.  Respectfully, I
+do not think that jgarzik has yet put in the work to know if this anti
+deadlock technique is reasonable or not, and he was only commenting
+on some superficial blemish.  I still don't get his point, if there
+was one.  He seems to be arguing in favor of a jump-off-the-cliff
+approach to driver conversion.  If he wants to do the work and take
+the blame when some driver inevitably breaks because of being edited
+in a hurry then he is welcome to submit the necessary additional
+patches.  Until then, there are about 3 nics that actually matter to
+network storage at the moment, all of them GigE.
 
--- 
-	Evgeniy Polyakov
+The layer 2 blemishes can be fixed easily, including avoiding the
+atomic op stall and the ->dev volatility .  Thankyou for pointing
+those out.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
