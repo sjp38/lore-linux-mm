@@ -1,38 +1,37 @@
-Message-ID: <44DE7C34.4080909@redhat.com>
-Date: Sat, 12 Aug 2006 21:11:16 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Date: Sun, 13 Aug 2006 13:06:21 +0400
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-References: <1155374390.13508.15.camel@lappy>	<20060812093706.GA13554@2ka.mipt.ru>	<1155377887.13508.27.camel@lappy> <20060812.174651.113732891.davem@davemloft.net>
-In-Reply-To: <20060812.174651.113732891.davem@davemloft.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20060813090620.GB14960@2ka.mipt.ru>
+References: <20060812084713.GA29523@2ka.mipt.ru> <1155374390.13508.15.camel@lappy> <20060812093706.GA13554@2ka.mipt.ru> <20060812.174607.44371641.davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=koi8-r
+Content-Disposition: inline
+In-Reply-To: <20060812.174607.44371641.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: a.p.zijlstra@chello.nl, johnpol@2ka.mipt.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
+Cc: a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, phillips@google.com
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Sat, 12 Aug 2006 12:18:07 +0200
+On Sat, Aug 12, 2006 at 05:46:07PM -0700, David Miller (davem@davemloft.net) wrote:
+> From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+> Date: Sat, 12 Aug 2006 13:37:06 +0400
 > 
->> 65535 sockets * 128 packets * 16384 bytes/packet = 
->> 1^16 * 1^7 * 1^14 = 1^(16+7+14) = 1^37 = 128G of memory per IP
->>
->> And systems with a lot of IP numbers are not unthinkable.
+> > Does it? I though it is possible to only have 64k of working sockets per
+> > device in TCP.
 > 
-> TCP restricts the amount of global memory that may be consumed
-> by all TCP sockets via the tcp_mem[] sysctl.
+> Where does this limit come from?
+> 
+> You think there is something magic about 64K local ports,
+> but if remote IP addresses in the TCP socket IDs are all
+> different, number of possible TCP sockets is only limited
+> by "number of client IPs * 64K" and ram :-)
 
-This is exactly why we need to be careful which sockets
-we allocate memory for, when the system is about to run
-out of memory.
+I talked about working sockets, but not about how many of them system
+can have at all :)
 
 -- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
