@@ -1,49 +1,39 @@
-Message-ID: <44DFA225.1020508@google.com>
-Date: Sun, 13 Aug 2006 15:05:25 -0700
-From: Daniel Phillips <phillips@google.com>
-MIME-Version: 1.0
+Date: Sun, 13 Aug 2006 16:49:34 -0700 (PDT)
+Message-Id: <20060813.164934.00081381.davem@davemloft.net>
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-References: <20060808193325.1396.58813.sendpatchset@lappy> <20060808193345.1396.16773.sendpatchset@lappy> <20060808211731.GR14627@postel.suug.ch> <44DBED4C.6040604@redhat.com>
-In-Reply-To: <44DBED4C.6040604@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <44DF9817.8070509@google.com>
+References: <1155132440.12225.70.camel@twins>
+	<20060809.165846.107940575.davem@davemloft.net>
+	<44DF9817.8070509@google.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Daniel Phillips <phillips@google.com>
+Date: Sun, 13 Aug 2006 14:22:31 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Thomas Graf <tgraf@suug.ch>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: phillips@google.com
+Cc: a.p.zijlstra@chello.nl, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Thomas Graf wrote:
->> skb->dev is not guaranteed to still point to the "allocating" device
->> once the skb is freed again so reserve/unreserve isn't symmetric.
->> You'd need skb->alloc_dev or something.
+> David Miller wrote:
+> > The reason is that there is no refcounting performed on these devices
+> > when they are attached to the skb, for performance reasons, and thus
+> > the device can be downed, the module for it removed, etc. long before
+> > the skb is freed up.
 > 
-> There's another consequence of this property of the network
-> stack.
-> 
-> Every network interface must be able to fall back to these
-> MEMALLOC allocations, because the memory critical socket
-> could be on another network interface.  Hence, we cannot
-> know which network interfaces should (not) be marked MEMALLOC.
+> The virtual block device can refcount the network device on virtual
+> device create and un-refcount on virtual device delete.
 
-Good point.  We do however know which interfaces should be marked
-capable of carrying block IO traffic: the ones that have been fixed,
-audited and tested.  We might then allow the network block device to
-specify which interface(s) will actually carry the traffic.
+What if the packet is originally received on the device in question,
+and then gets redirected to another device by a packet scheduler
+traffic classifier action or a netfilter rule?
 
-The advantage of being specific about which devices are carrying at
-least one block io socket is, we can skip the reserve accounting for
-the other interfaces.  But is the extra layer of configuration gack a
-better idea than just doing the accounting for every device, provided
-the system is in reclaim?
-
-By the way, another way to avoid impact on the normal case is an
-experimental option such as CONFIG_PREVENT_NETWORK_BLOCKIO_DEADLOCK.
-
-Regards,
-
-Daniel
+It is necessary to handle the case where the device changes on the
+skb, and the skb gets freed up in a context and assosciation different
+from when the skb was allocated (for example, different from the
+device attached to the virtual block device).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
