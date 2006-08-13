@@ -1,39 +1,43 @@
-Date: Sun, 13 Aug 2006 16:49:34 -0700 (PDT)
-Message-Id: <20060813.164934.00081381.davem@davemloft.net>
+Date: Sun, 13 Aug 2006 16:55:40 -0700 (PDT)
+Message-Id: <20060813.165540.56347790.davem@davemloft.net>
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <44DF9817.8070509@google.com>
-References: <1155132440.12225.70.camel@twins>
-	<20060809.165846.107940575.davem@davemloft.net>
-	<44DF9817.8070509@google.com>
+In-Reply-To: <44DFA225.1020508@google.com>
+References: <20060808211731.GR14627@postel.suug.ch>
+	<44DBED4C.6040604@redhat.com>
+	<44DFA225.1020508@google.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 From: Daniel Phillips <phillips@google.com>
-Date: Sun, 13 Aug 2006 14:22:31 -0700
+Date: Sun, 13 Aug 2006 15:05:25 -0700
 Return-Path: <owner-linux-mm@kvack.org>
 To: phillips@google.com
-Cc: a.p.zijlstra@chello.nl, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: riel@redhat.com, tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> David Miller wrote:
-> > The reason is that there is no refcounting performed on these devices
-> > when they are attached to the skb, for performance reasons, and thus
-> > the device can be downed, the module for it removed, etc. long before
-> > the skb is freed up.
-> 
-> The virtual block device can refcount the network device on virtual
-> device create and un-refcount on virtual device delete.
+> By the way, another way to avoid impact on the normal case is an
+> experimental option such as CONFIG_PREVENT_NETWORK_BLOCKIO_DEADLOCK.
 
-What if the packet is originally received on the device in question,
-and then gets redirected to another device by a packet scheduler
-traffic classifier action or a netfilter rule?
+That would just make the solution look more like a hack, and "bolted
+on" rather than designed.
 
-It is necessary to handle the case where the device changes on the
-skb, and the skb gets freed up in a context and assosciation different
-from when the skb was allocated (for example, different from the
-device attached to the virtual block device).
+I think there is more profitability from a solution that really does
+something about "network memory", and doesn't try to say "these
+devices are special" or "these sockets are special".  Special cases
+generally suck.
+
+We already limit and control TCP socket memory globally in the system.
+If we do this for all socket and anonymous network buffer allocations,
+which is sort of implicity in Evgeniy's network tree allocator design,
+we can solve this problem in a more reasonable way.
+
+And here's the kick, there are other unrelated highly positive
+consequences to using Evgeniy's network tree allocator.
+
+It doesn't just solve the _one_ problem it was built for, it solves
+several problems.  And that is the hallmark signature of good design.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
