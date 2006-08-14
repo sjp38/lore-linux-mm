@@ -1,58 +1,54 @@
-Message-ID: <44DFCE9C.402@google.com>
-Date: Sun, 13 Aug 2006 18:15:08 -0700
+Message-ID: <44DFD262.5060106@google.com>
+Date: Sun, 13 Aug 2006 18:31:14 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-References: <1155132440.12225.70.camel@twins>	<20060809.165846.107940575.davem@davemloft.net>	<44DF9817.8070509@google.com> <20060813.164934.00081381.davem@davemloft.net>
-In-Reply-To: <20060813.164934.00081381.davem@davemloft.net>
+References: <20060808211731.GR14627@postel.suug.ch>	<44DBED4C.6040604@redhat.com>	<44DFA225.1020508@google.com> <20060813.165540.56347790.davem@davemloft.net>
+In-Reply-To: <20060813.165540.56347790.davem@davemloft.net>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: a.p.zijlstra@chello.nl, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: riel@redhat.com, tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 David Miller wrote:
->From: Daniel Phillips <phillips@google.com>
->>David Miller wrote:
->>
->>>The reason is that there is no refcounting performed on these devices
->>>when they are attached to the skb, for performance reasons, and thus
->>>the device can be downed, the module for it removed, etc. long before
->>>the skb is freed up.
->>
->>The virtual block device can refcount the network device on virtual
->>device create and un-refcount on virtual device delete.
+> I think there is more profitability from a solution that really does
+> something about "network memory", and doesn't try to say "these
+> devices are special" or "these sockets are special".  Special cases
+> generally suck.
 > 
-> What if the packet is originally received on the device in question,
-> and then gets redirected to another device by a packet scheduler
-> traffic classifier action or a netfilter rule?
-> 
-> It is necessary to handle the case where the device changes on the
-> skb, and the skb gets freed up in a context and assosciation different
-> from when the skb was allocated (for example, different from the
-> device attached to the virtual block device).
+> We already limit and control TCP socket memory globally in the system.
+> If we do this for all socket and anonymous network buffer allocations,
+> which is sort of implicity in Evgeniy's network tree allocator design,
+> we can solve this problem in a more reasonable way.
 
-This aspect of the patch became moot because of the change to a single
-reserve for all layer 2 delivery in Peter's more recent revisions.
+This does sound promising, but...
 
-*However* maybe it is worth mentioning that I intended to provide a
-pointer from each sk_buff to a common accounting struct.  This pointer
-is set by the device driver.  If the driver knows nothing about memory
-accounting then the pointer is null, no accounting is done, and block
-IO over the interface will be dangerous.  Otherwise, if the system is
-in reclaim (which we currently detect crudely when a normal allocation
-fails) then atomic ops will be done on the accounting structure.
+It is not possible to solve this problem entirely in the network
+layer.  At minimum, throttling is needed in the nbd driver, or even
+better, in the submit_bio path as we have it now.  We also need a way
+of letting the virtual block device declare its resource needs, which
+we also have in some form.  We also need a mechanism to guarantee
+level 2 delivery so we can drop unrelated packets if necessary, which
+exists in the current patch set.
 
-I planned to use the (struct sock *)sk_buff->sk field for this, which
-is unused during layer 2 delivery as far as I can see.  The accounting
-struct can look somewhat like a struct sock if we like, size doesn't
-really matter, and it might make the code more robust.  Or the field
-could become a union.
+So Evgeniy's work might well be a part of the solution, but it is not
+the whole solution.
 
-Anyway, this bit doesn't matter any more, the single global packet
-delivery reserve is better and simpler.
+> And here's the kick, there are other unrelated highly positive
+> consequences to using Evgeniy's network tree allocator.
+
+Also good.  But is it ready to use today?  We need to actually fix
+the out of memory deadlock/performance bug right now so that remote
+storage works properly.
+
+> It doesn't just solve the _one_ problem it was built for, it solves
+> several problems.  And that is the hallmark signature of good design.
+
+Great.  But to solve the whole problem, the block IO system and the
+network layer absolutely must cooperate.
 
 Regards,
 
