@@ -1,63 +1,75 @@
-Message-ID: <44DFBEA3.5070305@google.com>
-Date: Sun, 13 Aug 2006 17:06:59 -0700
+Message-ID: <44DFC707.7000404@google.com>
+Date: Sun, 13 Aug 2006 17:42:47 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Subject: Re: rename *MEMALLOC flags
-References: <20060812141415.30842.78695.sendpatchset@lappy>	 <20060812141445.30842.47336.sendpatchset@lappy>	 <44DDE8B6.8000900@garzik.org> <1155395201.13508.44.camel@lappy>
-In-Reply-To: <1155395201.13508.44.camel@lappy>
+Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
+References: <20060812141415.30842.78695.sendpatchset@lappy>	 <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>	 <1155404014.13508.72.camel@lappy>	 <47227.81.207.0.53.1155406611.squirrel@81.207.0.53> <1155408846.13508.115.camel@lappy>
+In-Reply-To: <1155408846.13508.115.camel@lappy>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Jeff Garzik <jeff@garzik.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Indan Zupancic <indan@nul.nu>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+Cc: Indan Zupancic <indan@nul.nu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
 Peter Zijlstra wrote:
->Jeff Garzik in his infinite wisdom spake thusly:
->>Peter Zijlstra wrote:
+> On Sat, 2006-08-12 at 20:16 +0200, Indan Zupancic wrote:
+>>What was missing or wrong in the old approach? Can't you use the new
+>>approach, but use alloc_pages() instead of SROG?
 >>
->>>Index: linux-2.6/include/linux/gfp.h
->>>===================================================================
->>>--- linux-2.6.orig/include/linux/gfp.h	2006-08-12 12:56:06.000000000 +0200
->>>+++ linux-2.6/include/linux/gfp.h	2006-08-12 12:56:09.000000000 +0200
->>>@@ -46,6 +46,7 @@ struct vm_area_struct;
->>> #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
->>> #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
->>> #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
->>>+#define __GFP_MEMALLOC  ((__force gfp_t)0x40000u) /* Use emergency reserves */
->>
->>This symbol name has nothing to do with its purpose.  The entire area of 
->>code you are modifying could be described as having something to do with 
->>'memalloc'.
->>
->>GFP_EMERGENCY or GFP_USE_RESERVES or somesuch would be a far better 
->>symbol name.
->>
->>I recognize that is matches with GFP_NOMEMALLOC, but that doesn't change 
->>the situation anyway.  In fact, a cleanup patch to rename GFP_NOMEMALLOC 
->>would be nice.
+>>Sorry if I bug you so, but I'm also trying to increase my knowledge here. ;-)
 > 
-> I'm rather bad at picking names, but here goes:
+> I'm almost sorry I threw that code out...
+
+Good instinct :-)
+
+> Lemme see what I can do to explain; what I need/want is:
+>  - single allocation group per packet - that is, when I free a packet
+> and all its associated object I get my memory back.
+
+First, try to recast all your objects as pages, as Evgeniy Polyakov
+suggested.  Then if there is some place where that just doesn't work
+(please point it out) put a mempool there and tweak the high level
+reservation setup accordingly.
+
+>  - not waste too much space managing the various objects
+
+If we waste a little space only where the network would have otherwise
+dropped a packet, that is still a big win.  We just need to be sure the
+normal path does not become more wasteful.
+
+> skb operations want to allocate various sk_buffs for the same data
+> clones. Also, it wants to be able to break the COW or realloc the data.
 > 
-> PF_MEMALLOC      -> PF_EMERGALLOC
-> __GFP_NOMEMALLOC -> __GFP_NOEMERGALLOC
-> __GFP_MEMALLOC   -> __GFP_EMERGALLOC
-> 
-> Is that suitable and shall I prepare patches? Or do we want more ppl to
-> chime in and have a few more rounds?
+> The trivial approach would be one page (or higher alloc page) per
+> object, and that will work quite well, except that it'll waste a _lot_
+> of memory. 
 
-MEMALLOC is the name Linus chose to name exactly the reserve from which we
-are allocating.  Perhaps that was just Linus being denser than jgarzik and
-not realizing that he should have called it EMERGALLOC right from the start.
+High order allocations are just way too undependable without active
+defragmentation, which isn't even on the horizon at the moment.  We
+just need to treat any network hardware that can't scatter/gather into
+single pages as too broken to use for network block io.
 
-BUT since Linus did call it MEMALLOC, we should too.  Or just email Linus
-and tell him how much better EMERGALLOC rolls off the tongue, and could we
-please change all occurances of MEMALLOC to EMERGALLOC.  Then don't read
-your email for a week ;-)
+As for sk_buff cow break, we need to look at which network paths do it
+(netfilter obviously, probably others) and decide whether we just want
+to declare that the feature breaks network block IO, or fix the feature
+so it plays well with reserve accounting.
 
-Inventing a new name for an existing thing is very poor taste on grounds of
-grepability alone.
+> So I tried manual packing (parts of that you have seen in previous
+> attempts). This gets hard when you want to do unlimited clones and COW
+> breaks. To do either you need to go link several pages.
+
+You need to avoid the temptation to fix the entire world on the first
+attempt.  Sure, there will be people who call for gobs of overengineering
+right from the start, but simple has always worked better for Linux than
+lathering on layers of complexity just to support some feature that may
+arguably be broken by design.  For example, swapping through a firewall.
+
+Changing from per-interface to a global block IO reserve was a great
+simplification, we need more of those.
+
+Looking forward to -v5 ;-)
 
 Regards,
 
