@@ -1,75 +1,33 @@
-Message-ID: <44DFC707.7000404@google.com>
-Date: Sun, 13 Aug 2006 17:42:47 -0700
+Message-ID: <44DFCA28.7040808@google.com>
+Date: Sun, 13 Aug 2006 17:56:08 -0700
 From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
-References: <20060812141415.30842.78695.sendpatchset@lappy>	 <33471.81.207.0.53.1155401489.squirrel@81.207.0.53>	 <1155404014.13508.72.camel@lappy>	 <47227.81.207.0.53.1155406611.squirrel@81.207.0.53> <1155408846.13508.115.camel@lappy>
-In-Reply-To: <1155408846.13508.115.camel@lappy>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
+References: <1155127040.12225.25.camel@twins> <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins> <44DD4E3A.4040000@redhat.com> <20060812084713.GA29523@2ka.mipt.ru> <1155374390.13508.15.camel@lappy> <20060812093706.GA13554@2ka.mipt.ru> <44DDE857.3080703@redhat.com> <20060812144921.GA25058@2ka.mipt.ru> <44DDEC1F.6010603@redhat.com> <20060812150842.GA5638@2ka.mipt.ru>
+In-Reply-To: <20060812150842.GA5638@2ka.mipt.ru>
+Content-Type: text/plain; charset=KOI8-R; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Indan Zupancic <indan@nul.nu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> On Sat, 2006-08-12 at 20:16 +0200, Indan Zupancic wrote:
->>What was missing or wrong in the old approach? Can't you use the new
->>approach, but use alloc_pages() instead of SROG?
->>
->>Sorry if I bug you so, but I'm also trying to increase my knowledge here. ;-)
-> 
-> I'm almost sorry I threw that code out...
+Evgeniy Polyakov wrote:
+> One must receive a packet to determine if that packet must be dropped
+> until tricky hardware with header split capabilities or MMIO copying is
+> used. Peter uses special pool to get data from when system is in OOM (at
+> least in his latest patchset), so allocations are separated and thus
+> network code is not affected by OOM condition, which allows to make
+> forward progress.
 
-Good instinct :-)
+Nice executive summary.  Crucial point: you want to say "in reclaim"
+not "in OOM".
 
-> Lemme see what I can do to explain; what I need/want is:
->  - single allocation group per packet - that is, when I free a packet
-> and all its associated object I get my memory back.
-
-First, try to recast all your objects as pages, as Evgeniy Polyakov
-suggested.  Then if there is some place where that just doesn't work
-(please point it out) put a mempool there and tweak the high level
-reservation setup accordingly.
-
->  - not waste too much space managing the various objects
-
-If we waste a little space only where the network would have otherwise
-dropped a packet, that is still a big win.  We just need to be sure the
-normal path does not become more wasteful.
-
-> skb operations want to allocate various sk_buffs for the same data
-> clones. Also, it wants to be able to break the COW or realloc the data.
-> 
-> The trivial approach would be one page (or higher alloc page) per
-> object, and that will work quite well, except that it'll waste a _lot_
-> of memory. 
-
-High order allocations are just way too undependable without active
-defragmentation, which isn't even on the horizon at the moment.  We
-just need to treat any network hardware that can't scatter/gather into
-single pages as too broken to use for network block io.
-
-As for sk_buff cow break, we need to look at which network paths do it
-(netfilter obviously, probably others) and decide whether we just want
-to declare that the feature breaks network block IO, or fix the feature
-so it plays well with reserve accounting.
-
-> So I tried manual packing (parts of that you have seen in previous
-> attempts). This gets hard when you want to do unlimited clones and COW
-> breaks. To do either you need to go link several pages.
-
-You need to avoid the temptation to fix the entire world on the first
-attempt.  Sure, there will be people who call for gobs of overengineering
-right from the start, but simple has always worked better for Linux than
-lathering on layers of complexity just to support some feature that may
-arguably be broken by design.  For example, swapping through a firewall.
-
-Changing from per-interface to a global block IO reserve was a great
-simplification, we need more of those.
-
-Looking forward to -v5 ;-)
+Yes, right from the beginning the patch set got its sk_buff memory
+from a special pool when the system is in reclaim, however the exact
+nature of the pool and how/where it is accounted has evolved... mostly
+forward.
 
 Regards,
 
