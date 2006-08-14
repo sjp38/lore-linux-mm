@@ -1,43 +1,104 @@
-Date: Mon, 14 Aug 2006 10:54:55 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-Message-ID: <20060814065454.GA6356@2ka.mipt.ru>
-References: <1155127040.12225.25.camel@twins> <20060809130752.GA17953@2ka.mipt.ru> <1155130353.12225.53.camel@twins> <20060809.165431.118952392.davem@davemloft.net> <1155189988.12225.100.camel@twins> <44DF888F.1010601@google.com> <20060814051323.GA1335@2ka.mipt.ru> <1155537943.5696.118.camel@twins>
+Date: Mon, 14 Aug 2006 00:07:36 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+Message-Id: <20060814000736.80e652bb.akpm@osdl.org>
+In-Reply-To: <1155537940.5696.117.camel@twins>
+References: <20060808211731.GR14627@postel.suug.ch>
+	<44DBED4C.6040604@redhat.com>
+	<44DFA225.1020508@google.com>
+	<20060813.165540.56347790.davem@davemloft.net>
+	<44DFD262.5060106@google.com>
+	<20060813185309.928472f9.akpm@osdl.org>
+	<1155530453.5696.98.camel@twins>
+	<20060813215853.0ed0e973.akpm@osdl.org>
+	<1155531835.5696.103.camel@twins>
+	<20060813222208.7e8583ac.akpm@osdl.org>
+	<1155537940.5696.117.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <1155537943.5696.118.camel@twins>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Daniel Phillips <phillips@google.com>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: Daniel Phillips <phillips@google.com>, David Miller <davem@davemloft.net>, riel@redhat.com, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 14, 2006 at 08:45:43AM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > Just for clarification - it will be completely impossible to login using 
-> > openssh or some other priveledge separation protocol to the machine due
-> > to the nature of unix sockets. So you will be unable to manage your
-> > storage system just because it is in OOM - it is not what is expected
-> > from reliable system.
+On Mon, 14 Aug 2006 08:45:40 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
+> On Sun, 2006-08-13 at 22:22 -0700, Andrew Morton wrote:
+> > On Mon, 14 Aug 2006 07:03:55 +0200
+> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > > 
-> > > But really, if you expect to run reliable block IO to Zanzibar over an ssh
-> > > tunnel through a firewall, then you might also consider taking up bungie
-> > > jumping with the cord tied to your neck.
+> > > On Sun, 2006-08-13 at 21:58 -0700, Andrew Morton wrote:
+> > > > On Mon, 14 Aug 2006 06:40:53 +0200
+> > > > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > > 
+> > > > > Testcase:
+> > > > > 
+> > > > > Mount an NBD device as sole swap device and mmap > physical RAM, then
+> > > > > loop through touching pages only once.
+> > > > 
+> > > > Fix: don't try to swap over the network.  Yes, there may be some scenarios
+> > > > where people have no local storage, but it's reasonable to expect anyone
+> > > > who is using Linux as an "enterprise storage platform" to stick a local
+> > > > disk on the thing for swap.
+> > > 
+> > > I wish you were right, however there seems to be a large demand to go
+> > > diskless and swap over iSCSI because disks seem to be the nr. 1 failing
+> > > piece of hardware in systems these days.
 > > 
-> > Just pure openssh for control connection (admin should be able to
-> > login).
+> > We could track dirty anonymous memory and throttle.
+> > 
+> > Also, there must be some value of /proc/sys/vm/min_free_kbytes at which a
+> > machine is no longer deadlockable with any of these tricks.  Do we know
+> > what level that is?
 > 
-> These periods of degenerated functionality should be short and
-> infrequent albeit critical for machine recovery. Would you rather have a
-> slower ssh login (the machine will recover) or drive/fly to Zanzibar to
-> physically reboot the machine?
+> Not sure, the theoretical max amount of memory one can 'lose' in socket
+> wait queues is well over the amount of physical memory we have in
+> machines today (even for SGI); this combined with the fact that we limit
+> the memory in some way to avoid DoS attacks, could make for all memory
+> to be stuck in wait queues. Of course this becomes rather more unlikely
+> for ever larger amounts of memory. But unlikely is never a guarantee.
 
-It will not work, since you can not mark openssh sockets as those which
-are able to get memory from reserved pool. So admin unable to check the
-system status and make anything to turn system's life on.
+What is a "socket wait queue" and how/why can it consume so much memory?
 
--- 
-	Evgeniy Polyakov
+Can it be prevented from doing that?
+
+If this refers to the socket buffers, they're mostly allocated with
+at least __GFP_WAIT, aren't they?
+
+> > 
+> > > > That leaves MAP_SHARED, but mm-tracking-shared-dirty-pages.patch will fix
+> > > > that, will it not?
+> > > 
+> > > Will makes it less likely. One can still have memory pressure, the
+> > > remaining bits of memory can still get stuck in socket queues for
+> > > blocked processes.
+> > 
+> > But there's lots of reclaimable pagecache around and kswapd will free it
+> > up?
+> 
+> Yes, however it is possible for kswapd and direct reclaim to block on
+> get_request_wait() for the nbd/iscsi request queue by sheer misfortune.
+
+Possibly there are some situations where kswapd will get stuck on request
+queues.  But as long as the block layer is correctly calling
+set_queue_congested(), these are easily avoidable via
+bdi_write_congested().
+
+> In that case there will be no more reclaim; of course the more active
+> processes we have the unlikelier this will be. Still with the sheer
+> amount of cpu time invested in Linux its not a gamble we're likely to
+> never lose.
+
+I suspect that with mm-tracking-shared-dirty-pages.patch, a bit of tuning
+and perhaps some bugfixing we can make this problem go away for all
+practical purposes.  Particularly if we're prepared to require local
+storage for swap (the paranoid can use RAID, no?).
+
+Seem to me that more investigation of these options is needed before we can
+justify adding lots of hard-to-test complexity to networking?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
