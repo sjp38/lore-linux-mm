@@ -1,31 +1,35 @@
-From: Herbert Xu <herbert@gondor.apana.org.au>
+Message-ID: <44E08730.8080702@redhat.com>
+Date: Mon, 14 Aug 2006 10:22:40 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
-In-Reply-To: <44E06AC7.6090301@redhat.com>
-Message-Id: <E1GCbux-0005CO-00@gondolin.me.apana.org.au>
-Date: Mon, 14 Aug 2006 22:51:43 +1000
+References: <E1GCbux-0005CO-00@gondolin.me.apana.org.au>
+In-Reply-To: <E1GCbux-0005CO-00@gondolin.me.apana.org.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Herbert Xu <herbert@gondor.apana.org.au>
 Cc: johnpol@2ka.mipt.ru, phillips@google.com, a.p.zijlstra@chello.nl, indan@nul.nu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@redhat.com> wrote:
+Herbert Xu wrote:
+> Rik van Riel <riel@redhat.com> wrote:
+>> That should not be any problem, since skb's (including cowed ones)
+>> are short lived anyway.  Allocating a little bit more memory is
+>> fine when we have a guarantee that the memory will be freed again
+>> shortly.
 > 
-> That should not be any problem, since skb's (including cowed ones)
-> are short lived anyway.  Allocating a little bit more memory is
-> fine when we have a guarantee that the memory will be freed again
-> shortly.
+> I'm not sure about the context the comment applies to, but skb's are
+> not necessarily short-lived.  For example, they could be queued for
+> a few seconds for ARP/NDISC and even longer for IPsec SA resolution.
 
-I'm not sure about the context the comment applies to, but skb's are
-not necessarily short-lived.  For example, they could be queued for
-a few seconds for ARP/NDISC and even longer for IPsec SA resolution.
+That's still below the threshold where it should cause problems
+with the VM going OOM.  Especially if there aren't too many of
+these packets.
 
-Cheers,
 -- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
