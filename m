@@ -1,38 +1,31 @@
-Date: Mon, 14 Aug 2006 16:38:58 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [PATCH 1/1] network memory allocator.
-Message-ID: <20060814123858.GA16954@2ka.mipt.ru>
-References: <20060814110359.GA27704@2ka.mipt.ru> <1155558313.5696.167.camel@twins> <20060814123530.GA5019@2ka.mipt.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <20060814123530.GA5019@2ka.mipt.ru>
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: [RFC][PATCH 0/4] VM deadlock prevention -v4
+In-Reply-To: <44E06AC7.6090301@redhat.com>
+Message-Id: <E1GCbux-0005CO-00@gondolin.me.apana.org.au>
+Date: Mon, 14 Aug 2006 22:51:43 +1000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: johnpol@2ka.mipt.ru, phillips@google.com, a.p.zijlstra@chello.nl, indan@nul.nu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 14, 2006 at 04:35:30PM +0400, Evgeniy Polyakov (johnpol@2ka.mipt.ru) wrote:
-> > I'm still not clear on how you want to do this, only the trivial case of
-> > a sniffer was mentioned by you. To be able to do true zero-copy receive
-> > each packet will have to have its own page(s). Simply because you do not
-> > know the destination before you receive it, the packet could end up
-> > going to a whole different socket that the prev/next. As soon as you
-> > start packing multiple packets on 1 page, you've lost the zero-copy
-> > receive game.
+Rik van Riel <riel@redhat.com> wrote:
 > 
-> Userspace can sak for next packet and pointer to the new location will
-> be removed.
+> That should not be any problem, since skb's (including cowed ones)
+> are short lived anyway.  Allocating a little bit more memory is
+> fine when we have a guarantee that the memory will be freed again
+> shortly.
 
-... returned.
+I'm not sure about the context the comment applies to, but skb's are
+not necessarily short-lived.  For example, they could be queued for
+a few seconds for ARP/NDISC and even longer for IPsec SA resolution.
 
-The same will be applied for sending support - userspace will request
-new packet with given size and pointer to some chunk inside mapped area
-will be returned.
-
+Cheers,
 -- 
-	Evgeniy Polyakov
+Visit Openswan at http://www.openswan.org/
+Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
