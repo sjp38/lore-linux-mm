@@ -1,43 +1,67 @@
-Date: Sun, 13 Aug 2006 16:55:40 -0700 (PDT)
-Message-Id: <20060813.165540.56347790.davem@davemloft.net>
-Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <44DFA225.1020508@google.com>
-References: <20060808211731.GR14627@postel.suug.ch>
-	<44DBED4C.6040604@redhat.com>
-	<44DFA225.1020508@google.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-ID: <44DFBEA3.5070305@google.com>
+Date: Sun, 13 Aug 2006 17:06:59 -0700
+From: Daniel Phillips <phillips@google.com>
+MIME-Version: 1.0
+Subject: Re: rename *MEMALLOC flags
+References: <20060812141415.30842.78695.sendpatchset@lappy>	 <20060812141445.30842.47336.sendpatchset@lappy>	 <44DDE8B6.8000900@garzik.org> <1155395201.13508.44.camel@lappy>
+In-Reply-To: <1155395201.13508.44.camel@lappy>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Daniel Phillips <phillips@google.com>
-Date: Sun, 13 Aug 2006 15:05:25 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: phillips@google.com
-Cc: riel@redhat.com, tgraf@suug.ch, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jeff Garzik <jeff@garzik.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Indan Zupancic <indan@nul.nu>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-> By the way, another way to avoid impact on the normal case is an
-> experimental option such as CONFIG_PREVENT_NETWORK_BLOCKIO_DEADLOCK.
+Peter Zijlstra wrote:
+>Jeff Garzik in his infinite wisdom spake thusly:
+>>Peter Zijlstra wrote:
+>>
+>>>Index: linux-2.6/include/linux/gfp.h
+>>>===================================================================
+>>>--- linux-2.6.orig/include/linux/gfp.h	2006-08-12 12:56:06.000000000 +0200
+>>>+++ linux-2.6/include/linux/gfp.h	2006-08-12 12:56:09.000000000 +0200
+>>>@@ -46,6 +46,7 @@ struct vm_area_struct;
+>>> #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
+>>> #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+>>> #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+>>>+#define __GFP_MEMALLOC  ((__force gfp_t)0x40000u) /* Use emergency reserves */
+>>
+>>This symbol name has nothing to do with its purpose.  The entire area of 
+>>code you are modifying could be described as having something to do with 
+>>'memalloc'.
+>>
+>>GFP_EMERGENCY or GFP_USE_RESERVES or somesuch would be a far better 
+>>symbol name.
+>>
+>>I recognize that is matches with GFP_NOMEMALLOC, but that doesn't change 
+>>the situation anyway.  In fact, a cleanup patch to rename GFP_NOMEMALLOC 
+>>would be nice.
+> 
+> I'm rather bad at picking names, but here goes:
+> 
+> PF_MEMALLOC      -> PF_EMERGALLOC
+> __GFP_NOMEMALLOC -> __GFP_NOEMERGALLOC
+> __GFP_MEMALLOC   -> __GFP_EMERGALLOC
+> 
+> Is that suitable and shall I prepare patches? Or do we want more ppl to
+> chime in and have a few more rounds?
 
-That would just make the solution look more like a hack, and "bolted
-on" rather than designed.
+MEMALLOC is the name Linus chose to name exactly the reserve from which we
+are allocating.  Perhaps that was just Linus being denser than jgarzik and
+not realizing that he should have called it EMERGALLOC right from the start.
 
-I think there is more profitability from a solution that really does
-something about "network memory", and doesn't try to say "these
-devices are special" or "these sockets are special".  Special cases
-generally suck.
+BUT since Linus did call it MEMALLOC, we should too.  Or just email Linus
+and tell him how much better EMERGALLOC rolls off the tongue, and could we
+please change all occurances of MEMALLOC to EMERGALLOC.  Then don't read
+your email for a week ;-)
 
-We already limit and control TCP socket memory globally in the system.
-If we do this for all socket and anonymous network buffer allocations,
-which is sort of implicity in Evgeniy's network tree allocator design,
-we can solve this problem in a more reasonable way.
+Inventing a new name for an existing thing is very poor taste on grounds of
+grepability alone.
 
-And here's the kick, there are other unrelated highly positive
-consequences to using Evgeniy's network tree allocator.
+Regards,
 
-It doesn't just solve the _one_ problem it was built for, it solves
-several problems.  And that is the hallmark signature of good design.
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
