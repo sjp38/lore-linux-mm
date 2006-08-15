@@ -1,37 +1,45 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 1/1] network memory allocator.
-Date: Tue, 15 Aug 2006 22:21:22 +0200
-References: <20060814110359.GA27704@2ka.mipt.ru>
-In-Reply-To: <20060814110359.GA27704@2ka.mipt.ru>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="koi8-r"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200608152221.22883.arnd@arndb.de>
+Date: Tue, 15 Aug 2006 15:07:21 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC][PATCH] "challenged" memory controller
+Message-Id: <20060815150721.21ff961e.pj@sgi.com>
+In-Reply-To: <20060815192047.EE4A0960@localhost.localdomain>
+References: <20060815192047.EE4A0960@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dave@sr71.net
+Cc: linux-mm@kvack.org, balbir@in.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Am Monday 14 August 2006 13:04 schrieb Evgeniy Polyakov:
-> ?* full per CPU allocation and freeing (objects are never freed on
-> ????????different CPU)
+Dave wrote:
+> I've been toying with a little memory controller for the past
+> few weeks, on and off.
 
-Many of your data structures are per cpu, but your underlying allocations
-are all using regular kzalloc/__get_free_page/__get_free_pages functions.
-Shouldn't these be converted to calls to kmalloc_node and alloc_pages_node
-in order to get better locality on NUMA systems?
+I haven't actually thought about this much yet, but I suspect:
 
-OTOH, we have recently experimented with doing the dev_alloc_skb calls
-with affinity to the NUMA node that holds the actual network adapter, and
-got significant improvements on the Cell blade server. That of course
-may be a conflicting goal since it would mean having per-cpu per-node
-page pools if any CPU is supposed to be able to allocate pages for use
-as DMA buffers on any node.
+ 1) This is missing some cpuset locking - look at the routine
+    kernel/cpuset.c:__cpuset_memory_pressure_bump() for the
+    locking required to reference current->cpuset, using task_lock().
+    Notice that the current->cpuset reference is not valid once
+    the task lock is dropped.
 
-	Arnd <><
+ 2) This might not scale well, with a hot spot in the cpuset.  So
+    far, I avoid any reference to the cpuset structure on hot code
+    paths, especially any write references, but even read references,
+    due to the above need for the task lock.
+
+ 3) There appears to be little sympathy for hanging memory controllers
+    off the cpuset structure.  There is probably good technical reason
+    for this; though at a minimum, the folks doing memory sharing
+    controllers and the folks doing big honking NUMA iron placement have
+    different perspectives.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
