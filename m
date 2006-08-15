@@ -1,45 +1,41 @@
-Date: Tue, 15 Aug 2006 15:07:21 -0700
-From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC][PATCH] "challenged" memory controller
-Message-Id: <20060815150721.21ff961e.pj@sgi.com>
-In-Reply-To: <20060815192047.EE4A0960@localhost.localdomain>
+From: Dave Hansen <dave@sr71.net>
+In-Reply-To: <20060815150721.21ff961e.pj@sgi.com>
 References: <20060815192047.EE4A0960@localhost.localdomain>
+	 <20060815150721.21ff961e.pj@sgi.com>
+Content-Type: text/plain
+Date: Tue, 15 Aug 2006 15:24:13 -0700
+Message-Id: <1155680653.18883.17.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: dave@sr71.net
+To: Paul Jackson <pj@sgi.com>
 Cc: linux-mm@kvack.org, balbir@in.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Dave wrote:
-> I've been toying with a little memory controller for the past
-> few weeks, on and off.
+On Tue, 2006-08-15 at 15:07 -0700, Paul Jackson wrote:
+>  1) This is missing some cpuset locking - look at the routine
+>     kernel/cpuset.c:__cpuset_memory_pressure_bump() for the
+>     locking required to reference current->cpuset, using task_lock().
+>     Notice that the current->cpuset reference is not valid once
+>     the task lock is dropped.
 
-I haven't actually thought about this much yet, but I suspect:
+Good to know.
 
- 1) This is missing some cpuset locking - look at the routine
-    kernel/cpuset.c:__cpuset_memory_pressure_bump() for the
-    locking required to reference current->cpuset, using task_lock().
-    Notice that the current->cpuset reference is not valid once
-    the task lock is dropped.
+>  3) There appears to be little sympathy for hanging memory controllers
+>     off the cpuset structure.  There is probably good technical reason
+>     for this; though at a minimum, the folks doing memory sharing
+>     controllers and the folks doing big honking NUMA iron placement have
+>     different perspectives.
 
- 2) This might not scale well, with a hot spot in the cpuset.  So
-    far, I avoid any reference to the cpuset structure on hot code
-    paths, especially any write references, but even read references,
-    due to the above need for the task lock.
+Oh, I don't want to use cpusets in the future.  I was just using them
+basically for the task grouping that they can give me.  I don't think
+they're a really good long-term fit for these resource group things.
 
- 3) There appears to be little sympathy for hanging memory controllers
-    off the cpuset structure.  There is probably good technical reason
-    for this; though at a minimum, the folks doing memory sharing
-    controllers and the folks doing big honking NUMA iron placement have
-    different perspectives.
+Ignore the cpuset-ish parts for now, if you can. ;)
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
