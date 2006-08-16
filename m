@@ -1,520 +1,914 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k7G5kBxA001081
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 01:46:11 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7G5kBbS293458
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 01:46:11 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7G5kBfG030675
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 01:46:11 -0400
-Subject: Re: [RFC][PATCH] "challenged" memory controller
-From: Matt Helsley <matthltc@us.ibm.com>
-In-Reply-To: <20060815192047.EE4A0960@localhost.localdomain>
-References: <20060815192047.EE4A0960@localhost.localdomain>
-Content-Type: text/plain
-Date: Tue, 15 Aug 2006 22:44:08 -0700
-Message-Id: <1155707048.2510.82.camel@stark>
+Date: Wed, 16 Aug 2006 11:51:37 +0400
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Subject: [PATCH2 1/1] network memory allocator.
+Message-ID: <20060816075137.GA22397@2ka.mipt.ru>
+References: <20060814110359.GA27704@2ka.mipt.ru>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=koi8-r
+Content-Disposition: inline
+In-Reply-To: <20060814110359.GA27704@2ka.mipt.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: dave@sr71.net
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@in.ibm.com>
+To: David Miller <davem@davemloft.net>
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-08-15 at 12:20 -0700, dave@sr71.net wrote:
-> I've been toying with a little memory controller for the past
-> few weeks, on and off.  My goal was to create something simple
-> and hackish that would at least be a toy to play with in the
-> process of creating something that might actually be feasible.
-> 
-> I call it "challenged" because it has some definite limitations.
-> However, it only adds about 50 lines of code to generic areas
-> of the VM, and I haven't been the slightest bit careful, yet.
-> I think it probably also breaks CONFIG_PM and !CONFIG_CPUSETS,
-> but those are "features". ;)
-> 
-> It uses cpusets for now, just because they are there, and are
-> relatively easy to modify.  The page->cpuset bit is only
-> temporary, and I have some plans to remove it later.
+Hello.
 
-Sounds interesting.
+Network tree allocator can be used to allocate memory for all network
+operations from any context.
 
-> How does it work?  It adds two fields to the scan control
-> structure.  One that tells the scan to only pay attention to
-> _any_ cpuset over its memory limits, and the other to tell it
-> to only scan pages for a _particular_ cpuset.
-> 
-> I've been pretty indiscriminately hacking away, so I have the
-> feeling that there are some more efficient and nicer ways to
-> hook into the page scanning logic.  Comments are very welcome.
+Changes from previous release:
+ * added dynamically grown cache
+ * changed some inline issues
+ * reduced code size
+ * removed AVL tree implementation from the sources
+ * changed minimum allocation size to l1 cache line size (some arches require that)
+ * removed skb->__tsize parameter
+ * added a lot of comments
+ * a lot of small cleanups
 
-	The big thing I noticed is these patches fail allocations if a task's
-cpuset reaches its maximum number of pages. Couldn't that result in a
-panic, oops, and the task getting killed? This seems overly harsh when
-__GFP_WAIT is set -- swap and/or sleep are softer alternatives in that
-case.
+Trivial epoll based web server achieved more than 2450 requests per
+second with this version (usual numbers are about 1600-1800 when usual
+kmalloc is used for all network operations).
 
-	What about __GFP_REPEAT,  __GFP_NOFAIL, and __GFP_NORETRY? Should the
-retry-ish bits you've introduced honor these flags? I guess you're
-saving that for later, more "careful" revisions. :)
+Network allocator design and implementation notes as long as performance
+and fragmentation analysis can be found at project homepage:
+http://tservice.net.ru/~s0mbre/old/?section=projects&item=nta
 
-Cheers,
-	-Matt Helsley
+Signed-off-by: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 
-> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-> ---
-> 
->  lxc-dave/include/linux/cpuset.h |    4 +
->  lxc-dave/include/linux/gfp.h    |    4 -
->  lxc-dave/include/linux/swap.h   |    2 
->  lxc-dave/kernel/cpuset.c        |   99 +++++++++++++++++++++++++++++++++++++++-
->  lxc-dave/mm/page_alloc.c        |   12 ++++
->  lxc-dave/mm/rmap.c              |    5 ++
->  lxc-dave/mm/vmscan.c            |   33 +++++++++++--
->  7 files changed, 149 insertions(+), 10 deletions(-)
-> 
-> diff -puN include/linux/cpuset.h~challenged-memory-controller include/linux/cpuset.h
-> --- lxc/include/linux/cpuset.h~challenged-memory-controller	2006-08-14 13:22:12.000000000 -0700
-> +++ lxc-dave/include/linux/cpuset.h	2006-08-15 07:58:15.000000000 -0700
-> @@ -127,5 +127,9 @@ static inline int cpuset_do_slab_mem_spr
->  }
->  
->  #endif /* !CONFIG_CPUSETS */
-> +int cpuset_inc_nr_pages(struct cpuset *cs, int nr, gfp_t gfpmask);
-> +void cpuset_dec_nr_pages(struct cpuset *cs, int nr);
-> +int cpuset_get_nr_pages(const struct cpuset *cs);
-> +int cpuset_amount_over_memory_max(const struct cpuset *cs);
->  
->  #endif /* _LINUX_CPUSET_H */
-> diff -puN include/linux/gfp.h~challenged-memory-controller include/linux/gfp.h
-> --- lxc/include/linux/gfp.h~challenged-memory-controller	2006-08-15 07:47:28.000000000 -0700
-> +++ lxc-dave/include/linux/gfp.h	2006-08-15 07:47:34.000000000 -0700
-> @@ -108,10 +108,6 @@ static inline enum zone_type gfp_zone(gf
->   * optimized to &contig_page_data at compile-time.
->   */
->  
-> -#ifndef HAVE_ARCH_FREE_PAGE
-> -static inline void arch_free_page(struct page *page, int order) { }
-> -#endif
-> -
->  extern struct page *
->  FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
->  
-> diff -puN include/linux/mm.h~challenged-memory-controller include/linux/mm.h
-> diff -puN include/linux/sched.h~challenged-memory-controller include/linux/sched.h
-> diff -puN include/linux/swap.h~challenged-memory-controller include/linux/swap.h
-> --- lxc/include/linux/swap.h~challenged-memory-controller	2006-08-15 07:47:28.000000000 -0700
-> +++ lxc-dave/include/linux/swap.h	2006-08-15 07:47:34.000000000 -0700
-> @@ -188,7 +188,7 @@ extern void swap_setup(void);
->  
->  /* linux/mm/vmscan.c */
->  extern unsigned long try_to_free_pages(struct zone **, gfp_t);
-> -extern unsigned long shrink_all_memory(unsigned long nr_pages);
-> +extern unsigned long shrink_all_memory(unsigned long nr_pages, struct cpuset *cs);
->  extern int vm_swappiness;
->  extern int remove_mapping(struct address_space *mapping, struct page *page);
->  extern long vm_total_pages;
-> diff -puN kernel/cpuset.c~challenged-memory-controller kernel/cpuset.c
-> --- lxc/kernel/cpuset.c~challenged-memory-controller	2006-08-14 13:22:12.000000000 -0700
-> +++ lxc-dave/kernel/cpuset.c	2006-08-15 08:00:40.000000000 -0700
-> @@ -21,6 +21,7 @@
->  #include <linux/cpu.h>
->  #include <linux/cpumask.h>
->  #include <linux/cpuset.h>
-> +#include <linux/delay.h>
->  #include <linux/err.h>
->  #include <linux/errno.h>
->  #include <linux/file.h>
-> @@ -46,6 +47,7 @@
->  #include <linux/spinlock.h>
->  #include <linux/stat.h>
->  #include <linux/string.h>
-> +#include <linux/swap.h>
->  #include <linux/time.h>
->  #include <linux/backing-dev.h>
->  #include <linux/sort.h>
-> @@ -97,6 +99,8 @@ struct cpuset {
->  	 * recent time this cpuset changed its mems_allowed.
->  	 */
->  	int mems_generation;
-> +	int mems_nr_pages;
-> +	int mems_max_pages;
->  
->  	struct fmeter fmeter;		/* memory_pressure filter */
->  };
-> @@ -112,6 +116,55 @@ typedef enum {
->  	CS_SPREAD_SLAB,
->  } cpuset_flagbits_t;
->  
-> +int shrink_cpuset(struct cpuset *cs, gfp_t gfpmask, int tries)
-> +{
-> +	int nr_shrunk = 0;
-> +	while (cpuset_amount_over_memory_max(cs)) {
-> +		if (tries-- < 0)
-> +			break;
-> +		nr_shrunk += shrink_all_memory(10, cs);
-> +	}
-> +	return 0;
-> +}
-> +
-> +int cpuset_inc_nr_pages(struct cpuset *cs, int nr, gfp_t gfpmask)
-> +{
-> +	int ret;
-> +	if (!cs)
-> +		return 0;
-> +	cs->mems_nr_pages += nr;
-> +	if (cpuset_amount_over_memory_max(cs)) {
-> +		if (!(gfpmask & __GFP_WAIT))
-> +			return -ENOMEM;
-> +		ret = shrink_cpuset(cs, gfpmask, 50);
-> +	}
-> +	if (cpuset_amount_over_memory_max(cs))
-> +		return -ENOMEM;
-> +	return 0;
-> +}
-> +void cpuset_dec_nr_pages(struct cpuset *cs, int nr)
-> +{
-> +	if (!cs)
-> +		return;
-> +	cs->mems_nr_pages -= nr;
-> +}
-> +int cpuset_get_nr_pages(const struct cpuset *cs)
-> +{
-> +	return cs->mems_nr_pages;
-> +}
-> +int cpuset_amount_over_memory_max(const struct cpuset *cs)
-> +{
-> +	int amount;
-> +
-> +	if (!cs || cs->mems_max_pages < 0)
-> +		return 0;
-> +	amount = cs->mems_nr_pages - cs->mems_max_pages;
-> +	if (amount < 0)
-> +		amount = 0;
-> +	return amount;
-> +}
-> +
-> +
->  /* convenient tests for these bits */
->  static inline int is_cpu_exclusive(const struct cpuset *cs)
->  {
-> @@ -173,6 +226,8 @@ static struct cpuset top_cpuset = {
->  	.flags = ((1 << CS_CPU_EXCLUSIVE) | (1 << CS_MEM_EXCLUSIVE)),
->  	.cpus_allowed = CPU_MASK_ALL,
->  	.mems_allowed = NODE_MASK_ALL,
-> +	.mems_nr_pages = 0,
-> +	.mems_max_pages = -1,
->  	.count = ATOMIC_INIT(0),
->  	.sibling = LIST_HEAD_INIT(top_cpuset.sibling),
->  	.children = LIST_HEAD_INIT(top_cpuset.children),
-> @@ -1021,6 +1076,17 @@ static int update_memory_pressure_enable
->  	return 0;
->  }
->  
-> +static int update_memory_max_nr_pages(struct cpuset *cs, char *buf)
-> +{
-> +	int rate = simple_strtol(buf, NULL, 10);
-> +	int shrunk;
-> +	int loopnr = 0;
-> +	cs->mems_max_pages = rate;
-> +	while (cpuset_amount_over_memory_max(cs))
-> +		shrunk = shrink_cpuset(cs, 0, 10);
-> +	return 0;
-> +}
-> +
->  /*
->   * update_flag - read a 0 or a 1 in a file and update associated flag
->   * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
-> @@ -1109,6 +1175,7 @@ static int update_flag(cpuset_flagbits_t
->   */
->  
->  #define FM_COEF 933		/* coefficient for half-life of 10 secs */
-> +#define FM_COEF 93		/* coefficient for half-life of 10 secs */
->  #define FM_MAXTICKS ((time_t)99) /* useless computing more ticks than this */
->  #define FM_MAXCNT 1000000	/* limit cnt to avoid overflow */
->  #define FM_SCALE 1000		/* faux fixed point scale */
-> @@ -1263,6 +1330,8 @@ typedef enum {
->  	FILE_NOTIFY_ON_RELEASE,
->  	FILE_MEMORY_PRESSURE_ENABLED,
->  	FILE_MEMORY_PRESSURE,
-> +	FILE_MEMORY_MAX,
-> +	FILE_MEMORY_USED,
->  	FILE_SPREAD_PAGE,
->  	FILE_SPREAD_SLAB,
->  	FILE_TASKLIST,
-> @@ -1321,6 +1390,9 @@ static ssize_t cpuset_common_file_write(
->  	case FILE_MEMORY_PRESSURE_ENABLED:
->  		retval = update_memory_pressure_enabled(cs, buffer);
->  		break;
-> +	case FILE_MEMORY_MAX:
-> +		retval = update_memory_max_nr_pages(cs, buffer);
-> +		break;
->  	case FILE_MEMORY_PRESSURE:
->  		retval = -EACCES;
->  		break;
-> @@ -1441,6 +1513,12 @@ static ssize_t cpuset_common_file_read(s
->  	case FILE_MEMORY_PRESSURE:
->  		s += sprintf(s, "%d", fmeter_getrate(&cs->fmeter));
->  		break;
-> +	case FILE_MEMORY_MAX:
-> +		s += sprintf(s, "%d", cs->mems_max_pages);
-> +		break;
-> +	case FILE_MEMORY_USED:
-> +		s += sprintf(s, "%d", cs->mems_nr_pages);
-> +		break;
->  	case FILE_SPREAD_PAGE:
->  		*s++ = is_spread_page(cs) ? '1' : '0';
->  		break;
-> @@ -1785,6 +1863,16 @@ static struct cftype cft_cpu_exclusive =
->  	.private = FILE_CPU_EXCLUSIVE,
->  };
->  
-> +static struct cftype cft_mem_used = {
-> +	.name = "memory_nr_pages",
-> +	.private = FILE_MEMORY_USED,
-> +};
-> +
-> +static struct cftype cft_mem_max = {
-> +	.name = "memory_max_pages",
-> +	.private = FILE_MEMORY_MAX,
-> +};
-> +
->  static struct cftype cft_mem_exclusive = {
->  	.name = "mem_exclusive",
->  	.private = FILE_MEM_EXCLUSIVE,
-> @@ -1830,6 +1918,10 @@ static int cpuset_populate_dir(struct de
->  		return err;
->  	if ((err = cpuset_add_file(cs_dentry, &cft_cpu_exclusive)) < 0)
->  		return err;
-> +	if ((err = cpuset_add_file(cs_dentry, &cft_mem_max)) < 0)
-> +		return err;
-> +	if ((err = cpuset_add_file(cs_dentry, &cft_mem_used)) < 0)
-> +		return err;
->  	if ((err = cpuset_add_file(cs_dentry, &cft_mem_exclusive)) < 0)
->  		return err;
->  	if ((err = cpuset_add_file(cs_dentry, &cft_notify_on_release)) < 0)
-> @@ -1880,6 +1972,8 @@ static long cpuset_create(struct cpuset 
->  	INIT_LIST_HEAD(&cs->sibling);
->  	INIT_LIST_HEAD(&cs->children);
->  	cs->mems_generation = cpuset_mems_generation++;
-> +	cs->mems_max_pages = parent->mems_max_pages;
-> +	cs->mems_nr_pages = 0;
->  	fmeter_init(&cs->fmeter);
->  
->  	cs->parent = parent;
-> @@ -1986,6 +2080,8 @@ int __init cpuset_init_early(void)
->  
->  	tsk->cpuset = &top_cpuset;
->  	tsk->cpuset->mems_generation = cpuset_mems_generation++;
-> +	tsk->cpuset->mems_max_pages = -1;
-> +	tsk->cpuset->mems_nr_pages = 0;
->  	return 0;
->  }
->  
-> @@ -2005,6 +2101,8 @@ int __init cpuset_init(void)
->  
->  	fmeter_init(&top_cpuset.fmeter);
->  	top_cpuset.mems_generation = cpuset_mems_generation++;
-> +	top_cpuset.mems_max_pages = -1;
-> +	top_cpuset.mems_nr_pages = 0;
->  
->  	init_task.cpuset = &top_cpuset;
->  
-> @@ -2438,7 +2536,6 @@ int cpuset_memory_pressure_enabled __rea
->  void __cpuset_memory_pressure_bump(void)
->  {
->  	struct cpuset *cs;
-> -
->  	task_lock(current);
->  	cs = current->cpuset;
->  	fmeter_markevent(&cs->fmeter);
-> diff -puN mm/page_alloc.c~challenged-memory-controller mm/page_alloc.c
-> --- lxc/mm/page_alloc.c~challenged-memory-controller	2006-08-14 13:24:16.000000000 -0700
-> +++ lxc-dave/mm/page_alloc.c	2006-08-15 07:57:13.000000000 -0700
-> @@ -470,6 +470,11 @@ static void free_one_page(struct zone *z
->  	free_pages_bulk(zone, 1, &list, order);
->  }
->  
-> +void arch_free_page(struct page *page, int order)
-> +{
-> +	cpuset_dec_nr_pages(page->cpuset, 1<<order);
-> +}
-> +
->  static void __free_pages_ok(struct page *page, unsigned int order)
->  {
->  	unsigned long flags;
-> @@ -1020,6 +1025,9 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
->  
->  	might_sleep_if(wait);
->  
-> +	if (cpuset_inc_nr_pages(current->cpuset, 1<<order, gfp_mask))
-> +		return NULL;
-> +
->  restart:
->  	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
->  
-> @@ -1159,6 +1167,10 @@ got_pg:
->  	if (page)
->  		set_page_owner(page, order, gfp_mask);
->  #endif
-> +	if (page)
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index 19c96d4..f550f95 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -327,6 +327,10 @@ #include <linux/slab.h>
+ 
+ #include <asm/system.h>
+ 
++extern void *avl_alloc(unsigned int size, gfp_t gfp_mask);
++extern void avl_free(void *ptr, unsigned int size);
++extern int avl_init(void);
++
+ extern void kfree_skb(struct sk_buff *skb);
+ extern void	       __kfree_skb(struct sk_buff *skb);
+ extern struct sk_buff *__alloc_skb(unsigned int size,
+diff --git a/net/core/Makefile b/net/core/Makefile
+index 2645ba4..d86d468 100644
+--- a/net/core/Makefile
++++ b/net/core/Makefile
+@@ -10,6 +10,8 @@ obj-$(CONFIG_SYSCTL) += sysctl_net_core.
+ obj-y		     += dev.o ethtool.o dev_mcast.o dst.o netevent.o \
+ 			neighbour.o rtnetlink.o utils.o link_watch.o filter.o
+ 
++obj-y += alloc/
++
+ obj-$(CONFIG_XFRM) += flow.o
+ obj-$(CONFIG_SYSFS) += net-sysfs.o
+ obj-$(CONFIG_NET_DIVERT) += dv.o
+diff --git a/net/core/alloc/Makefile b/net/core/alloc/Makefile
+new file mode 100644
+index 0000000..21b7c51
+--- /dev/null
++++ b/net/core/alloc/Makefile
+@@ -0,0 +1,3 @@
++obj-y		:= allocator.o
++
++allocator-y	:= avl.o
+diff --git a/net/core/alloc/avl.c b/net/core/alloc/avl.c
+new file mode 100644
+index 0000000..c404cbe
+--- /dev/null
++++ b/net/core/alloc/avl.c
+@@ -0,0 +1,651 @@
++/*
++ * 	avl.c
++ * 
++ * 2006 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
++ * All rights reserved.
++ * 
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ */
++
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/string.h>
++#include <linux/errno.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <linux/percpu.h>
++#include <linux/list.h>
++#include <linux/mm.h>
++#include <linux/skbuff.h>
++
++#include "avl.h"
++
++static struct avl_allocator_data avl_allocator[NR_CPUS];
++
++/*
++ * Get node pointer from address.
++ */
++static inline struct avl_node *avl_get_node_ptr(unsigned long ptr)
++{
++	struct page *page = virt_to_page(ptr);
++	struct avl_node *node = (struct avl_node *)(page->lru.next);
++
++	return node;
++}
++
++/*
++ * Set node pointer for page for given address.
++ */
++static void avl_set_node_ptr(unsigned long ptr, struct avl_node *node, int order)
++{
++	int nr_pages = 1<<order, i;
++	struct page *page = virt_to_page(ptr);
++	
++	for (i=0; i<nr_pages; ++i) {
++		page->lru.next = (void *)node;
++		page++;
++	}
++}
++
++/*
++ * Get allocation CPU from address.
++ */
++static inline int avl_get_cpu_ptr(unsigned long ptr)
++{
++	struct page *page = virt_to_page(ptr);
++	int cpu = (int)(unsigned long)(page->lru.prev);
++
++	return cpu;
++}
++
++/*
++ * Set allocation cpu for page for given address.
++ */
++static void avl_set_cpu_ptr(unsigned long ptr, int cpu, int order)
++{
++	int nr_pages = 1<<order, i;
++	struct page *page = virt_to_page(ptr);
++			
++	for (i=0; i<nr_pages; ++i) {
++		page->lru.prev = (void *)(unsigned long)cpu;
++		page++;
++	}
++}
++
++/*
++ * Convert pointer to node's value.
++ * Node's value is a start address for contiguous chunk bound to given node.
++ */
++static inline unsigned long avl_ptr_to_value(void *ptr)
++{
++	struct avl_node *node = avl_get_node_ptr((unsigned long)ptr);
++	return node->value;
++}
++
++/*
++ * Convert pointer into offset from start address of the contiguous chunk
++ * allocated for appropriate node.
++ */
++static inline int avl_ptr_to_offset(void *ptr)
++{
++	return ((unsigned long)ptr - avl_ptr_to_value(ptr))/AVL_MIN_SIZE;
++}
++
++/*
++ * Count number of bits set down (until first unset is met in a mask) 
++ * to the smaller addresses including bit at @pos in @mask.
++ */
++unsigned int avl_count_set_down(unsigned long *mask, unsigned int pos)
++{
++	unsigned int stop, bits = 0;
++	int idx;
++	unsigned long p, m;
++
++	idx = pos/BITS_PER_LONG;
++	pos = pos%BITS_PER_LONG;
++
++	while (idx >= 0) {
++		m = (~0UL>>pos)<<pos;
++		p = mask[idx] | m;
++
++		if (!(mask[idx] & m))
++			break;
++
++		stop = fls(~p);
++
++		if (!stop) {
++			bits += pos + 1;
++			pos = BITS_PER_LONG - 1;
++			idx--;
++		} else {
++			bits += pos - stop + 1;
++			break;
++		}
++	}
++
++	return bits;
++}
++
++/*
++ * Count number of bits set up (until first unset is met in a mask) 
++ * to the bigger addresses including bit at @pos in @mask.
++ */
++unsigned int avl_count_set_up(unsigned long *mask, unsigned int mask_num, 
++		unsigned int pos)
++{
++	unsigned int idx, stop, bits = 0;
++	unsigned long p, m;
++
++	idx = pos/BITS_PER_LONG;
++	pos = pos%BITS_PER_LONG;
++
++	while (idx < mask_num) {
++		if (!pos)
++			m = 0;
++		else
++			m = (~0UL<<(BITS_PER_LONG-pos))>>(BITS_PER_LONG-pos);
++		p = mask[idx] | m;
++
++		if (!(mask[idx] & ~m))
++			break;
++
++		stop = ffs(~p);
++
++		if (!stop) {
++			bits += BITS_PER_LONG - pos;
++			pos = 0;
++			idx++;
++		} else {
++			bits += stop - pos - 1;
++			break;
++		}
++	}
++
++	return bits;
++}
++
++/*
++ * Fill @num bits from position @pos up with bit value @bit in a @mask.
++ */
++
++static void avl_fill_bits(unsigned long *mask, unsigned int mask_size, 
++		unsigned int pos, unsigned int num, unsigned int bit)
++{
++	unsigned int idx, start;
++
++	idx = pos/BITS_PER_LONG;
++	start = pos%BITS_PER_LONG;
++
++	while (num && idx < mask_size) {
++		unsigned long m = ((~0UL)>>start)<<start;
++
++		if (start + num <= BITS_PER_LONG) {
++			unsigned long upper_bits = BITS_PER_LONG - (start+num);
++
++			m = (m<<upper_bits)>>upper_bits;
++		}
++
++		if (bit)
++			mask[idx] |= m;
++		else
++			mask[idx] &= ~m;
++
++		if (start + num <= BITS_PER_LONG)
++			num = 0;
++		else {
++			num -= BITS_PER_LONG - start;
++			start = 0;
++			idx++;
++		}
++	}
++}
++
++/*
++ * Add free chunk into array.
++ */
++static inline void avl_container_insert(struct avl_container *c, unsigned int pos, int cpu)
++{
++	list_add_tail(&c->centry, &avl_allocator[cpu].avl_container_array[pos]);
++}
++
++/*
++ * Update node's bitmask of free/used chunks.
++ * If processed chunk size is bigger than requested one, 
++ * split it and add the rest into list of free chunks with appropriate size.
++ */
++static void avl_update_node(struct avl_container *c, unsigned int cpos, unsigned int size)
++{
++	struct avl_node *node = avl_get_node_ptr((unsigned long)c->ptr);
++	unsigned int num = AVL_ALIGN(size)/AVL_MIN_SIZE;
++
++	BUG_ON(cpos < num - 1);
++
++	avl_fill_bits(node->mask, ARRAY_SIZE(node->mask), avl_ptr_to_offset(c->ptr), num, 0);
++
++	if (cpos != num-1) {
++		void *ptr = c->ptr + size;
++		c = ptr;
++		c->ptr = ptr;
++
++		cpos -= num;
++
++		avl_container_insert(c, cpos, smp_processor_id());
++	}
++}
++
++/*
++ * Dereference free chunk into container and add it into list of free
++ * chunks with appropriate size.
++ */
++static int avl_container_add(void *ptr, unsigned int size, int cpu)
++{
++	struct avl_container *c = ptr;
++	unsigned int pos = AVL_ALIGN(size)/AVL_MIN_SIZE-1;
++
++	if (!size)
++		return -EINVAL;
++
++	c->ptr = ptr;
++	avl_container_insert(c, pos, cpu);
++
++	return 0;
++}
++
++/*
++ * Dequeue first free chunk from the list.
++ */
++static inline struct avl_container *avl_dequeue(struct list_head *head)
++{
++	struct avl_container *cnt;
++
++	cnt = list_entry(head->next, struct avl_container, centry);
++	list_del(&cnt->centry);
++
++	return cnt;
++}
++
++/*
++ * Add new node entry int network allocator.
++ * must be called with disabled preemtpion.
++ */
++static void avl_node_entry_commit(struct avl_node_entry *entry, int cpu)
++{
++	int i, idx, off;
++
++	idx = off = 0;
++	for (i=0; i<entry->avl_node_num; ++i) {
++		struct avl_node *node;
++
++		node = &entry->avl_node_array[idx][off];
++
++		if (++off >= AVL_NODES_ON_PAGE) {
++			idx++;
++			off = 0;
++		}
++
++		avl_set_cpu_ptr(node->value, cpu, entry->avl_node_order);
++		avl_set_node_ptr(node->value, node, entry->avl_node_order);
++		avl_container_add((void *)node->value, (1<<entry->avl_node_order)<<PAGE_SHIFT, cpu);
++	}
++}
++
++/*
++ * Simple cache growing function - allocate as much as possible,
++ * but no more than @AVL_NODE_NUM pages when there is a need for that.
++ */
++static struct avl_node_entry *avl_node_entry_alloc(gfp_t gfp_mask, int order)
++{
++	struct avl_node_entry *entry;
++	int i, num = 0, idx, off;
++	unsigned long ptr;
++
++	entry = kzalloc(sizeof(struct avl_node_entry), gfp_mask);
++	if (!entry)
++		return NULL;
++
++	entry->avl_node_array = kzalloc(AVL_NODE_PAGES * sizeof(void *), gfp_mask);
++	if (!entry->avl_node_array)
++		goto err_out_free_entry;
++
++	for (i=0; i<AVL_NODE_PAGES; ++i) {
++		entry->avl_node_array[i] = (struct avl_node *)__get_free_page(gfp_mask);
++		if (!entry->avl_node_array[i]) {
++			num = i;
++			goto err_out_free;
++		}
++	}
++
++	idx = off = 0;
++
++	for (i=0; i<AVL_NODE_NUM; ++i) {
++		struct avl_node *node;
++
++		ptr = __get_free_pages(gfp_mask, order);
++		if (!ptr)
++			break;
++
++		node = &entry->avl_node_array[idx][off];
++
++		if (++off >= AVL_NODES_ON_PAGE) {
++			idx++;
++			off = 0;
++		}
++
++		node->value = ptr;
++		memset(node->mask, 0, sizeof(node->mask));
++		avl_fill_bits(node->mask, ARRAY_SIZE(node->mask), 0, ((1<<order)<<PAGE_SHIFT)/AVL_MIN_SIZE, 1);
++	}
++
++	ulog("%s: entry: %p, node: %u, node_pages: %lu, node_num: %lu, order: %d, allocated: %d, container: %u, max_size: %u, min_size: %u, bits: %u.\n", 
++		__func__, entry, sizeof(struct avl_node), AVL_NODE_PAGES, AVL_NODE_NUM, order, 
++		i, AVL_CONTAINER_ARRAY_SIZE, AVL_MAX_SIZE, AVL_MIN_SIZE, ((1<<order)<<PAGE_SHIFT)/AVL_MIN_SIZE);
++
++	if (i == 0)
++		goto err_out_free;
++
++	entry->avl_node_num = i;
++	entry->avl_node_order = order;
++
++	return entry;
++
++err_out_free:
++	for (i=0; i<AVL_NODE_PAGES; ++i)
++		free_page((unsigned long)entry->avl_node_array[i]);
++err_out_free_entry:
++	kfree(entry);
++	return NULL;
++}
++
++/*
++ * Allocate memory region with given size and mode.
++ * If allocation fails due to unsupported order, otherwise
++ * allocate new node entry with given mode and try to allocate again
++ * Cache growing happens only with 0-order allocations.
++ */
++void *avl_alloc(unsigned int size, gfp_t gfp_mask)
++{
++	unsigned int i, try = 0;
++	void *ptr = NULL;
++	unsigned long flags;
++
++	size = AVL_ALIGN(size);
++
++	if (size > AVL_MAX_SIZE || size < AVL_MIN_SIZE) {
++		/*
++		 * Print info about unsupported order so user could send a "bug report"
++		 * or increase initial allocation order.
++		 */
++		if (get_order(size) > AVL_ORDER && net_ratelimit()) {
++			printk(KERN_INFO "%s: Failed to allocate %u bytes with %02x mode, order %u, max order %u.\n", 
++					__func__, size, gfp_mask, get_order(size), AVL_ORDER);
++			WARN_ON(1);
++		}
++
++		return NULL;
++	}
++
++	local_irq_save(flags);
++repeat:
++	for (i=size/AVL_MIN_SIZE-1; i<AVL_CONTAINER_ARRAY_SIZE; ++i) {
++		struct list_head *head = &avl_allocator[smp_processor_id()].avl_container_array[i];
++		struct avl_container *c;
++
++		if (!list_empty(head)) {
++			c = avl_dequeue(head);
++			ptr = c->ptr;
++			avl_update_node(c, i, size);
++			break;
++		}
++	}
++	local_irq_restore(flags);
++
++	if (!ptr && !try) {
++		struct avl_node_entry *entry;
++		
++		try = 1;
++
++		entry = avl_node_entry_alloc(gfp_mask, 0);
++		if (entry) {
++			local_irq_save(flags);
++			avl_node_entry_commit(entry, smp_processor_id());
++			goto repeat;
++		}
++			
++	}
++
++
++	return ptr;
++}
++
++/*
++ * Remove free chunk from the list.
++ */
++static inline struct avl_container *avl_search_container(void *ptr, unsigned int idx, int cpu)
++{
++	struct avl_container *c = ptr;
++	
++	list_del(&c->centry);
++	c->ptr = ptr;
++
++	return c;
++}
++
++/*
++ * Combine neighbour free chunks into the one with bigger size
++ * and put new chunk into list of free chunks with appropriate size.
++ */
++static void avl_combine(struct avl_node *node, void *lp, unsigned int lbits, void *rp, unsigned int rbits, 
++		void *cur_ptr, unsigned int cur_bits, int cpu)
++{
++	struct avl_container *lc, *rc, *c;
++	unsigned int idx;
++	void *ptr;
++
++	lc = rc = c = NULL;
++	idx = cur_bits - 1;
++	ptr = cur_ptr;
++
++	c = (struct avl_container *)cur_ptr;
++	c->ptr = cur_ptr;
++	
++	if (rp) {
++		rc = avl_search_container(rp, rbits-1, cpu);
++		if (!rc) {
++			printk(KERN_ERR "%p.%p: Failed to find a container for right pointer %p, rbits: %u.\n", 
++					node, cur_ptr, rp, rbits);
++			BUG();
++		}
++
++		c = rc;
++		idx += rbits;
++		ptr = c->ptr;
++	}
++
++	if (lp) {
++		lc = avl_search_container(lp, lbits-1, cpu);
++		if (!lc) {
++			printk(KERN_ERR "%p.%p: Failed to find a container for left pointer %p, lbits: %u.\n", 
++					node, cur_ptr, lp, lbits);
++			BUG();
++		}
++
++		idx += lbits;
++		ptr = c->ptr;
++	}
++	avl_container_insert(c, idx, cpu);
++}
++
++/*
++ * Free memory region of given size.
++ * Must be called on the same CPU where allocation happend
++ * with disabled interrupts.
++ */
++static void __avl_free_local(void *ptr, unsigned int size)
++{
++	unsigned long val = avl_ptr_to_value(ptr);
++	unsigned int pos, idx, sbits = AVL_ALIGN(size)/AVL_MIN_SIZE;
++	unsigned int rbits, lbits, cpu = avl_get_cpu_ptr(val);
++	struct avl_node *node;
++	unsigned long p;
++	void *lp, *rp;
++
++	node = avl_get_node_ptr((unsigned long)ptr);
++
++	pos = avl_ptr_to_offset(ptr);
++	idx = pos/BITS_PER_LONG;
++
++	p = node->mask[idx] >> (pos%BITS_PER_LONG);
++	
++	if ((p & 1)) {
++		printk(KERN_ERR "%p.%p: Broken pointer: value: %lx, pos: %u, idx: %u, mask: %lx, p: %lx.\n", 
++				node, ptr, val, pos, idx, node->mask[idx], p);
++		BUG();
++	}
++
++	avl_fill_bits(node->mask, ARRAY_SIZE(node->mask), pos, sbits, 1);
++
++	lp = rp = NULL;
++	rbits = lbits = 0;
++
++	idx = (pos+sbits)/BITS_PER_LONG;
++	p = (pos+sbits)%BITS_PER_LONG;
++
++	if ((node->mask[idx] >> p) & 1) {
++		lbits = avl_count_set_up(node->mask, ARRAY_SIZE(node->mask), pos+sbits);
++		if (lbits) {
++			lp = (void *)(val + (pos + sbits)*AVL_MIN_SIZE);
++		}
++	}
++
++	if (pos) {
++		idx = (pos-1)/BITS_PER_LONG;
++		p = (pos-1)%BITS_PER_LONG;
++		if ((node->mask[idx] >> p) & 1) {
++			rbits = avl_count_set_down(node->mask, pos-1);
++			if (rbits) {
++				rp = (void *)(val + (pos-rbits)*AVL_MIN_SIZE);
++			}
++		}
++	}
++
++	avl_combine(node, lp, lbits, rp, rbits, ptr, sbits, cpu);
++}
++
++/*
++ * Free memory region of given size.
++ * If freeing CPU is not the same as allocation one, chunk will 
++ * be placed into list of to-be-freed objects on allocation CPU,
++ * otherwise chunk will be freed and combined with neighbours.
++ * Must be called with disabled interrupts.
++ */
++static void __avl_free(void *ptr, unsigned int size)
++{
++	int cpu = avl_get_cpu_ptr((unsigned long)ptr);
++
++	if (cpu != smp_processor_id()) {
++		struct avl_free_list *l, *this = ptr;
++		struct avl_allocator_data *alloc = &avl_allocator[cpu];
++
++		this->cpu = smp_processor_id();
++		this->size = size;
++
++		spin_lock(&alloc->avl_free_lock);
++		l = alloc->avl_free_list_head;
++		alloc->avl_free_list_head = this;
++		this->next = l;
++		spin_unlock(&alloc->avl_free_lock);
++		return;
++	}
++
++	__avl_free_local(ptr, size);
++}
++
++/*
++ * Free memory region of given size.
++ */
++void avl_free(void *ptr, unsigned int size)
++{
++	unsigned long flags;
++	struct avl_free_list *l;
++	struct avl_allocator_data *alloc;
++
++	local_irq_save(flags);
++	__avl_free(ptr, size);
++	
++	alloc = &avl_allocator[smp_processor_id()];
++
++	while (alloc->avl_free_list_head) {
++		spin_lock(&alloc->avl_free_lock);
++		l = alloc->avl_free_list_head;
++		alloc->avl_free_list_head = l->next;
++		spin_unlock(&alloc->avl_free_lock);
++		__avl_free_local(l, l->size);
++	};
++	local_irq_restore(flags);
++}
++
++/*
++ * Initialize per-cpu allocator data.
++ */
++static int avl_init_cpu(int cpu)
++{
++	unsigned int i;
++	struct avl_allocator_data *alloc = &avl_allocator[cpu];
++	struct avl_node_entry *entry;
++
++	spin_lock_init(&alloc->avl_free_lock);
++
++	alloc->avl_container_array = kzalloc(sizeof(struct list_head) * AVL_CONTAINER_ARRAY_SIZE, GFP_KERNEL);
++	if (!alloc->avl_container_array)
++		goto err_out_exit;
++
++	for (i=0; i<AVL_CONTAINER_ARRAY_SIZE; ++i)
++		INIT_LIST_HEAD(&alloc->avl_container_array[i]);
++
++	entry = avl_node_entry_alloc(GFP_KERNEL, AVL_ORDER);
++	if (!entry)
++		goto err_out_free_container;
++
++	avl_node_entry_commit(entry, cpu);
++
++	return 0;
++
++err_out_free_container:
++	kfree(alloc->avl_container_array);
++err_out_exit:
++	return -ENOMEM;
++}
++
++/*
++ * Initialize network allocator.
++ */
++int avl_init(void)
++{
++	int err, cpu;
++
++	for_each_possible_cpu(cpu) {
++		err = avl_init_cpu(cpu);
++		if (err)
++			goto err_out;
++	}
++
++	printk(KERN_INFO "Network tree allocator has been initialized.\n");
++	return 0;
++
++err_out:
++	panic("Failed to initialize network allocator.\n");
++
++	return -ENOMEM;
++}
+diff --git a/net/core/alloc/avl.h b/net/core/alloc/avl.h
+new file mode 100644
+index 0000000..600b66a
+--- /dev/null
++++ b/net/core/alloc/avl.h
+@@ -0,0 +1,117 @@
++/*
++ * 	avl.h
++ * 
++ * 2006 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
++ * All rights reserved.
++ * 
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHAAVLBILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ */
++
++#ifndef __AVL_H
++#define __AVL_H
++
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <asm/page.h>
++
++//#define AVL_DEBUG
++
++#ifdef AVL_DEBUG
++#define ulog(f, a...) printk(f, ##a)
++#else
++#define ulog(f, a...)
++#endif
++
++/*
++ * Network tree allocator variables.
++ */
++
++#define AVL_ALIGN_SIZE		L1_CACHE_BYTES
++#define AVL_ALIGN(x) 		ALIGN(x, AVL_ALIGN_SIZE)
++
++#define AVL_ORDER		3	/* Maximum allocation order */
++#define AVL_BITS		3	/* Must cover maximum number of pages used for allocation pools */
++
++#define AVL_NODES_ON_PAGE	(PAGE_SIZE/sizeof(struct avl_node))
++#define AVL_NODE_NUM		(1UL<<AVL_BITS)
++#define AVL_NODE_PAGES		((AVL_NODE_NUM+AVL_NODES_ON_PAGE-1)/AVL_NODES_ON_PAGE)
++
++#define AVL_MIN_SIZE		AVL_ALIGN_SIZE
++#define AVL_MAX_SIZE		((1<<AVL_ORDER) << PAGE_SHIFT)
++
++#define AVL_CONTAINER_ARRAY_SIZE	(AVL_MAX_SIZE/AVL_MIN_SIZE)
++
++/*
++ * Meta-information container for each contiguous block used in allocation.
++ * @value - start address of the contiguous block.
++ * @mask - bitmask of free and empty chunks [1 - free, 0 - used].
++ */
++struct avl_node
++{
++	unsigned long		value;
++	DECLARE_BITMAP(mask, AVL_MAX_SIZE/AVL_MIN_SIZE);
++};
++
++/*
++ * Free chunks are dereferenced into this structure and placed into LIFO list.
++ */
++
++struct avl_container
++{
++	void			*ptr;
++	struct list_head	centry;
++};
++
++/*
++ * When freeing happens on different than allocation CPU,
++ * chunk is dereferenced into this structure and placed into
++ * single-linked list in allocation CPU private area.
++ */
++
++struct avl_free_list
++{
++	struct avl_free_list		*next;
++	unsigned int			size;
++	unsigned int			cpu;
++};
++
++/*
++ * Each array of nodes is places into dynamically grown list.
++ * @avl_node_num - number of nodes in @avl_node_array
++ * @avl_node_start - index of the first node
++ * @avl_node_array - array of nodes (linked into pages)
++ */
++
++struct avl_node_entry
++{
++	unsigned int 		avl_node_order, avl_node_num;
++	struct avl_node 	**avl_node_array;
++};
++
++/*
++ * Main per-cpu allocator structure.
++ * @avl_container_array - array of lists of free chunks indexed by size of the elements
++ * @avl_free_list_head - single-linked list of objects, which were started to be freed on different CPU
++ * @avl_free_lock - lock protecting avl_free_list_head
++ */
++struct avl_allocator_data
++{
++	struct list_head *avl_container_array;
++	struct avl_free_list *avl_free_list_head;
++	spinlock_t avl_free_lock;
++};
++
++
++#endif /* __AVL_H */
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 022d889..d10af88 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -156,7 +156,7 @@ struct sk_buff *__alloc_skb(unsigned int
+ 
+ 	/* Get the DATA. Size must match skb_add_mtu(). */
+ 	size = SKB_DATA_ALIGN(size);
+-	data = ____kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
++	data = avl_alloc(size + sizeof(struct skb_shared_info), gfp_mask);
+ 	if (!data)
+ 		goto nodata;
+ 
+@@ -223,7 +223,7 @@ struct sk_buff *alloc_skb_from_cache(kme
+ 
+ 	/* Get the DATA. */
+ 	size = SKB_DATA_ALIGN(size);
+-	data = kmem_cache_alloc(cp, gfp_mask);
++	data = avl_alloc(size, gfp_mask);
+ 	if (!data)
+ 		goto nodata;
+ 
+@@ -313,7 +313,7 @@ static void skb_release_data(struct sk_b
+ 		if (skb_shinfo(skb)->frag_list)
+ 			skb_drop_fraglist(skb);
+ 
+-		kfree(skb->head);
++		avl_free(skb->head, skb->end - skb->head + sizeof(struct skb_shared_info));
+ 	}
+ }
+ 
+@@ -688,7 +688,7 @@ int pskb_expand_head(struct sk_buff *skb
+ 
+ 	size = SKB_DATA_ALIGN(size);
+ 
+-	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
++	data = avl_alloc(size + sizeof(struct skb_shared_info), gfp_mask);
+ 	if (!data)
+ 		goto nodata;
+ 
+@@ -2057,6 +2057,9 @@ void __init skb_init(void)
+ 						NULL, NULL);
+ 	if (!skbuff_fclone_cache)
+ 		panic("cannot create skbuff cache");
++
++	if (avl_init())
++		panic("Failed to initialize network tree allocator.\n");
+ }
+ 
+ EXPORT_SYMBOL(___pskb_trim);
 
-You could bump this test above the previous #ifdef, open a block and..
 
-> +		page->cpuset = current->cpuset;
-
-
-close the block here, saving a test.
-
-> +	else
-> +		cpuset_dec_nr_pages(current->cpuset, 1<<order);
->  	return page;
->  }
->  
-> diff -puN mm/rmap.c~challenged-memory-controller mm/rmap.c
-> --- lxc/mm/rmap.c~challenged-memory-controller	2006-08-15 07:47:28.000000000 -0700
-> +++ lxc-dave/mm/rmap.c	2006-08-15 08:01:26.000000000 -0700
-> @@ -927,3 +927,8 @@ int try_to_unmap(struct page *page, int 
->  	return ret;
->  }
->  
-> +extern int cpuset_amount_over_memory_max(const struct cpuset *cs);
-> +int page_has_naughty_cpuset(struct page *page)
-> +{
-> +	return cpuset_amount_over_memory_max(page->cpuset);
-> +}
-> diff -puN mm/vmscan.c~challenged-memory-controller mm/vmscan.c
-> --- lxc/mm/vmscan.c~challenged-memory-controller	2006-08-15 07:47:28.000000000 -0700
-> +++ lxc-dave/mm/vmscan.c	2006-08-15 08:05:03.000000000 -0700
-> @@ -63,8 +63,9 @@ struct scan_control {
->  	int swap_cluster_max;
->  
->  	int swappiness;
-> -
->  	int all_unreclaimable;
-> +	int only_pages_with_naughty_cpusets;
-> +	struct cpuset *only_this_cpuset;
->  };
->  
->  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> @@ -445,6 +446,10 @@ static unsigned long shrink_page_list(st
->  
->  		VM_BUG_ON(PageActive(page));
->  
-> +		if (cpuset_amount_over_memory_max(sc->only_this_cpuset) &&
-> +		    page->cpuset && page->cpuset != sc->only_this_cpuset) {
-> +			goto keep_locked;
-> +		}
->  		sc->nr_scanned++;
->  
->  		if (!sc->may_swap && page_mapped(page))
-> @@ -793,9 +798,20 @@ force_reclaim_mapped:
->  	spin_unlock_irq(&zone->lru_lock);
->  
->  	while (!list_empty(&l_hold)) {
-> +		extern int page_has_naughty_cpuset(struct page *page);
->  		cond_resched();
->  		page = lru_to_page(&l_hold);
->  		list_del(&page->lru);
-> +		if (sc->only_this_cpuset &&
-> +		    page->cpuset && page->cpuset != sc->only_this_cpuset) {
-> +			list_add(&page->lru, &l_active);
-> +			continue;
-> +		}
-> +		if (sc->only_pages_with_naughty_cpusets &&
-> +		    !page_has_naughty_cpuset(page)) {
-> +			list_add(&page->lru, &l_active);
-> +			continue;
-> +		}
->  		if (page_mapped(page)) {
->  			if (!reclaim_mapped ||
->  			    (total_swap_pages == 0 && PageAnon(page)) ||
-> @@ -875,6 +891,7 @@ static unsigned long shrink_zone(int pri
->  	unsigned long nr_inactive;
->  	unsigned long nr_to_scan;
->  	unsigned long nr_reclaimed = 0;
-> +	int nr_scans = 0;
->  
->  	atomic_inc(&zone->reclaim_in_progress);
->  
-> @@ -897,6 +914,11 @@ static unsigned long shrink_zone(int pri
->  		nr_inactive = 0;
->  
->  	while (nr_active || nr_inactive) {
-> +		nr_scans++;
-> +		if (printk_ratelimit())
-> +			printk("%s() scan nr: %d\n", __func__, nr_scans);
-> +		if (nr_scans > 20)
-> +			sc->only_pages_with_naughty_cpusets = 0;
->  		if (nr_active) {
->  			nr_to_scan = min(nr_active,
->  					(unsigned long)sc->swap_cluster_max);
-> @@ -993,6 +1015,7 @@ unsigned long try_to_free_pages(struct z
->  		.swap_cluster_max = SWAP_CLUSTER_MAX,
->  		.may_swap = 1,
->  		.swappiness = vm_swappiness,
-> +		.only_pages_with_naughty_cpusets = 1,
->  	};
->  
->  	delay_swap_prefetch();
-> @@ -1090,6 +1113,7 @@ static unsigned long balance_pgdat(pg_da
->  		.may_swap = 1,
->  		.swap_cluster_max = SWAP_CLUSTER_MAX,
->  		.swappiness = vm_swappiness,
-> +		.only_pages_with_naughty_cpusets = 1,
->  	};
->  
->  loop_again:
-> @@ -1310,7 +1334,6 @@ void wakeup_kswapd(struct zone *zone, in
->  	wake_up_interruptible(&pgdat->kswapd_wait);
->  }
->  
-> -#ifdef CONFIG_PM
->  /*
->   * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
->   * from LRU lists system-wide, for given pass and priority, and returns the
-> @@ -1363,7 +1386,7 @@ static unsigned long shrink_all_zones(un
->   * LRU order by reclaiming preferentially
->   * inactive > active > active referenced > active mapped
->   */
-> -unsigned long shrink_all_memory(unsigned long nr_pages)
-> +unsigned long shrink_all_memory(unsigned long nr_pages, struct cpuset *cs)
->  {
->  	unsigned long lru_pages, nr_slab;
->  	unsigned long ret = 0;
-> @@ -1376,6 +1399,8 @@ unsigned long shrink_all_memory(unsigned
->  		.swap_cluster_max = nr_pages,
->  		.may_writepage = 1,
->  		.swappiness = vm_swappiness,
-> +		.only_pages_with_naughty_cpusets = 1,
-> +		.only_this_cpuset = cs,
->  	};
->  
->  	delay_swap_prefetch();
-> @@ -1462,7 +1487,6 @@ out:
->  
->  	return ret;
->  }
-> -#endif
->  
->  #ifdef CONFIG_HOTPLUG_CPU
->  /* It's optimal to keep kswapds on the same CPUs as their memory, but
-> @@ -1568,6 +1592,7 @@ static int __zone_reclaim(struct zone *z
->  					SWAP_CLUSTER_MAX),
->  		.gfp_mask = gfp_mask,
->  		.swappiness = vm_swappiness,
-> +		.only_pages_with_naughty_cpusets = 1,
->  	};
->  
->  	disable_swap_token();
-> _
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
