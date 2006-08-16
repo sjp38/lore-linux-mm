@@ -1,53 +1,104 @@
-Date: Wed, 16 Aug 2006 14:25:57 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 1/1] network memory allocator.
-Message-Id: <20060816142557.acccdfcf.ak@suse.de>
-In-Reply-To: <20060816084808.GA7366@infradead.org>
-References: <20060814110359.GA27704@2ka.mipt.ru>
-	<200608152221.22883.arnd@arndb.de>
-	<20060816053545.GB22921@2ka.mipt.ru>
-	<20060816084808.GA7366@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k7GE1QkX008989
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 10:01:26 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7GE1NJJ290804
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 10:01:23 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7GE1N84026699
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2006 10:01:23 -0400
+Message-ID: <44E32517.7040704@in.ibm.com>
+Date: Wed, 16 Aug 2006 19:30:55 +0530
+From: Balbir Singh <balbir@in.ibm.com>
+Reply-To: balbir@in.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] "challenged" memory controller
+References: <20060815192047.EE4A0960@localhost.localdomain>
+In-Reply-To: <20060815192047.EE4A0960@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Arnd Bergmann <arnd@arndb.de>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dave@sr71.net
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Aug 2006 09:48:08 +0100
-Christoph Hellwig <hch@infradead.org> wrote:
-
-> On Wed, Aug 16, 2006 at 09:35:46AM +0400, Evgeniy Polyakov wrote:
-> > On Tue, Aug 15, 2006 at 10:21:22PM +0200, Arnd Bergmann (arnd@arndb.de) wrote:
-> > > Am Monday 14 August 2006 13:04 schrieb Evgeniy Polyakov:
-> > > > ?* full per CPU allocation and freeing (objects are never freed on
-> > > > ????????different CPU)
-> > > 
-> > > Many of your data structures are per cpu, but your underlying allocations
-> > > are all using regular kzalloc/__get_free_page/__get_free_pages functions.
-> > > Shouldn't these be converted to calls to kmalloc_node and alloc_pages_node
-> > > in order to get better locality on NUMA systems?
-> > >
-> > > OTOH, we have recently experimented with doing the dev_alloc_skb calls
-> > > with affinity to the NUMA node that holds the actual network adapter, and
-> > > got significant improvements on the Cell blade server. That of course
-> > > may be a conflicting goal since it would mean having per-cpu per-node
-> > > page pools if any CPU is supposed to be able to allocate pages for use
-> > > as DMA buffers on any node.
-> > 
-> > Doesn't alloc_pages() automatically switches to alloc_pages_node() or
-> > alloc_pages_current()?
+dave@sr71.net wrote:
+> I've been toying with a little memory controller for the past
+> few weeks, on and off.  My goal was to create something simple
+> and hackish that would at least be a toy to play with in the
+> process of creating something that might actually be feasible.
 > 
-> That's not what's wanted.  If you have a slow interconnect you always want
-> to allocate memory on the node the network device is attached to.
+> I call it "challenged" because it has some definite limitations.
+> However, it only adds about 50 lines of code to generic areas
+> of the VM, and I haven't been the slightest bit careful, yet.
+> I think it probably also breaks CONFIG_PM and !CONFIG_CPUSETS,
+> but those are "features". ;)
+> 
+> It uses cpusets for now, just because they are there, and are
+> relatively easy to modify.  The page->cpuset bit is only
+> temporary, and I have some plans to remove it later.
+> 
+> How does it work?  It adds two fields to the scan control
+> structure.  One that tells the scan to only pay attention to
+> _any_ cpuset over its memory limits, and the other to tell it
+> to only scan pages for a _particular_ cpuset.
+> 
+> I've been pretty indiscriminately hacking away, so I have the
+> feeling that there are some more efficient and nicer ways to
+> hook into the page scanning logic.  Comments are very welcome.
+> 
+> Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 
-That's not true on all NUMA systems (that they have a slow interconnect)
-I think on x86-64 I would prefer if it was distributed evenly or maybe even 
-on the CPU who is finally going to process it.
+<snip>
 
--Andi "not all NUMA is an Altix"
+> +int shrink_cpuset(struct cpuset *cs, gfp_t gfpmask, int tries)
+> +{
+> +	int nr_shrunk = 0;
+> +	while (cpuset_amount_over_memory_max(cs)) {
+> +		if (tries-- < 0)
+> +			break;
+> +		nr_shrunk += shrink_all_memory(10, cs);
+
+shrink_all_memory() is also called from kernel/power/main.c (from 
+suspend_prepare()) and we have no cpuset context available from there. We could 
+try passing a NULL cpuset maybe?
+
+
+
+> +	}
+> +	return 0;
+> +}
+> +
+> +int cpuset_inc_nr_pages(struct cpuset *cs, int nr, gfp_t gfpmask)
+> +{
+> +	int ret;
+> +	if (!cs)
+> +		return 0;
+> +	cs->mems_nr_pages += nr;
+> +	if (cpuset_amount_over_memory_max(cs)) {
+> +		if (!(gfpmask & __GFP_WAIT))
+> +			return -ENOMEM;
+> +		ret = shrink_cpuset(cs, gfpmask, 50);
+> +	}
+
+We could use __GFP_REPEAT, __GFP_NOFAIL, __GFP_NORETRY to determine the retry 
+policy.
+
+
+
+> +	if (cpuset_amount_over_memory_max(cs))
+> +		return -ENOMEM;
+> +	return 0;
+> +}
+
+<snip>
+
+-- 
+
+	Balbir Singh,
+	Linux Technology Center,
+	IBM Software Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
