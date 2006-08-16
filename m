@@ -1,58 +1,43 @@
-Date: Tue, 15 Aug 2006 22:52:37 -0400
-From: Bill Fink <billfink@mindspring.com>
+Date: Wed, 16 Aug 2006 09:35:46 +0400
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Subject: Re: [PATCH 1/1] network memory allocator.
-Message-Id: <20060815225237.03df7874.billfink@mindspring.com>
-In-Reply-To: <20060815141501.GA10998@2ka.mipt.ru>
-References: <20060814110359.GA27704@2ka.mipt.ru>
-	<1155558313.5696.167.camel@twins>
-	<20060814123530.GA5019@2ka.mipt.ru>
-	<1155639302.5696.210.camel@twins>
-	<20060815112617.GB21736@2ka.mipt.ru>
-	<1155643405.5696.236.camel@twins>
-	<20060815123438.GA29896@2ka.mipt.ru>
-	<1155649768.5696.262.camel@twins>
-	<20060815141501.GA10998@2ka.mipt.ru>
+Message-ID: <20060816053545.GB22921@2ka.mipt.ru>
+References: <20060814110359.GA27704@2ka.mipt.ru> <200608152221.22883.arnd@arndb.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=koi8-r
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <200608152221.22883.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: a.p.zijlstra@chello.nl, davem@davemloft.net, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Aug 2006, Evgeniy Polyakov wrote:
-
-> On Tue, Aug 15, 2006 at 03:49:28PM +0200, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
+On Tue, Aug 15, 2006 at 10:21:22PM +0200, Arnd Bergmann (arnd@arndb.de) wrote:
+> Am Monday 14 August 2006 13:04 schrieb Evgeniy Polyakov:
+> > ?* full per CPU allocation and freeing (objects are never freed on
+> > ????????different CPU)
 > 
-> > It could if you can provide adequate detection of memory pressure and
-> > fallback to a degraded mode within the same allocator/stack and can
-> > guarantee limited service to critical parts.
-> 
-> It is not needed, since network allocations are separated from main
-> system ones.
-> I think I need to show an example here.
-> 
-> Let's main system works only with TCP for simplicity.
-> Let's maximum allowed memory is limited by 1mb (it is 768k on machine
-> with 1gb of ram).
+> Many of your data structures are per cpu, but your underlying allocations
+> are all using regular kzalloc/__get_free_page/__get_free_pages functions.
+> Shouldn't these be converted to calls to kmalloc_node and alloc_pages_node
+> in order to get better locality on NUMA systems?
+>
+> OTOH, we have recently experimented with doing the dev_alloc_skb calls
+> with affinity to the NUMA node that holds the actual network adapter, and
+> got significant improvements on the Cell blade server. That of course
+> may be a conflicting goal since it would mean having per-cpu per-node
+> page pools if any CPU is supposed to be able to allocate pages for use
+> as DMA buffers on any node.
 
-The maximum amount of memory available for TCP on a system with 1 GB
-of memory is 768 MB (not 768 KB).
+Doesn't alloc_pages() automatically switches to alloc_pages_node() or
+alloc_pages_current()?
 
-[bill@chance4 ~]$ cat /proc/meminfo
-MemTotal:      1034924 kB
-...
+> 	Arnd <><
 
-[bill@chance4 ~]$ cat /proc/sys/net/ipv4/tcp_mem
-98304   131072  196608
-
-Since tcp_mem is in pages (4K in this case), maximum TCP memory
-is 196608*4K or 768 MB.
-
-Or am I missing something obvious.
-
-						-Bill
+-- 
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
