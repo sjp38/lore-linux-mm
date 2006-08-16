@@ -1,48 +1,33 @@
-Date: Wed, 16 Aug 2006 10:42:24 +0100
+Date: Wed, 16 Aug 2006 10:44:31 +0100
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [PATCH 1/1] network memory allocator.
-Message-ID: <20060816094224.GA12606@infradead.org>
-References: <20060814110359.GA27704@2ka.mipt.ru> <200608152221.22883.arnd@arndb.de> <20060816053545.GB22921@2ka.mipt.ru> <20060816084808.GA7366@infradead.org> <20060816090028.GA25476@2ka.mipt.ru>
+Message-ID: <20060816094431.GA21118@infradead.org>
+References: <20060816091029.GA6375@infradead.org> <20060816093159.GA31882@2ka.mipt.ru> <20060816093837.GA11096@infradead.org> <20060816.024008.74744877.davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060816090028.GA25476@2ka.mipt.ru>
+In-Reply-To: <20060816.024008.74744877.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: Christoph Hellwig <hch@infradead.org>, Arnd Bergmann <arnd@arndb.de>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: hch@infradead.org, johnpol@2ka.mipt.ru, arnd@arndb.de, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 16, 2006 at 01:00:31PM +0400, Evgeniy Polyakov wrote:
-> On Wed, Aug 16, 2006 at 09:48:08AM +0100, Christoph Hellwig (hch@infradead.org) wrote:
-> > > Doesn't alloc_pages() automatically switches to alloc_pages_node() or
-> > > alloc_pages_current()?
-> > 
-> > That's not what's wanted.  If you have a slow interconnect you always want
-> > to allocate memory on the node the network device is attached to.
+On Wed, Aug 16, 2006 at 02:40:08AM -0700, David Miller wrote:
+> From: Christoph Hellwig <hch@infradead.org>
+> Date: Wed, 16 Aug 2006 10:38:37 +0100
 > 
-> There is drawback here - if data was allocated on CPU wheere NIC is
-> "closer" and then processed on different CPU it will cost more than 
-> in case where buffer was allocated on CPU where it will be processed.
+> > We could, but I'd rather waste 4 bytes in struct net_device than
+> > having such ugly warts in common code.
 > 
-> But from other point of view, most of the adapters preallocate set of
-> skbs, and with msi-x help there will be a possibility to bind irq and
-> processing to the CPU where data was origianlly allocated.
+> Why not instead have struct device store some default node value?
+> The node decision will be sub-optimal on non-pci but it won't crash.
 
-The case we've benchmarked (spidernet) is the common preallocated case.
-For allocate on demand I'd expect the slab allocator to get things right.
-We do have the irq on the right node, not through MSI but due to the odd
-interreupt architecture of the Cell blades.
-
-> So I would like to know how to determine which node should be used for
-> allocation. Changes of __get_user_pages() to alloc_pages_node() are
-> trivial.
-
-The patches I have add the node field to struct net_device and use it.
-It's set via alloc_netdev_node, a function I add and for the normal case
-of PCI adapters the node arguments comes from pcibus_to_node().  It's
-arguable we should add a alloc_foodeve_pdev variant that hids that detail,
-but I'm not entirely sure about whether it's worth the effort.
+Right now we don't even have the node stored in the pci_dev structure but
+only arch-specific accessor functions/macros.  We could change those to
+take a struct device instead and make them return -1 for everything non-pci
+as we already do in architectures that don't support those helpers.  -1
+means 'any node' for all common allocators.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
