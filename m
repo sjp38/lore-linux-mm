@@ -1,38 +1,33 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k7HElTIT005577
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7HElTFj221200
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7HElTXi019786
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
+Date: Thu, 17 Aug 2006 09:34:28 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC][PATCH] "challenged" memory controller
-From: Dave Hansen <haveblue@us.ibm.com>
+Message-Id: <20060817093428.8ae4ca70.pj@sgi.com>
 In-Reply-To: <44E447E7.8070502@in.ibm.com>
 References: <20060815192047.EE4A0960@localhost.localdomain>
-	 <20060815150721.21ff961e.pj@sgi.com>  <44E447E7.8070502@in.ibm.com>
-Content-Type: text/plain
-Date: Thu, 17 Aug 2006 07:47:25 -0700
-Message-Id: <1155826045.9274.44.camel@localhost.localdomain>
+	<20060815150721.21ff961e.pj@sgi.com>
+	<44E447E7.8070502@in.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: balbir@in.ibm.com
-Cc: Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
+Cc: dave@sr71.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-08-17 at 16:11 +0530, Balbir Singh wrote:
-> Would it be possible to protect task->cpuset using rcu_read_lock() for read 
-> references as cpuset_update_task_memory_state() does (and use the generations 
-> trick to see if a task changed cpusets)? I guess the cost paid is an additional 
-> field in the page structure to add generations. 
+Balbir wrote:
+> Would it be possible to protect task->cpuset using rcu_read_lock()
 
-cpusets isn't going to be used long-term here, so we don't really have
-to worry about it.
+Perhaps.  It usually takes me a few days of energetic thinking to
+provide reliable answers to such cpuset locking questions, so offhand
+I really don't know.
 
--- Dave
+Fortunately Dave assures us it doesn't matter.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
