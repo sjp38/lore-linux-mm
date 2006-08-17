@@ -1,66 +1,38 @@
-From: "Abu M. Muttalib" <abum@aftek.com>
-Subject: RE: Relation between free() and remove_vm_struct()
-Date: Thu, 17 Aug 2006 16:57:16 +0530
-Message-ID: <BKEKJNIHLJDCFGDBOHGMEEFBDGAA.abum@aftek.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k7HElTIT005577
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7HElTFj221200
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7HElTXi019786
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 10:47:29 -0400
+Subject: Re: [RFC][PATCH] "challenged" memory controller
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <44E447E7.8070502@in.ibm.com>
+References: <20060815192047.EE4A0960@localhost.localdomain>
+	 <20060815150721.21ff961e.pj@sgi.com>  <44E447E7.8070502@in.ibm.com>
+Content-Type: text/plain
+Date: Thu, 17 Aug 2006 07:47:25 -0700
+Message-Id: <1155826045.9274.44.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <1155811716.4494.51.camel@laptopd505.fenrus.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: balbir@in.ibm.com
+Cc: Paul Jackson <pj@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 2006-08-17 at 16:11 +0530, Balbir Singh wrote:
+> Would it be possible to protect task->cpuset using rcu_read_lock() for read 
+> references as cpuset_update_task_memory_state() does (and use the generations 
+> trick to see if a task changed cpusets)? I guess the cost paid is an additional 
+> field in the page structure to add generations. 
 
-> > > second of all, glibc delays freeing of some memory (in the brk() area)
-> > > to optimize for cases of frequent malloc/free operations, so that it
-> > > doesn't have to go to the kernel all the time (and a free would imply
-a
-> > > cross cpu TLB invalidate which is *expensive*, so batching those up is
-a
-> > > really good thing for performance)
-> >
-> > As per my observation, in two scenarios that I have tried, in one
-scenario I
-> > am able to see the prints from remove_vm_struct(), but in the other
-> > scenario, I don't see any prints from remove_vm_strcut().
-> >
-> > My question is, if there is delayed freeing of virtual address space, it
-> > should be the same in both the scenarios, but its not the case, and this
-> > behavior is consistent for my two scenarios, i.e.. in one I am able to
-see
-> > the kernel prints and in other I am not, respectively.
->
-> I'm sorry but you're not providing enough information for me to
-> understand your follow-on question.
+cpusets isn't going to be used long-term here, so we don't really have
+to worry about it.
 
-Well, the application, which is causing problem is specific to our
-organization and details may not be known to the list. Any ways I am
-detailing it further,
-
-Our application is a VoIP application, which uses OSIP stack.
-
-While running the application, when I give outgoing call, I see the VM
-getting allocated and subsequently getting freed, this I have verified from
-/proc/meminfo and kernel prints (that of remove_vm_struct). But in the case
-of incoming call, though this is a reverse case, but I see memory only
-getting allocated and not being freed.
-
-I can see in the code that the free function is called but the call has not
-been propagated to the kernel. The allocation is in the tune of 4 MB, so the
-memory must have been allocated using mmap and not brk, as the heap size for
-an application is defined to be 4 K, as per my knowledge. Even if the
-allocation is from heap, the heap should get enlarged and on subsequent call
-to free, the surplus space should be returned to OS.
-
-Please help.
-
-Regards,
-Abu.
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
