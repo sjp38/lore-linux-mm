@@ -1,56 +1,47 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k7HAfkm2031508
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 06:41:46 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7HAfkwr093822
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 04:41:46 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7HAfkKS020976
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2006 04:41:46 -0600
-Message-ID: <44E447E7.8070502@in.ibm.com>
-Date: Thu, 17 Aug 2006 16:11:43 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] "challenged" memory controller
-References: <20060815192047.EE4A0960@localhost.localdomain> <20060815150721.21ff961e.pj@sgi.com>
-In-Reply-To: <20060815150721.21ff961e.pj@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: RE: Relation between free() and remove_vm_struct()
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <BKEKJNIHLJDCFGDBOHGMKEEMDGAA.abum@aftek.com>
+References: <BKEKJNIHLJDCFGDBOHGMKEEMDGAA.abum@aftek.com>
+Content-Type: text/plain
+Date: Thu, 17 Aug 2006 12:48:36 +0200
+Message-Id: <1155811716.4494.51.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: dave@sr71.net, linux-mm@kvack.org
+To: "Abu M. Muttalib" <abum@aftek.com>
+Cc: kernelnewbies@nl.linux.org, linux-newbie@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Dave wrote:
->> I've been toying with a little memory controller for the past
->> few weeks, on and off.
+On Thu, 2006-08-17 at 13:26 +0530, Abu M. Muttalib wrote:
+> Hi Arjan,
 > 
-> I haven't actually thought about this much yet, but I suspect:
+> Thnax for your reply.
 > 
->  1) This is missing some cpuset locking - look at the routine
->     kernel/cpuset.c:__cpuset_memory_pressure_bump() for the
->     locking required to reference current->cpuset, using task_lock().
->     Notice that the current->cpuset reference is not valid once
->     the task lock is dropped.
+> > second of all, glibc delays freeing of some memory (in the brk() area)
+> > to optimize for cases of frequent malloc/free operations, so that it
+> > doesn't have to go to the kernel all the time (and a free would imply a
+> > cross cpu TLB invalidate which is *expensive*, so batching those up is a
+> > really good thing for performance)
 > 
->  2) This might not scale well, with a hot spot in the cpuset.  So
->     far, I avoid any reference to the cpuset structure on hot code
->     paths, especially any write references, but even read references,
->     due to the above need for the task lock.
+> As per my observation, in two scenarios that I have tried, in one scenario I
+> am able to see the prints from remove_vm_struct(), but in the other
+> scenario, I don't see any prints from remove_vm_strcut().
+> 
+> My question is, if there is delayed freeing of virtual address space, it
+> should be the same in both the scenarios, but its not the case, and this
+> behavior is consistent for my two scenarios, i.e.. in one I am able to see
+> the kernel prints and in other I am not, respectively.
 
-Would it be possible to protect task->cpuset using rcu_read_lock() for read 
-references as cpuset_update_task_memory_state() does (and use the generations 
-trick to see if a task changed cpusets)? I guess the cost paid is an additional 
-field in the page structure to add generations.
+I'm sorry but you're not providing enough information for me to
+understand your follow-on question.
 
+Greetings,
+   Arjan van de Ven
+
+> 
 -- 
-
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+if you want to mail me at work (you don't), use arjan (at) linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
