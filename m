@@ -1,45 +1,58 @@
-Date: Fri, 18 Aug 2006 10:04:14 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/1] network memory allocator.
-In-Reply-To: <200608181129.15075.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0608180959190.31844@schroedinger.engr.sgi.com>
-References: <20060814110359.GA27704@2ka.mipt.ru> <20060816142557.acccdfcf.ak@suse.de>
- <Pine.LNX.4.64.0608171920220.28680@schroedinger.engr.sgi.com>
- <200608181129.15075.ak@suse.de>
+Message-ID: <43221685510798.E64DA8DEF3@TGUGJ3E>
+From: "bertram" <cinquefoilcontinuo@earthlink.net>
+Subject: brett
+Date: Fri, 18 Aug 2006 19:26:53 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Arnd Bergmann <arnd@arndb.de>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain;
+        charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
+Return-Path: <countrymenbegotten@earthlink.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Aug 2006, Andi Kleen wrote:
+18 August! Attention!
+ 
+Get on BCL C first thing on friday, this one !
 
-> Also I must say it's still not quite clear to me if it's better to place
-> network packets on the node the device is connected to or on the 
-> node which contains the CPU who processes the packet data 
-> For RX this can be three different nodes in the worst case
-> (CPU processing is often split on different CPUs between softirq
-> and user context), for TX  two. Do you have some experience that shows 
-> that a particular placement is better than the other?
+Commpany: BICOASTAL COMMUNICAT
+Smybol:  BCL C 
+Cuurrent PPrice: $0.0265
+Expectinng ppriceon Friday: $0.06-$0.08
 
-The more nodes are involved the more numa traffic and the slower the 
-overall performance. It is best to place all control information on the 
-node of the network card. The actual data is read via DMA and one may
-place that local to the executing process. The DMA transfer will then have 
-to cross the NUMA interlink but that DMA transfer is a linear and 
-predictable stream that can often be optimized by hardware. If you 
-would create the data on the network node then you would have off 
-node overhead when creating the data (random acces to cache lines?) which 
-is likely worse.
+The pirce is the minimum for last week and it will boom on friday!
+Worst Scenarrio Target Pirce: $0.065
+Most Probable Sceanrio Target Priice: $0.099
+Best Scenario Target Pirce: $0.125
+Thursday's Volume: 8,725,600 (Heavy)
 
-One should be able to place the process near the node that has the network 
-card. Our machines typically have multiple network cards. It would be best 
-if the network stack could choose the one that is nearest to the process.
+Watch out for BCL C this friday, we see a great story in the making!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Recommendation: "Stronng Buyy" starting on Friday, August 18, 2006.
+
+Latest News
+
+Bicoastal Communications Inc. Announces E911 Service Agreement. Grand 
+Junction, Colo.--(Businesss Wiree)--Aug. 15, 2006--Bicoastal Communications Inc.(Pink Sheets: BCL C - News) announces it has reached an agreement with Dialpoint Voice Service Inc. of Nevada to provide E911 services for its National VoIP (Voice over Internet Protocol) rollout through Callingpoint Communications.
+
+This will give Bicoastal the ability to provide E911 services to all of the lower 48 
+states via VoIP as required by the FCC. Upon successful testing of the system, Bicoastal will be in position to start offering Residential and Business VoIP 
+services through its Callingpoint Communications unit within the next two weeks. 
+
+About the Company:
+
+Bicoastal Communications Inc. is positioned to make substantial growth in the coming years. The company strategy is to deploy into non-primary cities with 
+population centers of less than one million people. Unlike the major metropolitan areas of the country, these cities have not seen the benefit of competitive product offerings. Bicoastal intends to address these deficiencies by encompassing its IP services, Traditional and VoIP Telephone services and Television (IPTV) services, securing revenues with the much-touted triple play.The strategic partnerships developed have already made it possible for Bicoastal to gain direct access to 25,000 fiber-connected homes throughout the United States.
+
+Members should pick up BCL C as early as possible on Friday.
+
+This news is going to send BCL C off the charts!  
+
+We all know that in the this businses it's the big announcements that makes these stockks expldoe!!! 
+
+We see this as a hgue proift taking a deal. Watch BC LC like a hawk!
+
+Watch this one Tradee on the 18 OF August. Go BC LC! 
+
+
+Lust not after her beauty in thine heart; neither let her take thee with her eyelids.
+What does not kill you makes you stronger He that knows nothing, doubts nothing. Practice makes perfect. A stitch in time saves nine.
