@@ -1,131 +1,62 @@
-Date: Fri, 18 Aug 2006 11:16:06 +0400
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [RFC][PATCH 0/9] Network receive deadlock prevention for NBD
-Message-ID: <20060818071606.GB23264@2ka.mipt.ru>
-References: <1155189988.12225.100.camel@twins> <44DF888F.1010601@google.com> <20060814051323.GA1335@2ka.mipt.ru> <44E3F525.3060303@google.com> <20060817053636.GA30920@2ka.mipt.ru> <44E4AF10.5030308@google.com> <20060817184206.GA2873@2ka.mipt.ru> <1155842114.5696.310.camel@twins> <20060817194850.GA19647@2ka.mipt.ru> <44E4FAAA.2050104@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 1/1] network memory allocator.
+Date: Fri, 18 Aug 2006 11:29:14 +0200
+References: <20060814110359.GA27704@2ka.mipt.ru> <20060816142557.acccdfcf.ak@suse.de> <Pine.LNX.4.64.0608171920220.28680@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608171920220.28680@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <44E4FAAA.2050104@google.com>
+Message-Id: <200608181129.15075.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Arnd Bergmann <arnd@arndb.de>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 17, 2006 at 04:24:26PM -0700, Daniel Phillips (phillips@google.com) wrote:
-> >Feel free to implement any receiving policy inside _separated_ allocator
-> >to meet your needs, but if allocator depends on main system's memory
-> >conditions it is always possible that it will fail to make forward
-> >progress.
-> 
-> Wrong.  Our main allocator has a special reserve that can be accessed
-> only by a task that has its PF_MEMALLOC flag set.  This reserve exists
-> in order to guarantee forward progress in just such situations as the
-> network runs into when it is trying to receive responses from a remote
-> disk.  Anything otherwise is a bug.
-
-Ok, I see your point.
-You create special fix for special config situation.
-In general it does not work.
-
-> >>>I do not argue that your approach is bad or does not solve the problem,
-> >>>I'm just trying to show that further evolution of that idea eventually
-> >>>ends up in separated allocator (as long as all most robust systems
-> >>>separate operations), which can improve things in a lot of other sides
-> >>>too.
-> >>
-> >>Not a separate allocator per-se, separate socket group, they are
-> >>serviced by the kernel, they will never refuse to process data, and it
-> >>is critical for the continued well-being of your kernel that they get
-> >>their data.
-> 
-> The memalloc reserve is indeed a separate reserve, however it is a
-> reserve that already exists, and you are busy creating another separate
-> reserve to further partition memory.  Partitioning memory is not the
-> direction we should be going, we should be trying to unify our reserves
-> wherever possible, and find ways such as Andrew and others propose to
-> implement "reserve on demand", or in other words, take advantage of
-> "easily freeable" pages.
-
-Such approach does not fix the problem.
-Why no one complain that there is priveledge separation while "we can
-fix all existing application"?
-It is possible that there will not be any "easily freeable" pages, and
-your special reserve will not be filled.
-
-> If your allocation code is so much more efficient than slab then why
-> don't you fix slab instead of replicating functionality that already
-> exists elsewhere in the system, and has since day one?
-
-No one need an exuse to rewrite something.
-
-> >You do not know in advance which sockets must be separated (since only
-> >in the simplest situation it is the same as in NBD and is
-> >kernelspace-only),
-> 
-> Yes we do, they are exactly those sockets that lie in the block IO path.
-> The VM cannot deadlock on any others.
-
-There are some pieces of the world behind NBD and iSCSI.
-
-> >you can not solve problem with ARP/ICMP/route changes and other control
-> >messages, netfilter, IPsec and compression which still can happen in your 
-> >setup, 
-> 
-> If you bothered to read the patches you would know that ICMP is indeed
-> handled.  ARP I don't think so, we may need to do that since ARP can
-> believably be required for remote disk interface failover.  Anybody
-> who designs ssh into remote disk failover is an idiot.  Ssh for
-> configuration, monitoring and administration is fine.  Ssh for fencing
-> or whatever is just plain stupid, unless the nodes running both server
-> and client are not allowed to mount the remote disk.
-
-I only remember that socket with sk_memalloc is being handled, no ICMP,
-no ARP. What about other control messages in bonding setup of failover?
-
-> >if something goes wrong and receiving will require additional
-> >allocation from network datapath, system is dead,
-> >this strict conditions does not allow flexible control over possible
-> >connections and does not allow to create additional connections.
-> 
-> You know that how?
-> 
-> >>Also, I do not think people would like it if say 100M of their 1G system
-> >>just disappears, never to used again for eg. page-cache in periods of
-> >>low network traffic.
+On Friday 18 August 2006 04:25, Christoph Lameter wrote:
+> On Wed, 16 Aug 2006, Andi Kleen wrote:
+> > That's not true on all NUMA systems (that they have a slow interconnect)
+> > I think on x86-64 I would prefer if it was distributed evenly or maybe
+> > even on the CPU who is finally going to process it.
 > >
-> >Just for clarification: network tree allocator gets 512kb and then
-> >increases cache size when it is required. Default value can be changed
-> >of course.
-> 
-> Great.  Now why does the network layer need its own, invented-in-netland
-> allocator?  Why can't everybody use your allocator if it is better?
+> > -Andi "not all NUMA is an Altix"
+>
+> The Altix NUMA interconnect has the same speed as far as I can recall as
+> Hypertransport. It is the distance (real physical cable length) that
+> creates latencies for huge systems. Sadly the Hypertransport is designed
+> to stay on the motherboard. Hypertransport can only be said to be fast
+> because its only used for tinzy winzy systems of a few processors. Are
+> you saying that the design limitations of Hypertransport are an
+> advantage?
 
-As far as I recall, I several times already said, that there is no
-problem to use that allocator in any other places, MMU-less systems will
-especially greatly benefit from it (since it was designed for them too).
+Sorry, didn't want to state anything particular about advantages 
+or disadvantages of different interconnects. I just wanted to say
+that there are a lot of NUMA systems out there which have a very low
+NUMA factor (for whatever reason, including them being quite small)
+and that they should be considered for NUMA optimizations too.
 
-> Also, please don't get the idea that your allocator by itself solves the
-> block IO receive starvation problem.  At the very least you need to do
-> something about network traffic that is unrelated to forward progress of
-> memory writeout, yet can starve the memory writeout.  Oh wait, our patch
-> set already does that.
+So if you really want strict IO placement at least allow an easy way 
+to turn it off even when CONFIG_NUMA is defined.
 
-It is not my allocator that solves the problem, but a situation when
-pools are separated! 
-And you slowly go that direction too (global reserve instead of per-socket 
-is the first step).
+BTW there are large x86-64 NUMA systems that don't use HyperTransport
+and have a varying NUMA factor, and also even HyperTransport
+based systems have a widely varying NUMA factor depending on machine
+size and hop distance (2-8 sockets and larger systems are in development)
 
-Problem is not solved, when critical allocations depend on reserve which
-depends on main system conditions.
+So ideal would be something dynamic to turn on/off io placement, maybe based 
+on node_distance() again, with the threshold tweakable per architecture?
 
-> Regards,
-> 
-> Daniel
+Also I must say it's still not quite clear to me if it's better to place
+network packets on the node the device is connected to or on the 
+node which contains the CPU who processes the packet data 
+For RX this can be three different nodes in the worst case
+(CPU processing is often split on different CPUs between softirq
+and user context), for TX  two. Do you have some experience that shows 
+that a particular placement is better than the other?
 
--- 
-	Evgeniy Polyakov
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
