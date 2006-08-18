@@ -1,38 +1,16 @@
-Date: Thu, 17 Aug 2006 19:25:38 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/1] network memory allocator.
-In-Reply-To: <20060816142557.acccdfcf.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0608171920220.28680@schroedinger.engr.sgi.com>
-References: <20060814110359.GA27704@2ka.mipt.ru> <200608152221.22883.arnd@arndb.de>
- <20060816053545.GB22921@2ka.mipt.ru> <20060816084808.GA7366@infradead.org>
- <20060816142557.acccdfcf.ak@suse.de>
+Message-ID: <06195974544003.4A20ADBFA5@YSI8V5>
+From: "Barton" <despondberenices@routeme.de>
+Subject: New and hot You gape for shooting like you had seen in those =?ISO-8859-1?Q?films=85?=
+Date: Fri, 18 Aug 2006 11:00:13 +0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Arnd Bergmann <arnd@arndb.de>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain;
+        charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
+Return-Path: <caravancontretemps@rotaterra.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Aug 2006, Andi Kleen wrote:
-
-> That's not true on all NUMA systems (that they have a slow interconnect)
-> I think on x86-64 I would prefer if it was distributed evenly or maybe even 
-> on the CPU who is finally going to process it.
-> 
-> -Andi "not all NUMA is an Altix"
-
-The Altix NUMA interconnect has the same speed as far as I can recall as 
-Hypertransport. It is the distance (real physical cable length) that 
-creates latencies for huge systems. Sadly the Hypertransport is designed 
-to stay on the motherboard. Hypertransport can only be said to be fast 
-because its only used for tinzy winzy systems of a few processors. Are 
-you saying that the design limitations of Hypertransport are an 
-advantage?
+It will be great Use this tab regularly and you?ll have the best All you need is here: http://brogomeng.com/gall/gsm/ Do you wish to increase your volume by up to 500%? Be realistic ? you always wanted it We will get you the results you need  
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ No wind, no waves One mans meat is another mans poison!
