@@ -1,58 +1,70 @@
-Message-ID: <43221685510798.E64DA8DEF3@TGUGJ3E>
-From: "bertram" <cinquefoilcontinuo@earthlink.net>
-Subject: brett
-Date: Fri, 18 Aug 2006 19:26:53 +0200
+Message-ID: <44E62F7F.7010901@google.com>
+Date: Fri, 18 Aug 2006 14:22:07 -0700
+From: Daniel Phillips <phillips@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <20060808211731.GR14627@postel.suug.ch>	<44DBED4C.6040604@redhat.com>	<44DFA225.1020508@google.com>	<20060813.165540.56347790.davem@davemloft.net>	<44DFD262.5060106@google.com>	<20060813185309.928472f9.akpm@osdl.org>	<1155530453.5696.98.camel@twins>	<20060813215853.0ed0e973.akpm@osdl.org>	<44E3E964.8010602@google.com>	<20060816225726.3622cab1.akpm@osdl.org>	<44E5015D.80606@google.com> <20060817230556.7d16498e.akpm@osdl.org>
+In-Reply-To: <20060817230556.7d16498e.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <countrymenbegotten@earthlink.net>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, riel@redhat.com, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-18 August! Attention!
- 
-Get on BCL C first thing on friday, this one !
+Andrew Morton wrote:
+>Daniel Phillips wrote:
+>>Andrew Morton wrote:
+>
+> ...it's runtime configurable.
 
-Commpany: BICOASTAL COMMUNICAT
-Smybol:  BCL C 
-Cuurrent PPrice: $0.0265
-Expectinng ppriceon Friday: $0.06-$0.08
+So we default to "less than the best" because we are too lazy to fix the
+network starvation issue properly?  Maybe we don't really need a mempool for
+struct bio either, isn't that one rather like the reserve pool we propose
+for sk_buffs?  (And for that matter, isn't a bio rather more like an sk_buff
+than one would think from the code we have written?)
 
-The pirce is the minimum for last week and it will boom on friday!
-Worst Scenarrio Target Pirce: $0.065
-Most Probable Sceanrio Target Priice: $0.099
-Best Scenario Target Pirce: $0.125
-Thursday's Volume: 8,725,600 (Heavy)
+>>unavailable for write caching just to get around the network receive
+>> starvation issue?
+> 
+> No, it's mainly to avoid latency: to prevent tasks which want to allocate
+> pages from getting stuck behind writeback.
 
-Watch out for BCL C this friday, we see a great story in the making!
+This seems like a great help for some common loads, but a regression for
+other not-so-rare loads.  Regardless of whether or not marking 60% of memory
+as unusable for write caching is a great idea, it is not a compelling reason
+to fall for the hammer/nail trap.
 
-Recommendation: "Stronng Buyy" starting on Friday, August 18, 2006.
+>>What happens if some in kernel user grabs 68% of kernel memory to do some
+>>very important thing, does this starvation avoidance scheme still work?
+> 
+> Well something has to give way.  The process might get swapped out a bit,
+> or it might stall in the page allocator because of all the dirty memory.
 
-Latest News
+It is that "something has to give way" that makes me doubt the efficacy of
+our global write throttling scheme as a solution for network receive memory
+starvation.  As it is, the thing that gives way may well be the network
+stack.  Avoiding this hazard via a little bit of simple code is the whole
+point of our patch set.
 
-Bicoastal Communications Inc. Announces E911 Service Agreement. Grand 
-Junction, Colo.--(Businesss Wiree)--Aug. 15, 2006--Bicoastal Communications Inc.(Pink Sheets: BCL C - News) announces it has reached an agreement with Dialpoint Voice Service Inc. of Nevada to provide E911 services for its National VoIP (Voice over Internet Protocol) rollout through Callingpoint Communications.
+Yes, we did waltz off into some not-so-simple code at one point, but after
+discussing it, Peter and I agree that the simple approach actually works
+well enough, so we just need to trim down the patch set accordingly and
+thus prove that our approach really is nice, light and tight.
 
-This will give Bicoastal the ability to provide E911 services to all of the lower 48 
-states via VoIP as required by the FCC. Upon successful testing of the system, Bicoastal will be in position to start offering Residential and Business VoIP 
-services through its Callingpoint Communications unit within the next two weeks. 
+Specifically, we do not actually need any fancy sk_buff sub-allocator
+(either ours or the one proposed by davem).  We already got rid of the per
+device reserve accounting in order to finesse away the sk_buff->dev oddity
+and shorten the patch.  So the next rev will be rather lighter than the
+original.
 
-About the Company:
+Regards,
 
-Bicoastal Communications Inc. is positioned to make substantial growth in the coming years. The company strategy is to deploy into non-primary cities with 
-population centers of less than one million people. Unlike the major metropolitan areas of the country, these cities have not seen the benefit of competitive product offerings. Bicoastal intends to address these deficiencies by encompassing its IP services, Traditional and VoIP Telephone services and Television (IPTV) services, securing revenues with the much-touted triple play.The strategic partnerships developed have already made it possible for Bicoastal to gain direct access to 25,000 fiber-connected homes throughout the United States.
+Daniel
 
-Members should pick up BCL C as early as possible on Friday.
-
-This news is going to send BCL C off the charts!  
-
-We all know that in the this businses it's the big announcements that makes these stockks expldoe!!! 
-
-We see this as a hgue proift taking a deal. Watch BC LC like a hawk!
-
-Watch this one Tradee on the 18 OF August. Go BC LC! 
-
-
-Lust not after her beauty in thine heart; neither let her take thee with her eyelids.
-What does not kill you makes you stronger He that knows nothing, doubts nothing. Practice makes perfect. A stitch in time saves nine.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
