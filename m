@@ -1,7 +1,8 @@
-Date: Fri, 18 Aug 2006 20:31:41 -0700 (PDT)
+Date: Fri, 18 Aug 2006 20:33:18 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Optimize free_one_page
-Message-ID: <Pine.LNX.4.64.0608182030400.3009@schroedinger.engr.sgi.com>
+Subject: [PATCH] Do not check unpopulated zones for draining and counter
+ updates
+Message-ID: <Pine.LNX.4.64.0608182032180.3024@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,35 +11,49 @@ To: akpm@osdl.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Free one_page currently adds the page to a fake list and calls 
-free_page_bulk. Fee_page_bulk takes it off again and then calles 
-__free_one_page.
-
-Make free_one_page go directly to __free_one_page. Saves
-list on / off and a temporary list in free_one_page for
-higher ordered pages.
+If a zone is unpopulated then we do not need to check for pages
+that are to be drained and also not for vm counters that may need to be
+updated.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.18-rc4/mm/page_alloc.c
 ===================================================================
---- linux-2.6.18-rc4.orig/mm/page_alloc.c	2006-08-18 14:52:29.451028823 -0700
-+++ linux-2.6.18-rc4/mm/page_alloc.c	2006-08-18 14:52:35.046386459 -0700
-@@ -432,9 +432,11 @@ static void free_pages_bulk(struct zone 
+--- linux-2.6.18-rc4.orig/mm/page_alloc.c	2006-08-18 16:14:47.704697028 -0700
++++ linux-2.6.18-rc4/mm/page_alloc.c	2006-08-18 16:14:48.554253927 -0700
+@@ -617,7 +617,7 @@ static int rmqueue_bulk(struct zone *zon
+ #ifdef CONFIG_NUMA
+ /*
+  * Called from the slab reaper to drain pagesets on a particular node that
+- * belong to the currently executing processor.
++ * belongs to the currently executing processor.
+  * Note that this function must be called with the thread pinned to
+  * a single processor.
+  */
+@@ -630,6 +630,9 @@ void drain_node_pages(int nodeid)
+ 		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
+ 		struct per_cpu_pageset *pset;
  
- static void free_one_page(struct zone *zone, struct page *page, int order)
- {
--	LIST_HEAD(list);
--	list_add(&page->lru, &list);
--	free_pages_bulk(zone, 1, &list, order);
-+	spin_lock(&zone->lock);
-+	zone->all_unreclaimable = 0;
-+	zone->pages_scanned = 0;
-+	__free_one_page(page, zone ,order);
-+	spin_unlock(&zone->lock);
- }
++		if (!populated_zone(zone))
++			continue;
++
+ 		pset = zone_pcp(zone, smp_processor_id());
+ 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
+ 			struct per_cpu_pages *pcp;
+Index: linux-2.6.18-rc4/mm/vmstat.c
+===================================================================
+--- linux-2.6.18-rc4.orig/mm/vmstat.c	2006-08-06 11:20:11.000000000 -0700
++++ linux-2.6.18-rc4/mm/vmstat.c	2006-08-18 16:33:43.280046497 -0700
+@@ -268,6 +268,9 @@ void refresh_cpu_vm_stats(int cpu)
+ 	for_each_zone(zone) {
+ 		struct per_cpu_pageset *pcp;
  
- static void __free_pages_ok(struct page *page, unsigned int order)
++		if (!populated_zone(zone))
++			continue;
++
+ 		pcp = zone_pcp(zone, cpu);
+ 
+ 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
