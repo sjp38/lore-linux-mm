@@ -1,8 +1,7 @@
-Date: Fri, 18 Aug 2006 20:33:18 -0700 (PDT)
+Date: Fri, 18 Aug 2006 20:36:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Do not check unpopulated zones for draining and counter
- updates
-Message-ID: <Pine.LNX.4.64.0608182032180.3024@schroedinger.engr.sgi.com>
+Subject: ZVC: Overstep counters
+Message-ID: <Pine.LNX.4.64.0608182035220.3060@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,49 +10,68 @@ To: akpm@osdl.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If a zone is unpopulated then we do not need to check for pages
-that are to be drained and also not for vm counters that may need to be
-updated.
+Increments and decrements are usually grouped rather than mixed. We
+can optimize the inc and dec functions for that case.
+
+Increment and decrement the counters by 50% more than the threshold
+in those cases and set the differential accordingly. This decreases
+the need to update the atomic counters.
+
+The idea came originally from Andrew Morton. The overstepping
+alone was sufficient to address the contention issue found when updating
+the global and the per zone counters from 160 processors.
+
+Also remove some code in dec_zone_page_state.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc4/mm/page_alloc.c
+Index: linux-2.6.18-rc3/mm/vmstat.c
 ===================================================================
---- linux-2.6.18-rc4.orig/mm/page_alloc.c	2006-08-18 16:14:47.704697028 -0700
-+++ linux-2.6.18-rc4/mm/page_alloc.c	2006-08-18 16:14:48.554253927 -0700
-@@ -617,7 +617,7 @@ static int rmqueue_bulk(struct zone *zon
- #ifdef CONFIG_NUMA
- /*
-  * Called from the slab reaper to drain pagesets on a particular node that
-- * belong to the currently executing processor.
-+ * belongs to the currently executing processor.
-  * Note that this function must be called with the thread pinned to
-  * a single processor.
-  */
-@@ -630,6 +630,9 @@ void drain_node_pages(int nodeid)
- 		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
- 		struct per_cpu_pageset *pset;
+--- linux-2.6.18-rc3.orig/mm/vmstat.c	2006-07-29 23:15:36.000000000 -0700
++++ linux-2.6.18-rc3/mm/vmstat.c	2006-08-05 13:23:04.716084749 -0700
+@@ -190,8 +190,8 @@ static void __inc_zone_state(struct zone
+ 	(*p)++;
  
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		pset = zone_pcp(zone, smp_processor_id());
- 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
- 			struct per_cpu_pages *pcp;
-Index: linux-2.6.18-rc4/mm/vmstat.c
-===================================================================
---- linux-2.6.18-rc4.orig/mm/vmstat.c	2006-08-06 11:20:11.000000000 -0700
-+++ linux-2.6.18-rc4/mm/vmstat.c	2006-08-18 16:33:43.280046497 -0700
-@@ -268,6 +268,9 @@ void refresh_cpu_vm_stats(int cpu)
- 	for_each_zone(zone) {
- 		struct per_cpu_pageset *pcp;
+ 	if (unlikely(*p > STAT_THRESHOLD)) {
+-		zone_page_state_add(*p, zone, item);
+-		*p = 0;
++		zone_page_state_add(*p + STAT_THRESHOLD / 2, zone, item);
++		*p = -STAT_THRESHOLD / 2;
+ 	}
+ }
  
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		pcp = zone_pcp(zone, cpu);
+@@ -209,8 +209,8 @@ void __dec_zone_page_state(struct page *
+ 	(*p)--;
  
- 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+ 	if (unlikely(*p < -STAT_THRESHOLD)) {
+-		zone_page_state_add(*p, zone, item);
+-		*p = 0;
++		zone_page_state_add(*p - STAT_THRESHOLD / 2, zone, item);
++		*p = STAT_THRESHOLD /2;
+ 	}
+ }
+ EXPORT_SYMBOL(__dec_zone_page_state);
+@@ -239,19 +239,9 @@ EXPORT_SYMBOL(inc_zone_page_state);
+ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+ 	unsigned long flags;
+-	struct zone *zone;
+-	s8 *p;
+ 
+-	zone = page_zone(page);
+ 	local_irq_save(flags);
+-	p = diff_pointer(zone, item);
+-
+-	(*p)--;
+-
+-	if (unlikely(*p < -STAT_THRESHOLD)) {
+-		zone_page_state_add(*p, zone, item);
+-		*p = 0;
+-	}
++	__dec_zone_page_state(page, item);
+ 	local_irq_restore(flags);
+ }
+ EXPORT_SYMBOL(dec_zone_page_state);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
