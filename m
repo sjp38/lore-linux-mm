@@ -1,46 +1,37 @@
-Date: Sat, 19 Aug 2006 00:28:48 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Network receive stall avoidance (was [PATCH 2/9] deadlock
- prevention core)
-Message-Id: <20060819002848.e6884792.akpm@osdl.org>
-In-Reply-To: <44E69011.4080604@google.com>
-References: <20060808211731.GR14627@postel.suug.ch>
-	<44DBED4C.6040604@redhat.com>
-	<44DFA225.1020508@google.com>
-	<20060813.165540.56347790.davem@davemloft.net>
-	<44DFD262.5060106@google.com>
-	<20060813185309.928472f9.akpm@osdl.org>
-	<1155530453.5696.98.camel@twins>
-	<20060813215853.0ed0e973.akpm@osdl.org>
-	<44E3E964.8010602@google.com>
-	<20060816225726.3622cab1.akpm@osdl.org>
-	<44E5015D.80606@google.com>
-	<20060817230556.7d16498e.akpm@osdl.org>
-	<44E62F7F.7010901@google.com>
-	<20060818153455.2a3f2bcb.akpm@osdl.org>
-	<44E650C1.80608@google.com>
-	<20060818194435.25bacee0.akpm@osdl.org>
-	<44E69011.4080604@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <44E728E2.4000804@redhat.com>
+Date: Sat, 19 Aug 2006 11:06:10 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/9] deadlock prevention core
+References: <20060808211731.GR14627@postel.suug.ch>	<44DBED4C.6040604@redhat.com>	<44DFA225.1020508@google.com>	<20060813.165540.56347790.davem@davemloft.net>	<44DFD262.5060106@google.com>	<20060813185309.928472f9.akpm@osdl.org>	<1155530453.5696.98.camel@twins>	<20060813215853.0ed0e973.akpm@osdl.org>	<44E3E964.8010602@google.com>	<20060816225726.3622cab1.akpm@osdl.org>	<44E5015D.80606@google.com>	<20060817230556.7d16498e.akpm@osdl.org>	<44E62F7F.7010901@google.com>	<20060818153455.2a3f2bcb.akpm@osdl.org>	<44E650C1.80608@google.com> <20060818194435.25bacee0.akpm@osdl.org>
+In-Reply-To: <20060818194435.25bacee0.akpm@osdl.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, riel@redhat.com, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Mike Christie <michaelc@cs.wisc.edu>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, David Miller <davem@davemloft.net>, tgraf@suug.ch, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Aug 2006 21:14:09 -0700
-Daniel Phillips <phillips@google.com> wrote:
+Andrew Morton wrote:
 
-> So rather than just the word deadlock, let us add "or atomic 0 order
-> alloc failure during TCP receive" to the challenge.  Fair?
+> - We expect that the lots-of-dirty-anon-memory-over-swap-over-network
+>   scenario might still cause deadlocks.  
+> 
+>   I assert that this can be solved by putting swap on local disks.  Peter
+>   asserts that this isn't acceptable due to disk unreliability.  I point
+>   out that local disk reliability can be increased via MD, all goes quiet.
+> 
+>   A good exposition which helps us to understand whether and why a
+>   significant proportion of the target user base still wishes to do
+>   swap-over-network would be useful.
 
-If it's significantly performance-affecting in any way which is at all likely to 
-affect anyone, sure.
+You cannot put disks in many models of blade servers.
 
-You can get those warnings now with regular networking using e1000, due to
-a combination of excessive default rx ringsize and incorrect VM tuning.
+At all.
+
+-- 
+What is important?  What you want to be true, or what is true?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
