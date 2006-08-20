@@ -1,13 +1,14 @@
-Message-ID: <01285676284685.0E3BEE033C@IELZSW>
-From: "Bragg" <cavinessbartholomew@rpx.ru>
-Subject: Forget about it and take pleasure every night!
-Date: Sun, 20 Aug 2006 11:15:59 +0800
+Message-ID: <11277465052694.CAF0DB4A3C@AWMAKRT2>
+From: "Pace" <diplomaticautomotive@rourkepublishing.com>
+Subject: =?ISO-8859-1?Q?New=92n=92hot?= You crave to shoot like a film =?ISO-8859-1?Q?star=85?=
+Date: Sun, 20 Aug 2006 15:32:18 -0500
 MIME-Version: 1.0
 Content-Type: text/plain;
         charset="Windows-1252"
 Content-Transfer-Encoding: 7bit
-Return-Path: <abbreviatecarib@rottemeren.nl>
+Return-Path: <daylightcarriage@rot.ru>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear member, Leave complaining to others. You deserve to get rid of this. Choose Extra-Time for a reliable comprehensive method that really cures you. Ever thought your relationship is about to break up because you finish within a few minutes from penetration? Just take a look: http://tresart.com/gal/get/ This is your chance to build relationship of your dreams with your partner.
+But some of us think it?s impossible We will get you the results you need  Now you could grant your wish Check up: http://kuhnbert.com/gall/gsm/ Try it now! Have you ever wanted to impress your girl? 
+ Half a loaf is better than no bread 
