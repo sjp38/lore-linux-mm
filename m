@@ -1,44 +1,44 @@
-Received: by nf-out-0910.google.com with SMTP id x30so1994106nfb
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2006 11:52:39 -0700 (PDT)
-Message-ID: <a762e240608211152x5d4f11f0wd26f7e3d75d38e0a@mail.gmail.com>
-Date: Mon, 21 Aug 2006 11:52:39 -0700
-From: "Keith Mannthey" <kmannth@gmail.com>
-Subject: Re: [PATCH 0/6] Sizing zones and holes in an architecture independent manner V9
-In-Reply-To: <20060821134518.22179.46355.sendpatchset@skynet.skynet.ie>
+Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k7LLiunx018378
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2006 16:44:57 -0500
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k7LLmQDu47699209
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2006 14:48:26 -0700 (PDT)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k7LLiunB52777826
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2006 14:44:56 -0700 (PDT)
+Received: from christoph (helo=localhost)
+	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
+	id 1GFHZn-0005GQ-00
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2006 14:44:55 -0700
+Date: Mon, 21 Aug 2006 14:42:43 -0700 (PDT)
+From: Christoph Lameter <christoph@engr.sgi.com>
+Subject: Re: ZVC: Scale thresholds depending on the size of the system
+In-Reply-To: <20060821141619.65e20b59.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0608211441160.20201@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608191853150.6123@schroedinger.engr.sgi.com>
+ <20060821141619.65e20b59.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20060821134518.22179.46355.sendpatchset@skynet.skynet.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.64.0608211444510.20237@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@osdl.org, tony.luck@intel.com, linux-mm@kvack.org, ak@suse.de, bob.picco@hp.com, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: ak@suse.de, linux-mm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/21/06, Mel Gorman <mel@csn.ul.ie> wrote:
-> This is V9 of the patchset to size zones and memory holes in an
-> architecture-independent manner. It booted successfully on 5 different
-> machines (arches were x86, x86_64, ppc64 and ia64) in a number of different
-> configurations and successfully built a kernel. If it fails on any machine,
-> booting with loglevel=8 and the console log should tell me what went wrong.
->
+On Mon, 21 Aug 2006, Andrew Morton wrote:
 
-I am wondering why this new api didn't cleanup the pfn_to_nid code
-path as well. Arches are left to still keep another set of
-nid-start-end info around. We are sending info like
+> One day we'll need to stop adding code which is racy wrt cpu hotplug.
+> 
+> But now is not the time - once we've 100%-decided how to do that, some
+> brave person can start doing cross-kernel sweeps.  I _think_ the way we'll
+> do this is in places like this one is preempt_disable(), but that's not
+> 100% certain.
 
-add_active_range(unsigned int nid, unsigned long start_pfn, unsigned
-long end_pfn)
-
-With this info making a common pnf_to_nid seems to be of intrest so we
-don't have to keep redundant information in both generic and arch
-specific data structures.
-
-Are you intending the hot-add memory code path to call add_active_range or ???
-
-Thanks,
-  Keith
+It may be best to have rw semaphore that needs to be taken and work that 
+into the for_each_cpu/for_each_zone or setup a new macro.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
