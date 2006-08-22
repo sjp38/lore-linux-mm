@@ -1,69 +1,72 @@
-Date: Tue, 22 Aug 2006 09:38:50 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/6] Sizing zones and holes in an architecture independent
- manner V9
-In-Reply-To: <a762e240608211152x5d4f11f0wd26f7e3d75d38e0a@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0608220923280.11152@skynet.skynet.ie>
-References: <20060821134518.22179.46355.sendpatchset@skynet.skynet.ie>
- <a762e240608211152x5d4f11f0wd26f7e3d75d38e0a@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: [PATCH] radix-tree:  fix radix_tree_replace_slot
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Content-Type: text/plain
+Date: Tue, 22 Aug 2006 16:25:17 -0400
+Message-Id: <1156278317.5622.14.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Mannthey <kmannth@gmail.com>
-Cc: akpm@osdl.org, tony.luck@intel.com, Linux Memory Management List <linux-mm@kvack.org>, ak@suse.de, bob.picco@hp.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linuxppc-dev@ozlabs.org
+To: Andrew Morton <akpm@osdl.org>, "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Aug 2006, Keith Mannthey wrote:
+I was waiting to hear from Nick on this, but I understand that he has
+severely injured one hand, restricting his keyboard access for a while. 
 
-> On 8/21/06, Mel Gorman <mel@csn.ul.ie> wrote:
->> This is V9 of the patchset to size zones and memory holes in an
->> architecture-independent manner. It booted successfully on 5 different
->> machines (arches were x86, x86_64, ppc64 and ia64) in a number of different
->> configurations and successfully built a kernel. If it fails on any machine,
->> booting with loglevel=8 and the console log should tell me what went wrong.
->> 
->
-> I am wondering why this new api didn't cleanup the pfn_to_nid code
-> path as well. Arches are left to still keep another set of
-> nid-start-end info around. We are sending info like
->
+Christoph has been too swamped to take a look, either.   So, having
+tested it myself, I'll send it on.
 
-pfn_to_nid() is used at runtime and the early_node_map[] is deleted by 
-then. As this step, I only want to get the initialisation correct. What 
-can be replaced is the architecture-specific early_pfn_to_nid() function 
-which I did for power and x86.
+Paul:
 
-> add_active_range(unsigned int nid, unsigned long start_pfn, unsigned
-> long end_pfn)
->
-> With this info making a common pnf_to_nid seems to be of intrest so we
-> don't have to keep redundant information in both generic and arch
-> specific data structures.
->
+could you take a look at this one.  Also, I'll be sending another
+rcu-radix-tree "cleanup" patch that I'd like your opinion on.
 
-To implement a common one of interest, the array would have to be 
-converted to a linked list at the end of boot so it could be modified by 
-memory hot-add, then pfn_to_nid() would walk the linked list rather than 
-the existing array. pfn_valid() would probably be replaced as well. 
-However, this is going to be slower (if more accurate in some cases) than 
-the existing pfn_valid() and so I would treat it as a separate issue.
+Lee
 
-> Are you intending the hot-add memory code path to call add_active_range or 
-> ???
->
+Fix radix tree direct slot replacement - 2.6.18-rc4-mm2
 
-Not at this time. I want to make sure the memory initialisation is right 
-before dealing with additional complications.
+radix_tree_replace_slot() was assigning to local variable 'slot'
+instead of to where pslot pointed.  Changed to directly replace
+location pointed to by argument pslot.
 
-> Thanks,
-> Keith
->
+Added comments specifying required locking.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Note that we do not need to rcu_dereference() the slot to
+obtain the direct pointer flag, as we hold the tree write locked.
+
+Fixes the migration corruption that we were seeing since the
+rcu-radix-tree patches went in.  With this patch, we can back out
+page-migration-replace-radix_tree_lookup_slot-with-radix_tree_lockup.patch
+to use the more efficient direct access to radix tree slot.
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ include/linux/radix-tree.h |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.18-rc4-mm2/include/linux/radix-tree.h
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/include/linux/radix-tree.h	2006-08-22 14:30:38.000000000 -0400
++++ linux-2.6.18-rc4-mm2/include/linux/radix-tree.h	2006-08-22 14:36:54.000000000 -0400
+@@ -133,12 +133,15 @@ static inline void *radix_tree_deref_slo
+  * radix_tree_replace_slot	- replace item in a slot
+  * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
+  * @item:	new item to store in the slot.
++ *
++ * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
++ * across slot lookup and replacement.
+  */
+ static inline void radix_tree_replace_slot(void *pslot, void *item)
+ {
+ 	void *slot = *(void **)pslot;
+ 	BUG_ON(radix_tree_is_direct_ptr(item));
+-	rcu_assign_pointer(slot,
++	rcu_assign_pointer(*(void **)pslot,
+ 		(void *)((unsigned long)item |
+ 			((unsigned long)slot & RADIX_TREE_DIRECT_PTR)));
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
