@@ -1,32 +1,37 @@
-Subject: RE: [RFC PATCH] prevent from killing OOM disabled task in
-	do_page_fault()
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <BKEKJNIHLJDCFGDBOHGMMENIDGAA.abum@aftek.com>
-References: <BKEKJNIHLJDCFGDBOHGMMENIDGAA.abum@aftek.com>
-Content-Type: text/plain
+From: "Abu M. Muttalib" <abum@aftek.com>
+Subject: RE: [RFC PATCH] prevent from killing OOM disabled task indo_page_fault()
+Date: Thu, 24 Aug 2006 17:14:52 +0530
+Message-ID: <BKEKJNIHLJDCFGDBOHGMCENPDGAA.abum@aftek.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 24 Aug 2006 12:43:14 +0100
-Message-Id: <1156419794.3007.99.camel@localhost.localdomain>
-Mime-Version: 1.0
+In-Reply-To: <1156419794.3007.99.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Abu M. Muttalib" <abum@aftek.com>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Cc: Akinobu Mita <mita@miraclelinux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ar Iau, 2006-08-24 am 15:43 +0530, ysgrifennodd Abu M. Muttalib:
-> Hi,
-> 
-> > The process protected from oom-killer may be killed when do_page_fault()
-> > runs out of memory. This patch skips those processes as well as init task.
-> 
-> Do we have any patch set to disable OOM all together for linux kernel
-> 2.6.13?
+Hi,
 
-No, its run tme configurable as is selection priority of the processes
-which you want killed, has been for some time.
+> > > The process protected from oom-killer may be killed when
+do_page_fault()
+> > > runs out of memory. This patch skips those processes as well as init
+task.
+> >
+> > Do we have any patch set to disable OOM all together for linux kernel
+> > 2.6.13?
+>
+> No, its run tme configurable as is selection priority of the processes
+> which you want killed, has been for some time.
 
-Alan
+Will you please elaborate upon your reply.
+
+Thanks,
+Abu.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
