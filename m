@@ -1,16 +1,16 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.7/8.13.7) with ESMTP id k7OEUg5h094322
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 14:30:42 GMT
+	by mtagate6.de.ibm.com (8.13.7/8.13.7) with ESMTP id k7OEV1mG044064
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 14:31:01 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7OEYkSU2896036
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 16:34:46 +0200
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7OEZ5JJ2314460
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 16:35:05 +0200
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7OEUgZF016751
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 16:30:42 +0200
-Date: Thu, 24 Aug 2006 16:30:41 +0200
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7OEV1hT017073
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2006 16:31:01 +0200
+Date: Thu, 24 Aug 2006 16:31:00 +0200
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [patch 5/9] Guest page hinting: mlocked pages.
-Message-ID: <20060824143041.GF12127@skybase>
+Subject: [patch 6/9] Guest page hinting: writable page table entries.
+Message-ID: <20060824143100.GG12127@skybase>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -23,141 +23,292 @@ To: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au
 Cc: frankeh@watson.ibm.com, rhim@cc.gatech.edu
 List-ID: <linux-mm.kvack.org>
 
-[patch 5/9] Guest page hinting: mlocked pages.
+[patch 6/9] Guest page hinting: writable page table entries.
 
-Add code to get mlock() working with guest page hinting. The problem
-with mlock is that locked pages may not be removed from page cache.
-That means they need to be stable. page_make_volatile needs a way to
-check if a page has been locked. To avoid traversing vma lists - which
-would hurt performance a lot - a field is added in the struct
-address_space. This field is set in mlock_fixup if a vma gets mlocked.
-The bit never gets removed - once a file had an mlocked vma all future
-pages added to it will stay stable.
+The volatile state for page cache and swap cache pages requires that
+the host system needs to be able to determine if a volatile page is
+dirty before removing it. This excludes almost all platforms from using
+the scheme. What is needed is a way to distinguish between pages that
+are purely read-ony and pages that might get written to. This allows
+platforms with per-pte dirty bits to use the scheme and platforms with
+per-page dirty bits a small optimization.
 
-To complete the picture make_pages_present has to check for the host
-page state besides making the pages present in the linux page table.
-This is done by a call to get_user_pages with a pages parameter. Since
-the VM_LOCKED bit of the vma will be set prior to the call to
-get_user_pages an additional check is needed in the try_to_unmap_one
-function. If get_user_pages finds a discarded page it needs to remove
-the page from the page cache and all page tables dispite the fact that
-VM_LOCKED is set. After get_user_pages is back the pages are stable.
-The references to the pages can be returned immediatly, the pages will
-stay in stable because the mlocked bit is now set for the mapping.
+Whenever a writable pte is created a check is added that allows to
+move the page into the correct state. This needs to be done before
+the writable pte is established. To avoid unnecessary state transitions
+and the need for a counter, a new page flag PG_writable is added. Only
+the creation of the first writable pte will do a page state change.
+Even if all the writable ptes pointing to a page are removed again,
+the page stays in the safe state until all read-only users of the page
+have unmapped it as well. Only then is the PG_writable bit reset.
+
+The state a page needs to have if a writable pte is present depends
+on the platform. A platform with per-pte dirty bits wants to move the
+page into stable state, a platform with per-page dirty bits like s390
+can decide to move the page into a special state that requires the host
+system to check the dirty bit before discarding a page.
 
 Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
 
- include/linux/fs.h |    1 +
- mm/memory.c        |   25 +++++++++++++++++++++++++
- mm/mlock.c         |    2 ++
- mm/page-discard.c  |    5 ++++-
- mm/rmap.c          |   13 +++++++++++--
- 5 files changed, 43 insertions(+), 3 deletions(-)
+ fs/exec.c                   |    6 +++--
+ include/linux/page-flags.h  |    5 ++++
+ include/linux/page-states.h |   25 +++++++++++++++++++++-
+ mm/fremap.c                 |    1 
+ mm/memory.c                 |    5 ++++
+ mm/mprotect.c               |    1 
+ mm/page-discard.c           |   49 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/page_alloc.c             |    3 +-
+ mm/rmap.c                   |    1 
+ 9 files changed, 91 insertions(+), 5 deletions(-)
 
-diff -urpN linux-2.6/include/linux/fs.h linux-2.6-patched/include/linux/fs.h
---- linux-2.6/include/linux/fs.h	2006-08-24 15:39:33.000000000 +0200
-+++ linux-2.6-patched/include/linux/fs.h	2006-08-24 15:39:43.000000000 +0200
-@@ -426,6 +426,7 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+	unsigned int		mlocked;	/* set if VM_LOCKED vmas present */
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-diff -urpN linux-2.6/mm/memory.c linux-2.6-patched/mm/memory.c
---- linux-2.6/mm/memory.c	2006-08-24 15:39:43.000000000 +0200
-+++ linux-2.6-patched/mm/memory.c	2006-08-24 15:39:43.000000000 +0200
-@@ -2523,6 +2523,31 @@ int make_pages_present(unsigned long add
- 	BUG_ON(addr >= end);
- 	BUG_ON(end > vma->vm_end);
- 	len = (end+PAGE_SIZE-1)/PAGE_SIZE-addr/PAGE_SIZE;
-+
-+	if (page_host_discards() && (vma->vm_flags & VM_LOCKED)) {
-+		int rlen = len;
-+		ret = 0;
-+		while (rlen > 0) {
-+			struct page *page_refs[32];
-+			int chunk, cret, i;
-+
-+			chunk = rlen < 32 ? rlen : 32;
-+			cret = get_user_pages(current, current->mm, addr,
-+					      chunk, write, 0,
-+					      page_refs, NULL);
-+			if (cret > 0) {
-+				for (i = 0; i < cret; i++)
-+					page_cache_release(page_refs[i]);
-+				ret += cret;
-+			}
-+			if (cret < chunk)
-+				return ret ? : cret;
-+			addr += 32*PAGE_SIZE;
-+			rlen -= 32;
-+		}
-+		return ret == len ? 0 : -1;
-+	}
-+
- 	ret = get_user_pages(current, current->mm, addr,
- 			len, write, 0, NULL, NULL);
- 	if (ret < 0)
-diff -urpN linux-2.6/mm/mlock.c linux-2.6-patched/mm/mlock.c
---- linux-2.6/mm/mlock.c	2006-06-18 03:49:35.000000000 +0200
-+++ linux-2.6-patched/mm/mlock.c	2006-08-24 15:39:43.000000000 +0200
-@@ -60,6 +60,8 @@ success:
- 	 */
- 	pages = (end - start) >> PAGE_SHIFT;
- 	if (newflags & VM_LOCKED) {
-+		if (vma->vm_file && vma->vm_file->f_mapping)
-+			vma->vm_file->f_mapping->mlocked = 1;
- 		pages = -pages;
- 		if (!(newflags & VM_IO))
- 			ret = make_pages_present(start, end);
-diff -urpN linux-2.6/mm/page-discard.c linux-2.6-patched/mm/page-discard.c
---- linux-2.6/mm/page-discard.c	2006-08-24 15:39:43.000000000 +0200
-+++ linux-2.6-patched/mm/page-discard.c	2006-08-24 15:39:43.000000000 +0200
-@@ -27,6 +27,8 @@
-  */
- static inline int __page_discardable(struct page *page,unsigned int offset)
+diff -urpN linux-2.6/fs/exec.c linux-2.6-patched/fs/exec.c
+--- linux-2.6/fs/exec.c	2006-08-24 15:39:30.000000000 +0200
++++ linux-2.6-patched/fs/exec.c	2006-08-24 15:39:44.000000000 +0200
+@@ -307,6 +307,7 @@ void install_arg_page(struct vm_area_str
  {
-+	struct address_space *mapping;
-+
- 	/*
- 	 * There are several conditions that prevent a page from becoming
- 	 * volatile. The first check is for the page bits.
-@@ -42,7 +44,8 @@ static inline int __page_discardable(str
- 	 * it volatile. It will be freed soon. If the mapping ever had
- 	 * locked pages all pages of the mapping will stay stable.
- 	 */
--	if (!page_mapping(page))
-+	mapping = page_mapping(page);
-+	if (!mapping || mapping->mlocked)
- 		return 0;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t * pte;
++	pte_t pte_val;
+ 	spinlock_t *ptl;
  
- 	/*
-diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
---- linux-2.6/mm/rmap.c	2006-08-24 15:39:43.000000000 +0200
-+++ linux-2.6-patched/mm/rmap.c	2006-08-24 15:39:43.000000000 +0200
-@@ -627,8 +627,17 @@ static int try_to_unmap_one(struct page 
- 	 */
- 	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
- 			(ptep_clear_flush_young(vma, address, pte)))) {
--		ret = SWAP_FAIL;
--		goto out_unmap;
-+		/*
-+		 * Check for discarded pages. This can happen if there have
-+		 * been discarded pages before a vma gets mlocked. The code
-+		 * in make_pages_present will force all discarded pages out
-+		 * and reload them. That happens after the VM_LOCKED bit
-+		 * has been set.
-+		 */
-+		if (likely(!page_host_discards() || !PageDiscarded(page))) {
-+			ret = SWAP_FAIL;
-+			goto out_unmap;
-+		}
+ 	if (unlikely(anon_vma_prepare(vma)))
+@@ -322,8 +323,9 @@ void install_arg_page(struct vm_area_str
+ 	}
+ 	inc_mm_counter(mm, anon_rss);
+ 	lru_cache_add_active(page);
+-	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
+-					page, vma->vm_page_prot))));
++	pte_val = pte_mkdirty(pte_mkwrite(mk_pte(page, vma->vm_page_prot)));
++	page_check_writable(page, pte_val);
++	set_pte_at(mm, address, pte, pte_val);
+ 	page_add_new_anon_rmap(page, vma, address);
+ 	pte_unmap_unlock(pte, ptl);
+ 
+diff -urpN linux-2.6/include/linux/page-flags.h linux-2.6-patched/include/linux/page-flags.h
+--- linux-2.6/include/linux/page-flags.h	2006-08-24 15:39:42.000000000 +0200
++++ linux-2.6-patched/include/linux/page-flags.h	2006-08-24 15:39:44.000000000 +0200
+@@ -107,6 +107,7 @@
+ 
+ #define PG_state_change		21	/* HV page state is changing. */
+ #define PG_discarded		22	/* HV page has been discarded. */
++#define PG_writable		23	/* HV page is mapped writable. */
+ 
+ /*
+  * Manipulation of page state flags
+@@ -267,6 +268,10 @@
+ #define TestSetPageDiscarded(page) \
+ 		test_and_set_bit(PG_discarded, &(page)->flags)
+ 
++#define PageWritable(page) test_bit(PG_writable, &(page)->flags)
++#define SetPageWritable(page) set_bit(PG_writable, &(page)->flags)
++#define ClearPageWritable(page) clear_bit(PG_writable, &(page)->flags)
++
+ struct page;	/* forward declaration */
+ 
+ int test_clear_page_dirty(struct page *page);
+diff -urpN linux-2.6/include/linux/page-states.h linux-2.6-patched/include/linux/page-states.h
+--- linux-2.6/include/linux/page-states.h	2006-08-24 15:39:42.000000000 +0200
++++ linux-2.6-patched/include/linux/page-states.h	2006-08-24 15:39:44.000000000 +0200
+@@ -40,7 +40,7 @@
+ #define page_host_discards()			(0)
+ #define page_set_unused(_page,_order)		do { } while (0)
+ #define page_set_stable(_page,_order)		do { } while (0)
+-#define page_set_volatile(_page)		do { } while (0)
++#define page_set_volatile(_page,_writable)	do { } while (0)
+ #define page_set_stable_if_present(_page)	(1)
+ #define page_discarded(_page)			(0)
+ 
+@@ -63,6 +63,12 @@
+  *     from the LRU list and the radix tree of its mapping.
+  *     page_discard uses page_unmap_all to remove all page table
+  *     entries for a page.
++ * - page_check_writable:
++ *     Checks if the page states needs to be adapted because a new
++ *     writable page table entry refering to the page is established.
++ * - page_reset_writable:
++ *     Resets the page state after the last writable page table entry
++ *     refering to the page has been removed.
+  */
+ extern void page_unmap_all(struct page *page);
+ extern void page_discard(struct page *page);
+@@ -84,4 +90,21 @@ static inline void page_make_volatile(st
+ 		__page_make_volatile(page, offset);
+ }
+ 
++static inline void page_check_writable(struct page *page, pte_t pte)
++{
++	extern void __page_check_writable(struct page *, pte_t);
++	if (!page_host_discards() || !pte_write(pte) ||
++	    test_bit(PG_writable, &page->flags))
++		return;
++	__page_check_writable(page, pte);
++}
++
++static inline void page_reset_writable(struct page *page)
++{
++	extern void __page_reset_writable(struct page *);
++	if (!page_host_discards() || !test_bit(PG_writable, &page->flags))
++		return;
++	__page_reset_writable(page);
++}
++
+ #endif /* _LINUX_PAGE_STATES_H */
+diff -urpN linux-2.6/mm/fremap.c linux-2.6-patched/mm/fremap.c
+--- linux-2.6/mm/fremap.c	2006-08-24 15:39:34.000000000 +0200
++++ linux-2.6-patched/mm/fremap.c	2006-08-24 15:39:44.000000000 +0200
+@@ -80,6 +80,7 @@ int install_page(struct mm_struct *mm, s
+ 
+ 	flush_icache_page(vma, page);
+ 	pte_val = mk_pte(page, prot);
++	page_check_writable(page, pte_val);
+ 	set_pte_at(mm, addr, pte, pte_val);
+ 	page_add_file_rmap(page);
+ 	update_mmu_cache(vma, addr, pte_val);
+diff -urpN linux-2.6/mm/memory.c linux-2.6-patched/mm/memory.c
+--- linux-2.6/mm/memory.c	2006-08-24 15:39:44.000000000 +0200
++++ linux-2.6-patched/mm/memory.c	2006-08-24 15:39:44.000000000 +0200
+@@ -1558,6 +1558,7 @@ static int do_wp_page(struct mm_struct *
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = pte_mkyoung(orig_pte);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		page_check_writable(old_page, entry);
+ 		ptep_set_access_flags(vma, address, page_table, entry, 1);
+ 		update_mmu_cache(vma, address, entry);
+ 		lazy_mmu_prot_update(entry);
+@@ -1607,6 +1608,7 @@ gotten:
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		page_check_writable(new_page, entry);
+ 		lazy_mmu_prot_update(entry);
+ 		ptep_establish(vma, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
+@@ -2055,6 +2057,7 @@ static int do_swap_page(struct mm_struct
  	}
  
- 	/* Nuke the page table entry. */
+ 	flush_icache_page(vma, page);
++	page_check_writable(page, pte);
+ 	set_pte_at(mm, address, page_table, pte);
+ 	page_add_anon_rmap(page, vma, address);
+ 
+@@ -2117,6 +2120,7 @@ static int do_anonymous_page(struct mm_s
+ 
+ 		entry = mk_pte(page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		page_check_writable(page, entry);
+ 
+ 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		if (!pte_none(*page_table))
+@@ -2268,6 +2272,7 @@ retry:
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		if (write_access)
+ 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++		page_check_writable(new_page, entry);
+ 		set_pte_at(mm, address, page_table, entry);
+ 		if (anon) {
+ 			inc_mm_counter(mm, anon_rss);
+diff -urpN linux-2.6/mm/mprotect.c linux-2.6-patched/mm/mprotect.c
+--- linux-2.6/mm/mprotect.c	2006-08-24 15:39:34.000000000 +0200
++++ linux-2.6-patched/mm/mprotect.c	2006-08-24 15:39:44.000000000 +0200
+@@ -52,6 +52,7 @@ static void change_pte_range(struct mm_s
+ 			 */
+ 			if (dirty_accountable && pte_dirty(ptent))
+ 				ptent = pte_mkwrite(ptent);
++			page_check_writable(pte_page(ptent), ptent);
+ 			set_pte_at(mm, addr, pte, ptent);
+ 			lazy_mmu_prot_update(ptent);
+ #ifdef CONFIG_MIGRATION
+diff -urpN linux-2.6/mm/page_alloc.c linux-2.6-patched/mm/page_alloc.c
+--- linux-2.6/mm/page_alloc.c	2006-08-24 15:39:42.000000000 +0200
++++ linux-2.6-patched/mm/page_alloc.c	2006-08-24 15:39:44.000000000 +0200
+@@ -585,7 +585,8 @@ static int prep_new_page(struct page *pa
+ 
+ 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
+ 			1 << PG_referenced | 1 << PG_arch_1 |
+-			1 << PG_fs_misc | 1 << PG_mappedtodisk);
++			1 << PG_fs_misc | 1 << PG_mappedtodisk |
++			1 << PG_writable );
+ 	set_page_private(page, 0);
+ 	set_page_refcounted(page);
+ 	kernel_map_pages(page, 1 << order, 1);
+diff -urpN linux-2.6/mm/page-discard.c linux-2.6-patched/mm/page-discard.c
+--- linux-2.6/mm/page-discard.c	2006-08-24 15:39:44.000000000 +0200
++++ linux-2.6-patched/mm/page-discard.c	2006-08-24 15:39:44.000000000 +0200
+@@ -81,7 +81,7 @@ void __page_make_volatile(struct page *p
+ 	preempt_disable();
+ 	if (!TestSetPageStateChange(page)) {
+ 		if (__page_discardable(page, offset))
+-			page_set_volatile(page);
++			page_set_volatile(page, PageWritable(page));
+ 		ClearPageStateChange(page);
+ 	}
+ 	preempt_enable();
+@@ -117,6 +117,53 @@ int __page_make_stable(struct page *page
+ EXPORT_SYMBOL(__page_make_stable);
+ 
+ /**
++ * __page_check_writable() - check page state for new writable pte
++ *
++ * @page: the page the new writable pte refers to
++ * @pte: the new writable pte
++ */
++void __page_check_writable(struct page *page, pte_t pte)
++{
++	preempt_disable();
++	while (TestSetPageStateChange(page))
++		cpu_relax();
++
++	if (!PageWritable(page)) {
++		if (__page_discardable(page, 2))
++			page_set_volatile(page, 1);
++		else
++			/*
++			 * If two processes create a write mapping at the
++			 * same time __page_discardable will return
++			 * false but the page IS in volatile state.
++			 * We have to take care about the dirty bit so the
++			 * only option left is to make the page stable.
++			 */
++			page_set_stable_if_present(page);
++		SetPageWritable(page);
++	}
++	ClearPageStateChange(page);
++	preempt_enable();
++}
++EXPORT_SYMBOL(__page_check_writable);
++
++/**
++ * __page_reset_writable() - clear the PageWritable bit
++ *
++ * @page: the page
++ */
++void __page_reset_writable(struct page *page)
++{
++	preempt_disable();
++	if (!TestSetPageStateChange(page)) {
++		ClearPageWritable(page);
++		ClearPageStateChange(page);
++	}
++	preempt_enable();
++}
++EXPORT_SYMBOL(__page_reset_writable);
++
++/**
+  * __page_discard() - remove a discarded page from the cache
+  *
+  * @page: the page
+diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
+--- linux-2.6/mm/rmap.c	2006-08-24 15:39:44.000000000 +0200
++++ linux-2.6-patched/mm/rmap.c	2006-08-24 15:39:44.000000000 +0200
+@@ -600,6 +600,7 @@ void page_remove_rmap(struct page *page)
+ 			set_page_dirty(page);
+ 		__dec_zone_page_state(page,
+ 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
++		page_reset_writable(page);
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
