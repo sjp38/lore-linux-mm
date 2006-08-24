@@ -1,31 +1,45 @@
-Date: Thu, 24 Aug 2006 14:43:29 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC][PATCH 4/4] deadlock prevention for NBD
-Message-ID: <20060824144329.GA4092@ucw.cz>
-References: <20060812141415.30842.78695.sendpatchset@lappy> <20060812141455.30842.41506.sendpatchset@lappy>
+Subject: Re: [PATCH] radix-tree:  cleanup radix_tree_deref_slot() and
+	_lookup_slot() comments
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20060824052410.GD18961@us.ibm.com>
+References: <1156278772.5622.23.camel@localhost>
+	 <20060824052410.GD18961@us.ibm.com>
+Content-Type: text/plain
+Date: Thu, 24 Aug 2006 11:04:41 -0400
+Message-Id: <1156431882.5165.31.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060812141455.30842.41506.sendpatchset@lappy>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Indan Zupancic <indan@nul.nu>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: paulmck@us.ibm.com
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Wed, 2006-08-23 at 22:24 -0700, Paul E. McKenney wrote:
+> On Tue, Aug 22, 2006 at 04:32:52PM -0400, Lee Schermerhorn wrote:
+> > Andrew:  here is a second patch that just cleans up [I think] the
+> > '_deref_slot() function, and adds more explanation of expected/required
+> > locking to the direct slot access functions.  I separated it out,
+> > because it doesn't fix a serious bug, like the previous one.
+> > 
+> > Paul:  do you agree that we don't need rcu_dereference() in the
+> > _deref_slot() as it can only be used while the tree is held [probably
+> > write] locked?  Do the comments look OK?
+> 
+> Yep, rcu_dereference() is not needed if the tree is prevented from
+> changing.  That said, rcu_dereference() is zero cost on all but
+> Alpha, so there is little benefit to be had from removing it.
 
-> Limit each request to 1 page, so that the request throttling also limits the
-> number of in-flight pages and force the IO scheduler to NOOP as anything else
-> doesn't make sense anyway.
+I wasn't concerned about the cost.  I just thought it would be
+"misleading" if, as you have verified, that it's not required, because
+the comment on rcu_dereference() says that one important aspect of using
+rcu_dereference() is to document which pointers are protected by RCU.  
 
-I'd like to understand why it breaks with other schedulers before
-merging this. Maybe the failure in NOOP is just harder to trigger?
+> 
+> The comments look much improved.
 
-							Pavel
-
--- 
-Thanks for all the (sleeping) penguins.
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
