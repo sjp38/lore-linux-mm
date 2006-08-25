@@ -1,7 +1,9 @@
-Date: Fri, 25 Aug 2006 15:16:19 -0700 (PDT)
+Date: Fri, 25 Aug 2006 15:22:14 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: ZVC: Support NR_SLAB_RECLAIM
-Message-ID: <Pine.LNX.4.64.0608251500560.11154@schroedinger.engr.sgi.com>
+Subject: zone_reclaim: dynamic zone based slab reclaim
+In-Reply-To: <Pine.LNX.4.64.0608251500560.11154@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0608251521190.11205@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0608251500560.11154@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,218 +12,305 @@ To: akpm@osdl.org
 Cc: npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove the atomic counter for slab_reclaim_pages and replace
-with a ZVC counter. NR_SLAB will now only count the
-unreclaimable slab pages whereas NR_SLAB_RECLAIM will count
-the reclaimable slab pages.
+Currently one can enable slab reclaim by setting an explicit option. Slab
+reclaim is then used as a final option if the freeing of unmapped file
+backed pages is not enough to free enough pages to allow a local allocation.
 
-Change the check in vmscan.c to refer to NR_SLAB_RECLAIM. The intend
-seems to be to check for slab pages that could be freed.
+However, that means that the slab can grow excessively and that most memory
+of a node may be used by slabs. We have had a case where a machine with 46GB
+of memory was using 40-42GB for slab. Zone reclaim was effective in dealing
+with pagecache pages. However, slab reclaim was only done during global
+reclaim (which is a bit rare on NUMA systems).
+
+This patch implements slab reclaim during zone reclaim. Zone reclaim occurs
+if there is a danger of an off node allocation. At that point we
+
+1. Shrink the per node page cache if the number of pagecache
+   pages is more than min_unmapped_ratio percent of pages in a zone.
+
+2. Shrink the slab cache if the number of the nodes reclaimable slab pages
+   (patch depends on earlier one that implements that counter)
+   are more than min_slab_ratio (a new /proc/sys/vm tunable).
+
+The shrinking of the slab cache is a bit problematic since it is not node
+specific. So we simply calculate what point in the slab we want to reach
+(current per node slab use minus the number of pages that neeed to be
+allocated) and then repeately run the global reclaim until that is
+unsuccessful or we have reached the limit. I hope we will have zone based
+slab reclaim at some point which will make that easier.
+
+The default for the min_slab_limit is 5%
+
+Also remove the slab option from /proc/sys/vm/zone_reclaim_mode.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc4-mm2/mm/mmap.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/mmap.c	2006-08-23 12:37:01.836055970 -0700
-+++ linux-2.6.18-rc4-mm2/mm/mmap.c	2006-08-25 14:23:03.839764012 -0700
-@@ -112,7 +112,7 @@ int __vm_enough_memory(long pages, int c
- 		 * which are reclaimable, under pressure.  The dentry
- 		 * cache and most inode caches should fall into this
- 		 */
--		free += atomic_read(&slab_reclaim_pages);
-+		free += global_page_state(NR_SLAB_RECLAIM);
- 
- 		/*
- 		 * Leave the last 3% for root
-Index: linux-2.6.18-rc4-mm2/mm/slab.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/slab.c	2006-08-23 12:37:01.858515518 -0700
-+++ linux-2.6.18-rc4-mm2/mm/slab.c	2006-08-25 14:23:03.842693518 -0700
-@@ -738,14 +738,6 @@ static DEFINE_MUTEX(cache_chain_mutex);
- static struct list_head cache_chain;
- 
- /*
-- * vm_enough_memory() looks at this to determine how many slab-allocated pages
-- * are possibly freeable under pressure
-- *
-- * SLAB_RECLAIM_ACCOUNT turns this on per-slab
-- */
--atomic_t slab_reclaim_pages;
--
--/*
-  * chicken and egg problem: delay the per-cpu array allocation
-  * until the general caches are up.
-  */
-@@ -1582,8 +1574,9 @@ static void *kmem_getpages(struct kmem_c
- 
- 	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
--		atomic_add(nr_pages, &slab_reclaim_pages);
--	add_zone_page_state(page_zone(page), NR_SLAB, nr_pages);
-+		add_zone_page_state(page_zone(page), NR_SLAB_RECLAIM, nr_pages);
-+	else
-+		add_zone_page_state(page_zone(page), NR_SLAB, nr_pages);
- 	for (i = 0; i < nr_pages; i++)
- 		__SetPageSlab(page + i);
- 	return page_address(page);
-@@ -1598,7 +1591,10 @@ static void kmem_freepages(struct kmem_c
- 	struct page *page = virt_to_page(addr);
- 	const unsigned long nr_freed = i;
- 
--	sub_zone_page_state(page_zone(page), NR_SLAB, nr_freed);
-+	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-+		sub_zone_page_state(page_zone(page), NR_SLAB_RECLAIM, nr_freed);
-+	else
-+		sub_zone_page_state(page_zone(page), NR_SLAB, nr_freed);
- 	while (i--) {
- 		BUG_ON(!PageSlab(page));
- 		__ClearPageSlab(page);
-@@ -1607,8 +1603,6 @@ static void kmem_freepages(struct kmem_c
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
- 	free_pages((unsigned long)addr, cachep->gfporder);
--	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
--		atomic_sub(1 << cachep->gfporder, &slab_reclaim_pages);
- }
- 
- static void kmem_rcu_free(struct rcu_head *head)
-Index: linux-2.6.18-rc4-mm2/mm/slob.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/slob.c	2006-08-06 11:20:11.000000000 -0700
-+++ linux-2.6.18-rc4-mm2/mm/slob.c	2006-08-25 14:23:03.842693518 -0700
-@@ -340,9 +340,6 @@ void kmem_cache_init(void)
- 	mod_timer(&slob_timer, jiffies + HZ);
- }
- 
--atomic_t slab_reclaim_pages = ATOMIC_INIT(0);
--EXPORT_SYMBOL(slab_reclaim_pages);
--
- #ifdef CONFIG_SMP
- 
- void *__alloc_percpu(size_t size)
-Index: linux-2.6.18-rc4-mm2/mm/nommu.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/nommu.c	2006-08-06 11:20:11.000000000 -0700
-+++ linux-2.6.18-rc4-mm2/mm/nommu.c	2006-08-25 14:23:03.843670020 -0700
-@@ -1133,7 +1133,7 @@ int __vm_enough_memory(long pages, int c
- 		 * which are reclaimable, under pressure.  The dentry
- 		 * cache and most inode caches should fall into this
- 		 */
--		free += atomic_read(&slab_reclaim_pages);
-+		free += global_page_state(NR_SLAB_RECLAIM);
- 
- 		/*
- 		 * Leave the last 3% for root
-Index: linux-2.6.18-rc4-mm2/include/linux/slab.h
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/include/linux/slab.h	2006-08-23 12:37:01.493303726 -0700
-+++ linux-2.6.18-rc4-mm2/include/linux/slab.h	2006-08-25 14:23:03.844646522 -0700
-@@ -291,8 +291,6 @@ extern kmem_cache_t	*fs_cachep;
- extern kmem_cache_t	*sighand_cachep;
- extern kmem_cache_t	*bio_cachep;
- 
--extern atomic_t slab_reclaim_pages;
--
- #endif	/* __KERNEL__ */
- 
- #endif	/* _LINUX_SLAB_H */
-Index: linux-2.6.18-rc4-mm2/include/linux/mmzone.h
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/include/linux/mmzone.h	2006-08-23 12:37:01.103679381 -0700
-+++ linux-2.6.18-rc4-mm2/include/linux/mmzone.h	2006-08-25 14:23:03.845623024 -0700
-@@ -51,7 +51,8 @@ enum zone_stat_item {
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
- 	NR_FILE_PAGES,
--	NR_SLAB,	/* Pages used by slab allocator */
-+	NR_SLAB,		/* Unreclaimable slab pages */
-+	NR_SLAB_RECLAIM,	/* Reclaimable slab pages */
- 	NR_PAGETABLE,	/* used for pagetables */
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
-Index: linux-2.6.18-rc4-mm2/drivers/base/node.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/drivers/base/node.c	2006-08-23 12:36:56.875425210 -0700
-+++ linux-2.6.18-rc4-mm2/drivers/base/node.c	2006-08-25 14:42:05.130443045 -0700
-@@ -68,7 +68,8 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d NFS Unstable: %8lu kB\n"
- 		       "Node %d Bounce:       %8lu kB\n"
--		       "Node %d Slab:         %8lu kB\n",
-+		       "Node %d SlabUnrecl:   %8lu kB\n"
-+		       "Node %d SlabReclaim:  %8lu kB\n",
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
- 		       nid, K(i.totalram - i.freeram),
-@@ -88,7 +89,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
--		       nid, K(node_page_state(nid, NR_SLAB)));
-+		       nid, K(node_page_state(nid, NR_SLAB)),
-+		       nid, K(node_page_state(nid, NR_SLAB_RECLAIM)));
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
- }
-Index: linux-2.6.18-rc4-mm2/mm/vmstat.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/vmstat.c	2006-08-23 12:37:01.866327535 -0700
-+++ linux-2.6.18-rc4-mm2/mm/vmstat.c	2006-08-25 14:23:03.846599525 -0700
-@@ -395,6 +395,7 @@ static char *vmstat_text[] = {
- 	"nr_mapped",
- 	"nr_file_pages",
- 	"nr_slab",
-+	"nr_slab_reclaim",
- 	"nr_page_table_pages",
- 	"nr_dirty",
- 	"nr_writeback",
-Index: linux-2.6.18-rc4-mm2/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/fs/proc/proc_misc.c	2006-08-23 12:36:59.772706994 -0700
-+++ linux-2.6.18-rc4-mm2/fs/proc/proc_misc.c	2006-08-25 14:23:03.848552529 -0700
-@@ -170,7 +170,8 @@ static int meminfo_read_proc(char *page,
- 		"Writeback:    %8lu kB\n"
- 		"AnonPages:    %8lu kB\n"
- 		"Mapped:       %8lu kB\n"
--		"Slab:         %8lu kB\n"
-+		"SlabUnrecl:   %8lu kB\n"
-+		"SlabReclaim:  %8lu kB\n"
- 		"PageTables:   %8lu kB\n"
- 		"NFS Unstable: %8lu kB\n"
- 		"Bounce:       %8lu kB\n"
-@@ -199,6 +200,7 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
- 		K(global_page_state(NR_SLAB)),
-+		K(global_page_state(NR_SLAB_RECLAIM)),
- 		K(global_page_state(NR_PAGETABLE)),
- 		K(global_page_state(NR_UNSTABLE_NFS)),
- 		K(global_page_state(NR_BOUNCE)),
-Index: linux-2.6.18-rc4-mm2/mm/swap_prefetch.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/swap_prefetch.c	2006-08-23 12:37:01.860468523 -0700
-+++ linux-2.6.18-rc4-mm2/mm/swap_prefetch.c	2006-08-25 14:23:03.848552529 -0700
-@@ -393,6 +393,7 @@ static int prefetch_suitable(void)
- 		 */
- 		limit = node_page_state(node, NR_FILE_PAGES);
- 		limit += node_page_state(node, NR_SLAB);
-+		limit += node_page_state(node, NR_SLAB_RECLAIM);
- 		limit += node_page_state(node, NR_FILE_DIRTY);
- 		limit += node_page_state(node, NR_UNSTABLE_NFS);
- 		limit += total_swapcache_pages;
 Index: linux-2.6.18-rc4-mm2/mm/vmscan.c
 ===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/vmscan.c	2006-08-23 12:37:01.865351033 -0700
-+++ linux-2.6.18-rc4-mm2/mm/vmscan.c	2006-08-25 14:23:03.849529031 -0700
-@@ -1386,7 +1386,7 @@ unsigned long shrink_all_memory(unsigned
- 	for_each_zone(zone)
- 		lru_pages += zone->nr_active + zone->nr_inactive;
+--- linux-2.6.18-rc4-mm2.orig/mm/vmscan.c	2006-08-25 15:16:33.916779821 -0700
++++ linux-2.6.18-rc4-mm2/mm/vmscan.c	2006-08-25 15:16:48.634619679 -0700
+@@ -1535,7 +1535,6 @@ int zone_reclaim_mode __read_mostly;
+ #define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
+ #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
+ #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
+-#define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
  
--	nr_slab = global_page_state(NR_SLAB);
-+	nr_slab = global_page_state(NR_SLAB_RECLAIM);
- 	/* If slab caches are huge, it's better to hit them first */
- 	while (nr_slab >= lru_pages) {
- 		reclaim_state.reclaimed_slab = 0;
+ /*
+  * Priority for ZONE_RECLAIM. This determines the fraction of pages
+@@ -1551,6 +1550,12 @@ int zone_reclaim_mode __read_mostly;
+ int sysctl_min_unmapped_ratio = 1;
+ 
+ /*
++ * If the number of slab pages in a zone grows beyond this percentage then
++ * slab reclaim needs to occur.
++ */
++int sysctl_min_slab_ratio = 5;
++
++/*
+  * Try to free up some pages from this zone through reclaim.
+  */
+ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+@@ -1581,29 +1586,36 @@ static int __zone_reclaim(struct zone *z
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	/*
+-	 * Free memory by calling shrink zone with increasing priorities
+-	 * until we have enough memory freed.
+-	 */
+-	priority = ZONE_RECLAIM_PRIORITY;
+-	do {
+-		nr_reclaimed += shrink_zone(priority, zone, &sc);
+-		priority--;
+-	} while (priority >= 0 && nr_reclaimed < nr_pages);
++	if (zone_page_state(zone, NR_FILE_PAGES) -
++		zone_page_state(zone, NR_FILE_MAPPED) >
++		zone->min_unmapped_ratio) {
++		/*
++		 * Free memory by calling shrink zone with increasing
++		 * priorities until we have enough memory freed.
++		 */
++		priority = ZONE_RECLAIM_PRIORITY;
++		do {
++			nr_reclaimed += shrink_zone(priority, zone, &sc);
++			priority--;
++		} while (priority >= 0 && nr_reclaimed < nr_pages);
++	}
+ 
+-	if (nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
++	if (zone_page_state(zone, NR_SLAB_RECLAIM) > zone->min_slab_ratio) {
+ 		/*
+ 		 * shrink_slab() does not currently allow us to determine how
+-		 * many pages were freed in this zone. So we just shake the slab
+-		 * a bit and then go off node for this particular allocation
+-		 * despite possibly having freed enough memory to allocate in
+-		 * this zone.  If we freed local memory then the next
+-		 * allocations will be local again.
++		 * many pages were freed in this zone. So we take the current
++		 * number of slab pages and shake the slab until it is reduced
++		 * by the same nr_pages that we used for reclaiming unmapped
++		 * pages.
+ 		 *
+-		 * shrink_slab will free memory on all zones and may take
++		 * Note that shrink_slab will free memory on all zones and may take
+ 		 * a long time.
+ 		 */
+-		shrink_slab(sc.nr_scanned, gfp_mask, order);
++		unsigned long limit = zone_page_state(zone, NR_SLAB_RECLAIM)
++							- nr_pages;
++
++		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
++			zone_page_state(zone, NR_SLAB_RECLAIM) > limit) ;
+ 	}
+ 
+ 	p->reclaim_state = NULL;
+@@ -1617,7 +1629,8 @@ int zone_reclaim(struct zone *zone, gfp_
+ 	int node_id;
+ 
+ 	/*
+-	 * Zone reclaim reclaims unmapped file backed pages.
++	 * Zone reclaim reclaims unmapped file backed pages and
++	 * slab pages if we are over the defined limits.
+ 	 *
+ 	 * A small portion of unmapped file backed pages is needed for
+ 	 * file I/O otherwise pages read by file I/O will be immediately
+@@ -1626,7 +1639,8 @@ int zone_reclaim(struct zone *zone, gfp_
+ 	 * unmapped file backed pages.
+ 	 */
+ 	if (zone_page_state(zone, NR_FILE_PAGES) -
+-	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_ratio)
++	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_ratio
++	    && zone_page_state(zone, NR_SLAB_RECLAIM) <= zone->min_slab_ratio)
+ 		return 0;
+ 
+ 	/*
+Index: linux-2.6.18-rc4-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/mm/page_alloc.c	2006-08-23 12:37:01.845820991 -0700
++++ linux-2.6.18-rc4-mm2/mm/page_alloc.c	2006-08-25 15:16:35.083699847 -0700
+@@ -2103,6 +2103,7 @@ static void __meminit free_area_init_cor
+ #ifdef CONFIG_NUMA
+ 		zone->min_unmapped_ratio = (realsize*sysctl_min_unmapped_ratio)
+ 						/ 100;
++		zone->min_slab_ratio = (realsize*sysctl_min_slab_ratio) / 100;
+ #endif
+ 		zone->name = zone_names[j];
+ 		spin_lock_init(&zone->lock);
+@@ -2416,6 +2417,22 @@ int sysctl_min_unmapped_ratio_sysctl_han
+ 				sysctl_min_unmapped_ratio) / 100;
+ 	return 0;
+ }
++
++int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
++	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
++{
++	struct zone *zone;
++	int rc;
++
++	rc = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
++	if (rc)
++		return rc;
++
++	for_each_zone(zone)
++		zone->min_slab_ratio = (zone->present_pages *
++				sysctl_min_slab_ratio) / 100;
++	return 0;
++}
+ #endif
+ 
+ /*
+Index: linux-2.6.18-rc4-mm2/kernel/sysctl.c
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/kernel/sysctl.c	2006-08-23 12:37:01.764771315 -0700
++++ linux-2.6.18-rc4-mm2/kernel/sysctl.c	2006-08-25 15:16:35.085652851 -0700
+@@ -1023,6 +1023,17 @@ static ctl_table vm_table[] = {
+ 		.extra1		= &zero,
+ 		.extra2		= &one_hundred,
+ 	},
++	{
++		.ctl_name	= VM_MIN_SLAB,
++		.procname	= "min_slab_ratio",
++		.data		= &sysctl_min_slab_ratio,
++		.maxlen		= sizeof(sysctl_min_slab_ratio),
++		.mode		= 0644,
++		.proc_handler	= &sysctl_min_slab_ratio_sysctl_handler,
++		.strategy	= &sysctl_intvec,
++		.extra1		= &zero,
++		.extra2		= &one_hundred,
++	},
+ #endif
+ #ifdef CONFIG_X86_32
+ 	{
+Index: linux-2.6.18-rc4-mm2/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/include/linux/mmzone.h	2006-08-25 15:16:33.911897310 -0700
++++ linux-2.6.18-rc4-mm2/include/linux/mmzone.h	2006-08-25 15:16:35.086629353 -0700
+@@ -170,6 +170,7 @@ struct zone {
+ 	 * zone reclaim becomes active if more unmapped pages exist.
+ 	 */
+ 	unsigned long		min_unmapped_ratio;
++	unsigned long		min_slab_ratio;
+ 	struct per_cpu_pageset	*pageset[NR_CPUS];
+ #else
+ 	struct per_cpu_pageset	pageset[NR_CPUS];
+@@ -453,6 +454,8 @@ int percpu_pagelist_fraction_sysctl_hand
+ 					void __user *, size_t *, loff_t *);
+ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
++int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
++			struct file *, void __user *, size_t *, loff_t *);
+ 
+ #include <linux/topology.h>
+ /* Returns the number of the current Node. */
+Index: linux-2.6.18-rc4-mm2/Documentation/sysctl/vm.txt
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/Documentation/sysctl/vm.txt	2006-08-23 12:36:55.553241342 -0700
++++ linux-2.6.18-rc4-mm2/Documentation/sysctl/vm.txt	2006-08-25 15:17:11.571677832 -0700
+@@ -29,6 +29,7 @@ Currently, these files are in /proc/sys/
+ - drop-caches
+ - zone_reclaim_mode
+ - min_unmapped_ratio
++- min_slab_ratio
+ - panic_on_oom
+ - swap_prefetch
+ - readahead_ratio
+@@ -141,7 +142,6 @@ This is value ORed together of
+ 1	= Zone reclaim on
+ 2	= Zone reclaim writes dirty pages out
+ 4	= Zone reclaim swaps pages
+-8	= Also do a global slab reclaim pass
+ 
+ zone_reclaim_mode is set during bootup to 1 if it is determined that pages
+ from remote zones will cause a measurable performance reduction. The
+@@ -165,18 +165,13 @@ Allowing regular swap effectively restri
+ node unless explicitly overridden by memory policies or cpuset
+ configurations.
+ 
+-It may be advisable to allow slab reclaim if the system makes heavy
+-use of files and builds up large slab caches. However, the slab
+-shrink operation is global, may take a long time and free slabs
+-in all nodes of the system.
+-
+ =============================================================
+ 
+ min_unmapped_ratio:
+ 
+ This is available only on NUMA kernels.
+ 
+-A percentage of the file backed pages in each zone.  Zone reclaim will only
++A percentage of the total pages in each zone.  Zone reclaim will only
+ occur if more than this percentage of pages are file backed and unmapped.
+ This is to insure that a minimal amount of local pages is still available for
+ file I/O even if the node is overallocated.
+@@ -185,6 +180,24 @@ The default is 1 percent.
+ 
+ =============================================================
+ 
++min_slab_ratio:
++
++This is available only on NUMA kernels.
++
++A percentage of the total pages in each zone.  On Zone reclaim
++(fallback from the local zone occurs) slabs will be reclaimed if more
++than this percentage of pages in a zone are reclaimable slab pages.
++This insures that the slab growth stays under control even in NUMA
++systems that rarely perform global reclaim.
++
++The default is 5 percent.
++
++Note that slab reclaim is triggered in a per zone / node fashion.
++The process of reclaiming slab memory is currently not node specific
++and may not be fast.
++
++=============================================================
++
+ panic_on_oom
+ 
+ This enables or disables panic on out-of-memory feature.  If this is set to 1,
+Index: linux-2.6.18-rc4-mm2/include/linux/sysctl.h
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/include/linux/sysctl.h	2006-08-23 12:37:01.540175828 -0700
++++ linux-2.6.18-rc4-mm2/include/linux/sysctl.h	2006-08-25 15:16:35.088582357 -0700
+@@ -197,6 +197,7 @@ enum
+ 	VM_SWAP_PREFETCH=35,	/* swap prefetch */
+ 	VM_READAHEAD_RATIO=36,	/* percent of read-ahead size to thrashing-threshold */
+ 	VM_READAHEAD_HIT_RATE=37, /* one accessed page legitimizes so many read-ahead pages */
++	VM_MIN_SLAB=38,		 /* Percent pages ignored by zone reclaim */
+ };
+ 
+ /* CTL_NET names: */
+Index: linux-2.6.18-rc4-mm2/include/linux/swap.h
+===================================================================
+--- linux-2.6.18-rc4-mm2.orig/include/linux/swap.h	2006-08-23 12:37:01.539199326 -0700
++++ linux-2.6.18-rc4-mm2/include/linux/swap.h	2006-08-25 15:16:35.088582357 -0700
+@@ -196,6 +196,7 @@ extern long vm_total_pages;
+ #ifdef CONFIG_NUMA
+ extern int zone_reclaim_mode;
+ extern int sysctl_min_unmapped_ratio;
++extern int sysctl_min_slab_ratio;
+ extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+ #else
+ #define zone_reclaim_mode 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
