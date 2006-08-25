@@ -1,47 +1,65 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: ext3 fsync being starved for a long time by cp and cronjob
-Date: Fri, 25 Aug 2006 14:51:50 +0200
-References: <200608251353.51748.ak@suse.de> <200608251430.56655.ak@suse.de> <20060825123448.GD24258@kernel.dk>
-In-Reply-To: <20060825123448.GD24258@kernel.dk>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200608251451.50663.ak@suse.de>
+Date: Fri, 25 Aug 2006 08:56:24 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Message-Id: <20060825135624.24086.74604.sendpatch@wildcat>
+Subject: [PATCH] Fix more pxx_page macro locations
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: akpm@osdl.org, linux-mm@kvack.org, ext2-devel@lists.sourceforge.net
+To: Andrew Morton <akpm@osdl.org>, Paul Jackson <pj@sgi.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 25 August 2006 14:34, Jens Axboe wrote:
-> On Fri, Aug 25 2006, Andi Kleen wrote:
-> > On Friday 25 August 2006 14:26, Jens Axboe wrote:
-> > > On Fri, Aug 25 2006, Andi Kleen wrote:
-> > > > 
-> > > > > Does deadline do better?
-> > > > 
-> > > > It's not really repeatable workload. It's just my workstation which
-> > > > got into this unpleasant state while me trying to get work done.
-> > > > 
-> > > > I can change it to deadline and see if I see this still again, but it might
-> > > > take some time.
-> > > 
-> > > Yeah, a test case might be simpler to write and test with. I'll see if I
-> > > can come up with something.
-> > 
-> > So you think it's the elevator? I was about to blame JBD.
-> 
-> Not sure, it might be ext3. Hence the deadline test would be useful. All
-> I know for sure is that the io scheduling for fsync() can be improved.
-> Did you try data=writeback?
+It looks like I missed a couple of places.  I guess I forgot to
+doublecheck for new code with pmd_page_kernel in it.  Here's a 
+patch with the additional places fixed.
 
-No. And I would prefer to not try that because I would have to run
-my workstation with it for a long time, and ordered seems somewhat
-safer for that.
+Dave McCracken
 
--Andi
+Signed-off-by: Dave McCracken <dmccr@us.ibm.com>
+
+------------------------
+
+Diffstat:
+
+ arch/arm/mm/ioremap.c       |    2 +-
+ include/asm-avr32/pgtable.h |    6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+------------------------
+
+--- 2.6.18-rc4-mm2/./arch/arm/mm/ioremap.c	2006-08-25 08:24:33.000000000 -0500
++++ 2.6.18-rc4-mm2-mfix/./arch/arm/mm/ioremap.c	2006-08-25 08:25:58.000000000 -0500
+@@ -177,7 +177,7 @@ static void unmap_area_sections(unsigned
+ 			 * Free the page table, if there was one.
+ 			 */
+ 			if ((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_TABLE)
+-				pte_free_kernel(pmd_page_kernel(pmd));
++				pte_free_kernel(pmd_page_vaddr(pmd));
+ 		}
+ 
+ 		addr += PGDIR_SIZE;
+--- 2.6.18-rc4-mm2/./include/asm-avr32/pgtable.h	2006-08-25 08:20:15.000000000 -0500
++++ 2.6.18-rc4-mm2-mfix/./include/asm-avr32/pgtable.h	2006-08-25 08:27:46.000000000 -0500
+@@ -324,7 +324,7 @@ static inline pte_t pte_modify(pte_t pte
+ 
+ #define page_pte(page)	page_pte_prot(page, __pgprot(0))
+ 
+-#define pmd_page_kernel(pmd)					\
++#define pmd_page_vaddr(pmd)					\
+ 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+ 
+ #define pmd_page(pmd)	(phys_to_page(pmd_val(pmd)))
+@@ -342,9 +342,9 @@ static inline pte_t pte_modify(pte_t pte
+ #define pte_index(address)				\
+ 	((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+ #define pte_offset(dir, address)					\
+-	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(address))
++	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(address))
+ #define pte_offset_kernel(dir, address)					\
+-	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(address))
++	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(address))
+ #define pte_offset_map(dir, address) pte_offset_kernel(dir, address)
+ #define pte_offset_map_nested(dir, address) pte_offset_kernel(dir, address)
+ #define pte_unmap(pte)		do { } while (0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
