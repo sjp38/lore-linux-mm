@@ -1,37 +1,85 @@
-Message-ID: <44EF1F7A.3080001@redhat.com>
-Date: Fri, 25 Aug 2006 12:04:10 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] VM deadlock prevention -v5
-References: <20060825153946.24271.42758.sendpatchset@twins> <Pine.LNX.4.64.0608250849480.9083@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0608250849480.9083@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 7/6] Lost bits - fix PG_writeback vs PG_private race in
+	NFS
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20060825153709.24254.28118.sendpatchset@twins>
+References: <20060825153709.24254.28118.sendpatchset@twins>
+Content-Type: text/plain
+Date: Fri, 25 Aug 2006 18:36:55 +0200
+Message-Id: <1156523815.16027.43.camel@taijtu>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Indan Zupancic <indan@nul.nu>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, David Miller <davem@davemloft.net>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Rik van Riel <riel@redhat.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 25 Aug 2006, Peter Zijlstra wrote:
-> 
->> The basic premises is that network sockets serving the VM need undisturbed
->> functionality in the face of severe memory shortage.
->>
->> This patch-set provides the framework to provide this.
-> 
-> Hmmm.. Is it not possible to avoid the memory pools by 
-> guaranteeing that a certain number of page is easily reclaimable?
+Make sure we clear PG_writeback after we clear PG_private, otherwise
+weird and wonderfull stuff will happen.
 
-No.
+Also, teach try_to_release_page() about PG_swapcache pages.
 
-You need to guarantee that the memory is not gobbled up by
-another subsystem, but remains available for use by *this*
-subsystem.  Otherwise you could still deadlock.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/buffer.c    |    2 +-
+ fs/nfs/write.c |    5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)
 
--- 
-What is important?  What you want to be true, or what is true?
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -1567,7 +1567,7 @@ static void discard_buffer(struct buffer
+  */
+ int try_to_release_page(struct page *page, gfp_t gfp_mask)
+ {
+-	struct address_space * const mapping = page->mapping;
++	struct address_space * const mapping = page_mapping(page);
+ 
+ 	BUG_ON(!PageLocked(page));
+ 	if (PageWriteback(page))
+Index: linux-2.6/fs/nfs/write.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -902,7 +902,6 @@ done:
+ 
+ static void nfs_writepage_release(struct nfs_page *req)
+ {
+-	end_page_writeback(req->wb_page);
+ 
+ #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+ 	if (!PageError(req->wb_page)) {
+@@ -922,6 +921,7 @@ out:
+ #else
+ 	nfs_inode_remove_request(req);
+ #endif
++	end_page_writeback(req->wb_page);
+ 	nfs_clear_page_writeback(req);
+ }
+ 
+@@ -1222,12 +1222,10 @@ static void nfs_writeback_done_full(stru
+ 			ClearPageUptodate(page);
+ 			SetPageError(page);
+ 			req->wb_context->error = task->tk_status;
+-			end_page_writeback(page);
+ 			nfs_inode_remove_request(req);
+ 			dprintk(", error = %d\n", task->tk_status);
+ 			goto next;
+ 		}
+-		end_page_writeback(page);
+ 
+ #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+ 		if (data->args.stable != NFS_UNSTABLE || data->verf.committed == NFS_FILE_SYNC) {
+@@ -1242,6 +1240,7 @@ static void nfs_writeback_done_full(stru
+ 		nfs_inode_remove_request(req);
+ #endif
+ 	next:
++		end_page_writeback(page);
+ 		nfs_clear_page_writeback(req);
+ 	}
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
