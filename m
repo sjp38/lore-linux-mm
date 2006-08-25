@@ -1,50 +1,41 @@
-Date: Thu, 24 Aug 2006 17:17:30 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: pxx_page macro patch breaks arm build in 2.6.18-rc4-mm2
-Message-Id: <20060824171730.162c245a.pj@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <44EE8487.7070300@yahoo.com.au>
+Date: Fri, 25 Aug 2006 15:03:03 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Guest page hinting patches.
+References: <20060824142911.GA12127@skybase>
+In-Reply-To: <20060824142911.GA12127@skybase>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>, Arjan van de Ven <arjan@infradead.org>, Diego Calleja <diegocg@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org, frankeh@watson.ibm.com, rhim@cc.gatech.edu, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-The defconfig arch=arm build is broken in 2.6.18-rc4-mm2.
+Martin Schwidefsky wrote:
 
-The patch "standardize-pxx_page-macros.patch" removed various macros,
-including pmd_page_kernel.
+> Any objections against pushing patch #01 and patch #02 into the
+> -mm tree?
 
-It seems to have missed one place, which breaks the defconfig 'arm'
-build in 2.6.18-rc4-mm2:
+None from me. Although I'd rather put all that stuff (including
+kernel_map_page, as a cleanup) into arch_free_page and
+arch_alloc_page, rather than teaching core code about unstable
+pages just yet.
 
+[BTW, if you do this, one actually notices that arch_free_page seems
+to be in the wrong place since the page reserved checks came into the
+allocator.]
 
-=======================================================
-  LD      .tmp_vmlinux1
-arch/arm/mm/built-in.o(.text+0x1698): In function `$a':
-: undefined reference to `pmd_page_kernel'
-make: *** [.tmp_vmlinux1] Error 1
-=======================================================
+> 
+> The code runs well on s390 and does nothing for all other archs.
+> Patches are against 2.6.18-rc4-mm2.
+> 
 
-
-The offending line and a little context, in arch/arm/mm/ioremap.c:
-
-
-=======================================================
-                        * Free the page table, if there was one.
-                         */
-                        if ((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_TABLE)
-                                pte_free_kernel(pmd_page_kernel(pmd));
-                }
-
-                addr += PGDIR_SIZE;
-=======================================================
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
