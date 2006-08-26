@@ -1,12 +1,11 @@
-Date: Fri, 25 Aug 2006 17:48:32 -0700
+Date: Fri, 25 Aug 2006 17:55:17 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: zone_reclaim: dynamic zone based slab reclaim
-Message-Id: <20060825174832.767af9e8.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0608251727010.11715@schroedinger.engr.sgi.com>
+Subject: Re: ZVC: Support NR_SLAB_RECLAIM
+Message-Id: <20060825175517.b41f129d.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0608251728240.11715@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0608251500560.11154@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0608251521190.11205@schroedinger.engr.sgi.com>
-	<20060825164233.8276e425.akpm@osdl.org>
-	<Pine.LNX.4.64.0608251727010.11715@schroedinger.engr.sgi.com>
+	<20060825165659.0d8c03d4.akpm@osdl.org>
+	<Pine.LNX.4.64.0608251728240.11715@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,33 +15,48 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Aug 2006 17:27:42 -0700 (PDT)
+On Fri, 25 Aug 2006 17:30:09 -0700 (PDT)
 Christoph Lameter <clameter@sgi.com> wrote:
 
 > On Fri, 25 Aug 2006, Andrew Morton wrote:
 > 
-> > On Fri, 25 Aug 2006 15:22:14 -0700 (PDT)
+> > On Fri, 25 Aug 2006 15:16:19 -0700 (PDT)
 > > Christoph Lameter <clameter@sgi.com> wrote:
-> > >
-> > > This patch implements slab reclaim during zone reclaim.
 > > 
-> > hrm, OK.  Yes, the globalness of the slab is a bit sad.
+> > > Remove the atomic counter for slab_reclaim_pages and replace
+> > > with a ZVC counter. NR_SLAB will now only count the
+> > > unreclaimable slab pages whereas NR_SLAB_RECLAIM will count
+> > > the reclaimable slab pages.
 > > 
-> > >  	unsigned long		min_unmapped_ratio;
-> > > +	unsigned long		min_slab_ratio;
-> > 
-> > These are not ratios.   Can we please rename them?  min_unmapped_page_count?
+> > That's misleading.  We should rename NR_SLAB to NR_SLAB_UNRECLAIMABLE.  And
+> > NR_SLAB_RECLAIM should be NR_SLAB_RECLAIMABLE, no?
 > 
-> Yes I was wondering about that when you introduced it.
+> Thats a bit long but yes we could do that.
+> 
+> > >  	n += hugetlb_report_node_meminfo(nid, buf + n);
+> > >  	return n;
+> > 
+> > That breaks anything which uses the Slab: field.  OK, so it's NUMA geeks
+> > only.  But still..
+> 
+> Well we already changed lots of names when we introduced the ZVCs.
 
-Should've thwapped me.
+hm, OK, well one assumes not many apps are reading that file.
 
-> How about simply removing the _ratio at the end?
->
-> min_unmapped
-> min_slab
+btw, are there any handy userspace reporting tools out there which can
+aggregate the per-node meminfo files?
 
-It's nice to have the units in the identifier.  min_unmapped_pages?
+> > We can add new fields though, so let's just have Slab:, SlabUnrecl: (ug)
+> > and SlabReclaim: (ug).
+> 
+> Allright new patches will follow soon.
+
+I just noticed /proc/meminfo's
+
+	"NFS Unstable: %8lu kB\n"
+
+We shouldn't do that.  Chances are that space will trip up someone's crappy
+parser.  I'll replace it with an underscore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
