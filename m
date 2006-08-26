@@ -1,7 +1,7 @@
 From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
-Subject: [PATCH RFP-V4 10/13] RFP prot support: fix race condition with concurrent faults on same address space
-Date: Sat, 26 Aug 2006 19:42:43 +0200
-Message-Id: <20060826174243.14790.48692.stgit@memento.home.lan>
+Subject: [PATCH RFP-V4 06/13] RFP prot support: cleanup syscall checks
+Date: Sat, 26 Aug 2006 19:42:29 +0200
+Message-Id: <20060826174229.14790.15931.stgit@memento.home.lan>
 In-Reply-To: <200608261933.36574.blaisorblade@yahoo.it>
 References: <200608261933.36574.blaisorblade@yahoo.it>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -13,93 +13,125 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The one noted by Hugh Dickins. A thread may get a fault because a PTE is absent,
-then the PTE could be mapped by another thread, so we'd get a stale
-pte_present(); we must check the permissions ourselves.
+This patch reorganizes the code only, without differences in behaviour. It
+makes the code more readable on its own, and is needed for next patches. I've
+split this out to avoid cluttering real patches.
+
+*) remap_file_pages protection support: use EOVERFLOW ret code
+
+Use -EOVERFLOW ("Value too large for defined data type") rather than -EINVAL
+when we cannot store the file offset in the PTE.
 
 Signed-off-by: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 ---
 
- mm/memory.c |   47 ++++++++++++++++++++++++++++++-----------------
- 1 files changed, 30 insertions(+), 17 deletions(-)
+ mm/fremap.c |   44 +++++++++++++++++++++++++++++---------------
+ 1 files changed, 29 insertions(+), 15 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index e86f6ab..992d877 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2215,24 +2215,33 @@ oom:
- 	return VM_FAULT_OOM;
- }
+diff --git a/mm/fremap.c b/mm/fremap.c
+index f57cd6d..dfe5d71 100644
+--- a/mm/fremap.c
++++ b/mm/fremap.c
+@@ -147,7 +147,7 @@ out:
+  * future.
+  */
+ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
+-	unsigned long __prot, unsigned long pgoff, unsigned long flags)
++	unsigned long prot, unsigned long pgoff, unsigned long flags)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	struct address_space *mapping;
+@@ -155,9 +155,10 @@ asmlinkage long sys_remap_file_pages(uns
+ 	struct vm_area_struct *vma;
+ 	int err = -EINVAL;
+ 	int has_write_lock = 0;
++	pgprot_t pgprot;
  
--static inline int check_perms(struct vm_area_struct * vma, int access_mask) {
-+/* Are the permissions of this PTE insufficient to satisfy the fault described
-+ * in access_mask? */
-+static inline int insufficient_perms(pte_t pte, int access_mask) {
-+	if ((access_mask & VM_WRITE) && !pte_write(pte))
-+		goto err;
-+	if ((access_mask & VM_READ)  && !pte_read(pte))
-+		goto err;
-+	if ((access_mask & VM_EXEC)  && !pte_exec(pte))
-+		goto err;
-+	return 0;
-+err:
-+	return 1;
-+}
+-	if (__prot)
+-		return err;
++	if (prot)
++		goto out;
+ 	/*
+ 	 * Sanitize the syscall parameters:
+ 	 */
+@@ -166,17 +167,19 @@ asmlinkage long sys_remap_file_pages(uns
+ 
+ 	/* Does the address range wrap, or is the span zero-sized? */
+ 	if (start + size <= start)
+-		return err;
++		goto out;
+ 
+ 	/* Can we represent this offset inside this architecture's pte's? */
+ #if PTE_FILE_MAX_BITS < BITS_PER_LONG
+-	if (pgoff + (size >> PAGE_SHIFT) >= (1UL << PTE_FILE_MAX_BITS))
+-		return err;
++	if (pgoff + (size >> PAGE_SHIFT) >= (1UL << PTE_FILE_MAX_BITS)) {
++		err = -EOVERFLOW;
++		goto out;
++	}
+ #endif
+ 
+ 	/* We need down_write() to change vma->vm_flags. */
+ 	down_read(&mm->mmap_sem);
+- retry:
++retry:
+ 	vma = find_vma(mm, start);
+ 
+ 	/*
+@@ -185,12 +188,21 @@ #endif
+ 	 * the single existing vma.  vm_private_data is used as a
+ 	 * swapout cursor in a VM_NONLINEAR vma.
+ 	 */
+-	if (vma && (vma->vm_flags & VM_SHARED) &&
+-		(!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) &&
+-		vma->vm_ops && vma->vm_ops->populate &&
+-			end > start && start >= vma->vm_start &&
+-				end <= vma->vm_end) {
++	if (!vma)
++		goto out_unlock;
 +
-+static inline int insufficient_vma_perms(struct vm_area_struct * vma, int access_mask) {
- 	if (unlikely(vma->vm_flags & VM_MANYPROTS)) {
--		/* we used to check protections in arch handler, but with
--		 * VM_MANYPROTS the check is skipped. */
--		/* access_mask contains the type of the access, vm_flags are the
-+		/*
-+		 * we used to check protections in arch handler, but with
-+		 * VM_MANYPROTS, and only with it, the check is skipped.
-+		 * access_mask contains the type of the access, vm_flags are the
- 		 * declared protections, pte has the protection which will be
--		 * given to the PTE's in that area. */
-+		 * given to the PTE's in that area.
-+		 */
- 		pte_t pte = pfn_pte(0UL, vma->vm_page_prot);
--		if ((access_mask & VM_WRITE) && !pte_write(pte))
--			goto err;
--		if ((access_mask & VM_READ)  && !pte_read(pte))
--			goto err;
--		if ((access_mask & VM_EXEC)  && !pte_exec(pte))
--			goto err;
-+		return insufficient_perms(pte, access_mask);
++	if (!(vma->vm_flags & VM_SHARED))
++		goto out_unlock;
+ 
++	if (!vma->vm_ops || !vma->vm_ops->populate)
++		goto out_unlock;
++
++	if (end <= start || start < vma->vm_start || end > vma->vm_end)
++		goto out_unlock;
++
++	pgprot = vma->vm_page_prot;
++
++	if (!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) {
+ 		/* Must set VM_NONLINEAR before any pages are populated. */
+ 		if (pgoff != linear_page_index(vma, start) &&
+ 		    !(vma->vm_flags & VM_NONLINEAR)) {
+@@ -210,9 +222,8 @@ #endif
+ 			spin_unlock(&mapping->i_mmap_lock);
+ 		}
+ 
+-		err = vma->vm_ops->populate(vma, start, size,
+-					    vma->vm_page_prot,
+-					    pgoff, flags & MAP_NONBLOCK);
++		err = vma->vm_ops->populate(vma, start, size, pgprot, pgoff,
++				flags & MAP_NONBLOCK);
+ 
+ 		/*
+ 		 * We would like to clear VM_NONLINEAR, in the case when
+@@ -221,11 +232,14 @@ #endif
+ 		 * successful populate, and have no way to upgrade sem.
+ 		 */
  	}
- 	return 0;
--err:
--	return -EPERM;
++
++out_unlock:
+ 	if (likely(!has_write_lock))
+ 		up_read(&mm->mmap_sem);
+ 	else
+ 		up_write(&mm->mmap_sem);
+ 
++out:
+ 	return err;
  }
- /*
-  * Fault of a previously existing named mapping. Repopulate the pte
-@@ -2303,7 +2312,7 @@ static inline int handle_pte_fault(struc
- 		/* when pte_file(), the VMA protections are useless.  Otherwise,
- 		 * we need to check VM_MANYPROTS, because in that case the arch
- 		 * fault handler skips the VMA protection check. */
--		if (!pte_file(entry) && check_perms(vma, access_mask))
-+		if (!pte_file(entry) && unlikely(insufficient_vma_perms(vma, access_mask)))
- 			goto out_segv;
  
- 		if (pte_none(entry)) {
-@@ -2326,9 +2335,13 @@ static inline int handle_pte_fault(struc
- 		goto unlock;
- 
- 	/* VM_MANYPROTS vma's have PTE's always installed with the correct
--	 * protection. So, generate a SIGSEGV if a fault is caught there. */
--	if (unlikely(vma->vm_flags & VM_MANYPROTS))
--		goto out_segv;
-+	 * protection, so if we got a fault on a present PTE we're in trouble.
-+	 * However, the pte_present() may simply be the result of a race
-+	 * condition with another thread having already fixed the fault. So go
-+	 * the slow way. */
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS) &&
-+ 		unlikely(insufficient_perms(entry, access_mask)))
-+			goto out_segv;
- 
- 	if (write_access) {
- 		if (!pte_write(entry))
 Chiacchiera con i tuoi amici in tempo reale! 
  http://it.yahoo.com/mail_it/foot/*http://it.messenger.yahoo.com 
 
