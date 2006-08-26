@@ -1,7 +1,7 @@
 From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
-Subject: [PATCH RFP-V4 09/13] RFP prot support: use FAULT_SIGSEGV for protection checking
-Date: Sat, 26 Aug 2006 19:42:39 +0200
-Message-Id: <20060826174239.14790.77251.stgit@memento.home.lan>
+Subject: [PATCH RFP-V4 13/13] RFP prot support: uml, i386, x64 bits
+Date: Sat, 26 Aug 2006 19:42:53 +0200
+Message-Id: <20060826174253.14790.47973.stgit@memento.home.lan>
 In-Reply-To: <200608261933.36574.blaisorblade@yahoo.it>
 References: <200608261933.36574.blaisorblade@yahoo.it>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -14,349 +14,353 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is the more intrusive patch, but it couldn't be reduced a lot, not even if
-I limited the protection support to the bare minimum for Uml (and thus I left
-the interface generic).
+Various boilerplate stuff.
 
-The arch handler used to check itself protection, now we must possibly move
-that to the generic VM if the VMA is non-uniform, since vma protections are
-totally unreliable in that case when a pte_file PTE has been set or a page is
-installed.
+Update pte encoding macros for UML, i386 and x86-64.
 
-So, we change the prototype of __handle_mm_fault() to inform it of the access
-kind, so it does protection checking. handle_mm_fault() keeps its API, but has
-the new VM_FAULT_SIGSEGV return value.
+*) remap_file_pages protection support: improvement for UML bits
 
-=== Issue 1 (trivial changes to do in every arch):
-This value should be handled in every arch-specific fault handlers.
+Recover one bit by additionally using _PAGE_NEWPROT. Since I wasn't sure this
+would work, I've split this out, but it has worked well. We rely on the fact
+that pte_newprot always checks first if the PTE is marked present. This is
+joined because it worked well during the unit testing I performed, beyond
+making sense.
 
-But we can get spurious BUG/oom killings only when the new functionality is
-used.
+========
+RFP: Avoid using _PAGE_PROTNONE
 
-=== Issue 2 (solved afterwards):
-* Another problem I've just discovered is that PTRACE_POKETEXT access_process_vm
-  on VM_MANYPROTS write-protected vma's won't work. This is handled in a
-  specific patch.
+For i386, x86_64, uml:
 
-=== Issue 3 (solved afterwards):
-* Also, there is a (potential) problem: on VM_MANYPROTS vmas, in
-  handle_pte_fault(), if the PTE is present we unconditionally return
-  VM_FAULT_SIGSEGV, because the PTE was already up-to-date.
+To encode a pte_file PROTNONE pte, since _PAGE_PROTNONE makes pte_present be
+set, and since such a pte actually still references a page, we need to use
+another bit for our purposes. Implement this.
 
-  This is removed in next patch, because it's wrong for 2 reasons:
-
-  1) isn't thread safe - it's possible the fault occurred when the PTE was not
-  installed and the PTE has been later installed by fault from another thread.
-
-  2) This has proven to be a bit strict, at least for UML - so this may break
-  other arches too (only for new functionality). At least, peculiar ones - this
-  problem was due to handle_mm_fault() called for TLB faults rather than PTE
-  faults. I'm leaving this note for reference, if any other arch does similar
-  strange things.
-
-=== Implementation and tradeoff notes:
-
-* do_file_page installs the PTE and doesn't check the fault type, if it
-  was wrong, then it'll do another fault and die only then. However next patch
-  removes this peculiarity.
-
-* I've made sure do_no_page to fault in pages with their *exact* permissions
-  for non-uniform VMAs.
-
-  Actually, the code already works so for shared vmas, since vma->vm_page_prot
-  is (supposed to be) already writable when the VMA is. Hope this doesn't vary
-  across different arches.
-
-  However, for future possible handling of private mappings, this may be
-  needed again.
-
-* For checking, we simply reuse the standard protection_map, by creating a
-  pte_t value with the vma->vm_page_prot protection and testing directly
-  pte_{read,write,exec} on it.
-  I use the physical frame number "0" to create the PTE, even if this isn't
-  probably realistic, but I assume that pfn_pte() and the access macros will
-  work anyway.
-
-Changes are included for the i386, x86_64 and UML handler.
+* Add _PAGE_FILE_PROTNONE, the bit describe above.
+* Add to each arch pgprot_access_bits() to extract the value of protection bits
+  (i.e._PAGE_RW and _PAGE_PROTNONE) and encode them (translate _PAGE_PROTNONE to
+  _PAGE_FILE_PROTNONE), and use it in pgoff_prot_to_pte().
+* Modify pte_to_pgprot() to do the inverse translation.
+* Modify pte_to_pgoff() and pgoff_prot_to_pte() to leave alone the newly used
+  bit (for 32-bit PTEs).
+* Join for UML and x86 pte_to_pgprot() for 2level and 3level page tables, since
+  they were identical.
+* Decrease by 1 PTE_FILE_MAX_BITS where appropriate.
+* Also replace in bit operations + with | where appropriate.
 
 Signed-off-by: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 ---
 
- arch/i386/mm/fault.c   |   10 ++++++++++
- arch/um/kernel/trap.c  |   10 +++++++++-
- arch/x86_64/mm/fault.c |   13 ++++++++++++-
- include/linux/mm.h     |   15 +++++++++------
- mm/memory.c            |   47 +++++++++++++++++++++++++++++++++++++++++++----
- 5 files changed, 83 insertions(+), 12 deletions(-)
+ include/asm-i386/pgtable-2level.h |   11 ++++++-----
+ include/asm-i386/pgtable-3level.h |    7 +++++--
+ include/asm-i386/pgtable.h        |   24 ++++++++++++++++++++++++
+ include/asm-um/pgtable-2level.h   |   16 ++++++++++++----
+ include/asm-um/pgtable-3level.h   |   21 ++++++++++++++-------
+ include/asm-um/pgtable.h          |   21 +++++++++++++++++++++
+ include/asm-x86_64/pgtable.h      |   29 +++++++++++++++++++++++++++--
+ 7 files changed, 109 insertions(+), 20 deletions(-)
 
-diff --git a/arch/i386/mm/fault.c b/arch/i386/mm/fault.c
-index f727946..e358998 100644
---- a/arch/i386/mm/fault.c
-+++ b/arch/i386/mm/fault.c
-@@ -434,6 +434,14 @@ fastcall void __kprobes do_page_fault(st
- good_area:
- 	si_code = SEGV_ACCERR;
- 	write = 0;
-+
-+	/* If the PTE is not present, the vma protection are not accurate if
-+	 * VM_MANYPROTS; present PTE's are correct for VM_MANYPROTS. */
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS)) {
-+		write = error_code & 2;
-+		goto survive;
-+	}
-+
- 	switch (error_code & 3) {
- 		default:	/* 3: write, present */
- #ifdef TEST_VERIFY_AREA
-@@ -470,6 +478,8 @@ #endif
- 			goto do_sigbus;
- 		case VM_FAULT_OOM:
- 			goto out_of_memory;
-+		case VM_FAULT_SIGSEGV:
-+			goto bad_area;
- 		default:
- 			BUG();
- 	}
-diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
-index ac70fa5..563feb4 100644
---- a/arch/um/kernel/trap.c
-+++ b/arch/um/kernel/trap.c
-@@ -68,6 +68,11 @@ int handle_page_fault(unsigned long addr
- 
- good_area:
- 	*code_out = SEGV_ACCERR;
-+	/* If the PTE is not present, the vma protection are not accurate if
-+	 * VM_MANYPROTS; present PTE's are correct for VM_MANYPROTS. */
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS))
-+		goto survive;
-+
- 	if(is_write && !(vma->vm_flags & VM_WRITE))
- 		goto out;
- 
-@@ -77,7 +82,7 @@ good_area:
- 
- 	do {
- survive:
--		switch (handle_mm_fault(mm, vma, address, is_write)){
-+		switch (handle_mm_fault(mm, vma, address, is_write)) {
- 		case VM_FAULT_MINOR:
- 			current->min_flt++;
- 			break;
-@@ -87,6 +92,9 @@ survive:
- 		case VM_FAULT_SIGBUS:
- 			err = -EACCES;
- 			goto out;
-+		case VM_FAULT_SIGSEGV:
-+			err = -EFAULT;
-+			goto out;
- 		case VM_FAULT_OOM:
- 			err = -ENOMEM;
- 			goto out_of_memory;
-diff --git a/arch/x86_64/mm/fault.c b/arch/x86_64/mm/fault.c
-index ac8ea66..7eec080 100644
---- a/arch/x86_64/mm/fault.c
-+++ b/arch/x86_64/mm/fault.c
-@@ -459,6 +459,12 @@ asmlinkage void __kprobes do_page_fault(
- good_area:
- 	info.si_code = SEGV_ACCERR;
- 	write = 0;
-+
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS)) {
-+		write = error_code & PF_PROT;
-+		goto handle_fault;
-+	}
-+
- 	switch (error_code & (PF_PROT|PF_WRITE)) {
- 		default:	/* 3: write, present */
- 			/* fall through */
-@@ -474,6 +480,7 @@ good_area:
- 				goto bad_area;
- 	}
- 
-+handle_fault:
- 	/*
- 	 * If for any reason at all we couldn't handle the fault,
- 	 * make sure we exit gracefully rather than endlessly redo
-@@ -488,8 +495,12 @@ good_area:
- 		break;
- 	case VM_FAULT_SIGBUS:
- 		goto do_sigbus;
--	default:
-+	case VM_FAULT_OOM:
- 		goto out_of_memory;
-+	case VM_FAULT_SIGSEGV:
-+		goto bad_area;
-+	default:
-+		BUG();
- 	}
- 
- 	up_read(&mm->mmap_sem);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 66de7a7..67fe661 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -636,10 +636,11 @@ #define NOPAGE_OOM	((struct page *) (-1)
-  * Used to decide whether a process gets delivered SIGBUS or
-  * just gets major/minor fault counters bumped up.
-  */
--#define VM_FAULT_OOM	0x00
--#define VM_FAULT_SIGBUS	0x01
--#define VM_FAULT_MINOR	0x02
--#define VM_FAULT_MAJOR	0x03
-+#define VM_FAULT_OOM		0x00
-+#define VM_FAULT_SIGBUS		0x01
-+#define VM_FAULT_MINOR		0x02
-+#define VM_FAULT_MAJOR		0x03
-+#define VM_FAULT_SIGSEGV	0x04
- 
- /* 
-  * Special case for get_user_pages.
-@@ -745,14 +746,16 @@ extern int install_page(struct mm_struct
- extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
- 
- #ifdef CONFIG_MMU
-+
-+/* We reuse VM_READ, VM_WRITE and VM_EXEC for the @access_mask. */
- extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
--			unsigned long address, int write_access);
-+			unsigned long address, int access_mask);
- 
- static inline int handle_mm_fault(struct mm_struct *mm,
- 			struct vm_area_struct *vma, unsigned long address,
- 			int write_access)
- {
--	return __handle_mm_fault(mm, vma, address, write_access) &
-+	return __handle_mm_fault(mm, vma, address, write_access ? VM_WRITE : VM_READ) &
- 				(~VM_FAULT_WRITE);
+diff --git a/include/asm-i386/pgtable-2level.h b/include/asm-i386/pgtable-2level.h
+index 2756d4b..01b7652 100644
+--- a/include/asm-i386/pgtable-2level.h
++++ b/include/asm-i386/pgtable-2level.h
+@@ -46,16 +46,17 @@ static inline int pte_exec_kernel(pte_t 
  }
+ 
+ /*
+- * Bits 0, 6 and 7 are taken, split up the 29 bits of offset
++ * Bits 0, 1, 6, 7 and 8 are taken, split up the 27 bits of offset
+  * into this range:
+  */
+-#define PTE_FILE_MAX_BITS	29
++#define PTE_FILE_MAX_BITS	27
+ 
+ #define pte_to_pgoff(pte) \
+-	((((pte).pte_low >> 1) & 0x1f ) + (((pte).pte_low >> 8) << 5 ))
++	((((pte).pte_low >> 2) & 0xf ) | (((pte).pte_low >> 9) << 4 ))
+ 
+-#define pgoff_to_pte(off) \
+-	((pte_t) { (((off) & 0x1f) << 1) + (((off) >> 5) << 8) + _PAGE_FILE })
++#define pgoff_prot_to_pte(off, prot) \
++	((pte_t) { (((off) & 0xf) << 2) | (((off) >> 4) << 9) | \
++	 pgprot_access_bits(prot) | _PAGE_FILE })
+ 
+ /* Encode and de-code a swap entry */
+ #define __swp_type(x)			(((x).val >> 1) & 0x1f)
+diff --git a/include/asm-i386/pgtable-3level.h b/include/asm-i386/pgtable-3level.h
+index dccb1b3..8231017 100644
+--- a/include/asm-i386/pgtable-3level.h
++++ b/include/asm-i386/pgtable-3level.h
+@@ -156,11 +156,14 @@ static inline pmd_t pfn_pmd(unsigned lon
+ }
+ 
+ /*
+- * Bits 0, 6 and 7 are taken in the low part of the pte,
++ * Bits 0, 1, 6, 7 and 8 are taken in the low part of the pte,
+  * put the 32 bits of offset into the high part.
+  */
+ #define pte_to_pgoff(pte) ((pte).pte_high)
+-#define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
++
++#define pgoff_prot_to_pte(off, prot) \
++	((pte_t) { _PAGE_FILE | pgprot_access_bits(prot), (off) })
++
+ #define PTE_FILE_MAX_BITS       32
+ 
+ /* Encode and de-code a swap entry */
+diff --git a/include/asm-i386/pgtable.h b/include/asm-i386/pgtable.h
+index 09697fe..2661088 100644
+--- a/include/asm-i386/pgtable.h
++++ b/include/asm-i386/pgtable.h
+@@ -14,6 +14,7 @@ #define _I386_PGTABLE_H
+ #ifndef __ASSEMBLY__
+ #include <asm/processor.h>
+ #include <asm/fixmap.h>
++#include <linux/bitops.h>
+ #include <linux/threads.h>
+ 
+ #ifndef _I386_BITOPS_H
+@@ -99,8 +100,10 @@ #define _PAGE_BIT_PWT		3
+ #define _PAGE_BIT_PCD		4
+ #define _PAGE_BIT_ACCESSED	5
+ #define _PAGE_BIT_DIRTY		6
++#define _PAGE_BIT_PROTNONE	6
+ #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page, Pentium+, if present.. */
+ #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
++#define _PAGE_BIT_FILE_PROTNONE 8
+ #define _PAGE_BIT_UNUSED1	9	/* available for programmer */
+ #define _PAGE_BIT_UNUSED2	10
+ #define _PAGE_BIT_UNUSED3	11
+@@ -123,6 +126,26 @@ #define _PAGE_UNUSED3	0x800
+ #define _PAGE_FILE	0x040	/* nonlinear file mapping, saved PTE; unset:swap */
+ #define _PAGE_PROTNONE	0x080	/* if the user mapped it with PROT_NONE;
+ 				   pte_present gives true */
++#define _PAGE_FILE_PROTNONE	0x100	/* indicate that the page is remapped
++					   with PROT_NONE - this is different
++					   from _PAGE_PROTNONE as no page is
++					   held here, so pte_present() is false
++					   */
++
++/* Extracts _PAGE_RW and _PAGE_PROTNONE and replace the latter with
++ * _PAGE_FILE_PROTNONE. */
++#define pgprot_access_bits(prot) \
++	((pgprot_val(prot) & _PAGE_RW) | \
++	 bitmask_trans(pgprot_val(prot), _PAGE_PROTNONE, _PAGE_FILE_PROTNONE))
++
++#define pte_to_pgprot(pte) \
++	__pgprot(((pte).pte_low & (_PAGE_RW|_PAGE_PROTNONE)))
++
++#define pte_file_to_pgprot(pte) \
++	__pgprot(((pte).pte_low & _PAGE_RW) | _PAGE_ACCESSED | \
++		(((pte).pte_low & _PAGE_FILE_PROTNONE) ? _PAGE_PROTNONE : \
++			(_PAGE_USER | _PAGE_PRESENT)))
++
+ #ifdef CONFIG_X86_PAE
+ #define _PAGE_NX	(1ULL<<_PAGE_BIT_NX)
  #else
-diff --git a/mm/memory.c b/mm/memory.c
-index a87526e..e86f6ab 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -972,6 +972,7 @@ no_page_table:
- 	return page;
- }
+@@ -447,6 +470,7 @@ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ #define __HAVE_ARCH_PTE_SAME
++#define __HAVE_ARCH_PTE_TO_PGPROT
+ #include <asm-generic/pgtable.h>
  
-+/* Return number of faulted-in pages. */
- int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		unsigned long start, int len, int write, int force,
- 		struct page **pages, struct vm_area_struct **vmas)
-@@ -1075,6 +1076,7 @@ int get_user_pages(struct task_struct *t
- 				case VM_FAULT_MAJOR:
- 					tsk->maj_flt++;
- 					break;
-+				case VM_FAULT_SIGSEGV:
- 				case VM_FAULT_SIGBUS:
- 					return i ? i : -EFAULT;
- 				case VM_FAULT_OOM:
-@@ -2182,6 +2184,8 @@ retry:
- 	/* Only go through if we didn't race with anybody else... */
- 	if (pte_none(*page_table)) {
- 		flush_icache_page(vma, new_page);
-+		/* This already sets the PTE to be rw if appropriate, except for
-+		 * private COW pages. */
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		if (write_access)
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-@@ -2211,6 +2215,25 @@ oom:
- 	return VM_FAULT_OOM;
- }
+ #endif /* _I386_PGTABLE_H */
+diff --git a/include/asm-um/pgtable-2level.h b/include/asm-um/pgtable-2level.h
+index ffe017f..8066430 100644
+--- a/include/asm-um/pgtable-2level.h
++++ b/include/asm-um/pgtable-2level.h
+@@ -45,12 +45,20 @@ #define pmd_page_kernel(pmd) \
+ 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
  
-+static inline int check_perms(struct vm_area_struct * vma, int access_mask) {
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS)) {
-+		/* we used to check protections in arch handler, but with
-+		 * VM_MANYPROTS the check is skipped. */
-+		/* access_mask contains the type of the access, vm_flags are the
-+		 * declared protections, pte has the protection which will be
-+		 * given to the PTE's in that area. */
-+		pte_t pte = pfn_pte(0UL, vma->vm_page_prot);
-+		if ((access_mask & VM_WRITE) && !pte_write(pte))
-+			goto err;
-+		if ((access_mask & VM_READ)  && !pte_read(pte))
-+			goto err;
-+		if ((access_mask & VM_EXEC)  && !pte_exec(pte))
-+			goto err;
-+	}
-+	return 0;
-+err:
-+	return -EPERM;
-+}
  /*
-  * Fault of a previously existing named mapping. Repopulate the pte
-  * from the encoded file_pte if possible. This enables swappable
-@@ -2268,14 +2291,21 @@ static int do_file_page(struct mm_struct
+- * Bits 0 through 3 are taken
++ * Bits 0, 1, 3 to 5 and 8 are taken, split up the 26 bits of offset
++ * into this range:
   */
- static inline int handle_pte_fault(struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long address,
--		pte_t *pte, pmd_t *pmd, int write_access)
-+		pte_t *pte, pmd_t *pmd, int access_mask)
- {
- 	pte_t entry;
- 	pte_t old_entry;
- 	spinlock_t *ptl;
-+	int write_access = access_mask & VM_WRITE;
+-#define PTE_FILE_MAX_BITS	28
++#define PTE_FILE_MAX_BITS	26
  
- 	old_entry = entry = *pte;
- 	if (!pte_present(entry)) {
-+		/* when pte_file(), the VMA protections are useless.  Otherwise,
-+		 * we need to check VM_MANYPROTS, because in that case the arch
-+		 * fault handler skips the VMA protection check. */
-+		if (!pte_file(entry) && check_perms(vma, access_mask))
-+			goto out_segv;
+-#define pte_to_pgoff(pte) (pte_val(pte) >> 4)
++#define pte_to_pgoff(pte) (((pte_val(pte) >> 2) & 0x1) | \
++		(((pte_val(pte) >> 6) & 0x3) << 1) | \
++		((pte_val(pte) >> 9) << 3))
+ 
+-#define pgoff_to_pte(off) ((pte_t) { ((off) << 4) + _PAGE_FILE })
++#define pgoff_prot_to_pte(off, prot) \
++	__pte((((off) & 0x1) << 2) | ((((off) & 0x7) >> 1) << 6) | \
++	((off >> 3) << 9) | pgprot_access_bits(prot) | _PAGE_FILE)
 +
- 		if (pte_none(entry)) {
- 			if (!vma->vm_ops || !vma->vm_ops->nopage)
- 				return do_anonymous_page(mm, vma, address,
-@@ -2294,6 +2324,12 @@ static inline int handle_pte_fault(struc
- 	spin_lock(ptl);
- 	if (unlikely(!pte_same(*pte, entry)))
- 		goto unlock;
-+
-+	/* VM_MANYPROTS vma's have PTE's always installed with the correct
-+	 * protection. So, generate a SIGSEGV if a fault is caught there. */
-+	if (unlikely(vma->vm_flags & VM_MANYPROTS))
-+		goto out_segv;
-+
- 	if (write_access) {
- 		if (!pte_write(entry))
- 			return do_wp_page(mm, vma, address,
-@@ -2318,13 +2354,16 @@ static inline int handle_pte_fault(struc
- unlock:
- 	pte_unmap_unlock(pte, ptl);
- 	return VM_FAULT_MINOR;
-+out_segv:
-+	pte_unmap_unlock(pte, ptl);
-+	return VM_FAULT_SIGSEGV;
++/* For pte_file_to_pgprot definition only */
++#define __pte_low(pte) pte_val(pte)
+ 
+ #endif
+diff --git a/include/asm-um/pgtable-3level.h b/include/asm-um/pgtable-3level.h
+index 786c257..8b2fdb3 100644
+--- a/include/asm-um/pgtable-3level.h
++++ b/include/asm-um/pgtable-3level.h
+@@ -101,25 +101,32 @@ static inline pmd_t pfn_pmd(pfn_t page_n
  }
  
  /*
-  * By the time we get here, we already hold the mm semaphore
+- * Bits 0 through 3 are taken in the low part of the pte,
++ * Bits 0 through 5 are taken in the low part of the pte,
+  * put the 32 bits of offset into the high part.
   */
- int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long address, int write_access)
-+		unsigned long address, int access_mask)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -2336,7 +2375,7 @@ int __handle_mm_fault(struct mm_struct *
- 	count_vm_event(PGFAULT);
+ #define PTE_FILE_MAX_BITS	32
  
- 	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+		return hugetlb_fault(mm, vma, address, access_mask & VM_WRITE);
+-#ifdef CONFIG_64BIT
  
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
-@@ -2349,7 +2388,7 @@ int __handle_mm_fault(struct mm_struct *
- 	if (!pte)
- 		return VM_FAULT_OOM;
+-#define pte_to_pgoff(p) ((p).pte >> 32)
++#ifdef CONFIG_64BIT
  
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	return handle_pte_fault(mm, vma, address, pte, pmd, access_mask);
- }
+-#define pgoff_to_pte(off) ((pte_t) { ((off) << 32) | _PAGE_FILE })
++/* For pte_file_to_pgprot definition only */
++#define __pte_low(pte) pte_val(pte)
++#define __pte_high(pte) (pte_val(pte) >> 32)
++#define __build_pte(low, high) ((pte_t) { (high) << 32 | (low)})
  
- EXPORT_SYMBOL_GPL(__handle_mm_fault);
+ #else
+ 
+-#define pte_to_pgoff(pte) ((pte).pte_high)
+-
+-#define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
++/* Don't use pte_val below, useless to join the two halves */
++#define __pte_low(pte) ((pte).pte_low)
++#define __pte_high(pte) ((pte).pte_high)
++#define __build_pte(low, high) ((pte_t) {(low), (high)})
+ 
+ #endif
+ 
++#define pte_to_pgoff(pte) __pte_high(pte)
++#define pgoff_prot_to_pte(off, prot) \
++	__build_pte(_PAGE_FILE | pgprot_access_bits(prot), (off))
++
+ #endif
+ 
+ /*
+diff --git a/include/asm-um/pgtable.h b/include/asm-um/pgtable.h
+index ac64eb9..2cea58f 100644
+--- a/include/asm-um/pgtable.h
++++ b/include/asm-um/pgtable.h
+@@ -10,6 +10,7 @@ #define __UM_PGTABLE_H
+ 
+ #include "linux/sched.h"
+ #include "linux/linkage.h"
++#include "linux/bitops.h"
+ #include "asm/processor.h"
+ #include "asm/page.h"
+ #include "asm/fixmap.h"
+@@ -25,6 +26,17 @@ #define _PAGE_DIRTY	0x100
+ #define _PAGE_FILE	0x008	/* nonlinear file mapping, saved PTE; unset:swap */
+ #define _PAGE_PROTNONE	0x010	/* if the user mapped it with PROT_NONE;
+ 				   pte_present gives true */
++#define _PAGE_FILE_PROTNONE	0x100	/* indicate that the page is remapped
++					   with PROT_NONE - this is different
++					   from _PAGE_PROTNONE as no page is
++					   held here, so pte_present() is false
++					   */
++
++/* Extracts _PAGE_RW and _PAGE_PROTNONE and replace the latter with
++ * _PAGE_FILE_PROTNONE. */
++#define pgprot_access_bits(prot) \
++	((pgprot_val(prot) & _PAGE_RW) | \
++	 bitmask_trans(pgprot_val(prot), _PAGE_PROTNONE, _PAGE_FILE_PROTNONE))
+ 
+ #ifdef CONFIG_3_LEVEL_PGTABLES
+ #include "asm/pgtable-3level.h"
+@@ -32,6 +44,14 @@ #else
+ #include "asm/pgtable-2level.h"
+ #endif
+ 
++#define pte_to_pgprot(pte) \
++	__pgprot((__pte_low(pte) & (_PAGE_RW|_PAGE_PROTNONE)))
++
++#define pte_file_to_pgprot(pte) \
++	__pgprot((__pte_low(pte) & _PAGE_RW) | _PAGE_ACCESSED | \
++		((__pte_low(pte) & _PAGE_FILE_PROTNONE) ? _PAGE_PROTNONE : \
++			(_PAGE_USER | _PAGE_PRESENT)))
++
+ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+ 
+ extern void *um_virt_to_phys(struct task_struct *task, unsigned long virt,
+@@ -410,6 +430,7 @@ #define __swp_entry_to_pte(x)		((pte_t) 
+ 
+ #define kern_addr_valid(addr) (1)
+ 
++#define __HAVE_ARCH_PTE_TO_PGPROT
+ #include <asm-generic/pgtable.h>
+ 
+ #include <asm-generic/pgtable-nopud.h>
+diff --git a/include/asm-x86_64/pgtable.h b/include/asm-x86_64/pgtable.h
+index a31ab4e..566bef7 100644
+--- a/include/asm-x86_64/pgtable.h
++++ b/include/asm-x86_64/pgtable.h
+@@ -7,7 +7,7 @@ #define _X86_64_PGTABLE_H
+  */
+ #include <asm/processor.h>
+ #include <asm/fixmap.h>
+-#include <asm/bitops.h>
++#include <linux/bitops.h>
+ #include <linux/threads.h>
+ #include <asm/pda.h>
+ 
+@@ -151,6 +151,7 @@ #define _PAGE_BIT_ACCESSED	5
+ #define _PAGE_BIT_DIRTY		6
+ #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
+ #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
++#define _PAGE_BIT_FILE_PROTNONE 8
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+ 
+ #define _PAGE_PRESENT	0x001
+@@ -165,6 +166,12 @@ #define _PAGE_FILE	0x040	/* nonlinear fi
+ #define _PAGE_GLOBAL	0x100	/* Global TLB entry */
+ 
+ #define _PAGE_PROTNONE	0x080	/* If not present */
++#define _PAGE_FILE_PROTNONE	0x100	/* indicate that the page is remapped
++					   with PROT_NONE - this is different
++					   from _PAGE_PROTNONE as no page is
++					   held here, so pte_present() is false
++					   */
++
+ #define _PAGE_NX        (1UL<<_PAGE_BIT_NX)
+ 
+ #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
+@@ -354,9 +361,26 @@ #define pfn_pmd(nr,prot) (__pmd(((nr) <<
+ #define pmd_pfn(x)  ((pmd_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
+ 
+ #define pte_to_pgoff(pte) ((pte_val(pte) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
+-#define pgoff_to_pte(off) ((pte_t) { ((off) << PAGE_SHIFT) | _PAGE_FILE })
+ #define PTE_FILE_MAX_BITS __PHYSICAL_MASK_SHIFT
+ 
++#define pte_to_pgprot(pte) \
++	__pgprot((pte_val(pte) & (_PAGE_RW|_PAGE_PROTNONE)))
++
++#define pte_file_to_pgprot(pte) \
++	__pgprot((pte_val(pte) & _PAGE_RW) | _PAGE_ACCESSED | \
++		((pte_val(pte) & _PAGE_FILE_PROTNONE) ? _PAGE_PROTNONE : \
++			(_PAGE_USER | _PAGE_PRESENT)))
++
++/* Extracts _PAGE_RW and _PAGE_PROTNONE and replace the latter with
++ * _PAGE_FILE_PROTNONE. */
++#define pgprot_access_bits(prot) \
++	((pgprot_val(prot) & _PAGE_RW) | \
++	 bitmask_trans(pgprot_val(prot), _PAGE_PROTNONE, _PAGE_FILE_PROTNONE))
++
++#define pgoff_prot_to_pte(off, prot) \
++	((pte_t) { _PAGE_FILE | pgprot_access_bits(prot) | ((off) << PAGE_SHIFT) })
++
++
+ /* PTE - Level 1 access. */
+ 
+ /* page, protection -> pte */
+@@ -448,6 +472,7 @@ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+ #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+ #define __HAVE_ARCH_PTE_SAME
++#define __HAVE_ARCH_PTE_TO_PGPROT
+ #include <asm-generic/pgtable.h>
+ 
+ #endif /* _X86_64_PGTABLE_H */
 Chiacchiera con i tuoi amici in tempo reale! 
  http://it.yahoo.com/mail_it/foot/*http://it.messenger.yahoo.com 
 
