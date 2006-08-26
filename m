@@ -1,315 +1,479 @@
-Date: Fri, 25 Aug 2006 18:26:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: zone_reclaim: dynamic slab reclaim
-Message-ID: <Pine.LNX.4.64.0608251825480.11715@schroedinger.engr.sgi.com>
+Message-ID: <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
+In-Reply-To: <20060825153957.24271.6856.sendpatchset@twins>
+References: <20060825153946.24271.42758.sendpatchset@twins>
+    <20060825153957.24271.6856.sendpatchset@twins>
+Date: Sat, 26 Aug 2006 04:37:23 +0200 (CEST)
+Subject: Re: [PATCH 1/4] net: VM deadlock avoidance framework
+From: "Indan Zupancic" <indan@nul.nu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Currently one can enable slab reclaim by setting an explicit option. Slab
-reclaim is then used as a final option if the freeing of unmapped file
-backed pages is not enough to free enough pages to allow a local allocation.
+On Fri, August 25, 2006 17:39, Peter Zijlstra said:
+> @@ -282,7 +282,8 @@ struct sk_buff {
+>  				nfctinfo:3;
+>  	__u8			pkt_type:3,
+>  				fclone:2,
+> -				ipvs_property:1;
+> +				ipvs_property:1,
+> +				emerg:1;
+>  	__be16			protocol;
 
-However, that means that the slab can grow excessively and that most memory
-of a node may be used by slabs. We have had a case where a machine with 46GB
-of memory was using 40-42GB for slab. Zone reclaim was effective in dealing
-with pagecache pages. However, slab reclaim was only done during global
-reclaim (which is a bit rare on NUMA systems).
+Why not 'emergency'? Looks like 'emerge' with a typo now. ;-)
 
-This patch implements slab reclaim during zone reclaim. Zone reclaim occurs
-if there is a danger of an off node allocation. At that point we
 
-1. Shrink the per node page cache if the number of pagecache
-   pages is more than min_unmapped_ratio percent of pages in a zone.
+> @@ -391,6 +391,7 @@ enum sock_flags {
+>  	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
+>  	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+>  	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
+> +	SOCK_VMIO, /* promise to never block on receive */
 
-2. Shrink the slab cache if the number of the nodes reclaimable slab pages
-   (patch depends on earlier one that implements that counter)
-   are more than min_slab_ratio (a new /proc/sys/vm tunable).
+It might be used for IO related to the VM, but that doesn't tell _what_ it does.
+It also does much more than just not blocking on receive, so overal, aren't
+both the vmio name and the comment slightly misleading?
 
-The shrinking of the slab cache is a bit problematic since it is not node
-specific. So we simply calculate what point in the slab we want to reach
-(current per node slab use minus the number of pages that neeed to be
-allocated) and then repeately run the global reclaim until that is
-unsuccessful or we have reached the limit. I hope we will have zone based
-slab reclaim at some point which will make that easier.
 
-The default for the min_slab_ratio is 5%
+> +static inline int emerg_rx_pages_try_inc(void)
+> +{
+> +	return atomic_read(&vmio_socks) &&
+> +		atomic_add_unless(&emerg_rx_pages_used, 1, RX_RESERVE_PAGES);
+> +}
 
-Also remove the slab option from /proc/sys/vm/zone_reclaim_mode.
+It looks cleaner to move that first check to the caller, as it is often
+redundant and in the other cases makes it more clear what the caller is
+really doing.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc4-mm2/mm/vmscan.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/vmscan.c	2006-08-25 17:59:08.269075860 -0700
-+++ linux-2.6.18-rc4-mm2/mm/vmscan.c	2006-08-25 18:07:50.210493920 -0700
-@@ -1535,7 +1535,6 @@ int zone_reclaim_mode __read_mostly;
- #define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
- #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
- #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
--#define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
- 
- /*
-  * Priority for ZONE_RECLAIM. This determines the fraction of pages
-@@ -1551,6 +1550,12 @@ int zone_reclaim_mode __read_mostly;
- int sysctl_min_unmapped_ratio = 1;
- 
- /*
-+ * If the number of slab pages in a zone grows beyond this percentage then
-+ * slab reclaim needs to occur.
-+ */
-+int sysctl_min_slab_ratio = 5;
-+
-+/*
-  * Try to free up some pages from this zone through reclaim.
-  */
- static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-@@ -1581,29 +1586,36 @@ static int __zone_reclaim(struct zone *z
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	/*
--	 * Free memory by calling shrink zone with increasing priorities
--	 * until we have enough memory freed.
--	 */
--	priority = ZONE_RECLAIM_PRIORITY;
--	do {
--		nr_reclaimed += shrink_zone(priority, zone, &sc);
--		priority--;
--	} while (priority >= 0 && nr_reclaimed < nr_pages);
-+	if (zone_page_state(zone, NR_FILE_PAGES) -
-+		zone_page_state(zone, NR_FILE_MAPPED) >
-+		zone->min_unmapped_pages) {
-+		/*
-+		 * Free memory by calling shrink zone with increasing
-+		 * priorities until we have enough memory freed.
-+		 */
-+		priority = ZONE_RECLAIM_PRIORITY;
-+		do {
-+			nr_reclaimed += shrink_zone(priority, zone, &sc);
-+			priority--;
-+		} while (priority >= 0 && nr_reclaimed < nr_pages);
-+	}
- 
--	if (nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
-+	if (zone_page_state(zone, NR_SLAB_RECLAIMABLE) > zone->min_slab_pages) {
- 		/*
- 		 * shrink_slab() does not currently allow us to determine how
--		 * many pages were freed in this zone. So we just shake the slab
--		 * a bit and then go off node for this particular allocation
--		 * despite possibly having freed enough memory to allocate in
--		 * this zone.  If we freed local memory then the next
--		 * allocations will be local again.
-+		 * many pages were freed in this zone. So we take the current
-+		 * number of slab pages and shake the slab until it is reduced
-+		 * by the same nr_pages that we used for reclaiming unmapped
-+		 * pages.
- 		 *
--		 * shrink_slab will free memory on all zones and may take
-+		 * Note that shrink_slab will free memory on all zones and may take
- 		 * a long time.
- 		 */
--		shrink_slab(sc.nr_scanned, gfp_mask, order);
-+		unsigned long limit = zone_page_state(zone,
-+				NR_SLAB_RECLAIMABLE) - nr_pages;
-+
-+		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-+			zone_page_state(zone, NR_SLAB_RECLAIMABLE) > limit) ;
- 	}
- 
- 	p->reclaim_state = NULL;
-@@ -1617,7 +1629,8 @@ int zone_reclaim(struct zone *zone, gfp_
- 	int node_id;
- 
- 	/*
--	 * Zone reclaim reclaims unmapped file backed pages.
-+	 * Zone reclaim reclaims unmapped file backed pages and
-+	 * slab pages if we are over the defined limits.
- 	 *
- 	 * A small portion of unmapped file backed pages is needed for
- 	 * file I/O otherwise pages read by file I/O will be immediately
-@@ -1626,7 +1639,9 @@ int zone_reclaim(struct zone *zone, gfp_
- 	 * unmapped file backed pages.
- 	 */
- 	if (zone_page_state(zone, NR_FILE_PAGES) -
--	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages)
-+	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages
-+	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
-+			<= zone->min_slab_pages)
- 		return 0;
- 
- 	/*
-Index: linux-2.6.18-rc4-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/mm/page_alloc.c	2006-08-25 17:59:08.273958371 -0700
-+++ linux-2.6.18-rc4-mm2/mm/page_alloc.c	2006-08-25 18:00:17.728656212 -0700
-@@ -2104,6 +2104,7 @@ static void __meminit free_area_init_cor
- #ifdef CONFIG_NUMA
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
- 						/ 100;
-+		zone->min_slab_pages = (realsize*sysctl_min_slab_ratio) / 100;
- #endif
- 		zone->name = zone_names[j];
- 		spin_lock_init(&zone->lock);
-@@ -2417,6 +2418,22 @@ int sysctl_min_unmapped_ratio_sysctl_han
- 				sysctl_min_unmapped_ratio) / 100;
- 	return 0;
- }
-+
-+int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
-+	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
-+{
-+	struct zone *zone;
-+	int rc;
-+
-+	rc = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
-+	if (rc)
-+		return rc;
-+
-+	for_each_zone(zone)
-+		zone->min_slab_pages = (zone->present_pages *
-+				sysctl_min_slab_ratio) / 100;
-+	return 0;
-+}
- #endif
- 
- /*
-Index: linux-2.6.18-rc4-mm2/kernel/sysctl.c
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/kernel/sysctl.c	2006-08-23 12:37:01.764771315 -0700
-+++ linux-2.6.18-rc4-mm2/kernel/sysctl.c	2006-08-25 18:00:17.730609216 -0700
-@@ -1023,6 +1023,17 @@ static ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one_hundred,
- 	},
-+	{
-+		.ctl_name	= VM_MIN_SLAB,
-+		.procname	= "min_slab_ratio",
-+		.data		= &sysctl_min_slab_ratio,
-+		.maxlen		= sizeof(sysctl_min_slab_ratio),
-+		.mode		= 0644,
-+		.proc_handler	= &sysctl_min_slab_ratio_sysctl_handler,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+		.extra2		= &one_hundred,
-+	},
- #endif
- #ifdef CONFIG_X86_32
- 	{
-Index: linux-2.6.18-rc4-mm2/include/linux/mmzone.h
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/include/linux/mmzone.h	2006-08-25 17:59:08.267122856 -0700
-+++ linux-2.6.18-rc4-mm2/include/linux/mmzone.h	2006-08-25 18:00:17.731585719 -0700
-@@ -170,6 +170,7 @@ struct zone {
- 	 * zone reclaim becomes active if more unmapped pages exist.
- 	 */
- 	unsigned long		min_unmapped_pages;
-+	unsigned long		min_slab_pages;
- 	struct per_cpu_pageset	*pageset[NR_CPUS];
- #else
- 	struct per_cpu_pageset	pageset[NR_CPUS];
-@@ -453,6 +454,8 @@ int percpu_pagelist_fraction_sysctl_hand
- 					void __user *, size_t *, loff_t *);
- int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
- 			struct file *, void __user *, size_t *, loff_t *);
-+int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
-+			struct file *, void __user *, size_t *, loff_t *);
- 
- #include <linux/topology.h>
- /* Returns the number of the current Node. */
-Index: linux-2.6.18-rc4-mm2/Documentation/sysctl/vm.txt
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/Documentation/sysctl/vm.txt	2006-08-23 12:36:55.553241342 -0700
-+++ linux-2.6.18-rc4-mm2/Documentation/sysctl/vm.txt	2006-08-25 18:00:17.733538723 -0700
-@@ -29,6 +29,7 @@ Currently, these files are in /proc/sys/
- - drop-caches
- - zone_reclaim_mode
- - min_unmapped_ratio
-+- min_slab_ratio
- - panic_on_oom
- - swap_prefetch
- - readahead_ratio
-@@ -141,7 +142,6 @@ This is value ORed together of
- 1	= Zone reclaim on
- 2	= Zone reclaim writes dirty pages out
- 4	= Zone reclaim swaps pages
--8	= Also do a global slab reclaim pass
- 
- zone_reclaim_mode is set during bootup to 1 if it is determined that pages
- from remote zones will cause a measurable performance reduction. The
-@@ -165,18 +165,13 @@ Allowing regular swap effectively restri
- node unless explicitly overridden by memory policies or cpuset
- configurations.
- 
--It may be advisable to allow slab reclaim if the system makes heavy
--use of files and builds up large slab caches. However, the slab
--shrink operation is global, may take a long time and free slabs
--in all nodes of the system.
--
- =============================================================
- 
- min_unmapped_ratio:
- 
- This is available only on NUMA kernels.
- 
--A percentage of the file backed pages in each zone.  Zone reclaim will only
-+A percentage of the total pages in each zone.  Zone reclaim will only
- occur if more than this percentage of pages are file backed and unmapped.
- This is to insure that a minimal amount of local pages is still available for
- file I/O even if the node is overallocated.
-@@ -185,6 +180,24 @@ The default is 1 percent.
- 
- =============================================================
- 
-+min_slab_ratio:
-+
-+This is available only on NUMA kernels.
-+
-+A percentage of the total pages in each zone.  On Zone reclaim
-+(fallback from the local zone occurs) slabs will be reclaimed if more
-+than this percentage of pages in a zone are reclaimable slab pages.
-+This insures that the slab growth stays under control even in NUMA
-+systems that rarely perform global reclaim.
-+
-+The default is 5 percent.
-+
-+Note that slab reclaim is triggered in a per zone / node fashion.
-+The process of reclaiming slab memory is currently not node specific
-+and may not be fast.
-+
-+=============================================================
-+
- panic_on_oom
- 
- This enables or disables panic on out-of-memory feature.  If this is set to 1,
-Index: linux-2.6.18-rc4-mm2/include/linux/sysctl.h
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/include/linux/sysctl.h	2006-08-23 12:37:01.540175828 -0700
-+++ linux-2.6.18-rc4-mm2/include/linux/sysctl.h	2006-08-25 18:00:17.733538723 -0700
-@@ -197,6 +197,7 @@ enum
- 	VM_SWAP_PREFETCH=35,	/* swap prefetch */
- 	VM_READAHEAD_RATIO=36,	/* percent of read-ahead size to thrashing-threshold */
- 	VM_READAHEAD_HIT_RATE=37, /* one accessed page legitimizes so many read-ahead pages */
-+	VM_MIN_SLAB=38,		 /* Percent pages ignored by zone reclaim */
- };
- 
- /* CTL_NET names: */
-Index: linux-2.6.18-rc4-mm2/include/linux/swap.h
-===================================================================
---- linux-2.6.18-rc4-mm2.orig/include/linux/swap.h	2006-08-23 12:37:01.539199326 -0700
-+++ linux-2.6.18-rc4-mm2/include/linux/swap.h	2006-08-25 18:00:17.734515225 -0700
-@@ -196,6 +196,7 @@ extern long vm_total_pages;
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
- extern int sysctl_min_unmapped_ratio;
-+extern int sysctl_min_slab_ratio;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
- #else
- #define zone_reclaim_mode 0
+> @@ -82,6 +82,7 @@ EXPORT_SYMBOL(zone_table);
+>
+>  static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
+>  int min_free_kbytes = 1024;
+> +int var_free_kbytes;
+
+Using var_free_pages makes the code slightly simpler, as all that needless
+convertion isn't needed anymore. Perhaps the same is true for min_free_kbytes...
+
+
+> +noskb:
+> +	/* Attempt emergency allocation when RX skb. */
+> +	if (!(flags & SKB_ALLOC_RX))
+> +		goto out;
+
+So only incoming skb allocation is guaranteed? What about outgoing skbs?
+What am I missing? Or can we sleep then, and increasing var_free_kbytes is
+sufficient to guarantee it?
+
+
+> +
+> +	if (size + sizeof(struct skb_shared_info) > PAGE_SIZE)
+> +		goto out;
+> +
+> +	if (!emerg_rx_pages_try_inc())
+> +		goto out;
+> +
+> +	skb = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
+> +	if (!skb) {
+> +		WARN_ON(1); /* we were promised memory but didn't get it? */
+> +		goto dec_out;
+> +	}
+> +
+> +	if (!emerg_rx_pages_try_inc())
+> +		goto skb_free_out;
+> +
+> +	data = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
+> +	if (!data) {
+> +		WARN_ON(1); /* we were promised memory but didn't get it? */
+> +		emerg_rx_pages_dec();
+> +skb_free_out:
+> +		free_page((unsigned long)skb);
+> +		skb = NULL;
+> +dec_out:
+> +		emerg_rx_pages_dec();
+> +		goto out;
+> +	}
+> +
+> +	cache = NULL;
+> +	goto allocated;
+>  }
+>
+>  /**
+> @@ -267,7 +304,7 @@ struct sk_buff *__netdev_alloc_skb(struc
+>  {
+>  	struct sk_buff *skb;
+>
+> -	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
+> +	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX);
+>  	if (likely(skb)) {
+>  		skb_reserve(skb, NET_SKB_PAD);
+>  		skb->dev = dev;
+> @@ -315,10 +352,20 @@ static void skb_release_data(struct sk_b
+>  		if (skb_shinfo(skb)->frag_list)
+>  			skb_drop_fraglist(skb);
+>
+> -		kfree(skb->head);
+> +		if (skb->emerg) {
+> +			free_page((unsigned long)skb->head);
+> +			emerg_rx_pages_dec();
+> +		} else
+> +			kfree(skb->head);
+>  	}
+>  }
+>
+> +static void emerg_free_skb(struct kmem_cache *cache, void *objp)
+> +{
+> +	free_page((unsigned long)objp);
+> +	emerg_rx_pages_dec();
+> +}
+> +
+>  /*
+>   *	Free an skbuff by memory without cleaning the state.
+>   */
+> @@ -326,17 +373,21 @@ void kfree_skbmem(struct sk_buff *skb)
+>  {
+>  	struct sk_buff *other;
+>  	atomic_t *fclone_ref;
+> +	void (*free_skb)(struct kmem_cache *, void *);
+>
+>  	skb_release_data(skb);
+> +
+> +	free_skb = skb->emerg ? emerg_free_skb : kmem_cache_free;
+> +
+>  	switch (skb->fclone) {
+>  	case SKB_FCLONE_UNAVAILABLE:
+> -		kmem_cache_free(skbuff_head_cache, skb);
+> +		free_skb(skbuff_head_cache, skb);
+>  		break;
+>
+>  	case SKB_FCLONE_ORIG:
+>  		fclone_ref = (atomic_t *) (skb + 2);
+>  		if (atomic_dec_and_test(fclone_ref))
+> -			kmem_cache_free(skbuff_fclone_cache, skb);
+> +			free_skb(skbuff_fclone_cache, skb);
+>  		break;
+>
+>  	case SKB_FCLONE_CLONE:
+> @@ -349,7 +400,7 @@ void kfree_skbmem(struct sk_buff *skb)
+>  		skb->fclone = SKB_FCLONE_UNAVAILABLE;
+>
+>  		if (atomic_dec_and_test(fclone_ref))
+> -			kmem_cache_free(skbuff_fclone_cache, other);
+> +			free_skb(skbuff_fclone_cache, other);
+>  		break;
+>  	};
+>  }
+
+I don't have the original code in front of me, but isn't it possible to
+add a "goto free" which has all the freeing in one place? That would get
+rid of the function pointer stuff and emerg_free_skb.
+
+
+> @@ -435,6 +486,17 @@ struct sk_buff *skb_clone(struct sk_buff
+>  		atomic_t *fclone_ref = (atomic_t *) (n + 1);
+>  		n->fclone = SKB_FCLONE_CLONE;
+>  		atomic_inc(fclone_ref);
+> +	} else if (skb->emerg) {
+> +		if (!emerg_rx_pages_try_inc())
+> +			return NULL;
+> +
+> +		n = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
+> +		if (!n) {
+> +			WARN_ON(1);
+> +			emerg_rx_pages_dec();
+> +			return NULL;
+> +		}
+> +		n->fclone = SKB_FCLONE_UNAVAILABLE;
+>  	} else {
+>  		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+>  		if (!n)
+> @@ -470,6 +532,7 @@ struct sk_buff *skb_clone(struct sk_buff
+>  #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+>  	C(ipvs_property);
+>  #endif
+> +	C(emerg);
+>  	C(protocol);
+>  	n->destructor = NULL;
+>  #ifdef CONFIG_NETFILTER
+> @@ -690,7 +753,21 @@ int pskb_expand_head(struct sk_buff *skb
+>
+>  	size = SKB_DATA_ALIGN(size);
+>
+> -	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
+> +	if (skb->emerg) {
+> +		if (size + sizeof(struct skb_shared_info) > PAGE_SIZE)
+> +			goto nodata;
+> +
+> +		if (!emerg_rx_pages_try_inc())
+> +			goto nodata;
+> +
+> +		data = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
+> +		if (!data) {
+> +			WARN_ON(1);
+> +			emerg_rx_pages_dec();
+> +			goto nodata;
+> +		}
+
+There seems to be some pattern occuring here, what about a new function?
+
+Are these functions only called for incoming skbs? If not, calling
+emerg_rx_pages_try_inc() is the wrong thing to do. A quick search says
+they aren't. Add a RX check? Or is that fixed by SKB_FCLONE_UNAVAILABLE?
+If so, why are skb_clone() and pskb_expand_head() modified at all?
+(Probably ignorance on my end.)
+
+
+> +	} else
+> +		data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
+>  	if (!data)
+>  		goto nodata;
+>
+> Index: linux-2.6/net/ipv4/icmp.c
+> ===================================================================
+> --- linux-2.6.orig/net/ipv4/icmp.c
+> +++ linux-2.6/net/ipv4/icmp.c
+> @@ -938,6 +938,9 @@ int icmp_rcv(struct sk_buff *skb)
+>  			goto error;
+>  	}
+>
+> +	if (unlikely(skb->emerg))
+> +		goto drop;
+> +
+>  	if (!pskb_pull(skb, sizeof(struct icmphdr)))
+>  		goto error;
+>
+> Index: linux-2.6/net/ipv4/tcp_ipv4.c
+> ===================================================================
+> --- linux-2.6.orig/net/ipv4/tcp_ipv4.c
+> +++ linux-2.6/net/ipv4/tcp_ipv4.c
+> @@ -1093,6 +1093,9 @@ int tcp_v4_rcv(struct sk_buff *skb)
+>  	if (!sk)
+>  		goto no_tcp_socket;
+>
+> +	if (unlikely(skb->emerg && !sk_is_vmio(sk)))
+> +		goto discard_and_relse;
+> +
+>  process:
+>  	if (sk->sk_state == TCP_TIME_WAIT)
+>  		goto do_time_wait;
+> Index: linux-2.6/net/ipv4/udp.c
+> ===================================================================
+> --- linux-2.6.orig/net/ipv4/udp.c
+> +++ linux-2.6/net/ipv4/udp.c
+> @@ -1136,7 +1136,12 @@ int udp_rcv(struct sk_buff *skb)
+>  	sk = udp_v4_lookup(saddr, uh->source, daddr, uh->dest, skb->dev->ifindex);
+>
+>  	if (sk != NULL) {
+> -		int ret = udp_queue_rcv_skb(sk, skb);
+> +		int ret;
+> +
+> +		if (unlikely(skb->emerg && !sk_is_vmio(sk)))
+> +			goto drop_noncritical;
+> +
+> +		ret = udp_queue_rcv_skb(sk, skb);
+>  		sock_put(sk);
+>
+>  		/* a return value > 0 means to resubmit the input, but
+> @@ -1147,6 +1152,7 @@ int udp_rcv(struct sk_buff *skb)
+>  		return 0;
+>  	}
+>
+> +drop_noncritical:
+>  	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+>  		goto drop;
+>  	nf_reset(skb);
+> Index: linux-2.6/net/ipv4/af_inet.c
+> ===================================================================
+> --- linux-2.6.orig/net/ipv4/af_inet.c
+> +++ linux-2.6/net/ipv4/af_inet.c
+> @@ -132,6 +132,9 @@ void inet_sock_destruct(struct sock *sk)
+>  {
+>  	struct inet_sock *inet = inet_sk(sk);
+>
+> +	if (sk_is_vmio(sk))
+> +		sk_clear_vmio(sk);
+> +
+>  	__skb_queue_purge(&sk->sk_receive_queue);
+>  	__skb_queue_purge(&sk->sk_error_queue);
+>
+> Index: linux-2.6/net/core/sock.c
+> ===================================================================
+> --- linux-2.6.orig/net/core/sock.c
+> +++ linux-2.6/net/core/sock.c
+> @@ -111,6 +111,7 @@
+>  #include <linux/poll.h>
+>  #include <linux/tcp.h>
+>  #include <linux/init.h>
+> +#include <linux/blkdev.h>
+>
+>  #include <asm/uaccess.h>
+>  #include <asm/system.h>
+> @@ -195,6 +196,102 @@ __u32 sysctl_rmem_default = SK_RMEM_MAX;
+>  /* Maximal space eaten by iovec or ancilliary data plus some space */
+>  int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
+>
+> +static DEFINE_SPINLOCK(memalloc_lock);
+> +static int memalloc_reserve;
+> +static unsigned int vmio_request_queues;
+> +
+> +atomic_t vmio_socks;
+> +atomic_t emerg_rx_pages_used;
+> +EXPORT_SYMBOL_GPL(vmio_socks);
+> +EXPORT_SYMBOL_GPL(emerg_rx_pages_used);
+> +
+> +/**
+> + *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
+> + *	@nr_socks: number of new %SOCK_VMIO sockets
+
+I don't see a parameter named nr_socks? request_queues isn't docuemnted?
+
+> + *
+> + *	This function adjusts the memalloc reserve based on system demand.
+> + *	For each %SOCK_VMIO socket this device will reserve enough
+> + *	to send a few large packets (64k) at a time: %TX_RESERVE_PAGES.
+> + *
+> + *	Assumption:
+> + *	 - each %SOCK_VMIO socket will have a %request_queue associated.
+
+If this is assumed, then why is the request_queue parameter needed?
+
+> + *
+> + *	NOTE:
+> + *	   %TX_RESERVE_PAGES is an upper-bound of memory used for TX hence
+> + *	   we need not account the pages like we do for %RX_RESERVE_PAGES.
+> + *
+> + *	On top of this comes a one time charge of:
+> + *	  %RX_RESERVE_PAGES pages -
+> + * 		number of pages alloted for emergency skb service to critical
+> + * 		sockets.
+> + */
+> +int sk_adjust_memalloc(int socks, int request_queues)
+> +{
+> +	unsigned long flags;
+> +	int reserve;
+> +	int nr_socks;
+> +	int err;
+> +
+> +	spin_lock_irqsave(&memalloc_lock, flags);
+> +
+> +	atomic_add(socks, &vmio_socks);
+> +	nr_socks = atomic_read(&vmio_socks);
+
+nr_socks = atomic_add_return(socks, &vmio_socks);
+
+> +	BUG_ON(socks < 0);
+
+Shouldn't this be nr_socks < 0?
+
+> +	vmio_request_queues += request_queues;
+> +
+> +	reserve = vmio_request_queues * TX_RESERVE_PAGES + /* outbound */
+> +		  (!!socks) * RX_RESERVE_PAGES;            /* inbound */
+
+If the assumption that each VMIO socket will have a request_queue associated
+is true, then we only need to check if vmio_request_queues !=0, right?
+
+> +
+> +	err = adjust_memalloc_reserve(reserve - memalloc_reserve);
+> +	if (err) {
+> +		printk(KERN_WARNING
+> +			"Unable to change reserve to: %d pages, error: %d\n",
+> +			reserve, err);
+> +		goto unlock;
+> +	}
+> +	memalloc_reserve = reserve;
+> +
+> +unlock:
+> +	spin_unlock_irqrestore(&memalloc_lock, flags);
+> +	return err;
+> +}
+> +EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
+
+You can get rid of the memalloc_reserve and vmio_request_queues variables
+if you want, they aren't really needed for anything. If using them reduces
+the total code size I'd keep them though.
+
+int sk_adjust_memalloc(int socks, int request_queues)
+{
+	unsigned long flags;
+	int reserve;
+	int nr_socks;
+	int err;
+
+	spin_lock_irqsave(&memalloc_lock, flags);
+
+	nr_socks = atomic_add_return(socks, &vmio_socks);
+	BUG_ON(nr_socks < 0);
+
+	reserve = request_queues * TX_RESERVE_PAGES; /* outbound */
+
+	/* Check if this were the first socks: */
+	if (nr_socks - socks == 0)
+		reserve += RX_RESERVE_PAGES;            /* inbound */
+	/* Or the last: */
+	else if (nr_socks == 0)
+		reserve -= RX_RESERVE_PAGES;
+
+	err = adjust_memalloc_reserve(reserve);
+	if (err) {
+		printk(KERN_WARNING
+			"Unable to adjust reserve by %d pages, error: %d\n",
+			reserve, err);
+		goto unlock;
+	}
+
+unlock:
+	spin_unlock_irqrestore(&memalloc_lock, flags);
+	return err;
+}
+
+> +
+> +/**
+> + *	sk_set_vmio - sets %SOCK_VMIO
+> + *	@sk: socket to set it on
+> + *
+> + *	Set %SOCK_VMIO on a socket and increase the memalloc reserve
+> + *	accordingly.
+> + */
+> +int sk_set_vmio(struct sock *sk)
+> +{
+> +	int err = 0;
+> +
+> +	if (!sock_flag(sk, SOCK_VMIO) &&
+> +			!(err = sk_adjust_memalloc(1, 0))) {
+> +		sock_set_flag(sk, SOCK_VMIO);
+> +		sk->sk_allocation |= __GFP_EMERG;
+> +	}
+> +
+> +	return err;
+> +}
+> +EXPORT_SYMBOL_GPL(sk_set_vmio);
+> +
+> +int sk_clear_vmio(struct sock *sk)
+> +{
+> +	int err = 0;
+> +
+> +	if (sock_flag(sk, SOCK_VMIO) &&
+> +			!(err = sk_adjust_memalloc(-1, 0))) {
+> +		sock_reset_flag(sk, SOCK_VMIO);
+> +		sk->sk_allocation &= ~__GFP_EMERG;
+> +	}
+> +
+> +	return err;
+> +}
+> +EXPORT_SYMBOL_GPL(sk_clear_vmio);
+
+It seems wiser to always reset the flags, even if sk_adjust_memalloc fails.
+
+This patch looks much better than the previous one, not much cruft left.
+
+Greetings,
+
+Indan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
