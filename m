@@ -1,212 +1,194 @@
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7SFiHun002899
+	by e6.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7SFiHIq031697
 	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7SFiHig258894
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7SFiIWu296220
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:18 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7SFiHxD005274
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
-Subject: [RFC][PATCH 5/7] parisc generic PAGE_SIZE
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7SFiIwD005309
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:18 -0400
+Subject: [RFC][PATCH 6/7] powerpc generic PAGE_SIZE
 From: Dave Hansen <haveblue@us.ibm.com>
 Date: Mon, 28 Aug 2006 08:44:16 -0700
 References: <20060828154413.E05721BD@localhost.localdomain>
 In-Reply-To: <20060828154413.E05721BD@localhost.localdomain>
-Message-Id: <20060828154416.DA5B0D64@localhost.localdomain>
+Message-Id: <20060828154416.09E64946@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is the parisc portion to convert it over to the generic PAGE_SIZE
+This is the powerpc portion to convert it over to the generic PAGE_SIZE
 framework.
 
-* remove parisc-specific Kconfig menu
-* add parisc default of 4k pages to mm/Kconfig
-* replace parisc Kconfig menu with plain bool Kconfig option to
-  cover both 16KB and 64KB pages: PARISC_LARGER_PAGE_SIZES.
-  This preserves the dependencies on PA8X00.
+* add powerpc default of 64k pages to mm/Kconfig, when the 64k
+  option is enabled.  Defaults to 4k otherwise.
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- threadalloc-dave/include/asm-parisc/pgtable.h |    8 +++---
- threadalloc-dave/include/asm-parisc/page.h    |   25 ---------------------
- threadalloc-dave/arch/parisc/Kconfig          |   30 +++-----------------------
- threadalloc-dave/arch/parisc/defconfig        |    6 ++---
- threadalloc-dave/arch/parisc/mm/init.c        |    2 -
- threadalloc-dave/mm/Kconfig                   |    7 +++---
- 6 files changed, 17 insertions(+), 61 deletions(-)
+ threadalloc-dave/include/asm-powerpc/page.h |   34 ++--------------------------
+ threadalloc-dave/include/asm-ppc/page.h     |   22 ------------------
+ threadalloc-dave/arch/powerpc/Kconfig       |    5 +++-
+ threadalloc-dave/arch/powerpc/boot/page.h   |   22 ------------------
+ threadalloc-dave/mm/Kconfig                 |    2 -
+ 5 files changed, 10 insertions(+), 75 deletions(-)
 
-diff -puN include/asm-parisc/pgtable.h~parisc include/asm-parisc/pgtable.h
---- threadalloc/include/asm-parisc/pgtable.h~parisc	2006-08-25 11:34:21.000000000 -0700
-+++ threadalloc-dave/include/asm-parisc/pgtable.h	2006-08-25 11:34:25.000000000 -0700
-@@ -66,7 +66,7 @@
- #endif
- #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
+diff -puN include/asm-powerpc/page.h~powerpc include/asm-powerpc/page.h
+--- threadalloc/include/asm-powerpc/page.h~powerpc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/include/asm-powerpc/page.h	2006-08-25 11:34:26.000000000 -0700
+@@ -10,32 +10,14 @@
+  * 2 of the License, or (at your option) any later version.
+  */
  
--#if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-+#if defined(CONFIG_64BIT) && defined(CONFIG_PAGE_SIZE_4KB)
- #define PT_NLEVELS	3
- #define PGD_ORDER	1 /* Number of pages per pgd */
- #define PMD_ORDER	1 /* Number of pages per pmd */
-@@ -514,11 +514,11 @@ static inline void ptep_set_wrprotect(st
- #define _PAGE_SIZE_ENCODING_16M		6
- #define _PAGE_SIZE_ENCODING_64M		7
++#include <asm-generic/page.h>
++
+ #ifdef __KERNEL__
+ #include <asm/asm-compat.h>
+ #include <asm/kdump.h>
  
--#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-+#if defined(CONFIG_PAGE_SIZE_4KB)
- # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_4K
--#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
-+#elif defined(CONFIG_PAGE_SIZE_16KB)
- # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_16K
--#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
-+#elif defined(CONFIG_PAGE_SIZE_64KB)
- # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_64K
- #endif
- 
-diff -puN include/asm-parisc/page.h~parisc include/asm-parisc/page.h
---- threadalloc/include/asm-parisc/page.h~parisc	2006-08-25 11:34:21.000000000 -0700
-+++ threadalloc-dave/include/asm-parisc/page.h	2006-08-25 11:34:25.000000000 -0700
-@@ -1,29 +1,10 @@
- #ifndef _PARISC_PAGE_H
- #define _PARISC_PAGE_H
- 
--#if !defined(__KERNEL__)
--/* this is for userspace applications (4k page size) */
--# define PAGE_SHIFT	12	/* 4k */
--# define PAGE_SIZE	(1UL << PAGE_SHIFT)
--# define PAGE_MASK	(~(PAGE_SIZE-1))
+-/*
+- * On PPC32 page size is 4K. For PPC64 we support either 4K or 64K software
+- * page size. When using 64K pages however, whether we are really supporting
+- * 64K pages in HW or not is irrelevant to those definitions.
+- */
+-#ifdef CONFIG_PPC_64K_PAGES
+-#define PAGE_SHIFT		16
+-#else
+-#define PAGE_SHIFT		12
 -#endif
 -
+-#define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
+-
+ /* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
+-#define __HAVE_ARCH_GATE_AREA		1
+-
+-/*
+- * Subtle: (1 << PAGE_SHIFT) is an int, not an unsigned long. So if we
+- * assign PAGE_MASK to a larger type it gets extended the way we want
+- * (i.e. with 1s in the high bits)
+- */
+-#define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
++#define __HAVE_ARCH_GATE_AREA          1
+ 
+ /*
+  * KERNELBASE is the virtual address of the start of the kernel, it's often
+@@ -89,16 +71,6 @@
+ #include <asm/page_32.h>
+ #endif
+ 
+-/* align addr on a size boundary - adjust address up/down if needed */
+-#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
+-#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+-
+-/* align addr on a size boundary - adjust address up if needed */
+-#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+-
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
+-
+ /*
+  * Don't compare things with KERNELBASE or PAGE_OFFSET to test for
+  * "kernelness", use is_kernel_addr() - it should do what you want.
+diff -puN include/asm-ppc/page.h~powerpc include/asm-ppc/page.h
+--- threadalloc/include/asm-ppc/page.h~powerpc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/include/asm-ppc/page.h	2006-08-25 11:34:26.000000000 -0700
+@@ -2,16 +2,7 @@
+ #define _PPC_PAGE_H
+ 
+ #include <asm/asm-compat.h>
+-
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
+-
+-/*
+- * Subtle: this is an int (not an unsigned long) and so it
+- * gets extended to 64 bits the way want (i.e. with 1s).  -- paulus
+- */
+-#define PAGE_MASK	(~((1 << PAGE_SHIFT) - 1))
 +#include <asm-generic/page.h>
  
  #ifdef __KERNEL__
  
--#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
--# define PAGE_SHIFT	12	/* 4k */
--#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
--# define PAGE_SHIFT	14	/* 16k */
--#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
--# define PAGE_SHIFT	16	/* 64k */
--#else
--# error "unknown default kernel page size"
--#endif
--#define PAGE_SIZE	(1UL << PAGE_SHIFT)
--#define PAGE_MASK	(~(PAGE_SIZE-1))
--
--
- #ifndef __ASSEMBLY__
+@@ -36,17 +27,6 @@ typedef unsigned long pte_basic_t;
+ #define PTE_FMT		"%.8lx"
+ #endif
  
- #include <asm/types.h>
-@@ -140,10 +121,6 @@ extern int npmem_ranges;
- #define PMD_ENTRY_SIZE	(1UL << BITS_PER_PMD_ENTRY)
- #define PTE_ENTRY_SIZE	(1UL << BITS_PER_PTE_ENTRY)
- 
+-/* align addr on a size boundary - adjust address up/down if needed */
+-#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
+-#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+-
+-/* align addr on a size boundary - adjust address up if needed */
+-#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+-
 -/* to align the pointer to the (next) page boundary */
--#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
 -
 -
- #define LINUX_GATEWAY_SPACE     0
+ #undef STRICT_MM_TYPECHECKS
  
- /* This governs the relationship between virtual and physical addresses.
-diff -puN arch/parisc/Kconfig~parisc arch/parisc/Kconfig
---- threadalloc/arch/parisc/Kconfig~parisc	2006-08-25 11:34:21.000000000 -0700
-+++ threadalloc-dave/arch/parisc/Kconfig	2006-08-25 11:34:25.000000000 -0700
-@@ -142,34 +142,12 @@ config 64BIT
- 	  enable this option otherwise. The 64bit kernel is significantly bigger
- 	  and slower than the 32bit one.
+ #ifdef STRICT_MM_TYPECHECKS
+diff -puN arch/powerpc/Kconfig~powerpc arch/powerpc/Kconfig
+--- threadalloc/arch/powerpc/Kconfig~powerpc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/arch/powerpc/Kconfig	2006-08-25 11:34:26.000000000 -0700
+@@ -725,8 +725,11 @@ config ARCH_MEMORY_PROBE
+ 	def_bool y
+ 	depends on MEMORY_HOTPLUG
  
--choice
--	prompt "Kernel page size"
--	default PARISC_PAGE_SIZE_4KB  if !64BIT
--	default PARISC_PAGE_SIZE_4KB  if 64BIT
--#	default PARISC_PAGE_SIZE_16KB if 64BIT
--
--config PARISC_PAGE_SIZE_4KB
--	bool "4KB"
--	help
--	  This lets you select the page size of the kernel.  For best
--	  performance, a page size of 16KB is recommended.  For best
--	  compatibility with 32bit applications, a page size of 4KB should be
--	  selected (the vast majority of 32bit binaries work perfectly fine
--	  with a larger page size).
--
--	  4KB                For best 32bit compatibility
--	  16KB               For best performance
--	  64KB               For best performance, might give more overhead.
--
--	  If you don't know what to do, choose 4KB.
--
--config PARISC_PAGE_SIZE_16KB
--	bool "16KB (EXPERIMENTAL)"
-+config PARISC_LARGER_PAGE_SIZES
-+	def_bool y
- 	depends on PA8X00 && EXPERIMENTAL
- 
--config PARISC_PAGE_SIZE_64KB
--	bool "64KB (EXPERIMENTAL)"
--	depends on PA8X00 && EXPERIMENTAL
 +config ARCH_GENERIC_PAGE_SIZE
 +	def_bool y
++
+ config PPC_64K_PAGES
+-	bool "64k page size"
++	bool "enable 64k page size"
+ 	depends on PPC64
+ 	help
+ 	  This option changes the kernel logical page size to 64k. On machines
+diff -puN arch/powerpc/boot/page.h~powerpc arch/powerpc/boot/page.h
+--- threadalloc/arch/powerpc/boot/page.h~powerpc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/arch/powerpc/boot/page.h	2006-08-25 11:34:26.000000000 -0700
+@@ -9,26 +9,6 @@
+  * 2 of the License, or (at your option) any later version.
+  */
  
- endchoice
+-#ifdef __ASSEMBLY__
+-#define ASM_CONST(x) x
+-#else
+-#define __ASM_CONST(x) x##UL
+-#define ASM_CONST(x) __ASM_CONST(x)
+-#endif
+-
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+-
+-/* align addr on a size boundary - adjust address up/down if needed */
+-#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
+-#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+-
+-/* align addr on a size boundary - adjust address up if needed */
+-#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+-
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
++#include <asm-generic/page.h>
  
-diff -puN arch/parisc/defconfig~parisc arch/parisc/defconfig
---- threadalloc/arch/parisc/defconfig~parisc	2006-08-25 11:34:21.000000000 -0700
-+++ threadalloc-dave/arch/parisc/defconfig	2006-08-25 11:34:25.000000000 -0700
-@@ -91,9 +91,9 @@ CONFIG_PA7100LC=y
- # CONFIG_PA7300LC is not set
- # CONFIG_PA8X00 is not set
- CONFIG_PA11=y
--CONFIG_PARISC_PAGE_SIZE_4KB=y
--# CONFIG_PARISC_PAGE_SIZE_16KB is not set
--# CONFIG_PARISC_PAGE_SIZE_64KB is not set
-+CONFIG_PAGE_SIZE_4KB=y
-+# CONFIG_PAGE_SIZE_16KB is not set
-+# CONFIG_PAGE_SIZE_64KB is not set
- # CONFIG_SMP is not set
- CONFIG_ARCH_FLATMEM_ENABLE=y
- # CONFIG_PREEMPT_NONE is not set
-diff -puN arch/parisc/mm/init.c~parisc arch/parisc/mm/init.c
---- threadalloc/arch/parisc/mm/init.c~parisc	2006-08-25 11:34:21.000000000 -0700
-+++ threadalloc-dave/arch/parisc/mm/init.c	2006-08-25 11:34:25.000000000 -0700
-@@ -642,7 +642,7 @@ static void __init map_pages(unsigned lo
- 				 * Map the fault vector writable so we can
- 				 * write the HPMC checksum.
- 				 */
--#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-+#if defined(CONFIG_PAGE_SIZE_4KB)
- 				if (address >= ro_start && address < ro_end
- 							&& address != fv_addr
- 							&& address != gw_addr)
-diff -puN mm/Kconfig~parisc mm/Kconfig
---- threadalloc/mm/Kconfig~parisc	2006-08-25 11:34:25.000000000 -0700
-+++ threadalloc-dave/mm/Kconfig	2006-08-25 11:34:25.000000000 -0700
-@@ -6,7 +6,7 @@
- choice
- 	prompt "Kernel Page Size"
+ #endif				/* _PPC_BOOT_PAGE_H */
+diff -puN mm/Kconfig~powerpc mm/Kconfig
+--- threadalloc/mm/Kconfig~powerpc	2006-08-25 11:34:25.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-25 11:34:26.000000000 -0700
+@@ -48,7 +48,7 @@ config PAGE_SHIFT
  	depends on ARCH_GENERIC_PAGE_SIZE
--	default PAGE_SIZE_4KB if MIPS
-+	default PAGE_SIZE_4KB if MIPS || PARISC
- 	default PAGE_SIZE_8KB if SPARC64
- 	default PAGE_SIZE_16KB if IA64
- config PAGE_SIZE_4KB
-@@ -30,10 +30,11 @@ config PAGE_SIZE_8KB
- 	depends on IA64 || SPARC64 || MIPS_PAGE_SIZE_8KB
- config PAGE_SIZE_16KB
- 	bool "16KB"
--	depends on IA64 || MIPS_PAGE_SIZE_16KB
-+	depends on IA64 || MIPS_PAGE_SIZE_16KB || PARISC_LARGER_PAGE_SIZES
- config PAGE_SIZE_64KB
- 	bool "64KB"
--	depends on (IA64 && !ITANIUM) || SPARC64 || MIPS_PAGE_SIZE_64KB
-+	depends on (IA64 && !ITANIUM) || SPARC64 || MIPS_PAGE_SIZE_64KB || \
-+		   PARISC_LARGER_PAGE_SIZES
- config PAGE_SIZE_512KB
- 	bool "512KB"
- 	depends on SPARC64
+ 	default "13" if PAGE_SIZE_8KB
+ 	default "14" if PAGE_SIZE_16KB
+-	default "16" if PAGE_SIZE_64KB
++	default "16" if PAGE_SIZE_64KB || PPC_64K_PAGES
+ 	default "19" if PAGE_SIZE_512KB
+ 	default "22" if PAGE_SIZE_4MB
+ 	default "12"
 _
 
 --
