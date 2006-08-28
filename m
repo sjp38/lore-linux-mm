@@ -1,38 +1,39 @@
-Date: Mon, 28 Aug 2006 13:49:15 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH RFP-V4 00/13] remap_file_pages protection support - 4th
- attempt
-Message-Id: <20060828134915.f7787422.akpm@osdl.org>
-In-Reply-To: <200608261933.36574.blaisorblade@yahoo.it>
-References: <200608261933.36574.blaisorblade@yahoo.it>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7SKrNlf011447
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 16:53:23 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7SKrN2x291352
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 16:53:23 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7SKrNkf001473
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 16:53:23 -0400
+Subject: Re: [RFC][PATCH 1/7] generic PAGE_SIZE infrastructure (v2)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0608280954100.27677@schroedinger.engr.sgi.com>
+References: <20060828154413.E05721BD@localhost.localdomain>
+	 <Pine.LNX.4.64.0608280954100.27677@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 28 Aug 2006 13:53:17 -0700
+Message-Id: <1156798397.5408.23.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Jeff Dike <jdike@addtoit.com>, user-mode-linux-devel@lists.sourceforge.net, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Val Henson <val.henson@intel.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 26 Aug 2006 19:33:35 +0200
-Blaisorblade <blaisorblade@yahoo.it> wrote:
+On Mon, 2006-08-28 at 10:01 -0700, Christoph Lameter wrote:
+> Note that there is a generic ALIGN macro in include/linux/kernel.h plus
+> __ALIGNs in linux/linkage.h. Could you use that and get to some sane 
+> conventin for all these ALIGN functions?
 
-> Again, about 4 month since last time (for lack of time) I'm sending for final 
-> review and for inclusion into -mm protection support for remap_file_pages (in 
-> short "RFP prot support"), i.e. setting per-pte protections (beyond file 
-> offset) through this syscall.
+The one in kernel.h should certainly be consolidated.  What would you
+think about a linux/macros.h that had things like ARRAY_SIZE and the
+ALIGN macros, but didn't have any outside dependencies?  How about a
+linux/align.h just for the alignment macros?
 
-This all looks a bit too fresh and TODO-infested for me to put it in -mm at
-this time.
-
-I could toss them in to get some testing underway, but that makes life
-complex for other ongoing MM work.  (And there's a _lot_ of that - I
-presently have >180 separate patches which alter ./mm/*).
-
-Also, it looks like another round of detailed review is needed before this
-work will really start to settle into its final form.
-
-So..   I'll await version 5, sorry.   Please persist.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
