@@ -1,304 +1,213 @@
-Subject: Re: [PATCH 1/4] net: VM deadlock avoidance framework
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
-References: <20060825153946.24271.42758.sendpatchset@twins>
-	 <20060825153957.24271.6856.sendpatchset@twins>
-	 <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
-Content-Type: text/plain
-Date: Mon, 28 Aug 2006 12:22:44 +0200
-Message-Id: <1156760564.23000.31.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7SFiHun002899
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7SFiHig258894
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7SFiHxD005274
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2006 11:44:17 -0400
+Subject: [RFC][PATCH 5/7] parisc generic PAGE_SIZE
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Mon, 28 Aug 2006 08:44:16 -0700
+References: <20060828154413.E05721BD@localhost.localdomain>
+In-Reply-To: <20060828154413.E05721BD@localhost.localdomain>
+Message-Id: <20060828154416.DA5B0D64@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Indan Zupancic <indan@nul.nu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: linux-mm@kvack.org
+Cc: Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2006-08-26 at 04:37 +0200, Indan Zupancic wrote:
-> On Fri, August 25, 2006 17:39, Peter Zijlstra said:
-> > @@ -282,7 +282,8 @@ struct sk_buff {
-> >  				nfctinfo:3;
-> >  	__u8			pkt_type:3,
-> >  				fclone:2,
-> > -				ipvs_property:1;
-> > +				ipvs_property:1,
-> > +				emerg:1;
-> >  	__be16			protocol;
-> 
-> Why not 'emergency'? Looks like 'emerge' with a typo now. ;-)
+This is the parisc portion to convert it over to the generic PAGE_SIZE
+framework.
 
-hehe, me lazy, you gentoo ;-)
-sed -i -e 's/emerg/emregency/g' -e 's/EMERG/EMERGENCY/g' *.patch
+* remove parisc-specific Kconfig menu
+* add parisc default of 4k pages to mm/Kconfig
+* replace parisc Kconfig menu with plain bool Kconfig option to
+  cover both 16KB and 64KB pages: PARISC_LARGER_PAGE_SIZES.
+  This preserves the dependencies on PA8X00.
 
-> > @@ -391,6 +391,7 @@ enum sock_flags {
-> >  	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
-> >  	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
-> >  	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-> > +	SOCK_VMIO, /* promise to never block on receive */
-> 
-> It might be used for IO related to the VM, but that doesn't tell _what_ it does.
-> It also does much more than just not blocking on receive, so overal, aren't
-> both the vmio name and the comment slightly misleading?
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-I'm so having trouble with this name; I had SOCK_NONBLOCKING for a
-while, but that is a very bad name because nonblocking has this well
-defined meaning when talking about sockets, and this is not that.
+ threadalloc-dave/include/asm-parisc/pgtable.h |    8 +++---
+ threadalloc-dave/include/asm-parisc/page.h    |   25 ---------------------
+ threadalloc-dave/arch/parisc/Kconfig          |   30 +++-----------------------
+ threadalloc-dave/arch/parisc/defconfig        |    6 ++---
+ threadalloc-dave/arch/parisc/mm/init.c        |    2 -
+ threadalloc-dave/mm/Kconfig                   |    7 +++---
+ 6 files changed, 17 insertions(+), 61 deletions(-)
 
-Hence I came up with the VMIO, because that is the only selecting
-criteria for being special. - I'll fix up the comment.
-
-> > +static inline int emerg_rx_pages_try_inc(void)
-> > +{
-> > +	return atomic_read(&vmio_socks) &&
-> > +		atomic_add_unless(&emerg_rx_pages_used, 1, RX_RESERVE_PAGES);
-> > +}
-> 
-> It looks cleaner to move that first check to the caller, as it is often
-> redundant and in the other cases makes it more clear what the caller is
-> really doing.
-
-Yes, very good suggestion indeed, what was I thinking?!
-
-> > @@ -82,6 +82,7 @@ EXPORT_SYMBOL(zone_table);
-> >
-> >  static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
-> >  int min_free_kbytes = 1024;
-> > +int var_free_kbytes;
-> 
-> Using var_free_pages makes the code slightly simpler, as all that needless
-> convertion isn't needed anymore. Perhaps the same is true for min_free_kbytes...
-
-'t seems I'm a bit puzzled as to what you mean here.
-
-> 
-> > +noskb:
-> > +	/* Attempt emergency allocation when RX skb. */
-> > +	if (!(flags & SKB_ALLOC_RX))
-> > +		goto out;
-> 
-> So only incoming skb allocation is guaranteed? What about outgoing skbs?
-> What am I missing? Or can we sleep then, and increasing var_free_kbytes is
-> sufficient to guarantee it?
-
-->sk_allocation |= __GFP_EMERGENCY - will take care of the outgoing
-packets. Also, since one only sends a limited number of packets out and
-then will wait for answers, we do not need to worry about fragmentation
-issues that much in this case.
-
-> > +static void emerg_free_skb(struct kmem_cache *cache, void *objp)
-> > +{
-> > +	free_page((unsigned long)objp);
-> > +	emerg_rx_pages_dec();
-> > +}
-> > +
-> >  /*
-> >   *	Free an skbuff by memory without cleaning the state.
-> >   */
-> > @@ -326,17 +373,21 @@ void kfree_skbmem(struct sk_buff *skb)
-> >  {
-> >  	struct sk_buff *other;
-> >  	atomic_t *fclone_ref;
-> > +	void (*free_skb)(struct kmem_cache *, void *);
-> >
-> >  	skb_release_data(skb);
-> > +
-> > +	free_skb = skb->emerg ? emerg_free_skb : kmem_cache_free;
-> > +
-> >  	switch (skb->fclone) {
-> >  	case SKB_FCLONE_UNAVAILABLE:
-> > -		kmem_cache_free(skbuff_head_cache, skb);
-> > +		free_skb(skbuff_head_cache, skb);
-> >  		break;
-> >
-> >  	case SKB_FCLONE_ORIG:
-> >  		fclone_ref = (atomic_t *) (skb + 2);
-> >  		if (atomic_dec_and_test(fclone_ref))
-> > -			kmem_cache_free(skbuff_fclone_cache, skb);
-> > +			free_skb(skbuff_fclone_cache, skb);
-> >  		break;
-> >
-> >  	case SKB_FCLONE_CLONE:
-> > @@ -349,7 +400,7 @@ void kfree_skbmem(struct sk_buff *skb)
-> >  		skb->fclone = SKB_FCLONE_UNAVAILABLE;
-> >
-> >  		if (atomic_dec_and_test(fclone_ref))
-> > -			kmem_cache_free(skbuff_fclone_cache, other);
-> > +			free_skb(skbuff_fclone_cache, other);
-> >  		break;
-> >  	};
-> >  }
-> 
-> I don't have the original code in front of me, but isn't it possible to
-> add a "goto free" which has all the freeing in one place? That would get
-> rid of the function pointer stuff and emerg_free_skb.
-
-perhaps, yes, however I prefer this one, it allows access to the size.
-
-> > @@ -435,6 +486,17 @@ struct sk_buff *skb_clone(struct sk_buff
-> >  		atomic_t *fclone_ref = (atomic_t *) (n + 1);
-> >  		n->fclone = SKB_FCLONE_CLONE;
-> >  		atomic_inc(fclone_ref);
-> > +	} else if (skb->emerg) {
-> > +		if (!emerg_rx_pages_try_inc())
-> > +			return NULL;
-> > +
-> > +		n = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
-> > +		if (!n) {
-> > +			WARN_ON(1);
-> > +			emerg_rx_pages_dec();
-> > +			return NULL;
-> > +		}
-> > +		n->fclone = SKB_FCLONE_UNAVAILABLE;
-> >  	} else {
-> >  		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
-> >  		if (!n)
-> > @@ -470,6 +532,7 @@ struct sk_buff *skb_clone(struct sk_buff
-> >  #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
-> >  	C(ipvs_property);
-> >  #endif
-> > +	C(emerg);
-> >  	C(protocol);
-> >  	n->destructor = NULL;
-> >  #ifdef CONFIG_NETFILTER
-> > @@ -690,7 +753,21 @@ int pskb_expand_head(struct sk_buff *skb
-> >
-> >  	size = SKB_DATA_ALIGN(size);
-> >
-> > -	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
-> > +	if (skb->emerg) {
-> > +		if (size + sizeof(struct skb_shared_info) > PAGE_SIZE)
-> > +			goto nodata;
-> > +
-> > +		if (!emerg_rx_pages_try_inc())
-> > +			goto nodata;
-> > +
-> > +		data = (void *)__get_free_page(gfp_mask | __GFP_EMERG);
-> > +		if (!data) {
-> > +			WARN_ON(1);
-> > +			emerg_rx_pages_dec();
-> > +			goto nodata;
-> > +		}
-> 
-> There seems to be some pattern occuring here, what about a new function?
-
-D'oh, thanks for pointing out.
-
-> Are these functions only called for incoming skbs? If not, calling
-> emerg_rx_pages_try_inc() is the wrong thing to do. A quick search says
-> they aren't. Add a RX check? Or is that fixed by SKB_FCLONE_UNAVAILABLE?
-> If so, why are skb_clone() and pskb_expand_head() modified at all?
-> (Probably ignorance on my end.)
-
-Well, no, however only incoming skbs can have skb->emergency set to
-begin with.
-
-> > +/**
-> > + *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
-> > + *	@nr_socks: number of new %SOCK_VMIO sockets
-> 
-> I don't see a parameter named nr_socks? request_queues isn't docuemnted?
-> 
-> > + *
-> > + *	This function adjusts the memalloc reserve based on system demand.
-> > + *	For each %SOCK_VMIO socket this device will reserve enough
-> > + *	to send a few large packets (64k) at a time: %TX_RESERVE_PAGES.
-> > + *
-> > + *	Assumption:
-> > + *	 - each %SOCK_VMIO socket will have a %request_queue associated.
-> 
-> If this is assumed, then why is the request_queue parameter needed?
-> 
-> > + *
-> > + *	NOTE:
-> > + *	   %TX_RESERVE_PAGES is an upper-bound of memory used for TX hence
-> > + *	   we need not account the pages like we do for %RX_RESERVE_PAGES.
-> > + *
-> > + *	On top of this comes a one time charge of:
-> > + *	  %RX_RESERVE_PAGES pages -
-> > + * 		number of pages alloted for emergency skb service to critical
-> > + * 		sockets.
-> > + */
-
-Gah, obsolete comment again.
-
-> > +int sk_adjust_memalloc(int socks, int request_queues)
-> > +{
-> > +	unsigned long flags;
-> > +	int reserve;
-> > +	int nr_socks;
-> > +	int err;
-> > +
-> > +	spin_lock_irqsave(&memalloc_lock, flags);
-> > +
-> > +	atomic_add(socks, &vmio_socks);
-> > +	nr_socks = atomic_read(&vmio_socks);
-> 
-> nr_socks = atomic_add_return(socks, &vmio_socks);
-
-Ah, I must've been blind, I even had a quick look for such a function.
-
-> > +	BUG_ON(socks < 0);
-> 
-> Shouldn't this be nr_socks < 0?
-
-Yes.
-
-> > +	vmio_request_queues += request_queues;
-> > +
-> > +	reserve = vmio_request_queues * TX_RESERVE_PAGES + /* outbound */
-> > +		  (!!socks) * RX_RESERVE_PAGES;            /* inbound */
-> 
-> If the assumption that each VMIO socket will have a request_queue associated
-> is true, then we only need to check if vmio_request_queues !=0, right?
-
-I had to break that assumption.
-
-> > +
-> > +	err = adjust_memalloc_reserve(reserve - memalloc_reserve);
-> > +	if (err) {
-> > +		printk(KERN_WARNING
-> > +			"Unable to change reserve to: %d pages, error: %d\n",
-> > +			reserve, err);
-> > +		goto unlock;
-> > +	}
-> > +	memalloc_reserve = reserve;
-> > +
-> > +unlock:
-> > +	spin_unlock_irqrestore(&memalloc_lock, flags);
-> > +	return err;
-> > +}
-> > +EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
-> 
-> You can get rid of the memalloc_reserve and vmio_request_queues variables
-> if you want, they aren't really needed for anything. If using them reduces
-> the total code size I'd keep them though.
-
-I find my version easier to read, but that might just be the way my
-brain works.
-
-> > +int sk_clear_vmio(struct sock *sk)
-> > +{
-> > +	int err = 0;
-> > +
-> > +	if (sock_flag(sk, SOCK_VMIO) &&
-> > +			!(err = sk_adjust_memalloc(-1, 0))) {
-> > +		sock_reset_flag(sk, SOCK_VMIO);
-> > +		sk->sk_allocation &= ~__GFP_EMERG;
-> > +	}
-> > +
-> > +	return err;
-> > +}
-> > +EXPORT_SYMBOL_GPL(sk_clear_vmio);
-> 
-> It seems wiser to always reset the flags, even if sk_adjust_memalloc fails.
-
-So much for symmetry.
-
-> This patch looks much better than the previous one, not much cruft left.
-
-You seem to have found enough :-(
-Thanks though.
+diff -puN include/asm-parisc/pgtable.h~parisc include/asm-parisc/pgtable.h
+--- threadalloc/include/asm-parisc/pgtable.h~parisc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/include/asm-parisc/pgtable.h	2006-08-25 11:34:25.000000000 -0700
+@@ -66,7 +66,7 @@
+ #endif
+ #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
+ 
+-#if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
++#if defined(CONFIG_64BIT) && defined(CONFIG_PAGE_SIZE_4KB)
+ #define PT_NLEVELS	3
+ #define PGD_ORDER	1 /* Number of pages per pgd */
+ #define PMD_ORDER	1 /* Number of pages per pmd */
+@@ -514,11 +514,11 @@ static inline void ptep_set_wrprotect(st
+ #define _PAGE_SIZE_ENCODING_16M		6
+ #define _PAGE_SIZE_ENCODING_64M		7
+ 
+-#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
++#if defined(CONFIG_PAGE_SIZE_4KB)
+ # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_4K
+-#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
++#elif defined(CONFIG_PAGE_SIZE_16KB)
+ # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_16K
+-#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
++#elif defined(CONFIG_PAGE_SIZE_64KB)
+ # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_64K
+ #endif
+ 
+diff -puN include/asm-parisc/page.h~parisc include/asm-parisc/page.h
+--- threadalloc/include/asm-parisc/page.h~parisc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/include/asm-parisc/page.h	2006-08-25 11:34:25.000000000 -0700
+@@ -1,29 +1,10 @@
+ #ifndef _PARISC_PAGE_H
+ #define _PARISC_PAGE_H
+ 
+-#if !defined(__KERNEL__)
+-/* this is for userspace applications (4k page size) */
+-# define PAGE_SHIFT	12	/* 4k */
+-# define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-# define PAGE_MASK	(~(PAGE_SIZE-1))
+-#endif
+-
++#include <asm-generic/page.h>
+ 
+ #ifdef __KERNEL__
+ 
+-#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+-# define PAGE_SHIFT	12	/* 4k */
+-#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
+-# define PAGE_SHIFT	14	/* 16k */
+-#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
+-# define PAGE_SHIFT	16	/* 64k */
+-#else
+-# error "unknown default kernel page size"
+-#endif
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+-
+-
+ #ifndef __ASSEMBLY__
+ 
+ #include <asm/types.h>
+@@ -140,10 +121,6 @@ extern int npmem_ranges;
+ #define PMD_ENTRY_SIZE	(1UL << BITS_PER_PMD_ENTRY)
+ #define PTE_ENTRY_SIZE	(1UL << BITS_PER_PTE_ENTRY)
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+-
+ #define LINUX_GATEWAY_SPACE     0
+ 
+ /* This governs the relationship between virtual and physical addresses.
+diff -puN arch/parisc/Kconfig~parisc arch/parisc/Kconfig
+--- threadalloc/arch/parisc/Kconfig~parisc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/arch/parisc/Kconfig	2006-08-25 11:34:25.000000000 -0700
+@@ -142,34 +142,12 @@ config 64BIT
+ 	  enable this option otherwise. The 64bit kernel is significantly bigger
+ 	  and slower than the 32bit one.
+ 
+-choice
+-	prompt "Kernel page size"
+-	default PARISC_PAGE_SIZE_4KB  if !64BIT
+-	default PARISC_PAGE_SIZE_4KB  if 64BIT
+-#	default PARISC_PAGE_SIZE_16KB if 64BIT
+-
+-config PARISC_PAGE_SIZE_4KB
+-	bool "4KB"
+-	help
+-	  This lets you select the page size of the kernel.  For best
+-	  performance, a page size of 16KB is recommended.  For best
+-	  compatibility with 32bit applications, a page size of 4KB should be
+-	  selected (the vast majority of 32bit binaries work perfectly fine
+-	  with a larger page size).
+-
+-	  4KB                For best 32bit compatibility
+-	  16KB               For best performance
+-	  64KB               For best performance, might give more overhead.
+-
+-	  If you don't know what to do, choose 4KB.
+-
+-config PARISC_PAGE_SIZE_16KB
+-	bool "16KB (EXPERIMENTAL)"
++config PARISC_LARGER_PAGE_SIZES
++	def_bool y
+ 	depends on PA8X00 && EXPERIMENTAL
+ 
+-config PARISC_PAGE_SIZE_64KB
+-	bool "64KB (EXPERIMENTAL)"
+-	depends on PA8X00 && EXPERIMENTAL
++config ARCH_GENERIC_PAGE_SIZE
++	def_bool y
+ 
+ endchoice
+ 
+diff -puN arch/parisc/defconfig~parisc arch/parisc/defconfig
+--- threadalloc/arch/parisc/defconfig~parisc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/arch/parisc/defconfig	2006-08-25 11:34:25.000000000 -0700
+@@ -91,9 +91,9 @@ CONFIG_PA7100LC=y
+ # CONFIG_PA7300LC is not set
+ # CONFIG_PA8X00 is not set
+ CONFIG_PA11=y
+-CONFIG_PARISC_PAGE_SIZE_4KB=y
+-# CONFIG_PARISC_PAGE_SIZE_16KB is not set
+-# CONFIG_PARISC_PAGE_SIZE_64KB is not set
++CONFIG_PAGE_SIZE_4KB=y
++# CONFIG_PAGE_SIZE_16KB is not set
++# CONFIG_PAGE_SIZE_64KB is not set
+ # CONFIG_SMP is not set
+ CONFIG_ARCH_FLATMEM_ENABLE=y
+ # CONFIG_PREEMPT_NONE is not set
+diff -puN arch/parisc/mm/init.c~parisc arch/parisc/mm/init.c
+--- threadalloc/arch/parisc/mm/init.c~parisc	2006-08-25 11:34:21.000000000 -0700
++++ threadalloc-dave/arch/parisc/mm/init.c	2006-08-25 11:34:25.000000000 -0700
+@@ -642,7 +642,7 @@ static void __init map_pages(unsigned lo
+ 				 * Map the fault vector writable so we can
+ 				 * write the HPMC checksum.
+ 				 */
+-#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
++#if defined(CONFIG_PAGE_SIZE_4KB)
+ 				if (address >= ro_start && address < ro_end
+ 							&& address != fv_addr
+ 							&& address != gw_addr)
+diff -puN mm/Kconfig~parisc mm/Kconfig
+--- threadalloc/mm/Kconfig~parisc	2006-08-25 11:34:25.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-25 11:34:25.000000000 -0700
+@@ -6,7 +6,7 @@
+ choice
+ 	prompt "Kernel Page Size"
+ 	depends on ARCH_GENERIC_PAGE_SIZE
+-	default PAGE_SIZE_4KB if MIPS
++	default PAGE_SIZE_4KB if MIPS || PARISC
+ 	default PAGE_SIZE_8KB if SPARC64
+ 	default PAGE_SIZE_16KB if IA64
+ config PAGE_SIZE_4KB
+@@ -30,10 +30,11 @@ config PAGE_SIZE_8KB
+ 	depends on IA64 || SPARC64 || MIPS_PAGE_SIZE_8KB
+ config PAGE_SIZE_16KB
+ 	bool "16KB"
+-	depends on IA64 || MIPS_PAGE_SIZE_16KB
++	depends on IA64 || MIPS_PAGE_SIZE_16KB || PARISC_LARGER_PAGE_SIZES
+ config PAGE_SIZE_64KB
+ 	bool "64KB"
+-	depends on (IA64 && !ITANIUM) || SPARC64 || MIPS_PAGE_SIZE_64KB
++	depends on (IA64 && !ITANIUM) || SPARC64 || MIPS_PAGE_SIZE_64KB || \
++		   PARISC_LARGER_PAGE_SIZES
+ config PAGE_SIZE_512KB
+ 	bool "512KB"
+ 	depends on SPARC64
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
