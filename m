@@ -1,149 +1,169 @@
-Message-ID: <3618.81.207.0.53.1156881199.squirrel@81.207.0.53>
-In-Reply-To: <1156844981.23000.75.camel@twins>
-References: <20060825153946.24271.42758.sendpatchset@twins>
-    <20060825153957.24271.6856.sendpatchset@twins>
-    <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
-    <1156760564.23000.31.camel@twins>
-    <3720.81.207.0.53.1156780999.squirrel@81.207.0.53>
-    <1156786344.23000.47.camel@twins>
-    <3994.81.207.0.53.1156809691.squirrel@81.207.0.53>
-    <1156844981.23000.75.camel@twins>
-Date: Tue, 29 Aug 2006 21:53:19 +0200 (CEST)
-Subject: Re: [PATCH 1/4] net: VM deadlock avoidance framework
-From: "Indan Zupancic" <indan@nul.nu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7TKJcrB010905
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 16:19:38 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7TKJc92268452
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 16:19:38 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7TKJcZM010503
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 16:19:38 -0400
+Subject: [RFC][PATCH 03/10] actual generic PAGE_SIZE infrastructure
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Tue, 29 Aug 2006 13:19:36 -0700
+References: <20060829201934.47E63D1F@localhost.localdomain>
+In-Reply-To: <20060829201934.47E63D1F@localhost.localdomain>
+Message-Id: <20060829201936.2C7D5100@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: linux-mm@kvack.org
+Cc: linux-ia64@vger.kernel.org, rdunlap@xenotime.net, lethal@linux-sh.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, August 29, 2006 11:49, Peter Zijlstra said:
-> On Tue, 2006-08-29 at 02:01 +0200, Indan Zupancic wrote:
->> Good that you're aware of it. Thing is, how much sense does the split-up into
->> adjust_memalloc_reserve() and sk_adjust_memalloc() make at this point? Why not
->> merge the code of adjust_memalloc_reserve() with sk_adjust_memalloc() and only
->> add adjust_memalloc_reserve() when it's really needed? It saves an export.
->
-> mm/ vs net/core/
+* Add _ALIGN_UP() which we'll use now and _ALIGN_DOWN(), just for
+  parity.
+* Define ASM_CONST() macro to help using constants in both assembly
+  and C code.  Several architectures have some form of this, and
+  they will be consolidated around this one.
+* Actually create PAGE_SHIFT and PAGE_SIZE macros
+* For now, require that architectures enable GENERIC_PAGE_SIZE in
+  order to get this new code.  This option will be removed by the
+  last patch in the series, and makes the series bisect-safe.
+* Note that this moves the compiler.h define outside of the
+  #ifdef __KERNEL__, but that's OK because it has its own.
 
-I thought var_free_kbytes was exported too, but it isn't, so merging those two
-won't save an export, scrap the idea.
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-If sk_adjust_memalloc() can be called with socks == 0 then a check for that needs
-to be added, or else bugginess ensues (my fault ;-):
+ threadalloc-dave/include/linux/align.h      |    7 ++++
+ threadalloc-dave/include/asm-generic/page.h |   31 +++++++++++++++++++--
+ threadalloc-dave/mm/Kconfig                 |   41 ++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 4 deletions(-)
 
-void sk_adjust_memalloc(int socks, int tx_reserve_pages)
-{
-	unsigned long flags;
-	int nr_socks;
-
-	if (socks){
-		nr_socks = atomic_add_return(socks, &vmio_socks);
-		BUG_ON(nr_socks < 0);
-
-		if (nr_socks == socks)
-			tx_reserve_pages += RX_RESERVE_PAGES;
-		if (nr_socks == 0)
-			tx_reserve_pages -= RX_RESERVE_PAGES;
-	}
-	spin_lock_irqsave(&memalloc_lock, flags);
-
-	adjust_memalloc_reserve(tx_reserve_pages);
-
-	spin_unlock_irqrestore(&memalloc_lock, flags);
-}
-
-
-> Well, perhaps, its merit is that is allows for full service for a few
-> sockets even under severe memory pressure. And it provides the
-> primitives to solve this problem for all instances, (NBD, iSCSI, NFS,
-> AoE, ...) hence framework.
->
-> Evgeniy's allocator does not cater for this, so even if it were to
-> replace all the allocation stuff, we would still need the SOCK_VMIO and
-> all protocol hooks this patch introduces.
-
-At least what I understood of it, the appealing thing was that it would make
-the whole networking stack robust, as network operations will never fail.
-So not only for VMIO sockets, but for all. Only thing that's missing then is
-a way to guarantee that there's always forward progress. The ironic thing
-is that to achieve that skbs/mem needs to be dropped/refused again, in the
-case of blocking senders.
-
-VMIO makes the choice what to refuse by making some skbs/sockets more important
-than others and, indirectly, the kernel more important than userspace. A
-different choice could be made. If one can be made which works for all, then
-the VM deadlock problem is solved too.
-
-Great if the VM deadlock problem is solved, but what about user space applications
-that want to keep working under heavy memory pressure? Say, more or less all
-decently written network servers. For those incoming data in general means more
-work to do, and hence more memory to use and data to send. What they need is
-receive throttling under memory pressure so that enough free memory is available
-to handle the data that is received. A reliable network stack gives them nothing
-if after receiving the data they can't do anything with it because the free
-memory is up. So in that regard splitting the network allocator from the normal
-allocator might only increase the problem.
-
-(Swap only makes matters worse, as a program will slow down when it's used under
-heavy memory pressure without knowing that there's any memory pressure. Failed
-memory allocations are a good sign that there's memory pressure, but unfortunately
-when that point is reached all performance is gone already and the application
-can't really do anything useful, as it can't allocate nay memory. Something like
-MAP_NONBLOCK, but which works with MAP_ANONYMOUS and let the mmap fail if swap
-would be used may be helpful, because then the flow of new work can be throttled
-earlier by the app. But coordination with malloc would be better.
-Of course most can already be done by tuning the system and careful coding.
-Sucks to be userspace I guess.)
-
->> - If Evgeniy's network allocator is as good as it looks, then why can't it
->> replace the existing one? Just adding private subsystem specific memory
->> allocators seems wrong. I might be missing the big picture, but it looks
->> like memory allocator things should be at least synchronized and discussed
->> with Christoph Lameter and his "modular slab allocator" patch.
->
-> SLAB is very very good in that is will not suffer from external
-> fragmentation (one could suffer from external fragmentation when viewing
-> the slab allocator from the page allocation layer - but most of that is
-> avoidable by allocation strategies in the slab layer), it does however
-> suffer from internal fragmentation - by design.
->
-> For variable size allocators it has been proven that for each allocator
-> there is an allocation pattern that will defeat it. And figuring the
-> pattern out and proving it will not happen in a long-running system is
-> hard hard work.
->
-> (free block coalescence is not a guarantee against fragmentation; there
-> is even evidence that delayed coalescence will reduce fragmentation - it
-> introduces history and this extra information can help predict the
-> future.)
->
-> This is exactly why long running systems (like our kernel) love slabs.
->
-> For those interested in memory allocators, this paper is a good (albeit
-> a bit dated) introduction:
-> 	http://citeseer.ist.psu.edu/wilson95dynamic.html
->
-> That said, it might be that Evgeniy's allocator works out for our
-> network load - only time will tell, the math is not tractable afaik.
-
-Thanks for the pointer, the paper is interesting, but doesn't give a lot
-of new info, more a shocking insight in the absense of quantitative
-allocator research. Lots of words, but few numbers from them too, slightly
-disappointing. Besides, more or less everything in the paper is only
-relevant for unmovable, variable sized objects allocation. Things like
-page handling aren't researched, they limited it to research of allocators
-using one big lump of virtual memory. Worth the read though.
-
-Sorry for the rambling. :-)
-
-Greetings,
-
-Indan
-
+diff -puN include/linux/align.h~generic-PAGE_SIZE-infrastructure include/linux/align.h
+--- threadalloc/include/linux/align.h~generic-PAGE_SIZE-infrastructure	2006-08-29 13:14:50.000000000 -0700
++++ threadalloc-dave/include/linux/align.h	2006-08-29 13:14:51.000000000 -0700
+@@ -6,12 +6,17 @@
+  * dependencies, and can be used safely from any other header.
+  */
+ 
++/* align addr on a size boundary - adjust address up/down if needed */
++#define _ALIGN_UP(addr,size)    (((addr)+((size)-1))&(~((size)-1)))
++#define _ALIGN_DOWN(addr,size)  ((addr)&(~((size)-1)))
++
+ /*
+  * ALIGN is special.  There's a linkage.h as well that
+  * has a quite different meaning.
+  */
+ #ifndef __ASSEMBLY__
+-#define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
++/* align addr on a size boundary - adjust address up if needed */
++#define ALIGN(addr,size)     _ALIGN_UP(addr,size)
+ #endif
+ 
+ #endif /* _LINUX_ALIGN_H */
+diff -puN include/asm-generic/page.h~generic-PAGE_SIZE-infrastructure include/asm-generic/page.h
+--- threadalloc/include/asm-generic/page.h~generic-PAGE_SIZE-infrastructure	2006-08-29 13:14:50.000000000 -0700
++++ threadalloc-dave/include/asm-generic/page.h	2006-08-29 13:14:51.000000000 -0700
+@@ -1,11 +1,36 @@
+ #ifndef _ASM_GENERIC_PAGE_H
+ #define _ASM_GENERIC_PAGE_H
+ 
++#include <linux/compiler.h>
++#include <linux/align.h>
++
+ #ifdef __KERNEL__
+-#ifndef __ASSEMBLY__
+ 
+-#include <linux/compiler.h>
++#ifdef __ASSEMBLY__
++#define ASM_CONST(x) x
++#else
++#define __ASM_CONST(x) x##UL
++#define ASM_CONST(x) __ASM_CONST(x)
++#endif
++
++#ifdef CONFIG_ARCH_GENERIC_PAGE_SIZE
++
++#define PAGE_SHIFT      CONFIG_PAGE_SHIFT
++#define PAGE_SIZE       (ASM_CONST(1) << PAGE_SHIFT)
++
++/*
++ * Subtle: (1 << PAGE_SHIFT) is an int, not an unsigned long. So if we
++ * assign PAGE_MASK to a larger type it gets extended the way we want
++ * (i.e. with 1s in the high bits)
++ */
++#define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
+ 
++/* to align the pointer to the (next) page boundary */
++#define PAGE_ALIGN(addr)        ALIGN(addr, PAGE_SIZE)
++
++#endif /* CONFIG_ARCH_GENERIC_PAGE_SIZE */
++
++#ifndef __ASSEMBLY__
+ #ifndef CONFIG_ARCH_HAVE_GET_ORDER
+ /* Pure 2^n version of get_order */
+ static __inline__ __attribute_const__ int get_order(unsigned long size)
+@@ -22,7 +47,7 @@ static __inline__ __attribute_const__ in
+ }
+ 
+ #endif	/* CONFIG_ARCH_HAVE_GET_ORDER */
+-#endif /*  __ASSEMBLY__ */
++#endif  /* __ASSEMBLY__ */
+ #endif	/* __KERNEL__ */
+ 
+ #endif	/* _ASM_GENERIC_PAGE_H */
+diff -puN mm/Kconfig~generic-PAGE_SIZE-infrastructure mm/Kconfig
+--- threadalloc/mm/Kconfig~generic-PAGE_SIZE-infrastructure	2006-08-29 13:14:50.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-29 13:14:51.000000000 -0700
+@@ -2,6 +2,47 @@ config ARCH_HAVE_GET_ORDER
+ 	def_bool y
+ 	depends on IA64 || PPC32 || XTENSA
+ 
++choice
++	prompt "Kernel Page Size"
++	depends on ARCH_GENERIC_PAGE_SIZE
++config PAGE_SIZE_4KB
++	bool "4KB"
++	help
++	  This lets you select the page size of the kernel.  For best
++	  performance, a page size of larger than 4k is recommended.  For best
++	  32-bit compatibility on 64-bit architectures, a page size of 4KB
++	  should be selected (although most binaries work perfectly fine with
++	  a larger page size).
++
++	  4KB                For best 32-bit compatibility
++	  8KB-64KB           Better performace
++	  above 64KB	     For kernel hackers only
++
++	  If you don't know what to do, choose 4KB, or simply leave this
++	  option alone.  A sane default has already been selected for your
++	  architecture.
++config PAGE_SIZE_8KB
++	bool "8KB"
++config PAGE_SIZE_16KB
++	bool "16KB"
++config PAGE_SIZE_64KB
++	bool "64KB"
++config PAGE_SIZE_512KB
++	bool "512KB"
++config PAGE_SIZE_4MB
++	bool "4MB"
++endchoice
++
++config PAGE_SHIFT
++	int
++	depends on ARCH_GENERIC_PAGE_SIZE
++	default "13" if PAGE_SIZE_8KB
++	default "14" if PAGE_SIZE_16KB
++	default "16" if PAGE_SIZE_64KB
++	default "19" if PAGE_SIZE_512KB
++	default "22" if PAGE_SIZE_4MB
++	default "12"
++
+ config SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
