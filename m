@@ -1,68 +1,128 @@
-Message-ID: <20060829082246.92663.qmail@web25224.mail.ukl.yahoo.com>
-Date: Tue, 29 Aug 2006 10:22:45 +0200 (CEST)
-From: Paolo Giarrusso <blaisorblade@yahoo.it>
-Subject: Re: [PATCH RFP-V4 00/13] remap_file_pages protection support - 4th attempt
-In-Reply-To: <20060828134915.f7787422.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Subject: Re: [PATCH 1/4] net: VM deadlock avoidance framework
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <3994.81.207.0.53.1156809691.squirrel@81.207.0.53>
+References: <20060825153946.24271.42758.sendpatchset@twins>
+	 <20060825153957.24271.6856.sendpatchset@twins>
+	 <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
+	 <1156760564.23000.31.camel@twins>
+	 <3720.81.207.0.53.1156780999.squirrel@81.207.0.53>
+	 <1156786344.23000.47.camel@twins>
+	 <3994.81.207.0.53.1156809691.squirrel@81.207.0.53>
+Content-Type: text/plain
+Date: Tue, 29 Aug 2006 11:49:41 +0200
+Message-Id: <1156844981.23000.75.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Jeff Dike <jdike@addtoit.com>, user-mode-linux-devel@lists.sourceforge.net, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Val Henson <val.henson@intel.com>
+To: Indan Zupancic <indan@nul.nu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> ha scritto: 
+On Tue, 2006-08-29 at 02:01 +0200, Indan Zupancic wrote:
+> On Mon, August 28, 2006 19:32, Peter Zijlstra said:
 
-> On Sat, 26 Aug 2006 19:33:35 +0200
-> Blaisorblade <blaisorblade@yahoo.it> wrote:
+> > Ah, no accident there, I'm fully aware that there would need to be a
+> > spinlock in adjust_memalloc_reserve() if there were another caller.
+> > (I even had it there for some time) - added comment.
 > 
-> > Again, about 4 month since last time (for lack of time) I'm
-> sending for final 
-> > review and for inclusion into -mm protection support for
-> remap_file_pages (in 
-> > short "RFP prot support"), i.e. setting per-pte protections
-> (beyond file 
-> > offset) through this syscall.
+> Good that you're aware of it. Thing is, how much sense does the split-up into
+> adjust_memalloc_reserve() and sk_adjust_memalloc() make at this point? Why not
+> merge the code of adjust_memalloc_reserve() with sk_adjust_memalloc() and only
+> add adjust_memalloc_reserve() when it's really needed? It saves an export.
 
-> This all looks a bit too fresh and TODO-infested for me to put it
-> in -mm at
-> this time.
+mm/ vs net/core/
 
-It is possible, subsequent rounds of review should be near to each
-other, but calling the code "new" is maybe exaggerate. I do not
-remember all these TODOs but I may forget (and I don't have my box
-right now, so I can't check).
+> Better to put the lock next to min_free_kbytes, both for readability and
+> cache behaviour. And it satisfies the "lock data, not code" mantra.
 
-> I could toss them in to get some testing underway, but that makes
-> life
-> complex for other ongoing MM work.  (And there's a _lot_ of that -
-> I
-> presently have >180 separate patches which alter ./mm/*).
+True enough.
 
-That's fine. If this can help I could try to base next version
-against -mm.
+> If you prefer to avoid cmpxchg (which is often used in atomic_add_unless
+> and can be expensive) then you can use something like:
 
-> Also, it looks like another round of detailed review is needed
-> before this
-> work will really start to settle into its final form.
+Yes, way too large, out of lined it already. Don't care about the
+cmpxchg, its not a fast path anyway.
 
-That's ok, I prefer reviews to testing right now. Almost all but 1
-patch (which is marked) is unit tested on i386, x86_64 and uml (but
-if I don't have a multithreaded concurrent fault tester), so it's
-time to catch remaining bugs by review.
+> > @@ -195,6 +196,86 @@ __u32 sysctl_rmem_default = SK_RMEM_MAX;
+> >  /* Maximal space eaten by iovec or ancilliary data plus some space */
+> >  int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
+> >
+> > +static DEFINE_SPINLOCK(memalloc_lock);
+> > +static int memalloc_reserve;
+> > +static unsigned int vmio_request_queues;
+> > +
+> > +atomic_t vmio_socks;
+> > +atomic_t emergency_rx_pages_used;
+> > +EXPORT_SYMBOL_GPL(vmio_socks);
+> 
+> Is this export needed? It's only used in net/core/skbuff.c and net/core/sock.c,
+> which are compiled into one module.
+> 
+> > +EXPORT_SYMBOL_GPL(emergency_rx_pages_used);
+> 
+> Same here. It's only used by code in sock.c and skbuff.c, and no external
+> code calls emergency_rx_alloc(), nor emergency_rx_free().
 
-> So..   I'll await version 5, sorry.   Please persist.
+Good point, I've gone over the link relations of these things and was
+indeed capable of removing several EXPORTs. Thanks.
 
-I'll try. I just hope we'll not have it next summer (I know it's my
-problem, I'm not complaining on you).
+> I think I depleted my usefulness, there isn't much left to say for me.
+> It's up to the big guys to decide about the merrit of this patch.
 
-Thanks!
-Bye
---
-Paolo Giarrusso 
+Thanks for all your feedback.
 
-Chiacchiera con i tuoi amici in tempo reale! 
- http://it.yahoo.com/mail_it/foot/*http://it.messenger.yahoo.com 
+> IMHO:
+> 
+> - This patch isn't really a framework, more a minimal fix for one specific,
+> though important problem. But it's small and doesn't have much impact
+
+Well, perhaps, its merit is that is allows for full service for a few
+sockets even under severe memory pressure. And it provides the
+primitives to solve this problem for all instances, (NBD, iSCSI, NFS,
+AoE, ...) hence framework.
+
+Evgeniy's allocator does not cater for this, so even if it were to
+replace all the allocation stuff, we would still need the SOCK_VMIO and
+all protocol hooks this patch introduces.
+
+> - If Evgeniy's network allocator is as good as it looks, then why can't it
+> replace the existing one? Just adding private subsystem specific memory
+> allocators seems wrong. I might be missing the big picture, but it looks
+> like memory allocator things should be at least synchronized and discussed
+> with Christoph Lameter and his "modular slab allocator" patch.
+
+SLAB is very very good in that is will not suffer from external
+fragmentation (one could suffer from external fragmentation when viewing
+the slab allocator from the page allocation layer - but most of that is
+avoidable by allocation strategies in the slab layer), it does however
+suffer from internal fragmentation - by design.
+
+For variable size allocators it has been proven that for each allocator
+there is an allocation pattern that will defeat it. And figuring the
+pattern out and proving it will not happen in a long-running system is
+hard hard work.
+
+(free block coalescence is not a guarantee against fragmentation; there
+is even evidence that delayed coalescence will reduce fragmentation - it
+introduces history and this extra information can help predict the
+future.)
+
+This is exactly why long running systems (like our kernel) love slabs.
+
+For those interested in memory allocators, this paper is a good (albeit
+a bit dated) introduction:
+	http://citeseer.ist.psu.edu/wilson95dynamic.html
+
+That said, it might be that Evgeniy's allocator works out for our
+network load - only time will tell, the math is not tractable afaik.
+
+> All in all it seems it will take a while until Evgeniy's code will be merged,
+> so I think applying Peter's patch soonish and removing it again the moment it
+> becomes unnecessary is reasonable.
+
+Thanks and like said, I think even then most of this patch will need to
+survive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
