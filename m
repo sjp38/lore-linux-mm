@@ -1,128 +1,115 @@
-Subject: Re: [PATCH 1/4] net: VM deadlock avoidance framework
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <3994.81.207.0.53.1156809691.squirrel@81.207.0.53>
-References: <20060825153946.24271.42758.sendpatchset@twins>
-	 <20060825153957.24271.6856.sendpatchset@twins>
-	 <1396.81.207.0.53.1156559843.squirrel@81.207.0.53>
-	 <1156760564.23000.31.camel@twins>
-	 <3720.81.207.0.53.1156780999.squirrel@81.207.0.53>
-	 <1156786344.23000.47.camel@twins>
-	 <3994.81.207.0.53.1156809691.squirrel@81.207.0.53>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7TFTJNL005048
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 11:29:19 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7TFTJxl255498
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 11:29:19 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7TFTJiI009595
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 11:29:19 -0400
+Subject: Re: [RFC][PATCH 1/7] generic PAGE_SIZE infrastructure (v2)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060829024618.GA8660@localhost.hsdv.com>
+References: <20060828154413.E05721BD@localhost.localdomain>
+	 <20060828154417.D9D3FB1F@localhost.localdomain>
+	 <20060828154413.E05721BD@localhost.localdomain>
+	 <20060828154416.09E64946@localhost.localdomain>
+	 <20060828154413.E05721BD@localhost.localdomain>
+	 <20060828154414.38AEDAA2@localhost.localdomain>
+	 <20060828154413.E05721BD@localhost.localdomain>
+	 <20060829024618.GA8660@localhost.hsdv.com>
 Content-Type: text/plain
-Date: Tue, 29 Aug 2006 11:49:41 +0200
-Message-Id: <1156844981.23000.75.camel@twins>
+Date: Tue, 29 Aug 2006 08:29:14 -0700
+Message-Id: <1156865354.5408.51.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Indan Zupancic <indan@nul.nu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-08-29 at 02:01 +0200, Indan Zupancic wrote:
-> On Mon, August 28, 2006 19:32, Peter Zijlstra said:
+On Tue, 2006-08-29 at 11:46 +0900, Paul Mundt wrote:
+> On Mon, Aug 28, 2006 at 08:44:13AM -0700, Dave Hansen wrote:
+> > diff -puN include/asm-generic/page.h~generic-PAGE_SIZE-infrastructure include/asm-generic/page.h
+> > --- threadalloc/include/asm-generic/page.h~generic-PAGE_SIZE-infrastructure	2006-08-25 11:34:22.000000000 -0700
+> > +++ threadalloc-dave/include/asm-generic/page.h	2006-08-25 11:34:22.000000000 -0700
+> [snip]
+> > + */
+> > +#define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
+> > +#endif /* CONFIG_ARCH_GENERIC_PAGE_SIZE */
+> >  
+> >  /* Pure 2^n version of get_order */
+> >  static __inline__ __attribute_const__ int get_order(unsigned long size)
+> > @@ -20,7 +48,6 @@ static __inline__ __attribute_const__ in
+> >  	return order;
+> >  }
+> >  
+> You've not handled the case for platforms that have their own
+> get_order()
+...
+> You may wish to consider the HAVE_ARCH_GET_ORDER patch I sent to
+> linux-arch, it was intended to handle this.
 
-> > Ah, no accident there, I'm fully aware that there would need to be a
-> > spinlock in adjust_memalloc_reserve() if there were another caller.
-> > (I even had it there for some time) - added comment.
-> 
-> Good that you're aware of it. Thing is, how much sense does the split-up into
-> adjust_memalloc_reserve() and sk_adjust_memalloc() make at this point? Why not
-> merge the code of adjust_memalloc_reserve() with sk_adjust_memalloc() and only
-> add adjust_memalloc_reserve() when it's really needed? It saves an export.
+Gah.  I managed to leave that one off of the end of my series.  However,
+I don't think this is a case where HAVE_ARCH_GET_ORDER is too much of a
+disease.
 
-mm/ vs net/core/
+Linus requested these:
 
-> Better to put the lock next to min_free_kbytes, both for readability and
-> cache behaviour. And it satisfies the "lock data, not code" mantra.
-
-True enough.
-
-> If you prefer to avoid cmpxchg (which is often used in atomic_add_unless
-> and can be expensive) then you can use something like:
-
-Yes, way too large, out of lined it already. Don't care about the
-cmpxchg, its not a fast path anyway.
-
-> > @@ -195,6 +196,86 @@ __u32 sysctl_rmem_default = SK_RMEM_MAX;
-> >  /* Maximal space eaten by iovec or ancilliary data plus some space */
-> >  int sysctl_optmem_max = sizeof(unsigned long)*(2*UIO_MAXIOV + 512);
+> >       /*
+> >        * We have a very complex xyzzy, we don't even want to
+> >        * inline it!
+> >        */
+> >       extern void xyxxy(...);
 > >
-> > +static DEFINE_SPINLOCK(memalloc_lock);
-> > +static int memalloc_reserve;
-> > +static unsigned int vmio_request_queues;
-> > +
-> > +atomic_t vmio_socks;
-> > +atomic_t emergency_rx_pages_used;
-> > +EXPORT_SYMBOL_GPL(vmio_socks);
-> 
-> Is this export needed? It's only used in net/core/skbuff.c and net/core/sock.c,
-> which are compiled into one module.
-> 
-> > +EXPORT_SYMBOL_GPL(emergency_rx_pages_used);
-> 
-> Same here. It's only used by code in sock.c and skbuff.c, and no external
-> code calls emergency_rx_alloc(), nor emergency_rx_free().
+> >       /* Tell the rest of the world that we do it! */
+> >       #define xyzzy xyzzy
 
-Good point, I've gone over the link relations of these things and was
-indeed capable of removing several EXPORTs. Thanks.
+And I find them really hard to follow.  But, maybe those were just done
+badly.  Here's the patch that I have for now.  I'll go back and try to
+Linusify it. ;)
 
-> I think I depleted my usefulness, there isn't much left to say for me.
-> It's up to the big guys to decide about the merrit of this patch.
+I think get_order() is going to have to move out of generic/page.h,
+though.
 
-Thanks for all your feedback.
+-- Dave
 
-> IMHO:
-> 
-> - This patch isn't really a framework, more a minimal fix for one specific,
-> though important problem. But it's small and doesn't have much impact
+diff -puN include/asm-generic/page.h~Re-_RFC_PATCH_unify_all_architecture_PAGE_SIZE_definitions include/asm-generic/page.h
+--- threadalloc/include/asm-generic/page.h~Re-_RFC_PATCH_unify_all_architecture_PAGE_SIZE_definitions	2006-08-28 09:15:31.000000000 -0700
++++ threadalloc-dave/include/asm-generic/page.h	2006-08-28 09:15:35.000000000 -0700
+@@ -33,6 +33,7 @@
+ #define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
+ 
+ #ifndef __ASSEMBLY__
++#ifndef CONFIG_ARCH_HAVE_GET_ORDER
+ /* Pure 2^n version of get_order */
+ static __inline__ __attribute_const__ int get_order(unsigned long size)
+ {
+@@ -46,6 +47,7 @@ static __inline__ __attribute_const__ in
+ 	} while (size);
+ 	return order;
+ }
++#endif /* CONFIG_ARCH_HAVE_GET_ORDER */
+ #endif /* __ASSEMBLY__ */
+ 
+ #endif	/* __KERNEL__ */
+diff -puN mm/Kconfig~Re-_RFC_PATCH_unify_all_architecture_PAGE_SIZE_definitions mm/Kconfig
+--- threadalloc/mm/Kconfig~Re-_RFC_PATCH_unify_all_architecture_PAGE_SIZE_definitions	2006-08-28 09:15:31.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-28 09:39:00.000000000 -0700
+@@ -56,6 +56,10 @@ config PAGE_SHIFT
+ 	default "12" # arm(26) || h8300 || i386 || m68knommu || m32r || ppc(32)
+ 		     # s390 || sh/64 || um || v850 || xtensa || x86_64
+ 
++config ARCH_HAVE_GET_ORDER
++	def_bool y
++	depends on IA64 || PPC || XTENSA
++
+ config SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+_
 
-Well, perhaps, its merit is that is allows for full service for a few
-sockets even under severe memory pressure. And it provides the
-primitives to solve this problem for all instances, (NBD, iSCSI, NFS,
-AoE, ...) hence framework.
-
-Evgeniy's allocator does not cater for this, so even if it were to
-replace all the allocation stuff, we would still need the SOCK_VMIO and
-all protocol hooks this patch introduces.
-
-> - If Evgeniy's network allocator is as good as it looks, then why can't it
-> replace the existing one? Just adding private subsystem specific memory
-> allocators seems wrong. I might be missing the big picture, but it looks
-> like memory allocator things should be at least synchronized and discussed
-> with Christoph Lameter and his "modular slab allocator" patch.
-
-SLAB is very very good in that is will not suffer from external
-fragmentation (one could suffer from external fragmentation when viewing
-the slab allocator from the page allocation layer - but most of that is
-avoidable by allocation strategies in the slab layer), it does however
-suffer from internal fragmentation - by design.
-
-For variable size allocators it has been proven that for each allocator
-there is an allocation pattern that will defeat it. And figuring the
-pattern out and proving it will not happen in a long-running system is
-hard hard work.
-
-(free block coalescence is not a guarantee against fragmentation; there
-is even evidence that delayed coalescence will reduce fragmentation - it
-introduces history and this extra information can help predict the
-future.)
-
-This is exactly why long running systems (like our kernel) love slabs.
-
-For those interested in memory allocators, this paper is a good (albeit
-a bit dated) introduction:
-	http://citeseer.ist.psu.edu/wilson95dynamic.html
-
-That said, it might be that Evgeniy's allocator works out for our
-network load - only time will tell, the math is not tractable afaik.
-
-> All in all it seems it will take a while until Evgeniy's code will be merged,
-> so I think applying Peter's patch soonish and removing it again the moment it
-> becomes unnecessary is reasonable.
-
-Thanks and like said, I think even then most of this patch will need to
-survive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
