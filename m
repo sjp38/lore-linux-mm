@@ -1,67 +1,41 @@
-Date: Tue, 29 Aug 2006 11:11:34 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: zone reclaim with slab avoid unecessary off node allocations.
-Message-ID: <Pine.LNX.4.64.0608291109260.19897@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e36.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7TIxwk5028780
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 14:59:58 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7TIxwsw337492
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 12:59:58 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7TIxwcc003643
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 12:59:58 -0600
+Subject: Re: [RFC][PATCH 1/7] generic PAGE_SIZE infrastructure (v2)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <874pvw3099.peterc%peterc@gelato.unsw.edu.au>
+References: <20060828154413.E05721BD@localhost.localdomain>
+	 <Pine.LNX.4.64.0608280954100.27677@schroedinger.engr.sgi.com>
+	 <1156785119.5913.25.camel@localhost.localdomain>
+	 <874pvw3099.peterc%peterc@gelato.unsw.edu.au>
+Content-Type: text/plain
+Date: Tue, 29 Aug 2006 11:59:52 -0700
+Message-Id: <1156877992.5408.126.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: Peter Chubb <peterc@gelato.unsw.edu.au>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Minor performance fix.
+On Tue, 2006-08-29 at 09:32 +1000, Peter Chubb wrote:
+> IA64 wants 16k standard, 64k for better performance.  So something
+> that says `choose 8k if you can' doesn't really fit.  And it'd be
+> *really* nice to test larger pages --- I see ~5% improvement in
+> streaming I/O to a  suitable RAID array with 64k as opposed to 16k
+> pages.
 
-If we reclaimed enough slab pages from a zone then we can avoid going off
-node with the current allocation. Take care of updating nr_reclaimed
-when reclaiming from the slab.
+I've updated the help text a bit.  I'd appreciate if you could take a
+look at the latest series, which I'll post shortly.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.18-rc4-mm3/mm/vmscan.c
-===================================================================
---- linux-2.6.18-rc4-mm3.orig/mm/vmscan.c	2006-08-26 16:38:04.915153612 -0700
-+++ linux-2.6.18-rc4-mm3/mm/vmscan.c	2006-08-27 15:48:25.948204824 -0700
-@@ -1574,6 +1574,7 @@ static int __zone_reclaim(struct zone *z
- 		.gfp_mask = gfp_mask,
- 		.swappiness = vm_swappiness,
- 	};
-+	unsigned long slab_reclaimable;
- 
- 	disable_swap_token();
- 	cond_resched();
-@@ -1600,7 +1601,8 @@ static int __zone_reclaim(struct zone *z
- 		} while (priority >= 0 && nr_reclaimed < nr_pages);
- 	}
- 
--	if (zone_page_state(zone, NR_SLAB_RECLAIMABLE) > zone->min_slab_pages) {
-+	slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-+	if (slab_reclaimable > zone->min_slab_pages) {
- 		/*
- 		 * shrink_slab() does not currently allow us to determine how
- 		 * many pages were freed in this zone. So we take the current
-@@ -1611,12 +1613,17 @@ static int __zone_reclaim(struct zone *z
- 		 * Note that shrink_slab will free memory on all zones and may
- 		 * take a long time.
- 		 */
--		unsigned long limit = zone_page_state(zone,
--				NR_SLAB_RECLAIMABLE) - nr_pages;
--
- 		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
--			zone_page_state(zone, NR_SLAB_RECLAIMABLE) > limit)
-+			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
-+				slab_reclaimable - nr_pages)
- 			;
-+
-+		/*
-+		 * Update nr_reclaimed by the number of slab pages we
-+		 * reclaimed from this zone.
-+		 */
-+		nr_reclaimed += slab_reclaimable -
-+			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
- 	}
- 
- 	p->reclaim_state = NULL;
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
