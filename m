@@ -1,24 +1,26 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7TN1jbV021790
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:01:45 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7TNFUtr016309
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:15:30 -0400
 Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7TN1jjM288340
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:01:45 -0400
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7TNFUHB241392
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:15:30 -0400
 Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7TN1jZ9025308
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:01:45 -0400
-Date: Tue, 29 Aug 2006 16:02:00 -0700
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7TNFUrf002811
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 19:15:30 -0400
+Date: Tue, 29 Aug 2006 16:15:45 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
 Subject: libnuma interleaving oddness
-Message-ID: <20060829230200.GW5195@us.ibm.com>
+Message-ID: <20060829231545.GY5195@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lameter@sgi.com, ak@suse.de
+To: clameter@sgi.com, ak@suse.de
 Cc: linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
+
+[Sorry for the double-post, correcting Christoph's address]
 
 Hi,
 
