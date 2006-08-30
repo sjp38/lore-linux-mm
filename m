@@ -1,69 +1,50 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UHiGwu000988
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 13:44:16 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UHiF0e280870
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 13:44:16 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UHiFrm016007
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 13:44:15 -0400
+Received: by wr-out-0506.google.com with SMTP id i4so111191wra
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2006 11:02:00 -0700 (PDT)
+Message-ID: <eada2a070608301101j205b2711va5c287dbf8aab492@mail.gmail.com>
+Date: Wed, 30 Aug 2006 11:01:58 -0700
+From: "Tim Pepper" <tpepper@gmail.com>
 Subject: Re: libnuma interleaving oddness
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <200608300919.13125.ak@suse.de>
-References: <20060829231545.GY5195@us.ibm.com>
-	 <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com>
-	 <20060830002110.GZ5195@us.ibm.com>  <200608300919.13125.ak@suse.de>
-Content-Type: text/plain
-Date: Wed, 30 Aug 2006 12:44:10 -0500
-Message-Id: <1156959851.7185.8647.camel@localhost.localdomain>
-Mime-Version: 1.0
+In-Reply-To: <200608300932.23746.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20060829231545.GY5195@us.ibm.com> <200608300919.13125.ak@suse.de>
+	 <20060830072948.GE5195@us.ibm.com> <200608300932.23746.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
-Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-08-30 at 09:19 +0200, Andi Kleen wrote:
-> mous pages.
-> > 
-> > The order is (with necessary params filled in):
-> > 
-> > p = mmap( , newsize, RW, PRIVATE, unlinked_hugetlbfs_heap_fd, );
-> > 
-> > numa_interleave_memory(p, newsize);
-> > 
-> > mlock(p, newsize); /* causes all the hugepages to be faulted in */
-> > 
-> > munlock(p,newsize);
-> > 
-> > From what I gathered from the numa manpages, the interleave policy
-> > should take effect on the mlock, as that is "fault-time" in this
-> > context. We're forcing the fault, that is.
-> 
-> mlock shouldn't be needed at all here. the new hugetlbfs is supposed
-> to reserve at mmap time and numa_interleave_memory() sets a VMA 
-> policy which will should do the right thing no matter when the fault
-> occurs.
+On 8/30/06, Andi Kleen <ak@suse.de> wrote:
+> Then it's probably some new problem in hugetlbfs.
 
-mmap-time reservation of huge pages is done only for shared mappings.
-MAP_PRIVATE mappings have full-overcommit semantics.  We use the mlock
-call to "guarantee" the MAP_PRIVATE memory to the process.  If mlock
-fails, we simply unmap the hugetlb region and tell glibc to revert to
-its normal allocation method (mmap normal pages).
+It's something subtle though, because I _am_ able to get interleaving
+on hugetlbfs with a slightly simplified test case (see previous email)
+compared to Nish's.
 
-> Hmm, maybe mlock() policy() is broken.
+> Does it work with shmfs?
 
-The policy decision is made further down than mlock.  As each huge page
-is allocated from the static pool, the policy is consulted to see from
-which node to pop a huge page. 
+Haven't tried shmfs, but the following correctly does the expected
+interleaving with hugepages (although not hugetlbfs backed):
+     shmid = shmget( 0, NR_HUGE_PAGES, IPC_CREAT | SHM_HUGETLB | 0666 );
+     shmat_addr = shmat( shmid, NULL, 0 );
+     ...
+     numa_interleave_memory( shmat_addr, SHM_SIZE, &nm );
+I'd expect it works fine with non-huge pages, shmfs.
 
-The function huge_zonelist() seems to encapsulate the numa policy logic
-and after sniffing the code, it looks right to me.
+> The regression test for hugetlbfs is numactl is unfortunately still disabled.
+> I need to enable it at some point for hugetlbfs now that it reached mainline.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+On my list of random things to do is trying to improve the test
+coverage in this area.  We keep running into bugs or possible bugs or
+confusion on expected behaviour.  I'm going through the code trying to
+understand it and writing little programs to confirm my understanding
+here and there anyway.
+
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
