@@ -1,371 +1,706 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UMG6KP008563
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:06 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UMG6qB173450
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:06 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UMG6lp032663
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:06 -0600
-Subject: [RFC][PATCH 1/9] put alignment macros in align.h
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UMGCdf008691
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:12 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UMGClH178102
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:12 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UMGCR9014328
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:12 -0600
+Subject: [RFC][PATCH 9/9] convert the "easy" architectures to generic PAGE_SIZE
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 30 Aug 2006 15:16:05 -0700
+Date: Wed, 30 Aug 2006 15:16:11 -0700
 References: <20060830221604.E7320C0F@localhost.localdomain>
 In-Reply-To: <20060830221604.E7320C0F@localhost.localdomain>
-Message-Id: <20060830221605.9B506326@localhost.localdomain>
+Message-Id: <20060830221611.98D26E38@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-There are several definitions of alignment macros.  We'll take some
-of the definitions from the powerpc code (since they are the most
-prolific users), and make the generic version not evaluate its
-argument twice.  (Thanks Nikita)
-
-We need a new header instead of kernel.h because it has many other
-definitions, and we'll get circular dependencies.
-
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- threadalloc-dave/include/linux/kernel.h                       |    2 -
- threadalloc-dave/include/linux/align.h                        |   20 ++++++++++
- threadalloc-dave/include/asm-ppc/page.h                       |   10 +----
- threadalloc-dave/include/asm-ppc/bootinfo.h                   |    2 -
- threadalloc-dave/include/asm-powerpc/page.h                   |   10 +----
- threadalloc-dave/arch/powerpc/kernel/prom.c                   |   20 +++++-----
- threadalloc-dave/arch/powerpc/kernel/prom_init.c              |    9 ++--
- threadalloc-dave/arch/powerpc/mm/44x_mmu.c                    |    2 -
- threadalloc-dave/arch/powerpc/platforms/iseries/setup.c       |    2 -
- threadalloc-dave/arch/powerpc/platforms/powermac/bootx_init.c |    4 +-
- threadalloc-dave/arch/ppc/kernel/setup.c                      |    4 +-
- threadalloc-dave/arch/ppc/mm/44x_mmu.c                        |    2 -
- 12 files changed, 48 insertions(+), 39 deletions(-)
+ threadalloc-dave/include/asm-xtensa/page.h    |   11 +----------
+ threadalloc-dave/include/asm-x86_64/page.h    |   12 +-----------
+ threadalloc-dave/include/asm-v850/page.h      |   12 +-----------
+ threadalloc-dave/include/asm-um/page.h        |    9 +--------
+ threadalloc-dave/include/asm-sparc/page.h     |   16 +---------------
+ threadalloc-dave/include/asm-sh64/page.h      |   12 +-----------
+ threadalloc-dave/include/asm-sh/page.h        |    8 +-------
+ threadalloc-dave/include/asm-s390/page.h      |    8 +-------
+ threadalloc-dave/include/asm-m68knommu/page.h |   10 +---------
+ threadalloc-dave/include/asm-m68k/page.h      |   20 +-------------------
+ threadalloc-dave/include/asm-m32r/page.h      |    3 ---
+ threadalloc-dave/include/asm-i386/page.h      |    8 +-------
+ threadalloc-dave/include/asm-h8300/page.h     |   11 +----------
+ threadalloc-dave/include/asm-generic/page.h   |    6 ++----
+ threadalloc-dave/include/asm-frv/page.h       |    4 +---
+ threadalloc-dave/include/asm-frv/mem-layout.h |   15 ++-------------
+ threadalloc-dave/include/asm-cris/page.h      |   13 +------------
+ threadalloc-dave/include/asm-arm26/page.h     |    7 +------
+ threadalloc-dave/include/asm-arm/page.h       |    9 +--------
+ threadalloc-dave/include/asm-arm/page-nommu.h |    3 ---
+ threadalloc-dave/include/asm-alpha/page.h     |    9 +--------
+ threadalloc-dave/arch/ia64/Kconfig            |    3 ---
+ threadalloc-dave/arch/mips/Kconfig            |    3 ---
+ threadalloc-dave/arch/parisc/Kconfig          |    3 ---
+ threadalloc-dave/arch/powerpc/Kconfig         |    3 ---
+ threadalloc-dave/arch/sparc64/Kconfig         |    3 ---
+ threadalloc-dave/mm/Kconfig                   |   11 ++++++-----
+ 27 files changed, 27 insertions(+), 205 deletions(-)
 
-diff -puN include/linux/kernel.h~align-h include/linux/kernel.h
---- threadalloc/include/linux/kernel.h~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/include/linux/kernel.h	2006-08-30 15:14:59.000000000 -0700
-@@ -13,6 +13,7 @@
- #include <linux/types.h>
- #include <linux/compiler.h>
- #include <linux/bitops.h>
-+#include <linux/align.h>
- #include <asm/byteorder.h>
- #include <asm/bug.h>
- 
-@@ -31,7 +32,6 @@ extern const char linux_banner[];
- #define STACK_MAGIC	0xdeadbeef
- 
- #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
--#define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
- #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
- #define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
- 
-diff -puN /dev/null include/linux/align.h
---- /dev/null	2005-03-30 22:36:15.000000000 -0800
-+++ threadalloc-dave/include/linux/align.h	2006-08-30 15:14:59.000000000 -0700
-@@ -0,0 +1,20 @@
-+#ifndef _LINUX_ALIGN_H
-+#define _LINUX_ALIGN_H
-+
-+/*
-+ * This file should only contain macros which have no outside
-+ * dependencies, and can be used safely from any other header.
-+ */
-+
-+#define _ALIGN_UP(x,a) ({ typeof(a) __a = (a); (((x) + __a - 1) & ~(__a - 1)); })
-+#define _ALIGN_DOWN(x,a)  ((x)&(~((a)-1)))
-+
-+/*
-+ * ALIGN is special.  There's a linkage.h as well that
-+ * has a quite different meaning.
-+ */
-+#ifndef __ASSEMBLY__
-+#define ALIGN(addr,size) _ALIGN_UP(addr,size)
-+#endif
-+
-+#endif /* _LINUX_ALIGN_H */
-diff -puN include/asm-ppc/page.h~align-h include/asm-ppc/page.h
---- threadalloc/include/asm-ppc/page.h~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/include/asm-ppc/page.h	2006-08-30 15:14:59.000000000 -0700
-@@ -1,6 +1,7 @@
- #ifndef _PPC_PAGE_H
- #define _PPC_PAGE_H
- 
-+#include <linux/align.h>
- #include <asm/asm-compat.h>
- 
- /* PAGE_SHIFT determines the page size */
-@@ -36,15 +37,8 @@ typedef unsigned long pte_basic_t;
- #define PTE_FMT		"%.8lx"
- #endif
- 
--/* align addr on a size boundary - adjust address up/down if needed */
--#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
--#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
--
--/* align addr on a size boundary - adjust address up if needed */
--#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
--
- /* to align the pointer to the (next) page boundary */
--#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
-+#define PAGE_ALIGN(addr)	ALIGN(addr, PAGE_SIZE)
- 
- 
- #undef STRICT_MM_TYPECHECKS
-diff -puN include/asm-ppc/bootinfo.h~align-h include/asm-ppc/bootinfo.h
---- threadalloc/include/asm-ppc/bootinfo.h~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/include/asm-ppc/bootinfo.h	2006-08-30 15:14:59.000000000 -0700
-@@ -41,7 +41,7 @@ static inline struct bi_record *
- bootinfo_addr(unsigned long offset)
- {
- 
--	return (struct bi_record *)_ALIGN((offset) + (1 << 20) - 1,
-+	return (struct bi_record *)ALIGN((offset) + (1 << 20) - 1,
- 					  (1 << 20));
- }
- #endif /* CONFIG_APUS */
-diff -puN include/asm-powerpc/page.h~align-h include/asm-powerpc/page.h
---- threadalloc/include/asm-powerpc/page.h~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/include/asm-powerpc/page.h	2006-08-30 15:14:59.000000000 -0700
-@@ -11,6 +11,7 @@
-  */
- 
+diff -puN include/asm-xtensa/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-xtensa/page.h
+--- threadalloc/include/asm-xtensa/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-xtensa/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -14,16 +14,7 @@
  #ifdef __KERNEL__
-+#include <linux/align.h>
- #include <asm/asm-compat.h>
- #include <asm/kdump.h>
  
-@@ -89,15 +90,8 @@
- #include <asm/page_32.h>
- #endif
+ #include <asm/processor.h>
+-
+-/*
+- * PAGE_SHIFT determines the page size
+- * PAGE_ALIGN(x) aligns the pointer to the (next) page boundary
+- */
+-
+-#define PAGE_SHIFT		XCHAL_MMU_MIN_PTE_PAGE_SIZE
+-#define PAGE_SIZE		(1 << PAGE_SHIFT)
+-#define PAGE_MASK		(~(PAGE_SIZE-1))
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE - 1) & PAGE_MASK)
++#include <asm-generic/page.h>
  
--/* align addr on a size boundary - adjust address up/down if needed */
--#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
--#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+ #define DCACHE_WAY_SIZE		(XCHAL_DCACHE_SIZE / XCHAL_DCACHE_WAYS)
+ #define PAGE_OFFSET		XCHAL_KSEG_CACHED_VADDR
+diff -puN include/asm-x86_64/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-x86_64/page.h
+--- threadalloc/include/asm-x86_64/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-x86_64/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,15 +1,8 @@
+ #ifndef _X86_64_PAGE_H
+ #define _X86_64_PAGE_H
+ 
++#include <asm-generic/page.h>
+ 
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#ifdef __ASSEMBLY__
+-#define PAGE_SIZE	(0x1 << PAGE_SHIFT)
+-#else
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#endif
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+ #define PHYSICAL_PAGE_MASK	(~(PAGE_SIZE-1) & __PHYSICAL_MASK)
+ 
+ #define THREAD_ORDER 1 
+@@ -88,9 +81,6 @@ typedef struct { unsigned long pgprot; }
+ #define __PAGE_OFFSET           0xffff810000000000
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 -
--/* align addr on a size boundary - adjust address up if needed */
--#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+ /* See Documentation/x86_64/mm.txt for a description of the memory map. */
+ #define __PHYSICAL_MASK_SHIFT	46
+ #define __PHYSICAL_MASK		((1UL << __PHYSICAL_MASK_SHIFT) - 1)
+diff -puN include/asm-v850/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-v850/page.h
+--- threadalloc/include/asm-v850/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-v850/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -15,12 +15,7 @@
+ #define __V850_PAGE_H__
+ 
+ #include <asm/machdep.h>
 -
- /* to align the pointer to the (next) page boundary */
--#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
-+#define PAGE_ALIGN(addr)	ALIGN(addr, PAGE_SIZE)
+-
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE       (1UL << PAGE_SHIFT)
+-#define PAGE_MASK       (~(PAGE_SIZE-1))
+-
++#include <asm-generic/page.h>
  
  /*
-  * Don't compare things with KERNELBASE or PAGE_OFFSET to test for
-diff -puN arch/powerpc/kernel/prom.c~align-h arch/powerpc/kernel/prom.c
---- threadalloc/arch/powerpc/kernel/prom.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/powerpc/kernel/prom.c	2006-08-30 15:14:59.000000000 -0700
-@@ -125,9 +125,9 @@ int __init of_scan_flat_dt(int (*it)(uns
- 			u32 sz = *((u32 *)p);
- 			p += 8;
- 			if (initial_boot_params->version < 0x10)
--				p = _ALIGN(p, sz >= 8 ? 8 : 4);
-+				p = ALIGN(p, sz >= 8 ? 8 : 4);
- 			p += sz;
--			p = _ALIGN(p, 4);
-+			p = ALIGN(p, 4);
- 			continue;
- 		}
- 		if (tag != OF_DT_BEGIN_NODE) {
-@@ -137,7 +137,7 @@ int __init of_scan_flat_dt(int (*it)(uns
- 		}
- 		depth++;
- 		pathp = (char *)p;
--		p = _ALIGN(p + strlen(pathp) + 1, 4);
-+		p = ALIGN(p + strlen(pathp) + 1, 4);
- 		if ((*pathp) == '/') {
- 			char *lp, *np;
- 			for (lp = NULL, np = pathp; *np; np++)
-@@ -163,7 +163,7 @@ unsigned long __init of_get_flat_dt_root
- 		p += 4;
- 	BUG_ON (*((u32 *)p) != OF_DT_BEGIN_NODE);
- 	p += 4;
--	return _ALIGN(p + strlen((char *)p) + 1, 4);
-+	return ALIGN(p + strlen((char *)p) + 1, 4);
+  * PAGE_OFFSET -- the first address of the first page of memory. For archs with
+@@ -93,11 +88,6 @@ typedef unsigned long pgprot_t;
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
+-
+-
+ /* No current v850 processor has virtual memory.  */
+ #define __virt_to_phys(addr)	(addr)
+ #define __phys_to_virt(addr)	(addr)
+diff -puN include/asm-um/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-um/page.h
+--- threadalloc/include/asm-um/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-um/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -10,11 +10,7 @@
+ struct page;
+ 
+ #include <asm/vm-flags.h>
+-
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
+ 
+ /*
+  * These are used to make use of C type-checking..
+@@ -85,9 +81,6 @@ typedef struct { unsigned long pgprot; }
+ #define __pgd(x) ((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ extern unsigned long uml_physmem;
+ 
+ #define PAGE_OFFSET (uml_physmem)
+diff -puN include/asm-sparc/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-sparc/page.h
+--- threadalloc/include/asm-sparc/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-sparc/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -8,18 +8,7 @@
+ #ifndef _SPARC_PAGE_H
+ #define _SPARC_PAGE_H
+ 
+-#ifdef CONFIG_SUN4
+-#define PAGE_SHIFT   13
+-#else
+-#define PAGE_SHIFT   12
+-#endif
+-#ifndef __ASSEMBLY__
+-/* I have my suspicions... -DaveM */
+-#define PAGE_SIZE    (1UL << PAGE_SHIFT)
+-#else
+-#define PAGE_SIZE    (1 << PAGE_SHIFT)
+-#endif
+-#define PAGE_MASK    (~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
+ 
+ #ifdef __KERNEL__
+ 
+@@ -137,9 +126,6 @@ BTFIXUPDEF_SETHI(sparc_unmapped_base)
+ 
+ #endif /* !(__ASSEMBLY__) */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)  (((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #define PAGE_OFFSET	0xf0000000
+ #ifndef __ASSEMBLY__
+ extern unsigned long phys_base;
+diff -puN include/asm-sh64/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-sh64/page.h
+--- threadalloc/include/asm-sh64/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-sh64/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -17,15 +17,8 @@
+  *
+  */
+ 
++#include <asm-generic/page.h>
+ 
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#ifdef __ASSEMBLY__
+-#define PAGE_SIZE	4096
+-#else
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#endif
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+ #define PTE_MASK	PAGE_MASK
+ 
+ #if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+@@ -85,9 +78,6 @@ typedef struct { unsigned long pgprot; }
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ /*
+  * Kconfig defined.
+  */
+diff -puN include/asm-sh/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-sh/page.h
+--- threadalloc/include/asm-sh/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-sh/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -13,11 +13,8 @@
+    [ P4 control   ]		0xE0000000
+  */
+ 
++#include <asm-generic/page.h>
+ 
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+ #define PTE_MASK	PAGE_MASK
+ 
+ #if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+@@ -79,9 +76,6 @@ typedef struct { unsigned long pgprot; }
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ /*
+  * IF YOU CHANGE THIS, PLEASE ALSO CHANGE
+  *
+diff -puN include/asm-s390/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-s390/page.h
+--- threadalloc/include/asm-s390/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-s390/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -10,11 +10,8 @@
+ #define _S390_PAGE_H
+ 
+ #include <asm/types.h>
++#include <asm-generic/page.h>
+ 
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT      12
+-#define PAGE_SIZE       (1UL << PAGE_SHIFT)
+-#define PAGE_MASK       (~(PAGE_SIZE-1))
+ #define PAGE_DEFAULT_ACC	0
+ #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
+ 
+@@ -174,9 +171,6 @@ page_get_storage_key(unsigned long addr)
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)        (((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #define __PAGE_OFFSET           0x0UL
+ #define PAGE_OFFSET             0x0UL
+ #define __pa(x)                 (unsigned long)(x)
+diff -puN include/asm-m68knommu/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-m68knommu/page.h
+--- threadalloc/include/asm-m68knommu/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-m68knommu/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,12 +1,7 @@
+ #ifndef _M68KNOMMU_PAGE_H
+ #define _M68KNOMMU_PAGE_H
+ 
+-
+-/* PAGE_SHIFT determines the page size */
+-
+-#define PAGE_SHIFT	(12)
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
+ 
+ #ifdef __KERNEL__
+ 
+@@ -44,9 +39,6 @@ typedef struct { unsigned long pgprot; }
+ #define __pgd(x)	((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ extern unsigned long memory_start;
+ extern unsigned long memory_end;
+ 
+diff -puN include/asm-m68k/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-m68k/page.h
+--- threadalloc/include/asm-m68k/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-m68k/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,22 +1,7 @@
+ #ifndef _M68K_PAGE_H
+ #define _M68K_PAGE_H
+ 
+-
+-/* PAGE_SHIFT determines the page size */
+-#ifndef CONFIG_SUN3
+-#define PAGE_SHIFT	(12)
+-#else
+-#define PAGE_SHIFT	(13)
+-#endif
+-#ifdef __ASSEMBLY__
+-#define PAGE_SIZE	(1 << PAGE_SHIFT)
+-#else
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#endif
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+-
+-#ifdef __KERNEL__
+-
++#include <asm-generic/page.h>
+ #include <asm/setup.h>
+ 
+ #if PAGE_SHIFT < 13
+@@ -103,9 +88,6 @@ typedef struct { unsigned long pgprot; }
+ #define __pgd(x)	((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #endif /* !__ASSEMBLY__ */
+ 
+ #include <asm/page_offset.h>
+diff -puN include/asm-m32r/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-m32r/page.h
+--- threadalloc/include/asm-m32r/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-m32r/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -41,9 +41,6 @@ typedef struct { unsigned long pgprot; }
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
+-
+ /*
+  * This handles the memory map.. We could make this a config
+  * option, but too many people screw it up, and too few need
+diff -puN include/asm-i386/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-i386/page.h
+--- threadalloc/include/asm-i386/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-i386/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,10 +1,7 @@
+ #ifndef _I386_PAGE_H
+ #define _I386_PAGE_H
+ 
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	12
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
+ 
+ #define LARGE_PAGE_MASK (~(LARGE_PAGE_SIZE-1))
+ #define LARGE_PAGE_SIZE (1UL << PMD_SHIFT)
+@@ -78,9 +75,6 @@ typedef struct { unsigned long pgprot; }
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ /*
+  * This handles the memory map.. We could make this a config
+  * option, but too many people screw it up, and too few need
+diff -puN include/asm-h8300/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-h8300/page.h
+--- threadalloc/include/asm-h8300/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-h8300/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,16 +1,10 @@
+ #ifndef _H8300_PAGE_H
+ #define _H8300_PAGE_H
+ 
+-
+-/* PAGE_SHIFT determines the page size */
+-
+-#define PAGE_SHIFT	(12)
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+-
+ #ifdef __KERNEL__
+ 
+ #include <asm/setup.h>
++#include <asm-generic/page.h>
+ 
+ #ifndef __ASSEMBLY__
+  
+@@ -44,9 +38,6 @@ typedef struct { unsigned long pgprot; }
+ #define __pgd(x)	((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ extern unsigned long memory_start;
+ extern unsigned long memory_end;
+ 
+diff -puN include/asm-generic/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-generic/page.h
+--- threadalloc/include/asm-generic/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:01.000000000 -0700
++++ threadalloc-dave/include/asm-generic/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -13,8 +13,6 @@
+ #define ASM_CONST(x) __ASM_CONST(x)
+ #endif
+ 
+-#ifdef CONFIG_ARCH_GENERIC_PAGE_SIZE
+-
+ #define PAGE_SHIFT      CONFIG_PAGE_SHIFT
+ #define PAGE_SIZE       (ASM_CONST(1) << PAGE_SHIFT)
+ 
+@@ -28,8 +26,7 @@
+ /* to align the pointer to the (next) page boundary */
+ #define PAGE_ALIGN(addr)        ALIGN(addr, PAGE_SIZE)
+ 
+-#endif /* CONFIG_ARCH_GENERIC_PAGE_SIZE */
+-
++#ifndef __ASSEMBLY__
+ #ifndef __ASSEMBLY__
+ #ifndef CONFIG_ARCH_HAVE_GET_ORDER
+ /* Pure 2^n version of get_order */
+@@ -45,6 +42,7 @@ static __inline__ __attribute_const__ in
+ 	} while (size);
+ 	return order;
  }
++#endif /* __ASSEMBLY__ */
  
- /**
-@@ -190,7 +190,7 @@ void* __init of_get_flat_dt_prop(unsigne
- 		noff = *((u32 *)(p + 4));
- 		p += 8;
- 		if (initial_boot_params->version < 0x10)
--			p = _ALIGN(p, sz >= 8 ? 8 : 4);
-+			p = ALIGN(p, sz >= 8 ? 8 : 4);
+ #endif	/* CONFIG_ARCH_HAVE_GET_ORDER */
+ #endif  /* __ASSEMBLY__ */
+diff -puN include/asm-frv/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-frv/page.h
+--- threadalloc/include/asm-frv/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-frv/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -3,6 +3,7 @@
  
- 		nstr = find_flat_dt_string(noff);
- 		if (nstr == NULL) {
-@@ -204,7 +204,7 @@ void* __init of_get_flat_dt_prop(unsigne
- 			return (void *)p;
- 		}
- 		p += sz;
--		p = _ALIGN(p, 4);
-+		p = ALIGN(p, 4);
- 	} while(1);
- }
+ #ifdef __KERNEL__
  
-@@ -232,7 +232,7 @@ static void *__init unflatten_dt_alloc(u
- {
- 	void *res;
++#include <asm-generic/page.h>
+ #include <asm/virtconvert.h>
+ #include <asm/mem-layout.h>
+ #include <asm/sections.h>
+@@ -41,9 +42,6 @@ typedef struct { unsigned long	pgprot;	}
+ #define __pgprot(x)	((pgprot_t) { (x) } )
+ #define PTE_MASK	PAGE_MASK
  
--	*mem = _ALIGN(*mem, align);
-+	*mem = ALIGN(*mem, align);
- 	res = (void *)*mem;
- 	*mem += size;
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
+-
+ #define devmem_is_allowed(pfn)	1
  
-@@ -261,7 +261,7 @@ static unsigned long __init unflatten_dt
- 	*p += 4;
- 	pathp = (char *)*p;
- 	l = allocl = strlen(pathp) + 1;
--	*p = _ALIGN(*p + l, 4);
-+	*p = ALIGN(*p + l, 4);
+ #define __pa(vaddr)		virt_to_phys((void *) (unsigned long) (vaddr))
+diff -puN include/asm-frv/mem-layout.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-frv/mem-layout.h
+--- threadalloc/include/asm-frv/mem-layout.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-frv/mem-layout.h	2006-08-30 15:15:06.000000000 -0700
+@@ -12,25 +12,14 @@
+ #ifndef _ASM_MEM_LAYOUT_H
+ #define _ASM_MEM_LAYOUT_H
  
- 	/* version 0x10 has a more compact unit name here instead of the full
- 	 * path. we accumulate the full path size using "fpsize", we'll rebuild
-@@ -340,7 +340,7 @@ static unsigned long __init unflatten_dt
- 		noff = *((u32 *)((*p) + 4));
- 		*p += 8;
- 		if (initial_boot_params->version < 0x10)
--			*p = _ALIGN(*p, sz >= 8 ? 8 : 4);
-+			*p = ALIGN(*p, sz >= 8 ? 8 : 4);
++#include <asm-generic/page.h>
++
+ #ifndef __ASSEMBLY__
+ #define __UL(X)	((unsigned long) (X))
+ #else
+ #define __UL(X)	(X)
+ #endif
  
- 		pname = find_flat_dt_string(noff);
- 		if (pname == NULL) {
-@@ -366,7 +366,7 @@ static unsigned long __init unflatten_dt
- 			*prev_pp = pp;
- 			prev_pp = &pp->next;
- 		}
--		*p = _ALIGN((*p) + sz, 4);
-+		*p = ALIGN((*p) + sz, 4);
- 	}
- 	/* with version 0x10 we may not have the name property, recreate
- 	 * it here from the unit name if absent
-diff -puN arch/powerpc/kernel/prom_init.c~align-h arch/powerpc/kernel/prom_init.c
---- threadalloc/arch/powerpc/kernel/prom_init.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/powerpc/kernel/prom_init.c	2006-08-30 15:14:59.000000000 -0700
-@@ -16,6 +16,7 @@
- #undef DEBUG_PROM
+-/*
+- * PAGE_SHIFT determines the page size
+- */
+-#define PAGE_SHIFT			14
+-
+-#ifndef __ASSEMBLY__
+-#define PAGE_SIZE			(1UL << PAGE_SHIFT)
+-#else
+-#define PAGE_SIZE			(1 << PAGE_SHIFT)
+-#endif
+-
+-#define PAGE_MASK			(~(PAGE_SIZE-1))
+-
+ /*****************************************************************************/
+ /*
+  * virtual memory layout from kernel's point of view
+diff -puN include/asm-cris/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-cris/page.h
+--- threadalloc/include/asm-cris/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-cris/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,17 +1,9 @@
+ #ifndef _CRIS_PAGE_H
+ #define _CRIS_PAGE_H
  
- #include <stdarg.h>
-+#include <linux/align.h>
- #include <linux/kernel.h>
- #include <linux/string.h>
- #include <linux/init.h>
-@@ -1679,7 +1680,7 @@ static void __init *make_room(unsigned l
- {
- 	void *ret;
++#include <asm-generic/page.h>
+ #include <asm/arch/page.h>
  
--	*mem_start = _ALIGN(*mem_start, align);
-+	*mem_start = ALIGN(*mem_start, align);
- 	while ((*mem_start + needed) > *mem_end) {
- 		unsigned long room, chunk;
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	13
+-#ifndef __ASSEMBLY__
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#else
+-#define PAGE_SIZE	(1 << PAGE_SHIFT)
+-#endif
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
+-
+ #ifdef __KERNEL__
  
-@@ -1811,7 +1812,7 @@ static void __init scan_dt_build_struct(
- 				*lp++ = *p;
- 		}
- 		*lp = 0;
--		*mem_start = _ALIGN((unsigned long)lp + 1, 4);
-+		*mem_start = ALIGN((unsigned long)lp + 1, 4);
- 	}
+ #define clear_page(page)        memset((void *)(page), 0, PAGE_SIZE)
+@@ -63,9 +55,6 @@ typedef struct { unsigned long pgprot; }
  
- 	/* get it again for debugging */
-@@ -1864,7 +1865,7 @@ static void __init scan_dt_build_struct(
- 		/* push property content */
- 		valp = make_room(mem_start, mem_end, l, 4);
- 		call_prom("getprop", 4, 1, node, RELOC(pname), valp, l);
--		*mem_start = _ALIGN(*mem_start, 4);
-+		*mem_start = ALIGN(*mem_start, 4);
- 	}
+ #define page_to_phys(page)     __pa((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
  
- 	/* Add a "linux,phandle" property. */
-@@ -1920,7 +1921,7 @@ static void __init flatten_device_tree(v
- 		prom_panic ("couldn't get device tree root\n");
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #ifndef __ASSEMBLY__
  
- 	/* Build header and make room for mem rsv map */ 
--	mem_start = _ALIGN(mem_start, 4);
-+	mem_start = ALIGN(mem_start, 4);
- 	hdr = make_room(&mem_start, &mem_end,
- 			sizeof(struct boot_param_header), 4);
- 	RELOC(dt_header_start) = (unsigned long)hdr;
-diff -puN arch/powerpc/mm/44x_mmu.c~align-h arch/powerpc/mm/44x_mmu.c
---- threadalloc/arch/powerpc/mm/44x_mmu.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/powerpc/mm/44x_mmu.c	2006-08-30 15:14:59.000000000 -0700
-@@ -103,7 +103,7 @@ unsigned long __init mmu_mapin_ram(void)
+ #endif /* __ASSEMBLY__ */
+diff -puN include/asm-arm26/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-arm26/page.h
+--- threadalloc/include/asm-arm26/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-arm26/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -1,6 +1,7 @@
+ #ifndef _ASMARM_PAGE_H
+ #define _ASMARM_PAGE_H
  
- 	/* Determine number of entries necessary to cover lowmem */
- 	pinned_tlbs = (unsigned int)
--		(_ALIGN(total_lowmem, PPC44x_PIN_SIZE) >> PPC44x_PIN_SHIFT);
-+		(ALIGN(total_lowmem, PPC44x_PIN_SIZE) >> PPC44x_PIN_SHIFT);
++#include <asm-generic/page.h>
  
- 	/* Write upper watermark to save location */
- 	tlb_44x_hwater = PPC44x_LOW_SLOT - pinned_tlbs;
-diff -puN arch/powerpc/platforms/iseries/setup.c~align-h arch/powerpc/platforms/iseries/setup.c
---- threadalloc/arch/powerpc/platforms/iseries/setup.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/powerpc/platforms/iseries/setup.c	2006-08-30 15:14:59.000000000 -0700
-@@ -354,7 +354,7 @@ EXPORT_SYMBOL(mschunks_map);
+ #ifdef __KERNEL__
+ #ifndef __ASSEMBLY__
+@@ -79,12 +80,6 @@ typedef unsigned long pgprot_t;
  
- void mschunks_alloc(unsigned long num_chunks)
- {
--	klimit = _ALIGN(klimit, sizeof(u32));
-+	klimit = ALIGN(klimit, sizeof(u32));
- 	mschunks_map.mapping = (u32 *)klimit;
- 	klimit += num_chunks * sizeof(u32);
- 	mschunks_map.num_chunks = num_chunks;
-diff -puN arch/powerpc/platforms/powermac/bootx_init.c~align-h arch/powerpc/platforms/powermac/bootx_init.c
---- threadalloc/arch/powerpc/platforms/powermac/bootx_init.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/powerpc/platforms/powermac/bootx_init.c	2006-08-30 15:14:59.000000000 -0700
-@@ -389,7 +389,7 @@ static unsigned long __init bootx_flatte
- 	hdr->dt_strings_size = bootx_dt_strend - bootx_dt_strbase;
+ #define EXEC_PAGESIZE   32768
  
- 	/* Build structure */
--	mem_end = _ALIGN(mem_end, 16);
-+	mem_end = ALIGN(mem_end, 16);
- 	DBG("Building device tree structure at: %x\n", mem_end);
- 	hdr->off_dt_struct = mem_end - mem_start;
- 	bootx_scan_dt_build_struct(base, 4, &mem_end);
-@@ -407,7 +407,7 @@ static unsigned long __init bootx_flatte
- 	 * also bump mem_reserve_cnt to cause further reservations to
- 	 * fail since it's too late.
- 	 */
--	mem_end = _ALIGN(mem_end, PAGE_SIZE);
-+	mem_end = ALIGN(mem_end, PAGE_SIZE);
- 	DBG("End of boot params: %x\n", mem_end);
- 	rsvmap[0] = mem_start;
- 	rsvmap[1] = mem_end;
-diff -puN arch/ppc/kernel/setup.c~align-h arch/ppc/kernel/setup.c
---- threadalloc/arch/ppc/kernel/setup.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/ppc/kernel/setup.c	2006-08-30 15:14:59.000000000 -0700
-@@ -341,14 +341,14 @@ struct bi_record *find_bootinfo(void)
- {
- 	struct bi_record *rec;
+-#define PAGE_SIZE		(1UL << PAGE_SHIFT)
+-#define PAGE_MASK		(~(PAGE_SIZE-1))
+-
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #ifdef __KERNEL__
+ #ifndef __ASSEMBLY__
  
--	rec = (struct bi_record *)_ALIGN((ulong)__bss_start+(1<<20)-1,(1<<20));
-+	rec = (struct bi_record *)ALIGN((ulong)__bss_start+(1<<20)-1,(1<<20));
- 	if ( rec->tag != BI_FIRST ) {
- 		/*
- 		 * This 0x10000 offset is a terrible hack but it will go away when
- 		 * we have the bootloader handle all the relocation and
- 		 * prom calls -- Cort
- 		 */
--		rec = (struct bi_record *)_ALIGN((ulong)__bss_start+0x10000+(1<<20)-1,(1<<20));
-+		rec = (struct bi_record *)ALIGN((ulong)__bss_start+0x10000+(1<<20)-1,(1<<20));
- 		if ( rec->tag != BI_FIRST )
- 			return NULL;
- 	}
-diff -puN arch/ppc/mm/44x_mmu.c~align-h arch/ppc/mm/44x_mmu.c
---- threadalloc/arch/ppc/mm/44x_mmu.c~align-h	2006-08-30 15:14:57.000000000 -0700
-+++ threadalloc-dave/arch/ppc/mm/44x_mmu.c	2006-08-30 15:14:59.000000000 -0700
-@@ -103,7 +103,7 @@ unsigned long __init mmu_mapin_ram(void)
+diff -puN include/asm-arm/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-arm/page.h
+--- threadalloc/include/asm-arm/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-arm/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -10,17 +10,10 @@
+ #ifndef _ASMARM_PAGE_H
+ #define _ASMARM_PAGE_H
  
- 	/* Determine number of entries necessary to cover lowmem */
- 	pinned_tlbs = (unsigned int)
--		(_ALIGN(total_lowmem, PPC_PIN_SIZE) >> PPC44x_PIN_SHIFT);
-+		(ALIGN(total_lowmem, PPC_PIN_SIZE) >> PPC44x_PIN_SHIFT);
+-
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT		12
+-#define PAGE_SIZE		(1UL << PAGE_SHIFT)
+-#define PAGE_MASK		(~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
  
- 	/* Write upper watermark to save location */
- 	tlb_44x_hwater = PPC44x_LOW_SLOT - pinned_tlbs;
+ #ifdef __KERNEL__
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #ifndef __ASSEMBLY__
+ 
+ #ifndef CONFIG_MMU
+diff -puN include/asm-arm/page-nommu.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-arm/page-nommu.h
+--- threadalloc/include/asm-arm/page-nommu.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-arm/page-nommu.h	2006-08-30 15:15:06.000000000 -0700
+@@ -42,9 +42,6 @@ typedef unsigned long pgprot_t;
+ #define __pmd(x)        (x)
+ #define __pgprot(x)     (x)
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ extern unsigned long memory_start;
+ extern unsigned long memory_end;
+ 
+diff -puN include/asm-alpha/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT include/asm-alpha/page.h
+--- threadalloc/include/asm-alpha/page.h~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:14:55.000000000 -0700
++++ threadalloc-dave/include/asm-alpha/page.h	2006-08-30 15:15:06.000000000 -0700
+@@ -2,11 +2,7 @@
+ #define _ALPHA_PAGE_H
+ 
+ #include <asm/pal.h>
+-
+-/* PAGE_SHIFT determines the page size */
+-#define PAGE_SHIFT	13
+-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+-#define PAGE_MASK	(~(PAGE_SIZE-1))
++#include <asm-generic/page.h>
+ 
+ #ifdef __KERNEL__
+ 
+@@ -78,9 +74,6 @@ typedef unsigned long pgprot_t;
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-/* to align the pointer to the (next) page boundary */
+-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+-
+ #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
+ #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
+ #ifndef CONFIG_DISCONTIGMEM
+diff -puN arch/ia64/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT arch/ia64/Kconfig
+--- threadalloc/arch/ia64/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:02.000000000 -0700
++++ threadalloc-dave/arch/ia64/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -149,9 +149,6 @@ config MCKINLEY
+ 
+ endchoice
+ 
+-config ARCH_GENERIC_PAGE_SIZE
+-	def_bool y
+-
+ choice
+ 	prompt "Page Table Levels"
+ 	default PGTABLE_3
+diff -puN arch/mips/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT arch/mips/Kconfig
+--- threadalloc/arch/mips/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:03.000000000 -0700
++++ threadalloc-dave/arch/mips/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -1444,9 +1444,6 @@ config MIPS_PAGE_SIZE_64KB
+ 	def_bool y
+ 	depends on EXPERIMENTAL && !CPU_R3000 && !CPU_TX39XX
+ 
+-config ARCH_GENERIC_PAGE_SIZE
+-	def_bool y
+-
+ config BOARD_SCACHE
+ 	bool
+ 
+diff -puN arch/parisc/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT arch/parisc/Kconfig
+--- threadalloc/arch/parisc/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:04.000000000 -0700
++++ threadalloc-dave/arch/parisc/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -146,9 +146,6 @@ config PARISC_LARGER_PAGE_SIZES
+ 	def_bool y
+ 	depends on PA8X00 && EXPERIMENTAL
+ 
+-config ARCH_GENERIC_PAGE_SIZE
+-	def_bool y
+-
+ endchoice
+ 
+ config SMP
+diff -puN arch/powerpc/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT arch/powerpc/Kconfig
+--- threadalloc/arch/powerpc/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:05.000000000 -0700
++++ threadalloc-dave/arch/powerpc/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -725,9 +725,6 @@ config ARCH_MEMORY_PROBE
+ 	def_bool y
+ 	depends on MEMORY_HOTPLUG
+ 
+-config ARCH_GENERIC_PAGE_SIZE
+-	def_bool y
+-
+ config PPC_64K_PAGES
+ 	bool "enable 64k page size"
+ 	depends on PPC64
+diff -puN arch/sparc64/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT arch/sparc64/Kconfig
+--- threadalloc/arch/sparc64/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:03.000000000 -0700
++++ threadalloc-dave/arch/sparc64/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -34,9 +34,6 @@ config ARCH_MAY_HAVE_PC_FDC
+ 	bool
+ 	default y
+ 
+-config ARCH_GENERIC_PAGE_SIZE
+-	def_bool y
+-
+ config SECCOMP
+ 	bool "Enable seccomp to safely compute untrusted bytecode"
+ 	depends on PROC_FS
+diff -puN mm/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT mm/Kconfig
+--- threadalloc/mm/Kconfig~arch-generic-PAGE_SIZE-give-every-arch-PAGE_SHIFT	2006-08-30 15:15:05.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-30 15:15:06.000000000 -0700
+@@ -4,7 +4,6 @@ config ARCH_HAVE_GET_ORDER
+ 
+ choice
+ 	prompt "Kernel Page Size"
+-	depends on ARCH_GENERIC_PAGE_SIZE
+ 	default PAGE_SIZE_4KB if MIPS || PARISC
+ 	default PAGE_SIZE_8KB if SPARC64
+ 	default PAGE_SIZE_16KB if IA64
+@@ -45,15 +44,17 @@ config PAGE_SIZE_4MB
+ 	depends on SPARC64
+ endchoice
+ 
++# Note that sparc and m68k vary their page sizes based
++# on the SUN3/4 options, so they are not explicitly listed
+ config PAGE_SHIFT
+ 	int
+-	depends on ARCH_GENERIC_PAGE_SIZE
+-	default "13" if PAGE_SIZE_8KB
+-	default "14" if PAGE_SIZE_16KB
++	default "13" if PAGE_SIZE_8KB || ALPHA || CRIS || SUN3 || SUN4
++	default "14" if PAGE_SIZE_16KB || FRV
+ 	default "16" if PAGE_SIZE_64KB || PPC_64K_PAGES
+ 	default "19" if PAGE_SIZE_512KB
+ 	default "22" if PAGE_SIZE_4MB
+-	default "12"
++	default "12" # arm(26) || h8300 || i386 || m68knommu || m32r || ppc(32)
++		     # s390 || sh/64 || um || v850 || xtensa || x86_64
+ 
+ config SELECT_MEMORY_MODEL
+ 	def_bool y
 _
 
 --
