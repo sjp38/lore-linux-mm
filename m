@@ -1,42 +1,42 @@
 From: Andi Kleen <ak@suse.de>
 Subject: Re: libnuma interleaving oddness
-Date: Wed, 30 Aug 2006 09:19:13 +0200
-References: <20060829231545.GY5195@us.ibm.com> <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com> <20060830002110.GZ5195@us.ibm.com>
-In-Reply-To: <20060830002110.GZ5195@us.ibm.com>
+Date: Wed, 30 Aug 2006 09:16:30 +0200
+References: <20060829231545.GY5195@us.ibm.com> <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200608300919.13125.ak@suse.de>
+Message-Id: <200608300916.30210.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-mous pages.
+On Wednesday 30 August 2006 01:57, Christoph Lameter wrote:
+> On Tue, 29 Aug 2006, Nishanth Aravamudan wrote:
 > 
-> The order is (with necessary params filled in):
+> > I don't know if this is a libnuma bug (I extracted out the code from
+> > libnuma, it looked sane; and even reimplemented it in libhugetlbfs for
+> > testing purposes, but got the same results) or a NUMA kernel bug (mbind
+> > is some hairy code...) or a ppc64 bug or maybe not a bug at all.
+> > Regardless, I'm getting somewhat inconsistent behavior. I can provide
+> > more debugging output, or whatever is requested, but I wasn't sure what
+> > to include. I'm hoping someone has heard of or seen something similar?
 > 
-> p = mmap( , newsize, RW, PRIVATE, unlinked_hugetlbfs_heap_fd, );
-> 
-> numa_interleave_memory(p, newsize);
-> 
-> mlock(p, newsize); /* causes all the hugepages to be faulted in */
-> 
-> munlock(p,newsize);
-> 
-> From what I gathered from the numa manpages, the interleave policy
-> should take effect on the mlock, as that is "fault-time" in this
-> context. We're forcing the fault, that is.
+> Are you setting the tasks allocation policy before the allocation or do 
+> you set a vma based policy? The vma based policies will only work for 
+> anonymous pages.
 
-mlock shouldn't be needed at all here. the new hugetlbfs is supposed
-to reserve at mmap time and numa_interleave_memory() sets a VMA 
-policy which will should do the right thing no matter when the fault
-occurs.
-
-Hmm, maybe mlock() policy() is broken.
+They should work for hugetlb/shmfs too. At least when I originally
+wrote it. But the original patch I did for hugetlbfs for that was
+never merged and I admit I have never rechecked if it worked with 
+the patchkit that was merged later. The problem originally was
+that hugetlbfs needed to be changed to do allocate-on-demand
+instead of allocation-on-mmap, because mbind() comes after mmap()
+and when mmap() already allocates it can't work.
 
 -Andi
 
