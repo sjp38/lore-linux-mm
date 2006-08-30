@@ -1,35 +1,39 @@
-Date: Wed, 30 Aug 2006 15:27:05 -0700 (PDT)
-Message-Id: <20060830.152705.27955313.davem@davemloft.net>
-Subject: Re: [RFC][PATCH 5/9] sparc64 generic PAGE_SIZE
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20060830221608.A33491C8@localhost.localdomain>
-References: <20060830221604.E7320C0F@localhost.localdomain>
-	<20060830221608.A33491C8@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Wed, 30 Aug 2006 18:40:54 -0400
+From: Kyle McMartin <kyle@parisc-linux.org>
+Subject: Re: [RFC][PATCH 7/9] parisc generic PAGE_SIZE
+Message-ID: <20060830224054.GG3926@athena.road.mcmartin.ca>
+References: <20060830221604.E7320C0F@localhost.localdomain> <20060830221609.DA8E9016@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060830221609.DA8E9016@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 30 Aug 2006 15:16:08 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: haveblue@us.ibm.com
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> This is the sparc64 portion to convert it over to the generic PAGE_SIZE
+On Wed, Aug 30, 2006 at 03:16:09PM -0700, Dave Hansen wrote:
+> This is the parisc portion to convert it over to the generic PAGE_SIZE
 > framework.
 > 
-> * Change all references to CONFIG_SPARC64_PAGE_SIZE_*KB to
->   CONFIG_PAGE_SIZE_* and update the defconfig.
-> * remove sparc64-specific Kconfig menu
-> * add sparc64 default of 8k pages to mm/Kconfig
-> * remove generic support for 4k pages
-> * add support for 8k, 64k, 512k, and 4MB pages
-> 
+<snip>
 > Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 
-Signed-off-by: David S. Miller <davem@davemloft.net>
+This looks pretty ok by me. I'll give it a test-build tonight.
+
+Signed-off-by: Kyle McMartin <kyle@parisc-linux.org>
+
+> +config PARISC_LARGER_PAGE_SIZES
+> +	def_bool y
+>  	depends on PA8X00 && EXPERIMENTAL
+>  
+
+This should default to 'n' as I do not believe we yet have working >4K
+pages yet.
+
+Cheers! (Nice to see diffs with more '-' than '+' :)
+	Kyle M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
