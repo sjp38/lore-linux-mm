@@ -1,65 +1,66 @@
-Date: Tue, 29 Aug 2006 21:26:58 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: libnuma interleaving oddness
-In-Reply-To: <20060830022621.GA5195@us.ibm.com>
-Message-ID: <Pine.LNX.4.64.0608292123230.23009@schroedinger.engr.sgi.com>
-References: <20060829231545.GY5195@us.ibm.com>
- <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com>
- <20060830002110.GZ5195@us.ibm.com> <20060830022621.GA5195@us.ibm.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7U565eG005443
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 01:06:05 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7U5650e260100
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 23:06:05 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7U564a9029685
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2006 23:06:04 -0600
+Message-ID: <44F51CB7.4010504@cn.ibm.com>
+Date: Wed, 30 Aug 2006 13:05:59 +0800
+From: Yao Fei Zhu <walkinair@cn.ibm.com>
+Reply-To: walkinair@cn.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Swap file or device can't be recognized by kernel built with
+ 64K pages.
+References: <44F50940.1010204@cn.ibm.com>
+In-Reply-To: <44F50940.1010204@cn.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: ak@suse.de, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com
+To: walkinair@cn.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, havelblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Aug 2006, Nishanth Aravamudan wrote:
+Yao Fei Zhu wrote:
 
-> If I use the default hugepage-aligned hugepage-backed malloc
-> replacement, I get the following in /proc/pid/numa_maps (excerpt):
-> 
-> 20000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.3JbO7R\040(deleted) huge dirty=1 N0=1
-> 21000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.3JbO7R\040(deleted) huge dirty=1 N0=1
-> ...
-> 37000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.3JbO7R\040(deleted) huge dirty=1 N0=1
-> 38000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.3JbO7R\040(deleted) huge dirty=1 N0=1
+> Problem description:
+> swap file or device can't be recognized by kernel built with 64K pages.
+>
+> Hardware Environment:
+>    Machine type (p650, x235, SF2, etc.): B70+
+>    Cpu type (Power4, Power5, IA-64, etc.): POWER5+
+> Software Environment:
+>    OS : SLES10 GMC
+>    Kernel: 2.6.18-rc5
+> Additional info:
+>
+> tc1:~ # uname -r
+> 2.6.18-rc5-ppc64
+>
+> tc1:~ # zcat /proc/config.gz | grep 64K
+> CONFIG_PPC_64K_PAGES=y
+>
+> tc1:~ # mkswap ./swap.file
+> Assuming pages of size 65536 (not 4096)
+> Setting up swapspace version 0, size = 4294901 kB
 
-Is this with nodemask set to [0]?
+Should use mkswap -v1 to create a new style swap area.
 
-> If I change the nodemask to 1-7, I get:
-> 
-> 20000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N1=1
-> 21000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N2=1
-> 22000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N3=1
-> 23000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N4=1
-> 24000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N5=1
-> 25000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N6=1
-> 26000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N7=1
-> ...
-> 35000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N1=1
-> 36000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N2=1
-> 37000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N3=1
-> 38000000 interleave=1-7 file=/libhugetlbfs/libhugetlbfs.tmp.Eh9Bmp\040(deleted) huge dirty=1 N4=1
-
-So interleave has an effect.
-
-Are you using cpusets? Or are you only using memory policies? What is the 
-default policy of the task you are running?
-
-> If I then change our malloc implementation to (unnecessarily) mmap a
-> size aligned to 4 hugepages, rather aligned to a single hugepage, but
-> using a nodemask of 0-7, I get:
-> 
-> 20000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 24000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 28000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 2c000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 30000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 34000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=4 N0=1 N1=1 N2=1 N3=1
-> 38000000 interleave=0-7 file=/libhugetlbfs/libhugetlbfs.tmp.PFt0xt\040(deleted) huge dirty=1 mapped=4 N0=1 N1=1 N2=1 N3=1
-
-Hmm... Strange. Interleaving should continue after the last one....
+>
+> tc1:~ # swapon ./swap.file
+> swapon: ./swap.file: Invalid argument
+>
+>
+> -
+> To unsubscribe from this list: send the line "unsubscribe 
+> linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 
 --
