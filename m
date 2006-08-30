@@ -1,43 +1,45 @@
-Date: Wed, 30 Aug 2006 05:20:10 -0500
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [RFC][PATCH 02/10] conditionally define generic get_order() (ARCH_HAS_GET_ORDER)
-Message-ID: <20060830102010.GB10629@localhost.internal.ocgnet.org>
-References: <20060829201934.47E63D1F@localhost.localdomain> <20060829201935.9954D4F2@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060829201935.9954D4F2@localhost.localdomain>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UEuqqT012890
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 10:56:52 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UEuoEd075372
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 08:56:52 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UEunuT026139
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 08:56:49 -0600
+Subject: Re: [RFC][PATCH 10/10] convert the "easy" architectures to generic
+	PAGE_SIZE
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060830100518.GA10629@localhost.internal.ocgnet.org>
+References: <20060829201934.47E63D1F@localhost.localdomain>
+	 <20060829201941.38D6254C@localhost.localdomain>
+	 <20060830100518.GA10629@localhost.internal.ocgnet.org>
+Content-Type: text/plain
+Date: Wed, 30 Aug 2006 07:56:41 -0700
+Message-Id: <1156949801.12898.5.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Paul Mundt <lethal@linux-sh.org>
 Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org, rdunlap@xenotime.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 29, 2006 at 01:19:35PM -0700, Dave Hansen wrote:
-> This is very greppable.  If you grep and see foo() showing up in
-> asm-generic/foo.h, it is *obvious* that it is a generic version.  If you
-> see another version in asm-i386/foo.h, it is also obvious that i386 has
-> (or can) override the generic one.
+On Wed, 2006-08-30 at 05:05 -0500, Paul Mundt wrote:
 > 
-[snip]
-> So, is _this_ patch disgusting?
+> > -/* PAGE_SHIFT determines the page size */
+> > -#define PAGE_SHIFT   12
+> > -#define PAGE_SIZE    (1UL << PAGE_SHIFT)
+> > -#define PAGE_MASK    (~(PAGE_SIZE-1))
+> > -#define PTE_MASK     PAGE_MASK
+> > +#include <asm-generic/page.h>
+> >  
+> Overzealous deletion? Please leave PTE_MASK there, we use it for
+> _PAGE_CHG_MASK in pgtable.h.
 
-The only problem I see with sticking this in mm/Kconfig is that it's not
-immediately apparent from poking through asm-<arch> what is specially
-provided by the architecture to override the generic fallback (though
-some might even consider this a benefit). One has to first find the
-symbol of interest in asm-generic, figure out the config option guarding
-it, and then grep the rest of the Kconfig hierarchy to figure out which
-architectures actually use the thing, or stick purely with symbol
-lookup.
+Yes.  I'll fix that up.
 
->From a .config point of view, this is certainly far more readable
-compared to asm-<arch> lookups, though I'm not entirely convinced that
-this really buys us much in the greppability or reduced complexity
-department.
-
-If the new trend is to forego any future HAVE_ARCH_xxx definitions, then
-I suppose this is the way to go.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
