@@ -1,175 +1,97 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UMGAsn006753
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:10 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UMGAuk189074
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:10 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UMGAKI000310
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 16:16:10 -0600
-Subject: [RFC][PATCH 6/9] mips generic PAGE_SIZE
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7UMG81o017971
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:08 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7UMG7sG231782
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:08 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7UMG7ai024438
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2006 18:16:07 -0400
+Subject: [RFC][PATCH 2/9] conditionally define generic get_order() (ARCH_HAS_GET_ORDER)
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Wed, 30 Aug 2006 15:16:08 -0700
+Date: Wed, 30 Aug 2006 15:16:05 -0700
 References: <20060830221604.E7320C0F@localhost.localdomain>
 In-Reply-To: <20060830221604.E7320C0F@localhost.localdomain>
-Message-Id: <20060830221608.4B510A13@localhost.localdomain>
+Message-Id: <20060830221605.CFC342D7@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This is the mips portion to convert it over to the generic PAGE_SIZE
-framework.
+This patch makes asm-generic/page.h safe to include in lots of code.  This
+prepares it for the introduction shortly of the generic PAGE_SIZE code.
 
-* remove mips-specific Kconfig menu
-* add mips default of 4k pages to mm/Kconfig
-* replace mips Kconfig menu with plain bool variables to preserve
-  dependencies on specific CPUs.  Add to mm/Kconfig
+There was some discussion that ARCH_HAS_FOO is a disgusting mechanism and
+should be wiped off the face of the earth.  It was argued that these things
+introduce unnecessary complexity, reduce greppability, and obscure the
+conditions under which FOO was defined.  I agree with *ALL* of this.  I
+think this patch is different. ;)
 
+This is very greppable.  If you grep and see foo() showing up in
+asm-generic/foo.h, it is *obvious* that it is a generic version.  If you
+see another version in asm-i386/foo.h, it is also obvious that i386 has
+(or can) override the generic one.
+
+As for obscuring the conditions under which it is defined, you do this when
+you are either missing a symbol, or have duplicate symbols.  So, you want to
+know:
+
+1. *IS* the generic one being defined?
+2. When is this generic defined (and how do I turn it off)?
+3. How to I get the damn thing defined (if the symbol is missing)?
+
+With Kconfig, this is all easy, especially for arch-specific stuff.
+
+If you requiring that the non-generic symbol be defined first:
+
+	http://article.gmane.org/gmane.linux.kernel/422942/match=very+complex+xyzzy+don+t+want
+
+it gets awfully messy because you end up having to fix up all of the
+architectures' headers that define the thing to get rid of any circular
+dependencies.
+
+So, is _this_ patch disgusting?
 
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- threadalloc-dave/include/asm-mips/page.h |   23 ----------------
- threadalloc-dave/arch/mips/Kconfig       |   43 +++++--------------------------
- threadalloc-dave/mm/Kconfig              |    7 ++---
- 3 files changed, 13 insertions(+), 60 deletions(-)
+ threadalloc-dave/include/asm-generic/page.h |    4 +++-
+ threadalloc-dave/mm/Kconfig                 |    4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
 
-diff -puN include/asm-mips/page.h~mips include/asm-mips/page.h
---- threadalloc/include/asm-mips/page.h~mips	2006-08-30 15:14:56.000000000 -0700
-+++ threadalloc-dave/include/asm-mips/page.h	2006-08-30 15:15:03.000000000 -0700
-@@ -9,6 +9,7 @@
- #ifndef _ASM_PAGE_H
- #define _ASM_PAGE_H
+diff -puN include/asm-generic/page.h~generic-get_order include/asm-generic/page.h
+--- threadalloc/include/asm-generic/page.h~generic-get_order	2006-08-30 15:14:56.000000000 -0700
++++ threadalloc-dave/include/asm-generic/page.h	2006-08-30 15:15:00.000000000 -0700
+@@ -6,6 +6,7 @@
  
-+#include <asm-generic/page.h>
+ #include <linux/compiler.h>
  
- #ifdef __KERNEL__
++#ifndef CONFIG_ARCH_HAVE_GET_ORDER
+ /* Pure 2^n version of get_order */
+ static __inline__ __attribute_const__ int get_order(unsigned long size)
+ {
+@@ -20,7 +21,8 @@ static __inline__ __attribute_const__ in
+ 	return order;
+ }
  
-@@ -16,25 +17,6 @@
+-#endif	/* __ASSEMBLY__ */
++#endif	/* CONFIG_ARCH_HAVE_GET_ORDER */
++#endif /*  __ASSEMBLY__ */
+ #endif	/* __KERNEL__ */
  
- #endif
- 
--/*
-- * PAGE_SHIFT determines the page size
-- */
--#ifdef CONFIG_PAGE_SIZE_4KB
--#define PAGE_SHIFT	12
--#endif
--#ifdef CONFIG_PAGE_SIZE_8KB
--#define PAGE_SHIFT	13
--#endif
--#ifdef CONFIG_PAGE_SIZE_16KB
--#define PAGE_SHIFT	14
--#endif
--#ifdef CONFIG_PAGE_SIZE_64KB
--#define PAGE_SHIFT	16
--#endif
--#define PAGE_SIZE	(1UL << PAGE_SHIFT)
--#define PAGE_MASK       (~((1 << PAGE_SHIFT) - 1))
--
--
- #ifdef __KERNEL__
- #ifndef __ASSEMBLY__
- 
-@@ -130,9 +112,6 @@ typedef struct { unsigned long pgprot; }
- 
- #endif /* !__ASSEMBLY__ */
- 
--/* to align the pointer to the (next) page boundary */
--#define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
--
- #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
- #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
- 
-diff -puN arch/mips/Kconfig~mips arch/mips/Kconfig
---- threadalloc/arch/mips/Kconfig~mips	2006-08-30 15:14:56.000000000 -0700
-+++ threadalloc-dave/arch/mips/Kconfig	2006-08-30 15:15:03.000000000 -0700
-@@ -1432,47 +1432,20 @@ config 64BIT
- 
- endchoice
- 
--choice
--	prompt "Kernel page size"
--	default PAGE_SIZE_4KB
--
--config PAGE_SIZE_4KB
--	bool "4kB"
--	help
--	 This option select the standard 4kB Linux page size.  On some
--	 R3000-family processors this is the only available page size.  Using
--	 4kB page size will minimize memory consumption and is therefore
--	 recommended for low memory systems.
--
--config PAGE_SIZE_8KB
--	bool "8kB"
-+config MIPS_PAGE_SIZE_8KB
+ #endif	/* _ASM_GENERIC_PAGE_H */
+diff -puN mm/Kconfig~generic-get_order mm/Kconfig
+--- threadalloc/mm/Kconfig~generic-get_order	2006-08-30 15:14:56.000000000 -0700
++++ threadalloc-dave/mm/Kconfig	2006-08-30 15:15:00.000000000 -0700
+@@ -1,3 +1,7 @@
++config ARCH_HAVE_GET_ORDER
 +	def_bool y
- 	depends on EXPERIMENTAL && CPU_R8000
--	help
--	  Using 8kB page size will result in higher performance kernel at
--	  the price of higher memory consumption.  This option is available
--	  only on the R8000 processor.  Not that at the time of this writing
--	  this option is still high experimental; there are also issues with
--	  compatibility of user applications.
- 
--config PAGE_SIZE_16KB
--	bool "16kB"
-+config MIPS_PAGE_SIZE_16KB
-+	def_bool y
- 	depends on !CPU_R3000 && !CPU_TX39XX
--	help
--	  Using 16kB page size will result in higher performance kernel at
--	  the price of higher memory consumption.  This option is available on
--	  all non-R3000 family processors.  Note that you will need a suitable
--	  Linux distribution to support this.
- 
--config PAGE_SIZE_64KB
--	bool "64kB"
-+config MIPS_PAGE_SIZE_64KB
-+	def_bool y
- 	depends on EXPERIMENTAL && !CPU_R3000 && !CPU_TX39XX
--	help
--	  Using 64kB page size will result in higher performance kernel at
--	  the price of higher memory consumption.  This option is available on
--	  all non-R3000 family processor.  Not that at the time of this
--	  writing this option is still high experimental.
- 
--endchoice
-+config ARCH_GENERIC_PAGE_SIZE
-+	def_bool y
- 
- config BOARD_SCACHE
- 	bool
-diff -puN mm/Kconfig~mips mm/Kconfig
---- threadalloc/mm/Kconfig~mips	2006-08-30 15:15:03.000000000 -0700
-+++ threadalloc-dave/mm/Kconfig	2006-08-30 15:15:03.000000000 -0700
-@@ -5,6 +5,7 @@ config ARCH_HAVE_GET_ORDER
- choice
- 	prompt "Kernel Page Size"
- 	depends on ARCH_GENERIC_PAGE_SIZE
-+	default PAGE_SIZE_4KB if MIPS
- 	default PAGE_SIZE_8KB if SPARC64
- 	default PAGE_SIZE_16KB if IA64
- config PAGE_SIZE_4KB
-@@ -28,13 +29,13 @@ config PAGE_SIZE_4KB
- 	  architecture.
- config PAGE_SIZE_8KB
- 	bool "8KB"
--	depends on IA64 || SPARC64
-+	depends on IA64 || SPARC64 || MIPS_PAGE_SIZE_8KB
- config PAGE_SIZE_16KB
- 	bool "16KB"
--	depends on IA64
-+	depends on IA64 || MIPS_PAGE_SIZE_16KB
- config PAGE_SIZE_64KB
- 	bool "64KB"
--	depends on (IA64 && !ITANIUM) || SPARC64
-+	depends on (IA64 && !ITANIUM) || SPARC64 || MIPS_PAGE_SIZE_64KB
- config PAGE_SIZE_512KB
- 	bool "512KB"
- 	depends on SPARC64
++	depends on IA64 || PPC32 || XTENSA
++
+ config SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
 _
 
 --
