@@ -1,92 +1,56 @@
-Date: Thu, 31 Aug 2006 18:01:32 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] Have x86_64 use add_active_range() and free_area_init_nodes
-In-Reply-To: <44F70D74.30807@kolumbus.fi>
-Message-ID: <Pine.LNX.4.64.0608311749030.13392@skynet.skynet.ie>
-References: <20060821134518.22179.46355.sendpatchset@skynet.skynet.ie>
- <20060821134638.22179.44471.sendpatchset@skynet.skynet.ie>
- <a762e240608301357n3915250bk8546dd340d5d4d77@mail.gmail.com>
- <20060831154903.GA7011@skynet.ie> <44F70D74.30807@kolumbus.fi>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="29444707-2029305836-1157043692=:13392"
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7VHciOM030978
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 13:38:44 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7VHcg1b280948
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 13:38:44 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7VHcgBF011382
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 13:38:42 -0400
+Subject: Re: [RFC][PATCH 4/9] ia64 generic PAGE_SIZE
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0608301652270.5789@schroedinger.engr.sgi.com>
+References: <20060830221604.E7320C0F@localhost.localdomain>
+	 <20060830221607.1DB81421@localhost.localdomain>
+	 <Pine.LNX.4.64.0608301652270.5789@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 31 Aug 2006 10:38:30 -0700
+Message-Id: <1157045910.31295.23.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-15?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
-Cc: Keith Mannthey <kmannth@gmail.com>, akpm@osdl.org, tony.luck@intel.com, Linux Memory Management List <linux-mm@kvack.org>, ak@suse.de, bob.picco@hp.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---29444707-2029305836-1157043692=:13392
-Content-Type: TEXT/PLAIN; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+On Wed, 2006-08-30 at 16:57 -0700, Christoph Lameter wrote:
+> On Wed, 30 Aug 2006, Dave Hansen wrote:
+> 
+> > @@ -64,11 +64,11 @@
+> >   * Base-2 logarithm of number of pages to allocate per task structure
+> >   * (including register backing store and memory stack):
+> >   */
+> > -#if defined(CONFIG_IA64_PAGE_SIZE_4KB)
+> > +#if defined(CONFIG_PAGE_SIZE_4KB)
+> >  # define KERNEL_STACK_SIZE_ORDER		3
+> > -#elif defined(CONFIG_IA64_PAGE_SIZE_8KB)
+> > +#elif defined(CONFIG_PAGE_SIZE_8KB)
+> >  # define KERNEL_STACK_SIZE_ORDER		2
+> > -#elif defined(CONFIG_IA64_PAGE_SIZE_16KB)
+> > +#elif defined(CONFIG_PAGE_SIZE_16KB)
+> >  # define KERNEL_STACK_SIZE_ORDER		1
+> >  #else
+> >  # define KERNEL_STACK_SIZE_ORDER		0
+> 
+> Could we replace these lines with
+> 
+> #define KERNEL_STACK_SIZE_ORDER (max(0, 15 - PAGE_SHIFT)) 
 
-On Thu, 31 Aug 2006, Mika Penttil=E4 wrote:
+My next series will be to clean up stack size handling.  Do you mind if
+it waits until then?
 
->
->>>> static __init inline int srat_disabled(void)
->>>> @@ -166,7 +167,7 @@ static int hotadd_enough_memory(struct b
->>>>
->>>>        if (mem < 0)
->>>>                return 0;
->>>> -       allowed =3D (end_pfn - e820_hole_size(0, end_pfn)) * PAGE_SIZE=
-;
->>>> +       allowed =3D (end_pfn - absent_pages_in_range(0, end_pfn)) *=20
->>>> PAGE_SIZE;
->>>>        allowed =3D (allowed / 100) * hotadd_percent;
->>>>        if (allocated + mem > allowed) {
->>>>                unsigned long range;
->>>> @@ -238,7 +239,7 @@ static int reserve_hotadd(int node, unsi
->>>>        }
->>>>
->>>>        /* This check might be a bit too strict, but I'm keeping it for=
-=20
->>>> now. */
->>>> -       if (e820_hole_size(s_pfn, e_pfn) !=3D e_pfn - s_pfn) {
->>>> +       if (absent_pages_in_range(s_pfn, e_pfn) !=3D e_pfn - s_pfn) {
->>>>                printk(KERN_ERR "SRAT: Hotplug area has existing=20
->>>> memory\n");
->>>>                return -1;
->>>>        }
->>>>=20
->>> We really do want to to compare against the e820 map at it contains
->>> the memory that is really present (this info was blown away before
->>> acpi_numa)=20
->>=20
->> The information used by absent_pages_in_range() should match what was
->> available to e820_hole_size().
->>
->>=20
-> But it doesn't : all active ranges are removed before parsing srat. I thi=
-nk=20
-> we really need to check against e820 here.
->
-
-What I see happening is this;
-
-1. setup_arch calls e820_register_active_regions(0, 0, -1UL) so that all
-    regions are registered as if they were on node 0 so e820_end_of_ram()
-    gets the right value
-2. remove_all_active_regions() is called to clear what was registered so
-    that rediscovery with NUMA awareness happens
-3. acpi_numa_init() is called. It parses the table and a little later
-    calls acpi_numa_memory_affinity_init() for each range in the table so
-    now we're into x86_64 code
-4. acpi_numa_memory_affinity_init() basically deals an address range.
-    Assuming the SRAT table is not broken, it calls
-    e820_register_active_ranges() for that range. At this point, for the
-    range of addresses, the active ranges are now registered
-5. reserve_hotadd is called if the range is hotpluggable. It will fail if
-    it finds that memory already exists there
-
-So, when absent_pages_in_range() is being called by reserve_hotadd(), it=20
-should be using the same information that was available in e820. What am I=
-=20
-missing?
-
---=20
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
---29444707-2029305836-1157043692=:13392--
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
