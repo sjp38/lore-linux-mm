@@ -1,106 +1,105 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7VFnTED027203
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 11:49:29 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7VFnSFB091192
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 09:49:28 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7VFnSMc011337
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 09:49:28 -0600
-Date: Thu, 31 Aug 2006 08:49:48 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k7VG0WOK009630
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 12:00:32 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k7VG0W8g222202
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 10:00:32 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k7VG0V0E022909
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2006 10:00:31 -0600
+Date: Thu, 31 Aug 2006 09:00:52 -0700
 From: Nishanth Aravamudan <nacc@us.ibm.com>
-Subject: Re: libnuma interleaving oddness
-Message-ID: <20060831154948.GA23990@us.ibm.com>
-References: <20060829231545.GY5195@us.ibm.com> <Pine.LNX.4.64.0608301401290.4217@schroedinger.engr.sgi.com> <20060831060036.GA18661@us.ibm.com> <200608310947.30542.ak@suse.de>
+Subject: [PATCH] fix NUMA interleaving for huge pages (was RE: libnuma interleaving oddness)
+Message-ID: <20060831160052.GB23990@us.ibm.com>
+References: <20060829231545.GY5195@us.ibm.com> <Pine.LNX.4.64.0608291655160.22397@schroedinger.engr.sgi.com> <20060830002110.GZ5195@us.ibm.com> <200608300919.13125.ak@suse.de> <20060830072948.GE5195@us.ibm.com> <Pine.LNX.4.64.0608301401290.4217@schroedinger.engr.sgi.com> <20060831060036.GA18661@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200608310947.30542.ak@suse.de>
+In-Reply-To: <20060831060036.GA18661@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, lnxninja@us.ibm.com, agl@us.ibm.com, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On 31.08.2006 [09:47:30 +0200], Andi Kleen wrote:
-> On Thursday 31 August 2006 08:00, Nishanth Aravamudan wrote:
-> > On 30.08.2006 [14:04:40 -0700], Christoph Lameter wrote:
-> > > > I took out the mlock() call, and I get the same results, FWIW.
-> > > 
-> > > What zones are available on your box? Any with HIGHMEM?
+On 30.08.2006 [23:00:36 -0700], Nishanth Aravamudan wrote:
+> On 30.08.2006 [14:04:40 -0700], Christoph Lameter wrote:
+> > > I took out the mlock() call, and I get the same results, FWIW.
 > > 
-> > How do I tell the available zones from userspace? This is ppc64 with
-> > about 64GB of memory total, it looks like. So, none of the nodes
-> > (according to /sys/devices/system/node/*/meminfo) have highmem.
+> > What zones are available on your box? Any with HIGHMEM?
 > 
-> The zones are listed at the beginning of dmesg
+> How do I tell the available zones from userspace? This is ppc64 with
+> about 64GB of memory total, it looks like. So, none of the nodes
+> (according to /sys/devices/system/node/*/meminfo) have highmem.
 > 
-> "On node X total pages ...
->       DMA zone ...
->       ..." 
+> > Also what kernel version are we talking about? Before 2.6.18?
+> 
+> The SuSE default, 2.6.16.21 -- I thought I mentioned that in one of my
+> replies, sorry.
+> 
+> Tim and I spent most of this afternoon debugging the huge_zonelist()
+> callpath with kprobes and jprobes. We found the following via a jprobe
+> to offset_li_node():
 
-Page orders: linear mapping = 24, others = 12
-<snip>
-[boot]0100 MM Init
-[boot]0100 MM Init Done
-Linux version 2.6.16.21-0.8-ppc64 (geeko@buildhost) (gcc version 4.1.0 (SUSE Linux)) #1 SMP Mon Jul 3 18:25:39 UTC 2006
-[boot]0012 Setup Arch
-Node 0 Memory: 0x0-0x1b0000000
-Node 1 Memory: 0x1b0000000-0x3b0000000
-Node 2 Memory: 0x3b0000000-0x5b0000000
-Node 3 Memory: 0x5b0000000-0x7b0000000
-Node 4 Memory: 0x7b0000000-0x9a0000000
-Node 5 Memory: 0x9a0000000-0xba0000000
-Node 6 Memory: 0xba0000000-0xda0000000
-Node 7 Memory: 0xda0000000-0xf90000000
-EEH: PCI Enhanced I/O Error Handling Enabled
-PPC64 nvram contains 7168 bytes
-Using dedicated idle loop
-On node 0 totalpages: 1769472
-  DMA zone: 1769472 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 1 totalpages: 2097152
-  DMA zone: 2097152 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 2 totalpages: 2097152
-  DMA zone: 2097152 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 3 totalpages: 2097152
-  DMA zone: 2097152 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 4 totalpages: 2031616
-  DMA zone: 2031616 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 5 totalpages: 2097152
-  DMA zone: 2097152 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 6 totalpages: 2097152
-  DMA zone: 2097152 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-On node 7 totalpages: 2031616
-  DMA zone: 2031616 pages, LIFO batch:31
-  DMA32 zone: 0 pages, LIFO batch:0
-  Normal zone: 0 pages, LIFO batch:0
-  HighMem zone: 0 pages, LIFO batch:0
-[boot]0015 Setup Done
-Built 8 zonelists
+<snip lengthy previous discussion>
 
-Thanks,
-Nish
+Since vma->vm_pgoff is in units of smallpages, VMAs for huge pages have
+the lower HPAGE_SHIFT - PAGE_SHIFT bits always cleared, which results in
+badd offsets to the interleave functions. Take this difference from
+small pages into account when calculating the offset. This does add a
+0-bit shift into the small-page path (via alloc_page_vma()), but I think
+that is negligible. Also add a BUG_ON to prevent the offset from growing
+due to a negative right-shift, which probably shouldn't be allowed
+anyways.
+
+Tested on an 8-memory node ppc64 NUMA box and got the interleaving I
+expected.
+
+Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+
+---
+
+Results with this patch applied, which shouldn't go into the changelog,
+I don't think:
+
+for the 4-hugepages at a time case:
+20000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.r1YKfL huge dirty=4 N0=1 N1=1 N2=1 N3=1
+24000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.r1YKfL huge dirty=4 N4=1 N5=1 N6=1 N7=1
+28000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.r1YKfL huge dirty=4 N0=1 N1=1 N2=1 N3=1
+
+for the 1-hugepage at a time case:
+20000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N0=1
+21000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N1=1
+22000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N2=1
+23000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N3=1
+24000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N4=1
+25000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N5=1
+26000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N6=1
+27000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N7=1
+28000000 interleave=0-7 file=/hugetlbfs/libhugetlbfs.tmp.LeSnPN huge dirty=1 N0=1
+
+Andrew, can we get this into 2.6.18?
+
+diff -urpN 2.6.18-rc5/mm/mempolicy.c 2.6.18-rc5-dev/mm/mempolicy.c
+--- 2.6.18-rc5/mm/mempolicy.c	2006-08-30 22:55:33.000000000 -0700
++++ 2.6.18-rc5-dev/mm/mempolicy.c	2006-08-31 08:46:22.000000000 -0700
+@@ -1176,7 +1176,15 @@ static inline unsigned interleave_nid(st
+ 	if (vma) {
+ 		unsigned long off;
+ 
+-		off = vma->vm_pgoff;
++		/*
++		 * for small pages, there is no difference between
++		 * shift and PAGE_SHIFT, so the bit-shift is safe.
++		 * for huge pages, since vm_pgoff is in units of small
++		 * pages, we need to shift off the always 0 bits to get
++		 * a useful offset.
++		 */
++		BUG_ON(shift < PAGE_SHIFT);
++		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
+ 		off += (addr - vma->vm_start) >> shift;
+ 		return offset_il_node(pol, vma, off);
+ 	} else
 
 -- 
 Nishanth Aravamudan <nacc@us.ibm.com>
