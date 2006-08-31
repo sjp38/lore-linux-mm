@@ -1,36 +1,35 @@
+Message-ID: <21451409273101.52CBD849C1@QFV0O>
+From: "diameter" <diameter.alva@rothrocktrucking.com>
+Subject: Lowest credit rate
+Date: Thu, 31 Aug 2006 12:53:39 +0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+        charset="Windows-1252"
 Content-Transfer-Encoding: 7bit
-Message-ID: <17654.11889.933070.539839@cargo.ozlabs.ibm.com>
-Date: Thu, 31 Aug 2006 10:33:53 +1000
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [RFC][PATCH 0/9] generic PAGE_SIZE infrastructure (v4)
-In-Reply-To: <20060830221604.E7320C0F@localhost.localdomain>
-References: <20060830221604.E7320C0F@localhost.localdomain>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
+Return-Path: <diameter.adaptive@rowell.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen writes:
+Hello Sir, 
 
-> Why am I doing this?  The OpenVZ beancounter patch hooks into the
-> alloc_thread_info() path, but only in two architectures.  It is silly
-> to patch each and every architecture when they all just do the same
-> thing.  This is the first step to have a single place in which to
-> do alloc_thread_info().  Oh, and this series removes about 300 lines
-> of code.
+Your credit doesn't matter to us!
+If you OWN real estate and want IMMEDIATE cash to spend ANY way you 
+like, or simply wish to LOWER your monthly payments by a third or more, here are the deals we have TODAY:
 
-... at the price of making the Kconfig help text more generic and
-therefore possibly confusing on some platforms.
+$488,000.00 at a 3.67% fixed-rate
+$372,000.00 at a 3.90% variable-rate
+$492,000.00 at a 3.21% interest-only
+$248,000.00 at a 3.36% fixed-rate
+$198,000.00 at a 3.55% variable-rate
 
-I really don't see much value in doing all this.
+Hurry, we have requests limits, so when these deals are gone, they are 
+gone!
 
-Paul.
+We have one-mimute form to apply the request,
+please CLICK HERE
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://HJT0L.mortrsite.com/?ncache=103908
+
+Don't worry about approval, your credit will not disqualify you!
+
+Approval Manager.
