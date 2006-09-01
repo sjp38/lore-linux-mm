@@ -1,421 +1,298 @@
-Date: Fri, 1 Sep 2006 15:34:19 -0700 (PDT)
+Date: Fri, 1 Sep 2006 15:34:13 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060901223419.21034.99272.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060901223413.21034.69888.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060901223358.21034.83736.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060901223358.21034.83736.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [MODSLAB 4/5] Kmalloc subsystem
+Subject: [MODSLAB 3/5] /proc/slabinfo display
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>, Dave Chinner <dgc@sgi.com>, Andi Kleen <ak@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, mpm@selenic.com, Andi Kleen <ak@suse.de>, Dave Chinner <dgc@sgi.com>, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-A generic kmalloc layer for the modular slab
+Generic Slab statistics module
 
-Regular kmalloc allocations are optimized. DMA kmalloc slabs are
-created on demand.
+A statistic module for generic slab allocator framework.
 
-Also re exports the kmalloc array as a new slab_allocator that
-can be used to tie into the kmalloc array (the slabulator
-uses that to avoid creating new slabs that are compatible
-with generic kmalloc caches).
+The creator of a cache must register the slab cache with
+
+register_slab()
+
+in order for something to show up in slabinfo.
+
+Here is a sample of slabinfo output:
+
+slabinfo - version: 3.0
+# name            <objects> <objsize> <num_slabs> <partial_slabs> <active_slabs> <order> <allocator>
+nfs_direct_cache           0     136       0       0       0  0 reclaimable:page_allocator
+nfs_write_data            36     896       2       0       0  0 unreclaimable:page_allocator
+nfs_read_data             21     768       2       1       0  0 unreclaimable:page_allocator
+nfs_inode_cache           17    1032       3       3       0  0 ctor_dtor:reclaimable:page_allocator
+rpc_tasks                  0     384       1       1       0  0 unreclaimable:page_allocator
+rpc_inode_cache            0     896       1       1       0  0 ctor_dtor:reclaimable:page_allocator
+ip6_dst_cache              0     384       1       1       0  0 unreclaimable:page_allocator
+TCPv6                      1    1792       2       2       0  0 unreclaimable:page_allocator
+UNIX                     112     768      11       7       0  0 unreclaimable:page_allocator
+dm_tio                     0      24       0       0       0  0 unreclaimable:page_allocator
+dm_io                      0      40       0       0       0  0 unreclaimable:page_allocator
+kmalloc                    0      64       0       0       0  0 dma:unreclaimable:page_allocator
+cfq_ioc_pool               0     160       0       0       0  0 unreclaimable:page_allocator
+cfq_pool                   0     160       0       0       0  0 unreclaimable:page_allocator
+mqueue_inode_cache         0     896       1       1       0  0 ctor_dtor:unreclaimable:page_allocator
+xfs_chashlist            822      40       9       9       0  0 unreclaimable:page_allocator
+xfs_ili                  183     192       9       8       1  0 unreclaimable:page_allocator
+xfs_inode               7890     640     319       6       1  0 reclaimable:page_allocator
+xfs_efi_item               0     352       0       0       0  0 unreclaimable:page_allocator
+xfs_efd_item               0     360       0       0       0  0 unreclaimable:page_allocator
+xfs_buf_item               4     184       1       0       1  0 unreclaimable:page_allocator
+xfs_acl                    0     304       0       0       0  0 unreclaimable:page_allocator
+xfs_dabuf                  0      24       1       0       1  0 unreclaimable:page_allocator
+xfs_da_state               0     488       0       0       0  0 unreclaimable:page_allocator
+xfs_trans                  1     832       1       0       1  0 unreclaimable:page_allocator
+xfs_btree_cur              0     192       1       0       1  0 unreclaimable:page_allocator
+xfs_bmap_free_item         0      24       0       0       0  0 unreclaimable:page_allocator
+xfs_ioend                128     160       2       0       1  0 unreclaimable:page_allocator
+xfs_vnode               7891     768     380       5       1  0 ctor_dtor:reclaimable:page_allocator
+isofs_inode_cache          0     656       0       0       0  0 ctor_dtor:reclaimable:page_allocator
+fat_inode_cache            0     688       1       1       0  0 ctor_dtor:reclaimable:page_allocator
+fat_cache                  0      40       0       0       0  0 ctor_dtor:reclaimable:page_allocator
+hugetlbfs_inode_cache      0     624       1       1       0  0 ctor_dtor:unreclaimable:page_allocator
+ext2_inode_cache           0     776       0       0       0  0 ctor_dtor:reclaimable:page_allocator
+ext2_xattr                 0      88       0       0       0  0 reclaimable:page_allocator
+journal_handle             0      24       0       0       0  0 unreclaimable:page_allocator
+journal_head               0      96       0       0       0  0 unreclaimable:page_allocator
+ext3_inode_cache           0     824       0       0       0  0 ctor_dtor:reclaimable:page_allocator
+ext3_xattr                 0      88       0       0       0  0 reclaimable:page_allocator
+reiser_inode_cache         0     736       0       0       0  0 ctor_dtor:reclaimable:page_allocator
+dnotify_cache              0      40       0       0       0  0 unreclaimable:page_allocator
+dquot                      0     256       0       0       0  0 reclaimable:page_allocator
+eventpoll_pwq              0      72       1       1       0  0 unreclaimable:page_allocator
+inotify_event_cache        0      40       0       0       0  0 unreclaimable:page_allocator
+inotify_watch_cache        0      72       1       1       0  0 unreclaimable:page_allocator
+kioctx                     0     384       0       0       0  0 unreclaimable:page_allocator
+fasync_cache               0      24       0       0       0  0 unreclaimable:page_allocator
+shmem_inode_cache        794     816      45      12       0  0 ctor_dtor:unreclaimable:page_allocator
+posix_timers_cache         0     136       0       0       0  0 unreclaimable:page_allocator
+partial_page_cache         0      48       0       0       0  0 unreclaimable:page_allocator
+xfrm_dst_cache             0     384       0       0       0  0 unreclaimable:page_allocator
+ip_dst_cache              21     384       2       2       0  0 unreclaimable:page_allocator
+RAW                        0     896       1       1       0  0 unreclaimable:page_allocator
+UDP                        3     896       3       2       1  0 unreclaimable:page_allocator
+TCP                       12    1664       4       4       0  0 unreclaimable:page_allocator
+scsi_io_context            0     112       0       0       0  0 unreclaimable:page_allocator
+blkdev_ioc                26      56       7       7       0  0 unreclaimable:page_allocator
+blkdev_queue              24    1616       4       2       0  0 unreclaimable:page_allocator
+blkdev_requests           12     280       2       0       2  0 unreclaimable:page_allocator
+sock_inode_cache         167     768      12       6       1  0 ctor_dtor:reclaimable:page_allocator
+file_lock_cache            1     184       2       2       0  0 ctor_dtor:unreclaimable:page_allocator
+Acpi-Parse                 0      40       0       0       0  0 unreclaimable:page_allocator
+Acpi-State                 0      80       0       0       0  0 unreclaimable:page_allocator
+proc_inode_cache         696     640      36      16       1  0 ctor_dtor:reclaimable:page_allocator
+sigqueue                   0     160       4       0       4  0 unreclaimable:page_allocator
+radix_tree_node         2068     560      75       5       0  0 ctor_dtor:unreclaimable:page_allocator
+bdev_cache                42     896       5       4       0  0 ctor_dtor:reclaimable:page_allocator
+sysfs_dir_cache         4283      80      24       4       0  0 unreclaimable:page_allocator
+inode_cache             2571     608     103       8       1  0 ctor_dtor:reclaimable:page_allocator
+dentry_cache           13014     200     166       7       3  0 reclaimable:page_allocator
+idr_layer_cache           76     536       4       2       0  0 ctor_dtor:unreclaimable:page_allocator
+buffer_head             4417     104      33       9       0  0 ctor_dtor:reclaimable:page_allocator
+vm_area_struct          1503     176      24      19       3  0 unreclaimable:page_allocator
+files_cache               47     768       7       6       1  0 unreclaimable:page_allocator
+signal_cache             136     640      10       6       1  0 unreclaimable:page_allocator
+sighand_cache            136    1664      19       6       1  0 ctor_dtor:rcu:unreclaimable:page_allocator
+anon_vma                 264      32       9       8       1  0 ctor_dtor:rcu:unreclaimable:page_allocator
+shared_policy_node         0      48       0       0       0  0 unreclaimable:page_allocator
+numa_policy               85     264       4       3       0  0 unreclaimable:page_allocator
+kmalloc                    0  262144       0       0       0  4 unreclaimable:page_allocator
+kmalloc                    2  131072       2       0       0  3 unreclaimable:page_allocator
+kmalloc                    1   65536       1       0       0  2 unreclaimable:page_allocator
+kmalloc                   10   32768      10       0       0  1 unreclaimable:page_allocator
+kmalloc                   93   16384      93       0       0  0 unreclaimable:page_allocator
+kmalloc                   98    8192      49       0       0  0 unreclaimable:page_allocator
+kmalloc                   99    4096      31       8       4  0 unreclaimable:page_allocator
+kmalloc                  345    2048      47      14       2  0 unreclaimable:page_allocator
+kmalloc                  228    1024      21      12       2  0 unreclaimable:page_allocator
+kmalloc                  183     512      14       9       3  0 unreclaimable:page_allocator
+kmalloc                 3892     256      78      31       3  0 unreclaimable:page_allocator
+kmalloc                 1244     128      18       9       4  0 unreclaimable:page_allocator
+kmalloc                 1619      64      12       8       1  0 unreclaimable:page_allocator
+kmalloc                  121      32       8       5       3  0 unreclaimable:page_allocator
+kmalloc                 1644      16       5       4       0  0 unreclaimable:page_allocator
+kmalloc                  128       8       4       4       0  0 unreclaimable:page_allocator
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc5-mm1/include/linux/kmalloc.h
+
+Index: linux-2.6.18-rc5-mm1/fs/proc/proc_misc.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.18-rc5-mm1/include/linux/kmalloc.h	2006-09-01 11:54:43.745232343 -0700
-@@ -0,0 +1,136 @@
-+#ifndef _LINUX_KMALLOC_H
-+#define _LINUX_KMALLOC_H
-+/*
-+ * In kernel dynamic memory allocator.
-+ *
-+ * (C) 2006 Silicon Graphics, Inc,
-+ * 		Christoph Lameter <clameter@sgi.com>
-+ */
-+
-+#include <linux/allocator.h>
-+#include <linux/config.h>
-+#include <linux/types.h>
-+
-+#ifndef KMALLOC_ALLOCATOR
-+#define KMALLOC_ALLOCATOR slabifier_allocator
+--- linux-2.6.18-rc5-mm1.orig/fs/proc/proc_misc.c	2006-09-01 10:13:26.836324579 -0700
++++ linux-2.6.18-rc5-mm1/fs/proc/proc_misc.c	2006-09-01 11:48:20.608777567 -0700
+@@ -399,9 +399,11 @@ static struct file_operations proc_modul
+ };
+ #endif
+ 
+-#ifdef CONFIG_SLAB
++#if defined(CONFIG_SLAB) || defined(CONFIG_MODULAR_SLAB)
+ extern struct seq_operations slabinfo_op;
++#ifdef CONFIG_SLAB
+ extern ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 +#endif
-+
-+#define KMALLOC_SHIFT_LOW 3
-+
-+#define KMALLOC_SHIFT_HIGH 18
-+
-+#if L1_CACHE_BYTES <= 64
-+#define KMALLOC_EXTRAS 2
-+#define KMALLOC_EXTRA
-+#else
-+#define KMALLOC_EXTRAS 0
+ static int slabinfo_open(struct inode *inode, struct file *file)
+ {
+ 	return seq_open(file, &slabinfo_op);
+@@ -409,12 +411,14 @@ static int slabinfo_open(struct inode *i
+ static struct file_operations proc_slabinfo_operations = {
+ 	.open		= slabinfo_open,
+ 	.read		= seq_read,
++#ifdef CONFIG_SLAB
+ 	.write		= slabinfo_write,
 +#endif
-+
-+#define KMALLOC_NR_CACHES (KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW \
-+			 + 1 + KMALLOC_EXTRAS)
-+/*
-+ * We keep the general caches in an array of slab caches that are used for
-+ * 2^x bytes of allocations. For each size we generate a DMA and a
-+ * non DMA cache (DMA simply means memory for legacy I/O. The regular
-+ * caches can be used for devices that can DMA to all of memory).
-+ */
-+extern struct slab_control kmalloc_caches[KMALLOC_NR_CACHES];
-+
-+/*
-+ * Sorry that the following has to be that ugly but GCC has trouble
-+ * with constant propagation and loops.
-+ */
-+static inline int kmalloc_index(int size)
-+{
-+	if (size <=    8) return 3;
-+	if (size <=   16) return 4;
-+	if (size <=   32) return 5;
-+	if (size <=   64) return 6;
-+#ifdef KMALLOC_EXTRA
-+	if (size <=   96) return KMALLOC_SHIFT_HIGH + 1;
-+#endif
-+	if (size <=  128) return 7;
-+#ifdef KMALLOC_EXTRA
-+	if (size <=  192) return KMALLOC_SHIFT_HIGH + 2;
-+#endif
-+	if (size <=  256) return 8;
-+	if (size <=  512) return 9;
-+	if (size <= 1024) return 10;
-+	if (size <= 2048) return 11;
-+	if (size <= 4096) return 12;
-+	if (size <=   8 * 1024) return 13;
-+	if (size <=  16 * 1024) return 14;
-+	if (size <=  32 * 1024) return 15;
-+	if (size <=  64 * 1024) return 16;
-+	if (size <= 128 * 1024) return 17;
-+	if (size <= 256 * 1024) return 18;
-+	return -1;
-+}
-+
-+/*
-+ * Find the slab cache for a given combination of allocation flags and size.
-+ *
-+ * This ought to end up with a global pointer to the right cache
-+ * in kmalloc_caches.
-+ */
-+static inline struct slab_cache *kmalloc_slab(size_t size)
-+{
-+	int index = kmalloc_index(size) - KMALLOC_SHIFT_LOW;
-+
-+	if (index < 0) {
-+		/*
-+		 * Generate a link failure. Would be great if we could
-+		 * do something to stop the compile here.
-+		 */
-+		extern void __kmalloc_size_too_large(void);
-+		__kmalloc_size_too_large();
-+	}
-+	return &kmalloc_caches[index].sc;
-+}
-+
-+extern void *__kmalloc(size_t, gfp_t);
-+#define ____kmalloc __kmalloc
-+
-+static inline void *kmalloc(size_t size, gfp_t flags)
-+{
-+	if (__builtin_constant_p(size) && !(flags & __GFP_DMA)) {
-+		struct slab_cache *s = kmalloc_slab(size);
-+
-+		return KMALLOC_ALLOCATOR.alloc(s, flags);
-+	} else
-+		return __kmalloc(size, flags);
-+}
-+
-+#ifdef CONFIG_NUMA
-+extern void *__kmalloc_node(size_t, gfp_t, int);
-+static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-+{
-+	if (__builtin_constant_p(size) && !(flags & __GFP_DMA)) {
-+		struct slab_cache *s = kmalloc_slab(size);
-+
-+		return KMALLOC_ALLOCATOR.alloc_node(s, flags, node);
-+	} else
-+		return __kmalloc_node(size, flags, node);
-+}
-+#else
-+#define kmalloc_node(__size, __flags, __node) kmalloc((__size), (__flags))
-+#endif
-+
-+/* Free an object */
-+static inline void kfree(const void *x)
-+{
-+	return KMALLOC_ALLOCATOR.free(NULL, x);
-+}
-+
-+/* Allocate and zero the specified number of bytes */
-+extern void *kzalloc(size_t, gfp_t);
-+
-+/* Figure out what size the chunk is */
-+extern size_t ksize(const void *);
-+
-+extern struct page_allocator *reclaimable_allocator;
-+extern struct page_allocator *unreclaimable_allocator;
-+
-+extern int slab_min_order;
-+
-+#endif	/* _LINUX_KMALLOC_H */
-Index: linux-2.6.18-rc5-mm1/mm/kmalloc.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.18-rc5-mm1/mm/kmalloc.c	2006-09-01 11:56:08.877659139 -0700
-@@ -0,0 +1,226 @@
-+/*
-+ * Create generic slab caches for memory allocation.
-+ *
-+ * (C) 2006 Silicon Graphics. Inc. Christoph Lameter <clameter@sgi.com>
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/allocator.h>
-+#include <linux/module.h>
-+#include <linux/kmalloc.h>
-+#include <linux/slabstat.h>
-+
-+#ifndef ARCH_KMALLOC_MINALIGN
-+#define ARCH_KMALLOC_MINALIGN sizeof(void *)
-+#endif
-+
-+struct slab_control kmalloc_caches[KMALLOC_NR_CACHES] __cacheline_aligned;
-+EXPORT_SYMBOL(kmalloc_caches);
-+
-+static struct page_allocator *dma_allocator;
-+struct page_allocator *reclaimable_allocator;
-+struct page_allocator *unreclaimable_allocator;
-+
-+/*
-+ * Mininum order of slab pages. This influences locking overhead and slab
-+ * fragmentation. A higher order reduces the number of partial slabs
-+ * and increases the number of allocations possible without having to
-+ * take the list_lock.
-+ */
-+int slab_min_order = 0;
-+EXPORT(slab_min_order);
-+
-+static struct slab_cache *kmalloc_caches_dma[KMALLOC_NR_CACHES];
-+
-+static int __init setup_slab_min_order(char *str)
-+{
-+	get_option (&str, &slab_min_order);
-+
-+	return 1;
-+}
-+
-+__setup("slab_min_order=", setup_slab_min_order);
-+
-+/*
-+ * Given a slab size find the correct order to use.
-+ * We only support powers of two so there is really
-+ * no need for anything special. Objects will always
-+ * fit exactly into the slabs with no overhead.
-+ */
-+static int order(size_t size)
-+{
-+	unsigned long base_size = PAGE_SIZE << slab_min_order;
-+
-+	if (size >= base_size)
-+		/* One object per slab */
-+		return fls(size -1) - PAGE_SHIFT;
-+
-+	return slab_min_order;
-+}
-+
-+static struct slab_cache *create_kmalloc_cache(struct slab_control *x,
-+		const char *name,
-+		const struct page_allocator *p,
-+		int size)
-+{
-+	struct slab_cache s;
-+	struct slab_cache *rs;
-+
-+	s.page_alloc = p;
-+	s.slab_alloc = &KMALLOC_ALLOCATOR;
-+	s.size = size;
-+	s.align = ARCH_KMALLOC_MINALIGN;
-+	s.offset = 0;
-+	s.objsize = size;
-+	s.inuse = size;
-+	s.node = -1;
-+	s.order = order(size);
-+	s.name = "kmalloc";
-+	rs = KMALLOC_ALLOCATOR.create(x, &s);
-+	if (!rs)
-+		panic("Creation of kmalloc slab %s size=%d failed.\n",
-+			name, size);
-+	register_slab(rs);
-+	return rs;
-+}
-+
-+static struct slab_cache *get_slab(size_t size, gfp_t flags)
-+{
-+	int index = kmalloc_index(size) - KMALLOC_SHIFT_LOW;
-+	struct slab_cache *s;
-+	struct slab_control *x;
-+	size_t realsize;
-+
-+	BUG_ON(size < 0);
-+
-+	if (!(flags & __GFP_DMA))
-+		return &kmalloc_caches[index].sc;
-+
-+	s = kmalloc_caches_dma[index];
-+	if (s)
-+		return s;
-+
-+	/* Dynamically create dma cache */
-+	x = kmalloc(sizeof(struct slab_control), flags & ~(__GFP_DMA));
-+
-+	if (!x)
-+		panic("Unable to allocate memory for dma cache\n");
-+
-+#ifdef KMALLOC_EXTRA
-+	if (index <= KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW)
-+#endif
-+		realsize = 1 << index;
-+#ifdef KMALLOC_EXTRA
-+	else if (index = KMALLOC_EXTRA)
-+		realsize = 96;
-+	else
-+		realsize = 192;
-+#endif
-+
-+	s = create_kmalloc_cache(x, "kmalloc_dma", dma_allocator, realsize);
-+	kmalloc_caches_dma[index] = s;
-+	return s;
-+}
-+
-+void *__kmalloc(size_t size, gfp_t flags)
-+{
-+	return KMALLOC_ALLOCATOR.alloc(get_slab(size, flags), flags);
-+}
-+EXPORT_SYMBOL(__kmalloc);
-+
-+#ifdef CONFIG_NUMA
-+void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+{
-+	return KMALLOC_ALLOCATOR.alloc_node(get_slab(size, flags),
-+							flags, node);
-+}
-+EXPORT_SYMBOL(__kmalloc_node);
-+#endif
-+
-+void *kzalloc(size_t size, gfp_t flags)
-+{
-+	void *x = __kmalloc(size, flags);
-+
-+	if (x)
-+		memset(x, 0, size);
-+	return x;
-+}
-+EXPORT_SYMBOL(kzalloc);
-+
-+size_t ksize(const void *object)
-+{
-+	return KMALLOC_ALLOCATOR.object_size(NULL, object);
-+};
-+EXPORT_SYMBOL(ksize);
-+
-+/*
-+ * Provide the kmalloc array as regular slab allocator for the
-+ * generic allocator framework.
-+ */
-+struct slab_allocator kmalloc_slab_allocator;
-+
-+static struct slab_cache *kmalloc_create(struct slab_control *x,
-+	const struct slab_cache *s)
-+{
-+	struct slab_cache *km;
-+
-+	int index = max(0, fls(s->size - 1) - KMALLOC_SHIFT_LOW);
-+
-+	if (index > KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW + 1
-+			|| s->offset)
-+		return NULL;
-+
-+	km = &kmalloc_caches[index].sc;
-+
-+	BUG_ON(s->size > km->size);
-+
-+	return KMALLOC_ALLOCATOR.dup(km);
-+}
-+
-+static void null_destructor(struct page_allocator *x) {}
-+
-+void __init kmalloc_init(void)
-+{
-+	int i;
-+
-+	for (i =  KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-+		create_kmalloc_cache(
-+			&kmalloc_caches[i - KMALLOC_SHIFT_LOW],
-+			"kmalloc", &page_allocator, 1 << i);
-+	}
-+#ifdef KMALLOC_EXTRA
-+	/* Non-power of two caches */
-+	create_kmalloc_cache(&kmalloc_caches
-+		[KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW + 1], name,
-+						&page_allocator, 96);
-+	create_kmalloc_cache(&kmalloc_caches
-+		[KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW + 2], name,
-+						&page_allocator, 192);
-+#endif
-+
-+	/*
-+	 * The above must be done first. Deriving a page allocator requires
-+	 * a working (normal) kmalloc array.
-+	 */
-+	unreclaimable_allocator = unreclaimable_slab(&page_allocator);
-+	unreclaimable_allocator->destructor = null_destructor;
-+
-+	/*
-+	 * Fix up the initial arrays. Because of the precending uses
-+	 * we likely have consumed a couple of pages that we cannot account
-+	 * for.
-+	 */
-+	for(i = 0; i < KMALLOC_NR_CACHES; i++)
-+		kmalloc_caches[i].sc.page_alloc = unreclaimable_allocator;
-+
-+	reclaimable_allocator = reclaimable_slab(&page_allocator);
-+	reclaimable_allocator->destructor = null_destructor;
-+	dma_allocator = dmaify_page_allocator(unreclaimable_allocator);
-+
-+	/* And deal with the kmalloc_cache_allocator */
-+	memcpy(&kmalloc_slab_allocator, &KMALLOC_ALLOCATOR,
-+			sizeof(struct slab_allocator));
-+	kmalloc_slab_allocator.create = kmalloc_create;
-+	kmalloc_slab_allocator.destructor = null_slab_allocator_destructor;
-+}
-+
+ 	.llseek		= seq_lseek,
+ 	.release	= seq_release,
+ };
+ 
+-#ifdef CONFIG_DEBUG_SLAB_LEAK
++#if defined(CONFIG_DEBUG_SLAB_LEAK) && defined(CONFIG_SLAB)
+ extern struct seq_operations slabstats_op;
+ static int slabstats_open(struct inode *inode, struct file *file)
+ {
+@@ -787,9 +791,9 @@ void __init proc_misc_init(void)
+ #endif
+ 	create_seq_entry("stat", 0, &proc_stat_operations);
+ 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
+-#ifdef CONFIG_SLAB
++#if defined(CONFIG_SLAB) || defined(CONFIG_MODULAR_SLAB)
+ 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
+-#ifdef CONFIG_DEBUG_SLAB_LEAK
++#if defined(CONFIG_DEBUG_SLAB_LEAK) && defined(CONFIG_SLAB)
+ 	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);
+ #endif
+ #endif
 Index: linux-2.6.18-rc5-mm1/mm/Makefile
 ===================================================================
---- linux-2.6.18-rc5-mm1.orig/mm/Makefile	2006-09-01 11:54:04.735927776 -0700
-+++ linux-2.6.18-rc5-mm1/mm/Makefile	2006-09-01 11:54:06.508279026 -0700
+--- linux-2.6.18-rc5-mm1.orig/mm/Makefile	2006-09-01 11:48:08.244307287 -0700
++++ linux-2.6.18-rc5-mm1/mm/Makefile	2006-09-01 11:48:20.608777567 -0700
 @@ -28,4 +28,4 @@ obj-$(CONFIG_MEMORY_HOTPLUG) += memory_h
  obj-$(CONFIG_FS_XIP) += filemap_xip.o
  obj-$(CONFIG_MIGRATION) += migrate.o
  obj-$(CONFIG_SMP) += allocpercpu.o
--obj-$(CONFIG_MODULAR_SLAB) += allocator.o slabifier.o slabstat.o
-+obj-$(CONFIG_MODULAR_SLAB) += allocator.o slabifier.o slabstat.o kmalloc.o
-Index: linux-2.6.18-rc5-mm1/include/asm-i386/page.h
+-obj-$(CONFIG_MODULAR_SLAB) += allocator.o slabifier.o
++obj-$(CONFIG_MODULAR_SLAB) += allocator.o slabifier.o slabstat.o
+Index: linux-2.6.18-rc5-mm1/mm/slabstat.c
 ===================================================================
---- linux-2.6.18-rc5-mm1.orig/include/asm-i386/page.h	2006-08-27 20:41:48.000000000 -0700
-+++ linux-2.6.18-rc5-mm1/include/asm-i386/page.h	2006-09-01 11:54:06.508279026 -0700
-@@ -37,6 +37,7 @@
- 
- #define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
-+#define ARCH_NEEDS_SMALL_SLABS
- 
- /*
-  * These are used to make use of C type-checking..
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.18-rc5-mm1/mm/slabstat.c	2006-09-01 11:48:20.609754070 -0700
+@@ -0,0 +1,96 @@
++/*
++ * linux/mm/slabstat.c
++ */
++
++#include <linux/mm.h>
++#include <linux/seq_file.h>
++
++static DECLARE_RWSEM(slabstat_sem);
++
++LIST_HEAD(slab_caches);
++
++void register_slab(struct slab_cache *s)
++{
++	down_write(&slabstat_sem);
++	list_add(&s->list, &slab_caches);
++	up_write(&slabstat_sem);
++}
++
++void unregister_slab(struct slab_cache *s)
++{
++	down_write(&slabstat_sem);
++	list_add(&s->list, &slab_caches);
++	up_write(&slabstat_sem);
++}
++
++static void print_slabinfo_header(struct seq_file *m)
++{
++	/*
++	 * Output format version, so at least we can change it
++	 * without _too_ many complaints.
++	 */
++	seq_puts(m, "slabinfo - version: 3.0\n");
++	seq_puts(m, "# name            <objects> <objsize> <num_slabs> "
++		"<partial_slabs> <active_slabs> <order> <allocator>");
++	seq_putc(m, '\n');
++}
++
++static void *s_start(struct seq_file *m, loff_t *pos)
++{
++	loff_t n = *pos;
++	struct list_head *p;
++
++	down_read(&slabstat_sem);
++	if (!n)
++		print_slabinfo_header(m);
++	p = slab_caches.next;
++	while (n--) {
++		p = p->next;
++		if (p == &slab_caches)
++			return NULL;
++	}
++	return list_entry(p, struct slab_cache, list);
++}
++
++static void *s_next(struct seq_file *m, void *p, loff_t *pos)
++{
++	struct slab_cache *s = p;
++	++*pos;
++	return s->list.next == &slab_caches ?
++		NULL : list_entry(s->list.next, struct slab_cache, list);
++}
++
++static void s_stop(struct seq_file *m, void *p)
++{
++	up_read(&slabstat_sem);
++}
++
++static int s_show(struct seq_file *m, void *p)
++{
++	struct slab_cache *s = p;
++	unsigned long total_slabs;
++	unsigned long active_slabs;
++	unsigned long partial_slabs;
++	unsigned long objects;
++
++	objects = s->slab_alloc->get_objects(s, &total_slabs,
++					&active_slabs, &partial_slabs);
++
++	seq_printf(m, "%-21s %7lu %7u %7lu %7lu %7lu %2d %s",
++		   s->name, objects, s->size, total_slabs, partial_slabs,
++		   active_slabs, s->order, s->page_alloc->name);
++
++	seq_putc(m, '\n');
++	return 0;
++}
++
++/*
++ * slabinfo_op - iterator that generates /proc/slabinfo
++ */
++struct seq_operations slabinfo_op = {
++	.start = s_start,
++	.next = s_next,
++	.stop = s_stop,
++	.show = s_show,
++};
++
+Index: linux-2.6.18-rc5-mm1/include/linux/slabstat.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.18-rc5-mm1/include/linux/slabstat.h	2006-09-01 11:48:20.611707074 -0700
+@@ -0,0 +1,9 @@
++#ifndef _LINUX_SLABSTAT_H
++#define _LINUX_SLABSTAT_H
++#include <linux/allocator.h>
++
++void register_slab(struct slab_cache *s);
++void unregister_slab(struct slab_cache *s);
++
++#endif /* _LINUX_SLABSTAT_H */
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
