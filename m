@@ -1,156 +1,94 @@
-Date: Fri, 1 Sep 2006 15:34:29 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060901223429.21034.73197.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060901223358.21034.83736.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060901223358.21034.83736.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [MODSLAB] Bypass indirections [for performance testing only]
+Date: Mon, 4 Sep 2006 16:36:13 +0100
+Subject: Re: [PATCH 4/6] Have x86_64 use add_active_range() and free_area_init_nodes
+Message-ID: <20060904153613.GA14263@skynet.ie>
+References: <20060821134518.22179.46355.sendpatchset@skynet.skynet.ie> <20060821134638.22179.44471.sendpatchset@skynet.skynet.ie> <a762e240608301357n3915250bk8546dd340d5d4d77@mail.gmail.com> <20060831154903.GA7011@skynet.ie> <a762e240608311052h28843b2ege651e9fa82c49f2a@mail.gmail.com> <Pine.LNX.4.64.0608311906300.13392@skynet.skynet.ie> <a762e240608312008v3e35b63ay46c95fbb6c3f15ec@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <a762e240608312008v3e35b63ay46c95fbb6c3f15ec@mail.gmail.com>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>, Dave Chinner <dgc@sgi.com>, Andi Kleen <ak@suse.de>
+To: Keith Mannthey <kmannth@gmail.com>
+Cc: akpm@osdl.org, tony.luck@intel.com, Linux Memory Management List <linux-mm@kvack.org>, ak@suse.de, bob.picco@hp.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-Bypass indirections.
+On (31/08/06 20:08), Keith Mannthey didst pronounce:
+> >So, do you actally expect a lot of unused mem_map to be allocated with
+> >struct pages that are inactive until memory is hot-added in an
+> >x86_64-specific manner? The arch-independent stuff currently will not do
+> >that. It sets up memmap for where memory really exists. If that is not
+> >what you expect, it will hit issues at hotadd time which is not the
+> >current issue but one that can be fixed.
+> 
+> Yes. RESERVED based is a big waste of mem_map space.  The add areas
+> are marked as RESERVED during boot and then later onlined during add.
+> It might be ok.  I will play with tomorrow.  I might just need to
+> call add_active_range in the right spot :)
+> 
 
-This is a patch to bypass indirections so that one can get some statistics
-on how high the impact of the indirect calls is.
+Following this mail should be two patches that may address the problem
+with reserved memory hot-add. One assumption made by arch-independent
+zone-sizing was that the only memory holes of interest were those before the
+end of physical memory.  Another assumption was that mem_map should only be
+allocated for memory that was physically present in the machine.
 
-Only use this for testing.
+With MEMORY_HOTPLUG_RESERVE on x86_64, these assumptions do not hold. This
+feature expects that mem_map is allocated at boot time and later activated
+on a memory hot-add event. To determine if the region is usable for hot-add
+in the future, holes are calculated beyond the end of physical memory.
 
-Index: linux-2.6.18-rc5-mm1/mm/slabifier.c
-===================================================================
---- linux-2.6.18-rc5-mm1.orig/mm/slabifier.c	2006-09-01 14:25:55.907938735 -0700
-+++ linux-2.6.18-rc5-mm1/mm/slabifier.c	2006-09-01 15:20:51.915297648 -0700
-@@ -498,12 +498,13 @@ gotpage:
- 	goto redo;
- }
- 
--static void *slab_alloc(struct slab_cache *sc, gfp_t gfpflags)
-+void *slab_alloc(struct slab_cache *sc, gfp_t gfpflags)
- {
- 	return __slab_alloc(sc, gfpflags, -1);
- }
-+EXPORT_SYMBOL(slab_alloc);
- 
--static void *slab_alloc_node(struct slab_cache *sc, gfp_t gfpflags,
-+void *slab_alloc_node(struct slab_cache *sc, gfp_t gfpflags,
- 							int node)
- {
- #ifdef CONFIG_NUMA
-@@ -512,8 +513,9 @@ static void *slab_alloc_node(struct slab
- 	return slab_alloc(sc, gfpflags);
- #endif
- }
-+EXPORT_SYMBOL(slab_alloc_node);
- 
--static void slab_free(struct slab_cache *sc, const void *x)
-+void slab_free(struct slab_cache *sc, const void *x)
- {
- 	struct slab *s = (void *)sc;
- 	struct page * page;
-@@ -617,6 +619,7 @@ dumpret:
- 	return;
- #endif
- }
-+EXPORT_SYMBOL(slab_free);
- 
- /* Figure out on which slab object the object resides */
- static __always_inline struct page *get_object_page(const void *x)
-Index: linux-2.6.18-rc5-mm1/include/linux/kmalloc.h
-===================================================================
---- linux-2.6.18-rc5-mm1.orig/include/linux/kmalloc.h	2006-09-01 14:26:06.439513840 -0700
-+++ linux-2.6.18-rc5-mm1/include/linux/kmalloc.h	2006-09-01 15:20:51.917250652 -0700
-@@ -67,6 +67,10 @@ static inline int kmalloc_index(int size
- 	return -1;
- }
- 
-+extern void *slab_alloc(struct slab_cache *, gfp_t flags);
-+extern void *slab_alloc_node(struct slab_cache *, gfp_t, int);
-+extern void slab_free(struct slab_cache *, const void *);
-+
- /*
-  * Find the slab cache for a given combination of allocation flags and size.
-  *
-@@ -96,7 +100,7 @@ static inline void *kmalloc(size_t size,
- 	if (__builtin_constant_p(size) && !(flags & __GFP_DMA)) {
- 		struct slab_cache *s = kmalloc_slab(size);
- 
--		return KMALLOC_ALLOCATOR.alloc(s, flags);
-+		return slab_alloc(s, flags);
- 	} else
- 		return __kmalloc(size, flags);
- }
-@@ -108,7 +112,7 @@ static inline void *kmalloc_node(size_t 
- 	if (__builtin_constant_p(size) && !(flags & __GFP_DMA)) {
- 		struct slab_cache *s = kmalloc_slab(size);
- 
--		return KMALLOC_ALLOCATOR.alloc_node(s, flags, node);
-+		return slab_alloc_node(s, flags, node);
- 	} else
- 		return __kmalloc_node(size, flags, node);
- }
-@@ -119,7 +123,7 @@ static inline void *kmalloc_node(size_t 
- /* Free an object */
- static inline void kfree(const void *x)
- {
--	return KMALLOC_ALLOCATOR.free(NULL, x);
-+	slab_free(NULL, x);
- }
- 
- /* Allocate and zero the specified number of bytes */
-Index: linux-2.6.18-rc5-mm1/mm/kmalloc.c
-===================================================================
---- linux-2.6.18-rc5-mm1.orig/mm/kmalloc.c	2006-09-01 14:26:06.440490342 -0700
-+++ linux-2.6.18-rc5-mm1/mm/kmalloc.c	2006-09-01 15:20:51.917250652 -0700
-@@ -124,15 +124,14 @@ static struct slab_cache *get_slab(size_
- 
- void *__kmalloc(size_t size, gfp_t flags)
- {
--	return KMALLOC_ALLOCATOR.alloc(get_slab(size, flags), flags);
-+	return slab_alloc(get_slab(size, flags), flags);
- }
- EXPORT_SYMBOL(__kmalloc);
- 
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
--	return KMALLOC_ALLOCATOR.alloc_node(get_slab(size, flags),
--							flags, node);
-+	return slab_alloc_node(get_slab(size, flags), flags, node);
- }
- EXPORT_SYMBOL(__kmalloc_node);
- #endif
-Index: linux-2.6.18-rc5-mm1/include/linux/slabulator.h
-===================================================================
---- linux-2.6.18-rc5-mm1.orig/include/linux/slabulator.h	2006-09-01 14:26:06.861362745 -0700
-+++ linux-2.6.18-rc5-mm1/include/linux/slabulator.h	2006-09-01 15:20:51.918227155 -0700
-@@ -73,20 +73,23 @@ static inline const char *kmem_cache_nam
- 
- static inline void *kmem_cache_alloc(struct slab_cache *s, gfp_t flags)
- {
--	return SLABULATOR_ALLOCATOR.alloc(s, flags);
-+	return slab_alloc(s, flags);
-+	//return SLABULATOR_ALLOCATOR.alloc(s, flags);
- }
- 
- static inline void *kmem_cache_alloc_node(struct slab_cache *s,
- 					gfp_t flags, int node)
- {
--	return SLABULATOR_ALLOCATOR.alloc_node(s, flags, node);
-+	return slab_alloc_node(s, flags, node);
-+//	return SLABULATOR_ALLOCATOR.alloc_node(s, flags, node);
- }
- 
- extern void *kmem_cache_zalloc(struct slab_cache *s, gfp_t flags);
- 
- static inline void kmem_cache_free(struct slab_cache *s, const void *x)
- {
--	SLABULATOR_ALLOCATOR.free(s, x);
-+	slab_free(s, x);
-+//	SLABULATOR_ALLOCATOR.free(s, x);
- }
- 
- static inline int kmem_ptr_validate(struct slab_cache *s, void *x)
+The following two patches fix these two assumptions. They have been boot-tested
+on a range of hardware (x86, ppc64, ia64 and x86_64) so there should be no
+new regressions.
+
+I don't have access to hardware that can use MEMORY_HOTPLUG_RESERVE so I'd
+appreciate hearing if the patches work. I wrote a test program that simulated
+the input from the machine the problem was reported on.  It registers active
+memory and simulates the check made by reserve_hotadd(). push_node_boundaries()
+is called to push the end of the node out by 100 pages like what SRAT would
+do for reserve hot-add and it appears to do the right thing. Output is below.
+
+mel@arnold:~/patches/brokenout/zonesizing/driver_test$ gcc driver_test.c -o
+driver_test && ./driver_test | grep -v "active with" | grep -v
+account_node_boundary
+Stage 1: Registering active ranges
+Entering add_active_range(0, 0, 152) 0 entries of 96 used
+Entering add_active_range(0, 256, 524165) 1 entries of 96 used
+Entering add_active_range(0, 1048576, 4653056) 2 entries of 96 used
+Entering add_active_range(1, 17235968, 18219008) 3 entries of 96 used
+
+Dumping active map
+0: 0  0 -> 152
+1: 0  256 -> 524165
+2: 0  1048576 -> 4653056
+3: 1  17235968 -> 18219008
+Entering push_node_boundaries(0, 0, 4653156)
+
+Checking reserve-hotadd
+  absent_pages_in_range(4653056, 17235968) == 17235968 - 4653056 == 12582912
+  absent_pages_in_range(18219008, 52428800) == 52428800 - 18219008 == 34209792
+
+Stage 2: Calculating zone sizes and holes
+
+Stage 3: Dumping zone sizes and holes
+zone_size[0][0] =     4096 zone_holes[0][0] =      104
+zone_size[0][1] =  1044480 zone_holes[0][1] =   524411
+zone_size[0][2] =  3604580 zone_holes[0][2] =      100
+zone_size[1][2] =   983040 zone_holes[1][2] =        0
+
+Stage 4: Printing present pages
+On node 0, 4128541 pages
+ zone 0 present_pages = 3992
+ zone 1 present_pages = 520069
+ zone 2 present_pages = 3604480
+On node 1, 983040 pages
+ zone 2 present_pages = 983040
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
