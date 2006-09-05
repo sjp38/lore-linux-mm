@@ -1,51 +1,45 @@
-Date: Tue, 5 Sep 2006 13:20:57 +0200
-From: Martin Waitz <tali@admingilde.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k85GmALB031451
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2006 12:48:10 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k85Gm8nn296700
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2006 12:48:08 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k85Gm7E9027078
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2006 12:48:08 -0400
 Subject: Re: [RFC][PATCH 3/9] actual generic PAGE_SIZE infrastructure
-Message-ID: <20060905112056.GJ17042@admingilde.org>
-References: <20060830221604.E7320C0F@localhost.localdomain> <20060830221606.40937644@localhost.localdomain>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20060905112056.GJ17042@admingilde.org>
+References: <20060830221604.E7320C0F@localhost.localdomain>
+	 <20060830221606.40937644@localhost.localdomain>
+	 <20060905112056.GJ17042@admingilde.org>
+Content-Type: text/plain
+Date: Tue, 05 Sep 2006 09:47:43 -0700
+Message-Id: <1157474863.3186.6.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="EVh9lyqKgK19OcEf"
-Content-Disposition: inline
-In-Reply-To: <20060830221606.40937644@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Martin Waitz <tali@admingilde.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---EVh9lyqKgK19OcEf
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Tue, 2006-09-05 at 13:20 +0200, Martin Waitz wrote:
+> On Wed, Aug 30, 2006 at 03:16:06PM -0700, Dave Hansen wrote:
+> > * Define ASM_CONST() macro to help using constants in both assembly
+> >   and C code.  Several architectures have some form of this, and
+> >   they will be consolidated around this one.
+> 
+> arm uses UL() for this and I think this is much more readable than
+> ASM_CONST().  Can we please change the name of this macro?
 
-hoi :)
+I don't have any real problem with changing it, but I fear that the ppc
+guys will want it the _other_ way. ;)
 
-On Wed, Aug 30, 2006 at 03:16:06PM -0700, Dave Hansen wrote:
-> * Define ASM_CONST() macro to help using constants in both assembly
->   and C code.  Several architectures have some form of this, and
->   they will be consolidated around this one.
+Do you really mind if we just keep it as it is?  If there is some
+further disagreement on it, I'll change it.
 
-arm uses UL() for this and I think this is much more readable than
-ASM_CONST().  Can we please change the name of this macro?
-
---=20
-Martin Waitz
-
---EVh9lyqKgK19OcEf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
-
-iD8DBQFE/V2Yj/Eaxd/oD7IRAlW5AJwOaK27o73iX/riP1NB2LyQjw9uxACffAu8
-r+mLEYn/BZ3UAWoHDopViS8=
-=WfbZ
------END PGP SIGNATURE-----
-
---EVh9lyqKgK19OcEf--
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
