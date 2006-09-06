@@ -1,77 +1,75 @@
-Message-Id: <20060906133955.337828000@chello.nl>
+Message-Id: <20060906133955.138336000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:44 +0200
+Date: Wed, 06 Sep 2006 15:16:43 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 14/21] uml: enable scsi and add iscsi config
-Content-Disposition: inline; filename=uml_iscsi.patch
+Subject: [PATCH 13/21] nbd: use swapdev hook to make swap deadlock free
+Content-Disposition: inline; filename=nbd_vmio.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jeff Dike <jdike@addtoit.com>, Mike Christie <michaelc@cs.wisc.edu>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-Enable iSCSI on UML, dunno why SCSI was deemed broken, it works like a charm.
+Use sk_set_vmio() on the nbd socket.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Jeff Dike <jdike@addtoit.com>
-CC: Mike Christie <michaelc@cs.wisc.edu>
+Signed-off-by: Daniel Phillips <phillips@google.com>
+CC: Pavel Machek <pavel@ucw.cz>
 ---
- arch/um/Kconfig      |    2 +-
- arch/um/Kconfig.scsi |   32 ++++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ drivers/block/nbd.c |   22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/arch/um/Kconfig
+Index: linux-2.6/drivers/block/nbd.c
 ===================================================================
---- linux-2.6.orig/arch/um/Kconfig
-+++ linux-2.6/arch/um/Kconfig
-@@ -286,7 +286,6 @@ source "crypto/Kconfig"
- source "lib/Kconfig"
+--- linux-2.6.orig/drivers/block/nbd.c
++++ linux-2.6/drivers/block/nbd.c
+@@ -135,7 +135,6 @@ static int sock_xmit(struct socket *sock
+ 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
  
- menu "SCSI support"
--depends on BROKEN
+ 	do {
+-		sock->sk->sk_allocation = GFP_NOIO;
+ 		iov.iov_base = buf;
+ 		iov.iov_len = size;
+ 		msg.msg_name = NULL;
+@@ -525,6 +524,7 @@ static int nbd_ioctl(struct inode *inode
+ 			if (S_ISSOCK(inode->i_mode)) {
+ 				lo->file = file;
+ 				lo->sock = SOCKET_I(inode);
++				lo->sock->sk->sk_allocation = GFP_NOIO;
+ 				error = 0;
+ 			} else {
+ 				fput(file);
+@@ -594,10 +594,30 @@ static int nbd_ioctl(struct inode *inode
+ 	return -EINVAL;
+ }
  
- config SCSI
- 	tristate "SCSI support"
-Index: linux-2.6/arch/um/Kconfig.scsi
-===================================================================
---- linux-2.6.orig/arch/um/Kconfig.scsi
-+++ linux-2.6/arch/um/Kconfig.scsi
-@@ -56,3 +56,35 @@ config SCSI_DEBUG
- 	tristate "SCSI debugging host simulator (EXPERIMENTAL)"
- 	depends on SCSI
++static int nbd_swapdev(struct gendisk *disk, int enable)
++{
++	struct nbd_device *lo = disk->private_data;
++
++	if (enable) {
++		sk_adjust_memalloc(0, TX_RESERVE_PAGES);
++		if (!sk_set_vmio(lo->sock->sk))
++			printk(KERN_WARNING
++				"failed to set SOCK_VMIO on NBD socket\n");
++	} else {
++		if (!sk_clear_vmio(lo->sock->sk))
++			printk(KERN_WARNING
++				"failed to clear SOCK_VMIO on NBD socket\n");
++		sk_adjust_memalloc(0, -TX_RESERVE_PAGES);
++	}
++
++	return 0;
++}
++
+ static struct block_device_operations nbd_fops =
+ {
+ 	.owner =	THIS_MODULE,
+ 	.ioctl =	nbd_ioctl,
++	.swapdev =	nbd_swapdev,
+ };
  
-+config SCSI_ISCSI_ATTRS
-+	tristate "iSCSI Transport Attributes"
-+	depends on SCSI && NET
-+	help
-+	  If you wish to export transport-specific information about
-+	  each attached iSCSI device to sysfs, say Y.
-+	  Otherwise, say N.
-+
-+config ISCSI_TCP
-+	tristate "iSCSI Initiator over TCP/IP"
-+	depends on SCSI && INET
-+	select CRYPTO
-+	select CRYPTO_MD5
-+	select CRYPTO_CRC32C
-+	select SCSI_ISCSI_ATTRS
-+	help
-+	 The iSCSI Driver provides a host with the ability to access storage
-+	 through an IP network. The driver uses the iSCSI protocol to transport
-+	 SCSI requests and responses over a TCP/IP network between the host
-+	 (the "initiator") and "targets".  Architecturally, the iSCSI driver
-+	 combines with the host's TCP/IP stack, network drivers, and Network
-+	 Interface Card (NIC) to provide the same functions as a SCSI or a
-+	 Fibre Channel (FC) adapter driver with a Host Bus Adapter (HBA).
-+
-+	 To compile this driver as a module, choose M here: the
-+	 module will be called iscsi_tcp.
-+
-+	 The userspace component needed to initialize the driver, documentation,
-+	 and sample configuration files can be found here:
-+
-+	 http://linux-iscsi.sf.net
-+
+ /*
 
 --
 
