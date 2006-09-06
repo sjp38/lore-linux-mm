@@ -1,114 +1,77 @@
-Message-Id: <20060906133955.730919000@chello.nl>
+Message-Id: <20060906133955.337828000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:46 +0200
+Date: Wed, 06 Sep 2006 15:16:44 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 16/21] iscsi: fixup of the ep_connect patch
-Content-Disposition: inline; filename=iscsi_ep_connect_fix.patch
+Subject: [PATCH 14/21] uml: enable scsi and add iscsi config
+Content-Disposition: inline; filename=uml_iscsi.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jeff Dike <jdike@addtoit.com>, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-Never hand out kernel pointers, and really never ever ask them back.
-Also, iscsi_tcp_conn_bind expects it to be a valid file descriptor.
+Enable iSCSI on UML, dunno why SCSI was deemed broken, it works like a charm.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Jeff Dike <jdike@addtoit.com>
 CC: Mike Christie <michaelc@cs.wisc.edu>
 ---
- drivers/scsi/iscsi_tcp.c |   34 ++++++++++++++++++++++++++--------
- 1 file changed, 26 insertions(+), 8 deletions(-)
+ arch/um/Kconfig      |    2 +-
+ arch/um/Kconfig.scsi |   32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/drivers/scsi/iscsi_tcp.c
+Index: linux-2.6/arch/um/Kconfig
 ===================================================================
---- linux-2.6.orig/drivers/scsi/iscsi_tcp.c
-+++ linux-2.6/drivers/scsi/iscsi_tcp.c
-@@ -35,6 +35,8 @@
- #include <linux/kfifo.h>
- #include <linux/scatterlist.h>
- #include <linux/mutex.h>
-+#include <linux/syscalls.h>
-+#include <linux/file.h>
- #include <net/tcp.h>
- #include <scsi/scsi_cmnd.h>
- #include <scsi/scsi_host.h>
-@@ -1773,7 +1775,10 @@ iscsi_tcp_ep_connect(struct sockaddr *ds
- 		goto release_sock;
- 	}
+--- linux-2.6.orig/arch/um/Kconfig
++++ linux-2.6/arch/um/Kconfig
+@@ -286,7 +286,6 @@ source "crypto/Kconfig"
+ source "lib/Kconfig"
  
--	*ep_handle = (uint64_t)(unsigned long)sock;
-+	rc = sock_map_fd(sock);
-+	if (rc < 0)
-+		goto release_sock;
-+	*ep_handle = (uint64_t)rc;
- 	return 0;
+ menu "SCSI support"
+-depends on BROKEN
  
- release_sock:
-@@ -1791,12 +1796,7 @@ iscsi_tcp_ep_poll(uint64_t ep_handle, in
- static void
- iscsi_tcp_ep_disconnect(uint64_t ep_handle)
- {
--	struct socket *sock;
--
--	sock = (struct socket *)(unsigned long)ep_handle;
--	if (!sock)
--		return;
--	sock_release(sock);
-+	sys_close(ep_handle);
- }
+ config SCSI
+ 	tristate "SCSI support"
+Index: linux-2.6/arch/um/Kconfig.scsi
+===================================================================
+--- linux-2.6.orig/arch/um/Kconfig.scsi
++++ linux-2.6/arch/um/Kconfig.scsi
+@@ -56,3 +56,35 @@ config SCSI_DEBUG
+ 	tristate "SCSI debugging host simulator (EXPERIMENTAL)"
+ 	depends on SCSI
  
- static struct iscsi_cls_conn *
-@@ -1846,6 +1846,19 @@ tcp_conn_alloc_fail:
- }
- 
- static void
-+iscsi_tcp_release_conn(struct iscsi_conn *conn)
-+{
-+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
++config SCSI_ISCSI_ATTRS
++	tristate "iSCSI Transport Attributes"
++	depends on SCSI && NET
++	help
++	  If you wish to export transport-specific information about
++	  each attached iSCSI device to sysfs, say Y.
++	  Otherwise, say N.
 +
-+	if (!tcp_conn->sock)
-+		return;
++config ISCSI_TCP
++	tristate "iSCSI Initiator over TCP/IP"
++	depends on SCSI && INET
++	select CRYPTO
++	select CRYPTO_MD5
++	select CRYPTO_CRC32C
++	select SCSI_ISCSI_ATTRS
++	help
++	 The iSCSI Driver provides a host with the ability to access storage
++	 through an IP network. The driver uses the iSCSI protocol to transport
++	 SCSI requests and responses over a TCP/IP network between the host
++	 (the "initiator") and "targets".  Architecturally, the iSCSI driver
++	 combines with the host's TCP/IP stack, network drivers, and Network
++	 Interface Card (NIC) to provide the same functions as a SCSI or a
++	 Fibre Channel (FC) adapter driver with a Host Bus Adapter (HBA).
 +
-+	fput(tcp_conn->sock->file);
-+	tcp_conn->sock = NULL;
-+	conn->recv_lock = NULL;
-+}
++	 To compile this driver as a module, choose M here: the
++	 module will be called iscsi_tcp.
 +
-+static void
- iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
- {
- 	struct iscsi_conn *conn = cls_conn->dd_data;
-@@ -1855,6 +1868,7 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_
- 	if (conn->hdrdgst_en || conn->datadgst_en)
- 		digest = 1;
- 
-+	iscsi_tcp_release_conn(conn);
- 	iscsi_conn_teardown(cls_conn);
- 
- 	/* now free tcp_conn */
-@@ -1875,6 +1889,7 @@ iscsi_tcp_conn_stop(struct iscsi_cls_con
- 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
- 
- 	iscsi_conn_stop(cls_conn, flag);
-+	iscsi_tcp_release_conn(conn);
- 	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
- }
- 
-@@ -1895,10 +1910,13 @@ iscsi_tcp_conn_bind(struct iscsi_cls_ses
- 		printk(KERN_ERR "iscsi_tcp: sockfd_lookup failed %d\n", err);
- 		return -EEXIST;
- 	}
-+	get_file(sock->file);
- 
- 	err = iscsi_conn_bind(cls_session, cls_conn, is_leading);
--	if (err)
-+	if (err) {
-+		fput(sock->file);
- 		return err;
-+	}
- 
- 	/* bind iSCSI connection and socket */
- 	tcp_conn->sock = sock;
++	 The userspace component needed to initialize the driver, documentation,
++	 and sample configuration files can be found here:
++
++	 http://linux-iscsi.sf.net
++
 
 --
 
