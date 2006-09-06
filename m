@@ -1,191 +1,114 @@
-Message-Id: <20060906133954.673752000@chello.nl>
+Message-Id: <20060906133955.730919000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:40 +0200
+Date: Wed, 06 Sep 2006 15:16:46 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 10/21] block: elevator selection and pinning
-Content-Disposition: inline; filename=block_queue_init_elv.patch
+Subject: [PATCH 16/21] iscsi: fixup of the ep_connect patch
+Content-Disposition: inline; filename=iscsi_ep_connect_fix.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <axboe@suse.de>, Pavel Machek <pavel@ucw.cz>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-Provide an block queue init function that allows to set an elevator. And a 
-function to pin the current elevator.
+Never hand out kernel pointers, and really never ever ask them back.
+Also, iscsi_tcp_conn_bind expects it to be a valid file descriptor.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Daniel Phillips <phillips@google.com>
-CC: Jens Axboe <axboe@suse.de>
-CC: Pavel Machek <pavel@ucw.cz>
+CC: Mike Christie <michaelc@cs.wisc.edu>
 ---
- block/elevator.c         |   56 ++++++++++++++++++++++++++++++++++++-----------
- block/ll_rw_blk.c        |   12 ++++++++--
- include/linux/blkdev.h   |    9 +++++++
- include/linux/elevator.h |    1 
- 4 files changed, 63 insertions(+), 15 deletions(-)
+ drivers/scsi/iscsi_tcp.c |   34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)
 
-Index: linux-2.6/block/ll_rw_blk.c
+Index: linux-2.6/drivers/scsi/iscsi_tcp.c
 ===================================================================
---- linux-2.6.orig/block/ll_rw_blk.c
-+++ linux-2.6/block/ll_rw_blk.c
-@@ -1899,6 +1899,14 @@ EXPORT_SYMBOL(blk_init_queue);
- request_queue_t *
- blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
- {
-+	return blk_init_queue_node_elv(rfn, lock, node_id, NULL);
-+}
-+EXPORT_SYMBOL(blk_init_queue_node);
-+
-+request_queue_t *
-+blk_init_queue_node_elv(request_fn_proc *rfn, spinlock_t *lock, int node_id,
-+		char *elv_name)
-+{
- 	request_queue_t *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
- 
- 	if (!q)
-@@ -1939,7 +1947,7 @@ blk_init_queue_node(request_fn_proc *rfn
- 	/*
- 	 * all done
- 	 */
--	if (!elevator_init(q, NULL)) {
-+	if (!elevator_init(q, elv_name)) {
- 		blk_queue_congestion_threshold(q);
- 		return q;
+--- linux-2.6.orig/drivers/scsi/iscsi_tcp.c
++++ linux-2.6/drivers/scsi/iscsi_tcp.c
+@@ -35,6 +35,8 @@
+ #include <linux/kfifo.h>
+ #include <linux/scatterlist.h>
+ #include <linux/mutex.h>
++#include <linux/syscalls.h>
++#include <linux/file.h>
+ #include <net/tcp.h>
+ #include <scsi/scsi_cmnd.h>
+ #include <scsi/scsi_host.h>
+@@ -1773,7 +1775,10 @@ iscsi_tcp_ep_connect(struct sockaddr *ds
+ 		goto release_sock;
  	}
-@@ -1947,7 +1955,7 @@ blk_init_queue_node(request_fn_proc *rfn
- 	blk_put_queue(q);
- 	return NULL;
- }
--EXPORT_SYMBOL(blk_init_queue_node);
-+EXPORT_SYMBOL(blk_init_queue_node_elv);
  
- int blk_get_queue(request_queue_t *q)
- {
-Index: linux-2.6/include/linux/blkdev.h
-===================================================================
---- linux-2.6.orig/include/linux/blkdev.h
-+++ linux-2.6/include/linux/blkdev.h
-@@ -444,6 +444,12 @@ struct request_queue
- #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
- #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
- #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
-+#define QUEUE_FLAG_ELVPINNED	9	/* pin the current elevator */
-+
-+static inline void blk_queue_pin_elevator(struct request_queue *q)
-+{
-+	set_bit(QUEUE_FLAG_ELVPINNED, &q->queue_flags);
-+}
- 
- enum {
- 	/*
-@@ -696,6 +702,9 @@ static inline void elv_dispatch_add_tail
- /*
-  * Access functions for manipulating queue properties
-  */
-+extern request_queue_t *blk_init_queue_node_elv(request_fn_proc *rfn,
-+					spinlock_t *lock, int node_id,
-+					char *elv_name);
- extern request_queue_t *blk_init_queue_node(request_fn_proc *rfn,
- 					spinlock_t *lock, int node_id);
- extern request_queue_t *blk_init_queue(request_fn_proc *, spinlock_t *);
-Index: linux-2.6/block/elevator.c
-===================================================================
---- linux-2.6.orig/block/elevator.c
-+++ linux-2.6/block/elevator.c
-@@ -856,11 +856,33 @@ fail_register:
+-	*ep_handle = (uint64_t)(unsigned long)sock;
++	rc = sock_map_fd(sock);
++	if (rc < 0)
++		goto release_sock;
++	*ep_handle = (uint64_t)rc;
  	return 0;
+ 
+ release_sock:
+@@ -1791,12 +1796,7 @@ iscsi_tcp_ep_poll(uint64_t ep_handle, in
+ static void
+ iscsi_tcp_ep_disconnect(uint64_t ep_handle)
+ {
+-	struct socket *sock;
+-
+-	sock = (struct socket *)(unsigned long)ep_handle;
+-	if (!sock)
+-		return;
+-	sock_release(sock);
++	sys_close(ep_handle);
  }
  
-+int elv_iosched_switch(request_queue_t *q, const char *elevator_name)
+ static struct iscsi_cls_conn *
+@@ -1846,6 +1846,19 @@ tcp_conn_alloc_fail:
+ }
+ 
+ static void
++iscsi_tcp_release_conn(struct iscsi_conn *conn)
 +{
-+	struct elevator_type *e;
++	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 +
-+	if (test_bit(QUEUE_FLAG_ELVPINNED, &q->queue_flags))
-+		return -EPERM;
++	if (!tcp_conn->sock)
++		return;
 +
-+	e = elevator_get(elevator_name);
-+	if (!e)
-+		return -EINVAL;
-+
-+	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name)) {
-+		elevator_put(e);
-+		return -EEXIST;
-+	}
-+
-+	if (!elevator_switch(q, e))
-+		return -ENOMEM;
-+
-+	return 0;
++	fput(tcp_conn->sock->file);
++	tcp_conn->sock = NULL;
++	conn->recv_lock = NULL;
 +}
 +
- ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
++static void
+ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
  {
- 	char elevator_name[ELV_NAME_MAX];
- 	size_t len;
--	struct elevator_type *e;
-+	int error;
+ 	struct iscsi_conn *conn = cls_conn->dd_data;
+@@ -1855,6 +1868,7 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_
+ 	if (conn->hdrdgst_en || conn->datadgst_en)
+ 		digest = 1;
  
- 	elevator_name[sizeof(elevator_name) - 1] = '\0';
- 	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
-@@ -869,20 +891,27 @@ ssize_t elv_iosched_store(request_queue_
- 	if (len && elevator_name[len - 1] == '\n')
- 		elevator_name[len - 1] = '\0';
++	iscsi_tcp_release_conn(conn);
+ 	iscsi_conn_teardown(cls_conn);
  
--	e = elevator_get(elevator_name);
--	if (!e) {
--		printk(KERN_ERR "elevator: type %s not found\n", elevator_name);
--		return -EINVAL;
--	}
--
--	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name)) {
--		elevator_put(e);
--		return count;
-+	error = elv_iosched_switch(q, elevator_name);
-+	switch (error) {
-+		case -EPERM:
-+			printk(KERN_NOTICE
-+				"elevator: cannot switch elevator, pinned\n");
-+			break;
-+
-+		case -EINVAL:
-+			printk(KERN_ERR "elevator: type %s not found\n",
-+					elevator_name);
-+			break;
-+
-+		case -ENOMEM:
-+			printk(KERN_ERR "elevator: switch to %s failed\n",
-+					elevator_name);
-+		default:
-+			error = 0;
-+			break;
- 	}
+ 	/* now free tcp_conn */
+@@ -1875,6 +1889,7 @@ iscsi_tcp_conn_stop(struct iscsi_cls_con
+ 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
  
--	if (!elevator_switch(q, e))
--		printk(KERN_ERR "elevator: switch to %s failed\n",elevator_name);
--	return count;
-+	return error ?: count;
+ 	iscsi_conn_stop(cls_conn, flag);
++	iscsi_tcp_release_conn(conn);
+ 	tcp_conn->hdr_size = sizeof(struct iscsi_hdr);
  }
  
- ssize_t elv_iosched_show(request_queue_t *q, char *name)
-@@ -914,5 +943,6 @@ EXPORT_SYMBOL(__elv_add_request);
- EXPORT_SYMBOL(elv_next_request);
- EXPORT_SYMBOL(elv_dequeue_request);
- EXPORT_SYMBOL(elv_queue_empty);
-+EXPORT_SYMBOL(elv_iosched_switch);
- EXPORT_SYMBOL(elevator_exit);
- EXPORT_SYMBOL(elevator_init);
-Index: linux-2.6/include/linux/elevator.h
-===================================================================
---- linux-2.6.orig/include/linux/elevator.h
-+++ linux-2.6/include/linux/elevator.h
-@@ -107,6 +107,7 @@ extern int elv_may_queue(request_queue_t
- extern void elv_completed_request(request_queue_t *, struct request *);
- extern int elv_set_request(request_queue_t *, struct request *, struct bio *, gfp_t);
- extern void elv_put_request(request_queue_t *, struct request *);
-+extern int elv_iosched_switch(request_queue_t *, const char *);
+@@ -1895,10 +1910,13 @@ iscsi_tcp_conn_bind(struct iscsi_cls_ses
+ 		printk(KERN_ERR "iscsi_tcp: sockfd_lookup failed %d\n", err);
+ 		return -EEXIST;
+ 	}
++	get_file(sock->file);
  
- /*
-  * io scheduler registration
+ 	err = iscsi_conn_bind(cls_session, cls_conn, is_leading);
+-	if (err)
++	if (err) {
++		fput(sock->file);
+ 		return err;
++	}
+ 
+ 	/* bind iSCSI connection and socket */
+ 	tcp_conn->sock = sock;
 
 --
 
