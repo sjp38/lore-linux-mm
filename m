@@ -1,63 +1,51 @@
-Message-Id: <20060906133954.989956000@chello.nl>
+Message-Id: <20060906133954.845224000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:42 +0200
+Date: Wed, 06 Sep 2006 15:16:41 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/21] mm: block device swap notification
-Content-Disposition: inline; filename=swapdev.patch
+Subject: [PATCH 11/21] nbd: limit blk_queue
+Content-Disposition: inline; filename=nbd_queue.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "James E.J. Bottomley" <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Pavel Machek <pavel@ucw.cz>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-Some block devices need to do some extra work when used as swap device.
+Limit each request to 1 page, so that the request throttling also limits the
+number of in-flight pages and force the IO scheduler to NOOP as anything else
+doesn't make sense anyway.
+
+(Pavel, I will analyse those !NOOP deadlocks I got, I'm just re-posting so 
+people can comment on the rest)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: James E.J. Bottomley <James.Bottomley@SteelEye.com>
-CC: Mike Christie <michaelc@cs.wisc.edu>
+Signed-off-by: Daniel Phillips <phillips@google.com>
 CC: Pavel Machek <pavel@ucw.cz>
 ---
- include/linux/fs.h |    1 +
- mm/swapfile.c      |    7 +++++++
- 2 files changed, 8 insertions(+)
+ drivers/block/nbd.c |   17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/include/linux/fs.h
+Index: linux-2.6/drivers/block/nbd.c
 ===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -1017,6 +1017,7 @@ struct block_device_operations {
- 	int (*media_changed) (struct gendisk *);
- 	int (*revalidate_disk) (struct gendisk *);
- 	int (*getgeo)(struct block_device *, struct hd_geometry *);
-+	int (*swapdev)(struct gendisk *, int enable);
- 	struct module *owner;
- };
+--- linux-2.6.orig/drivers/block/nbd.c
++++ linux-2.6/drivers/block/nbd.c
+@@ -628,11 +636,16 @@ static int __init nbd_init(void)
+ 		 * every gendisk to have its very own request_queue struct.
+ 		 * These structs are big so we dynamically allocate them.
+ 		 */
+-		disk->queue = blk_init_queue(do_nbd_request, &nbd_lock);
++		disk->queue = blk_init_queue_node_elv(do_nbd_request,
++				&nbd_lock, -1, "noop");
+ 		if (!disk->queue) {
+ 			put_disk(disk);
+ 			goto out;
+ 		}
++		blk_queue_pin_elevator(disk->queue);
++		blk_queue_max_segment_size(disk->queue, PAGE_SIZE);
++		blk_queue_max_hw_segments(disk->queue, 1);
++		blk_queue_max_phys_segments(disk->queue, 1);
+ 	}
  
-Index: linux-2.6/mm/swapfile.c
-===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -1273,6 +1273,8 @@ asmlinkage long sys_swapoff(const char _
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
-+		if (bdev->bd_disk->fops->swapdev)
-+			bdev->bd_disk->fops->swapdev(bdev->bd_disk, 0);
- 		set_blocksize(bdev, p->old_block_size);
- 		bd_release(bdev);
- 	} else {
-@@ -1481,6 +1483,11 @@ asmlinkage long sys_swapdev(const char __
- 		if (error < 0)
- 			goto bad_swap;
- 		p->bdev = bdev;
-+		if (bdev->bd_disk->fops->swapdev) {
-+			error = bdev->bd_disk->fops->swapdev(bdev->bd_disk, 1);
-+			if (error < 0)
-+				goto bad_swap;
-+		}
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
- 		mutex_lock(&inode->i_mutex);
+ 	if (register_blkdev(NBD_MAJOR, "nbd")) {
 
 --
 
