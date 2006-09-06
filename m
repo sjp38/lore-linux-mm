@@ -1,110 +1,191 @@
-Message-Id: <20060906133956.264720000@chello.nl>
+Message-Id: <20060906133954.468910000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:49 +0200
+Date: Wed, 06 Sep 2006 15:16:39 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 19/21] netlink: add SOCK_VMIO support to AF_NETLINK
-Content-Disposition: inline; filename=netlink_vmio.patch
+Subject: [PATCH 09/21] nfs: make swap on NFS robust
+Content-Disposition: inline; filename=nfs_vmio.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-Propagate SOCK_VMIO from kernel socket to userspace sockets.
-Allow sys_{send,recv}msg to succeed under memory pressure for
-SOCK_VMIO netlink sockets.
+Provide a proper a_ops->swapfile() implementation for NFS. This will set the
+NFS socket to SOCK_VMIO and run socket reconnect under PF_MEMALLOC as well
+as reset SOCK_VMIO before engaging the protocol ->connect() method.
+
+PF_MEMALLOC should allow the allocation of struct socket and related objects
+and the early (re)setting of SOCK_VMIO should allow us to receive the packets
+required for the TCP connection buildup.
+
+(swapping continues over a server reset during a large (4k) ping flood)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Mike Christie <michaelc@cs.wisc.edu>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/linux/netlink.h  |    1 +
- net/netlink/af_netlink.c |    8 +++++---
- net/socket.c             |    6 +++---
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ fs/nfs/file.c               |    2 +-
+ include/linux/sunrpc/xprt.h |    5 ++++-
+ net/sunrpc/sched.c          |    4 ++--
+ net/sunrpc/xprtsock.c       |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 51 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/net/netlink/af_netlink.c
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/net/netlink/af_netlink.c
-+++ linux-2.6/net/netlink/af_netlink.c
-@@ -199,7 +199,7 @@ netlink_unlock_table(void)
- 		wake_up(&nl_table_wait);
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -323,7 +323,7 @@ static int nfs_release_page(struct page 
+ 
+ static int nfs_swapfile(struct address_space *mapping, int enable)
+ {
+-	return 0;
++	return xs_swapper(NFS_CLIENT(mapping->host)->cl_xprt, enable);
  }
  
--static __inline__ struct sock *netlink_lookup(int protocol, u32 pid)
-+__inline__ struct sock *netlink_lookup(int protocol, u32 pid)
+ const struct address_space_operations nfs_file_aops = {
+Index: linux-2.6/net/sunrpc/xprtsock.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/xprtsock.c
++++ linux-2.6/net/sunrpc/xprtsock.c
+@@ -1014,6 +1014,7 @@ static void xs_udp_connect_worker(void *
  {
- 	struct nl_pid_hash *hash = &nl_table[protocol].hash;
- 	struct hlist_head *head;
-@@ -1147,7 +1147,7 @@ static int netlink_sendmsg(struct kiocb 
- 	if (len > sk->sk_sndbuf - 32)
+ 	struct rpc_xprt *xprt = (struct rpc_xprt *) args;
+ 	struct socket *sock = xprt->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || xprt->addr.sin_port == 0)
+@@ -1021,6 +1022,9 @@ static void xs_udp_connect_worker(void *
+ 
+ 	dprintk("RPC:      xs_udp_connect_worker for xprt %p\n", xprt);
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
+ 
+@@ -1054,6 +1058,9 @@ static void xs_udp_connect_worker(void *
+ 		xprt->sock = sock;
+ 		xprt->inet = sk;
+ 
++		if (xprt->swapper)
++			sk_set_vmio(sk);
++
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 	xs_udp_do_set_buffer_size(xprt);
+@@ -1061,6 +1068,7 @@ static void xs_udp_connect_worker(void *
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	current->flags = pflags;
+ }
+ 
+ /*
+@@ -1097,11 +1105,15 @@ static void xs_tcp_connect_worker(void *
+ {
+ 	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
+ 	struct socket *sock = xprt->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || xprt->addr.sin_port == 0)
  		goto out;
- 	err = -ENOBUFS;
--	skb = alloc_skb(len, GFP_KERNEL);
-+	skb = __alloc_skb(len, GFP_KERNEL, SKB_ALLOC_RX);
- 	if (skb==NULL)
- 		goto out;
  
-@@ -1178,7 +1178,8 @@ static int netlink_sendmsg(struct kiocb 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	dprintk("RPC:      xs_tcp_connect_worker for xprt %p\n", xprt);
  
- 	if (dst_group) {
- 		atomic_inc(&skb->users);
--		netlink_broadcast(sk, skb, dst_pid, dst_group, GFP_KERNEL);
-+		netlink_broadcast(sk, skb, dst_pid, dst_group,
-+				sk->sk_allocation);
+ 	if (!xprt->sock) {
+@@ -1148,6 +1160,10 @@ static void xs_tcp_connect_worker(void *
+ 		write_unlock_bh(&sk->sk_callback_lock);
  	}
- 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
  
-@@ -1788,6 +1789,7 @@ panic:
++
++	if (xprt->swapper)
++		sk_set_vmio(xprt->inet);
++
+ 	/* Tell the socket layer to start connecting... */
+ 	xprt->stat.connect_count++;
+ 	xprt->stat.connect_start = jiffies;
+@@ -1174,6 +1190,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	current->flags = pflags;
+ }
  
- core_initcall(netlink_proto_init);
+ /**
+@@ -1369,3 +1386,30 @@ int xs_setup_tcp(struct rpc_xprt *xprt, 
  
-+EXPORT_SYMBOL(netlink_lookup);
- EXPORT_SYMBOL(netlink_ack);
- EXPORT_SYMBOL(netlink_run_queue);
- EXPORT_SYMBOL(netlink_queue_skip);
-Index: linux-2.6/net/socket.c
+ 	return 0;
+ }
++
++/**
++ * xs_swapper - Tag this transport as being used for swap.
++ * @xprt: transport to tag
++ * @enable: enable/disable
++ *
++ */
++int xs_swapper(struct rpc_xprt *xprt, int enable)
++{
++	int err = 0;
++
++	if (enable) {
++		/*
++		 * keep one extra sock reference so the reserve won't dip
++		 * when the socket gets reconnected.
++		 */
++		sk_adjust_memalloc(1, TX_RESERVE_PAGES);
++		sk_set_vmio(xprt->inet);
++		xprt->swapper = 1;
++	} else if (xprt->swapper) {
++		xprt->swapper = 0;
++		sk_clear_vmio(xprt->inet);
++		sk_adjust_memalloc(-1, -TX_RESERVE_PAGES);
++	}
++
++	return err;
++}
+Index: linux-2.6/include/linux/sunrpc/xprt.h
 ===================================================================
---- linux-2.6.orig/net/socket.c
-+++ linux-2.6/net/socket.c
-@@ -1790,7 +1790,7 @@ asmlinkage long sys_sendmsg(int fd, stru
- 	err = -ENOMEM;
- 	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
- 	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
--		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
-+		iov = sock_kmalloc(sock->sk, iov_size, sock->sk->sk_allocation);
- 		if (!iov)
- 			goto out_put;
- 	}
-@@ -1818,7 +1818,7 @@ asmlinkage long sys_sendmsg(int fd, stru
- 	} else if (ctl_len) {
- 		if (ctl_len > sizeof(ctl))
- 		{
--			ctl_buf = sock_kmalloc(sock->sk, ctl_len, GFP_KERNEL);
-+			ctl_buf = sock_kmalloc(sock->sk, ctl_len, sock->sk->sk_allocation);
- 			if (ctl_buf == NULL) 
- 				goto out_freeiov;
- 		}
-@@ -1891,7 +1891,7 @@ asmlinkage long sys_recvmsg(int fd, stru
- 	err = -ENOMEM;
- 	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
- 	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
--		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
-+		iov = sock_kmalloc(sock->sk, iov_size, sock->sk->sk_allocation);
- 		if (!iov)
- 			goto out_put;
- 	}
-Index: linux-2.6/include/linux/netlink.h
+--- linux-2.6.orig/include/linux/sunrpc/xprt.h
++++ linux-2.6/include/linux/sunrpc/xprt.h
+@@ -147,7 +147,9 @@ struct rpc_xprt {
+ 	unsigned int		max_reqs;	/* total slots */
+ 	unsigned long		state;		/* transport state */
+ 	unsigned char		shutdown   : 1,	/* being shut down */
+-				resvport   : 1; /* use a reserved port */
++				resvport   : 1, /* use a reserved port */
++				swapper    : 1; /* we're swapping over this
++						   transport */
+ 
+ 	/*
+ 	 * XID
+@@ -261,6 +263,7 @@ void			xprt_disconnect(struct rpc_xprt *
+  */
+ int			xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to);
+ int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
++int			xs_swapper(struct rpc_xprt *xprt, int enable);
+ 
+ /*
+  * Reserved bit positions in xprt->state
+Index: linux-2.6/net/sunrpc/sched.c
 ===================================================================
---- linux-2.6.orig/include/linux/netlink.h
-+++ linux-2.6/include/linux/netlink.h
-@@ -150,6 +150,7 @@ struct netlink_skb_parms
- #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
+--- linux-2.6.orig/net/sunrpc/sched.c
++++ linux-2.6/net/sunrpc/sched.c
+@@ -736,8 +736,8 @@ void * rpc_malloc(struct rpc_task *task,
+ 	struct rpc_rqst *req = task->tk_rqstp;
+ 	gfp_t	gfp;
  
+-	if (task->tk_flags & RPC_TASK_SWAPPER)
+-		gfp = GFP_ATOMIC;
++	if (RPC_IS_SWAPPER(task))
++		gfp = GFP_ATOMIC | __GFP_EMERGENCY;
+ 	else
+ 		gfp = GFP_NOFS;
  
-+extern struct sock *netlink_lookup(int protocol, __u32 pid);
- extern struct sock *netlink_kernel_create(int unit, unsigned int groups, void (*input)(struct sock *sk, int len), struct module *module);
- extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
- extern int netlink_has_listeners(struct sock *sk, unsigned int group);
 
 --
 
