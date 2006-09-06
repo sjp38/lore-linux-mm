@@ -1,57 +1,31 @@
-Message-Id: <20060906133956.488875000@chello.nl>
-References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:50 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 20/21] mm: a process flags to avoid blocking allocations
-Content-Disposition: inline; filename=pf_mem_nowait.patch
+Date: Wed, 6 Sep 2006 17:17:17 +0200
+From: Erik Mouw <erik@harddisk-recovery.com>
+Subject: Re: [PATCH 11/21] nbd: limit blk_queue
+Message-ID: <20060906151716.GG16721@harddisk-recovery.com>
+References: <20060906131630.793619000@chello.nl>> <20060906133954.845224000@chello.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060906133954.845224000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-PF_MEM_NOWAIT - will make allocations fail before blocking. This is usefull
-to convert process behaviour to non-blocking.
+On Wed, Sep 06, 2006 at 03:16:41PM +0200, Peter Zijlstra wrote:
+> -		disk->queue = blk_init_queue(do_nbd_request, &nbd_lock);
+> +		disk->queue = blk_init_queue_node_elv(do_nbd_request,
+> +				&nbd_lock, -1, "noop");
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Mike Christie <michaelc@cs.wisc.edu>
----
- include/linux/sched.h |    1 +
- mm/page_alloc.c       |    4 ++--
- 2 files changed, 3 insertions(+), 2 deletions(-)
+So what happens if the noop scheduler isn't compiled into the kernel?
 
-Index: linux-2.6/include/linux/sched.h
-===================================================================
---- linux-2.6.orig/include/linux/sched.h
-+++ linux-2.6/include/linux/sched.h
-@@ -1056,6 +1056,7 @@ static inline void put_task_struct(struc
- #define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
- #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
- #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
-+#define PF_MEM_NOWAIT	0x40000000	/* Make allocations fail instead of block */
- 
- /*
-  * Only the _current_ task can read/write to tsk->flags, but other
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -912,11 +912,11 @@ struct page * fastcall
- __alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		struct zonelist *zonelist)
- {
--	const gfp_t wait = gfp_mask & __GFP_WAIT;
-+	struct task_struct *p = current;
-+	const int wait = (gfp_mask & __GFP_WAIT) && !(p->flags & PF_MEM_NOWAIT);
- 	struct zone **z;
- 	struct page *page;
- 	struct reclaim_state reclaim_state;
--	struct task_struct *p = current;
- 	int do_retry;
- 	int alloc_flags;
- 	int did_some_progress;
 
---
+Erik
+
+-- 
++-- Erik Mouw -- www.harddisk-recovery.com -- +31 70 370 12 90 --
+| Lab address: Delftechpark 26, 2628 XH, Delft, The Netherlands
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
