@@ -1,57 +1,52 @@
-Message-Id: <20060906133953.588886000@chello.nl>
+Message-Id: <20060906133954.264033000@chello.nl>
 References: <20060906131630.793619000@chello.nl>>
-Date: Wed, 06 Sep 2006 15:16:35 +0200
+Date: Wed, 06 Sep 2006 15:16:38 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 05/21] uml: rename arch/um remove_mapping()
-Content-Disposition: inline; filename=uml_remove_mapping.patch
+Subject: [PATCH 08/21] nfs: enable swap on NFS
+Content-Disposition: inline; filename=nfs_swapfile.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jeff Dike <jdike@addtoit.com>
+Cc: Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-Now that 'include/linux/mm.h' includes 'include/linux/swap.h', the global
-remove_mapping() definition clashes with the arch/um one.
+Now that NFS can handle swap cache pages, add a swapfile method to allow
+swapping over NFS.
 
-Rename the arch/um one.
+NOTE: this dummy method is obviously not enough to make it safe.
+A more complete version of the nfs_swapfile() function will be present
+in the next VM deadlock avoidance patches.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: Jeff Dike <jdike@addtoit.com>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- arch/um/kernel/physmem.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ fs/nfs/file.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Index: linux-2.6/arch/um/kernel/physmem.c
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/arch/um/kernel/physmem.c
-+++ linux-2.6/arch/um/kernel/physmem.c
-@@ -160,7 +160,7 @@ int physmem_subst_mapping(void *virt, in
- 
- static int physmem_fd = -1;
- 
--static void remove_mapping(struct phys_desc *desc)
-+static void um_remove_mapping(struct phys_desc *desc)
- {
- 	void *virt = desc->virt;
- 	int err;
-@@ -184,7 +184,7 @@ int physmem_remove_mapping(void *virt)
- 	if(desc == NULL)
- 		return(0);
- 
--	remove_mapping(desc);
-+	um_remove_mapping(desc);
- 	return(1);
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -321,6 +321,11 @@ static int nfs_release_page(struct page 
+ 		return 0;
  }
  
-@@ -205,7 +205,7 @@ void physmem_forget_descriptor(int fd)
- 		page = list_entry(ele, struct phys_desc, list);
- 		offset = page->offset;
- 		addr = page->virt;
--		remove_mapping(page);
-+		um_remove_mapping(page);
- 		err = os_seek_file(fd, offset);
- 		if(err)
- 			panic("physmem_forget_descriptor - failed to seek "
++static int nfs_swapfile(struct address_space *mapping, int enable)
++{
++	return 0;
++}
++
+ const struct address_space_operations nfs_file_aops = {
+ 	.readpage = nfs_readpage,
+ 	.readpages = nfs_readpages,
+@@ -334,6 +339,7 @@ const struct address_space_operations nf
+ #ifdef CONFIG_NFS_DIRECTIO
+ 	.direct_IO = nfs_direct_IO,
+ #endif
++	.swapfile = nfs_swapfile,
+ };
+ 
+ /* 
 
 --
 
