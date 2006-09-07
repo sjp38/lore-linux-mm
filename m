@@ -1,32 +1,72 @@
-Date: Wed, 6 Sep 2006 19:45:01 +0200
-From: Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 11/21] nbd: limit blk_queue
-Message-ID: <20060906174500.GK14565@kernel.dk>
-References: <20060906131630.793619000@chello.nl>> <20060906133954.845224000@chello.nl> <20060906151716.GG16721@harddisk-recovery.com>
+Date: Thu, 7 Sep 2006 12:34:56 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] oom: don't kill current when another OOM in progress
+Message-ID: <20060907103456.GA3077@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060906151716.GG16721@harddisk-recovery.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Erik Mouw <erik@harddisk-recovery.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 06 2006, Erik Mouw wrote:
-> On Wed, Sep 06, 2006 at 03:16:41PM +0200, Peter Zijlstra wrote:
-> > -		disk->queue = blk_init_queue(do_nbd_request, &nbd_lock);
-> > +		disk->queue = blk_init_queue_node_elv(do_nbd_request,
-> > +				&nbd_lock, -1, "noop");
-> 
-> So what happens if the noop scheduler isn't compiled into the kernel?
+A previous patch to allow an exiting task to OOM kill itself (and thereby
+avoid a little deadlock) introduced a problem.  We don't want the PF_EXITING
+task, even if it is 'current', to access mem reserves if there is already a
+TIF_MEMDIE process in the system sucking up reserves.
 
-You can't de-select noop, so that cannot happen. But the point is valid
-for other choices of io schedulers, which is another reason why this
-_elv api addition is a bad idea.
+Also make the commenting a little bit clearer, and note that our current
+scheme of effectively single threading the OOM killer is not itself perfect.
 
--- 
-Jens Axboe
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+
+Index: linux-2.6/mm/oom_kill.c
+===================================================================
+--- linux-2.6.orig/mm/oom_kill.c
++++ linux-2.6/mm/oom_kill.c
+@@ -217,6 +217,18 @@ static struct task_struct *select_bad_pr
+ 			continue;
+ 
+ 		/*
++		 * This task already has access to memory reserves and is
++		 * being killed. Don't allow any other task access to the
++		 * memory reserve.
++		 *
++		 * Note: this may have a chance of deadlock if it gets
++		 * blocked waiting for another task which itself is waiting
++		 * for memory. Is there a better alternative?
++		 */
++		if (test_tsk_thread_flag(p, TIF_MEMDIE))
++			return ERR_PTR(-1UL);
++
++		/*
+ 		 * This is in the process of releasing memory so wait for it
+ 		 * to finish before killing some other task by mistake.
+ 		 *
+@@ -224,16 +236,15 @@ static struct task_struct *select_bad_pr
+ 		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
+ 		 * which will allow it to gain access to memory reserves in
+ 		 * the process of exiting and releasing its resources.
+-		 * Otherwise we could get an OOM deadlock.
++		 * Otherwise we could get an easy OOM deadlock.
+ 		 */
+-		if ((p->flags & PF_EXITING) && p == current) {
++		if (p->flags & PF_EXITING) {
++			if (p != current)
++				return ERR_PTR(-1UL);
++
+ 			chosen = p;
+ 			*ppoints = ULONG_MAX;
+-			break;
+ 		}
+-		if ((p->flags & PF_EXITING) ||
+-				test_tsk_thread_flag(p, TIF_MEMDIE))
+-			return ERR_PTR(-1UL);
+ 
+ 		if (p->oomkilladj == OOM_DISABLE)
+ 			continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
