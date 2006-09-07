@@ -1,72 +1,54 @@
-Date: Thu, 7 Sep 2006 12:34:56 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] oom: don't kill current when another OOM in progress
-Message-ID: <20060907103456.GA3077@wotan.suse.de>
+Subject: Re: [PATCH 10/21] block: elevator selection and pinning
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20060906134642.GC14565@kernel.dk>
+References: <20060906131630.793619000@chello.nl> >
+	 <20060906133954.673752000@chello.nl>  <20060906134642.GC14565@kernel.dk>
+Content-Type: text/plain
+Date: Thu, 07 Sep 2006 18:01:29 +0200
+Message-Id: <1157644889.17799.35.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Daniel Phillips <phillips@google.com>, Rik van Riel <riel@redhat.com>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@osdl.org>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-A previous patch to allow an exiting task to OOM kill itself (and thereby
-avoid a little deadlock) introduced a problem.  We don't want the PF_EXITING
-task, even if it is 'current', to access mem reserves if there is already a
-TIF_MEMDIE process in the system sucking up reserves.
+On Wed, 2006-09-06 at 15:46 +0200, Jens Axboe wrote:
+> On Wed, Sep 06 2006, Peter Zijlstra wrote:
+> > Provide an block queue init function that allows to set an elevator. And a 
+> > function to pin the current elevator.
+> > 
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > Signed-off-by: Daniel Phillips <phillips@google.com>
+> > CC: Jens Axboe <axboe@suse.de>
+> > CC: Pavel Machek <pavel@ucw.cz>
+> 
+> Generally I don't think this is the right approach, as what you really
+> want to do is let the driver say "I want intelligent scheduling" or not.
+> The type of scheduler is policy that is left with the user, not the
+> driver.
 
-Also make the commenting a little bit clearer, and note that our current
-scheme of effectively single threading the OOM killer is not itself perfect.
+True, and the only sane value here is NOOP, any other policy would not
+be a good value. With this in mind would you rather prefer a 'boolean'
+argument suggesting we use NOOP over the default scheduler?
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+(The whole switch API was done so I could reset the policy from the
+iSCSI side of things without changing the regular SCSI code - however
+even that doesn't seem to work out, mnc suggested to do it in userspace,
+so that API can go too)
 
+Would you agree that this hint on intelligent scheduling could be used
+to set the initial policy, the user can always override when he
+disagrees.
 
-Index: linux-2.6/mm/oom_kill.c
-===================================================================
---- linux-2.6.orig/mm/oom_kill.c
-+++ linux-2.6/mm/oom_kill.c
-@@ -217,6 +217,18 @@ static struct task_struct *select_bad_pr
- 			continue;
- 
- 		/*
-+		 * This task already has access to memory reserves and is
-+		 * being killed. Don't allow any other task access to the
-+		 * memory reserve.
-+		 *
-+		 * Note: this may have a chance of deadlock if it gets
-+		 * blocked waiting for another task which itself is waiting
-+		 * for memory. Is there a better alternative?
-+		 */
-+		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-+			return ERR_PTR(-1UL);
-+
-+		/*
- 		 * This is in the process of releasing memory so wait for it
- 		 * to finish before killing some other task by mistake.
- 		 *
-@@ -224,16 +236,15 @@ static struct task_struct *select_bad_pr
- 		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
- 		 * which will allow it to gain access to memory reserves in
- 		 * the process of exiting and releasing its resources.
--		 * Otherwise we could get an OOM deadlock.
-+		 * Otherwise we could get an easy OOM deadlock.
- 		 */
--		if ((p->flags & PF_EXITING) && p == current) {
-+		if (p->flags & PF_EXITING) {
-+			if (p != current)
-+				return ERR_PTR(-1UL);
-+
- 			chosen = p;
- 			*ppoints = ULONG_MAX;
--			break;
- 		}
--		if ((p->flags & PF_EXITING) ||
--				test_tsk_thread_flag(p, TIF_MEMDIE))
--			return ERR_PTR(-1UL);
- 
- 		if (p->oomkilladj == OOM_DISABLE)
- 			continue;
+These network block devices like NBD, iSCSI and AoE often talk to
+virtual disks, any attempt to be smart is a waste of time.
+
+> And this patch seems to do two things, and you don't explain what the
+> pinning is useful for at all.
+
+It was a hack, and its gone now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
