@@ -1,203 +1,326 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20060907190402.6166.61056.sendpatchset@skynet.skynet.ie>
+Message-Id: <20060907190422.6166.49758.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
 References: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/8] Add __GFP_EASYRCLM flag and update callers
-Date: Thu,  7 Sep 2006 20:04:02 +0100 (IST)
+Subject: [PATCH 2/8] Split the free lists into kernel and user parts
+Date: Thu,  7 Sep 2006 20:04:22 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a flag __GFP_EASYRCLM.  Allocations using the __GFP_EASYRCLM
-flag are expected to be easily reclaimed by syncing with backing storage (be
-it a file or swap) or cleaning the buffers and discarding.
+This patch adds the core of the anti-fragmentation strategy. It works by
+grouping related allocation types together. The idea is that large groups of
+pages that may be reclaimed are placed near each other. The zone->free_area
+list is broken into RCLM_TYPES number of lists.
 
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Joel Schopp <jschopp@austin.ibm.com>
 ---
 
- fs/block_dev.c          |    3 ++-
- fs/buffer.c             |    3 ++-
- fs/compat.c             |    3 ++-
- fs/exec.c               |    3 ++-
- fs/inode.c              |    3 ++-
- include/asm-i386/page.h |    4 +++-
- include/linux/gfp.h     |   12 +++++++++++-
- include/linux/highmem.h |    4 +++-
- mm/memory.c             |    8 ++++++--
- mm/swap_state.c         |    4 +++-
- 10 files changed, 36 insertions(+), 11 deletions(-)
+ include/linux/mmzone.h     |   10 +++
+ include/linux/page-flags.h |    7 ++
+ mm/page_alloc.c            |  109 +++++++++++++++++++++++++++++++---------
+ 3 files changed, 102 insertions(+), 24 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/fs/block_dev.c linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/block_dev.c
---- linux-2.6.18-rc5-mm1-clean/fs/block_dev.c	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/block_dev.c	2006-09-04 18:36:09.000000000 +0100
-@@ -380,7 +380,8 @@ struct block_device *bdget(dev_t dev)
- 		inode->i_rdev = dev;
- 		inode->i_bdev = bdev;
- 		inode->i_data.a_ops = &def_blk_aops;
--		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-+		mapping_set_gfp_mask(&inode->i_data,
-+				set_rclmflags(GFP_USER, __GFP_EASYRCLM));
- 		inode->i_data.backing_dev_info = &default_backing_dev_info;
- 		spin_lock(&bdev_lock);
- 		list_add(&bdev->bd_list, &all_bdevs);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/fs/buffer.c linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/buffer.c
---- linux-2.6.18-rc5-mm1-clean/fs/buffer.c	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/buffer.c	2006-09-04 18:36:09.000000000 +0100
-@@ -986,7 +986,8 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/mmzone.h linux-2.6.18-rc5-mm1-002_fragcore/include/linux/mmzone.h
+--- linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/mmzone.h	2006-09-04 18:34:33.000000000 +0100
++++ linux-2.6.18-rc5-mm1-002_fragcore/include/linux/mmzone.h	2006-09-04 18:37:59.000000000 +0100
+@@ -24,8 +24,16 @@
+ #endif
+ #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
  
--	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-+	page = find_or_create_page(inode->i_mapping, index,
-+				   set_rclmflags(GFP_NOFS, __GFP_EASYRCLM));
- 	if (!page)
- 		return NULL;
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/fs/compat.c linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/compat.c
---- linux-2.6.18-rc5-mm1-clean/fs/compat.c	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/compat.c	2006-09-04 18:36:09.000000000 +0100
-@@ -1419,7 +1419,8 @@ static int compat_copy_strings(int argc,
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(set_rclmflags(GFP_HIGHUSER,
-+							__GFP_EASYRCLM));
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/fs/exec.c linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/exec.c
---- linux-2.6.18-rc5-mm1-clean/fs/exec.c	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/exec.c	2006-09-04 18:36:09.000000000 +0100
-@@ -238,7 +238,8 @@ static int copy_strings(int argc, char _
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(set_rclmflags(GFP_HIGHUSER,
-+							__GFP_EASYRCLM));
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/fs/inode.c linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/inode.c
---- linux-2.6.18-rc5-mm1-clean/fs/inode.c	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/fs/inode.c	2006-09-04 18:36:09.000000000 +0100
-@@ -145,7 +145,8 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
--		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
-+		mapping_set_gfp_mask(mapping,
-+				set_rclmflags(GFP_HIGHUSER, __GFP_EASYRCLM));
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/include/asm-i386/page.h linux-2.6.18-rc5-mm1-001_antifrag_flags/include/asm-i386/page.h
---- linux-2.6.18-rc5-mm1-clean/include/asm-i386/page.h	2006-08-28 04:41:48.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/include/asm-i386/page.h	2006-09-04 18:36:09.000000000 +0100
-@@ -35,7 +35,9 @@
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) \
-+	alloc_page_vma(set_rclmflags(GFP_HIGHUSER|__GFP_ZERO, __GFP_EASYRCLM),\
-+								vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/include/linux/gfp.h linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/gfp.h
---- linux-2.6.18-rc5-mm1-clean/include/linux/gfp.h	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/gfp.h	2006-09-04 18:36:09.000000000 +0100
-@@ -46,6 +46,7 @@ struct vm_area_struct;
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_EASYRCLM	((__force gfp_t)0x80000u) /* Easily reclaimed page */
- 
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -54,7 +55,11 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|\
-+			__GFP_EASYRCLM)
++#define RCLM_NORCLM 0
++#define RCLM_EASY   1
++#define RCLM_TYPES  2
 +
-+/* This mask makes up all the RCLM-related flags */
-+#define GFP_RECLAIM_MASK (__GFP_EASYRCLM)
++#define for_each_rclmtype_order(type, order) \
++	for (order = 0; order < MAX_ORDER; order++) \
++		for (type = 0; type < RCLM_TYPES; type++)
++
+ struct free_area {
+-	struct list_head	free_list;
++	struct list_head	free_list[RCLM_TYPES];
+ 	unsigned long		nr_free;
+ };
  
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-@@ -93,6 +98,11 @@ static inline enum zone_type gfp_zone(gf
- 	return ZONE_NORMAL;
- }
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/page-flags.h linux-2.6.18-rc5-mm1-002_fragcore/include/linux/page-flags.h
+--- linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/page-flags.h	2006-09-04 18:34:33.000000000 +0100
++++ linux-2.6.18-rc5-mm1-002_fragcore/include/linux/page-flags.h	2006-09-04 18:37:59.000000000 +0100
+@@ -92,6 +92,7 @@
+ #define PG_buddy		19	/* Page is free, on buddy lists */
  
-+static inline gfp_t set_rclmflags(gfp_t gfp, gfp_t reclaim_flags)
+ #define PG_readahead		20	/* Reminder to do readahead */
++#define PG_easyrclm		21	/* Page is an easy reclaim block */
+ 
+ 
+ #if (BITS_PER_LONG > 32)
+@@ -254,6 +255,12 @@
+ #define SetPageReadahead(page)	set_bit(PG_readahead, &(page)->flags)
+ #define TestClearPageReadahead(page) test_and_clear_bit(PG_readahead, &(page)->flags)
+ 
++#define PageEasyRclm(page)	test_bit(PG_easyrclm, &(page)->flags)
++#define SetPageEasyRclm(page)	set_bit(PG_easyrclm, &(page)->flags)
++#define ClearPageEasyRclm(page)	clear_bit(PG_easyrclm, &(page)->flags)
++#define __SetPageEasyRclm(page)	__set_bit(PG_easyrclm, &(page)->flags)
++#define __ClearPageEasyRclm(page) __clear_bit(PG_easyrclm, &(page)->flags)
++
+ struct page;	/* forward declaration */
+ 
+ int test_clear_page_dirty(struct page *page);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/page_alloc.c linux-2.6.18-rc5-mm1-002_fragcore/mm/page_alloc.c
+--- linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/page_alloc.c	2006-09-04 18:34:33.000000000 +0100
++++ linux-2.6.18-rc5-mm1-002_fragcore/mm/page_alloc.c	2006-09-04 18:37:59.000000000 +0100
+@@ -133,6 +133,16 @@ static unsigned long __initdata dma_rese
+   unsigned long __initdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+ 
++static inline int get_pageblock_type(struct page *page)
 +{
-+	return (gfp & ~(GFP_RECLAIM_MASK)) | reclaim_flags;
++	return (PageEasyRclm(page) != 0);
 +}
 +
- /*
-  * There is only one page-allocator function, and two main namespaces to
-  * it. The alloc_page*() variants return 'struct page *' and as such
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/include/linux/highmem.h linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/highmem.h
---- linux-2.6.18-rc5-mm1-clean/include/linux/highmem.h	2006-09-04 18:34:32.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/include/linux/highmem.h	2006-09-04 18:36:09.000000000 +0100
-@@ -61,7 +61,9 @@ static inline void clear_user_highpage(s
- static inline struct page *
- alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
++static inline int gfpflags_to_rclmtype(unsigned long gfp_flags)
++{
++	return ((gfp_flags & __GFP_EASYRCLM) != 0);
++}
++
+ #ifdef CONFIG_DEBUG_VM
+ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
  {
--	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
-+	struct page *page = alloc_page_vma(
-+				set_rclmflags(GFP_HIGHUSER, __GFP_EASYRCLM),
-+				vma, vaddr);
+@@ -402,11 +412,13 @@ static inline void __free_one_page(struc
+ {
+ 	unsigned long page_idx;
+ 	int order_size = 1 << order;
++	int rclmtype = get_pageblock_type(page);
  
- 	if (page)
- 		clear_user_highpage(page, vaddr);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/mm/memory.c linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/memory.c
---- linux-2.6.18-rc5-mm1-clean/mm/memory.c	2006-09-04 18:34:33.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/memory.c	2006-09-04 18:36:09.000000000 +0100
-@@ -1562,7 +1562,9 @@ gotten:
- 		if (!new_page)
- 			goto oom;
- 	} else {
--		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+		new_page = alloc_page_vma(
-+				set_rclmflags(GFP_HIGHUSER, __GFP_EASYRCLM),
-+				vma, address);
- 		if (!new_page)
- 			goto oom;
- 		cow_user_page(new_page, old_page, address);
-@@ -2177,7 +2179,9 @@ retry:
+ 	if (unlikely(PageCompound(page)))
+ 		destroy_compound_page(page, order);
  
- 			if (unlikely(anon_vma_prepare(vma)))
- 				goto oom;
--			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+			page = alloc_page_vma(
-+				set_rclmflags(GFP_HIGHUSER, __GFP_EASYRCLM),
-+				vma, address);
- 			if (!page)
- 				goto oom;
- 			copy_user_highpage(page, new_page, address);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.18-rc5-mm1-clean/mm/swap_state.c linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/swap_state.c
---- linux-2.6.18-rc5-mm1-clean/mm/swap_state.c	2006-09-04 18:34:33.000000000 +0100
-+++ linux-2.6.18-rc5-mm1-001_antifrag_flags/mm/swap_state.c	2006-09-04 18:36:09.000000000 +0100
-@@ -343,7 +343,9 @@ struct page *read_swap_cache_async(swp_e
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+			new_page = alloc_page_vma(
-+				set_rclmflags(GFP_HIGHUSER, __GFP_EASYRCLM),
-+				vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
++	__SetPageEasyRclm(page);
+ 
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
+@@ -414,7 +426,6 @@ static inline void __free_one_page(struc
+ 	zone->free_pages += order_size;
+ 	while (order < MAX_ORDER-1) {
+ 		unsigned long combined_idx;
+-		struct free_area *area;
+ 		struct page *buddy;
+ 
+ 		buddy = __page_find_buddy(page, page_idx, order);
+@@ -422,8 +433,7 @@ static inline void __free_one_page(struc
+ 			break;		/* Move the buddy up one level. */
+ 
+ 		list_del(&buddy->lru);
+-		area = zone->free_area + order;
+-		area->nr_free--;
++		zone->free_area[order].nr_free--;
+ 		rmv_page_order(buddy);
+ 		combined_idx = __find_combined_index(page_idx, order);
+ 		page = page + (combined_idx - page_idx);
+@@ -431,7 +441,7 @@ static inline void __free_one_page(struc
+ 		order++;
+ 	}
+ 	set_page_order(page, order);
+-	list_add(&page->lru, &zone->free_area[order].free_list);
++	list_add(&page->lru, &zone->free_area[order].free_list[rclmtype]);
+ 	zone->free_area[order].nr_free++;
+ }
+ 
+@@ -567,7 +577,8 @@ void fastcall __init __free_pages_bootme
+  * -- wli
+  */
+ static inline void expand(struct zone *zone, struct page *page,
+- 	int low, int high, struct free_area *area)
++ 	int low, int high, struct free_area *area,
++	int rclmtype)
+ {
+ 	unsigned long size = 1 << high;
+ 
+@@ -576,7 +587,7 @@ static inline void expand(struct zone *z
+ 		high--;
+ 		size >>= 1;
+ 		VM_BUG_ON(bad_range(zone, &page[size]));
+-		list_add(&page[size].lru, &area->free_list);
++		list_add(&page[size].lru, &area->free_list[rclmtype]);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -627,31 +638,80 @@ static int prep_new_page(struct page *pa
+ 	return 0;
+ }
+ 
++/* Remove an element from the buddy allocator from the fallback list */
++static struct page *__rmqueue_fallback(struct zone *zone, int order,
++							gfp_t gfp_flags)
++{
++	struct free_area * area;
++	int current_order;
++	struct page *page;
++	int rclmtype = gfpflags_to_rclmtype(gfp_flags);
++
++	/* Find the largest possible block of pages in the other list */
++	rclmtype = !rclmtype;
++	for (current_order = MAX_ORDER-1; current_order >= order;
++						--current_order) {
++		area = &(zone->free_area[current_order]);
++ 		if (list_empty(&area->free_list[rclmtype]))
++ 			continue;
++
++		page = list_entry(area->free_list[rclmtype].next,
++					struct page, lru);
++		area->nr_free--;
++
++		/*
++		 * If breaking a large block of pages, place the buddies
++		 * on the preferred allocation list
++		 */
++		if (unlikely(current_order >= MAX_ORDER / 2))
++			rclmtype = !rclmtype;
++
++		/* Remove the page from the freelists */
++		list_del(&page->lru);
++		rmv_page_order(page);
++		zone->free_pages -= 1UL << order;
++		expand(zone, page, order, current_order, area, rclmtype);
++		return page;
++	}
++
++	return NULL;
++}
++
+ /* 
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order)
++static struct page *__rmqueue(struct zone *zone, unsigned int order,
++						gfp_t gfp_flags)
+ {
+ 	struct free_area * area;
+ 	unsigned int current_order;
+ 	struct page *page;
++	int rclmtype = gfpflags_to_rclmtype(gfp_flags);
+ 
++	/* Find a page of the appropriate size in the preferred list */
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+-		area = zone->free_area + current_order;
+-		if (list_empty(&area->free_list))
++		area = &(zone->free_area[current_order]);
++		if (list_empty(&area->free_list[rclmtype]))
+ 			continue;
+ 
+-		page = list_entry(area->free_list.next, struct page, lru);
++		page = list_entry(area->free_list[rclmtype].next,
++					struct page, lru);
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		area->nr_free--;
+ 		zone->free_pages -= 1UL << order;
+-		expand(zone, page, order, current_order, area);
+-		return page;
++		expand(zone, page, order, current_order, area, rclmtype);
++		goto got_page;
+ 	}
+ 
+-	return NULL;
++	page = __rmqueue_fallback(zone, order, gfp_flags);
++
++got_page:
++	if (unlikely(rclmtype == RCLM_NORCLM) && page)
++		__ClearPageEasyRclm(page);
++
++	return page;
+ }
+ 
+ /* 
+@@ -660,13 +720,14 @@ static struct page *__rmqueue(struct zon
+  * Returns the number of new pages which were placed at *list.
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order, 
+-			unsigned long count, struct list_head *list)
++			unsigned long count, struct list_head *list,
++			gfp_t gfp_flags)
+ {
+ 	int i;
+ 	
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+-		struct page *page = __rmqueue(zone, order);
++		struct page *page = __rmqueue(zone, order, gfp_flags);
+ 		if (unlikely(page == NULL))
+ 			break;
+ 		list_add_tail(&page->lru, list);
+@@ -741,7 +802,7 @@ void mark_free_pages(struct zone *zone)
+ {
+ 	unsigned long pfn, max_zone_pfn;
+ 	unsigned long flags;
+-	int order;
++	int order, t;
+ 	struct list_head *curr;
+ 
+ 	if (!zone->spanned_pages)
+@@ -758,14 +819,15 @@ void mark_free_pages(struct zone *zone)
+ 				ClearPageNosaveFree(page);
  		}
+ 
+-	for (order = MAX_ORDER - 1; order >= 0; --order)
+-		list_for_each(curr, &zone->free_area[order].free_list) {
++	for_each_rclmtype_order(t, order) {
++		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+ 			unsigned long i;
+ 
+ 			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+ 			for (i = 0; i < (1UL << order); i++)
+ 				SetPageNosaveFree(pfn_to_page(pfn + i));
+ 		}
++	}
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+@@ -864,7 +926,7 @@ again:
+ 		local_irq_save(flags);
+ 		if (!pcp->count) {
+ 			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list);
++				pcp->batch, &pcp->list, gfp_flags);
+ 			if (unlikely(!pcp->count))
+ 				goto failed;
+ 		}
+@@ -873,7 +935,7 @@ again:
+ 		pcp->count--;
+ 	} else {
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, gfp_flags);
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
+@@ -1782,6 +1844,7 @@ void __meminit memmap_init_zone(unsigned
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
++		SetPageEasyRclm(page);
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+@@ -1797,9 +1860,9 @@ void __meminit memmap_init_zone(unsigned
+ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
+ 				unsigned long size)
+ {
+-	int order;
+-	for (order = 0; order < MAX_ORDER ; order++) {
+-		INIT_LIST_HEAD(&zone->free_area[order].free_list);
++	int order, rclmtype;
++	for_each_rclmtype_order(rclmtype, order) {
++		INIT_LIST_HEAD(&zone->free_area[order].free_list[rclmtype]);
+ 		zone->free_area[order].nr_free = 0;
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
