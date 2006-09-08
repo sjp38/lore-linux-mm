@@ -1,11 +1,12 @@
-Date: Thu, 7 Sep 2006 17:58:48 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/8] Avoiding fragmentation with subzone groupings v25
-Message-Id: <20060907175848.63379fe1.akpm@osdl.org>
-In-Reply-To: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
+Subject: Re: [PATCH 2/8] Split the free lists into kernel and user parts
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20060907190422.6166.49758.sendpatchset@skynet.skynet.ie>
 References: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
+	 <20060907190422.6166.49758.sendpatchset@skynet.skynet.ie>
+Content-Type: text/plain
+Date: Fri, 08 Sep 2006 09:54:00 +0200
+Message-Id: <1157702040.17799.40.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -13,19 +14,35 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu,  7 Sep 2006 20:03:42 +0100 (IST)
-Mel Gorman <mel@csn.ul.ie> wrote:
+Hi Mel,
 
-> When a page is allocated, the page-flags
-> are updated with a value indicating it's type of reclaimability so that it
-> is placed on the correct list on free.
+Looking good, some small nits follow.
 
-We're getting awful tight on page-flags.
+On Thu, 2006-09-07 at 20:04 +0100, Mel Gorman wrote:
 
-Would it be possible to avoid adding the flag?  Say, have a per-zone bitmap
-of size (zone->present_pages/(1<<MAX_ORDER)) bits, then do a lookup in
-there to work out whether a particular page is within a MAX_ORDER clump of
-easy-reclaimable pages?
+> +#define for_each_rclmtype_order(type, order) \
+> +	for (order = 0; order < MAX_ORDER; order++) \
+> +		for (type = 0; type < RCLM_TYPES; type++)
+
+It seems odd to me that you have the for loops in reverse order of the
+arguments.
+
+> +static inline int get_pageblock_type(struct page *page)
+> +{
+> +	return (PageEasyRclm(page) != 0);
+> +}
+
+I find the naming a little odd, I would have suspected something like:
+get_page_blocktype() or thereabout since you're getting a page
+attribute.
+
+> +static inline int gfpflags_to_rclmtype(unsigned long gfp_flags)
+> +{
+> +	return ((gfp_flags & __GFP_EASYRCLM) != 0);
+> +}
+
+gfp_t argument?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
