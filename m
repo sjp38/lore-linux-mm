@@ -1,42 +1,31 @@
-Date: Thu, 7 Sep 2006 20:41:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: invalidate_complete_page()
-In-Reply-To: <20060907120053.ccb6bb63.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609072032130.23423@blonde.wat.veritas.com>
-References: <20060907120053.ccb6bb63.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 7 Sep 2006 17:58:48 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 0/8] Avoiding fragmentation with subzone groupings v25
+Message-Id: <20060907175848.63379fe1.akpm@osdl.org>
+In-Reply-To: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
+References: <20060907190342.6166.49732.sendpatchset@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Sep 2006, Andrew Morton wrote:
-> 
-> This is buggy, isn't it?  If someone faults the page into pagetables after
-> invalidate_mapping_pages() checked page_mapped(), the faulter-inner gets an
-> anonymous, not-up-to-date page which he didn't expect.
+On Thu,  7 Sep 2006 20:03:42 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-You're right.  ("anonymous" meaning "detached" rather than PageAnon.)
+> When a page is allocated, the page-flags
+> are updated with a value indicating it's type of reclaimability so that it
+> is placed on the correct list on free.
 
-> 
-> Locking the page in the pagefault handler will fix that,
+We're getting awful tight on page-flags.
 
-(I thought I scared you off that?  Just for a while perhaps.
-If Nick plugs the hole(s?) he noticed in his earlier patch,
-and wider performance testing shows that the hit is acceptable,
-then we'd all agree it's the best way to go.)
-
-> but meanwhile I
-> think we need to be checking page_count() in invalidate_complete_page(),
-> after taking tree_lock?
-
-Yes, that should do nicely: it's already happy to skip on lots of
-transient circumstances, no harm in adding another such, to avoid
-the more serious inconsistency you notice above.
-
-Hugh
+Would it be possible to avoid adding the flag?  Say, have a per-zone bitmap
+of size (zone->present_pages/(1<<MAX_ORDER)) bits, then do a lookup in
+there to work out whether a particular page is within a MAX_ORDER clump of
+easy-reclaimable pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
