@@ -1,16 +1,16 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id k88Jm70P022248
-	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 19:48:07 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k88JoEVP1654930
-	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 20:50:15 +0100
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k88Jm7nR018728
-	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 20:48:07 +0100
-Date: Fri, 8 Sep 2006 21:47:18 +0200
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id k88JmuJ4167340
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 19:48:56 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k88JrOW22912438
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 21:53:24 +0200
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k88JmtKp027566
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2006 21:48:56 +0200
+Date: Fri, 8 Sep 2006 21:48:07 +0200
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [patch 1/2] own header file for struct page v2.
-Message-ID: <20060908194718.GA10139@osiris.ibm.com>
+Subject: [patch 2/2] convert s390 page handling macros to functions v2
+Message-ID: <20060908194807.GB10139@osiris.ibm.com>
 References: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com> <20060908094616.48849a7a.akpm@osdl.org> <20060908183340.GA8421@osiris.ibm.com> <20060908120616.db18c4a0.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -23,230 +23,158 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This moves the definition of struct page from mm.h to its own header file
-page-struct.h.
-This is a prereq to fix SetPageUptodate which is broken on s390:
-
-#define SetPageUptodate(_page)
-       do {
-               struct page *__page = (_page);
-               if (!test_and_set_bit(PG_uptodate, &__page->flags))
-                       page_test_and_clear_dirty(_page);
-       } while (0)
-
-_page gets used twice in this macro which can cause subtle bugs. Using
-__page for the page_test_and_clear_dirty call doesn't work since it
-causes yet another problem with the page_test_and_clear_dirty macro as
-well.
-In order to avoid all these problems caused by macros it seems to
-be a good idea to get rid of them and convert them to static inline
-functions. Because of header file include order it's necessary to have a
-seperate header file for the struct page definition.
-
+ 
+Convert s390 page handling macros to functions. In particular this fixes a
+problem with s390's SetPageUptodate macro which uses its input parameter
+twice which again can cause subtle bugs.
+ 
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
----
+--- 
 
-Updated patch:	- against -mm
-		- changed name to page-struct.h instead of page.h
-		- moved mem_map declaration to mmzone.h
+ include/asm-s390/pgtable.h |   85 +++++++++++++++++++++------------------------
+ include/linux/page-flags.h |   11 ++---
+ 2 files changed, 46 insertions(+), 50 deletions(-)
 
- include/linux/mm.h          |   70 -----------------------------------------
- include/linux/mmzone.h      |    5 ++
- include/linux/page-struct.h |   75 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 81 insertions(+), 69 deletions(-)
-
-Index: linux-2.6.17/include/linux/mm.h
+Index: linux-2.6.17/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.17.orig/include/linux/mm.h	2006-09-08 21:37:06.000000000 +0200
-+++ linux-2.6.17/include/linux/mm.h	2006-09-08 21:37:10.000000000 +0200
-@@ -16,6 +16,7 @@
- #include <linux/mutex.h>
- #include <linux/debug_locks.h>
- #include <linux/backing-dev.h>
+--- linux-2.6.17.orig/include/linux/page-flags.h	2006-09-08 21:36:56.000000000 +0200
++++ linux-2.6.17/include/linux/page-flags.h	2006-09-08 21:39:50.000000000 +0200
+@@ -130,12 +130,11 @@
+ 
+ #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
+ #ifdef CONFIG_S390
+-#define SetPageUptodate(_page) \
+-	do {								      \
+-		struct page *__page = (_page);				      \
+-		if (!test_and_set_bit(PG_uptodate, &__page->flags))	      \
+-			page_test_and_clear_dirty(_page);		      \
+-	} while (0)
++static inline void SetPageUptodate(struct page *page)
++{
++	if (!test_and_set_bit(PG_uptodate, &page->flags))
++		page_test_and_clear_dirty(page);
++}
+ #else
+ #define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
+ #endif
+Index: linux-2.6.17/include/asm-s390/pgtable.h
+===================================================================
+--- linux-2.6.17.orig/include/asm-s390/pgtable.h	2006-09-08 21:36:56.000000000 +0200
++++ linux-2.6.17/include/asm-s390/pgtable.h	2006-09-08 21:39:50.000000000 +0200
+@@ -33,7 +33,7 @@
+ #ifndef __ASSEMBLY__
+ #include <asm/bug.h>
+ #include <asm/processor.h>
+-#include <linux/threads.h>
 +#include <linux/page-struct.h>
  
- struct mempolicy;
- struct anon_vma;
-@@ -216,70 +217,6 @@
- struct inode;
+ struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
+ struct mm_struct;
+@@ -604,30 +604,31 @@
+  * should therefore only be called if it is not mapped in any
+  * address space.
+  */
+-#define page_test_and_clear_dirty(_page)				  \
+-({									  \
+-	struct page *__page = (_page);					  \
+-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
+-	int __skey = page_get_storage_key(__physpage);			  \
+-	if (__skey & _PAGE_CHANGED)					  \
+-		page_set_storage_key(__physpage, __skey & ~_PAGE_CHANGED);\
+-	(__skey & _PAGE_CHANGED);					  \
+-})
++static inline int page_test_and_clear_dirty(struct page *page)
++{
++	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
++	int skey = page_get_storage_key(physpage);
++
++	if (skey & _PAGE_CHANGED)
++		page_set_storage_key(physpage, skey & ~_PAGE_CHANGED);
++	return skey & _PAGE_CHANGED;
++}
  
  /*
-- * Each physical page in the system has a struct page associated with
-- * it to keep track of whatever it is we are using the page for at the
-- * moment. Note that we have no way to track which tasks are using
-- * a page, though if it is a pagecache page, rmap structures can tell us
-- * who is mapping it.
-- */
--struct page {
--	unsigned long flags;		/* Atomic flags, some possibly
--					 * updated asynchronously */
--	atomic_t _count;		/* Usage count, see below. */
--	atomic_t _mapcount;		/* Count of ptes mapped in mms,
--					 * to show when page is mapped
--					 * & limit reverse map searches.
--					 */
--	union {
--	    struct {
--		unsigned long private;		/* Mapping-private opaque data:
--					 	 * usually used for buffer_heads
--						 * if PagePrivate set; used for
--						 * swp_entry_t if PageSwapCache;
--						 * indicates order in the buddy
--						 * system if PG_buddy is set.
--						 */
--		struct address_space *mapping;	/* If low bit clear, points to
--						 * inode address_space, or NULL.
--						 * If page mapped as anonymous
--						 * memory, low bit is set, and
--						 * it points to anon_vma object:
--						 * see PAGE_MAPPING_ANON below.
--						 */
--	    };
--#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
--	    spinlock_t ptl;
--#endif
--	};
--	pgoff_t index;			/* Our offset within mapping. */
--	struct list_head lru;		/* Pageout list, eg. active_list
--					 * protected by zone->lru_lock !
--					 */
--	/*
--	 * On machines where all RAM is mapped into kernel address space,
--	 * we can simply calculate the virtual address. On machines with
--	 * highmem some memory is mapped into kernel virtual memory
--	 * dynamically, so we need a place to store that address.
--	 * Note that this field could be 16 bits on x86 ... ;)
--	 *
--	 * Architectures with slow multiplication can define
--	 * WANT_PAGE_VIRTUAL in asm/page.h
--	 */
--#if defined(WANT_PAGE_VIRTUAL)
--	void *virtual;			/* Kernel virtual address (NULL if
--					   not kmapped, ie. highmem) */
--#endif /* WANT_PAGE_VIRTUAL */
--#ifdef CONFIG_PAGE_OWNER
--	int order;
--	unsigned int gfp_mask;
--	unsigned long trace[8];
--#endif
--};
--
--#define page_private(page)		((page)->private)
--#define set_page_private(page, v)	((page)->private = (v))
--
--/*
-  * FIXME: take this include out, include page-flags.h in
-  * files which need it (119 of them)
+  * Test and clear referenced bit in storage key.
   */
-@@ -551,11 +488,6 @@
-  */
- #include <linux/vmstat.h>
+-#define page_test_and_clear_young(page)					  \
+-({									  \
+-	struct page *__page = (page);					  \
+-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
+-	int __ccode;							  \
+-	asm volatile ("rrbe 0,%1\n\t"					  \
+-		      "ipm  %0\n\t"					  \
+-		      "srl  %0,28\n\t" 					  \
+-                      : "=d" (__ccode) : "a" (__physpage) : "cc" );	  \
+-	(__ccode & 2);							  \
+-})
++static inline int page_test_and_clear_young(struct page *page)
++{
++	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
++	int ccode;
++
++	asm volatile (
++		"rrbe 0,%1\n"
++		"ipm  %0\n"
++		"srl  %0,28\n"
++		: "=d" (ccode) : "a" (physpage) : "cc" );
++	return ccode & 2;
++}
  
--#ifndef CONFIG_DISCONTIGMEM
--/* The array of struct pages - for discontigmem use pgdat->lmem_map */
--extern struct page *mem_map;
--#endif
--
- static __always_inline void *lowmem_page_address(struct page *page)
- {
- 	return __va(page_to_pfn(page) << PAGE_SHIFT);
-Index: linux-2.6.17/include/linux/page-struct.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.17/include/linux/page-struct.h	2006-09-08 21:37:10.000000000 +0200
-@@ -0,0 +1,75 @@
-+#ifndef _LINUX_PAGE_STRUCT_H
-+#define _LINUX_PAGE_STRUCT_H
-+
-+#include <linux/types.h>
-+#include <linux/threads.h>
-+#include <linux/list.h>
-+#include <linux/spinlock.h>
-+
-+struct address_space;
-+
-+/*
-+ * Each physical page in the system has a struct page associated with
-+ * it to keep track of whatever it is we are using the page for at the
-+ * moment. Note that we have no way to track which tasks are using
-+ * a page, though if it is a pagecache page, rmap structures can tell us
-+ * who is mapping it.
-+ */
-+struct page {
-+	unsigned long flags;		/* Atomic flags, some possibly
-+					 * updated asynchronously */
-+	atomic_t _count;		/* Usage count, see below. */
-+	atomic_t _mapcount;		/* Count of ptes mapped in mms,
-+					 * to show when page is mapped
-+					 * & limit reverse map searches.
-+					 */
-+	union {
-+	    struct {
-+		unsigned long private;		/* Mapping-private opaque data:
-+						 * usually used for buffer_heads
-+						 * if PagePrivate set; used for
-+						 * swp_entry_t if PageSwapCache;
-+						 * indicates order in the buddy
-+						 * system if PG_buddy is set.
-+						 */
-+		struct address_space *mapping;	/* If low bit clear, points to
-+						 * inode address_space, or NULL.
-+						 * If page mapped as anonymous
-+						 * memory, low bit is set, and
-+						 * it points to anon_vma object:
-+						 * see PAGE_MAPPING_ANON below.
-+						 */
-+	    };
-+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-+	    spinlock_t ptl;
-+#endif
-+	};
-+	pgoff_t index;			/* Our offset within mapping. */
-+	struct list_head lru;		/* Pageout list, eg. active_list
-+					 * protected by zone->lru_lock !
-+					 */
-+	/*
-+	 * On machines where all RAM is mapped into kernel address space,
-+	 * we can simply calculate the virtual address. On machines with
-+	 * highmem some memory is mapped into kernel virtual memory
-+	 * dynamically, so we need a place to store that address.
-+	 * Note that this field could be 16 bits on x86 ... ;)
-+	 *
-+	 * Architectures with slow multiplication can define
-+	 * WANT_PAGE_VIRTUAL in asm/page.h
-+	 */
-+#if defined(WANT_PAGE_VIRTUAL)
-+	void *virtual;			/* Kernel virtual address (NULL if
-+					   not kmapped, ie. highmem) */
-+#endif /* WANT_PAGE_VIRTUAL */
-+#ifdef CONFIG_PAGE_OWNER
-+	int order;
-+	unsigned int gfp_mask;
-+	unsigned long trace[8];
-+#endif
-+};
-+
-+#define page_private(page)		((page)->private)
-+#define set_page_private(page, v)	((page)->private = (v))
-+
-+#endif /* _LINUX_PAGE_STRUCT_H */
-Index: linux-2.6.17/include/linux/mmzone.h
-===================================================================
---- linux-2.6.17.orig/include/linux/mmzone.h	2006-09-08 21:37:06.000000000 +0200
-+++ linux-2.6.17/include/linux/mmzone.h	2006-09-08 21:37:10.000000000 +0200
-@@ -318,6 +318,11 @@
- };
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
- 
-+#ifndef CONFIG_DISCONTIGMEM
-+/* The array of struct pages - for discontigmem use pgdat->lmem_map */
-+extern struct page *mem_map;
-+#endif
-+
  /*
-  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
-  * (mostly NUMA machines?) to denote a higher-level memory zone than the
+  * Conversion functions: convert a page and protection to a page entry,
+@@ -640,32 +641,28 @@
+ 	return __pte;
+ }
+ 
+-#define mk_pte(pg, pgprot)                                                \
+-({                                                                        \
+-	struct page *__page = (pg);                                       \
+-	pgprot_t __pgprot = (pgprot);					  \
+-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
+-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
+-	__pte;                                                            \
+-})
+-
+-#define pfn_pte(pfn, pgprot)                                              \
+-({                                                                        \
+-	pgprot_t __pgprot = (pgprot);					  \
+-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
+-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
+-	__pte;                                                            \
+-})
++static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
++{
++	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
++
++	return mk_pte_phys(physpage, pgprot);
++}
++
++static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
++{
++	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
++
++	return mk_pte_phys(physpage, pgprot);
++}
+ 
+ #ifdef __s390x__
+ 
+-#define pfn_pmd(pfn, pgprot)                                              \
+-({                                                                        \
+-	pgprot_t __pgprot = (pgprot);                                     \
+-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
+-	pmd_t __pmd = __pmd(__physpage + pgprot_val(__pgprot));           \
+-	__pmd;                                                            \
+-})
++static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
++{
++	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
++
++	return __pmd(physpage + pgprot_val(pgprot));
++}
+ 
+ #endif /* __s390x__ */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
