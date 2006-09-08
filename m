@@ -1,62 +1,35 @@
-Date: Fri, 8 Sep 2006 11:41:14 -0700
+Date: Fri, 8 Sep 2006 12:06:16 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 5/5] linear reclaim core
-Message-Id: <20060908114114.87612de3.akpm@osdl.org>
-In-Reply-To: <20060908122718.GA1662@shadowen.org>
-References: <exportbomb.1157718286@pinky>
-	<20060908122718.GA1662@shadowen.org>
+Subject: Re: [patch 1/2] own header file for struct page.
+Message-Id: <20060908120616.db18c4a0.akpm@osdl.org>
+In-Reply-To: <20060908183340.GA8421@osiris.ibm.com>
+References: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com>
+	<20060908094616.48849a7a.akpm@osdl.org>
+	<20060908183340.GA8421@osiris.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Sep 2006 13:27:18 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
+On Fri, 8 Sep 2006 20:33:40 +0200
+Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
 
-> When we are out of memory of a suitable size we enter reclaim.
-> The current reclaim algorithm targets pages in LRU order, which
-> is great for fairness but highly unsuitable if you desire pages at
-> higher orders.  To get pages of higher order we must shoot down a
-> very high proportion of memory; >95% in a lot of cases.
+> > > +#ifndef CONFIG_DISCONTIGMEM
+> > > +/* The array of struct pages - for discontigmem use pgdat->lmem_map */
+> > > +extern struct page *mem_map;
+> > > +#endif
+> > 
+> > Am surprised to see this declaration in this file.
 > 
-> This patch introduces an alternative algorithm used when requesting
-> higher order allocations.  Here we look at memory in ranges at the
-> order requested.  We make a quick pass to see if all pages in that
-> area are likely to be reclaimed, only then do we apply reclaim to
-> the pages in the area.
-> 
-> Testing in combination with fragmentation avoidance shows
-> significantly improved chances of a successful allocation at
-> higher order.
+> Hmm... first I thought I could add the same declaration to asm-s390/pgtable.h.
+> But then deciced against it, since I would just duplicate code.
+> Any better idea where to put it?
 
-I bet it does.
-
-I'm somewhat surprised at the implementation.  Would it not be sufficient
-to do this within shrink_inactive_list()?  Something along the lines of:
-
-- Pick tail page off LRU.
-
-- For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-
-  - If they're all PageLRU and !PageActive, add them all to page_list for
-    possible reclaim
-
-And, in shrink_active_list:
-
-- Pick tail page off LRU
-
-- For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-
-  If they're all PageLRU, put all the active pages in this block onto
-  l_hold for possible deactivation.
-
-
-Maybe all that can be done in isolate_lru_pages().
-
+dunno.  mmzone.h?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
