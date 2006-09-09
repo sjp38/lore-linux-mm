@@ -1,42 +1,53 @@
-Date: Sat, 9 Sep 2006 23:05:33 +0200 (CEST)
-From: Roman Zippel <zippel@linux-m68k.org>
-Subject: Re: [patch 1/2] own header file for struct page.
-In-Reply-To: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com>
-Message-ID: <Pine.LNX.4.64.0609092248400.6762@scrub.home>
-References: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from leeloo.source.org.ua (localhost [127.0.0.1])
+	by leeloo.source.org.ua (Postfix) with ESMTP id 9E4DEA7CFD
+	for <linux-mm@kvack.org>; Sun, 10 Sep 2006 00:17:15 +0300 (EEST)
+Date: Sun, 10 Sep 2006 00:17:15 +0300
+From: Alexander Burnos <alex@localhost.org.ua>
+Subject: 2.6 vs 2.4 kernel memory management question
+Message-ID: <20060909211715.GB3829@leeloo.source.org.ua>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hello!
 
-On Fri, 8 Sep 2006, Heiko Carstens wrote:
+Sorry if it's not appropriate mail list for this question if it's so,
+please, point me to the correct place to ask.
 
-> In order to get of all these problems caused by macros it seems to
-> be a good idea to get rid of them and convert them to static inline
-> functions. Because of header file include order it's necessary to have a
-> seperate header file for the struct page definition.
-> 
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> ---
-> 
-> Patches are against git tree as of today. Better ideas welcome of course.
-> 
->  include/linux/mm.h   |   64 --------------------------------------------
->  include/linux/page.h |   74 +++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 75 insertions(+), 63 deletions(-)
+I have several linux (debian) servers with java applications each of
+them takes, for examples, 200 mbyte of RAM. I've noticed that on
+machines with 2.4 kernels VIRT and RES memory (accordinly to 'top'
+values) are equal. So top shows me that VIRT == RES == 200 mbyte
+(approximately).
+But! On the servers with 2.6 kernel I have another picture, VIRT memory
+in several times bigger than RES. For example real memory of java
+proccess is 146 mbytes, but virtual - 470 mbytes.
 
-To avoid the explosion in number of small header files each containing a 
-single definition, it would be better to generally split between the 
-definitions and implementations, so IMO mm_types.h with all the structures 
-and defines from mm.h would be better.
+At the firt look it isn't a problem, but when I have several java
+processes and summary of their virtual memory is more than physical
+memory on the server - operatin system begin swapping although there is
+30-50% of free memory (2 Gbyte memory on each machine).
+At the end we have machine that fall into hard swapping when big part of
+memory is actually free.
+I've tried to play with "echo 0 > /proc/sys/vm/swappiness" but it didn't
+give me good results.
 
-bye, Roman
+Please, point me to doc where I can read about "physics" of this process
+and where I can make some tunning to avoid this effect of growing
+virtual memory on 2.6 kernels?
+
+Maybe, it depends on the difference between NPTL and linuxthreads
+realization?
+
+Thank you for your answers!
+
+-- 
+WBR,
+Alexander Burnos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
