@@ -1,53 +1,76 @@
-Received: from leeloo.source.org.ua (localhost [127.0.0.1])
-	by leeloo.source.org.ua (Postfix) with ESMTP id 9E4DEA7CFD
-	for <linux-mm@kvack.org>; Sun, 10 Sep 2006 00:17:15 +0300 (EEST)
-Date: Sun, 10 Sep 2006 00:17:15 +0300
-From: Alexander Burnos <alex@localhost.org.ua>
-Subject: 2.6 vs 2.4 kernel memory management question
-Message-ID: <20060909211715.GB3829@leeloo.source.org.ua>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <4503772C.5010105@shadowen.org>
+Date: Sun, 10 Sep 2006 03:23:40 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 5/5] linear reclaim core
+References: <exportbomb.1157718286@pinky>	<20060908122718.GA1662@shadowen.org> <20060908114114.87612de3.akpm@osdl.org>
+In-Reply-To: <20060908114114.87612de3.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello!
+Andrew Morton wrote:
+> On Fri, 8 Sep 2006 13:27:18 +0100
+> Andy Whitcroft <apw@shadowen.org> wrote:
+> 
+>> When we are out of memory of a suitable size we enter reclaim.
+>> The current reclaim algorithm targets pages in LRU order, which
+>> is great for fairness but highly unsuitable if you desire pages at
+>> higher orders.  To get pages of higher order we must shoot down a
+>> very high proportion of memory; >95% in a lot of cases.
+>>
+>> This patch introduces an alternative algorithm used when requesting
+>> higher order allocations.  Here we look at memory in ranges at the
+>> order requested.  We make a quick pass to see if all pages in that
+>> area are likely to be reclaimed, only then do we apply reclaim to
+>> the pages in the area.
+>>
+>> Testing in combination with fragmentation avoidance shows
+>> significantly improved chances of a successful allocation at
+>> higher order.
+> 
+> I bet it does.
+> 
+> I'm somewhat surprised at the implementation.  Would it not be sufficient
+> to do this within shrink_inactive_list()?  Something along the lines of:
+> 
+> - Pick tail page off LRU.
+> 
+> - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
+> 
+>   - If they're all PageLRU and !PageActive, add them all to page_list for
+>     possible reclaim
+> 
+> And, in shrink_active_list:
+> 
+> - Pick tail page off LRU
+> 
+> - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
+> 
+>   If they're all PageLRU, put all the active pages in this block onto
+>   l_hold for possible deactivation.
+> 
+> 
+> Maybe all that can be done in isolate_lru_pages().
 
-Sorry if it's not appropriate mail list for this question if it's so,
-please, point me to the correct place to ask.
+When we started out down this road we though we needed to scan linearly
+too due to the buddy marking scheme.  Now that we're at this end of the
+road we know thats pretty easy to fix, we're already considering merging
+the two reclaims anyhow.
 
-I have several linux (debian) servers with java applications each of
-them takes, for examples, 200 mbyte of RAM. I've noticed that on
-machines with 2.4 kernels VIRT and RES memory (accordinly to 'top'
-values) are equal. So top shows me that VIRT == RES == 200 mbyte
-(approximately).
-But! On the servers with 2.6 kernel I have another picture, VIRT memory
-in several times bigger than RES. For example real memory of java
-proccess is 146 mbytes, but virtual - 470 mbytes.
+Probabally this would do something pretty similar.  It feels at a quick
+glance as it its going to have slightly different semantics, but that
+may be better or worse.
 
-At the firt look it isn't a problem, but when I have several java
-processes and summary of their virtual memory is more than physical
-memory on the server - operatin system begin swapping although there is
-30-50% of free memory (2 Gbyte memory on each machine).
-At the end we have machine that fall into hard swapping when big part of
-memory is actually free.
-I've tried to play with "echo 0 > /proc/sys/vm/swappiness" but it didn't
-give me good results.
+I'll go try it out and see how it looks.
 
-Please, point me to doc where I can read about "physics" of this process
-and where I can make some tunning to avoid this effect of growing
-virtual memory on 2.6 kernels?
+Thanks for reading.
 
-Maybe, it depends on the difference between NPTL and linuxthreads
-realization?
-
-Thank you for your answers!
-
--- 
-WBR,
-Alexander Burnos
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
