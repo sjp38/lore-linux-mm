@@ -1,217 +1,253 @@
-Subject: Re: [PATCH 5/5] linear reclaim core
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20060908114114.87612de3.akpm@osdl.org>
-References: <exportbomb.1157718286@pinky>
-	 <20060908122718.GA1662@shadowen.org>
-	 <20060908114114.87612de3.akpm@osdl.org>
-Content-Type: text/plain
-Date: Sun, 10 Sep 2006 11:51:37 +0200
-Message-Id: <1157881898.1303.2.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id k8AD8dml168118
+	for <linux-mm@kvack.org>; Sun, 10 Sep 2006 13:08:39 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8ADAl6J1929386
+	for <linux-mm@kvack.org>; Sun, 10 Sep 2006 14:10:47 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8AD8c9j017774
+	for <linux-mm@kvack.org>; Sun, 10 Sep 2006 14:08:38 +0100
+Date: Sun, 10 Sep 2006 15:07:44 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [patch 1/2] own header file for struct page v3
+Message-ID: <20060910130744.GA12084@osiris.ibm.com>
+References: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.64.0609092248400.6762@scrub.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0609092248400.6762@scrub.home>
 Sender: owner-linux-mm@kvack.org
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Zippel <zippel@linux-m68k.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-09-08 at 11:41 -0700, Andrew Morton wrote:
+This moves the definition of struct page from mm.h into a new header file
+mm_types.h.
+This is a prereq to fix SetPageUptodate which is broken on s390:
 
-> - Pick tail page off LRU.
-> 
-> - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-> 
->   - If they're all PageLRU and !PageActive, add them all to page_list for
->     possible reclaim
-> 
-> And, in shrink_active_list:
-> 
-> - Pick tail page off LRU
-> 
-> - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-> 
->   If they're all PageLRU, put all the active pages in this block onto
->   l_hold for possible deactivation.
-> 
-> 
-> Maybe all that can be done in isolate_lru_pages().
+#define SetPageUptodate(_page)
+       do {
+               struct page *__page = (_page);
+               if (!test_and_set_bit(PG_uptodate, &__page->flags))
+                       page_test_and_clear_dirty(_page);
+       } while (0)
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+_page gets used twice in this macro which can cause subtle bugs. Using
+__page for the page_test_and_clear_dirty call doesn't work since it
+causes yet another problem with the page_test_and_clear_dirty macro as
+well.
+In order to avoid all these problems caused by macros it seems to
+be a good idea to get rid of them and convert them to static inline
+functions. Because of header file include order it's necessary to have a
+seperate header file for the struct page definition.
+
+Cc: Roman Zippel <zippel@linux-m68k.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 ---
- fs/buffer.c          |    2 -
- include/linux/swap.h |    2 -
- mm/page_alloc.c      |    2 -
- mm/vmscan.c          |   70 ++++++++++++++++++++++++++++++++++++---------------
- 4 files changed, 53 insertions(+), 23 deletions(-)
 
-Index: linux-2.6/mm/vmscan.c
+Updated patch:	v2:
+		- against -mm
+		- changed name to page-struct.h instead of page.h
+		- moved mem_map declaration to mmzone.h
+
+		v3:
+		- mm_types.h instead of page-struct.h. To be used if someone
+		  wants to move more definitions from mm.h to a seperate
+		  header file.
+
+ include/linux/mm.h       |   67 -------------------------------------------
+ include/linux/mm_types.h |   72 +++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/mmzone.h   |    5 +++
+ 3 files changed, 78 insertions(+), 66 deletions(-)
+
+Index: linux-2.6.18-rc6-mm1/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2006-07-22 00:11:00.000000000 +0200
-+++ linux-2.6/mm/vmscan.c	2006-09-10 11:47:05.000000000 +0200
-@@ -62,6 +62,8 @@ struct scan_control {
- 	int swap_cluster_max;
+--- linux-2.6.18-rc6-mm1.orig/include/linux/mm.h	2006-09-10 14:40:09.000000000 +0200
++++ linux-2.6.18-rc6-mm1/include/linux/mm.h	2006-09-10 14:45:30.000000000 +0200
+@@ -16,6 +16,7 @@
+ #include <linux/mutex.h>
+ #include <linux/debug_locks.h>
+ #include <linux/backing-dev.h>
++#include <linux/mm_types.h>
  
- 	int swappiness;
-+
-+	int order;
- };
+ struct mempolicy;
+ struct anon_vma;
+@@ -215,67 +216,6 @@
+ struct mmu_gather;
+ struct inode;
  
- /*
-@@ -590,35 +592,62 @@ keep:
-  *
-  * returns how many pages were moved onto *@dst.
-  */
-+int __isolate_lru_page(struct page *page, int active)
-+{
-+	int ret = -EINVAL;
-+
-+	if (PageLRU(page) && (PageActive(page) == active)) {
-+		ret = -EBUSY;
-+		if (likely(get_page_unless_zero(page))) {
-+			/*
-+			 * Be careful not to clear PageLRU until after we're
-+			 * sure the page is not being freed elsewhere -- the
-+			 * page release code relies on it.
-+			 */
-+			ClearPageLRU(page);
-+			ret = 0;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
- static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		struct list_head *src, struct list_head *dst,
--		unsigned long *scanned)
-+		unsigned long *scanned, int order)
- {
- 	unsigned long nr_taken = 0;
- 	struct page *page;
--	unsigned long scan;
-+	unsigned long scan, pfn, base_pfn;
-+	int active;
- 
--	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
--		struct list_head *target;
-+	for (scan = 0; scan < nr_to_scan && !list_empty(src);) {
- 		page = lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
- 
- 		BUG_ON(!PageLRU(page));
- 
--		list_del(&page->lru);
--		target = src;
--		if (likely(get_page_unless_zero(page))) {
--			/*
--			 * Be careful not to clear PageLRU until after we're
--			 * sure the page is not being freed elsewhere -- the
--			 * page release code relies on it.
--			 */
--			ClearPageLRU(page);
--			target = dst;
-+		active = PageActive(page);
-+		pfn = page_to_pfn(page);
-+		base_pfn = pfn &= ~((1 << order) - 1);
-+		for (; pfn < (base_pfn + (1 << order)) && pfn_valid(pfn); pfn++) {
-+			struct page *tmp = pfn_to_page(pfn);
-+			int ret;
-+
-+			BUG_ON(!tmp);
-+
-+			ret = __isolate_lru_page(tmp, active);
-+			scan++;
-+			if (ret) {
-+				if (ret == -EBUSY) {
-+					/* else it is being freed elsewhere */
-+					list_move(&tmp->lru, src);
-+				}
-+				break;
-+			} else
-+				list_move(&tmp->lru, dst);
- 			nr_taken++;
--		} /* else it is being freed elsewhere */
+-/*
+- * Each physical page in the system has a struct page associated with
+- * it to keep track of whatever it is we are using the page for at the
+- * moment. Note that we have no way to track which tasks are using
+- * a page, though if it is a pagecache page, rmap structures can tell us
+- * who is mapping it.
+- */
+-struct page {
+-	unsigned long flags;		/* Atomic flags, some possibly
+-					 * updated asynchronously */
+-	atomic_t _count;		/* Usage count, see below. */
+-	atomic_t _mapcount;		/* Count of ptes mapped in mms,
+-					 * to show when page is mapped
+-					 * & limit reverse map searches.
+-					 */
+-	union {
+-	    struct {
+-		unsigned long private;		/* Mapping-private opaque data:
+-					 	 * usually used for buffer_heads
+-						 * if PagePrivate set; used for
+-						 * swp_entry_t if PageSwapCache;
+-						 * indicates order in the buddy
+-						 * system if PG_buddy is set.
+-						 */
+-		struct address_space *mapping;	/* If low bit clear, points to
+-						 * inode address_space, or NULL.
+-						 * If page mapped as anonymous
+-						 * memory, low bit is set, and
+-						 * it points to anon_vma object:
+-						 * see PAGE_MAPPING_ANON below.
+-						 */
+-	    };
+-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+-	    spinlock_t ptl;
+-#endif
+-	};
+-	pgoff_t index;			/* Our offset within mapping. */
+-	struct list_head lru;		/* Pageout list, eg. active_list
+-					 * protected by zone->lru_lock !
+-					 */
+-	/*
+-	 * On machines where all RAM is mapped into kernel address space,
+-	 * we can simply calculate the virtual address. On machines with
+-	 * highmem some memory is mapped into kernel virtual memory
+-	 * dynamically, so we need a place to store that address.
+-	 * Note that this field could be 16 bits on x86 ... ;)
+-	 *
+-	 * Architectures with slow multiplication can define
+-	 * WANT_PAGE_VIRTUAL in asm/page.h
+-	 */
+-#if defined(WANT_PAGE_VIRTUAL)
+-	void *virtual;			/* Kernel virtual address (NULL if
+-					   not kmapped, ie. highmem) */
+-#endif /* WANT_PAGE_VIRTUAL */
+-#ifdef CONFIG_PAGE_OWNER
+-	int order;
+-	unsigned int gfp_mask;
+-	unsigned long trace[8];
+-#endif
+-};
 -
--		list_add(&page->lru, target);
-+		}
- 	}
+ #define page_private(page)		((page)->private)
+ #define set_page_private(page, v)	((page)->private = (v))
  
- 	*scanned = scan;
-@@ -649,7 +678,7 @@ static unsigned long shrink_inactive_lis
- 
- 		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
- 					     &zone->inactive_list,
--					     &page_list, &nr_scan);
-+					     &page_list, &nr_scan, sc->order);
- 		zone->nr_inactive -= nr_taken;
- 		zone->pages_scanned += nr_scan;
- 		spin_unlock_irq(&zone->lru_lock);
-@@ -771,7 +800,7 @@ static void shrink_active_list(unsigned 
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
- 	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
--				    &l_hold, &pgscanned);
-+				    &l_hold, &pgscanned, sc->order);
- 	zone->pages_scanned += pgscanned;
- 	zone->nr_active -= pgmoved;
- 	spin_unlock_irq(&zone->lru_lock);
-@@ -959,7 +988,7 @@ static unsigned long shrink_zones(int pr
-  * holds filesystem locks which prevent writeout this might not work, and the
-  * allocation attempt will fail.
+@@ -551,11 +491,6 @@
   */
--unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
-+unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
+ #include <linux/vmstat.h>
+ 
+-#ifndef CONFIG_DISCONTIGMEM
+-/* The array of struct pages - for discontigmem use pgdat->lmem_map */
+-extern struct page *mem_map;
+-#endif
+-
+ static __always_inline void *lowmem_page_address(struct page *page)
  {
- 	int priority;
- 	int ret = 0;
-@@ -974,6 +1003,7 @@ unsigned long try_to_free_pages(struct z
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
- 		.may_swap = 1,
- 		.swappiness = vm_swappiness,
-+		.order = order,
- 	};
- 
- 	count_vm_event(ALLOCSTALL);
-Index: linux-2.6/fs/buffer.c
+ 	return __va(page_to_pfn(page) << PAGE_SHIFT);
+Index: linux-2.6.18-rc6-mm1/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.orig/fs/buffer.c	2006-09-08 18:13:56.000000000 +0200
-+++ linux-2.6/fs/buffer.c	2006-09-09 23:55:21.000000000 +0200
-@@ -498,7 +498,7 @@ static void free_more_memory(void)
- 	for_each_online_pgdat(pgdat) {
- 		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
- 		if (*zones)
--			try_to_free_pages(zones, GFP_NOFS);
-+			try_to_free_pages(zones, 0, GFP_NOFS);
- 	}
- }
+--- linux-2.6.18-rc6-mm1.orig/include/linux/mmzone.h	2006-09-10 14:40:09.000000000 +0200
++++ linux-2.6.18-rc6-mm1/include/linux/mmzone.h	2006-09-10 14:40:13.000000000 +0200
+@@ -318,6 +318,11 @@
+ };
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
  
-Index: linux-2.6/include/linux/swap.h
++#ifndef CONFIG_DISCONTIGMEM
++/* The array of struct pages - for discontigmem use pgdat->lmem_map */
++extern struct page *mem_map;
++#endif
++
+ /*
+  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
+  * (mostly NUMA machines?) to denote a higher-level memory zone than the
+Index: linux-2.6.18-rc6-mm1/include/linux/mm_types.h
 ===================================================================
---- linux-2.6.orig/include/linux/swap.h	2006-09-08 18:13:56.000000000 +0200
-+++ linux-2.6/include/linux/swap.h	2006-09-09 23:53:56.000000000 +0200
-@@ -181,7 +181,7 @@ extern int rotate_reclaimable_page(struc
- extern void swap_setup(void);
- 
- /* linux/mm/vmscan.c */
--extern unsigned long try_to_free_pages(struct zone **, gfp_t);
-+extern unsigned long try_to_free_pages(struct zone **, int, gfp_t);
- extern unsigned long shrink_all_memory(unsigned long nr_pages);
- extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2006-09-08 18:13:57.000000000 +0200
-+++ linux-2.6/mm/page_alloc.c	2006-09-09 23:55:04.000000000 +0200
-@@ -1000,7 +1000,7 @@ rebalance:
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	did_some_progress = try_to_free_pages(zonelist->zones, gfp_mask);
-+	did_some_progress = try_to_free_pages(zonelist->zones, order, gfp_mask);
- 
- 	p->reclaim_state = NULL;
- 	p->flags &= ~PF_MEMALLOC;
-
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.18-rc6-mm1/include/linux/mm_types.h	2006-09-10 14:44:32.000000000 +0200
+@@ -0,0 +1,72 @@
++#ifndef _LINUX_MM_TYPES_H
++#define _LINUX_MM_TYPES_H
++
++#include <linux/types.h>
++#include <linux/threads.h>
++#include <linux/list.h>
++#include <linux/spinlock.h>
++
++struct address_space;
++
++/*
++ * Each physical page in the system has a struct page associated with
++ * it to keep track of whatever it is we are using the page for at the
++ * moment. Note that we have no way to track which tasks are using
++ * a page, though if it is a pagecache page, rmap structures can tell us
++ * who is mapping it.
++ */
++struct page {
++	unsigned long flags;		/* Atomic flags, some possibly
++					 * updated asynchronously */
++	atomic_t _count;		/* Usage count, see below. */
++	atomic_t _mapcount;		/* Count of ptes mapped in mms,
++					 * to show when page is mapped
++					 * & limit reverse map searches.
++					 */
++	union {
++	    struct {
++		unsigned long private;		/* Mapping-private opaque data:
++						 * usually used for buffer_heads
++						 * if PagePrivate set; used for
++						 * swp_entry_t if PageSwapCache;
++						 * indicates order in the buddy
++						 * system if PG_buddy is set.
++						 */
++		struct address_space *mapping;	/* If low bit clear, points to
++						 * inode address_space, or NULL.
++						 * If page mapped as anonymous
++						 * memory, low bit is set, and
++						 * it points to anon_vma object:
++						 * see PAGE_MAPPING_ANON below.
++						 */
++	    };
++#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
++	    spinlock_t ptl;
++#endif
++	};
++	pgoff_t index;			/* Our offset within mapping. */
++	struct list_head lru;		/* Pageout list, eg. active_list
++					 * protected by zone->lru_lock !
++					 */
++	/*
++	 * On machines where all RAM is mapped into kernel address space,
++	 * we can simply calculate the virtual address. On machines with
++	 * highmem some memory is mapped into kernel virtual memory
++	 * dynamically, so we need a place to store that address.
++	 * Note that this field could be 16 bits on x86 ... ;)
++	 *
++	 * Architectures with slow multiplication can define
++	 * WANT_PAGE_VIRTUAL in asm/page.h
++	 */
++#if defined(WANT_PAGE_VIRTUAL)
++	void *virtual;			/* Kernel virtual address (NULL if
++					   not kmapped, ie. highmem) */
++#endif /* WANT_PAGE_VIRTUAL */
++#ifdef CONFIG_PAGE_OWNER
++	int order;
++	unsigned int gfp_mask;
++	unsigned long trace[8];
++#endif
++};
++
++#endif /* _LINUX_MM_TYPES_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
