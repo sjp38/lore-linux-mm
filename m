@@ -1,91 +1,94 @@
-Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8BMUXnx008279
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:33 -0500
-Date: Mon, 11 Sep 2006 15:30:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060911223032.5032.56797.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20060911223001.5032.24593.sendpatchset@schroedinger.engr.sgi.com>
-References: <20060911223001.5032.24593.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 6/6] Optional ZONE_DMA for ia64
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k8BNU6iE017593
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 19:30:06 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8BNU6rk314238
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:06 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8BNU5xt026758
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:05 -0600
+Subject: Re: [RFC] patch[1/1] i386 numa kva conversion to use
+	bootmem	reserve
+From: keith mannthey <kmannth@us.ibm.com>
+Reply-To: kmannth@us.ibm.com
+In-Reply-To: <4505D8D3.1000301@shadowen.org>
+References: <1150871711.8518.61.camel@keithlap>
+	 <45037B5F.1080509@shadowen.org> <1158000628.5755.48.camel@keithlap>
+	 <4505D8D3.1000301@shadowen.org>
+Content-Type: text/plain
+Date: Mon, 11 Sep 2006 16:30:04 -0700
+Message-Id: <1158017404.7284.35.camel@keithlap>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <clameter@sgi.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-ZONE_DMA less operation for IA64 SGI platform
+On Mon, 2006-09-11 at 22:44 +0100, Andy Whitcroft wrote:
 
-Disable ZONE_DMA for SGI SN2. All memory is addressable by all
-devices and we do not need any special memory pool.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> >> The primary reason that the mem_map is cut from the end of ZONE_NORMAL
+> >> is so that memory that would back that stolen KVA gets pushed out into
+> >> ZONE_HIGHMEM, the boundary between them is moved down.  By using
+> >> reserve_bootmem we will mark the pages which are currently backing the
+> >> KVA you are 'reusing' as reserved and prevent their release; we pay
+> >> double for the mem_map.
+> > Perhaps just freeing the reserve pages and remapping them at an
+> > appropriate time could accomplish this?  Sorry I don't know the KVA
+> > "freeing" path can you describe it a little more?  When are these pages
+> > returned to the system?  It was my understanding that that KVA pages
+> > were lost (the original wayu shrinks ZONE_NORMAL and creates a hole
+> > between the zones).
+> 
+> 
+> No it does seem like we loose the memory at the end of NORMAL when we
+> shrink it, but really happens is we move the boundary down. Any page
+> above the boundary is then in HIGHMEM and available to be allocated.
 
-Index: linux-2.6.18-rc6-mm1/arch/ia64/mm/discontig.c
-===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/ia64/mm/discontig.c	2006-09-11 16:42:07.206714114 -0500
-+++ linux-2.6.18-rc6-mm1/arch/ia64/mm/discontig.c	2006-09-11 16:51:50.094129334 -0500
-@@ -37,7 +37,9 @@
- 	unsigned long pernode_size;
- 	struct bootmem_data bootmem_data;
- 	unsigned long num_physpages;
-+#ifdef CONFIG_ZONE_DMA
- 	unsigned long num_dma_physpages;
-+#endif
- 	unsigned long min_pfn;
- 	unsigned long max_pfn;
- };
-@@ -656,9 +658,11 @@
- 
- 	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
- 	mem_data[node].num_physpages += len >> PAGE_SHIFT;
-+#ifdef CONFIG_ZONE_DMA
- 	if (start <= __pa(MAX_DMA_ADDRESS))
- 		mem_data[node].num_dma_physpages +=
- 			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
-+#endif
- 	start = GRANULEROUNDDOWN(start);
- 	start = ORDERROUNDDOWN(start);
- 	end = GRANULEROUNDUP(end);
-@@ -709,7 +713,9 @@
- 			max_pfn = mem_data[node].max_pfn;
- 	}
- 
-+#ifdef CONFIG_ZONE_DMA
- 	max_zone_pfns[ZONE_DMA] = max_dma;
-+#endif
- 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
- 	free_area_init_nodes(max_zone_pfns);
- 
-Index: linux-2.6.18-rc6-mm1/arch/ia64/mm/contig.c
-===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/ia64/mm/contig.c	2006-09-11 16:42:07.215503923 -0500
-+++ linux-2.6.18-rc6-mm1/arch/ia64/mm/contig.c	2006-09-11 16:51:50.104872434 -0500
-@@ -231,8 +231,10 @@
- 	num_physpages = 0;
- 	efi_memmap_walk(count_pages, &num_physpages);
- 
-+#ifdef CONFIG_ZONE_DMA
- 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
- 	max_zone_pfns[ZONE_DMA] = max_dma;
-+#endif
- 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
- 
- #ifdef CONFIG_VIRTUAL_MEM_MAP
-Index: linux-2.6.18-rc6-mm1/arch/ia64/Kconfig
-===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/ia64/Kconfig	2006-09-11 16:44:55.649739769 -0500
-+++ linux-2.6.18-rc6-mm1/arch/ia64/Kconfig	2006-09-11 16:51:50.114638888 -0500
-@@ -23,8 +23,8 @@
- 	default y
- 
- config ZONE_DMA
--	bool
--	default y
-+	def_bool y
-+	depends on !IA64_SGI_SN2
- 
- config MMU
- 	bool
+How is it available for allocation?  I see it is in highmem but the
+pmd's for the kva area are set with node local information.  I don't see
+any special code to reclaim the kva area or extend ZONE_HIGHMEM.... How
+does having the KVA area in ZONE_HIGHMEM allow you to reclaim it?
+(sorry if this is an easy question but I an still sorting out how it is
+"reclaimed" in the original implementation and why it can't be reclaimed
+as part of ZONE_NORMAL). 
+
+> > 
+> >> If the initrd's are falling into this space, can we not allocate some
+> >> bootmem for those and move them out of our way?  As filesystem images
+> >> they are essentially location neutral so this should be safe?
+> > 
+> > AFAIK bootloaders choose where map initrds.  Grub seems to put it around
+> > the top of ZONE_NORMAL but it is pretty free to map it where it wants. I
+> > suppose INITRD_START INITRD_END and all that could be dynamic and moved
+> > around a bit but it seems a little messy. I would rather see the special
+> > case (i386 numa the rare beast it is) jump thought a few extra hoops
+> > than to muck with the initrd code. 
+> 
+> Right we can't change where grub puts it.  But doesn't it tell us where
+> it is as part of the kernel parameterisation.  That would allow us to
+> move it out of our way and change the parameters to that new location,
+> allowing normal processing to find it in the new location.
+
+Yea we know right where the initrd is at.  All this code is running
+before the bootmem allocator is even setup in fact this function is
+setting everything up to call setup_bootmem_allocator (at the end of the
+function)... 
+
+ Are you sure there isn't another way to reclaim these pages?
+
+> Be interested to see the layout during boot on one of these boxes :).
+
+It is as easy as booting with an initrd :)  I can post some initrd
+locations it a little while. 
+
+Thanks,
+  Keith 
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
