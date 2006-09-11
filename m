@@ -1,80 +1,58 @@
-Date: Sun, 10 Sep 2006 17:40:51 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 5/5] linear reclaim core
-Message-Id: <20060910174051.0c14a3b8.akpm@osdl.org>
-In-Reply-To: <20060910234509.GB10482@wohnheim.fh-wedel.de>
-References: <exportbomb.1157718286@pinky>
-	<20060908122718.GA1662@shadowen.org>
-	<20060908114114.87612de3.akpm@osdl.org>
-	<20060910234509.GB10482@wohnheim.fh-wedel.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id k8B4Mru9129474
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 04:22:53 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8B4RPBD2850930
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 06:27:25 +0200
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8B4Mq3J001605
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 06:22:52 +0200
+Date: Mon, 11 Sep 2006 06:22:01 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [patch 2/2] convert s390 page handling macros to functions v3
+Message-ID: <20060911042201.GA8379@osiris.ibm.com>
+References: <20060908111716.GA6913@osiris.boeblingen.de.ibm.com> <Pine.LNX.4.64.0609092248400.6762@scrub.home> <20060910130832.GB12084@osiris.ibm.com> <1157905518.26324.83.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1157905518.26324.83.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?B?SvZybg==?= Engel <joern@wohnheim.fh-wedel.de>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Roman Zippel <zippel@linux-m68k.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Sep 2006 01:45:09 +0200
-Jorn Engel <joern@wohnheim.fh-wedel.de> wrote:
-
-> On Fri, 8 September 2006 11:41:14 -0700, Andrew Morton wrote:
+On Sun, Sep 10, 2006 at 09:25:18AM -0700, Dave Hansen wrote:
+> On Sun, 2006-09-10 at 15:08 +0200, Heiko Carstens wrote:
 > > 
-> > I'm somewhat surprised at the implementation.  Would it not be sufficient
-> > to do this within shrink_inactive_list()?  Something along the lines of:
-> > 
-> > - Pick tail page off LRU.
-> > 
-> > - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-> > 
-> >   - If they're all PageLRU and !PageActive, add them all to page_list for
-> >     possible reclaim
-> > 
-> > And, in shrink_active_list:
-> > 
-> > - Pick tail page off LRU
-> > 
-> > - For all "neighbour" pages (alignment == 1<<order, count == 1<<order)
-> > 
-> >   If they're all PageLRU, put all the active pages in this block onto
-> >   l_hold for possible deactivation.
+> > +static inline int page_test_and_clear_dirty(struct page *page)
+> > +{
+> > +       unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+> > +       int skey = page_get_storage_key(physpage); 
 > 
-> Hmm.  Trying to shoot holes into your approach, I find two potential
-> problems:
-> A) With sufficient fragmentation, all inactive pages have one active
-> neighbour, so shrink_inactive_list() will never find a cluster of the
-> required order.
+> This has nothing to do with your patch at all, but why is 'page -
+> mem_map' being open-coded here?
 
-Nope.  If the clump of pages has a mix of active and inactive, the above
-design would cause the active ones to be deactivated, so now the entire
-clump is eligible for treatment by shrink_inactive_list().
+I just changed the defines to functions without thinking about this.. :)
+ 
+> I see at least a couple of page_to_phys() definitions on some
+> architectures.  This operation is done enough times that s390 could
+> probably use the same treatment.
 
-> B) With some likelihood, shrink_active_list() will pick neighbours
-> which happen to be rather hot pages.  They get freed, only to get
-> paged in again within little more than rotational latency.
+Yes, even s390 has page_to_phys() as well. But why is it in io.h? Seems
+like this is inconsistent across architectures. Also in quite a few
+architectures the define looks like this:
 
-Maybe.  Careful benchmarking and carefully-designed microbenchmarks are, as
-always, needed.
+#define page_to_phys(page)	((page - mem_map) << PAGE_SHIFT)
 
-Bear in mind that simply moving the pages to the inactive list isn't enough
-to get them reclaimed: we still do various forms of page aging and the
-pages can still be preserved due to that.  IOW, we have several different
-forms of page aging, one of which is LRU-ordering.  The above design
-compromises just one of those aging steps.
+A pair of braces is missing around page. Yet another possible subtle bug...
 
-I'd be more concerned about higher-order atomic allocations.  If this thing
-is to work I suspect we'll need per-zone, per-order watermarks and kswapd
-will need to maintain those.
+> It could at least use a page_to_pfn() instead of the 'page - mem_map'
+> operation, right?
 
-> How about something like:
-> 1. Free 1<<order pages from the inactive list.
-> 2. Pick a page cluster of requested order.
-> 3. Move all pages from the cluster to the just freed pages.
-
-Don't think in terms of "freeing".  Think in terms of "scanning".  A lot of
-page reclaim's balancing tricks are cast in terms of pages-scanned,
-slabs-scanned, etc.
+Yes, I will address that in a later patch. Shouldn't stop this one from
+being merged, if there aren't any other objections.
+Thanks for pointing this out!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
