@@ -1,193 +1,95 @@
-Message-ID: <4505D8D3.1000301@shadowen.org>
-Date: Mon, 11 Sep 2006 22:44:51 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [RFC] patch[1/1] i386 numa kva conversion to use bootmem	reserve
-References: <1150871711.8518.61.camel@keithlap>	 <45037B5F.1080509@shadowen.org> <1158000628.5755.48.camel@keithlap>
-In-Reply-To: <1158000628.5755.48.camel@keithlap>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8BMU2nx007936
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:02 -0500
+Date: Mon, 11 Sep 2006 15:30:01 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20060911223001.5032.24593.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 0/8] Optional ZONE_DMA V1
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kmannth@us.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-keith mannthey wrote:
-> On Sun, 2006-09-10 at 03:41 +0100, Andy Whitcroft wrote:
->> keith mannthey wrote:
->>> Hello,
->>>   I the current i386 numa the numa_kva (the area used to remap node
->>> local data in lowmem) space is acquired by adjusting the end of low
->>> memroy during boot. 
->>>
->>> (from setup_memory)
->>> reserve_pages = calculate_numa_remap_pages();
->>> (then)
->>> system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
->>>
->>> The problem this is that initrds can be trampled over (the kva can
->>> adjust system_max_low_pfn into the initrd area) This results in kernel
->>> throwing away the intird and a failed boot.  This is a long standing
->>> issue. (It has been like this at least for the last few years). 
->>>
->>> This patch keeps the numa kva code from adjusting the end of memory and
->>> coverts it is just use the reserve_bootmem call to reserve the large
->>> amount of space needed for the numa_kva. It is mindful of initrds when
->>> present. 
->>>
->>> This patch was built against 2.6.17-rc1 originally but applies and boots
->>> against 2.6.17 just fine.  I have only test this against the summit
->>> subarch (I don't have other i386 numa hw). 
->>>
->>> all feedback welcome!
->>>
->>> Signed-off-by:  Keith Mannthey <kmannth@us.ibm.com>
->>>
->>>
->>> ------------------------------------------------------------------------
->>>
->>> diff -urN linux-2.6.17/arch/i386/kernel/setup.c linux-2.6.17-work/arch/i386/kernel/setup.c
->>> --- linux-2.6.17/arch/i386/kernel/setup.c	2006-06-17 18:49:35.000000000 -0700
->>> +++ linux-2.6.17-work/arch/i386/kernel/setup.c	2006-06-20 23:04:37.000000000 -0700
->>> @@ -1210,6 +1210,9 @@
->>>  extern void zone_sizes_init(void);
->>>  #endif /* !CONFIG_NEED_MULTIPLE_NODES */
->>>  
->>> +#ifdef CONFIG_NUMA
->>> +extern void numa_kva_reserve(void);
->>> +#endif
->>>  void __init setup_bootmem_allocator(void)
->>>  {
->>>  	unsigned long bootmap_size;
->>> @@ -1265,7 +1268,9 @@
->>>  	 */
->>>  	find_smp_config();
->>>  #endif
->>> -
->>> +#ifdef CONFIG_NUMA
->>> +	numa_kva_reserve();
->>> +#endif 
->>>  #ifdef CONFIG_BLK_DEV_INITRD
->>>  	if (LOADER_TYPE && INITRD_START) {
->>>  		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
->>> diff -urN linux-2.6.17/arch/i386/mm/discontig.c linux-2.6.17-work/arch/i386/mm/discontig.c
->>> --- linux-2.6.17/arch/i386/mm/discontig.c	2006-06-17 18:49:35.000000000 -0700
->>> +++ linux-2.6.17-work/arch/i386/mm/discontig.c	2006-06-20 23:11:49.000000000 -0700
->>> @@ -118,7 +118,8 @@
->>>  
->>>  void *node_remap_end_vaddr[MAX_NUMNODES];
->>>  void *node_remap_alloc_vaddr[MAX_NUMNODES];
->>> -
->>> +static unsigned long kva_start_pfn;
->>> +static unsigned long kva_pages;
->>>  /*
->>>   * FLAT - support for basic PC memory model with discontig enabled, essentially
->>>   *        a single node with all available processors in it with a flat
->>> @@ -287,7 +288,6 @@
->>>  {
->>>  	int nid;
->>>  	unsigned long system_start_pfn, system_max_low_pfn;
->>> -	unsigned long reserve_pages;
->>>  
->>>  	/*
->>>  	 * When mapping a NUMA machine we allocate the node_mem_map arrays
->>> @@ -299,14 +299,23 @@
->>>  	find_max_pfn();
->>>  	get_memcfg_numa();
->>>  
->>> -	reserve_pages = calculate_numa_remap_pages();
->>> +	kva_pages = calculate_numa_remap_pages();
->>>  
->>>  	/* partially used pages are not usable - thus round upwards */
->>>  	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
->>>  
->>> -	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
->>> -	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
->>> -			reserve_pages, max_low_pfn + reserve_pages);
->>> +	kva_start_pfn = find_max_low_pfn() - kva_pages;
->>> +
->>> +#ifdef CONFIG_BLK_DEV_INITRD
->>> +	/* Numa kva area is below the initrd */
->>> +	if (LOADER_TYPE && INITRD_START) 
->>> +		kva_start_pfn = PFN_DOWN(INITRD_START)  - kva_pages;
->>> +#endif 
->>> +	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);
->>> +
->>> +	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
->>> +	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n", 
->>> +		kva_start_pfn, max_low_pfn);
->>>  	printk("max_pfn = %ld\n", max_pfn);
->>>  #ifdef CONFIG_HIGHMEM
->>>  	highstart_pfn = highend_pfn = max_pfn;
->>> @@ -324,7 +333,7 @@
->>>  			(ulong) pfn_to_kaddr(max_low_pfn));
->>>  	for_each_online_node(nid) {
->>>  		node_remap_start_vaddr[nid] = pfn_to_kaddr(
->>> -				highstart_pfn + node_remap_offset[nid]);
->>> +				kva_start_pfn + node_remap_offset[nid]);
->>>  		/* Init the node remap allocator */
->>>  		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
->>>  			(node_remap_size[nid] * PAGE_SIZE);
->>> @@ -339,7 +348,6 @@
->>>  	}
->>>  	printk("High memory starts at vaddr %08lx\n",
->>>  			(ulong) pfn_to_kaddr(highstart_pfn));
->>> -	vmalloc_earlyreserve = reserve_pages * PAGE_SIZE;
->>>  	for_each_online_node(nid)
->>>  		find_max_pfn_node(nid);
->>>  
->>> @@ -349,6 +357,12 @@
->>>  	return max_low_pfn;
->>>  }
->>>  
->>> +void __init numa_kva_reserve (void) 
->>> +{
->>> +	reserve_bootmem(PFN_PHYS(kva_start_pfn),PFN_PHYS(kva_pages));
->>> +
->>> +}
->>> +
->>>  void __init zone_sizes_init(void)
->>>  {
->>>  	int nid;
->> The primary reason that the mem_map is cut from the end of ZONE_NORMAL
->> is so that memory that would back that stolen KVA gets pushed out into
->> ZONE_HIGHMEM, the boundary between them is moved down.  By using
->> reserve_bootmem we will mark the pages which are currently backing the
->> KVA you are 'reusing' as reserved and prevent their release; we pay
->> double for the mem_map.
-> 
-> Perhaps just freeing the reserve pages and remapping them at an
-> appropriate time could accomplish this?  Sorry I don't know the KVA
-> "freeing" path can you describe it a little more?  When are these pages
-> returned to the system?  It was my understanding that that KVA pages
-> were lost (the original wayu shrinks ZONE_NORMAL and creates a hole
-> between the zones).
+Optional ZONE_DMA
 
+This patch follows up on the earlier work in Andrew's tree to reduce
+the number of zones. The patches allow to go to a minimum of 2 zones.
+This one allows also to make ZONE_DMA optional and therefore the
+number of zones can be reduced to one.
 
-No it does seem like we loose the memory at the end of NORMAL when we
-shrink it, but really happens is we move the boundary down. Any page
-above the boundary is then in HIGHMEM and available to be allocated.
-> 
->> If the initrd's are falling into this space, can we not allocate some
->> bootmem for those and move them out of our way?  As filesystem images
->> they are essentially location neutral so this should be safe?
-> 
-> AFAIK bootloaders choose where map initrds.  Grub seems to put it around
-> the top of ZONE_NORMAL but it is pretty free to map it where it wants. I
-> suppose INITRD_START INITRD_END and all that could be dynamic and moved
-> around a bit but it seems a little messy. I would rather see the special
-> case (i386 numa the rare beast it is) jump thought a few extra hoops
-> than to muck with the initrd code. 
+ZONE_DMA is usually used for ISA DMA devices. Typically modern hardware
+does not have any of these anymore. So we frequently do not need
+the zone anymore. The presence of an additional zone unnecessarily
+complicates VM operations. It must be scanned and balancing logic
+must operate in it etc etc. If one has a 1-1 correspondence between
+zones and nodes in a NUMA system then various other optimizations
+become possible.
 
-Right we can't change where grub puts it.  But doesn't it tell us where
-it is as part of the kernel parameterisation.  That would allow us to
-move it out of our way and change the parameters to that new location,
-allowing normal processing to find it in the new location.
+Many systems today (especially 64 bit but also 32 bit machines with less
+than 4G of memory) can therefore operate just fine with a single zone.
+With a single zone various loops can be optimized away by the
+compiler. Many system currently do not place anything in ZONE_DMA. On
+most of my systems ZONE_DMA is completely empty. Why constantly look
+at an empty zone in /proc/zoneinfo and empty slab in /proc/slabinfo?
+Non i386 also frequently have no need for ZONE_DMA and zones stay
+empty.
 
-Be interested to see the layout during boot on one of these boxes :).
+The patchset was tested on i386 (UP / SMP), x86_64 (UP, NUMA) and
+ia64 (NUMA).
 
--apw
+The RFC posted earlier (see
+http://marc.theaimsgroup.com/?l=linux-kernel&m=115231723513008&w=2)
+had lots of #ifdefs in them. An effort has been made to minize the number
+of #ifdefs and make this as compact as possible. The job was made much easier
+by the ongoing efforts of others to extract common arch specific functionality.
+
+I have been running this for awhile now on my desktop and finally Linux is
+using all my available RAM instead of leaving the 16MB in ZONE_DMA untouched:
+
+christoph@pentium940:~$ cat /proc/zoneinfo
+Node 0, zone   Normal
+  pages free     4435
+        min      1448
+        low      1810
+        high     2172
+        active   241786
+        inactive 210170
+        scanned  0 (a: 0 i: 0)
+        spanned  524224
+        present  524224
+    nr_anon_pages 61680
+    nr_mapped    14271
+    nr_file_pages 390264
+    nr_slab_reclaimable 27564
+    nr_slab_unreclaimable 1793
+    nr_page_table_pages 449
+    nr_dirty     39
+    nr_writeback 0
+    nr_unstable  0
+    nr_bounce    0
+    cpu: 0 pcp: 0
+              count: 156
+              high:  186
+              batch: 31
+    cpu: 0 pcp: 1
+              count: 9
+              high:  62
+              batch: 15
+  vm stats threshold: 20
+    cpu: 1 pcp: 0
+              count: 177
+              high:  186
+              batch: 31
+    cpu: 1 pcp: 1
+              count: 12
+              high:  62
+              batch: 15
+  vm stats threshold: 20
+  all_unreclaimable: 0
+  prev_priority:     12
+  temp_priority:     12
+  start_pfn:         0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
