@@ -1,71 +1,64 @@
-Date: Mon, 11 Sep 2006 09:33:25 +0200
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@wohnheim.fh-wedel.de>
-Subject: Re: [PATCH 5/5] linear reclaim core
-Message-ID: <20060911073325.GA25255@wohnheim.fh-wedel.de>
-References: <exportbomb.1157718286@pinky> <20060908122718.GA1662@shadowen.org> <20060908114114.87612de3.akpm@osdl.org> <20060910234509.GB10482@wohnheim.fh-wedel.de> <20060910174051.0c14a3b8.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20060910174051.0c14a3b8.akpm@osdl.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Message-ID: <71685936404184.61B7307842@GL8DB>
+From: "circulate" <cataloguecantabrigian@roughneck.ca>
+Subject: blend
+Date: Mon, 11 Sep 2006 11:25:05 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+        charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
+Return-Path: <cataloguecantabrigian@roughneck.ca>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 September 2006 17:40:51 -0700, Andrew Morton wrote:
->
-> > A) With sufficient fragmentation, all inactive pages have one active
-> > neighbour, so shrink_inactive_list() will never find a cluster of the
-> > required order.
-> 
-> Nope.  If the clump of pages has a mix of active and inactive, the above
-> design would cause the active ones to be deactivated, so now the entire
-> clump is eligible for treatment by shrink_inactive_list().
+H o t stcok ale rt.
+This one is still climbling the sotck c harts al ert
+Breaking marrket news report - T QWW. P K 
 
-Ok?  More reading seems necessary before I can follow you here...
+Lookup: T QWW. P K
 
-> Bear in mind that simply moving the pages to the inactive list isn't enough
-> to get them reclaimed: we still do various forms of page aging and the
-> pages can still be preserved due to that.  IOW, we have several different
-> forms of page aging, one of which is LRU-ordering.  The above design
-> compromises just one of those aging steps.
+Compaany Name: Tayolr Aquapoincs Wroldwide, Inc.
 
-Are these different forms of page aging described in written form
-somewhere?
+Recently traading for:  0.40
 
-> I'd be more concerned about higher-order atomic allocations.  If this thing
-> is to work I suspect we'll need per-zone, per-order watermarks and kswapd
-> will need to maintain those.
+6 Week Target: 1.25
 
-Or simply declare higher-order atomic allocations to be undesired?
-Not sure how many of those we have that make sense.
+6 Month Target:  4.97
 
-> Don't think in terms of "freeing".  Think in terms of "scanning".  A lot of
-> page reclaim's balancing tricks are cast in terms of pages-scanned,
-> slabs-scanned, etc.
+Rating:  Immediate b uy
 
-There is a related problem I'm sure you are aware of.  Trying to
-shrink the dentry_cache or the various foofs_inode_caches we remove
-tons of objects before a full slab (in most cases a page) is free and
-can be returned.  ext3_inode_cache has 8 objects per slab,
-dentry_cache has 29.  That's the equivalent of an order-3 or order-5
-page allocation in terms of inefficiency.
+Expected: Steadily climb for the top
 
-And having just started thinking about the problem, my envisioned
-solution looks fairly similar to Andy's work for high-order
-allocations here.  Except that I cannot think in terms of "scanning",
-afaict.
+Our featured companny TQW W is a ?Big Fish? in what so far has been a little pond. But all of that is going to change when Wall Street sees the growth they?re experiencing.
 
-Jorn
+Whether you love fish, or vegetables, or don?t care for either one, TQ WW needs to be on your plate! Successs has already happened for Tailor Made Fish Farms, the original coompany behind T QWW, as you can see by the stories on this page. Do your research, and find out why we think TQ WW could increase as much as 400% or more in the next few weeks.
 
--- 
-Anything that can go wrong, will.
--- Finagle's Law
+If you?ve been fishing for a great opportunity, OTC PK: T QWW could be the best deal you?ve ever hooked!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Taiolr Aqauponics Wordlwide, Inc. (OT CPK: T QWW) has developed an easy to operate, land-based modular fish production system that is both sustainable and environmentally responsible. Production of ?year-round? premium quality fish and vegetables is achieved through compact and 
+controlled production areas using much less water than conventional methods 
+resulting in two crops from a single water uptake.
+
+This efficient combination of T QWW's fish & vegetable production has 
+two major advantages: 
+
+We see the possibility of a 250% rise in the very near future, and more 
+may come after word spreads. Go with the flow ? and b uy TQW W when the ?tide? is low, then just wait for it to come in! 
+
+Huge monney from a ccompany that satisfies ecological needs ? there?s something you don?t see very often. TQ WW is primed for huge international growth in the very near future, and as one of the most well-known players in the aquaponics field, TQ WW will bring its inndustry to new countries (and new invvestors!). 
+
+It seems like making mooney with Aquaopnics is as easy as shooting fish in a barrel?and now you can ride the wave with TQW W!
+
+Don?t delay ? do your research on T QWW and contact your brroker immmediately!
+
+The time to get in on this great fish story is now! 
+
+Talior Aquaopnics Worldwdie, unlike many of its competitors, already succeessfully operates a commmercial scale food production system. 
+
+The upside for Aquaponics is uncharted, but huge revenues are already 
+being derived from a Tailoor AAquaponics combined Fish Farming/Vegetable Farming venture in Australia. The research shows us that this is a sstock we want to acquire ? and acquire a great deal of ? before more news makes it across the Pacific. 
+
+Remember, TQ WW is on trackk for increaases of 250%, 400% or more, but not many people know about it yet. That?s why you need to do your research and make your p l a y today! 
+
+Any of the above statements with respect to the future predications or 
+goals and eve nts may be seen as only forward looking and nothing else. 
+All informatio n inside this em ail pertaining to any sort of financcial advice need to be understood as informati on and not advice. None of the informati on above can be constructed as any sort of ffinan cial a dvice. This is a paaid advertisemment.
