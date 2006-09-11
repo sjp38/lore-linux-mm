@@ -1,120 +1,191 @@
-Message-ID: <4505D6E2.8000704@shadowen.org>
-Date: Mon, 11 Sep 2006 22:36:34 +0100
+Message-ID: <4505D8D3.1000301@shadowen.org>
+Date: Mon, 11 Sep 2006 22:44:51 +0100
 From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: -mm numa perf regression
-References: <20060901105554.780e9e78.akpm@osdl.org>	 <Pine.LNX.4.64.0609011125110.19863@schroedinger.engr.sgi.com>	 <44F88236.10803@google.com>	 <Pine.LNX.4.64.0609011231300.20077@schroedinger.engr.sgi.com>	 <44F8949E.4010308@google.com>	 <Pine.LNX.4.64.0609011314590.20312@schroedinger.engr.sgi.com>	 <44F8970F.2050004@google.com>	 <Pine.LNX.4.64.0609011331240.20357@schroedinger.engr.sgi.com>	 <44F8BB87.7050402@shadowen.org>	 <Pine.LNX.4.64.0609020658290.22978@schroedinger.engr.sgi.com>	 <Pine.LNX.4.64.0609071116290.16838@schroedinger.engr.sgi.com>	 <45017C95.90502@shadowen.org>	 <Pine.LNX.4.64.0609081132200.23089@schroedinger.engr.sgi.com>	 <45057055.7070003@shadowen.org> <20060911093549.a553cfe5.akpm@osdl.org>	 <450591B2.2080102@shadowen.org>  <450599F4.4050707@shadowen.org> <1158000687.5755.50.camel@keithlap>
-In-Reply-To: <1158000687.5755.50.camel@keithlap>
+Subject: Re: [RFC] patch[1/1] i386 numa kva conversion to use bootmem	reserve
+References: <1150871711.8518.61.camel@keithlap>	 <45037B5F.1080509@shadowen.org> <1158000628.5755.48.camel@keithlap>
+In-Reply-To: <1158000628.5755.48.camel@keithlap>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: kmannth@us.ibm.com
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Martin Bligh <mbligh@google.com>, Paul Jackson <pj@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 keith mannthey wrote:
-> On Mon, 2006-09-11 at 18:16 +0100, Andy Whitcroft wrote:
->> Andy Whitcroft wrote:
->>> Andrew Morton wrote:
->>>> On Mon, 11 Sep 2006 15:19:01 +0100
->>>> Andy Whitcroft <apw@shadowen.org> wrote:
->>>>
->>>>> Christoph Lameter wrote:
->>>>>> On Fri, 8 Sep 2006, Andy Whitcroft wrote:
->>>>>>
->>>>>>>> I have not heard back from you on this issue. It would be good to have 
->>>>>>>> some more data on this one.
->>>>>>> Sorry I submitted the tests and the results filtered out to TKO, and
->>>>>>> then I forgot to check them.  Looking at the graph backing this out has
->>>>>>> had no effect.  As I think we'd expect from what comes below.
->>>>>>>
->>>>>>> What next?
->>>>>> Get me the promised data? /proc/zoneinfo before and after the run. 
->>>>>> /proc/meminfo and /sys/devices/system/node/node*/* would be helpful.
->>>>> Sorry for the delay, the relevant files wern't all being preserved.
->>>>> Fixed that up and reran things.  The results you asked for are available
->>>>> here:
->>>>>
->>>>>     http://www.shadowen.org/~apw/public/debug-moe-perf/47138/
->>>>>
->>>>> Just having a quick look at the results, it seems that they are saying
->>>>> that all of our cpu's are in node 0 which isn't right at all.  The
->>>>> machine has 4 processors per node.
->>>>>
->>>>> I am sure that would account for the performance loss.  Now as to why ...
->>>>>
->>>>>> Is there a way to remotely access the box?
->>>>> Sadly no ... I do have direct access to test on the box but am not able
->>>>> to export it.
->>>>>
->>>>> I've also started a bisection looking for it.  Though that will be some
->>>>> time yet as I've only just dropped the cleaver for the first time.
->>>>>
->>>> I've added linux-mm.  Can we please keep it on-list.  I have a vague suspicion
->>>> that your bisection will end up pointing at one Mel Gorman.  Or someone else.
->>>> But whoever it is will end up wondering wtf is going on.
->>>>
->>>> I don't understand what you mean by "all of our cpu's are in node 0"?  
->>>> http://www.shadowen.org/~apw/public/debug-moe-perf/47138/sys/devices/system/node.after/node0/
->>>> and
->>>> http://www.shadowen.org/~apw/public/debug-moe-perf/47138/sys/devices/system/node.before/node0/
->>>> look the same..  It depends what "before" and "after" mean, I guess...
->>> What I have noted in this output is that all of the CPU's in this
->>> machine have been assigned to node 0, this is incorrect because there
->>> are four nodes of four cpus each.
+> On Sun, 2006-09-10 at 03:41 +0100, Andy Whitcroft wrote:
+>> keith mannthey wrote:
+>>> Hello,
+>>>   I the current i386 numa the numa_kva (the area used to remap node
+>>> local data in lowmem) space is acquired by adjusting the end of low
+>>> memroy during boot. 
 >>>
->>> The before and after refer to either side of the test showing the
->>> regression.  Of course the cpu these are static and thus the same.
+>>> (from setup_memory)
+>>> reserve_pages = calculate_numa_remap_pages();
+>>> (then)
+>>> system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
+>>>
+>>> The problem this is that initrds can be trampled over (the kva can
+>>> adjust system_max_low_pfn into the initrd area) This results in kernel
+>>> throwing away the intird and a failed boot.  This is a long standing
+>>> issue. (It has been like this at least for the last few years). 
+>>>
+>>> This patch keeps the numa kva code from adjusting the end of memory and
+>>> coverts it is just use the reserve_bootmem call to reserve the large
+>>> amount of space needed for the numa_kva. It is mindful of initrds when
+>>> present. 
+>>>
+>>> This patch was built against 2.6.17-rc1 originally but applies and boots
+>>> against 2.6.17 just fine.  I have only test this against the summit
+>>> subarch (I don't have other i386 numa hw). 
+>>>
+>>> all feedback welcome!
+>>>
+>>> Signed-off-by:  Keith Mannthey <kmannth@us.ibm.com>
+>>>
+>>>
+>>> ------------------------------------------------------------------------
+>>>
+>>> diff -urN linux-2.6.17/arch/i386/kernel/setup.c linux-2.6.17-work/arch/i386/kernel/setup.c
+>>> --- linux-2.6.17/arch/i386/kernel/setup.c	2006-06-17 18:49:35.000000000 -0700
+>>> +++ linux-2.6.17-work/arch/i386/kernel/setup.c	2006-06-20 23:04:37.000000000 -0700
+>>> @@ -1210,6 +1210,9 @@
+>>>  extern void zone_sizes_init(void);
+>>>  #endif /* !CONFIG_NEED_MULTIPLE_NODES */
+>>>  
+>>> +#ifdef CONFIG_NUMA
+>>> +extern void numa_kva_reserve(void);
+>>> +#endif
+>>>  void __init setup_bootmem_allocator(void)
+>>>  {
+>>>  	unsigned long bootmap_size;
+>>> @@ -1265,7 +1268,9 @@
+>>>  	 */
+>>>  	find_smp_config();
+>>>  #endif
+>>> -
+>>> +#ifdef CONFIG_NUMA
+>>> +	numa_kva_reserve();
+>>> +#endif 
+>>>  #ifdef CONFIG_BLK_DEV_INITRD
+>>>  	if (LOADER_TYPE && INITRD_START) {
+>>>  		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
+>>> diff -urN linux-2.6.17/arch/i386/mm/discontig.c linux-2.6.17-work/arch/i386/mm/discontig.c
+>>> --- linux-2.6.17/arch/i386/mm/discontig.c	2006-06-17 18:49:35.000000000 -0700
+>>> +++ linux-2.6.17-work/arch/i386/mm/discontig.c	2006-06-20 23:11:49.000000000 -0700
+>>> @@ -118,7 +118,8 @@
+>>>  
+>>>  void *node_remap_end_vaddr[MAX_NUMNODES];
+>>>  void *node_remap_alloc_vaddr[MAX_NUMNODES];
+>>> -
+>>> +static unsigned long kva_start_pfn;
+>>> +static unsigned long kva_pages;
+>>>  /*
+>>>   * FLAT - support for basic PC memory model with discontig enabled, essentially
+>>>   *        a single node with all available processors in it with a flat
+>>> @@ -287,7 +288,6 @@
+>>>  {
+>>>  	int nid;
+>>>  	unsigned long system_start_pfn, system_max_low_pfn;
+>>> -	unsigned long reserve_pages;
+>>>  
+>>>  	/*
+>>>  	 * When mapping a NUMA machine we allocate the node_mem_map arrays
+>>> @@ -299,14 +299,23 @@
+>>>  	find_max_pfn();
+>>>  	get_memcfg_numa();
+>>>  
+>>> -	reserve_pages = calculate_numa_remap_pages();
+>>> +	kva_pages = calculate_numa_remap_pages();
+>>>  
+>>>  	/* partially used pages are not usable - thus round upwards */
+>>>  	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
+>>>  
+>>> -	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
+>>> -	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
+>>> -			reserve_pages, max_low_pfn + reserve_pages);
+>>> +	kva_start_pfn = find_max_low_pfn() - kva_pages;
+>>> +
+>>> +#ifdef CONFIG_BLK_DEV_INITRD
+>>> +	/* Numa kva area is below the initrd */
+>>> +	if (LOADER_TYPE && INITRD_START) 
+>>> +		kva_start_pfn = PFN_DOWN(INITRD_START)  - kva_pages;
+>>> +#endif 
+>>> +	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);
+>>> +
+>>> +	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
+>>> +	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n", 
+>>> +		kva_start_pfn, max_low_pfn);
+>>>  	printk("max_pfn = %ld\n", max_pfn);
+>>>  #ifdef CONFIG_HIGHMEM
+>>>  	highstart_pfn = highend_pfn = max_pfn;
+>>> @@ -324,7 +333,7 @@
+>>>  			(ulong) pfn_to_kaddr(max_low_pfn));
+>>>  	for_each_online_node(nid) {
+>>>  		node_remap_start_vaddr[nid] = pfn_to_kaddr(
+>>> -				highstart_pfn + node_remap_offset[nid]);
+>>> +				kva_start_pfn + node_remap_offset[nid]);
+>>>  		/* Init the node remap allocator */
+>>>  		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
+>>>  			(node_remap_size[nid] * PAGE_SIZE);
+>>> @@ -339,7 +348,6 @@
+>>>  	}
+>>>  	printk("High memory starts at vaddr %08lx\n",
+>>>  			(ulong) pfn_to_kaddr(highstart_pfn));
+>>> -	vmalloc_earlyreserve = reserve_pages * PAGE_SIZE;
+>>>  	for_each_online_node(nid)
+>>>  		find_max_pfn_node(nid);
+>>>  
+>>> @@ -349,6 +357,12 @@
+>>>  	return max_low_pfn;
+>>>  }
+>>>  
+>>> +void __init numa_kva_reserve (void) 
+>>> +{
+>>> +	reserve_bootmem(PFN_PHYS(kva_start_pfn),PFN_PHYS(kva_pages));
+>>> +
+>>> +}
+>>> +
+>>>  void __init zone_sizes_init(void)
+>>>  {
+>>>  	int nid;
+>> The primary reason that the mem_map is cut from the end of ZONE_NORMAL
+>> is so that memory that would back that stolen KVA gets pushed out into
+>> ZONE_HIGHMEM, the boundary between them is moved down.  By using
+>> reserve_bootmem we will mark the pages which are currently backing the
+>> KVA you are 'reusing' as reserved and prevent their release; we pay
+>> double for the mem_map.
 > 
-> This before data seems to have 4 nodes in both.  Maybe I am missing
-> context here.  
-> 
->> For those who missed the history.  We have been tracking a performance
->> regression on kernbench on some numa systems.  In the process of
->> analysing that we've noticed that all of the cpus in the system are
->> being bound to node 0 rather than their home nodes.  This is caused by
->> the changes in:
-> 
-> That isn't good. 
-> 
->> convert-i386-summit-subarch-to-use-srat-info-for-apicid_to_node-calls.patch
->>
->> @@ -647,7 +649,7 @@ static void map_cpu_to_logical_apicid(vo
->>         int apicid = logical_smp_processor_id();
->>
->>         cpu_2_logical_apicid[cpu] = apicid;
->> -       map_cpu_to_node(cpu, apicid_to_node(apicid));
->> +       map_cpu_to_node(cpu, apicid_to_node(hard_smp_processor_id()));
->>  }
->> This change moves us this mapping from logical to physical apic id which
->> the sub-architectures are not expecting.  I've just booted a machine
->> with this patch (and its -tidy) backed out.  The processors are again
->> assigned to the right places.
-> 
-> 
->> I am expecting this to help with the performance problem too.  But we'll
->> have to wait for the test results to propogate out to TKO to be sure.
->>
->> Keith, even if this doens't fix the performance regression there is
->> cirtainly an unexpected side effect to this change on our system here.
-> 
-> Hmm, I tested this against on x440,x445 and x460 summit was fine at the
-> time...  Is there a dmesg around for the failed boot?  Is this from your
-> 16-way x440 or is this a numaq (moe is numaq right?) breakage? 
-> 
-> I can push the map_cpu_to_node setup in the subarch code if this is
-> numaq breakage. Summit apicid_to_node mapping are in physical (as
-> defined by the SRAT hence the change in lookup) I am building current -
-> mm on a multi-node summit system to see if I can work something out. 
+> Perhaps just freeing the reserve pages and remapping them at an
+> appropriate time could accomplish this?  Sorry I don't know the KVA
+> "freeing" path can you describe it a little more?  When are these pages
+> returned to the system?  It was my understanding that that KVA pages
+> were lost (the original wayu shrinks ZONE_NORMAL and creates a hole
+> between the zones).
 
-Yes this is NUMA-Q.  I think the key point here is that the lookup is
-logical on all other sub-arches so I'd expect to be seeing a logical to
-physical conversion in the subarch.
 
-You have access to the test data direct if you need it.  The key bit of
-the failure showed cpu's being assigned to node 0, as per the debug in
-that routine.
+No it does seem like we loose the memory at the end of NORMAL when we
+shrink it, but really happens is we move the boundary down. Any page
+above the boundary is then in HIGHMEM and available to be allocated.
+> 
+>> If the initrd's are falling into this space, can we not allocate some
+>> bootmem for those and move them out of our way?  As filesystem images
+>> they are essentially location neutral so this should be safe?
+> 
+> AFAIK bootloaders choose where map initrds.  Grub seems to put it around
+> the top of ZONE_NORMAL but it is pretty free to map it where it wants. I
+> suppose INITRD_START INITRD_END and all that could be dynamic and moved
+> around a bit but it seems a little messy. I would rather see the special
+> case (i386 numa the rare beast it is) jump thought a few extra hoops
+> than to muck with the initrd code. 
+
+Right we can't change where grub puts it.  But doesn't it tell us where
+it is as part of the kernel parameterisation.  That would allow us to
+move it out of our way and change the parameters to that new location,
+allowing normal processing to find it in the new location.
+
+Be interested to see the layout during boot on one of these boxes :).
 
 -apw
 
