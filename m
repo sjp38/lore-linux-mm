@@ -1,94 +1,141 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k8BNU6iE017593
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 19:30:06 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8BNU6rk314238
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:06 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8BNU5xt026758
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 17:30:05 -0600
-Subject: Re: [RFC] patch[1/1] i386 numa kva conversion to use
-	bootmem	reserve
-From: keith mannthey <kmannth@us.ibm.com>
-Reply-To: kmannth@us.ibm.com
-In-Reply-To: <4505D8D3.1000301@shadowen.org>
-References: <1150871711.8518.61.camel@keithlap>
-	 <45037B5F.1080509@shadowen.org> <1158000628.5755.48.camel@keithlap>
-	 <4505D8D3.1000301@shadowen.org>
-Content-Type: text/plain
-Date: Mon, 11 Sep 2006 16:30:04 -0700
-Message-Id: <1158017404.7284.35.camel@keithlap>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Sep 2006 17:17:01 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [RFC] Could we get rid of zone_table?
+Message-ID: <Pine.LNX.4.64.0609111714320.7466@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2006-09-11 at 22:44 +0100, Andy Whitcroft wrote:
+It seems that there is no need for zone_table for systems with
+the nodes encoded in the page flags. One can use the NODE_DATA
+function to locate the pgdat and get the zone from there.
 
+I think the only case where we cannot encode the node number
+are the early 32 bit NUMA systems? In that case one would only
+need an array that maps the sections to the corresponding pgdat
+structure and would then get to the zone from there. Dave, could
+you add something like that to sparse.c? Then we get this whole
+thing out of the page allocator.c. I guess that having the ability to 
+figure out where a section belongs may also useful for other 
+purposes in the sparse implementation.
 
-> >> The primary reason that the mem_map is cut from the end of ZONE_NORMAL
-> >> is so that memory that would back that stolen KVA gets pushed out into
-> >> ZONE_HIGHMEM, the boundary between them is moved down.  By using
-> >> reserve_bootmem we will mark the pages which are currently backing the
-> >> KVA you are 'reusing' as reserved and prevent their release; we pay
-> >> double for the mem_map.
-> > Perhaps just freeing the reserve pages and remapping them at an
-> > appropriate time could accomplish this?  Sorry I don't know the KVA
-> > "freeing" path can you describe it a little more?  When are these pages
-> > returned to the system?  It was my understanding that that KVA pages
-> > were lost (the original wayu shrinks ZONE_NORMAL and creates a hole
-> > between the zones).
-> 
-> 
-> No it does seem like we loose the memory at the end of NORMAL when we
-> shrink it, but really happens is we move the boundary down. Any page
-> above the boundary is then in HIGHMEM and available to be allocated.
+This patch only removes the zone_table for the case that
+the node number was encoded in the page->flags.
 
-How is it available for allocation?  I see it is in highmem but the
-pmd's for the kva area are set with node local information.  I don't see
-any special code to reclaim the kva area or extend ZONE_HIGHMEM.... How
-does having the KVA area in ZONE_HIGHMEM allow you to reclaim it?
-(sorry if this is an easy question but I an still sorting out how it is
-"reclaimed" in the original implementation and why it can't be reclaimed
-as part of ZONE_NORMAL). 
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> > 
-> >> If the initrd's are falling into this space, can we not allocate some
-> >> bootmem for those and move them out of our way?  As filesystem images
-> >> they are essentially location neutral so this should be safe?
-> > 
-> > AFAIK bootloaders choose where map initrds.  Grub seems to put it around
-> > the top of ZONE_NORMAL but it is pretty free to map it where it wants. I
-> > suppose INITRD_START INITRD_END and all that could be dynamic and moved
-> > around a bit but it seems a little messy. I would rather see the special
-> > case (i386 numa the rare beast it is) jump thought a few extra hoops
-> > than to muck with the initrd code. 
-> 
-> Right we can't change where grub puts it.  But doesn't it tell us where
-> it is as part of the kernel parameterisation.  That would allow us to
-> move it out of our way and change the parameters to that new location,
-> allowing normal processing to find it in the new location.
-
-Yea we know right where the initrd is at.  All this code is running
-before the bootmem allocator is even setup in fact this function is
-setting everything up to call setup_bootmem_allocator (at the end of the
-function)... 
-
- Are you sure there isn't another way to reclaim these pages?
-
-> Be interested to see the layout during boot on one of these boxes :).
-
-It is as easy as booting with an initrd :)  I can post some initrd
-locations it a little while. 
-
-Thanks,
-  Keith 
-
-
-
+Index: linux-2.6.18-rc6-mm1/include/linux/mm.h
+===================================================================
+--- linux-2.6.18-rc6-mm1.orig/include/linux/mm.h	2006-09-11 18:39:14.000000000 -0500
++++ linux-2.6.18-rc6-mm1/include/linux/mm.h	2006-09-11 19:01:06.145480674 -0500
+@@ -499,9 +499,22 @@
+ {
+ 	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
+ }
++
++#if FLAGS_HAS_NODE
++static inline unsigned long page_to_nid(struct page *page)
++{
++	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
++}
++#endif
++
+ static inline struct zone *page_zone(struct page *page)
+ {
++#if FLAGS_HAS_NODE
++	return &NODE_DATA(page_to_nid(page))
++			->node_zones[page_zone_id(page)];
++#else
+ 	return zone_table[page_zone_id(page)];
++#endif
+ }
+ 
+ static inline unsigned long zone_to_nid(struct zone *zone)
+@@ -509,13 +522,13 @@
+ 	return zone->zone_pgdat->node_id;
+ }
+ 
++#if !FLAGS_HAS_NODE
+ static inline unsigned long page_to_nid(struct page *page)
+ {
+-	if (FLAGS_HAS_NODE)
+-		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+-	else
+-		return zone_to_nid(page_zone(page));
++	return zone_to_nid(page_zone(page));
+ }
++#endif
++
+ static inline unsigned long page_to_section(struct page *page)
+ {
+ 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+@@ -1037,8 +1050,13 @@
+ extern void show_mem(void);
+ extern void si_meminfo(struct sysinfo * val);
+ extern void si_meminfo_node(struct sysinfo *val, int nid);
++#if FLAGS_HAS_NODE
++static inline void zonetable_add(struct zone *zone, int nid,
++	enum zone_type zid, unsigned long pfn, unsigned long size) {}
++#else
+ extern void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+ 					unsigned long pfn, unsigned long size);
++#endif
+ 
+ #ifdef CONFIG_NUMA
+ extern void setup_per_cpu_pageset(void);
+Index: linux-2.6.18-rc6-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.18-rc6-mm1.orig/mm/page_alloc.c	2006-09-11 18:39:14.000000000 -0500
++++ linux-2.6.18-rc6-mm1/mm/page_alloc.c	2006-09-11 18:49:00.228450657 -0500
+@@ -82,13 +82,6 @@
+ 
+ EXPORT_SYMBOL(totalram_pages);
+ 
+-/*
+- * Used by page_zone() to look up the address of the struct zone whose
+- * id is encoded in the upper bits of page->flags
+- */
+-struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
+-EXPORT_SYMBOL(zone_table);
+-
+ static char *zone_names[MAX_NR_ZONES] = {
+ 	 "DMA",
+ #ifdef CONFIG_ZONE_DMA32
+@@ -1808,6 +1801,14 @@
+ 	}
+ }
+ 
++#if !FLAGS_HAS_NODE
++/*
++ * Used by page_zone() to look up the address of the struct zone whose
++ * id is encoded in the upper bits of page->flags
++ */
++struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
++EXPORT_SYMBOL(zone_table);
++
+ #define ZONETABLE_INDEX(x, zone_nr)	((x << ZONES_SHIFT) | zone_nr)
+ void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+ 		unsigned long pfn, unsigned long size)
+@@ -1815,12 +1816,10 @@
+ 	unsigned long snum = pfn_to_section_nr(pfn);
+ 	unsigned long end = pfn_to_section_nr(pfn + size);
+ 
+-	if (FLAGS_HAS_NODE)
+-		zone_table[ZONETABLE_INDEX(nid, zid)] = zone;
+-	else
+-		for (; snum <= end; snum++)
+-			zone_table[ZONETABLE_INDEX(snum, zid)] = zone;
++	for (; snum <= end; snum++)
++		zone_table[ZONETABLE_INDEX(snum, zid)] = zone;
+ }
++#endif
+ 
+ #ifndef __HAVE_ARCH_MEMMAP_INIT
+ #define memmap_init(size, nid, zone, start_pfn) \
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
