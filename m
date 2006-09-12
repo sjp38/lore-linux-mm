@@ -1,43 +1,67 @@
-Date: Tue, 12 Sep 2006 10:41:07 -0700 (PDT)
-From: Christoph Lameter <christoph@engr.sgi.com>
-Subject: Re: [RFC] Could we get rid of zone_table?
-In-Reply-To: <1158081512.9141.10.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0609121037420.11278@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609111714320.7466@schroedinger.engr.sgi.com>
- <1158081512.9141.10.camel@localhost.localdomain>
+Message-ID: <4506F2B9.5020600@google.com>
+Date: Tue, 12 Sep 2006 10:47:37 -0700
+From: Martin Bligh <mbligh@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/8] Optional ZONE_DMA V1
+References: <20060911222729.4849.69497.sendpatchset@schroedinger.engr.sgi.com> <20060912133457.GC10689@sgi.com> <Pine.LNX.4.64.0609121032310.11278@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609121032310.11278@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Jack Steiner <steiner@sgi.com>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Hellwig <hch@infradead.org>, linux-ia64@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Arjan van de Ven <arjan@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Sep 2006, Dave Hansen wrote:
+Resending. Your outbound email address is invalid
+(Christoph Lameter <christoph@engr.sgi.com>), as is
+the address for linux-mm
 
-> On Mon, 2006-09-11 at 17:17 -0700, Christoph Lameter wrote:
-> > I think the only case where we cannot encode the node number
-> > are the early 32 bit NUMA systems? In that case one would only
-> > need an array that maps the sections to the corresponding pgdat
-> > structure and would then get to the zone from there. Dave, could
-> > you add something like that to sparse.c? 
+
+Christoph Lameter wrote:
+> On Tue, 12 Sep 2006, Jack Steiner wrote:
 > 
-> It can certainly be done.  However, I'd rather keep it out of the actual
-> struct mem_section, mostly because anything we do will be for a
-> relatively rare, and relatively obsolete set of platforms.  
+> 
+>>I'm missing something here. On Altix, currently ALL of the memory is reported
+>>as being in the DMA zone:
+>>
+>>	% cat /proc/budd*
+>>	Node 0, zone      DMA   3015    116      4      1    ...
+>>	Node 1, zone      DMA   4243    355     15      3    ...
+>>	Node 2, zone      DMA   4384    113      6      4    ...
+>>
+>>	% cat /proc/zoneinfo
+>>	Node 0, zone      DMA
+>>	  pages free     5868
+>>	  ...
+>>
+>>The DMA slabs are empty, though.
+> 
+> 
+> This is wrong. All memory should be in ZONE_NORMAL since we have no DMA 
+> restrictions on Altix.
 
-There will be no zone table for UP and SMP. In !NUMA case NODE_DATA(0) 
-points to the pgdat with an exact replica of zone_table in the node_zones
-field.
+PPC64 works the same way, I believe. All memory is DMA'able, therefore
+it all fits in ZONE_DMA.
 
-> Any new structure (or any mem_section additions) will just shift the
-> exact same work that we're doing today with zone_table[] somewhere else.
-> The impact into page_alloc.c is also pretty minimal.  It is a single
-> #ifdef, over a structure and a single function, right?
+The real problem is that there's no consistent definition of what the
+zones actually mean.
 
-The problem is that zone_table seems to be useless except for 
-a very rare breed of early 32 bit IBM NUMA machines. Should not be in 
-page_alloc.c as far as I can tell.
+1. Is it DMA'able (this is stupid, as it doesn't say 'for what device'
+2. Is it permanently mapped into kernel address space.
+
+Given an inconsistent set of questions, it is unsuprising that we come
+up with an inconsistent set of answers. We're trying to answer a 2D
+question with a 1D answer.
+
+What is really needed is to pass a physical address limit from the
+caller, together with a flag that says whether the memory needs to be
+mapped into the permanent kernel address space or not. The allocator
+then finds the set of zones that will fulfill this criteria.
+But I suspect this level of change will cause too many people to squeak
+loudly.
+
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
