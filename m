@@ -1,60 +1,57 @@
-Date: Tue, 12 Sep 2006 10:53:56 -0700 (PDT)
-From: Christoph Lameter <christoph@engr.sgi.com>
-Subject: Re: [PATCH 0/8] Optional ZONE_DMA V1
-In-Reply-To: <4506F2B9.5020600@google.com>
-Message-ID: <Pine.LNX.4.64.0609121049280.11481@schroedinger.engr.sgi.com>
-References: <20060911222729.4849.69497.sendpatchset@schroedinger.engr.sgi.com>
- <20060912133457.GC10689@sgi.com> <Pine.LNX.4.64.0609121032310.11278@schroedinger.engr.sgi.com>
- <4506F2B9.5020600@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 13 Sep 2006 00:47:10 +0200
+From: Jens Axboe <axboe@kernel.dk>
+Subject: Re: [PATCH 11/20] nbd: request_fn fixup
+Message-ID: <20060912224710.GB23515@kernel.dk>
+References: <20060912143049.278065000@chello.nl> <20060912144904.197253000@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20060912144904.197253000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@google.com>
-Cc: Jack Steiner <steiner@sgi.com>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Hellwig <hch@infradead.org>, linux-ia64@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Arjan van de Ven <arjan@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Sep 2006, Martin Bligh wrote:
+On Tue, Sep 12 2006, Peter Zijlstra wrote:
+> @@ -463,10 +465,13 @@ static void do_nbd_request(request_queue
+>  
+>  error_out:
+>  		req->errors++;
+> -		spin_unlock(q->queue_lock);
+> -		nbd_end_request(req);
+> -		spin_lock(q->queue_lock);
+> +		__nbd_end_request(req);
+>  	}
+> +	/*
+> +	 * q->queue_lock has been dropped, this opens up a race
+> +	 * plug the device to close it.
+> +	 */
+> +	blk_plug_device(q);
+>  	return;
+>  }
 
-> > This is wrong. All memory should be in ZONE_NORMAL since we have no DMA
-> > restrictions on Altix.
-> 
-> PPC64 works the same way, I believe. All memory is DMA'able, therefore
-> it all fits in ZONE_DMA.
+This looks wrong, I wonder if this only fixes things for you because it
+happens to reinvoke the request handler after the timeout occurs? Your
+comment doesn't really describe what you think is going on, please
+describe in detail what you think is happening here that the plugging
+supposedly solves.
 
-ZONE_DMA is for broken/limited DMA controllers not for DMA controllers 
-that can reach all of memory.
- 
-> The real problem is that there's no consistent definition of what the
-> zones actually mean.
+Generally the block device rule is that once you are invoked due to an
+unplug (or whatever) event, it is the responsibility of the block device
+to run the queue until it's done. So if you bail out of queue handling
+for whatever reason (might be resource starvation in hard- or software),
+you must make sure to reenter queue handling since the device will not
+get replugged while it has requests pending. Unless you run into some
+software resource shortage, running of the queue is done
+deterministically when you know resources are available (ie an io
+completes). The device plugging itself is only ever done when you
+encounter a shortage outside of your control (memory shortage, for
+instance) _and_ you don't already have pending work where you can invoke
+queueing from again.
 
-ZONE_DMA 	Special memory area for DMA controllers that can only
-			do dma to a restricted memory area.
-
-ZONE_DMA32	Second special memory area for DMA controllers that
-		can only do dma to a restricted memory area that
-		is different from ZONE_DMA
-
-ZONE_NORMAL	Regular memory
-
-ZONE_HIGHEM	Memory requires being mapped into kernel address space.
-
-
-> 1. Is it DMA'able (this is stupid, as it doesn't say 'for what device'
-
-That is *not* what ZONE_DMA means. We have always supported DMA to 
-regular  memory.
-
-> What is really needed is to pass a physical address limit from the
-> caller, together with a flag that says whether the memory needs to be
-> mapped into the permanent kernel address space or not. The allocator
-> then finds the set of zones that will fulfill this criteria.
-> But I suspect this level of change will cause too many people to squeak
-> loudly.
-
-Actually we could do this with the proposed change of passing an 
-allocation_control struct instead of gfpflags to the allocator functions. 
-See the discussion on linux-mm.
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
