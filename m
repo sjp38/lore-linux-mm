@@ -1,41 +1,35 @@
-Message-Id: <20060912144903.770953000@chello.nl>
-References: <20060912143049.278065000@chello.nl>
-Subject: [PATCH 07/20] nfs: add a comment explaining the use of PG_private in the NFS client
-Content-Disposition: inline; filename=nfs_PG_private_comment.patch
+Message-Id: <20060912143049.278065000@chello.nl>
+Subject: [PATCH 00/20] vm deadlock avoidance for NFS, NBD and iSCSI (take 7)
 Date: Tue, 12 Sep 2006 17:25:49 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Add a little comment explaining the use of PG_private in the NFS client.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Trond Myklebust <trond.myklebust@fys.uio.no>
----
- fs/nfs/write.c |    5 +++++
- 1 file changed, 5 insertions(+)
-
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -417,6 +417,11 @@ static int nfs_inode_add_request(struct 
- 		if (nfs_have_delegation(inode, FMODE_WRITE))
- 			nfsi->change_attr++;
- 	}
-+	/*
-+	 * The PG_private bit is unfortunately needed if we want to fix the
-+	 * hole in the mmap semantics. If we do not set it, then the VM will
-+	 * fail to call the "releasepage" address ops.
-+	 */
- 	SetPagePrivate(req->wb_page);
- 	nfsi->npages++;
- 	atomic_inc(&req->wb_count);
-
 --
+
+Yet another instance of my networked swap patches.
+
+The patch-set consists of four parts:
+
+ - patches 1-2; the basic 'framework' for deadlock avoidance
+ - patches 3-9; implement swap over NFS
+ - patches 10-13; implement swap over NBD
+ - patches 14-20; implement swap over iSCSI
+
+The iSCSI work depends on their .19 tree and does need some more work,
+but does work in its current state.
+
+As stated in previous posts, NFS and iSCSI survive service failures and
+reconnect properly during heavy swapping.
+
+Linus, when I mentioned swap over network to you in Ottawa, you said it was
+a valid use case, that people actually do and want this. Can you agree with
+the approach taken in these patches?
+
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
