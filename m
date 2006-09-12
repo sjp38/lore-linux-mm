@@ -1,139 +1,271 @@
-Message-Id: <20060912144904.998523000@chello.nl>
+Message-Id: <20060912144903.290326000@chello.nl>
 References: <20060912143049.278065000@chello.nl>
-Subject: [PATCH 18/20] netlink: add SOCK_VMIO support to AF_NETLINK
-Content-Disposition: inline; filename=netlink_vmio.patch
+Subject: [PATCH 03/20] mm: add support for non block device backed swap files
+Content-Disposition: inline; filename=swapfile.patch
 Date: Tue, 12 Sep 2006 17:25:49 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-Modify the netlink code so that SOCK_VMIO has the desired effect on the
-user-space side of the connection.
+A new addres_space_operations method is added:
+  int swapfile(struct address_space *, int)
 
-Modify sys_{send,recv}msg to use sk->sk_allocation instead of GFP_KERNEL,
-this should not change existing behaviour because the default of
-sk->sk_allocation is GFP_KERNEL, and no user-space exposed socket would
-have it any different at this time.
+When during sys_swapon() this method is found and returns no error the 
+swapper_space.a_ops will proxy to sis->swap_file->f_mapping->a_ops.
 
-This change allows the system calls to succeed for SOCK_VMIO sockets 
-(who have sk->sk_allocation |= GFP_EMERGENCY) even under extreme memory
-pressure.
-
-Since netlink_sendmsg is used to transfer msgs from user- to kernel-space
-treat the skb allocation there as a receive allocation.
-
-Also export netlink_lookup, this is needed to locate the kernel side struct
-sock object associated with the user-space netlink socket. 
+The swapfile method will be used to communicate to the address_space that the
+VM relies on it, and the address_space should take adequate measures (like 
+reserving memory for mempools or the like).
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: David Miller <davem@davemloft.net>
-CC: Mike Christie <michaelc@cs.wisc.edu>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/linux/netlink.h  |    1 +
- net/compat.c             |    2 +-
- net/netlink/af_netlink.c |    8 +++++---
- net/socket.c             |    6 +++---
- 4 files changed, 10 insertions(+), 7 deletions(-)
+ fs/buffer.c          |    2 -
+ include/linux/fs.h   |    1 
+ include/linux/swap.h |    4 +++
+ init/Kconfig         |    5 ++++
+ mm/page_io.c         |   60 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/swap_state.c      |    6 +++++
+ mm/swapfile.c        |   27 ++++++++++++++++++++++
+ 7 files changed, 103 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/net/netlink/af_netlink.c
+Index: linux-2.6/include/linux/swap.h
 ===================================================================
---- linux-2.6.orig/net/netlink/af_netlink.c
-+++ linux-2.6/net/netlink/af_netlink.c
-@@ -199,7 +199,7 @@ netlink_unlock_table(void)
- 		wake_up(&nl_table_wait);
+--- linux-2.6.orig/include/linux/swap.h
++++ linux-2.6/include/linux/swap.h
+@@ -115,6 +115,7 @@ enum {
+ 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
+ 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
+ 	SWP_ACTIVE	= (SWP_USED | SWP_WRITEOK),
++	SWP_FILE	= (1 << 2),	/* file swap area */
+ 					/* add others here before... */
+ 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
+ };
+@@ -212,6 +213,9 @@ extern void swap_unplug_io_fn(struct bac
+ /* linux/mm/page_io.c */
+ extern int swap_readpage(struct file *, struct page *);
+ extern int swap_writepage(struct page *page, struct writeback_control *wbc);
++extern void swap_sync_page(struct page *page);
++extern int swap_set_page_dirty(struct page *page);
++extern int swap_releasepage(struct page *page, gfp_t gfp_mask);
+ extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
+ 
+ /* linux/mm/swap_state.c */
+Index: linux-2.6/init/Kconfig
+===================================================================
+--- linux-2.6.orig/init/Kconfig
++++ linux-2.6/init/Kconfig
+@@ -100,6 +100,11 @@ config SWAP
+ 	  used to provide more virtual memory than the actual RAM present
+ 	  in your computer.  If unsure say Y.
+ 
++config SWAP_FILE
++	bool "Support for paging to/from non block device files"
++	depends on SWAP
++	default n
++
+ config SYSVIPC
+ 	bool "System V IPC"
+ 	---help---
+Index: linux-2.6/mm/page_io.c
+===================================================================
+--- linux-2.6.orig/mm/page_io.c
++++ linux-2.6/mm/page_io.c
+@@ -17,6 +17,7 @@
+ #include <linux/bio.h>
+ #include <linux/swapops.h>
+ #include <linux/writeback.h>
++#include <linux/buffer_head.h>
+ #include <asm/pgtable.h>
+ 
+ static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
+@@ -91,6 +92,14 @@ int swap_writepage(struct page *page, st
+ 		unlock_page(page);
+ 		goto out;
+ 	}
++#ifdef CONFIG_SWAP_FILE
++	{
++		struct swap_info_struct *sis = page_swap_info(page);
++		if (sis->flags & SWP_FILE)
++			return sis->swap_file->f_mapping->
++				a_ops->writepage(page, wbc);
++	}
++#endif
+ 	bio = get_swap_bio(GFP_NOIO, page_private(page), page,
+ 				end_swap_bio_write);
+ 	if (bio == NULL) {
+@@ -116,6 +125,14 @@ int swap_readpage(struct file *file, str
+ 
+ 	BUG_ON(!PageLocked(page));
+ 	ClearPageUptodate(page);
++#ifdef CONFIG_SWAP_FILE
++	{
++		struct swap_info_struct *sis = page_swap_info(page);
++		if (sis->flags & SWP_FILE)
++			return sis->swap_file->f_mapping->
++				a_ops->readpage(sis->swap_file, page);
++	}
++#endif
+ 	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
+ 				end_swap_bio_read);
+ 	if (bio == NULL) {
+@@ -129,6 +146,49 @@ out:
+ 	return ret;
  }
  
--static __inline__ struct sock *netlink_lookup(int protocol, u32 pid)
-+__inline__ struct sock *netlink_lookup(int protocol, u32 pid)
++#ifdef CONFIG_SWAP_FILE
++void swap_sync_page(struct page *page)
++{
++	struct swap_info_struct *sis = page_swap_info(page);
++
++	if (sis->flags & SWP_FILE) {
++		const struct address_space_operations * a_ops =
++			sis->swap_file->f_mapping->a_ops;
++		if (a_ops->sync_page)
++			a_ops->sync_page(page);
++	} else
++		block_sync_page(page);
++}
++
++int swap_set_page_dirty(struct page *page)
++{
++	struct swap_info_struct *sis = page_swap_info(page);
++
++	if (sis->flags & SWP_FILE) {
++		const struct address_space_operations * a_ops =
++			sis->swap_file->f_mapping->a_ops;
++		if (a_ops->set_page_dirty)
++			return a_ops->set_page_dirty(page);
++		return __set_page_dirty_buffers(page);
++	}
++
++	return __set_page_dirty_nobuffers(page);
++}
++
++int swap_releasepage(struct page *page, gfp_t gfp_mask)
++{
++	struct swap_info_struct *sis = page_swap_info(page);
++	const struct address_space_operations * a_ops =
++		sis->swap_file->f_mapping->a_ops;
++
++	if ((sis->flags & SWP_FILE) && a_ops->releasepage)
++		return a_ops->releasepage(page, gfp_mask);
++
++	BUG();
++	return 0;
++}
++#endif
++
+ #ifdef CONFIG_SOFTWARE_SUSPEND
+ /*
+  * A scruffy utility function to read or write an arbitrary swap page
+Index: linux-2.6/mm/swap_state.c
+===================================================================
+--- linux-2.6.orig/mm/swap_state.c
++++ linux-2.6/mm/swap_state.c
+@@ -26,8 +26,14 @@
+  */
+ static const struct address_space_operations swap_aops = {
+ 	.writepage	= swap_writepage,
++#ifdef CONFIG_SWAP_FILE
++	.sync_page	= swap_sync_page,
++	.set_page_dirty	= swap_set_page_dirty,
++	.releasepage	= swap_releasepage,
++#else
+ 	.sync_page	= block_sync_page,
+ 	.set_page_dirty	= __set_page_dirty_nobuffers,
++#endif
+ 	.migratepage	= migrate_page,
+ };
+ 
+Index: linux-2.6/mm/swapfile.c
+===================================================================
+--- linux-2.6.orig/mm/swapfile.c
++++ linux-2.6/mm/swapfile.c
+@@ -411,7 +411,12 @@ void free_swap_and_cache(swp_entry_t ent
+ 	if (page) {
+ 		int one_user;
+ 
++#ifdef CONFIG_SWAP_FILE
++		if (PagePrivate(page))
++			page_mapping(page)->a_ops->releasepage(page, 0);
++#else
+ 		BUG_ON(PagePrivate(page));
++#endif
+ 		one_user = (page_count(page) == 2);
+ 		/* Only cache user (+us), or swap space full? Free it! */
+ 		/* Also recheck PageSwapCache after page is locked (above) */
+@@ -944,6 +949,13 @@ static void destroy_swap_extents(struct 
+ 		list_del(&se->list);
+ 		kfree(se);
+ 	}
++#ifdef CONFIG_SWAP_FILE
++	if (sis->flags & SWP_FILE) {
++		sis->flags &= ~SWP_FILE;
++		sis->swap_file->f_mapping->a_ops->
++			swapfile(sis->swap_file->f_mapping, 0);
++	}
++#endif
+ }
+ 
+ /*
+@@ -1036,6 +1048,19 @@ static int setup_swap_extents(struct swa
+ 		goto done;
+ 	}
+ 
++#ifdef CONFIG_SWAP_FILE
++	if (sis->swap_file->f_mapping->a_ops->swapfile) {
++		ret = sis->swap_file->f_mapping->a_ops->
++			swapfile(sis->swap_file->f_mapping, 1);
++		if (!ret) {
++			sis->flags |= SWP_FILE;
++			ret = add_swap_extent(sis, 0, sis->max, 0);
++			*span = sis->pages;
++		}
++		goto done;
++	}
++#endif
++
+ 	blkbits = inode->i_blkbits;
+ 	blocks_per_page = PAGE_SIZE >> blkbits;
+ 
+@@ -1592,7 +1617,7 @@ asmlinkage long sys_swapon(const char __
+ 
+ 	mutex_lock(&swapon_mutex);
+ 	spin_lock(&swap_lock);
+-	p->flags = SWP_ACTIVE;
++	p->flags |= SWP_WRITEOK;
+ 	nr_swap_pages += nr_good_pages;
+ 	total_swap_pages += nr_good_pages;
+ 
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -382,6 +382,7 @@ struct address_space_operations {
+ 	/* migrate the contents of a page to the specified target */
+ 	int (*migratepage) (struct address_space *,
+ 			struct page *, struct page *);
++	int (*swapfile)(struct address_space *, int);
+ };
+ 
+ struct backing_dev_info;
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -1567,7 +1567,7 @@ static void discard_buffer(struct buffer
+  */
+ int try_to_release_page(struct page *page, gfp_t gfp_mask)
  {
- 	struct nl_pid_hash *hash = &nl_table[protocol].hash;
- 	struct hlist_head *head;
-@@ -1147,7 +1147,7 @@ static int netlink_sendmsg(struct kiocb 
- 	if (len > sk->sk_sndbuf - 32)
- 		goto out;
- 	err = -ENOBUFS;
--	skb = alloc_skb(len, GFP_KERNEL);
-+	skb = __alloc_skb(len, GFP_KERNEL, SKB_ALLOC_RX);
- 	if (skb==NULL)
- 		goto out;
+-	struct address_space * const mapping = page->mapping;
++	struct address_space * const mapping = page_mapping(page);
  
-@@ -1178,7 +1178,8 @@ static int netlink_sendmsg(struct kiocb 
- 
- 	if (dst_group) {
- 		atomic_inc(&skb->users);
--		netlink_broadcast(sk, skb, dst_pid, dst_group, GFP_KERNEL);
-+		netlink_broadcast(sk, skb, dst_pid, dst_group,
-+				sk->sk_allocation);
- 	}
- 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
- 
-@@ -1788,6 +1789,7 @@ panic:
- 
- core_initcall(netlink_proto_init);
- 
-+EXPORT_SYMBOL(netlink_lookup);
- EXPORT_SYMBOL(netlink_ack);
- EXPORT_SYMBOL(netlink_run_queue);
- EXPORT_SYMBOL(netlink_queue_skip);
-Index: linux-2.6/net/socket.c
-===================================================================
---- linux-2.6.orig/net/socket.c
-+++ linux-2.6/net/socket.c
-@@ -1790,7 +1790,7 @@ asmlinkage long sys_sendmsg(int fd, stru
- 	err = -ENOMEM;
- 	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
- 	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
--		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
-+		iov = sock_kmalloc(sock->sk, iov_size, sock->sk->sk_allocation);
- 		if (!iov)
- 			goto out_put;
- 	}
-@@ -1818,7 +1818,7 @@ asmlinkage long sys_sendmsg(int fd, stru
- 	} else if (ctl_len) {
- 		if (ctl_len > sizeof(ctl))
- 		{
--			ctl_buf = sock_kmalloc(sock->sk, ctl_len, GFP_KERNEL);
-+			ctl_buf = sock_kmalloc(sock->sk, ctl_len, sock->sk->sk_allocation);
- 			if (ctl_buf == NULL) 
- 				goto out_freeiov;
- 		}
-@@ -1891,7 +1891,7 @@ asmlinkage long sys_recvmsg(int fd, stru
- 	err = -ENOMEM;
- 	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
- 	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
--		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
-+		iov = sock_kmalloc(sock->sk, iov_size, sock->sk->sk_allocation);
- 		if (!iov)
- 			goto out_put;
- 	}
-Index: linux-2.6/include/linux/netlink.h
-===================================================================
---- linux-2.6.orig/include/linux/netlink.h
-+++ linux-2.6/include/linux/netlink.h
-@@ -150,6 +150,7 @@ struct netlink_skb_parms
- #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
- 
- 
-+extern struct sock *netlink_lookup(int protocol, __u32 pid);
- extern struct sock *netlink_kernel_create(int unit, unsigned int groups, void (*input)(struct sock *sk, int len), struct module *module);
- extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
- extern int netlink_has_listeners(struct sock *sk, unsigned int group);
-Index: linux-2.6/net/compat.c
-===================================================================
---- linux-2.6.orig/net/compat.c
-+++ linux-2.6/net/compat.c
-@@ -170,7 +170,7 @@ int cmsghdr_from_user_compat_to_kern(str
- 	 * from the user.
- 	 */
- 	if (kcmlen > stackbuf_size)
--		kcmsg_base = kcmsg = sock_kmalloc(sk, kcmlen, GFP_KERNEL);
-+		kcmsg_base = kcmsg = sock_kmalloc(sk, kcmlen, sk->sk_allocation);
- 	if (kcmsg == NULL)
- 		return -ENOBUFS;
- 
+ 	BUG_ON(!PageLocked(page));
+ 	if (PageWriteback(page))
 
 --
 
