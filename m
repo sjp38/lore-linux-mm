@@ -1,12 +1,12 @@
-Date: Wed, 13 Sep 2006 00:47:10 +0200
+Date: Wed, 13 Sep 2006 00:47:08 +0200
 From: Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 11/20] nbd: request_fn fixup
-Message-ID: <20060912224710.GB23515@kernel.dk>
-References: <20060912143049.278065000@chello.nl> <20060912144904.197253000@chello.nl>
+Subject: Re: [PATCH 12/20] nbd: limit blk_queue
+Message-ID: <20060912224708.GA23515@kernel.dk>
+References: <20060912143049.278065000@chello.nl> <20060912144904.299910000@chello.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20060912144904.197253000@chello.nl>
+In-Reply-To: <20060912144904.299910000@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
@@ -14,41 +14,31 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Li
 List-ID: <linux-mm.kvack.org>
 
 On Tue, Sep 12 2006, Peter Zijlstra wrote:
-> @@ -463,10 +465,13 @@ static void do_nbd_request(request_queue
->  
->  error_out:
->  		req->errors++;
-> -		spin_unlock(q->queue_lock);
-> -		nbd_end_request(req);
-> -		spin_lock(q->queue_lock);
-> +		__nbd_end_request(req);
->  	}
-> +	/*
-> +	 * q->queue_lock has been dropped, this opens up a race
-> +	 * plug the device to close it.
-> +	 */
-> +	blk_plug_device(q);
->  	return;
->  }
+> Limit each request to 1 page, so that the request throttling also limits the
+> number of in-flight pages.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Daniel Phillips <phillips@google.com>
+> CC: Pavel Machek <pavel@ucw.cz>
+> ---
+>  drivers/block/nbd.c |   17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6/drivers/block/nbd.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/block/nbd.c	2006-09-07 18:43:41.000000000 +0200
+> +++ linux-2.6/drivers/block/nbd.c	2006-09-07 18:44:12.000000000 +0200
+> @@ -638,6 +638,9 @@ static int __init nbd_init(void)
+>  			put_disk(disk);
+>  			goto out;
+>  		}
+> +		blk_queue_max_segment_size(disk->queue, PAGE_SIZE);
+> +		blk_queue_max_hw_segments(disk->queue, 1);
+> +		blk_queue_max_phys_segments(disk->queue, 1);
 
-This looks wrong, I wonder if this only fixes things for you because it
-happens to reinvoke the request handler after the timeout occurs? Your
-comment doesn't really describe what you think is going on, please
-describe in detail what you think is happening here that the plugging
-supposedly solves.
-
-Generally the block device rule is that once you are invoked due to an
-unplug (or whatever) event, it is the responsibility of the block device
-to run the queue until it's done. So if you bail out of queue handling
-for whatever reason (might be resource starvation in hard- or software),
-you must make sure to reenter queue handling since the device will not
-get replugged while it has requests pending. Unless you run into some
-software resource shortage, running of the queue is done
-deterministically when you know resources are available (ie an io
-completes). The device plugging itself is only ever done when you
-encounter a shortage outside of your control (memory shortage, for
-instance) _and_ you don't already have pending work where you can invoke
-queueing from again.
+Another bandaid. What happens if nr_requests number of pages is still
+too many for a system? You just moved whatever problem you had, you
+didn't solve anything.
 
 -- 
 Jens Axboe
