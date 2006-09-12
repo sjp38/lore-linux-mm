@@ -1,91 +1,63 @@
-Message-Id: <20060912144904.197253000@chello.nl>
+Message-Id: <20060912144904.104909000@chello.nl>
 References: <20060912143049.278065000@chello.nl>
-Subject: [PATCH 11/20] nbd: request_fn fixup
-Content-Disposition: inline; filename=nbd_fix.patch
+Subject: [PATCH 10/20] mm: block device swap notification
+Content-Disposition: inline; filename=swapdev.patch
 Date: Tue, 12 Sep 2006 17:25:49 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pavel Machek <pavel@ucw.cz>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "James E.J. Bottomley" <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-Dropping the queue_lock opens up a nasty race, fix this race by
-plugging the device when we're done.
-
-Also includes a small cleanup.
+Some block devices need to do some extra work when used as swap device.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: James E.J. Bottomley <James.Bottomley@SteelEye.com>
+CC: Mike Christie <michaelc@cs.wisc.edu>
 CC: Pavel Machek <pavel@ucw.cz>
 ---
- drivers/block/nbd.c |   67 ++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 49 insertions(+), 18 deletions(-)
+ include/linux/fs.h |    1 +
+ mm/swapfile.c      |    7 +++++++
+ 2 files changed, 8 insertions(+)
 
-Index: linux-2.6/drivers/block/nbd.c
+Index: linux-2.6/include/linux/fs.h
 ===================================================================
---- linux-2.6.orig/drivers/block/nbd.c	2006-09-07 17:20:52.000000000 +0200
-+++ linux-2.6/drivers/block/nbd.c	2006-09-07 17:35:05.000000000 +0200
-@@ -97,20 +97,24 @@ static const char *nbdcmd_to_ascii(int c
- }
- #endif /* NDEBUG */
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -1017,6 +1017,7 @@ struct block_device_operations {
+ 	int (*media_changed) (struct gendisk *);
+ 	int (*revalidate_disk) (struct gendisk *);
+ 	int (*getgeo)(struct block_device *, struct hd_geometry *);
++	int (*swapdev)(struct gendisk *, int enable);
+ 	struct module *owner;
+ };
  
--static void nbd_end_request(struct request *req)
-+static void __nbd_end_request(struct request *req)
- {
- 	int uptodate = (req->errors == 0) ? 1 : 0;
--	request_queue_t *q = req->q;
--	unsigned long flags;
- 
- 	dprintk(DBG_BLKDEV, "%s: request %p: %s\n", req->rq_disk->disk_name,
- 			req, uptodate? "done": "failed");
- 
--	spin_lock_irqsave(q->queue_lock, flags);
--	if (!end_that_request_first(req, uptodate, req->nr_sectors)) {
-+	if (!end_that_request_first(req, uptodate, req->nr_sectors))
- 		end_that_request_last(req, uptodate);
--	}
--	spin_unlock_irqrestore(q->queue_lock, flags);
-+}
-+
-+static void nbd_end_request(struct request *req)
-+{
-+	request_queue_t *q = req->q;
-+
-+	spin_lock_irq(q->queue_lock);
-+	__nbd_end_request(req);
-+	spin_unlock_irq(q->queue_lock);
- }
- 
- /*
-@@ -435,10 +439,8 @@ static void do_nbd_request(request_queue
- 			mutex_unlock(&lo->tx_lock);
- 			printk(KERN_ERR "%s: Attempted send on closed socket\n",
- 			       lo->disk->disk_name);
--			req->errors++;
--			nbd_end_request(req);
- 			spin_lock_irq(q->queue_lock);
--			continue;
-+			goto error_out;
- 		}
- 
- 		lo->active_req = req;
-@@ -463,10 +465,13 @@ static void do_nbd_request(request_queue
- 
- error_out:
- 		req->errors++;
--		spin_unlock(q->queue_lock);
--		nbd_end_request(req);
--		spin_lock(q->queue_lock);
-+		__nbd_end_request(req);
- 	}
-+	/*
-+	 * q->queue_lock has been dropped, this opens up a race
-+	 * plug the device to close it.
-+	 */
-+	blk_plug_device(q);
- 	return;
- }
- 
+Index: linux-2.6/mm/swapfile.c
+===================================================================
+--- linux-2.6.orig/mm/swapfile.c
++++ linux-2.6/mm/swapfile.c
+@@ -1273,6 +1273,8 @@ asmlinkage long sys_swapoff(const char _
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
++		if (bdev->bd_disk->fops->swapdev)
++			bdev->bd_disk->fops->swapdev(bdev->bd_disk, 0);
+ 		set_blocksize(bdev, p->old_block_size);
+ 		bd_release(bdev);
+ 	} else {
+@@ -1481,6 +1483,11 @@ asmlinkage long sys_swapdev(const char __
+ 		if (error < 0)
+ 			goto bad_swap;
+ 		p->bdev = bdev;
++		if (bdev->bd_disk->fops->swapdev) {
++			error = bdev->bd_disk->fops->swapdev(bdev->bd_disk, 1);
++			if (error < 0)
++				goto bad_swap;
++		}
+ 	} else if (S_ISREG(inode->i_mode)) {
+ 		p->bdev = inode->i_sb->s_bdev;
+ 		mutex_lock(&inode->i_mutex);
 
 --
 
