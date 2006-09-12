@@ -1,49 +1,41 @@
-Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8C1d4nx008908
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 20:39:04 -0500
+Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
+	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8C4FTJg006958
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 21:15:29 -0700
 Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k8C1c7Du52900112
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:38:08 -0700 (PDT)
+	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k8C1ek8s39327035
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:40:46 -0700 (PDT)
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k8C1d3nB56345863
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:39:03 -0700 (PDT)
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k8C1eknB56283876
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:40:46 -0700 (PDT)
 Received: from christoph (helo=localhost)
 	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1GMxEs-0001zR-00
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:39:02 -0700
-Date: Mon, 11 Sep 2006 17:19:20 -0700 (PDT)
+	id 1GMxGY-000201-00
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2006 18:40:46 -0700
+Date: Mon, 11 Sep 2006 18:40:02 -0700 (PDT)
 From: Christoph Lameter <christoph@engr.sgi.com>
-Subject: [PATCH] zone_to_nid: One additional case
-Message-ID: <Pine.LNX.4.64.0609111717480.7490@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 3/6] Optional ZONE_DMA in the VM
+In-Reply-To: <450600C7.7090801@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0609111839140.7652@schroedinger.engr.sgi.com>
+References: <20060911222729.4849.69497.sendpatchset@schroedinger.engr.sgi.com>
+ <20060911222744.4849.26386.sendpatchset@schroedinger.engr.sgi.com>
+ <450600C7.7090801@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.64.0609111838560.7652@schroedinger.engr.sgi.com>
+ReSent-Message-ID: <Pine.LNX.4.64.0609111840410.7674@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@vger.kernel.org, Martin Bligh <mbligh@google.com>, Christoph Hellwig <hch@infradead.org>, linux-ia64@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Arjan van de Ven <arjan@infradead.org>, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-I found another situation where one can use zone_to_nid to clarify
-the source.
+On Tue, 12 Sep 2006, Nick Piggin wrote:
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> I can't see from your patches, but what happens if someone asks
+> for a GFP_DMA page or dma slab allocation when there is no ZONE_DMA?
 
-Index: linux-2.6.18-rc6-mm1/mm/oom_kill.c
-===================================================================
---- linux-2.6.18-rc6-mm1.orig/mm/oom_kill.c	2006-09-08 06:43:05.000000000 -0500
-+++ linux-2.6.18-rc6-mm1/mm/oom_kill.c	2006-09-11 17:37:40.079357973 -0500
-@@ -177,8 +177,7 @@
- 
- 	for (z = zonelist->zones; *z; z++)
- 		if (cpuset_zone_allowed(*z, gfp_mask))
--			node_clear((*z)->zone_pgdat->node_id,
--					nodes);
-+			node_clear(zone_to_nid(*z), nodes);
- 		else
- 			return CONSTRAINT_CPUSET;
- 
+The page/slab allocator will simply ignore the flag and return 
+ZONE_NORMAL memory. See gfp_zone().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
