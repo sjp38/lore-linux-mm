@@ -1,193 +1,194 @@
-Message-Id: <20060912144904.631458000@chello.nl>
+Message-Id: <20060912144903.985364000@chello.nl>
 References: <20060912143049.278065000@chello.nl>
-Subject: [PATCH 15/20] iscsi: kernel side tcp connect
-Content-Disposition: inline; filename=iscsi_ep_connect.patch
+Subject: [PATCH 09/20] nfs: make swap on NFS robust
+Content-Disposition: inline; filename=nfs_vmio.patch
 Date: Tue, 12 Sep 2006 17:25:49 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Mike Christie <michaelc@cs.wisc.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-Move tcp connection code from user- into kernel-space.
-This makes it possible to do TCP reconnect deadlock free.
+Provide a proper a_ops->swapfile() implementation for NFS. This will set the
+NFS socket to SOCK_VMIO and run socket reconnect under PF_MEMALLOC as well
+as reset SOCK_VMIO before engaging the protocol ->connect() method.
 
-(This patch requires userspace changes too)
+PF_MEMALLOC should allow the allocation of struct socket and related objects
+and the early (re)setting of SOCK_VMIO should allow us to receive the packets
+required for the TCP connection buildup.
 
-Signed-off-by: Mike Christie <michaelc@cs.wisc.edu>
+(swapping continues over a server reset during a large (4k) ping flood)
+
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- drivers/scsi/iscsi_tcp.c |  108 ++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 83 insertions(+), 25 deletions(-)
+ fs/nfs/file.c               |    2 -
+ include/linux/sunrpc/xprt.h |    5 +++-
+ net/sunrpc/sched.c          |    4 +--
+ net/sunrpc/xprtsock.c       |   47 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 54 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/drivers/scsi/iscsi_tcp.c
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/drivers/scsi/iscsi_tcp.c	2006-09-07 16:00:16.000000000 +0200
-+++ linux-2.6/drivers/scsi/iscsi_tcp.c	2006-09-07 19:32:56.000000000 +0200
-@@ -35,6 +35,8 @@
- #include <linux/kfifo.h>
- #include <linux/scatterlist.h>
- #include <linux/mutex.h>
-+#include <linux/syscalls.h>
-+#include <linux/file.h>
- #include <net/tcp.h>
- #include <scsi/scsi_cmnd.h>
- #include <scsi/scsi_host.h>
-@@ -1062,21 +1064,6 @@ iscsi_conn_set_callbacks(struct iscsi_co
- 	write_unlock_bh(&sk->sk_callback_lock);
- }
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -323,7 +323,7 @@ static int nfs_release_page(struct page 
  
--static void
--iscsi_conn_restore_callbacks(struct iscsi_tcp_conn *tcp_conn)
--{
--	struct sock *sk = tcp_conn->sock->sk;
--
--	/* restore socket callbacks, see also: iscsi_conn_set_callbacks() */
--	write_lock_bh(&sk->sk_callback_lock);
--	sk->sk_user_data    = NULL;
--	sk->sk_data_ready   = tcp_conn->old_data_ready;
--	sk->sk_state_change = tcp_conn->old_state_change;
--	sk->sk_write_space  = tcp_conn->old_write_space;
--	sk->sk_no_check	 = 0;
--	write_unlock_bh(&sk->sk_callback_lock);
--}
--
- /**
-  * iscsi_send - generic send routine
-  * @sk: kernel's socket
-@@ -1741,6 +1728,77 @@ iscsi_tcp_ctask_xmit(struct iscsi_conn *
- 	return rc;
- }
- 
-+static int
-+iscsi_tcp_ep_connect(struct sockaddr *dst_addr, int non_blocking,
-+		     uint64_t *ep_handle)
-+{
-+	struct socket *sock;
-+	int rc, size, arg = 1, window = 524288;
-+
-+	rc = sock_create_kern(dst_addr->sa_family, SOCK_STREAM, IPPROTO_TCP,
-+			      &sock);
-+	if (rc < 0) {
-+		printk(KERN_ERR "Could not create socket %d.\n", rc);
-+		return rc;
-+	}
-+	sock->sk->sk_allocation = GFP_ATOMIC;
-+/*
-+	rc = sock->ops->setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-+				   (char __user *)&arg, sizeof(arg));
-+	if (rc) {
-+		printk(KERN_ERR "Could not set TCP_NODELAY %d\n", rc);
-+		goto release_sock;
-+	}
-+*/
-+	/* should set like nfs */
-+	sock_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-+			(char __user *)&window, sizeof(window));
-+	sock_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
-+			(char __user *)&window, sizeof(window));
-+
-+	if (dst_addr->sa_family == PF_INET)
-+		size = sizeof(struct sockaddr_in);
-+	else if (dst_addr->sa_family == PF_INET6)
-+		size = sizeof(struct sockaddr_in6);
-+	else {
-+		rc = -EINVAL;
-+		goto release_sock;
-+	}
-+
-+	/* TODO we cannot block here */
-+	rc = sock->ops->connect(sock, (struct sockaddr *)dst_addr, size,
-+				0 /*O_NONBLOCK*/);
-+	if (rc == -EINPROGRESS)
-+		rc = 0;
-+	else if (rc) {
-+		printk(KERN_ERR "Could not connect %d\n", rc);
-+		goto release_sock;
-+	}
-+
-+	rc = sock_map_fd(sock);
-+	if (rc < 0)
-+		goto release_sock;
-+	*ep_handle = (uint64_t)rc;
-+	return 0;
-+
-+release_sock:
-+	sock_release(sock);
-+	return rc;
-+}
-+
-+static int
-+iscsi_tcp_ep_poll(uint64_t ep_handle, int timeout_ms)
-+{
-+	/* we cheated and blocked on the connect (TODO must fix) */
-+	return 1;
-+}
-+
-+static void
-+iscsi_tcp_ep_disconnect(uint64_t ep_handle)
-+{
-+	sys_close(ep_handle);
-+}
-+
- static struct iscsi_cls_conn *
- iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
+ static int nfs_swapfile(struct address_space *mapping, int enable)
  {
-@@ -1795,11 +1853,7 @@ iscsi_tcp_release_conn(struct iscsi_conn
- 	if (!tcp_conn->sock)
- 		return;
- 
--	sock_hold(tcp_conn->sock->sk);
--	iscsi_conn_restore_callbacks(tcp_conn);
--	sock_put(tcp_conn->sock->sk);
--
--	sock_release(tcp_conn->sock);
-+	fput(tcp_conn->sock->file);
- 	tcp_conn->sock = NULL;
- 	conn->recv_lock = NULL;
+-	return 0;
++	return xs_swapper(NFS_CLIENT(mapping->host)->cl_xprt, enable);
  }
-@@ -1856,10 +1910,13 @@ iscsi_tcp_conn_bind(struct iscsi_cls_ses
- 		printk(KERN_ERR "iscsi_tcp: sockfd_lookup failed %d\n", err);
- 		return -EEXIST;
+ 
+ const struct address_space_operations nfs_file_aops = {
+Index: linux-2.6/net/sunrpc/xprtsock.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/xprtsock.c
++++ linux-2.6/net/sunrpc/xprtsock.c
+@@ -1014,6 +1014,7 @@ static void xs_udp_connect_worker(void *
+ {
+ 	struct rpc_xprt *xprt = (struct rpc_xprt *) args;
+ 	struct socket *sock = xprt->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || xprt->addr.sin_port == 0)
+@@ -1021,6 +1022,9 @@ static void xs_udp_connect_worker(void *
+ 
+ 	dprintk("RPC:      xs_udp_connect_worker for xprt %p\n", xprt);
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
+ 
+@@ -1054,6 +1058,9 @@ static void xs_udp_connect_worker(void *
+ 		xprt->sock = sock;
+ 		xprt->inet = sk;
+ 
++		if (xprt->swapper)
++			sk_set_vmio(sk);
++
+ 		write_unlock_bh(&sk->sk_callback_lock);
  	}
-+	get_file(sock->file);
+ 	xs_udp_do_set_buffer_size(xprt);
+@@ -1061,6 +1068,7 @@ static void xs_udp_connect_worker(void *
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	current->flags = pflags;
+ }
  
- 	err = iscsi_conn_bind(cls_session, cls_conn, is_leading);
--	if (err)
-+	if (err) {
-+		fput(sock->file);
- 		return err;
+ /*
+@@ -1097,11 +1105,15 @@ static void xs_tcp_connect_worker(void *
+ {
+ 	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
+ 	struct socket *sock = xprt->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || xprt->addr.sin_port == 0)
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	dprintk("RPC:      xs_tcp_connect_worker for xprt %p\n", xprt);
+ 
+ 	if (!xprt->sock) {
+@@ -1148,6 +1160,10 @@ static void xs_tcp_connect_worker(void *
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 
++
++	if (xprt->swapper)
++		sk_set_vmio(xprt->inet);
++
+ 	/* Tell the socket layer to start connecting... */
+ 	xprt->stat.connect_count++;
+ 	xprt->stat.connect_start = jiffies;
+@@ -1174,6 +1190,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	current->flags = pflags;
+ }
+ 
+ /**
+@@ -1369,3 +1386,33 @@ int xs_setup_tcp(struct rpc_xprt *xprt, 
+ 
+ 	return 0;
+ }
++
++#define RPC_BUF_RESERVE_PAGES	(1) /* XXX: how many concurrent rpc buffers? */
++#define RPC_RESERVE_PAGES	(RPC_BUF_RESERVE_PAGES + TX_RESERVE_PAGES)
++
++/**
++ * xs_swapper - Tag this transport as being used for swap.
++ * @xprt: transport to tag
++ * @enable: enable/disable
++ *
++ */
++int xs_swapper(struct rpc_xprt *xprt, int enable)
++{
++	int err = 0;
++
++	if (enable) {
++		/*
++		 * keep one extra sock reference so the reserve won't dip
++		 * when the socket gets reconnected.
++		 */
++		sk_adjust_memalloc(1, RPC_RESERVE_PAGES);
++		sk_set_vmio(xprt->inet);
++		xprt->swapper = 1;
++	} else if (xprt->swapper) {
++		xprt->swapper = 0;
++		sk_clear_vmio(xprt->inet);
++		sk_adjust_memalloc(-1, -RPC_RESERVE_PAGES);
 +	}
++
++	return err;
++}
+Index: linux-2.6/include/linux/sunrpc/xprt.h
+===================================================================
+--- linux-2.6.orig/include/linux/sunrpc/xprt.h
++++ linux-2.6/include/linux/sunrpc/xprt.h
+@@ -147,7 +147,9 @@ struct rpc_xprt {
+ 	unsigned int		max_reqs;	/* total slots */
+ 	unsigned long		state;		/* transport state */
+ 	unsigned char		shutdown   : 1,	/* being shut down */
+-				resvport   : 1; /* use a reserved port */
++				resvport   : 1, /* use a reserved port */
++				swapper    : 1; /* we're swapping over this
++						   transport */
  
- 	/* bind iSCSI connection and socket */
- 	tcp_conn->sock = sock;
-@@ -2041,13 +2098,11 @@ iscsi_tcp_conn_get_param(struct iscsi_cl
- 		sk = tcp_conn->sock->sk;
- 		if (sk->sk_family == PF_INET) {
- 			inet = inet_sk(sk);
--			len = sprintf(buf, "%u.%u.%u.%u\n",
-+			len = sprintf(buf, NIPQUAD_FMT "\n",
- 				      NIPQUAD(inet->daddr));
- 		} else {
- 			np = inet6_sk(sk);
--			len = sprintf(buf,
--				"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
--				NIP6(np->daddr));
-+			len = sprintf(buf, NIP6_FMT "\n", NIP6(np->daddr));
- 		}
- 		mutex_unlock(&conn->xmitmutex);
- 		break;
-@@ -2185,6 +2240,9 @@ static struct iscsi_transport iscsi_tcp_
- 	.get_session_param	= iscsi_session_get_param,
- 	.start_conn		= iscsi_conn_start,
- 	.stop_conn		= iscsi_tcp_conn_stop,
-+	.ep_connect		= iscsi_tcp_ep_connect,
-+	.ep_poll		= iscsi_tcp_ep_poll,
-+	.ep_disconnect		= iscsi_tcp_ep_disconnect,
- 	/* IO */
- 	.send_pdu		= iscsi_conn_send_pdu,
- 	.get_stats		= iscsi_conn_get_stats,
+ 	/*
+ 	 * XID
+@@ -261,6 +263,7 @@ void			xprt_disconnect(struct rpc_xprt *
+  */
+ int			xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to);
+ int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
++int			xs_swapper(struct rpc_xprt *xprt, int enable);
+ 
+ /*
+  * Reserved bit positions in xprt->state
+Index: linux-2.6/net/sunrpc/sched.c
+===================================================================
+--- linux-2.6.orig/net/sunrpc/sched.c
++++ linux-2.6/net/sunrpc/sched.c
+@@ -736,8 +736,8 @@ void * rpc_malloc(struct rpc_task *task,
+ 	struct rpc_rqst *req = task->tk_rqstp;
+ 	gfp_t	gfp;
+ 
+-	if (task->tk_flags & RPC_TASK_SWAPPER)
+-		gfp = GFP_ATOMIC;
++	if (RPC_IS_SWAPPER(task))
++		gfp = GFP_ATOMIC | __GFP_EMERGENCY;
+ 	else
+ 		gfp = GFP_NOFS;
+ 
 
 --
 
