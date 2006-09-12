@@ -1,63 +1,74 @@
-Message-Id: <20060912144904.104909000@chello.nl>
+Message-Id: <20060912144904.869344000@chello.nl>
 References: <20060912143049.278065000@chello.nl>
-Subject: [PATCH 10/20] mm: block device swap notification
-Content-Disposition: inline; filename=swapdev.patch
+Subject: [PATCH 17/20] scsi: propagate the swapdev hook into the scsi stack
+Content-Disposition: inline; filename=scsi_swapdev.patch
 Date: Tue, 12 Sep 2006 17:25:49 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "James E.J. Bottomley" <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Pavel Machek <pavel@ucw.cz>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "James E.J. Bottomley" <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>
 List-ID: <linux-mm.kvack.org>
 
-Some block devices need to do some extra work when used as swap device.
+Allow scsi devices to receive the swapdev notification.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 CC: James E.J. Bottomley <James.Bottomley@SteelEye.com>
 CC: Mike Christie <michaelc@cs.wisc.edu>
-CC: Pavel Machek <pavel@ucw.cz>
 ---
- include/linux/fs.h |    1 +
- mm/swapfile.c      |    7 +++++++
- 2 files changed, 8 insertions(+)
+ drivers/scsi/sd.c        |   13 +++++++++++++
+ include/scsi/scsi_host.h |    7 +++++++
+ 2 files changed, 20 insertions(+)
 
-Index: linux-2.6/include/linux/fs.h
+Index: linux-2.6/drivers/scsi/sd.c
 ===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -1017,6 +1017,7 @@ struct block_device_operations {
- 	int (*media_changed) (struct gendisk *);
- 	int (*revalidate_disk) (struct gendisk *);
- 	int (*getgeo)(struct block_device *, struct hd_geometry *);
-+	int (*swapdev)(struct gendisk *, int enable);
- 	struct module *owner;
+--- linux-2.6.orig/drivers/scsi/sd.c
++++ linux-2.6/drivers/scsi/sd.c
+@@ -892,6 +892,18 @@ static long sd_compat_ioctl(struct file 
+ }
+ #endif
+ 
++static int sd_swapdev(struct gendisk *disk, int enable)
++{
++	int error = 0;
++	struct scsi_disk *sdkp = scsi_disk(disk);
++	struct scsi_device *sdp = sdkp->device;
++
++	if (sdp->host->hostt->swapdev)
++		error = sdp->host->hostt->swapdev(sdp, enable);
++
++	return error;
++}
++
+ static struct block_device_operations sd_fops = {
+ 	.owner			= THIS_MODULE,
+ 	.open			= sd_open,
+@@ -903,6 +915,7 @@ static struct block_device_operations sd
+ #endif
+ 	.media_changed		= sd_media_changed,
+ 	.revalidate_disk	= sd_revalidate_disk,
++	.swapdev		= sd_swapdev,
  };
  
-Index: linux-2.6/mm/swapfile.c
+ /**
+Index: linux-2.6/include/scsi/scsi_host.h
 ===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -1273,6 +1273,8 @@ asmlinkage long sys_swapoff(const char _
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
-+		if (bdev->bd_disk->fops->swapdev)
-+			bdev->bd_disk->fops->swapdev(bdev->bd_disk, 0);
- 		set_blocksize(bdev, p->old_block_size);
- 		bd_release(bdev);
- 	} else {
-@@ -1481,6 +1483,11 @@ asmlinkage long sys_swapdev(const char __
- 		if (error < 0)
- 			goto bad_swap;
- 		p->bdev = bdev;
-+		if (bdev->bd_disk->fops->swapdev) {
-+			error = bdev->bd_disk->fops->swapdev(bdev->bd_disk, 1);
-+			if (error < 0)
-+				goto bad_swap;
-+		}
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
- 		mutex_lock(&inode->i_mutex);
+--- linux-2.6.orig/include/scsi/scsi_host.h
++++ linux-2.6/include/scsi/scsi_host.h
+@@ -288,6 +288,13 @@ struct scsi_host_template {
+ 	int (*suspend)(struct scsi_device *, pm_message_t state);
+ 
+ 	/*
++	 * Notify that this device is used for swapping.
++	 *
++	 * Status: OPTIONAL
++	 */
++	int (*swapdev)(struct scsi_device *, int enable);
++
++	/*
+ 	 * Name of proc directory
+ 	 */
+ 	char *proc_name;
 
 --
 
