@@ -1,54 +1,37 @@
-Received: by wx-out-0506.google.com with SMTP id h28so2106526wxd
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2006 16:58:06 -0700 (PDT)
-Message-ID: <5c49b0ed0609121658y6e96c4a7n46f1d68645f621b6@mail.gmail.com>
-Date: Tue, 12 Sep 2006 16:58:06 -0700
-From: "Nate Diller" <nate.diller@gmail.com>
-Subject: Re: [PATCH 00/20] vm deadlock avoidance for NFS, NBD and iSCSI (take 7)
-In-Reply-To: <Pine.LNX.4.64.0609120935110.27779@g5.osdl.org>
+Message-ID: <45074EF2.3080407@garzik.org>
+Date: Tue, 12 Sep 2006 20:21:06 -0400
+From: Jeff Garzik <jeff@garzik.org>
 MIME-Version: 1.0
+Subject: Re: [PATCH 11/20] nbd: request_fn fixup
+References: <20060912143049.278065000@chello.nl> <20060912144904.197253000@chello.nl> <20060912224710.GB23515@kernel.dk>
+In-Reply-To: <20060912224710.GB23515@kernel.dk>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20060912143049.278065000@chello.nl>
-	 <Pine.LNX.4.64.0609120935110.27779@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
-On 9/12/06, Linus Torvalds <torvalds@osdl.org> wrote:
->
->
-> On Tue, 12 Sep 2006, Peter Zijlstra wrote:
-> >
-> > Linus, when I mentioned swap over network to you in Ottawa, you said it was
-> > a valid use case, that people actually do and want this. Can you agree with
-> > the approach taken in these patches?
->
-> Well, in all honesty, I don't think I really said "valid", but that I said
-> that some crazy people want to do it, and that we should try to allow them
-> their foibles.
->
-> So I'd be nervous to do any _guarantees_. I think that good VM policies
-> should make it be something that works in general (the dirty mapping
-> limits in particular), but I'd be a bit nervous about anybody taking it
-> _too_ seriously. Crazy people are still crazy, they just might be right
-> under certain reasonably-well-controlled circumstances.
+Jens Axboe wrote:
+> Generally the block device rule is that once you are invoked due to an
+> unplug (or whatever) event, it is the responsibility of the block device
+> to run the queue until it's done. So if you bail out of queue handling
+> for whatever reason (might be resource starvation in hard- or software),
+> you must make sure to reenter queue handling since the device will not
+> get replugged while it has requests pending. Unless you run into some
+> software resource shortage, running of the queue is done
+> deterministically when you know resources are available (ie an io
+> completes). The device plugging itself is only ever done when you
+> encounter a shortage outside of your control (memory shortage, for
+> instance) _and_ you don't already have pending work where you can invoke
+> queueing from again.
 
-(oops, forgot to cc: the list)
+Or he could employ the blk_{start,stop}_queue() functions, if that model 
+is easier for the driver (and brain).
 
-Personally, I'm a little unhappy with the added complexity here, I'm
-not convinced that this extra feature is worth it.  In particular,
-adding to the address_space_operations, the block_device_operations,
-and creating a new swap index/offset interface just for this seems
-questionable.  I feel like interface bloat should be reserved for
-features that have widespread use and benefit.
+	Jeff
 
-Not that I'm opposed to this feature, just that I think this patch is
-too invasive interface-wise.
-
-NATE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
