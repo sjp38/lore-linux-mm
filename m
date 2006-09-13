@@ -1,38 +1,60 @@
-Date: Wed, 13 Sep 2006 15:02:07 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Get rid of zone_table
-In-Reply-To: <1158184735.9141.167.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0609131459470.20028@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
- <1158180795.9141.158.camel@localhost.localdomain>
- <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com>
- <1158184047.9141.164.camel@localhost.localdomain>
- <Pine.LNX.4.64.0609131452330.19506@schroedinger.engr.sgi.com>
- <1158184735.9141.167.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] Don't set/test/wait-for radix tree tags if no capability
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0609131350030.19101@schroedinger.engr.sgi.com>
+References: <1158176114.5328.52.camel@localhost>
+	 <Pine.LNX.4.64.0609131350030.19101@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 13 Sep 2006 18:12:39 -0400
+Message-Id: <1158185559.5328.82.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Sep 2006, Dave Hansen wrote:
-
-> > Sorry I am a bit new to sparsemem but it seems that the mem sections are 
-> > arrays of pointers. You would like to store the node number in the lower 
-> > unused bits?
+On Wed, 2006-09-13 at 13:51 -0700, Christoph Lameter wrote:
+> On Wed, 13 Sep 2006, Lee Schermerhorn wrote:
 > 
-> I thought this patch was only for 32-bit NUMA platforms that have run
-> out of bits in page->flags to encode the data.  Does it apply to ia64 as
-> well somehow?
+> > While debugging a problem [in the out-of-tree migration cache], I
+> > noticed a lot of radix-tree tag activity for address spaces that have
+> > the BDI_CAP_NO_{ACCT_DIRTY|WRITEBACK} capability flags set--effectively
+> > disabling these capabilities--in their backing device.  Altho'
+> > functionally benign, I believe that this unnecessary overhead.  Seeking
+> > contrary opinions.
+> 
+> I do not think that not wanting accounting for dirty pages means that we 
+> should not mark those dirty. If we do this then filesystems will 
+> not be able to find the dirty pags for writeout.
 
-Yes, the section_to_node_table is only for 32 bit NUMA platforms that ran 
-out of bits. Aha. Then you can work within the restrictions of that 
-environment and you do not have to be general.
+That's why I asked, and why I noted that maybe setting the dirty tags
+should be gated by the 'No writeback' capability, rather than the "No
+dirty accounting" capability.  But then, maybe "no writeback" doesn't
+really mean that the address space/backing device doesn't do
+writeback.  
 
-If you only need 4 bits then you could take those from the first two 
-pointers of a memsection and maybe you could find them elsewhere.
+The 'no writeback' capability is set for things like:  configfs,
+hugetlbfs, dlmfs, ramfs, cpuset, sysfs, shmem segs, swap, ...  And, as I
+mentioned, the 'no dirty accounting' capability happens to be set for
+all file systems that set 'no writeback'.  However, I agree that we
+shouldn't count on this.  
+
+So, do the file systems need to writeout dirty pages for these file
+systems using the radix tree tags?  Just looking where the tags are
+queried [radix_tree_gang_lookup_tag()], it appears that tags are only
+used by "real" file systems, despite a call from pagevec_lookup_tag()
+that resides in mm/swap.c.  And, it appears that the 'no writeback'
+capability flag will prevent writeback in some cases.  Not sure if it
+catches all.
+
+If we can't gate setting the flags based on the existing capabilities,
+maybe we want to define a new cap flag--e.g., BDI_CAP_NO_TAGS--for use
+by file systems that don't need the tags set?  Not sure it's worth it,
+but could eliminate some cache pollution.
+
+Lee
+
 
 
 --
