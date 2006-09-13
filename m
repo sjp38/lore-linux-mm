@@ -1,140 +1,245 @@
-Received: from smtp2.fc.hp.com (smtp.fc.hp.com [15.11.136.114])
-	by atlrel7.hp.com (Postfix) with ESMTP id D6EBC36DAF
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2006 15:35:18 -0400 (EDT)
-Received: from ldl.fc.hp.com (ldl.fc.hp.com [15.11.146.30])
-	by smtp2.fc.hp.com (Postfix) with ESMTP id 7A77D718A3
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2006 19:35:18 +0000 (UTC)
-Received: from localhost (ldl.lart [127.0.0.1])
-	by ldl.fc.hp.com (Postfix) with ESMTP id 518A61344C7
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2006 13:35:18 -0600 (MDT)
-Received: from ldl.fc.hp.com ([127.0.0.1])
-	by localhost (ldl [127.0.0.1]) (amavisd-new, port 10024) with ESMTP
-	id 10961-07 for <linux-mm@kvack.org>;
-	Wed, 13 Sep 2006 13:35:15 -0600 (MDT)
-Received: from [16.116.117.0] (unknown [16.116.117.0])
-	(using SSLv3 with cipher RC4-MD5 (128/128 bits))
-	(No client certificate requested)
-	by ldl.fc.hp.com (Postfix) with ESMTP id D75521344C5
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2006 13:35:14 -0600 (MDT)
-Subject: [RFC] Don't set/test/wait-for radix tree tags if no capability
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Wed, 13 Sep 2006 15:35:14 -0400
-Message-Id: <1158176114.5328.52.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 13 Sep 2006 13:44:21 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] Get rid of zone_table
+Message-ID: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-While debugging a problem [in the out-of-tree migration cache], I
-noticed a lot of radix-tree tag activity for address spaces that have
-the BDI_CAP_NO_{ACCT_DIRTY|WRITEBACK} capability flags set--effectively
-disabling these capabilities--in their backing device.  Altho'
-functionally benign, I believe that this unnecessary overhead.  Seeking
-contrary opinions.
+The zone table is mostly not needed. If we have a node in the page flags 
+then we can get to the zone via NODE_DATA(). In case of SMP and UP 
+NODE_DATA() is a constant pointer which allows us to access an exact 
+replica of zonetable in the node_zones field. In all of the above cases 
+there will be no need at all for the zone table.
 
-Would this patch, if correct, be worthwhile?  Seems not to cause any
-problem, and does eliminate the tag handling for swap space and similar
-address spaces.
+The only remaining case is if in a NUMA system the node numbers do not fit 
+into the page flags. In that case we make sparse generate a table that 
+maps sections to nodes and use that table to to figure out the node 
+number.
 
----
+For sparsemem the zone table seems to be have been fairly large based on 
+the maximum possible number of sections and the number of zones per node.
 
-page-writeback functions are setting/testing radix-tree tags for
-mappings whose backing device has the corresponding "capabilities"
-turned off via the BDI_CAP_NO_{ACCT_DIRTY|WRITEBACK} flags.
+The section_to_node table (if we still need it) is still the size of the 
+number of sections but the individual elements are integers (which already 
+saves 50% on 64 bit platforms) and we do not need to duplicate the entries 
+per zone type. So even if we have to keep the table then we shrink it to 
+1/4th (32bit) or 1/8th )(64bit).
 
-This patch makes all setting/getting/waiting-on the radix-tree
-tags conditional on the corresponding mapping capability, 
-eliminating a lot of unnecessary radix tree traversal--e.g.,
-for swap cache.
+Tested on IA64(NUMA) and x86_64 (UP)
 
-Note:  perhaps all of the tags should be conditional on the 
-'_WRITEBACK capability alone, because if the mapping doesn't
-support writeback, there is no need to track dirty pages in the
-cache, whether or not dirty page accounting is enabled.  However,
-currently, all mappings that have one of the capability flags set
-also have the other flag set.  Might not always be the case, tho.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/filemap.c        |    2 +-
- mm/page-writeback.c |   21 ++++++++++++---------
- 2 files changed, 13 insertions(+), 10 deletions(-)
-
-Index: linux-2.6.18-rc6-mm2/mm/page-writeback.c
+Index: linux-2.6.18-rc6-mm2/include/linux/mm.h
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/page-writeback.c	2006-09-13 11:46:50.000000000 -0400
-+++ linux-2.6.18-rc6-mm2/mm/page-writeback.c	2006-09-13 14:44:57.000000000 -0400
-@@ -766,11 +766,13 @@ int __set_page_dirty_nobuffers(struct pa
- 			mapping2 = page_mapping(page);
- 			if (mapping2) { /* Race with truncate? */
- 				BUG_ON(mapping2 != mapping);
--				if (mapping_cap_account_dirty(mapping))
-+				if (mapping_cap_account_dirty(mapping)) {
- 					__inc_zone_page_state(page,
- 								NR_FILE_DIRTY);
--				radix_tree_tag_set(&mapping->page_tree,
--					page_index(page), PAGECACHE_TAG_DIRTY);
-+					radix_tree_tag_set(&mapping->page_tree,
-+							page_index(page),
-+							PAGECACHE_TAG_DIRTY);
-+				}
- 			}
- 			write_unlock_irq(&mapping->tree_lock);
- 			if (mapping->host) {
-@@ -855,9 +857,10 @@ int test_clear_page_dirty(struct page *p
- 	if (mapping) {
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		if (TestClearPageDirty(page)) {
--			radix_tree_tag_clear(&mapping->page_tree,
--						page_index(page),
--						PAGECACHE_TAG_DIRTY);
-+			if (mapping_cap_account_dirty(mapping))
-+				radix_tree_tag_clear(&mapping->page_tree,
-+							page_index(page),
-+							PAGECACHE_TAG_DIRTY);
- 			write_unlock_irqrestore(&mapping->tree_lock, flags);
- 			/*
- 			 * We can continue to use `mapping' here because the
-@@ -919,7 +922,7 @@ int test_clear_page_writeback(struct pag
+--- linux-2.6.18-rc6-mm2.orig/include/linux/mm.h	2006-09-13 14:17:24.798144329 -0500
++++ linux-2.6.18-rc6-mm2/include/linux/mm.h	2006-09-13 15:42:22.040414207 -0500
+@@ -395,7 +395,9 @@
+  * We are going to use the flags for the page to node mapping if its in
+  * there.  This includes the case where there is no node, so it is implicit.
+  */
+-#define FLAGS_HAS_NODE		(NODES_WIDTH > 0 || NODES_SHIFT == 0)
++#if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
++#define NODE_NOT_IN_PAGE_FLAGS
++#endif
  
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestClearPageWriteback(page);
--		if (ret)
-+		if (ret && mapping_cap_writeback_dirty(mapping))
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
-@@ -940,11 +943,11 @@ int test_set_page_writeback(struct page 
+ #ifndef PFN_SECTION_SHIFT
+ #define PFN_SECTION_SHIFT 0
+@@ -410,13 +412,13 @@
+ #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+ #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
  
- 		write_lock_irqsave(&mapping->tree_lock, flags);
- 		ret = TestSetPageWriteback(page);
--		if (!ret)
-+		if (!ret && mapping_cap_writeback_dirty(mapping))
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
--		if (!PageDirty(page))
-+		if (!PageDirty(page) && mapping_cap_account_dirty(mapping))
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_DIRTY);
-Index: linux-2.6.18-rc6-mm2/mm/filemap.c
+-/* NODE:ZONE or SECTION:ZONE is used to lookup the zone from a page. */
+-#if FLAGS_HAS_NODE
+-#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
++/* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allcator */
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++#define ZONEID_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
+ #else
+-#define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
++#define ZONEID_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+ #endif
+-#define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
++#define ZONEID_PGSHIFT		ZONES_PGSHIFT
+ 
+ #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+ #error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+@@ -425,23 +427,24 @@
+ #define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
+ #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
+ #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
+-#define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
++#define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
+ 
+ static inline enum zone_type page_zonenum(struct page *page)
+ {
+ 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+ }
+ 
+-struct zone;
+-extern struct zone *zone_table[];
+-
++/*
++ * The identification function is only used by the buddy allocator for
++ * determining if two pages could be buddies. We are not really
++ * identify a zone since we could be using a the section number
++ * id if we have not node id available in page flags.
++ * We guarantee only that it will return the same value for two
++ * combinable pages in a zone.
++ */
+ static inline int page_zone_id(struct page *page)
+ {
+-	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
+-}
+-static inline struct zone *page_zone(struct page *page)
+-{
+-	return zone_table[page_zone_id(page)];
++	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+ }
+ 
+ static inline unsigned long zone_to_nid(struct zone *zone)
+@@ -449,13 +452,20 @@
+ 	return zone->zone_pgdat->node_id;
+ }
+ 
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++extern unsigned long page_to_nid(struct page *page);
++#else
+ static inline unsigned long page_to_nid(struct page *page)
+ {
+-	if (FLAGS_HAS_NODE)
+-		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+-	else
+-		return zone_to_nid(page_zone(page));
++	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+ }
++#endif
++
++static inline struct zone *page_zone(struct page *page)
++{
++	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
++}
++
+ static inline unsigned long page_to_section(struct page *page)
+ {
+ 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+@@ -472,6 +482,7 @@
+ 	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
+ 	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
+ }
++
+ static inline void set_page_section(struct page *page, unsigned long section)
+ {
+ 	page->flags &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
+@@ -972,8 +983,6 @@
+ extern void show_mem(void);
+ extern void si_meminfo(struct sysinfo * val);
+ extern void si_meminfo_node(struct sysinfo *val, int nid);
+-extern void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+-					unsigned long pfn, unsigned long size);
+ 
+ #ifdef CONFIG_NUMA
+ extern void setup_per_cpu_pageset(void);
+Index: linux-2.6.18-rc6-mm2/mm/sparse.c
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/filemap.c	2006-09-13 14:44:44.000000000 -0400
-+++ linux-2.6.18-rc6-mm2/mm/filemap.c	2006-09-13 14:44:57.000000000 -0400
-@@ -258,7 +258,7 @@ int wait_on_page_writeback_range(struct 
+--- linux-2.6.18-rc6-mm2.orig/mm/sparse.c	2006-09-13 14:17:24.805957488 -0500
++++ linux-2.6.18-rc6-mm2/mm/sparse.c	2006-09-13 15:10:24.845606274 -0500
+@@ -24,6 +24,21 @@
+ #endif
+ EXPORT_SYMBOL(mem_section);
+ 
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++/*
++ * If we did not store the node number in the page then we have to
++ * do a lookup in the section_to_node_table in order to find which
++ * node the page belongs to.
++ */
++static int section_to_node_table[NR_MEM_SECTIONS];
++
++extern unsigned long page_to_nid(struct page *page)
++{
++	return section_to_node_table[page_to_section(page)];
++}
++EXPORT_SYMBOL(page_to_nid);
++#endif
++
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+ static struct mem_section *sparse_index_alloc(int nid)
+ {
+@@ -49,6 +64,10 @@
+ 	struct mem_section *section;
  	int ret = 0;
- 	pgoff_t index;
  
--	if (end < start)
-+	if (end < start || !mapping_cap_writeback_dirty(mapping))
- 		return 0;
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++	section_to_node_table[section_nr] = nid;
++#endif
++
+ 	if (mem_section[root])
+ 		return -EEXIST;
  
- 	pagevec_init(&pvec, 0);
-
+Index: linux-2.6.18-rc6-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/mm/page_alloc.c	2006-09-13 14:17:24.812794002 -0500
++++ linux-2.6.18-rc6-mm2/mm/page_alloc.c	2006-09-13 14:18:11.739602442 -0500
+@@ -82,13 +82,6 @@
+ 
+ EXPORT_SYMBOL(totalram_pages);
+ 
+-/*
+- * Used by page_zone() to look up the address of the struct zone whose
+- * id is encoded in the upper bits of page->flags
+- */
+-struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
+-EXPORT_SYMBOL(zone_table);
+-
+ static char *zone_names[MAX_NR_ZONES] = {
+ 	 "DMA",
+ #ifdef CONFIG_ZONE_DMA32
+@@ -1808,20 +1801,6 @@
+ 	}
+ }
+ 
+-#define ZONETABLE_INDEX(x, zone_nr)	((x << ZONES_SHIFT) | zone_nr)
+-void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+-		unsigned long pfn, unsigned long size)
+-{
+-	unsigned long snum = pfn_to_section_nr(pfn);
+-	unsigned long end = pfn_to_section_nr(pfn + size);
+-
+-	if (FLAGS_HAS_NODE)
+-		zone_table[ZONETABLE_INDEX(nid, zid)] = zone;
+-	else
+-		for (; snum <= end; snum++)
+-			zone_table[ZONETABLE_INDEX(snum, zid)] = zone;
+-}
+-
+ #ifndef __HAVE_ARCH_MEMMAP_INIT
+ #define memmap_init(size, nid, zone, start_pfn) \
+ 	memmap_init_zone((size), (nid), (zone), (start_pfn))
+@@ -2525,7 +2504,6 @@
+ 		if (!size)
+ 			continue;
+ 
+-		zonetable_add(zone, nid, j, zone_start_pfn, size);
+ 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		BUG_ON(ret);
+ 		zone_start_pfn += size;
+Index: linux-2.6.18-rc6-mm2/mm/memory_hotplug.c
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/mm/memory_hotplug.c	2006-09-13 14:17:24.823537096 -0500
++++ linux-2.6.18-rc6-mm2/mm/memory_hotplug.c	2006-09-13 14:18:11.750345535 -0500
+@@ -72,7 +72,6 @@
+ 			return ret;
+ 	}
+ 	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
+-	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
