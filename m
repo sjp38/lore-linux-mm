@@ -1,43 +1,72 @@
-Date: Wed, 13 Sep 2006 15:30:56 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: why inode creation with GFP_HIGHUSER?
-In-Reply-To: <34a75100609131527x458d7601x5aa885bb56b6bad6@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0609131528510.20316@schroedinger.engr.sgi.com>
-References: <34a75100609130734m68729bdaj30258c10edfa7947@mail.gmail.com>
- <34a75100609130754t24b8bde6xcebda4f0684c51cb@mail.gmail.com>
- <Pine.LNX.4.64.0609131030580.17927@schroedinger.engr.sgi.com>
- <34a75100609131527x458d7601x5aa885bb56b6bad6@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH 2.6.18-rc6-mm2] fix migrate_page_move_mapping for radix
+	tree cleanup
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Content-Type: text/plain
+Date: Wed, 13 Sep 2006 18:48:27 -0400
+Message-Id: <1158187707.5328.86.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: girish <girishvg@gmail.com>
-Cc: Linux-MM@kvack.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Sep 2006, girish wrote:
+Alternative to my "revert migrate_move_mapping ..." patch:
 
-> > I am not sure what you intend to do. The kernel already avoids mapping
-> > highmem pages into the kernel as much as possible.
-> 
-> that's the whole confusion. kernel is supposed to *avoid* allocating
-> from ZONE_HIGHMEM if there is some memory left in ZONE_DMA and/or
 
-The kernel favors ZONE_HIGHMEM allocations for certain type of 
-allocations. Like those marked GF_HIGHUSER. It avoid establishing
-mappings of its own. The mappings via the page tables are easier on
-the machine and so the application will be fine with HIGHMEM pages.
+Change to radix_tree_{deref|replace}_slot() API requires
+change to migrate_page_move_mapping() [only user of those
+APIs, so far] to eliminate compiler warnings.
 
-> ZONE_NORMAL. but as i mentioned the zonelist selection that happens
-> based  on GFP_* mask (in this case GFP_HIGHUSER), makes __alloc_pages
-> to allocate from a list which has both HIGHMEM and DMA/NORMAL zones
-> listed in it. the zonelist looping/fallback is as implemented in
-> get_page_from_freelist (). to this function, the zonelist that is
-> passed contains both and in the order - HIGHMEM and DMA/NORMAL zones.
-> shouldn't it be NORMAl/DMA first and then HIGHMEM in the zonelist?
+Apply only after backing out the patch:
 
-The fallback sequence is HIGHMEM / NORMAL / DMA for a GFP_HIGHUSER 
-allocation.
+page-migration-replace-radix_tree_lookup_slot-with-radix_tree_lockup.patch
+
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/migrate.c |   11 +++++------
+ 1 files changed, 5 insertions(+), 6 deletions(-)
+
+Index: linux-2.6.18-rc6-mm2/mm/migrate.c
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/mm/migrate.c	2006-09-13 22:32:44.000000000 -0400
++++ linux-2.6.18-rc6-mm2/mm/migrate.c	2006-09-13 22:38:43.000000000 -0400
+@@ -294,7 +294,7 @@ out:
+ static int migrate_page_move_mapping(struct address_space *mapping,
+ 		struct page *newpage, struct page *page)
+ {
+-	struct page **radix_pointer;
++	void **pslot;
+ 
+ 	if (!mapping) {
+ 		/* Anonymous page */
+@@ -305,12 +305,11 @@ static int migrate_page_move_mapping(str
+ 
+ 	write_lock_irq(&mapping->tree_lock);
+ 
+-	radix_pointer = (struct page **)radix_tree_lookup_slot(
+-						&mapping->page_tree,
+-						page_index(page));
++	pslot = radix_tree_lookup_slot(&mapping->page_tree,
++					page_index(page));
+ 
+ 	if (page_count(page) != 2 + !!PagePrivate(page) ||
+-			radix_tree_deref_slot(radix_pointer) != page) {
++			(struct page *)radix_tree_deref_slot(pslot) != page) {
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		return -EAGAIN;
+ 	}
+@@ -326,7 +325,7 @@ static int migrate_page_move_mapping(str
+ 	}
+ #endif
+ 
+-	radix_tree_replace_slot(radix_pointer, newpage);
++	radix_tree_replace_slot(pslot, newpage);
+ 	__put_page(page);
+ 	write_unlock_irq(&mapping->tree_lock);
+ 
 
 
 --
