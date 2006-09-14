@@ -1,140 +1,97 @@
-Date: Wed, 13 Sep 2006 16:50:41 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] GFP_THISNODE for the slab allocator
-Message-ID: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 20/20] iscsi: support for swapping over iSCSI.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <45086F16.9030307@cs.wisc.edu>
+References: <20060912143049.278065000@chello.nl>
+	 <20060912144905.201160000@chello.nl>  <45086F16.9030307@cs.wisc.edu>
+Content-Type: text/plain
+Date: Thu, 14 Sep 2006 08:17:30 +0200
+Message-Id: <1158214650.13665.27.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: Mike Christie <michaelc@cs.wisc.edu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch insures that the slab node lists in the NUMA case only contain
-slabs that belong to that specific node. All slab allocations use
-GFP_THISNODE when calling into the page allocator. If an allocation fails
-then we fall back in the slab allocator according to the zonelists
-appropriate for a certain context.
+On Wed, 2006-09-13 at 15:50 -0500, Mike Christie wrote:
+> Peter Zijlstra wrote:
+> > Implement sht->swapdev() for iSCSI. This method takes care of reserving
+> > the extra memory needed and marking all relevant sockets with SOCK_VMIO.
+> > 
+> > When used for swapping, TCP socket creation is done under GFP_MEMALLOC and
+> > the TCP connect is done with SOCK_VMIO to ensure their success. Also the
+> > netlink userspace interface is marked SOCK_VMIO, this will ensure that even
+> > under pressure we can still communicate with the daemon (which runs as
+> > mlockall() and needs no additional memory to operate).
+> > 
+> > Netlink requests are handled under the new PF_MEM_NOWAIT when a swapper is
+> > present. This ensures that the netlink socket will not block. User-space will
+> > need to retry failed requests.
+> > 
+> > The TCP receive path is handled under PF_MEMALLOC for SOCK_VMIO sockets.
+> > This makes sure we do not block the critical socket, and that we do not
+> > fail to process incomming data.
+> > 
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > CC: Mike Christie <michaelc@cs.wisc.edu>
+> > ---
+> >  drivers/scsi/iscsi_tcp.c            |  103 +++++++++++++++++++++++++++++++-----
+> >  drivers/scsi/scsi_transport_iscsi.c |   23 +++++++-
+> >  include/scsi/libiscsi.h             |    1 
+> >  include/scsi/scsi_transport_iscsi.h |    2 
+> >  4 files changed, 113 insertions(+), 16 deletions(-)
+> > 
+> > Index: linux-2.6/drivers/scsi/iscsi_tcp.c
+> > ===================================================================
+> > --- linux-2.6.orig/drivers/scsi/iscsi_tcp.c
+> > +++ linux-2.6/drivers/scsi/iscsi_tcp.c
+> > @@ -42,6 +42,7 @@
+> >  #include <scsi/scsi_host.h>
+> >  #include <scsi/scsi.h>
+> >  #include <scsi/scsi_transport_iscsi.h>
+> > +#include <scsi/scsi_device.h>
+> >  
+> >  #include "iscsi_tcp.h"
+> >  
+> > @@ -845,9 +846,13 @@ iscsi_tcp_data_recv(read_descriptor_t *r
+> >  	int rc;
+> >  	struct iscsi_conn *conn = rd_desc->arg.data;
+> >  	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+> > -	int processed;
+> > +	int processed = 0;
+> >  	char pad[ISCSI_PAD_LEN];
+> >  	struct scatterlist sg;
+> > +	unsigned long pflags = current->flags;
+> > +
+> > +	if (sk_has_vmio(tcp_conn->sock->sk))
+> > +		current->flags |= PF_MEMALLOC;
+> >  
+> 
+> Is this too late or not needed or what is it for? This function gets run
+> from the network layer's softirq and at this point we have a skbuff with
+> data that we want to process. The iscsi layer also does not allocate
+> memory for read or write IO in this path.
 
-This allows a replication of the behavior of alloc_pages and alloc_pages
-node in the slab layer.
+I thought I found allocations in that path, lemme search...
+found this:
 
-Currently allocations requested from the page allocator may be redirected
-via cpusets to other nodes. This results in remote pages on nodelists and
-that in turn results in interrupt latency issues during cache draining.
-Plus the slab is handing out memory as local when it is really remote.
+iscsi_tcp_data_recv()
+  iscsi_data_rescv()
+    iscsi_complete_pdu()
+      __iscsi_complete_pdu()
+        iscsi_recv_pdu()
+          alloc_skb( GFP_ATOMIC);
 
-Fallback for slab memory allocations will occur within the slab
-allocator and not in the page allocator. This is necessary in order
-to be able to use the existing pools of objects on the nodes that
-we fall back to before adding more pages to a slab.
+> I think we would want to set this flag at a lower level. Something
+> closer to where the skbuf is allocated?
 
-The fallback function insures that the nodes we fall back to obey
-cpuset restrictions of the current context. We do not allocate
-objects from outside of the current cpuset context like before.
+Is that the skbuff you were talking about? If so, I'd need to carve a
+path to pass the swapper information. I had that in a previous patch,
+but that was large and ugly. I had to go carrying gfp_t flags all
+through that call chain.
 
-Note that the implementation of locality constraints within the slab
-allocator requires importing logic from the page allocator. This is a
-mischmash that is not that great. Other allocators (uncached allocator,
-vmalloc, huge pages) face similar problems and have similar minimal
-reimplementations of the basic fallback logic of the page allocator.
-There is another way of implementing a slab by avoiding per node lists
-(see modular slab) but this wont work within the existing slab.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.18-rc6-mm2/mm/slab.c
-===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/slab.c	2006-09-13 18:04:57.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/mm/slab.c	2006-09-13 18:20:41.356901622 -0500
-@@ -1566,6 +1566,14 @@ static void *kmem_getpages(struct kmem_c
- 	 */
- 	flags |= __GFP_COMP;
- #endif
-+#ifdef CONFIG_NUMA
-+	/*
-+	 * Under NUMA we want memory on the indicated node. We will handle
-+	 * the needed fallback ourselves since we want to serve from our
-+	 * per node object lists first for other nodes.
-+	 */
-+	flags |= GFP_THISNODE;
-+#endif
- 	flags |= cachep->gfpflags;
- 
- 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-@@ -3085,6 +3093,15 @@ static __always_inline void *__cache_all
- 
- 	objp = ____cache_alloc(cachep, flags);
- out:
-+
-+#ifdef CONFIG_NUMA
-+	/*
-+	 * We may just have run out of memory on the local know.
-+	 * __cache_alloc_node knows how to locate memory on other nodes
-+	 */
-+ 	if (!objp)
-+ 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
-+#endif
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    caller);
-@@ -3103,7 +3120,7 @@ static void *alternate_node_alloc(struct
- {
- 	int nid_alloc, nid_here;
- 
--	if (in_interrupt())
-+	if (in_interrupt() || (flags & __GFP_THISNODE))
- 		return NULL;
- 	nid_alloc = nid_here = numa_node_id();
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
-@@ -3116,6 +3133,28 @@ static void *alternate_node_alloc(struct
- }
- 
- /*
-+ * Fallback function if there was no memory available and no objects on a
-+ * certain node and we are allowed to fall back. We mimick the behavior of
-+ * the page allocator. We fall back according to a zonelist determined by
-+ * the policy layer while obeying cpuset constraints.
-+ */
-+void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
-+{
-+	struct zonelist *zonelist = &NODE_DATA(slab_node(current->mempolicy))
-+					->node_zonelists[gfp_zone(flags)];
-+	struct zone **z;
-+	void *obj = NULL;
-+
-+	for (z = zonelist->zones; *z && !obj; z++)
-+		if (zone_idx(*z) <= ZONE_NORMAL &&
-+				cpuset_zone_allowed(*z, flags))
-+			obj = __cache_alloc_node(cache,
-+					flags | __GFP_THISNODE,
-+					zone_to_nid(*z));
-+	return obj;
-+}
-+
-+/*
-  * A interface to enable slab creation on nodeid
-  */
- static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-@@ -3168,11 +3207,15 @@ retry:
- must_grow:
- 	spin_unlock(&l3->list_lock);
- 	x = cache_grow(cachep, flags, nodeid);
-+	if (x)
-+		goto retry;
- 
--	if (!x)
--		return NULL;
-+	if (!(flags & __GFP_THISNODE))
-+		/* Unable to grow the cache. Fall back to other nodes. */
-+		return fallback_alloc(cachep, flags);
-+
-+	return NULL;
- 
--	goto retry;
- done:
- 	return obj;
- }
+I could try again if you prefer that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
