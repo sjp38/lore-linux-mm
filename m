@@ -1,72 +1,141 @@
-Message-ID: <4509C997.4070006@cs.wisc.edu>
-Date: Thu, 14 Sep 2006 16:28:55 -0500
-From: Mike Christie <michaelc@cs.wisc.edu>
+Date: Thu, 14 Sep 2006 14:46:02 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Get rid of zone_table
+In-Reply-To: <45092FE6.3060706@shadowen.org>
+Message-ID: <Pine.LNX.4.64.0609141431560.5688@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
+ <45092FE6.3060706@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 20/20] iscsi: support for swapping over iSCSI.
-References: <20060912143049.278065000@chello.nl>	 <20060912144905.201160000@chello.nl>  <45086F16.9030307@cs.wisc.edu>	 <1158214650.13665.27.camel@twins>  <4509ABE5.2080904@cs.wisc.edu>	 <1158266150.30737.92.camel@taijtu> <1158266816.30737.99.camel@taijtu> <4509C4ED.9080508@cs.wisc.edu>
-In-Reply-To: <4509C4ED.9080508@cs.wisc.edu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Christie wrote:
-> Peter Zijlstra wrote:
->> On Thu, 2006-09-14 at 22:35 +0200, Peter Zijlstra wrote:
->>> On Thu, 2006-09-14 at 14:22 -0500, Mike Christie wrote:
->>>>> I thought I found allocations in that path, lemme search...
->>>>> found this:
->>>>>
->>>>> iscsi_tcp_data_recv()
->>>>>   iscsi_data_rescv()
->>>>>     iscsi_complete_pdu()
->>>>>       __iscsi_complete_pdu()
->>>>>         iscsi_recv_pdu()
->>>>>           alloc_skb( GFP_ATOMIC);
->>>>>
->>>> You are right that is for the netlink interface. Could we move the
->>>> PF_MEMALLOC setting and clearing to iscsi_recv_pdu and and add it to
->>>> iscsi_conn_error in scsi_transport_iscsi.c so that iscsi_iser and
->>>> qla4xxx will have it set when they need it. I will send a patch for this
->>>> along with a way to have the netlink sock vmio set for all iscsi drivers
->>>> that need it.
->>> I already have such a patch, look at:
->>> http://programming.kicks-ass.net/kernel-patches/vm_deadlock/current/iscsi_vmio.patch
->>>
->>> but what conditional do you want to use for PF_MEMALLOC, an
->>> unconditional setting will be highly unpopular.
->>>
->>> Hmm, perhaps you could key it of sk_has_vmio(nls)...
->> On second thought, not such a good idea, that will still be too course.
->> You only want to force feed stuff originating from
->> sk_has_vmio(iscsi_tcp_conn->sock->sk) connections, not all
->> connectections as soon as there is a swapper in the system.
->>
-> 
-> You can move the iscsi_session->swapper field to the iscsi_cls_session
-> and have iscsi_swapdev take a iscsi_cls_session and set that flag.
-> iscsi_recv_pdu and iscsi_conn_error and all the llds can then access
-> this bit.
-> 
->> In order to preserve that information you need extra state, abusing this
->> process flags is as good as propagating __GFP_EMERGENCY down the call
->> chain with extra gfp_t arguments, perhaps even better, since it will
->> make sure we catch all allocations.
->>
+On Thu, 14 Sep 2006, Andy Whitcroft wrote:
 
-Oh yeah, on the send side we also allocate some memory for the netlink
-interface if there is a connection error (iscsi_conn_failure ->
-iscsi_conn_error). And when that is called from the transmit side we can
-change the GFP_ATOMICs to GFP_NOIOs since we have process context.
+> Proposed implementation:
+> 
+>     | Node | Zone | [Section] | xxxxx |      Flags       |
+>      \____/ \____/
+>         |      |__________________
+>   .- - -|- - - - - - - -.         |
 
-So I am just saying we need to set that flag in a couple more places (if
-you set it in iscsi_conn_error if iscsi_cls_session->swapper is set then
-don't worry about it), and that I need to change iscsi_conn_failure and
-iscsi_conn_error to take a gfp_t as an argument (or do a in_interrupt or
-something) so we can use GFP_NOIO in the transmit code.
+Right. There is one lookup here in the node_data array. The combination
+with the zone is an address calculation and does not require a lookup.
+
+>   .     v               .         v
+>   . +-----------+       .  +-----------+
+>   . | node_data |--&node-->| NODE_DATA |----> &zone
+>   . +-----------+       .  +-----------+
+>   .     ^               .         ^
+>    - - -|- - - - - - - -A         |
+>         |                         |
+>     +---------------+             |
+>     | section_table |             |
+>     +---------------+             |
+
+Right here is the second lookup for the case in which the section does not 
+fit.
+
+>         ^                         |
+>         |                         |
+>       __|_____________________   _|__
+>      /                        \ /    \
+>     |         Section          | Zone |      Flags       |
+> 
+> 
+> Christoph Lameter wrote:
+> > The zone table is mostly not needed. If we have a node in the page flags 
+> > then we can get to the zone via NODE_DATA(). In case of SMP and UP 
+> > NODE_DATA() is a constant pointer which allows us to access an exact 
+> > replica of zonetable in the node_zones field. In all of the above cases 
+> > there will be no need at all for the zone table.
+> 
+> Ok here we are talking about the segment of the second diagram ringed
+> and marked A.  Yes the compiler/we should be able to optimise this case
+> to directly use the zonelist.  However, this is also true of the current
+> scheme and would be a fairly trivial change in that framework.
+
+What would the compiler optimize? You mean the zonelist in the node 
+structure or the zonetable?
+
+> 
+> Something like the below.
+> 
+> @@ -477,7 +477,10 @@ static inline int page_zone_id(struct pa
+>  }
+>  static inline struct zone *page_zone(struct page *page)
+>  {
+> -       return zone_table[page_zone_id(page)];
+> +       if (NODE_SHIFT)
+> +               return zone_table[page_zone_id(page)];
+> +       else
+> +               return NODE_DATA(0)->node_zones[page_zonenum(page)];
+>  }
+
+Yes that code was proposed in the RFC. See linux-mm. Dave suggested that 
+we can eliminate the zone_table or the section_to_node_table completely
+because we can actually fit the node into the page flags with some 
+adjustments to sparsemem.
+
+> A similar thing could be done for page_to_nid which should always be zero.
+
+page_to_nid already uses page_zone in that case.
+
+> > The section_to_node table (if we still need it) is still the size of the 
+> > number of sections but the individual elements are integers (which already 
+> > saves 50% on 64 bit platforms) and we do not need to duplicate the entries 
+> > per zone type. So even if we have to keep the table then we shrink it to 
+> > 1/4th (32bit) or 1/8th )(64bit).
+> 
+> Ok, this is based on half for moving from a pointer to an integer.  The
+> rest is based on the fact we have 4 zones.  Given most sane
+> architectures only have ZONE_DMA we should be able to get a large
+> percentage of this saving just from knowing the highest 'valid' zone per
+> architecture.
+
+NUMAQ only populates HIGHMEM on nodes other than zero. You will get 
+no benefit with such a scheme.
+
+> Let us consider the likely sizes of the zone_table for a SPARSEMEM
+> configuration:
+> 
+> 1) the 32bit case.  Here we have a limitation of a maximum of 6 bits
+> worth of sections (64 of them).  So the maximum zone_table size is 4 *
+> 64 * 4 == 1024, so 1KB of zone_table.
+
+Can we fit the node in there for all possible 32 bit NUMA machines?
+
+> General comments.  Although this may seem of the same order of
+> complexity and therefore a performance drop in, there does seem to be a
+> significant number of additional indirections on a NUMA system.
+
+Could you tell me wher the "indirections" come from? AFAIK there is only
+one additional indirection that is offset by the NODE_DATA array being
+cache hot. page_to_nid goes from 3 indirections to one with this scheme.
+
+> I can see a very valid case for optimising the UP/SMP case where
+> NODE_DATA is a constant.  But that could be optimised as I indicate
+> above without a complete rewrite.
+
+Could you have a look at the RFC wich does exactly that?
+ 
+> Finally, if the change here was a valid one benchmark wise or whatever,
+> I think it would be nicer to push this in through the same interface we
+> currently have as that would allow other shaped zone_tables to be
+> brought back should a new memory layout come along.
+
+It would be best to eliminate the zone_table or my section_to_node_table 
+completely. The section_to_node_table does not require maintanance 
+in the page allocator as the zone_table does.
+
+> > Index: linux-2.6.18-rc6-mm2/include/linux/mm.h
+> > ===================================================================
+
+I could not find any comments in here. Please cut down emails as much as 
+possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
