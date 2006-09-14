@@ -1,54 +1,109 @@
-Date: Thu, 14 Sep 2006 09:55:38 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/8] Optional ZONE_DMA V1
-In-Reply-To: <4509185B.1020901@sgi.com>
-Message-ID: <Pine.LNX.4.64.0609140948240.23909@schroedinger.engr.sgi.com>
-References: <20060911222729.4849.69497.sendpatchset@schroedinger.engr.sgi.com>
- <1158046205.2992.1.camel@laptopd505.fenrus.org>
- <Pine.LNX.4.64.0609121024290.11188@schroedinger.engr.sgi.com>
- <yq0d5a0fbcj.fsf@jaguar.mkp.net> <Pine.LNX.4.64.0609130109030.15792@schroedinger.engr.sgi.com>
- <4507D4EE.4060501@sgi.com> <Pine.LNX.4.64.0609131015360.17927@schroedinger.engr.sgi.com>
- <20060913174948.GA6533@sgi.com> <Pine.LNX.4.64.0609131056260.18136@schroedinger.engr.sgi.com>
- <4509185B.1020901@sgi.com>
+Message-ID: <4509ABE5.2080904@cs.wisc.edu>
+Date: Thu, 14 Sep 2006 14:22:13 -0500
+From: Mike Christie <michaelc@cs.wisc.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 20/20] iscsi: support for swapping over iSCSI.
+References: <20060912143049.278065000@chello.nl>	 <20060912144905.201160000@chello.nl>  <45086F16.9030307@cs.wisc.edu> <1158214650.13665.27.camel@twins>
+In-Reply-To: <1158214650.13665.27.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jes Sorensen <jes@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Hellwig <hch@infradead.org>, linux-ia64@vger.kernel.org, Marcelo Tosatti <marcelo@kvack.org>, Martin Bligh <mbligh@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, David Miller <davem@davemloft.net>, Rik van Riel <riel@redhat.com>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Sep 2006, Jes Sorensen wrote:
+Peter Zijlstra wrote:
+> On Wed, 2006-09-13 at 15:50 -0500, Mike Christie wrote:
+>> Peter Zijlstra wrote:
+>>> Implement sht->swapdev() for iSCSI. This method takes care of reserving
+>>> the extra memory needed and marking all relevant sockets with SOCK_VMIO.
+>>>
+>>> When used for swapping, TCP socket creation is done under GFP_MEMALLOC and
+>>> the TCP connect is done with SOCK_VMIO to ensure their success. Also the
+>>> netlink userspace interface is marked SOCK_VMIO, this will ensure that even
+>>> under pressure we can still communicate with the daemon (which runs as
+>>> mlockall() and needs no additional memory to operate).
+>>>
+>>> Netlink requests are handled under the new PF_MEM_NOWAIT when a swapper is
+>>> present. This ensures that the netlink socket will not block. User-space will
+>>> need to retry failed requests.
+>>>
+>>> The TCP receive path is handled under PF_MEMALLOC for SOCK_VMIO sockets.
+>>> This makes sure we do not block the critical socket, and that we do not
+>>> fail to process incomming data.
+>>>
+>>> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>>> CC: Mike Christie <michaelc@cs.wisc.edu>
+>>> ---
+>>>  drivers/scsi/iscsi_tcp.c            |  103 +++++++++++++++++++++++++++++++-----
+>>>  drivers/scsi/scsi_transport_iscsi.c |   23 +++++++-
+>>>  include/scsi/libiscsi.h             |    1 
+>>>  include/scsi/scsi_transport_iscsi.h |    2 
+>>>  4 files changed, 113 insertions(+), 16 deletions(-)
+>>>
+>>> Index: linux-2.6/drivers/scsi/iscsi_tcp.c
+>>> ===================================================================
+>>> --- linux-2.6.orig/drivers/scsi/iscsi_tcp.c
+>>> +++ linux-2.6/drivers/scsi/iscsi_tcp.c
+>>> @@ -42,6 +42,7 @@
+>>>  #include <scsi/scsi_host.h>
+>>>  #include <scsi/scsi.h>
+>>>  #include <scsi/scsi_transport_iscsi.h>
+>>> +#include <scsi/scsi_device.h>
+>>>  
+>>>  #include "iscsi_tcp.h"
+>>>  
+>>> @@ -845,9 +846,13 @@ iscsi_tcp_data_recv(read_descriptor_t *r
+>>>  	int rc;
+>>>  	struct iscsi_conn *conn = rd_desc->arg.data;
+>>>  	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+>>> -	int processed;
+>>> +	int processed = 0;
+>>>  	char pad[ISCSI_PAD_LEN];
+>>>  	struct scatterlist sg;
+>>> +	unsigned long pflags = current->flags;
+>>> +
+>>> +	if (sk_has_vmio(tcp_conn->sock->sk))
+>>> +		current->flags |= PF_MEMALLOC;
+>>>  
+>> Is this too late or not needed or what is it for? This function gets run
+>> from the network layer's softirq and at this point we have a skbuff with
+>> data that we want to process. The iscsi layer also does not allocate
+>> memory for read or write IO in this path.
+> 
+> I thought I found allocations in that path, lemme search...
+> found this:
+> 
+> iscsi_tcp_data_recv()
+>   iscsi_data_rescv()
+>     iscsi_complete_pdu()
+>       __iscsi_complete_pdu()
+>         iscsi_recv_pdu()
+>           alloc_skb( GFP_ATOMIC);
+> 
 
-> I don't know about USB on ia64, but USB is an issue and we do support
-> it even on Altix, as crazy as it may seem (I use USB with my SGI Prism
-> foot-warmer in the office). Also take into account that some ia64 boxes
-> do not come with IOMMU's, DIG - be afraid, be very afraid. On those
-> machines you ideally want to have DMA32 zone for this stuff to support
-> 32 bit PCI devices, even if the swiotlb can be used (bounce buffers for
-> all transactions is just a sick idea), and we get back to the issue of
-> using generic kernels.
+You are right that is for the netlink interface. Could we move the
+PF_MEMALLOC setting and clearing to iscsi_recv_pdu and and add it to
+iscsi_conn_error in scsi_transport_iscsi.c so that iscsi_iser and
+qla4xxx will have it set when they need it. I will send a patch for this
+along with a way to have the netlink sock vmio set for all iscsi drivers
+that need it.
 
-USB sticks that use ISA DMA is an issue but then IA64 does not 
-support ISA DMA at all and would not even now support that USB stick type.
 
-> I agree it sounds appealing, but if reality is that all distro kernels
-> will switch ZONE_DMA on, then having the option to switch it off is
-> going have little or zero impact on the end users.
+>> I think we would want to set this flag at a lower level. Something
+>> closer to where the skbuf is allocated?
+> 
+> Is that the skbuff you were talking about? If so, I'd need to carve a
+> path to pass the swapper information. I had that in a previous patch,
+> but that was large and ugly. I had to go carrying gfp_t flags all
+> through that call chain.
+> 
 
-I am sure that if we keep ZONE_DMA unconfigurable then the distros will 
-never switch that off because they cannot. On the other hand if its 
-optional then it can be switched off at some future date or special 
-kernels can be build if this will turn out to be a big advantage.
-
-Also not everyone (even we have the capability of generatic static SGI 
-specific kernels) uses only distro kernels and this is a big memory saver 
-and reduces complexity in the kernel with only a single zone.
- 
-> In other words, will this really matter in end user situations?
-
-Certainly it will never have a change of mattering if we keep the 
-chicken-and-egg argument going.
+In my original post I was just concerned about the sk_buff that gets
+passed to the iscsi layer in iscsi_tcp_data_recv. I was wondering if the
+chunk of code in the network layer or network driver that allocated that
+skbuff needed to set PF_MEMALLOC.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
