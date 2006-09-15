@@ -1,44 +1,35 @@
-Message-ID: <450AAA83.3040905@shadowen.org>
-Date: Fri, 15 Sep 2006 14:28:35 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Fri, 15 Sep 2006 14:30:24 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+In-Reply-To: <20060915003529.8a59c542.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0609151425050.22674@blonde.wat.veritas.com>
+References: <1158274508.14473.88.camel@localhost.localdomain>
+ <20060915001151.75f9a71b.akpm@osdl.org> <20060915003529.8a59c542.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Get rid of zone_table
-References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>	 <1158180795.9141.158.camel@localhost.localdomain>	 <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com> <1158184047.9141.164.camel@localhost.localdomain>
-In-Reply-To: <1158184047.9141.164.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Mike Waychison <mikew@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> Now that I think about it, we should have room to encode that thing
-> inside of the section number on 32-bit platforms.
+On Fri, 15 Sep 2006, Andrew Morton wrote:
 > 
-> We have 32-bits of space, and we need to encode a number that is a
-> maximum of 4 bits in size.  That leaves 28 bits minus the one that we
-> use for the section present bit.  Our minimum section size on x86 is
-> something like 64 or 128MB.  Let's say 64MB.  So, on a 64GB system, we
-> only need 1k sections, and 10 bits.
-> 
-> So, the node number would almost certainly fit in the existing
-> mem_section.  We'd just need to set it and mask it out.  
-> 
-> Andy, what do you think?
+> This assumes that no other heavyweight process will try to modify this
+> single-threaded process's mm.  I don't _think_ that happens anywhere, does
+> it?  access_process_vm() is the only case I can think of,
 
-The flags field only has a 9 bit space for these value fields.  Into
-which we normally shove NODE,ZONE.  With SPARSEMEM that is SECTION,ZONE
-and so there is only room for 6-7 bits of information in this field.
+"Modify" in the sense of fault into.
+Yes, access_process_vm() is all I can think of too.
 
-The section table only contains an adjusted pointer to the mem_map for
-that section?  We use the bottom two bits of that pointer for a couple
-of flags.  I don't think there is any space in it.
+> and it does down_read(other process's mmap_sem).
 
-Are you thinking of somewhere else?
+If there were anything else, it'd have to do so too (if not down_write).
 
--apw
+I too like NOPAGE_RETRY: as you've both observed, it can help to solve
+several different problems.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
