@@ -1,129 +1,93 @@
-Date: Thu, 14 Sep 2006 23:49:26 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060914234926.9b58fd77.pj@sgi.com>
-In-Reply-To: <20060914220011.2be9100a.akpm@osdl.org>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-	<20060914220011.2be9100a.akpm@osdl.org>
+Date: Fri, 15 Sep 2006 00:11:51 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+Message-Id: <20060915001151.75f9a71b.akpm@osdl.org>
+In-Reply-To: <1158274508.14473.88.camel@localhost.localdomain>
+References: <1158274508.14473.88.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: clameter@sgi.com, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Mike Waychison <mikew@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew wrote:
-> hm, there's cpuset_zone_allowed() again.
+On Fri, 15 Sep 2006 08:55:08 +1000
+Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+
+> in mm.h:
 > 
-> I have a feeling that we need to nuke that thing: take a 128-node machine,
-> create a cpuset which has 64 memnodes, consume all the memory in 60 of
-> them, do some heavy page allocation, then stick a thermometer into
-> get_page_from_freelist()?
+>  #define NOPAGE_SIGBUS   (NULL)
+>  #define NOPAGE_OOM      ((struct page *) (-1))
+> +#define NOPAGE_RETRY	((struct page *) (-2))
+> 
+> and in memory.c, in do_no_page():
+> 
+> 
+>         /* no page was available -- either SIGBUS or OOM */
+>         if (new_page == NOPAGE_SIGBUS)
+>                 return VM_FAULT_SIGBUS;
+>         if (new_page == NOPAGE_OOM)
+>                 return VM_FAULT_OOM;
+> +       if (new_page == NOPAGE_RETRY)
+> +               return VM_FAULT_MINOR;
 
-Hmmm ... are you worried that if get_page_from_freelist() has to scan
-many nodes before it finds memory, that it will end up spending more
-CPU cycles than we'd like calling cpuset_zone_allowed()?
+Google are using such a patch (Mike owns it).
 
-The essential thing that cpuset_zone_allowed() does, in the most common
-case, is to determine if a zone is on one of the nodes the task is allowed
-to use.
+It is to reduce mmap_sem contention with threaded apps.  If one thread
+takes a major pagefault, it will perform a synchronous disk read while
+holding down_read(mmap_sem).  This causes any other thread which wishes to
+perform any mmap/munmap/mprotect/etc (which does down_write(mmap_sem)) to
+block behind that disk IO.  As you can understand, that can be pretty bad
+in the right circumstances.
 
-The get_page_from_freelist() and cpuset_zone_allowed() code is optimized
-for the case that memory is usually found in the first few zones in the
-zonelist.
+The patch modifies filemap_nopage() to look to see if it needs to block on
+the page coming uptodate and if so, it does up_read(mmap_sem);
+wait_on_page_locked(); return NOPAGE_RETRY.  That causes the top-level
+do_page_fault() code to rerun the entire pagefault.
 
-Here's the relevant portion of the get_page_from_freelist() code, as it
-stands now:
+It hasn't been submitted for upstream yet because
 
+a) To avoid livelock possibilities (page reclaim, looping FADV_DONTNEED,
+   etc) it only does the retry a single time.  After that it falls back to
+   the traditional synchronous-read-inside-mmap_sem approach.  A flag in
+   current->flags is used to detect the second attempt.  It keeps the patch
+   simple, but is a bit hacky.
 
-============================================================
-static struct page *
-get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
-                struct zonelist *zonelist, int alloc_flags)
-{
-        struct zone **z = zonelist->zones;
-	...
-        do {
-                if ((alloc_flags & ALLOC_CPUSET) &&
-                                !cpuset_zone_allowed(*z, gfp_mask))
-                        continue;
-                ... if zone z has free pages, use them ...
-        } while (*(++z) != NULL);
-============================================================
+   To resolve this cleanly I'm thinking we change all the pagefault code
+   everywhere: instantiate a new `struct pagefault_args' in do_page_fault()
+   and pass that all around the place.  So all the pagefault code, all the
+   ->nopage handlers etc will take a single argument.
 
+   This will, I hope, result in less code, faster code and less stack
+   consumption.  It could also be used for things like the
+   lock-the-page-in-filemap_nopage() proposal: the ->nopage()
+   implementation could set a boolean in pagefault_args indicating whether
+   the page has been locked.
 
-For the purposes of discussion here, let me open code the hot code
-path down into cpuset_zone_allowed(), so we can see more what's
-happening here.  Here's the open coded rewrite:
+   And, of course, fielmap_nopage could set another boolean in
+   pagefault_args to indicate that it has already tried to rerun the
+   pagefault once.
 
+b) It could be more efficient.  Most of the time, there's no need to
+   back all the way out of the pagefault handler and rerun the whole thing.
+   Because most of the time, nobody changed anything in the mm_struct.  We
+   _could_ just retake the mmap_sem after the page comes uptodate and, if
+   nothing has changed, proceed.  I see two ways of doing this:
 
-============================================================
-static struct page *
-get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
-                struct zonelist *zonelist, int alloc_flags)
-{
-        struct zone **z = zonelist->zones;
-	...
-	int do_cpuset_check = !in_interrupt() && alloc_flags & ALLOC_CPUSET;
+   - The simple way: look to see if any other processes are sharing
+     this mm_struct.  If not, just do the synchronous read inside mmap_sem.
 
-        do {
-		int node = z->zone_pgdat->node_id
-                if (do_cpuset_check &&
-				!node_isset(node, current->mems_allowed) &&
-				!cpuset_zone_allowed_slow_path_check())
-                        continue;
-                ... if zone z has free pages, use them ...
-        } while (*(++z) != NULL);
-============================================================
+   - The better way: put a sequence counter in the mm_struct,
+     increment that in every place where down_write(mmap_sem) is performed.
+      The pagefault code then can re-take the mmap_sem for reading and look
+     to see if the sequence counter is unchanged.  If it is, proceed.  If
+     it _has_ changed then drop mmap_sem again and return NOPAGE_RETRY.
 
+otoh, maybe using another bit in page->flags is a good compromise ;)
 
-With this open coding, we can see what cpuset_zone_allowed() is doing
-here.  The key thing it must do each loop (each zone z) is to ask if
-that zone's node is set in current->mems_allowed.
-
-My hypothetical routine 'cpuset_zone_allowed_slow_path_check()'
-contains the infrequently executed code path.  Usually, either we are
-not doing the cpuset check (because we are in interrupt), or we are
-checking and the check passes because the 'node' is allowed in
-current->mems_allowed.
-
-This code is optimized for the case that we find memory in a node
-fairly near the front of the zonelist.  If we have to go scavanging
-down a long list of zones before we find a node with free memory, then
-yes, we are sucking wind calling cpuset_zone_allowed(), or my
-hypothetical cpuset_zone_allowed_slow_path_check(), many times.
-
-I guess that was your concern.
-
-I don't think we should be tuning especially hard for that case.
-
-On a big honking NUMA box, if we have to go scavanging for memory
-dozens or hundreds of nodes removed from the scene of the memory fault,
-then **even if we found that precious free page of memory instantly**
-(in zero cost CPU cycles in the above code) we're -still- screwed.
-
-Well, the user of that machine is still screwed.  They have overloaded
-its memory, forcing poor NUMA placement. It's obviously not as bad as
-swap hell, but it's not good either.  There is nothing that the above
-code can do to make the "Non-Uniform" part of "NUMA" magically
-disappear.  Recall that these zonelists are sorted by distance from
-the starting node; so the further down the list we go, the slower the
-memory we get, relative to the tasks current CPU.
-
-We shouldn't be heavily tuning for this case, and I am not aware of any
-real world situations where real users would have reasonably determined
-otherwise, had they had full realization of what was going on.
-
-By 'not heavily tuning', I mean we should be more interested in minimizing
-kernel text size and cache footprint here than in optimizing CPU cycles
-for the case of having to frequently scan a long way down a long zonelist.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Mike, could you whip that patch out please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
