@@ -1,54 +1,36 @@
-Date: Fri, 15 Sep 2006 10:08:02 -0700 (PDT)
+Date: Fri, 15 Sep 2006 10:13:32 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-In-Reply-To: <20060914220011.2be9100a.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609151004580.7975@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org>
+Subject: Re: [PATCH] Get rid of zone_table
+In-Reply-To: <450AAA83.3040905@shadowen.org>
+Message-ID: <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
+ <1158180795.9141.158.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com>
+ <1158184047.9141.164.camel@localhost.localdomain> <450AAA83.3040905@shadowen.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, Paul Jackson <pj@sgi.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Sep 2006, Andrew Morton wrote:
+On Fri, 15 Sep 2006, Andy Whitcroft wrote:
 
-> hm.  GFP_THISNODE is dangerous.  For example, its use in
-> kernel/profile.c:create_hash_tables() has gone and caused non-NUMA machines
-> to use __GFP_NOWARN | __GFP_NORETRY in this situation.
+> The flags field only has a 9 bit space for these value fields.  Into
+> which we normally shove NODE,ZONE.  With SPARSEMEM that is SECTION,ZONE
+> and so there is only room for 6-7 bits of information in this field.
 > 
-> OK, that's relatively harmless here, but why on earth did non-NUMA
-> machines want to make this change?
+> The section table only contains an adjusted pointer to the mem_map for
+> that section?  We use the bottom two bits of that pointer for a couple
+> of flags.  I don't think there is any space in it.
 
-Right. We could define GFP_THISNODE to be 0 in the non-NUMA. Note the 
-missing __ __GFP_xx cannot be redefined to be 0 otherwise we get into
-trouble bitchecking.
-
-> Would it not be saner to do away with the dangerous GFP_THISNODE and then
-> open-code __GFP_THIS_NODE in those places which want that behaviour?
-
-That would bypass various processes in the page allocator. We are already
-copying the fallback lists processing to other allocators but this would 
-mean even more of the page allocator would be replicated elsewhere.
-
-> And to then make non-NUMA __GFP_THISNODE equal literal zero, so we can
-> remove the above ifdefs?
-
-We can easily make GFP_THISNODE 0 which will make it easy to use.
-
-> > + 	if (!objp)
-> > + 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
-> > +#endif
-> 
-> What happened to my `#define NUMA_BUILD 0 or 1' proposal?  If we had that,
-> the above could be
-> 
-> 	if (NUMA_BUILD && !objp)
-> 		objp = ...
-
-Ok. Lets do that then.
+Great! If we only have 6-7 bits that means a max of 128 sections, right? 
+And you have always less than 256 nodes? How about making the 
+section_to_nid array a byte vector? It will then fit into one cacheline 
+and be only little less hot than NODE_DATA() so we should be even faster 
+than before. The zone_table is currently certainly much larger than a 
+single cacheline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
