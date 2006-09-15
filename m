@@ -1,9 +1,8 @@
-Date: Fri, 15 Sep 2006 10:37:49 -0700 (PDT)
+Date: Fri, 15 Sep 2006 10:38:43 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Add NUMA_BUILD definition in kernel.h to avoid #ifdef
- CONFIG_NUMA
+Subject: [PATCH] Disable GFP_THISNODE in the non-NUMA case
 In-Reply-To: <20060914220011.2be9100a.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609151037010.8198@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609151037520.8198@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
  <20060914220011.2be9100a.akpm@osdl.org>
 MIME-Version: 1.0
@@ -14,66 +13,28 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The NUMA_BUILD constant is always available and will be set to 1
-on NUMA_BUILDs. That way checks valid only under CONFIG_NUMA can
-easily be done without #ifdef CONFIG_NUMA
-
-F.e.
-
-if (NUMA_BUILD && <numa_condition>) {
-...
-}
+GFP_THISNODE must be set to 0 in the non numa case otherwise we disable
+retry and warnings for failing allocations in the SMP and UP case.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc6-mm2/include/linux/kernel.h
+Index: linux-2.6.18-rc6-mm2/include/linux/gfp.h
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/include/linux/kernel.h	2006-09-13 20:00:38.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/include/linux/kernel.h	2006-09-15 12:19:55.293331280 -0500
-@@ -352,4 +352,11 @@ struct sysinfo {
- /* Trap pasters of __FUNCTION__ at compile-time */
- #define __FUNCTION__ (__func__)
+--- linux-2.6.18-rc6-mm2.orig/include/linux/gfp.h	2006-09-15 12:17:39.000000000 -0500
++++ linux-2.6.18-rc6-mm2/include/linux/gfp.h	2006-09-15 12:29:06.607417253 -0500
+@@ -67,7 +67,12 @@ struct vm_area_struct;
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+ 			 __GFP_HIGHMEM)
  
-+/* This helps us to avoid #ifdef CONFIG_NUMA */
 +#ifdef CONFIG_NUMA
-+#define NUMA_BUILD 1
+ #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
 +#else
-+#define NUMA_BUILD 0
++#define GFP_THISNODE	0
 +#endif
 +
- #endif
-Index: linux-2.6.18-rc6-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/page_alloc.c	2006-09-15 12:17:47.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/mm/page_alloc.c	2006-09-15 12:27:01.079243677 -0500
-@@ -957,7 +957,7 @@ get_page_from_freelist(gfp_t gfp_mask, u
- 	 */
- 	do {
- 		zone = *z;
--		if (unlikely((gfp_mask & __GFP_THISNODE) &&
-+		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
- 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
- 				break;
- 		if ((alloc_flags & ALLOC_CPUSET) &&
-@@ -1330,14 +1330,12 @@ unsigned int nr_free_pagecache_pages(voi
- {
- 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
- }
--#ifdef CONFIG_NUMA
--static void show_node(struct zone *zone)
-+
-+static inline void show_node(struct zone *zone)
- {
--	printk("Node %ld ", zone_to_nid(zone));
-+	if (NUMA_BUILD)
-+		printk("Node %ld ", zone_to_nid(zone));
- }
--#else
--#define show_node(zone)	do { } while (0)
--#endif
  
- /*
-  * The node's effective length of inactive_list(s).
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
