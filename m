@@ -1,34 +1,44 @@
-Date: Fri, 15 Sep 2006 00:35:29 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
-Message-Id: <20060915003529.8a59c542.akpm@osdl.org>
-In-Reply-To: <20060915001151.75f9a71b.akpm@osdl.org>
-References: <1158274508.14473.88.camel@localhost.localdomain>
-	<20060915001151.75f9a71b.akpm@osdl.org>
+Date: Fri, 15 Sep 2006 00:44:02 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
+Message-Id: <20060915004402.88d462ff.pj@sgi.com>
+In-Reply-To: <20060915002325.bffe27d1.akpm@osdl.org>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Mike Waychison <mikew@google.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Sep 2006 00:11:51 -0700
-Andrew Morton <akpm@osdl.org> wrote:
+Andrew wrote:
+> Well some bright spark went and had the idea of using cpusets and fake numa
+> nodes as a means of memory paritioning, didn't he?
 
-> b) It could be more efficient.  Most of the time, there's no need to
->    back all the way out of the pagefault handler and rerun the whole thing.
->    Because most of the time, nobody changed anything in the mm_struct.  We
->    _could_ just retake the mmap_sem after the page comes uptodate and, if
->    nothing has changed, proceed.  I see two ways of doing this:
-> 
->    - The simple way: look to see if any other processes are sharing
->      this mm_struct.  If not, just do the synchronous read inside mmap_sem.
+If that bright spark is lurking here, perhaps he could educate
+me a little.  I mostly ignored the fake numa node stuff when it
+went by, because I figured it was just an amusing novelty.
 
-This assumes that no other heavyweight process will try to modify this
-single-threaded process's mm.  I don't _think_ that happens anywhere, does
-it?  access_process_vm() is the only case I can think of, and it does
-down_read(other process's mmap_sem).
+Perhaps its time I learned why it is valuable.  Can someone
+explain it to me, and describe a bit the situations in which
+it is useful.  Seems like NUMA mechanisms are being (ab)used
+for micro-partitioning memory.
+
+As Andrew speculates, this could lead to reconsidering and
+fancifying up some of the mechanisms, to cover a wider range
+of situations efficiently.
+
+Thanks.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
