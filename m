@@ -1,36 +1,79 @@
-Date: Fri, 15 Sep 2006 10:13:32 -0700 (PDT)
+Date: Fri, 15 Sep 2006 10:37:49 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Get rid of zone_table
-In-Reply-To: <450AAA83.3040905@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
- <1158180795.9141.158.camel@localhost.localdomain>
- <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com>
- <1158184047.9141.164.camel@localhost.localdomain> <450AAA83.3040905@shadowen.org>
+Subject: [PATCH] Add NUMA_BUILD definition in kernel.h to avoid #ifdef
+ CONFIG_NUMA
+In-Reply-To: <20060914220011.2be9100a.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0609151037010.8198@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+ <20060914220011.2be9100a.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Sep 2006, Andy Whitcroft wrote:
+The NUMA_BUILD constant is always available and will be set to 1
+on NUMA_BUILDs. That way checks valid only under CONFIG_NUMA can
+easily be done without #ifdef CONFIG_NUMA
 
-> The flags field only has a 9 bit space for these value fields.  Into
-> which we normally shove NODE,ZONE.  With SPARSEMEM that is SECTION,ZONE
-> and so there is only room for 6-7 bits of information in this field.
-> 
-> The section table only contains an adjusted pointer to the mem_map for
-> that section?  We use the bottom two bits of that pointer for a couple
-> of flags.  I don't think there is any space in it.
+F.e.
 
-Great! If we only have 6-7 bits that means a max of 128 sections, right? 
-And you have always less than 256 nodes? How about making the 
-section_to_nid array a byte vector? It will then fit into one cacheline 
-and be only little less hot than NODE_DATA() so we should be even faster 
-than before. The zone_table is currently certainly much larger than a 
-single cacheline.
+if (NUMA_BUILD && <numa_condition>) {
+...
+}
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.18-rc6-mm2/include/linux/kernel.h
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/include/linux/kernel.h	2006-09-13 20:00:38.000000000 -0500
++++ linux-2.6.18-rc6-mm2/include/linux/kernel.h	2006-09-15 12:19:55.293331280 -0500
+@@ -352,4 +352,11 @@ struct sysinfo {
+ /* Trap pasters of __FUNCTION__ at compile-time */
+ #define __FUNCTION__ (__func__)
+ 
++/* This helps us to avoid #ifdef CONFIG_NUMA */
++#ifdef CONFIG_NUMA
++#define NUMA_BUILD 1
++#else
++#define NUMA_BUILD 0
++#endif
++
+ #endif
+Index: linux-2.6.18-rc6-mm2/mm/page_alloc.c
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/mm/page_alloc.c	2006-09-15 12:17:47.000000000 -0500
++++ linux-2.6.18-rc6-mm2/mm/page_alloc.c	2006-09-15 12:27:01.079243677 -0500
+@@ -957,7 +957,7 @@ get_page_from_freelist(gfp_t gfp_mask, u
+ 	 */
+ 	do {
+ 		zone = *z;
+-		if (unlikely((gfp_mask & __GFP_THISNODE) &&
++		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
+ 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+ 				break;
+ 		if ((alloc_flags & ALLOC_CPUSET) &&
+@@ -1330,14 +1330,12 @@ unsigned int nr_free_pagecache_pages(voi
+ {
+ 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
+ }
+-#ifdef CONFIG_NUMA
+-static void show_node(struct zone *zone)
++
++static inline void show_node(struct zone *zone)
+ {
+-	printk("Node %ld ", zone_to_nid(zone));
++	if (NUMA_BUILD)
++		printk("Node %ld ", zone_to_nid(zone));
+ }
+-#else
+-#define show_node(zone)	do { } while (0)
+-#endif
+ 
+ /*
+  * The node's effective length of inactive_list(s).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
