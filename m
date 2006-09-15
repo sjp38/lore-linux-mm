@@ -1,49 +1,43 @@
-Date: Fri, 15 Sep 2006 10:51:41 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Get rid of zone_table
-In-Reply-To: <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0609151050470.8355@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
- <1158180795.9141.158.camel@localhost.localdomain>
- <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com>
- <1158184047.9141.164.camel@localhost.localdomain> <450AAA83.3040905@shadowen.org>
- <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+Date: Fri, 15 Sep 2006 23:35:39 +0200
+References: <1158274508.14473.88.camel@localhost.localdomain>
+In-Reply-To: <1158274508.14473.88.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200609152335.39960.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Optimize section_to_node_table so that it fits in a cacheline
+Am Friday 15 September 2006 00:55 schrieb Benjamin Herrenschmidt:
+> Somebody pointed to me that this might also be used to shoot another
+> bird, though I have not really though about it and wether it's good or
+> bad, which is the old problem of needing struct page for things that can
+> be mmap'ed. Using that trick, a driver could do the set_pte() itself in
+> the no_page handler and return NOPAGE_RETRY. I'm not sure about
+> advertising that feature though as I like all A callers of things like
+> set_pte() to be in well known locations, as there are various issues
+> related to manipulating the page tables that driver writers might not
+> get right. Though I suppose that if we consider the approach good, we
+> can provide a helper that "does the right thing" as well (like calling
+> update_mmu_cache(), flush_tlb_whatever(), etc...).
 
-We change the type of the elements in the section to node table
-to u8 if we have less than 256 nodes in the system. That way
-we can have up to 128 sections in one cacheline which is all
-that is necessary for some 32 bit NUMA platforms like NUMAQ to
-keep section_to_node_table in a single cacheline and thus
-make page_to_zone as fast or faster than before.
+One more point where it can help: When the backing store for the spufs
+mem file changes between vmalloc memory backed and pointing to a physical
+spu, we need to change vm_page_prot between (_PAGE_NO_CACHE | _PAGE_GUARDED)
+and the opposite. While all my investigations (with help from Hugh Dickins
+and Christoph Hellwig) show that it should be safe to do in the current
+code, the idea is still scary. When the nopage function for that file
+can simply return NOPAGE_RETRY after setting up the page tables,
+we don't need to worry about vm_page_prot any more.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.18-rc6-mm2/mm/sparse.c
-===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/sparse.c	2006-09-15 12:43:12.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/mm/sparse.c	2006-09-15 12:50:20.857430106 -0500
-@@ -30,7 +30,11 @@ EXPORT_SYMBOL(mem_section);
-  * do a lookup in the section_to_node_table in order to find which
-  * node the page belongs to.
-  */
--static int section_to_node_table[NR_MEM_SECTIONS];
-+#if MAX_NUMNODES <= 256
-+static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
-+#else
-+static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
-+#endif
- 
- extern unsigned long page_to_nid(struct page *page)
- {
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
