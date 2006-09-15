@@ -1,174 +1,49 @@
-Date: Fri, 15 Sep 2006 10:42:28 -0700 (PDT)
+Date: Fri, 15 Sep 2006 10:51:41 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] GFP_THISNODE for the slab allocator V2
-In-Reply-To: <20060914220011.2be9100a.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609151038470.8198@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org>
+Subject: Re: [PATCH] Get rid of zone_table
+In-Reply-To: <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609151050470.8355@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131340050.19059@schroedinger.engr.sgi.com>
+ <1158180795.9141.158.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0609131425010.19380@schroedinger.engr.sgi.com>
+ <1158184047.9141.164.camel@localhost.localdomain> <450AAA83.3040905@shadowen.org>
+ <Pine.LNX.4.64.0609151010520.7975@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch insures that the slab node lists in the NUMA case only contain
-slabs that belong to that specific node. All slab allocations use
-GFP_THISNODE when calling into the page allocator. If an allocation fails
-then we fall back in the slab allocator according to the zonelists
-appropriate for a certain context.
+Optimize section_to_node_table so that it fits in a cacheline
 
-This allows a replication of the behavior of alloc_pages and alloc_pages
-node in the slab layer.
-
-Currently allocations requested from the page allocator may be redirected
-via cpusets to other nodes. This results in remote pages on nodelists and
-that in turn results in interrupt latency issues during cache draining.
-Plus the slab is handing out memory as local when it is really remote.
-
-Fallback for slab memory allocations will occur within the slab
-allocator and not in the page allocator. This is necessary in order
-to be able to use the existing pools of objects on the nodes that
-we fall back to before adding more pages to a slab.
-
-The fallback function insures that the nodes we fall back to obey
-cpuset restrictions of the current context. We do not allocate
-objects from outside of the current cpuset context like before.
-
-Note that the implementation of locality constraints within the slab
-allocator requires importing logic from the page allocator. This is a
-mischmash that is not that great. Other allocators (uncached allocator,
-vmalloc, huge pages) face similar problems and have similar minimal
-reimplementations of the basic fallback logic of the page allocator.
-There is another way of implementing a slab by avoiding per node lists
-(see modular slab) but this wont work within the existing slab.
-
-V1->V2:
-- Use NUMA_BUILD to avoid #ifdef CONFIG_NUMA
-- Exploit GFP_THISNODE being 0 in the NON_NUMA case to avoid another 
-  #ifdef
+We change the type of the elements in the section to node table
+to u8 if we have less than 256 nodes in the system. That way
+we can have up to 128 sections in one cacheline which is all
+that is necessary for some 32 bit NUMA platforms like NUMAQ to
+keep section_to_node_table in a single cacheline and thus
+make page_to_zone as fast or faster than before.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc6-mm2/mm/slab.c
+Index: linux-2.6.18-rc6-mm2/mm/sparse.c
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/slab.c	2006-09-15 12:27:19.675539677 -0500
-+++ linux-2.6.18-rc6-mm2/mm/slab.c	2006-09-15 12:40:51.533035438 -0500
-@@ -1566,7 +1566,13 @@ static void *kmem_getpages(struct kmem_c
- 	 */
- 	flags |= __GFP_COMP;
- #endif
--	flags |= cachep->gfpflags;
-+
-+	/*
-+	 * Under NUMA we want memory on the indicated node. We will handle
-+	 * the needed fallback ourselves since we want to serve from our
-+	 * per node object lists first for other nodes.
-+	 */
-+	flags |= cachep->gfpflags | GFP_THISNODE;
- 
- 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
- 	if (!page)
-@@ -3075,16 +3081,23 @@ static __always_inline void *__cache_all
- 
- 	local_irq_save(save_flags);
- 
--#ifdef CONFIG_NUMA
--	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
-+	if (unlikely(NUMA_BUILD &&
-+			(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))) {
- 		objp = alternate_node_alloc(cachep, flags);
- 		if (objp != NULL)
- 			goto out;
- 	}
--#endif
- 
- 	objp = ____cache_alloc(cachep, flags);
- out:
-+
-+	/*
-+	 * We may just have run out of memory on the local know.
-+	 * __cache_alloc_node knows how to locate memory on other nodes
-+	 */
-+ 	if (NUMA_BUILD && !objp)
-+ 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
-+
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    caller);
-@@ -3103,7 +3116,7 @@ static void *alternate_node_alloc(struct
- {
- 	int nid_alloc, nid_here;
- 
--	if (in_interrupt())
-+	if (in_interrupt() || (flags & __GFP_THISNODE))
- 		return NULL;
- 	nid_alloc = nid_here = numa_node_id();
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
-@@ -3116,6 +3129,28 @@ static void *alternate_node_alloc(struct
- }
- 
- /*
-+ * Fallback function if there was no memory available and no objects on a
-+ * certain node and we are allowed to fall back. We mimick the behavior of
-+ * the page allocator. We fall back according to a zonelist determined by
-+ * the policy layer while obeying cpuset constraints.
-+ */
-+void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
-+{
-+	struct zonelist *zonelist = &NODE_DATA(slab_node(current->mempolicy))
-+					->node_zonelists[gfp_zone(flags)];
-+	struct zone **z;
-+	void *obj = NULL;
-+
-+	for (z = zonelist->zones; *z && !obj; z++)
-+		if (zone_idx(*z) <= ZONE_NORMAL &&
-+				cpuset_zone_allowed(*z, flags))
-+			obj = __cache_alloc_node(cache,
-+					flags | __GFP_THISNODE,
-+					zone_to_nid(*z));
-+	return obj;
-+}
-+
-+/*
-  * A interface to enable slab creation on nodeid
+--- linux-2.6.18-rc6-mm2.orig/mm/sparse.c	2006-09-15 12:43:12.000000000 -0500
++++ linux-2.6.18-rc6-mm2/mm/sparse.c	2006-09-15 12:50:20.857430106 -0500
+@@ -30,7 +30,11 @@ EXPORT_SYMBOL(mem_section);
+  * do a lookup in the section_to_node_table in order to find which
+  * node the page belongs to.
   */
- static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-@@ -3168,14 +3203,30 @@ retry:
- must_grow:
- 	spin_unlock(&l3->list_lock);
- 	x = cache_grow(cachep, flags, nodeid);
-+	if (x)
-+		goto retry;
- 
--	if (!x)
--		return NULL;
-+	if (!(flags & __GFP_THISNODE))
-+		/* Unable to grow the cache. Fall back to other nodes. */
-+		return fallback_alloc(cachep, flags);
-+
-+	return NULL;
- 
--	goto retry;
- done:
- 	return obj;
- }
+-static int section_to_node_table[NR_MEM_SECTIONS];
++#if MAX_NUMNODES <= 256
++static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
 +#else
-+static inline void *__cache_alloc_node(struct kmem_cache *cachep,
-+		 gfp_t flags, int nodeid)
-+{
-+	return NULL;
-+}
-+
-+static inline void *alternate_node_alloc(struct kmem_cache *cachep,
-+		gfp_t flags)
-+{
-+	return NULL;
-+}
- #endif
++static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
++#endif
  
- /*
+ extern unsigned long page_to_nid(struct page *page)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
