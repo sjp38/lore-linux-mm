@@ -1,41 +1,39 @@
-Date: Sat, 16 Sep 2006 08:38:25 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060916083825.ba88eee8.akpm@osdl.org>
-In-Reply-To: <20060916044847.99802d21.pj@sgi.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-	<20060914220011.2be9100a.akpm@osdl.org>
-	<20060914234926.9b58fd77.pj@sgi.com>
-	<20060915002325.bffe27d1.akpm@osdl.org>
-	<20060916044847.99802d21.pj@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 16 Sep 2006 11:18:27 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] scheduler: NUMA aware placement of sched_group_allnodes
+Message-ID: <Pine.LNX.4.64.0609161117550.12595@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com
+To: akpm@osdl.org
+Cc: npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Sep 2006 04:48:47 -0700
-Paul Jackson <pj@sgi.com> wrote:
+When the per cpu sched domains are build then they also need to be placed
+on the node where the cpu resides otherwise we will have frequent off
+node accesses which will slow down the system.
 
-> Andrew, replying to pj:
-> > > We shouldn't be heavily tuning for this case, and I am not aware of any
-> > > real world situations where real users would have reasonably determined
-> > > otherwise, had they had full realization of what was going on.
-> > 
-> > gotcha ;)
-> 
-> In the thrill of the hunt, I overlooked one itsy bitsy detail.
-> 
-> This load still seems a tad artificial to me.  What real world load
-> would run with 2/3's of the nodes having max'd out memory?
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Pretty much all loads?  If you haven't consumed most of the "container"'s
-memory then you have overprovisioned its size.
-
-It could just be pagecache.
+Index: linux-2.6.18-rc6-mm2/kernel/sched.c
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/kernel/sched.c	2006-09-13 20:00:48.000000000 -0500
++++ linux-2.6.18-rc6-mm2/kernel/sched.c	2006-09-15 13:05:32.269416181 -0500
+@@ -6449,9 +6449,10 @@ static int build_sched_domains(const cpu
+ 				> SD_NODES_PER_DOMAIN*cpus_weight(nodemask)) {
+ 			if (!sched_group_allnodes) {
+ 				sched_group_allnodes
+-					= kmalloc(sizeof(struct sched_group)
+-							* MAX_NUMNODES,
+-						  GFP_KERNEL);
++					= kmalloc_node(sizeof(struct sched_group)
++						  	* MAX_NUMNODES,
++						  GFP_KERNEL,
++						  cpu_to_node(i));
+ 				if (!sched_group_allnodes) {
+ 					printk(KERN_WARNING
+ 					"Can not alloc allnodes sched group\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
