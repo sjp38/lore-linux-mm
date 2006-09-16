@@ -1,8 +1,8 @@
-Date: Fri, 15 Sep 2006 20:40:47 -0700
+Date: Fri, 15 Sep 2006 20:45:48 -0700
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH] Add node to zone for the NUMA case.
-Message-Id: <20060915204047.49acf438.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0609152024020.10908@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
+Message-Id: <20060915204548.0604e414.pj@sgi.com>
+In-Reply-To: <20060915183604.11a8d045.akpm@osdl.org>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<20060914220011.2be9100a.akpm@osdl.org>
 	<20060914234926.9b58fd77.pj@sgi.com>
@@ -12,15 +12,28 @@ References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
 	<20060915170455.f8b98784.pj@sgi.com>
 	<20060915183604.11a8d045.akpm@osdl.org>
-	<Pine.LNX.4.64.0609152024020.10908@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, rientjes@google.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: rientjes@google.com, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+Andrew, replying to pj:
+> > Separate question - would it be easy to run this again, with
+> > a little patch from me that open coded cpuset_zone_allowed()
+> > in get_page_from_freelist()?
+>
+> I guess it would,
+
+Ah - I was asking (in my mind) David, not Andrew, if this test
+could be rerun.
+
+> but that'll be a next-week thing.
+
+Good idea.
 
 -- 
                   I won't rest till it's the best ...
