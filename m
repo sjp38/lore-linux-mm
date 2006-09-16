@@ -1,64 +1,50 @@
-Message-ID: <450BAAF4.1080509@yahoo.com.au>
-Date: Sat, 16 Sep 2006 17:42:44 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC] PAGE_RW Should be added to PAGE_COPY ?
-References: <20060915033842.C205FFB045@ncic.ac.cn> <Pine.LNX.4.64.0609150514190.7397@blonde.wat.veritas.com> <Pine.LNX.4.64.0609151431320.22674@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0609151431320.22674@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Sat, 16 Sep 2006 04:30:36 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
+Message-Id: <20060916043036.72d47c90.pj@sgi.com>
+In-Reply-To: <20060915214822.1c15c2cb.akpm@osdl.org>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
+	<20060915012810.81d9b0e3.akpm@osdl.org>
+	<20060915203816.fd260a0b.pj@sgi.com>
+	<20060915214822.1c15c2cb.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Yingchao Zhou <yc_zhou@ncic.ac.cn>, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@osdl.org>, alan <alan@redhat.com>, zxc <zxc@ncic.ac.cn>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-(adding linux-mm)
+Andrew wrote:
+> Why is it not sufficient to cache the most-recent zone*  in task_struct?
 
-Hugh Dickins wrote:
+Because ...
 
->>but for the app to use a shared mapping instead of a private.
-> 
-> 
-> But that suggestion wasn't helpful: you'd much prefer not to
-> restrict what areas of userspace are used in this way.
-> 
-> The problem, as I now see it, is precisely with do_wp_page()'s
-> TestSetPageLocked, as you first said.  There is indeed a small
-> but real chance that will fail.  At some time in the past I did
-> realize that, but pushed it to the back of my mind, waiting for
-> someone actually to complain: now you have.
-> 
-> Yes, it would be good if we could do that check in some other,
-> reliable way.  The problem is that can_share_swap_page has to
-> check page_mapcount (and PageSwapCache) and page_swapcount in
-> an atomic way: the page lock is what we have used to guard the
-> movement between mapcount and swapcount.
-> 
-> I'll try to think whether we can do that better,
-> but not until next week.
+pj - quoting himself:
+> Just one current_allocation_zone would not be enough.  Each node that
+> the cpuset allowed would require its own current_allocation_zone.  For
+> example, on a big honkin NUMA box with 2 CPUs per Node, tasks running
+> on CPU 32, Node 16, might be able to find free memory right on that
+> Node 16.  But another task in the same cpuset running on CPU 112, Node
+> 56 might have to scan past a dozen Nodes to Node 68 to find memory.
 
-I don't think TestSetPageLocked is the problem. Indeed you may be
-able to get around a few specific cases say, by turning that into
-a plain lock_page()... but the problem is still fundamentally COW.
+Extending the above example, the task on CPU 32 and the one on CPU
+112 could be the same task, running in the same cpuset the whole time,
+after being rescheduled from one CPU to another.  The task would need
+not one cached most-recent zone*, but one for each node it might find
+itself on.
 
-In other words, one should always be able to return 0 from that
-can_share_swap_page and have the system continue to work... right?
-Because even if you hadn't done that mprotect trick, you may still
-have a problem because the page may *have* to be copied on write
-if it is shared over fork.
-
-So if we filled in the missing mm/ implementation of VM_DONTCOPY
-(and call it MAP_DONTCOPY rather than the confusing MAP_DONTFORK)
-such that it withstands such an mprotect sequence, we can then ask
-that all userspace drivers do their get_user_pages memory on these
-types of vmas.
-
-Would that work?
+I'm pretty sure you don't want to put MAX_NUMNODES 'struct zone'
+pointers in each task struct.
 
 -- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
