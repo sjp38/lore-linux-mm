@@ -1,47 +1,54 @@
-Date: Fri, 15 Sep 2006 17:04:55 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060915170455.f8b98784.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-	<20060914220011.2be9100a.akpm@osdl.org>
-	<20060914234926.9b58fd77.pj@sgi.com>
-	<20060915002325.bffe27d1.akpm@osdl.org>
-	<20060915004402.88d462ff.pj@sgi.com>
-	<20060915010622.0e3539d2.akpm@osdl.org>
-	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.64.0609151425050.22674@blonde.wat.veritas.com>
+References: <1158274508.14473.88.camel@localhost.localdomain>
+	 <20060915001151.75f9a71b.akpm@osdl.org>
+	 <20060915003529.8a59c542.akpm@osdl.org>
+	 <Pine.LNX.4.64.0609151425050.22674@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Sat, 16 Sep 2006 11:03:00 +1000
+Message-Id: <1158368580.14473.207.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Mike Waychison <mikew@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Thanks for doing this, David.
+On Fri, 2006-09-15 at 14:30 +0100, Hugh Dickins wrote:
+> On Fri, 15 Sep 2006, Andrew Morton wrote:
+> > 
+> > This assumes that no other heavyweight process will try to modify this
+> > single-threaded process's mm.  I don't _think_ that happens anywhere, does
+> > it?  access_process_vm() is the only case I can think of,
+> 
+> "Modify" in the sense of fault into.
+> Yes, access_process_vm() is all I can think of too.
+> 
+> > and it does down_read(other process's mmap_sem).
+> 
+> If there were anything else, it'd have to do so too (if not down_write).
+> 
+> I too like NOPAGE_RETRY: as you've both observed, it can help to solve
+> several different problems.
 
-> I used numa=fake=64 for 64 nodes of 48M each (with my numa=fake fix).  I 
-> created a 2G cpuset with 43 nodes (43*48M = ~2G) and attached 'usemem -m 
-> 1500 -s 10000000 &' to it for 1.5G of anonymous memory.  I then used 
-> readprofile to time and profile a kernel build of 2.6.18-rc5 with x86_64 
-> defconfig in the remaining 21 nodes.
+Yes, I don't need any of the safeguards that Andrew mentioned in my case
+though. I want to return all the way to userland because I want signals
+to be handled (which might also be a good thing in your case in fact, so
+that a process being starved by that new mecanism can still be
+interrupted).
 
-I got confused here.  Was the kernel build running in the
-2G cpuset (which only had 0.5G remaining free), or was it
-running on the remaining 21 nodes, outside the 2G cpuset?
+I would ask that if you decide that the more complex approach is not
+2.6.19 material, that the simple addition of NOPAGE_RETRY as I've
+defined could be included in a first step so I can solve my problem (and
+possibly other drivers wanting to do funky things with no_page() and
+still take signals), and the google patch be rebased on top of that for
+additional simmering :)
 
-Separate question - would it be easy to run this again, with
-a little patch from me that open coded cpuset_zone_allowed()
-in get_page_from_freelist()?  The patch I have in mind would
-not be acceptable for the real kernel, but it would give us
-an idea of whether just a local code change might be sufficient
-here.
+Cheers,
+Ben.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
