@@ -1,45 +1,42 @@
-Date: Sat, 16 Sep 2006 04:30:36 -0700
+Date: Sat, 16 Sep 2006 04:38:35 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060916043036.72d47c90.pj@sgi.com>
-In-Reply-To: <20060915214822.1c15c2cb.akpm@osdl.org>
+Message-Id: <20060916043835.5bc2552c.pj@sgi.com>
+In-Reply-To: <200609160642.30153.ak@suse.de>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-	<20060914220011.2be9100a.akpm@osdl.org>
-	<20060914234926.9b58fd77.pj@sgi.com>
-	<20060915002325.bffe27d1.akpm@osdl.org>
 	<20060915012810.81d9b0e3.akpm@osdl.org>
 	<20060915203816.fd260a0b.pj@sgi.com>
-	<20060915214822.1c15c2cb.akpm@osdl.org>
+	<200609160642.30153.ak@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew wrote:
-> Why is it not sufficient to cache the most-recent zone*  in task_struct?
+Andi wrote:
+> I'm currently back in the camp of liking it. It should be the fastest
+> in the fast path as far as I know and the slow path code 
+> is probably not as bad as I originally thought
 
-Because ...
+Unfortunately, I don't think that this proposal, alternative (3) "The
+custom zonelist option", handles the fake numa node case that Andrew is
+raising with the desired performance.  For Andrew's particular load, it
+would still have long zonelists that had to be scanned before finding a
+node with free memory.
 
-pj - quoting himself:
-> Just one current_allocation_zone would not be enough.  Each node that
-> the cpuset allowed would require its own current_allocation_zone.  For
-> example, on a big honkin NUMA box with 2 CPUs per Node, tasks running
-> on CPU 32, Node 16, might be able to find free memory right on that
-> Node 16.  But another task in the same cpuset running on CPU 112, Node
-> 56 might have to scan past a dozen Nodes to Node 68 to find memory.
 
-Extending the above example, the task on CPU 32 and the one on CPU
-112 could be the same task, running in the same cpuset the whole time,
-after being rescheduled from one CPU to another.  The task would need
-not one cached most-recent zone*, but one for each node it might find
-itself on.
+> (didn't you already have it coded up at some point?)
 
-I'm pretty sure you don't want to put MAX_NUMNODES 'struct zone'
-pointers in each task struct.
+Yup - in the link I provided describing this:
+
+  http://lkml.org/lkml/2005/11/5/252
+
+there is a link to my original patch:
+
+  http://lkml.org/lkml/2004/8/2/256
 
 -- 
                   I won't rest till it's the best ...
