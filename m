@@ -1,42 +1,37 @@
-Date: Sat, 16 Sep 2006 04:38:35 -0700
+Date: Sat, 16 Sep 2006 04:48:47 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060916043835.5bc2552c.pj@sgi.com>
-In-Reply-To: <200609160642.30153.ak@suse.de>
+Message-Id: <20060916044847.99802d21.pj@sgi.com>
+In-Reply-To: <20060915002325.bffe27d1.akpm@osdl.org>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
-	<20060915012810.81d9b0e3.akpm@osdl.org>
-	<20060915203816.fd260a0b.pj@sgi.com>
-	<200609160642.30153.ak@suse.de>
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-Andi wrote:
-> I'm currently back in the camp of liking it. It should be the fastest
-> in the fast path as far as I know and the slow path code 
-> is probably not as bad as I originally thought
+Andrew, replying to pj:
+> > We shouldn't be heavily tuning for this case, and I am not aware of any
+> > real world situations where real users would have reasonably determined
+> > otherwise, had they had full realization of what was going on.
+> 
+> gotcha ;)
 
-Unfortunately, I don't think that this proposal, alternative (3) "The
-custom zonelist option", handles the fake numa node case that Andrew is
-raising with the desired performance.  For Andrew's particular load, it
-would still have long zonelists that had to be scanned before finding a
-node with free memory.
+In the thrill of the hunt, I overlooked one itsy bitsy detail.
 
+This load still seems a tad artificial to me.  What real world load
+would run with 2/3's of the nodes having max'd out memory?
 
-> (didn't you already have it coded up at some point?)
+I'm suspecting that its worth some effort, to improve it, but not worth
+major effort to get ideal performance.
 
-Yup - in the link I provided describing this:
-
-  http://lkml.org/lkml/2005/11/5/252
-
-there is a link to my original patch:
-
-  http://lkml.org/lkml/2004/8/2/256
+I'm still open to more persuasion however.
 
 -- 
                   I won't rest till it's the best ...
