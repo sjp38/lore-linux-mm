@@ -1,62 +1,57 @@
-Date: Sun, 17 Sep 2006 04:15:25 -0700
+Date: Sun, 17 Sep 2006 04:17:07 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060917041525.4ddbd6fa.pj@sgi.com>
-In-Reply-To: <450D1A94.7020100@yahoo.com.au>
+Message-Id: <20060917041707.28171868.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<20060914220011.2be9100a.akpm@osdl.org>
 	<20060914234926.9b58fd77.pj@sgi.com>
 	<20060915002325.bffe27d1.akpm@osdl.org>
-	<20060915012810.81d9b0e3.akpm@osdl.org>
-	<20060915203816.fd260a0b.pj@sgi.com>
-	<20060915214822.1c15c2cb.akpm@osdl.org>
-	<20060916043036.72d47c90.pj@sgi.com>
-	<20060916081846.e77c0f89.akpm@osdl.org>
-	<20060917022834.9d56468a.pj@sgi.com>
-	<450D1A94.7020100@yahoo.com.au>
+	<20060915004402.88d462ff.pj@sgi.com>
+	<20060915010622.0e3539d2.akpm@osdl.org>
+	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
+	<Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick wrote:
-> Too complex? ;)
+David wrote:
+> In 2G container:
+> 	10599 __cpuset_zone_allowed			50.4714
+> 	 3521 mwait_idle				45.1410
+> 	 1149 clear_page				20.1579
+>        ....
+>
+> In 2G cpuset with Christoph's patch:
+> 	  9232 __cpuset_zone_allowed                     43.9619
+> 	  2083 mwait_idle                                26.7051
+> 	   973 clear_page                                17.0702
 
-I quite agree it looks more complex than we wanted.
+There happened to be fewer calls to __cpuset_zone_allowed in the
+second test (thanks for doing this!).  If I divide that out, to
+get the cost per call, it's
+  original test:    10599/50.4714 == 210.00011
+  christoph patch:   9232/43.9619 == 210.00002
 
+That's -extremely- close.
 
-> Why not just start with caching the first allowed
-> zone and see how far that gets you?
+Aha - notice the following code in kernel/cpuset.c:
 
-I thought I had explained clearly why that doesn't work.
+int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+{
+        int node;                       /* node that zone z is on */
+        ...
+        node = z->zone_pgdat->node_id;
 
-I'll try again.
+Looks like an open coded zone_to_nid() invocation that wasn't
+addressed by Christoph's patch.
 
-I am presuming here that by 'first allowed zone' you are
-referring by yet another phrase to what Andrew has called
-'most-recently-allocated-from zone', and what I described with:
-
-  cur   -- the current zone we're getting memory from
-
-If that presumption is wrong, then my reply following is bogus,
-and you'll have to explain what you meant.
-
-I can't just cache this zone, because I at least have to also cache
-something else, such as the zonelist I found that zone within, so
-I know not to use that cached zone if I am later passed a different
-zonelist.
-
-So I need to cache at least two zone pointers, the base zonelist and
-the first allowed zone.
-
-Then I do need to do something to avoid using that cached zone
-long after some closer zone gets some free memory again.  Caching a
-revolving retry zone pointer is one way to do that.  Perhaps there
-are simpler ways ... I'm open to suggestions.
+Tsk tsk ... shame on whomever open coded that one ;).
 
 -- 
                   I won't rest till it's the best ...
