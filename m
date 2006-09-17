@@ -1,44 +1,43 @@
-Date: Sun, 17 Sep 2006 06:01:18 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Radical idea
-Message-ID: <Pine.LNX.4.64.0609170543590.14541@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 17 Sep 2006 06:03:58 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
+Message-Id: <20060917060358.ac16babf.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
+	<20060915004402.88d462ff.pj@sgi.com>
+	<20060915010622.0e3539d2.akpm@osdl.org>
+	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
+	<Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
+	<20060917041707.28171868.pj@sgi.com>
+	<Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pj@sgi.com
-Cc: ak@suse.de, linux-mm@kvack.org, akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: rientjes@google.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry about the wrong email address. Bouncing does not do proper outgoing 
-address translation.
+Christoph wrote:
+> Are you sure that you are looking at a current tree? This is zone_to_nid 
+> here.
 
-> Andi wrote:
-> > x86-64 can have multiple zones in node > 0 (e.g. node 1 can have both
-> > DMA32 and NORMAL) 
+You're two steps ahead of me.  Yes, it's zone_to_nid() in the
+current tree.
 
->In this case, Christoph, would your radical idea preserve user visible
->node numbers?  In general, the kernels numbering of nodes (as well as
->its numbering of cpus) is exposed to user space in various ways.  What's
->exposed should not change.
+So ... any idea why your patch made only 0.000042%
+difference in the cost per call of __cpuset_zone_allowed()?
 
-It would just add new node numbers for containers and dma zones outside 
-of the physical range.
+That is bizarrely close to zero.
 
-And yes it would only work the DMA32 problems mentioned by Andi could be
-addressed. Do we really need DMA32 in modern systems with IOMMUs? Isnt 
-this a transitionary problem that will go away?
-
-So lets say we have one of those systems without IOMMU. Then we only have 
-a problem for a class of NUMA systems that have:
-
-1. Memory beyond 4GB
-
-and
-
-2. Per node memory less than 4GB. Otherwise DMA32 is only on node 0.
-
-Isnt this a fairly small group of systems?
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
