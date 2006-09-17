@@ -1,77 +1,44 @@
-Message-ID: <450D434B.4080702@yahoo.com.au>
-Date: Sun, 17 Sep 2006 22:44:59 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sun, 17 Sep 2006 06:01:18 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Radical idea
+Message-ID: <Pine.LNX.4.64.0609170543590.14541@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>	<20060914220011.2be9100a.akpm@osdl.org>	<20060914234926.9b58fd77.pj@sgi.com>	<20060915002325.bffe27d1.akpm@osdl.org>	<20060915012810.81d9b0e3.akpm@osdl.org>	<20060915203816.fd260a0b.pj@sgi.com>	<20060915214822.1c15c2cb.akpm@osdl.org>	<20060916043036.72d47c90.pj@sgi.com>	<20060916081846.e77c0f89.akpm@osdl.org>	<20060917022834.9d56468a.pj@sgi.com>	<450D1A94.7020100@yahoo.com.au> <20060917041525.4ddbd6fa.pj@sgi.com>
-In-Reply-To: <20060917041525.4ddbd6fa.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
+To: pj@sgi.com
+Cc: ak@suse.de, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Nick wrote:
-> 
->>Too complex? ;)
-> 
-> 
-> I quite agree it looks more complex than we wanted.
-> 
-> 
-> 
->>Why not just start with caching the first allowed
->>zone and see how far that gets you?
-> 
-> 
-> I thought I had explained clearly why that doesn't work.
-> 
-> I'll try again.
-> 
-> I am presuming here that by 'first allowed zone' you are
-> referring by yet another phrase to what Andrew has called
-> 'most-recently-allocated-from zone', and what I described with:
-> 
->   cur   -- the current zone we're getting memory from
-> 
-> If that presumption is wrong, then my reply following is bogus,
-> and you'll have to explain what you meant.
-> 
-> I can't just cache this zone, because I at least have to also cache
-> something else, such as the zonelist I found that zone within, so
-> I know not to use that cached zone if I am later passed a different
-> zonelist.
-> 
-> So I need to cache at least two zone pointers, the base zonelist and
-> the first allowed zone.
-> 
-> Then I do need to do something to avoid using that cached zone
-> long after some closer zone gets some free memory again.  Caching a
-> revolving retry zone pointer is one way to do that.  Perhaps there
-> are simpler ways ... I'm open to suggestions.
+Sorry about the wrong email address. Bouncing does not do proper outgoing 
+address translation.
 
-Oh no, I'm quite aware (and agree) that you'll _also_ need to cache
-your zonelist. So I agree with you up to there.
+> Andi wrote:
+> > x86-64 can have multiple zones in node > 0 (e.g. node 1 can have both
+> > DMA32 and NORMAL) 
 
-The part of your suggestion that I think is too complex to worry about
-initially, is worrying about full/low/high watermarks and skipping over
-full zones in your cache.
+>In this case, Christoph, would your radical idea preserve user visible
+>node numbers?  In general, the kernels numbering of nodes (as well as
+>its numbering of cpus) is exposed to user space in various ways.  What's
+>exposed should not change.
 
-The reason is that it will no longer be a identically functioning
-cache, but would include heuristics where you fall back to checking
-previously skipped zones at given intervals... I really hate having to
-add a heuristic "magic" type of thing if we can avoid it.
+It would just add new node numbers for containers and dma zones outside 
+of the physical range.
 
-So: just cache the *first* zone that the cpuset allows. If that is
-full and we have to search subsequent zones, so be it. I hope it would
-work reasonably well in the common case, though.
+And yes it would only work the DMA32 problems mentioned by Andi could be
+addressed. Do we really need DMA32 in modern systems with IOMMUs? Isnt 
+this a transitionary problem that will go away?
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+So lets say we have one of those systems without IOMMU. Then we only have 
+a problem for a class of NUMA systems that have:
+
+1. Memory beyond 4GB
+
+and
+
+2. Per node memory less than 4GB. Otherwise DMA32 is only on node 0.
+
+Isnt this a fairly small group of systems?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
