@@ -1,68 +1,80 @@
-Date: Sun, 17 Sep 2006 16:49:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Date: Sun, 17 Sep 2006 19:11:01 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-In-Reply-To: <20060917152723.5bb69b82.pj@sgi.com>
-Message-ID: <Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
+Message-Id: <20060917191101.1dfbfb1a.pj@sgi.com>
+In-Reply-To: <20060917092926.01dc0012.akpm@osdl.org>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org> <20060914234926.9b58fd77.pj@sgi.com>
- <20060915002325.bffe27d1.akpm@osdl.org> <20060915004402.88d462ff.pj@sgi.com>
- <20060915010622.0e3539d2.akpm@osdl.org> <Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
- <Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
- <20060917041707.28171868.pj@sgi.com> <Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
- <20060917060358.ac16babf.pj@sgi.com> <Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
- <20060917152723.5bb69b82.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
+	<20060915012810.81d9b0e3.akpm@osdl.org>
+	<20060915203816.fd260a0b.pj@sgi.com>
+	<20060915214822.1c15c2cb.akpm@osdl.org>
+	<20060916043036.72d47c90.pj@sgi.com>
+	<20060916081846.e77c0f89.akpm@osdl.org>
+	<20060917022834.9d56468a.pj@sgi.com>
+	<20060917092926.01dc0012.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, akpm@osdl.org, linux-mm@kvack.org, rientjes@google.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 17 Sep 2006, Paul Jackson wrote:
+Andrew wrote:
+> IOW: in which operational scenarios and configurations would you view this
+> go-back-to-the-earlier-zone-if-some-memory-came-free-in-it approach
+> to be needed?
 
-> David,
-> 
-> Could you run the following on your fake numa booted box, and
-> report the results:
-> 
-> 	find /sys/devices -name distance | xargs head
-> 
+On fake numa systems, I agree that going back to earlier zones is
+not needed.  As you have stated, all nodes are equally good on such
+a system.
 
-With NUMA emulation, the distance from a node to itself is 10 and the 
-distance to all other fake nodes is 20.
+And besides, right now, I could not give you -any- operational scenario
+in which the fake numa approach would be needed.  Perhaps you have
+some in mind ...?  I'd be interested to learn how you view these fake
+numa based memory containers being used.
 
-So for numa=fake=4,
-root@numa:/$ cat /sys/devices/system/node/node*/distance
-10 20 20 20
-20 10 20 20
-20 20 10 20
-20 20 20 10
 
-> You've been looking at this fake NUMA code recently, David.
-> 
-> Perhaps you can recommend some other way from within the
-> mm/page_alloc.c code to efficiently (just a couple cache lines)
-> answer the question:
-> 
->     Given two node numbers, are they really just two fake nodes
->     on the same hardware node, or are they really on two distinct
->     hardware nodes?
-> 
+On real numa systems, if we don't go back to earlier zones fairly
+soon after it is possible to do so, then we are significantly changing
+the memory placement behaviour of the system.  That can be risky and is
+better not done without good motivation.
 
-The cpumap for all fake nodes are always 00000000 except for node0 which 
-reports the true hardware configuration.
+If some app running for a while on one cpu, allowed to use memory
+on several nodes, had its allocations temporarilly pushed off its
+local node, further down its zonelist, it might expect to have its
+allocations go back to its local node, just by freeing up memory there.
 
-Using the previous example,
-root@numa:/$ cat /sys/devices/system/node/node*/cpumap
-00000003
-00000000
-00000000
-00000000
+Many of our most important HPC (High Performance Computing) apps rely
+on what they call 'first touch' placement.  That means to them that
+memory will be allocated on the node associated with the allocating
+thread, or on the closest node thereto.  They will run massive jobs,
+with sometimes just a few of the many threads in the job allocating
+massive amounts of memory, by the simple expedient of controlling
+on which cpu the allocator thread is running as it allocates by
+touching the memory pages for the first time.
 
-(Note: 00000003 because numa.* is a dual-core machine).
+Their performance can depend critically on getting that memory
+placement correct, so that the computational threads are, on average,
+as close as can be to their data.
 
-		David
+This is the sort of memory placement change that has a decent chance
+of coming back around and biting me in the backside, a year or two
+down the road, when some app that happened, perhaps unwittingly,
+to be sensitive to this change, tripped over it.
+
+I am certainly not saying for sure such a problem would arise.
+Good programming practices would suggest not relying on such node
+overflow to get memory placed.  But good programming practices are
+not always perfectly followed.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
