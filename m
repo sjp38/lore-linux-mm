@@ -1,54 +1,37 @@
-Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
-	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8IMlKt8029226
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 15:47:21 -0700
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k8IKBc8s41296133
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 13:11:38 -0700 (PDT)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k8IKBcnB57329946
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 13:11:38 -0700 (PDT)
-Received: from christoph (helo=localhost)
-	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1GPPSs-0007Sk-00
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 13:11:38 -0700
-Date: Mon, 18 Sep 2006 13:11:38 -0700 (PDT)
+Date: Mon, 18 Sep 2006 13:20:44 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Do not allocate pagesets for unpopulated zones. (fwd)
-Message-ID: <Pine.LNX.4.64.0609181311010.28689@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] mm: exempt pcp alloc from watermarks
+In-Reply-To: <1158583495.23551.53.camel@twins>
+Message-ID: <Pine.LNX.4.64.0609181317520.28726@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+ <20060914220011.2be9100a.akpm@osdl.org>  <20060914234926.9b58fd77.pj@sgi.com>
+  <20060915002325.bffe27d1.akpm@osdl.org>  <20060915012810.81d9b0e3.akpm@osdl.org>
+  <20060915203816.fd260a0b.pj@sgi.com>  <20060915214822.1c15c2cb.akpm@osdl.org>
+  <20060916043036.72d47c90.pj@sgi.com>  <20060916081846.e77c0f89.akpm@osdl.org>
+  <20060917022834.9d56468a.pj@sgi.com> <450D1A94.7020100@yahoo.com.au>
+ <20060917041525.4ddbd6fa.pj@sgi.com> <450D434B.4080702@yahoo.com.au>
+ <20060917061922.45695dcb.pj@sgi.com>  <450D5310.50004@yahoo.com.au>
+ <1158583495.23551.53.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Paul Jackson <pj@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-My dyslexia hit linux-mm@vger.kernel.org again. sigh.
+On Mon, 18 Sep 2006, Peter Zijlstra wrote:
 
----------- Forwarded message ----------
-Date: Mon, 18 Sep 2006 13:07:09 -0700 (PDT)
-From: Christoph Lameter <christoph@engr.sgi.com>
-Cc: linux-mm@vger.kernel.org
-To: akpm@osdl.org
-Subject: [PATCH] Do not allocate pagesets for unpopulated zones.
+> On Sun, 2006-09-17 at 23:52 +1000, Nick Piggin wrote:
+> 
+> > What we could do then, is allocate pages in batches (we already do),
+> > but only check watermarks if we have to go to the buddly allocator
+> > (we don't currently do this, but really should anyway, considering
+> > that the watermark checks are based on pages in the buddy allocator
+> > rather than pages in buddy + pcp).
 
-We do not need to allocate pagesets for unpopulated zones.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.18-rc6-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/page_alloc.c	2006-09-18 14:14:58.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/mm/page_alloc.c	2006-09-18 14:54:43.456849813 -0500
-@@ -1903,6 +1903,9 @@ static int __cpuinit process_zones(int c
- 
- 	for_each_zone(zone) {
- 
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
- 					 GFP_KERNEL, cpu_to_node(cpu));
- 		if (!zone_pcp(zone, cpu))
+buffered_rmqueue has never checked watermarks. Seems that this is a 
+fragment of a larger discussion and someone added those checks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
