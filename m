@@ -1,57 +1,98 @@
-Date: Mon, 18 Sep 2006 10:49:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-In-Reply-To: <20060918093434.e66b8887.pj@sgi.com>
-Message-ID: <Pine.LNX.4.63.0609181042390.30784@chino.corp.google.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org> <20060914234926.9b58fd77.pj@sgi.com>
- <20060915002325.bffe27d1.akpm@osdl.org> <20060915004402.88d462ff.pj@sgi.com>
- <20060915010622.0e3539d2.akpm@osdl.org> <Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
- <Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
- <20060917041707.28171868.pj@sgi.com> <Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
- <20060917060358.ac16babf.pj@sgi.com> <Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
- <20060917152723.5bb69b82.pj@sgi.com> <Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
- <20060917192010.cc360ece.pj@sgi.com> <20060918093434.e66b8887.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 18 Sep 2006 11:36:34 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20060918183634.19679.98513.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
+References: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 4/8] Optional ZONE_DMA for i386
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, akpm@osdl.org, linux-mm@kvack.org, rientjes@google.com
+To: linux-arch@vger.kernel.org
+Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@SteelEye.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Sep 2006, Paul Jackson wrote:
+ZONE_DMA depends on GENERIC_ISA_DMA. We allow the user to configure
+GENERIC_ISA_DMA. If it is switched off then ISA_DMA_API is also
+switched off which will deselect all drivers that depend on ISA
+functionality.
 
-> For now, it could be that we can't handle hybrid systems, and that fake
-> numa systems simply have a distance table of all 10's, driven by the
-> kernel boot command "numa=fake=N".  But that apparatus will have to be
-> extended at some point, to support hybrid fake and real NUMA combined.
-> And this will have to mature from being an arch=x86_64 only thing to
-> being generically available.  And it will have to become a mechanism
-> that can be applied on a running system, creating (and removing) fake
-> nodes on the fly, without a reboot, so long as the required physical
-> memory is free and available.
-> 
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Magnus Damm wrote a series of patches that divided real NUMA nodes into 
-several smaller emulated nodes (real nodes - 1) for the x86_64.  They are 
-from 2.6.14-mm1:
-
-http://marc.theaimsgroup.com/?l=linux-mm&m=113161386520342&w=2
-
-As already said, the only flag that exists to determine whether 
-CONFIG_NUMA_EMU is enabled and numa=fake is being used (and used 
-correctly) is the numa_fake int in arch/x86_64/mm/numa.c.  Any abstraction 
-of this to generic kernel code should probably follow in the footsteps of 
-Magnus' other patch series which moved must of NUMA emulation to generic 
-architectures.  He used it primarily for implementing numa=fake on i386:
-
-http://marc.theaimsgroup.com/?l=linux-mm&m=112806587501884&w=2
-
-At the time it was suggested to emulate an SMP NUMA system where each 
-node doesn't have all of its CPU's online.
-
-		David
+Index: linux-2.6.18-rc6-mm1/arch/i386/Kconfig
+===================================================================
+--- linux-2.6.18-rc6-mm1.orig/arch/i386/Kconfig	2006-09-08 06:42:11.697455315 -0500
++++ linux-2.6.18-rc6-mm1/arch/i386/Kconfig	2006-09-11 15:41:55.911259588 -0500
+@@ -41,10 +41,6 @@
+ config SBUS
+ 	bool
+ 
+-config GENERIC_ISA_DMA
+-	bool
+-	default y
+-
+ config GENERIC_IOMAP
+ 	bool
+ 	default y
+@@ -346,6 +342,15 @@
+           XFree86 to initialize some video cards via BIOS. Disabling this
+           option saves about 6k.
+ 
++config GENERIC_ISA_DMA
++	bool "ISA DMA zone (to support ISA legacy DMA)"
++	default y
++	help
++	  If DMA for ISA boards needs to be supported then this option
++	  needs to be enabled. An additional DMA zone for <16MB memory
++	  will be created and memory below 16MB will be used for those
++	  devices.
++
+ config TOSHIBA
+ 	tristate "Toshiba Laptop support"
+ 	---help---
+@@ -1071,6 +1076,7 @@
+ 
+ config ISA_DMA_API
+ 	bool
++	depends on GENERIC_ISA_DMA
+ 	default y
+ 
+ config ISA
+Index: linux-2.6.18-rc6-mm1/arch/i386/kernel/Makefile
+===================================================================
+--- linux-2.6.18-rc6-mm1.orig/arch/i386/kernel/Makefile	2006-09-08 06:42:11.780470103 -0500
++++ linux-2.6.18-rc6-mm1/arch/i386/kernel/Makefile	2006-09-11 15:41:55.950325419 -0500
+@@ -7,8 +7,9 @@
+ obj-y	:= process.o signal.o entry.o traps.o irq.o \
+ 		ptrace.o time.o ioport.o ldt.o setup.o i8259.o sys_i386.o \
+ 		pci-dma.o i386_ksyms.o i387.o bootflag.o \
+-		quirks.o i8237.o topology.o alternative.o i8253.o tsc.o
++		quirks.o topology.o alternative.o i8253.o tsc.o
+ 
++obj-$(CONFIG_GENERIC_ISA_DMA)	+= i8237.o
+ obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
+ obj-y				+= cpu/
+ obj-y				+= acpi/
+Index: linux-2.6.18-rc6-mm1/arch/i386/kernel/setup.c
+===================================================================
+--- linux-2.6.18-rc6-mm1.orig/arch/i386/kernel/setup.c	2006-09-08 06:42:12.269769024 -0500
++++ linux-2.6.18-rc6-mm1/arch/i386/kernel/setup.c	2006-09-11 15:41:55.982554730 -0500
+@@ -1075,13 +1075,17 @@
+ {
+ #ifdef CONFIG_HIGHMEM
+ 	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
++#ifdef CONFIG_ZONE_DMA
+ 			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
++#endif
+ 			max_low_pfn,
+ 			highend_pfn};
+ 	add_active_range(0, 0, highend_pfn);
+ #else
+ 	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
++#ifdef CONFIG_ZONE_DMA
+ 			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
++#endif
+ 			max_low_pfn};
+ 	add_active_range(0, 0, max_low_pfn);
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
