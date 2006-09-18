@@ -1,67 +1,89 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k8IFWujb003369
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 11:32:56 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8IFWeZ1252404
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 11:32:41 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8IFWeg0018851
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2006 11:32:40 -0400
-Subject: [TRIVIAL PATCH] mm: Make filemap_nopage use NOPAGE_SIGBUS
-From: Adam Litke <agl@us.ibm.com>
-Content-Type: text/plain
-Date: Mon, 18 Sep 2006 10:32:35 -0500
-Message-Id: <1158593555.12797.33.camel@localhost.localdomain>
+Date: Mon, 18 Sep 2006 09:34:34 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
+Message-Id: <20060918093434.e66b8887.pj@sgi.com>
+In-Reply-To: <20060917192010.cc360ece.pj@sgi.com>
+References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
+	<20060915004402.88d462ff.pj@sgi.com>
+	<20060915010622.0e3539d2.akpm@osdl.org>
+	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
+	<Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
+	<20060917041707.28171868.pj@sgi.com>
+	<Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
+	<20060917060358.ac16babf.pj@sgi.com>
+	<Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
+	<20060917152723.5bb69b82.pj@sgi.com>
+	<Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
+	<20060917192010.cc360ece.pj@sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: trivial@kernel.org
-Cc: "ADAM G. LITKE [imap]" <agl@us.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: rientjes@google.com, clameter@sgi.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-While reading trough filemap_nopage() I found the 'return NULL'
-statements a bit confusing since we already have two constants defined
-for ->nopage error conditions.  Since a NULL return value really means
-NOPAGE_SIGBUS, just return that to make the code more readable.
+pj wrote:
+>     Do you have any plans to build a hybrid system with both real and
+>     emulated NUMA present?  That could complicate things.
 
-Signed-off-by: Adam Litke <agl@us.ibm.com> 
+This might be the crux of the matter.
 
- filemap.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-diff -upN reference/mm/filemap.c current/mm/filemap.c
---- reference/mm/filemap.c
-+++ current/mm/filemap.c
-@@ -1454,7 +1454,7 @@ outside_data_content:
- 	 * accessible..
- 	 */
- 	if (area->vm_mm == current->mm)
--		return NULL;
-+		return NOPAGE_SIGBUS;
- 	/* Fall through to the non-read-ahead case */
- no_cached_page:
- 	/*
-@@ -1479,7 +1479,7 @@ no_cached_page:
- 	 */
- 	if (error == -ENOMEM)
- 		return NOPAGE_OOM;
--	return NULL;
-+	return NOPAGE_SIGBUS;
- 
- page_not_uptodate:
- 	if (!did_readaround) {
-@@ -1548,7 +1548,7 @@ page_not_uptodate:
- 	 */
- 	shrink_readahead_size_eio(file, ra);
- 	page_cache_release(page);
--	return NULL;
-+	return NOPAGE_SIGBUS;
- }
- EXPORT_SYMBOL(filemap_nopage);
- 
+We currently have a large SMP (aka multi-core) wave washing over the
+upper end of the large volume markets, as we deal with the fact
+that a single core's compute power (and electric power ;) can't
+continue to grow as fast we need.
+
+Inevitably, in a few years, a NUMA wave will follow, as we deal with
+an overloaded shared memory bus, and begin to distribute the memory
+bandwidth across multiple buses.
+
+We should architect consistently with this anticipated evolution.
+
+Eventually, a memory container mechanism that doesn't work on real
+NUMA boxes would be useless.
+
+I'm inclined to think that this means node_distance between two fake
+nodes on the same real node should be 10, the value always used to
+indicate that two node numbers refer to one and the same physical
+hardware.
+
+For now, it could be that we can't handle hybrid systems, and that fake
+numa systems simply have a distance table of all 10's, driven by the
+kernel boot command "numa=fake=N".  But that apparatus will have to be
+extended at some point, to support hybrid fake and real NUMA combined.
+And this will have to mature from being an arch=x86_64 only thing to
+being generically available.  And it will have to become a mechanism
+that can be applied on a running system, creating (and removing) fake
+nodes on the fly, without a reboot, so long as the required physical
+memory is free and available.
+
+A comment above arch/x86_64/mm/srat.c slit_valid() raises concerns
+about a SLIT table with all 10's.  I suspect we will just have to find
+out the hard way what that problem is.  Change the table to all 10's
+on these fake numa systems and see what hurts.
+
+The generic kernel code should deal with this, and in particular, the
+get_page_from_freelist() loop that provoked this discussion should be
+coded so that it caches the last used node iff that node is distance
+10 from the node at the front of the zonelist.
+
+The only way to make this kind of stuff hold up over the long term
+is to get a good conceptual model, and stick with it.  This fake
+numa provides for multiple logical nodes on a single physical node.
+
+The modal approach I recommended yesterday, where a system either
+supported fake NUMA or real NUMA, but not both, had the stench of
+an intermediate solution that would not hold over the long run.
+
 -- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
