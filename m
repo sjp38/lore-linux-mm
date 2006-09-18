@@ -1,134 +1,63 @@
-Date: Mon, 18 Sep 2006 11:36:40 -0700 (PDT)
+Date: Mon, 18 Sep 2006 11:36:55 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060918183640.19679.45514.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060918183655.19679.51633.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 5/8] Optional ZONE_DMA for x86_64
+Subject: [PATCH 8/8] Remove ZONE_DMA remains from sh/sh64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-arch@vger.kernel.org
-Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@SteelEye.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@SteelEye.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Allow the use to specify CONFIG_ZONE_DMA32 and CONFIG_ZONE_DMA (via
-CONFIG_GENERIC_ISA_DMA). The default is on to be on the safe side.
+sh / sh64: Remove ZONE_DMA remains.
 
-If CONFIG_ZONE_DMA is off then devices requiring ISA DMA can no
-longer be selected.
-
-There are no drivers depending on CONFIG_ZONE_DMA32. If CONFIG_ZONE_DMA32
-is not set then the system assumes that DMA devices are capable of
-doing DMA to all of memory. This is frequently the case if
-
-1. No memory exists over the 4GB boundary (careful, some motherboards
-   equipped with 4GB memory will have memory show up above the 4GB
-   boundary!). It is safe if one has 2GB or less memory in an
-   x86_64 system.
-
-2. The system has an IOMMU.
-
-3. All devices using DMA are supporting DMA to all memory.
+Both arches do not need ZONE_DMA
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc6-mm1/arch/x86_64/mm/init.c
+Index: linux-2.6.18-rc6-mm2/arch/sh/mm/init.c
 ===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/x86_64/mm/init.c	2006-09-11 16:06:41.705747849 -0500
-+++ linux-2.6.18-rc6-mm1/arch/x86_64/mm/init.c	2006-09-11 16:08:13.190088058 -0500
-@@ -406,9 +406,15 @@
- #ifndef CONFIG_NUMA
- void __init paging_init(void)
- {
--	unsigned long max_zone_pfns[MAX_NR_ZONES] = {MAX_DMA_PFN,
--							MAX_DMA32_PFN,
--							end_pfn};
-+	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-+#ifdef CONFIG_ZONE_DMA
-+		MAX_DMA_PFN,
-+#endif
-+#ifdef CONFIG_ZONE_DMA32
-+		MAX_DMA32_PFN,
-+#endif
-+		end_pfn
-+	};
- 	memory_present(0, 0, end_pfn);
- 	sparse_init();
- 	free_area_init_nodes(max_zone_pfns);
-Index: linux-2.6.18-rc6-mm1/arch/x86_64/Kconfig
+--- linux-2.6.18-rc6-mm2.orig/arch/sh/mm/init.c	2006-09-18 12:54:04.733274009 -0500
++++ linux-2.6.18-rc6-mm2/arch/sh/mm/init.c	2006-09-18 12:58:58.563038661 -0500
+@@ -156,7 +156,6 @@ void __init paging_init(void)
+ 	 * Setup some defaults for the zone sizes.. these should be safe
+ 	 * regardless of distcontiguous memory or MMU settings.
+ 	 */
+-	zones_size[ZONE_DMA] = 0 >> PAGE_SHIFT;
+ 	zones_size[ZONE_NORMAL] = __MEMORY_SIZE >> PAGE_SHIFT;
+ #ifdef CONFIG_HIGHMEM
+ 	zones_size[ZONE_HIGHMEM] = 0 >> PAGE_SHIFT;
+Index: linux-2.6.18-rc6-mm2/arch/sh64/mm/init.c
 ===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/x86_64/Kconfig	2006-09-11 16:06:41.713561013 -0500
-+++ linux-2.6.18-rc6-mm1/arch/x86_64/Kconfig	2006-09-11 16:10:45.369039566 -0500
-@@ -24,10 +24,6 @@
- 	bool
- 	default y
+--- linux-2.6.18-rc6-mm2.orig/arch/sh64/mm/init.c	2006-09-18 12:54:04.745970361 -0500
++++ linux-2.6.18-rc6-mm2/arch/sh64/mm/init.c	2006-09-18 12:58:58.577688302 -0500
+@@ -118,10 +118,7 @@ void __init paging_init(void)
  
--config ZONE_DMA32
--	bool
--	default y
--
- config LOCKDEP_SUPPORT
+ 	mmu_context_cache = MMU_CONTEXT_FIRST_VERSION;
+ 
+-        /*
+-	 * All memory is good as ZONE_NORMAL (fall-through) and ZONE_DMA.
+-         */
+-	zones_size[ZONE_DMA] = MAX_LOW_PFN - START_PFN;
++	zones_size[ZONE_NORMAL] = MAX_LOW_PFN - START_PFN;
+ 	NODE_DATA(0)->node_mem_map = NULL;
+ 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
+ }
+Index: linux-2.6.18-rc6-mm2/arch/sh64/Kconfig
+===================================================================
+--- linux-2.6.18-rc6-mm2.orig/arch/sh64/Kconfig	2006-09-18 12:33:04.000000000 -0500
++++ linux-2.6.18-rc6-mm2/arch/sh64/Kconfig	2006-09-18 13:01:07.919367272 -0500
+@@ -36,9 +36,6 @@ config GENERIC_CALIBRATE_DELAY
+ config RWSEM_XCHGADD_ALGORITHM
  	bool
- 	default y
-@@ -73,10 +69,6 @@
- 	bool
- 	default y
  
 -config GENERIC_ISA_DMA
 -	bool
--	default y
 -
- config GENERIC_IOMAP
- 	bool
- 	default y
-@@ -251,6 +243,24 @@
+ source init/Kconfig
  
- 	  See <file:Documentation/mtrr.txt> for more information.
- 
-+config ZONE_DMA32
-+	bool "32 Bit DMA Zone (only needed if memory >4GB)"
-+	default y
-+	help
-+	  Some x64 configurations have 32 bit DMA controllers that cannot
-+	  write to all of memory. If you have one of these and you have RAM
-+	  beyond the 4GB boundary then enable this option.
-+
-+config GENERIC_ISA_DMA
-+	bool "ISA DMA zone (to support ISA legacy DMA)"
-+	default y
-+	help
-+	  If DMA for ISA boards needs to be supported then this option
-+	  needs to be enabled. An additional DMA zone for <16MB memory
-+	  will be created and memory below 16MB will be used for those
-+	  devices. If this is deselected then devices that use ISA
-+	  DMA will not be selectable.
-+
- config SMP
- 	bool "Symmetric multi-processing support"
- 	---help---
-@@ -611,6 +621,7 @@
- # we have no ISA slots, but we do have ISA-style DMA.
- config ISA_DMA_API
- 	bool
-+	depends on GENERIC_ISA_DMA
- 	default y
- 
- config GENERIC_PENDING_IRQ
-Index: linux-2.6.18-rc6-mm1/arch/x86_64/kernel/Makefile
-===================================================================
---- linux-2.6.18-rc6-mm1.orig/arch/x86_64/kernel/Makefile	2006-09-11 16:06:41.726257405 -0500
-+++ linux-2.6.18-rc6-mm1/arch/x86_64/kernel/Makefile	2006-09-11 16:08:13.214504197 -0500
-@@ -7,9 +7,10 @@
- obj-y	:= process.o signal.o entry.o traps.o irq.o \
- 		ptrace.o time.o ioport.o ldt.o setup.o i8259.o sys_x86_64.o \
- 		x8664_ksyms.o i387.o syscall.o vsyscall.o \
--		setup64.o bootflag.o e820.o reboot.o quirks.o i8237.o \
-+		setup64.o bootflag.o e820.o reboot.o quirks.o \
- 		pci-dma.o pci-nommu.o alternative.o early-quirks.o
- 
-+obj-$(CONFIG_GENERIC_ISA_DMA)	+= i8237.o
- obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
- obj-$(CONFIG_X86_MCE)         += mce.o
- obj-$(CONFIG_X86_MCE_INTEL)	+= mce_intel.o
+ menu "System type"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
