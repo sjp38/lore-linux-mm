@@ -1,76 +1,88 @@
-Date: Mon, 18 Sep 2006 11:36:19 -0700 (PDT)
+Date: Mon, 18 Sep 2006 11:36:45 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20060918183619.19679.67911.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20060918183645.19679.4719.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
 References: <20060918183614.19679.50359.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 1/8] Deal with cases of ZONE_DMA meaning the first zone
+Subject: [PATCH 6/8] Optional ZONE_DMA for ia64
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-arch@vger.kernel.org
-Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@SteelEye.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@SteelEye.com>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Optional DMA zone: Replace uses of ZONE_DMA as the first zone
+ZONE_DMA less operation for IA64 SGI platform
 
-In two places in the VM we use ZONE_DMA to refer to the first zone.
-If ZONE_DMA is optional then other zones may be first. So simply
-replace ZONE_DMA with zone 0.
+Disable ZONE_DMA for SGI SN2. All memory is addressable by all
+devices and we do not need any special memory pool.
 
-This also fixes ZONETABLE_PGSHIFT. If we have only a single zone then
-ZONES_PGSHIFT may become 0 because there is no need anymore to encode the
-zone number related to a pgdat. However, we still need a zonetable to index
-all the zones for each node if this is a NUMA system. Therefore define
-ZONETABLE_SHIFT unconditionally as the offset of the ZONE field in page flags.
-
-Acked-by: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.18-rc6-mm2/mm/mempolicy.c
+Index: linux-2.6.18-rc6-mm1/arch/ia64/mm/discontig.c
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/mempolicy.c	2006-09-18 13:07:53.318935179 -0500
-+++ linux-2.6.18-rc6-mm2/mm/mempolicy.c	2006-09-18 13:16:18.929008279 -0500
-@@ -105,7 +105,7 @@ static struct kmem_cache *sn_cache;
+--- linux-2.6.18-rc6-mm1.orig/arch/ia64/mm/discontig.c	2006-09-11 16:42:07.206714114 -0500
++++ linux-2.6.18-rc6-mm1/arch/ia64/mm/discontig.c	2006-09-11 16:51:50.094129334 -0500
+@@ -37,7 +37,9 @@
+ 	unsigned long pernode_size;
+ 	struct bootmem_data bootmem_data;
+ 	unsigned long num_physpages;
++#ifdef CONFIG_ZONE_DMA
+ 	unsigned long num_dma_physpages;
++#endif
+ 	unsigned long min_pfn;
+ 	unsigned long max_pfn;
+ };
+@@ -656,9 +658,11 @@
  
- /* Highest zone. An specific allocation for a zone below that is not
-    policied. */
--enum zone_type policy_zone = ZONE_DMA;
-+enum zone_type policy_zone = 0;
+ 	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+ 	mem_data[node].num_physpages += len >> PAGE_SHIFT;
++#ifdef CONFIG_ZONE_DMA
+ 	if (start <= __pa(MAX_DMA_ADDRESS))
+ 		mem_data[node].num_dma_physpages +=
+ 			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
++#endif
+ 	start = GRANULEROUNDDOWN(start);
+ 	start = ORDERROUNDDOWN(start);
+ 	end = GRANULEROUNDUP(end);
+@@ -709,7 +713,9 @@
+ 			max_pfn = mem_data[node].max_pfn;
+ 	}
  
- struct mempolicy default_policy = {
- 	.refcnt = ATOMIC_INIT(1), /* never free it */
-Index: linux-2.6.18-rc6-mm2/mm/page_alloc.c
++#ifdef CONFIG_ZONE_DMA
+ 	max_zone_pfns[ZONE_DMA] = max_dma;
++#endif
+ 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
+ 	free_area_init_nodes(max_zone_pfns);
+ 
+Index: linux-2.6.18-rc6-mm1/arch/ia64/mm/contig.c
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/mm/page_alloc.c	2006-09-18 13:16:14.463795639 -0500
-+++ linux-2.6.18-rc6-mm2/mm/page_alloc.c	2006-09-18 13:27:53.271625765 -0500
-@@ -2486,11 +2486,11 @@ static void __meminit free_area_init_cor
- 				"  %s zone: %lu pages exceeds realsize %lu\n",
- 				zone_names[j], memmap_pages, realsize);
+--- linux-2.6.18-rc6-mm1.orig/arch/ia64/mm/contig.c	2006-09-11 16:42:07.215503923 -0500
++++ linux-2.6.18-rc6-mm1/arch/ia64/mm/contig.c	2006-09-11 16:51:50.104872434 -0500
+@@ -231,8 +231,10 @@
+ 	num_physpages = 0;
+ 	efi_memmap_walk(count_pages, &num_physpages);
  
--		/* Account for reserved DMA pages */
--		if (j == ZONE_DMA && realsize > dma_reserve) {
-+		/* Account for reserved pages */
-+		if (j == 0 && realsize > dma_reserve) {
- 			realsize -= dma_reserve;
--			printk(KERN_DEBUG "  DMA zone: %lu pages reserved\n",
--								dma_reserve);
-+			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
-+					zone_names[0], dma_reserve);
- 		}
++#ifdef CONFIG_ZONE_DMA
+ 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+ 	max_zone_pfns[ZONE_DMA] = max_dma;
++#endif
+ 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
  
- 		if (!is_highmem_idx(j))
-Index: linux-2.6.18-rc6-mm2/include/linux/mm.h
+ #ifdef CONFIG_VIRTUAL_MEM_MAP
+Index: linux-2.6.18-rc6-mm1/arch/ia64/Kconfig
 ===================================================================
---- linux-2.6.18-rc6-mm2.orig/include/linux/mm.h	2006-09-18 13:16:14.000000000 -0500
-+++ linux-2.6.18-rc6-mm2/include/linux/mm.h	2006-09-18 13:28:52.406396556 -0500
-@@ -416,7 +416,7 @@ void split_page(struct page *page, unsig
- #else
- #define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
- #endif
--#define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
-+#define ZONETABLE_PGSHIFT	ZONES_PGOFF
+--- linux-2.6.18-rc6-mm1.orig/arch/ia64/Kconfig	2006-09-11 16:44:55.649739769 -0500
++++ linux-2.6.18-rc6-mm1/arch/ia64/Kconfig	2006-09-11 16:51:50.114638888 -0500
+@@ -23,8 +23,8 @@
+ 	default y
  
- #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
- #error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+ config ZONE_DMA
+-	bool
+-	default y
++	def_bool y
++	depends on !IA64_SGI_SN2
+ 
+ config MMU
+ 	bool
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
