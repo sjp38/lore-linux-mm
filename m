@@ -1,83 +1,94 @@
-Date: Sun, 17 Sep 2006 19:20:10 -0700
-From: Paul Jackson <pj@sgi.com>
+Date: Sun, 17 Sep 2006 22:09:05 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060917192010.cc360ece.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
+Message-Id: <20060917220905.18be27fa.akpm@osdl.org>
+In-Reply-To: <20060917191101.1dfbfb1a.pj@sgi.com>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<20060914220011.2be9100a.akpm@osdl.org>
 	<20060914234926.9b58fd77.pj@sgi.com>
 	<20060915002325.bffe27d1.akpm@osdl.org>
-	<20060915004402.88d462ff.pj@sgi.com>
-	<20060915010622.0e3539d2.akpm@osdl.org>
-	<Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
-	<Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
-	<20060917041707.28171868.pj@sgi.com>
-	<Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
-	<20060917060358.ac16babf.pj@sgi.com>
-	<Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
-	<20060917152723.5bb69b82.pj@sgi.com>
-	<Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
+	<20060915012810.81d9b0e3.akpm@osdl.org>
+	<20060915203816.fd260a0b.pj@sgi.com>
+	<20060915214822.1c15c2cb.akpm@osdl.org>
+	<20060916043036.72d47c90.pj@sgi.com>
+	<20060916081846.e77c0f89.akpm@osdl.org>
+	<20060917022834.9d56468a.pj@sgi.com>
+	<20060917092926.01dc0012.akpm@osdl.org>
+	<20060917191101.1dfbfb1a.pj@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: clameter@sgi.com, akpm@osdl.org, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-David wrote:
-> >     Given two node numbers, are they really just two fake nodes
-> >     on the same hardware node, or are they really on two distinct
-> >     hardware nodes?
-> > 
+On Sun, 17 Sep 2006 19:11:01 -0700
+Paul Jackson <pj@sgi.com> wrote:
+
+> Andrew wrote:
+> > IOW: in which operational scenarios and configurations would you view this
+> > go-back-to-the-earlier-zone-if-some-memory-came-free-in-it approach
+> > to be needed?
 > 
-> The cpumap for all fake nodes are always 00000000 except for node0 which 
-> reports the true hardware configuration.
+> On fake numa systems, I agree that going back to earlier zones is
+> not needed.  As you have stated, all nodes are equally good on such
+> a system.
+> 
+> And besides, right now, I could not give you -any- operational scenario
+> in which the fake numa approach would be needed.  Perhaps you have
+> some in mind ...?  I'd be interested to learn how you view these fake
+> numa based memory containers being used.
+> 
 
-Thanks.
+Confused.  It's pretty obvious isn't it?  To partition the machine with
+jobA taking 10% of memory, jobB using 50% and jobC the rest.  If any job
+exceeds its allocation it gets subjected to page reclaim and disruption of
+other jobs is minimised.
 
-I doubt that this is a unique signature identifying fake numa systems.
+Crude, simple and, I hope, effective.
 
-I've seen other systems that had memory-only nodes, which I suspect
-would show up with all 000000 cpumaps on those nodes.
+The beauty of this is that it 100% leverages the existing page reclaim
+code.  All the other containerisation approaches I've seen thus far are a
+house of horrors in that area.
 
-Perhaps we should add a hook to allow testing if we are running on
-fake numa system:
-    
-    For example, we could add a macro to a header that, in the case
-    CONFIG_NUMA_EMU was enabled, evaluated to 1 if numa emulation
-    was enabled.  Currently, the true state of numa emulation only
-    seems to be known to code within:
+> 
+> On real numa systems, if we don't go back to earlier zones fairly
+> soon after it is possible to do so, then we are significantly changing
+> the memory placement behaviour of the system.  That can be risky and is
+> better not done without good motivation.
+> 
+> If some app running for a while on one cpu, allowed to use memory
+> on several nodes, had its allocations temporarilly pushed off its
+> local node, further down its zonelist, it might expect to have its
+> allocations go back to its local node, just by freeing up memory there.
+> 
+> Many of our most important HPC (High Performance Computing) apps rely
+> on what they call 'first touch' placement.  That means to them that
+> memory will be allocated on the node associated with the allocating
+> thread, or on the closest node thereto.  They will run massive jobs,
+> with sometimes just a few of the many threads in the job allocating
+> massive amounts of memory, by the simple expedient of controlling
+> on which cpu the allocator thread is running as it allocates by
+> touching the memory pages for the first time.
+> 
+> Their performance can depend critically on getting that memory
+> placement correct, so that the computational threads are, on average,
+> as close as can be to their data.
+> 
+> This is the sort of memory placement change that has a decent chance
+> of coming back around and biting me in the backside, a year or two
+> down the road, when some app that happened, perhaps unwittingly,
+> to be sensitive to this change, tripped over it.
+> 
+> I am certainly not saying for sure such a problem would arise.
+> Good programming practices would suggest not relying on such node
+> overflow to get memory placed.  But good programming practices are
+> not always perfectly followed.
+> 
 
-      arch/x86_64/mm/numa.c
-
-    and currently only available for x86_64 arch's and only available
-    if CONFIG_NUMA_EMU is enabled.
-
-    With the usual conditional macro header magic, we could make a
-    test for NUMA emulation available in generic kernel code.
-
-
-Andrew,
-
-    Do you have any plans to build a hybrid system with both real and
-    emulated NUMA present?  That could complicate things.
-
-    My current notion is to have a simple modal switch:
-    
-     - Fake numa systems would never try to go-back-to-the-earlier-zone.
-    
-     - Real NUMA systems not use this zone caching at all, always
-       scanning the zonelist from the front.
-
-    Such trivial modal behaviour wouldn't work on a hybrid system with
-    both real and emulated NUMA.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Yeah, I can certainly sympathise with that concern.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
