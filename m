@@ -1,8 +1,8 @@
-Date: Sun, 17 Sep 2006 22:09:05 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 18 Sep 2006 00:49:50 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-Message-Id: <20060917220905.18be27fa.akpm@osdl.org>
-In-Reply-To: <20060917191101.1dfbfb1a.pj@sgi.com>
+Message-Id: <20060918004950.ac3a23d1.pj@sgi.com>
+In-Reply-To: <20060917220905.18be27fa.akpm@osdl.org>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<20060914220011.2be9100a.akpm@osdl.org>
 	<20060914234926.9b58fd77.pj@sgi.com>
@@ -15,80 +15,44 @@ References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
 	<20060917022834.9d56468a.pj@sgi.com>
 	<20060917092926.01dc0012.akpm@osdl.org>
 	<20060917191101.1dfbfb1a.pj@sgi.com>
+	<20060917220905.18be27fa.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: clameter@sgi.com, linux-mm@kvack.org, rientjes@google.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 17 Sep 2006 19:11:01 -0700
-Paul Jackson <pj@sgi.com> wrote:
+Andrew wrote:
+> Confused.  It's pretty obvious isn't it? 
 
-> Andrew wrote:
-> > IOW: in which operational scenarios and configurations would you view this
-> > go-back-to-the-earlier-zone-if-some-memory-came-free-in-it approach
-> > to be needed?
-> 
-> On fake numa systems, I agree that going back to earlier zones is
-> not needed.  As you have stated, all nodes are equally good on such
-> a system.
-> 
-> And besides, right now, I could not give you -any- operational scenario
-> in which the fake numa approach would be needed.  Perhaps you have
-> some in mind ...?  I'd be interested to learn how you view these fake
-> numa based memory containers being used.
-> 
+Yes, it is obvious.
 
-Confused.  It's pretty obvious isn't it?  To partition the machine with
-jobA taking 10% of memory, jobB using 50% and jobC the rest.  If any job
-exceeds its allocation it gets subjected to page reclaim and disruption of
-other jobs is minimised.
+I've spent too many years disciplining myself to develop technology in
+response to customer needs and situations, suppressing my instincts to
+build neat stuff and trust that they will come.
 
-Crude, simple and, I hope, effective.
+The part of me that asked that question was expecting every techie
+proposal to come with a "Customer Environment Impact Statement."
 
-The beauty of this is that it 100% leverages the existing page reclaim
-code.  All the other containerisation approaches I've seen thus far are a
-house of horrors in that area.
+Meanwhile, in parallel, another part of my mind knew damn well what
+you were up to, and was working overtime to make it so.
 
-> 
-> On real numa systems, if we don't go back to earlier zones fairly
-> soon after it is possible to do so, then we are significantly changing
-> the memory placement behaviour of the system.  That can be risky and is
-> better not done without good motivation.
-> 
-> If some app running for a while on one cpu, allowed to use memory
-> on several nodes, had its allocations temporarilly pushed off its
-> local node, further down its zonelist, it might expect to have its
-> allocations go back to its local node, just by freeing up memory there.
-> 
-> Many of our most important HPC (High Performance Computing) apps rely
-> on what they call 'first touch' placement.  That means to them that
-> memory will be allocated on the node associated with the allocating
-> thread, or on the closest node thereto.  They will run massive jobs,
-> with sometimes just a few of the many threads in the job allocating
-> massive amounts of memory, by the simple expedient of controlling
-> on which cpu the allocator thread is running as it allocates by
-> touching the memory pages for the first time.
-> 
-> Their performance can depend critically on getting that memory
-> placement correct, so that the computational threads are, on average,
-> as close as can be to their data.
-> 
-> This is the sort of memory placement change that has a decent chance
-> of coming back around and biting me in the backside, a year or two
-> down the road, when some app that happened, perhaps unwittingly,
-> to be sensitive to this change, tripped over it.
-> 
-> I am certainly not saying for sure such a problem would arise.
-> Good programming practices would suggest not relying on such node
-> overflow to get memory placed.  But good programming practices are
-> not always perfectly followed.
-> 
+Yeah, I guess that could be confusing.  Personally I find it amusing.
 
-Yeah, I can certainly sympathise with that concern.
+Brains are weird.
+
+
+> Crude, simple and, I hope, effective.
+
+Yup - sure looks that way.  Good job.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
