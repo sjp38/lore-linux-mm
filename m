@@ -1,8 +1,8 @@
-Date: Mon, 18 Sep 2006 17:08:08 -0700 (PDT)
+Date: Mon, 18 Sep 2006 17:14:20 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] Get rid of zone_table V2
 In-Reply-To: <20060918165808.c410d1d4.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609181701200.30365@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609181711210.30365@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
  <20060918132818.603196e2.akpm@osdl.org> <Pine.LNX.4.64.0609181544420.29365@schroedinger.engr.sgi.com>
  <20060918161528.9714c30c.akpm@osdl.org> <Pine.LNX.4.64.0609181642210.30206@schroedinger.engr.sgi.com>
@@ -15,45 +15,26 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Sep 2006, Andrew Morton wrote:
+i386 code for __inc_zone_page_state which does
 
-> > We avoid one memory reference for SMP and UP and do an address calculation
-> > instead.
-> 
-> What memory reference do we avoid?  zone_table?
+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+        __inc_zone_state(page_zone(page), item);
+}
+EXPORT_SYMBOL(__inc_zone_page_state);
 
-Yes.
- 
-> In exchange for that we've added an additional deref of page->flags and a
-> new read from contig_page_data.
+objdump
 
-The additional deref of page->flags is the same as before. The compiler 
-optimizes that one away. We need to extract two sets of bits from the same
-register.
+0000078f <__inc_zone_page_state>:
+ 78f:   8b 00                   mov    (%eax),%eax
+ 791:   c1 e8 19                shr    $0x19,%eax
+ 794:   83 e0 01                and    $0x1,%eax
+ 797:   69 c0 80 04 00 00       imul   $0x480,%eax,%eax
+ 79d:   05 00 00 00 00          add    $0x0,%eax
+ 7a2:   e9 50 fe ff ff          jmp    5f7 <__inc_zone_state>
+Disassembly of section .altinstr_replacement:
 
-> > NODE_DATA() is constant for the UP and SMP case.
-> 
-> setenv ARCH i386
-> make allnoconfig
-> make mm/page_alloc.i
-> grep contig_page_data mm/page_alloc.i
-> 
-> and that's mainline.  Changing page_zone to also read from contig_page_data
-> will presumably worsen things.
-
-Hmmm... I have not checked i386 code generation.
-But include/linux/mmzone.h has
-
-extern struct pglist_data contig_page_data;
-#define NODE_DATA(nid)          (&contig_page_data)
-
-So we should have an address there on SMP/UP.
-
-NODE_DATA(nid0->node_zones == contig_page_data.node_zones
-
-which I thought would still be constant. Then we calculate the address of 
-the ith element of node_zones.
-
+note no lookup anymore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
