@@ -1,48 +1,50 @@
-Date: Tue, 19 Sep 2006 14:50:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Date: Tue, 19 Sep 2006 14:53:40 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-In-Reply-To: <Pine.LNX.4.64.0609191424310.7480@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.63.0609191446420.8493@chino.corp.google.com>
+Message-Id: <20060919145340.c2b13cbb.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609191426560.7480@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org> <20060914234926.9b58fd77.pj@sgi.com>
- <20060915002325.bffe27d1.akpm@osdl.org> <20060915004402.88d462ff.pj@sgi.com>
- <20060915010622.0e3539d2.akpm@osdl.org> <Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
- <Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
- <20060917041707.28171868.pj@sgi.com> <Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
- <20060917060358.ac16babf.pj@sgi.com> <Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
- <20060917152723.5bb69b82.pj@sgi.com> <Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
- <20060917192010.cc360ece.pj@sgi.com> <20060918093434.e66b8887.pj@sgi.com>
- <Pine.LNX.4.63.0609191222310.7790@chino.corp.google.com>
- <Pine.LNX.4.64.0609191424310.7480@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20060914220011.2be9100a.akpm@osdl.org>
+	<20060914234926.9b58fd77.pj@sgi.com>
+	<20060915002325.bffe27d1.akpm@osdl.org>
+	<20060916044847.99802d21.pj@sgi.com>
+	<20060916083825.ba88eee8.akpm@osdl.org>
+	<20060916145117.9b44786d.pj@sgi.com>
+	<20060916161031.4b7c2470.akpm@osdl.org>
+	<Pine.LNX.4.64.0609162134540.13809@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.63.0609191212390.7746@chino.corp.google.com>
+	<Pine.LNX.4.64.0609191224560.6976@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.63.0609191401360.8253@chino.corp.google.com>
+	<Pine.LNX.4.64.0609191426560.7480@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Paul Jackson <pj@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, rientjes@google.com
+Cc: rientjes@google.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Sep 2006, Christoph Lameter wrote:
+Christoph wrote:
+> Paul has already cpuset code in mm that supports exactly this situation.
 
-> I think that is true if you do not do weird things like creating 64 of 
-> those containers on UMA. Or do you anticipate having hundreds of 
-> containers?
-> 
+See my *-mm patches:
+  cpuset-top_cpuset-tracks-hotplug-changes-to-node_online_map.patch
+  cpuset-hotunplug-cpus-and-mems-in-all-cpusets.patch
 
-What I currently have running is a watered-down version of your suggestion 
-about dynamic node allocation.  It does it in user-space by just 
-allocating N number of fixed sized nodes and then when a particular cpuset 
-feels memory pressure, it grabs another node and uses it until it is no 
-longer needed.  It's a way that you can get simple resource management and 
-throttle up processes that a more important.  This is how I've used NUMA 
-emulation and cpusets to match a business goal of achieving certain 
-objectives with a system goal in the form of limits.
+and patient Andrews fixes thereto.
 
-Obviously it's not the most efficient way of handling such a policy and an 
-implementation such as the one you've proposed that is supported by the 
-kernel would be much more desirable.
+In particular, anytime you add or remove nodes (whether
+fake or real) be sure to update node_online_map, and then
+call cpuset_track_online_nodes(), so that the cpuset code
+can resync with node_online_map.  You must make this call
+in a context where it is ok for the called code to sleep
+on various cpuset mutex's.
 
-		David
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
