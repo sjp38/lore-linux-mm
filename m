@@ -1,30 +1,36 @@
-Date: Wed, 20 Sep 2006 10:08:00 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch00/05]: Containers(V2)- Introduction
-In-Reply-To: <451172AB.2070103@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0609201006420.30793@schroedinger.engr.sgi.com>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <451173B5.1000805@yahoo.com.au>
 References: <1158718568.29000.44.camel@galaxy.corp.google.com>
- <4510D3F4.1040009@yahoo.com.au> <Pine.LNX.4.64.0609200925280.30572@schroedinger.engr.sgi.com>
- <451172AB.2070103@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	 <4510D3F4.1040009@yahoo.com.au> <1158751720.8970.67.camel@twins>
+	 <4511626B.9000106@yahoo.com.au> <1158767787.3278.103.camel@taijtu>
+	 <451173B5.1000805@yahoo.com.au>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Sep 2006 18:36:40 +0100
+Message-Id: <1158773800.7705.21.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: rohitseth@google.com, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, devel@openvz.org, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, rohitseth@google.com, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, devel@openvz.org, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Sep 2006, Nick Piggin wrote:
+Ar Iau, 2006-09-21 am 03:00 +1000, ysgrifennodd Nick Piggin:
+>  > I've been thinking a bit on that problem, and it would be possible to
+>  > share all address_space pages equally between attached containers, this
+>  > would lose some accuracy, since one container could read 10% of the file
+>  > and another 90%, but I don't think that is a common scenario.
+> 
+> 
+> Yeah, I'm not sure about that. I don't think really complex schemes
+> are needed... but again I might need more knowledge of their workloads
+> and problems.
 
-> If it wasn't clear was talking specifically about the hooks for page
-> tracking rather than the whole patchset. If anybody wants such page
-> tracking infrastructure in the kernel, then this (as opposed to the
-> huge beancounters stuff) is what it should look like.
+Any scenario which permits "cheating" will be a scenario that happens
+because people will try and cheat.
 
-Could you point to the patch and a description for what is meant here by 
-page tracking (did not see that in the patch, maybe I could not find it)? 
-If these are just statistics then we likely already have 
-them.
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
