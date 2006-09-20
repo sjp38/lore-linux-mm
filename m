@@ -1,83 +1,89 @@
+Date: Wed, 20 Sep 2006 12:48:13 -0700
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [patch00/05]: Containers(V2)- Introduction
-From: Rohit Seth <rohitseth@google.com>
-Reply-To: rohitseth@google.com
-In-Reply-To: <1158777463.28174.37.camel@lappy>
+Message-Id: <20060920124813.fe160e71.pj@sgi.com>
+In-Reply-To: <1158775586.28174.27.camel@lappy>
 References: <1158718568.29000.44.camel@galaxy.corp.google.com>
-	 <4510D3F4.1040009@yahoo.com.au> <1158751720.8970.67.camel@twins>
-	 <4511626B.9000106@yahoo.com.au> <1158767787.3278.103.camel@taijtu>
-	 <451173B5.1000805@yahoo.com.au>
-	 <1158774657.8574.65.camel@galaxy.corp.google.com>
-	 <1158777463.28174.37.camel@lappy>
-Content-Type: text/plain
-Date: Wed, 20 Sep 2006 11:57:40 -0700
-Message-Id: <1158778660.8574.114.camel@galaxy.corp.google.com>
+	<4510D3F4.1040009@yahoo.com.au>
+	<1158751720.8970.67.camel@twins>
+	<4511626B.9000106@yahoo.com.au>
+	<1158767787.3278.103.camel@taijtu>
+	<451173B5.1000805@yahoo.com.au>
+	<1158774657.8574.65.camel@galaxy.corp.google.com>
+	<Pine.LNX.4.64.0609201051550.31636@schroedinger.engr.sgi.com>
+	<1158775586.28174.27.camel@lappy>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, devel@openvz.org, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+Cc: clameter@sgi.com, rohitseth@google.com, nickpiggin@yahoo.com.au, ckrm-tech@lists.sourceforge.net, devel@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-09-20 at 20:37 +0200, Peter Zijlstra wrote:
-> On Wed, 2006-09-20 at 10:50 -0700, Rohit Seth wrote:
-> > On Thu, 2006-09-21 at 03:00 +1000, Nick Piggin wrote:
-> > > (this time to the lists as well)
-> > > 
-> > > Peter Zijlstra wrote:
-> > > 
-> > >  > I'd much rather containterize the whole reclaim code, which should not
-> > >  > be too hard since he already adds a container pointer to struct page.
-> > > 
-> > > 
-> > 
-> > Right now the memory handler in this container subsystem is written in
-> > such a way that when existing kernel reclaimer kicks in, it will first
-> > operate on those (container with pages over the limit) pages first.  But
-> > in general I like the notion of containerizing the whole reclaim code.
+Peter wrote:
+> > Which comes naturally with cpusets.
 > 
-> Patch 5/5 seems to have a horrid deactivation scheme.
-> 
-> > >  > I still have to reread what Rohit does for file backed pages, that gave
-> > >  > my head a spin.
-> > 
-> > Please let me know if there is any specific part that isn't making much
-> > sense.
-> 
-> Well, the whole over the limit handler is quite painfull, having taken a
-> second reading it isn't all that complex after all, just odd.
-> 
+> How are shared mappings dealt with, are pages charged to the set that
+> first faults them in?
 
-It is very basic right now.  
+Cpusets does not attempt to manage how much memory a task can allocate,
+but where it can allocate it.  If a task can find an existing page to
+share, and avoid the allocation, then it entirely avoids dealing with
+cpusets in that case.
 
-> You just start invalidating whole files for file backed pages. Granted,
-> this will get you below the threshold. but you might just have destroyed
-> your working set.
-> 
+Cpusets pays no attention to how often a page is shared.  It controls
+which tasks can allocate a given free page, based on the node on which
+that page resides.  If that node is allowed in a tasks 'nodemask_t
+mems_allowed' (a task struct field), then the task can allocate
+that page, so far as cpusets is concerned.
 
-When a container gone over the limit then it is okay to penalize it.  I
-agree that I'm not making an attempt to maintain the current working
-set.  Any suggestions that I can incorporate to improve this algorithm
-will be very appreciated.
+Cpusets does not care who links to a page, once it is allocated.
 
-> Pretty much the same for you anonymous memory handler, you scan through
-> the pages in linear fashion and demote the first that you encounter.
-> 
-> Both things pretty thoroughly destroy the existing kernel reclaim.
-> 
+Every page is assigned to one specific node, and may only be allocated
+by tasks allowed to allocate from that node.
 
-I agree that with in a container I need to do add more smarts to (for
-example) not do a linear search.  Simple additions like last task or
-last mapping visited could be useful. And I definitely want to improve
-on that.
+These cpusets can overlap - which so far as memory goes, roughly means
+that the various mems_allowed nodemask_t's of different tasks can overlap.
 
-Though it should not destroy the existing kernel reclaim.  Pages
-belonging to over the limit container should be the first ones to either
-get flushed out to FS or swapped if necessary.  (Means that is the cost
-that you will have to pay if you, for example, want to container your
-tar to 100MB memory foot print).
+Here's an oddball example configuration that might make this easier to
+think about.
 
--rohit
+    Let's say we have a modest sized NUMA system with an extra bank
+    of memory added, in addition to the per-node memory.  Let's say
+    the extra bank is a huge pile of cheaper (slower) memory, off a
+    slower bus.
+
+    Normal sized tasks running on one or more of the NUMA nodes just
+    get to fight for the CPUs and memory on those nodes allowed them.
+
+    Let's say an occassional big memory job is to be allowed to use
+    some of the extra cheap memory, and we use the idea of Andrew
+    and others to split that memory into fake nodes to manage the
+    portion of memory available to specified tasks.
+
+    Then one of these big jobs could be in a cpuset that let it use
+    one or more of the CPUs and memory on the node it ran on, plus
+    some number of the fake nodes on the extra cheap memory.
+
+    Other jobs could be allowed, using cpusets, to use any combination
+    of the same or overlapping CPUs or nodes, and/or other disjoint
+    CPUs or nodes, fake or real.
+
+Another example, restating some of the above.
+
+    If say some application happened to fault in a libc.so page,
+    it would be required to place that page on one of the nodes
+    allowed to it.  If an other application comes along later and
+    ends up wanting shared references to that same page, it could
+    certainly do so, regardless of its cpuset settings.  It would
+    not be allocating a new page for this, so would not encounter
+    the cpuset constraints on where it could allocate such a page.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
