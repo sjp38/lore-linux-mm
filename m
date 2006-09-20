@@ -1,58 +1,47 @@
-Subject: Re: [patch00/05]: Containers(V2)- Introduction
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1158776099.8574.89.camel@galaxy.corp.google.com>
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id k8KIXTs9010567
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:29 -0700
+Received: from smtp-out2.google.com (fpr16.prod.google.com [10.253.18.16])
+	by zps76.corp.google.com with ESMTP id k8KFjBlw021943
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:25 -0700
+Received: by smtp-out2.google.com with SMTP id 16so342482fpr
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:25 -0700 (PDT)
+Message-ID: <6599ad830609201133k68cc1a0dr683137baa4e9be30@mail.google.com>
+Date: Wed, 20 Sep 2006 11:33:25 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [ckrm-tech] [patch00/05]: Containers(V2)- Introduction
+In-Reply-To: <1158776824.28174.29.camel@lappy>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 References: <1158718568.29000.44.camel@galaxy.corp.google.com>
-	 <4510D3F4.1040009@yahoo.com.au> <1158751720.8970.67.camel@twins>
-	 <4511626B.9000106@yahoo.com.au> <1158767787.3278.103.camel@taijtu>
-	 <451173B5.1000805@yahoo.com.au>
+	 <1158751720.8970.67.camel@twins> <4511626B.9000106@yahoo.com.au>
+	 <1158767787.3278.103.camel@taijtu> <451173B5.1000805@yahoo.com.au>
 	 <1158774657.8574.65.camel@galaxy.corp.google.com>
 	 <Pine.LNX.4.64.0609201051550.31636@schroedinger.engr.sgi.com>
 	 <1158775586.28174.27.camel@lappy>
 	 <1158776099.8574.89.camel@galaxy.corp.google.com>
-Content-Type: text/plain
-Date: Wed, 20 Sep 2006 20:27:04 +0200
-Message-Id: <1158776824.28174.29.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	 <1158776824.28174.29.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rohitseth@google.com
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, devel@openvz.org, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: rohitseth@google.com, Nick Piggin <nickpiggin@yahoo.com.au>, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-09-20 at 11:14 -0700, Rohit Seth wrote:
-> On Wed, 2006-09-20 at 20:06 +0200, Peter Zijlstra wrote:
-> > On Wed, 2006-09-20 at 10:52 -0700, Christoph Lameter wrote:
-> > > On Wed, 20 Sep 2006, Rohit Seth wrote:
-> > > 
-> > > > Right now the memory handler in this container subsystem is written in
-> > > > such a way that when existing kernel reclaimer kicks in, it will first
-> > > > operate on those (container with pages over the limit) pages first.  But
-> > > > in general I like the notion of containerizing the whole reclaim code.
-> > > 
-> > > Which comes naturally with cpusets.
-> > 
-> > How are shared mappings dealt with, are pages charged to the set that
-> > first faults them in?
-> > 
-> 
-> For anonymous pages (simpler case), they get charged to the faulting
-> task's container.
-> 
-> For filesystem pages (could be shared across tasks running different
-> containers): Every time a new file mapping is created, it is bound to a
-> container of the process creating that mapping.  All subsequent pages
-> belonging to this mapping will belong to this container, irrespective of
-> different tasks running in different containers accessing these pages.
-> Currently, I've not implemented a mechanism to allow a file to be
-> specifically moved into or out of container. But when that gets
-> implemented then all pages belonging to a mapping will also move out of
-> container (or into a new container).
+On 9/20/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>
+> Yes, I read that in your patches, I was wondering how the cpuset
+> approach would handle this.
 
-Yes, I read that in your patches, I was wondering how the cpuset
-approach would handle this.
+The VM currently has support for letting vmas define their own memory
+policies - so specifying that a file-backed vma gets its memory from a
+particular set of memory nodes would accomplish that for the fake-node
+approach. The mechanism for setting up the per-file/per-vma policies
+would probably involve something originating in struct inode or struct
+address_space.
 
-Neither are really satisfactory for shared mappings.
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
