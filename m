@@ -1,51 +1,65 @@
 Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1158709835.6002.203.camel@localhost.localdomain>
+In-Reply-To: <20060919165906.3d641236.akpm@osdl.org>
 References: <1158274508.14473.88.camel@localhost.localdomain>
-	 <20060915001151.75f9a71b.akpm@osdl.org>  <45107ECE.5040603@google.com>
+	 <20060915001151.75f9a71b.akpm@osdl.org> <45107ECE.5040603@google.com>
 	 <1158709835.6002.203.camel@localhost.localdomain>
+	 <20060919165906.3d641236.akpm@osdl.org>
 Content-Type: text/plain
-Date: Wed, 20 Sep 2006 10:05:12 +1000
-Message-Id: <1158710712.6002.216.camel@localhost.localdomain>
+Date: Wed, 20 Sep 2006 10:06:46 +1000
+Message-Id: <1158710807.6002.219.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-> I need to re-read your mail and Andrew as at this point, I don't quite
-> see why we need that args and/or that current->flags bit instead of
-> always returning all the way to userland and let the faulting
-> instruction happen again (which means you don't block in the kernel, can
-> take signals etc... thus do you actually need to prevent multiple
-> retries ?)
+On Tue, 2006-09-19 at 16:59 -0700, Andrew Morton wrote:
+> On Wed, 20 Sep 2006 09:50:35 +1000
+> Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+> 
+> > On Tue, 2006-09-19 at 16:35 -0700, Mike Waychison wrote:
+> > > Patch attached.
+> > > 
+> > > As Andrew points out, the logic is a bit hacky and using a flag in 
+> > > current->flags to determine whether we have done the retry or not already.
+> > > 
+> > > I too think the right approach to being able to handle these kinds of 
+> > > retries in a more general fashion is to introduce a struct 
+> > > pagefault_args along the page faulting path.  Within it, we could 
+> > > introduce a reason for the retry so the higher levels would be able to 
+> > > better understand what to do.
+> > 
+> >  .../...
+> > 
+> > I need to re-read your mail and Andrew as at this point, I don't quite
+> > see why we need that args and/or that current->flags bit instead of
+> > always returning all the way to userland and let the faulting
+> > instruction happen again (which means you don't block in the kernel, can
+> > take signals etc...
+> 
+> That would amount to a busy wait, waiting for the disk IO to complete.
+> 
+> So we need to go to sleep somewhere (in D state, because we _are_ waiting
+> for disk IO).  Returning all the way to userspace and immediately retaking
+> the fault is unneeded extra work.
 
-Actually... I can see it's faster to not return all the way and take the
-fault again ... though only in some cases. For example, if the pte has
-been filled in the meantime (concurrent faults) it's actually faster to
-just go back. The only reason I see why you need those args is to tell
-the no_page() handler wether retrying is acceptable or wether it should
-use the old way. Any reason why this is necessary at all ? What are you
-trying to avoid by not letting it always do the retry path ?
+No, I'm not saying immediately... you do the wait thing in filemap.c.
+Anyway, see my other message.
 
-My thinking was something around the lines of no_page() always does the
-retry logic. Then, we do something like:
+> > thus do you actually need to prevent multiple
+> > retries ?)
+> 
+> I expect there are livelock scenarios.  For example, process A could spin
+> on posix_fadvise(some libc text page, POSIX_FADV_DONTNEED), perhaps causing
+> other applications to get permanently stuck in the kernel.
 
-handle_pte_fault() gets modified. If do_no_page() returns
-VM_FAULT_RETRY, it checks pte_present() again. If the PTE is present, it
-returns VM_FAULT_MINOR. If PTE is absent, it checks for signals, and
-returns VM_FAULT_MINOR if a signal is pending. If PTE is absent and no
-signals are pending, it returns VM_FAULT_RETRY.
-
-In addition, we still need to modify all archs do_page_fault() to handle
-VM_FAULT_RETRY...
-
-Or is there a specific scenario you are trying to avoid by keeping this
-mecanism for preventing retries ?
+Unless you add a way to handle signals.. see my other mail.
 
 Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
