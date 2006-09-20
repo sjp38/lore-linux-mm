@@ -1,47 +1,57 @@
-Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
-	by smtp-out.google.com with ESMTP id k8KIXTs9010567
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:29 -0700
-Received: from smtp-out2.google.com (fpr16.prod.google.com [10.253.18.16])
-	by zps76.corp.google.com with ESMTP id k8KFjBlw021943
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:25 -0700
-Received: by smtp-out2.google.com with SMTP id 16so342482fpr
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2006 11:33:25 -0700 (PDT)
-Message-ID: <6599ad830609201133k68cc1a0dr683137baa4e9be30@mail.google.com>
-Date: Wed, 20 Sep 2006 11:33:25 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [ckrm-tech] [patch00/05]: Containers(V2)- Introduction
-In-Reply-To: <1158776824.28174.29.camel@lappy>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [patch00/05]: Containers(V2)- Introduction
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1158774657.8574.65.camel@galaxy.corp.google.com>
 References: <1158718568.29000.44.camel@galaxy.corp.google.com>
-	 <1158751720.8970.67.camel@twins> <4511626B.9000106@yahoo.com.au>
-	 <1158767787.3278.103.camel@taijtu> <451173B5.1000805@yahoo.com.au>
+	 <4510D3F4.1040009@yahoo.com.au> <1158751720.8970.67.camel@twins>
+	 <4511626B.9000106@yahoo.com.au> <1158767787.3278.103.camel@taijtu>
+	 <451173B5.1000805@yahoo.com.au>
 	 <1158774657.8574.65.camel@galaxy.corp.google.com>
-	 <Pine.LNX.4.64.0609201051550.31636@schroedinger.engr.sgi.com>
-	 <1158775586.28174.27.camel@lappy>
-	 <1158776099.8574.89.camel@galaxy.corp.google.com>
-	 <1158776824.28174.29.camel@lappy>
+Content-Type: text/plain
+Date: Wed, 20 Sep 2006 20:37:42 +0200
+Message-Id: <1158777463.28174.37.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: rohitseth@google.com, Nick Piggin <nickpiggin@yahoo.com.au>, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, Christoph Lameter <clameter@sgi.com>
+To: rohitseth@google.com
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, CKRM-Tech <ckrm-tech@lists.sourceforge.net>, devel@openvz.org, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 9/20/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
-> Yes, I read that in your patches, I was wondering how the cpuset
-> approach would handle this.
+On Wed, 2006-09-20 at 10:50 -0700, Rohit Seth wrote:
+> On Thu, 2006-09-21 at 03:00 +1000, Nick Piggin wrote:
+> > (this time to the lists as well)
+> > 
+> > Peter Zijlstra wrote:
+> > 
+> >  > I'd much rather containterize the whole reclaim code, which should not
+> >  > be too hard since he already adds a container pointer to struct page.
+> > 
+> > 
+> 
+> Right now the memory handler in this container subsystem is written in
+> such a way that when existing kernel reclaimer kicks in, it will first
+> operate on those (container with pages over the limit) pages first.  But
+> in general I like the notion of containerizing the whole reclaim code.
 
-The VM currently has support for letting vmas define their own memory
-policies - so specifying that a file-backed vma gets its memory from a
-particular set of memory nodes would accomplish that for the fake-node
-approach. The mechanism for setting up the per-file/per-vma policies
-would probably involve something originating in struct inode or struct
-address_space.
+Patch 5/5 seems to have a horrid deactivation scheme.
 
-Paul
+> >  > I still have to reread what Rohit does for file backed pages, that gave
+> >  > my head a spin.
+> 
+> Please let me know if there is any specific part that isn't making much
+> sense.
+
+Well, the whole over the limit handler is quite painfull, having taken a
+second reading it isn't all that complex after all, just odd.
+
+You just start invalidating whole files for file backed pages. Granted,
+this will get you below the threshold. but you might just have destroyed
+your working set.
+
+Pretty much the same for you anonymous memory handler, you scan through
+the pages in linear fashion and demote the first that you encounter.
+
+Both things pretty thoroughly destroy the existing kernel reclaim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
