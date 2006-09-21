@@ -1,47 +1,37 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch] shared page table for hugetlb page - v2
-Date: Wed, 20 Sep 2006 18:35:52 -0700
-Message-ID: <000001c6dd1e$4671ac50$1ee8030a@amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20060920105317.7c3eb5f4.akpm@osdl.org>
+References: <1158274508.14473.88.camel@localhost.localdomain>
+	 <20060915001151.75f9a71b.akpm@osdl.org> <45107ECE.5040603@google.com>
+	 <1158709835.6002.203.camel@localhost.localdomain>
+	 <1158710712.6002.216.camel@localhost.localdomain>
+	 <20060919172105.bad4a89e.akpm@osdl.org>
+	 <1158717429.6002.231.camel@localhost.localdomain>
+	 <20060919200533.2874ce36.akpm@osdl.org>
+	 <1158728665.6002.262.camel@localhost.localdomain>
+	 <20060919222656.52fadf3c.akpm@osdl.org>
+	 <1158735299.6002.273.camel@localhost.localdomain>
+	 <20060920105317.7c3eb5f4.akpm@osdl.org>
+Content-Type: text/plain
+Date: Fri, 22 Sep 2006 08:05:04 +1000
+Message-Id: <1158876304.26347.129.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20060920180825.1c1ad6ae.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andrew Morton' <akpm@osdl.org>
-Cc: 'Hugh Dickins' <hugh@veritas.com>, 'Dave McCracken' <dmccr@us.ibm.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote on Wednesday, September 20, 2006 6:08 PM
-> On Wed, 20 Sep 2006 17:57:33 -0700
-> "Chen, Kenneth W" <kenneth.w.chen@intel.com> wrote:
-> 
-> > Following up with the work on shared page table, here is a re-post of
-> > shared page table for hugetlb memory.
-> 
-> Is that actually useful?  With one single pagetable page controlling,
-> say, 4GB of hugepage memory, I'm surprised that there's much point in
-> trying to optimise it.
+> So I think there's a nasty DoS here if we permit infinite retries.  But
+> it's not just that - there might be other situations under really heavy
+> memory pressure where livelocks like this can occur.  It's just a general
+> robustness-of-implementation issue.
 
-Yes, there is when large number of processes using one large shared memory
-segment.  The optimization is not really targeted to save memory in this
-case, instead, the goal of using shared PT on hugetlb is to allow faster
-TLB refill and less cache pollution upon TLB miss.
+Got it. Now, changing args to no_page() will be a pretty big task....
 
-Since pte entries are shared among hundreds of processes, the cache
-consumption used by all the page table is a lot smaller and in return, we
-got much higher cache hit rate for user space application. I have performance
-counter data to back that claim if people want to see the detail. The other
-effect is also that cache hit rate with hardware page walker will be higher
-too and this helps to reduce tlb miss latency.
+Ben.
 
-In Dave's implementation for sharing PT on normal page, the performance
-gain is predominantly come from reducing memory overhead in managing PTE.
-I think cache miss rate and tlb miss latency is of secondary consideration
-in that scenario, though it should help there as well.
-
-- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
