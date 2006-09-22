@@ -1,69 +1,39 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC] Initial alpha-0 for new page allocator API
-Date: Fri, 22 Sep 2006 22:02:41 +0200
-References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <200609222110.25118.ak@suse.de> <1158955850.24572.37.camel@localhost.localdomain>
-In-Reply-To: <1158955850.24572.37.camel@localhost.localdomain>
+Message-ID: <4514441E.70207@mbligh.org>
+Date: Fri, 22 Sep 2006 13:14:22 -0700
+From: Martin Bligh <mbligh@mbligh.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+Subject: Re: [RFC] Initial alpha-0 for new page allocator API
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <200609222110.25118.ak@suse.de> <1158955850.24572.37.camel@localhost.localdomain> <200609222202.41692.ak@suse.de>
+In-Reply-To: <200609222202.41692.ak@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200609222202.41692.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Christoph Lameter <clameter@sgi.com>, Martin Bligh <mbligh@mbligh.org>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <clameter@sgi.com>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 22 September 2006 22:10, Alan Cox wrote:
-> Ar Gwe, 2006-09-22 am 21:10 +0200, ysgrifennodd Andi Kleen:
-> > We already have that scheme. Any existing driver should be already converted
-> > away from GFP_DMA towards dma_*/pci_*. dma_* knows all the magic
-> > how to get memory for the various ranges. No need to mess up the 
-> > main allocator.
+> And is fine with 16MB anyways I think.
 > 
-> Add an isa_device class and that'll fall into place nicely. isa_alloc_*
-> will end up asking for 20bit DMA and it will work nicely.
-
-
-The old school way is to pass NULL to pci_alloc_coherent()
-
-> > that basically goes through the buddy lists freeing in >O(1) 
-> > and does some directed reclaim, but that would likely be a separate
-> > path anyways and not need your new structure to impact the O(1)
-> > allocator.
 > 
-> Just search within the candidate 4MB (or whatever it is these days)
-> chunks.
+>>- Some aacraid, mostly only for control structures. Those found on 64bit
+>>are probably fine with slow alloc.
 > 
+> 
+> That is the only case where there are rumours they are not fine with 16MB.
+> 
+> 
+>>- Broadcom stuff - not sure if 30 or 31bit, around today and on 64bit
+> 
+> 
+> b44 is 30bit. That's true. I even got one here.
+> 
+> But it doesn't count really because we can handle it fine with existing 
+> 16MB GFP_DMA
 
-What chunks?
+The problem is that GFP_DMA does not mean 16MB on all architectures.
 
-> Ok the examples I know about are
-> - ESS Maestro series audio - PCI, common on 32bit boxes a few years ago,
-> no longer shipped and unlikely to be met on 64bit. Also slow allocations
-> is fine.
-
-And is fine with 16MB anyways I think.
-
-> - Some aacraid, mostly only for control structures. Those found on 64bit
-> are probably fine with slow alloc.
-
-That is the only case where there are rumours they are not fine with 16MB.
-
-> - Broadcom stuff - not sure if 30 or 31bit, around today and on 64bit
-
-b44 is 30bit. That's true. I even got one here.
-
-But it doesn't count really because we can handle it fine with existing 
-16MB GFP_DMA
-
-> - Floppy controller
-
-That one only needs one page or so. In the worst case memory could be preallocated
-in .bss for it. 
-
--Andi
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
