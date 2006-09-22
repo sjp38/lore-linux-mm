@@ -1,45 +1,48 @@
-Date: Fri, 22 Sep 2006 09:36:53 -0700 (PDT)
+Date: Fri, 22 Sep 2006 10:36:03 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] GFP_THISNODE for the slab allocator
-In-Reply-To: <20060922092631.ae24a777.pj@sgi.com>
-Message-ID: <Pine.LNX.4.64.0609220935510.7083@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609131649110.20799@schroedinger.engr.sgi.com>
- <20060914220011.2be9100a.akpm@osdl.org> <20060914234926.9b58fd77.pj@sgi.com>
- <20060915002325.bffe27d1.akpm@osdl.org> <20060915004402.88d462ff.pj@sgi.com>
- <20060915010622.0e3539d2.akpm@osdl.org> <Pine.LNX.4.63.0609151601230.9416@chino.corp.google.com>
- <Pine.LNX.4.63.0609161734220.16748@chino.corp.google.com>
- <20060917041707.28171868.pj@sgi.com> <Pine.LNX.4.64.0609170540020.14516@schroedinger.engr.sgi.com>
- <20060917060358.ac16babf.pj@sgi.com> <Pine.LNX.4.63.0609171329540.25459@chino.corp.google.com>
- <20060917152723.5bb69b82.pj@sgi.com> <Pine.LNX.4.63.0609171643340.26323@chino.corp.google.com>
- <20060917192010.cc360ece.pj@sgi.com> <20060918093434.e66b8887.pj@sgi.com>
- <Pine.LNX.4.63.0609191222310.7790@chino.corp.google.com>
- <Pine.LNX.4.63.0609211510130.17417@chino.corp.google.com>
- <20060922092631.ae24a777.pj@sgi.com>
+Subject: Re: [RFC] Initial alpha-0 for new page allocator API
+In-Reply-To: <200609220817.59801.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0609221028590.7816@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com>
+ <200609220817.59801.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: David Rientjes <rientjes@google.com>, akpm@osdl.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Martin Bligh <mbligh@mbligh.org>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Sep 2006, Paul Jackson wrote:
+The problems to be solved are:
 
-> The topology.h header has:
-> > #define LOCAL_DISTANCE               10
-> 
-> though -no-one- uses it, why I don't know ...
+1. Have a means to allocate from a range of memory that is defined by the 
+device driver and *not* by the architecture. Devices currently cannot rely 
+on GFP_DMA because the range vary according to the architecture.
 
-It is a SLIT table reference value. This is the distance to memory that is 
-local to the processor and it is the lowest possible value.
+2. I wish we there would be some point in the future where we could get 
+rid of GFP_DMAxx... As Andi notes most hardware these days is sane so 
+there is less need to create VM overhead by managing additional zones.
 
-> This simple forcing of distances to 10 is probably good enough for your
-> setup, but if this gets serious, we'll need to handle multiple arch's,
-> and hybrid systems with both fake and real numa.  That will take a bit
-> of work to get the SLIT table, node_distance and zonelist sorting
-> correct.
+3. There are issues with memory policies coming from the process 
+environment that may redirect allocations. We also have additional calls
+with xx_node like alloc_pages and alloc_pages_node. A new API could
+fix these and allow a complete specification of how the allocation should 
+proceeds without strange side effect from the process (which makes 
+GFP_THISNODE necessary).
 
-Distance 10 is okay if the memory is on the node where the processor sits.
+One easy alternate way to support allocating from a range of memory 
+without reworking the API would be to simply add a new page allocator 
+call:
+
+struct page *alloc_pages_range(int order, gfp_t gfp_flags, unsigned long 
+low, unsigned long high [ , node ? ]);
+
+This would scan through the freelists for available memory in that range 
+and if not found simply do page reclaim until such memory becomes 
+available. We could get more sophisticated than that but this would allow 
+allocating memory from the ranges needed by broken devices and it would 
+penalize the device for the problem it has and would not impact the rest 
+of the system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
