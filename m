@@ -1,48 +1,76 @@
-Date: Fri, 22 Sep 2006 10:36:03 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: [RFC] Initial alpha-0 for new page allocator API
-In-Reply-To: <200609220817.59801.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0609221028590.7816@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com>
- <200609220817.59801.ak@suse.de>
+Date: Fri, 22 Sep 2006 21:10:25 +0200
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <200609220817.59801.ak@suse.de> <Pine.LNX.4.64.0609220934040.7083@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609220934040.7083@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200609222110.25118.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Martin Bligh <mbligh@mbligh.org>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The problems to be solved are:
+On Friday 22 September 2006 18:35, Christoph Lameter wrote:
+> On Fri, 22 Sep 2006, Andi Kleen wrote:
+> 
+> > On Friday 22 September 2006 06:02, Christoph Lameter wrote:
+> > > We have repeatedly discussed the problems of devices having varying 
+> > > address range requirements for doing DMA.
+> > 
+> > We already have such an API. dma_alloc_coherent(). Device drivers
+> > are not supposed to mess with GFP_DMA* directly anymore for quite
+> > some time. 
+> 
+> Device drivers need to be able to indicate ranges of addresses that may be 
+> different from ZONE_DMA. This is an attempt to come up with a future 
+> scheme that does no longer rely on device drivers referring to zoies.
 
-1. Have a means to allocate from a range of memory that is defined by the 
-device driver and *not* by the architecture. Devices currently cannot rely 
-on GFP_DMA because the range vary according to the architecture.
+We already have that scheme. Any existing driver should be already converted
+away from GFP_DMA towards dma_*/pci_*. dma_* knows all the magic
+how to get memory for the various ranges. No need to mess up the 
+main allocator.
 
-2. I wish we there would be some point in the future where we could get 
-rid of GFP_DMAxx... As Andi notes most hardware these days is sane so 
-there is less need to create VM overhead by managing additional zones.
+Anyways, i suppose what could be added as a fallback would be a 
+really_slow_brute_force_try_to_get_something_in_this_range() allocator
+that basically goes through the buddy lists freeing in >O(1) 
+and does some directed reclaim, but that would likely be a separate
+path anyways and not need your new structure to impact the O(1)
+allocator.
 
-3. There are issues with memory policies coming from the process 
-environment that may redirect allocations. We also have additional calls
-with xx_node like alloc_pages and alloc_pages_node. A new API could
-fix these and allow a complete specification of how the allocation should 
-proceeds without strange side effect from the process (which makes 
-GFP_THISNODE necessary).
+I am still unconvinced of the real need. The only gaping hole was 
+GFP_DMA32, which we fixed already.
 
-One easy alternate way to support allocating from a range of memory 
-without reworking the API would be to simply add a new page allocator 
-call:
+Ok there is aacraid with its weird 2GB limit, but in case there are
+really enough users running into this broken then then the really_slow_*
+thing above would be likely fine. And those cards are slowly going
+away too.  
 
-struct page *alloc_pages_range(int order, gfp_t gfp_flags, unsigned long 
-low, unsigned long high [ , node ? ]);
+If we managed to resist for too long now is the wrong time.
 
-This would scan through the freelists for available memory in that range 
-and if not found simply do page reclaim until such memory becomes 
-available. We could get more sophisticated than that but this would allow 
-allocating memory from the ranges needed by broken devices and it would 
-penalize the device for the problem it has and would not impact the rest 
-of the system.
+> > I actually have my doubts it is a good idea to add that now. The devices
+> > with weird requirements are steadily going away
+
+> Hmm.... Martin?
+
+Think of it this way: all the weird slow devices of 5-10 years ago have USB
+interfaces today and that does 32bit just fine (=GFP_DMA32). And old 5-10 years old weird
+devices are usually fine with 16MB of playground only.
+
+Ok now I'm sure someone will come up with a counter example (hi Alan), but:
+- Does the device really need more than 16MB?
+- How often is it used on systems with >1/2GB with a 64bit kernel?
+[consider that 64bit kernels don't support ISA]
+- How many users of that particular thing around?
+
+
+I think my point stands.
+
+-And
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
