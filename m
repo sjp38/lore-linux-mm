@@ -1,29 +1,41 @@
-From: Andi Kleen <ak@suse.de>
+Date: Fri, 22 Sep 2006 14:01:48 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC] Initial alpha-0 for new page allocator API
-Date: Fri, 22 Sep 2006 22:48:27 +0200
-References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <4514441E.70207@mbligh.org> <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
+In-Reply-To: <200609221341.44354.jesse.barnes@intel.com>
+Message-ID: <Pine.LNX.4.64.0609221400230.9370@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com>
+ <4514441E.70207@mbligh.org> <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
+ <200609221341.44354.jesse.barnes@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200609222248.27700.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Martin Bligh <mbligh@mbligh.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
+To: Jesse Barnes <jesse.barnes@intel.com>
+Cc: Martin Bligh <mbligh@mbligh.org>, Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 22 September 2006 22:23, Christoph Lameter wrote:
-> Here is an iniitial patch of alloc_pages_range (untested, compiles). 
-> Directed reclaim missing. Feedback wanted. There are some comments in the 
-> patch where I am at the boundary of my knowledge and it would be good if 
-> someone could supply the info needed.
+On Fri, 22 Sep 2006, Jesse Barnes wrote:
 
-Looks like a good start. Surprising how little additional code it is.
+> > +	if (dev->coherent_dma_mask < 0xffffffff)
+> > +		high = dev->coherent_dma_mask;
+> 
+> With your alloc_pages_range this check can go away.  I think only the dev 
+> == NULL check is needed with this scheme since it looks like there's no 
+> way (currently) for ISA devices to store their masks for later 
+> consultation by arch code? 
 
--Andi
+This check is necessary to set up the correct high boundary for 
+alloc_page_range.
+
+> > +	if (high == -1L && low == 0L)
+> > +		return alloc_pages(gfp_flags, order);
+> 
+> There's max_pfn, but on machines with large memory holes using it might not 
+> help much.
+
+I found node_start_pfn and node_spanned_pages in the node structure. That 
+gives me the boundaries for a node and I think I can work with that.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
