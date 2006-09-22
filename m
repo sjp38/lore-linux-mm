@@ -1,90 +1,63 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch] shared page table for hugetlb page - v2
-Date: Fri, 22 Sep 2006 15:53:14 -0700
-Message-ID: <000401c6de99$e374c100$ff0da8c0@amr.corp.intel.com>
+From: Andi Kleen <ak@suse.de>
+Subject: More thoughts on getting rid of ZONE_DMA
+Date: Sat, 23 Sep 2006 01:34:45 +0200
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <4514441E.70207@mbligh.org> <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20060922142117.eebc5e94.akpm@osdl.org>
+Content-Disposition: inline
+Message-Id: <200609230134.45355.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Andrew Morton' <akpm@osdl.org>
-Cc: 'Hugh Dickins' <hugh@veritas.com>, 'Dave McCracken' <dmccr@us.ibm.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Martin Bligh <mbligh@mbligh.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote on Friday, September 22, 2006 2:21 PM
-> The locking in here makes me a bit queasy.  What causes *spte to still be
-> shareable after we've dropped i_mmap_lock?
-> 
-> (A patch which adds appropriate comments would be the preferred answer,
-> please...)
-> 
-
-OK, patch attached below.
+On Friday 22 September 2006 22:23, Christoph Lameter wrote:
+> Here is an iniitial patch of alloc_pages_range (untested, compiles). 
+> Directed reclaim missing. Feedback wanted. There are some comments in the 
+> patch where I am at the boundary of my knowledge and it would be good if 
+> someone could supply the info needed.
 
 
-> > +int huge_pte_put(struct vm_area_struct *vma, unsigned long *addr, pte_t *ptep)
-> 
-> I think this function could do with a comment describing its
-> responsibilities.
-> 
+Christoph,
 
-OK, comments added in the patch below.
+I thought a little more about the problem.
 
+Currently I don't think we can get rid of ZONE_DMA even with your patch.
 
-> > +{
-> > +	pgd_t *pgd = pgd_offset(vma->vm_mm, *addr);
-> > +	pud_t *pud = pud_offset(pgd, *addr);
-> > +
-> > +	if (page_count(virt_to_page(ptep)) <= 1)
-> > +		return 0;
-> 
-> And this test.  It's testing the refcount of the pte page, yes?  Why?  What
-> does it mean when that refcount is zero?  Bug?  And when it's one?  We're
-> the last user, so the above test is an optimisation, yes?
+The problem is that if someone has a workload with lots of pinned pages
+(e.g. lots of mlock) then the first 16MB might fill up completely and there 
+is no chance at all to free it because it's pinned
 
-Yes, testing whether the pte page is shared or not.  This function falls out
-if the pte page is not shared or we are the last user.  The caller of this
-function then iterate through each pte and unmap the corresponding user pages.
-I've added comments in the patch as well.
+This is not theoretical: Andrea originally implemented the keep lower zones free 
+heuristics exactly because this happened in the field.
 
+So we need some way to reserve some low memory pages (a "low mem mempool" so to
+say). Otherwise it could always run into deadlocks later under load.
 
-Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+As I understand it your goal is to remove knowledge of the DMA zones from
+the generic VM to save some cache lines in hot paths.
 
---- ./arch/i386/mm/hugetlbpage.c.orig	2006-09-22 12:48:54.000000000 -0700
-+++ ./arch/i386/mm/hugetlbpage.c	2006-09-22 13:48:12.000000000 -0700
-@@ -57,6 +57,11 @@ void pmd_share(struct vm_area_struct *vm
- 
- 		spin_lock(&svma->vm_mm->page_table_lock);
- 		spte = huge_pte_offset(svma->vm_mm, addr);
-+		/*
-+		 * if a valid hugetlb pte is found, take a reference count
-+		 * on the pte page.  We can then safely populate it into
-+		 * pud at a later point.
-+		 */
- 		if (spte)
- 			get_page(virt_to_page(spte));
- 		spin_unlock(&svma->vm_mm->page_table_lock);
-@@ -76,6 +81,16 @@ void pmd_share(struct vm_area_struct *vm
- 	spin_unlock(&vma->vm_mm->page_table_lock);
- }
- 
-+/*
-+ * unmap huge page backed by shared pte.
-+ *
-+ * Hugetlb pte page is ref counted at the time of mapping.  If pte is shared
-+ * indicated by page_count > 1, unmap is achieved by clearing pud and
-+ * decrementing the ref count. If count == 1, the pte page is not shared.
-+ *
-+ * returns: 1 successfully unmapped a shared pte page
-+ *	    0 the underlying pte page is not shared, or it is the last user
-+ */
- int huge_pte_put(struct vm_area_struct *vma, unsigned long *addr, pte_t *ptep)
- {
- 	pgd_t *pgd = pgd_offset(vma->vm_mm, *addr);
+First ZONE_DMA32 likely needs to be kept in the normal allocator because there 
+are just too many potential users of it, and some of them even need fast memory allocation.
 
+But AFAIK all 16MB ZONE_DMA don't need fast allocation, so being a bit
+slower for them is ok.
 
+What we could do instead is to have a configurable pool starting at zero with
+a special allocator that can allocate ranges in there. This wouldn't need to 
+be a 16MB pool, but could be a kernel boot parameter.  This would keep
+it completely out of the fast VM path and reach your original goals.
+
+This would also fix aacraid because users of it could just configure a larger 
+pool (we could potentially even have a heuristic to size it based on PCI IDs;
+this wouldn't deal with hotplug but would be still much better than shifting
+it completely to the user) 
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
