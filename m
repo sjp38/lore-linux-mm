@@ -1,55 +1,125 @@
-Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20060921154105.904313f7.akpm@osdl.org>
-References: <1158274508.14473.88.camel@localhost.localdomain>
-	 <20060915001151.75f9a71b.akpm@osdl.org> <45107ECE.5040603@google.com>
-	 <1158709835.6002.203.camel@localhost.localdomain>
-	 <1158710712.6002.216.camel@localhost.localdomain>
-	 <20060919172105.bad4a89e.akpm@osdl.org>
-	 <1158717429.6002.231.camel@localhost.localdomain>
-	 <20060919200533.2874ce36.akpm@osdl.org>
-	 <1158728665.6002.262.camel@localhost.localdomain>
-	 <20060919222656.52fadf3c.akpm@osdl.org>
-	 <1158735299.6002.273.camel@localhost.localdomain>
-	 <20060920105317.7c3eb5f4.akpm@osdl.org>
-	 <1158876304.26347.129.camel@localhost.localdomain>
-	 <20060921154105.904313f7.akpm@osdl.org>
-Content-Type: text/plain
-Date: Fri, 22 Sep 2006 09:09:25 +1000
-Message-Id: <1158880165.26347.132.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 21 Sep 2006 21:02:05 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [RFC] Initial alpha-0 for new page allocator API
+Message-ID: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
+To: Martin Bligh <mbligh@mbligh.org>
+Cc: akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-09-21 at 15:41 -0700, Andrew Morton wrote:
-> On Fri, 22 Sep 2006 08:05:04 +1000
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-> 
-> > > So I think there's a nasty DoS here if we permit infinite retries.  But
-> > > it's not just that - there might be other situations under really heavy
-> > > memory pressure where livelocks like this can occur.  It's just a general
-> > > robustness-of-implementation issue.
-> > 
-> > Got it. Now, changing args to no_page() will be a pretty big task....
-> > 
-> 
-> Not as big as removing the pt_regs arg from every interrupt handler ;)
+We have repeatedly discussed the problems of devices having varying 
+address range requirements for doing DMA. We would like for the device 
+drivers to have the ability to specify exactly which address range is 
+allowed. Also the NUMA guys would like to have the ability to specify NUMA 
+related information.
 
-Which is a change I'm not 100% convinced about btw ... I remember
-actually using that in a few occasions... mostly for debugging though.
-Bah, anyway, I suppose we can always have a per-cpu global with the last
-irq pt_regs pointer if really needed for debug.
- 
-> But pretty mechanical.  Problem is, I don't think we have our mechanic.
+So I have put all the important allocation information in a struct 
+allocation_control and am trying to get a new API developed that will fit 
+our needs for better control over allocations. The discussion of the exact 
+nature of the implementation necessary in the page allocator to supply 
+pages fulfilling the criteria specified may better be deferred until we 
+have a reasonable API.
 
-Yup, we would need to decide what to put in there....
+The implementation given here uses the existing page_allocator in order to 
+define the behavior of the new functions. The free functions have an _a_ 
+and a _some_ in there to avoid name clashes. Will be removed later.
 
-Ben.
+This is only a discussion basis. Once we agree on the API then I will 
+implement that API with minimal effort on top of the existing page 
+allocator and then we can try to see how a device driver would be working 
+with this. I envision that we would have one allocation_control structure 
+in the task structure to control the allocation of pages for a process. 
+This should allow us to move the memory policy related information into 
+the allocation_control structure. I also would think that a device driver
+would have an allocation_control structure somewhere where parameters are 
+set up so that allocations using this structure will yield the pages 
+satisfying the requirements of the device drivers.
 
+Index: linux-2.6.18-rc6-mm1/include/linux/allocator.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.18-rc6-mm1/include/linux/allocator.h	2006-09-21 20:48:30.000000000 -0700
+@@ -0,0 +1,35 @@
++/*
++ * Necessary definitions to perform allocations
++ */
++
++#include <linux/mm.h>
++
++struct allocation_control {
++	gfp_t flags;
++	int order;
++#ifdef CONFIG_NUMA
++	int node;
++	struct mempol *mpol;
++#endif
++	unsigned long low_boundary;
++	unsigned long high_boundary;
++};
++
++/*
++ * Functions to allocate memory in units of PAGE_SIZE
++ */
++struct page *allocate_pages(struct allocation_control *ac,
++					gfp_t additional_flags);
++
++/*
++ * Free a single page
++ * (which may be of higher order if allocated with GFP_COMP set)
++ */
++void free_a_page(struct page *);
++
++/*
++ * Free a page as allocated with the given allocation control.
++ * This is needed if higher order pages were allocated without GFP_COMP set.
++ */
++void free_some_pages(struct page *, struct allocation_control *ac);
++
+Index: linux-2.6.18-rc6-mm1/mm/page_allocator.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.18-rc6-mm1/mm/page_allocator.c	2006-09-21 20:49:37.000000000 -0700
+@@ -0,0 +1,37 @@
++/*
++ * Standard Page Allocator Definitions
++ */
++#include <linux/allocator.h>
++
++struct page *allocate_pages(struct allocation_control *ac,
++					gfp_t additional_flags)
++{
++	gfp_t gfp_flags = additional_flags | ac->flags;
++
++#ifdef CONFIG_ZONE_DMA32
++	if (high_boundary < MAX_DMA32_ADDRESS)
++			gfp_flags |= __GFP_DMA32;
++	else
++#endif
++#ifdef CONFIG_ZONE_DMA
++	if (high_boundary < MAX_DMA_ADDRESS)
++			gfp_flags |= GFP_DMA;
++#endif
++
++#ifdef CONFIG_NUMA
++	if (ac->node != -1)
++		return alloc_pages_node(ac->node, gfp_flags, ac->order);
++#endif
++
++	return alloc_pages(gfp_flags, ac->order);
++}
++
++void free_a_page(struct page *page)
++{
++	__free_pages(page, 0);
++}
++
++void free_some_pages(struct page *page, struct allocation_control *ac)
++{
++	__free_pages(page, ac->order);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
