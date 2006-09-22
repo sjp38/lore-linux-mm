@@ -1,41 +1,69 @@
-Subject: Re: [patch 4/9] mm: lockless pagecache lookups
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20060922172120.22370.4933.sendpatchset@linux.site>
-References: <20060922172042.22370.62513.sendpatchset@linux.site>
-	 <20060922172120.22370.4933.sendpatchset@linux.site>
-Content-Type: text/plain
-Date: Fri, 22 Sep 2006 16:01:11 -0400
-Message-Id: <1158955271.5584.58.camel@localhost>
-Mime-Version: 1.0
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC] Initial alpha-0 for new page allocator API
+Date: Fri, 22 Sep 2006 22:02:41 +0200
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com> <200609222110.25118.ak@suse.de> <1158955850.24572.37.camel@localhost.localdomain>
+In-Reply-To: <1158955850.24572.37.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200609222202.41692.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Christoph Lameter <clameter@sgi.com>, Martin Bligh <mbligh@mbligh.org>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-09-22 at 21:22 +0200, Nick Piggin wrote:
-> Combine page_cache_get_speculative with lockless radix tree lookups to
-> introduce lockless page cache lookups (ie. no mapping->tree_lock on
-> the read-side).
+On Friday 22 September 2006 22:10, Alan Cox wrote:
+> Ar Gwe, 2006-09-22 am 21:10 +0200, ysgrifennodd Andi Kleen:
+> > We already have that scheme. Any existing driver should be already converted
+> > away from GFP_DMA towards dma_*/pci_*. dma_* knows all the magic
+> > how to get memory for the various ranges. No need to mess up the 
+> > main allocator.
 > 
-> The only atomicity changes this introduces is that the gang pagecache
-> lookup functions now behave as if they are implemented with multiple
-> find_get_page calls, rather than operating on a snapshot of the pages.
-> In practice, this atomicity guarantee is not used anyway, and it is
-> difficult to see how it could be. Gang pagecache lookups are designed
-> to replace individual lookups, so these semantics are natural.
+> Add an isa_device class and that'll fall into place nicely. isa_alloc_*
+> will end up asking for 20bit DMA and it will work nicely.
+
+
+The old school way is to pass NULL to pci_alloc_coherent()
+
+> > that basically goes through the buddy lists freeing in >O(1) 
+> > and does some directed reclaim, but that would likely be a separate
+> > path anyways and not need your new structure to impact the O(1)
+> > allocator.
+> 
+> Just search within the candidate 4MB (or whatever it is these days)
+> chunks.
 > 
 
-vvv - stale comment?
-> Swapcache can no longer use find_get_page, because it has a different
-> method of encoding swapcache position into the page. Introduce a new
-> find_get_swap_page for it.
+What chunks?
 
-^^^ 
-> 
+> Ok the examples I know about are
+> - ESS Maestro series audio - PCI, common on 32bit boxes a few years ago,
+> no longer shipped and unlikely to be met on 64bit. Also slow allocations
+> is fine.
 
-<snip>
+And is fine with 16MB anyways I think.
+
+> - Some aacraid, mostly only for control structures. Those found on 64bit
+> are probably fine with slow alloc.
+
+That is the only case where there are rumours they are not fine with 16MB.
+
+> - Broadcom stuff - not sure if 30 or 31bit, around today and on 64bit
+
+b44 is 30bit. That's true. I even got one here.
+
+But it doesn't count really because we can handle it fine with existing 
+16MB GFP_DMA
+
+> - Floppy controller
+
+That one only needs one page or so. In the worst case memory could be preallocated
+in .bss for it. 
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
