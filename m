@@ -1,69 +1,32 @@
-Date: Sat, 23 Sep 2006 15:21:40 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
-In-Reply-To: <20060920105317.7c3eb5f4.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0609231421110.25804@blonde.wat.veritas.com>
-References: <1158274508.14473.88.camel@localhost.localdomain>
- <20060915001151.75f9a71b.akpm@osdl.org> <45107ECE.5040603@google.com>
- <1158709835.6002.203.camel@localhost.localdomain>
- <1158710712.6002.216.camel@localhost.localdomain> <20060919172105.bad4a89e.akpm@osdl.org>
- <1158717429.6002.231.camel@localhost.localdomain> <20060919200533.2874ce36.akpm@osdl.org>
- <1158728665.6002.262.camel@localhost.localdomain> <20060919222656.52fadf3c.akpm@osdl.org>
- <1158735299.6002.273.camel@localhost.localdomain> <20060920105317.7c3eb5f4.akpm@osdl.org>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: One idea to free up page flags on NUMA
+Date: Sat, 23 Sep 2006 18:04:40 +0200
+References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200609231804.40348.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Sep 2006, Andrew Morton wrote:
-> On Wed, 20 Sep 2006 16:54:59 +1000
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-> > 
-> > That's what I don't understand... where is the actual race that can
-> > cause the livelock you are mentioning.
-> 
-> Suppose a program (let's call it "DoS") is written which sits in a loop
-> doing fadvise(FADV_DONTNEED) against some parts of /lib/libc.so.
+ 
+> By that scheme we would win 6 bits on NUMAQ (32bit) 
 
-I agree there's an issue here, but I believe you're attacking the wrong
-end, thereby complicating and uglifying the pagefault path (in every
-arch) with your proposed arg block and retry limitation.
+NUMAsaurus is total legacy and I'm just waiting for the last one to die to 
+remove the code ;-)
 
-(Maybe one day there will be need for such an arg block,
-but I don't see that yet.)
+> and would save around  
+> 20-30 bits on 64 bit machine.
 
-Isn't the real problem that fadvise(FADV_DONTNEED) is much more
-powerful than it should be?  Whereas madvise(MADV_DONTNEED) is simply
-releasing pages from my address space, fadvise(FADV_DONTNEED) is going
-so far as to remove them from pagecache (if nothing at that instant
-prevents): forcing others into I/O.  Why should I be allowed to
-invalidate pagecache useful to others so quickly?
+And what would we use them for?
 
-Shouldn't it merely, say, move the pages in its range to the inactive
-list, giving other processes a chance to reassert an interest in them?
-May not turn out as easy as that, I admit.
-
-I'm fine with your idea of dropping mmap_sem while nopage waits on I/O,
-I'm fine with your idea of an mm mmap transaction count, so nopage can
-just reget mmap_sem without backing out when nothing changed meanwhile.
-
-But I do think Ben should have the simple NOPAGE_RETRY he proposed,
-going right back out to userspace; and that should be enough for your
-case too (the mmap transaction count would make its use a rarity).
-
-> So I think there's a nasty DoS here if we permit infinite retries.  But
-> it's not just that - there might be other situations under really heavy
-> memory pressure where livelocks like this can occur.
-
-filemap_nopage would want to mark_page_accessed() before returning
-NOPAGE_RETRY, but if that's not good enough to hold the page in cache
-before the retried fault grabs it, your memory pressure is already
-into thrashing.  I believe the livelock is peculiar to FADV_DONTNEED.
-
-Hugh
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
