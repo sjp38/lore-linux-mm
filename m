@@ -1,69 +1,96 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k8NJOiAR001058
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2006 15:24:44 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k8NJOc0Z218240
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2006 15:24:38 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k8NJOcvq005385
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2006 15:24:38 -0400
-Subject: Re: One idea to free up page flags on NUMA
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
-	 <200609231804.40348.ak@suse.de>
-	 <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Sat, 23 Sep 2006 12:24:29 -0700
-Message-Id: <1159039469.24331.32.camel@localhost.localdomain>
+Date: Sat, 23 Sep 2006 12:46:18 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
+Message-Id: <20060923124618.e5ef3a51.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0609231421110.25804@blonde.wat.veritas.com>
+References: <1158274508.14473.88.camel@localhost.localdomain>
+	<20060915001151.75f9a71b.akpm@osdl.org>
+	<45107ECE.5040603@google.com>
+	<1158709835.6002.203.camel@localhost.localdomain>
+	<1158710712.6002.216.camel@localhost.localdomain>
+	<20060919172105.bad4a89e.akpm@osdl.org>
+	<1158717429.6002.231.camel@localhost.localdomain>
+	<20060919200533.2874ce36.akpm@osdl.org>
+	<1158728665.6002.262.camel@localhost.localdomain>
+	<20060919222656.52fadf3c.akpm@osdl.org>
+	<1158735299.6002.273.camel@localhost.localdomain>
+	<20060920105317.7c3eb5f4.akpm@osdl.org>
+	<Pine.LNX.4.64.0609231421110.25804@blonde.wat.veritas.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2006-09-23 at 09:39 -0700, Christoph Lameter wrote:
-> On Sat, 23 Sep 2006, Andi Kleen wrote:
-> > And what would we use them for?
+On Sat, 23 Sep 2006 15:21:40 +0100 (BST)
+Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Wed, 20 Sep 2006, Andrew Morton wrote:
+> > On Wed, 20 Sep 2006 16:54:59 +1000
+> > Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+> > > 
+> > > That's what I don't understand... where is the actual race that can
+> > > cause the livelock you are mentioning.
+> > 
+> > Suppose a program (let's call it "DoS") is written which sits in a loop
+> > doing fadvise(FADV_DONTNEED) against some parts of /lib/libc.so.
 > 
-> Maybe a container number?
+> I agree there's an issue here, but I believe you're attacking the wrong
+> end, thereby complicating and uglifying the pagefault path (in every
+> arch) with your proposed arg block and retry limitation.
 
-I have a feeling this is better done at the more coarse objects like
-address_spaces and vmas.
+"simplifying and cleaning up the pagefault path (in every arch) with my
+proposed arg block and retry improvement".
 
-> Anyways the scheme also would reduce the number of lookups needed and 
-> thus the general footprint of the VM using sparse.
+We're presently passing from four to six arguments down many layers of
+function call.  Can be replaced with a single arg.
+
+> (Maybe one day there will be need for such an arg block,
+> but I don't see that yet.)
+
+I agree it's marginal.
+
+> Isn't the real problem that fadvise(FADV_DONTNEED) is much more
+> powerful than it should be?  Whereas madvise(MADV_DONTNEED) is simply
+> releasing pages from my address space, fadvise(FADV_DONTNEED) is going
+> so far as to remove them from pagecache (if nothing at that instant
+> prevents): forcing others into I/O.  Why should I be allowed to
+> invalidate pagecache useful to others so quickly?
 > 
-> I just looked at the arch code for i386 and x86_64 and it seems that both 
-> already have page tables for all of memory. It seems that a virtual memmap 
-> like this would just eliminate sparse overhead and not add any additional 
-> page table overhead.
+> Shouldn't it merely, say, move the pages in its range to the inactive
+> list, giving other processes a chance to reassert an interest in them?
+> May not turn out as easy as that, I admit.
 
-I'm not sure to what sparse overhead you are referring.  Its only
-storage overhead is one pointer per SECTION_SIZE bytes of memory.  The
-worst case scenario is 16MB sections on ppc64 with 16TB of memory.  
+Could be, although that would cause inodes to remain unreclaimable.
 
-2^20 sections * 2^3 bytes/pointer = 2^23 bytes of sparse overhead, which
-is 8MB.  That's pretty little overhead no matter how you look at it,
-cache footprint, tlb load, etc...  Add to that the fact that we get some
-extra things from sparsemem like pfn_valid() and the bookkeeping for
-whether or not the memory is there (before the mem_map is actually
-allocated), and it doesn't look too bad.
+> I'm fine with your idea of dropping mmap_sem while nopage waits on I/O,
+> I'm fine with your idea of an mm mmap transaction count, so nopage can
+> just reget mmap_sem without backing out when nothing changed meanwhile.
+> 
+> But I do think Ben should have the simple NOPAGE_RETRY he proposed,
+> going right back out to userspace; and that should be enough for your
+> case too (the mmap transaction count would make its use a rarity).
 
-If someone can actually demonstrate some actual, measurable performance
-problem with it, then I'm all ears.  I worry that anything else is just
-potential overzealous micro-optimization trying to solve problems that
-don't really exist.  Remember, sparsemem slightly beats discontigmem on
-x86 NUMA hardware, so it isn't much of a dog to begin with.
+Perhaps we should concentrate on that for now.  Did we have a patch to look
+at?
 
-Sparsemem is a ~100 line patch to port to a new architecture.  That code
-is virtually all #defines and hooking into the pfn_to_page() mechanisms.
-There's virtually no logic in there.  That's going to be hard to beat
-with any kind of vmem_map[] approach.
+> > So I think there's a nasty DoS here if we permit infinite retries.  But
+> > it's not just that - there might be other situations under really heavy
+> > memory pressure where livelocks like this can occur.
+> 
+> filemap_nopage would want to mark_page_accessed() before returning
+> NOPAGE_RETRY, but if that's not good enough to hold the page in cache
+> before the retried fault grabs it, your memory pressure is already
+> into thrashing.  I believe the livelock is peculiar to FADV_DONTNEED.
 
--- Dave
+Maybe.  Putting a potential infinite loop like this into the pagefault path
+gives me the creeps.
+
+Bear in mind that direct-io (both block and NFS) shoots down pagecache too.
+It has to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
