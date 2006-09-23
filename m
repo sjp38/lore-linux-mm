@@ -1,45 +1,92 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: One idea to free up page flags on NUMA
-Date: Sat, 23 Sep 2006 20:43:10 +0200
-References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com> <200609231804.40348.ak@suse.de> <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
+Date: Sat, 23 Sep 2006 19:51:02 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC] PAGE_RW Should be added to PAGE_COPY ?
+In-Reply-To: <450BAAF4.1080509@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0609231835570.32262@blonde.wat.veritas.com>
+References: <20060915033842.C205FFB045@ncic.ac.cn>
+ <Pine.LNX.4.64.0609150514190.7397@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0609151431320.22674@blonde.wat.veritas.com>
+ <450BAAF4.1080509@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200609232043.10434.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, haveblue@us.ibm.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Yingchao Zhou <yc_zhou@ncic.ac.cn>, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@osdl.org>, alan <alan@redhat.com>, zxc <zxc@ncic.ac.cn>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 23 September 2006 18:39, Christoph Lameter wrote:
-> On Sat, 23 Sep 2006, Andi Kleen wrote:
+On Sat, 16 Sep 2006, Nick Piggin wrote:
+> Hugh Dickins wrote:
 > 
-> > And what would we use them for?
+> > Yes, it would be good if we could do that check in some other,
+> > reliable way.  The problem is that can_share_swap_page has to
+> > check page_mapcount (and PageSwapCache) and page_swapcount in
+> > an atomic way: the page lock is what we have used to guard the
+> > movement between mapcount and swapcount.
+> > 
+> > I'll try to think whether we can do that better,
+> > but not until next week.
+
+I currently believe we can do it without TestSetPageLocked in
+do_wp_page(): just with a few memory barriers added.  But that
+belief may evaporate once I actually focus on each site: it
+wouldn't be the first time I've fooled myself like that, so
+please keep on the alert, Nick.
+
 > 
-> Maybe a container number?
+> I don't think TestSetPageLocked is the problem. Indeed you may be
+> able to get around a few specific cases say, by turning that into
+> a plain lock_page()...
+
+Hmm, an actual lock_page, that wasn't what I was intending.
+Would be simple, I'm trying to remember why I ruled it out earlier.
+Oh, yes, we're holding the pte lock there, that's why.
+
+> ... but the problem is still fundamentally COW.
+
+Well, yes, we wouldn't have all these problems if we didn't have
+to respect COW.  But generally a process can, one way or another,
+make sure it won't get into those problems: Yingchao is concerned
+with the way the TestSetPageLocked unpredictably upsets correctness.
+I'd say it's a more serious error than the general problems with COW.
+
 > 
-> Anyways the scheme also would reduce the number of lookups needed and 
-> thus the general footprint of the VM using sparse.
+> In other words, one should always be able to return 0 from that
+> can_share_swap_page and have the system continue to work... right?
+> Because even if you hadn't done that mprotect trick, you may still
+> have a problem because the page may *have* to be copied on write
+> if it is shared over fork.
 
-So far most users (distributions) are not using sparse yet anyways.
-  
-> I just looked at the arch code for i386 and x86_64 and it seems that both 
-> already have page tables for all of memory. 
+Most processes won't fork, and exec has freed them from sharing
+their parents pages, and their private file mappings aren't being
+used as buffers.  Maybe Yingchao will later have to worry about
+those cases, but for now it seems not.
 
-i386 doesn't map all of memory.
+> 
+> So if we filled in the missing mm/ implementation of VM_DONTCOPY
+> (and call it MAP_DONTCOPY rather than the confusing MAP_DONTFORK)
+> such that it withstands such an mprotect sequence, we can then ask
+> that all userspace drivers do their get_user_pages memory on these
+> types of vmas.
 
-> It seems that a virtual memmap  
-> like this would just eliminate sparse overhead and not add any additional 
-> page table overhead.
+(madvise MADV_DONTFORK)
 
-You would have new mappings with new overhead, no?
+For the longest time I couldn't understand you there at all, perhaps
+distracted by your parenthetical line: at last I think you're proposing
+we tweak mprotect to behave differently on a VM_DONTCOPY area.
 
--Andi
+But differently in what way?  Allow it to ignore Copy-On-Write?
+No, of course not.  Go down to the struct page level (one of the
+nice things about mprotect is that it doesn't need to look at struct
+pages at present, except perhaps inside the ia64 lazy_mmu_prot_update),
+and decide if it has to do the copying itself instead?  Doesn't sound
+a good place to do it; and would involve just the same problematic
+TestSetPageLocked within pte lock that do_wp_page is doing,
+so wouldn't solve anything.
 
+Or I'm still misunderstanding you.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
