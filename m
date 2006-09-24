@@ -1,42 +1,40 @@
-Date: Sat, 23 Sep 2006 18:57:27 -0700 (PDT)
+Date: Sat, 23 Sep 2006 19:13:53 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: One idea to free up page flags on NUMA
-In-Reply-To: <200609232043.10434.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0609231845380.16383@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
- <200609231804.40348.ak@suse.de> <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
- <200609232043.10434.ak@suse.de>
+Subject: Re: More thoughts on getting rid of ZONE_DMA
+In-Reply-To: <200609230134.45355.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0609231907360.16435@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609212052280.4736@schroedinger.engr.sgi.com>
+ <4514441E.70207@mbligh.org> <Pine.LNX.4.64.0609221321280.9181@schroedinger.engr.sgi.com>
+ <200609230134.45355.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@suse.de>
-Cc: linux-mm@kvack.org, haveblue@us.ibm.com
+Cc: Martin Bligh <mbligh@mbligh.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@google.com, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@steeleye.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Sat, 23 Sep 2006, Andi Kleen wrote:
 
-> > I just looked at the arch code for i386 and x86_64 and it seems that both 
-> > already have page tables for all of memory. 
-> 
-> i386 doesn't map all of memory.
+> The problem is that if someone has a workload with lots of pinned pages
+> (e.g. lots of mlock) then the first 16MB might fill up completely and there 
+> is no chance at all to free it because it's pinned
 
-Hmmm... It only maps the kernel text segment?
+Note that mlock'ed pages are movable. mlock only specifies that pages
+must stay in memory. It does not say that they cannot be moved. So
+page migration could help there.
 
+This brings up a possible problem spot in the current kernel: It seems 
+that the VM is capable of migrating pages from ZONE_DMA to 
+ZONE_NORMAL! So once pages are in memory then they may move out of the 
+DMA-able area.
 
-> > It seems that a virtual memmap  
-> > like this would just eliminate sparse overhead and not add any additional 
-> > page table overhead.
-> 
-> You would have new mappings with new overhead, no?
+I assume the writeback paths have some means of detecting that a
+page is out of range during writeback and then do page bouncing?
 
-If mappings already exist then this would just mean using the existing 
-mappings to implement a virtual memmap array. If 386 has no mappings for
-the kernel mappings then this may add more overhead. However, we would be 
-using the MMU which would be faster than manually simulating MMU like
-lookups as sparse does now. I think sparsemem could be modified to use
-the page table format. The sparsemem infrastructure would still work.
-
+If that is the case then we could simply move movable pages out
+if necessary. That would be a kind of bouncing logic there that
+would only kick in if necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
