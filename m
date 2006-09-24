@@ -1,109 +1,95 @@
-Received: from imr2.americas.sgi.com (imr2.americas.sgi.com [198.149.16.18])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id k8OGxInx020594
-	for <linux-mm@kvack.org>; Sun, 24 Sep 2006 11:59:18 -0500
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by imr2.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id k8OGthDu55880789
-	for <linux-mm@kvack.org>; Sun, 24 Sep 2006 09:55:43 -0700 (PDT)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id k8OGxHnB58336414
-	for <linux-mm@kvack.org>; Sun, 24 Sep 2006 09:59:17 -0700 (PDT)
-Received: from christoph (helo=localhost)
-	by schroedinger.engr.sgi.com with local-esmtp (Exim 3.36 #1 (Debian))
-	id 1GRXK1-0004kF-00
-	for <linux-mm@kvack.org>; Sun, 24 Sep 2006 09:59:17 -0700
-Date: Sun, 24 Sep 2006 09:59:17 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: virtual mmap basics
-Message-ID: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
+Date: Sun, 24 Sep 2006 19:01:11 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 3/9] mm: speculative get page
+In-Reply-To: <20060922172110.22370.33715.sendpatchset@linux.site>
+Message-ID: <Pine.LNX.4.64.0609241802400.7935@blonde.wat.veritas.com>
+References: <20060922172042.22370.62513.sendpatchset@linux.site>
+ <20060922172110.22370.33715.sendpatchset@linux.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Lets say we have memory of MAX_PFN pages.
+On Fri, 22 Sep 2006, Nick Piggin wrote:
+> 
+> Index: linux-2.6/include/linux/page-flags.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/page-flags.h
+> +++ linux-2.6/include/linux/page-flags.h
+> @@ -86,6 +86,8 @@
+>  #define PG_nosave_free		18	/* Free, should not be written */
+>  #define PG_buddy		19	/* Page is free, on buddy lists */
+>  
+> +#define PG_nonewrefs		20	/* Block concurrent pagecache lookups
+> +					 * while testing refcount */
 
-Then we need a page struct array with MAX_PFN page structs to manage
-that memory called mem_map.
+Something I didn't get around to mentioning last time: I could well
+be mistaken, but it seemed that you could get along without all the
+PageNoNewRefs stuff, at cost of using something (too expensive?)
+like atomic_cmpxchg(&page->_count, 2, 0) in remove_mapping() and
+migrate_page_move_mapping(); compensated by simplification at the
+other end in page_cache_get_speculative(), which is already
+expected to be the hotter path.
 
-For mmap processing without virtualization (FLATMEM) (simplified)
-we have:
+I find it unaesthetic (suspect you do too) to add that adhoc
+PageNoNewRefs method of freezing the count, when you're already
+demanding that count 0 must be frozen: why not make use of that?
+then since you know it's frozen while 0, you can easily insert
+the proper count at the end of the critical region.
 
-#define pfn_valid(pfn)		(pfn < max_pfn)
-#define pfn_to_page(pfn)	&mem_map[pfn]
-#define page_to_pfn(page)     	(page - mem_map))
+I didn't attempt to work out what memory barriers would be needed,
+but did test a version working that way on i386 - though I seem
+to have tidied those mods away to /dev/null since then.
 
-which is then used to build the commonly used functions:
+We disagreed over whether PageNoNewRefs usage in add_to_page_cache
+and __add_to_swap_cache was the same as in remove_mapping; but I
+think we agreed it could be avoided completely in those, just by
+being more careful about the ordering of the updates to struct page
+(I think it looked like the SetPageLocked needed to come earlier,
+but I forget the logic right now).
 
-#define virt_to_page(kaddr)     pfn_to_page(kaddr >> PAGE_SHIFT)
-#define page_address(page)	(page_to_pfn(page) << PAGE_SHIFT)
+> +static inline int page_cache_get_speculative(struct page *page)
+> +{
+> +	VM_BUG_ON(in_interrupt());
+> +
+> +#ifndef CONFIG_SMP
+> +# ifdef CONFIG_PREEMPT
+> +	VM_BUG_ON(!in_atomic());
+> +# endif
+> +	/*
+> +	 * Preempt must be disabled here - we rely on rcu_read_lock doing
+> +	 * this for us.
+> +	 *
+> +	 * Pagecache won't be truncated from interrupt context, so if we have
+> +	 * found a page in the radix tree here, we have pinned its refcount by
+> +	 * disabling preempt, and hence no need for the "speculative get" that
+> +	 * SMP requires.
+> +	 */
+> +	VM_BUG_ON(page_count(page) == 0);
+> +	atomic_inc(&page->_count);
+> +
+> +#else
+> +	if (unlikely(!get_page_unless_zero(page)))
+> +		return 0; /* page has been freed */
 
-Virtual Memmory Map
--------------------
+This is the test which fails nicely whenever count is set to 0,
+whether because the page has been freed or because you wish to
+freeze it.  But if you do make such a change, callers of
+page_cache_get_speculative may need to loop a little differently
+when it fails (the page might not be freed).
 
-For a virtual memory map we reserve a virtual memory area
-VMEMMAP_START ... VMEMMAP_START + max_pfn * sizeof(page_struct))
-vmem_map is defined to be a pointer to struct page. It is a constant
-pointing to VMEMMAP_START. 
+> +	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
 
-We use page tables to manage the virtual memory map. Page tables
-may be sparse. Pages in the area used for page structs may be missing.
-Software may dynamically add new page table entries to make new
-ranges of pfn's valid. Its like sparse.
+I found that VM_BUG_ON confusing, because it's only catching a tiny
+proportion of the cases you're interested in ruling out: most high
+order pages aren't PageCompound (but only the PageCompound ones offer
+that kind of check).  If you really want to keep the check, I think
+it needs a comment to explain that; but I'd just delete the line.
 
-The basic functions then become:
-
-#define pfn_valid(pfn)		(pfn < max_pfn && valid_page_table_entry(pfn))
-#define pfn_to_page(pfn)	&vmem_map[pfn]
-#define page_to_pfn(page)     	(page - vmem_map))
-
-We only loose (apart from additional TLB use if this memory was not 
-already using page tables) on pfn_valid when we have to traverse the page 
-table via valid_page_table_entry() if the processor does not have an 
-instruction to check that condition. We could avoid the page table 
-traversal by having the page fault handler deal with it somehow. But then 
-pfn_valid is not that frequent an operation.
-
-virt_to_page and page_to_virt remain unchanged.
-
-Sparse
-------
-
-Sparse currently does troublesome lookups for virt_to_page
-and page_address.
-
-#define page_to_pfn(pg) (pg - 
-	section_mem_map_addr(nr_to_section(page_to_section(pg)))
-
-#define pfn_to_page(pfn)
-	 section_mem_map_addr(pfn_to_section(pfn)) + __pfn;
-
-page_to_section is an extraction of flags from page->flags.
-
-static inline struct mem_section *nr_to_section(unsigned long nr)
-{
-        if (!mem_section[SECTION_NR_TO_ROOT(nr)])
-                return NULL;
-        return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
-}
-
-static inline struct page *section_mem_map_addr(struct mem_section 
-*section)
-{
-        unsigned long map = section->section_mem_map;
-        map &= SECTION_MAP_MASK;
-        return (struct page *)map;
-}
-
-So we have a mininum of a couple of table lookups and one page->flags 
-retrieval (okay that may be argued to be in cache) in virt_to_page versus 
-*none* in the virtual memory map case. Similar troublesome code is
-there fore the reverse case.
-
-pfn_valid requires at least 3 lookups. Which may be equivalent
-to walking to page table over 3 levels if the processor has no command to 
-make the hardware do it.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
