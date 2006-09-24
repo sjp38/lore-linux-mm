@@ -1,96 +1,69 @@
-Subject: Re: [RFC] page fault retry with NOPAGE_RETRY
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20060923124618.e5ef3a51.akpm@osdl.org>
-References: <1158274508.14473.88.camel@localhost.localdomain>
-	 <20060915001151.75f9a71b.akpm@osdl.org> <45107ECE.5040603@google.com>
-	 <1158709835.6002.203.camel@localhost.localdomain>
-	 <1158710712.6002.216.camel@localhost.localdomain>
-	 <20060919172105.bad4a89e.akpm@osdl.org>
-	 <1158717429.6002.231.camel@localhost.localdomain>
-	 <20060919200533.2874ce36.akpm@osdl.org>
-	 <1158728665.6002.262.camel@localhost.localdomain>
-	 <20060919222656.52fadf3c.akpm@osdl.org>
-	 <1158735299.6002.273.camel@localhost.localdomain>
-	 <20060920105317.7c3eb5f4.akpm@osdl.org>
-	 <Pine.LNX.4.64.0609231421110.25804@blonde.wat.veritas.com>
-	 <20060923124618.e5ef3a51.akpm@osdl.org>
-Content-Type: text/plain
-Date: Sun, 24 Sep 2006 08:35:36 +1000
-Message-Id: <1159050936.14486.115.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sat, 23 Sep 2006 18:56:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: One idea to free up page flags on NUMA
+In-Reply-To: <1159039469.24331.32.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0609231847520.16383@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
+ <200609231804.40348.ak@suse.de>  <Pine.LNX.4.64.0609230937140.15303@schroedinger.engr.sgi.com>
+ <1159039469.24331.32.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Mike Waychison <mikew@google.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andi Kleen <ak@suse.de>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-> Perhaps we should concentrate on that for now.  Did we have a patch to look
-> at?
+On Sat, 23 Sep 2006, Dave Hansen wrote:
 
-Only a hand written proto-patch. Below is a real (but untested) one.
-Note that there might be still issues when called from get_user_pages()
-which of course won't go back to userland. For the two usage scenario I
-have in mind, it should be ok though. One (a signal pending) will loop
-back in until the resource is available, the other (no_page() inserts
-the PTE itself) is just fine. For the former case, I've added a
-cond_resched() to the loop, we might want to look into adding the info
-of wether we are coming from get_user_pages() vs. do_page_fault() to
-these new arguments you want to add to page fault handlers. That would
-allow in our case to do a non-interruptibe sleep when caused by
-get_user_pages().
+> I'm not sure to what sparse overhead you are referring.  Its only
+> storage overhead is one pointer per SECTION_SIZE bytes of memory.  The
+> worst case scenario is 16MB sections on ppc64 with 16TB of memory.  
 
----
+The problem is that these arrays frequently referenced. They increase
+the VM overhead and if we already have page table in place then its easy
+to just use the format of the page tables for sparse like memory 
+functionality.
 
-Add a way for a no_page() handler to request a retry of the faulting
-instruction. It goes back to userland on page faults and just tries
-again in get_user_pages(). I added a cond_resched() in the loop in that
-later case.
+> 2^20 sections * 2^3 bytes/pointer = 2^23 bytes of sparse overhead, which
+> is 8MB.  That's pretty little overhead no matter how you look at it,
+> cache footprint, tlb load, etc...  Add to that the fact that we get some
+> extra things from sparsemem like pfn_valid() and the bookkeeping for
+> whether or not the memory is there (before the mem_map is actually
+> allocated), and it doesn't look too bad.
 
-Signed-off-by: Benjamin Herrenchmidt <benh@kernel.crashing.org>
+Page table also provide the same functionality. There is a present bit
+etc. Simulation of core MMU functionality is certainly not faster than
+using the cpu MMU engines.
 
-Index: linux-work/include/linux/mm.h
-===================================================================
---- linux-work.orig/include/linux/mm.h	2006-08-30 08:51:21.000000000 +1000
-+++ linux-work/include/linux/mm.h	2006-09-24 08:25:33.000000000 +1000
-@@ -623,6 +623,7 @@
-  */
- #define NOPAGE_SIGBUS	(NULL)
- #define NOPAGE_OOM	((struct page *) (-1))
-+#define NOPAGE_RETRY	((struct page *) (-2))
- 
- /*
-  * Different kinds of faults, as returned by handle_mm_fault().
-Index: linux-work/mm/memory.c
-===================================================================
---- linux-work.orig/mm/memory.c	2006-08-17 16:16:06.000000000 +1000
-+++ linux-work/mm/memory.c	2006-09-24 08:34:09.000000000 +1000
-@@ -1081,6 +1081,7 @@
- 				default:
- 					BUG();
- 				}
-+				cond_resched();
- 			}
- 			if (pages) {
- 				pages[i] = page;
-@@ -2117,11 +2118,13 @@
- 	 * after the next truncate_count read.
- 	 */
- 
--	/* no page was available -- either SIGBUS or OOM */
--	if (new_page == NOPAGE_SIGBUS)
-+	/* no page was available -- either SIGBUS, OOM or RETRY */
-+	if (unlikely(new_page == NOPAGE_SIGBUS))
- 		return VM_FAULT_SIGBUS;
--	if (new_page == NOPAGE_OOM)
-+	else if (unlikely(new_page == NOPAGE_OOM))
- 		return VM_FAULT_OOM;
-+	else if (unlikely(new_page == NOPAGE_RETRY))
-+		return VM_FAULT_MINOR;
- 
- 	/*
- 	 * Should we do an early C-O-W break?
+> If someone can actually demonstrate some actual, measurable performance
+> problem with it, then I'm all ears.  I worry that anything else is just
+> potential overzealous micro-optimization trying to solve problems that
+> don't really exist.  Remember, sparsemem slightly beats discontigmem on
+> x86 NUMA hardware, so it isn't much of a dog to begin with.
 
+Yes it may beat it if you use 4k page sizes for it and if you are
+wasting additional TLB entries for it. If we are already using a page
+table for memory then this can only be better than managing tables on your 
+own.
+
+> Sparsemem is a ~100 line patch to port to a new architecture.  That code
+> is virtually all #defines and hooking into the pfn_to_page() mechanisms.
+> There's virtually no logic in there.  That's going to be hard to beat
+> with any kind of vmem_map[] approach.
+
+Well we already have page tables there. Its just a matter of reserving
+a virtual memory area for the virtual memmap and changing some page table
+entries. Then one can get rid of the sparse tables and simply use
+existing non sparse virt_to_page and page_address() (have a look how ia64 
+does it). The main problem with sparsemem is in that situation is that we 
+uselessly have additional tables that waste cachelines plus we use a 
+series of bits in page flags that could be used for better purposes.
+
+If sparse would use the native page table format then you can use that to 
+plug memory in and out. From what I can tell there is the same information 
+in those tables. virt_to_page and page_address are really fast without 
+table lookups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
