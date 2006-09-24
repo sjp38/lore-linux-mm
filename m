@@ -1,35 +1,62 @@
-Date: Sun, 24 Sep 2006 03:06:43 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] Get rid of zone_table V2
-Message-Id: <20060924030643.e57f700c.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <451698C0.9000903@cyberone.com.au>
+Date: Mon, 25 Sep 2006 00:40:00 +1000
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
+Subject: Re: radix_tree_lookup_slot() comment
+References: <1159036821.5196.8.camel@lappy>
+In-Reply-To: <1159036821.5196.8.camel@lappy>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Sep 2006 12:21:35 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi Peter,
 
->  static inline int page_zone_id(struct page *page)
->  {
-> -	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
-> -}
-> -static inline struct zone *page_zone(struct page *page)
-> -{
-> -	return zone_table[page_zone_id(page)];
-> +	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
->  }
+Yes, that looks much better, thanks.
 
-arm allmodconfig:
+BTW. this latest patchset has at least one -mm mismerge (page flags bit),
+so I would advise against testing (though do appreciate reviews). I'll
+send Andrew a more thorough version against 2.6.18-mm1.
 
-include/linux/mm.h: In function `page_zone_id':
-include/linux/mm.h:450: warning: right shift count >= width of type
+Thanks,
+Nick
+
+Peter Zijlstra wrote:
+
+>Hi Nick,
+>
+>I noticed the comment above radix_tree_lookup_slot() did not match the
+>uses in your lockless pagecache. Would this patch be correct?
+>
+>---
+> lib/radix-tree.c |    9 ++++-----
+> 1 file changed, 4 insertions(+), 5 deletions(-)
+>
+>Index: linux-2.6-mm/lib/radix-tree.c
+>===================================================================
+>--- linux-2.6-mm.orig/lib/radix-tree.c	2006-09-23 20:20:21.000000000 +0200
+>+++ linux-2.6-mm/lib/radix-tree.c	2006-09-23 20:34:31.000000000 +0200
+>@@ -380,11 +380,10 @@ EXPORT_SYMBOL(radix_tree_insert);
+>  *	Returns:  the slot corresponding to the position @index in the
+>  *	radix tree @root. This is useful for update-if-exists operations.
+>  *
+>- *	This function cannot be called under rcu_read_lock, it must be
+>- *	excluded from writers, as must the returned slot for subsequent
+>- *	use by radix_tree_deref_slot() and radix_tree_replace slot.
+>- *	Caller must hold tree write locked across slot lookup and
+>- *	replace.
+>+ * 	This function can be called under rcu_read_lock iff the slot is not
+>+ * 	modified by radix_tree_replace_slot, otherwise it must be called
+>+ * 	exclusive from other writers. Any dereference of the slot must be done
+>+ * 	using radix_tree_deref_slot.
+>  */
+> void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
+> {
+>  
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
