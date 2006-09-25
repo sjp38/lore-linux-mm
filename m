@@ -1,57 +1,38 @@
-Date: Mon, 25 Sep 2006 16:37:23 -0700 (PDT)
+Date: Mon, 25 Sep 2006 16:54:10 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: virtual mmap basics
-In-Reply-To: <45185698.5080009@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0609251631060.25028@schroedinger.engr.sgi.com>
+Subject: virtual memmap sparsity: Dealing with fragmented MAX_ORDER blocks
+In-Reply-To: <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
  <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0609250958370.23475@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0609251401260.24262@schroedinger.engr.sgi.com>
- <45185698.5080009@shadowen.org>
+ <45181B4F.6060602@shadowen.org> <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, ak@suse.de
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2006, Andy Whitcroft wrote:
+Regarding buddy checks out of memmap:
 
-> > Using a virtual memmap there would allow relocation of the memmap array 
-> > into high memory and would double the available low memory. So may be 
-> > worth even on this 32 bit platform to sacrifice 1/8th of the virtual 
-> > address space for memmap.
-> 
-> How does moving to a virtual memmap help here.  The virtual mem_map also
-> has to be allocated in KVA, any KVA used for it is not available to and
-> thereby shrinks the size of zone NORMAL?  The size of NORMAL in x86 is
-> defined by the addressable space in kernel mode (by KVA size), 1GB less
-> other things we have mapped.  Virtual map would be one of those.
+1. This problem only occurs if we allow fragments of MAX_ORDER size 
+   segments. The default needs to be not to allow that. Then we do not 
+   need  any checks like right now on IA64. Why would one want smaller
+   granularity than 2M/4M in hotplugging?
 
-Hmmm... Strange architecture and I may be a bit ignorant on this one. You 
-could reserve the 1G for kernel 1-1 mapped. 2nd G for VMALLOC / virtual 
-memmap and the remaining 2G for user space? Probably wont work since you 
-would have to decrease user space from 3G to 2G?
+2. If you must have these fragments then we need to check the validity
+   of the buddy pointers before derefencing them to see if pages can
+   be combined. If fragments are permitted then a
+   special function needs to be called to check if the address we are
+   accessing is legit. Preferably this would be done with an instruction
+   that can use the MMU to verify if the address is valid 
 
-Having the virtual memmap in high memory also allows you to place the 
-sections of the memmap that map files of that node into the memory of the 
-node itself. This alone would get you a nice performance boost.
+   On IA64 this is done with the "probe" instruction
 
-> > So far I am not seeing any convincing case for the current sparsemem table 
-> > lookups. But there must have been some reason that such an implementation 
-> > was chosen. What was it?
-> 
-> As I said the problem is not memory but KVA space.  Zone normal is all
-> the pages we can map into the kernel address space, its 1Gb less the
-> kernel itself, less vmap space.  In the current NUMA scheme its then
-> less the mem_map allocated out of HIGHMEM but mapped into KVA.  In
-> vmem_map its allocated out of HIGHMEM but mapped into KVA.  The loss is
-> the same.
-
-Yup the only way around would be to decrease user space sizes.
-
-But then we are talking about a rare breed of NUMA machine, right?
+   Looking through the i386 commands I see a VERR mnemonic that
+   I guess will do what you need on i386 and x86_64 in order to do
+   what we need without a page table walk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
