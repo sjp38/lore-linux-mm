@@ -1,45 +1,66 @@
-Message-ID: <451862C5.1010900@oracle.com>
-Date: Mon, 25 Sep 2006 19:14:13 -0400
 From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
-MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au>
-In-Reply-To: <45185D7E.6070104@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Reply-To: Chuck Lever <chucklever@gmail.com>
+Subject: [PATCH] Make invalidate_inode_pages2() work again
+Date: Mon, 25 Sep 2006 19:15:58 -0400
+Message-Id: <20060925231557.32226.66866.stgit@ingres.dsl.sfldmi.ameritech.net>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: apkm@osdl.org
+Cc: linux-mm@kvack.org, Trond.Myklebust@netapp.com, steved@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Andrew Morton wrote:
-> Also, you can't guarantee anything much about its refcount even then
-> (because it could be on a private reclaim list or pagevec somewhere).
-> 
->> We could retry the invalidation a few times, but that stinks.
->>
->> I think invalidate_inode_pages2() is sufficiently different from (ie:
->> stronger than) invalidate_inode_pages() to justify the addition of a new
->> invalidate_complete_page2(), which skips the page refcount check.
->>
-> 
-> Yes, I think that would be possible using the lock_page in do_no_page 
-> trick.
-> That would also enable you to invalidate pages that have direct IO going
-> into them, and other weird and wonderful get_user_pages happenings.
-> 
-> I haven't thrown away those patches, and I am looking for a justification
-> for them because they make the code look nicer ;)
-> 
-> For 2.6.18.stable, Andrew's idea of checking the return value and retry
-> might be the only option.
+A recent change to fix a problem with invalidate_inode_pages() has weakened
+the behavior of invalidate_inode_pages2() inadvertently.  Add a flag to
+tell the helper routines when stronger invalidation semantics are desired.
 
-I think allowing callers of invalidate_inode_pages2() to get the 
-previous behavior is reasonable here.  There are only 2 of them: v9fs 
-and the NFS client.
+Signed-off-by: Chuck Lever <chuck.lever@oracle.com>
+---
+
+ mm/truncate.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/truncate.c b/mm/truncate.c
+index c6ab55e..b3097a2 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -59,7 +59,7 @@ truncate_complete_page(struct address_sp
+  * Returns non-zero if the page was successfully invalidated.
+  */
+ static int
+-invalidate_complete_page(struct address_space *mapping, struct page *page)
++invalidate_complete_page(struct address_space *mapping, struct page *page, int try_harder)
+ {
+ 	if (page->mapping != mapping)
+ 		return 0;
+@@ -70,7 +70,7 @@ invalidate_complete_page(struct address_
+ 	write_lock_irq(&mapping->tree_lock);
+ 	if (PageDirty(page))
+ 		goto failed;
+-	if (page_count(page) != 2)	/* caller's ref + pagecache ref */
++	if (!try_harder && page_count(page) != 2)	/* caller's ref + pagecache ref */
+ 		goto failed;
+ 
+ 	BUG_ON(PagePrivate(page));
+@@ -255,7 +255,7 @@ unsigned long invalidate_mapping_pages(s
+ 				goto unlock;
+ 			if (page_mapped(page))
+ 				goto unlock;
+-			ret += invalidate_complete_page(mapping, page);
++			ret += invalidate_complete_page(mapping, page, 0);
+ unlock:
+ 			unlock_page(page);
+ 			if (next > end)
+@@ -339,7 +339,7 @@ int invalidate_inode_pages2_range(struct
+ 				}
+ 			}
+ 			was_dirty = test_clear_page_dirty(page);
+-			if (!invalidate_complete_page(mapping, page)) {
++			if (!invalidate_complete_page(mapping, page, 1)) {
+ 				if (was_dirty)
+ 					set_page_dirty(page);
+ 				ret = -EIO;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
