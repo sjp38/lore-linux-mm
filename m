@@ -1,80 +1,59 @@
-Date: Mon, 25 Sep 2006 14:10:36 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-Message-Id: <20060925141036.73f1e2b3.akpm@osdl.org>
-In-Reply-To: <4518333E.2060101@oracle.com>
-References: <4518333E.2060101@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <45185698.5080009@shadowen.org>
+Date: Mon, 25 Sep 2006 23:22:16 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: virtual mmap basics
+References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com> <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0609250958370.23475@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0609251401260.24262@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609251401260.24262@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: chuck.lever@oracle.com
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-(Added linux-mm)
-
-On Mon, 25 Sep 2006 15:51:26 -0400
-Chuck Lever <chuck.lever@oracle.com> wrote:
-
-> Hi Andrew-
+Christoph Lameter wrote:
+> On Mon, 25 Sep 2006, Christoph Lameter wrote:
 > 
-> Steve Dickson and I have independently discovered some cache 
-> invalidation problems in 2.6.18's NFS client.  Using git bisect, I was 
-> able to track it back to this commit:
+>> PAE mode:
+>> 64GB of memory = 16  mio page structs = 512MB.
+>>
+>> Hmm.... So without PAE mode we are fine on i386. The 512MB 
+>> virtual space requirement to support all of 64GB of memory with highmem 
+>> 64G may be difficult to fulfill. This is 1/8th of the address space!
+>> Sparses ability to avoid virtual memory use comes in handy if memory is 
+>> actually larger than supported by the processor. But then these 
+>> configurations are becoming rarer with the advent of 64 bit processors.
 > 
-> > commit 016eb4a0ed06a3677d67a584da901f0e9a63c666
-> > Author: Andrew Morton <akpm@osdl.org>
-> > Date:   Fri Sep 8 09:48:38 2006 -0700
-> > 
-> >     [PATCH] invalidate_complete_page() race fix
-> > 
-> >     If a CPU faults this page into pagetables after invalidate_mapping_pages()
-> >     checked page_mapped(), invalidate_complete_page() will still proceed to remove
-> >     the page from pagecache.  This leaves the page-faulting process with a
-> >     detached page.  If it was MAP_SHARED then file data loss will ensue.
-> > 
-> >     Fix that up by checking the page's refcount after taking tree_lock.
-> > 
-> >     Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-> >     Cc: Hugh Dickins <hugh@veritas.com>
-> >     Cc: <stable@kernel.org>
-> >     Signed-off-by: Andrew Morton <akpm@osdl.org>
-> >     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
+> On the other hand the PAE sparse approach is not that good for 
+> i386 with 64GB. Sparse memmmap must be in regular memory and thus we
+> are forced to use 512 MB of the available 900MB in lowmem for
+> memmap.
 > 
-> Instrumenting get_page and put_page has shown that the page reclaim 
-> logic is temporarily bumping the page count on otherwise active but idle 
-> pages, racing with the new page_count check in invalidate_complete_page 
-> and preventing pages from being invalidated.
-> 
-> One problem for the NFS client is that invalidate_inode_pages2 is being 
-> used to invalidate the pages associated with a cached directory.  If the 
-> directory pages can't be invalidated because of this race, the contents 
-> of the directory pages don't match the dentry cache, and all kinds of 
-> strange behavior results.
+> Using a virtual memmap there would allow relocation of the memmap array 
+> into high memory and would double the available low memory. So may be 
+> worth even on this 32 bit platform to sacrifice 1/8th of the virtual 
+> address space for memmap.
 
-NFS is presently ignoring the return value from invalidate_inode_pages2(),
-in two places.  Could I suggest you fix that?  Then we'd at least not be
-seeing "strange behaviour" and things will be easier to diagnose next time.
+How does moving to a virtual memmap help here.  The virtual mem_map also
+has to be allocated in KVA, any KVA used for it is not available to and
+thereby shrinks the size of zone NORMAL?  The size of NORMAL in x86 is
+defined by the addressable space in kernel mode (by KVA size), 1GB less
+other things we have mapped.  Virtual map would be one of those.
 
-> I haven't checked the data invalidation behavior for regular files, but 
-> the result will be file data corruption that comes and goes.
-> 
-> Would it be acceptable to revert that page_count(page) != 2 check in 
-> invalidate_complete_page ?
+> So far I am not seeing any convincing case for the current sparsemem table 
+> lookups. But there must have been some reason that such an implementation 
+> was chosen. What was it?
 
-Unfortunately not - that patch fixes cramfs failures and potential file
-corruption.
+As I said the problem is not memory but KVA space.  Zone normal is all
+the pages we can map into the kernel address space, its 1Gb less the
+kernel itself, less vmap space.  In the current NUMA scheme its then
+less the mem_map allocated out of HIGHMEM but mapped into KVA.  In
+vmem_map its allocated out of HIGHMEM but mapped into KVA.  The loss is
+the same.
 
-The way to keep memory reclaim away from that page is to take
-zone->lru_lock, but that's quite impractical for several reasons.
-
-We could retry the invalidation a few times, but that stinks.
-
-I think invalidate_inode_pages2() is sufficiently different from (ie:
-stronger than) invalidate_inode_pages() to justify the addition of a new
-invalidate_complete_page2(), which skips the page refcount check.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
