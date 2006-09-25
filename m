@@ -1,88 +1,109 @@
-Message-ID: <45185AF3.7030606@oracle.com>
-Date: Mon, 25 Sep 2006 18:40:51 -0400
-From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
+Message-ID: <45185B33.6060109@yahoo.com.au>
+Date: Tue, 26 Sep 2006 08:41:55 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org>
-In-Reply-To: <20060925141036.73f1e2b3.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 3/9] mm: speculative get page
+References: <20060922172042.22370.62513.sendpatchset@linux.site>	 <20060922172110.22370.33715.sendpatchset@linux.site>	 <Pine.LNX.4.64.0609241802400.7935@blonde.wat.veritas.com>	 <4517382E.8010308@yahoo.com.au>  <20060925114739.GA31148@wotan.suse.de> <1159189453.5018.25.camel@lappy>
+In-Reply-To: <1159189453.5018.25.camel@lappy>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Woops.
+Peter Zijlstra wrote:
 
-I got them backwards.
+>On Mon, 2006-09-25 at 13:47 +0200, Nick Piggin wrote:
+>
+>
+>>+/*
+>>+ * speculatively take a reference to a page.
+>>+ * If the page is free (_count == 0), then _count is untouched, and 0
+>>+ * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
+>>+ *
+>>+ * This function must be run in the same rcu_read_lock() section as has
+>>+ * been used to lookup the page in the pagecache radix-tree: this allows
+>>+ * allocators to use a synchronize_rcu() to stabilize _count.
+>>+ *
+>>+ * Unless an RCU grace period has passed, the count of all pages coming out
+>>+ * of the allocator must be considered unstable. page_count may return higher
+>>+ * than expected, and put_page must be able to do the right thing when the
+>>+ * page has been finished with (because put_page is what is used to drop an
+>>+ * invalid speculative reference).
+>>+ *
+>>+ * This forms the core of the lockless pagecache locking protocol, where
+>>+ * the lookup-side (eg. find_get_page) has the following pattern:
+>>+ * 1. find page in radix tree
+>>+ * 2. conditionally increment refcount
+>>+ * 3. check the page is still in pagecache (if no, goto 1)
+>>+ *
+>>+ * Remove-side that cares about stability of _count (eg. reclaim) has the
+>>
+>                                   ^^^^^^^^^^^^^^^^^^^
+>is that the reason that the following two code paths are good without
+>change:
+>
+>  truncate_inode_page_range()
+>   truncate_complete_page()
+>     remove_from_page_cache()
+>       radix_tree_delete()
+>
 
-invalidate_inode_pages2 appears to wait for locked pages, while 
-invalidate_inode_pages skips them.
+^^^ Yes.
 
-Andrew Morton wrote:
-> (Added linux-mm)
-> 
-> On Mon, 25 Sep 2006 15:51:26 -0400
-> Chuck Lever <chuck.lever@oracle.com> wrote:
-> 
->> Hi Andrew-
+>and
+>
+>  zap_pte_range()
+>    free_swap_and_cache()  <-- does check page_count()
+>      delete_from_swap_cache()
+>        __delete_from_swap_cache()
+>          radix_tree_delete()
+>
+>>From the comments around the truncate bit it seems to be ok with keeping
+>the page as anonymous, however the zap_pte_range() thing does seem to
+>want to have a stable page_count().
+>
+
+However when I last looked at it, it count can be elevated there for other
+reasons (I think it was swap IO or get_user_pages or something). Anyway,
+those pages will remain on the LRU and eventually get reclaimed.
+
+I did initially change that code around a little bit, but I remember
+working through it with Hugh and we decided that it would be OK as it was.
+It should indeed be commented though.
+
+>>+ * following (with tree_lock held for write):
+>>+ * A. atomically check refcount is correct and set it to 0 (atomic_cmpxchg)
+>>+ * B. remove page from pagecache
+>>+ * C. free the page
+>>+ *
+>>+ * There are 2 critical interleavings that matter:
+>>+ * - 2 runs before A: in this case, A sees elevated refcount and bails out
+>>+ * - A runs before 2: in this case, 2 sees zero refcount and retries;
+>>+ *   subsequently, B will complete and 1 will find no page, causing the
+>>+ *   lookup to return NULL.
+>>+ *
+>>+ * It is possible that between 1 and 2, the page is removed then the exact same
+>>+ * page is inserted into the same position in pagecache. That's OK: the
+>>+ * old find_get_page using tree_lock could equally have run before or after
+>>+ * such a re-insertion, depending on order that locks are granted.
+>>+ *
+>>+ * Lookups racing against pagecache insertion isn't a big problem: either 1
+>>+ * will find the page or it will not. Likewise, the old find_get_page could run
+>>+ * either before the insertion or afterwards, depending on timing.
+>>+ */
 >>
->> Steve Dickson and I have independently discovered some cache 
->> invalidation problems in 2.6.18's NFS client.  Using git bisect, I was 
->> able to track it back to this commit:
->>
->>> commit 016eb4a0ed06a3677d67a584da901f0e9a63c666
->>> Author: Andrew Morton <akpm@osdl.org>
->>> Date:   Fri Sep 8 09:48:38 2006 -0700
->>>
->>>     [PATCH] invalidate_complete_page() race fix
->>>
->>>     If a CPU faults this page into pagetables after invalidate_mapping_pages()
->>>     checked page_mapped(), invalidate_complete_page() will still proceed to remove
->>>     the page from pagecache.  This leaves the page-faulting process with a
->>>     detached page.  If it was MAP_SHARED then file data loss will ensue.
->>>
->>>     Fix that up by checking the page's refcount after taking tree_lock.
->>>
->>>     Cc: Nick Piggin <nickpiggin@yahoo.com.au>
->>>     Cc: Hugh Dickins <hugh@veritas.com>
->>>     Cc: <stable@kernel.org>
->>>     Signed-off-by: Andrew Morton <akpm@osdl.org>
->>>     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
->> Instrumenting get_page and put_page has shown that the page reclaim 
->> logic is temporarily bumping the page count on otherwise active but idle 
->> pages, racing with the new page_count check in invalidate_complete_page 
->> and preventing pages from being invalidated.
->>
->> One problem for the NFS client is that invalidate_inode_pages2 is being 
->> used to invalidate the pages associated with a cached directory.  If the 
->> directory pages can't be invalidated because of this race, the contents 
->> of the directory pages don't match the dentry cache, and all kinds of 
->> strange behavior results.
-> 
-> NFS is presently ignoring the return value from invalidate_inode_pages2(),
-> in two places.  Could I suggest you fix that?  Then we'd at least not be
-> seeing "strange behaviour" and things will be easier to diagnose next time.
-> 
->> I haven't checked the data invalidation behavior for regular files, but 
->> the result will be file data corruption that comes and goes.
->>
->> Would it be acceptable to revert that page_count(page) != 2 check in 
->> invalidate_complete_page ?
-> 
-> Unfortunately not - that patch fixes cramfs failures and potential file
-> corruption.
-> 
-> The way to keep memory reclaim away from that page is to take
-> zone->lru_lock, but that's quite impractical for several reasons.
-> 
-> We could retry the invalidation a few times, but that stinks.
-> 
-> I think invalidate_inode_pages2() is sufficiently different from (ie:
-> stronger than) invalidate_inode_pages() to justify the addition of a new
-> invalidate_complete_page2(), which skips the page refcount check.
+>
+>Awesome code ;-)
+>
+
+Thanks :) Well, thank Hugh.
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
