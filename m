@@ -1,5 +1,5 @@
-Message-ID: <4518589E.1070705@oracle.com>
-Date: Mon, 25 Sep 2006 18:30:54 -0400
+Message-ID: <45185AF3.7030606@oracle.com>
+Date: Mon, 25 Sep 2006 18:40:51 -0400
 From: Chuck Lever <chuck.lever@oracle.com>
 Reply-To: chuck.lever@oracle.com
 MIME-Version: 1.0
@@ -13,6 +13,13 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+Woops.
+
+I got them backwards.
+
+invalidate_inode_pages2 appears to wait for locked pages, while 
+invalidate_inode_pages skips them.
 
 Andrew Morton wrote:
 > (Added linux-mm)
@@ -58,27 +65,16 @@ Andrew Morton wrote:
 > NFS is presently ignoring the return value from invalidate_inode_pages2(),
 > in two places.  Could I suggest you fix that?  Then we'd at least not be
 > seeing "strange behaviour" and things will be easier to diagnose next time.
-
-Yes, it certainly should check the return code there for directories and 
-symlinks.  For files, it is expected that some pages could be left valid 
-if they are still being used for other I/O operations.
-
-Another place that's missing a return code check is 
-invalidate_inode_pages2_range call in nfs_readdir_filler.
-
+> 
+>> I haven't checked the data invalidation behavior for regular files, but 
+>> the result will be file data corruption that comes and goes.
+>>
 >> Would it be acceptable to revert that page_count(page) != 2 check in 
 >> invalidate_complete_page ?
 > 
 > Unfortunately not - that patch fixes cramfs failures and potential file
 > corruption.
-
-It seems that the NFS client could now safely use a page cache 
-invalidator that would wait for other page users to ensure that every 
-page is invalidated properly, instead of skipping the pages that can't 
-be immediately invalidated.
-
-In my opinion that would be the correct fix here for NFS.
-
+> 
 > The way to keep memory reclaim away from that page is to take
 > zone->lru_lock, but that's quite impractical for several reasons.
 > 
