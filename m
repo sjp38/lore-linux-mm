@@ -1,64 +1,57 @@
-Message-ID: <45186481.1090306@yahoo.com.au>
-Date: Tue, 26 Sep 2006 09:21:37 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 25 Sep 2006 16:37:23 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: virtual mmap basics
+In-Reply-To: <45185698.5080009@shadowen.org>
+Message-ID: <Pine.LNX.4.64.0609251631060.25028@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
+ <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0609250958370.23475@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0609251401260.24262@schroedinger.engr.sgi.com>
+ <45185698.5080009@shadowen.org>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au> <451862C5.1010900@oracle.com>
-In-Reply-To: <451862C5.1010900@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: chuck.lever@oracle.com
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Chuck Lever wrote:
+On Mon, 25 Sep 2006, Andy Whitcroft wrote:
 
-> Nick Piggin wrote:
->
->> Andrew Morton wrote:
->> Also, you can't guarantee anything much about its refcount even then
->> (because it could be on a private reclaim list or pagevec somewhere).
->>
->>> We could retry the invalidation a few times, but that stinks.
->>>
->>> I think invalidate_inode_pages2() is sufficiently different from (ie:
->>> stronger than) invalidate_inode_pages() to justify the addition of a 
->>> new
->>> invalidate_complete_page2(), which skips the page refcount check.
->>>
->>
->> Yes, I think that would be possible using the lock_page in do_no_page 
->> trick.
->> That would also enable you to invalidate pages that have direct IO going
->> into them, and other weird and wonderful get_user_pages happenings.
->>
->> I haven't thrown away those patches, and I am looking for a 
->> justification
->> for them because they make the code look nicer ;)
->>
->> For 2.6.18.stable, Andrew's idea of checking the return value and retry
->> might be the only option.
->
->
-> I think allowing callers of invalidate_inode_pages2() to get the 
-> previous behavior is reasonable here.  There are only 2 of them: v9fs 
-> and the NFS client.
+> > Using a virtual memmap there would allow relocation of the memmap array 
+> > into high memory and would double the available low memory. So may be 
+> > worth even on this 32 bit platform to sacrifice 1/8th of the virtual 
+> > address space for memmap.
+> 
+> How does moving to a virtual memmap help here.  The virtual mem_map also
+> has to be allocated in KVA, any KVA used for it is not available to and
+> thereby shrinks the size of zone NORMAL?  The size of NORMAL in x86 is
+> defined by the addressable space in kernel mode (by KVA size), 1GB less
+> other things we have mapped.  Virtual map would be one of those.
 
+Hmmm... Strange architecture and I may be a bit ignorant on this one. You 
+could reserve the 1G for kernel 1-1 mapped. 2nd G for VMALLOC / virtual 
+memmap and the remaining 2G for user space? Probably wont work since you 
+would have to decrease user space from 3G to 2G?
 
+Having the virtual memmap in high memory also allows you to place the 
+sections of the memmap that map files of that node into the memory of the 
+node itself. This alone would get you a nice performance boost.
 
-That still reintroduces the page fault race, but if the dumb 
-check'n'retry is
-no good then it may be OK for 2.6.18.stable, considering the page fault race
-is much less common than the reclaim one. Not sure, not my call.
+> > So far I am not seeing any convincing case for the current sparsemem table 
+> > lookups. But there must have been some reason that such an implementation 
+> > was chosen. What was it?
+> 
+> As I said the problem is not memory but KVA space.  Zone normal is all
+> the pages we can map into the kernel address space, its 1Gb less the
+> kernel itself, less vmap space.  In the current NUMA scheme its then
+> less the mem_map allocated out of HIGHMEM but mapped into KVA.  In
+> vmem_map its allocated out of HIGHMEM but mapped into KVA.  The loss is
+> the same.
 
-Upstream, it should be fixed properly without re-introducing bugs along the
-way.
+Yup the only way around would be to decrease user space sizes.
 
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+But then we are talking about a rare breed of NUMA machine, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
