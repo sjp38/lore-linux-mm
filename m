@@ -1,34 +1,19 @@
-Date: Sun, 24 Sep 2006 17:31:50 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: One idea to free up page flags on NUMA
-In-Reply-To: <200609240924.42382.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0609241730470.19511@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
- <200609232043.10434.ak@suse.de> <Pine.LNX.4.64.0609231845380.16383@schroedinger.engr.sgi.com>
- <200609240924.42382.ak@suse.de>
+Message-ID: <65197321957975.429345589A@JXESS>
+From: "Jarred" <degumdisturb@rotulostotem.com>
+Subject: Take pleasure from Concerned with your size and hardness? Study this, here's the answer!
+Date: Mon, 25 Sep 2006 10:23:25 +0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: linux-mm@kvack.org, haveblue@us.ibm.com
+Content-Type: text/plain;
+        charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
+Return-Path: <balkandelude@rr0dbillssound.com.mp>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Sep 2006, Andi Kleen wrote:
-
-> > Hmmm... It only maps the kernel text segment?
-> Only lowmem (normally upto ~900MB)
-> 
-> But virtual memory is very scarce so I don't know where a new map for mem_map
-> would come from. Ok you could try to move the physical location of mem_map to 
-> somewhere not in lowmem I suppose.
-
-Right could be in highmem and thus would free up around 20 Megabytes of 
-low memory.
+Just published
+ Now you don't need a huge car or expensive watch to prove that you are not at all size-challenged. Up to 3-4 inches of extra length and more pleasure in bed in just a few days!
+ Give her a chance to climax from penetration - increase your tool once and for all! Get ready to hear girls spreading gossip behind your back about your new size. See our shop: http://klundkate.com/gall/ms/ 
+Let's face it, you always wanted it. And with this product you can finally get what you want - better size and its better usage!
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ Let her be as the loving hind and pleasant roe; let her breasts satisfy thee at all times; and be thou ravished always with her love. When water throw away ah ground yuh can't pick am up. Beware of Greeks bearing gifts  Yuh can't suck cane and blow whistle. It will all come out in the wash
