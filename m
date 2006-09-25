@@ -1,36 +1,34 @@
-From: Andi Kleen <ak@suse.de>
+Date: Sun, 24 Sep 2006 20:46:37 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: One idea to free up page flags on NUMA
-Date: Mon, 25 Sep 2006 05:04:58 +0200
-References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com> <200609240924.42382.ak@suse.de> <Pine.LNX.4.64.0609241730470.19511@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0609241730470.19511@schroedinger.engr.sgi.com>
+In-Reply-To: <200609250504.58427.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0609242041210.19943@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609221936520.13362@schroedinger.engr.sgi.com>
+ <200609240924.42382.ak@suse.de> <Pine.LNX.4.64.0609241730470.19511@schroedinger.engr.sgi.com>
+ <200609250504.58427.ak@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200609250504.58427.ak@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andi Kleen <ak@suse.de>
 Cc: linux-mm@kvack.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Monday 25 September 2006 02:31, Christoph Lameter wrote:
-> On Sun, 24 Sep 2006, Andi Kleen wrote:
-> 
-> > > Hmmm... It only maps the kernel text segment?
-> > Only lowmem (normally upto ~900MB)
-> > 
-> > But virtual memory is very scarce so I don't know where a new map for mem_map
-> > would come from. Ok you could try to move the physical location of mem_map to 
-> > somewhere not in lowmem I suppose.
-> 
-> Right could be in highmem and thus would free up around 20 Megabytes of 
-> low memory.
+On Mon, 25 Sep 2006, Andi Kleen wrote:
 
-But won't the vmemmap need more than the 20MB?
+> > Right could be in highmem and thus would free up around 20 Megabytes of 
+> > low memory.
+> But won't the vmemmap need more than the 20MB?
 
--Andi
+It will need the same as the regular mmap + one / two page table pages 
+pointing to the huge pages of the virtual memmap. So if one goes from 
+regular mmap to virtual mmap one pays with a few page table pages and the 
+need for additional TLBs for lookup. But one can remove the memmap 
+entirely from the low memory area.
+
+If we upgrade sparse to be able to use vmemmap then we trade the 
+existing sparse structures against the few page table pages plus the 
+TLB overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
