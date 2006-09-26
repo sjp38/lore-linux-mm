@@ -1,77 +1,74 @@
-Date: Tue, 26 Sep 2006 19:10:41 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC/PATCH mmap2: better determine overflow
-In-Reply-To: <20060926103504.82bd9409.rdunlap@xenotime.net>
-Message-ID: <Pine.LNX.4.64.0609261902150.1641@blonde.wat.veritas.com>
-References: <20060926103504.82bd9409.rdunlap@xenotime.net>
+Date: Tue, 26 Sep 2006 11:17:18 -0700 (PDT)
+From: David Rientjes <rientjes@cs.washington.edu>
+Subject: Re: [RFC] another way to speed up fake numa node page_alloc
+In-Reply-To: <20060926000612.9db145a9.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64N.0609261049260.11233@attu4.cs.washington.edu>
+References: <20060925091452.14277.9236.sendpatchset@v0>
+ <Pine.LNX.4.64N.0609252214590.14826@attu4.cs.washington.edu>
+ <20060926000612.9db145a9.pj@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: linux-mm@kvack.org, akpm <akpm@osdl.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2006, Randy Dunlap wrote:
-> From: Randy Dunlap <rdunlap@xenotime.net>
-> 
-> mm/mmap.c::do_mmap_pgoff() checks for overflow like:
-> 
-> 	/* offset overflow? */
-> 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
->                return -EOVERFLOW;
-> 
-> However, using pgoff (page indexes) to determine address range
-> overflow doesn't overflow.  Change to use byte offsets instead,
-> so that overflow can actually happen and be noticed.
+On Tue, 26 Sep 2006, Paul Jackson wrote:
 
-I think you're mistaken there.  Thinking in particular of 32-bit
-arches, isn't the check precisely about allowing an mmap at a high
-offset of a file >4GB in length; but not at so high an offset that
-pgoff (page index) wraps back to 0?  Whereas you're changing it
-now to fail at 4GB.
+> The goal is not to preserve a 1*HZ delay.  I just pulled that delay out
+> of some unspeakable place.
+> 
+> Roughly I wanted to throttle the rate of wasteful scans of already full
+> zones to some rate that was infrequent enough to solve our performance
+> problem, while still fast enough that no one would ever seriously
+> notice the subtle transient changes in memory placement behaviour.
+> 
 
-> Also return EOVERFLOW instead of ENOMEM when PAGE_ALIGN(len)
-> is 0.
+Absolutely, I'm sure we'll see a performance enhancement with the 
+get_page_from_freelist speedup even though I cannot run benchmarks myself.
+Since one second was chosen as the time interval between zaps, however, 
+that will not always be the case if there's mangling and one CPU on the 
+node will be zapping it prematurely when the system is being stressed for 
+page allocation.  This happens to be the case where the smaller time 
+interval would be the most unfortunate.  Obviously a second is a long time 
+to constantly be allocating more and more pages, so I guess what bothers 
+me is that we're zapping information that we have no reason to not believe 
+is still accurate.
 
-Which standard mandates that change?
+> Eh ... why not?  Sure, it's dirt simple.  But in this case, fancier
+> control of this interval seems like it risks spending more effort than
+> it would save, with almost no discernable advantage to the user.
+> 
 
-Hugh
+Because when we're stressing the system for more and more memory for a 
+particular task regardless of whether it's starting or not, we're 
+constantly allocating pages and zapping the nodemask about every second 
+even though the status of each node could not have changed.  Those hints 
+should not be zapped and rather preserved because we have not freed any 
+pages over the same time interval and not because an arbitrary clock tick 
+came around.
 
+When we free memory from a specific zone, why is it not better to use 
+zone_to_nid and then zap that _node_ in the nodemask only because we are 
+guaranteed that the status has changed?
+
+> > I would really like to 
+> > run benchmarks on this implementation as I have done for the others but I 
+> > no longer have access to a 64-bit machine. 
 > 
-> Tested on i686 and x86_64.
+> Odd ...  Do you expect that situation to be remedied anytime soon?
 > 
-> Test program is at:  http://www.xenotime.net/linux/src/mmap-test.c
+> I'd like to see the results of your rerunning your benchmark.
 > 
-> Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
-> ---
->  mm/mmap.c |    9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
-> 
-> --- linux-2618-work.orig/mm/mmap.c
-> +++ linux-2618-work/mm/mmap.c
-> @@ -923,13 +923,16 @@ unsigned long do_mmap_pgoff(struct file 
->  
->  	/* Careful about overflows.. */
->  	len = PAGE_ALIGN(len);
-> -	if (!len || len > TASK_SIZE)
-> -		return -ENOMEM;
-> +	if (!len)
-> +		return -EOVERFLOW;
->  
->  	/* offset overflow? */
-> -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-> +	if (((pgoff << PAGE_SHIFT) + len) < (pgoff << PAGE_SHIFT))
->                 return -EOVERFLOW;
->  
-> +	if (len > TASK_SIZE)
-> +		return -ENOMEM;
-> +
->  	/* Too many mappings? */
->  	if (mm->map_count > sysctl_max_map_count)
->  		return -ENOMEM;
-> 
-> ---
+
+I no longer have access to a 64-bit machine or my benchmarking script so 
+unless they have relaxed the kernel hacking policies for undergrads back 
+at my school, I doubt I can contribute in performing benchmarks.  Four 
+people on the Cc list to this email, however, still have access to my 
+script.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
