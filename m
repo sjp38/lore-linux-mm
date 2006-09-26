@@ -1,79 +1,82 @@
-Message-ID: <451870C6.6050008@yahoo.com.au>
-Date: Tue, 26 Sep 2006 10:13:58 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 25 Sep 2006 17:31:49 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: virtual memmap sparsity: Dealing with fragmented MAX_ORDER blocks
+In-Reply-To: <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609251721140.25322@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
+ <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
+ <45181B4F.6060602@shadowen.org> <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au> <451862C5.1010900@oracle.com> <45186481.1090306@yahoo.com.au> <45186DC3.7000902@oracle.com>
-In-Reply-To: <45186DC3.7000902@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: chuck.lever@oracle.com
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chuck Lever wrote:
+On Mon, 25 Sep 2006, Christoph Lameter wrote:
 
-> Nick Piggin wrote:
->
->> That still reintroduces the page fault race, but if the dumb 
->> check'n'retry is
->> no good then it may be OK for 2.6.18.stable, considering the page 
->> fault race
->> is much less common than the reclaim one. Not sure, not my call.
->
->
-> The NFS client uses invalidate_inode_pages2 for files, symlinks, and 
-> directories.  The latter two won't have the do_no_page race since you 
-> can't map those types of file objects.
+>    Looking through the i386 commands I see a VERR mnemonic that
+>    I guess will do what you need on i386 and x86_64 in order to do
+>    what we need without a page table walk.
+
+I think I guessed wrong VERR does something with segments???
+
+We could sidestep the issue by not marking the huge page 
+non present but pointing it to a pte page with all pointers to the 
+zero page.
+
+All page flags will be cleared of the page structs in the zero page and 
+thus we cannot reference an invalid address. Therefore:
+
+static inline int page_is_buddy(struct page *page, struct page *buddy,
+                                                                int order)
+{
+#ifdef CONFIG_HOLES_IN_ZONE
+        if (!pfn_valid(page_to_pfn(buddy)))
+                return 0;
+#endif
+
+        if (page_zone_id(page) != page_zone_id(buddy))
+                return 0;
+
+        if (PageBuddy(buddy) && page_order(buddy) == order) {
+                BUG_ON(page_count(buddy) != 0);
+                return 1;
+        }
+        return 0;
+}
+
+can become
+
+static inline int page_is_buddy(struct page *page, struct page *buddy,
+                                                                int order)
+{
+        if (page_zone_id(page) != page_zone_id(buddy))
+                return 0;
+
+        if (PageBuddy(buddy) && page_order(buddy) == order) {
+                BUG_ON(page_count(buddy) != 0);
+                return 1;
+        }
+        return 0;
+}
+
+for all cases.
+
+Also note that page_zone_id(page) no longer needs to be using a lookup of
+page->flags. We just need to insure that both pages are in the same 
+MAX_ORDER group. For that to be true the upper portion of the addresses
+must match.
+
+int page_zone_id(struct page *page)
+{
+	return pfn_page >> MAX_ORDER;
+}
 
 
-But they're present on the LRU? That's unusual (I guess NFS doesn't have 
-a buffer cache for a backing
-block device).
 
-> For NFS files, the do_no_page race does exist (at least theoretically 
-> -- I've never seen a report of such a problem).  Most people are not 
-> brave enough to use shared mapped files on NFS... so that race may be 
-> very rare indeed.
-
-
-I think the race is rare, but we have had at least one customer see it. 
-The problem with mainline kernel
-is that there will be no indication from the kernel, and it will be hard 
-enough to reproduce that it will
-probably be considered as a hardware bug or a userspace bug if someone 
-hits it.
-
->> Upstream, it should be fixed properly without re-introducing bugs 
->> along the
->> way.
->
->
-> Of course... thanks for sending the history.
->
-> I'm wondering aloud here, because I'm a VM neophyte.  I'm not sure how 
-> common the reclaim race is in real environments.  For instance, the 
-> test I'm running is pretty simple, and I run it just after the client 
-> has rebooted.  Why is try_to_free_pages being called here?  If I knew 
-> that I could probably make a better guess about how common this race is.
-
-
-It will be called because you're low on memory somewhere. Reclaim is 
-common (usually to free up old pagecache).
-
->
-> Also, the last get_page() call is from pagevec_strip().  Why do we 
-> need to try to strip buffers off of a page that is guaranteed not to 
-> have any buffers?
-
-
-I don't see where pagevec_strip calls get_page()?
-
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
