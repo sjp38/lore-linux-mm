@@ -1,62 +1,69 @@
-Received: from  ([::ffff:212.65.3.74] HELO siso-eb-i34d.silicon-software.de) (auth=eike-kernel@sf-tec.de)
-	by mail.sf-mail.de (Qsmtpd 0.9) with (DHE-RSA-AES256-SHA encrypted) ESMTPSA
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2006 11:43:11 +0200
-From: Rolf Eike Beer <eike-kernel@sf-tec.de>
-Subject: [PATCH] Mark __remove_vm_area() static
-Date: Tue, 26 Sep 2006 11:43:50 +0200
+Message-ID: <451917C4.1050603@shadowen.org>
+Date: Tue, 26 Sep 2006 13:06:28 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
+Subject: Re: virtual mmap basics
+References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com> <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0609250958370.23475@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0609251401260.24262@schroedinger.engr.sgi.com> <45185698.5080009@shadowen.org> <Pine.LNX.4.64.0609251631060.25028@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0609251631060.25028@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200609261143.51105.eike-kernel@sf-tec.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-The function is exported but not used from anywhere else. It's also marked as
-"not for driver use" so noone out there should really care.
+Christoph Lameter wrote:
+> On Mon, 25 Sep 2006, Andy Whitcroft wrote:
+> 
+>>> Using a virtual memmap there would allow relocation of the memmap array 
+>>> into high memory and would double the available low memory. So may be 
+>>> worth even on this 32 bit platform to sacrifice 1/8th of the virtual 
+>>> address space for memmap.
+>> How does moving to a virtual memmap help here.  The virtual mem_map also
+>> has to be allocated in KVA, any KVA used for it is not available to and
+>> thereby shrinks the size of zone NORMAL?  The size of NORMAL in x86 is
+>> defined by the addressable space in kernel mode (by KVA size), 1GB less
+>> other things we have mapped.  Virtual map would be one of those.
+> 
+> Hmmm... Strange architecture and I may be a bit ignorant on this one. You 
+> could reserve the 1G for kernel 1-1 mapped. 2nd G for VMALLOC / virtual 
+> memmap and the remaining 2G for user space? Probably wont work since you 
+> would have to decrease user space from 3G to 2G?
 
-Signed-off-by: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Not strange?  Limited.  Any 32bit architecture has this limitation.
+They can only map a limited amount of memory into the kernel at the same
+time.
 
----
-commit 1d88bdc56807cccf598d8b92fb98ddf03f3a42db
-tree 72c6525b019b9102c14778141ed1f236d7ebe331
-parent 8322f0cb8a117fe42e993d48f5ae0fbc006f8ef0
-author Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 26 Sep 2006 11:41:42 +0200
-committer Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 26 Sep 2006 11:41:42 +0200
+Yes some users already change their U/K split on 32bit do do this, but
+as you say its not a general solution here.
 
- include/linux/vmalloc.h |    1 -
- mm/vmalloc.c            |    2 +-
- 2 files changed, 1 insertions(+), 2 deletions(-)
+> Having the virtual memmap in high memory also allows you to place the 
+> sections of the memmap that map files of that node into the memory of the 
+> node itself. This alone would get you a nice performance boost.
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 71b6363..dc6f55e 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -64,7 +64,6 @@ extern struct vm_struct *__get_vm_area(u
- extern struct vm_struct *get_vm_area_node(unsigned long size,
- 					unsigned long flags, int node);
- extern struct vm_struct *remove_vm_area(void *addr);
--extern struct vm_struct *__remove_vm_area(void *addr);
- extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
- 			struct page ***pages);
- extern void unmap_vm_area(struct vm_struct *area);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 3ac7c03..44fb4ca 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -269,7 +269,7 @@ static struct vm_struct *__find_vm_area(
- }
- 
- /* Caller must hold vmlist_lock */
--struct vm_struct *__remove_vm_area(void *addr)
-+static struct vm_struct *__remove_vm_area(void *addr)
- {
- 	struct vm_struct **p, *tmp;
- 
+We already do this.  We don't allocate mem_map out of zone normal, we
+pull it from the end of each node.  This is then mapped after the end of
+zone normal and before vmap space.  mem_map is physically node local,
+but mapped into KVA.
+
+>>> So far I am not seeing any convincing case for the current sparsemem table 
+>>> lookups. But there must have been some reason that such an implementation 
+>>> was chosen. What was it?
+>> As I said the problem is not memory but KVA space.  Zone normal is all
+>> the pages we can map into the kernel address space, its 1Gb less the
+>> kernel itself, less vmap space.  In the current NUMA scheme its then
+>> less the mem_map allocated out of HIGHMEM but mapped into KVA.  In
+>> vmem_map its allocated out of HIGHMEM but mapped into KVA.  The loss is
+>> the same.
+> 
+> Yup the only way around would be to decrease user space sizes.
+> 
+> But then we are talking about a rare breed of NUMA machine, right?
+
+We are talking about any 32bit NUMA.  Getting rarer yes.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
