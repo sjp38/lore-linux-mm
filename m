@@ -1,64 +1,70 @@
-Message-ID: <4518835D.3080702@oracle.com>
-Date: Mon, 25 Sep 2006 21:33:17 -0400
-From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
-MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au> <451862C5.1010900@oracle.com> <45186481.1090306@yahoo.com.au> <45186DC3.7000902@oracle.com> <451870C6.6050008@yahoo.com.au>
-In-Reply-To: <451870C6.6050008@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Mon, 25 Sep 2006 18:42:13 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Make invalidate_inode_pages2() work again
+Message-Id: <20060925184213.11c7387c.akpm@osdl.org>
+In-Reply-To: <1159233613.5442.61.camel@lade.trondhjem.org>
+References: <20060925231557.32226.66866.stgit@ingres.dsl.sfldmi.ameritech.net>
+	<45186D4A.70009@yahoo.com.au>
+	<1159233613.5442.61.camel@lade.trondhjem.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Chuck Lever <chucklever@gmail.com>, linux-mm@kvack.org, steved@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Chuck Lever wrote:
->> Nick Piggin wrote:
->>> That still reintroduces the page fault race, but if the dumb 
->>> check'n'retry is
->>> no good then it may be OK for 2.6.18.stable, considering the page 
->>> fault race
->>> is much less common than the reclaim one. Not sure, not my call.
->>
->>
->> The NFS client uses invalidate_inode_pages2 for files, symlinks, and 
->> directories.  The latter two won't have the do_no_page race since you 
->> can't map those types of file objects.
+On Mon, 25 Sep 2006 21:20:13 -0400
+Trond Myklebust <Trond.Myklebust@netapp.com> wrote:
+
+> On Tue, 2006-09-26 at 09:59 +1000, Nick Piggin wrote:
+> > Chuck Lever wrote:
+> > 
+> > >A recent change to fix a problem with invalidate_inode_pages() has weakened
+> > >the behavior of invalidate_inode_pages2() inadvertently.  Add a flag to
+> > >tell the helper routines when stronger invalidation semantics are desired.
+> > >
+> > 
+> > Question: if invalidate_inode_pages2 cares about not invalidating dirty
+> > pages, how can one avoid the page_count check and it still be correct
+> > (ie. not randomly lose dirty bits in some situations)?
 > 
-> 
-> But they're present on the LRU? That's unusual (I guess NFS doesn't have 
-> a buffer cache for a backing
-> block device).
+> Tests of page_count _suck_ 'cos they are 100% non-specific. Is there no
+> way to set a page flag or something to indicate that the page may have
+> been remapped while we were sleeping?
 
-That is correct -- NFS doesn't use the buffer cache.
+Its a question of "what are these functions supposed to do"?
 
->> Also, the last get_page() call is from pagevec_strip().  Why do we 
->> need to try to strip buffers off of a page that is guaranteed not to 
->> have any buffers?
-> 
-> 
-> I don't see where pagevec_strip calls get_page()?
+I'd suggest:
 
-Ah, you're right, I was off by one symbol.  The get_page call is in 
-pagevec_lookup() (via find_get_pages).  That could mean there isn't a 
-reclaim race at all.
+invalidate_inode_pages() -> best-effort, remove-it-if-it-isn't-busy
 
-The page references I'm noting are:
+truncate_inode_pages() -> guaranteed, data-destroying takedown.
 
-1.  add_to_page_cache_lru  1 -> 2
+invalidate_inode_pages2() -> Somewhere in between.  Any takers?
 
-2.  do_generic_mapping_read, released in nfs_do_filldir
+I'd suggest "guaranteed, non-data-destroying takedown".  Maybe.  So it
+doesn't remove dirty pages, but it does remove otherwise-busy pages.
 
-3.  read_cache_page, released in nfs_readdir
+As definitions go, that really sucks.
 
-4.  pagevec_lookup (from invalidate_inode_pages2_range)  2 -> 3
+I think testing page_count() makes sense for invalidate_inode_pages(),
+because that page is clearly in use by someone for something and we
+shouldn't go and whip it out of pagecache under that someone's feet.  It
+is, after all, "pinned".
 
-The odd thing is some of the pages for the directory are released, so 
-they must have a ref count of 2 *after* the pagevec_lookup.  Looks like 
-more investigation is needed.
+For invalidate_inode_pages2(), proper behaviour would be to block until
+whoever is busying that page stops being busy on it.
+
+I perhaps we could do a wake_up(page_waitqueue(page)) in vmscan when it
+drops the ref on a page.  But that would mean that
+invalidate_inode_pages2() would get permanently stuck on a
+permanently-pinned page.
+
+It's a bit of a pickle.  Perhaps we just add the
+invalidate_complete_page2().  That re-adds the direct-io race, which is
+fixable by locking the page in the pagefault handler.  argh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
