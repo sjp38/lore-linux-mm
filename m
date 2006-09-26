@@ -1,81 +1,67 @@
-Date: Tue, 26 Sep 2006 21:44:09 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC/PATCH mmap2: better determine overflow
-In-Reply-To: <20060926120834.df719e85.rdunlap@xenotime.net>
-Message-ID: <Pine.LNX.4.64.0609262124270.7644@blonde.wat.veritas.com>
-References: <20060926103504.82bd9409.rdunlap@xenotime.net>
- <Pine.LNX.4.64.0609261902150.1641@blonde.wat.veritas.com>
- <20060926120834.df719e85.rdunlap@xenotime.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 26 Sep 2006 14:48:12 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] another way to speed up fake numa node page_alloc
+Message-Id: <20060926144812.3ebbd7e6.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64N.0609261242170.22108@attu2.cs.washington.edu>
+References: <20060925091452.14277.9236.sendpatchset@v0>
+	<Pine.LNX.4.64N.0609252214590.14826@attu4.cs.washington.edu>
+	<20060926000612.9db145a9.pj@sgi.com>
+	<Pine.LNX.4.64N.0609261049260.11233@attu4.cs.washington.edu>
+	<20060926122445.717c7c11.pj@sgi.com>
+	<Pine.LNX.4.64N.0609261242170.22108@attu2.cs.washington.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: linux-mm@kvack.org, akpm <akpm@osdl.org>
+To: David Rientjes <rientjes@cs.washington.edu>
+Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2006, Randy Dunlap wrote:
-> 
-> It was an interpretation.  Perhaps a mis-interpretation.
-> This comes after:
-> 
-> 	if (!len)
-> 		return -EINVAL;
-> ...then
-> 
->  	len = PAGE_ALIGN(len);
-> b:
-> -	if (!len || len > TASK_SIZE)
-> -		return -ENOMEM;
-> +	if (!len)
-> +		return -EOVERFLOW;
-> 
-> so if len is 0 at b:, then it was a very large unsigned long number
-> (larger than 0 - PAGE_SIZE, i.e., >= 0xfffff001 on 32-bit or
-> >= 0xffffffff_fffff001 on 64-bit), and PAGE_ALIGN() rounded it "up"
-> to 0.  That seems more like an overflow than a NOMEM to me.
-> That's all.
+> Why is it arbitrary, though?
 
-I agree that len 0 at that point arises from an extremely big len
-specified by the user: it's just another case of len > TASK_SIZE
-that the preceding PAGE_ALIGN has now disguised as len 0.  And
-the errno for "there is insufficient room in the address space
-to effect the mapping" is said to be ENOMEM.  That should stay.
+I was just trying to throttle the rate of futile zonelist scans.
 
-> 
-> So, I'm interested in the EOVERFLOW case(s).
-> Would you attempt to translate this return value case for me?
-> (from http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html:)
-> 
-> [EOVERFLOW]
->     The file is a regular file and the value of off plus len exceeds the offset maximum established in the open file description associated with fildes.
-> 
-> I'm not concerned about the "off plus len" since I am looking at
-> mmap2() [using pgoff's instead].  I'm more concerned about the
-> "offset maximum established in the open file description associated
-> with fildes."
+In my implementation, the choice of 1*HZ for the zap time is obviously
+an arbitrarily chosen time, within some acceptable range - right?
 
-I suspect it means that on a 32-bit system, if the file was not opened
-with O_LARGEFILE, off-plus-len needs to stay within 2GB.  Whereas on a
-64-bit system, or when opened with O_LARGEFILE, off-plus-len needs to
-stay within the max the filesystem and VFS can support.  We're enforcing
-the latter, without regard to whether or not it was opened with
-O_LARGEFILE.  Change that?  I doubt it's worth the possibility
-of now breaking userspace.
+If you are asking why I didn't pick the non-arbitrary variant
+implementation you suggested, wherein we clear individual node bits in
+the nodemask of full nodes, anytime we free memory on that node, then I
+did not do this because it was more code, and because it required a
+lock to safely clear the bit, and because I had no particular reason to
+think it would provide measurable improvement anyway.
 
-> 
-> Does mmap2() on Linux use the actual filesize as a limit for the
-> mmap() area [not that I can see]
+I am quite happy coding stupid, simple, short and racey code, if it
+looks to me like it will perform just as well, and be just as robust,
+if not more so, than the more exact, longer, lock protected code.
 
-That's right, it does not (and would be wrong to do so:
-the file can be extended or truncated while it's mapped).
+> If that's the case, then the entire speed-up is broken. 
 
-> or does it just use (effectively)
-> ULONG_MAX, without regard file actual filesize?
+Are we looking at the same patch ;)?  My patch enables us to only have
+to look closely at each full node once per second, instead of once per
+page allocation.  That's the speedup.  That and the more rapid
+application of the cpuset constraint in most cases.  The unallowed and
+recently full nodes are skipped over on the first scan at the per-zone
+cost of loading just a single unsigned short, from a compact array, plus
+modest constant overhead per __alloc_pages call.
 
-I'd say that limit is TASK_SIZE rather than ULONG_MAX.
+(My unit of cost here is 'cache line misses'.)
 
-Hugh
+> And since the node bit is only turned 
+> on when it has been passed by and deemed too full to allocate on, I don't 
+> see where the race exists.
+
+If two cpus on the same node each go to clear a (different) bit in the
+nodemask at the same time, you could have each cpu load the mask, each
+cpu compute a new mask, with its bit cleared, and each cpu store the
+mask, all in that order.  Notice that the second cpu to store just
+clobbered the bit clear done by the first cpu.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
