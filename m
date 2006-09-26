@@ -1,36 +1,66 @@
-Message-ID: <4518C7F1.3050809@yahoo.com.au>
-Date: Tue, 26 Sep 2006 16:25:53 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 26 Sep 2006 09:16:52 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: virtual memmap sparsity: Dealing with fragmented MAX_ORDER blocks
+In-Reply-To: <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0609260901160.15574@skynet.skynet.ie>
+References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
+ <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
+ <45181B4F.6060602@shadowen.org> <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au> <451862C5.1010900@oracle.com> <45186481.1090306@yahoo.com.au> <45186DC3.7000902@oracle.com> <451870C6.6050008@yahoo.com.au> <4518835D.3080702@oracle.com>
-In-Reply-To: <4518835D.3080702@oracle.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: chuck.lever@oracle.com
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chuck Lever wrote:
+On Mon, 25 Sep 2006, Christoph Lameter wrote:
 
-> Nick Piggin wrote:
+> Regarding buddy checks out of memmap:
 >
->> But they're present on the LRU? That's unusual (I guess NFS doesn't 
->> have a buffer cache for a backing
->> block device).
+> 1. This problem only occurs if we allow fragments of MAX_ORDER size
+>   segments. The default needs to be not to allow that. Then we do not
+>   need  any checks like right now on IA64. Why would one want smaller
+>   granularity than 2M/4M in hotplugging?
 >
+
+On a local IA64 machine, the MAX_ORDER block of pages is not 2M or 4M but 
+1GB. This is a base pagesize of 16K and a MAX_ORDER of 17. At best, 
+MAX_ORDER could be fixed to present 256MB but there would be wastage.
+
+> 2. If you must have these fragments then we need to check the validity
+>   of the buddy pointers before derefencing them to see if pages can
+>   be combined.
+
+i.e. pfn_valid()
+
+> If fragments are permitted then a
+>   special function needs to be called to check if the address we are
+>   accessing is legit. Preferably this would be done with an instruction
+>   that can use the MMU to verify if the address is valid
 >
-> That is correct -- NFS doesn't use the buffer cache.
+>   On IA64 this is done with the "probe" instruction
+>
 
+Why does IA64 not use this then? Currently, it uses __get_user() and 
+catches faults when they occur.
 
+>   Looking through the i386 commands I see a VERR mnemonic that
+>   I guess will do what you need on i386 and x86_64 in order to do
+>   what we need without a page table walk.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
-So that raises another question: how do they get to invalidate_inode_pages2
-if they are not part of the buffer or pagecache?
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
