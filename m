@@ -1,66 +1,62 @@
-Date: Tue, 26 Sep 2006 09:16:52 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: virtual memmap sparsity: Dealing with fragmented MAX_ORDER blocks
-In-Reply-To: <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0609260901160.15574@skynet.skynet.ie>
-References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
- <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
- <45181B4F.6060602@shadowen.org> <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
+Received: from  ([::ffff:212.65.3.74] HELO siso-eb-i34d.silicon-software.de) (auth=eike-kernel@sf-tec.de)
+	by mail.sf-mail.de (Qsmtpd 0.9) with (DHE-RSA-AES256-SHA encrypted) ESMTPSA
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2006 11:43:11 +0200
+From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Subject: [PATCH] Mark __remove_vm_area() static
+Date: Tue, 26 Sep 2006 11:43:50 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200609261143.51105.eike-kernel@sf-tec.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2006, Christoph Lameter wrote:
+The function is exported but not used from anywhere else. It's also marked as
+"not for driver use" so noone out there should really care.
 
-> Regarding buddy checks out of memmap:
->
-> 1. This problem only occurs if we allow fragments of MAX_ORDER size
->   segments. The default needs to be not to allow that. Then we do not
->   need  any checks like right now on IA64. Why would one want smaller
->   granularity than 2M/4M in hotplugging?
->
+Signed-off-by: Rolf Eike Beer <eike-kernel@sf-tec.de>
 
-On a local IA64 machine, the MAX_ORDER block of pages is not 2M or 4M but 
-1GB. This is a base pagesize of 16K and a MAX_ORDER of 17. At best, 
-MAX_ORDER could be fixed to present 256MB but there would be wastage.
+---
+commit 1d88bdc56807cccf598d8b92fb98ddf03f3a42db
+tree 72c6525b019b9102c14778141ed1f236d7ebe331
+parent 8322f0cb8a117fe42e993d48f5ae0fbc006f8ef0
+author Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 26 Sep 2006 11:41:42 +0200
+committer Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 26 Sep 2006 11:41:42 +0200
 
-> 2. If you must have these fragments then we need to check the validity
->   of the buddy pointers before derefencing them to see if pages can
->   be combined.
+ include/linux/vmalloc.h |    1 -
+ mm/vmalloc.c            |    2 +-
+ 2 files changed, 1 insertions(+), 2 deletions(-)
 
-i.e. pfn_valid()
-
-> If fragments are permitted then a
->   special function needs to be called to check if the address we are
->   accessing is legit. Preferably this would be done with an instruction
->   that can use the MMU to verify if the address is valid
->
->   On IA64 this is done with the "probe" instruction
->
-
-Why does IA64 not use this then? Currently, it uses __get_user() and 
-catches faults when they occur.
-
->   Looking through the i386 commands I see a VERR mnemonic that
->   I guess will do what you need on i386 and x86_64 in order to do
->   what we need without a page table walk.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 71b6363..dc6f55e 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -64,7 +64,6 @@ extern struct vm_struct *__get_vm_area(u
+ extern struct vm_struct *get_vm_area_node(unsigned long size,
+ 					unsigned long flags, int node);
+ extern struct vm_struct *remove_vm_area(void *addr);
+-extern struct vm_struct *__remove_vm_area(void *addr);
+ extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+ 			struct page ***pages);
+ extern void unmap_vm_area(struct vm_struct *area);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 3ac7c03..44fb4ca 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -269,7 +269,7 @@ static struct vm_struct *__find_vm_area(
+ }
+ 
+ /* Caller must hold vmlist_lock */
+-struct vm_struct *__remove_vm_area(void *addr)
++static struct vm_struct *__remove_vm_area(void *addr)
+ {
+ 	struct vm_struct **p, *tmp;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
