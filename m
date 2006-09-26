@@ -1,126 +1,64 @@
-Received: from midway.site ([71.117.233.155]) by xenotime.net for <linux-mm@kvack.org>; Tue, 26 Sep 2006 12:07:18 -0700
-Date: Tue, 26 Sep 2006 12:08:34 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [RFC/PATCH mmap2: better determine overflow
-Message-Id: <20060926120834.df719e85.rdunlap@xenotime.net>
-In-Reply-To: <Pine.LNX.4.64.0609261902150.1641@blonde.wat.veritas.com>
-References: <20060926103504.82bd9409.rdunlap@xenotime.net>
-	<Pine.LNX.4.64.0609261902150.1641@blonde.wat.veritas.com>
+Date: Tue, 26 Sep 2006 12:24:45 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] another way to speed up fake numa node page_alloc
+Message-Id: <20060926122445.717c7c11.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64N.0609261049260.11233@attu4.cs.washington.edu>
+References: <20060925091452.14277.9236.sendpatchset@v0>
+	<Pine.LNX.4.64N.0609252214590.14826@attu4.cs.washington.edu>
+	<20060926000612.9db145a9.pj@sgi.com>
+	<Pine.LNX.4.64N.0609261049260.11233@attu4.cs.washington.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, akpm <akpm@osdl.org>
+To: David Rientjes <rientjes@cs.washington.edu>
+Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2006 19:10:41 +0100 (BST) Hugh Dickins wrote:
+David wrote:
+> This happens to be the case where the smaller time 
+> interval would be the most unfortunate.
 
-> On Tue, 26 Sep 2006, Randy Dunlap wrote:
-> > From: Randy Dunlap <rdunlap@xenotime.net>
-> > 
-> > mm/mmap.c::do_mmap_pgoff() checks for overflow like:
-> > 
-> > 	/* offset overflow? */
-> > 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-> >                return -EOVERFLOW;
-> > 
-> > However, using pgoff (page indexes) to determine address range
-> > overflow doesn't overflow.  Change to use byte offsets instead,
-> > so that overflow can actually happen and be noticed.
-> 
-> I think you're mistaken there.  Thinking in particular of 32-bit
-> arches, isn't the check precisely about allowing an mmap at a high
-> offset of a file >4GB in length; but not at so high an offset that
-> pgoff (page index) wraps back to 0?  Whereas you're changing it
-> now to fail at 4GB.
+"most unfortunate" -- that phrase sounds overly dramatic to me.
 
-OK, I think I see.  I'll check/test/verify more.
+So what if the average time between zaps is 0.9 seconds instead of 1.0
+seconds?  More realistically, we are talking something like 0.99999
+versus 1.00000 seconds, given that writing a 64 bit word on a 32 bit
+arch offers only a tiny window for lost races.
 
-> > Also return EOVERFLOW instead of ENOMEM when PAGE_ALIGN(len)
-> > is 0.
-> 
-> Which standard mandates that change?
+Lost races that break things are unacceptable, even in tiny windows.
 
-It was an interpretation.  Perhaps a mis-interpretation.
-This comes after:
+But lost races that just slightly nudge an already arbitrary and not
+particularly fussy performance heuristic are not worth a single line
+of code to avoid.
 
-	if (!len)
-		return -EINVAL;
-...then
+> When we free memory from a specific zone, why is it not better to use 
+> zone_to_nid and then zap that _node_ in the nodemask only because we are 
+> guaranteed that the status has changed?
 
- 	len = PAGE_ALIGN(len);
-b:
--	if (!len || len > TASK_SIZE)
--		return -ENOMEM;
-+	if (!len)
-+		return -EOVERFLOW;
+It might be better.  And it might not.  More likely, it would be an
+immeasurable difference except on custom microbenchmarks designed to
+highlight this difference one way or the other.
 
-so if len is 0 at b:, then it was a very large unsigned long number
-(larger than 0 - PAGE_SIZE, i.e., >= 0xfffff001 on 32-bit or
->= 0xffffffff_fffff001 on 64-bit), and PAGE_ALIGN() rounded it "up"
-to 0.  That seems more like an overflow than a NOMEM to me.
-That's all.
+Less code is better, unless there is better reason than this for it.
 
+And unless I locked the bit clear, I'd still have to occassionally zap
+the entire nodemask.  Setting or clearing individual bits in a mask opens
+a bigger critical section to races.  Eventually, after loosing enough
+such races, that nodemask would be suitable for donating a little bit of
+entropy to the random number subsystem -- mush.
 
-So, I'm interested in the EOVERFLOW case(s).
-Would you attempt to translate this return value case for me?
-(from http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html:)
+> Four people on the Cc list to this email, however, still have access to
+> my script.
 
-[EOVERFLOW]
-    The file is a regular file and the value of off plus len exceeds the offset maximum established in the open file description associated with fildes.
+Perhaps you could ping them off-list, and see if they are in a position
+to participate.
 
-I'm not concerned about the "off plus len" since I am looking at
-mmap2() [using pgoff's instead].  I'm more concerned about the
-"offset maximum established in the open file description associated
-with fildes."
-
-Does mmap2() on Linux use the actual filesize as a limit for the
-mmap() area [not that I can see] or does it just use (effectively)
-ULONG_MAX, without regard file actual filesize?
-
-Thanks for looking/helping.
-
-> Hugh
-> 
-> > 
-> > Tested on i686 and x86_64.
-> > 
-> > Test program is at:  http://www.xenotime.net/linux/src/mmap-test.c
-> > 
-> > Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
-> > ---
-> >  mm/mmap.c |    9 ++++++---
-> >  1 file changed, 6 insertions(+), 3 deletions(-)
-> > 
-> > --- linux-2618-work.orig/mm/mmap.c
-> > +++ linux-2618-work/mm/mmap.c
-> > @@ -923,13 +923,16 @@ unsigned long do_mmap_pgoff(struct file 
-> >  
-> >  	/* Careful about overflows.. */
-> >  	len = PAGE_ALIGN(len);
-> > -	if (!len || len > TASK_SIZE)
-> > -		return -ENOMEM;
-> > +	if (!len)
-> > +		return -EOVERFLOW;
-> >  
-> >  	/* offset overflow? */
-> > -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-> > +	if (((pgoff << PAGE_SHIFT) + len) < (pgoff << PAGE_SHIFT))
-> >                 return -EOVERFLOW;
-> >  
-> > +	if (len > TASK_SIZE)
-> > +		return -ENOMEM;
-> > +
-> >  	/* Too many mappings? */
-> >  	if (mm->map_count > sysctl_max_map_count)
-> >  		return -ENOMEM;
-> > 
-> > ---
-
----
-~Randy
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
