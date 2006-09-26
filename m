@@ -1,30 +1,63 @@
-Date: Tue, 26 Sep 2006 08:23:22 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: virtual memmap sparsity: Dealing with fragmented MAX_ORDER blocks
-In-Reply-To: <451918D9.4080001@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0609260822190.718@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0609240959060.18227@schroedinger.engr.sgi.com>
- <4517CB69.9030600@shadowen.org> <Pine.LNX.4.64.0609250922040.23266@schroedinger.engr.sgi.com>
- <45181B4F.6060602@shadowen.org> <Pine.LNX.4.64.0609251354460.24262@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0609251643150.25159@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0609251721140.25322@schroedinger.engr.sgi.com>
- <451918D9.4080001@shadowen.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from midway.site ([71.117.233.155]) by xenotime.net for <linux-mm@kvack.org>; Tue, 26 Sep 2006 10:33:48 -0700
+Date: Tue, 26 Sep 2006 10:35:04 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: [RFC/PATCH mmap2: better determine overflow
+Message-Id: <20060926103504.82bd9409.rdunlap@xenotime.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Randy Dunlap <rdunlap@xenotime.net>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: hugh@veritas.com, akpm <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2006, Andy Whitcroft wrote:
+mm/mmap.c::do_mmap_pgoff() checks for overflow like:
 
-> Well we'd really want it to be a page of page*'s marked as in
-> PG_reserved and probabally in an invalid zone or some such to prevent
-> them coelesing with logically adjacent buddies.
+	/* offset overflow? */
+	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+               return -EOVERFLOW;
 
-If we use a zero page for the memory map then we have a series of 
-struct pages with the pagebuddy flag cleared. No merging will occur.
+However, using pgoff (page indexes) to determine address range
+overflow doesn't overflow.  Change to use byte offsets instead,
+so that overflow can actually happen and be noticed.
+Also return EOVERFLOW instead of ENOMEM when PAGE_ALIGN(len)
+is 0.
+
+Tested on i686 and x86_64.
+
+Test program is at:  http://www.xenotime.net/linux/src/mmap-test.c
+
+Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
+---
+ mm/mmap.c |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+--- linux-2618-work.orig/mm/mmap.c
++++ linux-2618-work/mm/mmap.c
+@@ -923,13 +923,16 @@ unsigned long do_mmap_pgoff(struct file 
+ 
+ 	/* Careful about overflows.. */
+ 	len = PAGE_ALIGN(len);
+-	if (!len || len > TASK_SIZE)
+-		return -ENOMEM;
++	if (!len)
++		return -EOVERFLOW;
+ 
+ 	/* offset overflow? */
+-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
++	if (((pgoff << PAGE_SHIFT) + len) < (pgoff << PAGE_SHIFT))
+                return -EOVERFLOW;
+ 
++	if (len > TASK_SIZE)
++		return -ENOMEM;
++
+ 	/* Too many mappings? */
+ 	if (mm->map_count > sysctl_max_map_count)
+ 		return -ENOMEM;
+
+---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
