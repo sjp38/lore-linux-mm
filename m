@@ -1,93 +1,78 @@
-Received: from midway.site ([71.117.233.155]) by xenotime.net for <linux-mm@kvack.org>; Tue, 26 Sep 2006 15:17:21 -0700
-Date: Tue, 26 Sep 2006 15:18:37 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [RFC/PATCH mmap2: better determine overflow
-Message-Id: <20060926151837.3d2a643f.rdunlap@xenotime.net>
-In-Reply-To: <Pine.LNX.4.64.0609262124270.7644@blonde.wat.veritas.com>
-References: <20060926103504.82bd9409.rdunlap@xenotime.net>
-	<Pine.LNX.4.64.0609261902150.1641@blonde.wat.veritas.com>
-	<20060926120834.df719e85.rdunlap@xenotime.net>
-	<Pine.LNX.4.64.0609262124270.7644@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <451A025E.7020008@yahoo.com.au>
+Date: Wed, 27 Sep 2006 14:47:26 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Checking page_count(page) in invalidate_complete_page
+References: <4518333E.2060101@oracle.com> <20060925141036.73f1e2b3.akpm@osdl.org> <45185D7E.6070104@yahoo.com.au> <451862C5.1010900@oracle.com> <45186481.1090306@yahoo.com.au> <45186DC3.7000902@oracle.com> <451870C6.6050008@yahoo.com.au> <4518835D.3080702@oracle.com> <4518C7F1.3050809@yahoo.com.au> <4519273C.3000301@oracle.com>
+In-Reply-To: <4519273C.3000301@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, akpm <akpm@osdl.org>
+To: chuck.lever@oracle.com
+Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Sep 2006 21:44:09 +0100 (BST) Hugh Dickins wrote:
+Chuck Lever wrote:
 
-> On Tue, 26 Sep 2006, Randy Dunlap wrote:
-> > 
-> > It was an interpretation.  Perhaps a mis-interpretation.
-> > This comes after:
-> > 
-> > 	if (!len)
-> > 		return -EINVAL;
-> > ...then
-> > 
-> >  	len = PAGE_ALIGN(len);
-> > b:
-> > -	if (!len || len > TASK_SIZE)
-> > -		return -ENOMEM;
-> > +	if (!len)
-> > +		return -EOVERFLOW;
-> > 
-> > so if len is 0 at b:, then it was a very large unsigned long number
-> > (larger than 0 - PAGE_SIZE, i.e., >= 0xfffff001 on 32-bit or
-> > >= 0xffffffff_fffff001 on 64-bit), and PAGE_ALIGN() rounded it "up"
-> > to 0.  That seems more like an overflow than a NOMEM to me.
-> > That's all.
-> 
-> I agree that len 0 at that point arises from an extremely big len
-> specified by the user: it's just another case of len > TASK_SIZE
-> that the preceding PAGE_ALIGN has now disguised as len 0.  And
-> the errno for "there is insufficient room in the address space
-> to effect the mapping" is said to be ENOMEM.  That should stay.
+> Nick Piggin wrote:
+>
+>> So that raises another question: how do they get to 
+>> invalidate_inode_pages2
+>> if they are not part of the buffer or pagecache?
+>
+>
+> It does use the page cache to cache data pages for files, directories, 
+> and symlinks.  It does not use buffers, however, since incoming file 
+> system data is read from a socket, not from a block device.  I believe 
+> the client provides a dummy backing device for the few things in the 
+> VFS that require it.
 
-I see.
 
-> > So, I'm interested in the EOVERFLOW case(s).
-> > Would you attempt to translate this return value case for me?
-> > (from http://www.opengroup.org/onlinepubs/009695399/functions/mmap.html:)
-> > 
-> > [EOVERFLOW]
-> >     The file is a regular file and the value of off plus len exceeds the offset maximum established in the open file description associated with fildes.
-> > 
-> > I'm not concerned about the "off plus len" since I am looking at
-> > mmap2() [using pgoff's instead].  I'm more concerned about the
-> > "offset maximum established in the open file description associated
-> > with fildes."
-> 
-> I suspect it means that on a 32-bit system, if the file was not opened
-> with O_LARGEFILE, off-plus-len needs to stay within 2GB.  Whereas on a
-> 64-bit system, or when opened with O_LARGEFILE, off-plus-len needs to
-> stay within the max the filesystem and VFS can support.  We're enforcing
-> the latter, without regard to whether or not it was opened with
-> O_LARGEFILE.  Change that?  I doubt it's worth the possibility
-> of now breaking userspace.
+OK, it uses the directory's inode's pagecache rather than the block's 
+buffer cache like AFAIK many other
+filesystems do. That's OK, I like that model better anyway ;)
 
-Agreed.
+> Invalidate_inode_pages2() is used to remove page cache data that the 
+> client has determined is stale.  The client detects that the file has 
+> changed on the server, and it is not responsible for those changes, by 
+> examining the file's attributes and noticing mtime or size changes. 
+> When such a change is detected, all pages cached for a file are 
+> invalidated, and the page cache is gradually repopulated from the 
+> server as applications access parts of the file.
+>
+> I'd like to understand the difference between 
+> invalidate_inode_pages2() and truncate_inode_pages() in this scenario.
 
-> > Does mmap2() on Linux use the actual filesize as a limit for the
-> > mmap() area [not that I can see]
-> 
-> That's right, it does not (and would be wrong to do so:
-> the file can be extended or truncated while it's mapped).
-> 
-> > or does it just use (effectively)
-> > ULONG_MAX, without regard file actual filesize?
-> 
-> I'd say that limit is TASK_SIZE rather than ULONG_MAX.
 
-Right.
+truncate_inode_pages will a) throw away everything including dirty 
+pages, and b) probably be fairly
+racy unless the inode's i_size (for normal files) is modified.
 
-Thanks for all of your helpful comments.
+We really want to make an invalidation that works properly for you.
 
----
-~Randy
+If you can guarantee that a pagecache page can never get mapped to a 
+user mapping (eg. perhaps for
+directories and symlinks) and also ensure that you don't dirty it via 
+the filesystem, then you don't
+have to worry about it becoming dirty, so we can skip the checks Andrew 
+has added and maybe add a
+WARN_ON(PageDirty()).
+
+Now that won't help you for regular file pages that can be mmapped. For 
+those, we need to ensure
+that the page isn't mapped, and the page will not be dirtied via a 
+get_user_pages user, and you need
+to ensure that it can't get dirtied via the filesystem. The former two 
+will require VM changes of
+the scale that aren't going to get into 2.6.19, but I'm working on them.
+
+For now, can make do with flushing lru pagevecs, and also testing and 
+retrying in the caller?
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
