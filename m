@@ -1,63 +1,40 @@
-From: Paul Jackson <pj@sgi.com>
-Date: Wed, 27 Sep 2006 01:36:52 -0700
-Message-Id: <20060927083652.16816.90521.sendpatchset@sam.engr.sgi.com>
-Subject: [RFC] fake numa node speedup - fix for non-CPUSET builds
+Date: Wed, 27 Sep 2006 02:19:34 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Get rid of zone_table V2
+Message-Id: <20060927021934.9461b867.akpm@osdl.org>
+In-Reply-To: <20060924030643.e57f700c.akpm@osdl.org>
+References: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
+	<20060924030643.e57f700c.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andi Kleen <ak@suse.de>, mbligh@google.com, rohitseth@google.com, menage@google.com, Paul Jackson <pj@sgi.com>, clameter@sgi.com
+To: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-My RFC patch memory_fast_zonelist_scan does not compile
-in the case of NUMA enabled, CPUSET disabled, because it
-tries to access "current->mems_allowed" from NUMA code.
+On Sun, 24 Sep 2006 03:06:43 -0700
+Andrew Morton <akpm@osdl.org> wrote:
 
-Fix by adding yet another cpuset.h macro to access the
-current tasks mems_allowed (or node_online_map for non-CPUSET
-configs.)
+> On Mon, 18 Sep 2006 12:21:35 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> >  static inline int page_zone_id(struct page *page)
+> >  {
+> > -	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
+> > -}
+> > -static inline struct zone *page_zone(struct page *page)
+> > -{
+> > -	return zone_table[page_zone_id(page)];
+> > +	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+> >  }
+> 
+> arm allmodconfig:
+> 
+> include/linux/mm.h: In function `page_zone_id':
+> include/linux/mm.h:450: warning: right shift count >= width of type
 
-Signed-off-by: Paul Jackson
-
----
-
- include/linux/cpuset.h |    2 ++
- mm/page_alloc.c        |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
-
---- 2.6.18-rc7-mm1.orig/mm/page_alloc.c	2006-09-26 18:00:23.000000000 -0700
-+++ 2.6.18-rc7-mm1/mm/page_alloc.c	2006-09-26 18:01:49.000000000 -0700
-@@ -956,7 +956,7 @@ static int zlf_setup(struct zonelist *zo
- 		return 0;
- 
- 	allowednodes = !in_interrupt() && (alloc_flags & ALLOC_CPUSET) ?
--				&current->mems_allowed : &node_online_map;
-+				&cpuset_current_mems_allowed : &node_online_map;
- 
- 	if (jiffies - zlf->last_full_zap > 1 * HZ) {
- 		nodes_clear(zlf->fullnodes);
---- 2.6.18-rc7-mm1.orig/include/linux/cpuset.h	2006-09-26 18:00:23.000000000 -0700
-+++ 2.6.18-rc7-mm1/include/linux/cpuset.h	2006-09-26 18:01:49.000000000 -0700
-@@ -23,6 +23,7 @@ extern void cpuset_fork(struct task_stru
- extern void cpuset_exit(struct task_struct *p);
- extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
- extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
-+#define cpuset_current_mems_allowed (current->mems_allowed)
- void cpuset_init_current_mems_allowed(void);
- void cpuset_update_task_memory_state(void);
- #define cpuset_nodes_subset_current_mems_allowed(nodes) \
-@@ -83,6 +84,7 @@ static inline nodemask_t cpuset_mems_all
- 	return node_possible_map;
- }
- 
-+#define cpuset_current_mems_allowed (node_online_map)
- static inline void cpuset_init_current_mems_allowed(void) {}
- static inline void cpuset_update_task_memory_state(void) {}
- #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+ping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
