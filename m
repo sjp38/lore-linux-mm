@@ -1,34 +1,73 @@
-Message-ID: <451BFB84.5070903@oracle.com>
-Date: Thu, 28 Sep 2006 12:42:44 -0400
-From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
-MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com>	<20060925141036.73f1e2b3.akpm@osdl.org>	<45185D7E.6070104@yahoo.com.au>	<451862C5.1010900@oracle.com>	<45186481.1090306@yahoo.com.au>	<45186DC3.7000902@oracle.com>	<451870C6.6050008@yahoo.com.au>	<4518835D.3080702@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org> <20060928094023.e888d533.akpm@osdl.org>
-In-Reply-To: <20060928094023.e888d533.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [RFC][PATCH 1/2] Swap token re-tuned
+From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+Reply-To: ashwin.chaugule@celunite.com
+Content-Type: multipart/mixed; boundary="=-G47GVx16zztwTWrr7rvK"
+Date: Thu, 28 Sep 2006 22:28:03 +0530
+Message-Id: <1159462684.11855.8.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Thu, 28 Sep 2006 09:36:40 -0700
-> Andrew Morton <akpm@osdl.org> wrote:
-> 
->>> I think a call to lru_add_drain_all() belongs in both the 
->>> invalidate_inode_pages() and the invalidate_inode_pages2() path.  Do you 
->>> agree?
->> Yes.
-> 
-> Or maybe not.  lru_add_drain() will only drain the local CPU's buffer.  If
-> the page is sitting in another CPU's buffer, the same problem will occur.
-> 
-> IOW, you got lucky.
+--=-G47GVx16zztwTWrr7rvK
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-I used lru_add_drain_all(), so it hit all the per-CPU pagevecs.
+Sorry about that, I was'nt aware of the Thunderbird issue.
+Sending the patches again. 
+Thanks Peter !
+
+-Ashwin
+
+Try to grab swap token before the VM selects pages for eviction. 
+
+
+Signed-off-by: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+
+
+--=-G47GVx16zztwTWrr7rvK
+Content-Disposition: attachment; filename=swap-token-patch1
+Content-Type: text/x-patch; name=swap-token-patch1; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index afcdc72..190d2c1 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1478,8 +1478,8 @@ no_cached_page:
+ 	 * We're only likely to ever get here if MADV_RANDOM is in
+ 	 * effect.
+ 	 */
++	grab_swap_token(); /* Contend for token _before_ we read-in */
+ 	error = page_cache_read(file, pgoff);
+-	grab_swap_token();
+ 
+ 	/*
+ 	 * The page we want has now been added to the page cache.
+diff --git a/mm/memory.c b/mm/memory.c
+index 92a3ebd..52eb9b8 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1974,6 +1974,7 @@ static int do_swap_page(struct mm_struct
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
++		grab_swap_token(); /* Contend for token _before_ we read-in */
+  		swapin_readahead(entry, address, vma);
+  		page = read_swap_cache_async(entry, vma, address);
+ 		if (!page) {
+@@ -1991,7 +1992,6 @@ static int do_swap_page(struct mm_struct
+ 		/* Had to read the page from swap area: Major fault */
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
+-		grab_swap_token();
+ 	}
+ 
+ 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+diff --git a/mm/thrash.c b/mm/thrash.c
+
+--=-G47GVx16zztwTWrr7rvK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
