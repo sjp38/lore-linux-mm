@@ -1,16 +1,16 @@
 Received: from localhost (localhost.localdomain [127.0.0.1])
-	by mail.codito.com (Postfix) with ESMTP id 7CE883EC65
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:33:10 +0530 (IST)
+	by mail.codito.com (Postfix) with ESMTP id A47AB3EC65
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:35:42 +0530 (IST)
 Received: from mail.codito.com ([127.0.0.1])
 	by localhost (vera.celunite.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 7TOvLvl4DrAM for <linux-mm@kvack.org>;
-	Thu, 28 Sep 2006 19:33:10 +0530 (IST)
+	with ESMTP id rMBb6rDoJRta for <linux-mm@kvack.org>;
+	Thu, 28 Sep 2006 19:35:42 +0530 (IST)
 Received: from [192.168.100.251] (unknown [220.225.33.101])
-	by mail.codito.com (Postfix) with ESMTP id 4CA993EC62
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:33:10 +0530 (IST)
-Message-ID: <451BD700.4010106@codito.com>
-Date: Thu, 28 Sep 2006 19:36:56 +0530
-From: Ashwin Chaugule <ashwin.chaugule@codito.com>
+	by mail.codito.com (Postfix) with ESMTP id 75AF53EC62
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:35:42 +0530 (IST)
+Message-ID: <451BD799.2060207@celunite.com>
+Date: Thu, 28 Sep 2006 19:39:29 +0530
+From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
 MIME-Version: 1.0
 Subject: [RFC][PATCH 1/2] Swap token re-tuned
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
