@@ -1,43 +1,24 @@
-Received: by py-out-1112.google.com with SMTP id c59so778800pyc
-        for <Linux-MM@kvack.org>; Thu, 28 Sep 2006 07:25:02 -0700 (PDT)
-Date: Thu, 28 Sep 2006 23:24:59 +0900
-Subject: Shared and/or locked anonymous pages
-From: girish <girishvg@gmail.com>
-Message-ID: <C1420A4B.7BAF%girishvg@gmail.com>
-Mime-version: 1.0
-Content-type: text/plain;
-	charset="US-ASCII"
-Content-transfer-encoding: 7bit
+Subject: Re: [RFC][PATCH 0/2] Swap token re-tuned
+From: Peter Zijlstra <peter@programming.kicks-ass.net>
+In-Reply-To: <451BD632.7050300@celunite.com>
+References: <451BD632.7050300@celunite.com>
+Content-Type: text/plain
+Date: Thu, 28 Sep 2006 17:46:06 +0200
+Message-Id: <1159458367.5014.1.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <Linux-MM@kvack.org>
-Cc: girish <girishvg@gmail.com>
+To: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+Nice ideas,
 
-I have a *very* basic question!
+however your mailer has eaten your patches. Please google on how to
+adjust thunderbird for lkml mailing.
 
-Is it legal to provide anonymous mapping on shared and/or locked pages in
-user space?
-
-I am trying to implement a Special VM area in the user space, which will map
-the kernel I/O space. A straightforward & simple approach would be to go
-through /dev/mem or /dev/kmem device. But I am trying to implement one
-system call which will do the job of anonymous mapping.
-
-Here is an algorithm I have in mind -
-        struct vm_area_struct *vma = create_anon (current->mm, addr, size)
-        struct page *pg = alloc_pages (nrpages, locked | shared)
-        vma->vm_pgoff = page_to_pfn (pg)
-        remap_pfn_range (vma... vma->vm_pgoff... Size... locked | shared)
-
-Is it possible? If it is not - what is the reason?
-
-Thanks.
-Girish.
-      
-
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
