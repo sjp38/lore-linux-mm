@@ -1,18 +1,18 @@
 Received: from localhost (localhost.localdomain [127.0.0.1])
-	by mail.codito.com (Postfix) with ESMTP id 35E1E3EC65
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:29:44 +0530 (IST)
+	by mail.codito.com (Postfix) with ESMTP id 7CE883EC65
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:33:10 +0530 (IST)
 Received: from mail.codito.com ([127.0.0.1])
 	by localhost (vera.celunite.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id ywxO04nD+Cat for <linux-mm@kvack.org>;
-	Thu, 28 Sep 2006 19:29:44 +0530 (IST)
+	with ESMTP id 7TOvLvl4DrAM for <linux-mm@kvack.org>;
+	Thu, 28 Sep 2006 19:33:10 +0530 (IST)
 Received: from [192.168.100.251] (unknown [220.225.33.101])
-	by mail.codito.com (Postfix) with ESMTP id 039323EC62
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:29:44 +0530 (IST)
-Message-ID: <451BD632.7050300@celunite.com>
-Date: Thu, 28 Sep 2006 19:33:30 +0530
-From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+	by mail.codito.com (Postfix) with ESMTP id 4CA993EC62
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:33:10 +0530 (IST)
+Message-ID: <451BD700.4010106@codito.com>
+Date: Thu, 28 Sep 2006 19:36:56 +0530
+From: Ashwin Chaugule <ashwin.chaugule@codito.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 0/2] Swap token re-tuned
+Subject: [RFC][PATCH 1/2] Swap token re-tuned
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,48 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
- Here's a brief up on the next two mails.
-
-PATCH 1:
-
-In the current implementation of swap token tuning, grab swap token is 
-made from :
-1) after page_cache_read (filemap.c) and
-2) after the readahead logic in do_swap_page (memory.c)
-
-IMO, the contention for the swap token should happen _before_ the 
-aforementioned calls, because in the event of low system memory, calls 
-to freeup space will be made later from page_cache_read and 
-read_swap_cache_async , so we want to avoid "false LRU" pages by 
-grabbing the token before the VM starts searching for replacement 
-candidates.
-
-PATCH 2:
-
-Instead of using TIMEOUT as a parameter to transfer the token, I think a 
-better solution is to hand it over to a process that proves its eligibilty.
-
-What my scheme does, is to find out how frequently a process is calling 
-these functions. The processes that call these more frequently get a 
-higher priority.
-The idea is to guarantee that a high priority process gets the token. 
-The priority of a process is determined by the number of consecutive 
-calls to swap-in and no-page. I mean "consecutive" not from the 
-scheduler point of view, but from the process point of view. In other 
-words, if the task called these functions every time it was scheduled, 
-it means it is not getting any further with its execution.
-
-This way, its a matter of simple comparison of task priorities, to 
-decide whether to transfer the token or not.
-
-I did some testing with the two patches combined and the results are as 
-follows:
-
-Current Upstream implementation:
-===============================
-
-root@ashbert:~/crap# time ./qsbench -n 9000000 -p 3 -s 1420300
-seed = 1420300
-seed = 1420300
-seed = 1420300
-
-real    3m40.124s
-user    0m12.060s
-sys     0m0.940s
+Try to grab swap token before the VM selects pages for eviction.
 
 
--------------reboot-----------------
+Signed-off-by: Ashwin Chaugule <ashwin.chaugule@celunite.com>
 
-With my implementation :
-========================
+-- 
 
-root@ashbert:~/crap# time ./qsbench -n 9000000 -p 3 -s 1420300
-seed = 1420300
-seed = 1420300
-seed = 1420300
+diff --git a/mm/filemap.c b/mm/filemap.c
+index afcdc72..190d2c1 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1478,8 +1478,8 @@ no_cached_page:
+     * We're only likely to ever get here if MADV_RANDOM is in
+     * effect.
+     */
++    grab_swap_token(); /* Contend for token _before_ we read-in */
+    error = page_cache_read(file, pgoff);
+-    grab_swap_token();
 
-real    2m58.708s
-user    0m11.880s
-sys     0m1.070s
+    /*
+     * The page we want has now been added to the page cache.
+diff --git a/mm/memory.c b/mm/memory.c
+index 92a3ebd..52eb9b8 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1974,6 +1974,7 @@ static int do_swap_page(struct mm_struct
+    delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+    page = lookup_swap_cache(entry);
+    if (!page) {
++        grab_swap_token(); /* Contend for token _before_ we read-in */
+         swapin_readahead(entry, address, vma);
+         page = read_swap_cache_async(entry, vma, address);
+        if (!page) {
+@@ -1991,7 +1992,6 @@ static int do_swap_page(struct mm_struct
+        /* Had to read the page from swap area: Major fault */
+        ret = VM_FAULT_MAJOR;
+        count_vm_event(PGMAJFAULT);
+-        grab_swap_token();
+    }
 
-
-
-My test machine:
-
-1.69Ghz CPU
-64M RAM
-7200rpm hdd
-2MB L2 cache
-vanilla kernel 2.6.18
-Ubuntu dapper with gnome.
-
-
-Any comments, suggestions, ideas ?
-
-Cheers,
-Ashwin
-
-
+    delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+-- 
 
 
 --
