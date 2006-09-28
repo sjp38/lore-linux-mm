@@ -1,72 +1,109 @@
-Date: Wed, 27 Sep 2006 09:24:18 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] Get rid of zone_table V2
-Message-Id: <20060927092418.8b07f738.akpm@osdl.org>
-In-Reply-To: <451A6034.20305@shadowen.org>
-References: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
-	<20060924030643.e57f700c.akpm@osdl.org>
-	<20060927021934.9461b867.akpm@osdl.org>
-	<451A6034.20305@shadowen.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.codito.com (Postfix) with ESMTP id 35E1E3EC65
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:29:44 +0530 (IST)
+Received: from mail.codito.com ([127.0.0.1])
+	by localhost (vera.celunite.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id ywxO04nD+Cat for <linux-mm@kvack.org>;
+	Thu, 28 Sep 2006 19:29:44 +0530 (IST)
+Received: from [192.168.100.251] (unknown [220.225.33.101])
+	by mail.codito.com (Postfix) with ESMTP id 039323EC62
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:29:44 +0530 (IST)
+Message-ID: <451BD632.7050300@celunite.com>
+Date: Thu, 28 Sep 2006 19:33:30 +0530
+From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+MIME-Version: 1.0
+Subject: [RFC][PATCH 0/2] Swap token re-tuned
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Sep 2006 12:27:48 +0100
-Andy Whitcroft <apw@shadowen.org> wrote:
+Hi,
+ Here's a brief up on the next two mails.
 
-> Andrew Morton wrote:
-> > On Sun, 24 Sep 2006 03:06:43 -0700
-> > Andrew Morton <akpm@osdl.org> wrote:
-> > 
-> >> On Mon, 18 Sep 2006 12:21:35 -0700 (PDT)
-> >> Christoph Lameter <clameter@sgi.com> wrote:
-> >>
-> >>>  static inline int page_zone_id(struct page *page)
-> >>>  {
-> >>> -	return (page->flags >> ZONETABLE_PGSHIFT) & ZONETABLE_MASK;
-> >>> -}
-> >>> -static inline struct zone *page_zone(struct page *page)
-> >>> -{
-> >>> -	return zone_table[page_zone_id(page)];
-> >>> +	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
-> >>>  }
-> >> arm allmodconfig:
-> >>
-> >> include/linux/mm.h: In function `page_zone_id':
-> >> include/linux/mm.h:450: warning: right shift count >= width of type
-> 
-> On a separate note.  I was able to get this puppy compiling enough to
-> see this warning and fix it, but nowhere close to compiling a kernel.
-> 
-> First, are you compiling here to a real kernel.  If so, is this on a
-> cross-compiler or a real system.  If its a cross-compiler which version.
->   Do you have recipe for success?
+PATCH 1:
 
-I use cross-compilers basically all the time.
+In the current implementation of swap token tuning, grab swap token is 
+made from :
+1) after page_cache_read (filemap.c) and
+2) after the readahead logic in do_swap_page (memory.c)
 
-$ARCH = alpha    CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = arm      CT=gcc-3.4.5-glibc-2.3.6
-$ARCH = i386     CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = ia64     CT=gcc-3.4.5-glibc-2.3.6
-$ARCH = m68k     CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = mips     CT=gcc-3.4.5-glibc-2.3.6
-$ARCH = powerpc  CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = s390     CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = sh       CT=gcc-3.4.5-glibc-2.3.6
-$ARCH = sparc    CT=gcc-4.1.0-glibc-2.3.6
-$ARCH = sparc64  CT=gcc-3.4.5-glibc-2.3.6
-$ARCH = x86_64   CT=gcc-4.0.2-glibc-2.3.6
+IMO, the contention for the swap token should happen _before_ the 
+aforementioned calls, because in the event of low system memory, calls 
+to freeup space will be made later from page_cache_read and 
+read_swap_cache_async , so we want to avoid "false LRU" pages by 
+grabbing the token before the VM starts searching for replacement 
+candidates.
 
-> I'd like to be incoporating more cross-compilation testing into our
-> nightlies, but this one isn't playing ball.
-> 
+PATCH 2:
 
-Sens error messages and .config?
+Instead of using TIMEOUT as a parameter to transfer the token, I think a 
+better solution is to hand it over to a process that proves its eligibilty.
+
+What my scheme does, is to find out how frequently a process is calling 
+these functions. The processes that call these more frequently get a 
+higher priority.
+The idea is to guarantee that a high priority process gets the token. 
+The priority of a process is determined by the number of consecutive 
+calls to swap-in and no-page. I mean "consecutive" not from the 
+scheduler point of view, but from the process point of view. In other 
+words, if the task called these functions every time it was scheduled, 
+it means it is not getting any further with its execution.
+
+This way, its a matter of simple comparison of task priorities, to 
+decide whether to transfer the token or not.
+
+I did some testing with the two patches combined and the results are as 
+follows:
+
+Current Upstream implementation:
+===============================
+
+root@ashbert:~/crap# time ./qsbench -n 9000000 -p 3 -s 1420300
+seed = 1420300
+seed = 1420300
+seed = 1420300
+
+real    3m40.124s
+user    0m12.060s
+sys     0m0.940s
+
+
+-------------reboot-----------------
+
+With my implementation :
+========================
+
+root@ashbert:~/crap# time ./qsbench -n 9000000 -p 3 -s 1420300
+seed = 1420300
+seed = 1420300
+seed = 1420300
+
+real    2m58.708s
+user    0m11.880s
+sys     0m1.070s
+
+
+
+My test machine:
+
+1.69Ghz CPU
+64M RAM
+7200rpm hdd
+2MB L2 cache
+vanilla kernel 2.6.18
+Ubuntu dapper with gnome.
+
+
+Any comments, suggestions, ideas ?
+
+Cheers,
+Ashwin
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
