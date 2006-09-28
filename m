@@ -1,16 +1,16 @@
 Received: from localhost (localhost.localdomain [127.0.0.1])
-	by mail.codito.com (Postfix) with ESMTP id 367B03EC65
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:35:58 +0530 (IST)
+	by mail.codito.com (Postfix) with ESMTP id BC6A53EC65
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:39:00 +0530 (IST)
 Received: from mail.codito.com ([127.0.0.1])
 	by localhost (vera.celunite.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id qMONOfKtLJK8 for <linux-mm@kvack.org>;
-	Thu, 28 Sep 2006 19:35:58 +0530 (IST)
+	with ESMTP id okbuRX7bUnBx for <linux-mm@kvack.org>;
+	Thu, 28 Sep 2006 19:39:00 +0530 (IST)
 Received: from [192.168.100.251] (unknown [220.225.33.101])
-	by mail.codito.com (Postfix) with ESMTP id B74493EC62
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:35:57 +0530 (IST)
-Message-ID: <451BD7A7.3070907@codito.com>
-Date: Thu, 28 Sep 2006 19:39:43 +0530
-From: Ashwin Chaugule <ashwin.chaugule@codito.com>
+	by mail.codito.com (Postfix) with ESMTP id 7E66A3EC62
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2006 19:39:00 +0530 (IST)
+Message-ID: <451BD85E.8070206@celunite.com>
+Date: Thu, 28 Sep 2006 19:42:46 +0530
+From: Ashwin Chaugule <ashwin.chaugule@celunite.com>
 MIME-Version: 1.0
 Subject: [RFC][PATCH 2/2] Swap token re-tuned
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
@@ -31,8 +31,8 @@ index 34ed0d9..417bbe4 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -342,9 +342,15 @@ struct mm_struct {
-    /* Architecture-specific MM context */
-    mm_context_t context;
+   /* Architecture-specific MM context */
+   mm_context_t context;
 
 -    /* Token based thrashing protection. */
 -    unsigned long swap_token_time;
@@ -47,8 +47,8 @@ index 34ed0d9..417bbe4 100644
 +        * else decrement. High priority wins the token.*/
 +    int token_priority;
 
-    /* coredumping support */
-    int core_waiters;
+   /* coredumping support */
+   int core_waiters;
 diff --git a/include/linux/swap.h b/include/linux/swap.h
 index e7c36ba..89f8a39 100644
 --- a/include/linux/swap.h
@@ -66,21 +66,21 @@ index fd43c3e..60e6445 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -910,6 +910,7 @@ #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
-        .extra1        = &zero,
-    },
+       .extra1        = &zero,
+   },
 #endif
 +#if 0    /* Not needed anymore */
 #ifdef CONFIG_SWAP
-    {
-        .ctl_name    = VM_SWAP_TOKEN_TIMEOUT,
+   {
+       .ctl_name    = VM_SWAP_TOKEN_TIMEOUT,
 @@ -921,6 +922,7 @@ #ifdef CONFIG_SWAP
-        .strategy    = &sysctl_jiffies,
-    },
+       .strategy    = &sysctl_jiffies,
+   },
 #endif
 +#endif
 #ifdef CONFIG_NUMA
-    {
-        .ctl_name    = VM_ZONE_RECLAIM_MODE,
+   {
+       .ctl_name    = VM_ZONE_RECLAIM_MODE,
 diff --git a/mm/thrash.c b/mm/thrash.c
 index f4c560b..21d29f2 100644
 --- a/mm/thrash.c
@@ -113,7 +113,7 @@ static DEFINE_SPINLOCK(swap_token_lock);
 -#define SWAP_TOKEN_TIMED_OUT 2
 static int should_release_swap_token(struct mm_struct *mm)
 {
-    int ret = 0;
+   int ret = 0;
 -    if (!mm->recent_pagein)
 -        ret = SWAP_TOKEN_ENOUGH_RSS;
 -    else if (time_after(jiffies, swap_token_timeout))
@@ -136,7 +136,7 @@ void grab_swap_token(void)
 {
 -    struct mm_struct *mm;
 +    struct mm_struct *mm_temp;
-    int reason;
+   int reason;
 
 -    /* We have the token. Let others know we still need it. */
 -    if (has_swap_token(current->mm)) {
@@ -148,7 +148,7 @@ for the token.*/
 +    global_faults++;
 +
 +    if (!spin_trylock(&swap_token_lock))
-        return;
+       return;
 -    }
 
 -    if (time_after(jiffies, swap_token_check)) {
@@ -201,10 +201,10 @@ its up for grabs immediately */
 -            swap_token_mm = current->mm;
 +            current->mm->token_priority = 0;
 +            current->mm->faultstamp = global_faults;
-        }
+       }
 -        spin_unlock(&swap_token_lock);
 +        goto out;
-    }
+   }
 -    return;
 +
 +    if ((reason = should_release_swap_token(mm_temp))) {
@@ -220,17 +220,18 @@ its up for grabs immediately */
 /* Called on process exit. */
 @@ -98,9 +88,7 @@ void __put_swap_token(struct mm_struct *
 {
-    spin_lock(&swap_token_lock);
-    if (likely(mm == swap_token_mm)) {
+   spin_lock(&swap_token_lock);
+   if (likely(mm == swap_token_mm)) {
 -        mm->swap_token_time = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
 -        swap_token_mm = &init_mm;
 -        swap_token_check = jiffies;
 +        swap_token_mm = NULL;
-    }
-    spin_unlock(&swap_token_lock);
+   }
+   spin_unlock(&swap_token_lock);
 }
 
 -- 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
