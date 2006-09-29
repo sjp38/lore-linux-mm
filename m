@@ -1,60 +1,214 @@
-Message-ID: <451C6AAC.1080203@yahoo.com.au>
-Date: Fri, 29 Sep 2006 10:37:00 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com>	<20060925141036.73f1e2b3.akpm@osdl.org>	<45185D7E.6070104@yahoo.com.au>	<451862C5.1010900@oracle.com>	<45186481.1090306@yahoo.com.au>	<45186DC3.7000902@oracle.com>	<451870C6.6050008@yahoo.com.au>	<4518835D.3080702@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org>	<20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com> <20060928100306.0b58f3c7.akpm@osdl.org> <451C01C8.7020104@oracle.com>
-In-Reply-To: <451C01C8.7020104@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 29 Sep 2006 13:56:07 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.Helsinki.FI>
+Subject: [RFC/PATCH] slab: clean up allocation
+Message-ID: <Pine.LNX.4.58.0609291353060.30021@sbz-30.cs.Helsinki.FI>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: chuck.lever@oracle.com
-Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: manfred@colorfullife.com, christoph@lameter.com, pj@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chuck Lever wrote:
+Hi!
 
-> Andrew Morton wrote:
->
->> lru_add_drain_all() is a nasty, hacky, not-exported-to-modules 
->> thing.  It
->> equates to lru_add_drain() if !CONFIG_NUMA.
->
+This patch cleans up the slab allocation path by making the UMA case look like
+NUMA that always allocates from the current node.  In addition, I merged up the
+two NUMA allocation paths (kmem_cache_alloc_node and __cache_alloc) into single
+function so that we always use alternate_node_alloc() if PF_SPREAD_SLAB or
+PF_MEMPOLICY is defined.
 
-It should drain on all CPUs though, I can't remember why it doesn't.
-Not that I disagree that throwing IPIs around is a hack ;)
+Note: increases kernel text on numa by 70 bytes on x86 due to inlining of
+the cache_alloc function in multiple call sites.
 
->>
->> Sigh, we're not getting there, are we?
->>
->> I'm still thinking we add invalidate_complete_page2() to get us out of
->> trouble and park the problem :(.  That'd be a good approach for 
->> 2.6.18.x,
->> which I assume is fairly urgent.
->
->
-> Choosing which fix to include is above my pay grade.  Both of these 
-> proposals address the NFS readdir cache invalidation problem.
->
-> But it seems like there is a real problem here -- the pages that are 
-> waiting to be added the LRU will always have a page count that is too 
-> high for invalidate_inode_pages to work on them.
+Cc: Manfred Spraul <manfred@colorfullife.com>
+Cc: Christoph Lameter <christoph@lameter.com>
+Cc: Paul Jackson <pj@sgi.com>
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
 
+ mm/slab.c |  116 +++++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 66 insertions(+), 50 deletions(-)
 
-If you do the lru_add_drain_all, then the vmscan problem should be probably
-mostly fixable by detecting failure, waiting, and retrying a few times.
-
-After that, making an invalidate_complete_page2 ignore the page count or
-dirty status would only save you from a very small number of cases, and they
-would be likely to be a data loss / corruption case.
-
-OTOH, we haven't had many complains before, so for 2.6.18, an
-invalidate_complete_page2 may indeed be the best option?
-
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Index: 2.6/mm/slab.c
+===================================================================
+--- 2.6.orig/mm/slab.c
++++ 2.6/mm/slab.c
+@@ -210,6 +210,11 @@ typedef unsigned int kmem_bufctl_t;
+ #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
+ 
+ /*
++ * When allocating from current node.
++ */
++#define SLAB_CURRENT_NODE (-1)
++
++/*
+  * struct slab
+  *
+  * Manages the objs in a slab. Placed either at the beginning of mem allocated
+@@ -3041,7 +3046,7 @@ static void *cache_alloc_debugcheck_afte
+ #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
+ #endif
+ 
+-static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
++static inline void *cache_alloc_local(struct kmem_cache *cachep, gfp_t flags)
+ {
+ 	void *objp;
+ 	struct array_cache *ac;
+@@ -3059,35 +3064,6 @@ static inline void *____cache_alloc(stru
+ 	return objp;
+ }
+ 
+-static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
+-						gfp_t flags, void *caller)
+-{
+-	unsigned long save_flags;
+-	void *objp = NULL;
+-
+-	cache_alloc_debugcheck_before(cachep, flags);
+-
+-	local_irq_save(save_flags);
+-
+-	if (unlikely(NUMA_BUILD &&
+-			current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
+-		objp = alternate_node_alloc(cachep, flags);
+-
+-	if (!objp)
+-		objp = ____cache_alloc(cachep, flags);
+-	/*
+-	 * We may just have run out of memory on the local node.
+-	 * __cache_alloc_node() knows how to locate memory on other nodes
+-	 */
+- 	if (NUMA_BUILD && !objp)
+- 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
+-	local_irq_restore(save_flags);
+-	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
+-					    caller);
+-	prefetchw(objp);
+-	return objp;
+-}
+-
+ #ifdef CONFIG_NUMA
+ /*
+  * Try allocating on another node if PF_SPREAD_SLAB|PF_MEMPOLICY.
+@@ -3198,8 +3174,62 @@ must_grow:
+ done:
+ 	return obj;
+ }
++
++static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
++					   gfp_t flags, int nodeid)
++{
++	void *objp = NULL;
++
++	if (nodeid == SLAB_CURRENT_NODE || nodeid == numa_node_id() ||
++			!cachep->nodelists[nodeid]) {
++		if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
++			objp = alternate_node_alloc(cachep, flags);
++
++		if (!objp)
++			objp = cache_alloc_local(cachep, flags);
++		/*
++		 * We may just have run out of memory on the local node.
++		 * __cache_alloc_node() knows how to locate memory on other nodes
++		 */
++	 	if (!objp)
++	 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
++	} else
++		objp = __cache_alloc_node(cachep, flags, nodeid);
++
++	return objp;
++}
++
++#else
++/*
++ *	On UMA, we always allocate from the local node.
++ */
++static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
++					   gfp_t flags, int nodeid)
++{
++	return cache_alloc_local(cachep, flags);
++}
+ #endif
+ 
++static __always_inline void *cache_alloc(struct kmem_cache *cachep,
++					 gfp_t flags, int nodeid,
++					 void *caller)
++{
++	unsigned long save_flags;
++	void *objp;
++
++	cache_alloc_debugcheck_before(cachep, flags);
++
++	local_irq_save(save_flags);
++	objp = __cache_alloc(cachep, flags, nodeid);
++	local_irq_restore(save_flags);
++
++	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
++	prefetchw(objp);
++
++	return objp;
++}
++
++
+ /*
+  * Caller needs to acquire correct kmem_list's list_lock
+  */
+@@ -3333,7 +3363,8 @@ static inline void __cache_free(struct k
+  */
+ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+ {
+-	return __cache_alloc(cachep, flags, __builtin_return_address(0));
++	return cache_alloc(cachep, flags, SLAB_CURRENT_NODE,
++			   __builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc);
+ 
+@@ -3347,7 +3378,8 @@ EXPORT_SYMBOL(kmem_cache_alloc);
+  */
+ void *kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
+ {
+-	void *ret = __cache_alloc(cache, flags, __builtin_return_address(0));
++	void *ret = cache_alloc(cache, flags, SLAB_CURRENT_NODE,
++				__builtin_return_address(0));
+ 	if (ret)
+ 		memset(ret, 0, obj_size(cache));
+ 	return ret;
+@@ -3411,23 +3443,7 @@ out:
+  */
+ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
+-	unsigned long save_flags;
+-	void *ptr;
+-
+-	cache_alloc_debugcheck_before(cachep, flags);
+-	local_irq_save(save_flags);
+-
+-	if (nodeid == -1 || nodeid == numa_node_id() ||
+-			!cachep->nodelists[nodeid])
+-		ptr = ____cache_alloc(cachep, flags);
+-	else
+-		ptr = __cache_alloc_node(cachep, flags, nodeid);
+-	local_irq_restore(save_flags);
+-
+-	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr,
+-					   __builtin_return_address(0));
+-
+-	return ptr;
++	return cache_alloc(cachep, flags, nodeid, __builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_node);
+ 
+@@ -3462,7 +3478,7 @@ static __always_inline void *__do_kmallo
+ 	cachep = __find_general_cachep(size, flags);
+ 	if (unlikely(cachep == NULL))
+ 		return NULL;
+-	return __cache_alloc(cachep, flags, caller);
++	return cache_alloc(cachep, flags, SLAB_CURRENT_NODE, caller);
+ }
+ 
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
