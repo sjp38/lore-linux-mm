@@ -1,68 +1,60 @@
-Date: Thu, 28 Sep 2006 20:14:55 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [TRIVIAL PATCH] mm: Make filemap_nopage use NOPAGE_SIGBUS
-In-Reply-To: <1159470592.12797.23334.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0609282013360.9244@blonde.wat.veritas.com>
-References: <1159470592.12797.23334.camel@localhost.localdomain>
+Message-ID: <451C6AAC.1080203@yahoo.com.au>
+Date: Fri, 29 Sep 2006 10:37:00 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Checking page_count(page) in invalidate_complete_page
+References: <4518333E.2060101@oracle.com>	<20060925141036.73f1e2b3.akpm@osdl.org>	<45185D7E.6070104@yahoo.com.au>	<451862C5.1010900@oracle.com>	<45186481.1090306@yahoo.com.au>	<45186DC3.7000902@oracle.com>	<451870C6.6050008@yahoo.com.au>	<4518835D.3080702@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org>	<20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com> <20060928100306.0b58f3c7.akpm@osdl.org> <451C01C8.7020104@oracle.com>
+In-Reply-To: <451C01C8.7020104@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: akpm@osdl.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: chuck.lever@oracle.com
+Cc: Andrew Morton <akpm@osdl.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2006, Adam Litke wrote:
-> Hi Andrew.  This is just a "nice to have" cleanup patch.  Any chance on
-> getting it merged (lest I forget about it again)?  Thanks.
-> 
-> While reading trough filemap_nopage() I found the 'return NULL'
-> statements a bit confusing since we already have two constants defined
-> for ->nopage error conditions.  Since a NULL return value really means
-> NOPAGE_SIGBUS, just return that to make the code more readable.
-> 
-> Signed-off-by: Adam Litke <agl@us.ibm.com> 
+Chuck Lever wrote:
 
-That's long confused and irritated me, gladly
-Acked-by: Hugh Dickins <hugh@veritas.com>
+> Andrew Morton wrote:
+>
+>> lru_add_drain_all() is a nasty, hacky, not-exported-to-modules 
+>> thing.  It
+>> equates to lru_add_drain() if !CONFIG_NUMA.
+>
 
-> 
->  filemap.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> diff -upN reference/mm/filemap.c current/mm/filemap.c
-> --- reference/mm/filemap.c
-> +++ current/mm/filemap.c
-> @@ -1454,7 +1454,7 @@ outside_data_content:
->  	 * accessible..
->  	 */
->  	if (area->vm_mm == current->mm)
-> -		return NULL;
-> +		return NOPAGE_SIGBUS;
->  	/* Fall through to the non-read-ahead case */
->  no_cached_page:
->  	/*
-> @@ -1479,7 +1479,7 @@ no_cached_page:
->  	 */
->  	if (error == -ENOMEM)
->  		return NOPAGE_OOM;
-> -	return NULL;
-> +	return NOPAGE_SIGBUS;
->  
->  page_not_uptodate:
->  	if (!did_readaround) {
-> @@ -1548,7 +1548,7 @@ page_not_uptodate:
->  	 */
->  	shrink_readahead_size_eio(file, ra);
->  	page_cache_release(page);
-> -	return NULL;
-> +	return NOPAGE_SIGBUS;
->  }
->  EXPORT_SYMBOL(filemap_nopage);
->  
-> -- 
-> Adam Litke - (agl at us.ibm.com)
-> IBM Linux Technology Center
-> 
+It should drain on all CPUs though, I can't remember why it doesn't.
+Not that I disagree that throwing IPIs around is a hack ;)
+
+>>
+>> Sigh, we're not getting there, are we?
+>>
+>> I'm still thinking we add invalidate_complete_page2() to get us out of
+>> trouble and park the problem :(.  That'd be a good approach for 
+>> 2.6.18.x,
+>> which I assume is fairly urgent.
+>
+>
+> Choosing which fix to include is above my pay grade.  Both of these 
+> proposals address the NFS readdir cache invalidation problem.
+>
+> But it seems like there is a real problem here -- the pages that are 
+> waiting to be added the LRU will always have a page count that is too 
+> high for invalidate_inode_pages to work on them.
+
+
+If you do the lru_add_drain_all, then the vmscan problem should be probably
+mostly fixable by detecting failure, waiting, and retrying a few times.
+
+After that, making an invalidate_complete_page2 ignore the page count or
+dirty status would only save you from a very small number of cases, and they
+would be likely to be a data loss / corruption case.
+
+OTOH, we haven't had many complains before, so for 2.6.18, an
+invalidate_complete_page2 may indeed be the best option?
+
+--
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
