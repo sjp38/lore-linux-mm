@@ -1,9 +1,9 @@
-Date: Sat, 30 Sep 2006 20:08:39 +0100 (BST)
+Date: Sat, 30 Sep 2006 20:52:57 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 0/2] shared page table for hugetlb page - v3
-In-Reply-To: <000001c6e427$84352250$ff0da8c0@amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.64.0609301948060.9929@blonde.wat.veritas.com>
-References: <000001c6e427$84352250$ff0da8c0@amr.corp.intel.com>
+Subject: Re: [patch 1/2] htlb shared page table
+In-Reply-To: <000101c6e428$31d44ee0$ff0da8c0@amr.corp.intel.com>
+Message-ID: <Pine.LNX.4.64.0609302009270.9929@blonde.wat.veritas.com>
+References: <000101c6e428$31d44ee0$ff0da8c0@amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,84 +13,188 @@ Cc: 'Andrew Morton' <akpm@osdl.org>, 'Dave McCracken' <dmccr@us.ibm.com>, linux-
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 29 Sep 2006, Chen, Kenneth W wrote:
-> OK, here is v3 of the patch for shared page table on hugetlb segment.
-> I believe I dealt with all the points brought up by Hugh, changes are:
+
+> Following up with the work on shared page table, here is a re-post of
+> shared page table for hugetlb memory.  Dave's latest patch restricts the
+> page table sharing at pmd level in order to simplify some of the complexity
+> for normal page, but that simplification cuts out all the performance
+> benefit for hugetlb on x86-64 and ia32.
 > 
-> (1) not using weak function on huge_pte_unshare(), for arches that
->     don't do page table sharing, they now have trivial mods.
+> The following patch attempt to kick that optimization back in for hugetlb
+> memory and allow pt sharing at second level.  It is nicely self-contained
+> within hugetlb subsystem.  With no impact to generic VM at all.
 
-Right, thanks.  And huge_pte_share()/huge_pte_unshare() works much
-better than the pmd_share()/huge_pte_put() you had before.  (Should
-they all say pmd?  I get lost, and the i386/ia64 divergence makes it
-moot.)  But you've got the CodingStyle slightly wrong on each of them.
-
-> 
-> (2) fixing bug on not checking vm_pgoff with sharing vma. This version
->     performs real criteria on sharing page table page: it checks faulting
->     file page offset and faulting virtual addresses, along with vm_flags
->     and page table alignment.  A down_read_trylock() is added on the
->     source mm->mmap_sem to secure vm_flags. It also allows proper locking
->     for ref counting the shared page table page.
-
-Improvements there, but not yet correct.
+I think you need to say a bit more for this description of 1/2.
 
 > 
-> (3) checks VM_MAYSHARE as one of the sharing requirement.
-
-Yup.
-
+> Imprecise RSS accounting is an irritating ill effect with pt sharing. 
+> After consulted with several VM experts, I have tried various methods to
+> solve that problem: (1) iterate through all mm_structs that share the PT
+> and increment count; (2) keep RSS count in page table structure and then
+> sum them up at reporting time.  None of the above methods yield any
+> satisfactory implementation.
 > 
-> (4) Fixed locking around sharing and unsharing of page table page.  The
->     solution I adopted is to use both i_mmap_lock and mm->mmap_sem read
->     semaphore of source mm while finding and manipulate ref count on the
->     page table page for sharing.  In the unshare path, the ref count and
->     freeing is done inside either mmap_sem (which came from mprotect or
->     munmap); or i_mmap_lock which is in the ftruncate path.
+> Since process RSS accounting is pure information only, I propose we don't
+> count them at all for hugetlb page.  rlimit has such field, though there is
+> absolutely no enforcement on limiting that resource.  One other method is
+> to account all RSS at hugetlb mmap time regardless they are faulted or not.
+> I opt for the simplicity of no accounting at all.
 
-Umm, how does mm->mmap_sem for one mm manage to stabilize the count
-for sharing the page table with other mms?  In Wednesday's you were
-using i_mmap_lock throughout, with the aid of __unmap_hugepage_range:
-and taking i_mmap_lock in hugetlb_change_protection.  That approach
-appeared to be correct: I'm not overjoyed about taking the extra lock,
-but it's straightforward and you're more comfortable with that than
-atomic count manipulations, so let's let others protest about it if
-they wish, it may well be a non-issue (in the hugetlb context).
+Whereas this is good comment, but it all belongs to your 2/2 and should
+move there.  2/2 should also have a distinct subject, "htlb forget rss"
+or something like that.  (Though elsewhere I've suggested a 1/3 first,
+to fix the existing TLB flush issue.)
 
-If you go back to that way, I think you should BUG_ON(!vma->vm_file)
-in unmap_hugepage_range, rather than if'ing: if we're using i_mmap_lock
-for all this serialization, it's rather a problem if there's no vm_file.
-Or even better, omit the BUG_ON, we'd see the oops on NULL anyway.
+> --- ./arch/i386/mm/hugetlbpage.c.orig	2006-09-19 20:42:06.000000000 -0700
+> +++ ./arch/i386/mm/hugetlbpage.c	2006-09-29 14:55:13.000000000 -0700
+> @@ -17,6 +17,104 @@
+>  #include <asm/tlb.h>
+>  #include <asm/tlbflush.h>
+>  
+> +static unsigned long page_table_shareable(struct vm_area_struct *svma,
+> +			 struct vm_area_struct *vma,
+> +			 unsigned long addr, unsigned long idx)
 
-> 
-> (5) changed argument in function huge_pte_share(). In order to find out a
->     potential page table to share, it is necessary to get the faulting vma's
->     page permission and flags to match with all the vma found in the priority
->     tree.  However, vma pointer was not passed from higher level caller where
->     parent caller already has that vma pointer.  The complication arises from
->     two incompatible call sites: one in the fault path where a vma pointer is
->     readily available, however, in the copy_hugetlb_page_range(), the
->     destination vma is not available and we have to perform a vma lookup.  It
->     can be argued that it is better to incur the cost of find_vma in the fork
->     path where copy_hugetlb_page_range is used rather than in the fault path
->     which occurs a lot more often. Though neither is desirable.  I took a
->     third route to only look up the vma if pmd page is not already established.
->     This should cut down the amount of find_vma significantly in most cases.
+Andrew will love it if you make that pgoff_t idx.
 
-Hmm, okay, not quite what I was suggesting, but that avoids wider change,
-and you're right that it cuts down the find_vma calls almost enough to
-not bother about the issue any further (I'll suggest a further avoidance
-when commenting on your 1/2).  And in the hugepage_copy_range case, any
-succession of find_vmas should be quick, hitting mmap_cache.  Fair enough.
+> +{
+> +	unsigned long base = addr & PUD_MASK;
+> +	unsigned long end = base + PUD_SIZE;
+> +
 
-> 
-> (6) separate out simple RSS removal into a sub patch.
+Argh, a blank line.
 
-Thanks, yes - though you need to move lots of comment from 1/2 to 2/2.
+> +	unsigned long saddr = ((idx - svma->vm_pgoff) << PAGE_SHIFT) +
+> +				svma->vm_start;
 
-You've not addressed the TLB flush raciness at all: perhaps, since
-I pointed out defects already there, you felt you needn't bother:
-but it'd be good to start off with a 1/3 fixing what's already
-wrong, rather than just making it worse.
+Does that work right when svma->vm_pgoff > idx?
+I think so, but please make sure.
+
+> +	unsigned long sbase = saddr & PUD_MASK;
+> +	unsigned long s_end = sbase + PUD_SIZE;
+> +
+> +	/*
+> +	 * match the virtual addresses, permission and the alignment of the
+> +	 * page table page.
+> +	 */
+> +	if (pmd_index(addr) != pmd_index(saddr) ||
+> +	    vma->vm_flags != svma->vm_flags ||
+> +	    base < vma->vm_start || vma->vm_end < end ||
+> +	    sbase < svma->vm_start || svma->vm_end < s_end)
+> +		return 0;
+> +
+> +	return saddr;
+> +}
+
+Thanks for giving that some thought, I expect it's about right now,
+though needs testing to be sure.  Though x86_64 is the important case,
+does it work right on i386 2level and i386 3level?  Sometimes the
+4level fallbacks don't work out quite as one would wish, need to be
+checked.
+
+If I've got the levels right, there's no chance of sharing htlb
+table on i386 2level, and on i386 3level (PAE) there's a chance,
+but only if non-standard address space layout or statically linked
+(in the standard layout, text+data+bss occupy the first pmd, shared
+libraries the second pmd, stack the third pmd, kernel the fourth).
+
+Though that raises an efficiency issue.  Some of those checks you've
+got there in page_table_shareable, the checks on base and end against
+vma, are a waste of time to keep repeating here: huge_pte_share should
+make those checks, along with when it checks VM_MAYSHARE, and go no
+further if they fail.  That will shortcircuit many prio_tree searches:
+it's only the interior of _huge_ hugetlb mappings that are going to
+get any page table sharing, don't waste time for the rest of them.
+
+> +
+> +/*
+> + * search for a shareable pmd page for hugetlb.
+> + */
+> +static void huge_pte_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+> +{
+> +	struct vm_area_struct *vma = find_vma(mm, addr);
+
+I claimed in my other mail that I was going to save you more find_vmas;
+but no, that's rubbish, you do have to do this one now.
+
+> +	struct address_space *mapping = vma->vm_file->f_mapping;
+> +	unsigned long idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+> +			    vma->vm_pgoff;
+
+pgoff_t.  Or perhaps not, be careful.  Check with fs/hugetlbfs/inode.c,
+I think you'll be surprised to find that PAGE_SHIFT isn't the right
+shift to use here, that the vma_prio_tree for a hugetlb area needs
+HPAGE_SHIFT instead (it begins to make sense when you consider
+efficient use of the radix tree for huge pages).  Test!
+
+> +	struct prio_tree_iter iter;
+> +	struct vm_area_struct *svma;
+> +	unsigned long saddr;
+> +	pte_t *spte = NULL;
+> +
+> +	if (!vma->vm_flags & VM_MAYSHARE)
+> +		return;
+
+So add some base/end checking against vma here.
+
+> +
+> +	spin_lock(&mapping->i_mmap_lock);
+> +	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
+> +		if (svma == vma || !down_read_trylock(&svma->vm_mm->mmap_sem))
+> +			continue;
+
+Good, yes: trylocks are never very satisfying,
+but this is how it has to be I think.
+
+> +
+> +		saddr = page_table_shareable(svma, vma, addr, idx);
+> +		if (saddr) {
+> +			spte = huge_pte_offset(svma->vm_mm, saddr);
+> +			if (spte)
+> +				get_page(virt_to_page(spte));
+> +		}
+> +		up_read(&svma->vm_mm->mmap_sem);
+> +		if (spte)
+> +			break;
+> +	}
+> +
+> +	if (!spte)
+> +		goto out;
+> +
+> +	spin_lock(&mm->page_table_lock);
+> +	if (pud_none(*pud))
+> +		pud_populate(mm, pud, (unsigned long) spte & PAGE_MASK);
+> +	else
+> +		put_page(virt_to_page(spte));
+> +	spin_unlock(&mm->page_table_lock);
+> +out:
+> +	spin_unlock(&mapping->i_mmap_lock);
+
+Yup.  Except that you don't usually have i_mmap_lock at the unsharing
+end, have fooled yourself into thinking a random mmap_sem is enough,
+need to go back to your Wednesday mods.
+
+> --- ./arch/sh/mm/hugetlbpage.c.orig	2006-09-19 20:42:06.000000000 -0700
+> +++ ./arch/sh/mm/hugetlbpage.c	2006-09-29 14:51:20.000000000 -0700
+> @@ -53,6 +53,12 @@ pte_t *huge_pte_offset(struct mm_struct 
+>  	return pte;
+>  }
+>  
+> +int
+> +huge_pte_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+> +{
+> +	return 0;
+> +}
+> +
+
+int huge_pte_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+is Linus' preference, all on one line, in each of the arches.  As in the
+line you see below.  Except that arch/sh/mm/hugetlbpage.c has moved on
+since 2.6.18, that line's gone, you need to rediff against current.
+
+>  void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+>  		     pte_t *ptep, pte_t entry)
+>  {
 
 Hugh
 
