@@ -1,34 +1,56 @@
-Message-ID: <451DA6C3.2040004@oracle.com>
-Date: Fri, 29 Sep 2006 19:05:39 -0400
-From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: [patch 0/2] shared page table for hugetlb page - v3
+Date: Fri, 29 Sep 2006 17:29:39 -0700
+Message-ID: <000001c6e427$84352250$ff0da8c0@amr.corp.intel.com>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com>	<20060925141036.73f1e2b3.akpm@osdl.org>	<45185D7E.6070104@yahoo.com.au>	<451862C5.1010900@oracle.com>	<45186481.1090306@yahoo.com.au>	<45186DC3.7000902@oracle.com>	<451870C6.6050008@yahoo.com.au>	<4518835D.3080702@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org>	<20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com>	<20060928100306.0b58f3c7.akpm@osdl.org>	<451C01C8.7020104@oracle.com>	<451C6AAC.1080203@yahoo.com.au>	<451D8371.2070101@oracle.com>	<1159562724.13651.39.camel@lappy>	<451D89E7.7020307@oracle.com>	<1159564637.13651.44.camel@lappy>	<20060929144421.48f9f1bd.akpm@osdl.org>	<451D94A7.9060905@oracle.com> <20060929152951.0b763f6a.akpm@osdl.org>
-In-Reply-To: <20060929152951.0b763f6a.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <steved@redhat.com>, linux-mm@kvack.org
+To: 'Hugh Dickins' <hugh@veritas.com>, 'Andrew Morton' <akpm@osdl.org>, 'Dave McCracken' <dmccr@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Fri, 29 Sep 2006 17:48:23 -0400
-> Chuck Lever <chuck.lever@oracle.com> wrote:
-> 
->> Andrew Morton wrote:
->>> buggerit, let's do this.  It'll fix NFS, yes?
->> It looks right to me.
-> 
-> s/right/less incorrect/ ;)
+OK, here is v3 of the patch for shared page table on hugetlb segment.
+I believe I dealt with all the points brought up by Hugh, changes are:
 
-Yes, that's what I meant.  :-)
+(1) not using weak function on huge_pte_unshare(), for arches that
+    don't do page table sharing, they now have trivial mods.
 
-> Please double-check that it passes testing.
+(2) fixing bug on not checking vm_pgoff with sharing vma. This version
+    performs real criteria on sharing page table page: it checks faulting
+    file page offset and faulting virtual addresses, along with vm_flags
+    and page table alignment.  A down_read_trylock() is added on the
+    source mm->mmap_sem to secure vm_flags. It also allows proper locking
+    for ref counting the shared page table page.
 
-Of course... since it's the weekend, give me a day.
+(3) checks VM_MAYSHARE as one of the sharing requirement.
+
+(4) Fixed locking around sharing and unsharing of page table page.  The
+    solution I adopted is to use both i_mmap_lock and mm->mmap_sem read
+    semaphore of source mm while finding and manipulate ref count on the
+    page table page for sharing.  In the unshare path, the ref count and
+    freeing is done inside either mmap_sem (which came from mprotect or
+    munmap); or i_mmap_lock which is in the ftruncate path.
+
+(5) changed argument in function huge_pte_share(). In order to find out a
+    potential page table to share, it is necessary to get the faulting vma's
+    page permission and flags to match with all the vma found in the priority
+    tree.  However, vma pointer was not passed from higher level caller where
+    parent caller already has that vma pointer.  The complication arises from
+    two incompatible call sites: one in the fault path where a vma pointer is
+    readily available, however, in the copy_hugetlb_page_range(), the
+    destination vma is not available and we have to perform a vma lookup.  It
+    can be argued that it is better to incur the cost of find_vma in the fork
+    path where copy_hugetlb_page_range is used rather than in the fault path
+    which occurs a lot more often. Though neither is desirable.  I took a
+    third route to only look up the vma if pmd page is not already established.
+    This should cut down the amount of find_vma significantly in most cases.
+
+(6) separate out simple RSS removal into a sub patch.
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
