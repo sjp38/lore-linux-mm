@@ -1,37 +1,43 @@
-Message-ID: <4521460B.8000504@RedHat.com>
-Date: Mon, 02 Oct 2006 13:02:03 -0400
-From: Steve Dickson <SteveD@redhat.com>
+Date: Mon, 2 Oct 2006 10:10:48 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Get rid of zone_table V2
+In-Reply-To: <20060930130811.2a7c0009.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0610021008510.12554@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0609181215120.20191@schroedinger.engr.sgi.com>
+ <20060924030643.e57f700c.akpm@osdl.org> <20060927021934.9461b867.akpm@osdl.org>
+ <451A6034.20305@shadowen.org> <Pine.LNX.4.64.0609301135430.4012@schroedinger.engr.sgi.com>
+ <20060930130811.2a7c0009.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com>	<20060925141036.73f1e2b3.akpm@osdl.org>	<45185D7E.6070104@yahoo.com.au>	<451862C5.1010900@oracle.com>	<45186481.1090306@yahoo.com.au>	<45186DC3.7000902@oracle.com>	<451870C6.6050008@yahoo.com.au>	<4518835D.3080702@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org>	<20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com>	<20060928100306.0b58f3c7.akpm@osdl.org>	<451C01C8.7020104@oracle.com>	<451C6AAC.1080203@yahoo.com.au>	<451D8371.2070101@oracle.com>	<1159562724.13651.39.camel@lappy>	<451D89E7.7020307@oracle.com>	<1159564637.13651.44.camel@lappy>	<20060929144421.48f9f1bd.akpm@osdl.org>	<451D94A7.9060905@oracle.com>	<20060929152951.0b763f6a.akpm@osdl.org>	<451F425F.8030609@oracle.com>	<4520FFB6.3040801@RedHat.com>	<1159795522.6143.7.camel@lade.trondhjem.org> <20061002095727.05cd052f.akpm@osdl.org>
-In-Reply-To: <20061002095727.05cd052f.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, chuck.lever@oracle.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 30 Sep 2006, Andrew Morton wrote:
 
-Andrew Morton wrote:
-> On Mon, 02 Oct 2006 09:25:22 -0400
-> Trond Myklebust <Trond.Myklebust@netapp.com> wrote:
-> 
->> On Mon, 2006-10-02 at 08:01 -0400, Steve Dickson wrote:
->>> Question: Maybe I missed this... but what is NFS suppose to do
->>> when invalidate_inode_pages2() fails on non-file inodes? Noting
->>> it with as metric as Chuck suggested is a good way to
->>> detect  its happening, but does it make sense for NFS to keep
->>> calling invalidate_inode_pages2() until it does not fail when
->>> trying to flush the readdir cache?
->> Definitely not. There is not much we can do at the filesystem level if
->> the VM fails, and that is why we haven't bothered checking the return
->> value previously.
->>
-> 
-> Please add a printk.
-Please add a printk that can be turned off....
+> BUILD_BUG_ON()?
+
+Good idea. We may want to take all of these patches out if Andy can come 
+up with an easy modification to the macros that avoids ZONEID_PGSHIFT to 
+unintentionally become 0.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.18-mm2/include/linux/mm.h
+===================================================================
+--- linux-2.6.18-mm2.orig/include/linux/mm.h	2006-09-30 13:33:27.000000000 -0500
++++ linux-2.6.18-mm2/include/linux/mm.h	2006-10-02 12:08:14.387946148 -0500
+@@ -452,7 +452,7 @@ static inline enum zone_type page_zonenu
+  */
+ static inline int page_zone_id(struct page *page)
+ {
+-	BUG_ON(ZONEID_PGSHIFT == 0 && ZONEID_MASK);
++	BUILD_BUG_ON(ZONEID_PGSHIFT == 0 && ZONEID_MASK);
+ 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
