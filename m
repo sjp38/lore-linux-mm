@@ -1,49 +1,50 @@
-Date: Sun, 1 Oct 2006 23:48:58 -0700
-From: Paul Jackson <pj@sgi.com>
+Date: Mon, 2 Oct 2006 00:05:11 -0700 (PDT)
+From: David Rientjes <rientjes@cs.washington.edu>
 Subject: Re: [RFC] another way to speed up fake numa node page_alloc
-Message-Id: <20061001234858.fe91109e.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
-References: <20060925091452.14277.9236.sendpatchset@v0>
-	<20061001231811.26f91c47.pj@sgi.com>
-	<Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20061001234858.fe91109e.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
+References: <20060925091452.14277.9236.sendpatchset@v0> <20061001231811.26f91c47.pj@sgi.com>
+ <Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
+ <20061001234858.fe91109e.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@cs.washington.edu>
+To: Paul Jackson <pj@sgi.com>
 Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-David wrote:
-> It would be nice to be able to scale this so that the speed-up works 
-> efficiently for numa=fake=256 (after NODES_SHIFT is increased from 6 to 8 
-> on x86_64).
+On Sun, 1 Oct 2006, Paul Jackson wrote:
 
-I'm not sure what you have in mind by "scale this."
+> I'm not sure what you have in mind by "scale this."
+> 
 
-We have a linear search of zones ... my speedup just changes the
-constant multiplier, by converting that search from one that takes
-one or two cache lines per node, to one that takes an unsigned
-short, from compact array, per node.
+I'm talking about this:
 
-This speedup should apply regardless of how many nodes (fake or
-real or mixed) are present.
++struct zonelist_faster {
++	nodemask_t fullnodes;		/* nodes recently lacking free memory */
++	unsigned long last_full_zap;	/* jiffies when fullnodes last zero'd */
++	unsigned short node_id[MAX_NUMNODES * MAX_NR_ZONES]; /* zone -> nid */
++};
 
-The fake node case is more interesting, because the usage pattern
-it anticipates, with many, even most, of a long string of nodes
-full during ordinary operation, stresses this linear scan more.
+With NODES_SHIFT equal to 10 as you recommend, you can't get away with an 
+unsigned short there.  Likewise, your nodemask_t would need to be 128 
+bytes.  So this doesn't scale appropriately when you simply change 
+NODES_SHIFT.
 
-But whatever benefit this proposal has should be independent of the
-value of NODES_SHIFT.
+> This speedup should apply regardless of how many nodes (fake or
+> real or mixed) are present.
+> 
 
-The systems I care most about, ia64 sn2, are already running with a
-default NODES_SHIFT of 10.
+It doesn't (see above).
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+> But whatever benefit this proposal has should be independent of the
+> value of NODES_SHIFT.
+> 
+
+It's not (see above).
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
