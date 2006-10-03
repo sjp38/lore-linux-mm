@@ -1,59 +1,60 @@
-Message-ID: <4522B846.5050501@oracle.com>
-Date: Tue, 03 Oct 2006 15:21:42 -0400
-From: Chuck Lever <chuck.lever@oracle.com>
-Reply-To: chuck.lever@oracle.com
+Date: Tue, 3 Oct 2006 12:37:52 -0700 (PDT)
+From: David Rientjes <rientjes@cs.washington.edu>
+Subject: Re: [RFC] another way to speed up fake numa node page_alloc
+In-Reply-To: <20061003111517.a5cc30ea.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64N.0610031231270.4919@attu3.cs.washington.edu>
+References: <20060925091452.14277.9236.sendpatchset@v0> <20061001231811.26f91c47.pj@sgi.com>
+ <Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
+ <20061001234858.fe91109e.pj@sgi.com> <Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
+ <20061002014121.28b759da.pj@sgi.com> <20061003111517.a5cc30ea.pj@sgi.com>
 MIME-Version: 1.0
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-References: <4518333E.2060101@oracle.com>	<4518835D.3080702@oracle.com>	 <451886FB.50306@yahoo.com.au>	 <451BF7BC.1040807@oracle.com>	 <20060928093640.14ecb1b1.akpm@osdl.org>	 <20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com>	 <20060928100306.0b58f3c7.akpm@osdl.org>	<451C01C8.7020104@oracle.com>	 <451C6AAC.1080203@yahoo.com.au>	<451D8371.2070101@oracle.com>	 <1159562724.13651.39.camel@lappy>	<451D89E7.7020307@oracle.com>	 <1159564637.13651.44.camel@lappy>	<20060929144421.48f9f1bd.akpm@osdl.org>	 <451D94A7.9060905@oracle.com>	<20060929152951.0b763f6a.akpm@osdl.org>	 <451F425F.8030609@oracle.com>	<4520FFB6.3040801@RedHat.com>	 <1159795522.6143.7.camel@lade.trondhjem.org>	 <20061002095727.05cd052f.akpm@osdl.org>	<4521460B.8000504@RedHat.com>	 <20061002112005.d02f84f7.akpm@osdl.o! rg> <45216233.5010602@RedHat.com>	 <4521C79A.6090102@oracle.com> <1159849117.5420.17.camel@lade.trondhjem.org>	 <4522B112.3030207@oracle.com> <1159902601.23752.11.camel@lade.trondhj!
- em.org>
-In-Reply-To: <1159902601.23752.11.camel@lade.trondhjem.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: Steve Dickson <SteveD@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Trond Myklebust wrote:
-> On Tue, 2006-10-03 at 14:50 -0400, Chuck Lever wrote:
-> 
->>>> diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
->>>> index 377839b..fe69c39 100644
->>>> --- a/fs/nfs/direct.c
->>>> +++ b/fs/nfs/direct.c
->>>> @@ -823,7 +823,7 @@ ssize_t nfs_file_direct_write(struct kio
->>>>  	 *      occur before the writes complete.  Kind of racey.
->>>>  	 */
->>>>  	if (mapping->nrpages)
->>>> -		invalidate_inode_pages2(mapping);
->>>> +		nfs_invalidate_mapping(mapping->host, mapping);
->>> This looks wrong. Why are we bumping the NFSIOS_DATAINVALIDATE counter
->>> on a direct write? We're not registering a cache consistency problem
->>> here.
->> We're looking for potential races between direct I/O and cache 
->> invalidation, among others.  Is your concern that this may report false 
->> positives?
-> 
-> No. I simply don't see what the use case is for this statistic. AFAICS
-> it is purely a debugging tool for _developers_. That would have
-> absolutely no place at all in /proc/self/mountstats, which is supposed
-> to provide useful statistics for _administrators_.
+On Tue, 3 Oct 2006, Paul Jackson wrote:
 
-Don't you think admins need to know when the client has potentially 
-caused data corruption?
-
->> I'm not sure this invalidation is useful in any event.  Direct writes 
->> are treated like some other client has modified the file, so cached 
->> pages will get invalidated eventually anyway.  Maybe we should just 
->> remove this one?
+> pj, responding to David:
+> > > With NODES_SHIFT equal to 10 as you recommend, you can't get away with an 
+> > > unsigned short there. 
+> > 
+> > Apparently it's time for me to be a stupid git again.  That's ok; I'm
+> > getting quite accustomed to it.
+> > 
+> > Could you spell out exactly why I can't get away with an unsigned short
+> > node_id if NODES_SHIFT is 10?
 > 
-> That would break the principle that if one process modifies the file,
-> then all processes on the same client will immediately see those
-> changes.
+> 
+> Is this still in your queue to respond to, David?
+> 
+> I'm still curious as to why I can't get away with an unsigned short there.
+> 
 
-We could achieve that simply by setting the NFS_INO_INVALID_DATA flag in 
-nfs_file_direct_write() and/or nfs_direct_write_complete().
+Because it's unnecessary.  On my 4G machine with numa=fake=256, each of 
+these node_id arrays is going to be 1.5K.  You could get away with the 
+exact same behavior with using a u8 or unsigned char.  There's no reason 
+to support anything greater than a shift of 8 since NUMA emulation is 
+_only_ available on x86_64 and doesn't even work right as it stands in the 
+current mainline so that you could boot my machine with anything more than 
+numa=fake=8.
+
+If you are going to abstract this functionality to other architectures or 
+even generically I would suggest following Magnus Damm's example and 
+creating a NODES_SHIFT_HW instead that would limit the number of numa=fake 
+nodes.  There is simply no reason for this to be greater than 8 (even a 
+128G machine with numa=fake=256 would have 512M nodes).
+
+Secondly, the entire node_id lookup is redundant on x86_64 in the first 
+place (see arch/x86_64/mm/numa.c and include/asm-x86_64/mmzone.h for 
+memnodemap).  The only thing that is being sped-up with your node_id array 
+in each zonelist_faster is moving this calculation from two steps to one 
+step; since the mainline implementation today are both inline functions I 
+think the improvement is minimal.
+
+		David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
