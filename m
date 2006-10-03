@@ -1,55 +1,47 @@
-Message-ID: <20061003153103.xi28w00ww4w4o0co@www.email.arizona.edu>
-Date: Tue,  3 Oct 2006 15:31:03 -0700
-From: bithikak@email.arizona.edu
-Subject: Fwd: vmtrace patch
-MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Disposition: inline
+Received: from midway.site ([71.117.236.95]) by xenotime.net for <linux-mm@kvack.org>; Tue, 3 Oct 2006 15:48:23 -0700
+Date: Tue, 3 Oct 2006 15:49:49 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: [PATCH] page_alloc: fix kernel-doc and func. declaration
+Message-Id: <20061003154949.7953c6f9.rdunlap@xenotime.net>
+In-Reply-To: <Pine.LNX.4.64.0610031435590.22775@schroedinger.engr.sgi.com>
+References: <20061003141445.0c502d45.rdunlap@xenotime.net>
+	<Pine.LNX.4.64.0610031435590.22775@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: marcelo.tosatti@cyclades.com
-Cc: linux-mm@kvack.org, mtosatti@redhat.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, akpm <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcelo,
+On Tue, 3 Oct 2006 14:36:58 -0700 (PDT) Christoph Lameter wrote:
 
-A dry run of your vmtrace patch on my  2.6.17-1.2187_FC5 kernel gave the
-following failures. I downloaded the patch from
+> On Tue, 3 Oct 2006, Randy Dunlap wrote:
+> 
+> >  /**
+> >   * set_dma_reserve - Account the specified number of pages reserved in ZONE_DMA
+> > - * @new_dma_reserve - The number of pages to mark reserved
+> > + * @new_dma_reserve: The number of pages to mark reserved
+> >   *
+> >   * The per-cpu batchsize and zone watermarks are determined by present_pages.
+> >   * In the DMA zone, a significant percentage may be consumed by kernel image
+> >   * and other unfreeable allocations which can skew the watermarks badly. This
+> >   * function may optionally be used to account for unfreeable pages in
+> > - * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize
+> > + * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize.
+> >   */
+> >  void __init set_dma_reserve(unsigned long new_dma_reserve)
+> 
+> Hmmm. With the optional ZONE_DMA patch this becomes a reservation in the 
+> first zone, which may be ZONE_NORMAL.
 
-http://hera.kernel.org/~marcelo/mm/vmtrace/vmtrace-0.0.tar.gz
+I didn't change any of that wording.  Do you want to change it?
+do you want me to make that change?  or what?
 
-Which kernel version did you write the patch for? It seems it is 2.6 but then
-why does it fail for me?
-
-Please advice.
-Thanks
-Bithika
-
-************************** PATCH DRY RUN START *********************************
-[root@dhcp-214 linux-2.6.17.x86_64]# patch -p1 <
-vmtrace-0.0/kernel_patch/vmtrace-2.6-git-nov-2005.patch --dry-run
-patching file include/asm-i386/pgtable.h
-Hunk #2 FAILED at 225.
-Hunk #3 FAILED at 238.
-2 out of 3 hunks FAILED -- saving rejects to file include/asm-i386/pgtable.h.rej
-patching file include/linux/vmtrace.h
-patching file mm/Kconfig
-patching file mm/Makefile
-Hunk #1 FAILED at 20.
-1 out of 1 hunk FAILED -- saving rejects to file mm/Makefile.rej
-patching file mm/filemap.c
-Hunk #1 succeeded at 552 (offset 47 lines).
-patching file mm/memory.c
-Hunk #1 succeeded at 433 with fuzz 1 (offset 67 lines).
-Hunk #2 FAILED at 632.
-Hunk #3 succeeded at 857 (offset 3 lines).
-Hunk #4 succeeded at 2320 (offset 335 lines).
-1 out of 4 hunks FAILED -- saving rejects to file mm/memory.c.rej
-patching file mm/vmtrace.c
-************************** PATCH DRY RUN END *********************************
-
------ End forwarded message -----
+thanks,
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
