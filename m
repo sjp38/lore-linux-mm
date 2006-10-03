@@ -1,71 +1,55 @@
-Date: Tue, 3 Oct 2006 14:37:01 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Checking page_count(page) in invalidate_complete_page
-Message-Id: <20061003143701.93a66b84.akpm@osdl.org>
-In-Reply-To: <1159902601.23752.11.camel@lade.trondhjem.org>
-References: <4518333E.2060101@oracle.com>
-	<451886FB.50306@yahoo.com.au>
-	<451BF7BC.1040807@oracle.com>
-	<20060928093640.14ecb1b1.akpm@osdl.org>
-	<20060928094023.e888d533.akpm@osdl.org>
-	<451BFB84.5070903@oracle.com>
-	<20060928100306.0b58f3c7.akpm@osdl.org>
-	<451C01C8.7020104@oracle.com>
-	<451C6AAC.1080203@yahoo.com.au>
-	<451D8371.2070101@oracle.com>
-	<1159562724.13651.39.camel@lappy>
-	<451D89E7.7020307@oracle.com>
-	<1159564637.13651.44.camel@lappy>
-	<20060929144421.48f9f1bd.akpm@osdl.org>
-	<451D94A7.9060905@oracle.com>
-	<20060929152951.0b763f6a.akpm@osdl.org>
-	<451F425F.8030609@oracle.com>
-	<4520FFB6.3040801@RedHat.com>
-	<1159795522.6143.7.camel@lade.trondhjem.org>
-	<20061002095727.05cd052f.akpm@osdl.org>
-	<4521460B.8000504@RedHat.com>
-	<20061002112005.d02f84f7.akpm@osdl.o! rg>
-	<45216233.5010602@RedHat.com>
-	<4521C79A.6090102@oracle.com>
-	<1159849117.5420.17.camel@lade.trondhjem.org>
-	<4522B112.3030207@oracle.com>
-	<1159902601.23752.11.camel@lade.trondhjem.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <20061003153103.xi28w00ww4w4o0co@www.email.arizona.edu>
+Date: Tue,  3 Oct 2006 15:31:03 -0700
+From: bithikak@email.arizona.edu
+Subject: Fwd: vmtrace patch
+MIME-Version: 1.0
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: chuck.lever@oracle.com, Steve Dickson <SteveD@redhat.com>, linux-mm@kvack.org
+To: marcelo.tosatti@cyclades.com
+Cc: linux-mm@kvack.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 03 Oct 2006 15:10:01 -0400
-Trond Myklebust <Trond.Myklebust@netapp.com> wrote:
+Hi Marcelo,
 
-> > >> +	result = invalidate_inode_pages2(mapping);
-> > >> +	if (unlikely(result) < 0) {
-> > >> +		nfs_inc_stats(inode, NFSIOS_INVALIDATEFAILED);
-> > >> +		printk(KERN_ERR
-> > >> +			"NFS: error %d invalidating pages for inode (%s/%Ld)\n",
-> > >> +				result, inode->i_sb->s_id,
-> > >> +				(long long)NFS_FILEID(inode));
-> > > 
-> > > So what _are_ users expected to do about this? Sue us? Complain bitterly
-> > > to lkml, and then get told that the VM is broken?
-> > 
-> > Such a message will be reported to distributors or lkml, and we will be 
-> > able to collect data about the scenario where there is a problem.
-> 
-> i.e. we're throwing our hands up into the air, and saying "we don't
-> understand what is going on here"?
-> 
-> Sorry, but that is not an option. If we can't design a clearly defined
-> API for cache invalidation, with well defined errors, then we should all
-> go home and start learning Solaris programming now.
+A dry run of your vmtrace patch on my  2.6.17-1.2187_FC5 kernel gave the
+following failures. I downloaded the patch from
 
-I don't think we need the stats increment in there.  We could make it a
-plain WARN_ON() or BUG_ON().  Or just whack a printk in there.  It's hardly
-a big deal.
+http://hera.kernel.org/~marcelo/mm/vmtrace/vmtrace-0.0.tar.gz
+
+Which kernel version did you write the patch for? It seems it is 2.6 but then
+why does it fail for me?
+
+Please advice.
+Thanks
+Bithika
+
+************************** PATCH DRY RUN START *********************************
+[root@dhcp-214 linux-2.6.17.x86_64]# patch -p1 <
+vmtrace-0.0/kernel_patch/vmtrace-2.6-git-nov-2005.patch --dry-run
+patching file include/asm-i386/pgtable.h
+Hunk #2 FAILED at 225.
+Hunk #3 FAILED at 238.
+2 out of 3 hunks FAILED -- saving rejects to file include/asm-i386/pgtable.h.rej
+patching file include/linux/vmtrace.h
+patching file mm/Kconfig
+patching file mm/Makefile
+Hunk #1 FAILED at 20.
+1 out of 1 hunk FAILED -- saving rejects to file mm/Makefile.rej
+patching file mm/filemap.c
+Hunk #1 succeeded at 552 (offset 47 lines).
+patching file mm/memory.c
+Hunk #1 succeeded at 433 with fuzz 1 (offset 67 lines).
+Hunk #2 FAILED at 632.
+Hunk #3 succeeded at 857 (offset 3 lines).
+Hunk #4 succeeded at 2320 (offset 335 lines).
+1 out of 4 hunks FAILED -- saving rejects to file mm/memory.c.rej
+patching file mm/vmtrace.c
+************************** PATCH DRY RUN END *********************************
+
+----- End forwarded message -----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
