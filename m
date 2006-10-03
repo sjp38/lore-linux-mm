@@ -1,22 +1,29 @@
-Date: Tue, 3 Oct 2006 11:01:36 -0700
-From: Andrew Morton <akpm@osdl.org>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e34.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k93I6FIU001759
+	for <linux-mm@kvack.org>; Tue, 3 Oct 2006 14:06:15 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k93I6F0Z505834
+	for <linux-mm@kvack.org>; Tue, 3 Oct 2006 12:06:15 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k93I6EHp023000
+	for <linux-mm@kvack.org>; Tue, 3 Oct 2006 12:06:15 -0600
 Subject: Re: 2.6.18-mm3
-Message-Id: <20061003110136.3a572578.akpm@osdl.org>
+From: Badari Pulavarty <pbadari@gmail.com>
 In-Reply-To: <1159897051.9569.0.camel@dyn9047017100.beaverton.ibm.com>
 References: <20061003001115.e898b8cb.akpm@osdl.org>
-	<1159897051.9569.0.camel@dyn9047017100.beaverton.ibm.com>
+	 <1159897051.9569.0.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: text/plain
+Date: Tue, 03 Oct 2006 11:05:46 -0700
+Message-Id: <1159898746.9569.6.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 03 Oct 2006 10:37:31 -0700
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
-
+On Tue, 2006-10-03 at 10:37 -0700, Badari Pulavarty wrote:
 > On Tue, 2006-10-03 at 00:11 -0700, Andrew Morton wrote:
 > > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.18/2.6.18-mm3/
 > > 
@@ -37,11 +44,8 @@ Badari Pulavarty <pbadari@us.ibm.com> wrote:
 > 
 > Not having any luck with it :(
 > 
-
-You never do ;)
-
-We'd make better progress if you could bisect these failures.
-
+> Thanks,
+> Badari
 > 
 > Kernel command line: root=/dev/hda2 vga=0x314  selinux=0   console=tty0
 > console=ttyS0,38400 resume=/dev/hda1 resume=/dev/hda1  splash=silent
@@ -89,17 +93,34 @@ We'd make better progress if you could bisect these failures.
 >  [<ffffffff806fdc69>] kmem_cache_init+0x3b9/0x490
 >  [<ffffffff806e36ef>] start_kernel+0x18f/0x220
 >  [<ffffffff806e3176>] _sinittext+0x176/0x180
-> 
-> 
-> Code: 0f 0b 66 66 90 48 8b 3d b1 ae 38 00 be d0 00 00 00 e8 0f ff
-> RIP  [<ffffffff8027bd5b>] init_list+0x2b/0x120
->  RSP <ffffffff806d9f18>
->  <0>Kernel panic - not syncing: Attempted to kill the idle task!
 
-http://userweb.kernel.org/~akpm/badari2.bz2 is a rollup against 2.6.18
-which omits the various zone changes.  Can you see if that also fails?
+Here is the fix for this. With this -mm3 boots fine (no networking
+problems so far).
 
-Thanks.
+Thanks,
+Badari
+
+Fix typo in kmem_cache_init().
+
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+
+ mm/slab.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6.18-mm3/mm/slab.c
+===================================================================
+--- linux-2.6.18-mm3.orig/mm/slab.c	2006-10-03 11:31:31.000000000 -0700
++++ linux-2.6.18-mm3/mm/slab.c	2006-10-03 11:31:45.000000000 -0700
+@@ -1513,7 +1513,7 @@ void __init kmem_cache_init(void)
+ 
+ 		for_each_online_node(nid) {
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+-				  &initkmem_list3[SIZE_AC + node], nid);
++				  &initkmem_list3[SIZE_AC + nid], nid);
+ 
+ 			if (INDEX_AC != INDEX_L3) {
+ 				init_list(malloc_sizes[INDEX_L3].cs_cachep,
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
