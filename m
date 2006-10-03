@@ -1,72 +1,50 @@
 From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: [patch 2/2] htlb forget rss with pt sharing
-Date: Tue, 3 Oct 2006 03:01:17 -0700
-Message-ID: <000201c6e6d2$deabcec0$bb80030a@amr.corp.intel.com>
+Subject: Hugetlb pt sharing - v4 changelog
+Date: Tue, 3 Oct 2006 03:28:37 -0700
+Message-ID: <000301c6e6d6$b0566680$bb80030a@amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Hugh Dickins' <hugh@veritas.com>, 'Andrew Morton' <akpm@osdl.org>, 'Dave McCracken' <dmccr@us.ibm.com>
+To: 'Hugh Dickins' <hugh@veritas.com>, 'Andrew Morton' <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Imprecise RSS accounting is an irritating ill effect with pt sharing. 
-After consulted with several VM experts, I have tried various methods to
-solve that problem: (1) iterate through all mm_structs that share the PT
-and increment count; (2) keep RSS count in page table structure and then
-sum them up at reporting time.  None of the above methods yield any
-satisfactory implementation.
+Short description of v4 changelog (only major items):
 
-Since process RSS accounting is pure information only, I propose we don't
-count them at all for hugetlb page. rlimit has such field, though there is
-absolutely no enforcement on limiting that resource.  One other method is
-to account all RSS at hugetlb mmap time regardless they are faulted or not.
-I opt for the simplicity of no accounting at all.
+(1) went back to earlier mods using i_mmap_lock for locking pmd
+    sharing and unsharing.  I dropped down_read_trylock() in the
+    huge_pmd_share().  I think it is safe to do so with just
+    i_mmap_lock: even if one mm (call it P1) is performing mprotect,
+    changing vm_flags while race with another mm (call it P2) in the
+    fault path.  P2 picks up old P1's vm_flags and decided it can
+    share, increment ref count on the page table page.  P1 in the
+    mean time changes vm_flags, get to hugetlb_change_protection and
+    it will detect the page is shared and P1 will simply drop the pmd
+    link.  P1 will fault again on the address range that unshared with
+    correct protection set in its page table.
 
+    The new unmap_hugepage_range() has to check vma->vm_file, it is
+    undesirable.  I hope Hugh is OK with a change in the generic code
+    to rearrange the order of unmap and vm_file freeing.
 
-Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
+(2) rearranged condition check on shareable page table.  I've now break
+    it out into two parts: one to check faulting vma's shareable criteria
+    for efficiency reason. Once that is satisfied, we then walk the priority
+    tree to search for a suitable target vma (or page table to be precise)
+    for sharing.
 
---- ./mm/hugetlb.c.orig	2006-10-03 00:16:38.000000000 -0700
-+++ ./mm/hugetlb.c	2006-10-03 00:19:45.000000000 -0700
-@@ -344,7 +344,6 @@ int copy_hugetlb_page_range(struct mm_st
- 			entry = *src_pte;
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
--			add_mm_counter(dst, file_rss, HPAGE_SIZE / PAGE_SIZE);
- 			set_huge_pte_at(dst, addr, dst_pte, entry);
- 		}
- 		spin_unlock(&src->page_table_lock);
-@@ -372,10 +371,6 @@ void __unmap_hugepage_range(struct vm_ar
- 
- 	INIT_LIST_HEAD(&page_list);
- 	spin_lock(&mm->page_table_lock);
--
--	/* Update high watermark before we lower rss */
--	update_hiwater_rss(mm);
--
- 	for (address = start; address < end; address += HPAGE_SIZE) {
- 		ptep = huge_pte_offset(mm, address);
- 		if (!ptep)
-@@ -390,9 +385,7 @@ void __unmap_hugepage_range(struct vm_ar
- 
- 		page = pte_page(pte);
- 		list_add(&page->lru, &page_list);
--		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
- 	}
--
- 	spin_unlock(&mm->page_table_lock);
- 	flush_tlb_range(vma, start, end);
- 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
-@@ -507,7 +500,6 @@ retry:
- 	if (!pte_none(*ptep))
- 		goto backout;
- 
--	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
- 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
- 				&& (vma->vm_flags & VM_SHARED)));
- 	set_huge_pte_at(mm, address, ptep, new_pte);
+(3) double checked on the radix and heap index used for searching priority
+    tree.  It is sad that there are inconsistency in the page offset used
+    by the two trees. The page cache radix tree uses HPAGE_SIZE as one unit
+    while priority tree uses normal page size throughout, regardless whether
+    it is a hugetlb or normal vma.  Oh well, no big deal.
+
+(4) tested on x86_64.
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
