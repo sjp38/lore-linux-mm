@@ -1,50 +1,48 @@
-Date: Wed, 4 Oct 2006 18:12:54 +0200
-From: Andre Noll <maan@systemlinux.org>
-Subject: Re: 2.6.18: Kernel BUG at mm/rmap.c:522
-Message-ID: <20061004161254.GE22487@skl-net.de>
-References: <20061004104018.GB22487@skl-net.de> <4523BE45.5050205@yahoo.com.au> <20061004154227.GD22487@skl-net.de> <1159976940.27331.0.camel@twins>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="zaRBsRFn0XYhEU69"
-Content-Disposition: inline
-In-Reply-To: <1159976940.27331.0.camel@twins>
+Message-ID: <45240B94.4070808@oracle.com>
+Date: Wed, 04 Oct 2006 15:29:24 -0400
+From: Chuck Lever <chuck.lever@oracle.com>
+Reply-To: chuck.lever@oracle.com
+MIME-Version: 1.0
+Subject: Re: Checking page_count(page) in invalidate_complete_page
+References: <4518333E.2060101@oracle.com>	<451886FB.50306@yahoo.com.au>	<451BF7BC.1040807@oracle.com>	<20060928093640.14ecb1b1.akpm@osdl.org>	<20060928094023.e888d533.akpm@osdl.org>	<451BFB84.5070903@oracle.com>	<20060928100306.0b58f3c7.akpm@osdl.org>	<451C01C8.7020104@oracle.com>	<451C6AAC.1080203@yahoo.com.au>	<451D8371.2070101@oracle.com>	<1159562724.13651.39.camel@lappy>	<451D89E7.7020307@oracle.com>	<1159564637.13651.44.camel@lappy>	<20060929144421.48f9f1bd.akpm@osdl.org>	<451D94A7.9060905@oracle.com>	<20060929152951.0b763f6a.akpm@osdl.org>	<451F425F.8030609@oracle.com>	<4520FFB6.3040801@RedHat.com>	<1159795522.6143.7.camel@lade.trondhjem.org>	<20061002095727.05cd052f.akpm@osdl.org>	<4521460B.8000504@RedHat.com>	<20061002112005.d02f84f7.akpm@osdl.o! rg>	<45216233.5010602@RedHat.com>	<4521C79A.6090102@oracle.com>	<1159849117.5420.17.camel@lade.trondhjem.org>	<4522B112.3030207@oracle.com>	<1159902601.23752.11.camel@lade.trondhjem.org> <20061003143701.93a66b84.akpm@osdl.or!
+ g>
+In-Reply-To: <20061003143701.93a66b84.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de, riel@redhat.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Steve Dickson <SteveD@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---zaRBsRFn0XYhEU69
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Andrew Morton wrote:
+> On Tue, 03 Oct 2006 15:10:01 -0400
+> Trond Myklebust <Trond.Myklebust@netapp.com> wrote:
+> 
+>>>>> +	result = invalidate_inode_pages2(mapping);
+>>>>> +	if (unlikely(result) < 0) {
+>>>>> +		nfs_inc_stats(inode, NFSIOS_INVALIDATEFAILED);
+>>>>> +		printk(KERN_ERR
+>>>>> +			"NFS: error %d invalidating pages for inode (%s/%Ld)\n",
+>>>>> +				result, inode->i_sb->s_id,
+>>>>> +				(long long)NFS_FILEID(inode));
+>>>> So what _are_ users expected to do about this? Sue us? Complain bitterly
+>>>> to lkml, and then get told that the VM is broken?
+>>> Such a message will be reported to distributors or lkml, and we will be 
+>>> able to collect data about the scenario where there is a problem.
+>> i.e. we're throwing our hands up into the air, and saying "we don't
+>> understand what is going on here"?
+>>
+>> Sorry, but that is not an option. If we can't design a clearly defined
+>> API for cache invalidation, with well defined errors, then we should all
+>> go home and start learning Solaris programming now.
+> 
+> I don't think we need the stats increment in there.  We could make it a
+> plain WARN_ON() or BUG_ON().  Or just whack a printk in there.  It's hardly
+> a big deal.
 
-On 17:49, Peter Zijlstra wrote:
-
-> enable CONFIG_DEBUG_VM to get that.
-
-Yup, that was disabled. It's enabled now.
-
-Thanks
-Andre
-
---=20
-The only person who always got his work done by Friday was Robinson Crusoe
-
---zaRBsRFn0XYhEU69
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
-
-iD8DBQFFI92GWto1QDEAkw8RAmUHAJ9BxUxT/eVyHfx2hT5ZDEyMirnhTQCfU0HR
-JOOgzODwzqTNhlOoKLLmOYM=
-=BXVh
------END PGP SIGNATURE-----
-
---zaRBsRFn0XYhEU69--
+A "WARN_ON(ret != 0);" placed at the end of 
+invalidate_inode_pages2_range() should be sufficient and harmless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
