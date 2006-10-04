@@ -1,240 +1,276 @@
-Date: Wed, 4 Oct 2006 11:26:31 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v2] page_alloc: fix kernel-doc and func. declaration
-In-Reply-To: <20061003161725.05155ce2.rdunlap@xenotime.net>
-Message-ID: <Pine.LNX.4.64.0610041115270.21730@skynet.skynet.ie>
-References: <20061003141445.0c502d45.rdunlap@xenotime.net>
- <Pine.LNX.4.64.0610031435590.22775@schroedinger.engr.sgi.com>
- <20061003154949.7953c6f9.rdunlap@xenotime.net>
- <Pine.LNX.4.64.0610031605300.23654@schroedinger.engr.sgi.com>
- <20061003161725.05155ce2.rdunlap@xenotime.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Wed, 4 Oct 2006 12:40:18 +0200
+From: Andre Noll <maan@systemlinux.org>
+Subject: 2.6.18: Kernel BUG at mm/rmap.c:522
+Message-ID: <20061004104018.GB22487@skl-net.de>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="NMuMz9nt05w80d4+"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm <akpm@osdl.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de, nickpiggin@yahoo.com.au, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Oct 2006, Randy Dunlap wrote:
+--NMuMz9nt05w80d4+
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Tue, 3 Oct 2006 16:05:47 -0700 (PDT) Christoph Lameter wrote:
->
->> On Tue, 3 Oct 2006, Randy Dunlap wrote:
->>
->>>> Hmmm. With the optional ZONE_DMA patch this becomes a reservation in the
->>>> first zone, which may be ZONE_NORMAL.
->>>
->>> I didn't change any of that wording.  Do you want to change it?
->>> do you want me to make that change?  or what?
->>
->> Just say it reserves from the first zone.
->
-> Please check this.
->
-> ---
-> From: Randy Dunlap <rdunlap@xenotime.net>
->
-> Fix kernel-doc and function declaration (missing "void") in
-> mm/page_alloc.c.
-> Add mm/page_alloc.c to kernel-api.tmpl in DocBook.
->
-> mm/page_alloc.c:2589:38: warning: non-ANSI function declaration of function 'remove_all_active_ranges'
->
+Hi
 
-These issues are my fault. Thanks for the clean-up.
+MATLAB triggers the following bug on both of our new 16-way opteron
+machines (64G Ram): The same kernel is running with no problems on a
+bunch of smaller (8-way, 4-way, max 32G Ram) cluster nodes.
 
-> Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
-> ---
-> Documentation/DocBook/kernel-api.tmpl |    1
-> mm/page_alloc.c                       |   50 +++++++++++++++++-----------------
-> 2 files changed, 26 insertions(+), 25 deletions(-)
->
-> --- linux-2618-g19.orig/mm/page_alloc.c
-> +++ linux-2618-g19/mm/page_alloc.c
-> @@ -2050,8 +2050,8 @@ int __init early_pfn_to_nid(unsigned lon
->
-> /**
->  * free_bootmem_with_active_regions - Call free_bootmem_node for each active range
-> - * @nid: The node to free memory on. If MAX_NUMNODES, all nodes are freed
-> - * @max_low_pfn: The highest PFN that till be passed to free_bootmem_node
-> + * @nid: The node to free memory on. If MAX_NUMNODES, all nodes are freed.
-> + * @max_low_pfn: The highest PFN that will be passed to free_bootmem_node
+Any hints?
+Andre
 
-Should @max_low_pfn have a '.' at the end?
 
->  *
->  * If an architecture guarantees that all ranges registered with
->  * add_active_ranges() contain no holes and may be freed, this
-> @@ -2081,11 +2081,11 @@ void __init free_bootmem_with_active_reg
->
-> /**
->  * sparse_memory_present_with_active_regions - Call memory_present for each active range
-> - * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used
-> + * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used.
->  *
->  * If an architecture guarantees that all ranges registered with
->  * add_active_ranges() contain no holes and may be freed, this
-> - * this function may be used instead of calling memory_present() manually.
-> + * function may be used instead of calling memory_present() manually.
+----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [1] SMP=20
+CPU 14=20
+Pid: 12948, comm: MATLAB Not tainted 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff810207a19d70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff81101aa1dd90 RCX: 000000000000001c
+RDX: 00002aaad63b2000 RSI: 00002aaad63b2000 RDI: ffff81102d129ce8
+RBP: 0000000f59e3b067 R08: 0000000000000023 R09: ffff810e30000680
+R10: ffff8106079df408 R11: ffff8105970284a8 R12: ffff81102d129ce8
+R13: ffff810e3005e160 R14: 00002aaad63b2000 R15: 0000000000000000
+FS:  00002b3f6aa704a0(0000) GS:ffff810e301b9440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00002aaad8592000 CR3: 00000005bdd17000 CR4: 00000000000006a0
+Process MATLAB (pid: 12948, threadinfo ffff810207a18000, task ffff8101ea581=
+080)
+Stack:  ffffffff80157a37 ffff810e30000680 00002aaad63b3000 ffff81101aa1dd98
+ ffff81102fb53668 ffffffffffffffb8 ffff8106079df400 ffff810207a19e98
+ 00002aaad6400000 ffff810feecdc088 00002aaad6400000 ffff810b24d11588
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-Looks fine.
 
->  */
-> void __init sparse_memory_present_with_active_regions(int nid)
-> {
-> @@ -2155,14 +2155,14 @@ static void __init account_node_boundary
->
-> /**
->  * get_pfn_range_for_nid - Return the start and end page frames for a node
-> - * @nid: The nid to return the range for. If MAX_NUMNODES, the min and max PFN are returned
-> - * @start_pfn: Passed by reference. On return, it will have the node start_pfn
-> - * @end_pfn: Passed by reference. On return, it will have the node end_pfn
-> + * @nid: The nid to return the range for. If MAX_NUMNODES, the min and max PFN are returned.
-> + * @start_pfn: Passed by reference. On return, it will have the node start_pfn.
-> + * @end_pfn: Passed by reference. On return, it will have the node end_pfn.
->  *
->  * It returns the start and end page frame of a node based on information
->  * provided by an arch calling add_active_range(). If called for a node
->  * with no available memory, a warning is printed and the start and end
-> - * PFNs will be 0
-> + * PFNs will be 0.
->  */
-> void __init get_pfn_range_for_nid(unsigned int nid,
-> 			unsigned long *start_pfn, unsigned long *end_pfn)
-> @@ -2215,7 +2215,7 @@ unsigned long __init zone_spanned_pages_
->
-> /*
->  * Return the number of holes in a range on a node. If nid is MAX_NUMNODES,
-> - * then all holes in the requested range will be accounted for
-> + * then all holes in the requested range will be accounted for.
->  */
-> unsigned long __init __absent_pages_in_range(int nid,
-> 				unsigned long range_start_pfn,
-> @@ -2268,7 +2268,7 @@ unsigned long __init __absent_pages_in_r
->  * @start_pfn: The start PFN to start searching for holes
->  * @end_pfn: The end PFN to stop searching for holes
->  *
-> - * It returns the number of pages frames in memory holes within a range
-> + * It returns the number of pages frames in memory holes within a range.
->  */
-> unsigned long __init absent_pages_in_range(unsigned long start_pfn,
-> 							unsigned long end_pfn)
-> @@ -2582,11 +2582,12 @@ void __init shrink_active_range(unsigned
->
-> /**
->  * remove_all_active_ranges - Remove all currently registered regions
-> + *
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff810207a19d70>
+ <0>Bad page state in process 'MATLAB'
+page:ffff81102d129ce8 flags:0x1e00000000000014 mapping:0000000000000000 map=
+count:-1 count:0
+Trying to fix it up, but a reboot is needed
+Backtrace:
 
-For future reference, I am going to assume the newline is required between 
-the arguement list and the long description.
+Call Trace:
+ [<ffffffff8014f325>] bad_page+0x51/0x7b
+ [<ffffffff8014f788>] prep_new_page+0x57/0x15f
+ [<ffffffff8014feb1>] buffered_rmqueue+0x128/0x14a
+ [<ffffffff8015002c>] get_page_from_freelist+0xbd/0xe2
+ [<ffffffff801500a3>] __alloc_pages+0x52/0x29f
+ [<ffffffff80159a26>] do_anonymous_page+0x46/0x1b8
+ [<ffffffff8015a023>] __handle_mm_fault+0x18f/0x29d
+ [<ffffffff8011b359>] do_page_fault+0x1bd/0x4e7
+ [<ffffffff8015bf42>] do_mmap_pgoff+0x5fd/0x6de
+ [<ffffffff8022094b>] __up_write+0x14/0x108
+ [<ffffffff8010a3f9>] error_exit+0x0/0x84
 
->  * During discovery, it may be found that a table like SRAT is invalid
->  * and an alternative discovery method must be used. This function removes
->  * all currently registered regions.
->  */
-> -void __init remove_all_active_ranges()
-> +void __init remove_all_active_ranges(void)
+----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [2] SMP=20
+CPU 14=20
+Pid: 12079, comm: MATLAB Tainted: G    B 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff810a0916fd70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff810e7c68d300 RCX: 000000000000001c
+RDX: ffff810e30000000 RSI: 00002aab5ea60000 RDI: ffff81102bb25c10
+RBP: 0000000ef53ee067 R08: 0000000000000023 R09: ffff810e30000680
+R10: ffff810c01b69c88 R11: ffff810bce5484a8 R12: ffff81102bb25c10
+R13: ffff810e3005e160 R14: 00002aab5ea60000 R15: 0000000000000000
+FS:  00002b1f8100d4a0(0000) GS:ffff810e301b9440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00002aab31345000 CR3: 0000000c1bebd000 CR4: 00000000000006a0
+Process MATLAB (pid: 12079, threadinfo ffff810a0916e000, task ffff810a092d2=
+180)
+Stack:  ffffffff80157a37 ffff810e30000680 00002aab5ea61000 ffff810e7c68d308
+ ffff81102a0b6ee8 00000000ffffff9f ffff810c01b69c80 ffff810a0916fe98
+ 00002aab5ec00000 ffff810fd4924298 00002aab5ec00000 ffff8100812777a8
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-Looks good.
 
-> {
-> 	memset(early_node_map, 0, sizeof(early_node_map));
-> 	nr_nodemap_entries = 0;
-> @@ -2636,7 +2637,7 @@ unsigned long __init find_min_pfn_for_no
->  * find_min_pfn_with_active_regions - Find the minimum PFN registered
->  *
->  * It returns the minimum PFN based on information provided via
-> - * add_active_range()
-> + * add_active_range().
->  */
-> unsigned long __init find_min_pfn_with_active_regions(void)
-> {
-> @@ -2647,7 +2648,7 @@ unsigned long __init find_min_pfn_with_a
->  * find_max_pfn_with_active_regions - Find the maximum PFN registered
->  *
->  * It returns the maximum PFN based on information provided via
-> - * add_active_range()
-> + * add_active_range().
->  */
-> unsigned long __init find_max_pfn_with_active_regions(void)
-> {
-> @@ -2662,10 +2663,7 @@ unsigned long __init find_max_pfn_with_a
->
-> /**
->  * free_area_init_nodes - Initialise all pg_data_t and zone data
-> - * @arch_max_dma_pfn: The maximum PFN usable for ZONE_DMA
-> - * @arch_max_dma32_pfn: The maximum PFN usable for ZONE_DMA32
-> - * @arch_max_low_pfn: The maximum PFN usable for ZONE_NORMAL
-> - * @arch_max_high_pfn: The maximum PFN usable for ZONE_HIGHMEM
-> + * @max_zone_pfn: an array of max PFNs for each zone
->  *
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff810a0916fd70>
+ ----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [3] SMP=20
+CPU 15=20
+Pid: 20344, comm: MATLAB Tainted: G    B 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff8101113b7d70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff810e87e8d660 RCX: 000000000000001c
+RDX: ffff810e30000000 RSI: 00002aaaf6acc000 RDI: ffff81102ef01410
+RBP: 0000000fe24ee067 R08: 0000000000000023 R09: ffff810e30000680
+R10: ffff81010a2d5248 R11: ffff810162b6a608 R12: ffff81102ef01410
+R13: ffff810e300639e0 R14: 00002aaaf6acc000 R15: 0000000000000000
+FS:  00002b88026364a0(0000) GS:ffff810e301f4440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00002aab0284c0d0 CR3: 00000001038e3000 CR4: 00000000000006a0
+Process MATLAB (pid: 20344, threadinfo ffff8101113b6000, task ffff81018fbd1=
+8a0)
+Stack:  ffffffff80157a37 ffff810e30000680 00002aaaf6acd000 ffff810e87e8d668
+ ffff81102a33aee8 00000000ffffff3f ffff81010a2d5240 ffff8101113b7e98
+ 00002aaaf6c00000 ffff810ff0aa7818 00002aaaf6c00000 ffff810eaffd3da8
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-This is correct.
 
->  * This will call free_area_init_node() for each active node in the system.
->  * Using the page ranges provided by add_active_range(), the size of each
-> @@ -2723,14 +2721,15 @@ void __init free_area_init_nodes(unsigne
-> #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
->
-> /**
-> - * set_dma_reserve - Account the specified number of pages reserved in ZONE_DMA
-> - * @new_dma_reserve - The number of pages to mark reserved
-> + * set_dma_reserve - set the specified number of pages reserved in the first zone
-> + * @new_dma_reserve: The number of pages to mark reserved
->  *
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff8101113b7d70>
+ <3>swap_free: Unused swap offset entry 00000060
+----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [4] SMP=20
+CPU 14=20
+Pid: 5985, comm: MATLAB Tainted: G    B 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff810204875d70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff810e87e852b0 RCX: ffff8101ef34d970
+RDX: 00002aaae1856000 RSI: ffff8102280524d0 RDI: ffff81102d127358
+RBP: 0000000f59d7d067 R08: 000000000000001e R09: 0000000000000000
+R10: 0000000000000206 R11: 00000000fffffffa R12: ffff81102d127358
+R13: ffff810e3005e160 R14: 00002aaae1856000 R15: 0000000000000000
+FS:  00002ada130564a0(0000) GS:ffff810e301b9440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00002aaae418a000 CR3: 0000000c0bdad000 CR4: 00000000000006a0
+Process MATLAB (pid: 5985, threadinfo ffff810204874000, task ffff8101110f31=
+40)
+Stack:  ffffffff80157a37 ffff810e30000680 00002aaae1857000 ffff810e87e852b8
+ ffff81102a33ad28 ffffffffffffffaa ffff810a30128a40 ffff810204875e98
+ 00002aaae1a00000 ffff810fffed14a8 00002aaae1a00000 ffff810be0f79860
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-Looks ok other than 'set' having a small 's'
 
->  * The per-cpu batchsize and zone watermarks are determined by present_pages.
->  * In the DMA zone, a significant percentage may be consumed by kernel image
->  * and other unfreeable allocations which can skew the watermarks badly. This
-> - * function may optionally be used to account for unfreeable pages in
-> - * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize
-> + * function may optionally be used to account for unfreeable pages in the
-> + * first zone (e.g., ZONE_DMA). The effect will be lower watermarks and
-> + * smaller per-cpu batchsize.
->  */
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff810204875d70>
+ <3>swap_free: Unused swap offset entry 00000060
+----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [5] SMP=20
+CPU 14=20
+Pid: 19074, comm: MATLAB Tainted: G    B 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff810021587d70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff810e8ca8f6a0 RCX: 000000000000001c
+RDX: ffff810e30000000 RSI: 00002aaaf7cd4000 RDI: ffff81102a447b08
+RBP: 0000000e8cb57067 R08: 00000000fffffffe R09: ffff810e30000680
+R10: ffff810230080708 R11: ffff810389b47b88 R12: ffff81102a447b08
+R13: ffff810e3005e160 R14: 00002aaaf7cd4000 R15: 0000000000000000
+FS:  00002b1e7eb3b4a0(0000) GS:ffff810e301b9440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00002aab08206870 CR3: 00000002b40e4000 CR4: 00000000000006a0
+Process MATLAB (pid: 19074, threadinfo ffff810021586000, task ffff81013b640=
+040)
+Stack:  ffffffff80157a37 ffff810e30000680 00002aaaf7cd5000 ffff810e8ca8f6a8
+ ffff81102a444f58 00000000ffffff38 ffff810230080700 ffff810021587e98
+ 00002aaaf7e00000 ffff810fecefdb88 00002aaaf7e00000 ffff810092d8fdf0
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-Looks ok.
 
-> void __init set_dma_reserve(unsigned long new_dma_reserve)
-> {
-> @@ -2843,10 +2842,11 @@ static void setup_per_zone_lowmem_reserv
-> 	calculate_totalreserve_pages();
-> }
->
-> -/*
-> - * setup_per_zone_pages_min - called when min_free_kbytes changes.  Ensures
-> - *	that the pages_{min,low,high} values for each zone are set correctly
-> - *	with respect to min_free_kbytes.
-> +/**
-> + * setup_per_zone_pages_min - called when min_free_kbytes changes.
-> + *
-> + * Ensures that the pages_{min,low,high} values for each zone are set correctly
-> + * with respect to min_free_kbytes.
->  */
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff810021587d70>
+ ----------- [cut here ] --------- [please bite here ] ---------
+Kernel BUG at ...aid0/home/maan/scm/stable/linux-2.6.18.y/mm/rmap.c:522
+invalid opcode: 0000 [6] SMP=20
+CPU 14=20
+Pid: 20028, comm: MATLAB Tainted: G    B 2.6.18-tt64-6 #1
+RIP: 0010:[<ffffffff8015ee54>]  [<ffffffff8015ee54>] page_remove_rmap+0x13/=
+0x2d
+RSP: 0018:ffff810dad0e7d70  EFLAGS: 00010286
+RAX: 00000000ffffffff RBX: ffff810e7ea8d0e0 RCX: 000000000000001c
+RDX: ffff810e30000000 RSI: 00002aaaad21c000 RDI: ffff81102cf5e918
+RBP: 0000000f51b05067 R08: 00002aaaad400000 R09: ffff810e30000680
+R10: ffff810428d0f888 R11: ffff810fcb122ad8 R12: ffff81102cf5e918
+R13: ffff810e3005e160 R14: 00002aaaad21c000 R15: 0000000000000000
+FS:  00002adbe435e4a0(0000) GS:ffff810e301b9440(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00002aaab12b8000 CR3: 0000000394dab000 CR4: 00000000000006a0
+Process MATLAB (pid: 20028, threadinfo ffff810dad0e6000, task ffff810dbc128=
+140)
+Stack:  ffffffff80157a37 ffff810e301b9340 00002aaaad21d000 ffff810e7ea8d0e8
+ ffff81102a134ee8 00000000fffffff2 ffff810428d0f880 ffff810dad0e7e98
+ 00002aaaad400000 ffff810fe56a0d98 00002aaaad400000 ffff810175c0eb48
+Call Trace:
+ [<ffffffff80157a37>] zap_pte_range+0x1c4/0x2c0
+ [<ffffffff80157d0e>] unmap_page_range+0x1db/0x23a
+ [<ffffffff80157e5b>] unmap_vmas+0xee/0x1e3
+ [<ffffffff8015c6fe>] unmap_region+0xb4/0x127
+ [<ffffffff8015caa7>] do_munmap+0x183/0x19a
+ [<ffffffff8015caf7>] sys_munmap+0x39/0x52
+ [<ffffffff80109726>] system_call+0x7e/0x83
 
-Looks ok.
 
-> void setup_per_zone_pages_min(void)
-> {
-> --- linux-2618-g19.orig/Documentation/DocBook/kernel-api.tmpl
-> +++ linux-2618-g19/Documentation/DocBook/kernel-api.tmpl
-> @@ -158,6 +158,7 @@ X!Ilib/string.c
-> !Emm/filemap.c
-> !Emm/memory.c
-> !Emm/vmalloc.c
-> +!Imm/page_alloc.c
-> !Emm/mempool.c
-> !Emm/page-writeback.c
-> !Emm/truncate.c
->
+Code: 0f 0b 68 c0 4e 46 80 c2 0a 02 31 f6 f6 47 18 01 40 0f 94 c6=20
+RIP  [<ffffffff8015ee54>] page_remove_rmap+0x13/0x2d
+ RSP <ffff810dad0e7d70>
+=20
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+--=20
+The only person who always got his work done by Friday was Robinson Crusoe
+
+--NMuMz9nt05w80d4+
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQFFI4+SWto1QDEAkw8RAoPTAJ4zizBFV1fCplbHhrtyA4KHR74cBACfUhYb
+2Nb8/joheJXVfawyC3SH4HM=
+=8rRj
+-----END PGP SIGNATURE-----
+
+--NMuMz9nt05w80d4+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
