@@ -1,29 +1,50 @@
-Date: Wed, 4 Oct 2006 09:11:31 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] another way to speed up fake numa node page_alloc
-In-Reply-To: <20061004084552.a07025d7.pj@sgi.com>
-Message-ID: <Pine.LNX.4.64.0610040911040.28428@schroedinger.engr.sgi.com>
-References: <20060925091452.14277.9236.sendpatchset@v0> <20061001231811.26f91c47.pj@sgi.com>
- <Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
- <20061001234858.fe91109e.pj@sgi.com> <Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
- <20061002014121.28b759da.pj@sgi.com> <20061003111517.a5cc30ea.pj@sgi.com>
- <Pine.LNX.4.64N.0610031231270.4919@attu3.cs.washington.edu>
- <20061004084552.a07025d7.pj@sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 4 Oct 2006 18:12:54 +0200
+From: Andre Noll <maan@systemlinux.org>
+Subject: Re: 2.6.18: Kernel BUG at mm/rmap.c:522
+Message-ID: <20061004161254.GE22487@skl-net.de>
+References: <20061004104018.GB22487@skl-net.de> <4523BE45.5050205@yahoo.com.au> <20061004154227.GD22487@skl-net.de> <1159976940.27331.0.camel@twins>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="zaRBsRFn0XYhEU69"
+Content-Disposition: inline
+In-Reply-To: <1159976940.27331.0.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: David Rientjes <rientjes@cs.washington.edu>, linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Oct 2006, Paul Jackson wrote:
+--zaRBsRFn0XYhEU69
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> Not to mention that I obviously can NOT get away with u8, as I already
-> have 1024 real nodes on some systems.
+On 17:49, Peter Zijlstra wrote:
 
-Well lets make clear that we are talking about general NUMA enhancements 
-here despite the subject line.
+> enable CONFIG_DEBUG_VM to get that.
+
+Yup, that was disabled. It's enabled now.
+
+Thanks
+Andre
+
+--=20
+The only person who always got his work done by Friday was Robinson Crusoe
+
+--zaRBsRFn0XYhEU69
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQFFI92GWto1QDEAkw8RAmUHAJ9BxUxT/eVyHfx2hT5ZDEyMirnhTQCfU0HR
+JOOgzODwzqTNhlOoKLLmOYM=
+=BXVh
+-----END PGP SIGNATURE-----
+
+--zaRBsRFn0XYhEU69--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
