@@ -1,37 +1,32 @@
+From: Andi Kleen <ak@suse.de>
 Subject: Re: Free memory level in 2.6.16?
-From: Steve Bergman <sbergman@rueb.com>
-In-Reply-To: <p73k63ezg3y.fsf@verdi.suse.de>
-References: <1160034527.23009.7.camel@localhost>
-	 <p73k63ezg3y.fsf@verdi.suse.de>
-Content-Type: text/plain
-Date: Thu, 05 Oct 2006 15:10:29 -0500
-Message-Id: <1160079029.29452.19.camel@localhost>
-Mime-Version: 1.0
+Date: Thu, 5 Oct 2006 22:17:38 +0200
+References: <1160034527.23009.7.camel@localhost> <p73k63ezg3y.fsf@verdi.suse.de> <1160079029.29452.19.camel@localhost>
+In-Reply-To: <1160079029.29452.19.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200610052217.38345.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
+To: Steve Bergman <sbergman@rueb.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-10-05 at 22:01 +0200, Andi Kleen wrote:
+> Thank you for the reply, Andi.  This kernel is compiled with the .config
+> from the original FC5 release, which used kernel 2.6.15.  I just ran
+> "make oldconfig" on it and accepted the defaults.
 
-> 
-> Normally it keeps some memory free for interrupt handlers which
-> cannot free other memory. But 150MB is indeed a lot, especially
-> it's only in the ~900MB lowmem zone.
-> 
-> You could play with /proc/sys/vm/lowmem_reserve_ratio but must
-> likely some defaults need tweaking.
+I meant in the source. There are no tunables for this in
+.config
+ 
+> So it is, I believe, a 4GB/4GB split.  Does that make a difference?
 
-Thank you for the reply, Andi.  This kernel is compiled with the .config
-from the original FC5 release, which used kernel 2.6.15.  I just ran
-"make oldconfig" on it and accepted the defaults.
+The kernel.org kernel doesn't support 4/4 split.
 
-So it is, I believe, a 4GB/4GB split.  Does that make a difference?
-
-Thanks,
-Steve Bergman
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
