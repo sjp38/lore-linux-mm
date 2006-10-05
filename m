@@ -1,45 +1,79 @@
-Date: Wed, 4 Oct 2006 21:53:06 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] another way to speed up fake numa node page_alloc
-Message-Id: <20061004215306.e5670f46.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64N.0610042138580.5625@attu4.cs.washington.edu>
-References: <20060925091452.14277.9236.sendpatchset@v0>
-	<20061001231811.26f91c47.pj@sgi.com>
-	<Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
-	<20061001234858.fe91109e.pj@sgi.com>
-	<Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
-	<20061002014121.28b759da.pj@sgi.com>
-	<20061003111517.a5cc30ea.pj@sgi.com>
-	<Pine.LNX.4.64N.0610031231270.4919@attu3.cs.washington.edu>
-	<20061004084552.a07025d7.pj@sgi.com>
-	<Pine.LNX.4.64N.0610041456480.19080@attu2.cs.washington.edu>
-	<20061004192714.20412e08.pj@sgi.com>
-	<Pine.LNX.4.64N.0610041931170.32103@attu2.cs.washington.edu>
-	<20061004195313.892838e4.pj@sgi.com>
-	<Pine.LNX.4.64N.0610041954470.642@attu2.cs.washington.edu>
-	<20061004202656.18830f76.pj@sgi.com>
-	<Pine.LNX.4.64N.0610042036230.27222@attu3.cs.washington.edu>
-	<20061004210711.aefaea6c.akpm@osdl.org>
-	<Pine.LNX.4.64N.0610042138580.5625@attu4.cs.washington.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4524A620.8020801@yahoo.com.au>
+Date: Thu, 05 Oct 2006 16:28:48 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: 2.6.18: Kernel BUG at mm/rmap.c:522
+References: <20061004104018.GB22487@skl-net.de> <4523BE45.5050205@yahoo.com.au> <20061004154227.GD22487@skl-net.de> <1159976940.27331.0.camel@twins> <20061004203935.GB32161@redhat.com>
+In-Reply-To: <20061004203935.GB32161@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@cs.washington.edu>
-Cc: akpm@osdl.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Dave Jones <davej@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andre Noll <maan@systemlinux.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> Usually memory is 
-> going to be found in the first zone anyway and when it's not it's going to 
-> be found next.
+Dave Jones wrote:
+> On Wed, Oct 04, 2006 at 05:49:00PM +0200, Peter Zijlstra wrote:
+> 
+>  > > > It is also nice if we can work out where the page actually came from. The
+>  > > > following attached patch should help out a bit with that, if you could
+>  > > > run with it?
+>  > > Okay. I'll reboot with your patch and let you know if it crashes again.
+>  > enable CONFIG_DEBUG_VM to get that.
+> 
+> Given this warnings still pops up from time to time, I question whether
+> putting that check under DEBUG_VM was such a good idea.  It's not as
+> if it's a major performance impact.  This has potential for us to lose
+> valuable debugging info for a few nanoseconds performance increase in
+> an already costly path.
 
-Agreed.  Usually.
+Frustratingly, it usually doesn't tell us much (without my previous
+patch), because it is normally some driver that has stuffed up their
+refcounting and the page-> fields don't tell us where the page has
+come from.
+
+But..
+
+> This patch brings it back unconditionally, and moves the BUG()
+> into the if arm.
+
+... this shouldn't hurt if gcc moves the unlikely code out of the
+linear instruction stream, which I think it usually does. It shouldn't
+cost _anything_ because we're already doing the branch for the BUG_ON
+which you remove.
+
+> Signed-off-by: Dave Jones <davej@redhat.com>
+
+Thanks,
+Acked-by: Nick Piggin <npiggin@suse.de>
+
+> 
+> --- local-git/mm/rmap.c~	2006-10-04 16:38:06.000000000 -0400
+> +++ local-git/mm/rmap.c	2006-10-04 16:38:24.000000000 -0400
+> @@ -576,15 +576,14 @@ void page_add_file_rmap(struct page *pag
+>  void page_remove_rmap(struct page *page)
+>  {
+>  	if (atomic_add_negative(-1, &page->_mapcount)) {
+> -#ifdef CONFIG_DEBUG_VM
+>  		if (unlikely(page_mapcount(page) < 0)) {
+>  			printk (KERN_EMERG "Eeek! page_mapcount(page) went negative! (%d)\n", page_mapcount(page));
+>  			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
+>  			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
+>  			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
+> +			BUG();
+>  		}
+> -#endif
+> -		BUG_ON(page_mapcount(page) < 0);
+> +
+>  		/*
+>  		 * It would be tidy to reset the PageAnon mapping here,
+>  		 * but that might overwrite a racing page_add_anon_rmap
+
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
