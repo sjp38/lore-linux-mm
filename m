@@ -1,79 +1,95 @@
-Message-ID: <4524A620.8020801@yahoo.com.au>
-Date: Thu, 05 Oct 2006 16:28:48 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: D-cache aliasing issue in __block_prepare_write
+From: Monakhov Dmitriy <dmonakhov@openvz.org>
+Date: Thu, 05 Oct 2006 19:16:46 +0400
+Message-ID: <87ejtmn675.fsf@sw.ru>
 MIME-Version: 1.0
-Subject: Re: 2.6.18: Kernel BUG at mm/rmap.c:522
-References: <20061004104018.GB22487@skl-net.de> <4523BE45.5050205@yahoo.com.au> <20061004154227.GD22487@skl-net.de> <1159976940.27331.0.camel@twins> <20061004203935.GB32161@redhat.com>
-In-Reply-To: <20061004203935.GB32161@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andre Noll <maan@systemlinux.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andrea@suse.de, riel@redhat.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Jones wrote:
-> On Wed, Oct 04, 2006 at 05:49:00PM +0200, Peter Zijlstra wrote:
-> 
->  > > > It is also nice if we can work out where the page actually came from. The
->  > > > following attached patch should help out a bit with that, if you could
->  > > > run with it?
->  > > Okay. I'll reboot with your patch and let you know if it crashes again.
->  > enable CONFIG_DEBUG_VM to get that.
-> 
-> Given this warnings still pops up from time to time, I question whether
-> putting that check under DEBUG_VM was such a good idea.  It's not as
-> if it's a major performance impact.  This has potential for us to lose
-> valuable debugging info for a few nanoseconds performance increase in
-> an already costly path.
+--=-=-=
 
-Frustratingly, it usually doesn't tell us much (without my previous
-patch), because it is normally some driver that has stuffed up their
-refcounting and the page-> fields don't tell us where the page has
-come from.
+It's seems I've found D-cache aliasing issue in fs/buffer.c
+ 
+ 1902  static int __block_prepare_write(struct inode *inode, struct page *page,
+ 1903                  unsigned from, unsigned to, get_block_t *get_block)
+......
+ 1951               kaddr = kmap_atomic(page, KM_USER0);
+ 1952               if (block_end > to)
+ 1953                       memset(kaddr+to, 0,
+ 1954                               block_end-to);
+ 1955               if (block_start < from)
+ 1956                       memset(kaddr+block_start,
+ 1957                               0, from-block_start);
+ 1958               flush_dcache_page(page);
+##### We call flush_dcache_page() due to page was changed 
+##### and user space mapping potentially exist.
+ 1959               kunmap_atomic(kaddr, KM_USER0);
+......
 
-But..
-
-> This patch brings it back unconditionally, and moves the BUG()
-> into the if arm.
-
-... this shouldn't hurt if gcc moves the unlikely code out of the
-linear instruction stream, which I think it usually does. It shouldn't
-cost _anything_ because we're already doing the branch for the BUG_ON
-which you remove.
-
-> Signed-off-by: Dave Jones <davej@redhat.com>
-
-Thanks,
-Acked-by: Nick Piggin <npiggin@suse.de>
-
-> 
-> --- local-git/mm/rmap.c~	2006-10-04 16:38:06.000000000 -0400
-> +++ local-git/mm/rmap.c	2006-10-04 16:38:24.000000000 -0400
-> @@ -576,15 +576,14 @@ void page_add_file_rmap(struct page *pag
->  void page_remove_rmap(struct page *page)
->  {
->  	if (atomic_add_negative(-1, &page->_mapcount)) {
-> -#ifdef CONFIG_DEBUG_VM
->  		if (unlikely(page_mapcount(page) < 0)) {
->  			printk (KERN_EMERG "Eeek! page_mapcount(page) went negative! (%d)\n", page_mapcount(page));
->  			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
->  			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
->  			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
-> +			BUG();
->  		}
-> -#endif
-> -		BUG_ON(page_mapcount(page) < 0);
-> +
->  		/*
->  		 * It would be tidy to reset the PageAnon mapping here,
->  		 * but that might overwrite a racing page_add_anon_rmap
+ 2008                          clear_buffer_new(bh);
+ 2009                          kaddr = kmap_atomic(page, KM_USER0);
+ 2010                          memset(kaddr+block_start, 0, bh->b_size);
+ 2011                          kunmap_atomic(kaddr, KM_USER0);
+###### Here we have absolutely identical situation. 
+###### D-cache have to be flushed here too.
+###### It seems it is just  forgotten here.
+ 
+ 2012                          set_buffer_uptodate(bh);
+ 2013                          mark_buffer_dirty(bh);
+ 2014                  }
+ 2015  next_bh:
+ 2016                  block_start = block_end;
+ 2017                  bh = bh->b_this_page;
+ 2018          } while (bh != head);
+ 2019          return err;
+ 2020  }
 
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+ nobh_commit_write() has analogical issue
+
+ 2515          kaddr = kmap_atomic(page, KM_USER0);
+ 2516          memset(kaddr, 0, PAGE_CACHE_SIZE);
+###### flush_dcache_page()  have to called here
+###### It seems it is just  forgotten here too.
+ 2517          kunmap_atomic(kaddr, KM_USER0);
+ 2518          SetPageUptodate(page);
+ 2519          set_page_dirty(page);
+
+x86 does not have cache aliasing problems, the problem could
+show up only on marginal archs, ia64 is the most frequently used.
+
+Following is the patch against 2.6.18 fix this issue:
+
+
+--=-=-=
+Content-Disposition: inline; filename=diff-buffer-flush-dcache-page
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 71649ef..b2652aa 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2008,6 +2008,7 @@ static int __block_prepare_write(struct 
+ 			clear_buffer_new(bh);
+ 			kaddr = kmap_atomic(page, KM_USER0);
+ 			memset(kaddr+block_start, 0, bh->b_size);
++			flush_dcache_page(page);
+ 			kunmap_atomic(kaddr, KM_USER0);
+ 			set_buffer_uptodate(bh);
+ 			mark_buffer_dirty(bh);
+@@ -2514,6 +2515,7 @@ failed:
+ 	 */
+ 	kaddr = kmap_atomic(page, KM_USER0);
+ 	memset(kaddr, 0, PAGE_CACHE_SIZE);
++	flush_dcache_page(page);
+ 	kunmap_atomic(kaddr, KM_USER0);
+ 	SetPageUptodate(page);
+ 	set_page_dirty(page);
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
