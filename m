@@ -1,28 +1,35 @@
-Date: Thu, 05 Oct 2006 13:19:43 -0700 (PDT)
-Message-Id: <20061005.131943.11597704.davem@davemloft.net>
-Subject: Re: D-cache aliasing issue in __block_prepare_write
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <87ejtmn675.fsf@sw.ru>
-References: <87ejtmn675.fsf@sw.ru>
+Subject: Re: Free memory level in 2.6.16?
+From: Steve Bergman <sbergman@rueb.com>
+In-Reply-To: <p73k63ezg3y.fsf@verdi.suse.de>
+References: <1160034527.23009.7.camel@localhost>
+	 <p73k63ezg3y.fsf@verdi.suse.de>
+Content-Type: text/plain
+Date: Thu, 05 Oct 2006 15:41:19 -0500
+Message-Id: <1160080879.29452.24.camel@localhost>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Monakhov Dmitriy <dmonakhov@openvz.org>
-Date: Thu, 05 Oct 2006 19:16:46 +0400
 Return-Path: <owner-linux-mm@kvack.org>
-To: dmonakhov@openvz.org
+To: Andi Kleen <ak@suse.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> It's seems I've found D-cache aliasing issue in fs/buffer.c
- ...
-> x86 does not have cache aliasing problems, the problem could
-> show up only on marginal archs, ia64 is the most frequently used.
-> 
-> Following is the patch against 2.6.18 fix this issue:
+On Thu, 2006-10-05 at 22:01 +0200, Andi Kleen wrote:
 
-This patch looks good to me.
+> 
+> You could play with /proc/sys/vm/lowmem_reserve_ratio but must
+> likely some defaults need tweaking.
+
+Hmmm, after a bit of googling and a download of 2.6.18, it seems that
+documentation on lowmem_reserve_ratio is still on the todo list.
+
+cat /proc/sys/vm/lowmem_reserve_ratio 
+
+gives me "256 256 32" on the system in question.  Can someone give me a
+quick rundown of what this means?
+
+Thanks,
+Steve Bergman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
