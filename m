@@ -1,46 +1,50 @@
-Subject: Re: NOPAGE_RETRY and 2.6.19
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20061005174748.528a3bba.akpm@osdl.org>
-References: <1160088050.22232.90.camel@localhost.localdomain>
-	 <20061005160634.5932ba78.akpm@osdl.org>
-	 <1160091499.22232.98.camel@localhost.localdomain>
-	 <20061005174748.528a3bba.akpm@osdl.org>
-Content-Type: text/plain
-Date: Fri, 06 Oct 2006 10:55:25 +1000
-Message-Id: <1160096125.22232.103.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] mm: D-cache flushing was forgotten 
+From: Dmitriy Monakhov <dmonakhov@openvz.org>
+Date: Fri, 06 Oct 2006 13:44:50 +0400
+Message-ID: <87psd5lqwd.fsf@sw.ru>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, David Miller <davem@davemloft.net>, Dmitriy Monakhov <dmonakhov@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-10-05 at 17:47 -0700, Andrew Morton wrote:
-> On Fri, 06 Oct 2006 09:38:19 +1000
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-> 
-> > On Thu, 2006-10-05 at 16:06 -0700, Andrew Morton wrote:
-> > > On Fri, 06 Oct 2006 08:40:50 +1000
-> > > Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-> > > 
-> > > > Any chance that can be merged in 2.6.19 ?
-> > > 
-> > > Not if you don't show it to anyone ;)
-> > 
-> > Didn' I send it to you last week ?
-> 
-> I saw a little dribble of diff at the end of some email thread, but unless it
-> fixes some bug which I want to fix I'll generally ignore dribbly diffs and
-> wait for the real patch.
+--=-=-=
 
-Well, it had a comment and a signed-off-by and is identical to the patch
-I just sent you :) Anyway, that's ok. I'll look into doing the matching
-fix to spufs so we can at least fix the signal bug and will send that to
-you today.
+Here is a patch that add D-cache flushing  routine
+after page was changed. It is forgotten in current code.
 
-Ben.
+David Miller agree with patch.
 
+Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
+
+
+--=-=-=
+Content-Disposition: inline; filename=diff-buffer-flush-dcache-page
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 71649ef..b2652aa 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2008,6 +2008,7 @@ static int __block_prepare_write(struct 
+ 			clear_buffer_new(bh);
+ 			kaddr = kmap_atomic(page, KM_USER0);
+ 			memset(kaddr+block_start, 0, bh->b_size);
++			flush_dcache_page(page);
+ 			kunmap_atomic(kaddr, KM_USER0);
+ 			set_buffer_uptodate(bh);
+ 			mark_buffer_dirty(bh);
+@@ -2514,6 +2515,7 @@ failed:
+ 	 */
+ 	kaddr = kmap_atomic(page, KM_USER0);
+ 	memset(kaddr, 0, PAGE_CACHE_SIZE);
++	flush_dcache_page(page);
+ 	kunmap_atomic(kaddr, KM_USER0);
+ 	SetPageUptodate(page);
+ 	set_page_dirty(page);
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
