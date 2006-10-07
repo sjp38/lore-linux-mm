@@ -1,25 +1,34 @@
-Date: Fri, 6 Oct 2006 18:49:30 -0700
-From: Andrew Morton <akpm@google.com>
-Subject: mm section mismatches
-Message-Id: <20061006184930.855d0f0b.akpm@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 6 Oct 2006 20:43:38 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Remove wrongly places BUG_ON
+Message-ID: <Pine.LNX.4.64.0610062040050.17822@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-i386 allmoconfig, -mm tree:
+Init list is called with a list parameter that is not equal to the
+cachep->nodelists entry under NUMA if more than one node exists. This is 
+fully legitimatei. One may want to populate the list fields before
+switching nodelist pointers.
 
-WARNING: vmlinux - Section mismatch: reference to .init.data:arch_zone_highest_possible_pfn from .text between 'memmap_zone_idx' (at offset 0xc0155e3b) and 'calculate_totalreserve_pages'
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
-
-any takers?
-
-Thanks.
+Index: linux-2.6.18-mm3/mm/slab.c
+===================================================================
+--- linux-2.6.18-mm3.orig/mm/slab.c	2006-10-06 18:21:27.611390215 -0700
++++ linux-2.6.18-mm3/mm/slab.c	2006-10-06 19:53:55.604410465 -0700
+@@ -1331,7 +1331,6 @@ static void init_list(struct kmem_cache 
+ {
+ 	struct kmem_list3 *ptr;
+ 
+-	BUG_ON(cachep->nodelists[nodeid] != list);
+ 	ptr = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, nodeid);
+ 	BUG_ON(!ptr);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
