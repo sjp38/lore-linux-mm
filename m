@@ -1,26 +1,25 @@
-Date: Fri, 6 Oct 2006 10:00:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] zoneid fix up calculations for ZONEID_PGSHIFT
-In-Reply-To: <20061006144535.GA18583@shadowen.org>
-Message-ID: <Pine.LNX.4.64.0610060959160.14519@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610021008510.12554@schroedinger.engr.sgi.com>
- <20061006144535.GA18583@shadowen.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 6 Oct 2006 18:49:30 -0700
+From: Andrew Morton <akpm@google.com>
+Subject: mm section mismatches
+Message-Id: <20061006184930.855d0f0b.akpm@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Oct 2006, Andy Whitcroft wrote:
+i386 allmoconfig, -mm tree:
 
-> How does this look, against 2.6.19-mm3.
+WARNING: vmlinux - Section mismatch: reference to .init.data:arch_zone_highest_possible_pfn from .text between 'memmap_zone_idx' (at offset 0xc0155e3b) and 'calculate_totalreserve_pages'
 
-Looks fine to me. Its against 2.6.18-mm3 I think (unless you have some way 
-to do time travel..)
+WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
 
-Acked-by: Christoph Lameter <clameter@sgi.com>
+any takers?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
