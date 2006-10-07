@@ -1,57 +1,57 @@
-Message-ID: <4527C46F.5050505@garzik.org>
-Date: Sat, 07 Oct 2006 11:14:55 -0400
-From: Jeff Garzik <jeff@garzik.org>
-MIME-Version: 1.0
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site>
-In-Reply-To: <20061007105853.14024.95383.sendpatchset@linux.site>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from midway.site ([71.117.236.95]) by xenotime.net for <linux-mm@kvack.org>; Sat, 7 Oct 2006 10:57:31 -0700
+Date: Sat, 7 Oct 2006 10:58:59 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: mm section mismatches
+Message-Id: <20061007105859.70e2f44d.rdunlap@xenotime.net>
+In-Reply-To: <20061006234609.641f42f4.akpm@osdl.org>
+References: <20061006184930.855d0f0b.akpm@google.com>
+	<20061006211005.56d412f1.rdunlap@xenotime.net>
+	<20061006234609.641f42f4.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Nonlinear mappings are (AFAIKS) simply a virtual memory concept that
-> encodes the virtual address -> file offset differently from linear
-> mappings.
+On Fri, 6 Oct 2006 23:46:09 -0700 Andrew Morton wrote:
+
+> On Fri, 6 Oct 2006 21:10:05 -0700
+> Randy Dunlap <rdunlap@xenotime.net> wrote:
 > 
-> I can't see why the filesystem/pagecache code should need to know anything
-> about it, except for the fact that the ->nopage handler didn't quite pass
-> down enough information (ie. pgoff). But it is more logical to pass pgoff
-> rather than have the ->nopage function calculate it itself anyway. And
-> having the nopage handler install the pte itself is sort of nasty.
+> > On Fri, 6 Oct 2006 18:49:30 -0700 Andrew Morton wrote:
+> > 
+> > > i386 allmoconfig, -mm tree:
 > 
-> This patch introduces a new fault handler that replaces ->nopage and ->populate
-> and (hopefully) ->page_mkwrite. Most of the old mechanism is still in place
-> so there is a lot of duplication and nice cleanups that can be removed if
-> everyone switches over.
+> <looks>
 > 
-> The rationale for doing this in the first place is that nonlinear mappings
-> are subject to the pagefault vs invalidate/truncate race too, and it seemed
-> stupid to duplicate the synchronisation logic rather than just consolidate
-> the two.
+> > > WARNING: vmlinux - Section mismatch: reference to .init.data:arch_zone_highest_possible_pfn from .text between 'memmap_zone_idx' (at offset 0xc0155e3b) and 'calculate_totalreserve_pages'
 > 
-> Comments?
+> This one is non-init memmap_zone_idx() referring to __initdata
+> arch_zone_highest_possible_pfn (Hi, Mel).
 
-That's pretty nice.
+Yep.
+I don't see any users (callers) of memmap_zone_idx()...
+Maybe that's why I still cannot reproduce the problem.
 
-Back when I was writing [the now slated for death] 
-sound/oss/via82xxx_audio.c driver, Linus suggested that I implement 
-->nopage() for accessing the mmap'able DMA'd audio buffers, rather than 
-using remap_pfn_range().  It worked out very nicely, because it allowed 
-the sound driver to retrieve $N pages for the mmap'able buffer (passed 
-as an s/g list to the hardware) rather than requiring a single humongous 
-buffer returned by pci_alloc_consistent().
+> > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
+> 
+> This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
+> (Hi, Pekka and Christoph!)
 
-And although probably not your primary motivation, your change does IMO 
-improve this area of the kernel.
+I can't repro that one either, so I'll let one of (...) fix it.
 
-	Jeff
+> > > any takers?
+> > 
+> > Could be.  what patchset?  I don't see this in 2.6.18-mm3.
+> > 
+> 
+> Both bugs are in mainline.
 
-
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
