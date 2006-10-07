@@ -1,57 +1,26 @@
-Received: from midway.site ([71.117.236.95]) by xenotime.net for <linux-mm@kvack.org>; Sat, 7 Oct 2006 10:57:31 -0700
-Date: Sat, 7 Oct 2006 10:58:59 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: mm section mismatches
-Message-Id: <20061007105859.70e2f44d.rdunlap@xenotime.net>
-In-Reply-To: <20061006234609.641f42f4.akpm@osdl.org>
-References: <20061006184930.855d0f0b.akpm@google.com>
-	<20061006211005.56d412f1.rdunlap@xenotime.net>
-	<20061006234609.641f42f4.akpm@osdl.org>
+Date: Sat, 7 Oct 2006 13:43:56 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch 2/3] mm: fault vs invalidate/truncate race fix
+Message-Id: <20061007134356.d48cdf45.akpm@osdl.org>
+In-Reply-To: <20061007105842.14024.85533.sendpatchset@linux.site>
+References: <20061007105758.14024.70048.sendpatchset@linux.site>
+	<20061007105842.14024.85533.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <npiggin@suse.de>, Mark Fasheh <mark.fasheh@oracle.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Oct 2006 23:46:09 -0700 Andrew Morton wrote:
+On Sat,  7 Oct 2006 15:06:21 +0200 (CEST)
+Nick Piggin <npiggin@suse.de> wrote:
 
-> On Fri, 6 Oct 2006 21:10:05 -0700
-> Randy Dunlap <rdunlap@xenotime.net> wrote:
-> 
-> > On Fri, 6 Oct 2006 18:49:30 -0700 Andrew Morton wrote:
-> > 
-> > > i386 allmoconfig, -mm tree:
-> 
-> <looks>
-> 
-> > > WARNING: vmlinux - Section mismatch: reference to .init.data:arch_zone_highest_possible_pfn from .text between 'memmap_zone_idx' (at offset 0xc0155e3b) and 'calculate_totalreserve_pages'
-> 
-> This one is non-init memmap_zone_idx() referring to __initdata
-> arch_zone_highest_possible_pfn (Hi, Mel).
+> Fix the race between invalidate_inode_pages and do_no_page.
 
-Yep.
-I don't see any users (callers) of memmap_zone_idx()...
-Maybe that's why I still cannot reproduce the problem.
-
-> > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
-> 
-> This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
-> (Hi, Pekka and Christoph!)
-
-I can't repro that one either, so I'll let one of (...) fix it.
-
-> > > any takers?
-> > 
-> > Could be.  what patchset?  I don't see this in 2.6.18-mm3.
-> > 
-> 
-> Both bugs are in mainline.
-
----
-~Randy
+Changes have occurred in ocfs2.  The fixup is pretty obvious, but this is
+one which Mark will need to have a think about please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
