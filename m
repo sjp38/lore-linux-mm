@@ -1,49 +1,35 @@
-Message-ID: <45285FA5.3090205@yahoo.com.au>
-Date: Sun, 08 Oct 2006 12:17:09 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site> <4527C46F.5050505@garzik.org>
-In-Reply-To: <4527C46F.5050505@garzik.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Sun, 8 Oct 2006 10:33:45 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: mm section mismatches
+In-Reply-To: <20061006184930.855d0f0b.akpm@google.com>
+Message-ID: <Pine.LNX.4.64.0610081030100.2562@sbz-30.cs.Helsinki.FI>
+References: <20061006184930.855d0f0b.akpm@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jeff@garzik.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@google.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <christoph@lameter.com>
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik wrote:
+Hola Senor Morton,
 
-> That's pretty nice.
->
-> Back when I was writing [the now slated for death] 
-> sound/oss/via82xxx_audio.c driver, Linus suggested that I implement 
-> ->nopage() for accessing the mmap'able DMA'd audio buffers, rather 
-> than using remap_pfn_range().  It worked out very nicely, because it 
-> allowed the sound driver to retrieve $N pages for the mmap'able buffer 
-> (passed as an s/g list to the hardware) rather than requiring a single 
-> humongous buffer returned by pci_alloc_consistent().
->
-> And although probably not your primary motivation, your change does 
-> IMO improve this area of the kernel.
+On Fri, 6 Oct 2006, Andrew Morton wrote:
+> i386 allmoconfig, -mm tree:
+> 
+> WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
+> 
+> any takers?
 
+setup_cpu_cache is a non-init function that calls set_up_list3s which is 
+init.  However, due to g_cpucache_up, we will never hit the branch in 
+setup_cpu_cache that calls set_up_list3s.
 
-Thanks. Yeah hopefully this provides a little more flexibility (I think 
-it can
-already replace 3 individual vm_ops callbacks!). And I'd like to see 
-what other
-things it can be used for... :)
+No idea how to fix the warning. Due to g_cpucache_up, we need some entry 
+point that calls both init and non-init functions... Christoph?
 
-However, what we don't want is a bloating of struct fault_data IMO. So 
-I'd like
-to try to nail down the fields that it needs quite quickly then really 
-keep a
-lid on it.
-
---
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
