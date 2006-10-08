@@ -1,39 +1,195 @@
-Date: Sun, 8 Oct 2006 14:51:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: mm section mismatches
-In-Reply-To: <Pine.LNX.4.64.0610081030100.2562@sbz-30.cs.Helsinki.FI>
-Message-ID: <Pine.LNX.4.64.0610081444010.23640@schroedinger.engr.sgi.com>
-References: <20061006184930.855d0f0b.akpm@google.com>
- <Pine.LNX.4.64.0610081030100.2562@sbz-30.cs.Helsinki.FI>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: User switchable HW mappings & cie
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain
+Date: Mon, 09 Oct 2006 08:37:45 +1000
+Message-Id: <1160347065.5926.52.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Andrew Morton <akpm@google.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Arnd Bergmann <arnd@arndb.de>, Thomas =?ISO-8859-1?Q?Hellstr=F6m?= <thomas@tungstengraphics.com>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 8 Oct 2006, Pekka J Enberg wrote:
+Hi !
 
-> setup_cpu_cache is a non-init function that calls set_up_list3s which is 
-> init.  However, due to g_cpucache_up, we will never hit the branch in 
-> setup_cpu_cache that calls set_up_list3s.
+I'd like to kick a discussion about some issues I've been having along
+with some proposed solutions related to mapping of bits of hardware in
+smarter ways than simply doing a io_remap_pfn_range() and the problems,
+generally caused by get_user_pages().
 
-It hits that code during bootstrap. Note that g_cpucache_up is NONE on 
-startup and thus we will be hitting that function from kmem_init().
+There are at least two main examples where this is useful, and both
+trigger various issues mostly related to get_user_pages(). So let's
+start with the examples: cell's SPUs and graphics memory management.
 
-> No idea how to fix the warning. Due to g_cpucache_up, we need some entry 
-> point that calls both init and non-init functions... Christoph?
+ - SPUs
 
-To tell you the truth on of the crappy issues about the 
-current slab is the mindboogling way of complexity of the bootstrap. 
-Which is due to the inability to statically define a kmem_cache 
-structure because we seem to have made an early decision to only work with 
-kmem_cache_t handles so that the data structures are opaque from the 
-outside.
+We have two types of mappings that concern us here for userland: the
+local store memory of the SPEs, which is a 256Kb chunk of memory on each
+SPU, and a bunch of register space called "problem state mapping" for
+each SPU.
 
-To fix: Revert the change that made set_up_lists3s non init.
-In 2.6.18-mm3 this set_up_list3s is not init.
+Since SPUs can be context-switched by the kernel, we need some strict
+control of access to those mappings. What we currently do is that we use
+a nopage() handler for them. The local store memory is backed up in main
+memory when a virtual SPU context is not scheduled in a physical SPE and
+access to the registers is blocked.
+
+This is all possible because we currently create struct page's for those
+things using sparsemem. However, this is far from optimal: the SPUs MMIO
+areas are far away from memory and fairly small, thus we end up with a
+fairly weird sparsemem map and some overhead that wouldn't be necessary
+if we could get away with the struct pages (see my other options below).
+
+The way the context switching works is that when an SPU virtual context
+(the spu equivalent of a task) gets context switched in/out, we use
+unmap_mapping_range() to destroy any current mapping in the page tables.
+In the case of the local store, further no_page() will then bring in
+pages from either the backing store or the real SPU local store
+depending on the new state of the SPU, and in the case of registers,
+further no_page() will block if the SPU is not scheduled in (which leads
+to other issues, I'll explain below too).
+
+However, get_user_pages() gets in the way in a couple of areas. Mainly
+because it "caches" the struct page obtained via follow_page(). In
+general, anything doing so (or calling follow_page()) is potentially a
+problem since it will keep a "stale" struct page if a context switch of
+the SPU happens.
+
+Among others, that means that it's currently possible to trick PTRACE
+into reading the local store of an SPU that has been switched to a
+different task. Pretty nasty. There is even more nastyness to expect
+from drivers that try to DMA from user space using get_user_pages().
+
+The only option here is to forbid get_user_pages() completely, possibly
+by setting VM_IO on the VMA. Unfortunately, that means no ptrace access,
+thus no way to inspect SPU local store or registers from gdb, which is
+pretty annoying.
+
+Also no_pfn() is of no help here. It wuld maybe allow to avoid using
+sparsemem and struct pages, but it won't help with the later problem (we
+can't allow get_user_pages() to work on such a VMA) and in addition,
+do_no_pfn() doesn't implement the truncate logic that do_no_page() does,
+which means that it is not protected against racing
+unmap_mapping_range() calls, and thus isn't suitable for our context
+switching mecanism.
+
+ - Graphics memory
+
+It's becoming increasingly necessary for DRI drivers to have some proper
+memory management of "objects" (pixmaps, textures, ...) that are to be
+use with the graphics chip. Such objects typically want to migrate
+between video memory, system memory (backup), AGP (if any) etc...
+depending on pressure on the video memory, number of clients, etc...
+
+The Tungstengrpahics folks (Thomas is on CC) have been working on some
+better memory management to properly handle those things in the DRM. One
+of the things we want to do here is similar to what the SPUs do with
+local store: have a single VMA associated with an object, and have the
+PTEs transparently changed to map either video memory, system memory,
+AGP memory, etc... (the different in cache attributes can be ignored at
+this stage, we can discuss it separately if interested).
+
+I've been suggesting a similar approach as we use for SPUs. That is what
+would make the most sense from a user standpoint: user code access their
+"objects" via a single virtual pointer and the DRM takes care of
+migrating it when necessary (for example migrating it to video RAM when
+it needs to be used by the engine and "swap" it back to main memory when
+not).
+
+However, we hit the same problems as SPUfs here. The main one is that we
+can't use sparsemem. SPU is platofrm specific enough that we can require
+arch/powerpc to be configured for sparsemem for cell, but we can't
+generally require that for the DRM to work. And anyway, for the same
+reasons as SPUs, we don't want struct page anyway.
+
+That leaves us with do_no_pfn() which isn't protected against concurrent
+unmap_mapping_range() and thus isn't directly suitable at least not
+without changes. And it's also not suitable because it won't handle the
+case where we are trying to return memory (we really want proper
+accounting for that and thus hit the proper do_no_page() code path).
+
+In addition, we have the same problem of get_user_pages() can't be made
+to work, thus no access_process_vm(), thus no ptrace access which can be
+fairly annoying.
+
+ - Possible ideas and other issues
+
+Now here are some possible ideas that we've been discussing here or
+there and in some case that Thomas tested.
+
+First, a way to not have to use struct page's and still get the benefit
+of a working unmap_mapping_range(). The trick here is to use that
+NOPAGE_REFAULT thingy that we've just merged in (even if it was for a
+different reasons), possibly along with a new helper that we'll call
+install_io_pte() or something like that.
+
+The base idea is that we would have the no_page() function of SPU's or
+the DRM either return a struct page when the object is backed to main
+memory, or install the PTE directly (using the helper to hide some of
+the low level TLB flushing logic etc...) and then return NOPAGE_REFAULT
+when hitting the hardware. The helper basically is a one-page version of
+io_remap_pfn_range() with the added "feature" of not doing anything if
+the PTE has been set by somebody else (handle the race case) instead of
+BUG'ing as the current io_remap_pfn_range() does.
+
+This would work provided that both SPUfs and the DRM have their own
+per-object mutex to protect racing calls to unmap_mapping_range() vs.
+install_io_pte(), which is trivial. The truncate logic would take care
+of the race if we return a struct page instead (memory backing store).
+
+That doesn't help with get_user_pages() of course. This is a different
+issue.
+
+At this point, the above is really I think the best solution, even if it
+might smell a bit hairy. It can be implemented with the current upstream
+code with just the addition of that install_io_pte() helper i described
+(or by making io_remap_pfn_range() not BUG when a PTE is already present
+but just skip it instead).
+
+There is one thing I haven't even tried to think about yet but that
+might be useful, is for that backing store memory to be swappable
+(anonymous memory basically). This seems to me like a can of worms so
+I'm ignoring it on purpose at the moment...
+
+Now, regarding get_user_pages(), there are two main users of it I can
+think of access_process_vm (ptrace) and drivers that want to DMA
+directly in/out of user memory (v4l ?).
+
+I think the later is a lost cause. We just can't use that interface to
+allow DMA in/out a user mapping that can change unless there is
+synchronisation with whatever agent can change that mapping. That means
+for example that if v4l wants to be able to DMA into such DRM managed
+objects, then v4l will need to use some DRM interfaces to lock such
+objects into place while DMA'ing, etc... so the later is basically a
+non-issue: get_user_pages() for such mappings will not work. I don't
+think having SPUfs or the DRM block/unblock context switching based on
+inspecting page count or such thing is realistic (and racy anyway).
+
+The former is more annoying. There are plenty of reasons why one would
+want to use gdb to inspect such things. In fact, it's a general issues
+with get_user_pages() vs. IO mappings that one can't, afaik, use GDB to
+poke at mapped registers.
+
+I don't know how realistic that is to provide a solution for this. The
+only one that comes to mind at this point would be to have
+access_process_vm() try to switch the mm to the target mm to do the
+accesses (and copy to a temporary kernel buffer). Sounds a bit hairy to
+me but I haven't thought enough about it yet to convince myself wether
+it can be made to work or not.
+
+I think at this point, I've said it all. There are other little nits
+here or there where get_user_pages() also gets in the way (like my usage
+of NOPAGE_REFAULT to handle signals, too bad get_user_pages() isn't
+supposed to return -EINTR, but then, that's true of __get_user & friends
+as well if I ever want to really handle signals in no_page(), but I
+think we can keep those for a separate discussion.
+
+Now I await comments and suggestions :)
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
