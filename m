@@ -1,10 +1,10 @@
-Message-ID: <45285CEA.1070104@yahoo.com.au>
-Date: Sun, 08 Oct 2006 12:05:30 +1000
+Message-ID: <45285E9A.9070009@yahoo.com.au>
+Date: Sun, 08 Oct 2006 12:12:42 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch 2/3] mm: fault vs invalidate/truncate race fix
-References: <20061007105758.14024.70048.sendpatchset@linux.site>	<20061007105842.14024.85533.sendpatchset@linux.site> <20061007134401.a28b7735.akpm@osdl.org>
-In-Reply-To: <20061007134401.a28b7735.akpm@osdl.org>
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+References: <20061007105758.14024.70048.sendpatchset@linux.site>	<20061007105853.14024.95383.sendpatchset@linux.site> <20061007134407.6aa4dd26.akpm@osdl.org>
+In-Reply-To: <20061007134407.6aa4dd26.akpm@osdl.org>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,41 @@ List-ID: <linux-mm.kvack.org>
 
 Andrew Morton wrote:
 
->On Sat,  7 Oct 2006 15:06:21 +0200 (CEST)
->Nick Piggin <npiggin@suse.de> wrote:
->
->
->>Fix the race between invalidate_inode_pages and do_no_page.
->>
->
->- In do_no_page() there's a `goto retry' where we appear to have
->  forgotten to (conditionally) unlock the page.
+>- You may find that gcc generates crap code for the initialisation of the
+>  `struct fault_data'.  If so, filling the fields in by hand one-at-a-time
+>  will improve things.
 >
 
-Hmm, the retry should be gone - it was only there for the
-seqlock-ish truncate race code.
+OK.
 
->- In do_no_page() the COW-break code seem to have forgotten to
->  (conditionally) unlock the page which it just COWed?
+>- So is the plan here to migrate all code over to using
+>  vm_operations.fault() and to finally remove vm_operations.nopage and
+>  .nopfn?  If so, that'd be nice.
 >
 
-It keeps the 'nopage_page' around and unlocks it at the end.
-Last time I looked, this is required because truncate wants to
-unmap 'even_cows', so we must hold the pagecache page locked
-while instantiating the mapping on the cow page.
+Definitely remove .nopage, .populate, and hopefully .page_mkwrite.
 
->- In do_no_page(), the unlock_page() which _is_ there doesn't test
->  VM_CAN_INVALIDATE before deciding to unlock the page.
+.nopfn is a little harder because it doesn't quite follow the same pattern
+as the others (eg. has no struct page).
+
+>- As you know, there is a case for constructing that `struct fault_data'
+>  all the way up in do_no_page(): so we can pass data back, asking
+>  do_no_page() to rerun the fault if we dropped mmap_sem.
 >
 
-It does a conditional lock if !VM_CAN_INVALIDATE based on a
-suggestion from Hugh. I don't disagree with that, but it can
-go away in the next patch as we won't be calling into
-->page_mkwrite (if that callback can be implemented with ->fault).
+That is what it is doing - do_no_page should go away (it is basically
+duplicated in __do_fault -- I left it there because I don't know if people
+are happy to have a flag day or slowly migrate over).
+
+But I have converted regular pagecache (mm/filemap.c) to use .fault rather
+than .nopage and .populate, so you should be able to do the mmap_sem thing
+right now. That's something maybe you could look at if you get time? Ie.
+whether this .fault handler thing will be sufficient for you.
+
+>- No useful opinion on the substance of this patch, sorry.  It's Saturday ;)
+>
+
+No hurry. Thanks for the quick initial comments.
 
 --
 
