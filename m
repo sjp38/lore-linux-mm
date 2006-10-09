@@ -1,53 +1,43 @@
 Subject: Re: User switchable HW mappings & cie
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <200610092036.50010.ioe-lkml@rameria.de>
+In-Reply-To: <Pine.LNX.4.64.0610091151380.3952@g5.osdl.org>
 References: <1160347065.5926.52.camel@localhost.localdomain>
 	 <452A35FF.50009@tungstengraphics.com>
-	 <1160394662.10229.30.camel@localhost.localdomain>
-	 <200610092036.50010.ioe-lkml@rameria.de>
+	 <Pine.LNX.4.64.0610091151380.3952@g5.osdl.org>
 Content-Type: text/plain
-Date: Tue, 10 Oct 2006 07:03:49 +1000
-Message-Id: <1160427829.7752.21.camel@localhost.localdomain>
+Date: Tue, 10 Oct 2006 07:06:23 +1000
+Message-Id: <1160427983.7752.24.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ioe-lkml@rameria.de>
-Cc: Thomas =?ISO-8859-1?Q?Hellstr=F6m?= <thomas@tungstengraphics.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Arnd Bergmann <arnd@arndb.de>, Linus Torvalds <torvalds@osdl.org>, Nick Piggin <npiggin@suse.de>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Thomas =?ISO-8859-1?Q?Hellstr=F6m?= <thomas@tungstengraphics.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2006-10-09 at 20:36 +0200, Ingo Oeser wrote:
-> Hi all,
+> Anyway, so right now you can use "vm_insert_page()" and it will increment 
+> the page count and add things to the rmap lists, which is what current 
+> users want. But if you don't have a normal page, you should be able to 
+> basically avoid that part entirely, and just use
 > 
-> On Monday, 9. October 2006 13:51, Benjamin Herrenschmidt wrote:
-> > > One problem that occurs is that the rule for ptes with non-backing 
-> > > struct pages
-> > > Which I think was introduced in 2.6.16:
-> > > 
-> > >     pfn_of_page == vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT)
-> > > 
-> > > cannot be honored, at least not with the DRM memory manager, since the 
-> > > graphics object will be associated with a vma and not the underlying 
-> > > physical address. User space will have vma->vm_pgoff as a handle to the 
-> > > object, which may move around in graphics memory.
-> > 
-> > That's a problem with VM_PFNMAP set indeed. get_user_pages() is a
-> > non-issue with VM_IO set too but I'm not sure about other code path that
-> > might try to hit here... though I think we don't hit that if MAP_SHARED,
-> > Nick ?
+> 	set_pte_at(mm, addr, pte, make-up-a-pte-here);
 > 
-> Istn't this just a non-linear PFN mapping, you are describing here?
+> and you're done (of course, you need to use all the appropriate magic to 
+> set up the pte, ie you'd normally have something like
 > 
-> Nick: 
-> 	Cant your new fault consolidation code handle that?
-> 	AFAICS your new .fault handler just gets the
-> 	vma and pgoff and install the matching PTE via install_THINGIE()
-> 	or vm_insert_THINGIE()
+> 	pte = get_locked_pte(mm, addr, &ptl);
+> 	..
+> 	pte_unmap_unlock(pte, ptl);
 > 
-> Or do I miss sth. here?
+> around it). Note that "vm_insert_page()" is _not_ for VM_PFNMAP mappings, 
+> exactly because it does actually increment page counts. It's for a 
+> "normal" mapping that just wants to insert a reference-counted page.
 
-It is somewhat yes.
+Yes, that's why we want a vm_insert_pfn() as I really don't want to see
+PTE manipulations proliferate in drivers :) Nick is coming up with an
+implementation faster than I can think about the code anyway ;)
 
+Cheers,
 Ben.
 
 
