@@ -1,16 +1,103 @@
-Date: Mon, 9 Oct 2006 04:08:09 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] memory page alloc minor cleanups
-In-Reply-To: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0610090407440.25336@schroedinger.engr.sgi.com>
-References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20061009110007.GA3592@wotan.suse.de>
+References: <20061007105758.14024.70048.sendpatchset@linux.site>
+	 <20061007105853.14024.95383.sendpatchset@linux.site>
+	 <20061007134407.6aa4dd26.akpm@osdl.org>
+	 <1160351174.14601.3.camel@localhost.localdomain>
+	 <20061009102635.GC3487@wotan.suse.de>
+	 <1160391014.10229.16.camel@localhost.localdomain>
+	 <20061009110007.GA3592@wotan.suse.de>
+Content-Type: text/plain
+Date: Mon, 09 Oct 2006 21:10:13 +1000
+Message-Id: <1160392214.10229.19.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andi Kleen <ak@suse.de>, mbligh@google.com, rohitseth@google.com, menage@google.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
+
+> Yep, I see. You just need to be careful about the PFNMAP logic, so
+> the VM knows whether the pte is backed by a struct page or not.
+
+I still need to properly get my head around that one. I can't easily
+change the VMA during the "switch" but I can tweak the flags on the
+first nopage after one... 
+
+> And going the pageless route means that you must disallow MAP_PRIVATE
+> PROT_WRITE mappings, I trust that isn't a problem for you?
+
+Should not but I need to look more closely.
+
+> I guess the helper looks something like the following...
+> 
+> --
+> 
+> Index: linux-2.6/include/linux/mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm.h
+> +++ linux-2.6/include/linux/mm.h
+> @@ -1105,6 +1105,7 @@ unsigned long vmalloc_to_pfn(void *addr)
+>  int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+>  			unsigned long pfn, unsigned long size, pgprot_t);
+>  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+> +int vm_insert_pfn(struct vm_area_struct *, unsigned long addr, unsigned long pfn);
+>  
+>  struct page *follow_page(struct vm_area_struct *, unsigned long address,
+>  			unsigned int foll_flags);
+> Index: linux-2.6/mm/memory.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memory.c
+> +++ linux-2.6/mm/memory.c
+> @@ -1267,6 +1267,44 @@ int vm_insert_page(struct vm_area_struct
+>  }
+>  EXPORT_SYMBOL(vm_insert_page);
+>  
+> +/**
+> + * vm_insert_pfn - insert single pfn into user vma
+> + * @vma: user vma to map to
+> + * @addr: target user address of this page
+> + * @pfn: source kernel pfn
+> + *
+> + * Similar to vm_inert_page, this allows drivers to insert individual pages
+> + * they've allocated into a user vma. Same comments apply
+> + */
+> +int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	int retval;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+> +
+> +	BUG_ON(is_cow_mapping(vma->vm_flags));
+> +
+> +	retval = -ENOMEM;
+> +	pte = get_locked_pte(mm, addr, &ptl);
+> +	if (!pte)
+> +		goto out;
+> +	retval = -EBUSY;
+> +	if (!pte_none(*pte))
+> +		goto out_unlock;
+> +
+> +	/* Ok, finally just insert the thing.. */
+> +	set_pte_at(mm, addr, pte, pfn_pte(pfn, vma->vm_page_prot));
+> +
+> +	vma->vm_flags |= VM_PFNMAP;
+> +	retval = 0;
+> +out_unlock:
+> +	pte_unmap_unlock(pte, ptl);
+> +out:
+> +	return retval;
+> +}
+> +EXPORT_SYMBOL(vm_insert_pfn);
+
+It also needs update_mmu_cache() I suppose.
+
+>  /*
+>   * maps a range of physical memory into the requested pages. the old
+>   * mappings are removed. any references to nonexistent pages results
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
