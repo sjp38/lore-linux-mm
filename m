@@ -1,110 +1,44 @@
-Date: Mon, 9 Oct 2006 12:14:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: User switchable HW mappings & cie
-In-Reply-To: <452A35FF.50009@tungstengraphics.com>
-Message-ID: <Pine.LNX.4.64.0610091151380.3952@g5.osdl.org>
-References: <1160347065.5926.52.camel@localhost.localdomain>
- <452A35FF.50009@tungstengraphics.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="21872808-44270651-1160421255=:3952"
+Date: Mon, 9 Oct 2006 12:15:50 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: mm section mismatches
+Message-Id: <20061009121550.f251efff.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
+References: <20061006184930.855d0f0b.akpm@google.com>
+	<20061006211005.56d412f1.rdunlap@xenotime.net>
+	<20061006234609.641f42f4.akpm@osdl.org>
+	<20061007105859.70e2f44d.rdunlap@xenotime.net>
+	<Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>, Arnd Bergmann <arnd@arndb.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
---21872808-44270651-1160421255=:3952
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+On Mon, 9 Oct 2006 11:06:00 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-
-
-On Mon, 9 Oct 2006, Thomas Hellstrom wrote:
+> On Sat, 7 Oct 2006, Randy Dunlap wrote:
 > 
-> One problem that occurs is that the rule for ptes with non-backing struct
-> pages
-> Which I think was introduced in 2.6.16:
+> > > > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
+> > > 
+> > > This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
+> > > (Hi, Pekka and Christoph!)
+> > 
+> > I can't repro that one either, so I'll let one of (...) fix it.
 > 
->    pfn_of_page == vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT)
+> 
+> set_up_list3s is only called during the bootstrap of the slab allocator. 
+> So this is fine.
 
-No.
+Except it'll generate a scary warning for evermore.
 
-No such rule exists.
+It'd be nice to find some hack to make the warning go away, but I can't
+think of one.
 
-The above is true only fora _very_ special case, namely the case of 
-allowing a COW-mapping of a non-backing-store set. And the _only_ case 
-where that even makes sense is /dev/mem, and quite frankly, even there the 
-only reason it exists is just one or two legacy programs that really did 
-use COW mappings on something that really shouldn't be COW-mapped.
-
-(I think the only program that did was actually something that tried to 
-read the BIOS tables and mapped /dev/mem privately but read-write, and 
-then edited the BIOS mappings in place).
-
-So _especially_ with 2.6.16+, using a non-backing-store mapping is really 
-really easy: you just use
-
-	int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *page)
-
-and you're done (if a ref-counted page is what is wanted).
-
-That one requires a "struct page *", because all current users had that as 
-their standard setup (ie direct rendering etc), but the thing is, the VM 
-these days really doesn't care.
-
-However, if you don't want to have a ref-counted page, you just use 
-VM_PFNMAP, and insert any random pte you damn well want.
-
-Once you have set VM_PFNMAP, and the mapping is _not_ a cow mapping, the 
-page something points to will never actually be used for anything but 
-mapping (modulo bugs, of course, but the new VM is a hell of a lot more 
-straightforward in this, and the whole "vm_normal_page()" thing is really 
-trivial).
-
-So you never have any "struct page *" associated with it at all, and no 
-refcounting is taking place - you always act purely on a pfn and a page 
-protection thing (ie effectively a "pte_t").
-
-NOTE! The important part here is really to just understand the fact that 
-COW mappings are special. So you need to make sure that you always map 
-such a thing "shared" (and if you have security issues, it obviously needs 
-to be just marked read-only - "shared" does _not_ imply that it might be 
-read-write).
-
-COW-mappings (and _only_ cow-mappings) have the added rule of how the page 
-offsets need to be handled, since otherwise there is no way to distinguish 
-between somethign that got mapped originally, and something that got 
-COW'ed (where the latter _does_ need reference counting, of course, since 
-it's a regular page that has been copied into the address space).
-
-It's probably also a good idea to map such things as VM_DONTCOPY, since 
-they probably don't make sense across forks, and it slows down forking to 
-copy the page tables. And add a VM_INSERTPAGE, although right now that 
-doesn't actually do anything special (but it was originally meant to be a 
-"we've done single-page random things, and so you can't _assume_ the 
-virtual-address/pg_off thing to hold", so setting it is a good idea just 
-for consistency).
-
-Anyway, so right now you can use "vm_insert_page()" and it will increment 
-the page count and add things to the rmap lists, which is what current 
-users want. But if you don't have a normal page, you should be able to 
-basically avoid that part entirely, and just use
-
-	set_pte_at(mm, addr, pte, make-up-a-pte-here);
-
-and you're done (of course, you need to use all the appropriate magic to 
-set up the pte, ie you'd normally have something like
-
-	pte = get_locked_pte(mm, addr, &ptl);
-	..
-	pte_unmap_unlock(pte, ptl);
-
-around it). Note that "vm_insert_page()" is _not_ for VM_PFNMAP mappings, 
-exactly because it does actually increment page counts. It's for a 
-"normal" mapping that just wants to insert a reference-counted page.
-
-		Linus
---21872808-44270651-1160421255=:3952--
+Maybe create a new section just for this purpose, put the function in that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
