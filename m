@@ -1,44 +1,70 @@
-Date: Mon, 9 Oct 2006 12:15:50 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: mm section mismatches
-Message-Id: <20061009121550.f251efff.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
-References: <20061006184930.855d0f0b.akpm@google.com>
-	<20061006211005.56d412f1.rdunlap@xenotime.net>
-	<20061006234609.641f42f4.akpm@osdl.org>
-	<20061007105859.70e2f44d.rdunlap@xenotime.net>
-	<Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
+Date: Mon, 9 Oct 2006 13:24:04 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] memory page alloc minor cleanups
+Message-Id: <20061009132404.e6f8522d.pj@sgi.com>
+In-Reply-To: <452A4A9D.40605@yahoo.com.au>
+References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
+	<452A4A9D.40605@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, akpm@osdl.org, rientjes@google.com, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2006 11:06:00 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+Probably in response to my patch lines:
 
-> On Sat, 7 Oct 2006, Randy Dunlap wrote:
-> 
-> > > > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
-> > > 
-> > > This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
-> > > (Hi, Pekka and Christoph!)
-> > 
-> > I can't repro that one either, so I'll let one of (...) fix it.
-> 
-> 
-> set_up_list3s is only called during the bootstrap of the slab allocator. 
-> So this is fine.
+@@ -1056,21 +1057,13 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+ ...
+-	if (unlikely(*z == NULL)) {
+-		/* Should this ever happen?? */
+-		return NULL;
+-	}
 
-Except it'll generate a scary warning for evermore.
 
-It'd be nice to find some hack to make the warning go away, but I can't
-think of one.
+Nick wrote:
+> Would it be better to ensure an empty zonelist is never passed down?
 
-Maybe create a new section just for this purpose, put the function in that.
+Are you saying we should leave this empty zonelist check where it was,
+or we should somehow ensure that we never get to __alloc_pages with an
+empty zonelist in the first place?  Not clear ...
+
+What seems clear to me is that this check is in the wrong place, and if
+needed, is the wrong check.
+
+The check is not needed right there.  If we have an empty zonelist, then
+that just makes the zonelist scanning go all the faster ;).  Harmless,
+silly, but rare.
+
+Not until much deeper in the allocation code, when we have to make some
+hard choices, like oom or panic or loop forever (hopelessly) looking
+for pages off an empty zonelist, do we actually have to worry about
+empty zonelists.
+
+So either:
+ * the check is not needed, if empty zonelists can't happen, or
+ * the check should be moved out of the hot spot it is in now,
+   where it has no need of being, to where it is needed, lower down,
+   in less frequently executed code.
+
+And if it is needed, the logic of the check seems slightly
+oversimplified:
+
+    I'd think it should consider (1) allocations requests that can
+    fail in which case we return NULL, separately from (2) allocation
+    requests that cannot fail in which case we are on an impossible
+    mission, as the caller is insisting that we do not fail to find
+    a page on an empty list.
+
+    Perhaps in this second case, we pick the local nodes default full
+    sized zonelist and find a page for our demanding caller that way.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
