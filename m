@@ -1,46 +1,74 @@
-Date: Mon, 9 Oct 2006 15:52:54 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-Message-ID: <20061009135254.GA19784@wotan.suse.de>
-References: <20061009110007.GA3592@wotan.suse.de> <1160392214.10229.19.camel@localhost.localdomain> <20061009111906.GA26824@wotan.suse.de> <1160393579.10229.24.camel@localhost.localdomain> <20061009114527.GB26824@wotan.suse.de> <1160394571.10229.27.camel@localhost.localdomain> <20061009115836.GC26824@wotan.suse.de> <1160395671.10229.35.camel@localhost.localdomain> <20061009121417.GA3785@wotan.suse.de> <452A50C2.9050409@tungstengraphics.com>
+Date: Mon, 9 Oct 2006 15:38:06 +0100
+Subject: Re: mm section mismatches
+Message-ID: <20061009143806.GA4841@skynet.ie>
+References: <20061006184930.855d0f0b.akpm@google.com> <20061006211005.56d412f1.rdunlap@xenotime.net> <20061006234609.641f42f4.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <452A50C2.9050409@tungstengraphics.com>
+In-Reply-To: <20061006234609.641f42f4.akpm@osdl.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Hellstrom <thomas@tungstengraphics.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 09, 2006 at 03:38:10PM +0200, Thomas Hellstrom wrote:
-> Nick Piggin wrote:
-> >On Mon, Oct 09, 2006 at 10:07:50PM +1000, Benjamin Herrenschmidt wrote:
-> >
-> >Ok I guess that would work. I was kind of thinking that one needs to
-> >hold the mmap_sem for writing when changing the flags, but so long
-> >as everyone *else* does, then I guess you can get exclusion from just
-> >the read lock. And your per-object mutex would prevent concurrent
-> >nopages from modifying it.
+On (06/10/06 23:46), Andrew Morton didst pronounce:
+> On Fri, 6 Oct 2006 21:10:05 -0700
+> Randy Dunlap <rdunlap@xenotime.net> wrote:
 > 
-> Wouldn't that confuse concurrent readers?
+> > On Fri, 6 Oct 2006 18:49:30 -0700 Andrew Morton wrote:
+> > 
+> > > i386 allmoconfig, -mm tree:
+> 
+> <looks>
+> 
+> > > WARNING: vmlinux - Section mismatch: reference to .init.data:arch_zone_highest_possible_pfn from .text between 'memmap_zone_idx' (at offset 0xc0155e3b) and 'calculate_totalreserve_pages'
+> 
+> This one is non-init memmap_zone_idx() referring to __initdata
+> arch_zone_highest_possible_pfn (Hi, Mel).
 
-I think it should be safe so long as the entire mapping has been
-unmapped. After that, there is no read path that should care about
-that flag bit. So long as it is well commented (and maybe done via
-a helper in mm/memory.c), I can't yet see a problem with it.
+Hi Andrew.
 
-> Could it be an option to make it safe for the fault handler to 
-> temporarily drop the mmap_sem read lock given that some conditions TBD 
-> are met?
-> In that case it can retake the mmap_sem write lock, do the VMA flags 
-> modifications, downgrade and do the pte modifications using a helper, or 
-> even use remap_pfn_range() during the time the write lock is held?
+memmap_zone_idx() is not used anymore. It was required by an earlier version
+of account-for-memmap-and-optionally-the-kernel-image-as-holes.patch but
+not any more. This patch clears up the warning. It has been boottested on
+x86_64 and ppc64.
 
-When you drop and retake the mmap_sem, you need to start again from
-find_vma. At which point you technically probably want to start again
-from the architecture specfic fault code. It sounds difficult but I
-won't say it can't be done.
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc1-clean/mm/page_alloc.c linux-2.6.19-rc1-fix_section/mm/page_alloc.c
+--- linux-2.6.19-rc1-clean/mm/page_alloc.c	2006-10-06 10:33:58.000000000 +0100
++++ linux-2.6.19-rc1-fix_section/mm/page_alloc.c	2006-10-09 13:45:01.000000000 +0100
+@@ -2294,19 +2294,6 @@ unsigned long __init zone_absent_pages_i
+ 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+ }
+ 
+-/* Return the zone index a PFN is in */
+-int memmap_zone_idx(struct page *lmem_map)
+-{
+-	int i;
+-	unsigned long phys_addr = virt_to_phys(lmem_map);
+-	unsigned long pfn = phys_addr >> PAGE_SHIFT;
+-
+-	for (i = 0; i < MAX_NR_ZONES; i++)
+-		if (pfn < arch_zone_highest_possible_pfn[i])
+-			break;
+-
+-	return i;
+-}
+ #else
+ static inline unsigned long zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+@@ -2325,10 +2312,6 @@ static inline unsigned long zone_absent_
+ 	return zholes_size[zone_type];
+ }
+ 
+-static inline int memmap_zone_idx(struct page *lmem_map)
+-{
+-	return MAX_NR_ZONES;
+-}
+ #endif
+ 
+ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
