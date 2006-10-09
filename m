@@ -1,32 +1,33 @@
-Date: Mon, 9 Oct 2006 11:06:00 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: mm section mismatches
-In-Reply-To: <20061007105859.70e2f44d.rdunlap@xenotime.net>
-Message-ID: <Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
-References: <20061006184930.855d0f0b.akpm@google.com>
- <20061006211005.56d412f1.rdunlap@xenotime.net> <20061006234609.641f42f4.akpm@osdl.org>
- <20061007105859.70e2f44d.rdunlap@xenotime.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 9 Oct 2006 11:12:03 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC] memory page_alloc zonelist caching speedup
+Message-Id: <20061009111203.5dba9cbe.akpm@osdl.org>
+In-Reply-To: <20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
+References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
+	<20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andi Kleen <ak@suse.de>, mbligh@google.com, rohitseth@google.com, menage@google.com, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 7 Oct 2006, Randy Dunlap wrote:
+On Mon, 09 Oct 2006 03:54:57 -0700
+Paul Jackson <pj@sgi.com> wrote:
 
-> > > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
-> > 
-> > This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
-> > (Hi, Pekka and Christoph!)
-> 
-> I can't repro that one either, so I'll let one of (...) fix it.
+> Optimize the critical zonelist scanning for free pages in the kernel
+> memory allocator by caching the zones that were found to be full
+> recently, and skipping them.
 
+This doesn't exactly simplify the kernel, but the benchmark numbers
+are nice.
 
-set_up_list3s is only called during the bootstrap of the slab allocator. 
-So this is fine.
-
+I worry about the one-second-expiry thing.  Wall time is a pretty
+meaningless thing in the context of the page allocator and it doesn't seem
+appropriate to use it.  A more appropriate measure of "time" in this
+context would be number-of-pages-allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
