@@ -1,47 +1,47 @@
-Date: Mon, 9 Oct 2006 12:26:35 +0200
-From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-Message-ID: <20061009102635.GC3487@wotan.suse.de>
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site> <20061007134407.6aa4dd26.akpm@osdl.org> <1160351174.14601.3.camel@localhost.localdomain>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20061009102635.GC3487@wotan.suse.de>
+References: <20061007105758.14024.70048.sendpatchset@linux.site>
+	 <20061007105853.14024.95383.sendpatchset@linux.site>
+	 <20061007134407.6aa4dd26.akpm@osdl.org>
+	 <1160351174.14601.3.camel@localhost.localdomain>
+	 <20061009102635.GC3487@wotan.suse.de>
+Content-Type: text/plain
+Date: Mon, 09 Oct 2006 20:50:14 +1000
+Message-Id: <1160391014.10229.16.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1160351174.14601.3.camel@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nick Piggin <npiggin@suse.de>
 Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 09, 2006 at 09:46:13AM +1000, Benjamin Herrenschmidt wrote:
+> The truncate logic can't be duplicated because it works on struct pages.
 > 
-> > - So is the plan here to migrate all code over to using
-> >   vm_operations.fault() and to finally remove vm_operations.nopage and
-> >   .nopfn?  If so, that'd be nice.
+> What sounds best, if you use nopfn, is to do your own internal
+> synchronisation against your unmap call. Obviously you can't because you
+> have no ->nopfn_done call with which to drop locks ;)
 > 
-> Agreed. That would also allow to pass down knowledge of wether we can be
-> interruptible or not (coming from userland or not). Useful in a few case
-> when dealing with strange hw mappings.
+> So, hmm yes I have a good idea for how fault() could take over ->nopfn as
+> well: just return NULL, set the fault type to VM_FAULT_MINOR, and have
+> the ->fault handler install the pte. It will require a new helper along
+> the lines of vm_insert_page.
 > 
-> Now, fault() still returns a struct page and thus doesn't quite fix the
-> problem I'm exposing in my "User switchable HW mappings & cie" mail I
-> posted today in which case we need to either duplicate the truncate
-> logic in no_pfn() or get rid of no_pfn() and set the PTE from the fault
-> handler . I tend to prefer the later provided that it's strictly limited
-> for mappings that do not have a struct page though.
+> I'll code that up in my next patchset.
 
-The truncate logic can't be duplicated because it works on struct pages.
+Which is exactly what I was proposing in my other mail :)
 
-What sounds best, if you use nopfn, is to do your own internal
-synchronisation against your unmap call. Obviously you can't because you
-have no ->nopfn_done call with which to drop locks ;)
+Read it, you'll understnad my point about the truncate logic... I
+sometimes want to return struct page (when the mapping is pointing to
+backup memory) or map it directly to hardware.
 
-So, hmm yes I have a good idea for how fault() could take over ->nopfn as
-well: just return NULL, set the fault type to VM_FAULT_MINOR, and have
-the ->fault handler install the pte. It will require a new helper along
-the lines of vm_insert_page.
+In the later case, with an appropriate helper, I can definitely do my
+own locking. In the former case, I return struct page's and need the
+truncate logic.
 
-I'll code that up in my next patchset.
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
