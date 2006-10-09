@@ -1,77 +1,31 @@
-Message-ID: <452A8AC6.2080203@tungstengraphics.com>
-Date: Mon, 09 Oct 2006 19:45:42 +0200
-From: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>
+Date: Mon, 9 Oct 2006 11:06:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: mm section mismatches
+In-Reply-To: <20061007105859.70e2f44d.rdunlap@xenotime.net>
+Message-ID: <Pine.LNX.4.64.0610091104530.27654@schroedinger.engr.sgi.com>
+References: <20061006184930.855d0f0b.akpm@google.com>
+ <20061006211005.56d412f1.rdunlap@xenotime.net> <20061006234609.641f42f4.akpm@osdl.org>
+ <20061007105859.70e2f44d.rdunlap@xenotime.net>
 MIME-Version: 1.0
-Subject: Re: Driver-driven paging?
-References: <452A68E9.3000707@tungstengraphics.com> <452A7AD3.5050006@yahoo.com.au>
-In-Reply-To: <452A7AD3.5050006@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Sat, 7 Oct 2006, Randy Dunlap wrote:
 
-> Thomas Hellstrom wrote:
->
->> Hi!
->>
->> While trying to put together an improved graphics memory manager in 
->> the DRM kernel module, I've identified a need to swap out backing 
->> store pages which haven't been in use for a while, and I was 
->> wondering if there is a kernel mm API to do that?
->>
->> Basically when a graphics object is created, space is allocated 
->> either in on-card video RAM or in a backup object in system RAM. That 
->> backup object can optionally be flipped into the AGP aperture for 
->> fast and linear graphics card access.
->>
->> What I want to do is to be able to release backup object pages while 
->> maintaining the contents. Basically hand them over to the swapping 
->> system and get a handle back that can be used for later retrieval. 
->> The driver will unmap all mappings referencing the page before 
->> handing it over to the swapping system.
->>
->> Is there an API for this and is there any chance of getting it exported?
->
->
-> I suspect you will run into a few troubles trying to do it all in kernel.
-> It might be possible, but probably not with the current code, and it
-> isn't clear we'd want to make the required changes to support such a
-> thing.
->
-> Your best bet might be to have a userspace "memory manager" process, 
-> which
-> allocates pages (anonymous or file backed), and has your device driver
-> access them with get_user_pages. The get_user_pages takes care of 
-> faulting
-> the pages back in, and when they are released, the memory manager will
-> swap them out on demand.
->
-Hi!
+> > > > WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc016ba8e) and 'kmem_flagcheck'
+> > 
+> > This is non-init set_up_list3s() referring to __initdata initkmem_list3[]
+> > (Hi, Pekka and Christoph!)
+> 
+> I can't repro that one either, so I'll let one of (...) fix it.
 
-I was actually thinking of something similar, but I thought it would be 
-cleaner to do it in the kernel, if the API were there. But currently the 
-DRM needs a "master" user-space process anyway so it's a feasible way to go.
 
-> If you need for the driver to *then* export these pages out to be mapped
-> by other processes in userspace, I think you run into problems if trying
-> to use nopage. You'll need to go the nopfn route (and thus your mappings
-> must disallow PROT_WRITE && MAP_PRIVATE).
->
-> But I think that might just work?
->
-Yes, possibly. What kind of problems would I expect if using nopage? Is 
-it, in particular, legal for a process to call get_user_pages() with the 
-tsk and mm arguments of another process?
-
-Thanks,
-
-Thomas
-
+set_up_list3s is only called during the bootstrap of the slab allocator. 
+So this is fine.
 
 
 --
