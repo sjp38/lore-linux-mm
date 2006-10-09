@@ -1,9 +1,7 @@
 Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <452A50C2.9050409@tungstengraphics.com>
-References: <20061009102635.GC3487@wotan.suse.de>
-	 <1160391014.10229.16.camel@localhost.localdomain>
-	 <20061009110007.GA3592@wotan.suse.de>
+In-Reply-To: <20061009135254.GA19784@wotan.suse.de>
+References: <20061009110007.GA3592@wotan.suse.de>
 	 <1160392214.10229.19.camel@localhost.localdomain>
 	 <20061009111906.GA26824@wotan.suse.de>
 	 <1160393579.10229.24.camel@localhost.localdomain>
@@ -13,29 +11,86 @@ References: <20061009102635.GC3487@wotan.suse.de>
 	 <1160395671.10229.35.camel@localhost.localdomain>
 	 <20061009121417.GA3785@wotan.suse.de>
 	 <452A50C2.9050409@tungstengraphics.com>
+	 <20061009135254.GA19784@wotan.suse.de>
 Content-Type: text/plain
-Date: Tue, 10 Oct 2006 06:45:13 +1000
-Message-Id: <1160426713.7752.6.camel@localhost.localdomain>
+Date: Tue, 10 Oct 2006 06:50:36 +1000
+Message-Id: <1160427036.7752.13.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Hellstrom <thomas@tungstengraphics.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Thomas Hellstrom <thomas@tungstengraphics.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Wouldn't that confuse concurrent readers?
+On Mon, 2006-10-09 at 15:52 +0200, Nick Piggin wrote:
+> On Mon, Oct 09, 2006 at 03:38:10PM +0200, Thomas Hellstrom wrote:
+> > Nick Piggin wrote:
+> > >On Mon, Oct 09, 2006 at 10:07:50PM +1000, Benjamin Herrenschmidt wrote:
+> > >
+> > >Ok I guess that would work. I was kind of thinking that one needs to
+> > >hold the mmap_sem for writing when changing the flags, but so long
+> > >as everyone *else* does, then I guess you can get exclusion from just
+> > >the read lock. And your per-object mutex would prevent concurrent
+> > >nopages from modifying it.
+> > 
+> > Wouldn't that confuse concurrent readers?
 > 
-> Could it be an option to make it safe for the fault handler to 
-> temporarily drop the mmap_sem read lock given that some conditions TBD 
-> are met?
-> In that case it can retake the mmap_sem write lock, do the VMA flags 
-> modifications, downgrade and do the pte modifications using a helper, or 
-> even use remap_pfn_range() during the time the write lock is held?
+> I think it should be safe so long as the entire mapping has been
+> unmapped. After that, there is no read path that should care about
+> that flag bit. So long as it is well commented (and maybe done via
+> a helper in mm/memory.c), I can't yet see a problem with it.
 
-If we return NOPAGE_REFAULT, then yes, we can drop the mmap sem, though
-I 'm not sure we need that...
+Should be fine then. Migration does
 
+	- take object mutex
+	- unmap_mapping_range() -> remove all PTEs for all mappings to
+          that object
+	- do whatever is needed for actual migration (copy data etc...)
+	- release object mutex
+
+And nopage() does
+
+	- take object mutex
+	- check object flags consistency, possibly update VMA
+          (also possibly updaet VMA pgprot too while at it for cacheable
+           vs. non cacheable, though it's not strictly necessary if we
+           use the helper)
+	- if object is in ram
+		- get struct page
+		- drop mutex
+		- return struct page
+	- else
+		- get pfn
+		- use helper to install PTE
+		- drop mutex
+		- return NOPAGE_REFAULT
+
+We don't strictly have to return struct page when the object is in ram
+but I feel like it's better for accounting.
+
+Now there is still the question of where that RAM comes from, how it
+gets accounted, and wether there is any way we can make it swappable
+(which complicates things but would be nice as objects can be fairly big
+and we may end up using a significant amount of physical memory with the
+graphic objects).
+
+> > Could it be an option to make it safe for the fault handler to 
+> > temporarily drop the mmap_sem read lock given that some conditions TBD 
+> > are met?
+> > In that case it can retake the mmap_sem write lock, do the VMA flags 
+> > modifications, downgrade and do the pte modifications using a helper, or 
+> > even use remap_pfn_range() during the time the write lock is held?
+> 
+> When you drop and retake the mmap_sem, you need to start again from
+> find_vma. At which point you technically probably want to start again
+> from the architecture specfic fault code. It sounds difficult but I
+> won't say it can't be done.
+
+I can be done with returning NOPAGE_REFAULT but as you said, I don't
+think it's necessary.
+
+Cheers,
 Ben.
 
 
