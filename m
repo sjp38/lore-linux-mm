@@ -1,40 +1,32 @@
-Received: from [192.168.0.105] (lin5.shipmail.org [192.168.0.105])
-	by lin5.shipmail.org (Postfix) with ESMTP id 169153565B6
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2006 17:21:14 +0200 (CEST)
-Message-ID: <452A68E9.3000707@tungstengraphics.com>
-Date: Mon, 09 Oct 2006 17:21:13 +0200
-From: Thomas Hellstrom <thomas@tungstengraphics.com>
-MIME-Version: 1.0
-Subject: Driver-driven paging?
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Nick Piggin <npiggin@suse.de>
+Message-Id: <20061009140354.13840.71273.sendpatchset@linux.site>
+Subject: [rfc] 2.6.19-rc1-git5: consolidation of file backed fault handlers
+Date: Mon,  9 Oct 2006 18:12:06 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+OK, I've cleaned up and further improved this patchset, removed duplication
+while retaining legacy nopage handling, restored page_mkwrite to the ->fault
+path (due to lack of users upstream to attempt a conversion), converted the
+rest of the filesystems to use ->fault, restored MAP_POPULATE and population
+of remap_file_pages pages, replaced nopfn completely, and removed
+NOPAGE_REFAULT because that can be done easily with ->fault.
 
-While trying to put together an improved graphics memory manager in the 
-DRM kernel module, I've identified a need to swap out backing store 
-pages which haven't been in use for a while, and I was wondering if 
-there is a kernel mm API to do that?
+In the process:
+- GFS2, OCFS2 theoretically get nonlinear mapping support
+- Nonlinear mappings gain page_mkwrite and dirty page throttling support
+- Nonlinear mappings gain the fault vs truncate race fix introduced for linear 
 
-Basically when a graphics object is created, space is allocated either 
-in on-card video RAM or in a backup object in system RAM. That backup 
-object can optionally be flipped into the AGP aperture for fast and 
-linear graphics card access.
+All pretty much for free.
 
-What I want to do is to be able to release backup object pages while 
-maintaining the contents. Basically hand them over to the swapping 
-system and get a handle back that can be used for later retrieval. The 
-driver will unmap all mappings referencing the page before handing it 
-over to the swapping system.
+This is lightly compile tested only, unlike the last set, mainly
+because it is presently just an RFC regarding the direction I'm going
+(and it's bedtime).
 
-Is there an API for this and is there any chance of getting it exported?
-
-Regards,
-Thomas
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
