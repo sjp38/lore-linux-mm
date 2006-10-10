@@ -1,39 +1,82 @@
-Subject: Re: ptrace and pfn mappings
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20061010034606.GJ15822@wotan.suse.de>
-References: <20061009140354.13840.71273.sendpatchset@linux.site>
-	 <20061009140447.13840.20975.sendpatchset@linux.site>
-	 <1160427785.7752.19.camel@localhost.localdomain>
-	 <452AEC8B.2070008@yahoo.com.au>
-	 <1160442987.32237.34.camel@localhost.localdomain>
-	 <20061010022310.GC15822@wotan.suse.de>
-	 <1160448466.32237.59.camel@localhost.localdomain>
-	 <20061010025821.GE15822@wotan.suse.de>
-	 <1160451656.32237.83.camel@localhost.localdomain>
-	 <20061010034606.GJ15822@wotan.suse.de>
-Content-Type: text/plain
-Date: Tue, 10 Oct 2006 14:58:15 +1000
-Message-Id: <1160456295.32237.99.camel@localhost.localdomain>
+Date: Mon, 9 Oct 2006 22:01:27 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch] mm: bug in set_page_dirty_buffers
+Message-Id: <20061009220127.c4721d2d.akpm@osdl.org>
+In-Reply-To: <20061010044745.GA24600@wotan.suse.de>
+References: <20061010023654.GD15822@wotan.suse.de>
+	<Pine.LNX.4.64.0610091951350.3952@g5.osdl.org>
+	<20061009202039.b6948a93.akpm@osdl.org>
+	<20061010033412.GH15822@wotan.suse.de>
+	<20061009205030.e247482e.akpm@osdl.org>
+	<20061010035851.GK15822@wotan.suse.de>
+	<20061009211404.ad112128.akpm@osdl.org>
+	<20061010042144.GM15822@wotan.suse.de>
+	<20061009213806.b158ea82.akpm@osdl.org>
+	<20061010044745.GA24600@wotan.suse.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> Since we decided it would be better to make a new function or some arch
-> specfic hooks rather than switch mm's in the kernel? ;)
+On Tue, 10 Oct 2006 06:47:45 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+
+> On Mon, Oct 09, 2006 at 09:38:06PM -0700, Andrew Morton wrote:
+> > On Tue, 10 Oct 2006 06:21:44 +0200
+> > Nick Piggin <npiggin@suse.de> wrote:
+> > 
+> > > On Mon, Oct 09, 2006 at 09:14:04PM -0700, Andrew Morton wrote:
+> > > > Can we convert set_page_dirty_balance() to call set_page_dirty_lock()?
+> > > 
+> > > I think so. You can't in zap_pte_range though because you're under
+> > > spinlocks.
+> > 
+> > There we're screwed.
+> > 
+> > > Same with try_to_unmap_{one|cluster}, and page_remove_rmap.
+> > 
+> > There we can trylock all the pages and bale if any fail.
 > 
-> No, I don't know. Your idea might be reasonable, but I really haven't
-> thought about it much.
+> Hmm, try_to_unmap is OK because the page is already locked. page_remove_rmap
+> isn't allowed to fail.
 
-Another option is to take the PTE lock while doing the accesses for that
-PFN... might work. We still need a temp kernel buffer but that would
-sort-of do the trick.
+I was talking about try_to_unmap_cluster().
 
-Ben.
+> > > > And make set_page_dirty_lock() return if the page is already dirty?
+> > > > 
+> > > > > I think there are
+> > > > > a whole lot more problems than just the unmapping path, though. Direct
+> > > > > IO comes to mind.
+> > > > 
+> > > > Why?  direct-io locks the pages while invalidating them, and while marking
+> > > > them dirty.
+> > > 
+> > > Uh, mistaken about dio. Point still stands.
+> > 
+> > But where?  locking the page is the preferred way to solve this stuff. 
+> > (Well, locking the buffers might work, but isn't needed, and locking the
+> > page covers other stuff)
+> 
+> AFAIKS, it is just fs/buffer.c that is racy.
 
+Need to review all ->set_page_dirty, ->writepage, ->invalidatepage, ->etc
+implementations before we can say that.
+
+> Why can't it use
+> mapping->private_lock or the buffer bit spinlock?
+
+block_invalidatepage() wants to do lock_buffer().
+
+It can probably be made to work.  But a sane interface is "when dinking
+with page internals, lock the page".
+
+Which leaves us with zap_pte_range().  Perhaps one could reuse
+mmu_gather.pages[]: when it's full, drop locks, dirty pages (if needed),
+retake locks, resume.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
