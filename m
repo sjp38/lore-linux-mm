@@ -1,42 +1,37 @@
-Date: Mon, 9 Oct 2006 18:45:02 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] memory page alloc minor cleanups
-Message-Id: <20061009184502.27e515c9.pj@sgi.com>
-In-Reply-To: <20061009132404.e6f8522d.pj@sgi.com>
-References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
-	<452A4A9D.40605@yahoo.com.au>
-	<20061009132404.e6f8522d.pj@sgi.com>
+Subject: Re: faults and signals
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <452AF546.4000901@yahoo.com.au>
+References: <20061009140354.13840.71273.sendpatchset@linux.site>
+	 <20061009140447.13840.20975.sendpatchset@linux.site>
+	 <1160427785.7752.19.camel@localhost.localdomain>
+	 <452AEC8B.2070008@yahoo.com.au>
+	 <1160442685.32237.27.camel@localhost.localdomain>
+	 <452AF546.4000901@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 10 Oct 2006 11:58:30 +1000
+Message-Id: <1160445510.32237.50.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: nickpiggin@yahoo.com.au, linux-mm@kvack.org, akpm@osdl.org, rientjes@google.com, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-pj wrote:
-> The check is not needed right there.  If we have an empty zonelist, then
-> that just makes the zonelist scanning go all the faster ;).  Harmless,
-> silly, but rare.
+> Yep, the flags field should be able to do that for you. Since we have
+> the handle_mm_fault wrapper for machine faults, it isn't too hard to
+> change the arguments: we should probably turn `write_access` into a
+> flag so we don't have to push too many arguments onto the stack.
+> 
+> This way we can distinguish get_user_pages faults. And your
+> architecture will have to switch over to using __handle_mm_fault, and
+> distinguish kernel faults. Something like that?
 
-I should read the code before spouting off ... ;).
+Yes. Tho it's also fairly easy to just add an argument to the wrapper
+and fix all archs... but yeah, I will play around.
 
-The get_page_from_freelist() code assumes in many places that there
-is at least one zone in the zonelist.  It will barf all over the
-place if zonelist->zones[0] is not a valid pointer.
+Ben.
 
-Either this check for an empty zonelist at the top of __alloc_pages()
-stays, or it becomes some kind of BUG() or someone more confident than
-I removes it.
-
-I'll be sending a patch to restore that check for an empty zonelist,
-shortly.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
