@@ -1,49 +1,48 @@
-Date: Tue, 10 Oct 2006 14:13:27 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-Message-ID: <20061010121327.GA2431@wotan.suse.de>
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site> <20061010121003.GA19322@infradead.org>
+Date: Tue, 10 Oct 2006 13:31:28 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: ptrace and pfn mappings
+Message-ID: <20061010123128.GA23775@infradead.org>
+References: <20061009140354.13840.71273.sendpatchset@linux.site> <20061009140447.13840.20975.sendpatchset@linux.site> <1160427785.7752.19.camel@localhost.localdomain> <452AEC8B.2070008@yahoo.com.au> <1160442987.32237.34.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20061010121003.GA19322@infradead.org>
+In-Reply-To: <1160442987.32237.34.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 01:10:03PM +0100, Christoph Hellwig wrote:
-> On Sat, Oct 07, 2006 at 03:06:32PM +0200, Nick Piggin wrote:
-> > +/*
-> > + * fault_data is filled in the the pagefault handler and passed to the
-> > + * vma's ->fault function. That function is responsible for filling in
-> > + * 'type', which is the type of fault if a page is returned, or the type
-> > + * of error if NULL is returned.
-> > + */
-> > +struct fault_data {
-> > +	struct vm_area_struct *vma;
-> > +	unsigned long address;
-> > +	pgoff_t pgoff;
-> > +	unsigned int flags;
-> > +
-> > +	int type;
-> > +};
-> >  
-> >  /*
-> >   * These are the virtual MM functions - opening of an area, closing and
-> > @@ -203,6 +221,7 @@ extern pgprot_t protection_map[16];
-> >  struct vm_operations_struct {
-> >  	void (*open)(struct vm_area_struct * area);
-> >  	void (*close)(struct vm_area_struct * area);
-> > +	struct page * (*fault)(struct fault_data * data);
+On Tue, Oct 10, 2006 at 11:16:27AM +1000, Benjamin Herrenschmidt wrote:
+> And the last of my "issues" here:
 > 
-> Please pass the vma as an explicit first argument so that all vm_operations
-> operate on a vma.  It's also much cleaner to have the separate between the
-> the object operated on (the vma) and all the fault details (struct fault_data).
+> get_user_pages() can't handle pfn mappings, thus access_process_vm()
+> can't, and thus ptrace can't. When they were limited to dodgy /dev/mem
+> things, it was probably ok. But with more drivers needing that, like the
+> DRM, sound drivers, and now with SPU problem state registers and local
+> store mapped that way, it's becoming a real issues to be unable to
+> access any of those mappings from gdb.
+> 
+> The "easy" way out I can see, but it may have all sort of bad side
+> effects I haven't thought about at this point, is to switch the mm in
+> access_process_vm (at least if it's hitting such a VMA).
 
-Hmm... I agree it is more consistent, but OTOH if we're passing a
-structure I thought it may as well just go in there. But I will
-change unless anyone comes up with an objection.
+Switching the mm is definitly no acceptable.  Too many things could
+break when violating the existing assumptions.
+
+> That do you guys think ? Any better idea ? The problem with mappings
+> like what SPUfs or the DRM want is that they can change (be remapped
+> between HW and backup memory, as described in previous emails), thus we
+> don't want to get struct pages even if available and peek at them as
+> they might not be valid anymore, same with PFNs (we could imagine
+> ioremap'ing those PFN's but that would be racy too). The only way that
+> is guaranteed not to be racy is to do exactly what a user do, that is do
+> user accesses via the target process vm itself....
+
+I think the best idea is to add a new ->access method to the vm_operations
+that's called by access_process_vm() when it exists and VM_IO or VM_PFNMAP
+are set.   ->access would take the required object locks and copy out the
+data manually.  This should work both for spufs and drm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
