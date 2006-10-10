@@ -1,40 +1,32 @@
 Subject: Re: [rfc] 2.6.19-rc1-git5: consolidation of file backed fault
 	handlers
 From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20061010143342.GA5580@infradead.org>
+In-Reply-To: <20061010150142.GE2431@wotan.suse.de>
 References: <20061010121314.19693.75503.sendpatchset@linux.site>
-	 <20061010143342.GA5580@infradead.org>
+	 <20061010143342.GA5580@infradead.org> <20061010150142.GE2431@wotan.suse.de>
 Content-Type: text/plain
-Date: Tue, 10 Oct 2006 17:07:56 +0200
-Message-Id: <1160492876.3000.301.camel@laptopd505.fenrus.org>
+Date: Tue, 10 Oct 2006 18:09:06 +0200
+Message-Id: <1160496546.3000.315.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-10-10 at 15:33 +0100, Christoph Hellwig wrote:
-> On Tue, Oct 10, 2006 at 04:21:32PM +0200, Nick Piggin wrote:
-> > This patchset is against 2.6.19-rc1-mm1 up to
-> > numa-add-zone_to_nid-function-swap_prefetch.patch (ie. no readahead stuff,
-> > which causes big rejects and would be much easier to fix in readahead
-> > patches than here). Other than this feature, the -mm specific stuff is
-> > pretty simple (mainly straightforward filesystem conversions).
-> > 
-> > Changes since last round:
-> > - trimmed the cc list, no big changes since last time.
-> > - fix the few buglets preventing it from actually booting
-> > - reinstate filemap_nopage and filemap_populate, because they're exported
-> >   symbols even though no longer used in the tree. Schedule for removal.
-> 
-> Just kill them and the whole ->populate methods.  We have a better API that
-> replaces them 100% with your patch, and they've never been a widespread
-> API.
+> \ What:	vm_ops.nopage
+> -When:	October 2008, provided in-kernel callers have been converted
+> +When:	October 2007, provided in-kernel callers have been converted
+>  Why:	This interface is replaced by vm_ops.fault, but it has been around
+>  	forever, is used by a lot of drivers, and doesn't cost much to
+>  	maintain.
 
-concur; just nuke the parts that have become unused right away. They're
-not "removed" as such, but "replaced by better"
+but a year is a really long time; 6 months would be a lot more
+reasonable..
+(it's not as if most external modules will switch until it's really
+gone.. more notice isn't really going to help that at all; at least make
+the kernel printk once on the first use of this so that they notice!)
 
 
 --
