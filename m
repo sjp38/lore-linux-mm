@@ -1,51 +1,69 @@
-Date: Tue, 10 Oct 2006 19:06:32 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: ptrace and pfn mappings
-In-Reply-To: <20061010123128.GA23775@infradead.org>
-Message-ID: <Pine.LNX.4.64.0610101827130.14815@blonde.wat.veritas.com>
-References: <20061009140354.13840.71273.sendpatchset@linux.site>
- <20061009140447.13840.20975.sendpatchset@linux.site>
- <1160427785.7752.19.camel@localhost.localdomain> <452AEC8B.2070008@yahoo.com.au>
- <1160442987.32237.34.camel@localhost.localdomain> <20061010123128.GA23775@infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 10 Oct 2006 12:35:55 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] memory page_alloc zonelist caching speedup
+Message-Id: <20061010123555.21996034.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0610101001480.927@schroedinger.engr.sgi.com>
+References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
+	<20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
+	<20061009111203.5dba9cbe.akpm@osdl.org>
+	<20061009150259.d5b87469.pj@sgi.com>
+	<20061009215125.619655b2.pj@sgi.com>
+	<Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
+	<20061010000331.bcc10007.pj@sgi.com>
+	<Pine.LNX.4.64.0610101001480.927@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: rientjes@cs.washington.edu, akpm@osdl.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006, Christoph Hellwig wrote:
-> On Tue, Oct 10, 2006 at 11:16:27AM +1000, Benjamin Herrenschmidt wrote:
-> > 
-> > The "easy" way out I can see, but it may have all sort of bad side
-> > effects I haven't thought about at this point, is to switch the mm in
-> > access_process_vm (at least if it's hitting such a VMA).
-> 
-> Switching the mm is definitly no acceptable.  Too many things could
-> break when violating the existing assumptions.
+Christoph wrote:
+> Could it be worth to investigate more radical ideas? This gets way too 
+> complicated for me. Maybe drop the whole zone list generation idea and 
+> iterate over nodes in another way?
 
-I disagree.  Ben's switch-mm approach deserves deeper examination than
-that.  It's both simple and powerful.  And it's already done by AIO's
-use_mm - the big differences being, of course, that the kthread has
-no original mm of its own, and it's limited in what it gets up to.
+Worth some thought.
 
-What would be the actual problems with ptrace temporarily adopting
-another's mm?  What are our existing assumptions?
+I'll be surprised if this eliminates the usefulness of something
+like this zonelist caching patch, however.
 
-We do already have the minor issue that expand_stack uses the wrong
-task's rlimits (there was a patch for that, perhaps Nick's fault
-struct would help make it less intrusive to fix - I was put off
-it by having to pass an additional arg down so many levels).
+Sooner or later, regardless of what shape data structures we have,
+we end up having to examine a bunch of nodes when allocating for
+workloads or numa emulated configurations that make heavy use of
+off-node allocations.
 
-> I think the best idea is to add a new ->access method to the vm_operations
-> that's called by access_process_vm() when it exists and VM_IO or VM_PFNMAP
-> are set.   ->access would take the required object locks and copy out the
-> data manually.  This should work both for spufs and drm.
+And when that happens, we end up with an N-squared information
+flow problem, needing to get information or at least hints as to
+which nodes have free pages to the tasks trying to allocate those
+pages.
 
-I find Ben's idea more appealing; but agree it _may_ prove unworkable.
+But we really would rather not pay the price of even a linear
+scan over N nodes, in either the tasks freeing pages, nor in the
+tasks allocating them.
 
-Hugh
+The best I've been able to do, in this patch, is:
+ 1) compact the information, to minimize the cache line footprint, and
+ 2) have the allocators get by on incomplete information, essentially
+    doing the first scan based on remembering which nodes were
+    recently noticed to be full.
+
+I predict that regardless of the shape (zonelists, nodemasks or
+whatever) of the placement information coming into the core
+routine of our allocator, we will still need some sort of caching
+like this, bolted onto the side, for the cases making heavy use
+of off-node allocations.
+
+So I would not use disgust at the added complexity of this zonelist
+caching patch to justify changing the fundamental zonelist structures
+used to drive the kernel allocator.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
