@@ -1,50 +1,52 @@
-Date: Tue, 10 Oct 2006 08:59:27 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: bug in set_page_dirty_buffers
-Message-ID: <20061010065927.GA14557@wotan.suse.de>
-References: <20061010033412.GH15822@wotan.suse.de> <20061009205030.e247482e.akpm@osdl.org> <20061010035851.GK15822@wotan.suse.de> <20061009211404.ad112128.akpm@osdl.org> <20061010042144.GM15822@wotan.suse.de> <20061009213806.b158ea82.akpm@osdl.org> <20061010044745.GA24600@wotan.suse.de> <20061009220127.c4721d2d.akpm@osdl.org> <20061010052248.GB24600@wotan.suse.de> <1160462936.27479.4.camel@taijtu>
+Date: Tue, 10 Oct 2006 00:03:31 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] memory page_alloc zonelist caching speedup
+Message-Id: <20061010000331.bcc10007.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
+References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
+	<20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
+	<20061009111203.5dba9cbe.akpm@osdl.org>
+	<20061009150259.d5b87469.pj@sgi.com>
+	<20061009215125.619655b2.pj@sgi.com>
+	<Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1160462936.27479.4.camel@taijtu>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
+To: David Rientjes <rientjes@cs.washington.edu>
+Cc: akpm@osdl.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 08:48:56AM +0200, Peter Zijlstra wrote:
-> On Tue, 2006-10-10 at 07:22 +0200, Nick Piggin wrote:
-> > 
-> > I disagree because it will lead to horrible hacks because many callers
-> > can't sleep. If anything I would much prefer an innermost-spinlock in
-> > page->flags that specifically excludes truncate. Actually tree_lock can
-> > do that now, provided we pin mapping in all callers to set_page_dirty
-> > (which we should do).
-> 
-> Yeah, but we're hard working to eradicate tree lock; I have ran into
+> When a free occurs for a given zone, increment its counter.  If that 
+> reaches some threshold, zap that node in the nodemask so it's checked on 
+> the next alloc.  All the infrastructure is already there for this support 
+> in your patch.
 
-Well yeah, but until then the tree_lock works.
+It's not an issue of infrastructure.  As you say, that's likely already
+there.
 
-> this problem before; that is, zap_pte_range and co. not being able to
-> lock the page. I'd really like to see that fixed.
+It's the inherent problem in scaling an N-by-N information flow,
+with tasks running on each of N nodes wanting to know the latest
+free counters on each of N nodes.  This cannot be done with a small
+constant (or linear, but so small it is nearly constant) cache
+footprint for both the freers and allocators, avoiding hot cache lines.
 
-What's your problem with zap_pte_range?
+In your phrasing, this shows up in the "zap that node in the nodemask"
+step.
 
-> In my current concurrent pagecache patches I've abused your PG_nonewrefs
-> and made it this page internal (bit)spinlock, but it just doesn't look
-> nice to have both this lock and PG_locked.
+We don't have -a- nodemask.
 
-Regardless of whether or not they spin, PG_locked is an outermost, and
-set_page_dirty is called innermost. I don't see why we'd particularly
-want to mush them together now, just because we're worried a filesystem
-writer wrote buggy code.
+My latest patch has a bitmask (of length longer than a nodemask,
+typically) in each zonelist.  No way do we want to walk down each
+zonelist, one each per node, per ZONE type, examining each zone to see
+if it's on our node of interest, so we can clear the corresponding bit
+in the bitmask.  Not on every page free.  Way too expensive.
 
-It is all well and good to tell me I'm wrong unless I audit all
-filesystems, but the fact is that I'm not a filesystem expert, and if
-this is what it has come to then either the process has failed, or
-we have a large number of filesystems to cull from the tree as
-unmaintained.
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
