@@ -1,63 +1,49 @@
-Subject: Re: ptrace and pfn mappings
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20061010025821.GE15822@wotan.suse.de>
-References: <20061009140354.13840.71273.sendpatchset@linux.site>
-	 <20061009140447.13840.20975.sendpatchset@linux.site>
-	 <1160427785.7752.19.camel@localhost.localdomain>
-	 <452AEC8B.2070008@yahoo.com.au>
-	 <1160442987.32237.34.camel@localhost.localdomain>
-	 <20061010022310.GC15822@wotan.suse.de>
-	 <1160448466.32237.59.camel@localhost.localdomain>
-	 <20061010025821.GE15822@wotan.suse.de>
-Content-Type: text/plain
-Date: Tue, 10 Oct 2006 13:40:56 +1000
-Message-Id: <1160451656.32237.83.camel@localhost.localdomain>
+Date: Tue, 10 Oct 2006 05:42:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: bug in set_page_dirty_buffers
+Message-ID: <20061010034214.GI15822@wotan.suse.de>
+References: <20061010023654.GD15822@wotan.suse.de> <Pine.LNX.4.64.0610091951350.3952@g5.osdl.org> <20061009202039.b6948a93.akpm@osdl.org> <20061009203718.d6a8f803.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20061009203718.d6a8f803.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-10-10 at 04:58 +0200, Nick Piggin wrote:
-> On Tue, Oct 10, 2006 at 12:47:46PM +1000, Benjamin Herrenschmidt wrote:
+On Mon, Oct 09, 2006 at 08:37:18PM -0700, Andrew Morton wrote:
+> On Mon, 9 Oct 2006 20:20:39 -0700
+> Andrew Morton <akpm@osdl.org> wrote:
+> 
+> > On Mon, 9 Oct 2006 20:06:05 -0700 (PDT)
+> > Linus Torvalds <torvalds@osdl.org> wrote:
 > > 
-> > > Switch the mm and do a copy_from_user? (rather than the GUP).
-> > > Sounds pretty ugly :P
+> > > On Tue, 10 Oct 2006, Nick Piggin wrote:
+> > > >
+> > > > This was triggered, but not the fault of, the dirty page accounting
+> > > > patches. Suitable for -stable as well, after it goes upstream.
 > > > 
-> > > Can you do a get_user_pfns, and do a copy_from_user on the pfn
-> > > addresses? In other words, is the memory / mmio at the end of a
-> > > given address the same from the perspective of any process? It
-> > > is for physical memory of course, which is why get_user_pages
-> > > works...
+> > > Applied. However, I wonder what protects "page_mapping()" here?
 > > 
-> > Doesn't help with the racyness.
-> 
-> I don't understand what the racyness is that you can solve by accessing
-> it from the target process's mm?
-
-You get a struct page or a pfn, you race with the migration, and access
-something that isn't the "current" one. Doing an actual access goes
-through the normal mmu path which guarantees that after the migration
-has finished its unmap_mapping_ranges(), no access via those old PTEs is
-possible (tlbs have been flushed etc...). We don't get such guarantee if
-we get a struct page or a pfn and go peek at it.
-
-> > > What if you hold your per-object lock over the operation? (I guess
-> > > it would have to nest *inside* mmap_sem, but that should be OK).
+> > Nothing.  And I don't understand the (unchangelogged) switch from
+> > page->mapping to page_mapping().
 > > 
-> > Over the ptrace operation ? how so ?
+> > > I don't 
+> > > think we hold the page lock anywhere, so "page->mapping" can change at any 
+> > > time, no?
+> > 
+> > Yes.  The patch makes the race window a bit smaller.
 > 
-> You just have to hold it over access_process_vm, AFAIKS. Once it
-> is copied into the kernel buffer that's done. Maybe I misunderstood
-> what the race is?
+> OK, the address_space is protected from reclaim here by virtue of the
+> caller's ref on vma->vm_file (needs a comment).
 
-But since when ptrace knows about various private locks of objects that
-are backing vma's ?
+All callers are required to pin the the inode though. The comment is
+on top of set_page_dirty_lock.
 
-Ben.
-
+I guess you mean a comment in do_no_page? but I thought that was obvious:
+zap_pte_range, access_process_vm, etc have been doing this forever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
