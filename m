@@ -1,31 +1,44 @@
-Message-ID: <452AEC8B.2070008@yahoo.com.au>
-Date: Tue, 10 Oct 2006 10:42:51 +1000
+Message-ID: <452AEDAB.5080109@yahoo.com.au>
+Date: Tue, 10 Oct 2006 10:47:39 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [patch 4/5] mm: add vm_insert_pfn helpler
-References: <20061009140354.13840.71273.sendpatchset@linux.site>	 <20061009140447.13840.20975.sendpatchset@linux.site> <1160427785.7752.19.camel@localhost.localdomain>
-In-Reply-To: <1160427785.7752.19.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: Driver-driven paging?
+References: <452A68E9.3000707@tungstengraphics.com> <452A7AD3.5050006@yahoo.com.au> <452A8AC6.2080203@tungstengraphics.com>
+In-Reply-To: <452A8AC6.2080203@tungstengraphics.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
->>+	vma->vm_flags |= VM_PFNMAP;
-> 
-> 
-> I wouldn't do that here. I would keep that to the caller (and set it
-> before setting the PTE along with a wmb maybe to make sure it's visible
-> before the PTE no ?)
+Thomas Hellstrom wrote:
+> Nick Piggin wrote:
 
-Oops, good catch. You're right.
+>> If you need for the driver to *then* export these pages out to be mapped
+>> by other processes in userspace, I think you run into problems if trying
+>> to use nopage. You'll need to go the nopfn route (and thus your mappings
+>> must disallow PROT_WRITE && MAP_PRIVATE).
+>>
+>> But I think that might just work?
+>>
+> Yes, possibly. What kind of problems would I expect if using nopage? Is 
+> it, in particular, legal for a process to call get_user_pages() with the 
+> tsk and mm arguments of another process?
 
-We probably don't need a barrier because we take the ptl lock
-around setting the pte, and the only other readers who care should
-be ones that also take the same ptl lock.
+Oh that is legal. What I'm thinking you'd have problems with is one
+process having its pages imported to the kernel via get_user_pages,
+then exported again via an mmap()able device node.
+
+If another process mmaps these pages, you could easily get various
+problems like PageAnon being set for a file backed page, or rmap
+structures set up incorrectly for the page. It has been a while
+since I tried to look at the details, but I would just steer clear
+of that case.
+
+Using a nopfn handler (instead of nopage) means that the kernel will
+not look at the backing pages at all.
 
 -- 
 SUSE Labs, Novell Inc.
