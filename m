@@ -1,52 +1,51 @@
-Date: Tue, 10 Oct 2006 00:03:31 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] memory page_alloc zonelist caching speedup
-Message-Id: <20061010000331.bcc10007.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
-References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
-	<20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
-	<20061009111203.5dba9cbe.akpm@osdl.org>
-	<20061009150259.d5b87469.pj@sgi.com>
-	<20061009215125.619655b2.pj@sgi.com>
-	<Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
+Date: Tue, 10 Oct 2006 00:06:52 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch] mm: bug in set_page_dirty_buffers
+Message-Id: <20061010000652.bed6f901.akpm@osdl.org>
+In-Reply-To: <20061010065217.GC25500@wotan.suse.de>
+References: <20061009213806.b158ea82.akpm@osdl.org>
+	<20061010044745.GA24600@wotan.suse.de>
+	<20061009220127.c4721d2d.akpm@osdl.org>
+	<20061010052248.GB24600@wotan.suse.de>
+	<20061009222905.ddd270a6.akpm@osdl.org>
+	<20061010054832.GC24600@wotan.suse.de>
+	<20061009230832.7245814e.akpm@osdl.org>
+	<20061010061958.GA25500@wotan.suse.de>
+	<20061009232714.b52f678d.akpm@osdl.org>
+	<20061010063900.GB25500@wotan.suse.de>
+	<20061010065217.GC25500@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@cs.washington.edu>
-Cc: akpm@osdl.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> When a free occurs for a given zone, increment its counter.  If that 
-> reaches some threshold, zap that node in the nodemask so it's checked on 
-> the next alloc.  All the infrastructure is already there for this support 
-> in your patch.
+On Tue, 10 Oct 2006 08:52:17 +0200
+Nick Piggin <npiggin@suse.de> wrote:
 
-It's not an issue of infrastructure.  As you say, that's likely already
-there.
+> On Tue, Oct 10, 2006 at 08:39:00AM +0200, Nick Piggin wrote:
+> > As far as set_page_dirty races goes, I am having a bit of a look at that,
+> > but it would still require filesystems people to have a look.
+> 
+> I'm thinking something along the lines of this (untested) patch.
 
-It's the inherent problem in scaling an N-by-N information flow,
-with tasks running on each of N nodes wanting to know the latest
-free counters on each of N nodes.  This cannot be done with a small
-constant (or linear, but so small it is nearly constant) cache
-footprint for both the freers and allocators, avoiding hot cache lines.
+ho hum.
 
-In your phrasing, this shows up in the "zap that node in the nodemask"
-step.
+>  void block_invalidatepage(struct page *page, unsigned long offset)
+>  {
+> -	struct address_space *mapping;
+> +	struct address_space *mapping = page->mapping;
+>  	struct buffer_head *head, *bh, *next;
+> -	unsigned int curr_off = 0;
+> +	unsigned int curr_off;
+>  
+>  	BUG_ON(!PageLocked(page));
+> -	spin_lock(&mapping->private_lock);
 
-We don't have -a- nodemask.
-
-My latest patch has a bitmask (of length longer than a nodemask,
-typically) in each zonelist.  No way do we want to walk down each
-zonelist, one each per node, per ZONE type, examining each zone to see
-if it's on our node of interest, so we can clear the corresponding bit
-in the bitmask.  Not on every page free.  Way too expensive.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+block_invalidatepage() doesn't take ->private_lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
