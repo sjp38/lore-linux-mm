@@ -1,78 +1,52 @@
-Date: Tue, 10 Oct 2006 01:07:42 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch] mm: bug in set_page_dirty_buffers
-Message-Id: <20061010010742.50cbe1b1.akpm@osdl.org>
-In-Reply-To: <20061010072129.GB14557@wotan.suse.de>
-References: <20061009220127.c4721d2d.akpm@osdl.org>
-	<20061010052248.GB24600@wotan.suse.de>
-	<20061009222905.ddd270a6.akpm@osdl.org>
-	<20061010054832.GC24600@wotan.suse.de>
-	<20061009230832.7245814e.akpm@osdl.org>
-	<20061010061958.GA25500@wotan.suse.de>
-	<20061009232714.b52f678d.akpm@osdl.org>
-	<20061010063900.GB25500@wotan.suse.de>
-	<20061010065217.GC25500@wotan.suse.de>
-	<20061010000652.bed6f901.akpm@osdl.org>
-	<20061010072129.GB14557@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Paul Jackson <pj@sgi.com>
+Date: Tue, 10 Oct 2006 01:13:57 -0700
+Message-Id: <20061010081357.15156.55404.sendpatchset@jackhammer.engr.sgi.com>
+Subject: [PATCH] memory page_alloc revert empty zonelist check
 Sender: owner-linux-mm@kvack.org
+From: Paul Jackson <pj@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Andi Kleen <ak@suse.de>, mbligh@google.com, rohitseth@google.com, menage@google.com, Paul Jackson <pj@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006 09:21:29 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+Backout one item from a previous "memory page_alloc minor
+cleanups" patch.  Until and unless we are certain that no one
+can ever pass an empty zonelist to __alloc_pages(), this check
+for an empty zonelist (or some BUG equivalent) is essential.
+The code in get_page_from_freelist() blow ups if passed an
+empty zonelist.
 
->  void block_invalidatepage(struct page *page, unsigned long offset)
->  {
-> + 	struct address_space *mapping = page->mapping;
->  	struct buffer_head *head, *bh, *next;
-> -	unsigned int curr_off = 0;
-> +	unsigned int curr_off;
->  
->  	BUG_ON(!PageLocked(page));
->  	if (!page_has_buffers(page))
->  		goto out;
->  
-> +	curr_off = 0;
->  	head = page_buffers(page);
->  	bh = head;
->  	do {
-> @@ -1455,6 +1457,24 @@ void block_invalidatepage(struct page *p
->  		bh = next;
->  	} while (bh != head);
->  
-> +	/* strip the dirty bits and protect against concurrent set_page_dirty */
-> +	spin_lock(&mapping->private_lock);
-> +	curr_off = 0;
-> +	head = page_buffers(page);
-> +	bh = head;
-> +	do {
-> +		unsigned int next_off = curr_off + bh->b_size;
-> +		next = bh->b_this_page;
-> +
-> +		if (offset <= curr_off) {
-> +			clear_buffer_dirty(bh);
-> +			set_buffer_invalid(bh);
-> +		}
-> +		curr_off = next_off;
-> +		bh = next;
-> +	} while (bh != head);
-> +	spin_unlock(&mapping->private_lock);
+Signed-off-by: Paul Jackson
 
-If the buffer's redirtied after discard_buffer() got at it, we've got some
-nasty problems in there.
+---
 
-Are you sure this race can happen?  Nobody's allowed to have a page mapped
-while it's undergoing truncation (vmtruncate()).
+Andrew - applies on top of my "memory page_alloc minor cleanups"
+patch.  -pj
 
-There might be a problem with the final blocks in the page outside i_size. 
-iirc what happens here is that the bh outside i_size _is_ marked dirty, but
-writepage() will notice that it's outside i_size and will just mark it
-clean again without doing IO.
+ mm/page_alloc.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- 2.6.18-mm3.orig/mm/page_alloc.c	2006-10-10 00:25:31.751908557 -0700
++++ 2.6.18-mm3/mm/page_alloc.c	2006-10-10 00:25:32.567919262 -0700
+@@ -1057,6 +1057,13 @@ __alloc_pages(gfp_t gfp_mask, unsigned i
+ 	might_sleep_if(wait);
+ 
+ restart:
++	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
++
++	if (unlikely(*z == NULL)) {
++		/* Should this ever happen?? */
++		return NULL;
++	}
++
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+ 				zonelist, ALLOC_WMARK_LOW|ALLOC_CPUSET);
+ 	if (page)
+
+-- 
+                          I won't rest till it's the best ...
+                          Programmer, Linux Scalability
+                          Paul Jackson <pj@sgi.com> 1.650.933.1373
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
