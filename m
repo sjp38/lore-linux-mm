@@ -1,69 +1,117 @@
-Date: Tue, 10 Oct 2006 12:35:55 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] memory page_alloc zonelist caching speedup
-Message-Id: <20061010123555.21996034.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0610101001480.927@schroedinger.engr.sgi.com>
-References: <20061009105451.14408.28481.sendpatchset@jackhammer.engr.sgi.com>
-	<20061009105457.14408.859.sendpatchset@jackhammer.engr.sgi.com>
-	<20061009111203.5dba9cbe.akpm@osdl.org>
-	<20061009150259.d5b87469.pj@sgi.com>
-	<20061009215125.619655b2.pj@sgi.com>
-	<Pine.LNX.4.64N.0610092331120.17087@attu3.cs.washington.edu>
-	<20061010000331.bcc10007.pj@sgi.com>
-	<Pine.LNX.4.64.0610101001480.927@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: ebiederm@xmission.com (Eric W. Biederman)
+Subject: Re: RSS accounting (was: Re: 2.6.19-rc1-mm1)
+References: <20061010000928.9d2d519a.akpm@osdl.org>
+	<1160464800.3000.264.camel@laptopd505.fenrus.org>
+	<20061010004526.c7088e79.akpm@osdl.org>
+	<1160467401.3000.276.camel@laptopd505.fenrus.org>
+	<1160486087.25613.52.camel@taijtu>
+	<1160496790.3000.319.camel@laptopd505.fenrus.org>
+Date: Tue, 10 Oct 2006 17:54:16 -0600
+In-Reply-To: <1160496790.3000.319.camel@laptopd505.fenrus.org> (Arjan van de
+	Ven's message of "Tue, 10 Oct 2006 18:13:10 +0200")
+Message-ID: <m11wpfohg7.fsf@ebiederm.dsl.xmission.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: rientjes@cs.washington.edu, akpm@osdl.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> Could it be worth to investigate more radical ideas? This gets way too 
-> complicated for me. Maybe drop the whole zone list generation idea and 
-> iterate over nodes in another way?
+Arjan van de Ven <arjan@infradead.org> writes:
 
-Worth some thought.
+> On Tue, 2006-10-10 at 15:14 +0200, Peter Zijlstra wrote:
+>> > 
+>> > We need to consider at least if any of the following are part of rss:
+>> > * VM_IO io mmaped device stuff 
+>> > * Non-linear mappings
+>> > * Shared hugetlb memory that shares pagetables
+>> > * Shared hugetlb memory
+>> > * Hugetlb memory in general
+>> > * Shared normal memory that shares pagetables
+>> > * Shared normal memory (file backed; eg pagecache)
+>> > * Shared normal memory (anonymous/non-file-backed)
+>> > * Sysv/ipc shared memory
+>> > * Not shared normal memory
 
-I'll be surprised if this eliminates the usefulness of something
-like this zonelist caching patch, however.
+There is a concept related to RSS that is very interesting.  The
+minimum RSS that a process needs to keep from thrashing.
 
-Sooner or later, regardless of what shape data structures we have,
-we end up having to examine a bunch of nodes when allocating for
-workloads or numa emulated configurations that make heavy use of
-off-node allocations.
+It can be shown that if your RSS rlimit is greater that your minimum
+RSS your process will never thrash. 
 
-And when that happens, we end up with an N-squared information
-flow problem, needing to get information or at least hints as to
-which nodes have free pages to the tasks trying to allocate those
-pages.
+One thing that older paging algorithms would try and do when there
+was memory pressure was to dynamically discover an applications
+minimum RSS, and if they couldn't meet it swap that process out,
+because the program can't make progress anyway.
 
-But we really would rather not pay the price of even a linear
-scan over N nodes, in either the tasks freeing pages, nor in the
-tasks allocating them.
+A per process not a per application RSS fails to model multiple
+process applications but the concepts are sound.
 
-The best I've been able to do, in this patch, is:
- 1) compact the information, to minimize the cache line footprint, and
- 2) have the allocators get by on incomplete information, essentially
-    doing the first scan based on remembering which nodes were
-    recently noticed to be full.
+So since VM_IO does not have any effect on paging it should not
+be counted but if you were a stickler the page tables from the
+VM_IO should be counted.
 
-I predict that regardless of the shape (zonelists, nodemasks or
-whatever) of the placement information coming into the core
-routine of our allocator, we will still need some sort of caching
-like this, bolted onto the side, for the cases making heavy use
-of off-node allocations.
+The other thing to note is even if you RSS is just above your minimum
+RSS that will only result in your process having pages bounce in and
+out of the page cache (not necessarily to disk).   So while it will
+increase minor faults a restrictive RSS is not a problem when
+you have excess resources.
 
-So I would not use disgust at the added complexity of this zonelist
-caching patch to justify changing the fundamental zonelist structures
-used to drive the kernel allocator.
+>>  - shared mapped pages could be accounted on vma level, since both
+>> containers have access to the same file, there is already an imbalance,
+>> so I'd not worry about the 1%-99% usage scenario here.
+>
+> or one level below; if you count it in the actual PTE page then the
+> sharing case will "just work". It's a trick question; do you count it as
+> 100% or do you count it as 100% / number of sharers.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+I'm not certain I even want to follow the logic here. The answer is
+clear.
+
+For processes shared pages are not special.
+
+For computing a container RSS shared pages need to be counted the
+first time they are mapped by any process in a container, and
+uncounted the last time they are unmapped by a process in a container.
+With rmap we have the data structures necessary to do the accounting,
+although it might be a bit of a pain.
+
+
+>>  - regular, non mapped, pagecache pages however have no owner - what to
+>> do. (fake vma - which would result in each container paying equally for
+>> all these pages?)
+>
+> if they're clean I wouldn't count them to anything actually
+
+If the pages aren't mapped they aren't part of the resident set size.
+
+At least not until we start worrying about per container or per
+process splits of the page cache, and there are clearly good reasons
+to avoid that.
+
+>> Anyway, I'd rather not break RSS twice, once now because we don't quite
+>> know what to do, and later when we do get an acceptable mm container and
+>> have to include shared memory in one way or the other.
+>
+>
+> RSS of a container versus RSS of a process is an interesting question
+> for sure ;)
+
+Agreed.  Historically it was much more interesting because we didn't
+have rmap so telling if your set of processes had mapped the page
+already is a challenge.  At this point unless the performance of
+the accounting is to much it should just be a simple counting problem.
+
+The real challenge is doing a decent job of picking the appropriate
+page to unmap when a new mapping by a process would exceed the rss
+limit.  That is the one piece of the puzzle we have never implemented
+:(
+
+You can declare success when you can push one container into heavy
+swapping and the rest of the containers are still running fine.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
