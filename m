@@ -1,43 +1,42 @@
-Date: Tue, 10 Oct 2006 00:45:26 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.19-rc1-mm1
-Message-Id: <20061010004526.c7088e79.akpm@osdl.org>
-In-Reply-To: <1160464800.3000.264.camel@laptopd505.fenrus.org>
-References: <20061010000928.9d2d519a.akpm@osdl.org>
-	<1160464800.3000.264.camel@laptopd505.fenrus.org>
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <452B398C.4030507@tungstengraphics.com>
+References: <20061009110007.GA3592@wotan.suse.de>
+	 <1160392214.10229.19.camel@localhost.localdomain>
+	 <20061009111906.GA26824@wotan.suse.de>
+	 <1160393579.10229.24.camel@localhost.localdomain>
+	 <20061009114527.GB26824@wotan.suse.de>
+	 <1160394571.10229.27.camel@localhost.localdomain>
+	 <20061009115836.GC26824@wotan.suse.de>
+	 <1160395671.10229.35.camel@localhost.localdomain>
+	 <20061009121417.GA3785@wotan.suse.de>
+	 <452A50C2.9050409@tungstengraphics.com>
+	 <20061009135254.GA19784@wotan.suse.de>
+	 <1160427036.7752.13.camel@localhost.localdomain>
+	 <452B398C.4030507@tungstengraphics.com>
+Content-Type: text/plain
+Date: Tue, 10 Oct 2006 17:55:31 +1000
+Message-Id: <1160466932.6177.0.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: linux-kernel@vger.kernel.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org
+To: Thomas =?ISO-8859-1?Q?Hellstr=F6m?= <thomas@tungstengraphics.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006 09:20:00 +0200
-Arjan van de Ven <arjan@infradead.org> wrote:
+> Still, even with NOPAGE_REFAULT or the equivalent with the new fault() code,
+> in the case we need to take this route, (and it looks like we won't have 
+> to),
+> I guess we still need to restart from find_vma() in the fault()/nopage() 
+> handler to make sure the VMA is still present. The object mutex need to 
+> be dropped as well to avoid deadlocks. Sounds complicated.
 
-> On Tue, 2006-10-10 at 00:09 -0700, Andrew Morton wrote:
-> > +htlb-forget-rss-with-pt-sharing.patch
+But as we said, it should be enough to do the flag change with the
+object mutex held as long as it's after unmap_mapped_ranges()
 
-Which I didn't write.  cc's added.
+Ben.
 
-> if it's ok to ignore RSS,
-
-We'd prefer not to.  But what's the alternative?
-
-> can we consider the shared pagetables for
-> normal pages patch?
-
-Has been repeatedly considered, but Hugh keeps finding bugs in it.
-
-> It saves quite a bit of memory on even desktop
-> workloads as well as avoiding several (soft) pagefaults.
-> 
-> So.. what does RSS actually mean? Can we ignore it somewhat for
-> shared-readonly mappings ? 
-
-We'd prefer to go the other way, and implement RLIMIT_RSS wouldn't we?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
