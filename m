@@ -1,71 +1,54 @@
-Date: Mon, 9 Oct 2006 23:08:32 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch] mm: bug in set_page_dirty_buffers
-Message-Id: <20061009230832.7245814e.akpm@osdl.org>
-In-Reply-To: <20061010054832.GC24600@wotan.suse.de>
-References: <20061010033412.GH15822@wotan.suse.de>
-	<20061009205030.e247482e.akpm@osdl.org>
-	<20061010035851.GK15822@wotan.suse.de>
-	<20061009211404.ad112128.akpm@osdl.org>
-	<20061010042144.GM15822@wotan.suse.de>
-	<20061009213806.b158ea82.akpm@osdl.org>
-	<20061010044745.GA24600@wotan.suse.de>
-	<20061009220127.c4721d2d.akpm@osdl.org>
-	<20061010052248.GB24600@wotan.suse.de>
-	<20061009222905.ddd270a6.akpm@osdl.org>
-	<20061010054832.GC24600@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <452B398C.4030507@tungstengraphics.com>
+Date: Tue, 10 Oct 2006 08:11:24 +0200
+From: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>
+MIME-Version: 1.0
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+References: <20061009110007.GA3592@wotan.suse.de>	 <1160392214.10229.19.camel@localhost.localdomain>	 <20061009111906.GA26824@wotan.suse.de>	 <1160393579.10229.24.camel@localhost.localdomain>	 <20061009114527.GB26824@wotan.suse.de>	 <1160394571.10229.27.camel@localhost.localdomain>	 <20061009115836.GC26824@wotan.suse.de>	 <1160395671.10229.35.camel@localhost.localdomain>	 <20061009121417.GA3785@wotan.suse.de>	 <452A50C2.9050409@tungstengraphics.com>	 <20061009135254.GA19784@wotan.suse.de> <1160427036.7752.13.camel@localhost.localdomain>
+In-Reply-To: <1160427036.7752.13.camel@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006 07:48:33 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+Benjamin Herrenschmidt wrote:
 
-> On Mon, Oct 09, 2006 at 10:29:05PM -0700, Andrew Morton wrote:
-> > On Tue, 10 Oct 2006 07:22:48 +0200
-> > Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > > > AFAIKS, it is just fs/buffer.c that is racy.
-> > > > 
-> > > > Need to review all ->set_page_dirty, ->writepage, ->invalidatepage, ->etc
-> > > > implementations before we can say that.
-> > 
-> >     ^^^ this
-> 
-> ->writepage is called under page lock.
-> 
-> ->invalidatepage is called under page lock.
-> 
-> I think ->spd is the only one to worry about.
-> 
-> __set_page_dirty_nobuffers does use the tree_lock to ensure it hasn't been
-> truncated. However it doe leave orphaned clean buffers which vmscan cannot
-> reclaim. So probably we should not dirty it *until* we have verified it
-> is still part of a mapping.
-> 
-> Similarly for __set_page_dirty_buffers.
-> 
-> Comments in ext3 look like it has spd under control.
-> Reiserfs looks similar, but it does have the unchecked
-> page->mapping problem that I fixed for spd_buffers.
-> 
-> Am I missing something?
+>
+>>>Could it be an option to make it safe for the fault handler to 
+>>>temporarily drop the mmap_sem read lock given that some conditions TBD 
+>>>are met?
+>>>In that case it can retake the mmap_sem write lock, do the VMA flags 
+>>>modifications, downgrade and do the pte modifications using a helper, or 
+>>>even use remap_pfn_range() during the time the write lock is held?
+>>>      
+>>>
+>>When you drop and retake the mmap_sem, you need to start again from
+>>find_vma. At which point you technically probably want to start again
+>>from the architecture specfic fault code. It sounds difficult but I
+>>won't say it can't be done.
+>>    
+>>
+>
+>I can be done with returning NOPAGE_REFAULT but as you said, I don't
+>think it's necessary.
+>  
+>
+Still, even with NOPAGE_REFAULT or the equivalent with the new fault() code,
+in the case we need to take this route, (and it looks like we won't have 
+to),
+I guess we still need to restart from find_vma() in the fault()/nopage() 
+handler to make sure the VMA is still present. The object mutex need to 
+be dropped as well to avoid deadlocks. Sounds complicated.
 
-Well it's a matter of reviewing all codepaths in the kernel which
-manipulate internal page state and see if they're racy against their
-->set_page_dirty().  All because of zap_pte_range().
-
-The page lock protects internal page state.  It'd be better to fix
-zap_pte_range().
-
-How about we trylock the page and if that fails, back out and drop locks
-and lock the page then dirty it and then resume the zap?  Negligible
-overhead, would be nice and simple apart from that i_mmap_lock thing.
+>Cheers,
+>Ben.
+>
+>
+>  
+>
+/Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
