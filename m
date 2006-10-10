@@ -1,51 +1,80 @@
-Date: Tue, 10 Oct 2006 00:06:52 -0700
-From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [patch] mm: bug in set_page_dirty_buffers
-Message-Id: <20061010000652.bed6f901.akpm@osdl.org>
-In-Reply-To: <20061010065217.GC25500@wotan.suse.de>
-References: <20061009213806.b158ea82.akpm@osdl.org>
-	<20061010044745.GA24600@wotan.suse.de>
-	<20061009220127.c4721d2d.akpm@osdl.org>
-	<20061010052248.GB24600@wotan.suse.de>
-	<20061009222905.ddd270a6.akpm@osdl.org>
-	<20061010054832.GC24600@wotan.suse.de>
-	<20061009230832.7245814e.akpm@osdl.org>
-	<20061010061958.GA25500@wotan.suse.de>
-	<20061009232714.b52f678d.akpm@osdl.org>
-	<20061010063900.GB25500@wotan.suse.de>
-	<20061010065217.GC25500@wotan.suse.de>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20061010065927.GA14557@wotan.suse.de>
+References: <20061010033412.GH15822@wotan.suse.de>
+	 <20061009205030.e247482e.akpm@osdl.org>
+	 <20061010035851.GK15822@wotan.suse.de>
+	 <20061009211404.ad112128.akpm@osdl.org>
+	 <20061010042144.GM15822@wotan.suse.de>
+	 <20061009213806.b158ea82.akpm@osdl.org>
+	 <20061010044745.GA24600@wotan.suse.de>
+	 <20061009220127.c4721d2d.akpm@osdl.org>
+	 <20061010052248.GB24600@wotan.suse.de> <1160462936.27479.4.camel@taijtu>
+	 <20061010065927.GA14557@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 10 Oct 2006 09:11:03 +0200
+Message-Id: <1160464263.27479.13.camel@taijtu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006 08:52:17 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-
-> On Tue, Oct 10, 2006 at 08:39:00AM +0200, Nick Piggin wrote:
-> > As far as set_page_dirty races goes, I am having a bit of a look at that,
-> > but it would still require filesystems people to have a look.
+On Tue, 2006-10-10 at 08:59 +0200, Nick Piggin wrote:
+> On Tue, Oct 10, 2006 at 08:48:56AM +0200, Peter Zijlstra wrote:
+> > On Tue, 2006-10-10 at 07:22 +0200, Nick Piggin wrote:
+> > > 
+> > > I disagree because it will lead to horrible hacks because many callers
+> > > can't sleep. If anything I would much prefer an innermost-spinlock in
+> > > page->flags that specifically excludes truncate. Actually tree_lock can
+> > > do that now, provided we pin mapping in all callers to set_page_dirty
+> > > (which we should do).
+> > 
+> > Yeah, but we're hard working to eradicate tree lock; I have ran into
 > 
-> I'm thinking something along the lines of this (untested) patch.
+> Well yeah, but until then the tree_lock works.
 
-ho hum.
+True, and your latest patch looks nice, will have to go over it in more
+than a cursory glance though.
 
->  void block_invalidatepage(struct page *page, unsigned long offset)
->  {
-> -	struct address_space *mapping;
-> +	struct address_space *mapping = page->mapping;
->  	struct buffer_head *head, *bh, *next;
-> -	unsigned int curr_off = 0;
-> +	unsigned int curr_off;
->  
->  	BUG_ON(!PageLocked(page));
-> -	spin_lock(&mapping->private_lock);
+> > this problem before; that is, zap_pte_range and co. not being able to
+> > lock the page. I'd really like to see that fixed.
+> 
+> What's your problem with zap_pte_range?
 
-block_invalidatepage() doesn't take ->private_lock.
+well, not only zap_pte_range, also page_remove_rmap and
+try_to_unmap_cluster etc.. Basically all those who fiddle with the page
+without holding the page lock.
+
+Because with concurrent pagecache, there is no tree lock anymore to
+protect/pin the whole mapping, I need to go pin individual pages.
+Perhaps having an inner page bit-spinlock (PG_pin) isn't a bad thing,
+I'd just raised the issue to see if it would be doable/a-good-thing to
+try and merge these two.
+
+> > In my current concurrent pagecache patches I've abused your PG_nonewrefs
+> > and made it this page internal (bit)spinlock, but it just doesn't look
+> > nice to have both this lock and PG_locked.
+> 
+> Regardless of whether or not they spin, PG_locked is an outermost, and
+> set_page_dirty is called innermost. 
+
+Yes, indeed, and changing it is going to be hard and painful, hence I'll
+stick with PG_pin for now.
+
+> I don't see why we'd particularly
+> want to mush them together now, just because we're worried a filesystem
+> writer wrote buggy code.
+> 
+> It is all well and good to tell me I'm wrong unless I audit all
+> filesystems, but the fact is that I'm not a filesystem expert, and if
+> this is what it has come to then either the process has failed, or
+> we have a large number of filesystems to cull from the tree as
+> unmaintained.
+
+With you on that, no/little filesystems knowledge here either.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
