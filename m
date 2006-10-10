@@ -1,65 +1,64 @@
-Date: Tue, 10 Oct 2006 05:46:06 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: ptrace and pfn mappings
-Message-ID: <20061010034606.GJ15822@wotan.suse.de>
-References: <20061009140354.13840.71273.sendpatchset@linux.site> <20061009140447.13840.20975.sendpatchset@linux.site> <1160427785.7752.19.camel@localhost.localdomain> <452AEC8B.2070008@yahoo.com.au> <1160442987.32237.34.camel@localhost.localdomain> <20061010022310.GC15822@wotan.suse.de> <1160448466.32237.59.camel@localhost.localdomain> <20061010025821.GE15822@wotan.suse.de> <1160451656.32237.83.camel@localhost.localdomain>
+Date: Mon, 9 Oct 2006 20:50:30 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch] mm: bug in set_page_dirty_buffers
+Message-Id: <20061009205030.e247482e.akpm@osdl.org>
+In-Reply-To: <20061010033412.GH15822@wotan.suse.de>
+References: <20061010023654.GD15822@wotan.suse.de>
+	<Pine.LNX.4.64.0610091951350.3952@g5.osdl.org>
+	<20061009202039.b6948a93.akpm@osdl.org>
+	<20061010033412.GH15822@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1160451656.32237.83.camel@localhost.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 01:40:56PM +1000, Benjamin Herrenschmidt wrote:
-> On Tue, 2006-10-10 at 04:58 +0200, Nick Piggin wrote:
-> > On Tue, Oct 10, 2006 at 12:47:46PM +1000, Benjamin Herrenschmidt wrote:
-> > > 
-> > > > Switch the mm and do a copy_from_user? (rather than the GUP).
-> > > > Sounds pretty ugly :P
-> > > > 
-> > > > Can you do a get_user_pfns, and do a copy_from_user on the pfn
-> > > > addresses? In other words, is the memory / mmio at the end of a
-> > > > given address the same from the perspective of any process? It
-> > > > is for physical memory of course, which is why get_user_pages
-> > > > works...
-> > > 
-> > > Doesn't help with the racyness.
+On Tue, 10 Oct 2006 05:34:12 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+
+> On Mon, Oct 09, 2006 at 08:20:39PM -0700, Andrew Morton wrote:
+> > On Mon, 9 Oct 2006 20:06:05 -0700 (PDT)
+> > Linus Torvalds <torvalds@osdl.org> wrote:
 > > 
-> > I don't understand what the racyness is that you can solve by accessing
-> > it from the target process's mm?
-> 
-> You get a struct page or a pfn, you race with the migration, and access
-> something that isn't the "current" one. Doing an actual access goes
-> through the normal mmu path which guarantees that after the migration
-> has finished its unmap_mapping_ranges(), no access via those old PTEs is
-> possible (tlbs have been flushed etc...). We don't get such guarantee if
-> we get a struct page or a pfn and go peek at it.
-
-OK, so it is a matter of preventing the migration while this is going on.
-BTW. I think you need to disallow get_user_pages to this region entirely,
-regardless of whether it is backed by a page or not: there is no guarantee
-of when the caller will release the page.
-
-> > > > What if you hold your per-object lock over the operation? (I guess
-> > > > it would have to nest *inside* mmap_sem, but that should be OK).
+> > > On Tue, 10 Oct 2006, Nick Piggin wrote:
+> > > >
+> > > > This was triggered, but not the fault of, the dirty page accounting
+> > > > patches. Suitable for -stable as well, after it goes upstream.
 > > > 
-> > > Over the ptrace operation ? how so ?
+> > > Applied. However, I wonder what protects "page_mapping()" here?
 > > 
-> > You just have to hold it over access_process_vm, AFAIKS. Once it
-> > is copied into the kernel buffer that's done. Maybe I misunderstood
-> > what the race is?
+> > Nothing.  And I don't understand the (unchangelogged) switch from
+> > page->mapping to page_mapping().
 > 
-> But since when ptrace knows about various private locks of objects that
-> are backing vma's ?
+> I did the switch because that is that its callers and
+> the other spd functions are using to find the mapping.
 
-Since we decided it would be better to make a new function or some arch
-specfic hooks rather than switch mm's in the kernel? ;)
+Maybe they're wrong?
 
-No, I don't know. Your idea might be reasonable, but I really haven't
-thought about it much.
+> > > I don't 
+> > > think we hold the page lock anywhere, so "page->mapping" can change at any 
+> > > time, no?
+> > 
+> > Yes.  The patch makes the race window a bit smaller.
+> 
+> It fixes the problem. The mapping is already pinned at this point,
+
+Needs comment.
+
+> the problem is that page_mapping is still free to go NULL at any
+> time, and __set_page_dirty_buffers wasn't checking for that.
+> 
+> If there is another race, then it must be because the buffer code
+> cannot cope with dirty buffers against a truncated page. It is
+> kind of spaghetti, though. What stops set_page_dirty_buffers from
+> racing with block_invalidatepage, for example?
+
+Nothing that I can think of.  We keep on adding calls to set_page_dirty()
+against unlocked pages.  It would have been better to fix that one case in
+the pte-unmapping path rather than adding heaps more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
