@@ -1,49 +1,44 @@
-Date: Tue, 10 Oct 2006 05:42:14 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: bug in set_page_dirty_buffers
-Message-ID: <20061010034214.GI15822@wotan.suse.de>
-References: <20061010023654.GD15822@wotan.suse.de> <Pine.LNX.4.64.0610091951350.3952@g5.osdl.org> <20061009202039.b6948a93.akpm@osdl.org> <20061009203718.d6a8f803.akpm@osdl.org>
+Subject: Re: ptrace and pfn mappings
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20061010030344.GF15822@wotan.suse.de>
+References: <20061009140354.13840.71273.sendpatchset@linux.site>
+	 <20061009140447.13840.20975.sendpatchset@linux.site>
+	 <1160427785.7752.19.camel@localhost.localdomain>
+	 <452AEC8B.2070008@yahoo.com.au>
+	 <1160442987.32237.34.camel@localhost.localdomain>
+	 <20061010022310.GC15822@wotan.suse.de>
+	 <1160448466.32237.59.camel@localhost.localdomain>
+	 <1160448968.32237.68.camel@localhost.localdomain>
+	 <20061010030344.GF15822@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 10 Oct 2006 13:42:55 +1000
+Message-Id: <1160451775.32237.86.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061009203718.d6a8f803.akpm@osdl.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 09, 2006 at 08:37:18PM -0700, Andrew Morton wrote:
-> On Mon, 9 Oct 2006 20:20:39 -0700
-> Andrew Morton <akpm@osdl.org> wrote:
-> 
-> > On Mon, 9 Oct 2006 20:06:05 -0700 (PDT)
-> > Linus Torvalds <torvalds@osdl.org> wrote:
-> > 
-> > > On Tue, 10 Oct 2006, Nick Piggin wrote:
-> > > >
-> > > > This was triggered, but not the fault of, the dirty page accounting
-> > > > patches. Suitable for -stable as well, after it goes upstream.
-> > > 
-> > > Applied. However, I wonder what protects "page_mapping()" here?
-> > 
-> > Nothing.  And I don't understand the (unchangelogged) switch from
-> > page->mapping to page_mapping().
-> > 
-> > > I don't 
-> > > think we hold the page lock anywhere, so "page->mapping" can change at any 
-> > > time, no?
-> > 
-> > Yes.  The patch makes the race window a bit smaller.
-> 
-> OK, the address_space is protected from reclaim here by virtue of the
-> caller's ref on vma->vm_file (needs a comment).
+> Hold your per-object lock? I'm not talking about using mmap_sem for
+> migration, but the per-object lock in access_process_vm. I thought
+> this prevented migration?
 
-All callers are required to pin the the inode though. The comment is
-on top of set_page_dirty_lock.
+As I said in my previous mail. access_process_vm() is a generic function
+called by ptrace, it has 0 knowledge of the internal locking scheme of
+a driver providing a nopage/nopfn for a vma.
 
-I guess you mean a comment in do_no_page? but I thought that was obvious:
-zap_pte_range, access_process_vm, etc have been doing this forever.
+> OK, just do one pfn at a time. For ptrace that is fine. access_process_vm
+> already copies from source into kernel buffer, then kernel buffer into
+> target.
+
+Even one pfn at a time ... the only way would be if we also took the PTE
+lock during the copy in fact. That's the only lock that would provide
+that same guarantees as an access I think.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
