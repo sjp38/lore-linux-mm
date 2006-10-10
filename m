@@ -1,58 +1,50 @@
-Date: Tue, 10 Oct 2006 04:23:10 +0200
+Date: Tue, 10 Oct 2006 04:36:54 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: ptrace and pfn mappings
-Message-ID: <20061010022310.GC15822@wotan.suse.de>
-References: <20061009140354.13840.71273.sendpatchset@linux.site> <20061009140447.13840.20975.sendpatchset@linux.site> <1160427785.7752.19.camel@localhost.localdomain> <452AEC8B.2070008@yahoo.com.au> <1160442987.32237.34.camel@localhost.localdomain>
+Subject: [patch] mm: bug in set_page_dirty_buffers
+Message-ID: <20061010023654.GD15822@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1160442987.32237.34.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 11:16:27AM +1000, Benjamin Herrenschmidt wrote:
-> And the last of my "issues" here:
-> 
-> get_user_pages() can't handle pfn mappings, thus access_process_vm()
-> can't, and thus ptrace can't. When they were limited to dodgy /dev/mem
-> things, it was probably ok. But with more drivers needing that, like the
-> DRM, sound drivers, and now with SPU problem state registers and local
-> store mapped that way, it's becoming a real issues to be unable to
-> access any of those mappings from gdb.
-> 
-> The "easy" way out I can see, but it may have all sort of bad side
-> effects I haven't thought about at this point, is to switch the mm in
-> access_process_vm (at least if it's hitting such a VMA).
+This was triggered, but not the fault of, the dirty page accounting
+patches. Suitable for -stable as well, after it goes upstream.
 
-Switch the mm and do a copy_from_user? (rather than the GUP).
-Sounds pretty ugly :P
+Unable to handle kernel NULL pointer dereference at virtual address 0000004c
+EIP is at _spin_lock+0x12/0x66
+Call Trace:
+ [<401766e7>] __set_page_dirty_buffers+0x15/0xc0
+ [<401401e7>] set_page_dirty+0x2c/0x51
+ [<40140db2>] set_page_dirty_balance+0xb/0x3b
+ [<40145d29>] __do_fault+0x1d8/0x279
+ [<40147059>] __handle_mm_fault+0x125/0x951
+ [<401133f1>] do_page_fault+0x440/0x59f
+ [<4034d0c1>] error_code+0x39/0x40
+ [<08048a33>] 0x8048a33
+ =======================
 
-Can you do a get_user_pfns, and do a copy_from_user on the pfn
-addresses? In other words, is the memory / mmio at the end of a
-given address the same from the perspective of any process? It
-is for physical memory of course, which is why get_user_pages
-works...
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-> That means that the ptracing process will temporarily be running in the
-> kernel using a task->active_mm different from task->mm which might have
-> funny side effects due to assumptions that this won't happen here or
-> there, though I don't see any fundamental reasons why it couldn't be
-> made to work.
-> 
-> That do you guys think ? Any better idea ? The problem with mappings
-> like what SPUfs or the DRM want is that they can change (be remapped
-> between HW and backup memory, as described in previous emails), thus we
-> don't want to get struct pages even if available and peek at them as
-> they might not be valid anymore, same with PFNs (we could imagine
-> ioremap'ing those PFN's but that would be racy too). The only way that
-> is guaranteed not to be racy is to do exactly what a user do, that is do
-> user accesses via the target process vm itself....
-
-What if you hold your per-object lock over the operation? (I guess
-it would have to nest *inside* mmap_sem, but that should be OK).
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -701,7 +701,10 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+  */
+ int __set_page_dirty_buffers(struct page *page)
+ {
+-	struct address_space * const mapping = page->mapping;
++	struct address_space * const mapping = page_mapping(page);
++
++	if (unlikely(!mapping))
++		return !TestSetPageDirty(page);
+ 
+ 	spin_lock(&mapping->private_lock);
+ 	if (page_has_buffers(page)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
