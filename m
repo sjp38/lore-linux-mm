@@ -1,60 +1,51 @@
-Date: Tue, 10 Oct 2006 10:52:36 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-Message-Id: <20061010105236.2ef0268b.akpm@osdl.org>
-In-Reply-To: <20061010121327.GA2431@wotan.suse.de>
-References: <20061007105758.14024.70048.sendpatchset@linux.site>
-	<20061007105853.14024.95383.sendpatchset@linux.site>
-	<20061010121003.GA19322@infradead.org>
-	<20061010121327.GA2431@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Oct 2006 19:06:32 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: ptrace and pfn mappings
+In-Reply-To: <20061010123128.GA23775@infradead.org>
+Message-ID: <Pine.LNX.4.64.0610101827130.14815@blonde.wat.veritas.com>
+References: <20061009140354.13840.71273.sendpatchset@linux.site>
+ <20061009140447.13840.20975.sendpatchset@linux.site>
+ <1160427785.7752.19.camel@localhost.localdomain> <452AEC8B.2070008@yahoo.com.au>
+ <1160442987.32237.34.camel@localhost.localdomain> <20061010123128.GA23775@infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2006 14:13:27 +0200
-Nick Piggin <npiggin@suse.de> wrote:
-
-> On Tue, Oct 10, 2006 at 01:10:03PM +0100, Christoph Hellwig wrote:
-> > On Sat, Oct 07, 2006 at 03:06:32PM +0200, Nick Piggin wrote:
-> > > +/*
-> > > + * fault_data is filled in the the pagefault handler and passed to the
-> > > + * vma's ->fault function. That function is responsible for filling in
-> > > + * 'type', which is the type of fault if a page is returned, or the type
-> > > + * of error if NULL is returned.
-> > > + */
-> > > +struct fault_data {
-> > > +	struct vm_area_struct *vma;
-> > > +	unsigned long address;
-> > > +	pgoff_t pgoff;
-> > > +	unsigned int flags;
-> > > +
-> > > +	int type;
-> > > +};
-> > >  
-> > >  /*
-> > >   * These are the virtual MM functions - opening of an area, closing and
-> > > @@ -203,6 +221,7 @@ extern pgprot_t protection_map[16];
-> > >  struct vm_operations_struct {
-> > >  	void (*open)(struct vm_area_struct * area);
-> > >  	void (*close)(struct vm_area_struct * area);
-> > > +	struct page * (*fault)(struct fault_data * data);
+On Tue, 10 Oct 2006, Christoph Hellwig wrote:
+> On Tue, Oct 10, 2006 at 11:16:27AM +1000, Benjamin Herrenschmidt wrote:
 > > 
-> > Please pass the vma as an explicit first argument so that all vm_operations
-> > operate on a vma.  It's also much cleaner to have the separate between the
-> > the object operated on (the vma) and all the fault details (struct fault_data).
+> > The "easy" way out I can see, but it may have all sort of bad side
+> > effects I haven't thought about at this point, is to switch the mm in
+> > access_process_vm (at least if it's hitting such a VMA).
 > 
-> Hmm... I agree it is more consistent, but OTOH if we're passing a
-> structure I thought it may as well just go in there. But I will
-> change unless anyone comes up with an objection.
+> Switching the mm is definitly no acceptable.  Too many things could
+> break when violating the existing assumptions.
 
-I'd agree that it's more attractive to have the vma* in the argument list,
-but it presumably adds runtime cost: cycles and stack depth.  I don't how
-much though.
+I disagree.  Ben's switch-mm approach deserves deeper examination than
+that.  It's both simple and powerful.  And it's already done by AIO's
+use_mm - the big differences being, of course, that the kthread has
+no original mm of its own, and it's limited in what it gets up to.
+
+What would be the actual problems with ptrace temporarily adopting
+another's mm?  What are our existing assumptions?
+
+We do already have the minor issue that expand_stack uses the wrong
+task's rlimits (there was a patch for that, perhaps Nick's fault
+struct would help make it less intrusive to fix - I was put off
+it by having to pass an additional arg down so many levels).
+
+> I think the best idea is to add a new ->access method to the vm_operations
+> that's called by access_process_vm() when it exists and VM_IO or VM_PFNMAP
+> are set.   ->access would take the required object locks and copy out the
+> data manually.  This should work both for spufs and drm.
+
+I find Ben's idea more appealing; but agree it _may_ prove unworkable.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
