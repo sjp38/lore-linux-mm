@@ -1,36 +1,39 @@
-Date: Wed, 11 Oct 2006 02:43:33 +0200
+Date: Wed, 11 Oct 2006 02:46:54 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: SPAM: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-Message-ID: <20061011004333.GA25430@wotan.suse.de>
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site> <20061010121003.GA19322@infradead.org> <20061010121327.GA2431@wotan.suse.de> <20061010105236.2ef0268b.akpm@osdl.org>
+Subject: Re: SPAM: Re: [rfc] 2.6.19-rc1-git5: consolidation of file backed fault handlers
+Message-ID: <20061011004654.GB25430@wotan.suse.de>
+References: <20061010121314.19693.75503.sendpatchset@linux.site> <20061010143342.GA5580@infradead.org> <20061010150142.GE2431@wotan.suse.de> <1160496546.3000.315.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20061010105236.2ef0268b.akpm@osdl.org>
+In-Reply-To: <1160496546.3000.315.camel@laptopd505.fenrus.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 10:52:36AM -0700, Andrew Morton wrote:
-> On Tue, 10 Oct 2006 14:13:27 +0200
-> Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > Hmm... I agree it is more consistent, but OTOH if we're passing a
-> > structure I thought it may as well just go in there. But I will
-> > change unless anyone comes up with an objection.
+On Tue, Oct 10, 2006 at 06:09:06PM +0200, Arjan van de Ven wrote:
+> > \ What:	vm_ops.nopage
+> > -When:	October 2008, provided in-kernel callers have been converted
+> > +When:	October 2007, provided in-kernel callers have been converted
+> >  Why:	This interface is replaced by vm_ops.fault, but it has been around
+> >  	forever, is used by a lot of drivers, and doesn't cost much to
+> >  	maintain.
 > 
-> I'd agree that it's more attractive to have the vma* in the argument list,
-> but it presumably adds runtime cost: cycles and stack depth.  I don't how
-> much though.
+> but a year is a really long time; 6 months would be a lot more
+> reasonable..
+> (it's not as if most external modules will switch until it's really
+> gone.. more notice isn't really going to help that at all; at least make
+> the kernel printk once on the first use of this so that they notice!)
 
-Possibly, though I considered it might end up in a register, and
-considering that the vma is used both before and after the call, and
-in filemap_nopage, it's quite possible that it saves a load and does
-not harm stack depth. Maybe?
+I agree with that. But the printk can't go in until all the in-tree
+users are converted. I will  get around to doing that once the
+interface is firmer.
 
-I don't know, I guess we can tweak it while it is in -mm?
+As for timeframe, I don't have any strong feelings, but 6 months might
+only be 1 kernel release, and we may not have got around to putting the
+printk in yet ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
