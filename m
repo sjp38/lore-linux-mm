@@ -1,21 +1,65 @@
-Message-ID: <12066236468918.42AF37E5B5@OI5B27M4>
-From: "Richard" <chalkboardawesome@rpi.pt>
-Subject: Feel Pleasure from This is what you always needed to lead a happier, more fulfilling life.
-Date: Wed, 11 Oct 2006 13:38:34 -0600
+Date: Wed, 11 Oct 2006 14:08:35 -0700
+From: Greg KH <gregkh@suse.de>
+Subject: [patch 58/67] mm: bug in set_page_dirty_buffers
+Message-ID: <20061011210835.GG16627@kroah.com>
+References: <20061011204756.642936754@quad.kroah.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-        charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
-Return-Path: <criedbeam@rrcrc.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline; filename="mm-bug-in-set_page_dirty_buffers.patch"
+In-Reply-To: <20061011210310.GA16627@kroah.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, stable@kernel.org, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Justin Forbes <jmforbes@linuxtx.org>, Zwane Mwaikambo <zwane@arm.linux.org.uk>, Theodore Ts'o <tytso@mit.edu>, Randy Dunlap <rdunlap@xenotime.net>, Dave Jones <davej@redhat.com>, Chuck Wolber <chuckw@quantumlinux.com>, Chris Wedgwood <reviews@ml.cw.f00f.org>, Michael Krufky <mkrufky@linuxtv.org>, alan@lxorguk.ukuu.org.uk, Greg KH <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Just out
- Take control over your male body image. This delivers amazing results and makes your dearest limb bigger and better-working! Not only extra inches, but also a cool muscular look, better girth, and a lot more!
+-stable review patch.  If anyone has any objections, please let us know.
 
- Give her a chance to climax from penetration - increase your tool once and for all! You should be ready to witness females go wild because of you. The change that will happen will be obvious! Just take a look: http://mascza.com/gall/ms/ 
+------------------
+From: Nick Piggin <npiggin@suse.de>
 
-Had doubts that these things really work? Check this out and join the thousands of happy men!
+This was triggered, but not the fault of, the dirty page accounting
+patches. Suitable for -stable as well, after it goes upstream.
 
+Unable to handle kernel NULL pointer dereference at virtual address 0000004c
+EIP is at _spin_lock+0x12/0x66
+Call Trace:
+ [<401766e7>] __set_page_dirty_buffers+0x15/0xc0
+ [<401401e7>] set_page_dirty+0x2c/0x51
+ [<40140db2>] set_page_dirty_balance+0xb/0x3b
+ [<40145d29>] __do_fault+0x1d8/0x279
+ [<40147059>] __handle_mm_fault+0x125/0x951
+ [<401133f1>] do_page_fault+0x440/0x59f
+ [<4034d0c1>] error_code+0x39/0x40
+ [<08048a33>] 0x8048a33
+ =======================
 
- Who feels guilty, feels responsible He Is Rich Enough That Wants Nothing Its only rock n roll but I like it If you educate a man you educate an individual but if you educate a woman you educate a family 
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+
+---
+ fs/buffer.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+--- linux-2.6.18.orig/fs/buffer.c
++++ linux-2.6.18/fs/buffer.c
+@@ -838,7 +838,10 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+  */
+ int __set_page_dirty_buffers(struct page *page)
+ {
+-	struct address_space * const mapping = page->mapping;
++	struct address_space * const mapping = page_mapping(page);
++
++	if (unlikely(!mapping))
++		return !TestSetPageDirty(page);
+ 
+ 	spin_lock(&mapping->private_lock);
+ 	if (page_has_buffers(page)) {
+
+--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
