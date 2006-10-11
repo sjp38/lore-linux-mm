@@ -1,39 +1,62 @@
-Date: Wed, 11 Oct 2006 02:46:54 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: SPAM: Re: [rfc] 2.6.19-rc1-git5: consolidation of file backed fault handlers
-Message-ID: <20061011004654.GB25430@wotan.suse.de>
-References: <20061010121314.19693.75503.sendpatchset@linux.site> <20061010143342.GA5580@infradead.org> <20061010150142.GE2431@wotan.suse.de> <1160496546.3000.315.camel@laptopd505.fenrus.org>
+Date: Tue, 10 Oct 2006 20:42:36 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] another way to speed up fake numa node page_alloc
+Message-Id: <20061010204236.64bcd0b4.pj@sgi.com>
+In-Reply-To: <20061004192714.20412e08.pj@sgi.com>
+References: <20060925091452.14277.9236.sendpatchset@v0>
+	<20061001231811.26f91c47.pj@sgi.com>
+	<Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
+	<20061001234858.fe91109e.pj@sgi.com>
+	<Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
+	<20061002014121.28b759da.pj@sgi.com>
+	<20061003111517.a5cc30ea.pj@sgi.com>
+	<Pine.LNX.4.64N.0610031231270.4919@attu3.cs.washington.edu>
+	<20061004084552.a07025d7.pj@sgi.com>
+	<Pine.LNX.4.64N.0610041456480.19080@attu2.cs.washington.edu>
+	<20061004192714.20412e08.pj@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1160496546.3000.315.camel@laptopd505.fenrus.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: rientjes@cs.washington.edu, linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 10, 2006 at 06:09:06PM +0200, Arjan van de Ven wrote:
-> > \ What:	vm_ops.nopage
-> > -When:	October 2008, provided in-kernel callers have been converted
-> > +When:	October 2007, provided in-kernel callers have been converted
-> >  Why:	This interface is replaced by vm_ops.fault, but it has been around
-> >  	forever, is used by a lot of drivers, and doesn't cost much to
-> >  	maintain.
-> 
-> but a year is a really long time; 6 months would be a lot more
-> reasonable..
-> (it's not as if most external modules will switch until it's really
-> gone.. more notice isn't really going to help that at all; at least make
-> the kernel printk once on the first use of this so that they notice!)
+A week ago, I wrote, of my zonelist caching patch:
+>
+> Downside - it's still a linear zonelist scan
 
-I agree with that. But the printk can't go in until all the in-tree
-users are converted. I will  get around to doing that once the
-interface is firmer.
+Actually, not quite so, in the terms that matter on real NUMA hardware.
 
-As for timeframe, I don't have any strong feelings, but 6 months might
-only be 1 kernel release, and we may not have got around to putting the
-printk in yet ;)
+On real NUMA hardware, there are two memory costs of interest:
+
+ 1) the usual cost to hit main (node local) memory, also known as a
+    cache line miss, and
+
+ 2) the higher cost to hit some other nodes memory, for something the
+    other node just updated, so you really have to go across the NUMA
+    fabric to get it.
+
+My zonelist caching shrinks (1) to just a few cache lines, but more
+importantly (for real NUMA hardware) reduces (2) to essentially a
+constant, that no longer grows linearly with the number of nodes.
+
+When one node is looking for free memory on a list of other nodes, the
+page allocator no longer relies on -any- live information from the
+nodes it skips over.  It is usually able to get a page from the very
+first node that it tries.  It is able to skip over likely full nodes
+using only locally stored and available information from the node local
+zonelist cache.
+
+So in the unit of measure that matters most to NUMA systems, (2) above,
+this zonelist caching -is- very close to constant time, for workloads
+presenting sufficiently high page allocation request rates.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
