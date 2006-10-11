@@ -1,114 +1,61 @@
-From: ebiederm@xmission.com (Eric W. Biederman)
-Subject: Re: RSS accounting (was: Re: 2.6.19-rc1-mm1)
-References: <20061010000928.9d2d519a.akpm@osdl.org>
-	<1160464800.3000.264.camel@laptopd505.fenrus.org>
-	<20061010004526.c7088e79.akpm@osdl.org>
-	<1160467401.3000.276.camel@laptopd505.fenrus.org>
-	<1160486087.25613.52.camel@taijtu>
-	<1160496790.3000.319.camel@laptopd505.fenrus.org>
-	<m11wpfohg7.fsf@ebiederm.dsl.xmission.com>
-	<1160556462.3000.359.camel@laptopd505.fenrus.org>
-Date: Wed, 11 Oct 2006 06:07:28 -0600
-In-Reply-To: <1160556462.3000.359.camel@laptopd505.fenrus.org> (Arjan van de
-	Ven's message of "Wed, 11 Oct 2006 10:47:42 +0200")
-Message-ID: <m17iz7m4xr.fsf@ebiederm.dsl.xmission.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Removing MAX_ARG_PAGES (request for comments/assistance)
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com>
+References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 11 Oct 2006 15:14:20 +0200
+Message-Id: <1160572460.2006.79.camel@taijtu>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
+To: Ollie Wild <aaw@google.com>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Arjan van de Ven <arjan@infradead.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Arjan van de Ven <arjan@infradead.org> writes:
+On Tue, 2006-10-10 at 17:05 -0700, Ollie Wild wrote:
 
-> On Tue, 2006-10-10 at 17:54 -0600, Eric W. Biederman wrote:
->
->> For processes shared pages are not special.
+> +                       vma->vm_flags &= ~VM_EXEC;
+> +               // FIXME: Are the next two lines sufficient, or do I need to
+> +               // do some additional magic?
+> +               vma->vm_flags |= mm->def_flags;
+> +               vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
 
-Actually the above is not quite true you can map a shared page twice
-into the same process but in practice it rarely happens.
+Yeah, you'll need to change the PTEs for those pages you created by
+calling get_user_page() by calling an mprotect like function; perhaps
+something like:
 
-> depends on what question you want to answer with RSS.
-> If the question is "workload working set size" then you are right. If
-> the question is "how much ram does my application cause to be used" the
-> answer is FAR less clear....
+ struct vm_area_struct *prev;
+ unsigned long vm_flags = vma->vm_flags;
 
-There are two basic concerns.  How do you keep an application from
-going crazy and trashing the rest of your system?  A question on what
-number do you need to implement a resource limit.
+ s/vma->vm_flags/vm_flags/g
 
-The other question is how do I get good information so I can
-effectively understand what kind of resources a given
-application is using and hopefully predict what kind of
-resources that application will use in the future.
+ err = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end, vm_flags);
+ BUG_ON(prev != vma);
 
-The last time I tried to answer the question "how much ram does my
-application cause to be used"  I had to slowly start up additional
-copies and watch how much free memory decreased.
+mprotect_fixup will then set the new protection on all PTEs and update
+vma->vm_flags and vma->vm_page_prot.
 
-Having a couple of additional counts in addition to RSS would probably
-be the most help in understanding resource usage.  Counting the number
-of private dirty resident pages would be interesting.  As would
-counting the number of pages that are resident in the process but not
-resident in any other process.
+> +               /* Move stack pages down in memory. */
+> +               if (stack_shift) {
+> +                       // FIXME: Verify the shift is OK.
+> +
 
-It might also help to have a per page report on which file it backs
-and how many user it has.  Unfortunately that is totally overwhelming
-detail and the act of reporting it would quite likely change the
-result as it would take so much memory to store the result.
+What exactly are you wondering about? the call to move_vma looks sane to
+me
 
-> You seem to have an implicit definition on what RSS should mean; but
-> it's implicit. Mind making an explicit definition of what RSS should be
-> in your opinion? I think that's the biggest problem we have right now;
-> several people have different ideas about what it should/could be, and
-> as such we're not talking about the same thing. Lets first agree/specify
-> what it SHOULD mean, and then we can figure out what gets counted for
-> that ;)
+> +                       /* This should be safe even with overlap because we
+> +                        * are shifting down. */
+> +                       ret = move_vma(vma, vma->vm_start,
+> +                                       vma->vm_end - vma->vm_start,
+> +                                       vma->vm_end - vma->vm_start,
+> +                                       vma->vm_start - stack_shift);
+> +                       if (ret & ~PAGE_MASK) {
+> +                               up_write(&mm->mmap_sem);
+> +                               return ret;
+> +                       }
+>                 }
 
-Well I tried to defined it in terms of what you can use it for.
-
-I would define the resident set size as the total number of bytes
-of physical RAM that a process (or set of processes) is using,
-irrespective of the rest of the system.  
-
-By physical RAM I mean that if a single page (if shared) is used twice
-by a single process it will be counted only once.  This definition
-works well for shared and private pages.  
-
-COW pages are probably the most subtle.  They are both shared and not
-shared.   Since that sharing is application visible and at application
-discretion I would count COW pages as shared until they that sharing
-is broken, and then I would count them as private pages.  
-
-The principle is that you don't find the ``owner'' of a page and
-charge the page to the ``owner''.  Instead you find the users
-of a page and charge all of them for the page exactly once.
-
-By and large most of that usage comes from pages in the page tables
-so they are the most interesting items to count.
-
-Things like file descriptors, inodes, page tables and other kernel
-memory are interesting but are generally overshadowed by the page
-table users, and generally kernel data structures don't have reverse
-maps which makes it difficult to charge all of the users.
-
-So I think the counting should be primarily about what is mapped into
-the page tables.  But other things can be added as is appropriate or
-easy.
-
-The practical effect should be that an application that needs more
-pages than it's specified RSS to avoid thrashing should thrash but
-it shouldn't take the rest of the system with it.
-
-
-The biggest instance of system memory that an application does not
-seem to have true control over is the page cache.  Some kind of limit
-that prevents one application from destroying everything another
-application doing seems interesting.  But I expect the solution there
-are I/O limits and not memory limits.
-
-Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
