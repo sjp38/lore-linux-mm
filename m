@@ -1,7 +1,7 @@
-Date: Tue, 10 Oct 2006 21:38:43 -0700
+Date: Tue, 10 Oct 2006 22:13:04 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
-Message-Id: <20061010213843.4478ddfc.akpm@osdl.org>
+Message-Id: <20061010221304.6bef249f.akpm@osdl.org>
 In-Reply-To: <20061010121332.19693.37204.sendpatchset@linux.site>
 References: <20061010121314.19693.75503.sendpatchset@linux.site>
 	<20061010121332.19693.37204.sendpatchset@linux.site>
@@ -17,59 +17,67 @@ List-ID: <linux-mm.kvack.org>
 On Tue, 10 Oct 2006 16:21:49 +0200 (CEST)
 Nick Piggin <npiggin@suse.de> wrote:
 
-> Fix the race between invalidate_inode_pages and do_no_page.
-> 
-> Andrea Arcangeli identified a subtle race between invalidation of
-> pages from pagecache with userspace mappings, and do_no_page.
-> 
-> The issue is that invalidation has to shoot down all mappings to the
-> page, before it can be discarded from the pagecache. Between shooting
-> down ptes to a particular page, and actually dropping the struct page
-> from the pagecache, do_no_page from any process might fault on that
-> page and establish a new mapping to the page just before it gets
-> discarded from the pagecache.
-> 
-> The most common case where such invalidation is used is in file
-> truncation. This case was catered for by doing a sort of open-coded
-> seqlock between the file's i_size, and its truncate_count.
-> 
-> Truncation will decrease i_size, then increment truncate_count before
-> unmapping userspace pages; do_no_page will read truncate_count, then
-> find the page if it is within i_size, and then check truncate_count
-> under the page table lock and back out and retry if it had
-> subsequently been changed (ptl will serialise against unmapping, and
-> ensure a potentially updated truncate_count is actually visible).
-> 
-> Complexity and documentation issues aside, the locking protocol fails
-> in the case where we would like to invalidate pagecache inside i_size.
-> do_no_page can come in anytime and filemap_nopage is not aware of the
-> invalidation in progress (as it is when it is outside i_size). The
-> end result is that dangling (->mapping == NULL) pages that appear to
-> be from a particular file may be mapped into userspace with nonsense
-> data. Valid mappings to the same place will see a different page.
-> 
-> Andrea implemented two working fixes, one using a real seqlock,
-> another using a page->flags bit. He also proposed using the page lock
-> in do_no_page, but that was initially considered too heavyweight.
-> However, it is not a global or per-file lock, and the page cacheline
-> is modified in do_no_page to increment _count and _mapcount anyway, so
-> a further modification should not be a large performance hit.
-> Scalability is not an issue.
-> 
-> This patch implements this latter approach. ->nopage implementations
-> return with the page locked if it is possible for their underlying
-> file to be invalidated (in that case, they must set a special vm_flags
-> bit to indicate so). do_no_page only unlocks the page after setting
-> up the mapping completely. invalidation is excluded because it holds
-> the page lock during invalidation of each page (and ensures that the
-> page is not mapped while holding the lock).
-> 
-> This allows significant simplifications in do_no_page.
-> 
+> --- linux-2.6.orig/mm/filemap.c
+> +++ linux-2.6/mm/filemap.c
+> @@ -1392,9 +1392,10 @@ struct page *filemap_nopage(struct vm_ar
+>  	unsigned long size, pgoff;
+>  	int did_readaround = 0, majmin = VM_FAULT_MINOR;
+>  
+> +	BUG_ON(!(area->vm_flags & VM_CAN_INVALIDATE));
+> +
+>  	pgoff = ((address-area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
+>  
+> -retry_all:
+>  	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+>  	if (pgoff >= size)
+>  		goto outside_data_content;
+> @@ -1416,7 +1417,7 @@ retry_all:
+>  	 * Do we have something in the page cache already?
+>  	 */
+>  retry_find:
+> -	page = find_get_page(mapping, pgoff);
+> +	page = find_lock_page(mapping, pgoff);
 
-The (unchangelogged) changes to filemap_nopage() appear to have switched
-the try-the-read-twice logic into try-it-forever logic.  I think it'll hang
-if there's a bad sector?
+Here's a little problem.  Locking the page in the pagefault handler takes
+our deadlock while writing from a mmapped copy of the page into the same
+page from "extremely hard to hit" to "super-easy to hit".  Try running
+write-deadlock-demo.c from
+http://www.zip.com.au/~akpm/linux/patches/stuff/ext3-tools.tar.gz
+
+It conveniently deadlocks while holding mmap_sem, so `ps' get stuck too.
+
+So this whole idea of locking the page in the fault handler is off the
+table until we fix that deadlock for real.  Coincidentally I started coding
+a fix for that a couple of weeks ago, but spend too much time with my nose
+in other people's crap to get around to writing my own crap.
+
+The basic idea is
+
+- revert the recent changes to the core write() code (the ones which
+  killed writev() performance, especially on NFS overwrites).
+
+- clean some stuff up
+
+- modify the core of write() so that instead of doing copy_from_user(),
+  we do inc_preempt_count();copy_from_user_inatomic().  So we never enter
+  the pagefault handler while holding the lock on the pagecache page.
+
+  If the fault happens, we run commit_write() on however much stuff we
+  managed to copy and then go back and try to fault the target page back in
+  again.  Repeat for ten times then give up.
+
+  It gets tricky because it means that we'll need to go back to zeroing
+  out the uncopied part of the pagecache page before
+  commit_write+unlock_page().  This will resurrect the recently-fixed
+  problem where userspace can fleetingly see a bunch of zeroes in pagecache
+  where it expected to see either the old data or the new data.
+
+  But I don't think that problem was terribly serious, and we can improve
+  the situation quite a lot by not doing that zeroing if the page is
+  already up-to-date.
+
+Anyway, if you're feeling up to it I'll document the patches I have and hand
+them over - they're not making much progress here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
