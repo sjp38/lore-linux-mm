@@ -1,32 +1,53 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [RFC] hugetlb: Move hugetlb_get_unmapped_area
-Date: Wed, 11 Oct 2006 08:43:38 -0700
-Message-ID: <000001c6ed4c$08419150$1680030a@amr.corp.intel.com>
+Date: Wed, 11 Oct 2006 09:21:16 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+In-Reply-To: <20061010230042.3d4e4df1.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org>
+References: <20061010121314.19693.75503.sendpatchset@linux.site>
+ <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org>
+ <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <1160573520.9894.27.camel@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Adam Litke' <agl@us.ibm.com>, linux-mm <linux-mm@kvack.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, wli@holomorphy.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote on Wednesday, October 11, 2006 6:32 AM
-> I am trying to do some hugetlb interface cleanups which include
-> separation of the hugetlb utility functions (mostly in mm/hugetlb.c)
-> from the hugetlbfs interface to huge pages (fs/hugetlbfs/inode.c).
+
+On Tue, 10 Oct 2006, Andrew Morton wrote:
+>
+> On Wed, 11 Oct 2006 15:39:22 +1000
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> This patch simply moves hugetlb_get_unmapped_area() (which I'll argue is
-> more of a utility function than an interface) to mm/hugetlb.c.  
+> > But I see that it does read twice. Do you want that behaviour retained? It
+> > seems like at this level it would be logical to read it once and let lower
+> > layers take care of any retries?
+> 
+> argh.  Linus has good-sounding reasons for retrying the pagefault-path's
+> read a single time, but I forget what they are.  Something to do with
+> networked filesystems?  (adds cc)
 
-To me it doesn't look like a clean up.  get_unmapped_area() is one of
-file_operations method and it make sense with the current arrangement
-that it stays together with .mmap method, which both live in
-fs/hugetlbfs/inode.c.
+Indeed. We _have_ to re-try a failed IO that we didn't start ourselves.
 
-- Ken
+The original IO could have been started by a person who didn't have 
+permissions to actually carry it out successfully, so if you enter with 
+the page locked (because somebody else started the IO), and you wait for 
+the page and it's not up-to-date afterwards, you absolutely _have_ to try 
+the IO, and can only return a real IO error after your _own_ IO has 
+failed.
+
+There is another issue too: even if the page was marked as having an error 
+when we entered (and no longer locked - maybe the IO failed last time 
+around), we should _still_ re-try. It might be a temporary error that has 
+since gone away, and if we don't re-try, we can end up in the totally 
+untenable situation where the kernel makes a soft error into a hard one. 
+
+Neither case simply isn't acceptable. End result: only things like 
+read-ahead should actually honor the "page exists but is not up-to-date" 
+as a "don't even try".
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
