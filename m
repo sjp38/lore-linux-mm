@@ -1,61 +1,184 @@
-Subject: Re: Removing MAX_ARG_PAGES (request for comments/assistance)
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com>
-References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k9BDW402008838
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9BDW497249924
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9BDW3o4023698
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
+Subject: [RFC] hugetlb: Move hugetlb_get_unmapped_area
+From: Adam Litke <agl@us.ibm.com>
 Content-Type: text/plain
-Date: Wed, 11 Oct 2006 15:14:20 +0200
-Message-Id: <1160572460.2006.79.camel@taijtu>
+Date: Wed, 11 Oct 2006 08:31:59 -0500
+Message-Id: <1160573520.9894.27.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ollie Wild <aaw@google.com>
-Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Arjan van de Ven <arjan@infradead.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, "ADAM G. LITKE [imap]" <agl@us.ibm.com>, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2006-10-10 at 17:05 -0700, Ollie Wild wrote:
+I am trying to do some hugetlb interface cleanups which include
+separation of the hugetlb utility functions (mostly in mm/hugetlb.c)
+from the hugetlbfs interface to huge pages (fs/hugetlbfs/inode.c).
 
-> +                       vma->vm_flags &= ~VM_EXEC;
-> +               // FIXME: Are the next two lines sufficient, or do I need to
-> +               // do some additional magic?
-> +               vma->vm_flags |= mm->def_flags;
-> +               vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
+This patch simply moves hugetlb_get_unmapped_area() (which I'll argue is
+more of a utility function than an interface) to mm/hugetlb.c.  
 
-Yeah, you'll need to change the PTEs for those pages you created by
-calling get_user_page() by calling an mprotect like function; perhaps
-something like:
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
+ fs/hugetlbfs/inode.c    |   58 ------------------------------------------------
+ include/linux/hugetlb.h |    3 ++
+ mm/hugetlb.c            |   54 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 58 deletions(-)
+diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
+--- reference/fs/hugetlbfs/inode.c
++++ current/fs/hugetlbfs/inode.c
+@@ -100,64 +100,6 @@ out:
+ }
+ 
+ /*
+- * Called under down_write(mmap_sem).
+- */
+-
+-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+-		unsigned long len, unsigned long pgoff, unsigned long flags);
+-#else
+-static unsigned long
+-hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+-		unsigned long len, unsigned long pgoff, unsigned long flags)
+-{
+-	struct mm_struct *mm = current->mm;
+-	struct vm_area_struct *vma;
+-	unsigned long start_addr;
+-
+-	if (len & ~HPAGE_MASK)
+-		return -EINVAL;
+-	if (len > TASK_SIZE)
+-		return -ENOMEM;
+-
+-	if (addr) {
+-		addr = ALIGN(addr, HPAGE_SIZE);
+-		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr &&
+-		    (!vma || addr + len <= vma->vm_start))
+-			return addr;
+-	}
+-
+-	start_addr = mm->free_area_cache;
+-
+-	if (len <= mm->cached_hole_size)
+-		start_addr = TASK_UNMAPPED_BASE;
+-
+-full_search:
+-	addr = ALIGN(start_addr, HPAGE_SIZE);
+-
+-	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
+-		/* At this point:  (!vma || addr < vma->vm_end). */
+-		if (TASK_SIZE - len < addr) {
+-			/*
+-			 * Start a new search - just in case we missed
+-			 * some holes.
+-			 */
+-			if (start_addr != TASK_UNMAPPED_BASE) {
+-				start_addr = TASK_UNMAPPED_BASE;
+-				goto full_search;
+-			}
+-			return -ENOMEM;
+-		}
+-
+-		if (!vma || addr + len <= vma->vm_start)
+-			return addr;
+-		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
+-	}
+-}
+-#endif
+-
+-/*
+  * Read a page. Again trivial. If it didn't already exist
+  * in the page cache, it is zero-filled.
+  */
+diff -upN reference/include/linux/hugetlb.h current/include/linux/hugetlb.h
+--- reference/include/linux/hugetlb.h
++++ current/include/linux/hugetlb.h
+@@ -87,6 +87,9 @@ pte_t huge_ptep_get_and_clear(struct mm_
+ void hugetlb_prefault_arch_hook(struct mm_struct *mm);
+ #endif
+ 
++unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
++		unsigned long len, unsigned long pgoff, unsigned long flags);
++
+ #else /* !CONFIG_HUGETLB_PAGE */
+ 
+ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
+--- reference/mm/hugetlb.c
++++ current/mm/hugetlb.c
+@@ -796,3 +796,57 @@ void hugetlb_unreserve_pages(struct inod
+ 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
+ 	hugetlb_acct_memory(freed - chg);
+ }
++
++/*
++ * Called under down_write(mmap_sem).
++ */
++
++#ifndef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
++unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
++		unsigned long len, unsigned long pgoff, unsigned long flags)
++{
++	struct mm_struct *mm = current->mm;
++	struct vm_area_struct *vma;
++	unsigned long start_addr;
++
++	if (len & ~HPAGE_MASK)
++		return -EINVAL;
++	if (len > TASK_SIZE)
++		return -ENOMEM;
++
++	if (addr) {
++		addr = ALIGN(addr, HPAGE_SIZE);
++		vma = find_vma(mm, addr);
++		if (TASK_SIZE - len >= addr &&
++		    (!vma || addr + len <= vma->vm_start))
++			return addr;
++	}
++
++	start_addr = mm->free_area_cache;
++
++	if (len <= mm->cached_hole_size)
++		start_addr = TASK_UNMAPPED_BASE;
++
++full_search:
++	addr = ALIGN(start_addr, HPAGE_SIZE);
++
++	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
++		/* At this point:  (!vma || addr < vma->vm_end). */
++		if (TASK_SIZE - len < addr) {
++			/*
++			 * Start a new search - just in case we missed
++			 * some holes.
++			 */
++			if (start_addr != TASK_UNMAPPED_BASE) {
++				start_addr = TASK_UNMAPPED_BASE;
++				goto full_search;
++			}
++			return -ENOMEM;
++		}
++
++		if (!vma || addr + len <= vma->vm_start)
++			return addr;
++		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
++	}
++}
++#endif
 
- struct vm_area_struct *prev;
- unsigned long vm_flags = vma->vm_flags;
-
- s/vma->vm_flags/vm_flags/g
-
- err = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end, vm_flags);
- BUG_ON(prev != vma);
-
-mprotect_fixup will then set the new protection on all PTEs and update
-vma->vm_flags and vma->vm_page_prot.
-
-> +               /* Move stack pages down in memory. */
-> +               if (stack_shift) {
-> +                       // FIXME: Verify the shift is OK.
-> +
-
-What exactly are you wondering about? the call to move_vma looks sane to
-me
-
-> +                       /* This should be safe even with overlap because we
-> +                        * are shifting down. */
-> +                       ret = move_vma(vma, vma->vm_start,
-> +                                       vma->vm_end - vma->vm_start,
-> +                                       vma->vm_end - vma->vm_start,
-> +                                       vma->vm_start - stack_shift);
-> +                       if (ret & ~PAGE_MASK) {
-> +                               up_write(&mm->mmap_sem);
-> +                               return ret;
-> +                       }
->                 }
-
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
