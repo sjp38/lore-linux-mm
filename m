@@ -1,81 +1,64 @@
-Subject: Re: RSS accounting (was: Re: 2.6.19-rc1-mm1)
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <m17iz7m4xr.fsf@ebiederm.dsl.xmission.com>
-References: <20061010000928.9d2d519a.akpm@osdl.org>
-	 <1160464800.3000.264.camel@laptopd505.fenrus.org>
-	 <20061010004526.c7088e79.akpm@osdl.org>
-	 <1160467401.3000.276.camel@laptopd505.fenrus.org>
-	 <1160486087.25613.52.camel@taijtu>
-	 <1160496790.3000.319.camel@laptopd505.fenrus.org>
-	 <m11wpfohg7.fsf@ebiederm.dsl.xmission.com>
-	 <1160556462.3000.359.camel@laptopd505.fenrus.org>
-	 <m17iz7m4xr.fsf@ebiederm.dsl.xmission.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id k9BEmLCI208108
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 14:48:21 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9BEomsr1863828
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 15:50:48 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9BEmLvM026773
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 15:48:21 +0100
+Subject: Re: [patch 3/3] mm: add arch_alloc_page
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <452856E4.60705@yahoo.com.au>
+References: <20061007105758.14024.70048.sendpatchset@linux.site>
+	 <20061007105824.14024.85405.sendpatchset@linux.site>
+	 <20061007134345.0fa1d250.akpm@osdl.org>  <452856E4.60705@yahoo.com.au>
 Content-Type: text/plain
-Date: Wed, 11 Oct 2006 15:55:13 +0200
-Message-Id: <1160574913.3000.378.camel@laptopd505.fenrus.org>
+Date: Wed, 11 Oct 2006 16:48:24 +0200
+Message-Id: <1160578104.634.2.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-10-11 at 06:07 -0600, Eric W. Biederman wrote:
-> Arjan van de Ven <arjan@infradead.org> writes:
-> 
-> > On Tue, 2006-10-10 at 17:54 -0600, Eric W. Biederman wrote:
+On Sun, 2006-10-08 at 11:39 +1000, Nick Piggin wrote:
+> >On Sat,  7 Oct 2006 15:06:04 +0200 (CEST)
+> >Nick Piggin <npiggin@suse.de> wrote:
 > >
-> >> For processes shared pages are not special.
+> >
+> >>Add an arch_alloc_page to match arch_free_page.
+> >>
+> >
+> >umm.. why?
+> >
 > 
-> Actually the above is not quite true you can map a shared page twice
-> into the same process but in practice it rarely happens.
-
-yeah I'm entirely fine with ignoring that case (or making the person who
-does it pay for it :)
-
+> I had a future patch to more kernel_map_pages into it, but couldn't
+> decide if that's a generic kernel feature that is only implemented in
+> 2 architectures, or an architecture speicifc feature. So I left it out.
 > 
-> > depends on what question you want to answer with RSS.
-> > If the question is "workload working set size" then you are right. If
-> > the question is "how much ram does my application cause to be used" the
-> > answer is FAR less clear....
-> 
-> There are two basic concerns.  How do you keep an application from
-> going crazy and trashing the rest of your system?  A question on what
-> number do you need to implement a resource limit.
+> But at least Martin wanted a hook here for his volatile pages patches,
+> so I thought I'd submit this patch anyway.
 
-yet at the same time if 2 apps mmap a shared file, and app 1 keeps it in
-pagecache, it doesn't cause app2 to trash, or rather, it's not like if
-app 2 did NOT have the page from that file, the system wouldn't trash.
+With Nicks patch I can use arch_alloc_page instead of page_set_stable,
+but I can still not use arch_free_page instead of page_set_unused
+because it is done before the check for reserved pages. If reserved
+pages go away or the arch_free_page call would get moved after the check
+I could replace page_set_unused as well. So with Nicks patch we are only
+halfway there..
 
+-- 
+blue skies,
+  Martin.
 
-> > You seem to have an implicit definition on what RSS should mean; but
-> > it's implicit. Mind making an explicit definition of what RSS should be
-> > in your opinion? I think that's the biggest problem we have right now;
-> > several people have different ideas about what it should/could be, and
-> > as such we're not talking about the same thing. Lets first agree/specify
-> > what it SHOULD mean, and then we can figure out what gets counted for
-> > that ;)
-> 
-> Well I tried to defined it in terms of what you can use it for.
-> 
-> I would define the resident set size as the total number of bytes
-> of physical RAM that a process (or set of processes) is using,
-> irrespective of the rest of the system.  
->  
-> 
-> So I think the counting should be primarily about what is mapped into
-> the page tables.  But other things can be added as is appropriate or
-> easy.
-> 
-> The practical effect should be that an application that needs more
-> pages than it's specified RSS to avoid thrashing should thrash but
-> it shouldn't take the rest of the system with it.
+Martin Schwidefsky
+Linux for zSeries Development & Services
+IBM Deutschland Entwicklung GmbH
 
-
-so by your definition, hugepages are part of RSS.
-
-Ken: what is your definition of RSS ?
+"Reality continues to ruin my life." - Calvin.
 
 
 --
