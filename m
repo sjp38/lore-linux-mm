@@ -1,184 +1,82 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id k9BDW402008838
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9BDW497249924
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9BDW3o4023698
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 09:32:04 -0400
-Subject: [RFC] hugetlb: Move hugetlb_get_unmapped_area
-From: Adam Litke <agl@us.ibm.com>
+Subject: Re: RSS accounting (was: Re: 2.6.19-rc1-mm1)
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <m17iz7m4xr.fsf@ebiederm.dsl.xmission.com>
+References: <20061010000928.9d2d519a.akpm@osdl.org>
+	 <1160464800.3000.264.camel@laptopd505.fenrus.org>
+	 <20061010004526.c7088e79.akpm@osdl.org>
+	 <1160467401.3000.276.camel@laptopd505.fenrus.org>
+	 <1160486087.25613.52.camel@taijtu>
+	 <1160496790.3000.319.camel@laptopd505.fenrus.org>
+	 <m11wpfohg7.fsf@ebiederm.dsl.xmission.com>
+	 <1160556462.3000.359.camel@laptopd505.fenrus.org>
+	 <m17iz7m4xr.fsf@ebiederm.dsl.xmission.com>
 Content-Type: text/plain
-Date: Wed, 11 Oct 2006 08:31:59 -0500
-Message-Id: <1160573520.9894.27.camel@localhost.localdomain>
+Date: Wed, 11 Oct 2006 15:55:13 +0200
+Message-Id: <1160574913.3000.378.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, "ADAM G. LITKE [imap]" <agl@us.ibm.com>, wli@holomorphy.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-I am trying to do some hugetlb interface cleanups which include
-separation of the hugetlb utility functions (mostly in mm/hugetlb.c)
-from the hugetlbfs interface to huge pages (fs/hugetlbfs/inode.c).
+On Wed, 2006-10-11 at 06:07 -0600, Eric W. Biederman wrote:
+> Arjan van de Ven <arjan@infradead.org> writes:
+> 
+> > On Tue, 2006-10-10 at 17:54 -0600, Eric W. Biederman wrote:
+> >
+> >> For processes shared pages are not special.
+> 
+> Actually the above is not quite true you can map a shared page twice
+> into the same process but in practice it rarely happens.
 
-This patch simply moves hugetlb_get_unmapped_area() (which I'll argue is
-more of a utility function than an interface) to mm/hugetlb.c.  
+yeah I'm entirely fine with ignoring that case (or making the person who
+does it pay for it :)
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
- fs/hugetlbfs/inode.c    |   58 ------------------------------------------------
- include/linux/hugetlb.h |    3 ++
- mm/hugetlb.c            |   54 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 58 deletions(-)
-diff -upN reference/fs/hugetlbfs/inode.c current/fs/hugetlbfs/inode.c
---- reference/fs/hugetlbfs/inode.c
-+++ current/fs/hugetlbfs/inode.c
-@@ -100,64 +100,6 @@ out:
- }
- 
- /*
-- * Called under down_write(mmap_sem).
-- */
--
--#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
--unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
--		unsigned long len, unsigned long pgoff, unsigned long flags);
--#else
--static unsigned long
--hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
--		unsigned long len, unsigned long pgoff, unsigned long flags)
--{
--	struct mm_struct *mm = current->mm;
--	struct vm_area_struct *vma;
--	unsigned long start_addr;
--
--	if (len & ~HPAGE_MASK)
--		return -EINVAL;
--	if (len > TASK_SIZE)
--		return -ENOMEM;
--
--	if (addr) {
--		addr = ALIGN(addr, HPAGE_SIZE);
--		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--		    (!vma || addr + len <= vma->vm_start))
--			return addr;
--	}
--
--	start_addr = mm->free_area_cache;
--
--	if (len <= mm->cached_hole_size)
--		start_addr = TASK_UNMAPPED_BASE;
--
--full_search:
--	addr = ALIGN(start_addr, HPAGE_SIZE);
--
--	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
--		/* At this point:  (!vma || addr < vma->vm_end). */
--		if (TASK_SIZE - len < addr) {
--			/*
--			 * Start a new search - just in case we missed
--			 * some holes.
--			 */
--			if (start_addr != TASK_UNMAPPED_BASE) {
--				start_addr = TASK_UNMAPPED_BASE;
--				goto full_search;
--			}
--			return -ENOMEM;
--		}
--
--		if (!vma || addr + len <= vma->vm_start)
--			return addr;
--		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
--	}
--}
--#endif
--
--/*
-  * Read a page. Again trivial. If it didn't already exist
-  * in the page cache, it is zero-filled.
-  */
-diff -upN reference/include/linux/hugetlb.h current/include/linux/hugetlb.h
---- reference/include/linux/hugetlb.h
-+++ current/include/linux/hugetlb.h
-@@ -87,6 +87,9 @@ pte_t huge_ptep_get_and_clear(struct mm_
- void hugetlb_prefault_arch_hook(struct mm_struct *mm);
- #endif
- 
-+unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-+		unsigned long len, unsigned long pgoff, unsigned long flags);
-+
- #else /* !CONFIG_HUGETLB_PAGE */
- 
- static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-diff -upN reference/mm/hugetlb.c current/mm/hugetlb.c
---- reference/mm/hugetlb.c
-+++ current/mm/hugetlb.c
-@@ -796,3 +796,57 @@ void hugetlb_unreserve_pages(struct inod
- 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
- 	hugetlb_acct_memory(freed - chg);
- }
-+
-+/*
-+ * Called under down_write(mmap_sem).
-+ */
-+
-+#ifndef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-+unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-+		unsigned long len, unsigned long pgoff, unsigned long flags)
-+{
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma;
-+	unsigned long start_addr;
-+
-+	if (len & ~HPAGE_MASK)
-+		return -EINVAL;
-+	if (len > TASK_SIZE)
-+		return -ENOMEM;
-+
-+	if (addr) {
-+		addr = ALIGN(addr, HPAGE_SIZE);
-+		vma = find_vma(mm, addr);
-+		if (TASK_SIZE - len >= addr &&
-+		    (!vma || addr + len <= vma->vm_start))
-+			return addr;
-+	}
-+
-+	start_addr = mm->free_area_cache;
-+
-+	if (len <= mm->cached_hole_size)
-+		start_addr = TASK_UNMAPPED_BASE;
-+
-+full_search:
-+	addr = ALIGN(start_addr, HPAGE_SIZE);
-+
-+	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
-+		/* At this point:  (!vma || addr < vma->vm_end). */
-+		if (TASK_SIZE - len < addr) {
-+			/*
-+			 * Start a new search - just in case we missed
-+			 * some holes.
-+			 */
-+			if (start_addr != TASK_UNMAPPED_BASE) {
-+				start_addr = TASK_UNMAPPED_BASE;
-+				goto full_search;
-+			}
-+			return -ENOMEM;
-+		}
-+
-+		if (!vma || addr + len <= vma->vm_start)
-+			return addr;
-+		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
-+	}
-+}
-+#endif
+> 
+> > depends on what question you want to answer with RSS.
+> > If the question is "workload working set size" then you are right. If
+> > the question is "how much ram does my application cause to be used" the
+> > answer is FAR less clear....
+> 
+> There are two basic concerns.  How do you keep an application from
+> going crazy and trashing the rest of your system?  A question on what
+> number do you need to implement a resource limit.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+yet at the same time if 2 apps mmap a shared file, and app 1 keeps it in
+pagecache, it doesn't cause app2 to trash, or rather, it's not like if
+app 2 did NOT have the page from that file, the system wouldn't trash.
+
+
+> > You seem to have an implicit definition on what RSS should mean; but
+> > it's implicit. Mind making an explicit definition of what RSS should be
+> > in your opinion? I think that's the biggest problem we have right now;
+> > several people have different ideas about what it should/could be, and
+> > as such we're not talking about the same thing. Lets first agree/specify
+> > what it SHOULD mean, and then we can figure out what gets counted for
+> > that ;)
+> 
+> Well I tried to defined it in terms of what you can use it for.
+> 
+> I would define the resident set size as the total number of bytes
+> of physical RAM that a process (or set of processes) is using,
+> irrespective of the rest of the system.  
+>  
+> 
+> So I think the counting should be primarily about what is mapped into
+> the page tables.  But other things can be added as is appropriate or
+> easy.
+> 
+> The practical effect should be that an application that needs more
+> pages than it's specified RSS to avoid thrashing should thrash but
+> it shouldn't take the rest of the system with it.
+
+
+so by your definition, hugepages are part of RSS.
+
+Ken: what is your definition of RSS ?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
