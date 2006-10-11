@@ -1,53 +1,53 @@
-Date: Wed, 11 Oct 2006 09:21:16 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
-In-Reply-To: <20061010230042.3d4e4df1.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org>
-References: <20061010121314.19693.75503.sendpatchset@linux.site>
- <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org>
- <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 11 Oct 2006 18:57:18 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: SPAM: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+Message-ID: <20061011165717.GB5259@wotan.suse.de>
+References: <20061010121314.19693.75503.sendpatchset@linux.site> <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org> <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org> <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 10 Oct 2006, Andrew Morton wrote:
->
-> On Wed, 11 Oct 2006 15:39:22 +1000
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Wed, Oct 11, 2006 at 09:21:16AM -0700, Linus Torvalds wrote:
 > 
-> > But I see that it does read twice. Do you want that behaviour retained? It
-> > seems like at this level it would be logical to read it once and let lower
-> > layers take care of any retries?
 > 
-> argh.  Linus has good-sounding reasons for retrying the pagefault-path's
-> read a single time, but I forget what they are.  Something to do with
-> networked filesystems?  (adds cc)
+> On Tue, 10 Oct 2006, Andrew Morton wrote:
+> >
+> > On Wed, 11 Oct 2006 15:39:22 +1000
+> > Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> > 
+> > > But I see that it does read twice. Do you want that behaviour retained? It
+> > > seems like at this level it would be logical to read it once and let lower
+> > > layers take care of any retries?
+> > 
+> > argh.  Linus has good-sounding reasons for retrying the pagefault-path's
+> > read a single time, but I forget what they are.  Something to do with
+> > networked filesystems?  (adds cc)
+> 
+> Indeed. We _have_ to re-try a failed IO that we didn't start ourselves.
+> 
+> The original IO could have been started by a person who didn't have 
+> permissions to actually carry it out successfully, so if you enter with 
+> the page locked (because somebody else started the IO), and you wait for 
+> the page and it's not up-to-date afterwards, you absolutely _have_ to try 
+> the IO, and can only return a real IO error after your _own_ IO has 
+> failed.
 
-Indeed. We _have_ to re-try a failed IO that we didn't start ourselves.
+Sure, but we currently try to read _twice_, don't we?
 
-The original IO could have been started by a person who didn't have 
-permissions to actually carry it out successfully, so if you enter with 
-the page locked (because somebody else started the IO), and you wait for 
-the page and it's not up-to-date afterwards, you absolutely _have_ to try 
-the IO, and can only return a real IO error after your _own_ IO has 
-failed.
+> There is another issue too: even if the page was marked as having an error 
+> when we entered (and no longer locked - maybe the IO failed last time 
+> around), we should _still_ re-try. It might be a temporary error that has 
+> since gone away, and if we don't re-try, we can end up in the totally 
+> untenable situation where the kernel makes a soft error into a hard one. 
 
-There is another issue too: even if the page was marked as having an error 
-when we entered (and no longer locked - maybe the IO failed last time 
-around), we should _still_ re-try. It might be a temporary error that has 
-since gone away, and if we don't re-try, we can end up in the totally 
-untenable situation where the kernel makes a soft error into a hard one. 
-
-Neither case simply isn't acceptable. End result: only things like 
-read-ahead should actually honor the "page exists but is not up-to-date" 
-as a "don't even try".
-
-		Linus
+Yes, and in that case I think the page should be !Uptodate, so no
+problem there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
