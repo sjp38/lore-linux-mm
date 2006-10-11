@@ -1,45 +1,37 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: RSS accounting (was: Re: 2.6.19-rc1-mm1)
-Date: Wed, 11 Oct 2006 10:15:39 -0700
-Message-ID: <000101c6ed58$e01d2830$1680030a@amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <1160574913.3000.378.camel@laptopd505.fenrus.org>
+Date: Wed, 11 Oct 2006 19:21:20 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: SPAM: Re: SPAM: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+Message-ID: <20061011172120.GC5259@wotan.suse.de>
+References: <20061010121314.19693.75503.sendpatchset@linux.site> <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org> <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org> <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org> <20061011165717.GB5259@wotan.suse.de> <Pine.LNX.4.64.0610111007000.3952@g5.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0610111007000.3952@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Arjan van de Ven' <arjan@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Arjan van de Ven wrote on Wednesday, October 11, 2006 6:55 AM
-> > Well I tried to defined it in terms of what you can use it for.
-> > 
-> > I would define the resident set size as the total number of bytes
-> > of physical RAM that a process (or set of processes) is using,
-> > irrespective of the rest of the system.  
-> > 
-> > So I think the counting should be primarily about what is mapped into
-> > the page tables.  But other things can be added as is appropriate or
-> > easy.
-> > 
-> > The practical effect should be that an application that needs more
-> > pages than it's specified RSS to avoid thrashing should thrash but
-> > it shouldn't take the rest of the system with it.
+On Wed, Oct 11, 2006 at 10:11:43AM -0700, Linus Torvalds wrote:
 > 
 > 
-> so by your definition, hugepages are part of RSS.
+> On Wed, 11 Oct 2006, Nick Piggin wrote:
+> > > 
+> > > The original IO could have been started by a person who didn't have 
+> > > permissions to actually carry it out successfully, so if you enter with 
+> > > the page locked (because somebody else started the IO), and you wait for 
+> > > the page and it's not up-to-date afterwards, you absolutely _have_ to try 
+> > > the IO, and can only return a real IO error after your _own_ IO has 
+> > > failed.
+> > 
+> > Sure, but we currently try to read _twice_, don't we?
 > 
-> Ken: what is your definition of RSS ?
+> Well, we have the read-ahead, and then the real read. By the time we do 
+> the real read, we have forgotten about the read-ahead details, so..
 
-I'm more inclined to define RSS as "how much ram does my application
-cause to be used".  To monitor process's working set size, We already
-have /proc/<pid>/smaps.  Whether we can use working set size in an
-intelligent way in mm is an interesting question. Though, so far such
-accounting is not utilized at all.
-
-- Ken
+I mean filemap_nopage does *two* synchronous reads when finding a !uptodate
+page. This is despite the comment saying that it retries once on error.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
