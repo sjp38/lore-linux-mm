@@ -1,14 +1,16 @@
-Date: Tue, 10 Oct 2006 23:17:59 -0700
+Date: Tue, 10 Oct 2006 23:18:05 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: [patch 3/6] generic_file_buffered_write() cleanup
-Message-Id: <20061010231759.dee9e88d.akpm@osdl.org>
-In-Reply-To: <20061010231243.bc8b834c.akpm@osdl.org>
+Subject: [patch 5/6] generic_file_buffered_write(): max_len cleanup
+Message-Id: <20061010231805.3517f5e1.akpm@osdl.org>
+In-Reply-To: <20061010231424.db88931f.akpm@osdl.org>
 References: <20061010121314.19693.75503.sendpatchset@linux.site>
 	<20061010121332.19693.37204.sendpatchset@linux.site>
 	<20061010221304.6bef249f.akpm@osdl.org>
 	<452C8613.7080708@yahoo.com.au>
 	<20061010231150.fb9e30f5.akpm@osdl.org>
 	<20061010231243.bc8b834c.akpm@osdl.org>
+	<20061010231339.a79c1fae.akpm@osdl.org>
+	<20061010231424.db88931f.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,103 +20,36 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+More dirty code.
+
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 ---
 
- mm/filemap.c |   35 ++++++++++++++++++-----------------
- 1 file changed, 18 insertions(+), 17 deletions(-)
+ mm/filemap.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff -puN mm/filemap.c~generic_file_buffered_write-cleanup mm/filemap.c
---- a/mm/filemap.c~generic_file_buffered_write-cleanup
+diff -puN mm/filemap.c~generic_file_buffered_write-max_len-cleanup mm/filemap.c
+--- a/mm/filemap.c~generic_file_buffered_write-max_len-cleanup
 +++ a/mm/filemap.c
-@@ -2064,16 +2064,15 @@ generic_file_buffered_write(struct kiocb
- 		size_t count, ssize_t written)
- {
- 	struct file *file = iocb->ki_filp;
--	struct address_space * mapping = file->f_mapping;
-+	struct address_space *mapping = file->f_mapping;
- 	const struct address_space_operations *a_ops = mapping->a_ops;
- 	struct inode 	*inode = mapping->host;
- 	long		status = 0;
- 	struct page	*page;
- 	struct page	*cached_page = NULL;
--	size_t		bytes;
- 	struct pagevec	lru_pvec;
- 	const struct iovec *cur_iov = iov; /* current iovec */
--	size_t		iov_base = 0;	   /* offset in the current iovec */
-+	size_t		iov_offset = 0;	   /* offset in the current iovec */
- 	char __user	*buf;
- 
- 	pagevec_init(&lru_pvec, 0);
-@@ -2084,31 +2083,33 @@ generic_file_buffered_write(struct kiocb
- 	if (likely(nr_segs == 1))
- 		buf = iov->iov_base + written;
- 	else {
--		filemap_set_next_iovec(&cur_iov, &iov_base, written);
--		buf = cur_iov->iov_base + iov_base;
-+		filemap_set_next_iovec(&cur_iov, &iov_offset, written);
-+		buf = cur_iov->iov_base + iov_offset;
- 	}
- 
+@@ -2090,7 +2090,6 @@ generic_file_buffered_write(struct kiocb
  	do {
--		unsigned long index;
--		unsigned long offset;
--		unsigned long maxlen;
--		size_t copied;
-+		pgoff_t index;		/* Pagecache index for current page */
-+		unsigned long offset;	/* Offset into pagecache page */
-+		unsigned long maxlen;	/* Bytes remaining in current iovec */
-+		size_t bytes;		/* Bytes to write to page */
-+		size_t copied;		/* Bytes copied from user */
+ 		pgoff_t index;		/* Pagecache index for current page */
+ 		unsigned long offset;	/* Offset into pagecache page */
+-		unsigned long maxlen;	/* Bytes remaining in current iovec */
+ 		size_t bytes;		/* Bytes to write to page */
+ 		size_t copied;		/* Bytes copied from user */
  
--		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
-+		offset = (pos & (PAGE_CACHE_SIZE - 1));
- 		index = pos >> PAGE_CACHE_SHIFT;
- 		bytes = PAGE_CACHE_SIZE - offset;
+@@ -2100,9 +2099,7 @@ generic_file_buffered_write(struct kiocb
  		if (bytes > count)
  			bytes = count;
  
-+		maxlen = cur_iov->iov_len - iov_offset;
-+		if (maxlen > bytes)
-+			maxlen = bytes;
-+
- 		/*
- 		 * Bring in the user page that we will copy from _first_.
- 		 * Otherwise there's a nasty deadlock on copying from the
- 		 * same page as we're writing to, without it being marked
- 		 * up-to-date.
- 		 */
--		maxlen = cur_iov->iov_len - iov_base;
+-		maxlen = cur_iov->iov_len - iov_offset;
 -		if (maxlen > bytes)
 -			maxlen = bytes;
- 		fault_in_pages_readable(buf, maxlen);
++		bytes = min(cur_iov->iov_len - iov_offset, bytes);
  
- 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
-@@ -2139,7 +2140,7 @@ generic_file_buffered_write(struct kiocb
- 							buf, bytes);
- 		else
- 			copied = filemap_copy_from_user_iovec(page, offset,
--						cur_iov, iov_base, bytes);
-+						cur_iov, iov_offset, bytes);
- 		flush_dcache_page(page);
- 		status = a_ops->commit_write(file, page, offset, offset+bytes);
- 		if (status == AOP_TRUNCATED_PAGE) {
-@@ -2157,12 +2158,12 @@ generic_file_buffered_write(struct kiocb
- 				buf += status;
- 				if (unlikely(nr_segs > 1)) {
- 					filemap_set_next_iovec(&cur_iov,
--							&iov_base, status);
-+							&iov_offset, status);
- 					if (count)
- 						buf = cur_iov->iov_base +
--							iov_base;
-+							iov_offset;
- 				} else {
--					iov_base += status;
-+					iov_offset += status;
- 				}
- 			}
- 		}
+ 		/*
+ 		 * Bring in the user page that we will copy from _first_.
 _
 
 --
