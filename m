@@ -1,62 +1,75 @@
-Date: Tue, 10 Oct 2006 20:42:36 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] another way to speed up fake numa node page_alloc
-Message-Id: <20061010204236.64bcd0b4.pj@sgi.com>
-In-Reply-To: <20061004192714.20412e08.pj@sgi.com>
-References: <20060925091452.14277.9236.sendpatchset@v0>
-	<20061001231811.26f91c47.pj@sgi.com>
-	<Pine.LNX.4.64N.0610012330110.10476@attu4.cs.washington.edu>
-	<20061001234858.fe91109e.pj@sgi.com>
-	<Pine.LNX.4.64N.0610020001240.7510@attu3.cs.washington.edu>
-	<20061002014121.28b759da.pj@sgi.com>
-	<20061003111517.a5cc30ea.pj@sgi.com>
-	<Pine.LNX.4.64N.0610031231270.4919@attu3.cs.washington.edu>
-	<20061004084552.a07025d7.pj@sgi.com>
-	<Pine.LNX.4.64N.0610041456480.19080@attu2.cs.washington.edu>
-	<20061004192714.20412e08.pj@sgi.com>
+Date: Tue, 10 Oct 2006 21:38:43 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+Message-Id: <20061010213843.4478ddfc.akpm@osdl.org>
+In-Reply-To: <20061010121332.19693.37204.sendpatchset@linux.site>
+References: <20061010121314.19693.75503.sendpatchset@linux.site>
+	<20061010121332.19693.37204.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: rientjes@cs.washington.edu, linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-A week ago, I wrote, of my zonelist caching patch:
->
-> Downside - it's still a linear zonelist scan
+On Tue, 10 Oct 2006 16:21:49 +0200 (CEST)
+Nick Piggin <npiggin@suse.de> wrote:
 
-Actually, not quite so, in the terms that matter on real NUMA hardware.
+> Fix the race between invalidate_inode_pages and do_no_page.
+> 
+> Andrea Arcangeli identified a subtle race between invalidation of
+> pages from pagecache with userspace mappings, and do_no_page.
+> 
+> The issue is that invalidation has to shoot down all mappings to the
+> page, before it can be discarded from the pagecache. Between shooting
+> down ptes to a particular page, and actually dropping the struct page
+> from the pagecache, do_no_page from any process might fault on that
+> page and establish a new mapping to the page just before it gets
+> discarded from the pagecache.
+> 
+> The most common case where such invalidation is used is in file
+> truncation. This case was catered for by doing a sort of open-coded
+> seqlock between the file's i_size, and its truncate_count.
+> 
+> Truncation will decrease i_size, then increment truncate_count before
+> unmapping userspace pages; do_no_page will read truncate_count, then
+> find the page if it is within i_size, and then check truncate_count
+> under the page table lock and back out and retry if it had
+> subsequently been changed (ptl will serialise against unmapping, and
+> ensure a potentially updated truncate_count is actually visible).
+> 
+> Complexity and documentation issues aside, the locking protocol fails
+> in the case where we would like to invalidate pagecache inside i_size.
+> do_no_page can come in anytime and filemap_nopage is not aware of the
+> invalidation in progress (as it is when it is outside i_size). The
+> end result is that dangling (->mapping == NULL) pages that appear to
+> be from a particular file may be mapped into userspace with nonsense
+> data. Valid mappings to the same place will see a different page.
+> 
+> Andrea implemented two working fixes, one using a real seqlock,
+> another using a page->flags bit. He also proposed using the page lock
+> in do_no_page, but that was initially considered too heavyweight.
+> However, it is not a global or per-file lock, and the page cacheline
+> is modified in do_no_page to increment _count and _mapcount anyway, so
+> a further modification should not be a large performance hit.
+> Scalability is not an issue.
+> 
+> This patch implements this latter approach. ->nopage implementations
+> return with the page locked if it is possible for their underlying
+> file to be invalidated (in that case, they must set a special vm_flags
+> bit to indicate so). do_no_page only unlocks the page after setting
+> up the mapping completely. invalidation is excluded because it holds
+> the page lock during invalidation of each page (and ensures that the
+> page is not mapped while holding the lock).
+> 
+> This allows significant simplifications in do_no_page.
+> 
 
-On real NUMA hardware, there are two memory costs of interest:
-
- 1) the usual cost to hit main (node local) memory, also known as a
-    cache line miss, and
-
- 2) the higher cost to hit some other nodes memory, for something the
-    other node just updated, so you really have to go across the NUMA
-    fabric to get it.
-
-My zonelist caching shrinks (1) to just a few cache lines, but more
-importantly (for real NUMA hardware) reduces (2) to essentially a
-constant, that no longer grows linearly with the number of nodes.
-
-When one node is looking for free memory on a list of other nodes, the
-page allocator no longer relies on -any- live information from the
-nodes it skips over.  It is usually able to get a page from the very
-first node that it tries.  It is able to skip over likely full nodes
-using only locally stored and available information from the node local
-zonelist cache.
-
-So in the unit of measure that matters most to NUMA systems, (2) above,
-this zonelist caching -is- very close to constant time, for workloads
-presenting sufficiently high page allocation request rates.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+The (unchangelogged) changes to filemap_nopage() appear to have switched
+the try-the-read-twice logic into try-it-forever logic.  I think it'll hang
+if there's a bad sector?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
