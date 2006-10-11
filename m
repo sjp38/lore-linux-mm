@@ -1,48 +1,36 @@
-Date: Wed, 11 Oct 2006 10:11:43 -0700 (PDT)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: SPAM: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
-In-Reply-To: <20061011165717.GB5259@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0610111007000.3952@g5.osdl.org>
-References: <20061010121314.19693.75503.sendpatchset@linux.site>
- <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org>
- <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org>
- <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org> <20061011165717.GB5259@wotan.suse.de>
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id k9BHDTJ9003509
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 18:13:30 +0100
+Received: from nf-out-0910.google.com (nfec2.prod.google.com [10.48.155.2])
+	by spaceape14.eur.corp.google.com with ESMTP id k9BHCYKD004286
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2006 18:13:27 +0100
+Received: by nf-out-0910.google.com with SMTP id c2so102640nfe
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2006 10:13:27 -0700 (PDT)
+Message-ID: <65dd6fd50610111013t6c783f3esc038c64abbcddeb0@mail.gmail.com>
+Date: Wed, 11 Oct 2006 10:13:26 -0700
+From: "Ollie Wild" <aaw@google.com>
+Subject: Re: Removing MAX_ARG_PAGES (request for comments/assistance)
+In-Reply-To: <1160553621.3000.355.camel@laptopd505.fenrus.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com>
+	 <1160553621.3000.355.camel@laptopd505.fenrus.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+> on first sight it looks like you pin the entire userspace buffer at the
+> same time (but I can misread the code; this stuff is a bit of a
+> spaghetti by nature); that would be a DoS scenario if true...
 
-On Wed, 11 Oct 2006, Nick Piggin wrote:
-> > 
-> > The original IO could have been started by a person who didn't have 
-> > permissions to actually carry it out successfully, so if you enter with 
-> > the page locked (because somebody else started the IO), and you wait for 
-> > the page and it's not up-to-date afterwards, you absolutely _have_ to try 
-> > the IO, and can only return a real IO error after your _own_ IO has 
-> > failed.
-> 
-> Sure, but we currently try to read _twice_, don't we?
+I'm not sure I understand.  Could you please elaborate?
 
-Well, we have the read-ahead, and then the real read. By the time we do 
-the real read, we have forgotten about the read-ahead details, so..
-
-We also end up often having a _third_ one, simply because the _user_ tries 
-it twice: it gets a partial IO read first, and then tries to continue and 
-won't give up until it gets a real error.
-
-So yes, we can end up reading it even more than twice, if only due to 
-standard UNIX interfaces: you always have to have one extra "read()" 
-system call in order to get the final error (or - much more commonly - 
-EOF, of course).
-
-If we tracked the read-aheads that _we_ started, we could probably get rid 
-of one of them.
-
-			Linus
+Thanks,
+Ollie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
