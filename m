@@ -1,28 +1,30 @@
-Date: Thu, 12 Oct 2006 01:37:02 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC][PATCH] EXT3: problem with page fault inside a transaction
-Message-Id: <20061012013702.fe0515ed.akpm@osdl.org>
-In-Reply-To: <87lknmgeaz.fsf@sw.ru>
-References: <87mz82vzy1.fsf@sw.ru>
-	<20061011234330.efae4265.akpm@osdl.org>
-	<87lknmgeaz.fsf@sw.ru>
+Date: Thu, 12 Oct 2006 14:07:35 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+Message-ID: <20061012120735.GA20191@wotan.suse.de>
+References: <20061007105758.14024.70048.sendpatchset@linux.site> <20061007105853.14024.95383.sendpatchset@linux.site> <5c77e7070610120456t1bdaa95cre611080c9c953582@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5c77e7070610120456t1bdaa95cre611080c9c953582@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dmitriy Monakhov <dmonakhov@sw.ru>
-Cc: Dmitriy Monakhov <dmonakhov@openvz.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, ext2-devel@lists.sourceforge.net, Andrey Savochkin <saw@swsoft.com>
+To: Carsten Otte <cotte.de@gmail.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Oct 2006 11:53:56 +0400
-Dmitriy Monakhov <dmonakhov@sw.ru> wrote:
+On Thu, Oct 12, 2006 at 01:56:38PM +0200, Carsten Otte wrote:
+> As for the filemap_xip changes, looks nice as far as I can tell. I will test
+> that change for xip.
 
-> > With the stuff Nick and I are looking at, we won't take pagefaults inside
-> > prepare_write()/commit_write() any more.
-> I'sorry may be i've missed something, but how cant you prevent this?
+Actually, filemap_xip needs some attention I think... if xip files
+can be truncated or invalidated (I assume they can), then we need to
+lock the page, validate that it is the correct one and not truncated,
+and return with it locked.
 
-Start here: http://lkml.org/lkml/2006/10/11/12
+That should be as simple as just locking the page and rechecking i_size,
+but maybe the zero page can be handled better... I don't know?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
