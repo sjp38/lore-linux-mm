@@ -1,32 +1,52 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20061012120102.29671.31163.sendpatchset@linux.site>
-Subject: [rfc][patch 0/5] 2.6.19-rc1: oom killer fixes
-Date: Thu, 12 Oct 2006 16:09:34 +0200 (CEST)
+Message-Id: <20061012120111.29671.83152.sendpatchset@linux.site>
+In-Reply-To: <20061012120102.29671.31163.sendpatchset@linux.site>
+References: <20061012120102.29671.31163.sendpatchset@linux.site>
+Subject: [patch 1/5] oom: don't kill unkillable children or siblings
+Date: Thu, 12 Oct 2006 16:09:43 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-I've been prompted to take another look through the OOM killer because it
-turns out it is killing tasks that have had their oom_adj set to -17 (which
-is supposed to make them unkillable).
+Abort the kill if any of our threads have OOM_DISABLE set. Having this test
+here also prevents any OOM_DISABLE child of the "selected" process from being
+killed.
 
-So there are a number of problems, firstly, the child and sibling thread
-killing routines do not account for -17 children/siblings.
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-Secondly, most architecture specific pagefault handlers do a direct kill
-of the current process if it takes a VM_FAULT_OOM. This is a pretty rare
-thing to happen, because there isn't a lot of higher order allocations
-happening, but it is not impossible. I think we can just call into the
-OOM killer here, and return to userspace... but I'd like comments about
-this.
-
-Thanks,
-Nick
---
-SuSE Labs
+Index: linux-2.6/mm/oom_kill.c
+===================================================================
+--- linux-2.6.orig/mm/oom_kill.c
++++ linux-2.6/mm/oom_kill.c
+@@ -312,15 +312,24 @@ static int oom_kill_task(struct task_str
+ 	if (mm == NULL)
+ 		return 1;
  
++	/*
++	 * Don't kill the process if any threads are set to OOM_DISABLE
++	 */
++	do_each_thread(g, q) {
++		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
++			return 1;
++	} while_each_thread(g, q);
++
+ 	__oom_kill_task(p, message);
++
+ 	/*
+ 	 * kill all processes that share the ->mm (i.e. all threads),
+ 	 * but are in a different thread group
+ 	 */
+-	do_each_thread(g, q)
++	do_each_thread(g, q) {
+ 		if (q->mm == mm && q->tgid != p->tgid)
+ 			__oom_kill_task(q, message);
+-	while_each_thread(g, q);
++	} while_each_thread(g, q);
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
