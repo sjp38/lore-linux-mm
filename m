@@ -1,30 +1,87 @@
-Date: Thu, 12 Oct 2006 05:28:11 +0200
+Date: Thu, 12 Oct 2006 05:33:58 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
-Message-ID: <20061012032811.GA22558@wotan.suse.de>
-References: <20061009140354.13840.71273.sendpatchset@linux.site> <20061009140414.13840.90825.sendpatchset@linux.site> <20061009211013.GP6485@ca-server1.us.oracle.com> <452AF312.1020207@yahoo.com.au> <20061011183404.GR6485@ca-server1.us.oracle.com>
+Message-ID: <20061012033358.GC22558@wotan.suse.de>
+References: <20061010121314.19693.75503.sendpatchset@linux.site> <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org> <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org> <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org> <20061011165717.GB5259@wotan.suse.de> <Pine.LNX.4.64.0610111007000.3952@g5.osdl.org> <20061011172120.GC5259@wotan.suse.de> <Pine.LNX.4.64.0610111031020.3952@g5.osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20061011183404.GR6485@ca-server1.us.oracle.com>
+In-Reply-To: <Pine.LNX.4.64.0610111031020.3952@g5.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fasheh <mark.fasheh@oracle.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Jes Sorensen <jes@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 11, 2006 at 11:34:04AM -0700, Mark Fasheh wrote:
-> On Tue, Oct 10, 2006 at 11:10:42AM +1000, Nick Piggin wrote:
+On Wed, Oct 11, 2006 at 10:38:31AM -0700, Linus Torvalds wrote:
 > 
-> The test I run is over here btw:
 > 
-> http://oss.oracle.com/projects/ocfs2-test/src/trunk/programs/multi_node_mmap/multi_mmap.c
+> On Wed, 11 Oct 2006, Nick Piggin wrote:
+> > 
+> > I mean filemap_nopage does *two* synchronous reads when finding a !uptodate
+> > page. This is despite the comment saying that it retries once on error.
 > 
-> I ran it with the following parameters:
+> Ahh. 
 > 
-> mpirun -np 6 n1-3 ./multi_mmap -w mmap -r mmap -i 1000 -b 1024 /ocfs2/mmap/test4.txt
+> Yes, now that you point to the actual code, that does look ugly.
+> 
+> I think it's related to the
+> 
+> 	ClearPageError(page);
+> 
+> thing, and probably related to that function being rather old and having 
+> gone through several re-organizations. I suspect we used to fall through 
+> to the error handling code regardless of whether we did the read ourselves 
+> etc.
 
-Thanks, I'll see if I can reproduce.
+Yeah, it may have even been a mismerge at some point in time.
+
+> Are you saying that something like this would be preferable?
+
+I think so, it is neater and clearer. I actually didn't even bother relocking
+and checking the page again on readpage error so got rid of quite a bit of
+code.
+
+> 
+> 		Linus
+> 
+> ---
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 3464b68..e5ecf42 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1496,6 +1496,8 @@ page_not_uptodate:
+>  		goto success;
+>  	}
+>  
+> +	/* Clear any potential old errors, and try to read.. */
+> +	ClearPageError(page);
+>  	error = mapping->a_ops->readpage(file, page);
+>  	if (!error) {
+>  		wait_on_page_locked(page);
+> @@ -1526,21 +1528,12 @@ page_not_uptodate:
+>  		unlock_page(page);
+>  		goto success;
+>  	}
+> -	ClearPageError(page);
+> -	error = mapping->a_ops->readpage(file, page);
+> -	if (!error) {
+> -		wait_on_page_locked(page);
+> -		if (PageUptodate(page))
+> -			goto success;
+> -	} else if (error == AOP_TRUNCATED_PAGE) {
+> -		page_cache_release(page);
+> -		goto retry_find;
+> -	}
+>  
+>  	/*
+>  	 * Things didn't work out. Return zero to tell the
+>  	 * mm layer so, possibly freeing the page cache page first.
+>  	 */
+> +	unlock_page(page);
+>  	shrink_readahead_size_eio(file, ra);
+>  	page_cache_release(page);
+>  	return NOPAGE_SIGBUS;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
