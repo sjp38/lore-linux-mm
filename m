@@ -1,41 +1,47 @@
-Date: Thu, 12 Oct 2006 17:19:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 5/5] oom: invoke OOM killer from pagefault handler
-Message-ID: <20061012151907.GB18463@wotan.suse.de>
-References: <20061012120102.29671.31163.sendpatchset@linux.site> <20061012120150.29671.48586.sendpatchset@linux.site> <452E5B4D.7000402@sw.ru>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <452E5B4D.7000402@sw.ru>
+Date: Thu, 12 Oct 2006 08:37:39 -0700 (PDT)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+In-Reply-To: <20061012033358.GC22558@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0610120834580.3952@g5.osdl.org>
+References: <20061010121314.19693.75503.sendpatchset@linux.site>
+ <20061010121332.19693.37204.sendpatchset@linux.site> <20061010213843.4478ddfc.akpm@osdl.org>
+ <452C838A.70806@yahoo.com.au> <20061010230042.3d4e4df1.akpm@osdl.org>
+ <Pine.LNX.4.64.0610110916540.3952@g5.osdl.org> <20061011165717.GB5259@wotan.suse.de>
+ <Pine.LNX.4.64.0610111007000.3952@g5.osdl.org> <20061011172120.GC5259@wotan.suse.de>
+ <Pine.LNX.4.64.0610111031020.3952@g5.osdl.org> <20061012033358.GC22558@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirill Korotaev <dev@sw.ru>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 12, 2006 at 07:12:13PM +0400, Kirill Korotaev wrote:
-> Nick,
+
+On Thu, 12 Oct 2006, Nick Piggin wrote:
 > 
-> AFAICS, 1 page allocation which is done in page fault handler
-> can fail in the only case - OOM kills current, so if we failed
-> we should have TIF_MEMDIE and just kill current.
-> Selecting another process for killing if page fault fails means
-> taking another victim with the one being already killed.
+> > Are you saying that something like this would be preferable?
 > 
+> I think so, it is neater and clearer. I actually didn't even bother relocking
+> and checking the page again on readpage error so got rid of quite a bit of
+> code.
 
-Hi Kirill,
+Well, the readpage error should be rare (and for the _normal_ case we just 
+do the "wait_on_page_locked()" thing). And I think we should lock the page 
+in order to do the truncation check, no?
 
-I don't quite understand you. If the page allocation fails in the
-fault handler, we don't want to kill current if it is marked as
-OOM_DISABLE or sysctl_panic_on_oom is set... imagine a critical
-service in a failover system.
+But I don't have any really strong feelings. I'm certainly ok with the 
+patch I sent out. How about putting it through -mm? Here's my sign-off:
 
-It should be quite likely for another process to be kiled and
-provide enough memory to keep the system running. Presuming you
-have faith in the concept of the OOM killer ;)
+	Signed-off-by: Linus Torvalds <torvalds@osdl.org>
 
-Cheers,
-Nick
+if you want to send it off to Andrew (or if Andrew wants to just take it 
+himself ;)
+
+Btw, how did you even notice this? Just by reading the source, or because 
+you actually saw multiple errors reported?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
