@@ -1,10 +1,10 @@
-Date: Thu, 12 Oct 2006 15:00:50 -0700
+Date: Thu, 12 Oct 2006 15:03:50 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 1/5] oom: don't kill unkillable children or siblings
-Message-Id: <20061012150050.ad6e1c8b.akpm@osdl.org>
-In-Reply-To: <20061012120111.29671.83152.sendpatchset@linux.site>
+Subject: Re: [patch 3/5] oom: less memdie
+Message-Id: <20061012150350.00f19d2a.akpm@osdl.org>
+In-Reply-To: <20061012120129.29671.3288.sendpatchset@linux.site>
 References: <20061012120102.29671.31163.sendpatchset@linux.site>
-	<20061012120111.29671.83152.sendpatchset@linux.site>
+	<20061012120129.29671.3288.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,12 +14,13 @@ To: Nick Piggin <npiggin@suse.de>
 Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Oct 2006 16:09:43 +0200 (CEST)
+On Thu, 12 Oct 2006 16:10:01 +0200 (CEST)
 Nick Piggin <npiggin@suse.de> wrote:
 
-> Abort the kill if any of our threads have OOM_DISABLE set. Having this test
-> here also prevents any OOM_DISABLE child of the "selected" process from being
-> killed.
+> Don't cause all threads in all other thread groups to gain TIF_MEMDIE
+> otherwise we'll get a thundering herd eating out memory reserve. This
+> may not be the optimal scheme, but it fits our policy of allowing just
+> one TIF_MEMDIE in the system at once.
 > 
 > Signed-off-by: Nick Piggin <npiggin@suse.de>
 > 
@@ -27,35 +28,26 @@ Nick Piggin <npiggin@suse.de> wrote:
 > ===================================================================
 > --- linux-2.6.orig/mm/oom_kill.c
 > +++ linux-2.6/mm/oom_kill.c
-> @@ -312,15 +312,24 @@ static int oom_kill_task(struct task_str
->  	if (mm == NULL)
->  		return 1;
+> @@ -322,11 +322,12 @@ static int oom_kill_task(struct task_str
 >  
-> +	/*
-> +	 * Don't kill the process if any threads are set to OOM_DISABLE
-> +	 */
-> +	do_each_thread(g, q) {
-> +		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
-> +			return 1;
-> +	} while_each_thread(g, q);
-> +
->  	__oom_kill_task(p, message);
-> +
 >  	/*
 >  	 * kill all processes that share the ->mm (i.e. all threads),
->  	 * but are in a different thread group
+> -	 * but are in a different thread group.
+> +	 * but are in a different thread group. Don't let them have access
+> +	 * to memory reserves though, otherwise we might deplete all memory.
 >  	 */
-> -	do_each_thread(g, q)
-> +	do_each_thread(g, q) {
+>  	do_each_thread(g, q) {
 >  		if (q->mm == mm && q->tgid != p->tgid)
->  			__oom_kill_task(q, message);
-> -	while_each_thread(g, q);
-> +	} while_each_thread(g, q);
+> -			__oom_kill_task(q, 1);
+> +			force_sig(SIGKILL, p);
+>  	} while_each_thread(g, q);
 >  
->  	return 0;
 
-One wonders whether OOM_DISABLE should be a property of the mm_struct, not
-of the task_struct.
+Curious.  How much testing did you do of this stuff?  I assume there were
+some observed problems.  What were they, and what was the observed effect
+of these changes?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
