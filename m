@@ -1,43 +1,68 @@
-Message-ID: <452F323D.2040600@yahoo.com.au>
-Date: Fri, 13 Oct 2006 16:29:17 +1000
+Message-ID: <452F32DF.5090608@yahoo.com.au>
+Date: Fri, 13 Oct 2006 16:31:59 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Driver-driven paging?
-References: <452A68E9.3000707@tungstengraphics.com> <452A7AD3.5050006@yahoo.com.au> <452E8849.8050201@surriel.com>
-In-Reply-To: <452E8849.8050201@surriel.com>
+Subject: Re: [patch 1/5] oom: don't kill unkillable children or siblings
+References: <20061012120102.29671.31163.sendpatchset@linux.site>	<20061012120111.29671.83152.sendpatchset@linux.site> <20061012150050.ad6e1c8b.akpm@osdl.org>
+In-Reply-To: <20061012150050.ad6e1c8b.akpm@osdl.org>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: Thomas Hellstrom <thomas@tungstengraphics.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+Andrew Morton wrote:
 
-> Nick Piggin wrote:
->
->> Your best bet might be to have a userspace "memory manager" process, 
->> which
->> allocates pages (anonymous or file backed), and has your device driver
->> access them with get_user_pages. The get_user_pages takes care of 
->> faulting
->> the pages back in, and when they are released, the memory manager will
->> swap them out on demand.
+>On Thu, 12 Oct 2006 16:09:43 +0200 (CEST)
+>Nick Piggin <npiggin@suse.de> wrote:
 >
 >
-> Wouldn't tmpfs be simpler ?
+>>Abort the kill if any of our threads have OOM_DISABLE set. Having this test
+>>here also prevents any OOM_DISABLE child of the "selected" process from being
+>>killed.
+>>
+>>Signed-off-by: Nick Piggin <npiggin@suse.de>
+>>
+>>Index: linux-2.6/mm/oom_kill.c
+>>===================================================================
+>>--- linux-2.6.orig/mm/oom_kill.c
+>>+++ linux-2.6/mm/oom_kill.c
+>>@@ -312,15 +312,24 @@ static int oom_kill_task(struct task_str
+>> 	if (mm == NULL)
+>> 		return 1;
+>> 
+>>+	/*
+>>+	 * Don't kill the process if any threads are set to OOM_DISABLE
+>>+	 */
+>>+	do_each_thread(g, q) {
+>>+		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
+>>+			return 1;
+>>+	} while_each_thread(g, q);
+>>+
+>> 	__oom_kill_task(p, message);
+>>+
+>> 	/*
+>> 	 * kill all processes that share the ->mm (i.e. all threads),
+>> 	 * but are in a different thread group
+>> 	 */
+>>-	do_each_thread(g, q)
+>>+	do_each_thread(g, q) {
+>> 		if (q->mm == mm && q->tgid != p->tgid)
+>> 			__oom_kill_task(q, message);
+>>-	while_each_thread(g, q);
+>>+	} while_each_thread(g, q);
+>> 
+>> 	return 0;
+>>
+>
+>One wonders whether OOM_DISABLE should be a property of the mm_struct, not
+>of the task_struct.
+>
 
-
-It could be... actually having the pages inserted into a tmpfs filesystem
-by the kernel does sound better than having it try to use the swap code
-directly. I still don't know that tmpfs could quite handle that yet, but it
-does sound like an interesting avenue (or maybe making your own filesystem
-using some tmpfs interfaces). Good idea.
-
-For an initial cut, I think having a memory manager process will work today,
-and should do everything needed. So it might be a good way to quickly
-evaluate the functionality.
+Hmm... I don't think I could argue with that. I think this patch is needed
+in the meantime though.
 
 --
 
