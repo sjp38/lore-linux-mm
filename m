@@ -1,40 +1,37 @@
-Message-ID: <452F3694.70104@yahoo.com.au>
-Date: Fri, 13 Oct 2006 16:47:48 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 5/5] oom: invoke OOM killer from pagefault handler
-References: <20061012120102.29671.31163.sendpatchset@linux.site>	<20061012120150.29671.48586.sendpatchset@linux.site>	<452E5B4D.7000402@sw.ru>	<20061012151907.GB18463@wotan.suse.de> <20061012150942.42e05898.akpm@osdl.org> <452F361D.1010306@yahoo.com.au>
-In-Reply-To: <452F361D.1010306@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Nick Piggin <npiggin@suse.de>
+Message-Id: <20061013143516.15438.8802.sendpatchset@linux.site>
+Subject: [rfc] buffered write deadlock fix
+Date: Fri, 13 Oct 2006 18:43:52 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, Kirill Korotaev <dev@sw.ru>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Linux Memory Management <linux-mm@kvack.org>
+Cc: Neil Brown <neilb@suse.de>, Andrew Morton <akpm@osdl.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Chris Mason <chris.mason@oracle.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+The following set of patches attempt to fix the buffered write
+locking problems. 
 
-> What I especially have in mind here is the OOM_DISABLE and 
-> panic_on_oom sysctl
-> rather than expecting particularly much better general oom killing 
-> behaviour.
-> Suppose you have a critical failover node or heartbeat process or 
-> something
-> where you'd rather the system to panic and reboot instead of doing 
-> something
-> silly...
+While looking at this deadlock, it became apparent that there are
+several others which are equally bad or worse. It will be very
+good to fix these.
 
+I ceased to become an admirer of this problem when it stopped my
+pagefault vs invalidate race fix from being merged!
 
-Oh, I already said that.
+Review and comments would be very nice. Testing only if you don't
+value your data. I realise all filesystem developers are busy
+solving the 10TB fsck problem now, but if you could please take a
+minute to look at the fs/ changes, and also ensure your
+filesystem's prepare and commit_write handlers aren't broken.
 
-Well anyway, I'm not sure exactly how people use these tunables, but I 
-expect
-those that do, _really_ want them to work.
+Sorry for the shotgun mail. It is your fault for ever being
+mentioned in the same email as the buffered write deadlock ;)
+
+Thanks,
+Nick
 
 --
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+SuSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
