@@ -1,31 +1,42 @@
-Message-ID: <{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}{DIGIT}.BC88E0D8E6@A8SVZRL>
-From: "Pighooey" <che@priest.com>
-Subject: Rock hard erections - Erections like steel 
-Date: Sat, 14 Oct 2006 18:16:50 +0500
+From: Ingo Oeser <ioe-lkml@rameria.de>
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+Date: Sat, 14 Oct 2006 15:28:48 +0200
+References: <20061007105758.14024.70048.sendpatchset@linux.site> <5c77e7070610120456t1bdaa95cre611080c9c953582@mail.gmail.com> <20061012120735.GA20191@wotan.suse.de>
+In-Reply-To: <20061012120735.GA20191@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/html;
-        charset="Windows-1251"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <westbrook@bikerider.com>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200610141528.50542.ioe-lkml@rameria.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Carsten Otte <cotte.de@gmail.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
-<body bgcolor=#ffffff>
-<font color=#fefefe>step 3rd boot skirt </font> <br>
-Longer orgasms - The longest most intense orgasms of your life <br>
-<font color=#fefefe>reign hazard chess demur </font> <br>
- Rock hard erections - Erections like steel <br>
-<font color=#fefefe>diana rhino leaks dig </font> <br>
- Increased sexual desire - Enhanced libido <br>
-<font color=#fefefe>alpha 3456 weld fruit </font> <br>
- Ejaculate like a porn star - Stronger ejaculation (watch where your aiming) <br>
-<font color=#fefefe>700 diesel nosy melt </font> <br>
- Multiple orgasms - Cum again and again <br>
-<font color=#fefefe>deify debit handle md </font> <br>
- Up to 500% more volume - Cover her in it if you want  <br>
-<font color=#fefefe>see irons manor sulk </font> <br>
- Sweeter tasting sperm - Studies show it improves the flavor  <br>
-<a href="http://trounces.net/spurm/?accbaz">You can try it now</a>
-</body>
-</html>
+Hi Nick,
+
+On Thursday, 12. October 2006 14:07, Nick Piggin wrote:
+> Actually, filemap_xip needs some attention I think... if xip files
+> can be truncated or invalidated (I assume they can), then we need to
+> lock the page, validate that it is the correct one and not truncated,
+> and return with it locked.
+
+???
+
+Isn't XIP for "eXecuting In Place" from ROM or FLASH?
+How to truncate these? I thought the whole idea of
+XIP was a pure RO mapping?
+
+They should be valid from mount to umount.
+
+Regards
+
+Ingo Oeser, a bit puzzled about that...
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
