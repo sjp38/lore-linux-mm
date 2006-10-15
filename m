@@ -1,58 +1,43 @@
-Message-ID: <4531E946.5070503@yahoo.com.au>
-Date: Sun, 15 Oct 2006 17:54:46 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-References: <20061007105758.14024.70048.sendpatchset@linux.site> <5c77e7070610120456t1bdaa95cre611080c9c953582@mail.gmail.com> <20061012120735.GA20191@wotan.suse.de> <200610141528.50542.ioe-lkml@rameria.de>
-In-Reply-To: <200610141528.50542.ioe-lkml@rameria.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [patch 6/6] mm: fix pagecache write deadlocks
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20061014041927.GA14467@wotan.suse.de>
+References: <20061013143516.15438.8802.sendpatchset@linux.site>
+	 <20061013143616.15438.77140.sendpatchset@linux.site>
+	 <20061013151457.81bb7f03.akpm@osdl.org>
+	 <20061014041927.GA14467@wotan.suse.de>
+Content-Type: text/plain
+Date: Sun, 15 Oct 2006 13:35:47 +0200
+Message-Id: <1160912147.5230.21.camel@lappy>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ioe-lkml@rameria.de>
-Cc: Nick Piggin <npiggin@suse.de>, Carsten Otte <cotte.de@gmail.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>, Anton Altaparmakov <aia21@cam.ac.uk>, Chris Mason <chris.mason@oracle.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Ingo,
+On Sat, 2006-10-14 at 06:19 +0200, Nick Piggin wrote:
+> On Fri, Oct 13, 2006 at 03:14:57PM -0700, Andrew Morton wrote:
+> > On Fri, 13 Oct 2006 18:44:52 +0200 (CEST)
+> > Nick Piggin <npiggin@suse.de> wrote:
 
-Ingo Oeser wrote:
-> Hi Nick,
+> > > @@ -2450,6 +2436,7 @@ int nobh_truncate_page(struct address_sp
+> > >  		memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
+> > >  		flush_dcache_page(page);
+> > >  		kunmap_atomic(kaddr, KM_USER0);
+> > > +		SetPageUptodate(page);
+> > >  		set_page_dirty(page);
+> > >  	}
+> > >  	unlock_page(page);
+> > 
+> > I've already forgotten why this was added.  Comment, please ;)
 > 
-> On Thursday, 12. October 2006 14:07, Nick Piggin wrote:
-> 
->>Actually, filemap_xip needs some attention I think... if xip files
->>can be truncated or invalidated (I assume they can), then we need to
->>lock the page, validate that it is the correct one and not truncated,
->>and return with it locked.
-> 
-> 
-> ???
-> 
-> Isn't XIP for "eXecuting In Place" from ROM or FLASH?
+> Well, nobh_prepare_write no longer sets it uptodate, so we need to if
+> we're going to set_page_dirty. OTOH, why does truncate_page need to
+> zero the pagecache anyway? I wonder if we couldn't delete this whole
+> function? (not in this patchset!)
 
-Yes, I assume so. It seems that it isn't restricted to executing, but
-is basically a terminology to mean that it bypasses the pagecache.
-
-> How to truncate these? I thought the whole idea of
-> XIP was a pure RO mapping?
-
-Well, not filemap_xip.
-
-> 
-> They should be valid from mount to umount.
-> 
-> Regards
-> 
-> Ingo Oeser, a bit puzzled about that...
-
-See mm/filemap_xip.c:xip_file_write, xip_truncate_page.
-
-Thanks,
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+It zeros the tail end of the page so we don't leak old data?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
