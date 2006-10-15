@@ -1,125 +1,113 @@
-Subject: Re: RRe: [patch 6/6] mm: fix pagecache write deadlocks
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20061015155727.GA539@wotan.suse.de>
-References: <20061013143516.15438.8802.sendpatchset@linux.site>
-	 <20061013143616.15438.77140.sendpatchset@linux.site>
-	 <1160912230.5230.23.camel@lappy> <20061015115656.GA25243@wotan.suse.de>
-	 <1160920269.5230.29.camel@lappy> <20061015141953.GC25243@wotan.suse.de>
-	 <1160927224.5230.36.camel@lappy>  <20061015155727.GA539@wotan.suse.de>
-Content-Type: text/plain
-Date: Sun, 15 Oct 2006 18:13:55 +0200
-Message-Id: <1160928835.5230.41.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sun, 15 Oct 2006 18:57:18 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc][patch] shmem: don't zero full-page writes
+In-Reply-To: <20061014055956.GA6014@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0610151749190.32055@blonde.wat.veritas.com>
+References: <20061014055956.GA6014@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>, Anton Altaparmakov <aia21@cam.ac.uk>, Chris Mason <chris.mason@oracle.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, ralf@linux-mips.org, David Howells <dhowells@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2006-10-15 at 17:57 +0200, Nick Piggin wrote:
-> On Sun, Oct 15, 2006 at 05:47:03PM +0200, Peter Zijlstra wrote:
-> > > 
-> > > And we should really decouple it from preempt entirely, in case we
-> > > ever want to check for it some other way in the pagefault handler.
-> > 
-> > How about we make sure all kmap_atomic implementations behave properly 
-> > and make in_atomic true.
+On Sat, 14 Oct 2006, Nick Piggin wrote:
+> Just while looking at the peripheral code around the pagecache deadlocks
+> problem, I noticed we might be able to speed up shmem a bit. This patch
+> isn't well tested when shmem goes into swap, but before wasting more time on
+> it I just wanted to see if there is a fundamental reason why we're not doing
+> this?
+
+No fundamental reason: I did consider doing so a couple of times,
+but it's rather messy and nobody was complaining, so I didn't bother.
+
 > 
-> Hmm, but you may not be doing a copy*user within the kmap. And you may
-> want an atomic copy*user not within a kmap (maybe).
-> 
-> I think it really would be more logical to do it in a wrapper function
-> pagefault_disable() pagefault_enable()? ;)
+> --
+> Don't zero out newly allocated tmpfs pages if we're about to write a full
+> page to them anyway, and also don't bother to read them in from swap.
+> Increases aligned write bandwidth by about 30% for 4M writes to shmfs
+> in RAM, and about 7% for 4K writes. Not tested with swap backed shm yet;
+> the improvement will be much larger but it should be much less common.
 
-I did that one first, but then noticed that most non trivial kmap_atomic
-implementations already did the inc_preempt_count()/dec_preempt_count()
-thing (except frv which did preempt_disable()/preempt_enable() ?)
+That's quite nice: though as I say, nobody had complained (I think the
+high performance people are usually looking at the shm end rather than
+at tmpfs files, so wouldn't see any benefit).
 
-Anyway, here goes:
+I'd like your patch _so_ much more if it didn't scatter SGP_WRITE_FULL
+(and free_swap) conditionals all over: we'd all prefer a simpler
+shmem_getpage to a more complex one.  That's the messiness that
+put me off.  I wonder if there's a better way, but don't see it.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/filemap.c |    4 +---
- mm/filemap.h |   20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 3 deletions(-)
+I wonder if the patch you tested is this one you've sent out: it
+seems uncertain what to do with PageUptodate, and mishandles it.
 
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2006-10-14 20:20:20.000000000 +0200
-+++ linux-2.6/mm/filemap.c	2006-10-15 17:16:59.000000000 +0200
-@@ -2140,9 +2140,8 @@ retry_noprogress:
- 		 * the page lock, so we might recursively deadlock on the same
- 		 * lock, or get an ABBA deadlock against a different lock, or
- 		 * against the mmap_sem (which nests outside the page lock).
--		 * So increment preempt count, and use _atomic usercopies.
-+		 * So use _atomic usercopies.
- 		 */
--		inc_preempt_count();
- 		if (likely(nr_segs == 1))
- 			copied = filemap_copy_from_user_atomic(page, offset,
- 							buf, bytes);
-@@ -2150,7 +2149,6 @@ retry_noprogress:
- 			copied = filemap_copy_from_user_iovec_atomic(page,
- 						offset, cur_iov, iov_offset,
- 						bytes);
--		dec_preempt_count();
- 
- 		if (!PageUptodate(page)) {
- 			/*
-Index: linux-2.6/mm/filemap.h
-===================================================================
---- linux-2.6.orig/mm/filemap.h	2006-10-14 20:20:20.000000000 +0200
-+++ linux-2.6/mm/filemap.h	2006-10-15 17:17:45.000000000 +0200
-@@ -21,6 +21,22 @@ __filemap_copy_from_user_iovec_inatomic(
- 					size_t bytes);
- 
- /*
-+ * By increasing the preempt_count we make sure the arch preempt
-+ * handler bails out early, before taking any locks, so that the copy
-+ * operation gets terminated early.
-+ */
-+pagefault_static inline void disable(void)
-+{
-+	inc_preempt_count();
-+}
-+
-+pagefault_static inline void enable(void)
-+{
-+	dec_preempt_count();
-+	preempt_check_resched();
-+}
-+
-+/*
-  * Copy as much as we can into the page and return the number of bytes which
-  * were sucessfully copied.  If a fault is encountered then return the number of
-  * bytes which were copied.
-@@ -40,9 +56,11 @@ filemap_copy_from_user_atomic(struct pag
- 	char *kaddr;
- 	int left;
- 
-+	pagefault_disable();
- 	kaddr = kmap_atomic(page, KM_USER0);
- 	left = __copy_from_user_inatomic_nocache(kaddr + offset, buf, bytes);
- 	kunmap_atomic(kaddr, KM_USER0);
-+	pagefault_enable();
- 
- 	return bytes - left;
- }
-@@ -75,10 +93,12 @@ filemap_copy_from_user_iovec_atomic(stru
- 	char *kaddr;
- 	size_t copied;
- 
-+	pagefault_disable();
- 	kaddr = kmap_atomic(page, KM_USER0);
- 	copied = __filemap_copy_from_user_iovec_inatomic(kaddr + offset, iov,
- 							 base, bytes);
- 	kunmap_atomic(kaddr, KM_USER0);
-+	pagefault_enable();
- 	return copied;
- }
- 
+> -	if (filepage && PageUptodate(filepage))
+> -		goto done;
+> +	if (filepage) {
+> +		if (PageUptodate(filepage) || sgp == SGP_WRITE_FULL)
+> +			goto done;
+> +	} else if (sgp != SGP_QUICK && sgp != SGP_READ) {
+> +		gfp_t gfp = mapping_gfp_mask(mapping);
+> +		if (sgp != SGP_WRITE_FULL)
+> +			gfp |= __GFP_ZERO;
+> +		cache = shmem_alloc_page(mapping_gfp_mask(mapping), info, idx);
+> +		if (sgp != SGP_WRITE_FULL) {
+> +			flush_dcache_page(filepage);
+> +			SetPageUptodate(filepage); /* could be non-atomic */
+> +		}
 
+That's a very odd place to SetPageUptodate(filepage), where filepage
+is NULL.  Those lines seem to have crept up from much further down.
+
+> +not_swap_backed:
+> +			BUG_ON(!cache);
+> +			filepage = cache;
+> +			if (add_to_page_cache_lru(filepage, mapping,
+> +							idx, GFP_ATOMIC)) {
+> +				if (free_swap)
+> +					shmem_swp_unmap(entry);
+>  				spin_unlock(&info->lock);
+> -				page_cache_release(filepage);
+>  				shmem_unacct_blocks(info->flags, 1);
+>  				shmem_free_blocks(inode, 1);
+>  				filepage = NULL;
+> -				if (error)
+> -					goto failed;
+>  				goto repeat;
+
+You're in danger of leaking your cache page when you go back to repeat
+there.  But you do indeed want to retry a memory allocation, otherwise
+it might cycle around without any memory for the add_to_page_cache_lru.
+Perhaps you just need to reinstate the page_cache_release(filepage)?
+
+But the main problem is over in shmem_file_write:
+
+> @@ -1458,6 +1480,8 @@ shmem_file_write(struct file *file, cons
+>  			i_size_write(inode, pos);
+>  
+>  		flush_dcache_page(page);
+> +		if (sgp == SGP_WRITE_FULL)
+> +			SetPageUptodate(page);
+>  		set_page_dirty(page);
+>  		mark_page_accessed(page);
+>  		page_cache_release(page);
+
+If someone might be waiting for PageUptodate, you ought to wake them.
+But in fact nobody does wait for that PageUptodate, and you don't
+have pagelock, which is bad news: someone can get in to peep at the
+uninitialized page (just as I think you've discovered in ramfs).
+
+I suggest you set this patch aside for now.  If your various
+truncation/pagelock/deadlock efforts work out, then it should
+become natural for us to change shmem_getpage to return with
+pagelock held, and then might as well SetPageUptodate itself
+as now (prematurely, but no matter while pagelock is held,
+since even to read demands pagelock for a moment).
+
+And meanwhile we'll maybe think of a more appealing way to do it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
