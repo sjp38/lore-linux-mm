@@ -1,43 +1,124 @@
-Message-ID: <45347288.6040808@yahoo.com.au>
-Date: Tue, 17 Oct 2006 16:04:56 +1000
+Message-ID: <453475A4.2000504@yahoo.com.au>
+Date: Tue, 17 Oct 2006 16:18:12 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Page allocator: Single Zone optimizations
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com> <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] Fix bug in try_to_free_pages and balance_pgdat when they
+ fail to reclaim pages
+References: <453425A5.5040304@google.com>
+In-Reply-To: <453425A5.5040304@google.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@osdl.org, linux-mm@kvack.org
+To: Martin Bligh <mbligh@google.com>
+Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
+Martin Bligh wrote:
 
->On Tue, 17 Oct 2006, KAMEZAWA Hiroyuki wrote:
->
->
->>How about defining following instead of inserting #ifdefs ?
->>
->>#ifdef ZONES_SHIFT > 0
->>#define zone_lowmem_reserve(z, i)	((z)->lowmem_reserve[(i)])
->>#else
->>#define zone_lowmem_reserve(z, i)	(0)
->>#endif
->>
->>and removing #if's from *.c files ? Can't this be help ?
->>
->
->Well it only shifts the #ifdef elsewhere.... 
->
+> The same bug is contained in both try_to_free_pages and balance_pgdat.
+> On reclaiming the requisite number of pages we correctly set
+> prev_priority back to DEF_PRIORITY.
 
-Shifting this out of the caller like this tends to be the accepted
-way of doing it. It does tend to be more readable.
 
-I would give an ack to Kame's approach for lowmem_reserve ;)
+AFAIKS, we set prev_priority to the priority at which the zone was
+deemed to require no more reclaiming, not DEF_PRIORITY.
 
+> However, we ALSO do this even
+> if we loop over all priorities and fail to reclaim.
+
+
+If that happens, shouldn't prev_priority be set to 0?
+
+I don't agree the patch is correct.
+
+>
+> Setting prev_priority artificially high causes reclaimers to set
+> distress artificially low, and fail to reclaim mapped pages, when
+> they are, in fact, under severe memory pressure (their priority
+> may be as low as 0). This causes the OOM killer to fire incorrectly.
+>
+> This patch changes that to set prev_priority to 0 instead, if we
+> fail to reclaim.
+
+
+We saw problems with this before releasing SLES10 too. See
+zone_is_near_oom and other changesets from around that era. I would
+like to know what workload was prevented from going OOM with these
+changes, but zone_is_near_oom didn't help -- it must have been very
+marginal (or there may indeed be a bug somewhere).
+
+Nick
 --
+
+>
+> Signed-off-by: Martin J. Bligh <mbligh@google.com>
+
+>
+>
+>------------------------------------------------------------------------
+>
+>diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/vmscan.c 2.6.18-prev_reset/mm/vmscan.c
+>--- linux-2.6.18/mm/vmscan.c	2006-09-20 12:24:42.000000000 -0700
+>+++ 2.6.18-prev_reset/mm/vmscan.c	2006-10-16 17:23:48.000000000 -0700
+>@@ -962,7 +962,6 @@ static unsigned long shrink_zones(int pr
+> unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
+> {
+> 	int priority;
+>-	int ret = 0;
+> 	unsigned long total_scanned = 0;
+> 	unsigned long nr_reclaimed = 0;
+> 	struct reclaim_state *reclaim_state = current->reclaim_state;
+>@@ -1000,8 +999,15 @@ unsigned long try_to_free_pages(struct z
+> 		}
+> 		total_scanned += sc.nr_scanned;
+> 		if (nr_reclaimed >= sc.swap_cluster_max) {
+>-			ret = 1;
+>-			goto out;
+>+			for (i = 0; zones[i] != 0; i++) {
+>+				struct zone *zone = zones[i];
+>+
+>+				if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+>+					continue;
+>+
+>+				zone->prev_priority = zone->temp_priority;
+>+			}
+>+			return 1;
+> 		}
+> 
+> 		/*
+>@@ -1021,16 +1027,15 @@ unsigned long try_to_free_pages(struct z
+> 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
+> 			blk_congestion_wait(WRITE, HZ/10);
+> 	}
+>-out:
+> 	for (i = 0; zones[i] != 0; i++) {
+> 		struct zone *zone = zones[i];
+> 
+> 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+> 			continue;
+> 
+>-		zone->prev_priority = zone->temp_priority;
+>+		zone->prev_priority = 0;
+> 	}
+>-	return ret;
+>+	return 0;
+> }
+> 
+> /*
+>@@ -1186,7 +1191,10 @@ out:
+> 	for (i = 0; i < pgdat->nr_zones; i++) {
+> 		struct zone *zone = pgdat->node_zones + i;
+> 
+>-		zone->prev_priority = zone->temp_priority;
+>+		if (priority < 0)		/* we failed to reclaim */
+>+			zone->prev_priority = 0;
+>+		else
+>+			zone->prev_priority = zone->temp_priority;
+> 	}
+> 	if (!all_zones_ok) {
+> 		cond_resched();
+>
 
 Send instant messages to your online friends http://au.messenger.yahoo.com 
 
