@@ -1,131 +1,100 @@
-Message-ID: <45350CF3.6030306@yahoo.com.au>
-Date: Wed, 18 Oct 2006 03:03:47 +1000
+Message-ID: <45350F92.7010207@yahoo.com.au>
+Date: Wed, 18 Oct 2006 03:14:58 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Fix bug in try_to_free_pages and balance_pgdat when they
- fail to reclaim pages
-References: <453425A5.5040304@google.com> <453475A4.2000504@yahoo.com.au> <453479D2.1090302@google.com> <45347CA3.9020904@yahoo.com.au> <4534E397.8090505@google.com>
-In-Reply-To: <4534E397.8090505@google.com>
+Subject: Re: [PATCH] Use min of two prio settings in calculating distress
+ for reclaim
+References: <4534323F.5010103@google.com> <45347951.3050907@yahoo.com.au> <45347B91.20404@google.com> <45347E89.8010705@yahoo.com.au> <4534E00C.1070301@google.com> <45350839.5010602@yahoo.com.au> <45350BD3.2060503@google.com>
+In-Reply-To: <45350BD3.2060503@google.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Martin Bligh <mbligh@google.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
-
->> But temp_priority should be set to 0 at that point.
-> 
-> 
-> It that were true, it'd be great. But how?
-> This is everything that touches it:
-> 
-> 0 mmzone.h     <global>             208 int temp_priority;
-> 1 page_alloc.c free_area_init_core 2019 zone->temp_priority =
->                                         zone->prev_priority = DEF_PRIORITY;
-> 2 vmscan.c     shrink_zones         937 zone->temp_priority = priority;
-> 3 vmscan.c     try_to_free_pages    987 zone->temp_priority = DEF_PRIORITY;
-> 4 vmscan.c     try_to_free_pages   1031 zone->prev_priority =
->                                         zone->temp_priority;
-> 5 vmscan.c     balance_pgdat       1081 zone->temp_priority = DEF_PRIORITY;
-> 6 vmscan.c     balance_pgdat       1143 zone->temp_priority = priority;
-> 7 vmscan.c     balance_pgdat       1189 zone->prev_priority =
->                                         zone->temp_priority;
-> 8 vmstat.c     zoneinfo_show        593 zone->temp_priority,
-> 
-> Only thing that looks interesting here is shrink_zones.
-
-For try_to_free_pages, shrink_zones will continue to be called until
-priority reaches 0. So temp_priority and prev_priority are now 0. When
-it breaks out of the loop, prev_priority gets assigned temp_priority.
-Both of which are zero *unless you've hit the temp_priority race*. As
-I said, getting rid of temp_priority and somehow tracking it locally
-will close this race. I agree this race is a bug and would be happy to
-see it fixed. This might be what your patch inadvertently fixes.
-
-
-
->> But your loops are not exactly per reclaimer either. Granted there
->> is a large race window in the current code, but this patch isn't the
->> way to fix that particular problem.
-> 
-> 
-> Why not? Perhaps it's not a panacea, but it's a definite improvement.
-
-OK it is an improvement for the cases when we hit priority = 0. It would
-be nice to fix the race for medium priorities as well though. Hmm, OK,
-if we can't do that easily then I would be OK with this approach for the
-time being.
-
-Please don't duplicate that whole loop again in try_to_free_pages, though.
-
-> 
->>> Moreover, whilst try_to_free_pages calls shrink_zones, balance_pgdat
->>> does not. Nothing else I can see sets temp_priority.
+Martin Bligh wrote:
+>> Distress is a per-zone thing. It is precisely that way because there 
+>> *are*
+>> different types of reclaim and you don't want a crippled reclaimer (which
+>> might indeed be having trouble reclaiming stuff) from saying the system
+>> is in distress.
 >>
+>> If they are the *only* reclaimer, then OK, distress will go up.
+> 
+> 
+> So you'd rather the "crippled" reclaimer went and fire the OOM killer
+> and shoot someone instead?
+
+No, so I fixed that.
+http://www.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=408d85441cd5a9bd6bc851d677a10c605ed8db5f
+
+> I don't see why we should penalise them,
+> especially as the dirty page throttling is global, and will just kick
+> pretty much anyone trying to do an allocation. There's nothing magic
+
+How does dirty page throttling kick anyone trying to do an allocation?
+It kicks at page dirtying time.
+
+> about the "crippled" reclaimer as you put it. They're doing absolutely
+> nothing wrong, or that they should be punished for. They need a page.
+
+When did I say anything about magic or being punished? They need a page
+and they will get it when enough memory gets freed. Pages being reclaimed
+by process A may be allocated by process B just fine.
+
+>> I don't agree that the thing to aim for is ensuring everyone is able
+>> to reclaim something.
 >>
->> balance_pgdat.
+>> And why do you ignore the other side of the coin, where now reclaimers
+>> that are easily able to make progress are being made to swap stuff out?
 > 
 > 
-> That's only called from kswapd. If we're in balance_pgdat, we ARE 
-> kswapd. We can't fix ourself. So effectively we're doing:
-> 
-> while (priority--) {
->     if (we reclaimed OK)
->         goto out;
-> }
-> out:
-> prev_priority = DEF_PRIORITY;
-> 
-> We've just walked the whole bloody list with priority set to 0.
-> 
-> We failed to reclaim a few pages.
-> 
-> We know the world is in deep pain.
-> 
-> Why the hell would we elevate prev_priority?
+> Because I'd rather err on the side of moving a few mapped pages from the
+> active to the inactive list than cause massive latencies for a page
+> allocation that's dropping into direct reclaim and/or going OOM.
 
-No. If we've walked the whole bloody list and failed to reclaim any
-pages, we do not set prev_priority to DEF_PRIORITY. Read the code, it
-does the same thing with the priorities as shrink_zones.
+We shouldn't go OOM. And there are latencies everywhere and this won't
+fix them. A GFP_NOIO allocator can't swap out pages at all, for example.
 
->> Unnecesary and indicates something else is broken if you are seeing
->> problems here.
+>> If the GFP_NOFS reclaimer is having a lot of trouble reclaiming, and so
+>> you decide to turn on reclaim_mapped, then it is not suddenly going to
+>> be able to free those pages.
 > 
 > 
-> You think we should set prev_priority up, when we've just walked the
-> whole list at prio 0 and can't reclaim anything? Unless so, I fail
-> to see how the patch is unnecessary.
+> Well it's certainly not going to work if we don't even try. There were
+> ZERO pages in the inactive list at this point. The system is totally
+> frigging hosed and we're not even trying to reclaim pages because
+> we're in deluded-happy-la-la land and we think everything is fine.
+
+So that could be the temp_priority race. If no progress is being made
+anywhere, the current logic (minus races) says that prev_prio should
+reach 0. Regardless of whether it is GFP_NOFS or whatever.
+
+> This is what happens as we kick down prio levels in one thread:
 > 
-> And yes, I'm sure other things are broken, but again, this fixes a
-> clear bug.
-
-AFAIKS there is no bug that have identified here or in your changelog.
-There is a race, there are many of tolerable races in reclaim. I can
-accept this races is intolerable for you, so I am OK with fixing it.
-
-
->  > So do you still see the problem on upstream kernel
+> priority = 12 active_distress = 0 swap_tendency = 0 gfp_mask = d0
+> priority = 12 active_distress = 0 swap_tendency = 0 gfp_mask = d0
+> priority = 11 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 10 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 9 active_distress = 0 swap_tendency = 81 gfp_mask = d0
+> priority = 8 active_distress = 0 swap_tendency = 81 gfp_mask = d0
+> priority = 7 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 6 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 5 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 4 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 3 active_distress = 25 swap_tendency = 106 gfp_mask = d0
+> priority = 2 active_distress = 50 swap_tendency = 131 gfp_mask = d0
+> priority = 1 active_distress = 0 swap_tendency = 81 gfp_mask = d0
+> priority = 0 active_distress = 0 swap_tendency = 81 gfp_mask = d0
 > 
->> without your patches applied?
-> 
-> 
-> I can't slap an upstream bleeding edge kernel across a few thousand
-> production machines, and wait to see if the world blows up, sorry.
-> If I can make a reproduce test case, I'll send it out, but thus far
-> we've been unsuccessful.
+> Notice that distress is not kicking up as priority kicks down (see
+> 1 and 0 at the end). Because some other idiot reset prev_priority
+> back to 12.
 
-No problem, I didn't ask you to do that. But if you want this patch
-in the upstream kerenl, then I will keep asking whether it fixes a
-problem in the upstream kernel.
-
-> 
-> But I can see it happening in earlier versions, and I can read the
-> code in 2.6.18, and see obvious bugs.
-
-I can't see any besides the temp_priority race.
+Fine, so fix that race rather than papering over it by using the min
+of prev_priority and current priority.
 
 -- 
 SUSE Labs, Novell Inc.
