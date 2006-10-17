@@ -1,51 +1,106 @@
-Date: Mon, 16 Oct 2006 11:31:40 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [TAKE] memory page_alloc zonelist caching speedup
-Message-Id: <20061016113140.f5461567.pj@sgi.com>
-In-Reply-To: <20061016095805.f7576230.pj@sgi.com>
-References: <20061010081429.15156.77206.sendpatchset@jackhammer.engr.sgi.com>
-	<200610161134.07168.ak@suse.de>
-	<20061016032632.486f4235.pj@sgi.com>
-	<20061016112535.GA13218@lnx-holt.americas.sgi.com>
-	<20061016095805.f7576230.pj@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <453425A5.5040304@google.com>
+Date: Mon, 16 Oct 2006 17:36:53 -0700
+From: Martin Bligh <mbligh@google.com>
+MIME-Version: 1.0
+Subject: [PATCH] Fix bug in try_to_free_pages and balance_pgdat when they
+ fail to reclaim pages
+Content-Type: multipart/mixed;
+ boundary="------------000303090100080302010006"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: holt@sgi.com, ak@suse.de, linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, rientjes@google.com, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-And note that in the vast majority of cases, where the requested page
-is available on the local node, there is no difference.
+This is a multi-part message in MIME format.
+--------------000303090100080302010006
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Only if we are forced to start scanning other nodes do we examine,
-and once per-second zap, our node local cache of whether the other
-nodes we scan were recently found to be full.
+The same bug is contained in both try_to_free_pages and balance_pgdat.
+On reclaiming the requisite number of pages we correctly set
+prev_priority back to DEF_PRIORITY. However, we ALSO do this even
+if we loop over all priorities and fail to reclaim.
 
-The classic parts of the zonelist zone arrays are still intact,
-read-only, at the front of the struct zonelist.
+Setting prev_priority artificially high causes reclaimers to set
+distress artificially low, and fail to reclaim mapped pages, when
+they are, in fact, under severe memory pressure (their priority
+may be as low as 0). This causes the OOM killer to fire incorrectly.
 
-The compact, node-local, periodically written zonelist cache is added
-at the end of the zonelist struct, most likely in its own cache lines,
-and lets us avoid node remote access to a larger set of more frequently
-updated cache lines on each allocation request.
+This patch changes that to set prev_priority to 0 instead, if we
+fail to reclaim.
 
-Only on configs with small, but greater than one, MAX_NUMNODES, is
-there any chance of the zonelist cache being on the same cache line
-as the class zone array.  As best as I can tell from a quick grep,
-that would be avr32, arm/collie, powerpc/cell, and powerpc/pseries,
-which have NODES_SHIFT values between 2 and 4, and various L1 cache
-line sizes between 16 and 128 bytes.
+Signed-off-by: Martin J. Bligh <mbligh@google.com>
 
-Perhaps I should add a ____cacheline_aligned qualifier to the
-zonelist_cache struct, for these arch's?
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+--------------000303090100080302010006
+Content-Type: text/plain;
+ name="2.6.18-prev_reset"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="2.6.18-prev_reset"
+
+diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/vmscan.c 2.6.18-prev_reset/mm/vmscan.c
+--- linux-2.6.18/mm/vmscan.c	2006-09-20 12:24:42.000000000 -0700
++++ 2.6.18-prev_reset/mm/vmscan.c	2006-10-16 17:23:48.000000000 -0700
+@@ -962,7 +962,6 @@ static unsigned long shrink_zones(int pr
+ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
+ {
+ 	int priority;
+-	int ret = 0;
+ 	unsigned long total_scanned = 0;
+ 	unsigned long nr_reclaimed = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+@@ -1000,8 +999,15 @@ unsigned long try_to_free_pages(struct z
+ 		}
+ 		total_scanned += sc.nr_scanned;
+ 		if (nr_reclaimed >= sc.swap_cluster_max) {
+-			ret = 1;
+-			goto out;
++			for (i = 0; zones[i] != 0; i++) {
++				struct zone *zone = zones[i];
++
++				if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
++					continue;
++
++				zone->prev_priority = zone->temp_priority;
++			}
++			return 1;
+ 		}
+ 
+ 		/*
+@@ -1021,16 +1027,15 @@ unsigned long try_to_free_pages(struct z
+ 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
+ 			blk_congestion_wait(WRITE, HZ/10);
+ 	}
+-out:
+ 	for (i = 0; zones[i] != 0; i++) {
+ 		struct zone *zone = zones[i];
+ 
+ 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+ 			continue;
+ 
+-		zone->prev_priority = zone->temp_priority;
++		zone->prev_priority = 0;
+ 	}
+-	return ret;
++	return 0;
+ }
+ 
+ /*
+@@ -1186,7 +1191,10 @@ out:
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+ 
+-		zone->prev_priority = zone->temp_priority;
++		if (priority < 0)		/* we failed to reclaim */
++			zone->prev_priority = 0;
++		else
++			zone->prev_priority = zone->temp_priority;
+ 	}
+ 	if (!all_zones_ok) {
+ 		cond_resched();
+
+--------------000303090100080302010006--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
