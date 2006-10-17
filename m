@@ -1,75 +1,49 @@
-Subject: [PATCH] mm:D-cache aliasing issue in cow_user_page
-From: Dmitriy Monakhov <dmonakhov@openvz.org>
-Date: Tue, 17 Oct 2006 13:15:37 +0400
-Message-ID: <8764ejqp52.fsf@sw.ru>
+Received: from master.linux-sh.org (124x34x33x190.ap124.ftth.ucom.ne.jp [124.34.33.190])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by smtp.ocgnet.org (Postfix) with ESMTP id A84EE70C93F
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2006 07:44:49 -0500 (CDT)
+Received: from localhost (unknown [127.0.0.1])
+	by master.linux-sh.org (Postfix) with ESMTP id 9FE61658E8
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2006 12:44:44 +0000 (UTC)
+Received: from master.linux-sh.org ([127.0.0.1])
+	by localhost (master.linux-sh.org [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id T0ZjAoE3d0EV for <linux-mm@kvack.org>;
+	Tue, 17 Oct 2006 21:44:44 +0900 (JST)
+Date: Tue, 17 Oct 2006 21:44:44 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Decoupled pte_read/write/exec()?
+Message-ID: <20061017124444.GA17640@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-=-=
+I'm faced with a bit of an issue interfacing a new MMU. Our previous ones
+were quite simple, lacking both explicit execute protections and
+following write implies read semantics. In this new case however we have
+a full read/write/execute set of permissions, for both user _and_ kernel
+access, effectively allowing for user mappings that aren't readable by
+the kernel.
 
- from mm/memory.c:
-  1434  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va)
-  1435  {
-  1436          /*
-  1437           * If the source page was a PFN mapping, we don't have
-  1438           * a "struct page" for it. We do a best-effort copy by
-  1439           * just copying from the original user address. If that
-  1440           * fails, we just zero-fill it. Live with it.
-  1441           */
-  1442          if (unlikely(!src)) {
-  1443                  void *kaddr = kmap_atomic(dst, KM_USER0);
-  1444                  void __user *uaddr = (void __user *)(va & PAGE_MASK);
-  1445  
-  1446                  /*
-  1447                   * This really shouldn't fail, because the page is there
-  1448                   * in the page tables. But it might just be unreadable,
-  1449                   * in which case we just give up and fill the result with
-  1450                   * zeroes.
-  1451                   */
-  1452                  if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
-  1453                          memset(kaddr, 0, PAGE_SIZE);
-  1454                  kunmap_atomic(kaddr, KM_USER0);
-  #### D-cache have to be flushed here.
-  #### It seems it is just forgotten.
+What I've been doing so far is setting the access bits for both user and
+kernel space in the PTE modifiers and clearing out the user bit when the
+clear happens. This would seem to work, but I don't like the idea of
+leaving stray permission bits set, particularly with regards to the exec
+bit, though it is only for privileged space where it's not cleared.
 
-  1455                  return;
-  1456                  
-  1457          }
-  1458          copy_user_highpage(dst, src, va);
-  #### Ok here. flush_dcache_page() called from this func if arch need it 
-  1459  }
+Is there anything obvious that I'm missing? I suspect I will just have to
+have a software _PAGE_USER bit that gets set in these places to figure
+out which set of permissions to adjust, and make sure that the kernel
+permission bits match the userspace bits so long as _PAGE_USER is set.
 
-Following is the patch  fix this issue:
-Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
----
-
---=-=-=
-Content-Disposition: inline;
-  filename=d-cache-aliasing-issue-in-cow-user-page.patch
-
-diff --git a/mm/memory.c b/mm/memory.c
-index b5a4aad..156861f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1452,6 +1452,7 @@ static inline void cow_user_page(struct 
- 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
- 			memset(kaddr, 0, PAGE_SIZE);
- 		kunmap_atomic(kaddr, KM_USER0);
-+		flush_dcache_page(dst);
- 		return;
- 		
- 	}
-
---=-=-=
-
----
-
---=-=-=--
+It looks like PowerPC is doing something similar, particularly with
+regards to pte_mkexec()/pte_exprotect(), but this seems to deny the exec
+permission to the kernel as well, where pte_rdprotect() simply clears the
+user bit, and pte_wrprotect() simply implies user write protection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
