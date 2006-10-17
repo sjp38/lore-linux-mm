@@ -1,48 +1,77 @@
-Message-ID: <45347951.3050907@yahoo.com.au>
-Date: Tue, 17 Oct 2006 16:33:53 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <453479D2.1090302@google.com>
+Date: Mon, 16 Oct 2006 23:36:02 -0700
+From: "Martin J. Bligh" <mbligh@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Use min of two prio settings in calculating distress
- for reclaim
-References: <4534323F.5010103@google.com>
-In-Reply-To: <4534323F.5010103@google.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH] Fix bug in try_to_free_pages and balance_pgdat when they
+ fail to reclaim pages
+References: <453425A5.5040304@google.com> <453475A4.2000504@yahoo.com.au>
+In-Reply-To: <453475A4.2000504@yahoo.com.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Martin Bligh wrote:
+Nick Piggin wrote:
+> Martin Bligh wrote:
+> 
+>> The same bug is contained in both try_to_free_pages and balance_pgdat.
+>> On reclaiming the requisite number of pages we correctly set
+>> prev_priority back to DEF_PRIORITY.
+> 
+> 
+> AFAIKS, we set prev_priority to the priority at which the zone was
+> deemed to require no more reclaiming, not DEF_PRIORITY.
 
-> Another bug is that if try_to_free_pages / balance_pgdat are called
-> with a gfp_mask specifying GFP_IO and/or GFP_FS, they may reclaim
-> the requisite number of pages, and reset prev_priority to DEF_PRIORITY.
->
-> However, another reclaimer without those gfp_mask flags set may still
-> be struggling to reclaim pages. The easy fix for this is to key the
-> distress calculation not off zone->prev_priority, but also take into
-> account the local caller's priority by using:
-> min(zone->prev_priority, sc->priority)
+Well, it's zone->temp_priority, which was set to DEF_PRIORITY at the
+top of the function, though I suppose something else might have
+changed it since.
 
+>> However, we ALSO do this even
+>> if we loop over all priorities and fail to reclaim.
+> 
+> 
+> If that happens, shouldn't prev_priority be set to 0?
 
-Does it really matter who is doing the actual reclaiming? IMO, if the
-non-crippled (GFP_IO|GFP_FS) reclaimer is making progress, the other
-guy doesn't need to start swapping, and should soon notice that some
-pages are getting freed up.
+Yes, but it's not. We fall off the bottom of the loop, and set it
+back to temp_priority. At best, the code is unclear.
 
-Workloads where non GFP_IO or GFP_FS reclaimers are having a lot of
-trouble indicates that either it is very swappy or page writeback has
-broken down and lots of dirty pages are being reclaimed off the LRU.
-In either case, they are likely to continue to have problems, even if
-they are now able to unmap the odd page.
+I suppose shrink_zones() might in theory knock temp_priority down
+as it goes, so it might come out right. But given that it's a global
+(per zone), not per-reclaimer, I fail to see how that's really safe.
+Supposing someone else has just started reclaim, and is still at
+prio 12?
 
-What are the empirical effects of this patch? What's the numbers? And
-what have you done to akpm? ;)
---
+Moreover, whilst try_to_free_pages calls shrink_zones, balance_pgdat
+does not. Nothing else I can see sets temp_priority.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+ > I don't agree the patch is correct.
+
+You think it's doing something wrong? Or just unnecessary?
+
+I'm inclined to think the whole concept of temp_priority and
+prev_priority are pretty broken. This may not fix the whole thing,
+but it seems to me to make it better than it was before.
+
+> We saw problems with this before releasing SLES10 too. See
+> zone_is_near_oom and other changesets from around that era. I would
+> like to know what workload was prevented from going OOM with these
+> changes, but zone_is_near_oom didn't help -- it must have been very
+> marginal (or there may indeed be a bug somewhere).
+
+Google production workload. Multiple reclaimers operating - one is
+down to priority 0 on the reclaim, but distress is still set to 0,
+thanks to prev_priority being borked. Hence we don't reclaim mapped
+pages, the reclaim fails, OOM killer kicks in.
+
+Forward ported from an earlier version of 2.6 ... but I don't see
+why we need extra heuristics here, it seems like a clear and fairly
+simple bug. We're in deep crap with reclaim, and we go set the
+global indicator back to "oh no, everything's fine". Not a good plan.
+
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
