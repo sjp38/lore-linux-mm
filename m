@@ -1,142 +1,40 @@
-Message-ID: <45351423.70804@google.com>
-Date: Tue, 17 Oct 2006 10:34:27 -0700
-From: Martin Bligh <mbligh@google.com>
+Message-ID: <4535160E.2010908@yahoo.com.au>
+Date: Wed, 18 Oct 2006 03:42:38 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [RFC] Remove temp_priority
-Content-Type: multipart/mixed;
- boundary="------------020603040006080409020505"
+Subject: Re: [RFC] Remove temp_priority
+References: <45351423.70804@google.com>
+In-Reply-To: <45351423.70804@google.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
+To: Martin Bligh <mbligh@google.com>
+Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020603040006080409020505
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Martin Bligh wrote:
+> This is not tested yet. What do you think?
+> 
+> This patch removes temp_priority, as it is racy. We're setting
+> prev_priority from it, and yet temp_priority could have been
+> set back to DEF_PRIORITY by another reclaimer.
 
-This is not tested yet. What do you think?
+I like it. I wonder if we should get kswapd to stick its priority
+into the zone at the point where zone_watermark_ok becomes true,
+rather than setting all zones to the lowest priority? That would
+require a bit more logic though I guess.
 
-This patch removes temp_priority, as it is racy. We're setting
-prev_priority from it, and yet temp_priority could have been
-set back to DEF_PRIORITY by another reclaimer.
+For that matter (going off the topic a bit), I wonder if
+try_to_free_pages should have a watermark check there too? This
+might help reduce the latency issue you brought up where one process
+has reclaimed a lot of pages, but another isn't making any progress
+and has to go through the full priority range? Maybe that's
+statistically pretty unlikely?
 
-
-
-
---------------020603040006080409020505
-Content-Type: text/plain;
- name="2.6.18-prio_fix"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="2.6.18-prio_fix"
-
-diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/include/linux/mmzone.h 2.6.18-prio_fix/include/linux/mmzone.h
---- linux-2.6.18/include/linux/mmzone.h	2006-09-20 12:24:41.000000000 -0700
-+++ 2.6.18-prio_fix/include/linux/mmzone.h	2006-10-17 10:27:48.000000000 -0700
-@@ -199,13 +199,9 @@ struct zone {
- 	 * under - it drives the swappiness decision: whether to unmap mapped
- 	 * pages.
- 	 *
--	 * temp_priority is used to remember the scanning priority at which
--	 * this zone was successfully refilled to free_pages == pages_high.
--	 *
--	 * Access to both these fields is quite racy even on uniprocessor.  But
--	 * it is expected to average out OK.
-+	 * Access to this field is quite racy even on uniprocessor. It needs
-+	 * to be fixed.
- 	 */
--	int temp_priority;
- 	int prev_priority;
- 
- 
-diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/page_alloc.c 2.6.18-prio_fix/mm/page_alloc.c
---- linux-2.6.18/mm/page_alloc.c	2006-09-20 12:24:42.000000000 -0700
-+++ 2.6.18-prio_fix/mm/page_alloc.c	2006-10-17 10:25:55.000000000 -0700
-@@ -2016,7 +2016,7 @@ static void __meminit free_area_init_cor
- 		zone->zone_pgdat = pgdat;
- 		zone->free_pages = 0;
- 
--		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
-+		zone->prev_priority = DEF_PRIORITY;
- 
- 		zone_pcp_init(zone);
- 		INIT_LIST_HEAD(&zone->active_list);
-diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/vmscan.c 2.6.18-prio_fix/mm/vmscan.c
---- linux-2.6.18/mm/vmscan.c	2006-09-20 12:24:42.000000000 -0700
-+++ 2.6.18-prio_fix/mm/vmscan.c	2006-10-17 10:25:24.000000000 -0700
-@@ -934,7 +934,6 @@ static unsigned long shrink_zones(int pr
- 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
- 			continue;
- 
--		zone->temp_priority = priority;
- 		if (zone->prev_priority > priority)
- 			zone->prev_priority = priority;
- 
-@@ -984,7 +983,6 @@ unsigned long try_to_free_pages(struct z
- 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
- 			continue;
- 
--		zone->temp_priority = DEF_PRIORITY;
- 		lru_pages += zone->nr_active + zone->nr_inactive;
- 	}
- 
-@@ -1021,6 +1019,8 @@ unsigned long try_to_free_pages(struct z
- 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
- 			blk_congestion_wait(WRITE, HZ/10);
- 	}
-+	if (priority < 0)
-+		priority = 0;
- out:
- 	for (i = 0; zones[i] != 0; i++) {
- 		struct zone *zone = zones[i];
-@@ -1028,7 +1028,7 @@ out:
- 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
- 			continue;
- 
--		zone->prev_priority = zone->temp_priority;
-+		zone->prev_priority = priority;
- 	}
- 	return ret;
- }
-@@ -1075,12 +1075,6 @@ loop_again:
- 	sc.may_writepage = !laptop_mode;
- 	count_vm_event(PAGEOUTRUN);
- 
--	for (i = 0; i < pgdat->nr_zones; i++) {
--		struct zone *zone = pgdat->node_zones + i;
--
--		zone->temp_priority = DEF_PRIORITY;
--	}
--
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
-@@ -1140,7 +1134,6 @@ scan:
- 			if (!zone_watermark_ok(zone, order, zone->pages_high,
- 					       end_zone, 0))
- 				all_zones_ok = 0;
--			zone->temp_priority = priority;
- 			if (zone->prev_priority > priority)
- 				zone->prev_priority = priority;
- 			sc.nr_scanned = 0;
-@@ -1182,11 +1175,13 @@ scan:
- 		if (nr_reclaimed >= SWAP_CLUSTER_MAX)
- 			break;
- 	}
-+	if (priority < 0)
-+		priority = 0;
- out:
- 	for (i = 0; i < pgdat->nr_zones; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
- 
--		zone->prev_priority = zone->temp_priority;
-+		zone->prev_priority = priority;
- 	}
- 	if (!all_zones_ok) {
- 		cond_resched();
-
---------------020603040006080409020505--
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
