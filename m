@@ -1,138 +1,120 @@
-Message-ID: <4534E397.8090505@google.com>
-Date: Tue, 17 Oct 2006 07:07:19 -0700
-From: "Martin J. Bligh" <mbligh@google.com>
+Message-ID: <45350839.5010602@yahoo.com.au>
+Date: Wed, 18 Oct 2006 02:43:37 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Fix bug in try_to_free_pages and balance_pgdat when they
- fail to reclaim pages
-References: <453425A5.5040304@google.com> <453475A4.2000504@yahoo.com.au> <453479D2.1090302@google.com> <45347CA3.9020904@yahoo.com.au>
-In-Reply-To: <45347CA3.9020904@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] Use min of two prio settings in calculating distress
+ for reclaim
+References: <4534323F.5010103@google.com> <45347951.3050907@yahoo.com.au> <45347B91.20404@google.com> <45347E89.8010705@yahoo.com.au> <4534E00C.1070301@google.com>
+In-Reply-To: <4534E00C.1070301@google.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@google.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->> Well, it's zone->temp_priority, which was set to DEF_PRIORITY at the
->> top of the function, though I suppose something else might have
->> changed it since.
-> 
-> Yes.
-
-...
-
->>> If that happens, shouldn't prev_priority be set to 0?
+Martin J. Bligh wrote:
+>>> That's not what happens though. We walk down the priorities, fail to
+>>> reclaim anything (in this case, move anything from active to inactive)
+>>> and the OOM killer fires. Perhaps the other pages being freed are
+>>> being stolen ... we're in direct reclaim here. we're meant to be
+>>> getting our own pages.
 >>
->> Yes, but it's not. We fall off the bottom of the loop, and set it
->> back to temp_priority. At best, the code is unclear.
+>>
+>>
+>> That may be what happens in *your* kernel, but does it happen upstream?
+>> Because I expect this patch would fix the problem
+>>
+>> http://www.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=408d85441cd5a9bd6bc851d677a10c605ed8db5f 
+>>
+>>
+>> (together with the zone_near_oom thing)
 > 
-> But temp_priority should be set to 0 at that point.
-
-It that were true, it'd be great. But how?
-This is everything that touches it:
-
-0 mmzone.h     <global>             208 int temp_priority;
-1 page_alloc.c free_area_init_core 2019 zone->temp_priority =
-                                         zone->prev_priority = DEF_PRIORITY;
-2 vmscan.c     shrink_zones         937 zone->temp_priority = priority;
-3 vmscan.c     try_to_free_pages    987 zone->temp_priority = DEF_PRIORITY;
-4 vmscan.c     try_to_free_pages   1031 zone->prev_priority =
-                                         zone->temp_priority;
-5 vmscan.c     balance_pgdat       1081 zone->temp_priority = DEF_PRIORITY;
-6 vmscan.c     balance_pgdat       1143 zone->temp_priority = priority;
-7 vmscan.c     balance_pgdat       1189 zone->prev_priority =
-                                         zone->temp_priority;
-8 vmstat.c     zoneinfo_show        593 zone->temp_priority,
-
-Only thing that looks interesting here is shrink_zones.
-
->> I suppose shrink_zones() might in theory knock temp_priority down
->> as it goes, so it might come out right. But given that it's a global
->> (per zone), not per-reclaimer, I fail to see how that's really safe.
->> Supposing someone else has just started reclaim, and is still at
->> prio 12?
 > 
-> But your loops are not exactly per reclaimer either. Granted there
-> is a large race window in the current code, but this patch isn't the
-> way to fix that particular problem.
+> So? I fail to see how slapping another bandaid on top of it prevents
+> us from fixing an underlying problem.
 
-Why not? Perhaps it's not a panacea, but it's a definite improvement.
+That is the fix for the underlying problem. The underlying problem is that
+OOM was being triggered incorrectly without enough scanning. Your patch
+is the bandaid which just tries to increase the amount of scanning a bit
+in the hope that it holds off OOM for your workload.
 
->> Moreover, whilst try_to_free_pages calls shrink_zones, balance_pgdat
->> does not. Nothing else I can see sets temp_priority.
+>>> Why would we ever want distress to be based off a priority that's
+>>> higher than our current one? That's just silly.
+>>
+>>
+>> Maybe there is an occasional GFP_NOFS reclaimer, and the workload 
+>> involves a huge number of easy to reclaim inodes. If there are some 
 > 
-> balance_pgdat.
-
-That's only called from kswapd. If we're in balance_pgdat, we ARE 
-kswapd. We can't fix ourself. So effectively we're doing:
-
-while (priority--) {
-	if (we reclaimed OK)
-		goto out;
-}
-out:
-prev_priority = DEF_PRIORITY;
-
-We've just walked the whole bloody list with priority set to 0.
-
-We failed to reclaim a few pages.
-
-We know the world is in deep pain.
-
-Why the hell would we elevate prev_priority?
-
-> Unnecesary and indicates something else is broken if you are seeing
-> problems here.
-
-You think we should set prev_priority up, when we've just walked the
-whole list at prio 0 and can't reclaim anything? Unless so, I fail
-to see how the patch is unnecessary.
-
-And yes, I'm sure other things are broken, but again, this fixes a
-clear bug.
-
->> I'm inclined to think the whole concept of temp_priority and
->> prev_priority are pretty broken. This may not fix the whole thing,
->> but it seems to me to make it better than it was before.
+>  > GFP_KERNEL allocators (or kswapd) that are otherwise making a meal
+>  > of this work, then we don't want to start swapping stuff out.
+>  >
 > 
-> I think it is broken too. I liked my split active lists, but at that point
-> vmscan.c was in don't-touch mode.
-
-I'm glad we agree it's broken. Whilst we await the 100th rewrite of the
-VM, perhaps we can apply this simple fix?
-
-> OK, so it sounds like temp_priority is being overwritten by the
-> race. I'd consider throwing out temp_priority completely, and just
-> going with adjusting prev_priority as we go.
-
-I'm fine with that. Whole thing is racy as hell and pretty pointless
-anyway. I'll make another patch up today.
-
->> Forward ported from an earlier version of 2.6 ... but I don't see
->> why we need extra heuristics here, it seems like a clear and fairly
->> simple bug. We're in deep crap with reclaim, and we go set the
->> global indicator back to "oh no, everything's fine". Not a good plan.
+>> Hypothetical maybe, but you can't just make the assertion that it is 
+>> just silly, because that isn't clear. And it isn't clear that your 
 > 
-> All that reclaim_mapped code is pretty arbitrary anyway. What is needed
-> is the zone_is_near_oom so we can decouple all those heuristics from
-> the OOM decision. 
+>  > patch fixes anything.
+> 
+> It'll stop the GFP_NOFS reclaimer going OOM. Yes, some other
+> bandaids might do that as well, but what on earth is the point? By
+> the time anyone gets to the lower prios, they SHOULD be setting
+> distress up - they ARE in distress.
 
-It seems what is needed is that we start to actually reclaim pages when
-priority gets low. This is a very simple way of improving that.
+Distress is a per-zone thing. It is precisely that way because there *are*
+different types of reclaim and you don't want a crippled reclaimer (which
+might indeed be having trouble reclaiming stuff) from saying the system
+is in distress.
 
- > So do you still see the problem on upstream kernel
-> without your patches applied?
+If they are the *only* reclaimer, then OK, distress will go up.
 
-I can't slap an upstream bleeding edge kernel across a few thousand
-production machines, and wait to see if the world blows up, sorry.
-If I can make a reproduce test case, I'll send it out, but thus far
-we've been unsuccessful.
+> The point of having zone->prev_priority is to kick everyone up into 
+> reclaim faster in sync with each other. Look at how it's set, it's meant
+> to function as a min of everyone's prio. Then when we start successfully
+> reclaiming again, we kick it back to DEF_PRIORITY to indicate everything
+> is OK. But that fails to take account of the fact that some reclaimers
+> will struggle more than others.
 
-But I can see it happening in earlier versions, and I can read the
-code in 2.6.18, and see obvious bugs.
+I don't agree that the thing to aim for is ensuring everyone is able
+to reclaim something.
 
-M.
+And why do you ignore the other side of the coin, where now reclaimers
+that are easily able to make progress are being made to swap stuff out?
+
+> If we're in direct reclaim in the first place, it's because we're
+> allocating faster than kswapd can keep up, or we're meant to be
+> throttling ourselves on dirty writeback. Either way, we need to be
+> freeing our own pages, not dicking around thrashing the LRU lists
+> without doing anything.
+
+If the GFP_NOFS reclaimer is having a lot of trouble reclaiming, and so
+you decide to turn on reclaim_mapped, then it is not suddenly going to
+be able to free those pages.
+
+> All of this debate seems pretty pointless to me. Look at the code, and
+> what I fixed. It's clearly broken by inspection. I'm not saying this is
+> the only way to fix it, or that it fixes all the world's problems. But
+> it's clearly an incremental improvement by fixing an obvious bug.
+
+It is not clearly broken. You have some picture in your mind of how you
+think reclaim should work, and it doesn't match that. Fine, but that
+doesn't make it a bug.
+
+> 
+> No wonder Linux doesn't degrade gracefully under memory pressure - we
+> refuse to reclaim when we need to.
+
+If the zone is unable to be reclaimed from, then the priority will be
+lowered.
+
+> PS. I think we should just remove temp_priority altogether, and use a
+> local variable.
+
+Yes. I don't remember how temp_priority came about. I think it was Nikita?
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
