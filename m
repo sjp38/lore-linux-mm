@@ -1,104 +1,142 @@
-Message-ID: <45350F92.7010207@yahoo.com.au>
-Date: Wed, 18 Oct 2006 03:14:58 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <45351423.70804@google.com>
+Date: Tue, 17 Oct 2006 10:34:27 -0700
+From: Martin Bligh <mbligh@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Use min of two prio settings in calculating distress
- for reclaim
-References: <4534323F.5010103@google.com> <45347951.3050907@yahoo.com.au> <45347B91.20404@google.com> <45347E89.8010705@yahoo.com.au> <4534E00C.1070301@google.com> <45350839.5010602@yahoo.com.au> <45350BD3.2060503@google.com>
-In-Reply-To: <45350BD3.2060503@google.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [RFC] Remove temp_priority
+Content-Type: multipart/mixed;
+ boundary="------------020603040006080409020505"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Martin Bligh wrote:
->> Distress is a per-zone thing. It is precisely that way because there 
->> *are*
->> different types of reclaim and you don't want a crippled reclaimer (which
->> might indeed be having trouble reclaiming stuff) from saying the system
->> is in distress.
->>
->> If they are the *only* reclaimer, then OK, distress will go up.
-> 
-> 
-> So you'd rather the "crippled" reclaimer went and fire the OOM killer
-> and shoot someone instead?
+This is a multi-part message in MIME format.
+--------------020603040006080409020505
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-No, so I fixed that.
-http://www.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=408d85441cd5a9bd6bc851d677a10c605ed8db5f
+This is not tested yet. What do you think?
 
-> I don't see why we should penalise them,
-> especially as the dirty page throttling is global, and will just kick
-> pretty much anyone trying to do an allocation. There's nothing magic
+This patch removes temp_priority, as it is racy. We're setting
+prev_priority from it, and yet temp_priority could have been
+set back to DEF_PRIORITY by another reclaimer.
 
-How does dirty page throttling kick anyone trying to do an allocation?
-It kicks at page dirtying time.
 
-> about the "crippled" reclaimer as you put it. They're doing absolutely
-> nothing wrong, or that they should be punished for. They need a page.
 
-When did I say anything about magic or being punished? They need a page
-and they will get it when enough memory gets freed. Pages being reclaimed
-by process A may be allocated by process B just fine.
 
->> I don't agree that the thing to aim for is ensuring everyone is able
->> to reclaim something.
->>
->> And why do you ignore the other side of the coin, where now reclaimers
->> that are easily able to make progress are being made to swap stuff out?
-> 
-> 
-> Because I'd rather err on the side of moving a few mapped pages from the
-> active to the inactive list than cause massive latencies for a page
-> allocation that's dropping into direct reclaim and/or going OOM.
+--------------020603040006080409020505
+Content-Type: text/plain;
+ name="2.6.18-prio_fix"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="2.6.18-prio_fix"
 
-We shouldn't go OOM. And there are latencies everywhere and this won't
-fix them. A GFP_NOIO allocator can't swap out pages at all, for example.
+diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/include/linux/mmzone.h 2.6.18-prio_fix/include/linux/mmzone.h
+--- linux-2.6.18/include/linux/mmzone.h	2006-09-20 12:24:41.000000000 -0700
++++ 2.6.18-prio_fix/include/linux/mmzone.h	2006-10-17 10:27:48.000000000 -0700
+@@ -199,13 +199,9 @@ struct zone {
+ 	 * under - it drives the swappiness decision: whether to unmap mapped
+ 	 * pages.
+ 	 *
+-	 * temp_priority is used to remember the scanning priority at which
+-	 * this zone was successfully refilled to free_pages == pages_high.
+-	 *
+-	 * Access to both these fields is quite racy even on uniprocessor.  But
+-	 * it is expected to average out OK.
++	 * Access to this field is quite racy even on uniprocessor. It needs
++	 * to be fixed.
+ 	 */
+-	int temp_priority;
+ 	int prev_priority;
+ 
+ 
+diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/page_alloc.c 2.6.18-prio_fix/mm/page_alloc.c
+--- linux-2.6.18/mm/page_alloc.c	2006-09-20 12:24:42.000000000 -0700
++++ 2.6.18-prio_fix/mm/page_alloc.c	2006-10-17 10:25:55.000000000 -0700
+@@ -2016,7 +2016,7 @@ static void __meminit free_area_init_cor
+ 		zone->zone_pgdat = pgdat;
+ 		zone->free_pages = 0;
+ 
+-		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
++		zone->prev_priority = DEF_PRIORITY;
+ 
+ 		zone_pcp_init(zone);
+ 		INIT_LIST_HEAD(&zone->active_list);
+diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/vmscan.c 2.6.18-prio_fix/mm/vmscan.c
+--- linux-2.6.18/mm/vmscan.c	2006-09-20 12:24:42.000000000 -0700
++++ 2.6.18-prio_fix/mm/vmscan.c	2006-10-17 10:25:24.000000000 -0700
+@@ -934,7 +934,6 @@ static unsigned long shrink_zones(int pr
+ 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+ 			continue;
+ 
+-		zone->temp_priority = priority;
+ 		if (zone->prev_priority > priority)
+ 			zone->prev_priority = priority;
+ 
+@@ -984,7 +983,6 @@ unsigned long try_to_free_pages(struct z
+ 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+ 			continue;
+ 
+-		zone->temp_priority = DEF_PRIORITY;
+ 		lru_pages += zone->nr_active + zone->nr_inactive;
+ 	}
+ 
+@@ -1021,6 +1019,8 @@ unsigned long try_to_free_pages(struct z
+ 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
+ 			blk_congestion_wait(WRITE, HZ/10);
+ 	}
++	if (priority < 0)
++		priority = 0;
+ out:
+ 	for (i = 0; zones[i] != 0; i++) {
+ 		struct zone *zone = zones[i];
+@@ -1028,7 +1028,7 @@ out:
+ 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
+ 			continue;
+ 
+-		zone->prev_priority = zone->temp_priority;
++		zone->prev_priority = priority;
+ 	}
+ 	return ret;
+ }
+@@ -1075,12 +1075,6 @@ loop_again:
+ 	sc.may_writepage = !laptop_mode;
+ 	count_vm_event(PAGEOUTRUN);
+ 
+-	for (i = 0; i < pgdat->nr_zones; i++) {
+-		struct zone *zone = pgdat->node_zones + i;
+-
+-		zone->temp_priority = DEF_PRIORITY;
+-	}
+-
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+ 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 		unsigned long lru_pages = 0;
+@@ -1140,7 +1134,6 @@ scan:
+ 			if (!zone_watermark_ok(zone, order, zone->pages_high,
+ 					       end_zone, 0))
+ 				all_zones_ok = 0;
+-			zone->temp_priority = priority;
+ 			if (zone->prev_priority > priority)
+ 				zone->prev_priority = priority;
+ 			sc.nr_scanned = 0;
+@@ -1182,11 +1175,13 @@ scan:
+ 		if (nr_reclaimed >= SWAP_CLUSTER_MAX)
+ 			break;
+ 	}
++	if (priority < 0)
++		priority = 0;
+ out:
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+ 
+-		zone->prev_priority = zone->temp_priority;
++		zone->prev_priority = priority;
+ 	}
+ 	if (!all_zones_ok) {
+ 		cond_resched();
 
->> If the GFP_NOFS reclaimer is having a lot of trouble reclaiming, and so
->> you decide to turn on reclaim_mapped, then it is not suddenly going to
->> be able to free those pages.
-> 
-> 
-> Well it's certainly not going to work if we don't even try. There were
-> ZERO pages in the inactive list at this point. The system is totally
-> frigging hosed and we're not even trying to reclaim pages because
-> we're in deluded-happy-la-la land and we think everything is fine.
-
-So that could be the temp_priority race. If no progress is being made
-anywhere, the current logic (minus races) says that prev_prio should
-reach 0. Regardless of whether it is GFP_NOFS or whatever.
-
-> This is what happens as we kick down prio levels in one thread:
-> 
-> priority = 12 active_distress = 0 swap_tendency = 0 gfp_mask = d0
-> priority = 12 active_distress = 0 swap_tendency = 0 gfp_mask = d0
-> priority = 11 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 10 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 9 active_distress = 0 swap_tendency = 81 gfp_mask = d0
-> priority = 8 active_distress = 0 swap_tendency = 81 gfp_mask = d0
-> priority = 7 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 6 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 5 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 4 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 3 active_distress = 25 swap_tendency = 106 gfp_mask = d0
-> priority = 2 active_distress = 50 swap_tendency = 131 gfp_mask = d0
-> priority = 1 active_distress = 0 swap_tendency = 81 gfp_mask = d0
-> priority = 0 active_distress = 0 swap_tendency = 81 gfp_mask = d0
-> 
-> Notice that distress is not kicking up as priority kicks down (see
-> 1 and 0 at the end). Because some other idiot reset prev_priority
-> back to 12.
-
-Fine, so fix that race rather than papering over it by using the min
-of prev_priority and current priority.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+--------------020603040006080409020505--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
