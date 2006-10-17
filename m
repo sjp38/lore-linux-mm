@@ -1,31 +1,81 @@
-Date: Mon, 16 Oct 2006 18:25:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
- <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <4534323F.5010103@google.com>
+Date: Mon, 16 Oct 2006 18:30:39 -0700
+From: Martin Bligh <mbligh@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] Use min of two prio settings in calculating distress for
+ reclaim
+Content-Type: multipart/mixed;
+ boundary="------------000706010606020009000007"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Oct 2006, KAMEZAWA Hiroyuki wrote:
+This is a multi-part message in MIME format.
+--------------000706010606020009000007
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> How about defining following instead of inserting #ifdefs ?
-> 
-> #ifdef ZONES_SHIFT > 0
-> #define zone_lowmem_reserve(z, i)	((z)->lowmem_reserve[(i)])
-> #else
-> #define zone_lowmem_reserve(z, i)	(0)
-> #endif
-> 
-> and removing #if's from *.c files ? Can't this be help ?
+Another bug is that if try_to_free_pages / balance_pgdat are called
+with a gfp_mask specifying GFP_IO and/or GFP_FS, they may reclaim
+the requisite number of pages, and reset prev_priority to DEF_PRIORITY.
 
-Well it only shifts the #ifdef elsewhere.... 
+However, another reclaimer without those gfp_mask flags set may still
+be struggling to reclaim pages. The easy fix for this is to key the
+distress calculation not off zone->prev_priority, but also take into
+account the local caller's priority by using:
+min(zone->prev_priority, sc->priority)
+
+Signed-off-by: Martin J. Bligh <mbligh@google.com>
+
+--------------000706010606020009000007
+Content-Type: text/plain;
+ name="2.6.18-min_prio"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="2.6.18-min_prio"
+
+diff -aurpN -X /home/mbligh/.diff.exclude linux-2.6.18/mm/vmscan.c 2.6.18-min_prio/mm/vmscan.c
+--- linux-2.6.18/mm/vmscan.c	2006-09-20 12:24:42.000000000 -0700
++++ 2.6.18-min_prio/mm/vmscan.c	2006-10-16 18:16:39.000000000 -0700
+@@ -713,7 +713,7 @@ done:
+  * But we had to alter page->flags anyway.
+  */
+ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+-				struct scan_control *sc)
++				struct scan_control *sc, int priority)
+ {
+ 	unsigned long pgmoved;
+ 	int pgdeactivate = 0;
+@@ -734,7 +734,7 @@ static void shrink_active_list(unsigned 
+ 		 * `distress' is a measure of how much trouble we're having
+ 		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
+ 		 */
+-		distress = 100 >> zone->prev_priority;
++		distress = 100 >> min(zone->prev_priority, priority);
+ 
+ 		/*
+ 		 * The point of this algorithm is to decide when to start
+@@ -885,7 +885,7 @@ static unsigned long shrink_zone(int pri
+ 			nr_to_scan = min(nr_active,
+ 					(unsigned long)sc->swap_cluster_max);
+ 			nr_active -= nr_to_scan;
+-			shrink_active_list(nr_to_scan, zone, sc);
++			shrink_active_list(nr_to_scan, zone, sc, priority);
+ 		}
+ 
+ 		if (nr_inactive) {
+@@ -1315,7 +1315,7 @@ static unsigned long shrink_all_zones(un
+ 			if (zone->nr_scan_active >= nr_pages || pass > 3) {
+ 				zone->nr_scan_active = 0;
+ 				nr_to_scan = min(nr_pages, zone->nr_active);
+-				shrink_active_list(nr_to_scan, zone, sc);
++				shrink_active_list(nr_to_scan, zone, sc, prio);
+ 			}
+ 		}
+ 
+
+--------------000706010606020009000007--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
