@@ -1,65 +1,40 @@
-Message-ID: <45362130.6020804@yahoo.com.au>
-Date: Wed, 18 Oct 2006 22:42:24 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 18 Oct 2006 10:25:12 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [patch 6/6] mm: fix pagecache write deadlocks
+Message-ID: <20061018142512.GA16570@think.oraclecorp.com>
+References: <20061013143516.15438.8802.sendpatchset@linux.site> <20061013143616.15438.77140.sendpatchset@linux.site>
 MIME-Version: 1.0
-Subject: Re: [RFC] Remove temp_priority
-References: <45351423.70804@google.com> <4535160E.2010908@yahoo.com.au> <45351877.9030107@google.com>
-In-Reply-To: <45351877.9030107@google.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20061013143616.15438.77140.sendpatchset@linux.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Bligh <mbligh@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@osdl.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Martin Bligh wrote:
-> Nick Piggin wrote:
+> Index: linux-2.6/fs/buffer.c
+> ===================================================================
+> --- linux-2.6.orig/fs/buffer.c
+> +++ linux-2.6/fs/buffer.c
+> @@ -1856,6 +1856,9 @@ static int __block_commit_write(struct i
+>  	unsigned blocksize;
+>  	struct buffer_head *bh, *head;
+>  
+> +	if (from == to)
+> +		return 0;
+> +
+>  	blocksize = 1 << inode->i_blkbits;
 
->> For that matter (going off the topic a bit), I wonder if
->> try_to_free_pages should have a watermark check there too? This
->> might help reduce the latency issue you brought up where one process
->> has reclaimed a lot of pages, but another isn't making any progress
->> and has to go through the full priority range? Maybe that's
->> statistically pretty unlikely?
-> 
-> 
-> I've been mulling over how to kill prev_priority (and make everyone
-> happy, including akpm). My original thought was to keep a different
-> min_priority for each of GFP_IO, GFP_IO|GFP_FS, and the no IO ones.
-> But we still have the problem of how to accurately set the min back
-> up when we are sucessful.
-> 
-> Perhaps we should be a little more radical, and treat everyone apart
-> from kswapd as independant. Keep a kswapd_priority in the zone
-> structure, and all the direct reclaimers have their own local priority.
-> Then we set distress from min(kswap_priority, priority). All that does
-> is kick the direct reclaimers up a bit faster - kswapd has the easiest
-> time reclaiming pages, so that should never be too low.
+reiserfs v3 copied the __block_commit_write logic for checking for a
+partially updated page, so reiserfs_commit_page will have to be updated
+to handle from==to.  Right now it will set the page up to date.
 
-I think that could *work*, but I still think it is a heuristics change
-rather than a bug fix.
+I also used a prepare/commit pare where from==to as a way to trigger
+tail conversions in the lilo ioctl.  I'll both for you and make a
+patch.
 
-Do we want everyone to make some progress, even if that means having
-some do some swapping and others not; or have the zone pressure (and
-tendancy to swap) depend on how well progress is going, globally?
-
-The latter is what we have now, and I don't think it is terrible (not
-saying your idea can't work better, but it would need careful
-consideration).
-
-Coming from another angle, I am thinking about doing away with direct
-reclaim completely. That means we don't need any GFP_IO or GFP_FS, and
-solves the problem of large numbers of processes stuck in reclaim and
-skewing aging and depleting the memory reserve.
-
-But that's tricky because we don't have enough kswapds to get maximum
-reclaim throughput on many configurations (only single core opterons
-and UP systems, really).
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
