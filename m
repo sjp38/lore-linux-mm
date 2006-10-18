@@ -1,58 +1,51 @@
-Message-ID: <45364092.3030206@yahoo.com.au>
-Date: Thu, 19 Oct 2006 00:56:18 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC] Remove temp_priority
-References: <45351423.70804@google.com> <4535160E.2010908@yahoo.com.au> <45351877.9030107@google.com> <45362130.6020804@yahoo.com.au> <45363E66.8010201@google.com>
-In-Reply-To: <45363E66.8010201@google.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH] memory page_alloc zonelist caching speedup aligncache
+From: Rohit Seth <rohitseth@google.com>
+Reply-To: rohitseth@google.com
+In-Reply-To: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
+References: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 18 Oct 2006 08:35:37 -0700
+Message-Id: <1161185737.582.326.camel@galaxy.corp.google.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@google.com>
-Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-mm@kvack.org, holt@sgi.com, mbligh@google.com, rientjes@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
->> Coming from another angle, I am thinking about doing away with direct
->> reclaim completely. That means we don't need any GFP_IO or GFP_FS, and
->> solves the problem of large numbers of processes stuck in reclaim and
->> skewing aging and depleting the memory reserve.
+On Wed, 2006-10-18 at 01:14 -0700, Paul Jackson wrote:
+> From: Paul Jackson <pj@sgi.com>
 > 
+> Avoid frequent writes to the zonelist zones[] array, which are
+> read-only after initial setup, by putting the zonelist_cache on
+> a separate cacheline.
 > 
-> Last time I proposed that, the objection was how to throttle the heavy
-> dirtiers so they don't fill up RAM with dirty pages?
-
-Now that we have the dirty mmap accounting, page dirtiers should be
-throttled pretty well via page writeback throttling.
-
-> Also, how do you do atomic allocations? Create a huge memory pool and
-> pray really hard?
-
-Well, yes. Atomic allocations as of *today* cannot do any reclaim, and
-thus they rely on kswapd to free their memory, and we keep a (not huge)
-memory pool for them. They also have to be able to handle failures, and
-by and large they do OK.
-
->> But that's tricky because we don't have enough kswapds to get maximum
->> reclaim throughput on many configurations (only single core opterons
->> and UP systems, really).
+> Signed-off-by: Paul Jackson <pj@sgi.com>
 > 
+> ---
 > 
-> It's not a question of enough kswapds. It's that we can dirty pages
-> faster than they can possibly be written to disk.
+>  include/linux/mmzone.h |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletion(-)
 > 
-> dd if=/dev/zero of=/tmp/foo
+> --- 2.6.19-rc2-mm1.orig/include/linux/mmzone.h	2006-10-17 17:19:22.000000000 -0700
+> +++ 2.6.19-rc2-mm1/include/linux/mmzone.h	2006-10-17 17:31:31.000000000 -0700
+> @@ -396,7 +396,8 @@ struct zonelist {
+>  	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
+>  	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+>  #ifdef CONFIG_NUMA
+> -	struct zonelist_cache zlcache;			     // optional ...
+> +	/* Keep written zonelist_cache off read-only zones[] cache lines */
+> +	struct zonelist_cache zlcache ____cacheline_aligned; // optional ...
+>  #endif
+>  };
+>  
+> 
 
-You can't catch that at the allocation side anyway because clean pagecache
-may already exist for /tmp/foo.
+Wouldn't it be better to have the read mostly field z_to_n defined first
+in zonelist_cache (and define the BITMAP at the end).
 
-We've always done pretty well (in 2.6) with correctly throttling and
-limiting write(2) writes into pagecache, haven't we?
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-rohit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
