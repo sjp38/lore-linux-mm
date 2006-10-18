@@ -1,40 +1,40 @@
-Date: Wed, 18 Oct 2006 10:25:12 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [patch 6/6] mm: fix pagecache write deadlocks
-Message-ID: <20061018142512.GA16570@think.oraclecorp.com>
-References: <20061013143516.15438.8802.sendpatchset@linux.site> <20061013143616.15438.77140.sendpatchset@linux.site>
+Message-ID: <45363E66.8010201@google.com>
+Date: Wed, 18 Oct 2006 07:47:02 -0700
+From: "Martin J. Bligh" <mbligh@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061013143616.15438.77140.sendpatchset@linux.site>
+Subject: Re: [RFC] Remove temp_priority
+References: <45351423.70804@google.com> <4535160E.2010908@yahoo.com.au> <45351877.9030107@google.com> <45362130.6020804@yahoo.com.au>
+In-Reply-To: <45362130.6020804@yahoo.com.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@osdl.org>, Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> Index: linux-2.6/fs/buffer.c
-> ===================================================================
-> --- linux-2.6.orig/fs/buffer.c
-> +++ linux-2.6/fs/buffer.c
-> @@ -1856,6 +1856,9 @@ static int __block_commit_write(struct i
->  	unsigned blocksize;
->  	struct buffer_head *bh, *head;
->  
-> +	if (from == to)
-> +		return 0;
-> +
->  	blocksize = 1 << inode->i_blkbits;
+> Coming from another angle, I am thinking about doing away with direct
+> reclaim completely. That means we don't need any GFP_IO or GFP_FS, and
+> solves the problem of large numbers of processes stuck in reclaim and
+> skewing aging and depleting the memory reserve.
 
-reiserfs v3 copied the __block_commit_write logic for checking for a
-partially updated page, so reiserfs_commit_page will have to be updated
-to handle from==to.  Right now it will set the page up to date.
+Last time I proposed that, the objection was how to throttle the heavy
+dirtiers so they don't fill up RAM with dirty pages?
 
-I also used a prepare/commit pare where from==to as a way to trigger
-tail conversions in the lilo ioctl.  I'll both for you and make a
-patch.
+Also, how do you do atomic allocations? Create a huge memory pool and
+pray really hard?
 
--chris
+> But that's tricky because we don't have enough kswapds to get maximum
+> reclaim throughput on many configurations (only single core opterons
+> and UP systems, really).
+
+It's not a question of enough kswapds. It's that we can dirty pages
+faster than they can possibly be written to disk.
+
+dd if=/dev/zero of=/tmp/foo
+
+M.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
