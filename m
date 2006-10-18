@@ -1,42 +1,227 @@
-From: Paul Jackson <pj@sgi.com>
-Date: Wed, 18 Oct 2006 01:14:40 -0700
-Message-Id: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
-Subject: [PATCH] memory page_alloc zonelist caching speedup aligncache
+Message-ID: <45360CD7.6060202@yahoo.com.au>
+Date: Wed, 18 Oct 2006 21:15:35 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Page allocator: Single Zone optimizations
+References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com> <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com> <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Paul Jackson <pj@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: nickpiggin@yahoo.com.au, ak@suse.de, linux-mm@kvack.org, holt@sgi.com, mbligh@google.com, rientjes@google.com, rohitseth@google.com, menage@google.com, Paul Jackson <pj@sgi.com>, clameter@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Avoid frequent writes to the zonelist zones[] array, which are
-read-only after initial setup, by putting the zonelist_cache on
-a separate cacheline.
+Christoph Lameter wrote:
+> On Tue, 17 Oct 2006, Nick Piggin wrote:
+> 
+> 
+>>I would give an ack to Kame's approach for lowmem_reserve ;)
+> 
+> 
 
-Signed-off-by: Paul Jackson <pj@sgi.com>
 
----
+> @@ -922,8 +924,7 @@ int zone_watermark_ok(struct zone *z, in
+>  		min -= min / 2;
+>  	if (alloc_flags & ALLOC_HARDER)
+>  		min -= min / 4;
+> -
+> -	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+> +	if (free_pages <= min + MULTI_ZONE * z->lowmem_reserve[classzone_idx])
 
- include/linux/mmzone.h |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletion(-)
+I think I still prefer having this in a header. It is the normal way of doing it.
 
---- 2.6.19-rc2-mm1.orig/include/linux/mmzone.h	2006-10-17 17:19:22.000000000 -0700
-+++ 2.6.19-rc2-mm1/include/linux/mmzone.h	2006-10-17 17:31:31.000000000 -0700
-@@ -396,7 +396,8 @@ struct zonelist {
- 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
- 	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
- #ifdef CONFIG_NUMA
--	struct zonelist_cache zlcache;			     // optional ...
-+	/* Keep written zonelist_cache off read-only zones[] cache lines */
-+	struct zonelist_cache zlcache ____cacheline_aligned; // optional ...
- #endif
- };
- 
+>  		return 0;
+>  	for (o = 0; o < order; o++) {
+>  		/* At the next order, this order's pages become unavailable */
+> @@ -1429,8 +1430,6 @@ void show_free_areas(void)
+>  		global_page_state(NR_PAGETABLE));
+>  
+>  	for_each_zone(zone) {
+> -		int i;
+> -
+>  		if (!populated_zone(zone))
+>  			continue;
+>  
+> @@ -1457,10 +1456,14 @@ void show_free_areas(void)
+>  			zone->pages_scanned,
+>  			(zone->all_unreclaimable ? "yes" : "no")
+>  			);
+> -		printk("lowmem_reserve[]:");
+> -		for (i = 0; i < MAX_NR_ZONES; i++)
+> -			printk(" %lu", zone->lowmem_reserve[i]);
+> -		printk("\n");
+> +		if (MULTI_ZONE) {
+> +			int i;
+> +
+> +			printk("lowmem_reserve[]:");
+> +			for (i = 0; i < MAX_NR_ZONES; i++)
+> +				printk(" %lu", zone->lowmem_reserve[i]);
+> +			printk("\n");
+> +		}
+>  	}
+>  
+>  	for_each_zone(zone) {
+> @@ -2829,25 +2832,36 @@ void __init page_alloc_init(void)
+>   * calculate_totalreserve_pages - called when sysctl_lower_zone_reserve_ratio
+>   *	or min_free_kbytes changes.
+>   */
+> +static unsigned long calculate_max_lowmem_reserve(struct zone *zone,
+> +						enum zone_type start)
+> +{
+> +	unsigned long max;
+> +	enum zone_type i;
+> +
+> +	if (SINGLE_ZONE)
+> +		return 0;
+> +	/* Find valid and maximum lowmem_reserve in the zone */
+> +	for (i = start; i < MAX_NR_ZONES; i++) {
+> +		if (zone->lowmem_reserve[i] > max)
+> +			max = zone->lowmem_reserve[i];
+> +	}
+> +	return max;
+> +}
+> +
+>  static void calculate_totalreserve_pages(void)
+>  {
+>  	struct pglist_data *pgdat;
+>  	unsigned long reserve_pages = 0;
+> -	enum zone_type i, j;
+> +	enum zone_type i;
+>  
+>  	for_each_online_pgdat(pgdat) {
+>  		for (i = 0; i < MAX_NR_ZONES; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> -			unsigned long max = 0;
+> -
+> -			/* Find valid and maximum lowmem_reserve in the zone */
+> -			for (j = i; j < MAX_NR_ZONES; j++) {
+> -				if (zone->lowmem_reserve[j] > max)
+> -					max = zone->lowmem_reserve[j];
+> -			}
+> +			unsigned long max;
+>  
+>  			/* we treat pages_high as reserved pages. */
+> -			max += zone->pages_high;
+> +			max = calculate_max_lowmem_reserve(zone, i) + \
+> +						zone->pages_high;
+>  
+>  			if (max > zone->present_pages)
+>  				max = zone->present_pages;
+> @@ -2868,6 +2882,9 @@ static void setup_per_zone_lowmem_reserv
+>  	struct pglist_data *pgdat;
+>  	enum zone_type j, idx;
+>  
+> +	if (SINGLE_ZONE)
+> +		return 0;
+> +
+>  	for_each_online_pgdat(pgdat) {
+>  		for (j = 0; j < MAX_NR_ZONES; j++) {
+>  			struct zone *zone = pgdat->node_zones + j;
+> @@ -3044,6 +3061,7 @@ int sysctl_min_slab_ratio_sysctl_handler
+>  }
+>  #endif
+>  
+> +#if MULTI_ZONE
+>  /*
+>   * lowmem_reserve_ratio_sysctl_handler - just a wrapper around
+>   *	proc_dointvec() so that we can call setup_per_zone_lowmem_reserve()
+> @@ -3060,6 +3078,7 @@ int lowmem_reserve_ratio_sysctl_handler(
+>  	setup_per_zone_lowmem_reserve();
+>  	return 0;
+>  }
+> +#endif
+>  
+>  /*
+>   * percpu_pagelist_fraction - changes the pcp->high for each zone on each
+> Index: linux-2.6.19-rc1-mm1/kernel/sysctl.c
+> ===================================================================
+> --- linux-2.6.19-rc1-mm1.orig/kernel/sysctl.c	2006-10-17 07:27:44.692269445 -0500
+> +++ linux-2.6.19-rc1-mm1/kernel/sysctl.c	2006-10-17 07:38:47.977425889 -0500
+> @@ -900,6 +900,7 @@ static ctl_table vm_table[] = {
+>  		.proc_handler	= &proc_dointvec,
+>  	 },
+>  #endif
+> +#if MULTI_ZONE
+>  	{
+>  		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
+>  		.procname	= "lowmem_reserve_ratio",
+> @@ -909,6 +910,7 @@ static ctl_table vm_table[] = {
+>  		.proc_handler	= &lowmem_reserve_ratio_sysctl_handler,
+>  		.strategy	= &sysctl_intvec,
+>  	},
+> +#endif
+>  	{
+>  		.ctl_name	= VM_DROP_PAGECACHE,
+>  		.procname	= "drop_caches",
+> Index: linux-2.6.19-rc1-mm1/include/linux/mmzone.h
+> ===================================================================
+> --- linux-2.6.19-rc1-mm1.orig/include/linux/mmzone.h	2006-10-17 07:27:42.478206116 -0500
+> +++ linux-2.6.19-rc1-mm1/include/linux/mmzone.h	2006-10-17 07:34:40.134279959 -0500
+> @@ -171,6 +171,9 @@ enum zone_type {
+>  #endif
+>  #undef __ZONE_COUNT
+>  
+> +#define MULTI_ZONE (ZONES_SHIFT > 0)
+> +#define SINGLE_ZONE (ZONES_SHIFT == 0)
+> +
+>  struct zone {
+>  	/* Fields commonly accessed by the page allocator */
+>  	unsigned long		free_pages;
+> @@ -183,7 +186,7 @@ struct zone {
+>  	 * on the higher zones). This array is recalculated at runtime if the
+>  	 * sysctl_lowmem_reserve_ratio sysctl changes.
+>  	 */
+> -	unsigned long		lowmem_reserve[MAX_NR_ZONES];
+> +	unsigned long		lowmem_reserve[MAX_NR_ZONES - SINGLE_ZONE];
+
+IMO ifdef is much better here. It is more readable and gives better
+typechecking. I think ifdef in structures is not much of a problem.
+
+>  
+>  #ifdef CONFIG_NUMA
+>  	int node;
+> @@ -420,11 +423,11 @@ unsigned long __init node_memmap_size_by
+>  /*
+>   * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
+>   */
+> -#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
+> +#define zone_idx(zone)		(MULTI_ZONE * ((zone) - (zone)->zone_pgdat->node_zones))
+>  
+>  static inline int populated_zone(struct zone *zone)
+>  {
+> -	return (!!zone->present_pages);
+> +	return SINGLE_ZONE || (!!zone->present_pages);
+>  }
+>  
+>  static inline int is_highmem_idx(enum zone_type idx)
+> @@ -438,7 +441,7 @@ static inline int is_highmem_idx(enum zo
+>  
+>  static inline int is_normal_idx(enum zone_type idx)
+>  {
+> -	return (idx == ZONE_NORMAL);
+> +	return SINGLE_ZONE || (idx == ZONE_NORMAL);
+>  }
+>  
+>  /**
+> @@ -458,7 +461,8 @@ static inline int is_highmem(struct zone
+>  
+>  static inline int is_normal(struct zone *zone)
+>  {
+> -	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+> +	return SINGLE_ZONE ||
+> +		zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+>  }
+
+I don't know if these are any better than ifdef elseif endif. I think
+the goal is not ifdef removal at any cost, but avoiding ifdefs in
+complex functions and within control flow because it makes the code
+less readable.
 
 -- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
