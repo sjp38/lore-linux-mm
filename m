@@ -1,39 +1,42 @@
-Date: Tue, 17 Oct 2006 17:29:12 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Reduce CONFIG_ZONE_DMA ifdefs
-In-Reply-To: <20061017170236.35dce526.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0610171725130.16180@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610171123160.14002@schroedinger.engr.sgi.com>
- <20061017170236.35dce526.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Paul Jackson <pj@sgi.com>
+Date: Wed, 18 Oct 2006 01:14:40 -0700
+Message-Id: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
+Subject: [PATCH] memory page_alloc zonelist caching speedup aligncache
 Sender: owner-linux-mm@kvack.org
+From: Paul Jackson <pj@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: nickpiggin@yahoo.com.au, ak@suse.de, linux-mm@kvack.org, holt@sgi.com, mbligh@google.com, rientjes@google.com, rohitseth@google.com, menage@google.com, Paul Jackson <pj@sgi.com>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Oct 2006, Andrew Morton wrote:
+Avoid frequent writes to the zonelist zones[] array, which are
+read-only after initial setup, by putting the zonelist_cache on
+a separate cacheline.
 
-> That would give the thing a nice name, too - say, CONFIG_HAVE_ZONE_DMA.  It
-> makes it obvious what's going on.
+Signed-off-by: Paul Jackson <pj@sgi.com>
 
-Ok.
+---
 
-> > -#ifdef CONFIG_ZONE_DMA
-> > -#ifdef CONFIG_ZONE_DMA
-> > -#ifdef CONFIG_ZONE_DMA
-> 
-> Only three.  Drat.
+ include/linux/mmzone.h |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletion(-)
 
-The problem is that some of the definitions like ZONE_DMA become invalid 
-if CONFIG_ZONE_DMA is off and I think we need to keep that to make sure 
-code does not refer to invalid zones. Around those areas the #ifdef cannot 
-be dropped. The slab does not use ZONE_DMA directly. It only needs to deal 
-with GFP_DMA. For that it works nicely.
+--- 2.6.19-rc2-mm1.orig/include/linux/mmzone.h	2006-10-17 17:19:22.000000000 -0700
++++ 2.6.19-rc2-mm1/include/linux/mmzone.h	2006-10-17 17:31:31.000000000 -0700
+@@ -396,7 +396,8 @@ struct zonelist {
+ 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
+ 	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+ #ifdef CONFIG_NUMA
+-	struct zonelist_cache zlcache;			     // optional ...
++	/* Keep written zonelist_cache off read-only zones[] cache lines */
++	struct zonelist_cache zlcache ____cacheline_aligned; // optional ...
+ #endif
+ };
+ 
 
-I hope such a scheme would also allow the switching off of the bounce 
-buffer logic and various other GFP_DMA related code all over the kernel. 
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
