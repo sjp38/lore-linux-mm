@@ -1,51 +1,63 @@
-Subject: Re: [PATCH] memory page_alloc zonelist caching speedup aligncache
-From: Rohit Seth <rohitseth@google.com>
-Reply-To: rohitseth@google.com
-In-Reply-To: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
-References: <20061018081440.18477.10664.sendpatchset@sam.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 18 Oct 2006 08:35:37 -0700
-Message-Id: <1161185737.582.326.camel@galaxy.corp.google.com>
+Date: Wed, 18 Oct 2006 12:38:40 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Page allocator: Single Zone optimizations
+Message-Id: <20061018123840.a67e6a44.akpm@osdl.org>
+In-Reply-To: <45360CD7.6060202@yahoo.com.au>
+References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
+	<20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
+	<45347288.6040808@yahoo.com.au>
+	<Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
+	<45360CD7.6060202@yahoo.com.au>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, nickpiggin@yahoo.com.au, ak@suse.de, linux-mm@kvack.org, holt@sgi.com, mbligh@google.com, rientjes@google.com, menage@google.com, clameter@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-10-18 at 01:14 -0700, Paul Jackson wrote:
-> From: Paul Jackson <pj@sgi.com>
-> 
-> Avoid frequent writes to the zonelist zones[] array, which are
-> read-only after initial setup, by putting the zonelist_cache on
-> a separate cacheline.
-> 
-> Signed-off-by: Paul Jackson <pj@sgi.com>
-> 
-> ---
-> 
->  include/linux/mmzone.h |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletion(-)
-> 
-> --- 2.6.19-rc2-mm1.orig/include/linux/mmzone.h	2006-10-17 17:19:22.000000000 -0700
-> +++ 2.6.19-rc2-mm1/include/linux/mmzone.h	2006-10-17 17:31:31.000000000 -0700
-> @@ -396,7 +396,8 @@ struct zonelist {
->  	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
->  	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
->  #ifdef CONFIG_NUMA
-> -	struct zonelist_cache zlcache;			     // optional ...
-> +	/* Keep written zonelist_cache off read-only zones[] cache lines */
-> +	struct zonelist_cache zlcache ____cacheline_aligned; // optional ...
->  #endif
->  };
->  
-> 
+On Wed, 18 Oct 2006 21:15:35 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-Wouldn't it be better to have the read mostly field z_to_n defined first
-in zonelist_cache (and define the BITMAP at the end).
+> > @@ -458,7 +461,8 @@ static inline int is_highmem(struct zone
+> >  
+> >  static inline int is_normal(struct zone *zone)
+> >  {
+> > -	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+> > +	return SINGLE_ZONE ||
+> > +		zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+> >  }
+> 
+> I don't know if these are any better than ifdef elseif endif. I think
+> the goal is not ifdef removal at any cost, but avoiding ifdefs in
+> complex functions and within control flow because it makes the code
+> less readable.
 
--rohit
+Certainly readability is a concern.
+
+But the other problem with ifdefs is
+
+#ifdef SOMETHING_WHICH_IS_USUALLY_DEFINED
+	stuff_which_works();
+#else
+	stuff_which_doesnt_compile_or_which_generates_warnings();
+#endif
+
+
+And we do that quite a lot.
+
+Whereas
+
+	if (SOMETHING_WHICH_IS_ZERO_OR_ONE)
+		stuff_which_works();
+	else
+		stuff_which_doesnt_compile_or_which_generates_warnings();
+
+not only loooks heaps better, but the compiler checks it all for us too.
+
+But you knew all that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
