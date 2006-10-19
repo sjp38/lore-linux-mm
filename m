@@ -1,54 +1,19 @@
-From: Paul Jackson <pj@sgi.com>
-Date: Thu, 19 Oct 2006 03:10:50 -0700
-Message-Id: <20061019101050.6074.75441.sendpatchset@sam.engr.sgi.com>
-Subject: [PATCH 2/2] memory page_alloc zonelist caching reorder structure
+Message-Id: <20061019101722.805147000@chello.nl>
+Date: Thu, 19 Oct 2006 12:17:22 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [RFC][PATCH 0/4] on do_page_fault() and *copy*_inatomic
 Sender: owner-linux-mm@kvack.org
-From: Paul Jackson <pj@sgi.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: nickpiggin@yahoo.com.au, ak@suse.de, linux-mm@kvack.org, holt@sgi.com, mbligh@google.com, rientjes@google.com, rohitseth@google.com, menage@google.com, Paul Jackson <pj@sgi.com>, clameter@sgi.com
+To: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Rearrange the struct members in the 'struct zonelist_cache'
-structure, so as to put the readonly (once initialized)
-z_to_n[] array first, where it will come right after the
-zones[] array in struct zonelist.
+In light of the recent work on fault handlers and generic_file_buffered_write()
+I've gone over some of the arch specific stuff that supports this work.
 
-This pretty much eliminates the chance that the two frequently
-written elements of 'struct zonelist_cache', the fullzones
-bitmap and last_full_zap times, will end up on the same cache
-line as the performance sensitive, frequently read, never
-(after init) written zones[] array.
+The following four patches are the result...
 
-Keeping frequently written data off frequently read cache
-lines is good for performance.
-
-Thanks to Rohit Seth for the suggestion.
-
-Signed-off-by: Paul Jackson <pj@sgi.com>
-
----
-
- include/linux/mmzone.h |    2 +-
- 1 files changed, 1 insertion(+), 1 deletion(-)
-
---- 2.6.19-rc2-mm1.orig/include/linux/mmzone.h	2006-10-19 02:46:58.000000000 -0700
-+++ 2.6.19-rc2-mm1/include/linux/mmzone.h	2006-10-19 02:49:25.000000000 -0700
-@@ -374,8 +374,8 @@ struct zone {
- 
- 
- struct zonelist_cache {
--	DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);	/* zone full? */
- 	unsigned short z_to_n[MAX_ZONES_PER_ZONELIST];		/* zone->nid */
-+	DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);	/* zone full? */
- 	unsigned long last_full_zap;		/* when last zap'd (jiffies) */
- };
- #else
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
