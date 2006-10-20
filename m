@@ -1,47 +1,38 @@
-Message-Id: <200610201953.k9KJrjbD032332@shell0.pdx.osdl.net>
-Subject: [patch 3/4] vmscan: fix temp_priority in __zone_reclaim
-From: akpm@osdl.org
-Date: Fri, 20 Oct 2006 12:53:45 -0700
+Date: Fri, 20 Oct 2006 23:10:31 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 1/2] shared page table for hugetlb page - v4
+In-Reply-To: <000001c6f3b2$0c70b8c0$ff0da8c0@amr.corp.intel.com>
+Message-ID: <Pine.LNX.4.64.0610202253190.963@blonde.wat.veritas.com>
+References: <000001c6f3b2$0c70b8c0$ff0da8c0@amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Andrew Morton <akpm@osdl.org>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org, clameter@engr.sgi.com, mbligh@mbligh.org, nickpiggin@yahoo.com.au
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'Andrew Morton' <akpm@osdl.org>, Hugh Blemings <hab@au1.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-__zone_reclaim() isn't modifying zone->prev_priority.  But zone->prev_priority
-is used in the decision whether or not to bring mapped pages onto the inactive
-list.  Hence there's a risk here that __zone_reclaim() will fail because
-zone->prev_priority ir large (ie: low urgency) and lots of mapped pages end up
-stuck on the active list.
+On Thu, 19 Oct 2006, Chen, Kenneth W wrote:
+> Re-diff against git tree as of this morning since some of the changes
+> were committed for a different reason. No other change from last version.
+> I was hoping Hugh finds time to review version v4 posted about two weeks
+> ago.  Though I don't want to wait for too long to rebase. So here we go:
 
-Fix that up by decreasing (ie making more urgent) zone->prev_priority as
-__zone_reclaim() scans the zone's pages.
+They both look fine to me now, Ken.
 
-This bug perhaps explains why ZONE_RECLAIM_PRIORITY was created.  It should be
-possible to remove that now, and to just start out at DEF_PRIORITY?
+(I was expecting a problem with your vma_prio_tree_fornext idx, but
+testing showed I was wrong about that: as I guess you already found,
+it's the h_pgoff in hugetlb_vmtruncate_list's vma_prio_tree_fornext
+which is wrong, but wrong in a safe way so we've never noticed:
+I'll test and send in a patch for that tomorrow.)
 
-Cc: Martin Bligh <mbligh@mbligh.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@engr.sgi.com>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
----
+You can add my
+Acked-by: Hugh Dickins <hugh@veritas.com>
+to both patches, but it's no longer worth much: I notice Andrew has
+grown so disillusioned by my sluggardly responses that he's rightly
+decided to CC Hugh Blemings instead ;)  Over to you, Hugh!
 
- mm/vmscan.c |    1 +
- 1 files changed, 1 insertion(+)
-
-diff -puN mm/vmscan.c~vmscan-fix-temp_priority-in-__zone-reclaim mm/vmscan.c
---- a/mm/vmscan.c~vmscan-fix-temp_priority-in-__zone-reclaim
-+++ a/mm/vmscan.c
-@@ -1640,6 +1640,7 @@ static int __zone_reclaim(struct zone *z
- 		 */
- 		priority = ZONE_RECLAIM_PRIORITY;
- 		do {
-+			note_zone_scanning_priority(zone, priority);
- 			nr_reclaimed += shrink_zone(priority, zone, &sc);
- 			priority--;
- 		} while (priority >= 0 && nr_reclaimed < nr_pages);
-_
+HughD
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
