@@ -1,98 +1,74 @@
-Message-Id: <200610201953.k9KJreja032327@shell0.pdx.osdl.net>
-Subject: [patch 2/4] vmscan: temp_priority comments
+Message-Id: <200610201953.k9KJrpci032337@shell0.pdx.osdl.net>
+Subject: [patch 4/4] Use min of two prio settings in calculating distress for reclaim
 From: akpm@osdl.org
-Date: Fri, 20 Oct 2006 12:53:40 -0700
+Date: Fri, 20 Oct 2006 12:53:50 -0700
 Sender: owner-linux-mm@kvack.org
-From: Andrew Morton <akpm@osdl.org>
+From: Martin Bligh <mbligh@google.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@osdl.org, clameter@engr.sgi.com, mbligh@mbligh.org, nickpiggin@yahoo.com.au
+Cc: akpm@osdl.org, mbligh@google.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Attempt to clarify what's going on in there.
+If try_to_free_pages / balance_pgdat are called with a gfp_mask specifying
+GFP_IO and/or GFP_FS, they will reclaim the requisite number of pages, and the
+reset prev_priority to DEF_PRIORITY (or to some other high (ie: unurgent)
+value).
 
-note: __zone_reclaim() appears to be borked: it won't reclaim mapped pages for
-the first few scanning passes.
+However, another reclaimer without those gfp_mask flags set (say, GFP_NOIO)
+may still be struggling to reclaim pages.  The concurrent overwrite of
+zone->prev_priority will cause this GFP_NOIO thread to unexpectedly cease
+deactivating mapped pages, thus causing reclaim difficulties.
 
-Cc: Martin Bligh <mbligh@mbligh.org>
+Fix this is to key the distress calculation not off zone->prev_priority, but
+also take into account the local caller's priority by using
+min(zone->prev_priority, sc->priority)
+
+Signed-off-by: Martin J. Bligh <mbligh@google.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@engr.sgi.com>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
 ---
 
- mm/vmscan.c |   32 ++++++++++++++++++++++++++++----
- 1 files changed, 28 insertions(+), 4 deletions(-)
+ mm/vmscan.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff -puN mm/vmscan.c~vmscan-fix-temp_priority-race-comments mm/vmscan.c
---- a/mm/vmscan.c~vmscan-fix-temp_priority-race-comments
+diff -puN mm/vmscan.c~use-min-of-two-prio-settings-in-calculating-distress-for mm/vmscan.c
+--- a/mm/vmscan.c~use-min-of-two-prio-settings-in-calculating-distress-for
 +++ a/mm/vmscan.c
-@@ -723,6 +723,20 @@ done:
- 	return nr_reclaimed;
- }
- 
-+/*
-+ * We are about to scan this zone at a certain priority level.  If that priority
-+ * level is smaller (ie: more urgent) than the previous priority, then note
-+ * that priority level within the zone.  This is done so that when the next
-+ * process comes in to scan this zone, it will immediately start out at this
-+ * priority level rather than having to build up its own scanning priority.
-+ * Here, this priority affects only the reclaim-mapped threshold.
-+ */
-+static inline void note_zone_scanning_priority(struct zone *zone, int priority)
-+{
-+	if (priority < zone->prev_priority)
-+		zone->prev_priority = priority;
-+}
-+
- static inline int zone_is_near_oom(struct zone *zone)
+@@ -760,7 +760,7 @@ static inline int zone_is_near_oom(struc
+  * But we had to alter page->flags anyway.
+  */
+ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+-				struct scan_control *sc)
++				struct scan_control *sc, int priority)
  {
- 	return zone->pages_scanned >= (zone->nr_active + zone->nr_inactive)*3;
-@@ -972,8 +986,7 @@ static unsigned long shrink_zones(int pr
- 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
- 			continue;
+ 	unsigned long pgmoved;
+ 	int pgdeactivate = 0;
+@@ -784,7 +784,7 @@ static void shrink_active_list(unsigned 
+ 		 * `distress' is a measure of how much trouble we're having
+ 		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
+ 		 */
+-		distress = 100 >> zone->prev_priority;
++		distress = 100 >> min(zone->prev_priority, priority);
  
--		if (zone->prev_priority > priority)
--			zone->prev_priority = priority;
-+		note_zone_scanning_priority(zone, priority);
+ 		/*
+ 		 * The point of this algorithm is to decide when to start
+@@ -936,7 +936,7 @@ static unsigned long shrink_zone(int pri
+ 			nr_to_scan = min(nr_active,
+ 					(unsigned long)sc->swap_cluster_max);
+ 			nr_active -= nr_to_scan;
+-			shrink_active_list(nr_to_scan, zone, sc);
++			shrink_active_list(nr_to_scan, zone, sc, priority);
+ 		}
  
- 		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 			continue;	/* Let kswapd poll it */
-@@ -1063,6 +1076,13 @@ unsigned long try_to_free_pages(struct z
- 	if (!sc.all_unreclaimable)
- 		ret = 1;
- out:
-+	/*
-+	 * Now that we've scanned all the zones at this priority level, note
-+	 * that level within the zone so that the next thread which performs
-+	 * scanning of this zone will immediately start out at this priority
-+	 * level.  This affects only the decision whether or not to bring
-+	 * mapped pages onto the inactive list.
-+	 */
- 	if (priority < 0)
- 		priority = 0;
- 	for (i = 0; zones[i] != 0; i++) {
-@@ -1186,9 +1206,8 @@ scan:
- 					       end_zone, 0))
- 				all_zones_ok = 0;
- 			temp_priority[i] = priority;
--			if (zone->prev_priority > priority)
--				zone->prev_priority = priority;
- 			sc.nr_scanned = 0;
-+			note_zone_scanning_priority(zone, priority);
- 			nr_reclaimed += shrink_zone(priority, zone, &sc);
- 			reclaim_state->reclaimed_slab = 0;
- 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
-@@ -1228,6 +1247,11 @@ scan:
- 			break;
- 	}
- out:
-+	/*
-+	 * Note within each zone the priority level at which this zone was
-+	 * brought into a happy state.  So that the next thread which scans this
-+	 * zone will start out at that priority level.
-+	 */
- 	for (i = 0; i < pgdat->nr_zones; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
+ 		if (nr_inactive) {
+@@ -1384,7 +1384,7 @@ static unsigned long shrink_all_zones(un
+ 			if (zone->nr_scan_active >= nr_pages || pass > 3) {
+ 				zone->nr_scan_active = 0;
+ 				nr_to_scan = min(nr_pages, zone->nr_active);
+-				shrink_active_list(nr_to_scan, zone, sc);
++				shrink_active_list(nr_to_scan, zone, sc, prio);
+ 			}
+ 		}
  
 _
 
