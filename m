@@ -1,38 +1,29 @@
-Date: Fri, 20 Oct 2006 23:10:31 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 1/2] shared page table for hugetlb page - v4
-In-Reply-To: <000001c6f3b2$0c70b8c0$ff0da8c0@amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.64.0610202253190.963@blonde.wat.veritas.com>
-References: <000001c6f3b2$0c70b8c0$ff0da8c0@amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2/5] mm: fault vs invalidate/truncate race fix
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <452C8613.7080708@yahoo.com.au>
+References: <20061010121314.19693.75503.sendpatchset@linux.site>
+	 <20061010121332.19693.37204.sendpatchset@linux.site>
+	 <20061010221304.6bef249f.akpm@osdl.org>  <452C8613.7080708@yahoo.com.au>
+Content-Type: text/plain
+Date: Sat, 21 Oct 2006 11:53:25 +1000
+Message-Id: <1161395605.10524.227.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Andrew Morton' <akpm@osdl.org>, Hugh Blemings <hab@au1.ibm.com>, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Oct 2006, Chen, Kenneth W wrote:
-> Re-diff against git tree as of this morning since some of the changes
-> were committed for a different reason. No other change from last version.
-> I was hoping Hugh finds time to review version v4 posted about two weeks
-> ago.  Though I don't want to wait for too long to rebase. So here we go:
+> Without looking at any code, perhaps we could instead run get_user_pages
+> and copy the memory that way.
 
-They both look fine to me now, Ken.
+I have a deep hatred for get_user_pages().... maybe not totally rational
+though :) It will also only work with things that are actually backed up
+by struct page. Is that ok in your case ?
 
-(I was expecting a problem with your vma_prio_tree_fornext idx, but
-testing showed I was wrong about that: as I guess you already found,
-it's the h_pgoff in hugetlb_vmtruncate_list's vma_prio_tree_fornext
-which is wrong, but wrong in a safe way so we've never noticed:
-I'll test and send in a patch for that tomorrow.)
+Ben.
 
-You can add my
-Acked-by: Hugh Dickins <hugh@veritas.com>
-to both patches, but it's no longer worth much: I notice Andrew has
-grown so disillusioned by my sluggardly responses that he's rightly
-decided to CC Hugh Blemings instead ;)  Over to you, Hugh!
-
-HughD
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
