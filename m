@@ -1,62 +1,96 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [patch 2/2] htlb forget rss with pt sharing
-Date: Sun, 22 Oct 2006 14:28:37 -0700
-Message-ID: <000001c6f621$0a3afef0$8085030a@amr.corp.intel.com>
+Date: Mon, 23 Oct 2006 16:06:48 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Reduce CONFIG_ZONE_DMA ifdefs
+In-Reply-To: <20061017170236.35dce526.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0610231603260.960@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0610171123160.14002@schroedinger.engr.sgi.com>
+ <20061017170236.35dce526.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <1161446321.5230.69.camel@lappy>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Peter Zijlstra' <a.p.zijlstra@chello.nl>
-Cc: 'Hugh Dickins' <hugh@veritas.com>, 'Andrew Morton' <akpm@osdl.org>, linux-mm@kvack.org, arjan <arjan@infradead.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote on Saturday, October 21, 2006 8:59 AM
-> On Thu, 2006-10-19 at 12:12 -0700, Chen, Kenneth W wrote:
-> > Imprecise RSS accounting is an irritating ill effect with pt sharing. 
-> > After consulted with several VM experts, I have tried various methods to
-> > solve that problem: (1) iterate through all mm_structs that share the PT
-> > and increment count; (2) keep RSS count in page table structure and then
-> > sum them up at reporting time.  None of the above methods yield any
-> > satisfactory implementation.
-> > 
-> > Since process RSS accounting is pure information only, I propose we don't
-> > count them at all for hugetlb page. rlimit has such field, though there is
-> > absolutely no enforcement on limiting that resource.  One other method is
-> > to account all RSS at hugetlb mmap time regardless they are faulted or not.
-> > I opt for the simplicity of no accounting at all.
-> 
-> I do feel I must object to this. Especially with hugetlb getting real
-> accessible with libhugetlbfs etc., I suspect administrators will shortly
-> be confused where all their memory went.
+V1->V2 use CONFIG_ZONE_DMA_FLAG that was defined in mm/Kconfig.
 
-We have /proc/<pid>/smap.  That should have all the information there.  It
-reminds me though that smap needs fix on hugetlb area as it prints nothing
-for hugetlb vma at the moment.  I will fix that.
+Reduce #ifdef CONFIG_ZONE_DMA
 
+This reduces the #ifdefs in the slab allocator by adding a new
+CONFIG_ZONE_DMA_FLAG in mm/Kconfig. The definitions for the
+page allocator are already minimal and orthogonal to
+CONFIG_ZONE_DMA32 and CONFIG_HIGHMEM.
 
-> Also, like stated earlier, I don't like breaking RSS accounting now, and
-> when we do have thought up a valid meaning for the field, again. You
-> state correctly that RLIMIT_RSS is currently not enforced, but its an
-> active area int that we do want to enforce it in the near future.
-> 
-> I do grant its a very hard problem, comming up with a
-> valid/meaningfull/workable definition of RSS, but I dislike this opt out
-> of just not counting it at all - and thereby making the effort of
-> enforcing RSS harder.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Hugetlb page are special, they are reserved up front in global reservation
-pool and is not reclaimable.  From physical memory resource point of view,
-it is already consumed regardless whether there are users using them.
-
-If the concern is that RSS can be used to control resource allocation, we
-already can specify hugetlb fs size limit and sysadmin can enforce that at
-mount time.  Combined with the two points mentioned above, I fail to see
-if there is anything got affected because of this patch.
-
-- Ken
+Index: linux-2.6.19-rc2-mm2/mm/slab.c
+===================================================================
+--- linux-2.6.19-rc2-mm2.orig/mm/slab.c	2006-10-23 17:13:10.372360786 -0500
++++ linux-2.6.19-rc2-mm2/mm/slab.c	2006-10-23 17:28:49.336065747 -0500
+@@ -1458,14 +1458,14 @@ void __init kmem_cache_init(void)
+ 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+ 					NULL, NULL);
+ 		}
+-#ifdef CONFIG_ZONE_DMA
+-		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
++		if (CONFIG_ZONE_DMA_FLAG)
++			sizes->cs_dmacachep = kmem_cache_create(
++					names->name_dma,
+ 					sizes->cs_size,
+ 					ARCH_KMALLOC_MINALIGN,
+ 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
+ 						SLAB_PANIC,
+ 					NULL, NULL);
+-#endif
+ 		sizes++;
+ 		names++;
+ 	}
+@@ -2297,10 +2297,8 @@ kmem_cache_create (const char *name, siz
+ 	cachep->slab_size = slab_size;
+ 	cachep->flags = flags;
+ 	cachep->gfpflags = 0;
+-#ifdef CONFIG_ZONE_DMA
+-	if (flags & SLAB_CACHE_DMA)
++	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
+ 		cachep->gfpflags |= GFP_DMA;
+-#endif
+ 	cachep->buffer_size = size;
+ 
+ 	if (flags & CFLGS_OFF_SLAB) {
+@@ -2623,12 +2621,12 @@ static void cache_init_objs(struct kmem_
+ 
+ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
+ {
+-#ifdef CONFIG_ZONE_DMA
+-	if (flags & SLAB_DMA)
+-		BUG_ON(!(cachep->gfpflags & GFP_DMA));
+-	else
+-		BUG_ON(cachep->gfpflags & GFP_DMA);
+-#endif
++	if (CONFIG_ZONE_DMA_FLAG) {
++		if (flags & SLAB_DMA)
++			BUG_ON(!(cachep->gfpflags & GFP_DMA));
++		else
++			BUG_ON(cachep->gfpflags & GFP_DMA);
++	}
+ }
+ 
+ static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp,
+Index: linux-2.6.19-rc2-mm2/mm/Kconfig
+===================================================================
+--- linux-2.6.19-rc2-mm2.orig/mm/Kconfig	2006-10-23 17:13:10.382127229 -0500
++++ linux-2.6.19-rc2-mm2/mm/Kconfig	2006-10-23 17:52:25.537437185 -0500
+@@ -242,3 +242,9 @@ config READAHEAD_SMOOTH_AGING
+ 		- have the danger of readahead thrashing(i.e. memory tight)
+ 
+ 	  This feature is only available on non-NUMA systems.
++
++config ZONE_DMA_FLAG
++	int
++	default "0" if !ZONE_DMA
++	default "1"
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
