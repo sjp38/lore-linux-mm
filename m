@@ -1,35 +1,36 @@
-Received: by nf-out-0910.google.com with SMTP id x30so331828nfb
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2006 14:32:06 -0700 (PDT)
-Message-ID: <21d7e9970610241431j38c59ec5rac17f780813e6f05@mail.gmail.com>
-Date: Tue, 24 Oct 2006 14:31:41 -0700
-From: "Dave Airlie" <airlied@gmail.com>
-Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
-In-Reply-To: <20061007105853.14024.95383.sendpatchset@linux.site>
+Date: Wed, 25 Oct 2006 03:31:06 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH 1/3] hugetlb: fix size=4G parsing
+Message-ID: <Pine.LNX.4.64.0610250323570.30678@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20061007105758.14024.70048.sendpatchset@linux.site>
-	 <20061007105853.14024.95383.sendpatchset@linux.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Ken Chen <kenneth.w.chen@intel.com>, Bill Irwin <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/7/06, Nick Piggin <npiggin@suse.de> wrote:
-> Nonlinear mappings are (AFAIKS) simply a virtual memory concept that
-> encodes the virtual address -> file offset differently from linear
-> mappings.
->
+On 32-bit machines, mount -t hugetlbfs -o size=4G gave a 0GB filesystem,
+size=5G gave a 1GB filesystem etc: there's no point in masking size with
+HPAGE_MASK just before shifting its lower bits away, and since HPAGE_MASK
+is a UL, that removed all the higher bits of the unsigned long long size.
 
-Hi Nick,
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+___
 
-what is the status of this patch? I'm just trying to line up a kernel
-tree for the new DRM memory management code, which really would like
-this...
+ fs/hugetlbfs/inode.c |    1 -
+ 1 file changed, 1 deletion(-)
 
-Dave.
+--- 2.6.19-rc3/fs/hugetlbfs/inode.c	2006-10-24 04:34:28.000000000 +0100
++++ linux/fs/hugetlbfs/inode.c	2006-10-24 17:43:08.000000000 +0100
+@@ -624,7 +624,6 @@ hugetlbfs_parse_options(char *options, s
+ 				do_div(size, 100);
+ 				rest++;
+ 			}
+-			size &= HPAGE_MASK;
+ 			pconfig->nr_blocks = (size >> HPAGE_SHIFT);
+ 			value = rest;
+ 		} else if (!strcmp(opt,"nr_inodes")) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
