@@ -1,66 +1,168 @@
-Date: Wed, 25 Oct 2006 16:29:04 +1000
+Date: Wed, 25 Oct 2006 17:08:06 +1000
 From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH 3/3] hugetlb: fix absurd HugePages_Rsvd
-Message-ID: <20061025062904.GC2330@localhost.localdomain>
-References: <Pine.LNX.4.64.0610250323570.30678@blonde.wat.veritas.com> <Pine.LNX.4.64.0610250335530.30678@blonde.wat.veritas.com> <20061025062610.GB2330@localhost.localdomain>
+Subject: Re: [PATCH 2/3] hugetlb: fix prio_tree unit
+Message-ID: <20061025070805.GA9628@localhost.localdomain>
+References: <Pine.LNX.4.64.0610250323570.30678@blonde.wat.veritas.com> <Pine.LNX.4.64.0610250331220.30678@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="W/nzBZO5zC0uMSeA"
 Content-Disposition: inline
-In-Reply-To: <20061025062610.GB2330@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.64.0610250331220.30678@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
 Cc: Andrew Morton <akpm@osdl.org>, Ken Chen <kenneth.w.chen@intel.com>, Bill Irwin <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 25, 2006 at 04:26:10PM +1000, David Gibson wrote:
-> On Wed, Oct 25, 2006 at 03:38:24AM +0100, Hugh Dickins wrote:
-> > If you truncated an mmap'ed hugetlbfs file, then faulted on the truncated
-> > area, /proc/meminfo's HugePages_Rsvd wrapped hugely "negative".  Reinstate
-> > my preliminary i_size check before attempting to allocate the page (though
-> > this only fixes the most obvious case: more work will be needed here).
-> > 
-> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> > ___
-> > 
-> > This is not a complete solution (what if hugetlb_no_page is actually
-> > racing with truncate_hugepages?), and there are several other accounting
-> > anomalies in here (private versus shared pages, hugetlbfs quota handling);
-> > but those all need more thought.  It'll probably make sense to use i_mutex
-> > instead of hugetlb_instantiation_mutex, so locking out truncation
-> > and mmap.
-> 
-> Ah, yes.  I also encountered this one a few days ago - I found it in
-> the context of deserializing the hugepage fault path, which makes the
-> problem worse, and forgot to consider if there was also a problem in
-> the original case.
-> 
-> In fact, there's a second problem with the current location of the
-> i_size check.  As well as wrapping the reserved count, if there's a
-> fault on a truncated area and the hugepage pool is also empty, we can
-> get an OOM SIGKILL instead of the correct SIGBUS.
-> 
-> I don't things are quite as bad as you fear, though:  I believe the
-> page lock protects us against racing concurrent truncations (this is
-> one reason we have find_lock_page() here, rather than the
-> find_get_page() which appears in the analagous normal page path).
-> 
-> I suggest the slightly revised patch below, which doesn't duplicate
-> the i_size test, and cleans up the backout path (removing a
-> no-longer-useful goto label) in the process.
+--W/nzBZO5zC0uMSeA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Bother.  Forgot to add in the above, that I've also implemented a
-couple of extra cases for the libhugetlbfs testsuite which will catch
-this bug.  Adam, if you could merge the patch with these test cases
-from:
-	http://ozlabs.org/~dgibson/home/tmp/reserve-wraparound
-to the libhugetlbfs tree, that would be great.
+On Wed, Oct 25, 2006 at 03:35:41AM +0100, Hugh Dickins wrote:
+> hugetlb_vmtruncate_list was misconverted to prio_tree: its prio_tree is
+> in units of PAGE_SIZE (PAGE_CACHE_SIZE) like any other, not HPAGE_SIZE
+> (whereas its radix_tree is kept in units of HPAGE_SIZE, otherwise slots
+> would be absurdly sparse).
+> 
+> At first I thought the error benign, just calling __unmap_hugepage_range
+> on more vmas than necessary; but on 32-bit machines, when the prio_tree
+> is searched correctly, it happens to ensure the v_offset calculation won't
+> overflow.  As it stood, when truncating at or beyond 4GB, it was liable
+> to discard pages COWed from lower offsets; or even to clear pmd entries
+> of preceding vmas, triggering exit_mmap's BUG_ON(nr_ptes).
+
+Hugh, I'd like to add a testcase to the libhugetlbfs testsuite which
+will trigger this bug, but from the description above I'm not sure
+exactly how to tickle it.  Can you give some more details of what
+sequence of calls will cause the BUG_ON() to be called.
+
+I've attached the skeleton test I have now, but I'm not sure if it's
+even close to what's really required for this.
 
 -- 
 David Gibson			| I'll have my music baroque, and my code
 david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
 				| _way_ _around_!
 http://www.ozlabs.org/~dgibson
+
+--W/nzBZO5zC0uMSeA
+Content-Type: text/x-csrc; charset=us-ascii
+Content-Disposition: attachment; filename="truncate_above_4GB.c"
+
+/*
+ * libhugetlbfs - Easy use of Linux hugepages
+ * Copyright (C) 2005-2006 David Gibson & Adam Litke, IBM Corporation.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+#define _LARGEFILE64_SOURCE
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/mman.h>
+
+#include <hugetlbfs.h>
+
+#include "hugetests.h"
+
+/*
+ * Test rationale:
+ *
+ * At one stage, a misconversion of hugetlb_vmtruncate_list to a
+ * prio_tree meant that on 32-bit machines, truncates at or above 4GB
+ * could truncate lower pages, resulting in BUG_ON()s.
+ */
+#define RANDOM_CONSTANT	0x1234ABCD
+#define FOURGIG ((off64_t)0x100000000ULL)
+
+static void sigbus_handler_fail(int signum, siginfo_t *si, void *uc)
+{
+	FAIL("Unexpected SIGBUS");
+}
+
+static void sigbus_handler_pass(int signum, siginfo_t *si, void *uc)
+{
+	PASS();
+}
+
+int main(int argc, char *argv[])
+{
+	int hpage_size;
+	int fd;
+	void *p, *q;
+	volatile unsigned int *pi, *qi;
+	int err;
+	struct sigaction sa_fail = {
+		.sa_sigaction = sigbus_handler_fail,
+		.sa_flags = SA_SIGINFO,
+	};
+	struct sigaction sa_pass = {
+		.sa_sigaction = sigbus_handler_pass,
+		.sa_flags = SA_SIGINFO,
+	};
+
+	test_init(argc, argv);
+
+	hpage_size = gethugepagesize();
+	if (hpage_size < 0)
+		CONFIG("No hugepage kernel support");
+
+	fd = hugetlbfs_unlinked_fd();
+	if (fd < 0)
+		FAIL("hugetlbfs_unlinked_fd()");
+
+	p = mmap64(NULL, hpage_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
+		 fd, 0);
+	if (p == MAP_FAILED)
+		FAIL("mmap() offset 0");
+	pi = p;
+	/* Touch the low page */
+	*pi = 0;
+
+	q = mmap64(NULL, hpage_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
+		 fd, FOURGIG);
+	if (q == MAP_FAILED)
+		FAIL("mmap() offset 4GB");
+	qi = q;
+	/* Touch the high page */
+	*qi = 0;
+
+	err = ftruncate64(fd, FOURGIG);
+	if (err)
+		FAIL("ftruncate(): %s", strerror(errno));
+
+	err = sigaction(SIGBUS, &sa_fail, NULL);
+	if (err)
+		FAIL("sigaction() fail");
+
+	*pi;
+
+	err = sigaction(SIGBUS, &sa_pass, NULL);
+	if (err)
+		FAIL("sigaction() pass");
+
+	*qi;
+
+	/* Should have SIGBUSed above */
+	FAIL("Didn't SIGBUS on truncated page.");
+}
+
+--W/nzBZO5zC0uMSeA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
