@@ -1,47 +1,45 @@
-Date: Thu, 26 Oct 2006 20:42:32 +1000
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH 2/3] hugetlb: fix prio_tree unit
-Message-ID: <20061026104232.GA7986@localhost.localdomain>
-References: <Pine.LNX.4.64.0610250828020.8576@blonde.wat.veritas.com> <000001c6f890$373fb960$12d0180a@amr.corp.intel.com> <20061026034739.GA6046@localhost.localdomain> <Pine.LNX.4.64.0610260907390.6235@blonde.wat.veritas.com>
+Message-ID: <45409761.9000806@yahoo.com.au>
+Date: Thu, 26 Oct 2006 21:09:21 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0610260907390.6235@blonde.wat.veritas.com>
+Subject: Re: [patch 3/3] mm: fault handler to replace nopage and populate
+References: <20061007105758.14024.70048.sendpatchset@linux.site>	 <20061007105853.14024.95383.sendpatchset@linux.site> <21d7e9970610241431j38c59ec5rac17f780813e6f05@mail.gmail.com>
+In-Reply-To: <21d7e9970610241431j38c59ec5rac17f780813e6f05@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, Andrew Morton <akpm@osdl.org>, Bill Irwin <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
+To: Dave Airlie <airlied@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 26, 2006 at 09:13:28AM +0100, Hugh Dickins wrote:
-> On Thu, 26 Oct 2006, David Gibson wrote:
-> > +
-> > +	/* This part of the test makes the problem more obvious, but
-> > +	 * is not essential.  It can't be done on powerpc, where
-> > +	 * segment restrictions prohibit us from performing such a
-> > +	 * mapping, so skip it there */
-> > +#if !defined(__powerpc__) && !defined(__powerpc64__)
-> > +	/* Replace middle hpage by tinypage mapping to trigger
-> > +	 * nr_ptes BUG */
+Dave Airlie wrote:
+> On 10/7/06, Nick Piggin <npiggin@suse.de> wrote:
 > 
-> I should add, I expect you'll need to extend that #if'ing to exclude
-> at least ia64 too, won't you?   No architecture that segregates its
-> hugepage virtual address space will manage the interposed tinypage.
+>> Nonlinear mappings are (AFAIKS) simply a virtual memory concept that
+>> encodes the virtual address -> file offset differently from linear
+>> mappings.
+>>
+> 
+> Hi Nick,
+> 
+> what is the status of this patch? I'm just trying to line up a kernel
+> tree for the new DRM memory management code, which really would like
+> this...
+> 
+> Dave.
 
-Well, libhugetlbfs doesn't support ia64 at all, at present.  Mostly
-just because none of us have convenient access to ia64 boxes to
-develop or test on.
+Hi Dave,
 
-Porting will require a bunch of ugly switches to disable a third or
-more of the functionality, though: the segment remapping stuff will
-never work on ia64 in its present form either, again because of the
-segregated address space.
+Blocked by another kernel bug at the moment. I hope both fixes can
+make it into 2.6.20, but if that doesn't look like it will happen,
+then I might try reworking the patchset to break the ->fault change
+out by itself because there are several others who would like to use
+it as well.
 
 -- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
