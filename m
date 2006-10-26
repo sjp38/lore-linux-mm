@@ -1,32 +1,48 @@
-Date: Thu, 26 Oct 2006 12:00:30 -0700 (PDT)
+Date: Thu, 26 Oct 2006 12:08:32 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/3] Create compat_sys_migrate_pages
-In-Reply-To: <20061026133305.b0db54e6.sfr@canb.auug.org.au>
-Message-ID: <Pine.LNX.4.64.0610261158130.2802@schroedinger.engr.sgi.com>
-References: <20061026132659.2ff90dd1.sfr@canb.auug.org.au>
- <20061026133305.b0db54e6.sfr@canb.auug.org.au>
+Subject: RE: [PATCH 3/3] hugetlb: fix absurd HugePages_Rsvd
+In-Reply-To: <000001c6f8b3$1d4bd020$a389030a@amr.corp.intel.com>
+Message-ID: <Pine.LNX.4.64.0610261200520.2802@schroedinger.engr.sgi.com>
+References: <000001c6f8b3$1d4bd020$a389030a@amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: LKML <linux-kernel@vger.kernel.org>, ppc-dev <linuxppc-dev@ozlabs.org>, paulus@samba.org, ak@suse.de, linux-mm@kvack.org
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'David Gibson' <david@gibson.dropbear.id.au>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Bill Irwin <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Oct 2006, Stephen Rothwell wrote:
+On Wed, 25 Oct 2006, Chen, Kenneth W wrote:
 
-> This is needed on bigendian 64bit architectures. The obvious way to do
-> this (taking the other compat_ routines in this file as examples) is to
-> use compat_alloc_user_space and copy the bitmasks back there, however you
-> cannot call compat_alloc_user_space twice for a single system call and
-> this method saves two copies of the bitmasks.
+> I used to argue dearly on how important it is to allow parallel hugetlb
+> faults for scalability, but somehow lost my ground in the midst of flurry
+> development.  Glad to see it is coming back.
 
-Well this means also that sys_mbind and sys_set_mempolicy are also
-broken because these functions also use get_nodes().
+I wish someone would have cced me before allowing performance atrocities such as this.
 
-Fixing get_nodes() to do the proper thing would fix all of these 
-without having to touch sys_migrate_pages or creating a compat_ function 
-(which usually is placed in kernel/compat.c)
+Performance before the "fixes" (March, 2.6.16):
+
+hsz=256M thr=100 pgs=10 min= 1370ms max=1746ms avg= 1554ms wall=1995ms cpu=155473ms
+hsz=256M thr=100 pgs=10 min= 1936ms max=3706ms avg= 2610ms wall=4085ms cpu=261076ms
+hsz=256M thr=100 pgs=10 min= 1375ms max=1988ms avg= 1600ms wall=2241ms cpu=160084ms
+
+Performance now:
+
+hsz=256M thr=10 pgs=3 min= 2965ms max=4091ms avg= 3471ms wall=4232ms cpu=34715ms
+hsz=256M thr=100 pgs=3 min=16268ms max=43856ms avg=35927ms wall=44561ms cpu=3592702ms
+hsz=256M thr=250 pgs=3 min=38348ms max=91242ms avg=74077ms wall=97071ms cpu=18519284ms
+
+Note the performance now is only using 3 instead of 10 pages. Still factor 
+10 down! Meaning we are now much worse than that.
+
+With David's latest parallelization attempt:
+
+hsz=256M thr=100 pgs=10 min= 1373ms max=9604ms avg= 6311ms wall=10787ms cpu=631164ms
+hsz=256M thr=100 pgs=10 min= 1442ms max=9115ms avg= 6386ms wall=10078ms cpu=638645ms
+hsz=256M thr=100 pgs=10 min= 1451ms max=10788ms avg= 7430ms wall=11357ms cpu=743070ms
+hsz=256M thr=100 pgs=10 min= 1439ms max=11876ms avg= 8396ms wall=13091ms cpu=839642ms
+
+Still down by a factor of 3 to 4.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
