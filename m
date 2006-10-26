@@ -1,61 +1,80 @@
-Date: Fri, 27 Oct 2006 09:47:45 +1000
+Date: Fri, 27 Oct 2006 09:31:37 +1000
 From: 'David Gibson' <david@gibson.dropbear.id.au>
 Subject: Re: [RFC] reduce hugetlb_instantiation_mutex usage
-Message-ID: <20061026234745.GB11733@localhost.localdomain>
-References: <000101c6f94c$8138c590$ff0da8c0@amr.corp.intel.com>
+Message-ID: <20061026233137.GA11733@localhost.localdomain>
+References: <000101c6f94c$8138c590$ff0da8c0@amr.corp.intel.com> <20061026154451.bfe110c6.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000101c6f94c$8138c590$ff0da8c0@amr.corp.intel.com>
+In-Reply-To: <20061026154451.bfe110c6.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, Hugh Dickins <hugh@veritas.com>, bill.irwin@oracle.com, Andrew Morton <akpm@osdl.org>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, Hugh Dickins <hugh@veritas.com>, bill.irwin@oracle.com, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 26, 2006 at 03:17:20PM -0700, Chen, Kenneth W wrote:
-> First rev of patch to allow hugetlb page fault to scale.
+On Thu, Oct 26, 2006 at 03:44:51PM -0700, Andrew Morton wrote:
+> On Thu, 26 Oct 2006 15:17:20 -0700
+> "Chen, Kenneth W" <kenneth.w.chen@intel.com> wrote:
 > 
-> hugetlb_instantiation_mutex was introduced to prevent spurious allocation
-> failure in a corner case: two threads race to instantiate same page with
-> only one free page left in the global pool.  However, this global
-> serialization hurts fault performance badly as noted by Christoph Lameter.
-> This patch attempt to cut back the use of mutex only when free page resource
-> is limited, thus allow fault to scale in most common cases.
+> > First rev of patch to allow hugetlb page fault to scale.
+> > 
+> > hugetlb_instantiation_mutex was introduced to prevent spurious allocation
+> > failure in a corner case: two threads race to instantiate same page with
+> > only one free page left in the global pool.  However, this global
+> > serialization hurts fault performance badly as noted by Christoph Lameter.
+> > This patch attempt to cut back the use of mutex only when free page resource
+> > is limited, thus allow fault to scale in most common cases.
+> >
+> 
+> ug.
+> 
+> How about we kill that instantiation_mutex thing altogether and fix
+> the original bug in a better fashion?  Like...
+> 
+> In hugetlb_no_page():
+> 
+> retry:
+> 	page = find_lock_page(...)
+> 	if (!page) {
+> 		write_lock_irq(&mapping->tree_lock);
+> 		if (radix_tree_lookup(...)) {
+> 			write_unlock_irq(tree_lock);
+> 			goto retry;
+> 		}
+> 		page = alloc_huge_page(...);
+> 		if (!page)
+> 			bail;
+> 		radix_tree_insert(...);
+> 		SetPageLocked(page);
+> 		write_unlock_irq(tree_lock);
+> 		clear_huge_page(...);
+> 	}
+> 
+> 	<stick it in page tables>
+> 
+> 	unlock_page(page);
+> 
+> The key points:
+> 
+> - Use tree_lock to prevent the race
+> 
+> - allocate the hugepage inside tree_lock so we never get into this
+>   two-threads-tried-to-allocate-the-final-page problem.
+> 
+> - The hugepage is zeroed without locks held, under lock_page()
+> 
+> - lock_page() is used to make the other thread(s) sleep while the winner
+>   thread is zeroing out the page.
+> 
+> It means that rather a lot of add_to_page_cache() will need to be copied
+> into hugetlb_no_page().
 
->From my experience of spending most of the last two weeks going "We
-can just do <this>...hack, hack.., no, that has a race too" this is
-much harder to get right than you'd think.
-
-For example with your patch, suppose CPU0 and CPU1 are both attempting
-to instantiate the same page in a shared mapping, CPU2 is attempting
-to instantiate a page in an unrelated mapping.
-
-CPU0		CPU1		CPU2		token	free_hpages
-						0	2
-atomic_inc					1	2
-(use_mutex=0)
-		atomic_inc			2	2
-		(use_mutex=1)
-				atomic_inc	3	2
-				(use_mutex=1)
-				mutex_lock
-				<complete fault>
-				mutex_unlock
-				atomic_dec	2	1
-		mutex_lock			2	1
-alloc_huge_page					2	0
-		alloc_huge_page
-		-> OOM
-add_to_page_cache
-
-So we still have the spurious OOM.  There may be other race
-scenarios, that's just the first I came up with.
-
-Oh, also your patch accesses free_huge_pages bare, whereas its usually
-protected by hugetlb_lock.  As a read-only access that's *probably*
-ok, but any lock-free access of variables which are generally supposed
-to be lock protected makes me nervious.
+This handles the case of processes racing on a shared mapping, but not
+the case of threads racing on a private mapping.  In the latter case
+the race ends at the set_pte() rather than the add_to_page_cache()
+(well, strictly with the whole page_table_lock atomic lump).  And we
+can't move the clear after the set_pte() :(.
 
 -- 
 David Gibson			| I'll have my music baroque, and my code
