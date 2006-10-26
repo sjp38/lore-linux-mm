@@ -1,75 +1,73 @@
-Date: Thu, 26 Oct 2006 15:09:38 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Page allocator: Single Zone optimizations
-Message-Id: <20061026150938.bdf9d812.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
-	<20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
-	<45347288.6040808@yahoo.com.au>
-	<Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
-	<45360CD7.6060202@yahoo.com.au>
-	<20061018123840.a67e6a44.akpm@osdl.org>
-	<Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: [RFC] reduce hugetlb_instantiation_mutex usage
+Date: Thu, 26 Oct 2006 15:17:20 -0700
+Message-ID: <000101c6f94c$8138c590$ff0da8c0@amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, 'David Gibson' <david@gibson.dropbear.id.au>, Hugh Dickins <hugh@veritas.com>, bill.irwin@oracle.com, Andrew Morton <akpm@osdl.org>, Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Oct 2006 16:08:20 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+First rev of patch to allow hugetlb page fault to scale.
 
-> Single Zone Optimizations V2
-> 
-> V1->V2 Use a config variable setup im mm/KConfig
-> 
-> If we only have a single zone then various macros can be optimized.
-> We do not need to protect higher zones, we know that zones are
-> always present, can remove useless data from /proc etc etc. Various
-> code paths become unnecessary with a single zone setup.
-
-I don't know about all of this.  It's making core mm increasingly revolting
-and increases dissimilarities between different kernel builds and generally
-makes it harder for us to remotely diagnose and solve people's bug reports.
-Harder to understand architecture A's behaviour based upon one's knowledge
-of architecture B, etc.
-
-I really really want to drop all those patches[1] and rethink it all.
-
-Like...  would it make sense to eliminate the hard-coded concepts of DMA,
-DMA32, NORMAL and HIGHMEM and simply say "we support 1 to N zones" per
-node?  Obviously we'd need to keep the DMA/NORMAL/HIGHMEM nomenclature in
-the interfaces so the rest of the kernel builds and works, but the core mm
-just shouldn't need to care: all it cares about is one or more zones.
+hugetlb_instantiation_mutex was introduced to prevent spurious allocation
+failure in a corner case: two threads race to instantiate same page with
+only one free page left in the global pool.  However, this global
+serialization hurts fault performance badly as noted by Christoph Lameter.
+This patch attempt to cut back the use of mutex only when free page resource
+is limited, thus allow fault to scale in most common cases.
 
 
-
-Or something like that.  Something which makes the mm easier to understand,
-easier to maintain and faster.  Rather than harder to understand, harder to
-maintain and faster.
+Signed-off-by: Ken Chen <kenneth.w.chen@intel.com>
 
 
-
-
-
-
-[1] These:
-
-get-rid-of-zone_table.patch
-deal-with-cases-of-zone_dma-meaning-the-first-zone.patch
-get-rid-of-zone_table-fix-3.patch
-introduce-config_zone_dma.patch
-optional-zone_dma-in-the-vm.patch
-optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set.patch
-optional-zone_dma-for-ia64.patch
-remove-zone_dma-remains-from-parisc.patch
-remove-zone_dma-remains-from-sh-sh64.patch
-set-config_zone_dma-for-arches-with-generic_isa_dma.patch
-zoneid-fix-up-calculations-for-zoneid_pgshift.patch
+--- ./mm/hugetlb.c.orig	2006-10-26 10:26:43.000000000 -0700
++++ ./mm/hugetlb.c	2006-10-26 13:18:03.000000000 -0700
+@@ -542,6 +542,8 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	pte_t entry;
+ 	int ret;
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
++	static atomic_t token = ATOMIC_INIT(0);
++	int use_mutex = 0;
+ 
+ 	ptep = huge_pte_alloc(mm, address);
+ 	if (!ptep)
+@@ -552,12 +554,15 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 	 * get spurious allocation failures if two CPUs race to instantiate
+ 	 * the same page in the page cache.
+ 	 */
+-	mutex_lock(&hugetlb_instantiation_mutex);
++	if (atomic_inc_return(&token) >= free_huge_pages) {
++		mutex_lock(&hugetlb_instantiation_mutex);
++		use_mutex = 1;
++	}
++
+ 	entry = *ptep;
+ 	if (pte_none(entry)) {
+ 		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
+-		mutex_unlock(&hugetlb_instantiation_mutex);
+-		return ret;
++		goto out;
+ 	}
+ 
+ 	ret = VM_FAULT_MINOR;
+@@ -568,7 +573,11 @@ int hugetlb_fault(struct mm_struct *mm, 
+ 		if (write_access && !pte_write(entry))
+ 			ret = hugetlb_cow(mm, vma, address, ptep, entry);
+ 	spin_unlock(&mm->page_table_lock);
+-	mutex_unlock(&hugetlb_instantiation_mutex);
++
++out:
++	atomic_dec(&token);
++	if (use_mutex)
++		mutex_unlock(&hugetlb_instantiation_mutex);
+ 
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
