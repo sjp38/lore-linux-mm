@@ -1,50 +1,67 @@
-Date: Fri, 27 Oct 2006 19:12:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 27 Oct 2006 19:24:29 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061027190452.6ff86cae.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
+Message-Id: <20061027192429.42bb4be4.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
- <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
- <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
- <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org>
- <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
- <20061026150938.bdf9d812.akpm@osdl.org> <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061027190452.6ff86cae.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
+	<45347288.6040808@yahoo.com.au>
+	<Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
+	<45360CD7.6060202@yahoo.com.au>
+	<20061018123840.a67e6a44.akpm@osdl.org>
+	<Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
+	<20061026150938.bdf9d812.akpm@osdl.org>
+	<Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
+	<20061027190452.6ff86cae.akpm@osdl.org>
+	<Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Oct 2006, Andrew Morton wrote:
+On Fri, 27 Oct 2006 19:12:16 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> On Fri, 27 Oct 2006 18:00:42 -0700 (PDT)
-> Christoph Lameter <clameter@sgi.com> wrote:
+> On Fri, 27 Oct 2006, Andrew Morton wrote:
 > 
-> > But I cannot find any justification in my contexts to complete work on 
-> > this functionality because plainly all the hardware that I use does not 
-> > have problem laden DMA controllers and works just fine with a single 
-> > zone.
+> > On Fri, 27 Oct 2006 18:00:42 -0700 (PDT)
+> > Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > But I cannot find any justification in my contexts to complete work on 
+> > > this functionality because plainly all the hardware that I use does not 
+> > > have problem laden DMA controllers and works just fine with a single 
+> > > zone.
+> > 
+> > How about memory hot-unplug?
 > 
-> How about memory hot-unplug?
+> Cannot figure out how that relates to what I said above.
 
-Cannot figure out how that relates to what I said above. Memory hot unplug 
-seems to have been dropped in favor of baloons.
+We need some way of preventing unreclaimable kernel memory allocations from
+using certain physical pages.  That means zones.
 
-> The only feasible way we're going to implement that is to support it on
-> user allocations only.  IOW: for all those allocations which were performed
-> with __GFP_HIGHMEM.
+> Memory hot unplug 
+> seems to have been dropped in favor of baloons.
 
-The alloc_page_range() functionality was intended for device drivers and 
-other ZONE_DMA users. I am not sure what the point is of user space 
-having the ability to allocate memory in specific physical memory areas. 
-User space has virtual address areas that are mapped by the kernel to 
-physical addresses. The physical addresses for DMA is allocated through 
-alloc_dma_coherent.
+Has it?  I don't recall seeing a vague proposal, let alone an implementation?
 
+> > The only feasible way we're going to implement that is to support it on
+> > user allocations only.  IOW: for all those allocations which were performed
+> > with __GFP_HIGHMEM.
+> 
+> The alloc_page_range() functionality was intended for device drivers and 
+> other ZONE_DMA users. I am not sure what the point is of user space 
+> having the ability to allocate memory in specific physical memory areas. 
+
+Userspace allocations are reclaimable: pagecache, anonymous memory.  These
+happen to be allocated with __GFP_HIGHMEM set.
+
+So right now __GFP_HIGHMEM is an excellent hint telling the page allocator
+that it is safe to satisfy this request from removeable memory.
 
 
 --
