@@ -1,28 +1,46 @@
-Message-ID: <22251497476858.C70C397FF4@6TQT0BL>
-From: "Tommie" <dentureconfuse@royale-t.nl>
-Subject: Order now and benefit from lowest costs and convenient shipment Delight in
-Date: Sat, 28 Oct 2006 17:56:25 +0800
+From: Andi Kleen <ak@suse.de>
+Subject: Re: Page allocator: Single Zone optimizations
+Date: Sat, 28 Oct 2006 09:12:01 -0700
+References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com> <20061027214324.4f80e992.akpm@osdl.org>
+In-Reply-To: <20061027214324.4f80e992.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
-        charset="Windows-1252"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Return-Path: <armcoban@roue.com>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+Message-Id: <200610280912.01547.ak@suse.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-How are you bro ? 
+> It's all pretty simple.  But it'd be hacky to implement it in terms of
+> "highmem".  It would be better if we could just tell the core MM "here's a
+> 4G zone" and "here's a 60G zone".  The 60G zone is only used for
+> GFP_HIGHUSER allocations and is hence unpluggable.
+>
+> I don't think there's any other (practical) way of implementing hot-unplug.
 
- Have you ever wanted to impress your girl? Surely you only dream of it 
+If it's implemented this way it would be important that the boundaries
+between nodes are not fixed, but tunable. Otherwise kernel memory
+intensive loads might be suddenly impossible.
 
- Don?t hesitate and you will love the lowest possible pricing and the fastest possible shipment Enhanced male power and unlimited prowess with your girl The best products for the winning guys 
+>
+> But hot-unplug is just an example.  My main point here is that it is
+> desirable that we get away from the up-to-four magical hard-wired zones in
+> core MM.
 
- You may find what you need here: http://www.domaindbs.hk
+I mostly agree. At least GFP_DMA needs to go and replaced
+with some API that gives memory masks and lets an underlying
+allocator figure it out. GFP_DMA32 might still have a better case
+though because those are pretty common, but ultimatively
+a mask based interface is here much better too.
 
- Most trusted brands of the world, join the thousands of happy customers 
+-Andi
 
-
-
-Tommie Holley
-
-
-I'm also part of the Leather and Bikini Lace Squad Choosing a radiator and a cap is only the beginning when it comes to upgrading your cooling  Under the guidance of Ikuo Kajitani, the team's goal was to create a 100-hp/liter engine for the 1989 Integra " My real name is Jason--come and get me!  This put an unexpectedly high amount of pressure in the cooling system and damaged our  By increasing the core thickness, you will also increase the volume and area, which will allow  The Ueo inner tie rod allows for an additional 20mm of steering angle adjustment Ueo pillow tension rods allow owners to tailor up to 15mm of suspension adjustment for their  Using an adjustable front pillow ball, the Ueo Style lower arm completely replaces the factory I went really early in the morning but I turned back and went home after I found out the event was sold out. What would you have been if you had never modeled?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
