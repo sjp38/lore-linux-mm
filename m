@@ -1,76 +1,50 @@
-Date: Sat, 28 Oct 2006 17:48:40 -0700 (PDT)
+Date: Sat, 28 Oct 2006 17:59:27 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061027214324.4f80e992.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
- <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
- <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
- <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org>
- <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
- <20061026150938.bdf9d812.akpm@osdl.org> <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
- <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
- <20061027214324.4f80e992.akpm@osdl.org>
+Subject: Re: [RFC] Avoid allocating interleave from almost full nodes
+In-Reply-To: <200610272112.12118.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0610281741140.14058@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0610271943540.10933@schroedinger.engr.sgi.com>
+ <200610272112.12118.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Oct 2006, Andrew Morton wrote:
+On Fri, 27 Oct 2006, Andi Kleen wrote:
 
-> Right.  We need zones for lots and lots of things.  This all comes back to
-> my main point: the hardwired and magical DMA, DMA32, NORMAL and HIGHMEM
-> zones don't cut it.  We'd be well-served by implementing the core MM as
-> just "one or more zones".  The placement, sizing and *meaning* behind those
-> zones is externally defined.
-
-We (and I personally with the prezeroing patches) have been down 
-this road several times and did not like what we saw. 
-
-> That's all virtual machine stuff, where the "kernel"'s memory is virtual,
-> not physical.
-
-That is the case on most platforms x86_64, ia64. Kernel memory is movable
-and the Virtual Iron guys have demonstrated how to do that without
-additional zones.
+> > Should we find that all nodes are marked as full then we disregard
+> > the limit and allocate from the next node without any checks.
 > 
-> > > Userspace allocations are reclaimable: pagecache, anonymous memory.  These
-> > > happen to be allocated with __GFP_HIGHMEM set.
-> > 
-> > On certain platforms yes.
-> 
-> On _all_ platforms.  See GFP_HIGHUSER.
+> And when only one node is not full the interleaved allocations will
+> all go to that node? I'm not sure that's a good idea.
 
-User space allocations are movable already via page migration. 
+It will go to that node until its filled up like the rest of the nodes. 
+The intend of interleave is after all to even out allocations amoung all 
+nodes and this follows that spirit.
 
-> > > So right now __GFP_HIGHMEM is an excellent hint telling the page allocator
-> > > that it is safe to satisfy this request from removeable memory.
+> In general I think it's a bad hack: Who says the allocations
+> of the process who filled a node is more important than the interleaving
+> process? I think it would be better to keep them being equal citizens
+> and allocate interleaving everywhere.
 
-For that we would have to have a distinction of removable memory which 
-wont be necessary if we use the existing mappings to move the physical
-location while keeping the virtual addresses.
+What currently happens is that we overallocate a node and we then fall 
+back to a neighboring node. So we are already clustering the allocations
+on particular nodes right now. But we are very rude right now and allocate 
+from a node until its completely filled up. Processes running on the node
+then either have to go off node for allocations or start reclaiming 
+memory.
 
-> I don't think there's any other (practical) way of implementing hot-unplug.
+The patch avoids that situation as long as feasable by spreading to less 
+filled nodes once we have reached the threshold.
 
-Of course there is. As soon as you have virtual mappings its fairly easy 
-to do.
-
-1. Migrate all what you can off the memory section that you want to
-   free.
-
-2. Use the page table to dynamically remap the leftover pages.
-
-> But hot-unplug is just an example.  My main point here is that it is
-> desirable that we get away from the up-to-four magical hard-wired zones in
-> core MM.
-
-We have been facing that decision repeatedly and it was pretty clear that 
-there would be significant disadvantages.
+The allocations of a process which does local allocations are more 
+important since these are local allocations. This is data for exclusive 
+use by that process. Interleave allocations are made for data that is 
+shared between processes running on multiple nodes. For those allocations 
+locality does matter less.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
