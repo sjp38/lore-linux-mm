@@ -1,111 +1,118 @@
-Message-ID: <4544914F.3000502@yahoo.com.au>
-Date: Sun, 29 Oct 2006 22:32:31 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <20061029124655.7014.qmail@web32408.mail.mud.yahoo.com>
+Date: Sun, 29 Oct 2006 04:46:55 -0800 (PST)
+From: Giridhar Pemmasani <pgiri@yahoo.com>
+Subject: Re: Slab panic on 2.6.19-rc3-git5 (-git4 was OK)
+In-Reply-To: <84144f020610282358p6d2db50ybd1cbfa3716c53fb@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: Page allocator: Single Zone optimizations
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com> <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com> <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com> <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org> <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com> <20061026150938.bdf9d812.akpm@osdl.org> <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com> <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com> <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com> <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com> <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="0-295431475-1162126015=:4410"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+Content-Id: 
+Content-Disposition: inline
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>, "Martin J. Bligh" <mbligh@google.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>, Linus Torvalds <torvalds@osdl.org>, pgiri@yahoo.com, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Sat, 28 Oct 2006, Andrew Morton wrote:
+--- Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+
+> Hi,
 > 
+> On 10/29/06, Martin J. Bligh <mbligh@google.com> wrote:
+> > -git4 was fine. -git5 is broken (on PPC64 blade)
+> >
+> > As -rc2-mm2 seemed fine on this box, I'm guessing it's something
+> > that didn't go via Andrew ;-( Looks like it might be something
+> > JFS or slab specific. Bigger PPC64 box with different config
+> > was OK though
+> >
+> > Full log is here: http://test.kernel.org/abat/59046/debug/console.log
+> > Good -git4 run: http://test.kernel.org/abat/58997/debug/console.log
+> >
+> > kernel BUG in cache_grow at mm/slab.c:2705!
+> > cpu 0x1: Vector: 700 (Program Check) at [c0000000fffb7710]
+> >      pc: c0000000000c8ad4: .cache_grow+0x64/0x4f0
+> >      lr: c0000000000c91a8: .cache_alloc_refill+0x248/0x2cc
+> >      sp: c0000000fffb7990
+> >     msr: 8000000000021032
+> >    current = 0xc0000000fffab800
+> >    paca    = 0xc00000000047e780
+> >      pid   = 1, comm = swapper
+> > kernel BUG in cache_grow at mm/slab.c:2705!
+> > enter ? for help
+> > [c0000000fffb7a60] c0000000000c91a8 .cache_alloc_refill+0x248/0x2cc
+> > [c0000000fffb7b20] c0000000000c9708 .kmem_cache_alloc_node+0xd0/0x10c
+> > [c0000000fffb7bc0] c0000000000b69cc .__get_vm_area_node+0xcc/0x230
+> > [c0000000fffb7c70] c0000000000b7640 .__vmalloc_node+0x60/0xc0
+> > [c0000000fffb7d10] c0000000001ad4c8 .txInit+0x2a0/0x3a8
+> > [c0000000fffb7e20] c00000000044c1ec .init_jfs_fs+0x78/0x27c
+> > [c0000000fffb7ec0] c0000000000094c0 .init+0x1f4/0x3e4
+> > [c0000000fffb7f90] c000000000027270 .kernel_thread+0x4c/0x68
 > 
->>>We (and I personally with the prezeroing patches) have been down 
->>>this road several times and did not like what we saw. 
->>
->>Details?
+> I only skimmed through this briefly but it looks like due to
+> 52fd24ca1db3a741f144bbc229beefe044202cac __get_vm_area_node is passing
+> GFP_HIGHMEM to kmem_cache_alloc_node which is a no-no.
 > 
-> 
-> The most important issues that come to my mind right now  (this has 
-> been discussed frequently in various contexts so I may be missing 
-> some things) are:
-> 
-> 1. Duplicate the caches (pageset structures). This reduces cache hit 
->    rates. Duplicates lots of information in the page allocator.
 
-You would have to do the same thing to get an O(1) per-CPU allocation
-for a specific zone/reclaim type/etc regardless whether or not you use
-zones.
+I haven't been able to reproduce this, although I understand why it happens:
+vmalloc allocates memory with
 
-> 2. Necessity of additional load balancing across multiple zones.
+GFP_KERNEL | __GFP_HIGHMEM
 
-a. we have to do this anyway for eg. dma32 and NUMA, and b. it is much
-better than the highmem problem was because all the memory is kernel
-addressable.
+and with git5, the same flags are passed down to cache_alloc_refill, causing
+the BUG. The following patch against 2.6.19-rc3-git5 (also attached as
+attachment, as this mailer may mess up inline copying) should fix it.
 
-If you use another scheme (eg. lists within zones within nodes, rather
-than just more zones within nodes), then you still fundamentally have
-to balance somehow.
+Note that when calling kmalloc_node, I am masking off __GFP_HIGHMEM with
+GFP_LEVEL_MASK, whereas __vmalloc_area_node does the same with
 
-> 3. The NUMA layer can only support memory policies for a single zone.
+~(__GFP_HIGHMEM | __GFP_ZERO).
 
-That's broken. The VM had zones long before it had nodes or memory
-policies.
+IMHO, using GFP_LEVEL_MASK is preferable, but either should fix this problem.
 
-> 4. You may have to duplicate the slab allocator caches for that
->    purpose.
+Signed-off-by: Giridhar Pemmasani (pgiri@yahoo.com)
 
-If you want specific allocations from a given zone, yes. So you may
-have to do the same if you want a specific slab allcoation from a
-list within a zone.
+diff -Naur linux-2.6.19-rc3-git5.orig/mm/vmalloc.c
+linux-2.6.19-rc3-git5/mm/vmalloc.c
+--- linux-2.6.19-rc3-git5.orig/mm/vmalloc.c     2006-10-29 07:26:34.000000000
+-0500
++++ linux-2.6.19-rc3-git5/mm/vmalloc.c  2006-10-29 07:28:12.000000000 -0500
+@@ -182,7 +182,7 @@
+        addr = ALIGN(start, align);
+        size = PAGE_ALIGN(size);
 
-> 5. More bits used in the page flags.
+-       area = kmalloc_node(sizeof(*area), gfp_mask, node);
++       area = kmalloc_node(sizeof(*area), gfp_mask & GFP_LEVEL_MASK, node);
+        if (unlikely(!area))
+                return NULL;
 
-Aren't there patches to move the bits out of the page flags? A list
-within zones approach would have to use either page flags or some
-external info (eg. page pfn) to determine what list for the page to
-go back to anyway, wouldn't you?
 
-> 6. ZONES have to be sized at bootup which creates more dangers of runinng
->    out of memory, possibly requiring more complex load balancing.
+ 
+____________________________________________________________________________________
+Access over 1 million songs - Yahoo! Music Unlimited 
+(http://music.yahoo.com/unlimited)
 
-Mel's list based defrag approach requires complex load balancing too.
+--0-295431475-1162126015=:4410
+Content-Type: text/x-diff; name="__get_vm_area_node-should-mask-off-gfp-highmem.patch"
+Content-Description: 16165293-__get_vm_area_node-should-mask-off-gfp-highmem.patch
+Content-Disposition: inline; filename="__get_vm_area_node-should-mask-off-gfp-highmem.patch"
 
->>Again.  On the whole, that was a pretty useless email.  Please give us
->>something we can use.
-> 
-> 
-> Well review the discussions that we had regarding Mel Gorman's defrag 
-> approaches. We discussed this in detail at the VM summit and decided to 
-> not create additional zones but instead separate the free lists. You and 
-> Linus seemed to be in agreement with this. I am a bit surprised .... 
-> Is this a Google effect?
-> 
-> Moreover the discussion here is only remotely connected to the issue at 
-> hand. We all agree that ZONE_DMA is bad and we want to have an alternate 
-> scheme. Why not continue making it possible to not compile ZONE_DMA 
-> dependent code into the kernel?
-> 
-> Single zone patches would increase VM performance. That would in turn 
-> make it more difficult to get approaches in that require multiple zones 
-> since the performance drop would be more significant.
+diff -Naur linux-2.6.19-rc3-git5.orig/mm/vmalloc.c linux-2.6.19-rc3-git5/mm/vmalloc.c
+--- linux-2.6.19-rc3-git5.orig/mm/vmalloc.c	2006-10-29 07:26:34.000000000 -0500
++++ linux-2.6.19-rc3-git5/mm/vmalloc.c	2006-10-29 07:28:12.000000000 -0500
+@@ -182,7 +182,7 @@
+ 	addr = ALIGN(start, align);
+ 	size = PAGE_ALIGN(size);
+ 
+-	area = kmalloc_node(sizeof(*area), gfp_mask, node);
++	area = kmalloc_node(sizeof(*area), gfp_mask & GFP_LEVEL_MASK, node);
+ 	if (unlikely(!area))
+ 		return NULL;
+ 
 
-node->zone->many lists vs node->many zones? I guess the zones approach is
-faster?
-
-Not that I am any more convinced that defragmentation is a good idea than
-I was a year ago, but I think it is naive to think we can instantly be rid
-of all the problems associated with zones by degenerating that layer of the
-VM and introducing a new one that does basically the same things.
-
-It is true that zones may not be a perfect fit for what some people want to
-do, but until they have shown a) what they want to do is a good idea, and
-b) zones can't easily be adapted, then using the infrastructure we already
-have throughout the entire mm seems like a good idea.
-
-IMO, Andrew's idea to have 1..N zones in a node seems sane and it would be
-a good generalisation of even the present code.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+--0-295431475-1162126015=:4410--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
