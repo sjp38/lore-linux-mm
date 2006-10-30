@@ -1,33 +1,229 @@
-Received: by ug-out-1314.google.com with SMTP id o4so1053805uge
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2006 07:47:18 -0800 (PST)
-Message-ID: <84144f020610300747q2652e185u6499510659a54a8c@mail.gmail.com>
-Date: Mon, 30 Oct 2006 17:47:18 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: Re: Slab panic on 2.6.19-rc3-git5 (-git4 was OK)
-In-Reply-To: <45461BC7.5050609@shadowen.org>
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id k9UGB5X2071966
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:11:05 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9UG42w4244962
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:04:12 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9UG0aas025186
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:00:36 +1100
+Received: from balbir.in.ibm.com ([9.124.89.192])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k9UG0ZiS025160
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:00:35 +1100
+Date: Mon, 30 Oct 2006 21:27:27 +0530
+Subject: RFC: Memory Controller
+Message-ID: <20061030155727.GA22101@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <454442DC.9050703@google.com>
-	 <20061029000513.de5af713.akpm@osdl.org>
-	 <4544E92C.8000103@shadowen.org> <4545325D.8080905@mbligh.org>
-	 <Pine.LNX.4.64.0610291718481.25218@g5.osdl.org>
-	 <45461BC7.5050609@shadowen.org>
+From: balbir@in.ibm.com (Balbir Singh)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/30/06, Andy Whitcroft <apw@shadowen.org> wrote:
-> Test results are back on the version of the slab panic fix which Linus'
-> has committed in his tree.  This change on top of 2.6.19-rc3-git5 is
-> good.  2.6.19-rc3-git6 is also showing good on this machine.
+I missed linux-mm in the cc of the first post.
 
-FWIW, the patch looks correct to me also.
+Balbir
 
-                           Pekka
+----- Forwarded message from Balbir Singh <balbir@in.ibm.com> -----
+
+We've seen a lot of discussion lately on the memory controller. The RFC below
+provides a summary of the discussions so far. The goal of this RFC is to bring
+together the thoughts so far, build consensus and agree on a path forward.
+
+NOTE: I have tried to keep the information as accurate and current as possible.
+Please bring out any omissions/corrections if you notice them. I would like to
+keep this summary document accurate, current and live.
+
+Summary of Memory Controller Discussions and Patches
+
+1. Accounting
+
+The patches submitted so far agree that the following memory
+should be accounted for
+
+Reclaimable memory
+
+(i)   Anonymous pages - Anonymous pages are pages allocated by the user space,
+      they are mapped into the user page tables, but not backed by a file.
+(ii)  File mapped pages - File mapped pages map a portion of a file
+(iii) Page Cache Pages - Consists of the following
+
+    (a) Pages used during IPC using shmfs
+    (c) Pages of a user mode process that are swapped out
+    (c) Pages from block read/write operations
+    (d) Pages from file read/write operations
+
+Non Reclaimable memory
+
+This memory is not reclaimable until it is explicitly released by the
+allocator. Examples of such memory include slab allocated memory and
+memory allocated by the kernel components in process context. mlock()'ed
+memory is also considered as non-reclaimable, but it is usually handled
+as a separate resource.
+
+(i)  Slabs
+(ii) Kernel pages and page_tables allocated on behalf of a task.
+
+2. Control considerations for the memory controller
+
+Control can be implemented using either
+
+(i)  Limits
+     Limits, limit the usage of the resource to the specified value. If the
+     resource usage crosses the limit, then the group might be penalized
+     or restricted. Soft limits can be exceeded by the group as long as
+     the resource is still available. Hard limits are usually the cut-of-point.
+     No additional resources might be allocated beyond the hard limit.
+
+(ii) Guarantees
+     Guarantees, come in two forms
+
+     (a) Soft guarantees is a best effort service to provide the group
+      with the specified guarantee of resource availability. In this form
+      resources can be shared (the unutilized resources of one
+      group can be used by other groups) among groups and groups are allowed to
+      exceed their guarantee when the resource is available (there is
+      no other group unable to meet its guarantee). When a group is unable
+      to meet its guarantee, the system tries to provide it with it's
+      guaranteed resources by trying to reclaim from other groups, which
+      have exceeded their guarantee. In spite of its best effort, if the
+      system is unable to meet the specified guarantee, the guarantee
+      failed statistic of the group is incremented. This form of guarantees
+      is best suited for non-reclaimable resources.
+
+     (b) Hard guarantees is a more deterministic method of providing QoS.
+     Resources need to be allocated in advance, to ensure that the group
+     is always able to meet its guarantee. This form is undesirable as
+     it leads to resource under utilization. Another approach is to
+     allow sharing of resources, but when a group is unable to meet its
+     guarantee, the system will OOM kill a group that exceeds its
+     guarantee.  Hard guarantees are more difficult to provide for
+     non-reclaimable resources, but might be easier to provide for
+     reclaimable resources.
+
+NOTE: It has been argued that guarantees can be implemented using
+limits. See http://wiki.openvz.org/Guarantees_for_resources
+
+3. Memory Controller Alternatives
+
+(i)   Beancouners
+(ii)  Containers
+(iii) Resource groups (aka CKRM)
+(iv)  Fake Nodes
+
++----+---------+------+---------+------------+----------------+-----------+
+| No |Guarantee| Limit| User I/F| Controllers| New Controllers|Statistics |
++----+---------+------+---------+------------+----------------+-----------+
+| i  |  No     | Yes  | syscall | Memory     | No framework   |   Yes     |
+|    |         |      |         |            | to write new   |           |
+|    |         |      |         |            | controllers    |           |
++----+---------+------+---------+------------+----------------+-----------+
+|ii  |  No     | Yes  | configfs| Memory,    | Plans to       |   Yes     |
+|    |         |      |         | task limit.| provide a      |           |
+|    |         |      |         | Plans to   | framework      |           |
+|    |         |      |         | allow      | to write new   |           |
+|    |         |      |         | CPU and I/O| controllers    |           |
++----+---------+------+---------+------------+----------------+-----------+
+|iii |  Yes    | Yes  | configfs| CPU, task  | Provides a     |   Yes     |
+|    |         |      |         | limit &    | framework to   |           |
+|    |         |      |         | Memory     | add new        |           |
+|    |         |      |         | controller.| controllers    |           |
+|    |         |      |         | I/O contr  |                |           |
+|    |         |      |         | oller for  |                |           |
+|    |         |      |         | older      |                |           |
+|    |         |      |         | revisions  |                |           |
++----+---------+------+---------+------------+----------------+-----------+
+
+4. Existing accounting
+
+a. Beancounters currently account for the following resources
+
+(i)   kmemsize - memory obtained through alloc_pages() with __GFP_BC flag set.
+(ii)  physpages - Resident set size of the tasks in the group.
+      Reclaim support is provided for this resource.
+(iii) lockedpages - User pages locked in memory
+(iv)  slabs - slabs allocated with kmem_cache_alloc_bc are accounted and
+      controlled.
+
+Beancounters provides some support for event notification (limit/barrier hit).
+
+b. Containers account for the following resources
+
+(i)   mapped pages
+(ii)  anonymous pages
+(iii) file pages (from the page cache)
+(iv)  active pages
+
+There is some support for reclaiming pages, the code is in the early stages of
+development.
+
+c. CKRM/RG Memory Controller
+
+(i)   Tracks active pages
+(ii)  Supports reclaim of LRU pages
+(iii) Shared pages are not tracked
+
+This controller provides its own res_zone, to aid reclaim and tracking of pages.
+
+d. Fake NUMA Nodes
+
+This approach was suggested while discussing the memory controller
+
+Advantages
+
+(i)   Accounting for zones is already present
+(ii)  Reclaim code can directly deal with zones
+
+Disadvantages
+
+(i)   The approach leads to hard partitioning of memory.
+(ii)  It's complex to
+      resize the node. Resizing is required to allow change of limits for
+      resource management.
+(ii)  Addition/Deletion of a resource group would require memory hotplug
+      support for add/delete a node. On deletion of node, its memory is
+      not utilized until a new node of a same or lesser size is created.
+      Addition of node, requires reserving memory for it upfront.
+
+5. Open issues
+
+(i)    Can we allow threads belonging to the same process belong
+       to two different resource groups? Does this mean we need to do per-thread
+       VM accounting now?
+(ii)   There is an overhead associated with adding a pointer in struct page.
+       Can this be reduced/avoided? One solution suggested is to use a
+       mirror mem_map.
+(iii)  How do we distribute the remaining resources among resource hungry
+       groups? The Resource Group implementation used the ratio of the limits
+       to decide on the ratio according to which they are distributed.
+(iv)   How do we account for shared pages? Should it be charged to the first
+       container which touches the page or should it be charged equally among
+       all containers sharing the page?
+(v)    Definition of RSS (see http://lkml.org/lkml/2006/10/10/130)
+
+6. Going forward
+
+(i)    Agree on requirements (there has been some agreement already, please
+       see http://lkml.org/lkml/2006/9/6/102 and the BOF summary [7])
+(ii)   Agree on minimum accounting and hooks in the kernel. It might be
+       a good idea to take this up in phases
+       phase 1 - account for user space memory
+       phase 2 - account for kernel memory allocated on behalf of the user/task
+(iii)  Infrastructure - There is a separate RFC on that.
+
+7. References
+
+1. http://www.openvz.org
+2. http://lkml.org/lkml/2006/9/19/283 (Containers patches)
+3. http://lwn.net/Articles/200073/ (Another Container Implementation)
+4. http://ckrm.sf.net (Resource Groups)
+5. http://lwn.net/Articles/197433/ (Resource Beancounters)
+6. http://lwn.net/Articles/182369/ (CKRM Rebranded)
+7. http://lkml.org/lkml/2006/7/26/237 (OLS BoF on Resource Management (NOTES))
+
+----- End forwarded message -----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
