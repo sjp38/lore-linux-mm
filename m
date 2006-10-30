@@ -1,34 +1,33 @@
-Date: Mon, 30 Oct 2006 15:52:11 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 1/3]: leak tracking for kmalloc node
-Message-ID: <20061030145211.GA9238@lst.de>
-References: <20061030141454.GB7164@lst.de> <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
+Message-ID: <45461BC7.5050609@shadowen.org>
+Date: Mon, 30 Oct 2006 15:35:35 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: Slab panic on 2.6.19-rc3-git5 (-git4 was OK)
+References: <454442DC.9050703@google.com> <20061029000513.de5af713.akpm@osdl.org> <4544E92C.8000103@shadowen.org> <4545325D.8080905@mbligh.org> <Pine.LNX.4.64.0610291718481.25218@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0610291718481.25218@g5.osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: netdev@oss.sgi.com, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 30, 2006 at 04:32:57PM +0200, Pekka Enberg wrote:
-> On 10/30/06, Christoph Hellwig <hch@lst.de> wrote:
-> >If we want to use the node-aware kmalloc in __alloc_skb we need
-> >the tracker is responsible for leak tracking magic for it.  This
-> >patch implements it.  The code is far too ugly for my taste, but it's
-> >doing exactly what the regular kmalloc is doing and thus follows it's
-> >style.
+Linus Torvalds wrote:
 > 
-> Yeah, the allocation paths are ugly. If only someone with NUMA machine
-> could give this a shot so we can get it merged:
+> On Sun, 29 Oct 2006, Martin J. Bligh wrote:
+>> Seems like that doesn't fix it, I'm afraid.
 > 
-> http://marc.theaimsgroup.com/?l=linux-kernel&m=115952740803511&w=2
+> Does the one in the current -git tree? It's commit 
+> 5211e6e6c671f0d4b1e1a1023384d20227d8ee65, as below..
 > 
-> Should clean up NUMA kmalloc tracking too.
+> 		Linus
 
-I'll give this a try on a small numa machine (CELL with 2 nodes).
+Test results are back on the version of the slab panic fix which Linus'
+has committed in his tree.  This change on top of 2.6.19-rc3-git5 is
+good.  2.6.19-rc3-git6 is also showing good on this machine.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
