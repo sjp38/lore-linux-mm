@@ -1,50 +1,41 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id k9UKtvv7001406
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2006 15:55:57 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9UKtui3353412
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2006 13:55:56 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9UKttwp000721
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2006 13:55:56 -0700
-Subject: Re: [RFC] reduce hugetlb_instantiation_mutex usage
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20061027014740.GD11733@localhost.localdomain>
-References: <000101c6f94c$8138c590$ff0da8c0@amr.corp.intel.com>
-	 <20061026154451.bfe110c6.akpm@osdl.org>
-	 <20061026233137.GA11733@localhost.localdomain>
-	 <20061027014740.GD11733@localhost.localdomain>
-Content-Type: text/plain
-Date: Mon, 30 Oct 2006 14:55:48 -0600
-Message-Id: <1162241748.16427.9.camel@localhost.localdomain>
+Date: Mon, 30 Oct 2006 14:33:57 -0800 (PST)
+Message-Id: <20061030.143357.130208425.davem@davemloft.net>
+Subject: Re: [PATCH 2/3] add dev_to_node()
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20061030141501.GC7164@lst.de>
+References: <20061030141501.GC7164@lst.de>
 Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Hellwig <hch@lst.de>
+Date: Mon, 30 Oct 2006 15:15:01 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'David Gibson' <david@gibson.dropbear.id.au>
-Cc: Andrew Morton <akpm@osdl.org>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, Hugh Dickins <hugh@veritas.com>, bill.irwin@oracle.com, linux-mm@kvack.org
+To: hch@lst.de
+Cc: linux-kernel@vger.kernel.org, netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2006-10-27 at 11:47 +1000, 'David Gibson' wrote:
-> libhugetlbfs: Testcase for MAP_PRIVATE OOM-liable race condition
+> Davem suggested to get the node-affinity information directly from
+> struct device instead of having the caller extreact it from the
+> pci_dev.  This patch adds dev_to_node() to the topology API for that.
+> The implementation is rather ugly as we need to compare the bus
+> operations which we can't do inline in a header without pulling all
+> kinds of mess in.
 > 
-> The spurious OOM condition which can be caused by race conditions in
-> the hugetlb fault handler can be triggered with both SHARED mappings
-> (separate processes racing on the same address_space) and with PRIVATE
-> mappings (different threads racing on the same vma).
+> Thus provide an out of line dev_to_node for ppc and let everyone else
+> use the dummy variant in asm-generic.h for now.
 > 
-> At present the alloc-instantiate-race testcase only tests the SHARED
-> mapping case.  Since at various times kernel fixes have been proposed
-> which address only one or the other of the cases, extend the testcase
-> to check the MAP_PRIVATE in addition to the MAP_SHARED case.
-> 
-> Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
-Acked-by: Adam Litke <agl@us.ibm.com>  
-Applied.
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+It may be a bit much to be calling all the way through up to the PCI
+layer just to pluck out a simple integer, don't you think?  The PCI
+bus pointer comparison is just a symptom of how silly this is.
+
+Especially since this will be used for every packet allocation a
+device makes.
+
+So, please add some sanity to this situation and just put the node
+into the generic struct device. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
