@@ -1,99 +1,79 @@
-Date: Mon, 30 Oct 2006 18:17:01 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: [PATCH 1/2] Create compat_sys_migrate_pages.
-Message-Id: <20061030181701.23ea7cba.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4545CB9B.2040502@shadowen.org>
+Date: Mon, 30 Oct 2006 09:53:31 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: Slab panic on 2.6.19-rc3-git5 (-git4 was OK)
+References: <454442DC.9050703@google.com> <20061029000513.de5af713.akpm@osdl.org> <4544E92C.8000103@shadowen.org> <4545325D.8080905@mbligh.org> <Pine.LNX.4.64.0610291718481.25218@g5.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0610291718481.25218@g5.osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: ppc-dev <linuxppc-dev@ozlabs.org>, paulus@samba.org, ak@suse.de, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, pj@sgi.com
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: "Martin J. Bligh" <mbligh@mbligh.org>, Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is needed on bigendian 64bit architectures.
+Linus Torvalds wrote:
+> 
+> On Sun, 29 Oct 2006, Martin J. Bligh wrote:
+>> Seems like that doesn't fix it, I'm afraid.
+> 
+> Does the one in the current -git tree? It's commit 
+> 5211e6e6c671f0d4b1e1a1023384d20227d8ee65, as below..
+> 
+> 		Linus
 
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
----
- include/linux/compat.h |    4 ++++
- kernel/compat.c        |   33 +++++++++++++++++++++++++++++++++
- kernel/sys_ni.c        |    1 +
- 3 files changed, 38 insertions(+), 0 deletions(-)
+Submitted that commit, results in a couple of hours.
 
--- 
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+-apw
 
-diff --git a/include/linux/compat.h b/include/linux/compat.h
-index f155319..80b17f4 100644
---- a/include/linux/compat.h
-+++ b/include/linux/compat.h
-@@ -230,5 +230,9 @@ asmlinkage long compat_sys_adjtimex(stru
- extern int compat_printk(const char *fmt, ...);
- extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
- 
-+asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
-+		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
-+		const compat_ulong_t __user *new_nodes);
-+
- #endif /* CONFIG_COMPAT */
- #endif /* _LINUX_COMPAT_H */
-diff --git a/kernel/compat.c b/kernel/compat.c
-index d4898aa..6952dd0 100644
---- a/kernel/compat.c
-+++ b/kernel/compat.c
-@@ -982,4 +982,37 @@ asmlinkage long compat_sys_move_pages(pi
- 	}
- 	return sys_move_pages(pid, nr_pages, pages, nodes, status, flags);
- }
-+
-+asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
-+			compat_ulong_t maxnode,
-+			const compat_ulong_t __user *old_nodes,
-+			const compat_ulong_t __user *new_nodes)
-+{
-+	unsigned long __user *old = NULL;
-+	unsigned long __user *new = NULL;
-+	nodemask_t tmp_mask;
-+	unsigned long nr_bits;
-+	unsigned long size;
-+
-+	nr_bits = min_t(unsigned long, maxnode - 1, MAX_NUMNODES);
-+	size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
-+	if (old_nodes) {
-+		if (compat_get_bitmap(nodes_addr(tmp_mask), old_nodes, nr_bits))
-+			return -EFAULT;
-+		old = compat_alloc_user_space(new_nodes ? size * 2 : size);
-+		if (new_nodes)
-+			new = old + size / sizeof(unsigned long);
-+		if (copy_to_user(old, nodes_addr(tmp_mask), size))
-+			return -EFAULT;
-+	}
-+	if (new_nodes) {
-+		if (compat_get_bitmap(nodes_addr(tmp_mask), new_nodes, nr_bits))
-+			return -EFAULT;
-+		if (new == NULL)
-+			new = compat_alloc_user_space(size);
-+		if (copy_to_user(new, nodes_addr(tmp_mask), size))
-+			return -EFAULT;
-+	}
-+	return sys_migrate_pages(pid, nr_bits + 1, old, new);
-+}
- #endif
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 0e53314..d7306d0 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -135,6 +135,7 @@ cond_syscall(sys_madvise);
- cond_syscall(sys_mremap);
- cond_syscall(sys_remap_file_pages);
- cond_syscall(compat_sys_move_pages);
-+cond_syscall(compat_sys_migrate_pages);
- 
- /* block-layer dependent */
- cond_syscall(sys_bdflush);
--- 
-1.4.3.2
+> 
+> ---
+> commit 5211e6e6c671f0d4b1e1a1023384d20227d8ee65
+> Author: Giridhar Pemmasani <pgiri@yahoo.com>
+> Date:   Sun Oct 29 04:46:55 2006 -0800
+> 
+>     [PATCH] Fix GFP_HIGHMEM slab panic
+>     
+>     As reported by Martin J. Bligh <mbligh@google.com>, we let through some
+>     non-slab bits to slab allocation through __get_vm_area_node when doing a
+>     vmalloc.
+>     
+>     I haven't been able to reproduce this, although I understand why it
+>     happens: vmalloc allocates memory with
+>     
+>     GFP_KERNEL | __GFP_HIGHMEM
+>     
+>     and commit 52fd24ca1db3a741f144bbc229beefe044202cac resulted in the same
+>     flags are passed down to cache_alloc_refill, causing the BUG.  The
+>     following patch fixes it.
+>     
+>     Note that when calling kmalloc_node, I am masking off __GFP_HIGHMEM with
+>     GFP_LEVEL_MASK, whereas __vmalloc_area_node does the same with
+>     
+>     ~(__GFP_HIGHMEM | __GFP_ZERO).
+>     
+>     IMHO, using GFP_LEVEL_MASK is preferable, but either should fix this
+>     problem.
+>     
+>     Signed-off-by: Giridhar Pemmasani (pgiri@yahoo.com)
+>     Cc: Martin J. Bligh <mbligh@google.com>
+>     Cc: Andrew Morton <akpm@osdl.org>
+>     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 6d381df..46606c1 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -182,7 +182,7 @@ static struct vm_struct *__get_vm_area_n
+>  	addr = ALIGN(start, align);
+>  	size = PAGE_ALIGN(size);
+>  
+> -	area = kmalloc_node(sizeof(*area), gfp_mask, node);
+> +	area = kmalloc_node(sizeof(*area), gfp_mask & GFP_LEVEL_MASK, node);
+>  	if (unlikely(!area))
+>  		return NULL;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
