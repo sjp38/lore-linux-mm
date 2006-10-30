@@ -1,7 +1,7 @@
-Date: Mon, 30 Oct 2006 15:14:54 +0100
+Date: Mon, 30 Oct 2006 15:15:09 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 1/3]: leak tracking for kmalloc node
-Message-ID: <20061030141454.GB7164@lst.de>
+Subject: [PATCH 3/3] node-aware netdev_alloc_skb
+Message-ID: <20061030141509.GD7164@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -10,196 +10,97 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If we want to use the node-aware kmalloc in __alloc_skb we need
-the tracker is responsible for leak tracking magic for it.  This
-patch implements it.  The code is far too ugly for my taste, but it's
-doing exactly what the regular kmalloc is doing and thus follows it's
-style.
+This patch finnally switches netdev_alloc_skb to be node-locale.
+It uses dev_to_node and kmalloc_node_track_caller from the previous two
+patches.
 
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Index: linux-2.6/include/linux/slab.h
+Index: linux-2.6/include/linux/skbuff.h
 ===================================================================
---- linux-2.6.orig/include/linux/slab.h	2006-10-23 17:20:14.000000000 +0200
-+++ linux-2.6/include/linux/slab.h	2006-10-30 13:13:52.000000000 +0100
-@@ -236,7 +236,25 @@
- 	}
- 	return __kmalloc_node(size, flags, node);
- }
-+
-+/*
-+ * kmalloc_node_track_caller is a special version of kmalloc_node that
-+ * records the calling function of the routine calling it for slab leak
-+ * tracking instead of just the calling function (confusing, eh?).
-+ * It's useful when the call to kmalloc_node comes from a widely-used
-+ * standard allocator where we care about the real place the memory
-+ * allocation request comes from.
-+ */
-+#ifndef CONFIG_DEBUG_SLAB
-+#define kmalloc_node_track_caller(size, flags, node) \
-+	__kmalloc_node(size, flags, node)
- #else
-+extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
-+#define kmalloc_node_track_caller(size, flags, node) \
-+	__kmalloc_node_track_caller(size, flags, node, \
-+			__builtin_return_address(0))
-+#endif
-+#else /* CONFIG_NUMA */
- static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int node)
+--- linux-2.6.orig/include/linux/skbuff.h	2006-10-23 17:20:14.000000000 +0200
++++ linux-2.6/include/linux/skbuff.h	2006-10-30 13:23:38.000000000 +0100
+@@ -331,17 +331,17 @@
+ extern void kfree_skb(struct sk_buff *skb);
+ extern void	       __kfree_skb(struct sk_buff *skb);
+ extern struct sk_buff *__alloc_skb(unsigned int size,
+-				   gfp_t priority, int fclone);
++				   gfp_t priority, int fclone, int node);
+ static inline struct sk_buff *alloc_skb(unsigned int size,
+ 					gfp_t priority)
  {
- 	return kmem_cache_alloc(cachep, flags);
-@@ -245,6 +263,9 @@
- {
- 	return kmalloc(size, flags);
+-	return __alloc_skb(size, priority, 0);
++	return __alloc_skb(size, priority, 0, -1);
  }
-+
-+#define kmalloc_node_track_caller(size, flags, node) \
-+	kmalloc_track_caller(size, flags)
- #endif
  
- extern int FASTCALL(kmem_cache_reap(int));
-@@ -283,6 +304,8 @@
- #define kzalloc(s, f) __kzalloc(s, f)
- #define kmalloc_track_caller kmalloc
+ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
+ 					       gfp_t priority)
+ {
+-	return __alloc_skb(size, priority, 1);
++	return __alloc_skb(size, priority, 1, -1);
+ }
  
-+#define kmalloc_node_track_caller kmalloc_node
-+
- #endif /* CONFIG_SLOB */
- 
- /* System wide caches */
-Index: linux-2.6/mm/slab.c
+ extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
+Index: linux-2.6/net/core/skbuff.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2006-10-23 17:21:47.000000000 +0200
-+++ linux-2.6/mm/slab.c	2006-10-30 13:14:20.000000000 +0100
-@@ -996,7 +996,7 @@
- 	return NULL;
- }
+--- linux-2.6.orig/net/core/skbuff.c	2006-10-23 17:20:14.000000000 +0200
++++ linux-2.6/net/core/skbuff.c	2006-10-30 13:39:15.000000000 +0100
+@@ -57,6 +57,7 @@
+ #include <linux/rtnetlink.h>
+ #include <linux/init.h>
+ #include <linux/highmem.h>
++#include <linux/topology.h>
  
--static inline void *__cache_alloc_node(struct kmem_cache *cachep,
-+static inline void *____cache_alloc_node(struct kmem_cache *cachep,
- 		 gfp_t flags, int nodeid)
- {
- 	return NULL;
-@@ -1004,7 +1004,7 @@
- 
- #else	/* CONFIG_NUMA */
- 
--static void *__cache_alloc_node(struct kmem_cache *, gfp_t, int);
-+static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
- static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
- 
- static struct array_cache **alloc_alien_cache(int node, int limit)
-@@ -3105,10 +3105,10 @@
- 		objp = ____cache_alloc(cachep, flags);
- 	/*
- 	 * We may just have run out of memory on the local node.
--	 * __cache_alloc_node() knows how to locate memory on other nodes
-+	 * ____cache_alloc_node() knows how to locate memory on other nodes
- 	 */
-  	if (NUMA_BUILD && !objp)
-- 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
-+ 		objp = ____cache_alloc_node(cachep, flags, numa_node_id());
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    caller);
-@@ -3135,7 +3135,7 @@
- 	else if (current->mempolicy)
- 		nid_alloc = slab_node(current->mempolicy);
- 	if (nid_alloc != nid_here)
--		return __cache_alloc_node(cachep, flags, nid_alloc);
-+		return ____cache_alloc_node(cachep, flags, nid_alloc);
- 	return NULL;
- }
- 
-@@ -3158,7 +3158,7 @@
- 		if (zone_idx(*z) <= ZONE_NORMAL &&
- 				cpuset_zone_allowed(*z, flags) &&
- 				cache->nodelists[nid])
--			obj = __cache_alloc_node(cache,
-+			obj = ____cache_alloc_node(cache,
- 					flags | __GFP_THISNODE, nid);
- 	}
- 	return obj;
-@@ -3167,7 +3167,7 @@
- /*
-  * A interface to enable slab creation on nodeid
+ #include <net/protocol.h>
+ #include <net/dst.h>
+@@ -131,6 +132,7 @@
+  *	@gfp_mask: allocation mask
+  *	@fclone: allocate from fclone cache instead of head cache
+  *		and allocate a cloned (child) skb
++ *	@node: numa node to allocate memory on
+  *
+  *	Allocate a new &sk_buff. The returned buffer has no headroom and a
+  *	tail room of size bytes. The object has a reference count of one.
+@@ -140,7 +142,7 @@
+  *	%GFP_ATOMIC.
   */
--static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-+static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
- 				int nodeid)
+ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+-			    int fclone)
++			    int fclone, int node)
  {
- 	struct list_head *entry;
-@@ -3440,7 +3440,9 @@
-  * New and improved: it will now make sure that the object gets
-  * put on the correct node list so that there is no false sharing.
-  */
--void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
-+static __always_inline void *
-+__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-+		int nodeid, void *caller)
+ 	kmem_cache_t *cache;
+ 	struct skb_shared_info *shinfo;
+@@ -150,14 +152,14 @@
+ 	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
+ 
+ 	/* Get the HEAD */
+-	skb = kmem_cache_alloc(cache, gfp_mask & ~__GFP_DMA);
++	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
+ 	if (!skb)
+ 		goto out;
+ 
+ 	/* Get the DATA. Size must match skb_add_mtu(). */
+ 	size = SKB_DATA_ALIGN(size);
+-	data = kmalloc_track_caller(size + sizeof(struct skb_shared_info),
+-			gfp_mask);
++	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
++			gfp_mask, node);
+ 	if (!data)
+ 		goto nodata;
+ 
+@@ -266,9 +268,10 @@
+ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+ 		unsigned int length, gfp_t gfp_mask)
  {
- 	unsigned long save_flags;
- 	void *ptr;
-@@ -3452,17 +3454,22 @@
- 			!cachep->nodelists[nodeid])
- 		ptr = ____cache_alloc(cachep, flags);
- 	else
--		ptr = __cache_alloc_node(cachep, flags, nodeid);
-+		ptr = ____cache_alloc_node(cachep, flags, nodeid);
- 	local_irq_restore(save_flags);
++	int node = dev->class_dev.dev ? dev_to_node(dev->class_dev.dev) : -1;
+ 	struct sk_buff *skb;
  
--	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr,
--					   __builtin_return_address(0));
-+	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
- 
- 	return ptr;
- }
--EXPORT_SYMBOL(kmem_cache_alloc_node);
- 
--void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
-+{
-+	return __cache_alloc_node(cachep, flags, nodeid,
-+			__builtin_return_address(0));
-+}
-+
-+static __always_inline void *
-+__do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
- {
- 	struct kmem_cache *cachep;
- 
-@@ -3471,8 +3478,29 @@
- 		return NULL;
- 	return kmem_cache_alloc_node(cachep, flags, node);
- }
-+
-+#ifdef CONFIG_DEBUG_SLAB
-+void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+{
-+	return __do_kmalloc_node(size, flags, node,
-+			__builtin_return_address(0));
-+}
- EXPORT_SYMBOL(__kmalloc_node);
--#endif
-+
-+void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
-+		int node, void *caller)
-+{
-+	return __do_kmalloc_node(size, flags, node, caller);
-+}
-+EXPORT_SYMBOL(__kmalloc_node_track_caller);
-+#else
-+void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+{
-+	return __do_kmalloc_node(size, flags, node, NULL);
-+}
-+EXPORT_SYMBOL(__kmalloc_node);
-+#endif /* CONFIG_DEBUG_SLAB */
-+#endif /* CONFIG_NUMA */
- 
- /**
-  * __do_kmalloc - allocate memory
+-	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
++ 	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
+ 	if (likely(skb)) {
+ 		skb_reserve(skb, NET_SKB_PAD);
+ 		skb->dev = dev;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
