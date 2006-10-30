@@ -1,106 +1,85 @@
-Date: Mon, 30 Oct 2006 15:15:09 +0100
+Date: Mon, 30 Oct 2006 15:15:01 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 3/3] node-aware netdev_alloc_skb
-Message-ID: <20061030141509.GD7164@lst.de>
+Subject: [PATCH 2/3] add dev_to_node()
+Message-ID: <20061030141501.GC7164@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: netdev@oss.sgi.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch finnally switches netdev_alloc_skb to be node-locale.
-It uses dev_to_node and kmalloc_node_track_caller from the previous two
-patches.
+Davem suggested to get the node-affinity information directly from
+struct device instead of having the caller extreact it from the
+pci_dev.  This patch adds dev_to_node() to the topology API for that.
+The implementation is rather ugly as we need to compare the bus
+operations which we can't do inline in a header without pulling all
+kinds of mess in.
+
+Thus provide an out of line dev_to_node for ppc and let everyone else
+use the dummy variant in asm-generic.h for now.
 
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Index: linux-2.6/include/linux/skbuff.h
+Index: linux-2.6/include/asm-generic/topology.h
 ===================================================================
---- linux-2.6.orig/include/linux/skbuff.h	2006-10-23 17:20:14.000000000 +0200
-+++ linux-2.6/include/linux/skbuff.h	2006-10-30 13:23:38.000000000 +0100
-@@ -331,17 +331,17 @@
- extern void kfree_skb(struct sk_buff *skb);
- extern void	       __kfree_skb(struct sk_buff *skb);
- extern struct sk_buff *__alloc_skb(unsigned int size,
--				   gfp_t priority, int fclone);
-+				   gfp_t priority, int fclone, int node);
- static inline struct sk_buff *alloc_skb(unsigned int size,
- 					gfp_t priority)
- {
--	return __alloc_skb(size, priority, 0);
-+	return __alloc_skb(size, priority, 0, -1);
- }
+--- linux-2.6.orig/include/asm-generic/topology.h	2006-10-10 14:53:52.000000000 +0200
++++ linux-2.6/include/asm-generic/topology.h	2006-10-30 13:42:22.000000000 +0100
+@@ -45,11 +45,14 @@
+ #define pcibus_to_node(node)	(-1)
+ #endif
  
- static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
- 					       gfp_t priority)
- {
--	return __alloc_skb(size, priority, 1);
-+	return __alloc_skb(size, priority, 1, -1);
- }
- 
- extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
-Index: linux-2.6/net/core/skbuff.c
++#ifndef dev_to_node
++#define dev_to_node(dev)	(-1)
++#endif
++
+ #ifndef pcibus_to_cpumask
+ #define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
+ 					CPU_MASK_ALL : \
+ 					node_to_cpumask(pcibus_to_node(bus)) \
+ 				)
+ #endif
+-
+ #endif /* _ASM_GENERIC_TOPOLOGY_H */
+Index: linux-2.6/include/asm-powerpc/topology.h
 ===================================================================
---- linux-2.6.orig/net/core/skbuff.c	2006-10-23 17:20:14.000000000 +0200
-+++ linux-2.6/net/core/skbuff.c	2006-10-30 13:39:15.000000000 +0100
-@@ -57,6 +57,7 @@
- #include <linux/rtnetlink.h>
- #include <linux/init.h>
- #include <linux/highmem.h>
-+#include <linux/topology.h>
+--- linux-2.6.orig/include/asm-powerpc/topology.h	2006-10-10 14:53:52.000000000 +0200
++++ linux-2.6/include/asm-powerpc/topology.h	2006-10-30 14:03:44.000000000 +0100
+@@ -5,6 +5,7 @@
  
- #include <net/protocol.h>
- #include <net/dst.h>
-@@ -131,6 +132,7 @@
-  *	@gfp_mask: allocation mask
-  *	@fclone: allocate from fclone cache instead of head cache
-  *		and allocate a cloned (child) skb
-+ *	@node: numa node to allocate memory on
-  *
-  *	Allocate a new &sk_buff. The returned buffer has no headroom and a
-  *	tail room of size bytes. The object has a reference count of one.
-@@ -140,7 +142,7 @@
-  *	%GFP_ATOMIC.
-  */
- struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
--			    int fclone)
-+			    int fclone, int node)
- {
- 	kmem_cache_t *cache;
- 	struct skb_shared_info *shinfo;
-@@ -150,14 +152,14 @@
- 	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
+ struct sys_device;
+ struct device_node;
++struct device;
  
- 	/* Get the HEAD */
--	skb = kmem_cache_alloc(cache, gfp_mask & ~__GFP_DMA);
-+	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
- 	if (!skb)
- 		goto out;
+ #ifdef CONFIG_NUMA
  
- 	/* Get the DATA. Size must match skb_add_mtu(). */
- 	size = SKB_DATA_ALIGN(size);
--	data = kmalloc_track_caller(size + sizeof(struct skb_shared_info),
--			gfp_mask);
-+	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
-+			gfp_mask, node);
- 	if (!data)
- 		goto nodata;
+@@ -33,6 +34,7 @@
  
-@@ -266,9 +268,10 @@
- struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
- 		unsigned int length, gfp_t gfp_mask)
- {
-+	int node = dev->class_dev.dev ? dev_to_node(dev->class_dev.dev) : -1;
- 	struct sk_buff *skb;
+ struct pci_bus;
+ extern int pcibus_to_node(struct pci_bus *bus);
++int dev_to_node(struct device *dev);
  
--	skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
-+ 	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
- 	if (likely(skb)) {
- 		skb_reserve(skb, NET_SKB_PAD);
- 		skb->dev = dev;
+ #define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
+ 					CPU_MASK_ALL : \
+Index: linux-2.6/arch/powerpc/kernel/pci_64.c
+===================================================================
+--- linux-2.6.orig/arch/powerpc/kernel/pci_64.c	2006-10-23 17:21:43.000000000 +0200
++++ linux-2.6/arch/powerpc/kernel/pci_64.c	2006-10-30 14:02:40.000000000 +0100
+@@ -1424,4 +1424,12 @@
+ 	return phb->node;
+ }
+ EXPORT_SYMBOL(pcibus_to_node);
++
++int dev_to_node(struct device *dev)
++{
++	if (dev->bus == &pci_bus_type)
++		return pcibus_to_node(to_pci_dev(dev)->bus);
++	return -1;
++}
++EXPORT_SYMBOL(dev_to_node);
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
