@@ -1,60 +1,24 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id k9UIILYm256216
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 05:18:26 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9UIBIJ0194350
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 05:11:28 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9UI3MCe004223
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 05:03:22 +1100
-Message-ID: <45463F70.1010303@in.ibm.com>
-Date: Mon, 30 Oct 2006 23:37:44 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
+Date: Mon, 30 Oct 2006 11:53:05 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/2] Create compat_sys_migrate_pages.
+In-Reply-To: <20061030181701.23ea7cba.sfr@canb.auug.org.au>
+Message-ID: <Pine.LNX.4.64.0610301152040.21342@schroedinger.engr.sgi.com>
+References: <20061030181701.23ea7cba.sfr@canb.auug.org.au>
 MIME-Version: 1.0
-Subject: Re: [ckrm-tech] RFC: Memory Controller
-References: <20061030103356.GA16833@in.ibm.com> <4545D51A.1060808@in.ibm.com> <4546212B.4010603@openvz.org> <454638D2.7050306@in.ibm.com>
-In-Reply-To: <454638D2.7050306@in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@in.ibm.com
-Cc: Pavel Emelianov <xemul@openvz.org>, vatsa@in.ibm.com, dev@openvz.org, sekharan@us.ibm.com, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, pj@sgi.com, matthltc@us.ibm.com, dipankar@in.ibm.com, rohitseth@google.com, menage@google.com, linux-mm@kvack.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: LKML <linux-kernel@vger.kernel.org>, ppc-dev <linuxppc-dev@ozlabs.org>, paulus@samba.org, ak@suse.de, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-[snip]
+On Mon, 30 Oct 2006, Stephen Rothwell wrote:
 
->
->> I see that everyone agree that we want to see three resources:
->>   1. kernel memory
->>   2. unreclaimable memory
->>   3. reclaimable memory
->> if this is right then let's save it somewhere
->> (e.g. http://wiki.openvz.org/Containers/UBC_discussion)
->> and go on discussing the next question - interface.
+> This is needed on bigendian 64bit architectures.
 > 
-> I understand that kernel memory accounting is the first priority for
-> containers, but accounting kernel memory requires too many changes
-> to the VM core, hence I was hesitant to put it up as first priority.
-> 
-> But in general I agree, these are the three important resources for
-> accounting and control
+> Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
 
-I missed out to mention, I hope you were including the page cache in
-your definition of reclaimable memory.
-
-> 
-> [snip]
-> 
-
-
--- 
-
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
