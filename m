@@ -1,229 +1,115 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id k9UGB5X2071966
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:11:05 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id k9UG42w4244962
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:04:12 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id k9UG0aas025186
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:00:36 +1100
-Received: from balbir.in.ibm.com ([9.124.89.192])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.12.11) with ESMTP id k9UG0ZiS025160
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2006 03:00:35 +1100
-Date: Mon, 30 Oct 2006 21:27:27 +0530
-Subject: RFC: Memory Controller
-Message-ID: <20061030155727.GA22101@balbir.in.ibm.com>
+Date: Mon, 30 Oct 2006 08:41:24 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Page allocator: Single Zone optimizations
+In-Reply-To: <4544914F.3000502@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0610300825020.20524@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com>
+ <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com>
+ <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com>
+ <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org>
+ <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com>
+ <20061026150938.bdf9d812.akpm@osdl.org> <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
+ <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
+ <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
+ <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
+ <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
+ <4544914F.3000502@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: balbir@in.ibm.com (Balbir Singh)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I missed linux-mm in the cc of the first post.
+On Sun, 29 Oct 2006, Nick Piggin wrote:
 
-Balbir
+> > 1. Duplicate the caches (pageset structures). This reduces cache hit
+> > rates. Duplicates lots of information in the page allocator.
+> 
+> You would have to do the same thing to get an O(1) per-CPU allocation
+> for a specific zone/reclaim type/etc regardless whether or not you use
+> zones.
 
------ Forwarded message from Balbir Singh <balbir@in.ibm.com> -----
+Duplicate caches reduce the hitrate of the cache and if there are 
+fluctuating usage scenarios then the cache may run cold,
 
-We've seen a lot of discussion lately on the memory controller. The RFC below
-provides a summary of the discussions so far. The goal of this RFC is to bring
-together the thoughts so far, build consensus and agree on a path forward.
+> > 2. Necessity of additional load balancing across multiple zones.
+> 
+> a. we have to do this anyway for eg. dma32 and NUMA, and b. it is much
+> better than the highmem problem was because all the memory is kernel
+> addressable.
 
-NOTE: I have tried to keep the information as accurate and current as possible.
-Please bring out any omissions/corrections if you notice them. I would like to
-keep this summary document accurate, current and live.
+Yes we have that but this is going to be more complex in the future if we 
+add additional zones. We dont need it with a single zone.
 
-Summary of Memory Controller Discussions and Patches
+> If you use another scheme (eg. lists within zones within nodes, rather
+> than just more zones within nodes), then you still fundamentally have
+> to balance somehow.
 
-1. Accounting
+The single zone scheme does not need this.
 
-The patches submitted so far agree that the following memory
-should be accounted for
+> > 3. The NUMA layer can only support memory policies for a single zone.
+> 
+> That's broken. The VM had zones long before it had nodes or memory
+> policies
 
-Reclaimable memory
+NUMA nodes mostly only have one zone (ZONE_NORMAL on 64 bit and 
+ZONE_HIGHMEM on 32 bit). The only exception are low nodes (node 0 or 1?) 
+that may have additional DMA zones in some configurations.
 
-(i)   Anonymous pages - Anonymous pages are pages allocated by the user space,
-      they are mapped into the user page tables, but not backed by a file.
-(ii)  File mapped pages - File mapped pages map a portion of a file
-(iii) Page Cache Pages - Consists of the following
+> > 4. You may have to duplicate the slab allocator caches for that
+> >    purpose.
+> 
+> If you want specific allocations from a given zone, yes. So you may
+> have to do the same if you want a specific slab allcoation from a
+> list within a zone.
 
-    (a) Pages used during IPC using shmfs
-    (c) Pages of a user mode process that are swapped out
-    (c) Pages from block read/write operations
-    (d) Pages from file read/write operations
+I am still not sure what the lists within a zone are for? The proposal
+was to reduce zones and not create additional lists.
 
-Non Reclaimable memory
+> node->zone->many lists vs node->many zones? I guess the zones approach is
+> faster?
 
-This memory is not reclaimable until it is explicitly released by the
-allocator. Examples of such memory include slab allocated memory and
-memory allocated by the kernel components in process context. mlock()'ed
-memory is also considered as non-reclaimable, but it is usually handled
-as a separate resource.
+No. Node->many_zone->freelist vs. node->one_zone-?_one_freelist in the regular case.
 
-(i)  Slabs
-(ii) Kernel pages and page_tables allocated on behalf of a task.
+For Mel's defrag scheme one would need to add new lists but 
+then this will introduce more fragmentation in order to fix the 
+fragmentation issue. Still having lists within a zone would avoid the boot 
+up sizing of zones and avoid additional page flags.
 
-2. Control considerations for the memory controller
+> Not that I am any more convinced that defragmentation is a good idea than
+> I was a year ago, but I think it is naive to think we can instantly be rid
+> of all the problems associated with zones by degenerating that layer of the
+> VM and introducing a new one that does basically the same things.
 
-Control can be implemented using either
+I am also having the same concerns. Going from multiple zones to one zone 
+is a performance benefit in many cases. In the NUMA case (if you have more 
+than a few nodes) most nodes only have one zone anyways.
 
-(i)  Limits
-     Limits, limit the usage of the resource to the specified value. If the
-     resource usage crosses the limit, then the group might be penalized
-     or restricted. Soft limits can be exceeded by the group as long as
-     the resource is still available. Hard limits are usually the cut-of-point.
-     No additional resources might be allocated beyond the hard limit.
+> It is true that zones may not be a perfect fit for what some people want to
+> do, but until they have shown a) what they want to do is a good idea, and
+> b) zones can't easily be adapted, then using the infrastructure we already
+> have throughout the entire mm seems like a good idea.
 
-(ii) Guarantees
-     Guarantees, come in two forms
+I have never said that people cannot add zones. But this is usually not 
+necessary. The intend here is to optimize for the case that we only have 
+one zone. Single zone configurations will have a smaller VM with less 
+cache footprint and run faster.
+ 
+> IMO, Andrew's idea to have 1..N zones in a node seems sane and it would be
+> a good generalisation of even the present code.
 
-     (a) Soft guarantees is a best effort service to provide the group
-      with the specified guarantee of resource availability. In this form
-      resources can be shared (the unutilized resources of one
-      group can be used by other groups) among groups and groups are allowed to
-      exceed their guarantee when the resource is available (there is
-      no other group unable to meet its guarantee). When a group is unable
-      to meet its guarantee, the system tries to provide it with it's
-      guaranteed resources by trying to reclaim from other groups, which
-      have exceeded their guarantee. In spite of its best effort, if the
-      system is unable to meet the specified guarantee, the guarantee
-      failed statistic of the group is incremented. This form of guarantees
-      is best suited for non-reclaimable resources.
+We already have multiple zones, and it is fairly easy to add a zone. If 
+someone has an idea how to generalize this then please do so. I do not see 
+how that could be done given the different usage scenarios for the various 
+zones.
 
-     (b) Hard guarantees is a more deterministic method of providing QoS.
-     Resources need to be allocated in advance, to ensure that the group
-     is always able to meet its guarantee. This form is undesirable as
-     it leads to resource under utilization. Another approach is to
-     allow sharing of resources, but when a group is unable to meet its
-     guarantee, the system will OOM kill a group that exceeds its
-     guarantee.  Hard guarantees are more difficult to provide for
-     non-reclaimable resources, but might be easier to provide for
-     reclaimable resources.
-
-NOTE: It has been argued that guarantees can be implemented using
-limits. See http://wiki.openvz.org/Guarantees_for_resources
-
-3. Memory Controller Alternatives
-
-(i)   Beancouners
-(ii)  Containers
-(iii) Resource groups (aka CKRM)
-(iv)  Fake Nodes
-
-+----+---------+------+---------+------------+----------------+-----------+
-| No |Guarantee| Limit| User I/F| Controllers| New Controllers|Statistics |
-+----+---------+------+---------+------------+----------------+-----------+
-| i  |  No     | Yes  | syscall | Memory     | No framework   |   Yes     |
-|    |         |      |         |            | to write new   |           |
-|    |         |      |         |            | controllers    |           |
-+----+---------+------+---------+------------+----------------+-----------+
-|ii  |  No     | Yes  | configfs| Memory,    | Plans to       |   Yes     |
-|    |         |      |         | task limit.| provide a      |           |
-|    |         |      |         | Plans to   | framework      |           |
-|    |         |      |         | allow      | to write new   |           |
-|    |         |      |         | CPU and I/O| controllers    |           |
-+----+---------+------+---------+------------+----------------+-----------+
-|iii |  Yes    | Yes  | configfs| CPU, task  | Provides a     |   Yes     |
-|    |         |      |         | limit &    | framework to   |           |
-|    |         |      |         | Memory     | add new        |           |
-|    |         |      |         | controller.| controllers    |           |
-|    |         |      |         | I/O contr  |                |           |
-|    |         |      |         | oller for  |                |           |
-|    |         |      |         | older      |                |           |
-|    |         |      |         | revisions  |                |           |
-+----+---------+------+---------+------------+----------------+-----------+
-
-4. Existing accounting
-
-a. Beancounters currently account for the following resources
-
-(i)   kmemsize - memory obtained through alloc_pages() with __GFP_BC flag set.
-(ii)  physpages - Resident set size of the tasks in the group.
-      Reclaim support is provided for this resource.
-(iii) lockedpages - User pages locked in memory
-(iv)  slabs - slabs allocated with kmem_cache_alloc_bc are accounted and
-      controlled.
-
-Beancounters provides some support for event notification (limit/barrier hit).
-
-b. Containers account for the following resources
-
-(i)   mapped pages
-(ii)  anonymous pages
-(iii) file pages (from the page cache)
-(iv)  active pages
-
-There is some support for reclaiming pages, the code is in the early stages of
-development.
-
-c. CKRM/RG Memory Controller
-
-(i)   Tracks active pages
-(ii)  Supports reclaim of LRU pages
-(iii) Shared pages are not tracked
-
-This controller provides its own res_zone, to aid reclaim and tracking of pages.
-
-d. Fake NUMA Nodes
-
-This approach was suggested while discussing the memory controller
-
-Advantages
-
-(i)   Accounting for zones is already present
-(ii)  Reclaim code can directly deal with zones
-
-Disadvantages
-
-(i)   The approach leads to hard partitioning of memory.
-(ii)  It's complex to
-      resize the node. Resizing is required to allow change of limits for
-      resource management.
-(ii)  Addition/Deletion of a resource group would require memory hotplug
-      support for add/delete a node. On deletion of node, its memory is
-      not utilized until a new node of a same or lesser size is created.
-      Addition of node, requires reserving memory for it upfront.
-
-5. Open issues
-
-(i)    Can we allow threads belonging to the same process belong
-       to two different resource groups? Does this mean we need to do per-thread
-       VM accounting now?
-(ii)   There is an overhead associated with adding a pointer in struct page.
-       Can this be reduced/avoided? One solution suggested is to use a
-       mirror mem_map.
-(iii)  How do we distribute the remaining resources among resource hungry
-       groups? The Resource Group implementation used the ratio of the limits
-       to decide on the ratio according to which they are distributed.
-(iv)   How do we account for shared pages? Should it be charged to the first
-       container which touches the page or should it be charged equally among
-       all containers sharing the page?
-(v)    Definition of RSS (see http://lkml.org/lkml/2006/10/10/130)
-
-6. Going forward
-
-(i)    Agree on requirements (there has been some agreement already, please
-       see http://lkml.org/lkml/2006/9/6/102 and the BOF summary [7])
-(ii)   Agree on minimum accounting and hooks in the kernel. It might be
-       a good idea to take this up in phases
-       phase 1 - account for user space memory
-       phase 2 - account for kernel memory allocated on behalf of the user/task
-(iii)  Infrastructure - There is a separate RFC on that.
-
-7. References
-
-1. http://www.openvz.org
-2. http://lkml.org/lkml/2006/9/19/283 (Containers patches)
-3. http://lwn.net/Articles/200073/ (Another Container Implementation)
-4. http://ckrm.sf.net (Resource Groups)
-5. http://lwn.net/Articles/197433/ (Resource Beancounters)
-6. http://lwn.net/Articles/182369/ (CKRM Rebranded)
-7. http://lkml.org/lkml/2006/7/26/237 (OLS BoF on Resource Management (NOTES))
-
------ End forwarded message -----
+But why is not okay to optimize the kernel for the one zone situation?
+I prefer a simple, small and fast VM and this only optimizing the VM by 
+not compiling code that is only needed for configurations that require 
+multiple zones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
