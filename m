@@ -1,41 +1,40 @@
-Date: Mon, 30 Oct 2006 14:33:57 -0800 (PST)
-Message-Id: <20061030.143357.130208425.davem@davemloft.net>
-Subject: Re: [PATCH 2/3] add dev_to_node()
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20061030141501.GC7164@lst.de>
-References: <20061030141501.GC7164@lst.de>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Subject: RE: [RFC] reduce hugetlb_instantiation_mutex usage
+Date: Mon, 30 Oct 2006 18:54:46 -0800
+Message-ID: <000001c6fc97$ecd8cbd0$ff0da8c0@amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <20061027040626.GI11733@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-From: Christoph Hellwig <hch@lst.de>
-Date: Mon, 30 Oct 2006 15:15:01 +0100
 Return-Path: <owner-linux-mm@kvack.org>
-To: hch@lst.de
-Cc: linux-kernel@vger.kernel.org, netdev@oss.sgi.com, linux-mm@kvack.org
+To: 'David Gibson' <david@gibson.dropbear.id.au>, Andrew Morton <akpm@osdl.org>
+Cc: 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, Hugh Dickins <hugh@veritas.com>, bill.irwin@oracle.com, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Davem suggested to get the node-affinity information directly from
-> struct device instead of having the caller extreact it from the
-> pci_dev.  This patch adds dev_to_node() to the topology API for that.
-> The implementation is rather ugly as we need to compare the bus
-> operations which we can't do inline in a header without pulling all
-> kinds of mess in.
+David Gibson wrote on Thursday, October 26, 2006 9:06 PM
+> > Alternatively, we could put the page into pagecache whether or not the
+> > mapping is MAP_SHARED.  Then pull it out again prior to unlocking it if
+> > it's MAP_PRIVATE.  So we're using pagecache just as a way for the
+> > concurrent faulter to locate the page.
 > 
-> Thus provide an out of line dev_to_node for ppc and let everyone else
-> use the dummy variant in asm-generic.h for now.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Hrm.. interesting if we can make it work.  I'd be worried about cases
+> with concurrent PRIVATE and SHARED pages on the same file offset.
 
-It may be a bit much to be calling all the way through up to the PCI
-layer just to pluck out a simple integer, don't you think?  The PCI
-bus pointer comparison is just a symptom of how silly this is.
+I got side tracked on to the radix-tree stuff.  The comments in
+hugetlb_no_page() make me wonder whether we have a race issue on
+private mapping:
 
-Especially since this will be used for every packet allocation a
-device makes.
+        /*
+         * Use page lock to guard against racing truncation
+         * before we get page_table_lock.
+         */
 
-So, please add some sanity to this situation and just put the node
-into the generic struct device. :-)
+Private mapping won't use radix tree during instantiation.  What protects
+racy truncate against fault in that scenario?  Don't we have a bug here?
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
