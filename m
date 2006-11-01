@@ -1,81 +1,67 @@
-Date: Wed, 1 Nov 2006 22:10:02 +0000 (GMT)
+Date: Wed, 1 Nov 2006 22:13:59 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061101123451.3fd6cfa4.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
+In-Reply-To: <Pine.LNX.4.64.0611011255070.14406@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0611012210290.29614@skynet.skynet.ie>
 References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
  <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
  <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
  <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
  <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
  <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
- <20061101123451.3fd6cfa4.akpm@osdl.org>
+ <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611011255070.14406@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andy Whitcroft <apw@shadowen.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@skynet.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Nov 2006, Andrew Morton wrote:
+On Wed, 1 Nov 2006, Christoph Lameter wrote:
 
-> On Wed, 1 Nov 2006 18:26:05 +0000
-> mel@skynet.ie (Mel Gorman) wrote:
+> On Wed, 1 Nov 2006, Andrew Morton wrote:
 >
->> I never really got this objection. With list-based anti-frag, the
->> zone-balancing logic remains the same. There are patches from Andy
->> Whitcroft that reclaims pages in contiguous blocks, but still with the same
->> zone-ordering. It doesn't affect load balancing between zones as such.
+>> And hot-unplug isn't actually the interesting application.  Modern Intel
+>> memory controllers apparently have (or will have) the ability to power down
+>> DIMMs.
 >
-> I do believe that lumpy-reclaim (initiated by Andy, redone and prototyped
-> by Peter, cruelly abandoned) is a perferable approach to solving the
-> fragmentation approach.
+> Plus one would want to be able to move memory out of an area where we may
+> have a bad DIMM. If we monitor soft ECC failures then we could also
+> judge a DIMM to be bad if we have a too high soft failure rate.
 >
 
-On it's own lumpy-reclaim or linear-reclaim were not enough to get 
-MAX_ORDER_NR_PAGES blocks of contiguous pages and these were of interest 
-for huge pages although not necessarily of much use to memory hot-unplug. 
-Tests with linear reclaim and lumpy reclaim showed them to be marginally 
-(very marginal) better than just using the standard allocator and standard 
-reclaim. The clustering by reclaim type (or having a separate zone) was 
-still needed.
+For this, it'd be desirable to be able to marge a range of pages as 
+unusable. In the anti-frag patches I posted, I included a mechanism for 
+having flags that affected a whole block of pages. One intent in the 
+future was to be able to mark a whole block of pages as getting reclaimed 
+for the allocation of superpages.
 
-> And with __GFP_EASYRECLAIM (please - I just renamed it ;))
+The same mechanism could be used to mark pages as being offlined so you 
+could mark a DIMM as offlined and start reclaiming in there knowing it can 
+be unplugged some time in the future.
 
-Sure.
-
-> (or using
-> __GFP_HIGHMEM for the same thing)
-
->From a fragmentation perspective, __GFP_HIGHUSER on it's own was not 
-enough. Block device pages for example or pages allocated by submit_bh() 
-are largely reclaimable but not allocated with __GFP_HIGHUSER.
-
-> then some of the core lumpy-reclaim algorithm can be reused for hot-unplug.
+> If there is a hard failure and we can recover (page cache page f.e.)
+> then we could preemptively disable the complete DIMM.
 >
-> If you want to unplug a range of memory then it has to be in a zone which
-> is 100% __GFP_EASY_RECLAIM (actually the name is still wrong.  It should
-> just be __GFP_RECLAIMABLE).
->
+> I still think that we need to generalize the approach to be
+> able to cover as much memory as possible. Remapping can solve some of the
+> issues, for others we could add additional ways to make things movable.
+> F.e. one could make page table pages movable by adding a back pointer to
+> the mm, reclaimable slab pages by adding a move function, driver
+> allocations could have a backpointer to the driver that would be able to
+> move its memory.
 
-The "EASY" was in the title becauseI named kernel allocations that were 
-short-lived or belonging to caches KERNRCLM or KERNEL_RECLAIMABLE now I 
-suppose. It made a difference to how effective list-based anti-frag was 
-under pressure.
+I got the impression that we wouldn't be allowed to introduce such a 
+mechanism because driver writers would get it wrong. It was why proper 
+defragmentation was never really implemented.
 
-> The hot-unplug code will go through those pages and it will, with 100%
-> reliability, rip those pages out of the kernel via various means.  I think
-> this can all be done.
+> Hmm.... Maybe generally a way to provide a
+> function to move data in the page struct for kernel allocations?
 >
 
-The unplug code used to exist and I recall being able to offline memory 
-and bring it back online again.
-
-> And hot-unplug isn't actually the interesting application.  Modern Intel
-> memory controllers apparently have (or will have) the ability to power down
-> DIMMs.
->
+As devices are able to get physical addresses which then get pinned for 
+IO, it gets messy.
 
 -- 
 Mel Gorman
