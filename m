@@ -1,82 +1,88 @@
-Date: Wed, 1 Nov 2006 17:39:26 +0000
+Date: Wed, 1 Nov 2006 18:13:21 +0000
 Subject: Re: Page allocator: Single Zone optimizations
-Message-ID: <20061101173926.GA27386@skynet.ie>
-References: <Pine.LNX.4.64.0610161744140.10698@schroedinger.engr.sgi.com> <20061017102737.14524481.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0610161824440.10835@schroedinger.engr.sgi.com> <45347288.6040808@yahoo.com.au> <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com> <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org> <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com> <20061026150938.bdf9d812.akpm@osdl.org>
+Message-ID: <20061101181320.GB27386@skynet.ie>
+References: <Pine.LNX.4.64.0610171053090.13792@schroedinger.engr.sgi.com> <45360CD7.6060202@yahoo.com.au> <20061018123840.a67e6a44.akpm@osdl.org> <Pine.LNX.4.64.0610231606570.960@schroedinger.engr.sgi.com> <20061026150938.bdf9d812.akpm@osdl.org> <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com> <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com> <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20061026150938.bdf9d812.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
 From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/10/06 15:09), Andrew Morton didst pronounce:
-> On Mon, 23 Oct 2006 16:08:20 -0700 (PDT)
-> Christoph Lameter <clameter@sgi.com> wrote:
+On (27/10/06 19:31), Christoph Lameter didst pronounce:
+> On Fri, 27 Oct 2006, Andrew Morton wrote:
 > 
-> > Single Zone Optimizations V2
-> > 
-> > V1->V2 Use a config variable setup im mm/KConfig
-> > 
-> > If we only have a single zone then various macros can be optimized.
-> > We do not need to protect higher zones, we know that zones are
-> > always present, can remove useless data from /proc etc etc. Various
-> > code paths become unnecessary with a single zone setup.
+> > We need some way of preventing unreclaimable kernel memory allocations from
+> > using certain physical pages.  That means zones.
 > 
-> I don't know about all of this.  It's making core mm increasingly revolting
-> and increases dissimilarities between different kernel builds and generally
-> makes it harder for us to remotely diagnose and solve people's bug reports.
-> Harder to understand architecture A's behaviour based upon one's knowledge
-> of architecture B, etc.
-> 
-> I really really want to drop all those patches[1] and rethink it all.
-> 
-> Like...  would it make sense to eliminate the hard-coded concepts of DMA,
-> DMA32, NORMAL and HIGHMEM and simply say "we support 1 to N zones" per
-> node?  Obviously we'd need to keep the DMA/NORMAL/HIGHMEM nomenclature in
-> the interfaces so the rest of the kernel builds and works, but the core mm
-> just shouldn't need to care: all it cares about is one or more zones.
+> Well then we may need zones for defragmentation and zeroed pages as well 
+> etc etc. The problem is that such things make the VM much more 
+> complex and not simpler and faster.
 > 
 
-This feels vaguely similar to http://lkml.org/lkml/2001/6/7/117  . The
-basic idea is that zones would be dynamically created at runtime and the
-allowable GFP flags would be registered for a zone and zonelists built
-based on that. I'm not saying this is the right thing to do, but it's not
-the first time this has come up for one reason or another.
+You don't need new zones for defragmentation and pre-zeroed pages. I reposted
+the anti-fragmentation patches which create sub-zone-freelists for pages
+of each type of reclaimability. Previously, an additional list existed for
+prezerod pages but I don't think I ever showed a performance improvement
+with them so I dropped them after a while.
 
+> > > Memory hot unplug 
+> > > seems to have been dropped in favor of baloons.
+> > 
+> > Has it?  I don't recall seeing a vague proposal, let alone an implementation?
 > 
+> That is the impression that I got at the OLS. There were lots of talks 
+> about baloons approaches.
 > 
-> Or something like that.  Something which makes the mm easier to understand,
-> easier to maintain and faster.  Rather than harder to understand, harder to
-> maintain and faster.
+
+Memory hot-unplug is not quite dead but there not everything existed that
+was required to really make it work. The most obvious problem was that kernel
+allocations were in the middle of the region you were trying to unplug. The
+anti-fragmentation patches introduce a __GFP_EASYRCLM flag that can be used
+to flag allocations that can be really reclaimed.
+
+Patches also exist to create a zone for hot-unplug but sizing it at boot
+time was a total mess. This is a lot easier with architecture-independent
+zone-sizing and I can bring forward some patches if people want to take a
+look. However, no infrastrcture exists for moving memory between zones or
+choosing what zone to hot-add memory to.
+
+Power at least is able to hot-remove a MAX_ORDER_NR_PAGES block of pages and
+give it back to the hypervisor (AFAIK, could be wrong) but fragmentation was
+a problem. List-based anti-fragmentation was shown a long time ago to improve
+the success rates of a memory-unplug but I haven't tried in a long time.
+
+> > Userspace allocations are reclaimable: pagecache, anonymous memory.  These
+> > happen to be allocated with __GFP_HIGHMEM set.
 > 
+> On certain platforms yes.
 > 
+
+The list-based anti-fragmentation patches flag the really-reclaimable
+allocations as __GFP_EASYRCLM regardless of what zone they are allocated
+from. mlock() is a problem but page migration could address it.
+
+> > So right now __GFP_HIGHMEM is an excellent hint telling the page allocator
+> > that it is safe to satisfy this request from removeable memory.
 > 
-> 
-> 
-> 
-> [1] These:
-> 
-> get-rid-of-zone_table.patch
-> deal-with-cases-of-zone_dma-meaning-the-first-zone.patch
-> get-rid-of-zone_table-fix-3.patch
-> introduce-config_zone_dma.patch
-> optional-zone_dma-in-the-vm.patch
-> optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set.patch
-> optional-zone_dma-for-ia64.patch
-> remove-zone_dma-remains-from-parisc.patch
-> remove-zone_dma-remains-from-sh-sh64.patch
-> set-config_zone_dma-for-arches-with-generic_isa_dma.patch
-> zoneid-fix-up-calculations-for-zoneid_pgshift.patch
+> OK this works on i386 but most other platforms wont have a highmem 
+> zone.
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 -- 
 -- 
