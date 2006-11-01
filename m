@@ -1,271 +1,186 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20061101111920.18798.78007.sendpatchset@skynet.skynet.ie>
+Message-Id: <20061101111940.18798.50389.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20061101111620.18798.34778.sendpatchset@skynet.skynet.ie>
 References: <20061101111620.18798.34778.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 9/11] Add a bitmap that is used to track flags affecting a block of pages
-Date: Wed,  1 Nov 2006 11:19:20 +0000 (GMT)
+Subject: [PATCH 10/11] Remove dependency on page->flag bits
+Date: Wed,  1 Nov 2006 11:19:41 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Anti-fragmentation uses two bits per page to track what the page's
-reclaimability is. However, what is of real interest is what the whole
-block of pages is being used for.  This patch adds a bitmap that is used
-for flags affecting a whole a MAX_ORDER block of pages. Later patches drop
-the requirement to use page->flags and this bitmap is used instead.
+The anti-fragmentation implementation uses page flags to track page usage.
+In preparation for their replacement with corresponding pageblock flags
+remove the page->flags manipulation.
 
-In non-SPARSEMEM configurations, the bitmap is stored in the struct zone
-and allocated during initialisation. SPARSEMEM statically allocates the
-bitmap in a struct mem_section so that bitmaps do not have to be resized
-during memory hotadd. This wastes a small amount of memory per unused section
-(usually sizeof(unsigned long)) but the complexity of dynamically allocating
-the memory is quite high.
-
-This mechanism is a proof of concept, so it uses obviously correct over optimal
-implementation.
-
-Additional credit to Andy Whitcroft who reviewed up an earlier implementation
-of the mechanism an suggested how to make it a *lot* cleaner.
+After this patch, anti-fragmentation is broken until the next patch in the
+set is applied.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- include/linux/mmzone.h          |   13 ++++
- include/linux/pageblock-flags.h |   48 +++++++++++++++
- mm/page_alloc.c                 |  112 +++++++++++++++++++++++++++++++++++
- 3 files changed, 173 insertions(+)
+ arch/x86_64/kernel/e820.c  |    8 -------
+ include/linux/page-flags.h |   45 +---------------------------------------
+ init/Kconfig               |    1 
+ mm/page_alloc.c            |   10 --------
+ 4 files changed, 2 insertions(+), 62 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-009_stats/include/linux/mmzone.h linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/mmzone.h
---- linux-2.6.19-rc4-mm1-009_stats/include/linux/mmzone.h	2006-10-31 13:52:17.000000000 +0000
-+++ linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/mmzone.h	2006-10-31 17:42:25.000000000 +0000
-@@ -13,6 +13,7 @@
- #include <linux/init.h>
- #include <linux/seqlock.h>
- #include <linux/nodemask.h>
-+#include <linux/pageblock-flags.h>
- #include <asm/atomic.h>
- #include <asm/page.h>
- 
-@@ -227,6 +228,14 @@ struct zone {
- #endif
- 	struct free_area	free_area[MAX_ORDER];
- 
-+#ifndef CONFIG_SPARSEMEM
-+	/*
-+	 * Flags for a MAX_ORDER_NR_PAGES block. See pageblock-flags.h.
-+	 * In SPARSEMEM, this map is stored in struct mem_section
-+	 */
-+	unsigned long           *pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+
- 
- 	ZONE_PADDING(_pad1_)
- 
-@@ -682,6 +691,9 @@ extern struct zone *next_zone(struct zon
- #define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
- #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
- 
-+#define SECTION_BLOCKFLAGS_BITS \
-+		((SECTION_SIZE_BITS - (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS)
-+
- #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
- #error Allocator MAX_ORDER exceeds SECTION_SIZE
- #endif
-@@ -701,6 +713,7 @@ struct mem_section {
- 	 * before using it wrong.
- 	 */
- 	unsigned long section_mem_map;
-+	DECLARE_BITMAP(pageblock_flags, SECTION_BLOCKFLAGS_BITS);
- };
- 
- #ifdef CONFIG_SPARSEMEM_EXTREME
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-009_stats/include/linux/pageblock-flags.h linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/pageblock-flags.h
---- linux-2.6.19-rc4-mm1-009_stats/include/linux/pageblock-flags.h	2006-10-31 18:05:45.000000000 +0000
-+++ linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/pageblock-flags.h	2006-10-31 17:42:25.000000000 +0000
-@@ -0,0 +1,48 @@
-+/*
-+ * Macros for manipulating and testing flags related to a
-+ * MAX_ORDER_NR_PAGES block of pages.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation version 2 of the License
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2006
-+ *
-+ * Original author, Mel Gorman
-+ * Major cleanups and reduction of bit operations, Andy Whitcroft
-+ */
-+#ifndef PAGEBLOCK_FLAGS_H
-+#define PAGEBLOCK_FLAGS_H
-+
-+#include <linux/types.h>
-+
-+/* Bit indices that affect a whole block of pages */
-+enum pageblock_bits {
-+	NR_PAGEBLOCK_BITS
-+};
-+
-+/* Forward declaration */
-+struct page;
-+
-+/* Declarations for getting and setting flags. See mm/page_alloc.c */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx);
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx);
-+
-+#define get_pageblock_flags(page) \
-+			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+#define set_pageblock_flags(page) \
-+			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+
-+#endif	/* PAGEBLOCK_FLAGS_H */
-+
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-009_stats/mm/page_alloc.c linux-2.6.19-rc4-mm1-101_pageblock_bits/mm/page_alloc.c
---- linux-2.6.19-rc4-mm1-009_stats/mm/page_alloc.c	2006-10-31 13:54:43.000000000 +0000
-+++ linux-2.6.19-rc4-mm1-101_pageblock_bits/mm/page_alloc.c	2006-10-31 17:42:25.000000000 +0000
-@@ -2823,6 +2823,38 @@ static void __init calculate_node_totalp
- 							realtotalpages);
- }
- 
-+#ifndef CONFIG_SPARSEMEM
-+/*
-+ * Calculate the size of the zone->blockflags rounded to an unsigned long
-+ * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
-+ * Then figure 1 NR_PAGEBLOCK_BITS worth of bits per MAX_ORDER-1, finally
-+ * round what is now in bits to nearest long in bits, then return it in
-+ * bytes.
-+ */
-+static unsigned long __init usemap_size(unsigned long zonesize)
-+{
-+	unsigned long usemapsize;
-+
-+	usemapsize = roundup(zonesize, MAX_ORDER_NR_PAGES);
-+	usemapsize = usemapsize >> (MAX_ORDER-1);
-+	usemapsize *= NR_PAGEBLOCK_BITS;
-+	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
-+
-+	return usemapsize / 8;
-+}
-+
-+static void __init setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize)
-+{
-+	unsigned long usemapsize = usemap_size(zonesize);
-+	zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
-+	memset(zone->pageblock_flags, 0, usemapsize);
-+}
-+#else
-+static void inline setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize) {}
-+#endif /* CONFIG_SPARSEMEM */
-+
- /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -2909,6 +2941,7 @@ static void __meminit free_area_init_cor
- 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
- 		BUG_ON(ret);
- 		zone_start_pfn += size;
-+		setup_usemap(pgdat, zone, size);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-101_pageblock_bits/arch/x86_64/kernel/e820.c linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/arch/x86_64/kernel/e820.c
+--- linux-2.6.19-rc4-mm1-101_pageblock_bits/arch/x86_64/kernel/e820.c	2006-10-31 13:52:17.000000000 +0000
++++ linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/arch/x86_64/kernel/e820.c	2006-10-31 17:44:48.000000000 +0000
+@@ -217,13 +217,6 @@ void __init e820_reserve_resources(void)
  	}
  }
  
-@@ -3622,3 +3655,82 @@ int highest_possible_node_id(void)
+-#ifdef CONFIG_PAGEALLOC_ANTIFRAG
+-static void __init
+-e820_mark_nosave_range(unsigned long start, unsigned long end)
+-{
+-	printk("Nosave not set when anti-frag is enabled");
+-}
+-#else
+ /* Mark pages corresponding to given address range as nosave */
+ static void __init
+ e820_mark_nosave_range(unsigned long start, unsigned long end)
+@@ -239,7 +232,6 @@ e820_mark_nosave_range(unsigned long sta
+ 		if (pfn_valid(pfn))
+ 			SetPageNosave(pfn_to_page(pfn));
  }
- EXPORT_SYMBOL(highest_possible_node_id);
- #endif
-+
-+/* Return a pointer to the bitmap storing bits affecting a block of pages */
-+static inline unsigned long *get_pageblock_bitmap(struct zone *zone,
-+							unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	unsigned long blockpfn;
-+	blockpfn = pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+	return __pfn_to_section(blockpfn)->pageblock_flags;
-+#else
-+	return zone->pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+}
-+
-+static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	pfn &= (PAGES_PER_SECTION-1);
-+	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
-+#else
-+	pfn = pfn - zone->zone_start_pfn;
-+	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
-+#endif /* CONFIG_SPARSEMEM */
-+}
-+
-+/**
-+ * get_pageblock_flags_group - Return the requested group of flags for the MAX_ORDER_NR_PAGES block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest to retrieve
-+ * @end_bitidx: The last bit of interest
-+ * returns pageblock_bits flags
-+ */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long flags = 0;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (test_bit(bitidx + start_bitidx, bitmap))
-+			flags |= value;
-+	
-+	return flags;
-+}
-+
-+/**
-+ * set_pageblock_flags_group - Set the requested group of flags for a MAX_ORDER_NR_PAGES block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest
-+ * @end_bitidx: The last bit of interest
-+ * @flags: The flags to set
-+ */
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (flags & value)
-+			__set_bit(bitidx + start_bitidx, bitmap);
-+		else
-+			__clear_bit(bitidx + start_bitidx, bitmap);
-+}
+-#endif
+ 
+ /*
+  * Find the ranges of physical addresses that do not correspond to
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/page-flags.h linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/include/linux/page-flags.h
+--- linux-2.6.19-rc4-mm1-101_pageblock_bits/include/linux/page-flags.h	2006-10-31 13:52:17.000000000 +0000
++++ linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/include/linux/page-flags.h	2006-10-31 17:44:48.000000000 +0000
+@@ -82,29 +82,17 @@
+ #define PG_private		11	/* If pagecache, has fs-private data */
+ 
+ #define PG_writeback		12	/* Page is under writeback */
++#define PG_nosave		13	/* Used for system suspend/resume */
+ #define PG_compound		14	/* Part of a compound page */
+ #define PG_swapcache		15	/* Swap page: swp_entry_t in private */
+ 
+ #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
+ #define PG_reclaim		17	/* To be reclaimed asap */
++#define PG_nosave_free		18	/* Free, should not be written */
+ #define PG_buddy		19	/* Page is free, on buddy lists */
+ 
+ #define PG_readahead		20	/* Reminder to do readahead */
+ 
+-/*
+- * As anti-fragmentation requires two flags, it was best to reuse the suspend
+- * flags and make anti-fragmentation depend on !SOFTWARE_SUSPEND. This works
+- * on the assumption that machines being suspended do not really care about
+- * large contiguous allocations.
+- */
+-#ifndef CONFIG_PAGEALLOC_ANTIFRAG
+-#define PG_nosave		13	/* Used for system suspend/resume */
+-#define PG_nosave_free		18	/* Free, should not be written */
+-#else
+-#define PG_kernrclm		13	/* Page is a kernel reclaim page */
+-#define PG_easyrclm		18	/* Page is an easy reclaim page */
+-#endif
+-
+ #if (BITS_PER_LONG > 32)
+ /*
+  * 64-bit-only flags build down from bit 31
+@@ -221,7 +209,6 @@ static inline void SetPageUptodate(struc
+ 		ret;							\
+ 	})
+ 
+-#ifndef CONFIG_PAGEALLOC_ANTIFRAG
+ #define PageNosave(page)	test_bit(PG_nosave, &(page)->flags)
+ #define SetPageNosave(page)	set_bit(PG_nosave, &(page)->flags)
+ #define TestSetPageNosave(page)	test_and_set_bit(PG_nosave, &(page)->flags)
+@@ -232,34 +219,6 @@ static inline void SetPageUptodate(struc
+ #define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
+ #define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
+ 
+-#define PageKernRclm(page)	(0)
+-#define SetPageKernRclm(page)	do {} while (0)
+-#define ClearPageKernRclm(page)	do {} while (0)
+-#define __SetPageKernRclm(page)	do {} while (0)
+-#define __ClearPageKernRclm(page) do {} while (0)
+-
+-#define PageEasyRclm(page)	(0)
+-#define SetPageEasyRclm(page)	do {} while (0)
+-#define ClearPageEasyRclm(page)	do {} while (0)
+-#define __SetPageEasyRclm(page)	do {} while (0)
+-#define __ClearPageEasyRclm(page) do {} while (0)
+-
+-#else
+-
+-#define PageKernRclm(page)	test_bit(PG_kernrclm, &(page)->flags)
+-#define SetPageKernRclm(page)	set_bit(PG_kernrclm, &(page)->flags)
+-#define ClearPageKernRclm(page)	clear_bit(PG_kernrclm, &(page)->flags)
+-#define __SetPageKernRclm(page)	__set_bit(PG_kernrclm, &(page)->flags)
+-#define __ClearPageKernRclm(page) __clear_bit(PG_kernrclm, &(page)->flags)
+-
+-#define PageEasyRclm(page)	test_bit(PG_easyrclm, &(page)->flags)
+-#define SetPageEasyRclm(page)	set_bit(PG_easyrclm, &(page)->flags)
+-#define ClearPageEasyRclm(page)	clear_bit(PG_easyrclm, &(page)->flags)
+-#define __SetPageEasyRclm(page)	__set_bit(PG_easyrclm, &(page)->flags)
+-#define __ClearPageEasyRclm(page) __clear_bit(PG_easyrclm, &(page)->flags)
+-#endif /* CONFIG_PAGEALLOC_ANTIFRAG */
+-
+-
+ #define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
+ #define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
+ #define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-101_pageblock_bits/init/Kconfig linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/init/Kconfig
+--- linux-2.6.19-rc4-mm1-101_pageblock_bits/init/Kconfig	2006-10-31 13:52:17.000000000 +0000
++++ linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/init/Kconfig	2006-10-31 17:44:48.000000000 +0000
+@@ -494,7 +494,6 @@ config PAGEALLOC_ANTIFRAG
+ 	  you are interested in working with large pages, say Y and set
+ 	  /proc/sys/vm/min_free_bytes to be 10% of physical memory. Otherwise
+  	  say N
+-	depends on !SOFTWARE_SUSPEND
+ 
+ menu "Loadable module support"
+ 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-101_pageblock_bits/mm/page_alloc.c linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/mm/page_alloc.c
+--- linux-2.6.19-rc4-mm1-101_pageblock_bits/mm/page_alloc.c	2006-10-31 17:42:25.000000000 +0000
++++ linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/mm/page_alloc.c	2006-10-31 17:44:48.000000000 +0000
+@@ -142,7 +142,6 @@ static unsigned long __initdata dma_rese
+ #ifdef CONFIG_PAGEALLOC_ANTIFRAG
+ static inline int get_page_rclmtype(struct page *page)
+ {
+-	return ((PageEasyRclm(page) != 0) << 1) | (PageKernRclm(page) != 0);
+ }
+ 
+ static inline int gfpflags_to_rclmtype(gfp_t gfp_flags)
+@@ -440,8 +439,6 @@ static inline void __free_one_page(struc
+ 		destroy_compound_page(page, order);
+ 
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+-	__SetPageEasyRclm(page);
+-	__ClearPageKernRclm(page);
+ 
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
+@@ -834,12 +831,6 @@ static struct page *__rmqueue(struct zon
+ 	page = __rmqueue_fallback(zone, order, gfp_flags);
+ 
+ got_page:
+-	if (unlikely(rclmtype != RCLM_EASY) && page)
+-		__ClearPageEasyRclm(page);
+-
+-	if (rclmtype == RCLM_KERN && page)
+-		SetPageKernRclm(page);
+-
+ 	return page;
+ }
+ 
+@@ -2185,7 +2176,6 @@ void __meminit memmap_init_zone(unsigned
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+-		SetPageEasyRclm(page);
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
