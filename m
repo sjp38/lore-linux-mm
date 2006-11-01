@@ -1,48 +1,47 @@
-Message-ID: <45483C37.6040303@yahoo.com.au>
-Date: Wed, 01 Nov 2006 17:18:31 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <45485541.6060700@openvz.org>
+Date: Wed, 01 Nov 2006 11:05:21 +0300
+From: Pavel Emelianov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [RFC] reduce hugetlb_instantiation_mutex usage
-References: <20061031031703.GA7220@localhost.localdomain> <000001c6fcab$8fe56320$5181030a@amr.corp.intel.com> <20061031110540.GA14172@localhost.localdomain> <Pine.LNX.4.64.0610311239460.6523@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0610311239460.6523@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [ckrm-tech] RFC: Memory Controller
+References: <20061030103356.GA16833@in.ibm.com> <4545D51A.1060808@in.ibm.com> <4546212B.4010603@openvz.org> <454638D2.7050306@in.ibm.com> <45470DF4.70405@openvz.org> <45472B68.1050506@in.ibm.com> <4547305A.9070903@openvz.org> <Pine.LNX.4.64N.0610312158240.18766@attu4.cs.washington.edu>
+In-Reply-To: <Pine.LNX.4.64N.0610312158240.18766@attu4.cs.washington.edu>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: 'David Gibson' <david@gibson.dropbear.id.au>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, g@ozlabs.org, Andrew Morton <akpm@osdl.org>, 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, bill.irwin@oracle.com, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@cs.washington.edu>
+Cc: Pavel Emelianov <xemul@openvz.org>, balbir@in.ibm.com, vatsa@in.ibm.com, dev@openvz.org, sekharan@us.ibm.com, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, pj@sgi.com, matthltc@us.ibm.com, dipankar@in.ibm.com, rohitseth@google.com, menage@google.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 31 Oct 2006, 'David Gibson' wrote:
+David Rientjes wrote:
+> On Tue, 31 Oct 2006, Pavel Emelianov wrote:
 > 
->>On Mon, Oct 30, 2006 at 09:15:20PM -0800, Chen, Kenneth W wrote:
+>> Paul Menage won't agree. He believes that interface must come first.
+>> I also remind you that the latest beancounter patch provides all the
+>> stuff we're discussing. It may move tasks, limit all three resources
+>> discussed, reclaim memory and so on. And configfs interface could be
+>> attached easily.
 >>
->>>Instead, I'm asking how private mapping protect race between file truncation
->>>and fault? For shared mapping, it is clear to me that we are using lock_page
->>>to protect file truncate with fault.  But I don't see that protection with
->>>private mapping in current upstream kernel.
->>
->>Oh, ok.  I can't see how it matters in the PRIVATE case, given that
->>truncate() won't, and shouldn't, truncate privately mapped pages.
 > 
+> There's really two different interfaces: those to the controller and those 
+> to the container.  While the configfs (or simpler fs implementation solely 
+> for our purposes) is the most logical because of its inherent hierarchial 
+> nature, it seems like the only criticism on that has come from UBC.  From 
+> my understanding of beancounter, it could be implemented on top of any 
+> such container abstraction anyway.
+
+beancounters may be implemented above any (or nearly any) userspace
+interface, no questions. But we're trying to come to agreement here,
+so I just say my point of view.
+
+I don't mind having file system based interface, I just believe that
+configfs is not so good for it. I've already answered that having
+our own filesystem for it sounds better than having configfs.
+
+Maybe we can summarize what we have come to?
+
+> 		David
 > 
-> Bzzt, it does and should (unless we decide to make hugetlbfs pages diverge
-> from the standard for ordinary pages in this respect - could do, but that
-> would require thought of its own).  If you've been thinking otherwise,
-> that may explain why some of the accounting goes wrong.
-
-So what does the normal page fault path do? Just invalidates the private
-page out of the page tables. A subsequent fault goes through the normal
-shared page path, which detects the truncation as it would with any
-shared fault. Right?
-
-hugetlb seems to pretty well follow the same pattern as memory.c in this
-regard. I don't see the race?
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
