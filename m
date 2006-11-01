@@ -1,111 +1,167 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20061101112001.18798.61301.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20061101111620.18798.34778.sendpatchset@skynet.skynet.ie>
-References: <20061101111620.18798.34778.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 11/11] Use pageblock flags for anti-fragmentation
-Date: Wed,  1 Nov 2006 11:20:01 +0000 (GMT)
+Message-Id: <20061101120334.215917207@chello.nl>
+References: <20061101114435.234474405@chello.nl>
+Date: Wed, 01 Nov 2006 12:44:36 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 1/3] mm: arch do_page_fault() vs in_atomic()
+Content-Disposition: inline; filename=inatomic_do_page_fault.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>
+Cc: Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch alters anti-fragmentation to use the pageblock bits for tracking
-the reclaimability of a block of pages.
+In light of the recent pagefault and filemap_copy_from_user work I've
+gone through all the arch pagefault handlers to make sure the 
+inc_preempt_count() 'feature' works as expected.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Several sections of code (including the new filemap_copy_from_user) rely
+on the fact that faults do not take locks under increased preempt count.
+
+arch/x86_64 - good
+arch/powerpc - good
+arch/cris - fixed
+arch/i386 - good
+arch/parisc - fixed
+arch/sh - good
+arch/sparc - good
+arch/s390 - good
+arch/m68k - fixed
+arch/ppc - good
+arch/alpha - fixed
+arch/mips - good
+arch/sparc64 - good
+arch/ia64 - good
+arch/arm - fixed
+arch/um - good
+arch/avr32 - good
+arch/h8300 - NA
+arch/m32r - good
+arch/v850 - good
+arch/frv - fixed
+arch/m68knommu - NA
+arch/arm26 - fixed
+arch/sh64 - fixed
+arch/xtensa - good
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: Nick Piggin <npiggin@suse.de>
 ---
+ arch/alpha/mm/fault.c  |    2 +-
+ arch/arm/mm/fault.c    |    2 +-
+ arch/arm26/mm/fault.c  |    2 +-
+ arch/cris/mm/fault.c   |    2 +-
+ arch/frv/mm/fault.c    |    2 +-
+ arch/m68k/mm/fault.c   |    2 +-
+ arch/parisc/mm/fault.c |    2 +-
+ arch/sh64/mm/fault.c   |    2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
 
- include/linux/pageblock-flags.h |    4 ++++
- mm/page_alloc.c                 |   22 ++++++++++++++++++----
- 2 files changed, 22 insertions(+), 4 deletions(-)
+Index: linux-2.6/arch/alpha/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/alpha/mm/fault.c
++++ linux-2.6/arch/alpha/mm/fault.c
+@@ -108,7 +108,7 @@ do_page_fault(unsigned long address, uns
+ 
+ 	/* If we're in an interrupt context, or have no user context,
+ 	   we must not take the fault.  */
+-	if (!mm || in_interrupt())
++	if (!mm || in_atomic())
+ 		goto no_context;
+ 
+ #ifdef CONFIG_ALPHA_LARGE_VMALLOC
+Index: linux-2.6/arch/arm/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/arm/mm/fault.c
++++ linux-2.6/arch/arm/mm/fault.c
+@@ -230,7 +230,7 @@ do_page_fault(unsigned long addr, unsign
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	/*
+Index: linux-2.6/arch/arm26/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/arm26/mm/fault.c
++++ linux-2.6/arch/arm26/mm/fault.c
+@@ -215,7 +215,7 @@ int do_page_fault(unsigned long addr, un
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/cris/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/cris/mm/fault.c
++++ linux-2.6/arch/cris/mm/fault.c
+@@ -232,7 +232,7 @@ do_page_fault(unsigned long address, str
+ 	 * context, we must not take the fault..
+ 	 */
+ 
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/frv/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/frv/mm/fault.c
++++ linux-2.6/arch/frv/mm/fault.c
+@@ -78,7 +78,7 @@ asmlinkage void do_page_fault(int datamm
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/m68k/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/m68k/mm/fault.c
++++ linux-2.6/arch/m68k/mm/fault.c
+@@ -99,7 +99,7 @@ int do_page_fault(struct pt_regs *regs, 
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/parisc/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/parisc/mm/fault.c
++++ linux-2.6/arch/parisc/mm/fault.c
+@@ -152,7 +152,7 @@ void do_page_fault(struct pt_regs *regs,
+ 	const struct exception_table_entry *fix;
+ 	unsigned long acc_type;
+ 
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	down_read(&mm->mmap_sem);
+Index: linux-2.6/arch/sh64/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/sh64/mm/fault.c
++++ linux-2.6/arch/sh64/mm/fault.c
+@@ -154,7 +154,7 @@ asmlinkage void do_page_fault(struct pt_
+ 	 * If we're in an interrupt or have no user
+ 	 * context, we must not take the fault..
+ 	 */
+-	if (in_interrupt() || !mm)
++	if (in_atomic() || !mm)
+ 		goto no_context;
+ 
+ 	/* TLB misses upon some cache flushes get done under cli() */
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/include/linux/pageblock-flags.h linux-2.6.19-rc4-mm1-103_antifrag_pageblock_bits/include/linux/pageblock-flags.h
---- linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/include/linux/pageblock-flags.h	2006-10-31 17:42:25.000000000 +0000
-+++ linux-2.6.19-rc4-mm1-103_antifrag_pageblock_bits/include/linux/pageblock-flags.h	2006-10-31 18:25:54.000000000 +0000
-@@ -27,6 +27,10 @@
- 
- /* Bit indices that affect a whole block of pages */
- enum pageblock_bits {
-+#ifdef CONFIG_PAGEALLOC_ANTIFRAG
-+	PB_rclmtype,
-+	PB_rclmtype_end = (PB_rclmtype + 2) - 1, /* 2 bits for rclm types */
-+#endif
- 	NR_PAGEBLOCK_BITS
- };
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/mm/page_alloc.c linux-2.6.19-rc4-mm1-103_antifrag_pageblock_bits/mm/page_alloc.c
---- linux-2.6.19-rc4-mm1-102_remove_antifrag_pageflags/mm/page_alloc.c	2006-10-31 17:44:48.000000000 +0000
-+++ linux-2.6.19-rc4-mm1-103_antifrag_pageblock_bits/mm/page_alloc.c	2006-10-31 18:24:48.000000000 +0000
-@@ -140,8 +140,15 @@ static unsigned long __initdata dma_rese
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
- 
- #ifdef CONFIG_PAGEALLOC_ANTIFRAG
--static inline int get_page_rclmtype(struct page *page)
-+static inline int get_pageblock_rclmtype(struct page *page)
- {
-+	return get_pageblock_flags_group(page, PB_rclmtype, PB_rclmtype_end);
-+}
-+
-+static void set_pageblock_rclmtype(struct page *page, int rclmtype)
-+{
-+	set_pageblock_flags_group(page, (unsigned long)rclmtype,
-+						PB_rclmtype, PB_rclmtype_end);
- }
- 
- static inline int gfpflags_to_rclmtype(gfp_t gfp_flags)
-@@ -153,11 +161,13 @@ static inline int gfpflags_to_rclmtype(g
- 		((gfp_flags & __GFP_KERNRCLM) != 0);
- }
- #else
--static inline int get_page_rclmtype(struct page *page)
-+static inline int get_pageblock_rclmtype(struct page *page)
- {
- 	return RCLM_NORCLM;
- }
- 
-+static inline void set_pageblock_rclmtype(struct page *page, int rclmtype) {}
-+
- static inline int gfpflags_to_rclmtype(gfp_t gfp_flags)
- {
- 	return RCLM_NORCLM;
-@@ -433,7 +443,7 @@ static inline void __free_one_page(struc
- {
- 	unsigned long page_idx;
- 	int order_size = 1 << order;
--	int rclmtype = get_page_rclmtype(page);
-+	int rclmtype = get_pageblock_rclmtype(page);
- 
- 	if (unlikely(PageCompound(page)))
- 		destroy_compound_page(page, order);
-@@ -713,6 +723,7 @@ int move_freepages_block(struct zone *zo
- 	if (page_zone(page) != page_zone(end_page))
- 		return 0;
- 
-+	set_pageblock_rclmtype(start_page, rclmtype);
- 	return move_freepages(zone, start_page, end_page, rclmtype);
- }
- 
-@@ -825,6 +836,10 @@ static struct page *__rmqueue(struct zon
- 			split_count[rclmtype]++;
- 
- 		expand(zone, page, order, current_order, area, rclmtype);
-+
-+		if (current_order == MAX_ORDER - 1)
-+			set_pageblock_rclmtype(page, rclmtype);
-+
- 		goto got_page;
- 	}
- 
-@@ -1003,7 +1018,7 @@ void drain_all_local_pages(void) {}
- static void fastcall free_hot_cold_page(struct page *page, int cold)
- {
- 	struct zone *zone = page_zone(page);
--	int pindex = get_page_rclmtype(page);
-+	int pindex = get_pageblock_rclmtype(page);
- 	struct per_cpu_pages *pcp;
- 	unsigned long flags;
- 
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
