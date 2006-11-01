@@ -1,55 +1,44 @@
-Date: Wed, 1 Nov 2006 12:34:51 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Wed, 1 Nov 2006 13:00:55 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Page allocator: Single Zone optimizations
-Message-Id: <20061101123451.3fd6cfa4.akpm@osdl.org>
-In-Reply-To: <20061101182605.GC27386@skynet.ie>
+In-Reply-To: <20061101123451.3fd6cfa4.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0611011255070.14406@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
-	<20061027190452.6ff86cae.akpm@osdl.org>
-	<Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
-	<20061027192429.42bb4be4.akpm@osdl.org>
-	<Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
-	<20061027214324.4f80e992.akpm@osdl.org>
-	<Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
-	<20061028180402.7c3e6ad8.akpm@osdl.org>
-	<Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
-	<4544914F.3000502@yahoo.com.au>
-	<20061101182605.GC27386@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
+ <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
+ <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
+ <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
+ <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
+ <20061101123451.3fd6cfa4.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mel Gorman <mel@skynet.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Nov 2006 18:26:05 +0000
-mel@skynet.ie (Mel Gorman) wrote:
+On Wed, 1 Nov 2006, Andrew Morton wrote:
 
-> I never really got this objection. With list-based anti-frag, the
-> zone-balancing logic remains the same. There are patches from Andy
-> Whitcroft that reclaims pages in contiguous blocks, but still with the same
-> zone-ordering. It doesn't affect load balancing between zones as such.
+> And hot-unplug isn't actually the interesting application.  Modern Intel
+> memory controllers apparently have (or will have) the ability to power down
+> DIMMs.
 
-I do believe that lumpy-reclaim (initiated by Andy, redone and prototyped
-by Peter, cruelly abandoned) is a perferable approach to solving the
-fragmentation approach.
+Plus one would want to be able to move memory out of an area where we may 
+have a bad DIMM. If we monitor soft ECC failures then we could also 
+judge a DIMM to be bad if we have a too high soft failure rate.
 
-And with __GFP_EASYRECLAIM (please - I just renamed it ;)) (or using
-__GFP_HIGHMEM for the same thing) then some of the core lumpy-reclaim
-algorithm can be reused for hot-unplug.
+If there is a hard failure and we can recover (page cache page f.e.) 
+then we could preemptively disable the complete DIMM.
 
-If you want to unplug a range of memory then it has to be in a zone which
-is 100% __GFP_EASY_RECLAIM (actually the name is still wrong.  It should
-just be __GFP_RECLAIMABLE).
-
-The hot-unplug code will go through those pages and it will, with 100%
-reliability, rip those pages out of the kernel via various means.  I think
-this can all be done.
-
-And hot-unplug isn't actually the interesting application.  Modern Intel
-memory controllers apparently have (or will have) the ability to power down
-DIMMs.
+I still think that we need to generalize the approach to be 
+able to cover as much memory as possible. Remapping can solve some of the 
+issues, for others we could add additional ways to make things movable. 
+F.e. one could make page table pages movable by adding a back pointer to 
+the mm, reclaimable slab pages by adding a move function, driver 
+allocations could have a backpointer to the driver that would be able to 
+move its memory.  Hmm.... Maybe generally a way to provide a 
+function to move data in the page struct for kernel allocations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
