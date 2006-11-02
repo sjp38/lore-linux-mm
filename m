@@ -1,43 +1,48 @@
-Date: Wed, 1 Nov 2006 16:27:26 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061101162221.f110b56a.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0611011625530.18497@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
- <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
- <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
- <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
- <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
- <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611011255070.14406@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611012210290.29614@skynet.skynet.ie>
- <Pine.LNX.4.64.0611011522370.16073@schroedinger.engr.sgi.com>
- <20061101162221.f110b56a.akpm@osdl.org>
+Date: Thu, 2 Nov 2006 13:29:45 +1100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [RFC] reduce hugetlb_instantiation_mutex usage
+Message-ID: <20061102022945.GA24107@localhost.localdomain>
+References: <20061031031703.GA7220@localhost.localdomain> <000001c6fcab$8fe56320$5181030a@amr.corp.intel.com> <20061031110540.GA14172@localhost.localdomain> <Pine.LNX.4.64.0610311239460.6523@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0610311239460.6523@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Mel Gorman <mel@skynet.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, g@ozlabs.org, Andrew Morton <akpm@osdl.org>, 'Christoph Lameter' <christoph@schroedinger.engr.sgi.com>, bill.irwin@oracle.com, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Nov 2006, Andrew Morton wrote:
-
-> > I think that choice is better than fiddling with the VM by adding 
-> > additional zones which will introduce lots of other problems.
+On Tue, Oct 31, 2006 at 12:48:13PM +0000, Hugh Dickins wrote:
+> On Tue, 31 Oct 2006, 'David Gibson' wrote:
+> > On Mon, Oct 30, 2006 at 09:15:20PM -0800, Chen, Kenneth W wrote:
+> > > 
+> > > Instead, I'm asking how private mapping protect race between file truncation
+> > > and fault? For shared mapping, it is clear to me that we are using lock_page
+> > > to protect file truncate with fault.  But I don't see that protection with
+> > > private mapping in current upstream kernel.
+> > 
+> > Oh, ok.  I can't see how it matters in the PRIVATE case, given that
+> > truncate() won't, and shouldn't, truncate privately mapped pages.
 > 
-> What lots of other problems?  64x64MB zones works good.
+> Bzzt, it does and should (unless we decide to make hugetlbfs pages diverge
+> from the standard for ordinary pages in this respect - could do, but that
+> would require thought of its own).  
 
-Read my earlier mail on this. Certainly you can make this work for a 
-specialized load that does not use all kernel features.
+Oh, so it does.  That's not the semantic I would have guessed for
+MAP_PRIVATE.
 
-> > Right. So the device needs to disengage and then move its structures.
-> 
-> I don't think we have a snowball's chance of making all kernel memory
-> relocatable.  Or even a useful amount of it.
+> If you've been thinking otherwise,
+> that may explain why some of the accounting goes wrong.
 
-In the simplest case the device would close down free all of its memory 
-and then start up again reallocating necessary memory?
+Unlikely, given that there basically isn't any accounting for
+MAP_PRIVATE pages.
+
+-- 
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
