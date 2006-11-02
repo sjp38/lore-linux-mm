@@ -1,85 +1,54 @@
-Date: Thu, 2 Nov 2006 13:52:20 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
- <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
- <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
- <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
- <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
- <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
- <454A2CE5.6080003@shadowen.org> <Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
+Message-ID: <454A6B32.6020502@shadowen.org>
+Date: Thu, 02 Nov 2006 22:03:30 +0000
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Page allocator: Single Zone optimizations
+References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>	<20061027190452.6ff86cae.akpm@osdl.org>	<Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>	<20061027192429.42bb4be4.akpm@osdl.org>	<Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>	<20061027214324.4f80e992.akpm@osdl.org>	<Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>	<20061028180402.7c3e6ad8.akpm@osdl.org>	<Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>	<4544914F.3000502@yahoo.com.au>	<20061101182605.GC27386@skynet.ie>	<20061101123451.3fd6cfa4.akpm@osdl.org>	<Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie> <20061102105212.9bf4579b.akpm@osdl.org>
+In-Reply-To: <20061102105212.9bf4579b.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Nov 2006, Mel Gorman wrote:
-
-> Ok... list-based anti-frag identified three types of pages. From the leading
-> mail;
+Andrew Morton wrote:
+> On Wed, 1 Nov 2006 22:10:02 +0000 (GMT)
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> EasyReclaimable - These are userspace pages that are easily reclaimable. This
->         flag is set when it is known that the pages will be trivially
-> reclaimed
->         by writing the page out to swap or syncing with backing storage
+>> On Wed, 1 Nov 2006, Andrew Morton wrote:
+>>
+>>> On Wed, 1 Nov 2006 18:26:05 +0000
+>>> mel@skynet.ie (Mel Gorman) wrote:
+>>>
+>>>> I never really got this objection. With list-based anti-frag, the
+>>>> zone-balancing logic remains the same. There are patches from Andy
+>>>> Whitcroft that reclaims pages in contiguous blocks, but still with the same
+>>>> zone-ordering. It doesn't affect load balancing between zones as such.
+>>> I do believe that lumpy-reclaim (initiated by Andy, redone and prototyped
+>>> by Peter, cruelly abandoned) is a perferable approach to solving the
+>>> fragmentation approach.
+>>>
+>> On it's own lumpy-reclaim or linear-reclaim were not enough to get 
+>> MAX_ORDER_NR_PAGES blocks of contiguous pages and these were of interest 
+>> for huge pages although not necessarily of much use to memory hot-unplug. 
 > 
-> KernelReclaimable - These are allocations for some kernel caches that are
->         reclaimable or allocations that are known to be very short-lived.
+> I'm interested in lumpy-reclaim as a simple solution to the
+> e1000-cant-allocate-an-order-2-page problem, rather than for hugepages.
 > 
-> KernelNonReclaimable - These are pages that are allocated by the kernel that
->         are not trivially reclaimed. For example, the memory allocated for a
->         loaded module would be in this category. By default, allocations are
->         considered to be of this type
-> 
-> The EasyReclaimable and KernelReclaimable allocations are marked with __GFP
-> flags.
-> 
-> Now, you want to separate pages according to movable and unmovable. Broadly
-> speaking, EasyReclaimable == Movable and
-> KernelReclaimable+KernelNonReclaimable == Non-Movable. However, while
-> KernelReclaimable are Non-Movable, they can be reclaimed by purging caches.
-> So, if we redefined the three terms to be Movable, Reclaimable and
-> Non-Movable, you get the separation you are looking for at least within a
-> MAX_ORDER_NR_PAGES.
+> ie: a bugfix, not a feature..
 
-I think talking about reclaim here is not what you want. defragmentation 
-is fundamentally about moving memor not reclaim. Reclaim is a way of 
-evicting pages from memory to avoid the move. This may be useful if memory 
-is filled up because defragging can then do what swapping would have to 
-do. However, evicting pages means that they have to be reread. Page 
-migration can migrate pages at 1GB/sec which is certainly much higher 
-than having to reread the page.
 
-Also I think the reclaim idea breaks down in the following cases:
+Is there a description of the problem and particularly of the
+allocation patterns here.  Particularly key is the level
+of memory pressure when we are allocating these higher orders.
+Lumpy reclaim and less so Linear reclaim is less effective when
+memory pressure is severe so we may not see the hoped for benefit.
+Most of the benchmarking we have done is for higher order pages
+and this effect may well be less at lower order.
 
-1. An mlocked page. This is a page that is movable but not reclaimable. 
-How does defrag handle that case right now? It should really move the 
-page if necessary.
-
-2. There are a number of unreclaimable page types that are easily movable.
-F.e. page table pages are movable if you take a write-lock on mmap_sem 
-and handle the tree carefully. These pages again are not reclaimable but 
-they are movable.
-
-Various caching objects in the slab (cpucache align cache etc) are also 
-easily movable. If we put them into a separate slab cache then we could 
-make them movable.
-
-Certain Device drivers may be able to shut down intermittendly releasing 
-their memory and reallocating it later. This also may be used to move 
-memory. Memory allocated by such a device driver is movable.
-
-I would suggest to not categorize pages according to their reclaimability 
-but according to their movability. The decision to evict a page (reclaim) 
-is something that may be useful to avoid swap but it may be better to keep 
-pages in memory.
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
