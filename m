@@ -1,106 +1,58 @@
-Date: Thu, 2 Nov 2006 14:50:25 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0611021442210.10447@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061027190452.6ff86cae.akpm@osdl.org> <Pine.LNX.4.64.0610271907400.10615@schroedinger.engr.sgi.com>
- <20061027192429.42bb4be4.akpm@osdl.org> <Pine.LNX.4.64.0610271926370.10742@schroedinger.engr.sgi.com>
- <20061027214324.4f80e992.akpm@osdl.org> <Pine.LNX.4.64.0610281743260.14058@schroedinger.engr.sgi.com>
- <20061028180402.7c3e6ad8.akpm@osdl.org> <Pine.LNX.4.64.0610281805280.14100@schroedinger.engr.sgi.com>
- <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
- <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
- <454A2CE5.6080003@shadowen.org> <Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
- <Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 3 Nov 2006 14:42:43 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: [PATCH] Fix sys_move_pages when a NULL node list is passed.
+Message-Id: <20061103144243.4601ba76.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Nov 2006, Mel Gorman wrote:
+sys_move_pages() uses vmalloc() to allocate an array of structures
+that is fills with information passed from user mode and then passes to
+do_stat_pages() (in the case the node list is NULL).  do_stat_pages()
+depends on a marker in the node field of the structure to decide how large
+the array is and this marker is correctly inserted into the last element
+of the array.  However, vmalloc() doesn't zero the memory it allocates
+and if the user passes NULL for the node list, then the node fields are
+not filled in (except for the end marker).  If the memory the vmalloc()
+returned happend to have a word with the marker value in it in just the
+right place, do_pages_stat will fail to fill the status field of part
+of the array and we will return (random) kernel data to user mode.
 
-> > Reclaim is a way of
-> > evicting pages from memory to avoid the move. This may be useful if memory
-> > is filled up because defragging can then do what swapping would have to
-> > do. However, evicting pages means that they have to be reread. Page
-> > migration can migrate pages at 1GB/sec which is certainly much higher
-> > than having to reread the page.
+Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+---
+ mm/migrate.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-> The reason why anti-frag currently reclaims is because reclaiming was easy and
-> happens under memory pressure not because I thought pageout was free. As a
-> proof-of-concept, I needed to show that pages clustered on reclaimability
-> would free contiguous blocks of pages later. There was no point starting with
-> defragmentation when I knew that unmovable pages would be with movable pages
-> in the same MAX_ORDER_NR_PAGES block.
+This has been tested in PowerPC (after wiring up sys_move_pages).  This
+should go into 2.6.19 as it leaks kernel memory.  It should also be
+submitted to the 2.6.18 stable tree (as sys_move_pages was introduced
+before 2.6.18-rc2).
 
-Could you go to defrag with what we have discussed now?
+-- 
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-> > 1. An mlocked page. This is a page that is movable but not reclaimable.
-> > How does defrag handle that case right now? It should really move the
-> > page if necessary.
-> > 
-> 
-> Defrag doesn't exist right now. If anti-frag got some traction, working on
-> using page migration to handle movable-but-not-reclaimable pages would be the
-> next step. Pages that are mlocked() will have been allocated with
-> __GFP_EASYRCLM so will be clustered together with other movable pages.
-
-But mlocked pages are not reclaimable.
-
-> > 2. There are a number of unreclaimable page types that are easily movable.
-> > F.e. page table pages are movable if you take a write-lock on mmap_sem
-> > and handle the tree carefully. These pages again are not reclaimable but
-> > they are movable.
-> > 
-> 
-> Page tables are currently not allocated with __GFP_EASYRCLM because I knew I
-> couldn't reclaim them without killing processes. However, if page migration
-> within ranges was implemented, we'd start clustering based on movability
-> instead of reclaimability.
-
-There would have to be a separate function to move page table pages since 
-they cannot be handled like regular pages. We would need some way of 
-id'ing the mm struct the page belongs to in order to get to the top of 
-the tree and to mmap_sem.
-
-> > Various caching objects in the slab (cpucache align cache etc) are also
-> > easily movable. If we put them into a separate slab cache then we could
-> > make them movable.
-> As subsystems will have pointers to objects within the slab, I doubt they are
-> easily movable but I'll take your word on it for the moment.
-
-The slab already has these pointers in the page struct. They are needed to 
-id the slab on kfree(). We already reallocate all caches when we tune the 
-cpucaches. So there is not much new for the slab cache objects.
-
-> > I would suggest to not categorize pages according to their reclaimability
-> > but according to their movability.
-> 
-> ok, I see your point. However, reclaimability seems a reasonable starting
-> point. If I know pages of similar reclaimability are clustered together, I can
-> work on using page migration to move pages out of the blocks of known
-> reclaimability instead of paging them out. When that works, the __GFP_ flags
-> identifying reclaimability can be renamed to marking movability and flag page
-> table pages as well. This is a logical progression.
-
-I'd rather go direct to defrag instead of creating churn with 
-fragmentation avoidance.
-
-> Agreed, but swapping them out was an easier starting point.
-
-I think this work is very valuable and the acceptance issues have probably 
-dominated the design of the patch so far. But I sure wish we would now go 
-to the full thing instead of an intermediate step that we then will have 
-to undo later. An intemediate step that would make sense is starting to
-marking pages as unmovable and then reclaim movable pages. Then we can add 
-more and more logic to make move pages movable on top. With marking 
-pages for reclaim we wont get there.
-
+diff --git a/mm/migrate.c b/mm/migrate.c
+index ba2453f..b4979d4 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -952,7 +952,8 @@ asmlinkage long sys_move_pages(pid_t pid
+ 				goto out;
+ 
+ 			pm[i].node = node;
+-		}
++		} else
++			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
+ 	}
+ 	/* End marker */
+ 	pm[nr_pages].node = MAX_NUMNODES;
+-- 
+1.4.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
