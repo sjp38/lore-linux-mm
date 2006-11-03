@@ -1,50 +1,34 @@
-Date: Fri, 3 Nov 2006 14:15:53 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+From: Andi Kleen <ak@suse.de>
 Subject: Re: Page allocator: Single Zone optimizations
-In-Reply-To: <20061103141218.8dbdbd14.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0611031413100.16603@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
- <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
- <454A2CE5.6080003@shadowen.org> <Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
- <Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
- <Pine.LNX.4.64.0611021442210.10447@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611030900480.9787@skynet.skynet.ie>
- <Pine.LNX.4.64.0611030952530.14741@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611031825420.25219@skynet.skynet.ie>
- <Pine.LNX.4.64.0611031124340.15242@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611032101190.25219@skynet.skynet.ie>
- <Pine.LNX.4.64.0611031329480.16397@schroedinger.engr.sgi.com>
- <20061103135013.6bdc6240.akpm@osdl.org> <Pine.LNX.4.64.0611031352420.16486@schroedinger.engr.sgi.com>
- <20061103141218.8dbdbd14.akpm@osdl.org>
+Date: Fri, 3 Nov 2006 23:19:53 +0100
+References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com> <20061103135013.6bdc6240.akpm@osdl.org> <Pine.LNX.4.64.0611031352420.16486@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0611031352420.16486@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200611032319.53888.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Nov 2006, Andrew Morton wrote:
+> This has to do with the constructors and the destructors. They are only 
+> applied during the first allocation or the final deallocation of the slab. 
 
-> That's possibly useful if the cache has a destructor.  If it has a
-> constructor and no destructor then there's no point in locally caching the
-> pages.
-> 
-> But destructors are a bad idea: you dirty a cacheline, evict something else
-> and then let the cacheline just sit there and go stale.
+It's pretty much obsolete though - nearly nobody uses constructors/destructors.
+And the few uses left over are useless to avoid cache misses 
+and could as well be removed.
 
-Right thats why I tried to avoid constructors and destructors for the new 
-slab design but it is important for RCU since the object must be in a 
-defined state even after a free. i386 arch code does some weird wizardry 
-with it. So I had to add a support layer.
+Long ago i fixed some code to use constructors and made sure it carefully
+avoided some cache misses in the hot path, but typically when people change
+anything later they destroy that. It's just not maintainable.
 
-> But I thought that slab once-upon-a-time retained caches of plain old free
-> pages, not in any particular state.  Maybe it did and maybe we did remove
-> that.
+I would vote for just getting rid of slab constructors/destructors.
 
-Must have been before my time.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
