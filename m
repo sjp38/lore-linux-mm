@@ -1,49 +1,50 @@
-Received: by nf-out-0910.google.com with SMTP id c2so216694nfe
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2006 09:22:59 -0800 (PST)
-Message-ID: <3faf05680611070922o2b6e33c9qaa539853b73c77e1@mail.gmail.com>
-Date: Tue, 7 Nov 2006 12:22:58 -0500
-From: "vamsi krishna" <vamsi.krishnak@gmail.com>
-Subject: Re: default base page size on ia64 processor
-In-Reply-To: <53f38ab60611062345m6cfeda14v4f1f809fe55e95ef@mail.gmail.com>
+Date: Tue, 7 Nov 2006 09:54:10 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Page allocator: Single Zone optimizations
+In-Reply-To: <Pine.LNX.4.64.0611071629040.11212@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0611070947100.3791@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
+ <4544914F.3000502@yahoo.com.au> <20061101182605.GC27386@skynet.ie>
+ <20061101123451.3fd6cfa4.akpm@osdl.org> <Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
+ <454A2CE5.6080003@shadowen.org> <Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611021442210.10447@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611030900480.9787@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611030952530.14741@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611031825420.25219@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611031124340.15242@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611032101190.25219@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611031329480.16397@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611071629040.11212@skynet.skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <53f38ab60611062345m6cfeda14v4f1f809fe55e95ef@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: adheer chandravanshi <adheerchandravanshi@gmail.com>
-Cc: kernelnewbies <kernelnewbies@nl.linux.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-its 4KB 4*1024 bytes
+On Tue, 7 Nov 2006, Mel Gorman wrote:
 
+> Hence, I'm still convinced that slab pages for caches like inode and
+> short-lived allocations need to be clustered separetly.
 
+So the problem seems to be that some slab of "reclaimable" slabs are 
+not reclaimable at all even with the most aggressive approach?
 
+Then we have a fundamental issue that we are unable to categorize 
+pages correctly. EasyReclaimable pages may be unreclaimable because they 
+are mlocked. Reclaimable (such as slab pages) may turn out to be not 
+reclaimable because some entries are pinned.
 
-On 11/7/06, adheer chandravanshi <adheerchandravanshi@gmail.com> wrote:
-> Hello all,
->
-> I am a linux newbie.
->
-> Can anyone tell me what is the default base page size supported  by
-> ia64 processor on Linux?
->
-> And can we change the base page size to some large page size like 16kb,64kb....?
-> and how to do that?
->
-> -Adheer
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+I think we will run into the same issues for EasyReclaim once an 
+application generates a sufficient amount of mlocked pages that are 
+placed all over the memory of interest.
 
-
--- 
-Sincerely,
-Vamsi kundeti
+Could it be that the only reason that the current approach works is that 
+we have not tested with an application that behaves this way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
