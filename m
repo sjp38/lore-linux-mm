@@ -1,40 +1,38 @@
-Date: Wed, 8 Nov 2006 02:21:41 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [TAKE] memory page_alloc zonelist caching speedup
-Message-Id: <20061108022141.447abc92.pj@sgi.com>
-In-Reply-To: <20061010081429.15156.77206.sendpatchset@jackhammer.engr.sgi.com>
-References: <20061010081429.15156.77206.sendpatchset@jackhammer.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4551E795.3090805@shadowen.org>
+Date: Wed, 08 Nov 2006 14:20:05 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/3]: leak tracking for kmalloc node
+References: <20061030141454.GB7164@lst.de> <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
+In-Reply-To: <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, rientjes@google.com, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Hellwig <hch@lst.de>, netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As discussed in a separate lkml thread:
+Pekka Enberg wrote:
+> Hi,
+> 
+> On 10/30/06, Christoph Hellwig <hch@lst.de> wrote:
+>> If we want to use the node-aware kmalloc in __alloc_skb we need
+>> the tracker is responsible for leak tracking magic for it.  This
+>> patch implements it.  The code is far too ugly for my taste, but it's
+>> doing exactly what the regular kmalloc is doing and thus follows it's
+>> style.
+> 
+> Yeah, the allocation paths are ugly. If only someone with NUMA machine
+> could give this a shot so we can get it merged:
+> 
+> http://marc.theaimsgroup.com/?l=linux-kernel&m=115952740803511&w=2
+> 
+> Should clean up NUMA kmalloc tracking too.
 
-  Avoid allocating during interleave from almost full nodes
+I can give this a test, what is it based on...
 
-the suggestion was made by Andrew and Christoph to consider replacing
-the wall clock based zapping of this zonelist cache with something
-based on the rate of vm paging activity, such as perhaps the counters.
-PGALLOC_* and PGSCAN_* (see further vmstat.h).
-
-But it will be a few weeks before I can get to doing this; I've got
-to do some other stuff first.
-
-I'm assuming that, as a practical matter, for the short term, either
-"time base" works, so that this is not an urgent change.
-
-Of course, if any lurkers want to jump in and do this sooner, have
-at it.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
