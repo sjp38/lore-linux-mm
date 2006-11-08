@@ -1,36 +1,53 @@
-Received: by nf-out-0910.google.com with SMTP id c2so286835nfe
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2006 15:08:54 -0800 (PST)
-Message-ID: <12c511ca0611071508x1630ca54x72994336ecc7a6d6@mail.gmail.com>
-Date: Tue, 7 Nov 2006 15:08:53 -0800
-From: "Tony Luck" <tony.luck@intel.com>
-Subject: Re: default base page size on ia64 processor
-In-Reply-To: <53f38ab60611062345m6cfeda14v4f1f809fe55e95ef@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 8 Nov 2006 09:29:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Page allocator: Single Zone optimizations
+Message-Id: <20061108092957.d9f7fc74.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0611071756050.11212@skynet.skynet.ie>
+References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611012155340.29614@skynet.skynet.ie>
+	<454A2CE5.6080003@shadowen.org>
+	<Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611021442210.10447@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611030900480.9787@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611030952530.14741@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611031825420.25219@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611031124340.15242@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611032101190.25219@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611031329480.16397@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611071629040.11212@skynet.skynet.ie>
+	<Pine.LNX.4.64.0611070947100.3791@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0611071756050.11212@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <53f38ab60611062345m6cfeda14v4f1f809fe55e95ef@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: adheer chandravanshi <adheerchandravanshi@gmail.com>
-Cc: kernelnewbies <kernelnewbies@nl.linux.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: clameter@sgi.com, apw@shadowen.org, akpm@osdl.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-> Can anyone tell me what is the default base page size supported  by
-> ia64 processor on Linux?
+On Tue, 7 Nov 2006 18:14:31 +0000 (GMT)
+Mel Gorman <mel@csn.ul.ie> wrote:
+> > Could it be that the only reason that the current approach works is that
+> > we have not tested with an application that behaves this way?
+> >
+> 
+> Probably. The applications I currently test are not mlocking. The tests 
+> currently run workloads that are known to leave the system in a fragmented 
+> state when they complete. In this situation, higher-order allocations fail 
+> even when nothing is running and there are no mlocked() pages on the 
+> standard allocator.
+> 
+In these days, I've struggled with crashdump from a user to investigate the reason
+of oom-kill. At last, the reason was most of 2G bytes ZONE_DMA pages were
+mlocked(). Sigh....
+I wonder we can use migration of MOVABLE pages for zone balancing in future.
+(maybe complicated but...)
 
-Default page size for Itanium is 16K
-
-> And can we change the base page size to some large page size like 16kb,64kb....?
-> and how to do that?
-
-You need to rebuild the kernel to change the default pagesize.  Run
-"make menuconfig"
-and choose the "Processor type and features" menu entry, 3rd entry
-down on that menu
-is "Kernel page size".  You can choose 4k, 8k, 16k or 64k.
-
--Tony
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
