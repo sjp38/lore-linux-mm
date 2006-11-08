@@ -1,38 +1,31 @@
-Message-ID: <4551E795.3090805@shadowen.org>
-Date: Wed, 08 Nov 2006 14:20:05 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id s2so949090uge
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2006 06:29:11 -0800 (PST)
+Message-ID: <84144f020611080629s362ae596q8c047842f4f8d6ad@mail.gmail.com>
+Date: Wed, 8 Nov 2006 16:29:10 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
 Subject: Re: [PATCH 1/3]: leak tracking for kmalloc node
-References: <20061030141454.GB7164@lst.de> <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
-In-Reply-To: <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <4551E795.3090805@shadowen.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20061030141454.GB7164@lst.de>
+	 <84144f020610300632i799214a6p255e1690a93a95d4@mail.gmail.com>
+	 <4551E795.3090805@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andy Whitcroft <apw@shadowen.org>
 Cc: Christoph Hellwig <hch@lst.de>, netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> Hi,
-> 
-> On 10/30/06, Christoph Hellwig <hch@lst.de> wrote:
->> If we want to use the node-aware kmalloc in __alloc_skb we need
->> the tracker is responsible for leak tracking magic for it.  This
->> patch implements it.  The code is far too ugly for my taste, but it's
->> doing exactly what the regular kmalloc is doing and thus follows it's
->> style.
-> 
-> Yeah, the allocation paths are ugly. If only someone with NUMA machine
-> could give this a shot so we can get it merged:
-> 
-> http://marc.theaimsgroup.com/?l=linux-kernel&m=115952740803511&w=2
-> 
-> Should clean up NUMA kmalloc tracking too.
+Hi Andy,
 
-I can give this a test, what is it based on...
+On 11/8/06, Andy Whitcroft <apw@shadowen.org> wrote:
+> I can give this a test, what is it based on...
 
--apw
+It should apply to current git head with some offsets. Thanks!
+
+                                      Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
