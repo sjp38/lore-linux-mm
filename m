@@ -1,43 +1,44 @@
-Date: Wed, 8 Nov 2006 11:13:41 +0900
+Date: Wed, 8 Nov 2006 11:40:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Fix sys_move_pages when a NULL node list is passed.
-Message-Id: <20061108111341.748d034a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0611071800250.7749@schroedinger.engr.sgi.com>
-References: <20061103144243.4601ba76.sfr@canb.auug.org.au>
-	<20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0611071800250.7749@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/3] add dev_to_node()
+Message-Id: <20061108114038.59831f9d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20061104225629.GA31437@lst.de>
+References: <20061030141501.GC7164@lst.de>
+	<20061030.143357.130208425.davem@davemloft.net>
+	<20061104225629.GA31437@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, akpm@osdl.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: davem@davemloft.net, linux-kernel@vger.kernel.org, netdev@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Nov 2006 18:01:11 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi, I have a question.
 
-> On Wed, 8 Nov 2006, KAMEZAWA Hiroyuki wrote:
-> 
-> > >  	pm[nr_pages].node = MAX_NUMNODES;
-> > 
-> > I think node0 is always online...but this should be
-> > 
-> > pm[i].node = first_online_node; // /* any online node */
-> 
-> No it is a marker. The use of any node that is online could lead to a 
-> false determination of the endpoint of the list.
-> 
-Ah.. I'm mentioning to this.
-==
-+			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
-==
-Sorry for my bad cut & paste.
+On Sat, 4 Nov 2006 23:56:29 +0100
+Christoph Hellwig <hch@lst.de> wrote:
+> Index: linux-2.6/include/linux/device.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/device.h	2006-10-29 16:02:38.000000000 +0100
+> +++ linux-2.6/include/linux/device.h	2006-11-02 12:47:17.000000000 +0100
+> @@ -347,6 +347,9 @@
+>  					   BIOS data),reserved for device core*/
+>  	struct dev_pm_info	power;
+>  
+> +#ifdef CONFIG_NUMA
+> +	int		numa_node;	/* NUMA node this device is close to */
+> +#endif
 
-It seems that this 0 will be passed to alloc_pages_node().
-alloc_pages_node() doesn't check whether a node is online or not before using 
-NODE_DATA().
+> +	dev->dev.numa_node = pcibus_to_node(bus);
+
+Does this "node" is guaranteed to be online ?
+
+if node is not online, NODE_DATA(node) is NULL or not initialized.
+Then, alloc_pages_node() at el. will panic.
+
+I wonder there are no code for creating NODE_DATA() for device-only-node.
 
 -Kame
 
