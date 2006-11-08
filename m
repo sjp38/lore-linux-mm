@@ -1,28 +1,51 @@
-Date: Tue, 7 Nov 2006 18:01:11 -0800 (PST)
+Date: Tue, 7 Nov 2006 18:08:44 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix sys_move_pages when a NULL node list is passed.
-In-Reply-To: <20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0611071800250.7749@schroedinger.engr.sgi.com>
-References: <20061103144243.4601ba76.sfr@canb.auug.org.au>
- <20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Page allocator: Single Zone optimizations
+In-Reply-To: <20061108092957.d9f7fc74.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0611071801160.7749@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0610271225320.9346@schroedinger.engr.sgi.com>
+ <454A2CE5.6080003@shadowen.org> <Pine.LNX.4.64.0611021004270.8098@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611022053490.27544@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611021345140.9877@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611022153491.27544@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611021442210.10447@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611030900480.9787@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611030952530.14741@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611031825420.25219@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611031124340.15242@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611032101190.25219@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611031329480.16397@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611071629040.11212@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611070947100.3791@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611071756050.11212@skynet.skynet.ie>
+ <20061108092957.d9f7fc74.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, akpm@osdl.org
+Cc: Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org, akpm@osdl.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 8 Nov 2006, KAMEZAWA Hiroyuki wrote:
 
-> >  	pm[nr_pages].node = MAX_NUMNODES;
-> 
-> I think node0 is always online...but this should be
-> 
-> pm[i].node = first_online_node; // /* any online node */
+> In these days, I've struggled with crashdump from a user to investigate the reason
+> of oom-kill. At last, the reason was most of 2G bytes ZONE_DMA pages were
+> mlocked(). Sigh....
+> I wonder we can use migration of MOVABLE pages for zone balancing in future.
+> (maybe complicated but...)
 
-No it is a marker. The use of any node that is online could lead to a 
-false determination of the endpoint of the list.
+If we run out of ZONE_DMA memory in the page allocator then scan through 
+the LRU of ZONE_DMA for pages, call isolate_lru_page() for each page that 
+you find worthy of moving (all mlocked pages f.e.) and when you have 
+collected a sufficient quantity call migrate_pages() to get all that are 
+movable out of ZONE_DMA. 
+
+Note though that any writeback of the migrated pages to devices that 
+require pages <2G will then allocate a bounce buffer for the page.
+
+Seems that you found another reason why it would be useful to get 
+rid of ZONE_DMA entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
