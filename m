@@ -1,44 +1,40 @@
-Date: Wed, 8 Nov 2006 11:57:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Fix sys_move_pages when a NULL node list is passed.
-Message-Id: <20061108115732.fcd17f67.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20061108134744.ffc504ea.sfr@canb.auug.org.au>
-References: <20061103144243.4601ba76.sfr@canb.auug.org.au>
-	<20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0611071800250.7749@schroedinger.engr.sgi.com>
-	<20061108111341.748d034a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20061108134744.ffc504ea.sfr@canb.auug.org.au>
+Date: Wed, 8 Nov 2006 02:21:41 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [TAKE] memory page_alloc zonelist caching speedup
+Message-Id: <20061108022141.447abc92.pj@sgi.com>
+In-Reply-To: <20061010081429.15156.77206.sendpatchset@jackhammer.engr.sgi.com>
+References: <20061010081429.15156.77206.sendpatchset@jackhammer.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, akpm@osdl.org
+To: Paul Jackson <pj@sgi.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org, nickpiggin@yahoo.com.au, rientjes@google.com, ak@suse.de, mbligh@google.com, rohitseth@google.com, menage@google.com, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Nov 2006 13:47:44 +1100
-Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+As discussed in a separate lkml thread:
 
-> On Wed, 8 Nov 2006 11:13:41 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > Ah.. I'm mentioning to this.
-> > ==
-> > +			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
-> > ==
-> > Sorry for my bad cut & paste.
-> >
-> > It seems that this 0 will be passed to alloc_pages_node().
-> > alloc_pages_node() doesn't check whether a node is online or not before using
-> > NODE_DATA().
-> 
-> Actually, it won't.  If you do that assignment, then the nodes parameter
-> was NULL and you will only call do_pages_stat() and so never call
-> alloc_pages_node().
-> 
-Ah..Okay, I'm sorry for noise.
+  Avoid allocating during interleave from almost full nodes
 
--Kame
+the suggestion was made by Andrew and Christoph to consider replacing
+the wall clock based zapping of this zonelist cache with something
+based on the rate of vm paging activity, such as perhaps the counters.
+PGALLOC_* and PGSCAN_* (see further vmstat.h).
+
+But it will be a few weeks before I can get to doing this; I've got
+to do some other stuff first.
+
+I'm assuming that, as a practical matter, for the short term, either
+"time base" works, so that this is not an urgent change.
+
+Of course, if any lurkers want to jump in and do this sooner, have
+at it.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
