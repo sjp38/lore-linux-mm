@@ -1,34 +1,28 @@
-Date: Wed, 8 Nov 2006 10:56:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 7 Nov 2006 18:01:11 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] Fix sys_move_pages when a NULL node list is passed.
-Message-Id: <20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20061103144243.4601ba76.sfr@canb.auug.org.au>
+In-Reply-To: <20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0611071800250.7749@schroedinger.engr.sgi.com>
 References: <20061103144243.4601ba76.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20061108105648.4a149cca.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, akpm@osdl.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Nov 2006 14:42:43 +1100
-Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+On Wed, 8 Nov 2006, KAMEZAWA Hiroyuki wrote:
 
-> +		} else
-> +			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
->  	}
->  	/* End marker */
->  	pm[nr_pages].node = MAX_NUMNODES;
+> >  	pm[nr_pages].node = MAX_NUMNODES;
+> 
+> I think node0 is always online...but this should be
+> 
+> pm[i].node = first_online_node; // /* any online node */
 
-I think node0 is always online...but this should be
-
-pm[i].node = first_online_node; // /* any online node */
-
-maybe.
-
--Kame
+No it is a marker. The use of any node that is online could lead to a 
+false determination of the endpoint of the list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
