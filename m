@@ -1,116 +1,200 @@
 Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id kA9JkWou235962
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:46:32 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kA9Jd1F9152552
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:39:11 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kA9JZZH9007993
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:35:35 +1100
+	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id kA9Jkedm190562
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:46:40 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
+	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kA9JdKVA224110
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:39:20 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kA9JZrCv013827
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 06:35:53 +1100
 From: Balbir Singh <balbir@in.ibm.com>
-Date: Fri, 10 Nov 2006 01:05:23 +0530
-Message-Id: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com>
-Subject: [RFC][PATCH 0/8] RSS controller for containers
+Date: Fri, 10 Nov 2006 01:05:41 +0530
+Message-Id: <20061109193541.21437.8046.sendpatchset@balbir.in.ibm.com>
+In-Reply-To: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com>
+References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com>
+Subject: [RFC][PATCH 2/8] RSS controller setup
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: dev@openvz.org, ckrm-tech@lists.sourceforge.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, haveblue@us.ibm.com, rohitseth@google.com, Balbir Singh <balbir@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Here is set of patches that implements a *simple minded* RSS controller
-for containers.  It would be nice to split up the memory controller design
-and implementation in phases
 
-1. RSS control
-2. Page Cache control (with split clean and dirty accounting/control)
-3. mlock() control
-4. Kernel accounting and control
-
-The beancounter implementation follows a very similar approach. The split
-up makes the design of the controller easier. RSS for example, can be tracked
-per mm_struct. Page Cache could be tracked per inode, per thread
-or per mm_struct (depending on what form is most suitable).
-
-The definition of RSS was debated on lkml, please see
-
-	http://lkml.org/lkml/2006/10/10/130
-
-This patchset is a proof of concept implementation and the accounting can
-be easily adapted to meet the definition of RSS as and when it is re-defined
-or revisited. The changes required should be small.
-
-The reclamation logic has been borrowed from Dave Hansen's challenged
-memory controller and from shrink_all_memory(). The accounting was inspired
-from Rohit Seth's container patches.
-
-The good
---------
-
-No additional pointers required in struct page.
-There is also a lot of scope for code reuse in tracking the rss of a process
-(this reuse is yet to be exploited).
-
-The not so good
----------------
-The patches contain a lot of debugging code.
-
-Applying the patches
---------------------
-This patchset has been developed on top of 2.6.19-rc2 with the latest
-containers patch applied.
-
-To run and test this patch, additional fixes are required.
-
-Please see
-	
-	http://lkml.org/lkml/2006/11/6/10
-	http://lkml.org/lkml/2006/11/6/245
+Basic setup for a controller written for resource groups. This patch
+registers a dummy controller.
 
 
-Series
-------
-container-res-groups-fix-parsing.patch
-container-memctlr-setup.patch
-container-memctlr-callbacks.patch
-container-memctlr-acct.patch
-container-memctlr-task-migration.patch
-container-memctlr-shares.patch
-container-memctlr-reclaim.patch
+Signed-off-by: Balbir Singh <balbir@in.ibm.com>
+---
 
-Setup
------
-To test the series, here's what you need to do
+ include/linux/memctlr.h    |   31 ++++++++++++++
+ init/Kconfig               |   11 +++++
+ kernel/res_group/Makefile  |    1 
+ kernel/res_group/memctlr.c |   94 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 137 insertions(+)
 
-0. Get the latest containers patches against 2.6.19-rc2
-1. Apply all the fixes
-2. Apply these patches
-3. Build the kernel and mount the container filesystem
-	mount -t container container /container
-
-4. Disable cpuset's (to simply assignment of tasks to resource groups)
-
-	cd /container
-	echo 0 > cpuset_enabled
-
-5. Add the current task to a new group
-
-	mkdir /container/a
-	echo $$ > tasks
-	cat memctlr_stats
-
-6. Set limits
-
-	echo "res=memctlr,max_shares=10" > memctlr_shares
-
-7. Spin the system, hang it, revolve it, crash it!!
-8. Please provide feedback, both code review and any thing else that
-   can be useful for further development
-
-Testing
--------
-Kernbench was run on these patches and it did not show any significant
-overhead in the tests.
-
+diff -puN /dev/null include/linux/memctlr.h
+--- /dev/null	2006-05-31 06:45:07.000000000 +0530
++++ linux-2.6.19-rc2-balbir/include/linux/memctlr.h	2006-11-09 23:56:03.000000000 +0530
+@@ -0,0 +1,31 @@
++/*
++ * Memory controller - "Account and Control Memory Usage"
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2006
++ *
++ * Author: Balbir Singh <balbir@in.ibm.com>
++ *
++ */
++
++#ifndef _LINUX_MEMCTRL_H
++#define _LINUX_MEMCTRL_H
++
++#ifdef CONFIG_RES_GROUPS_MEMORY
++#include <linux/res_group_rc.h>
++#endif /* CONFIG_RES_GROUPS_MEMORY */
++
++#endif /* _LINUX_MEMCTRL_H */
+diff -puN init/Kconfig~container-memctlr-setup init/Kconfig
+--- linux-2.6.19-rc2/init/Kconfig~container-memctlr-setup	2006-11-09 23:09:03.000000000 +0530
++++ linux-2.6.19-rc2-balbir/init/Kconfig	2006-11-09 23:56:47.000000000 +0530
+@@ -325,6 +325,17 @@ config RES_GROUPS_NUMTASKS
+ 
+ 	  Say N if unsure, Y to use the feature.
+ 
++config RES_GROUPS_MEMORY
++	bool "Memory Controller for RSS"
++	depends on RES_GROUPS
++	default y
++	help
++	  Provides a Resource Controller for Resource Groups.
++	  It limits the resident pages of the tasks belonging to the resource
++	  group.
++
++	  Say N if unsure, Y to use the feature.
++
+ endmenu
+ config SYSCTL
+ 	bool
+diff -puN kernel/res_group/Makefile~container-memctlr-setup kernel/res_group/Makefile
+--- linux-2.6.19-rc2/kernel/res_group/Makefile~container-memctlr-setup	2006-11-09 23:09:03.000000000 +0530
++++ linux-2.6.19-rc2-balbir/kernel/res_group/Makefile	2006-11-09 23:09:03.000000000 +0530
+@@ -1,2 +1,3 @@
+ obj-y = res_group.o shares.o rgcs.o
+ obj-$(CONFIG_RES_GROUPS_NUMTASKS) += numtasks.o
++obj-$(CONFIG_RES_GROUPS_MEMORY) += memctlr.o
+diff -puN /dev/null kernel/res_group/memctlr.c
+--- /dev/null	2006-05-31 06:45:07.000000000 +0530
++++ linux-2.6.19-rc2-balbir/kernel/res_group/memctlr.c	2006-11-09 23:56:03.000000000 +0530
+@@ -0,0 +1,94 @@
++/*
++ * Memory controller - "Account and Control Memory Usage"
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2006
++ *
++ * Author: Balbir Singh <balbir@in.ibm.com>
++ *
++ */
++
++/*
++ * Simple memory controller.
++ * Supports limits, guarantees not supported right now
++ *
++ * Tasks are group'ed virtually by thread groups - Add more details
++ */
++
++#include <linux/module.h>
++#include <linux/res_group_rc.h>
++#include <linux/memctlr.h>
++
++static const char res_ctlr_name[] = "memctlr";
++static struct resource_group *root_rgroup;
++
++struct mem_counter {
++	atomic_long_t	rss;
++};
++
++struct memctlr {
++	struct resource_group *rgroup;		/* My resource group	*/
++	struct res_shares shares;		/* My shares		*/
++
++	struct mem_counter counter;		/* Accounting information */
++	/* Statistics */
++	int successes;
++	int failures;
++};
++
++struct res_controller memctlr_rg;
++
++static struct memctlr *get_memctlr_from_shares(struct res_shares *shares)
++{
++	if (shares)
++		return container_of(shares, struct memctlr, shares);
++	return NULL;
++}
++
++static struct memctlr *get_memctlr(struct resource_group *rgroup)
++{
++	return get_memctlr_from_shares(get_controller_shares(rgroup,
++								&memctlr_rg));
++}
++
++struct res_controller memctlr_rg = {
++	.name = res_ctlr_name,
++	.ctlr_id = NO_RES_ID,
++	.alloc_shares_struct = NULL,
++	.free_shares_struct = NULL,
++	.move_task = NULL,
++	.shares_changed = NULL,
++	.show_stats = NULL,
++};
++
++int __init memctlr_init(void)
++{
++	if (memctlr_rg.ctlr_id != NO_RES_ID)
++		return -EBUSY;	/* already registered */
++	return register_controller(&memctlr_rg);
++}
++
++void __exit memctlr_exit(void)
++{
++	int rc;
++	do {
++		rc = unregister_controller(&memctlr_rg);
++	} while (rc == -EBUSY);
++	BUG_ON(rc != 0);
++}
++
++module_init(memctlr_init);
++module_exit(memctlr_exit);
+_
 
 -- 
 
