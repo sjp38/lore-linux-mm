@@ -1,79 +1,60 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp06.au.ibm.com (8.13.8/8.13.6) with ESMTP id kAALXGcx7618700
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 20:33:17 -0100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kAA9ZuKt059556
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 20:35:57 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kAA9WUoF007945
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 20:32:30 +1100
-Message-ID: <45544723.4030503@in.ibm.com>
-Date: Fri, 10 Nov 2006 15:02:19 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
+Message-ID: <4554466F.8010602@openvz.org>
+Date: Fri, 10 Nov 2006 12:29:19 +0300
+From: Pavel Emelianov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 7/8] RSS controller fix resource groups parsing
-References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193627.21437.88058.sendpatchset@balbir.in.ibm.com> <455442B6.30800@openvz.org>
-In-Reply-To: <455442B6.30800@openvz.org>
+Subject: Re: [RFC][PATCH 8/8] RSS controller support reclamation
+References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193636.21437.11778.sendpatchset@balbir.in.ibm.com> <45543E36.2080600@openvz.org> <45544362.9040805@in.ibm.com>
+In-Reply-To: <45544362.9040805@in.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelianov <xemul@openvz.org>
-Cc: Linux MM <linux-mm@kvack.org>, dev@openvz.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, rohitseth@google.com
+To: balbir@in.ibm.com
+Cc: Pavel Emelianov <xemul@openvz.org>, Linux MM <linux-mm@kvack.org>, dev@openvz.org, ckrm-tech@lists.sourceforge.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, haveblue@us.ibm.com, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-Pavel Emelianov wrote:
-> Balbir Singh wrote:
->> echo adds a "\n" to the end of a string. When this string is copied from
->> user space, we need to remove it, so that match_token() can parse
->> the user space string correctly
->>
->> Signed-off-by: Balbir Singh <balbir@in.ibm.com>
->> ---
->>
->>  kernel/res_group/rgcs.c |    6 ++++++
->>  1 file changed, 6 insertions(+)
->>
->> diff -puN kernel/res_group/rgcs.c~container-res-groups-fix-parsing kernel/res_group/rgcs.c
->> --- linux-2.6.19-rc2/kernel/res_group/rgcs.c~container-res-groups-fix-parsing	2006-11-09 23:08:10.000000000 +0530
->> +++ linux-2.6.19-rc2-balbir/kernel/res_group/rgcs.c	2006-11-09 23:08:10.000000000 +0530
->> @@ -241,6 +241,12 @@ ssize_t res_group_file_write(struct cont
->>  	}
->>  	buf[nbytes] = 0;	/* nul-terminate */
->>  
->> +	/*
->> +	 * Ignore "\n". It might come in from echo(1)
-> 
-> Why not inform user he should call echo -n?
+Balbir Singh wrote:
 
-Yes, but what if the user does not use it? We can't afford to do the
-wrong thing. But it's a good point, I'll document and recommend that
-the users use echo -n.
+[snip]
 
-
-> 
->> +	 */
->> +	if (buf[nbytes - 1] == '\n')
->> +		buf[nbytes - 1] = 0;
->> +
->>  	container_manage_lock();
->>  
->>  	if (container_is_removed(cont)) {
->> _
+>> And what about a hard limit - how would you fail in page fault in
+>> case of limit hit? SIGKILL/SEGV is not an option - in this case we
+>> should run synchronous reclamation. This is done in beancounter
+>> patches v6 we've sent recently.
 >>
 > 
-> That's the same patch as in [PATCH 1/8] mail. Did you attached
-> a wrong one?
+> I thought about running synchronous reclamation, but then did not follow
+> that approach, I was not sure if calling the reclaim routines from the
+> page fault context is a good thing to do. It's worth trying out, since
 
-Yeah... I moved this patch from #7 to #1 and did not remove it.
-Sorry!
+Each page fault potentially calls reclamation by allocating
+required page with __GFP_IO | __GFP_FS bits set. Synchronous
+reclamation in page fault is really normal.
 
--- 
-	Thanks,
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+[snip]
+
+>> Please correct me if I'm wrong, but does this reclamation work like
+>> "run over all the zones' lists searching for page whose controller
+>> is sc->container" ?
+>>
+> 
+> Yeah, that's correct. The code can also reclaim memory from all over-the-limit
+
+OK. What if I have a container with 100 pages limit in a 4Gb
+(~ million of pages) machine and this group starts reclaiming
+its pages. In case this group uses its pages heavily they will
+be at the beginning of an LRU list and reclamation code would
+have to scan through all (million) pages before it finds proper
+ones. This is not optimal!
+
+> containers (by passing SC_OVERLIMIT_ALL). The idea behind using such a scheme
+> is to ensure that the global LRU list is not broken.
+
+isolate_lru_pages() helps in this. As far as I remember this
+was introduced to reduce lru lock contention and keep lru
+lists integrity.
+
+In beancounters patches this is used to shrink BC's pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
