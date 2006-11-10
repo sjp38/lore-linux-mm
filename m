@@ -1,60 +1,118 @@
-Message-ID: <4554466F.8010602@openvz.org>
-Date: Fri, 10 Nov 2006 12:29:19 +0300
-From: Pavel Emelianov <xemul@openvz.org>
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.6) with ESMTP id kAAMUOsX8003612
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 21:30:29 -0100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
+	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kAAAVZiC219436
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 21:31:40 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kAAAS8nL026372
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2006 21:28:09 +1100
+Message-ID: <45545429.7080903@in.ibm.com>
+Date: Fri, 10 Nov 2006 15:57:53 +0530
+From: Balbir Singh <balbir@in.ibm.com>
+Reply-To: balbir@in.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 8/8] RSS controller support reclamation
-References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193636.21437.11778.sendpatchset@balbir.in.ibm.com> <45543E36.2080600@openvz.org> <45544362.9040805@in.ibm.com>
-In-Reply-To: <45544362.9040805@in.ibm.com>
+Subject: Re: [ckrm-tech] [RFC][PATCH 6/8] RSS controller shares allocation
+References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com>	<20061109193619.21437.84173.sendpatchset@balbir.in.ibm.com> <45544240.80609@openvz.org>
+In-Reply-To: <45544240.80609@openvz.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@in.ibm.com
-Cc: Pavel Emelianov <xemul@openvz.org>, Linux MM <linux-mm@kvack.org>, dev@openvz.org, ckrm-tech@lists.sourceforge.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, haveblue@us.ibm.com, rohitseth@google.com
+To: Pavel Emelianov <xemul@openvz.org>
+Cc: dev@openvz.org, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-
-[snip]
-
->> And what about a hard limit - how would you fail in page fault in
->> case of limit hit? SIGKILL/SEGV is not an option - in this case we
->> should run synchronous reclamation. This is done in beancounter
->> patches v6 we've sent recently.
+Pavel Emelianov wrote:
+> Balbir Singh wrote:
+>> Support shares assignment and propagation.
 >>
-> 
-> I thought about running synchronous reclamation, but then did not follow
-> that approach, I was not sure if calling the reclaim routines from the
-> page fault context is a good thing to do. It's worth trying out, since
-
-Each page fault potentially calls reclamation by allocating
-required page with __GFP_IO | __GFP_FS bits set. Synchronous
-reclamation in page fault is really normal.
-
-[snip]
-
->> Please correct me if I'm wrong, but does this reclamation work like
->> "run over all the zones' lists searching for page whose controller
->> is sc->container" ?
+>> Signed-off-by: Balbir Singh <balbir@in.ibm.com>
+>> ---
 >>
+>>  kernel/res_group/memctlr.c |   59 ++++++++++++++++++++++++++++++++++++++++++++-
+>>  1 file changed, 58 insertions(+), 1 deletion(-)
 > 
-> Yeah, that's correct. The code can also reclaim memory from all over-the-limit
+> [snip]
+> 
+>> +static void recalc_and_propagate(struct memctlr *res, struct memctlr *parres)
+>> +{
+>> +	struct resource_group *child = NULL;
+>> +	int child_divisor;
+>> +	u64 numerator;
+>> +	struct memctlr *child_res;
+>> +
+>> +	if (parres) {
+>> +		if (res->shares.max_shares == SHARE_DONT_CARE ||
+>> +			parres->shares.max_shares == SHARE_DONT_CARE)
+>> +			return;
+>> +
+>> +		child_divisor = parres->shares.child_shares_divisor;
+>> +		if (child_divisor == 0)
+>> +			return;
+>> +
+>> +		numerator = (u64)(parres->shares.unused_min_shares *
+>> +				res->shares.max_shares);
+>> +		do_div(numerator, child_divisor);
+>> +		numerator = (u64)(parres->nr_pages * numerator);
+>> +		do_div(numerator, SHARE_DEFAULT_DIVISOR);
+>> +		res->nr_pages = numerator;
+>> +	}
+>> +
+>> +	for_each_child(child, res->rgroup) {
+>> +		child_res = get_memctlr(child);
+>> +		BUG_ON(!child_res);
+>> +		recalc_and_propagate(child_res, res);
+> 
+> Recursion? Won't it eat all the stack in case of a deep tree?
 
-OK. What if I have a container with 100 pages limit in a 4Gb
-(~ million of pages) machine and this group starts reclaiming
-its pages. In case this group uses its pages heavily they will
-be at the beginning of an LRU list and reclamation code would
-have to scan through all (million) pages before it finds proper
-ones. This is not optimal!
+The depth of the hierarchy can be controlled. Recursion is needed
+to do a DFS walk
 
-> containers (by passing SC_OVERLIMIT_ALL). The idea behind using such a scheme
-> is to ensure that the global LRU list is not broken.
+> 
+>> +	}
+>> +
+>> +}
+>> +
+>> +static void memctlr_shares_changed(struct res_shares *shares)
+>> +{
+>> +	struct memctlr *res, *parres;
+>> +
+>> +	res = get_memctlr_from_shares(shares);
+>> +	if (!res)
+>> +		return;
+>> +
+>> +	if (is_res_group_root(res->rgroup))
+>> +		parres = NULL;
+>> +	else
+>> +		parres = get_memctlr((struct container *)res->rgroup->parent);
+>> +
+>> +	recalc_and_propagate(res, parres);
+>> +}
+>> +
+>>  struct res_controller memctlr_rg = {
+>>  	.name = res_ctlr_name,
+>>  	.ctlr_id = NO_RES_ID,
+>>  	.alloc_shares_struct = memctlr_alloc_instance,
+>>  	.free_shares_struct = memctlr_free_instance,
+>>  	.move_task = memctlr_move_task,
+>> -	.shares_changed = NULL,
+>> +	.shares_changed = memctlr_shares_changed,
+> 
+> I didn't find where in this patches this callback is called.
 
-isolate_lru_pages() helps in this. As far as I remember this
-was introduced to reduce lru lock contention and keep lru
-lists integrity.
+It's a part of the resource groups infrastructure. It's been ported
+on top of Paul Menage's containers patches. The code can be easily
+adapted to work directly with containers instead of resource groups
+if required.
 
-In beancounters patches this is used to shrink BC's pages.
+
+
+-- 
+
+	Balbir Singh,
+	Linux Technology Center,
+	IBM Software Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
