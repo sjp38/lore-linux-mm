@@ -1,50 +1,137 @@
-Received: by ug-out-1314.google.com with SMTP id s2so388448uge
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2006 17:56:37 -0800 (PST)
-Message-ID: <661de9470611091756i3b2a4c7er85e5a581cadfc276@mail.gmail.com>
-Date: Fri, 10 Nov 2006 07:26:37 +0530
-From: "Balbir Singh" <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
-Subject: Re: [ckrm-tech] [RFC][PATCH 8/8] RSS controller support reclamation
-In-Reply-To: <1163101543.3138.528.camel@laptopd505.fenrus.org>
+Message-ID: <45543E36.2080600@openvz.org>
+Date: Fri, 10 Nov 2006 11:54:14 +0300
+From: Pavel Emelianov <xemul@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH 8/8] RSS controller support reclamation
+References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193636.21437.11778.sendpatchset@balbir.in.ibm.com>
+In-Reply-To: <20061109193636.21437.11778.sendpatchset@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com>
-	 <20061109193636.21437.11778.sendpatchset@balbir.in.ibm.com>
-	 <1163101543.3138.528.camel@laptopd505.fenrus.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: dev@openvz.org, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, rohitseth@google.com
+To: Balbir Singh <balbir@in.ibm.com>
+Cc: Linux MM <linux-mm@kvack.org>, dev@openvz.org, ckrm-tech@lists.sourceforge.net, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, haveblue@us.ibm.com, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-On 11/10/06, Arjan van de Ven <arjan@infradead.org> wrote:
-> On Fri, 2006-11-10 at 01:06 +0530, Balbir Singh wrote:
-> >
-> > Reclaim memory as we hit the max_shares limit. The code for reclamation
-> > is inspired from Dave Hansen's challenged memory controller and from the
-> > shrink_all_memory() code
->
->
-> Hmm.. I seem to remember that all previous RSS rlimit attempts actually
-> fell flat on their face because of the reclaim-on-rss-overflow behavior;
-> in the shared page / cached page (equally important!) case, it means
-> process A (or container A) suddenly penalizes process B (or container B)
-> by making B have pagecache misses because A was using a low RSS limit.
->
-> Unmapping the page makes sense, sure, and even moving then to inactive
-> lists or whatever that is called in the vm today, but reclaim... that's
-> expensive...
->
+Balbir Singh wrote:
+> Reclaim memory as we hit the max_shares limit. The code for reclamation
+> is inspired from Dave Hansen's challenged memory controller and from the
+> shrink_all_memory() code
+> 
+> Reclamation can be triggered from two paths
+> 
+> 1. While incrementing the RSS, we hit the limit of the container
+> 2. A container is resized, such that it's new limit is below its current
+>    RSS
+> 
+> In (1) reclamation takes place in the background.
 
-I see your point, one of things we could do is that we could track
-shared and cached pages separately and not be so severe on them.
+Hmm... This is not a hard limit in this case, right? And in case
+of overloaded system from the moment reclamation thread is woken
+up till the moment it starts shrinking zones container may touch
+too many pages...
 
-I'll play around with this idea and see what I come up with.
+That's not good.
 
-Thanks for the feedback,
-Balbir
+> TODO's
+> 
+> 1. max_shares currently works like a soft limit. The RSS can grow beyond it's
+>    limit. One possible fix is to introduce a soft limit (reclaim when the
+>    container hits the soft limit) and fail when we hit the hard limit
+
+Such soft limit doesn't help also. It just makes effects on
+low-loaded system smoother.
+
+And what about a hard limit - how would you fail in page fault in
+case of limit hit? SIGKILL/SEGV is not an option - in this case we
+should run synchronous reclamation. This is done in beancounter
+patches v6 we've sent recently.
+
+> Signed-off-by: Balbir Singh <balbir@in.ibm.com>
+> ---
+> 
+> --- linux-2.6.19-rc2/mm/vmscan.c~container-memctlr-reclaim	2006-11-09 22:21:11.000000000 +0530
+> +++ linux-2.6.19-rc2-balbir/mm/vmscan.c	2006-11-09 22:21:11.000000000 +0530
+> @@ -36,6 +36,8 @@
+>  #include <linux/rwsem.h>
+>  #include <linux/delay.h>
+>  #include <linux/kthread.h>
+> +#include <linux/container.h>
+> +#include <linux/memctlr.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
+> @@ -65,6 +67,9 @@ struct scan_control {
+>  	int swappiness;
+>  
+>  	int all_unreclaimable;
+> +
+> +	int overlimit;
+> +	void *container;	/* Added as void * to avoid #ifdef's */
+>  };
+>  
+>  /*
+> @@ -811,6 +816,10 @@ force_reclaim_mapped:
+>  		cond_resched();
+>  		page = lru_to_page(&l_hold);
+>  		list_del(&page->lru);
+> +		if (!memctlr_page_reclaim(page, sc->container, sc->overlimit)) {
+> +			list_add(&page->lru, &l_active);
+> +			continue;
+> +		}
+>  		if (page_mapped(page)) {
+>  			if (!reclaim_mapped ||
+>  			    (total_swap_pages == 0 && PageAnon(page)) ||
+
+[snip] See comment below.
+
+>  
+> +#ifdef CONFIG_RES_GROUPS_MEMORY
+> +/*
+> + * Modelled after shrink_all_memory
+> + */
+> +unsigned long memctlr_shrink_container_memory(unsigned long nr_pages,
+> +						struct container *container,
+> +						int overlimit)
+> +{
+> +	unsigned long lru_pages;
+> +	unsigned long ret = 0;
+> +	int pass;
+> +	struct zone *zone;
+> +	struct scan_control sc = {
+> +		.gfp_mask = GFP_KERNEL,
+> +		.may_swap = 0,
+> +		.swap_cluster_max = nr_pages,
+> +		.may_writepage = 1,
+> +		.swappiness = vm_swappiness,
+> +		.overlimit = overlimit,
+> +		.container = container,
+> +	};
+> +
+
+[snip]
+
+> +		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+> +			unsigned long nr_to_scan = nr_pages - ret;
+> +
+> +			sc.nr_scanned = 0;
+> +			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
+> +			if (ret >= nr_pages)
+> +				break;
+> +
+> +			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
+> +				blk_congestion_wait(WRITE, HZ / 10);
+> +		}
+> +	}
+> +	return ret;
+> +}
+> +#endif
+
+Please correct me if I'm wrong, but does this reclamation work like
+"run over all the zones' lists searching for page whose controller
+is sc->container" ?
+
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
