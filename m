@@ -1,10 +1,10 @@
-Message-ID: <4554412C.3070904@openvz.org>
-Date: Fri, 10 Nov 2006 12:06:52 +0300
+Message-ID: <45544240.80609@openvz.org>
+Date: Fri, 10 Nov 2006 12:11:28 +0300
 From: Pavel Emelianov <xemul@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/8] RSS controller accounting
-References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193600.21437.74220.sendpatchset@balbir.in.ibm.com>
-In-Reply-To: <20061109193600.21437.74220.sendpatchset@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 6/8] RSS controller shares allocation
+References: <20061109193523.21437.86224.sendpatchset@balbir.in.ibm.com> <20061109193619.21437.84173.sendpatchset@balbir.in.ibm.com>
+In-Reply-To: <20061109193619.21437.84173.sendpatchset@balbir.in.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,146 +14,77 @@ Cc: Linux MM <linux-mm@kvack.org>, dev@openvz.org, ckrm-tech@lists.sourceforge.n
 List-ID: <linux-mm.kvack.org>
 
 Balbir Singh wrote:
-> Account RSS usage of a task and the associated container. The definition
-> of RSS was debated and discussed in the following thread
-> 
-> 	http://lkml.org/lkml/2006/10/10/130
-> 
-> 
-> The code tracks all resident pages (including shared pages) as RSS. This patch
-> can easily adapt to the definition of RSS that will be agreed upon. This
-> implementation provides a proof of concept RSS controller.
-> 
-> The accounting is inspired from Rohit Seth's container patches.
-> 
-> TODO's
-> 
-> 1. Merge file_rss and anon_rss tracking with the current rss tracking to
->    maximize code reuse
-> 2. Add/remove RSS tracking as the definition of RSS evolves
-> 
+> Support shares assignment and propagation.
 > 
 > Signed-off-by: Balbir Singh <balbir@in.ibm.com>
 > ---
 > 
+>  kernel/res_group/memctlr.c |   59 ++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 58 insertions(+), 1 deletion(-)
 
 [snip]
 
-> --- linux-2.6.19-rc2/kernel/res_group/memctlr.c~container-memctlr-acct	2006-11-09 21:46:22.000000000 +0530
-> +++ linux-2.6.19-rc2-balbir/kernel/res_group/memctlr.c	2006-11-09 21:47:06.000000000 +0530
-> @@ -37,6 +37,8 @@ static struct resource_group *root_rgrou
->  static const char version[] = "0.01";
->  static struct memctlr *memctlr_root;
->  
-> +#define MEMCTLR_MAGIC	0xdededede
-> +
->  struct mem_counter {
->  	atomic_long_t	rss;
->  };
-> @@ -49,6 +51,7 @@ struct memctlr {
->  	/* Statistics */
->  	int successes;
->  	int failures;
-> +	int magic;
-
-What is this magic for? Is it just for debugging?
-
-[snip]
-
-> +static inline struct memctlr *get_memctlr_from_page(struct page *page)
+> +static void recalc_and_propagate(struct memctlr *res, struct memctlr *parres)
 > +{
-> +	struct resource_group *rgroup;
-> +	struct memctlr *res;
+> +	struct resource_group *child = NULL;
+> +	int child_divisor;
+> +	u64 numerator;
+> +	struct memctlr *child_res;
 > +
-> +	/*
-> +	 * Is the resource groups infrastructure initialized?
-> +	 */
-> +	if (!memctlr_root)
-> +		return NULL;
+> +	if (parres) {
+> +		if (res->shares.max_shares == SHARE_DONT_CARE ||
+> +			parres->shares.max_shares == SHARE_DONT_CARE)
+> +			return;
 > +
-> +	rcu_read_lock();
-> +	rgroup = (struct resource_group *)rcu_dereference(current->container);
-> +	rcu_read_unlock();
+> +		child_divisor = parres->shares.child_shares_divisor;
+> +		if (child_divisor == 0)
+> +			return;
 > +
-> +	res = get_memctlr(rgroup);
-> +	if (!res)
-> +		return NULL;
+> +		numerator = (u64)(parres->shares.unused_min_shares *
+> +				res->shares.max_shares);
+> +		do_div(numerator, child_divisor);
+> +		numerator = (u64)(parres->nr_pages * numerator);
+> +		do_div(numerator, SHARE_DEFAULT_DIVISOR);
+> +		res->nr_pages = numerator;
+> +	}
 > +
-> +	BUG_ON(res->magic != MEMCTLR_MAGIC);
-> +	return res;
+> +	for_each_child(child, res->rgroup) {
+> +		child_res = get_memctlr(child);
+> +		BUG_ON(!child_res);
+> +		recalc_and_propagate(child_res, res);
+
+Recursion? Won't it eat all the stack in case of a deep tree?
+
+> +	}
+> +
 > +}
+> +
+> +static void memctlr_shares_changed(struct res_shares *shares)
+> +{
+> +	struct memctlr *res, *parres;
+> +
+> +	res = get_memctlr_from_shares(shares);
+> +	if (!res)
+> +		return;
+> +
+> +	if (is_res_group_root(res->rgroup))
+> +		parres = NULL;
+> +	else
+> +		parres = get_memctlr((struct container *)res->rgroup->parent);
+> +
+> +	recalc_and_propagate(res, parres);
+> +}
+> +
+>  struct res_controller memctlr_rg = {
+>  	.name = res_ctlr_name,
+>  	.ctlr_id = NO_RES_ID,
+>  	.alloc_shares_struct = memctlr_alloc_instance,
+>  	.free_shares_struct = memctlr_free_instance,
+>  	.move_task = memctlr_move_task,
+> -	.shares_changed = NULL,
+> +	.shares_changed = memctlr_shares_changed,
 
-I don't see how page passed to this function is involved into
-'struct memctlr *res' determining. Could you comment this?
-
-[snip]
-
-> --- linux-2.6.19-rc2/mm/rmap.c~container-memctlr-acct	2006-11-09 21:46:22.000000000 +0530
-> +++ linux-2.6.19-rc2-balbir/mm/rmap.c	2006-11-09 21:46:22.000000000 +0530
-> @@ -537,6 +537,7 @@ void page_add_anon_rmap(struct page *pag
->  	if (atomic_inc_and_test(&page->_mapcount))
->  		__page_set_anon_rmap(page, vma, address);
->  	/* else checking page index and mapping is racy */
-> +	memctlr_inc_rss(page);
->  }
->  
->  /*
-> @@ -553,6 +554,7 @@ void page_add_new_anon_rmap(struct page 
->  {
->  	atomic_set(&page->_mapcount, 0); /* elevate count by 1 (starts at -1) */
->  	__page_set_anon_rmap(page, vma, address);
-> +	memctlr_inc_rss(page);
->  }
->  
->  /**
-> @@ -565,6 +567,7 @@ void page_add_file_rmap(struct page *pag
->  {
->  	if (atomic_inc_and_test(&page->_mapcount))
->  		__inc_zone_page_state(page, NR_FILE_MAPPED);
-> +	memctlr_inc_rss(page);
-
-Consider a task maps one file page 100 times in different places
-and touches 'all of them'. In this case I see that you'll get
-100 in rss counter while real rss will be just 1.
-
->  }
->  
->  /**
-> @@ -596,8 +599,9 @@ void page_remove_rmap(struct page *page)
->  		if (page_test_and_clear_dirty(page))
->  			set_page_dirty(page);
->  		__dec_zone_page_state(page,
-> -				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
-> +				PageAnon(page) ?  NR_ANON_PAGES : NR_FILE_MAPPED);
-
-What is this extra space after a question-mark for?
-
->  	}
-> +	memctlr_dec_rss(page, mm);
->  }
->  
->  /*
-> diff -puN include/linux/rmap.h~container-memctlr-acct include/linux/rmap.h
-> --- linux-2.6.19-rc2/include/linux/rmap.h~container-memctlr-acct	2006-11-09 21:46:22.000000000 +0530
-> +++ linux-2.6.19-rc2-balbir/include/linux/rmap.h	2006-11-09 21:46:22.000000000 +0530
-> @@ -8,6 +8,7 @@
->  #include <linux/slab.h>
->  #include <linux/mm.h>
->  #include <linux/spinlock.h>
-> +#include <linux/memctlr.h>
->  
->  /*
->   * The anon_vma heads a list of private "related" vmas, to scan if
-> @@ -84,6 +85,7 @@ void page_remove_rmap(struct page *);
->  static inline void page_dup_rmap(struct page *page)
->  {
->  	atomic_inc(&page->_mapcount);
-> +	memctlr_inc_rss(page);
->  }
-
-I'm not sure this is correct. page_dup_rmap() happens in the context
-of forking process and thus you'll increment rss counter on current.
-But this must be incremented at new task's counter, mustn't it?
+I didn't find where in this patches this callback is called.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
