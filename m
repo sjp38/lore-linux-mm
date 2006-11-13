@@ -1,31 +1,19 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id kADM7Z8h011196
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2006 17:07:35 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kADM7ZiF537926
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2006 15:07:35 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kADM7Zj4026603
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2006 15:07:35 -0700
-Subject: RE: [hugepage] Fix unmap_and_free_vma backout path
-From: Adam Litke <agl@us.ibm.com>
+Date: Tue, 14 Nov 2006 10:53:36 +1100
+From: 'David Gibson' <david@gibson.dropbear.id.au>
+Subject: Re: [hugepage] Fix unmap_and_free_vma backout path
+Message-ID: <20061113235336.GB13060@localhost.localdomain>
+References: <000301c706f6$4ae26160$a081030a@amr.corp.intel.com> <Pine.LNX.4.64.0611131650140.8280@blonde.wat.veritas.com> <1163450069.17046.24.camel@localhost.localdomain> <Pine.LNX.4.64.0611132039001.23846@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.64.0611132039001.23846@blonde.wat.veritas.com>
-References: <000301c706f6$4ae26160$a081030a@amr.corp.intel.com>
-	 <Pine.LNX.4.64.0611131650140.8280@blonde.wat.veritas.com>
-	 <1163450069.17046.24.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0611132039001.23846@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Mon, 13 Nov 2006 16:07:33 -0600
-Message-Id: <1163455654.17046.25.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'David Gibson' <david@gibson.dropbear.id.au>, 'Christoph Lameter' <clameter@sgi.com>, 'Andrew Morton' <akpm@osdl.org>, bill.irwin@oracle.com, linux-mm@kvack.org
+Cc: Adam Litke <agl@us.ibm.com>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'Christoph Lameter' <clameter@sgi.com>, 'Andrew Morton' <akpm@osdl.org>, bill.irwin@oracle.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2006-11-13 at 20:41 +0000, Hugh Dickins wrote:
+On Mon, Nov 13, 2006 at 08:41:49PM +0000, Hugh Dickins wrote:
 > On Mon, 13 Nov 2006, Adam Litke wrote:
 > 
 > > Looks good to me, notwithstanding the nano-nit below.
@@ -57,12 +45,20 @@ On Mon, 2006-11-13 at 20:41 +0000, Hugh Dickins wrote:
 > when unwinding from error will go the non-huge way, which may cause bad
 > behaviour on architectures (powerpc and ia64) which segregate their huge
 > mappings into a separate region of the address space.
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-Acked-by: Adam Litke <agl@us.ibm.com>
+
+Looks pretty good.  There's still a certain amount of wierdness on
+powerpc: we can back out after (irreversibly) switching chunks of the
+address space over to use for hugepages.  I'll try to fix that up
+later, but in any case it's certainly more comprehensive than my
+original patch.
+
+Acked-by: David Gibson <david@gibson.dropbear.id.au>
+
 -- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
