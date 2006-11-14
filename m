@@ -1,48 +1,48 @@
-Date: Tue, 14 Nov 2006 11:19:51 +1100
+Date: Tue, 14 Nov 2006 15:03:39 +1100
 From: 'David Gibson' <david@gibson.dropbear.id.au>
-Subject: Re: [hugepage] Fix unmap_and_free_vma backout path
-Message-ID: <20061114001951.GE13060@localhost.localdomain>
-References: <20061113062246.GH27042@localhost.localdomain> <000301c706f6$4ae26160$a081030a@amr.corp.intel.com>
+Subject: [hugepage] Check for brk() entering a hugepage region
+Message-ID: <20061114040339.GK13060@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000301c706f6$4ae26160$a081030a@amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Christoph Lameter' <clameter@sgi.com>, 'Andrew Morton' <akpm@osdl.org>, 'Hugh Dickins' <hugh@veritas.com>, bill.irwin@oracle.com, 'Adam Litke' <agl@us.ibm.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Adam Litke <agl@us.ibm.com>, "Chen, Kenneth W" <kenneth.w.chen@intel.com>, 'Christoph Lameter' <clameter@sgi.com>, 'Andrew Morton' <akpm@osdl.org>, bill.irwin@oracle.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 12, 2006 at 11:35:28PM -0800, Chen, Kenneth W wrote:
-> David Gibson wrote on Sunday, November 12, 2006 10:23 PM
-> > > > Probably, yes, although it's yet another "if (hugepage)
-> > > > specialcase()".  But I still think we want the above patch as well.
-> > > > It will make sure we correctly back out from any other possible
-> > > > failure cases in hugetlbfs_file_mmap() - ones I haven't thought of, or
-> > > > which get added later.
-> > > 
-> > > 
-> > > Something like this?  I haven't tested it yet.  But looks plausible
-> > > because we already have if is_file_hugepages() in the generic path.
-> > 
-> > Um.. if you're going to test pgoff here, you should also test the
-> > address.
-> 
-> prepare_hugepage_range() should catch misaligned memory address, right?
-> What more does get_unmapped_area() need to test?
-> 
-> 
-> > Oh, and that point is too late to catch MAP_FIXED mappings.
-> 
-> I don't understand what you mean by that.
+Andrew, please apply.  I could have sworn I checked ages ago, and
+thought that sys_brk() eventually called do_mmap_pgoff() which would
+do the necessary checks.  Can't find any evidence of such a change
+though, so either I was just blind at the time, or it happened before
+the changeover to git.
 
-Sorry, old data.  I was thinking of the old get_unmapped_area() which
-had entirely separate paths for MAP_FIXED and otherwise.  And I had my
-sense inverted as well.
+Unlike mmap(), the codepath for brk() creates a vma without first
+checking that it doesn't touch a region exclusively reserved for
+hugepages.  On powerpc, this can allow it to create a normal page vma
+in a hugepage region, causing oopses and other badness.
 
-It used to be that prepare_hugepage_range() was called *only* in the
-MAP_FIXED case (it being assumed that the hugetlb specific
-get_unmapped_area call would do any necessary preparation).
+This patch adds a test to prevent this.  With this patch, brk() will
+simply fail if it attempts to move the break into a hugepage reserved
+region.
+
+Signed-off-by: David Gibson <david@gibson.dropbear.id.au>
+
+Index: working-2.6/mm/mmap.c
+===================================================================
+--- working-2.6.orig/mm/mmap.c	2006-11-14 14:03:53.000000000 +1100
++++ working-2.6/mm/mmap.c	2006-11-14 14:05:25.000000000 +1100
+@@ -1880,6 +1880,10 @@ unsigned long do_brk(unsigned long addr,
+ 	if ((addr + len) > TASK_SIZE || (addr + len) < addr)
+ 		return -EINVAL;
+ 
++	error = is_hugepage_only_range(current->mm, addr, len);
++	if (error)
++		return error;
++
+ 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+ 
+ 	error = arch_mmap_check(addr, len, flags);
 
 -- 
 David Gibson			| I'll have my music baroque, and my code
