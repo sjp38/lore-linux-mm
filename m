@@ -1,93 +1,40 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.6) with ESMTP id kAG4derY7307374
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2006 03:39:43 -0100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kAFGexAW176024
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2006 03:41:04 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kAFGbWUF013991
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2006 03:37:33 +1100
-Message-ID: <455B4245.8000309@in.ibm.com>
-Date: Wed, 15 Nov 2006 22:07:25 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
-MIME-Version: 1.0
-Subject: Re: [ckrm-tech] [RFC][PATCH 5/8] RSS controller task migration	support
-References: <20061115115937.B0A851B6A2@openx4.frec.bull.fr>
-In-Reply-To: <20061115115937.B0A851B6A2@openx4.frec.bull.fr>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 15 Nov 2006 09:00:05 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: pagefault in generic_file_buffered_write() causing deadlock
+Message-Id: <20061115090005.c9ec6db5.akpm@osdl.org>
+In-Reply-To: <1163606265.7662.8.camel@dyn9047017100.beaverton.ibm.com>
+References: <1163606265.7662.8.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Patrick.Le-Dot" <Patrick.Le-Dot@bull.net>
-Cc: dev@openvz.org, ckrm-tech@lists.sourceforge.net, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, ext4 <linux-ext4@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Patrick.Le-Dot wrote:
-> Hi Balbir,
-> 
-> The get_task_mm()/mmput(mm) usage is not correct.
-> With CONFIG_DEBUG_SPINLOCK_SLEEP=y :
-> 
-> BUG: sleeping function called from invalid context at kernel/fork.c:390
-> in_atomic():1, irqs_disabled():0
->  [<c0116620>] __might_sleep+0x97/0x9c
->  [<c0116a2e>] mmput+0x15/0x8b
->  [<c01582f6>] install_arg_page+0x72/0xa9
->  [<c01584b1>] setup_arg_pages+0x184/0x1a5
->  ...
-> 
-> BUG: sleeping function called from invalid context at kernel/fork.c:390
-> in_atomic():1, irqs_disabled():0
->  [<c0116620>] __might_sleep+0x97/0x9c
->  [<c0116a2e>] mmput+0x15/0x8b
->  [<c01468ee>] do_no_page+0x255/0x2bd
->  [<c0146b8d>] __handle_mm_fault+0xed/0x1ef
->  [<c0111884>] do_page_fault+0x247/0x506
->  [<c011163d>] do_page_fault+0x0/0x506
->  [<c0348f99>] error_code+0x39/0x40
-> 
-> 
-> current->mm seems to be enough here.
+On Wed, 15 Nov 2006 07:57:45 -0800
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
 
-Excellent, thanks for catching this!
+> We are looking at a customer situation (on 2.6.16-based distro) - where
+> system becomes almost useless while running some java & stress tests.
+> 
+> Root cause seems to be taking a pagefault in generic_file_buffered_write
+> () after calling prepare_write. I am wondering 
+> 
+> 1) Why & How this can happen - since we made sure to fault the user
+> buffer before prepare write.
 
-> 
-> 
-> 
-> In patch4, memctlr_dec_rss(page, mm) should be memctlr_dec_rss(page)
-> to compile correctly.
-> 
-> and in patch0 :
->> 4. Disable cpuset's (to simply assignment of tasks to resource groups)
->>         cd /container
->>         echo 0 > cpuset_enabled
-> 
-> should be :
->         echo 0 > cpuacct_enabled
-> 
-> Note : cpuacct_enabled is 0 by default.
-> 
+When using writev() we only fault in the first segment of the iovec.  If
+the second or succesive segment isn't mapped into pagetables we're
+vulnerable to the deadlock.
 
-Thanks for pointing this out.
+> 2) If this is already fixed in current mainline (I can't see how).
 
-> 
-> Now the big question : to implement guarantee, the LRU needs to know
-> if a page can be removed from memory or not.
-> Any ideas to do that without any change in the struct page ?
-> 
+It was fixed in 2.6.17.
 
-For implementing guarantees, we can use limits. Please see
-http://wiki.openvz.org/Containers/Guarantees_for_resources.
-
-
-Thanks for the feedback!
-
--- 
-
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+You'll need 6527c2bdf1f833cc18e8f42bd97973d583e4aa83 and
+81b0c8713385ce1b1b9058e916edcf9561ad76d6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
