@@ -1,40 +1,24 @@
-Date: Wed, 15 Nov 2006 09:00:05 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: pagefault in generic_file_buffered_write() causing deadlock
-Message-Id: <20061115090005.c9ec6db5.akpm@osdl.org>
-In-Reply-To: <1163606265.7662.8.camel@dyn9047017100.beaverton.ibm.com>
-References: <1163606265.7662.8.camel@dyn9047017100.beaverton.ibm.com>
+Date: Wed, 15 Nov 2006 18:36:43 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH 0/3] node-aware skb allocations
+Message-ID: <20061115173643.GA17695@lst.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, ext4 <linux-ext4@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>
+To: akpm@osdl.org, davem@davemloft.net
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Nov 2006 07:57:45 -0800
-Badari Pulavarty <pbadari@us.ibm.com> wrote:
-
-> We are looking at a customer situation (on 2.6.16-based distro) - where
-> system becomes almost useless while running some java & stress tests.
-> 
-> Root cause seems to be taking a pagefault in generic_file_buffered_write
-> () after calling prepare_write. I am wondering 
-> 
-> 1) Why & How this can happen - since we made sure to fault the user
-> buffer before prepare write.
-
-When using writev() we only fault in the first segment of the iovec.  If
-the second or succesive segment isn't mapped into pagetables we're
-vulnerable to the deadlock.
-
-> 2) If this is already fixed in current mainline (I can't see how).
-
-It was fixed in 2.6.17.
-
-You'll need 6527c2bdf1f833cc18e8f42bd97973d583e4aa83 and
-81b0c8713385ce1b1b9058e916edcf9561ad76d6
+This is the final version of the node-aware skb allocations,
+implementing davem's suggestion of storing the numa node in
+struct device.  I'd love to get this into 2.6.20 now that I
+don't hear negative comments about it anymre, but I wonder
+how.  The first patch toches mm/slab.c, the second struct device
+and assorted files and only the last one is actually in the networking
+code.  Should Dave push all this through net-2.6.20 or should we
+get it in purely through -mm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
