@@ -1,51 +1,43 @@
-Date: Wed, 15 Nov 2006 14:24:37 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] mm: call into direct reclaim without PF_MEMALLOC set
-Message-Id: <20061115142437.87c4cbe4.akpm@osdl.org>
-In-Reply-To: <1163628739.31358.164.camel@laptopd505.fenrus.org>
-References: <1163618703.5968.50.camel@twins>
-	<20061115124228.db0b42a6.akpm@osdl.org>
-	<1163625058.5968.64.camel@twins>
-	<20061115132340.3cbf4008.akpm@osdl.org>
-	<1163626378.5968.74.camel@twins>
-	<20061115140049.c835fbfd.akpm@osdl.org>
-	<1163628739.31358.164.camel@laptopd505.fenrus.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 15 Nov 2006 14:40:36 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have
+ no memory
+In-Reply-To: <20061115215845.GB20526@sgi.com>
+Message-ID: <Pine.LNX.4.64.0611151432050.23201@schroedinger.engr.sgi.com>
+References: <20061115193049.3457b44c@localhost> <20061115193437.25cdc371@localhost>
+ <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
+ <20061115215845.GB20526@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@fenrus.demon.nl>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm <linux-mm@kvack.org>
+To: Jack Steiner <steiner@sgi.com>
+Cc: Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, Martin Bligh <mbligh@mbligh.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Nov 2006 23:12:19 +0100
-Arjan van de Ven <arjan@fenrus.demon.nl> wrote:
+On Wed, 15 Nov 2006, Jack Steiner wrote:
 
-> On Wed, 2006-11-15 at 14:00 -0800, Andrew Morton wrote:
-> > On Wed, 15 Nov 2006 22:32:58 +0100
-> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > 
-> > > +			current->flags |= PF_MEMALLOC;
-> > >  			try_to_free_pages(zones, GFP_NOFS);
-> > > +			current->flags &= ~PF_MEMALLOC;
-> > 
-> > Sometime, later, in a different patch, we might as well suck that into
-> > try_to_free_pages() itself.   Along with nice comment explaining
-> > what it means and WARN_ON(current->flags & PF_MEMALLOC).
-> 
-> also I've seen a few cases where this will break.
-> If you already *have* PF_MEMALLOC you'd lose it here; it's generally a
-> mistake to do so. It's a lot safer to save the old value and restore
-> it...
+> A lot of the core infrastructure is currently missing that is required
+> to describe IO nodes as regular nodes, but in principle, I don't
+> see anything wrong with nodes w/o memory.
 
-it does:
+Every processor has a local node on which it runs. The kernel places 
+memory used by the processor on the local node. Even if we allow
+nodes without memory: We still need to associate a "local" node to the 
+processor. If that is across some NUMA interlink then it is going to be 
+slower but it will work.
 
-+		if (*zones && !(current->flags & PF_MEMALLOC)) {
-+			current->flags |= PF_MEMALLOC;
- 			try_to_free_pages(zones, GFP_NOFS);
-+			current->flags &= ~PF_MEMALLOC;
-+		}
+AFAIK It seems to be better to explicitly associate a memory node with a 
+processor during bootup in arch code. 
+
+Various kernel optimizations rely on local memory. Would we create 
+a  special case here of a pglist_data structure without a zones structure? 
+
+It seems that the contents of pglist_data are targeted to a memory node. 
+If we do not have a pglist_data structure then the node would not exist 
+for the kernel.
+
+What would the benefit or difference be of having nodes without memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
