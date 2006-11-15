@@ -1,16 +1,17 @@
 Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kAFIZQAO159236
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:35:26 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kAFIcD9C2519042
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:38:13 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kAFIZQOV016606
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:35:26 GMT
-Date: Wed, 15 Nov 2006 19:32:38 +0100
+	by mtagate4.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kAFIbQQw090150
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:37:26 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kAFIeDee1888294
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:40:13 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kAFIbPZl022942
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2006 18:37:25 GMT
+Date: Wed, 15 Nov 2006 19:34:37 +0100
 From: Christian Krafft <krafft@de.ibm.com>
-Subject: [patch 1/2] fix call to alloc_bootmem after bootmem has been freed
-Message-ID: <20061115193238.4d23900c@localhost>
+Subject: [patch 2/2] enables booting a NUMA system where some nodes have no
+ memory
+Message-ID: <20061115193437.25cdc371@localhost>
 In-Reply-To: <20061115193049.3457b44c@localhost>
 References: <20061115193049.3457b44c@localhost>
 Mime-Version: 1.0
@@ -22,25 +23,30 @@ To: Christian Krafft <krafft@de.ibm.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-In some cases it might happen, that alloc_bootmem is beeing called
-after bootmem pages have been freed. This is, because the condition
-SYSTEM_BOOTING is still true after bootmem has been freed.
+When booting a NUMA system with nodes that have no memory (eg by limiting memory),
+bootmem_alloc_core tried to find pages in an uninitialized bootmem_map.
+This caused a null pointer access.
+This fix adds a check, so that NULL is returned.
+That will enable the caller (bootmem_alloc_nopanic)
+to alloc memory on other without a panic.
 
 Signed-off-by: Christian Krafft <krafft@de.ibm.com>
 
-Index: linux/mm/page_alloc.c
+Index: linux/mm/bootmem.c
 ===================================================================
---- linux.orig/mm/page_alloc.c
-+++ linux/mm/page_alloc.c
-@@ -1931,7 +1931,7 @@ int zone_wait_table_init(struct zone *zo
- 	alloc_size = zone->wait_table_hash_nr_entries
- 					* sizeof(wait_queue_head_t);
+--- linux.orig/mm/bootmem.c
++++ linux/mm/bootmem.c
+@@ -196,6 +196,10 @@ __alloc_bootmem_core(struct bootmem_data
+ 	if (limit && bdata->node_boot_start >= limit)
+ 		return NULL;
  
-- 	if (system_state == SYSTEM_BOOTING) {
-+	if (!slab_is_available()) {
- 		zone->wait_table = (wait_queue_head_t *)
- 			alloc_bootmem_node(pgdat, alloc_size);
- 	} else {
++	/* on nodes without memory - bootmem_map is NULL */
++	if(!bdata->node_bootmem_map)
++		return NULL;
++
+ 	end_pfn = bdata->node_low_pfn;
+ 	limit = PFN_DOWN(limit);
+ 	if (limit && end_pfn > limit)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
