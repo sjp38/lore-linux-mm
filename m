@@ -1,68 +1,55 @@
-Subject: Re: [PATCH] mm: call into direct reclaim without PF_MEMALLOC set
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20061115132340.3cbf4008.akpm@osdl.org>
-References: <1163618703.5968.50.camel@twins>
-	 <20061115124228.db0b42a6.akpm@osdl.org> <1163625058.5968.64.camel@twins>
-	 <20061115132340.3cbf4008.akpm@osdl.org>
-Content-Type: text/plain
-Date: Wed, 15 Nov 2006 22:32:58 +0100
-Message-Id: <1163626378.5968.74.camel@twins>
+Date: Wed, 15 Nov 2006 15:58:45 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have no memory
+Message-ID: <20061115215845.GB20526@sgi.com>
+References: <20061115193049.3457b44c@localhost> <20061115193437.25cdc371@localhost> <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-11-15 at 13:23 -0800, Andrew Morton wrote:
-
-> spose so.  It assume that current->reclaim_state is NULL if !PF_MEMALLOC
-> which I guess is true.
+On Wed, Nov 15, 2006 at 01:24:55PM -0800, Christoph Lameter wrote:
+> On Wed, 15 Nov 2006, Christian Krafft wrote:
 > 
-> But do we need to set current->reclaim_state at all in here?
+> > When booting a NUMA system with nodes that have no memory (eg by limiting memory),
+> > bootmem_alloc_core tried to find pages in an uninitialized bootmem_map.
+> 
+> Why should we support nodes with no memory? If a node has no memory then 
+> its processors and other resources need to be attached to the nearest node 
+> with memory.
+> 
+> AFAICT The primary role of a node is to manage memory.
+> 
 
-I did a quick grep before sending this out, and thought code assumed
-current->reclaim_state was !NULL, however on closer inspection this
-seems not so.
+SGI has nodes that are have neither memory or cpus. These are
+IO nodes. Think of them as ordinary nodes that have had the 
+cpu's & DIMMs removed. Only the IO buses remain. 
 
-*sigh* another version - almost hitting the DaveJ barrier:
-  revisions > LOC
+IO nodes have the same NUMA properties as regular nodes.
+They are connected via the numalink fabric, they should be described
+in the SLIT table, they should be identified in proximity_domains, etc.
 
----
+A lot of the core infrastructure is currently missing that is required
+to describe IO nodes as regular nodes, but in principle, I don't
+see anything wrong with nodes w/o memory.
 
-PF_MEMALLOC is also used to prevent recursion of direct reclaim.
-However this invocation does not set PF_MEMALLOC nor checks it and
-hence a can make it nest a single time. Either by reaching this
-spot from reclaim and then calling it again or entering here and 
-encountering a __GFP_WAIT alloc from within.
 
-So check for PF_MEMALLOC and avoid a second invocation and otherwise
-set PF_MEMALLOC.
+It is also possible to disable the DIMMs on a node that actually has
+cpus & memory. I suspect this doesn't work but I see no reason that you 
+should HAVE to disable the cpus on nodes that have had the DIMMs disabled. 
+Our BIOS currently provides the capability to disable DIMMS. The BIOS has
+a hack to automatically disable cpus if all DIMMs have been disabled.
+This hack was required for several reasons, one of which was linux does
+not support nodes with cpus & no memory.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- fs/buffer.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Index: linux-2.6-git/fs/buffer.c
-===================================================================
---- linux-2.6-git.orig/fs/buffer.c	2006-11-15 20:32:14.000000000 +0100
-+++ linux-2.6-git/fs/buffer.c	2006-11-15 22:28:43.000000000 +0100
-@@ -360,8 +360,11 @@ static void free_more_memory(void)
- 
- 	for_each_online_pgdat(pgdat) {
- 		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
--		if (*zones)
-+		if (*zones && !(current->flags & PF_MEMALLOC)) {
-+			current->flags |= PF_MEMALLOC;
- 			try_to_free_pages(zones, GFP_NOFS);
-+			current->flags &= ~PF_MEMALLOC;
-+		}
- 	}
- }
- 
 
+-- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
