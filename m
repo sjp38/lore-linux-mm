@@ -1,28 +1,66 @@
-Date: Wed, 15 Nov 2006 13:24:55 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have
- no memory
-In-Reply-To: <20061115193437.25cdc371@localhost>
-Message-ID: <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
-References: <20061115193049.3457b44c@localhost> <20061115193437.25cdc371@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] mm: call into direct reclaim without PF_MEMALLOC set
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20061115124228.db0b42a6.akpm@osdl.org>
+References: <1163618703.5968.50.camel@twins>
+	 <20061115124228.db0b42a6.akpm@osdl.org>
+Content-Type: text/plain
+Date: Wed, 15 Nov 2006 22:23:35 +0100
+Message-Id: <1163625815.5968.66.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Krafft <krafft@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Nov 2006, Christian Krafft wrote:
+(Sorry about the dup Andrew, I noticed I hit the wrong reply button)
 
-> When booting a NUMA system with nodes that have no memory (eg by limiting memory),
-> bootmem_alloc_core tried to find pages in an uninitialized bootmem_map.
+OK, so how about this?
 
-Why should we support nodes with no memory? If a node has no memory then 
-its processors and other resources need to be attached to the nearest node 
-with memory.
+No use running direct reclaim if we're already in there.
 
-AFAICT The primary role of a node is to manage memory.
+---
+
+PF_MEMALLOC is also used to prevent recursion of direct reclaim.
+However this invocation does not set PF_MEMALLOC nor checks it and
+hence a can make it nest a single time. Either by reaching this
+spot from reclaim and then calling it again or entering here and 
+encountering a __GFP_WAIT alloc from within.
+
+So check for PF_MEMALLOC and avoid a second invocation and otherwise
+set PF_MEMALLOC.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/buffer.c |   15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+Index: linux-2.6-git/fs/buffer.c
+===================================================================
+--- linux-2.6-git.orig/fs/buffer.c	2006-11-15 20:32:14.000000000 +0100
++++ linux-2.6-git/fs/buffer.c	2006-11-15 21:52:05.000000000 +0100
+@@ -360,8 +360,18 @@ static void free_more_memory(void)
+ 
+ 	for_each_online_pgdat(pgdat) {
+ 		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
+-		if (*zones)
++		if (*zones && !(current->flags & PF_MEMALLOC)) {
++			struct task_struct *p = current;
++			struct reclaim_state reclaim_state = { 0 };
++
++			p->flags |= PF_MEMALLOC;
++			p->reclaim_state = &reclaim_state;
++
+ 			try_to_free_pages(zones, GFP_NOFS);
++
++			p->reclaim_state = NULL;
++			p->flags &= ~PF_MEMALLOC;
++		}
+ 	}
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
