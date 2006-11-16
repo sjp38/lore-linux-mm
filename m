@@ -1,32 +1,30 @@
-Date: Wed, 15 Nov 2006 16:45:29 -0800 (PST)
+Date: Wed, 15 Nov 2006 16:46:22 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have
  no memory
-In-Reply-To: <200611160126.02016.arnd@arndb.de>
-Message-ID: <Pine.LNX.4.64.0611151643420.24457@schroedinger.engr.sgi.com>
-References: <20061115193049.3457b44c@localhost> <455B8F3A.6030503@mbligh.org>
- <Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
- <200611160126.02016.arnd@arndb.de>
+In-Reply-To: <9a8748490611151644m5420fd9claf8212f98a6ad4e2@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0611151645500.24457@schroedinger.engr.sgi.com>
+References: <20061115193049.3457b44c@localhost>  <20061115193437.25cdc371@localhost>
+  <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
+ <455B8F3A.6030503@mbligh.org>  <Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
+ <9a8748490611151644m5420fd9claf8212f98a6ad4e2@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
+To: Jesper Juhl <jesper.juhl@gmail.com>
 Cc: Martin Bligh <mbligh@mbligh.org>, Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Nov 2006, Arnd Bergmann wrote:
+On Thu, 16 Nov 2006, Jesper Juhl wrote:
 
-> - we want to be able to boot with the 'mem=512M' option, which effectively
->   disables the memory on the second node (each node has 512MiB).
-> - Each node has 8 SPUs, all of which we want to use. In order to use an
->   SPU, we call __add_pages to register the local memory on it, so we have
->   struct page pointers we can hand out to user mappings with ->nopage().
+> What about SMP Opteron boards that have RAM slots for each CPU?
+> With two (or more) CPU's and only memory slots populated for one of
+> them, wouldn't that count as multiple NUMA nodes but only one of them
+> with memory?
+> That would seem to be a pretty common thing that could happen.
 
-This is more like the bringup of a processor right? You need
-to have the memory online before the processor is brought up otherwise
-the slab cannot properly allocate its structures on the node when the
-per node portion is brought up. The page allocator has similar issues.
+I think so far we have handled these as two processors on one node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
