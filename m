@@ -1,53 +1,35 @@
-Message-Id: <20061116024438.604985000@sous-sol.org>
-References: <20061116024332.124753000@sous-sol.org>
-Date: Wed, 15 Nov 2006 18:43:36 -0800
-From: Chris Wright <chrisw@sous-sol.org>
-Subject: [patch 04/30] Fix sys_move_pages when a NULL node list is passed.
-Content-Disposition: inline; filename=fix-sys_move_pages-when-a-null-node-list-is-passed.patch
+Date: Wed, 15 Nov 2006 21:28:35 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have no memory
+Message-ID: <20061116032835.GA25299@sgi.com>
+References: <20061115193049.3457b44c@localhost> <20061115193437.25cdc371@localhost> <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com> <20061115215845.GB20526@sgi.com> <Pine.LNX.4.64.0611151432050.23201@schroedinger.engr.sgi.com> <20061116013534.GB1066@sgi.com> <Pine.LNX.4.64.0611151754480.24793@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0611151754480.24793@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, stable@kernel.org, Christoph Lameter <clameter@sgi.com>
-Cc: Justin Forbes <jmforbes@linuxtx.org>, Zwane Mwaikambo <zwane@arm.linux.org.uk>, Theodore Ts'o <tytso@mit.edu>, Randy Dunlap <rdunlap@xenotime.net>, Dave Jones <davej@redhat.com>, Chuck Wolber <chuckw@quantumlinux.com>, Chris Wedgwood <reviews@ml.cw.f00f.org>, Michael Krufky <mkrufky@linuxtv.org>, torvalds@osdl.org, akpm@osdl.org, alan@lxorguk.ukuu.org.uk, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, Martin Bligh <mbligh@mbligh.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
--stable review patch.  If anyone has any objections, please let us know.
-------------------
+On Wed, Nov 15, 2006 at 05:57:27PM -0800, Christoph Lameter wrote:
+> On Wed, 15 Nov 2006, Jack Steiner wrote:
+> 
+> > I doubt that there is a demand for systems with memoryless nodes. However, if the
+> > DIMM(s) on a node fails, I think the system may perform better
+> > with the cpus on the node enabled than it will if they have to be
+> > disabled.
+> 
+> Right now we do not have the capability to remove memory from a node while 
+> the system is running.
 
-From: Stephen Rothwell <sfr@canb.auug.org.au>
+I know. I'm refering to a DIMM that fails power-on diags or one
+that is explicitly disabled from the system controller.
 
-sys_move_pages() uses vmalloc() to allocate an array of structures
-that is fills with information passed from user mode and then passes to
-do_stat_pages() (in the case the node list is NULL).  do_stat_pages()
-depends on a marker in the node field of the structure to decide how large
-the array is and this marker is correctly inserted into the last element
-of the array.  However, vmalloc() doesn't zero the memory it allocates
-and if the user passes NULL for the node list, then the node fields are
-not filled in (except for the end marker).  If the memory the vmalloc()
-returned happend to have a word with the marker value in it in just the
-right place, do_pages_stat will fail to fill the status field of part
-of the array and we will return (random) kernel data to user mode.
-
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
-Acked-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: Chris Wright <chrisw@sous-sol.org>
----
- mm/migrate.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
---- linux-2.6.18.2.orig/mm/migrate.c
-+++ linux-2.6.18.2/mm/migrate.c
-@@ -950,7 +950,8 @@ asmlinkage long sys_move_pages(pid_t pid
- 				goto out;
- 
- 			pm[i].node = node;
--		}
-+		} else
-+			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
- 	}
- 	/* End marker */
- 	pm[nr_pages].node = MAX_NUMNODES;
-
---
+Clearly a reboot is required in both cases, but the end result is
+a node with cpus and no memory. As I said earlier, the PROM (for several 
+reasons) automatically the cpus on nodes w/o memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
