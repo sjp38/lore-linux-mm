@@ -1,39 +1,52 @@
-Date: Thu, 16 Nov 2006 09:54:29 +0900
+Date: Thu, 16 Nov 2006 09:59:45 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have
  no memory
-Message-Id: <20061116095429.0e6109a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0611151451450.23477@schroedinger.engr.sgi.com>
+Message-Id: <20061116095945.e6ad4440.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0611151450550.23477@schroedinger.engr.sgi.com>
 References: <20061115193049.3457b44c@localhost>
 	<20061115193437.25cdc371@localhost>
 	<Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
-	<20061115215845.GB20526@sgi.com>
-	<Pine.LNX.4.64.0611151432050.23201@schroedinger.engr.sgi.com>
-	<455B9825.3030403@mbligh.org>
-	<Pine.LNX.4.64.0611151451450.23477@schroedinger.engr.sgi.com>
+	<455B8F3A.6030503@mbligh.org>
+	<Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
+	<455B98AA.3040904@mbligh.org>
+	<Pine.LNX.4.64.0611151450550.23477@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: mbligh@mbligh.org, steiner@sgi.com, krafft@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mbligh@mbligh.org, krafft@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Nov 2006 14:52:43 -0800 (PST)
+On Wed, 15 Nov 2006 14:51:26 -0800 (PST)
 Christoph Lameter <clameter@sgi.com> wrote:
 
 > On Wed, 15 Nov 2006, Martin Bligh wrote:
 > 
-> > All we need is an appropriate zonelist for each node, pointing to
-> > the memory it should be accessing.
+> > Supposing we hot-unplugged all the memory in a node? Or seems to have
+> > happened in this instance is boot with mem=, cutting out memory on that
+> > node.
 > 
-> But there is no memory on the node. Does the zonelist contain the zones of 
-> the node without memory or not? We simply fall back each allocation to the 
-> next node as if the node was overflowing?
+> So a node with no memory has a pgdat_list structure but no zones? Or empty 
+> zones?
 > 
-yes. just fallback.
-The zonelist[] donen't contain empty-zone.
+
+The node has just empty-zone. pgdat/per-cpu-area is allocated on an other
+(nearest) node.
+
+I hear some vender's machine has this configuration. (ia64, maybe SGI or HP)
+
+Node0: CPUx0 + XXXGb memory
+Node1: CPUx2 + 16MB memory
+Node2: CPUx2 + 16MB memory
+
+memory of Node1 and Node2 is tirmmed at boot by GRANULE alignment.
+Then, final view is
+Node0 : memory-only-node
+Node1 : cpu-only-node
+Node2 : cpu-only-node.
 
 -Kame
 
