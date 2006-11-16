@@ -1,50 +1,36 @@
-Date: Thu, 16 Nov 2006 10:17:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have
- no memory
-Message-Id: <20061116101729.41257355.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0611151653560.24565@schroedinger.engr.sgi.com>
-References: <20061115193049.3457b44c@localhost>
-	<20061115193437.25cdc371@localhost>
-	<Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
-	<20061115215845.GB20526@sgi.com>
-	<Pine.LNX.4.64.0611151432050.23201@schroedinger.engr.sgi.com>
-	<455B9825.3030403@mbligh.org>
-	<Pine.LNX.4.64.0611151451450.23477@schroedinger.engr.sgi.com>
-	<20061116095429.0e6109a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0611151653560.24565@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Thu, 16 Nov 2006 10:22:05 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have no memory
+In-Reply-To: <20061116095945.e6ad4440.kamezawa.hiroyu@jp.fujitsu.com>
+References: <Pine.LNX.4.64.0611151450550.23477@schroedinger.engr.sgi.com> <20061116095945.e6ad4440.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20061116101358.2CB6.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: mbligh@mbligh.org, steiner@sgi.com, krafft@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mbligh@mbligh.org, krafft@de.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Nov 2006 16:57:56 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-> numa_node_id() points to this and we always get allocations redirected to 
-> other nodes. The slab duplicates its per node structures on the fallback 
-> node.
+> I hear some vender's machine has this configuration. (ia64, maybe SGI or HP)
 > 
-> > The zonelist[] donen't contain empty-zone.
+> Node0: CPUx0 + XXXGb memory
+> Node1: CPUx2 + 16MB memory
+> Node2: CPUx2 + 16MB memory
 > 
-> So we will never encounter that zone except when going to the 
-> pglist_data struct through numa_node_id()?
-> 
-Some pgdat/zone scanning code will access it.
-See: for_each_zone() and populated_zone().
+> memory of Node1 and Node2 is tirmmed at boot by GRANULE alignment.
+> Then, final view is
+> Node0 : memory-only-node
+> Node1 : cpu-only-node
+> Node2 : cpu-only-node.
 
-AFAIK, in 2.6.9 age(means RHEL4), cpus on memory-less-node are moved to the
-nearest node. And there were no useless pgdat.
+IIRC, this is HP box. It is using memory interleave among nodes.
 
-Now, there are memory-less-node. Cpus on memory-less-node are on a pgdat
-with empty-zone. I think this is very simple way rather than remapping.
-And I think cpus on memory-less-node are sharing something (FSB,switch,etc..)
-Tieing cpus to a memory-less-node may have some benefit. 
+Bye.
+-- 
+Yasunori Goto 
 
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
