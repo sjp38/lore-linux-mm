@@ -1,54 +1,50 @@
-From: Arnd Bergmann <arnd@arndb.de>
+Received: by wr-out-0506.google.com with SMTP id i31so172029wra
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2006 16:44:59 -0800 (PST)
+Message-ID: <9a8748490611151644m5420fd9claf8212f98a6ad4e2@mail.gmail.com>
+Date: Thu, 16 Nov 2006 01:44:58 +0100
+From: "Jesper Juhl" <jesper.juhl@gmail.com>
 Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have no memory
-Date: Thu, 16 Nov 2006 01:26:01 +0100
-References: <20061115193049.3457b44c@localhost> <455B8F3A.6030503@mbligh.org> <Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
 In-Reply-To: <Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200611160126.02016.arnd@arndb.de>
+References: <20061115193049.3457b44c@localhost>
+	 <20061115193437.25cdc371@localhost>
+	 <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com>
+	 <455B8F3A.6030503@mbligh.org>
+	 <Pine.LNX.4.64.0611151440400.23201@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: Martin Bligh <mbligh@mbligh.org>, Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 15 November 2006 23:41, Christoph Lameter wrote:
+On 15/11/06, Christoph Lameter <clameter@sgi.com> wrote:
 > On Wed, 15 Nov 2006, Martin Bligh wrote:
+>
 > > A node is an arbitrary container object containing one or more of:
 > >
 > > CPUs
 > > Memory
 > > IO bus
-
-+ SPUs on a Cell processor
-
+> >
 > > It does not have to contain memory.
 >
 > I have never seen a node on Linux without memory. I have seen nodes
 > without processors and without I/O but not without memory.This seems to be
 > something new?
+>
+What about SMP Opteron boards that have RAM slots for each CPU?
+With two (or more) CPU's and only memory slots populated for one of
+them, wouldn't that count as multiple NUMA nodes but only one of them
+with memory?
+That would seem to be a pretty common thing that could happen.
 
-In this particular case, we have a dual-socket Cell/B.E. blade server,
-where each of the two CPU-socket/south-bridge/memory combinations is
-treated as a separate node. The two points that make this tricky
-are:
-
-- we want to be able to boot with the 'mem=512M' option, which effectively
-  disables the memory on the second node (each node has 512MiB).
-- Each node has 8 SPUs, all of which we want to use. In order to use an
-  SPU, we call __add_pages to register the local memory on it, so we have
-  struct page pointers we can hand out to user mappings with ->nopage().
-
-The __add_pages call needs to do node local allocations (there are
-probably more allocations that have the same problem, but this is the
-first one that crashes), which oops when there is no memory registered
-at all for that node, instead of returning an error or falling back
-on a non-local allocation.
-
-	Arnd <><
+-- 
+Jesper Juhl <jesper.juhl@gmail.com>
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please      http://www.expita.com/nomime.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
