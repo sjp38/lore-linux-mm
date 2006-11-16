@@ -1,35 +1,120 @@
-Date: Wed, 15 Nov 2006 21:28:35 -0600
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [patch 2/2] enables booting a NUMA system where some nodes have no memory
-Message-ID: <20061116032835.GA25299@sgi.com>
-References: <20061115193049.3457b44c@localhost> <20061115193437.25cdc371@localhost> <Pine.LNX.4.64.0611151323330.22074@schroedinger.engr.sgi.com> <20061115215845.GB20526@sgi.com> <Pine.LNX.4.64.0611151432050.23201@schroedinger.engr.sgi.com> <20061116013534.GB1066@sgi.com> <Pine.LNX.4.64.0611151754480.24793@schroedinger.engr.sgi.com>
+Subject: [PATCH] mm: cleanup and document reclaim recursion
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20061115140049.c835fbfd.akpm@osdl.org>
+References: <1163618703.5968.50.camel@twins>
+	 <20061115124228.db0b42a6.akpm@osdl.org> <1163625058.5968.64.camel@twins>
+	 <20061115132340.3cbf4008.akpm@osdl.org> <1163626378.5968.74.camel@twins>
+	 <20061115140049.c835fbfd.akpm@osdl.org>
+Content-Type: text/plain
+Date: Thu, 16 Nov 2006 10:52:25 +0100
+Message-Id: <1163670745.5968.83.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0611151754480.24793@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Christian Krafft <krafft@de.ibm.com>, linux-mm@kvack.org, Martin Bligh <mbligh@mbligh.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 15, 2006 at 05:57:27PM -0800, Christoph Lameter wrote:
-> On Wed, 15 Nov 2006, Jack Steiner wrote:
+On Wed, 2006-11-15 at 14:00 -0800, Andrew Morton wrote:
+> On Wed, 15 Nov 2006 22:32:58 +0100
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> > I doubt that there is a demand for systems with memoryless nodes. However, if the
-> > DIMM(s) on a node fails, I think the system may perform better
-> > with the cpus on the node enabled than it will if they have to be
-> > disabled.
+> > +			current->flags |= PF_MEMALLOC;
+> >  			try_to_free_pages(zones, GFP_NOFS);
+> > +			current->flags &= ~PF_MEMALLOC;
 > 
-> Right now we do not have the capability to remove memory from a node while 
-> the system is running.
+> Sometime, later, in a different patch, we might as well suck that into
+> try_to_free_pages() itself.   Along with nice comment explaining
+> what it means and WARN_ON(current->flags & PF_MEMALLOC).
 
-I know. I'm refering to a DIMM that fails power-on diags or one
-that is explicitly disabled from the system controller.
+---
 
-Clearly a reboot is required in both cases, but the end result is
-a node with cpus and no memory. As I said earlier, the PROM (for several 
-reasons) automatically the cpus on nodes w/o memory.
+Cleanup and document the reclaim recursion avoiding properties of PF_MEMALLOC.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/buffer.c     |    9 +++++----
+ mm/page_alloc.c |    2 --
+ mm/vmscan.c     |   15 +++++++++++++++
+ 3 files changed, 20 insertions(+), 6 deletions(-)
+
+Index: linux-2.6-git/fs/buffer.c
+===================================================================
+--- linux-2.6-git.orig/fs/buffer.c	2006-11-16 10:28:13.000000000 +0100
++++ linux-2.6-git/fs/buffer.c	2006-11-16 10:37:32.000000000 +0100
+@@ -358,13 +358,14 @@ static void free_more_memory(void)
+ 	wakeup_pdflush(1024);
+ 	yield();
+ 
++	/* We're already in reclaim */
++	if (current->flags & PF_MEMALLOC)
++		return;
++
+ 	for_each_online_pgdat(pgdat) {
+ 		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
+-		if (*zones && !(current->flags & PF_MEMALLOC)) {
+-			current->flags |= PF_MEMALLOC;
++		if (*zones)
+ 			try_to_free_pages(zones, GFP_NOFS);
+-			current->flags &= ~PF_MEMALLOC;
+-		}
+ 	}
+ }
+ 
+Index: linux-2.6-git/mm/page_alloc.c
+===================================================================
+--- linux-2.6-git.orig/mm/page_alloc.c	2006-11-16 10:28:13.000000000 +0100
++++ linux-2.6-git/mm/page_alloc.c	2006-11-16 10:37:32.000000000 +0100
+@@ -1067,14 +1067,12 @@ rebalance:
+ 
+ 	/* We now go into synchronous reclaim */
+ 	cpuset_memory_pressure_bump();
+-	p->flags |= PF_MEMALLOC;
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+ 	did_some_progress = try_to_free_pages(zonelist->zones, gfp_mask);
+ 
+ 	p->reclaim_state = NULL;
+-	p->flags &= ~PF_MEMALLOC;
+ 
+ 	cond_resched();
+ 
+Index: linux-2.6-git/mm/vmscan.c
+===================================================================
+--- linux-2.6-git.orig/mm/vmscan.c	2006-11-16 10:28:13.000000000 +0100
++++ linux-2.6-git/mm/vmscan.c	2006-11-16 10:37:32.000000000 +0100
+@@ -1030,6 +1030,20 @@ unsigned long try_to_free_pages(struct z
+ 
+ 	count_vm_event(ALLOCSTALL);
+ 
++	/*
++	 * PF_MEMALLOC also keeps direct reclaim from recursing into itself.
++	 * Any invocation of direct reclaim with PF_MEMALLOC set is therefore
++	 * invalid.
++	 *
++	 * This makes sense, in that PF_MEMALLOC results in ALLOC_NO_WATERMARKS
++	 * for allocations (except __GFP_NOMEMALLOC), which only makes sense
++	 * for reclaim (or reclaim aiding) contexts. So starting reclaim
++	 * from a context that either helps out reclaim or is reclaim doesn't
++	 * make sense.
++	 */
++	WARN_ON(current->flags & PF_MEMALLOC);
++	current->flags |= PF_MEMALLOC;
++
+ 	for (i = 0; zones[i] != NULL; i++) {
+ 		struct zone *zone = zones[i];
+ 
+@@ -1093,6 +1107,7 @@ out:
+ 
+ 		zone->prev_priority = priority;
+ 	}
++	current->flags &= ~PF_MEMALLOC;
+ 	return ret;
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
