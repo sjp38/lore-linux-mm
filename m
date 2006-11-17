@@ -7,8 +7,8 @@ References: <1163618703.5968.50.camel@twins>
 	 <20061115140049.c835fbfd.akpm@osdl.org> <1163670745.5968.83.camel@twins>
 	 <20061116161636.aa210bf1.akpm@osdl.org>
 Content-Type: text/plain
-Date: Fri, 17 Nov 2006 09:31:51 +0100
-Message-Id: <1163752311.5968.86.camel@twins>
+Date: Fri, 17 Nov 2006 13:18:33 +0100
+Message-Id: <1163765913.5968.96.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,19 +29,26 @@ On Thu, 2006-11-16 at 16:16 -0800, Andrew Morton wrote:
 > 
 > We're kinda dead if free_more_memory() does this.  It'll go into an
 > infinite loop.
-> 
+
+Yeah, this yield() might slow it down or not, but this direct claim
+instance will indeed stall and busy wait for some other reclaimer to
+free up memory. Which might only be kswapd() that also runs with
+__GFP_FS and hence might deadlock?
+
 > Recurring back into try_to_free_pages() would actually be a better thing to
 > do..
-> 
+
+*sigh*, it would be able to make progress due to the GFP_NOFS thing, but
+gah ugly!
+
 > Taking a nap might make some sense, not sure.
-> 
+
+If we can deadlock because kswapd runs __GFP_FS then no, just a nap
+won't do.
+
 > It all needs more thought, no?
 
-I'm not much familiar with this filesystem thing, but I'll have me a
-look, worst thing that can happen is that I learn something new
-today :-)
-
-
+Yes, most definitely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
