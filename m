@@ -1,54 +1,46 @@
-Subject: Re: [PATCH] mm: cleanup and document reclaim recursion
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20061116161636.aa210bf1.akpm@osdl.org>
-References: <1163618703.5968.50.camel@twins>
-	 <20061115124228.db0b42a6.akpm@osdl.org> <1163625058.5968.64.camel@twins>
-	 <20061115132340.3cbf4008.akpm@osdl.org> <1163626378.5968.74.camel@twins>
-	 <20061115140049.c835fbfd.akpm@osdl.org> <1163670745.5968.83.camel@twins>
-	 <20061116161636.aa210bf1.akpm@osdl.org>
-Content-Type: text/plain
-Date: Fri, 17 Nov 2006 13:18:33 +0100
-Message-Id: <1163765913.5968.96.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: Re: [ckrm-tech] [RFC][PATCH 5/8] RSS controller task migration support
+Message-Id: <20061117132533.A5FCF1B6A2@openx4.frec.bull.fr>
+Date: Fri, 17 Nov 2006 14:25:33 +0100 (CET)
+From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: balbir@in.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, dev@openvz.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-11-16 at 16:16 -0800, Andrew Morton wrote:
+> ...
+> For implementing guarantees, we can use limits. Please see
+> http://wiki.openvz.org/Containers/Guarantees_for_resources.
 
-> hmm.
-> 
-> >  
-> > +	/* We're already in reclaim */
-> > +	if (current->flags & PF_MEMALLOC)
-> > +		return;
-> > +
-> 
-> We're kinda dead if free_more_memory() does this.  It'll go into an
-> infinite loop.
+Nack.
 
-Yeah, this yield() might slow it down or not, but this direct claim
-instance will indeed stall and busy wait for some other reclaimer to
-free up memory. Which might only be kswapd() that also runs with
-__GFP_FS and hence might deadlock?
+This seems to be correct for resources like cpu, disk or network
+bandwidth but not for the memory just because nobody in this wiki
+speaks about the kswapd and page reclaim (but it's true that a such
+demon does not exist for cpu, disk or... then the problem is more
+simple).
 
-> Recurring back into try_to_free_pages() would actually be a better thing to
-> do..
+For a customer the main reason to use guarantee is to be sure that
+some pages of a job remain in memory when the system is low on free
+memory. This should be true even for a job in group/container A with
+a smooth activity compared to a group/container B with a set of jobs
+using memory more agressively...
 
-*sigh*, it would be able to make progress due to the GFP_NOFS thing, but
-gah ugly!
+What happens if we use limits to implement guarantees ?
 
-> Taking a nap might make some sense, not sure.
+>> ...
+>> The idea of getting a guarantee is simple:
+>> if any group gi requires a Gi units of resource from R units available
+>> then limiting all the rest groups with R - Gi units provides a desired
+>> guarantee
 
-If we can deadlock because kswapd runs __GFP_FS then no, just a nap
-won't do.
+If the limit is a "hard limit" then we have implemented reservation and
+this is too strict.
 
-> It all needs more thought, no?
+If the limit is a "soft limit" then group/container B is autorized to
+use more than the limit and nothing is guaranteed for group/container A...
 
-Yes, most definitely.
+Patrick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
