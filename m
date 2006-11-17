@@ -1,46 +1,50 @@
-Subject: Re: [ckrm-tech] [RFC][PATCH 5/8] RSS controller task migration support
-Message-Id: <20061117132533.A5FCF1B6A2@openx4.frec.bull.fr>
-Date: Fri, 17 Nov 2006 14:25:33 +0100 (CET)
-From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
+Date: Fri, 17 Nov 2006 14:05:13 +0000
+From: Alan <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [ckrm-tech] [RFC][PATCH 5/8] RSS controller task migration
+ support
+Message-ID: <20061117140513.07da6fd9@localhost.localdomain>
+In-Reply-To: <20061117132533.A5FCF1B6A2@openx4.frec.bull.fr>
+References: <20061117132533.A5FCF1B6A2@openx4.frec.bull.fr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@in.ibm.com
-Cc: ckrm-tech@lists.sourceforge.net, dev@openvz.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
+To: "Patrick.Le-Dot" <Patrick.Le-Dot@bull.net>
+Cc: balbir@in.ibm.com, ckrm-tech@lists.sourceforge.net, dev@openvz.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-> ...
-> For implementing guarantees, we can use limits. Please see
-> http://wiki.openvz.org/Containers/Guarantees_for_resources.
+On Fri, 17 Nov 2006 14:25:33 +0100 (CET)
+> For a customer the main reason to use guarantee is to be sure that
+> some pages of a job remain in memory when the system is low on free
+> memory. This should be true even for a job in group/container A with
 
-Nack.
+That actually doesn't appear a very useful definition.
 
-This seems to be correct for resources like cpu, disk or network
-bandwidth but not for the memory just because nobody in this wiki
-speaks about the kswapd and page reclaim (but it's true that a such
-demon does not exist for cpu, disk or... then the problem is more
-simple).
+There are two reasons for wanting memory guarantees
 
-For a customer the main reason to use guarantee is to be sure that
-some pages of a job remain in memory when the system is low on free
-memory. This should be true even for a job in group/container A with
-a smooth activity compared to a group/container B with a set of jobs
-using memory more agressively...
+#1	To be sure a user can't toast the entire box but just their own
+	compartment (eg web hosting)
 
-What happens if we use limits to implement guarantees ?
+#2	To ensure all apps continue to make progress
 
->> ...
->> The idea of getting a guarantee is simple:
->> if any group gi requires a Gi units of resource from R units available
->> then limiting all the rest groups with R - Gi units provides a desired
->> guarantee
+The simple approach doesn't seem to work for either. There is a threshold
+above which #1 and #2 are the same thing, below that trying to keep a few
+pages in memory will thrash not make progress and will harm overall
+behaviour thus failing to solve #1 or #2. At that point you have to
+decide whether what you have is a misconfiguration or whether the system
+should be prepared to do temporary cycling overcommits so containers take
+it in turn to make progress when overcommitted.
 
-If the limit is a "hard limit" then we have implemented reservation and
-this is too strict.
+> If the limit is a "hard limit" then we have implemented reservation and
+> this is too strict.
 
-If the limit is a "soft limit" then group/container B is autorized to
-use more than the limit and nothing is guaranteed for group/container A...
+Thats fundamentally a judgement based on your particular workload and
+constraints. If I am web hosting then I don't generally care if my end
+users compartment blows up under excess load, I care that the other 200
+customers using the box don't suffer and all phone me to complain.
 
-Patrick
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
