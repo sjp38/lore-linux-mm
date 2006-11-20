@@ -1,33 +1,120 @@
-Received: from rgmgw3.us.oracle.com (rgmgw3.us.oracle.com [138.1.186.112])
-	by rgminet01.oracle.com (Switch-3.2.4/Switch-3.1.6) with ESMTP id kAK55Xam021004
-	for <linux-mm@kvack.org>; Sun, 19 Nov 2006 22:05:34 -0700
-Received: from midway.site (dhcp-amer-csvpn-gw1-141-144-64-78.vpn.oracle.com [141.144.64.78])
-	by rgmgw3.us.oracle.com (Switch-3.2.4/Switch-3.1.7) with SMTP id kAK55UC2005786
-	for <linux-mm@kvack.org>; Sun, 19 Nov 2006 22:05:32 -0700
-Date: Sun, 19 Nov 2006 21:05:45 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: build error: sparsemem + SLOB
-Message-Id: <20061119210545.9708e366.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Mon, 20 Nov 2006 20:22:38 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [PATCH]Re: build error: sparsemem + SLOB
+In-Reply-To: <20061119210545.9708e366.randy.dunlap@oracle.com>
+References: <20061119210545.9708e366.randy.dunlap@oracle.com>
+Message-Id: <20061120201955.97DB.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+>   LD      .tmp_vmlinux1
+> mm/built-in.o: In function `sparse_index_init':
+> sparse.c:(.text.sparse_index_init+0x19): undefined reference to `slab_is_available'
+> make: *** [.tmp_vmlinux1] Error 1
+> 
+> 
+> mm/sparse.c: line 35 uses slab_is_available() but SLAB=n, SLOB=y.
+
+
+Hmm.
+To be honest, I don't know that embedded people would like to use sparsemem.
+mem_section[] array might be too big for them.
+But, they may expect reduce power consumption of memory by memory hotplug.
+
+Anyway, this is fix.
+
+------------
+This patch is to fix compile error when SLOB is on with sparsemem.
 
   LD      .tmp_vmlinux1
 mm/built-in.o: In function `sparse_index_init':
 sparse.c:(.text.sparse_index_init+0x19): undefined reference to `slab_is_available'
 make: *** [.tmp_vmlinux1] Error 1
 
-
 mm/sparse.c: line 35 uses slab_is_available() but SLAB=n, SLOB=y.
 
----
-~Randy
-full config: http://oss.oracle.com/~rdunlap/configs/config-slob-sparse
-(a randconfig)
+This patch is for 2.6.19-rc5-mm2.
+
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+------------
+ include/linux/slab.h |    9 +++++++++
+ mm/slob.c            |    4 ++++
+ mm/sparse.c          |    2 +-
+ 3 files changed, 14 insertions(+), 1 deletion(-)
+
+Index: 19-rc5-mm2/include/linux/slab.h
+===================================================================
+--- 19-rc5-mm2.orig/include/linux/slab.h	2006-11-17 15:21:10.000000000 +0900
++++ 19-rc5-mm2/include/linux/slab.h	2006-11-20 19:07:20.000000000 +0900
+@@ -210,6 +210,8 @@ static inline void *kcalloc(size_t n, si
+ 	return kzalloc(n * size, flags);
+ }
+ 
++#define kmem_is_available() slab_is_available()
++
+ extern void kfree(const void *);
+ extern unsigned int ksize(const void *);
+ extern int slab_is_available(void);
+@@ -260,6 +262,13 @@ extern void kmem_set_shrinker(kmem_cache
+ #else /* CONFIG_SLOB */
+ 
+ /* SLOB allocator routines */
++extern int slob_initialized;
++
++#define kmem_is_available() slob_is_available()
++static inline int slob_is_available(void)
++{
++	return slob_initialized;
++}
+ 
+ void kmem_cache_init(void);
+ struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
+Index: 19-rc5-mm2/mm/slob.c
+===================================================================
+--- 19-rc5-mm2.orig/mm/slob.c	2006-11-17 15:20:47.000000000 +0900
++++ 19-rc5-mm2/mm/slob.c	2006-11-20 18:37:10.000000000 +0900
+@@ -61,6 +61,8 @@ static DEFINE_SPINLOCK(block_lock);
+ 
+ static void slob_free(void *b, int size);
+ 
++int slob_initialized= 0;
++
+ static void *slob_alloc(size_t size, gfp_t gfp, int align)
+ {
+ 	slob_t *prev, *cur, *aligned = 0;
+@@ -337,4 +339,6 @@ void kmem_cache_init(void)
+ 		free_page((unsigned long)p);
+ 
+ 	mod_timer(&slob_timer, jiffies + HZ);
++	slob_initialized = 1;
++
+ }
+Index: 19-rc5-mm2/mm/sparse.c
+===================================================================
+--- 19-rc5-mm2.orig/mm/sparse.c	2006-11-17 15:21:10.000000000 +0900
++++ 19-rc5-mm2/mm/sparse.c	2006-11-20 16:20:56.000000000 +0900
+@@ -50,7 +50,7 @@ static struct mem_section *sparse_index_
+ 	unsigned long array_size = SECTIONS_PER_ROOT *
+ 				   sizeof(struct mem_section);
+ 
+-	if (slab_is_available())
++	if (kmem_is_available())
+ 		section = kmalloc_node(array_size, GFP_KERNEL, nid);
+ 	else
+ 		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
