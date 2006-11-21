@@ -1,51 +1,49 @@
-Date: Tue, 21 Nov 2006 10:26:16 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [patch 1/2] fix call to alloc_bootmem after bootmem has been
- freed
-Message-Id: <20061121102616.47d03ccc.akpm@osdl.org>
-In-Reply-To: <20061121190213.1700761b@localhost>
-References: <20061115193049.3457b44c@localhost>
-	<20061115193238.4d23900c@localhost>
-	<20061121085535.9c62b54f.akpm@osdl.org>
-	<20061121190213.1700761b@localhost>
+Date: Tue, 21 Nov 2006 13:14:10 -0600
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: build error: sparsemem + SLOB
+Message-ID: <20061121191410.GL4797@waste.org>
+References: <Pine.LNX.4.64.0611201724340.23537@blonde.wat.veritas.com> <20061120183632.GD4797@waste.org> <20061121143253.51B5.Y-GOTO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20061121143253.51B5.Y-GOTO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Krafft <krafft@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Nov 2006 19:02:13 +0100
-Christian Krafft <krafft@de.ibm.com> wrote:
-
-> > > Index: linux/mm/page_alloc.c
-> > > ===================================================================
-> > > --- linux.orig/mm/page_alloc.c
-> > > +++ linux/mm/page_alloc.c
-> > > @@ -1931,7 +1931,7 @@ int zone_wait_table_init(struct zone *zo
-> > >  	alloc_size = zone->wait_table_hash_nr_entries
-> > >  					* sizeof(wait_queue_head_t);
+On Tue, Nov 21, 2006 at 02:57:23PM +0900, Yasunori Goto wrote:
+> > On Mon, Nov 20, 2006 at 05:28:24PM +0000, Hugh Dickins wrote:
+> > > On Mon, 20 Nov 2006, Christoph Lameter wrote:
+> > > > 
+> > > > As far as I can tell SLOB is fundamentally racy since it does not support 
+> > > > SLAB_DESTROY_BY_RCU correctly. F.e. The constructor for the anon_vma will 
+> > > > be called on alloc without regard for RCU, we free an item and reuse it 
+> > > > without regard to RCU. This can potentially mess up the anon_vma locking 
+> > > > state while we access it.
+> > > 
+> > > Good find!
+> > > 
+> > > > Is SLOB used at all or have we been lucky so far?
 > > >
-> > > - 	if (system_state == SYSTEM_BOOTING) {
-> > > +	if (!slab_is_available()) {
-> > >  		zone->wait_table = (wait_queue_head_t *)
-> > >  			alloc_bootmem_node(pgdat, alloc_size);
-> > >  	} else {
+> > > Lucky so far.  Well, we'd actually have to be quite unlucky to ever
+> > > see what page_lock_anon_vma/SLAB_DESTROY_BY_RCU are guarding against.
+> > >
+> > > But you're absolutely right that users should not be exposed to such
+> > > unsafety.  I'd say SLOB should be disallowed if SMP.
 > > 
-> > I don't think that slab_is_available() is an appropriate way of working out
-> > if we can call vmalloc().
+> > SLOB is an O(N) allocator and is pretty poorly suited to running on
+> > anything like a modern desktop. Disallowing if SMP is probably
+> > reasonable, as even machines with multicore ARM or MIPS will probably
+> > have enough memory to make SLOB a bit painful.
 > 
-> Afaik slab_is_available() is the generic replacement for mem_init_done, which exists only on powerpc. 
-> If thats not appropriate, I dont know why. However, SYSTEM_BOOTING is definitively wrong.
+> Ok. It's simple. This is fix.
 
-slab is a very different thing from vmalloc.  One could easily envisage
-situations (now or in the future) in which slab is ready, but vmalloc is
-not (more likely vice versa).
+Are there any implications for preemptible kernels here?
 
-It'd be better to add a new vmalloc_is_available.  (Just an int - no need
-for a helper function).
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
