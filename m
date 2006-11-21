@@ -1,188 +1,125 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20061121225343.11710.19257.sendpatchset@skynet.skynet.ie>
+Message-Id: <20061121225403.11710.37011.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
 References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 10/11] Remove dependency on page->flag bits
-Date: Tue, 21 Nov 2006 22:53:43 +0000 (GMT)
+Subject: [PATCH 11/11] Use pageblock flags for page clustering
+Date: Tue, 21 Nov 2006 22:54:03 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-The page clustering implementation uses page flags to track page usage.
-In preparation for their replacement with corresponding pageblock flags
-remove the page->flags manipulation.
-
-After this patch, page clustering is broken until the next patch in the set
-is applied.
+This patch alters page clustering to use the pageblock bits for track how
+movable a block of pages is.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- arch/x86_64/kernel/e820.c  |    8 -------
- include/linux/page-flags.h |   44 +---------------------------------------
- init/Kconfig               |    1 
- mm/page_alloc.c            |   16 --------------
- 4 files changed, 2 insertions(+), 67 deletions(-)
+ include/linux/pageblock-flags.h |    4 ++++
+ mm/page_alloc.c                 |   27 ++++++++++++++++++++++-----
+ 2 files changed, 26 insertions(+), 5 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-101_pageblock_bits/arch/x86_64/kernel/e820.c linux-2.6.19-rc5-mm2-102_remove_clustering_flags/arch/x86_64/kernel/e820.c
---- linux-2.6.19-rc5-mm2-101_pageblock_bits/arch/x86_64/kernel/e820.c	2006-11-21 10:57:46.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-102_remove_clustering_flags/arch/x86_64/kernel/e820.c	2006-11-21 11:25:08.000000000 +0000
-@@ -217,13 +217,6 @@ void __init e820_reserve_resources(void)
- 	}
- }
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-102_remove_clustering_flags/include/linux/pageblock-flags.h linux-2.6.19-rc5-mm2-103_clustering_pageblock/include/linux/pageblock-flags.h
+--- linux-2.6.19-rc5-mm2-102_remove_clustering_flags/include/linux/pageblock-flags.h	2006-11-21 11:23:20.000000000 +0000
++++ linux-2.6.19-rc5-mm2-103_clustering_pageblock/include/linux/pageblock-flags.h	2006-11-21 11:27:10.000000000 +0000
+@@ -27,6 +27,10 @@
  
--#ifdef CONFIG_PAGE_CLUSTERING
--static void __init
--e820_mark_nosave_range(unsigned long start, unsigned long end)
--{
--	printk("Nosave not set when anti-frag is enabled");
--}
--#else
- /* Mark pages corresponding to given address range as nosave */
- static void __init
- e820_mark_nosave_range(unsigned long start, unsigned long end)
-@@ -239,7 +232,6 @@ e820_mark_nosave_range(unsigned long sta
- 		if (pfn_valid(pfn))
- 			SetPageNosave(pfn_to_page(pfn));
- }
--#endif
+ /* Bit indices that affect a whole block of pages */
+ enum pageblock_bits {
++#ifdef CONFIG_PAGE_CLUSTERING
++	PB_migrate,
++	PB_migrate_end = (PB_migrate + 2) - 1, /* 2 bits for migrate types */
++#endif /* CONFIG_PAGE_CLUSTERING */
+ 	NR_PAGEBLOCK_BITS
+ };
  
- /*
-  * Find the ranges of physical addresses that do not correspond to
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-101_pageblock_bits/include/linux/page-flags.h linux-2.6.19-rc5-mm2-102_remove_clustering_flags/include/linux/page-flags.h
---- linux-2.6.19-rc5-mm2-101_pageblock_bits/include/linux/page-flags.h	2006-11-21 10:57:46.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-102_remove_clustering_flags/include/linux/page-flags.h	2006-11-21 11:25:08.000000000 +0000
-@@ -82,29 +82,17 @@
- #define PG_private		11	/* If pagecache, has fs-private data */
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-102_remove_clustering_flags/mm/page_alloc.c linux-2.6.19-rc5-mm2-103_clustering_pageblock/mm/page_alloc.c
+--- linux-2.6.19-rc5-mm2-102_remove_clustering_flags/mm/page_alloc.c	2006-11-21 11:52:50.000000000 +0000
++++ linux-2.6.19-rc5-mm2-103_clustering_pageblock/mm/page_alloc.c	2006-11-21 11:52:53.000000000 +0000
+@@ -143,8 +143,15 @@ static unsigned long __initdata dma_rese
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
  
- #define PG_writeback		12	/* Page is under writeback */
-+#define PG_nosave		13	/* Used for system suspend/resume */
- #define PG_compound		14	/* Part of a compound page */
- #define PG_swapcache		15	/* Swap page: swp_entry_t in private */
- 
- #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
- #define PG_reclaim		17	/* To be reclaimed asap */
-+#define PG_nosave_free		18	/* Free, should not be written */
- #define PG_buddy		19	/* Page is free, on buddy lists */
- 
- #define PG_readahead		20	/* Reminder to do readahead */
- 
--/*
-- * As page clustering requires two flags, it was best to reuse the suspend
-- * flags and make page clustering depend on !SOFTWARE_SUSPEND. This works
-- * on the assumption that machines being suspended do not really care about
-- * large contiguous allocations.
-- */
--#ifndef CONFIG_PAGE_CLUSTERING
--#define PG_nosave		13	/* Used for system suspend/resume */
--#define PG_nosave_free		18	/* Free, should not be written */
--#else
--#define PG_reclaimable		13	/* Page is reclaimable */
--#define PG_movable		18	/* Page is movable */
--#endif
--
- #if (BITS_PER_LONG > 32)
- /*
-  * 64-bit-only flags build down from bit 31
-@@ -221,7 +209,6 @@ static inline void SetPageUptodate(struc
- 		ret;							\
- 	})
- 
--#ifndef CONFIG_PAGE_CLUSTERING
- #define PageNosave(page)	test_bit(PG_nosave, &(page)->flags)
- #define SetPageNosave(page)	set_bit(PG_nosave, &(page)->flags)
- #define TestSetPageNosave(page)	test_and_set_bit(PG_nosave, &(page)->flags)
-@@ -232,33 +219,6 @@ static inline void SetPageUptodate(struc
- #define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
- #define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
- 
--#define PageReclaimable(page)	(0)
--#define SetPageReclaimable(page)	do {} while (0)
--#define ClearPageReclaimable(page)	do {} while (0)
--#define __SetPageReclaimable(page)	do {} while (0)
--#define __ClearPageReclaimable(page) do {} while (0)
--
--#define PageMovable(page)	(0)
--#define SetPageMovable(page)	do {} while (0)
--#define ClearPageMovable(page)	do {} while (0)
--#define __SetPageMovable(page)	do {} while (0)
--#define __ClearPageMovable(page) do {} while (0)
--
--#else
--
--#define PageReclaimable(page)	test_bit(PG_reclaimable, &(page)->flags)
--#define SetPageReclaimable(page)	set_bit(PG_reclaimable, &(page)->flags)
--#define ClearPageReclaimable(page)	clear_bit(PG_reclaimable, &(page)->flags)
--#define __SetPageReclaimable(page)	__set_bit(PG_reclaimable, &(page)->flags)
--#define __ClearPageReclaimable(page) __clear_bit(PG_reclaimable, &(page)->flags)
--
--#define PageMovable(page)	test_bit(PG_movable, &(page)->flags)
--#define SetPageMovable(page)	set_bit(PG_movable, &(page)->flags)
--#define ClearPageMovable(page)	clear_bit(PG_movable, &(page)->flags)
--#define __SetPageMovable(page)	__set_bit(PG_movable, &(page)->flags)
--#define __ClearPageMovable(page) __clear_bit(PG_movable, &(page)->flags)
--#endif /* CONFIG_PAGE_CLUSTERING */
--
- #define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
- #define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
- #define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-101_pageblock_bits/init/Kconfig linux-2.6.19-rc5-mm2-102_remove_clustering_flags/init/Kconfig
---- linux-2.6.19-rc5-mm2-101_pageblock_bits/init/Kconfig	2006-11-21 10:57:46.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-102_remove_clustering_flags/init/Kconfig	2006-11-21 11:25:08.000000000 +0000
-@@ -502,7 +502,6 @@ config SLOB
- 
- config PAGE_CLUSTERING
- 	bool "Cluster movable pages together in the page allocator"
--	depends on !SOFTWARE_SUSPEND
- 	def_bool n
- 	help
- 	  The standard allocator will fragment memory over time which means
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-101_pageblock_bits/mm/page_alloc.c linux-2.6.19-rc5-mm2-102_remove_clustering_flags/mm/page_alloc.c
---- linux-2.6.19-rc5-mm2-101_pageblock_bits/mm/page_alloc.c	2006-11-21 11:52:45.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-102_remove_clustering_flags/mm/page_alloc.c	2006-11-21 11:52:50.000000000 +0000
-@@ -145,7 +145,6 @@ static unsigned long __initdata dma_rese
  #ifdef CONFIG_PAGE_CLUSTERING
- static inline int get_page_migratetype(struct page *page)
+-static inline int get_page_migratetype(struct page *page)
++static inline int get_pageblock_migratetype(struct page *page)
  {
--	return ((PageMovable(page) != 0) << 1) | (PageReclaimable(page) != 0);
++	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
++}
++
++static void set_pageblock_migratetype(struct page *page, int migratetype)
++{
++	set_pageblock_flags_group(page, (unsigned long)migratetype,
++					PB_migrate, PB_migrate_end);
  }
  
  static inline int gfpflags_to_migratetype(gfp_t gfp_flags)
-@@ -443,14 +442,6 @@ static inline void __free_one_page(struc
- 
- 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
- 
--	/*
--	 * Free pages are always marked movable so the bits are in a known
--	 * state on alloc. As movable allocations are the most common, this
--	 * will result in less bit manipulations
--	 */
--	__SetPageMovable(page);
--	__ClearPageReclaimable(page);
--
- 	VM_BUG_ON(page_idx & (order_size - 1));
- 	VM_BUG_ON(bad_range(zone, page));
- 
-@@ -850,12 +841,6 @@ static struct page *__rmqueue(struct zon
- 	page = __rmqueue_fallback(zone, order, migratetype);
- 
- got_page:
--	if (unlikely(migratetype != MIGRATE_MOVABLE) && page)
--		__ClearPageMovable(page);
--
--	if (migratetype == MIGRATE_RECLAIMABLE && page)
--		__SetPageReclaimable(page);
--
- 	return page;
+@@ -155,11 +162,15 @@ static inline int gfpflags_to_migratetyp
+ 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+ }
+ #else
+-static inline int get_page_migratetype(struct page *page)
++static inline int get_pageblock_migratetype(struct page *page)
+ {
+ 	return MIGRATE_UNMOVABLE;
  }
  
-@@ -2312,7 +2297,6 @@ void __meminit memmap_init_zone(unsigned
++static inline void set_pageblock_migratetype(struct page *page, int rclmtype)
++{
++}
++
+ static inline int gfpflags_to_migratetype(gfp_t gfp_flags)
+ {
+ 	return MIGRATE_UNMOVABLE;
+@@ -435,7 +446,7 @@ static inline void __free_one_page(struc
+ {
+ 	unsigned long page_idx;
+ 	int order_size = 1 << order;
+-	int migratetype = get_page_migratetype(page);
++	int migratetype = get_pageblock_migratetype(page);
+ 
+ 	if (unlikely(PageCompound(page)))
+ 		destroy_compound_page(page, order);
+@@ -715,6 +726,7 @@ int move_freepages_block(struct zone *zo
+ 	if (page_zone(page) != page_zone(end_page))
+ 		return 0;
+ 
++	set_pageblock_migratetype(start_page, migratetype);
+ 	return move_freepages(zone, start_page, end_page, migratetype);
+ }
+ 
+@@ -834,6 +846,10 @@ static struct page *__rmqueue(struct zon
+ 		rmv_page_order(page);
+ 		area->nr_free--;
+ 		zone->free_pages -= 1UL << order;
++
++		if (current_order == MAX_ORDER - 1)
++			set_pageblock_migratetype(page, migratetype);
++
+ 		expand(zone, page, order, current_order, area, migratetype);
+ 		goto got_page;
+ 	}
+@@ -1022,7 +1038,7 @@ static void fastcall free_hot_cold_page(
+ 	local_irq_save(flags);
+ 	__count_vm_event(PGFREE);
+ 	list_add(&page->lru, &pcp->list);
+-	set_page_private(page, get_page_migratetype(page));
++	set_page_private(page, get_pageblock_migratetype(page));
+ 	pcp->count++;
+ 	if (pcp->count >= pcp->high) {
+ 		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+@@ -2291,12 +2307,13 @@ void __meminit memmap_init_zone(unsigned
+ 		SetPageReserved(page);
+ 
+ 		/*
+-		 * Mark the page movable so that blocks are reserved for
++		 * Mark the block movable so that blocks are reserved for
+ 		 * movable at startup. This will force kernel allocations
+ 		 * to reserve their blocks rather than leaking throughout
  		 * the address space during boot when many long-lived
  		 * kernel allocations are made
  		 */
--		SetPageMovable(page);
++		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
  
  		INIT_LIST_HEAD(&page->lru);
  #ifdef WANT_PAGE_VIRTUAL
