@@ -1,36 +1,25 @@
-Date: Tue, 21 Nov 2006 13:31:24 +0000 (GMT)
+Date: Tue, 21 Nov 2006 13:34:56 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: build error: sparsemem + SLOB
-In-Reply-To: <Pine.LNX.4.64.0611201321410.21552@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0611211318520.12732@blonde.wat.veritas.com>
-References: <20061119210545.9708e366.randy.dunlap@oracle.com>
- <Pine.LNX.4.64.0611200855280.16845@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611201724340.23537@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0611201321410.21552@schroedinger.engr.sgi.com>
+In-Reply-To: <20061121143253.51B5.Y-GOTO@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0611211332040.12732@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0611201724340.23537@blonde.wat.veritas.com>
+ <20061120183632.GD4797@waste.org> <20061121143253.51B5.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, mpm@selenic.com, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Nov 2006, Christoph Lameter wrote:
-> On Mon, 20 Nov 2006, Hugh Dickins wrote:
+On Tue, 21 Nov 2006, Yasunori Goto wrote:
 > 
-> > Lucky so far.  Well, we'd actually have to be quite unlucky to ever
-> > see what page_lock_anon_vma/SLAB_DESTROY_BY_RCU are guarding against.
-> 
-> Hmmm... I had to repeatedly fix my new slab code when I broke 
-> DESTROY_BY_RCU. The machine wont even boot if that is not done right.
+> Ok. It's simple. This is fix.
 
-I'm intrigued, and a little worried: won't even boot!  Do you have some
-particular SGI monster in mind when you say "The machine"?  Why was such a
-narrow (preemption disabled) window in page_lock_anon_vma so vulnerable?
-Swamped with many or slow-to-handle interrupts?  Or was your slab code
-grossly over-eager in trying to free pages?
+Acked-by: Hugh Dickins <hugh@veritas.com>
 
-Hugh
+Thanks, and to Christoph and Matt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
