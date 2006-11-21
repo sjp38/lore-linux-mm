@@ -1,36 +1,36 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kALCKEhi149132
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 12:20:14 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kALCN4xv2527370
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 12:23:05 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kALCKDhX031548
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 12:20:13 GMT
-Date: Tue, 21 Nov 2006 13:19:03 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [RFC] virtual memmap for sparsemem [1/2] arch independent part
-Message-ID: <20061121121903.GC8122@osiris.boeblingen.de.ibm.com>
-References: <20061019172140.5a29962c.kamezawa.hiroyu@jp.fujitsu.com> <20061121113708.GB8122@osiris.boeblingen.de.ibm.com> <20061121211937.e25dceb8.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 21 Nov 2006 13:31:24 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: build error: sparsemem + SLOB
+In-Reply-To: <Pine.LNX.4.64.0611201321410.21552@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0611211318520.12732@blonde.wat.veritas.com>
+References: <20061119210545.9708e366.randy.dunlap@oracle.com>
+ <Pine.LNX.4.64.0611200855280.16845@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611201724340.23537@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0611201321410.21552@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061121211937.e25dceb8.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org, schwidefsky@de.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, mpm@selenic.com, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-> > I'd love to go for a generic implementation, but if that is based on
-> > sparsemem it doesn't make too much sense on s390.
+On Mon, 20 Nov 2006, Christoph Lameter wrote:
+> On Mon, 20 Nov 2006, Hugh Dickins wrote:
 > 
-> 'What type of vmem_map is supported ?' is maybe per-arch decision not generic.
-> If people dislikes Flat/Discontig/Sparsemem complication, some clean
-> up patch will be posted and discussion will start. If not, nothing will happen.
+> > Lucky so far.  Well, we'd actually have to be quite unlucky to ever
+> > see what page_lock_anon_vma/SLAB_DESTROY_BY_RCU are guarding against.
+> 
+> Hmmm... I had to repeatedly fix my new slab code when I broke 
+> DESTROY_BY_RCU. The machine wont even boot if that is not done right.
 
-Ok, I will work on the s390 arch specific patch and post it here. Maybe it's
-worth adding a generic vmem_map interface, maybe not. We'll see.
+I'm intrigued, and a little worried: won't even boot!  Do you have some
+particular SGI monster in mind when you say "The machine"?  Why was such a
+narrow (preemption disabled) window in page_lock_anon_vma so vulnerable?
+Swamped with many or slow-to-handle interrupts?  Or was your slab code
+grossly over-eager in trying to free pages?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
