@@ -1,50 +1,48 @@
-Date: Tue, 21 Nov 2006 12:36:52 -0800 (PST)
+Date: Tue, 21 Nov 2006 12:37:13 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20061121203652.30802.6539.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20061121203713.30802.86878.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20061121203647.30802.20845.sendpatchset@schroedinger.engr.sgi.com>
 References: <20061121203647.30802.20845.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 1/6] Move sighand_cachep to include/signal.h
+Subject: [PATCH 5/6] Move fs_cachep  to linux/fs_struct.h
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Move sighand_cachep definitioni to linux/signal.h
+Move fs_cachep declaration to linux/fs_struct.h.
 
-The sighand cache is only used in fs/exec.c and kernel/fork.c.
-It is defined in kernel/fork.c but only used in fs/exec.c.
+fs_cachep is only used in kernel/exit.c and in kernel/fork.c.
 
-The sighand_cachep is related to signal processing. So add the definition
-to signal.h.
+It is used to store fs_struct items so it should be placed in linux/fs_struct.h
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.19-rc5-mm2/include/linux/slab.h
 ===================================================================
---- linux-2.6.19-rc5-mm2.orig/include/linux/slab.h	2006-11-21 14:11:50.000000000 -0600
-+++ linux-2.6.19-rc5-mm2/include/linux/slab.h	2006-11-21 14:12:25.500080559 -0600
-@@ -302,7 +302,6 @@ extern kmem_cache_t	*names_cachep;
- extern kmem_cache_t	*files_cachep;
- extern kmem_cache_t	*filp_cachep;
- extern kmem_cache_t	*fs_cachep;
--extern kmem_cache_t	*sighand_cachep;
+--- linux-2.6.19-rc5-mm2.orig/include/linux/slab.h	2006-11-21 14:15:25.356525757 -0600
++++ linux-2.6.19-rc5-mm2/include/linux/slab.h	2006-11-21 14:17:18.977722945 -0600
+@@ -298,7 +298,6 @@ static inline void kmem_set_shrinker(kme
+ 
+ /* System wide caches */
+ extern kmem_cache_t	*names_cachep;
+-extern kmem_cache_t	*fs_cachep;
  
  #endif	/* __KERNEL__ */
  
-Index: linux-2.6.19-rc5-mm2/include/linux/signal.h
+Index: linux-2.6.19-rc5-mm2/include/linux/fs_struct.h
 ===================================================================
---- linux-2.6.19-rc5-mm2.orig/include/linux/signal.h	2006-11-21 14:11:29.000000000 -0600
-+++ linux-2.6.19-rc5-mm2/include/linux/signal.h	2006-11-21 14:12:07.687985977 -0600
-@@ -241,6 +241,8 @@ extern int sigprocmask(int, sigset_t *, 
- struct pt_regs;
- extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
+--- linux-2.6.19-rc5-mm2.orig/include/linux/fs_struct.h	2006-11-07 20:24:20.000000000 -0600
++++ linux-2.6.19-rc5-mm2/include/linux/fs_struct.h	2006-11-21 14:19:25.171312070 -0600
+@@ -18,6 +18,8 @@ struct fs_struct {
+ 	.umask		= 0022, \
+ }
  
-+extern struct kmem_cache *sighand_cachep;
++extern struct kmem_cache *fs_cachep;
 +
- #endif /* __KERNEL__ */
- 
- #endif /* _LINUX_SIGNAL_H */
+ extern void exit_fs(struct task_struct *);
+ extern void set_fs_altroot(void);
+ extern void set_fs_root(struct fs_struct *, struct vfsmount *, struct dentry *);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
