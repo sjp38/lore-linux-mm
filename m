@@ -1,58 +1,16 @@
-Date: Tue, 21 Nov 2006 12:07:23 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC 1/7] Remove declaration of sighand_cachep from slab.h
-Message-Id: <20061121120723.5b880f72.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0611211151300.30359@schroedinger.engr.sgi.com>
-References: <20061118054342.8884.12804.sendpatchset@schroedinger.engr.sgi.com>
-	<20061118054347.8884.36259.sendpatchset@schroedinger.engr.sgi.com>
-	<20061118172739.30538d16.sfr@canb.auug.org.au>
-	<Pine.LNX.4.64.0611200817020.16173@schroedinger.engr.sgi.com>
-	<20061121000743.bb9ea2d0.akpm@osdl.org>
-	<Pine.LNX.4.64.0611211133300.30133@schroedinger.engr.sgi.com>
-	<20061121114901.54a36e4b.akpm@osdl.org>
-	<Pine.LNX.4.64.0611211151300.30359@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Nov 2006 12:36:47 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20061121203647.30802.20845.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [PATCH 0/6] Remove global slab cache declarations from slab.h
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Manfred Spraul <manfred@colorfullife.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Nov 2006 11:56:33 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> On Tue, 21 Nov 2006, Andrew Morton wrote:
-> 
-> > spose so, although I wouldn't bother about the typedef->#define change.  
-> > We just keep on plugging away at it until one day we can just remove the typedef.
-> 
-> You do have script that can replace a string throughout the kernel 
-> right?
-
-Nope.
-
-> 
-> A patch is following that does the core things in mm and 
-> include/linux/slab.h. Would you accept that patch and then do
-> 
-> s/kmem_cache_t/struct kmem_cache/g
-> 
-> over all the kernel sources?
-
-This is one of those low-priority background activities.  Not worth
-a lot of fuss.
-
-I'd suggest that you proceeed with the original cleanups you were
-proposing, except use `struct kmem_cache' in header files rather than
-kmem_cache_t in .c files.
-
-Then, as a separate and later exercise someone (maybe you) can raise
-patches to do the kmem_cache_t->kmem_cache conversion.  They should go
-through maintainers hence they should be appropriately split and they will
-take months to all get to mainline.  Once this is all completed we can remove the
-typedef.
+One of the strange issues in slab.h is that it contains a list of global
+slab caches. The following patches remove all the global definitions from
+slab.h into #include <linux/*> files where related information is defined.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
