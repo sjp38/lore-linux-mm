@@ -1,93 +1,75 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.6) with ESMTP id kALN8ueL540734
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 22:09:12 -0100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kALBADnO133388
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 22:10:24 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kALB6kam021555
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 22:06:46 +1100
-Message-ID: <4562DDBE.5070706@in.ibm.com>
-Date: Tue, 21 Nov 2006 16:36:38 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id kALBcK4P113504
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 11:38:20 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kALBflVg3031184
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 12:41:47 +0100
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kALBcJet012277
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2006 12:38:20 +0100
+Date: Tue, 21 Nov 2006 12:37:08 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [RFC] virtual memmap for sparsemem [1/2] arch independent part
+Message-ID: <20061121113708.GB8122@osiris.boeblingen.de.ibm.com>
+References: <20061019172140.5a29962c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 5/8] RSS controller task migration support
-References: <20061121100150.9ECCF1B6AC@openx4.frec.bull.fr>
-In-Reply-To: <20061121100150.9ECCF1B6AC@openx4.frec.bull.fr>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20061019172140.5a29962c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Patrick.Le-Dot" <Patrick.Le-Dot@bull.net>
-Cc: ckrm-tech@lists.sourceforge.net, dev@openvz.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-ia64@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Patrick.Le-Dot wrote:
-> On Fri, 17 Nov 2006 22:04:08 +0530
->> ...
->> I am not against guarantees, but
->>
->> Consider the following scenario, let's say we implement guarantees
->>
->> 1. If we account for kernel resources, how do you provide guarantees
->>    when you have non-reclaimable resources?
+On Thu, Oct 19, 2006 at 05:21:40PM +0900, KAMEZAWA Hiroyuki wrote:
+> This is a patch for virtual memmap on sparsemem against 2.6.19-rc2.
+> booted well on my Tiger4.
 > 
-> First, the current patch is based only on pages available in the
-> struct mm.
-> I doubt that these pages are "non-reclaimable"...
-
-I am speaking of a scenario when we start supporting kernel accounting
-and of-course the swapless case.
-
+> In this time, this is just a RFC. comments on patch and advises for benchmarking
+> is welcome. (memory hotplug case is not well handled yet.)
 > 
-> And guarantee should be ignored just because some kernel resources
-> are marked "non-reclaimable" ?
+> ia64's SPARSEMEM uses SPARSEMEM_EXTREME. This requires 2-level table lookup by
+> software for page_to_pfn()/pfn_to_page(). virtual memmap can remove that costs.
+> But will consume more TLBs.
 > 
-
-Ok.. but can you have a consistent guarantee definition with un-reclaimable
-kernel resources? How do you define a guarantee in a consistent manner?
-In my discussions earlier on lkml, I had suggested that we define guarantee
-only for reclaimable resources and provide support only for them.
-
+> For make patches simple, pfn_valid() uses sparsemem's logic. 
 > 
->> 2. If a customer runs a system with swap turned off (which is quite
->>    common),
+> - Kame
+> ==
+> This patch maps sparsemem's *sparse* memmap into contiguous virtual address range
+> starting from virt_memmap_start.
 > 
-> quite common, really ?
-
-Yep, I was listening to a talk from a customer service expert and he
-mentioned that it's used to boost performance.
-
+> By this, pfn_to_page, page_to_pfn can be implemented as 
+> #define pfn_to_page(pfn)		(virt_memmap_start + (pfn))
+> #define page_to_pfn(pg)			(pg - virt_memmap_start)
 > 
->>             then anonymous memory becomes irreclaimable. If a group
->>    takes more than it's fair share (exceeds its guarantee), you
->>    have scenario similar to 1 above.
 > 
-> That seems to be just a subset of the "guarantee+limit" model : if
-> guarantee is not useful for you, don't use it.
+> Difference from ia64's VIRTUAL_MEMMAP are
+> * pfn_valid() uses sparsemem's logic.
+> * memmap is allocated per SECTION_SIZE, so there will be some of RESERVED pages.
+> * no holes in MAX_ORDER range. so HOLE_IN_ZONE=n here.
 > 
-> I'm not saying that guarantee should be a magic piece of code working
-> for everybody.
-> 
-> But we have to propose something for the customers who ask for a
-> guarantee (ie using a system with swap turned on like me and this is
-> quite common:-)
-> 
+> Todo
+> - fix vmalloc() case in memory hotadd. (maybe __get_vm_area() can be used.)
 
-Like I said I am not against guarantees, but do we have to implement
-them in our first iteration?
+Better late than never, but here is a reply as well :)
 
+Is this supposed to replace ia64's vmem_map?
+I'm asking because on s390 we need a vmem_map too, but don't want to be
+limited by the sparsemem restrictions (especially SECTION_SIZE that is).
+In addition we have a shared memory device driver (dcss) with which it
+is possible to attach some shared memory. Because of that it is
+necessary to be able to add some additional struct pages on-the-fly.
+This is not very different to memory hotplug; I think it's even easier,
+since all we need are some initialized struct pages.
 
-> Patrick
->
+Currently I have a working prototype that does all that but still needs
+a lot of cleanup and some error handling. It is (of course) heavily
+inspired by ia64's vmem_map implementation.
 
-
--- 
-
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+I'd love to go for a generic implementation, but if that is based on
+sparsemem it doesn't make too much sense on s390.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
