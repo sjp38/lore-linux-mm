@@ -1,53 +1,57 @@
-Date: Tue, 21 Nov 2006 00:09:02 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC 4/7] Move files_cachep to file.h
-Message-Id: <20061121000902.52849f2f.akpm@osdl.org>
-In-Reply-To: <20061118054403.8884.32124.sendpatchset@schroedinger.engr.sgi.com>
-References: <20061118054342.8884.12804.sendpatchset@schroedinger.engr.sgi.com>
-	<20061118054403.8884.32124.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC][PATCH 5/8] RSS controller task migration support
+Message-Id: <20061121100150.9ECCF1B6AC@openx4.frec.bull.fr>
+Date: Tue, 21 Nov 2006 11:01:50 +0100 (CET)
+From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: balbir@in.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, dev@openvz.org, haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Nov 2006 21:44:03 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 17 Nov 2006 22:04:08 +0530
+> ...
+> I am not against guarantees, but
+> 
+> Consider the following scenario, let's say we implement guarantees
+> 
+> 1. If we account for kernel resources, how do you provide guarantees
+>    when you have non-reclaimable resources?
 
-> Move files_cachep to file.h
-> 
-> The proper place is in file.h since its related to file I/O.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.19-rc5-mm2/include/linux/file.h
-> ===================================================================
-> --- linux-2.6.19-rc5-mm2.orig/include/linux/file.h	2006-11-15 16:48:08.583913536 -0600
-> +++ linux-2.6.19-rc5-mm2/include/linux/file.h	2006-11-17 23:03:59.254839099 -0600
-> @@ -101,4 +101,6 @@ struct files_struct *get_files_struct(st
->  void FASTCALL(put_files_struct(struct files_struct *fs));
->  void reset_files_struct(struct task_struct *, struct files_struct *);
->  
-> +extern kmem_cache_t	*files_cachep;
-> +
->  #endif /* __LINUX_FILE_H */
-> Index: linux-2.6.19-rc5-mm2/include/linux/slab.h
-> ===================================================================
-> --- linux-2.6.19-rc5-mm2.orig/include/linux/slab.h	2006-11-17 23:03:55.587532089 -0600
-> +++ linux-2.6.19-rc5-mm2/include/linux/slab.h	2006-11-17 23:03:59.268512148 -0600
-> @@ -298,7 +298,6 @@ static inline void kmem_set_shrinker(kme
->  
->  /* System wide caches */
->  extern kmem_cache_t	*names_cachep;
-> -extern kmem_cache_t	*files_cachep;
->  extern kmem_cache_t	*filp_cachep;
->  extern kmem_cache_t	*fs_cachep;
->  
+First, the current patch is based only on pages available in the
+struct mm.
+I doubt that these pages are "non-reclaimable"...
 
-Please convert to `struct kmem_cache' (all patches).
+And guarantee should be ignored just because some kernel resources
+are marked "non-reclaimable" ?
+
+
+> 2. If a customer runs a system with swap turned off (which is quite
+>    common),
+
+quite common, really ?
+
+>             then anonymous memory becomes irreclaimable. If a group
+>    takes more than it's fair share (exceeds its guarantee), you
+>    have scenario similar to 1 above.
+
+That seems to be just a subset of the "guarantee+limit" model : if
+guarantee is not useful for you, don't use it.
+
+I'm not saying that guarantee should be a magic piece of code working
+for everybody.
+
+But we have to propose something for the customers who ask for a
+guarantee (ie using a system with swap turned on like me and this is
+quite common:-)
+
+Patrick
+
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+    Patrick Le Dot
+ mailto: P@trick.Le-Dot@bull.net         Centre UNIX de BULL SAS
+ Phone : +33 4 76 29 73 20               1, Rue de Provence     BP 208
+ Fax   : +33 4 76 29 76 00               38130 ECHIROLLES Cedex FRANCE
+ Bull, Architect of an Open World TM
+ www.bull.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
