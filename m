@@ -1,234 +1,340 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
+Message-Id: <20061121225102.11710.8951.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
 References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
-Date: Tue, 21 Nov 2006 22:50:42 +0000 (GMT)
+Subject: [PATCH 2/11] Split the free lists for movable and unmovable allocations
+Date: Tue, 21 Nov 2006 22:51:02 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a flag __GFP_MOVABLE.  Allocations using the __GFP_MOVABLE
-in this patch can either be migrated using the page migration mechanism
-or reclaimed by syncing with backing storage (be it a file or swap) and
-discarding.
+This patch adds the core of the page clustering strategy. It works by grouping
+pages together based on their ability to migrate or reclaimed.  Basically,
+it works by breaking the list in zone->free_area list into MIGRATE_TYPES
+number of lists.
 
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- fs/block_dev.c            |    2 +-
- fs/buffer.c               |    5 +++--
- fs/compat.c               |    2 +-
- fs/exec.c                 |    2 +-
- fs/inode.c                |    2 +-
- include/asm-i386/page.h   |    3 ++-
- include/asm-ia64/page.h   |    4 +++-
- include/asm-x86_64/page.h |    3 ++-
- include/linux/gfp.h       |    4 +++-
- include/linux/highmem.h   |    3 ++-
- mm/hugetlb.c              |    5 +++--
- mm/memory.c               |    6 ++++--
- mm/swap_state.c           |    3 ++-
- 13 files changed, 28 insertions(+), 16 deletions(-)
+ include/linux/mmzone.h     |   10 ++-
+ include/linux/page-flags.h |    7 ++
+ mm/page_alloc.c            |  123 ++++++++++++++++++++++++++++++++--------
+ 3 files changed, 116 insertions(+), 24 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/block_dev.c linux-2.6.19-rc5-mm2-001_clustering_flags/fs/block_dev.c
---- linux-2.6.19-rc5-mm2-clean/fs/block_dev.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/fs/block_dev.c	2006-11-21 10:47:11.000000000 +0000
-@@ -380,7 +380,7 @@ struct block_device *bdget(dev_t dev)
- 		inode->i_rdev = dev;
- 		inode->i_bdev = bdev;
- 		inode->i_data.a_ops = &def_blk_aops;
--		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-+		mapping_set_gfp_mask(&inode->i_data, GFP_USER|__GFP_MOVABLE);
- 		inode->i_data.backing_dev_info = &default_backing_dev_info;
- 		spin_lock(&bdev_lock);
- 		list_add(&bdev->bd_list, &all_bdevs);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/buffer.c linux-2.6.19-rc5-mm2-001_clustering_flags/fs/buffer.c
---- linux-2.6.19-rc5-mm2-clean/fs/buffer.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/fs/buffer.c	2006-11-21 10:47:11.000000000 +0000
-@@ -1048,7 +1048,8 @@ grow_dev_page(struct block_device *bdev,
- 	struct page *page;
- 	struct buffer_head *bh;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/mmzone.h linux-2.6.19-rc5-mm2-003_clustering_core/include/linux/mmzone.h
+--- linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/mmzone.h	2006-11-14 14:01:37.000000000 +0000
++++ linux-2.6.19-rc5-mm2-003_clustering_core/include/linux/mmzone.h	2006-11-21 10:48:55.000000000 +0000
+@@ -24,8 +24,16 @@
+ #endif
+ #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
  
--	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
-+	page = find_or_create_page(inode->i_mapping, index,
-+				   GFP_NOFS|__GFP_MOVABLE);
- 	if (!page)
- 		return NULL;
++#define MIGRATE_UNMOVABLE 0
++#define MIGRATE_MOVABLE   1
++#define MIGRATE_TYPES     2
++
++#define for_each_migratetype_order(order, type) \
++	for (order = 0; order < MAX_ORDER; order++) \
++		for (type = 0; type < MIGRATE_TYPES; type++)
++
+ struct free_area {
+-	struct list_head	free_list;
++	struct list_head	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
+ };
  
-@@ -2723,7 +2724,7 @@ int submit_bh(int rw, struct buffer_head
- 	 * from here on down, it's all bio -- do the initial mapping,
- 	 * submit_bio -> generic_make_request may further map this bio around
- 	 */
--	bio = bio_alloc(GFP_NOIO, 1);
-+	bio = bio_alloc(GFP_NOIO|__GFP_MOVABLE, 1);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/page-flags.h linux-2.6.19-rc5-mm2-003_clustering_core/include/linux/page-flags.h
+--- linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/page-flags.h	2006-11-14 14:01:37.000000000 +0000
++++ linux-2.6.19-rc5-mm2-003_clustering_core/include/linux/page-flags.h	2006-11-21 10:48:55.000000000 +0000
+@@ -93,6 +93,7 @@
  
- 	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
- 	bio->bi_bdev = bh->b_bdev;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/compat.c linux-2.6.19-rc5-mm2-001_clustering_flags/fs/compat.c
---- linux-2.6.19-rc5-mm2-clean/fs/compat.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/fs/compat.c	2006-11-21 10:47:11.000000000 +0000
-@@ -1419,7 +1419,7 @@ static int compat_copy_strings(int argc,
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGHUSER|__GFP_MOVABLE);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/exec.c linux-2.6.19-rc5-mm2-001_clustering_flags/fs/exec.c
---- linux-2.6.19-rc5-mm2-clean/fs/exec.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/fs/exec.c	2006-11-21 10:47:11.000000000 +0000
-@@ -239,7 +239,7 @@ static int copy_strings(int argc, char _
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGHUSER|__GFP_MOVABLE);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/inode.c linux-2.6.19-rc5-mm2-001_clustering_flags/fs/inode.c
---- linux-2.6.19-rc5-mm2-clean/fs/inode.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/fs/inode.c	2006-11-21 10:47:11.000000000 +0000
-@@ -146,7 +146,7 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
--		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
-+		mapping_set_gfp_mask(mapping, GFP_HIGHUSER|__GFP_MOVABLE);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
+ #define PG_readahead		20	/* Reminder to do readahead */
  
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-i386/page.h linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-i386/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-i386/page.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-i386/page.h	2006-11-21 10:47:11.000000000 +0000
-@@ -35,7 +35,8 @@
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
++#define PG_movable		21	/* Page may be moved */
  
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) \
-+	alloc_page_vma(GFP_HIGHUSER|__GFP_ZERO|__GFP_MOVABLE, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
+ #if (BITS_PER_LONG > 32)
  /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-ia64/page.h linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-ia64/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-ia64/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-ia64/page.h	2006-11-21 10:47:11.000000000 +0000
-@@ -89,7 +89,9 @@ do {						\
+@@ -253,6 +254,12 @@ static inline void SetPageUptodate(struc
+ #define SetPageReadahead(page)	set_bit(PG_readahead, &(page)->flags)
+ #define TestClearPageReadahead(page) test_and_clear_bit(PG_readahead, &(page)->flags)
  
- #define alloc_zeroed_user_highpage(vma, vaddr) \
- ({						\
--	struct page *page = alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr); \
-+	struct page *page = alloc_page_vma(	\
-+			GFP_HIGHUSER | __GFP_ZERO | __GFP_MOVABLE, \
-+			vma, vaddr); 		\
- 	if (page)				\
-  		flush_dcache_page(page);	\
- 	page;					\
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-x86_64/page.h linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-x86_64/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-x86_64/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/include/asm-x86_64/page.h	2006-11-21 10:47:11.000000000 +0000
-@@ -51,7 +51,8 @@ void copy_page(void *, void *);
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
++#define PageMovable(page)	test_bit(PG_movable, &(page)->flags)
++#define SetPageMovable(page)	set_bit(PG_movable, &(page)->flags)
++#define ClearPageMovable(page)	clear_bit(PG_movable, &(page)->flags)
++#define __SetPageMovable(page)	__set_bit(PG_movable, &(page)->flags)
++#define __ClearPageMovable(page) __clear_bit(PG_movable, &(page)->flags)
++
+ struct page;	/* forward declaration */
  
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) \
-+	alloc_page_vma(GFP_HIGHUSER|__GFP_ZERO|__GFP_MOVABLE, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- /*
-  * These are used to make use of C type-checking..
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/linux/gfp.h linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/gfp.h
---- linux-2.6.19-rc5-mm2-clean/include/linux/gfp.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/gfp.h	2006-11-21 10:47:11.000000000 +0000
-@@ -46,6 +46,7 @@ struct vm_area_struct;
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_MOVABLE	((__force gfp_t)0x80000u) /* Page is movable */
+ int test_clear_page_dirty(struct page *page);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-001_clustering_flags/mm/page_alloc.c linux-2.6.19-rc5-mm2-003_clustering_core/mm/page_alloc.c
+--- linux-2.6.19-rc5-mm2-001_clustering_flags/mm/page_alloc.c	2006-11-14 14:01:37.000000000 +0000
++++ linux-2.6.19-rc5-mm2-003_clustering_core/mm/page_alloc.c	2006-11-21 10:48:55.000000000 +0000
+@@ -136,6 +136,16 @@ static unsigned long __initdata dma_rese
+ #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
  
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -54,7 +55,8 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|\
-+			__GFP_MOVABLE)
- 
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/linux/highmem.h linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/highmem.h
---- linux-2.6.19-rc5-mm2-clean/include/linux/highmem.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/include/linux/highmem.h	2006-11-21 10:47:11.000000000 +0000
-@@ -65,7 +65,8 @@ static inline void clear_user_highpage(s
- static inline struct page *
- alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
++static inline int get_page_migratetype(struct page *page)
++{
++	return (PageMovable(page) != 0);
++}
++
++static inline int gfpflags_to_migratetype(gfp_t gfp_flags)
++{
++	return ((gfp_flags & __GFP_MOVABLE) != 0);
++}
++
+ #ifdef CONFIG_DEBUG_VM
+ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
  {
--	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
-+	struct page *page = alloc_page_vma(GFP_HIGHUSER|__GFP_MOVABLE,
-+								vma, vaddr);
+@@ -411,13 +421,19 @@ static inline void __free_one_page(struc
  
- 	if (page)
- 		clear_user_highpage(page, vaddr);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/hugetlb.c linux-2.6.19-rc5-mm2-001_clustering_flags/mm/hugetlb.c
---- linux-2.6.19-rc5-mm2-clean/mm/hugetlb.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/mm/hugetlb.c	2006-11-21 10:47:11.000000000 +0000
-@@ -103,8 +103,9 @@ static int alloc_fresh_huge_page(void)
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+ 
++	/*
++	 * Free pages are always marked movable so the bits are in a known
++	 * state on alloc. As movable allocations are the most common, this
++	 * will result in less bit manipulations
++	 */
++	__SetPageMovable(page);
++
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
+ 
+ 	zone->free_pages += order_size;
+ 	while (order < MAX_ORDER-1) {
+ 		unsigned long combined_idx;
+-		struct free_area *area;
+ 		struct page *buddy;
+ 
+ 		buddy = __page_find_buddy(page, page_idx, order);
+@@ -425,8 +441,7 @@ static inline void __free_one_page(struc
+ 			break;		/* Move the buddy up one level. */
+ 
+ 		list_del(&buddy->lru);
+-		area = zone->free_area + order;
+-		area->nr_free--;
++		zone->free_area[order].nr_free--;
+ 		rmv_page_order(buddy);
+ 		combined_idx = __find_combined_index(page_idx, order);
+ 		page = page + (combined_idx - page_idx);
+@@ -434,7 +449,8 @@ static inline void __free_one_page(struc
+ 		order++;
+ 	}
+ 	set_page_order(page, order);
+-	list_add(&page->lru, &zone->free_area[order].free_list);
++	list_add(&page->lru,
++		&zone->free_area[order].free_list[get_page_migratetype(page)]);
+ 	zone->free_area[order].nr_free++;
+ }
+ 
+@@ -569,7 +585,8 @@ void fastcall __init __free_pages_bootme
+  * -- wli
+  */
+ static inline void expand(struct zone *zone, struct page *page,
+- 	int low, int high, struct free_area *area)
++	int low, int high, struct free_area *area,
++	int migratetype)
  {
- 	static int nid = 0;
+ 	unsigned long size = 1 << high;
+ 
+@@ -578,7 +595,7 @@ static inline void expand(struct zone *z
+ 		high--;
+ 		size >>= 1;
+ 		VM_BUG_ON(bad_range(zone, &page[size]));
+-		list_add(&page[size].lru, &area->free_list);
++		list_add(&page[size].lru, &area->free_list[migratetype]);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -631,31 +648,78 @@ static int prep_new_page(struct page *pa
+ 	return 0;
+ }
+ 
++/* Remove an element from the buddy allocator from the fallback list */
++static struct page *__rmqueue_fallback(struct zone *zone, int order,
++						int start_migratetype)
++{
++	struct free_area * area;
++	int current_order;
++	struct page *page;
++	int migratetype = !start_migratetype;
++
++	/* Find the largest possible block of pages in the other list */
++	for (current_order = MAX_ORDER-1; current_order >= order;
++						--current_order) {
++		area = &(zone->free_area[current_order]);
++		if (list_empty(&area->free_list[migratetype]))
++			continue;
++
++		page = list_entry(area->free_list[migratetype].next,
++					struct page, lru);
++		area->nr_free--;
++
++		/*
++		 * If breaking a large block of pages, place the buddies
++		 * on the preferred allocation list
++		 */
++		if (unlikely(current_order >= MAX_ORDER / 2))
++			migratetype = !migratetype;
++
++		/* Remove the page from the freelists */
++		list_del(&page->lru);
++		rmv_page_order(page);
++		zone->free_pages -= 1UL << order;
++		expand(zone, page, order, current_order, area, migratetype);
++		return page;
++	}
++
++	return NULL;
++}
++
+ /* 
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order)
++static struct page *__rmqueue(struct zone *zone, unsigned int order,
++						int migratetype)
+ {
+ 	struct free_area * area;
+ 	unsigned int current_order;
  	struct page *page;
--	page = alloc_pages_node(nid, GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN,
--					HUGETLB_PAGE_ORDER);
-+	page = alloc_pages_node(nid,
-+			GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN|__GFP_MOVABLE,
-+			HUGETLB_PAGE_ORDER);
- 	nid = next_node(nid, node_online_map);
- 	if (nid == MAX_NUMNODES)
- 		nid = first_node(node_online_map);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/memory.c linux-2.6.19-rc5-mm2-001_clustering_flags/mm/memory.c
---- linux-2.6.19-rc5-mm2-clean/mm/memory.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/mm/memory.c	2006-11-21 10:47:11.000000000 +0000
-@@ -1564,7 +1564,8 @@ gotten:
- 		if (!new_page)
- 			goto oom;
- 	} else {
--		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+		new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_MOVABLE,
-+				vma, address);
- 		if (!new_page)
- 			goto oom;
- 		cow_user_page(new_page, old_page, address);
-@@ -2188,7 +2189,8 @@ retry:
  
- 			if (unlikely(anon_vma_prepare(vma)))
- 				goto oom;
--			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+			page = alloc_page_vma(GFP_HIGHUSER|__GFP_MOVABLE,
-+				vma, address);
- 			if (!page)
- 				goto oom;
- 			copy_user_highpage(page, new_page, address);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/swap_state.c linux-2.6.19-rc5-mm2-001_clustering_flags/mm/swap_state.c
---- linux-2.6.19-rc5-mm2-clean/mm/swap_state.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-001_clustering_flags/mm/swap_state.c	2006-11-21 10:47:11.000000000 +0000
-@@ -343,7 +343,8 @@ struct page *read_swap_cache_async(swp_e
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+			new_page = alloc_page_vma(GFP_HIGHUSER|__GFP_MOVABLE,
-+				vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
++	/* Find a page of the appropriate size in the preferred list */
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+-		area = zone->free_area + current_order;
+-		if (list_empty(&area->free_list))
++		area = &(zone->free_area[current_order]);
++		if (list_empty(&area->free_list[migratetype]))
+ 			continue;
+ 
+-		page = list_entry(area->free_list.next, struct page, lru);
++		page = list_entry(area->free_list[migratetype].next,
++					struct page, lru);
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		area->nr_free--;
+ 		zone->free_pages -= 1UL << order;
+-		expand(zone, page, order, current_order, area);
+-		return page;
++		expand(zone, page, order, current_order, area, migratetype);
++		goto got_page;
+ 	}
+ 
+-	return NULL;
++	page = __rmqueue_fallback(zone, order, migratetype);
++
++got_page:
++	if (unlikely(migratetype == MIGRATE_UNMOVABLE) && page)
++		__ClearPageMovable(page);
++
++	return page;
+ }
+ 
+ /* 
+@@ -664,13 +728,14 @@ static struct page *__rmqueue(struct zon
+  * Returns the number of new pages which were placed at *list.
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order, 
+-			unsigned long count, struct list_head *list)
++			unsigned long count, struct list_head *list,
++			int migratetype)
+ {
+ 	int i;
+ 	
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+-		struct page *page = __rmqueue(zone, order);
++		struct page *page = __rmqueue(zone, order, migratetype);
+ 		if (unlikely(page == NULL))
+ 			break;
+ 		list_add_tail(&page->lru, list);
+@@ -745,7 +810,7 @@ void mark_free_pages(struct zone *zone)
+ {
+ 	unsigned long pfn, max_zone_pfn;
+ 	unsigned long flags;
+-	int order;
++	int order, t;
+ 	struct list_head *curr;
+ 
+ 	if (!zone->spanned_pages)
+@@ -762,14 +827,15 @@ void mark_free_pages(struct zone *zone)
+ 				ClearPageNosaveFree(page);
  		}
+ 
+-	for (order = MAX_ORDER - 1; order >= 0; --order)
+-		list_for_each(curr, &zone->free_area[order].free_list) {
++	for_each_migratetype_order(order, t) {
++		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+ 			unsigned long i;
+ 
+ 			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+ 			for (i = 0; i < (1UL << order); i++)
+ 				SetPageNosaveFree(pfn_to_page(pfn + i));
+ 		}
++	}
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+@@ -859,6 +925,7 @@ static struct page *buffered_rmqueue(str
+ 	struct page *page;
+ 	int cold = !!(gfp_flags & __GFP_COLD);
+ 	int cpu;
++	int migratetype = gfpflags_to_migratetype(gfp_flags);
+ 
+ again:
+ 	cpu  = get_cpu();
+@@ -869,7 +936,7 @@ again:
+ 		local_irq_save(flags);
+ 		if (!pcp->count) {
+ 			pcp->count = rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list);
++					pcp->batch, &pcp->list, migratetype);
+ 			if (unlikely(!pcp->count))
+ 				goto failed;
+ 		}
+@@ -878,7 +945,7 @@ again:
+ 		pcp->count--;
+ 	} else {
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, migratetype);
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
+@@ -2046,6 +2113,16 @@ void __meminit memmap_init_zone(unsigned
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
++
++		/*
++		 * Mark the page movable so that blocks are reserved for
++		 * movable at startup. This will force kernel allocations
++		 * to reserve their blocks rather than leaking throughout
++		 * the address space during boot when many long-lived
++		 * kernel allocations are made
++		 */
++		SetPageMovable(page);
++
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+@@ -2061,9 +2138,9 @@ void __meminit memmap_init_zone(unsigned
+ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
+ 				unsigned long size)
+ {
+-	int order;
+-	for (order = 0; order < MAX_ORDER ; order++) {
+-		INIT_LIST_HEAD(&zone->free_area[order].free_list);
++	int order, t;
++	for_each_migratetype_order(order, t) {
++		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
+ 		zone->free_area[order].nr_free = 0;
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
