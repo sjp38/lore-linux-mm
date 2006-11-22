@@ -1,47 +1,45 @@
-Date: Tue, 21 Nov 2006 18:25:12 -0800 (PST)
+Date: Tue, 21 Nov 2006 18:40:25 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
-In-Reply-To: <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0611211821030.588@schroedinger.engr.sgi.com>
-References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
- <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
+Subject: Re: drain_node_page(): Drain pages in batch units
+In-Reply-To: <20061121175228.14eaf35b.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0611211826080.588@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0611211255270.31032@schroedinger.engr.sgi.com>
+ <20061121175228.14eaf35b.akpm@osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Nov 2006, Mel Gorman wrote:
+On Tue, 21 Nov 2006, Andrew Morton wrote:
 
-> On Tue, 21 Nov 2006, Christoph Lameter wrote:
-> 
-> > Are GFP_HIGHUSER allocations always movable? It would reduce the size of
-> > the patch if this would be added to GFP_HIGHUSER.
-> No, they aren't. Page tables allocated with HIGHPTE are currently not movable
-> for example. A number of drivers (infiniband for example) also use
-> __GFP_HIGHMEM that are not movable.
+> This will reduce the reaping rate.  Potentially vastly.
 
-HIGHPTE with __GFP_USER set? This is a page table page right? 
-pte_alloc_one does currently not set GFP_USER:
+It will fully drain in 6 reap cycles instead of in one. For a 32 node/ 64p 
+system this would mean 32* 2 <cache_reap time> * 6 ~ 6 minutes. Currently 
+we need one minute.
+ 
+> Is that a good change?  If so, why?
 
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-        struct page *pte;
+The reaping is only needed so that pages are not staying forever on 
+pagesets that are rarely used. The bigger the system the more numerous 
+those will become. Rarely used pagesets typically contain less than 
+"batch" pages on them anyways.
 
-#ifdef CONFIG_HIGHPTE
-        pte = 
-alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
-#else
-        pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-#endif
-        return pte;
-}
+I'd be interested in alternative ideas on how to do this draining 
+(especialy since the slabifier does not need cache_reap() anymore). I 
+tinkered around with scheduling draining separarely via a workqueue. We 
+cannot add a workqueue for each pageset since we have about a million of 
+those on large system. Maybe add one per cpu and then do the draining 
+from there?
 
-How does infiniband insure that page migration does not move those pages?
+The slabifier has a workqueue per slab that is activated and running every 
+2 seconds but only if per cpu slabs for this slab cache active.
+
+One of the key issues is that we still need to access off node data in 
+remote zones to get to this cpus pageset for that remote zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
