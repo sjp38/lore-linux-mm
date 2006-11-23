@@ -1,61 +1,63 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate6.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kANBxIKJ131588
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2006 11:59:18 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kANC29PD2412742
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2006 12:02:09 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kANBxHtV031683
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2006 11:59:17 GMT
-Date: Thu, 23 Nov 2006 12:58:01 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: VMALLOC_END definition?
-Message-ID: <20061123115801.GB8009@osiris.boeblingen.de.ibm.com>
-References: <20061123084940.GA8009@osiris.boeblingen.de.ibm.com> <45657B0D.3040207@shadowen.org>
+Date: Thu, 23 Nov 2006 15:00:16 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
+In-Reply-To: <Pine.LNX.4.64.0611211821030.588@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0611231457070.23409@skynet.skynet.ie>
+References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
+ <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611211821030.588@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45657B0D.3040207@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 23, 2006 at 10:42:21AM +0000, Andy Whitcroft wrote:
-> Heiko Carstens wrote:
-> > I just stumbled across the VMALLOC_END definition: I'm not entirely sure
-> > what the meaning of this is: is it the last _valid_ address of the
-> > vmalloc area or is it the first address _after_ the vmalloc area?
-> >
-> > Reading the code in mm/vmalloc.c it seems to be the last valid address,
-> > which IMHO is the only thing that makes sense... how would one express
-> > the first address after 0xffffffff on a 32bit architecture?
-> > Whatever it is, it looks like half of the architectures got it wrong.
+On Tue, 21 Nov 2006, Christoph Lameter wrote:
+
+> On Tue, 21 Nov 2006, Mel Gorman wrote:
 >
-> A quick grep shows that most architectures are assuming vmalloc space is
-> VMALLOC_START >= addr < VMALLOC_END.  x86_64 seems to be an odd one out
-> with the following construct in architecture specific code:
-> 
-> arch/x86_64/mm/fault.c: for (address = start; address <= VMALLOC_END;
-> address += PGDIR_SIZE) {
-> 
-> However, it also has this:
-> 
-> arch/x86_64/mm/fault.c:               ((address >= VMALLOC_START &&
-> address < VMALLOC_END))) {
-> 
-> A couple of filesystems and sparsemem also appear to assume the
-> VMALLOC_START >= addr < VMALLOC_END model.  So it seems likely that the
-> architectures not using this model are wrong.
+>> On Tue, 21 Nov 2006, Christoph Lameter wrote:
+>>
+>>> Are GFP_HIGHUSER allocations always movable? It would reduce the size of
+>>> the patch if this would be added to GFP_HIGHUSER.
+>> No, they aren't. Page tables allocated with HIGHPTE are currently not movable
+>> for example. A number of drivers (infiniband for example) also use
+>> __GFP_HIGHMEM that are not movable.
+>
+> HIGHPTE with __GFP_USER set? This is a page table page right?
+> pte_alloc_one does currently not set GFP_USER:
+>
 
-Ah, right... I also found this one in include/asm-arm/pgtable.h
+What is __GFP_USER? The difference between GFP_USER and GFP_KERNEL is only 
+in the use of __GFP_HARDWALL. But HARDWALL on it's own is not enough to 
+distinguish movable and non-movable.
 
- * Note that platforms may override VMALLOC_START, but they must provide
- * VMALLOC_END.  VMALLOC_END defines the (exclusive) limit of this space,
- * which may not overlap IO space.
+> struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+> {
+>        struct page *pte;
+>
+> #ifdef CONFIG_HIGHPTE
+>        pte =
+> alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
+> #else
+>        pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+> #endif
+>        return pte;
+> }
+>
+> How does infiniband insure that page migration does not move those pages?
+>
 
-Thanks!
+I have not looked closely at infiniband and how it uses it's pages.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
