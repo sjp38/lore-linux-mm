@@ -1,6 +1,6 @@
-Date: Thu, 23 Nov 2006 16:49:40 +0000
-Subject: [PATCH 2/4] lumpy cleanup a missplaced comment and simplify some code
-Message-ID: <b416b30c3ea48e4e97aa0ed1d89124cb@pinky>
+Date: Thu, 23 Nov 2006 16:50:10 +0000
+Subject: [PATCH 3/4] lumpy ensure we respect zone boundaries
+Message-ID: <bf938e31d7fe72a5128a5bd22bb70480@pinky>
 References: <exportbomb.1164300519@pinky>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,141 +12,44 @@ To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Move the comment for isolate_lru_pages() back to its function
-and comment the new function.  Add some running commentry on the
-area scan.  Cleanup the indentation on switch to match the majority
-view in mm/*.  Finally, clarify the boundary pfn calculations.
+When scanning an aligned order N area ensure we only pull out pages
+in the same zone as our tag page, else we will manipulate those
+pages' LRU under the wrong zone lru_lock.  Bad.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4645a3f..3b6ef79 100644
+index 3b6ef79..e3be888 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -609,21 +609,14 @@ keep:
- }
+@@ -663,6 +663,7 @@ static unsigned long isolate_lru_pages(u
+ 	struct page *page, *tmp;
+ 	unsigned long scan, pfn, end_pfn, page_pfn;
+ 	int active;
++	int zone_id;
  
- /*
-- * zone->lru_lock is heavily contended.  Some of the functions that
-- * shrink the lists perform better by taking out a batch of pages
-- * and working on them outside the LRU lock.
-+ * Attempt to remove the specified page from its LRU.  Only take this
-+ * page if it is of the appropriate PageActive status.  Pages which
-+ * are being freed elsewhere are also ignored.
-  *
-- * For pagecache intensive workloads, this function is the hottest
-- * spot in the kernel (apart from copy_*_user functions).
-- *
-- * Appropriate locks must be held before calling this function.
-+ * @page:	page to consider
-+ * @active:	active/inactive flag only take pages of this type
-  *
-- * @nr_to_scan:	The number of pages to look through on the list.
-- * @src:	The LRU list to pull pages off.
-- * @dst:	The temp list to put pages on to.
-- * @scanned:	The number of pages that were scanned.
-- *
-- * returns how many pages were moved onto *@dst.
-+ * returns 0 on success, -ve errno on failure.
-  */
- int __isolate_lru_page(struct page *page, int active)
- {
-@@ -645,6 +638,23 @@ int __isolate_lru_page(struct page *page
- 	return ret;
- }
+ 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+ 		page = lru_to_page(src);
+@@ -694,6 +695,7 @@ static unsigned long isolate_lru_pages(u
+ 		 * surrounding the tag page.  Only take those pages of
+ 		 * the same active state as that tag page.
+ 		 */
++		zone_id = page_zone_id(page);
+ 		page_pfn = __page_to_pfn(page);
+ 		pfn = page_pfn & ~((1 << order) - 1);
+ 		end_pfn = pfn + (1 << order);
+@@ -703,8 +705,10 @@ static unsigned long isolate_lru_pages(u
+ 			if (unlikely(!pfn_valid(pfn)))
+ 				break;
  
-+/*
-+ * zone->lru_lock is heavily contended.  Some of the functions that
-+ * shrink the lists perform better by taking out a batch of pages
-+ * and working on them outside the LRU lock.
-+ *
-+ * For pagecache intensive workloads, this function is the hottest
-+ * spot in the kernel (apart from copy_*_user functions).
-+ *
-+ * Appropriate locks must be held before calling this function.
-+ *
-+ * @nr_to_scan:	The number of pages to look through on the list.
-+ * @src:	The LRU list to pull pages off.
-+ * @dst:	The temp list to put pages on to.
-+ * @scanned:	The number of pages that were scanned.
-+ *
-+ * returns how many pages were moved onto *@dst.
-+ */
- static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		struct list_head *src, struct list_head *dst,
- 		unsigned long *scanned, int order)
-@@ -662,26 +672,31 @@ static unsigned long isolate_lru_pages(u
- 
- 		active = PageActive(page);
- 		switch (__isolate_lru_page(page, active)) {
--			case 0:
--				list_move(&page->lru, dst);
--				nr_taken++;
--				break;
-+		case 0:
-+			list_move(&page->lru, dst);
-+			nr_taken++;
-+			break;
- 
--			case -EBUSY:
--				/* else it is being freed elsewhere */
--				list_move(&page->lru, src);
--				continue;
-+		case -EBUSY:
-+			/* else it is being freed elsewhere */
-+			list_move(&page->lru, src);
-+			continue;
- 
--			default:
--				BUG();
-+		default:
-+			BUG();
- 		}
- 
- 		if (!order)
- 			continue;
- 
--		page_pfn = pfn = __page_to_pfn(page);
--		end_pfn = pfn &= ~((1 << order) - 1);
--		end_pfn += 1 << order;
-+		/*
-+		 * Attempt to take all pages in the order aligned region
-+		 * surrounding the tag page.  Only take those pages of
-+		 * the same active state as that tag page.
-+		 */
-+		page_pfn = __page_to_pfn(page);
-+		pfn = page_pfn & ~((1 << order) - 1);
-+		end_pfn = pfn + (1 << order);
- 		for (; pfn < end_pfn; pfn++) {
- 			if (unlikely(pfn == page_pfn))
- 				continue;
-@@ -691,17 +706,16 @@ static unsigned long isolate_lru_pages(u
- 			scan++;
+-			scan++;
  			tmp = __pfn_to_page(pfn);
- 			switch (__isolate_lru_page(tmp, active)) {
--				case 0:
--					list_move(&tmp->lru, dst);
--					nr_taken++;
--					continue;
--
--				case -EBUSY:
--					/* else it is being freed elsewhere */
--					list_move(&tmp->lru, src);
--				default:
--					break;
-+			case 0:
-+				list_move(&tmp->lru, dst);
-+				nr_taken++;
++			if (unlikely(page_zone_id(tmp) != zone_id))
 +				continue;
- 
-+			case -EBUSY:
-+				/* else it is being freed elsewhere */
-+				list_move(&tmp->lru, src);
-+			default:
-+				break;
- 			}
- 			break;
- 		}
++			scan++;
+ 			switch (__isolate_lru_page(tmp, active)) {
+ 			case 0:
+ 				list_move(&tmp->lru, dst);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
