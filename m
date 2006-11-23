@@ -1,46 +1,59 @@
-Date: Thu, 23 Nov 2006 16:50:41 +0000
-Subject: [PATCH 4/4] lumpy take the other active inactive pages in the area
-Message-ID: <a7271f89e386843830843a2dfcd5b877@pinky>
-References: <exportbomb.1164300519@pinky>
+Date: Thu, 23 Nov 2006 09:11:59 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
+In-Reply-To: <20061123163613.GA25818@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0611230906110.27596@woody.osdl.org>
+References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
+ <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
+ <Pine.LNX.4.64.0611211637120.3338@woody.osdl.org> <20061123163613.GA25818@skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-When we scan an order N aligned area around our tag page take any
-other pages with a matching active state to that of the tag page.
-This will tend to demote areas of the order we are interested from
-the active list to the inactive list and from the end of the inactive
-list, increasing the chances of such areas coming free together.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e3be888..50e95ed 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -713,7 +713,7 @@ static unsigned long isolate_lru_pages(u
- 			case 0:
- 				list_move(&tmp->lru, dst);
- 				nr_taken++;
--				continue;
-+				break;
- 
- 			case -EBUSY:
- 				/* else it is being freed elsewhere */
-@@ -721,7 +721,6 @@ static unsigned long isolate_lru_pages(u
- 			default:
- 				break;
- 			}
--			break;
- 		}
- 	}
- 
+On Thu, 23 Nov 2006, Mel Gorman wrote:
+>
+> There are a suprising number of GFP_HIGHUSER users. I've included an
+> untested patch below to give an idea of what the reworked patch would
+> look like.
+
+Thanks. Seeing the patch actually was useful, because I think this isa 
+good idea quite regardless of anything else: it adds a certain amount of 
+"inherent documentation" when you see a line like
+
+	page = alloc_page(GFP_HIGHUNMOVABLE);
+
+because it makes it very obvious that something is going on.
+
+At the same time, I do get the feelign that maybe we should simply go the 
+other way: talk about allocating MOVABLE pages instead of talking about 
+allocating pages that are NOT movable.
+
+Because usually it's really that way you think about it: when you allocate 
+a _movable_ page, you need to add support for moving it some way (ie you 
+need to put it on the proper page-cache lists etc), while a page that you 
+don't think about is generally _not_ movable.
+
+So: I think this is the right direction, but I would actually prefer to 
+see
+
+	page = alloc_page(GFP_[HIGH_]MOVABLE);
+
+instead, and then just teach the routines that create movable pages 
+(whether they are movable because they are in the page cache, or for some 
+other reason) to use that flag instead of GFP_[HIGH]USER.
+
+And the assumption would be that if it's MOVABLE, then it's obviously a 
+USER allocation (it it can fail much more eagerly - that's really what the 
+whole USER bit ends up meaning internally).
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
