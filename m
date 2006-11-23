@@ -1,6 +1,6 @@
-Date: Thu, 23 Nov 2006 16:50:10 +0000
-Subject: [PATCH 3/4] lumpy ensure we respect zone boundaries
-Message-ID: <bf938e31d7fe72a5128a5bd22bb70480@pinky>
+Date: Thu, 23 Nov 2006 16:50:41 +0000
+Subject: [PATCH 4/4] lumpy take the other active inactive pages in the area
+Message-ID: <a7271f89e386843830843a2dfcd5b877@pinky>
 References: <exportbomb.1164300519@pinky>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,44 +12,35 @@ To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-When scanning an aligned order N area ensure we only pull out pages
-in the same zone as our tag page, else we will manipulate those
-pages' LRU under the wrong zone lru_lock.  Bad.
+When we scan an order N aligned area around our tag page take any
+other pages with a matching active state to that of the tag page.
+This will tend to demote areas of the order we are interested from
+the active list to the inactive list and from the end of the inactive
+list, increasing the chances of such areas coming free together.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 ---
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3b6ef79..e3be888 100644
+index e3be888..50e95ed 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -663,6 +663,7 @@ static unsigned long isolate_lru_pages(u
- 	struct page *page, *tmp;
- 	unsigned long scan, pfn, end_pfn, page_pfn;
- 	int active;
-+	int zone_id;
- 
- 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
- 		page = lru_to_page(src);
-@@ -694,6 +695,7 @@ static unsigned long isolate_lru_pages(u
- 		 * surrounding the tag page.  Only take those pages of
- 		 * the same active state as that tag page.
- 		 */
-+		zone_id = page_zone_id(page);
- 		page_pfn = __page_to_pfn(page);
- 		pfn = page_pfn & ~((1 << order) - 1);
- 		end_pfn = pfn + (1 << order);
-@@ -703,8 +705,10 @@ static unsigned long isolate_lru_pages(u
- 			if (unlikely(!pfn_valid(pfn)))
- 				break;
- 
--			scan++;
- 			tmp = __pfn_to_page(pfn);
-+			if (unlikely(page_zone_id(tmp) != zone_id))
-+				continue;
-+			scan++;
- 			switch (__isolate_lru_page(tmp, active)) {
+@@ -713,7 +713,7 @@ static unsigned long isolate_lru_pages(u
  			case 0:
  				list_move(&tmp->lru, dst);
+ 				nr_taken++;
+-				continue;
++				break;
+ 
+ 			case -EBUSY:
+ 				/* else it is being freed elsewhere */
+@@ -721,7 +721,6 @@ static unsigned long isolate_lru_pages(u
+ 			default:
+ 				break;
+ 			}
+-			break;
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
