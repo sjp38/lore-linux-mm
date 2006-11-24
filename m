@@ -1,41 +1,74 @@
-Date: Fri, 24 Nov 2006 10:11:55 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
+Date: Fri, 24 Nov 2006 19:57:59 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
-In-Reply-To: <Pine.LNX.4.64.0611240955170.24649@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0611241009100.6991@woody.osdl.org>
+In-Reply-To: <20061124104422.GA23426@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0611241924110.17508@blonde.wat.veritas.com>
 References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
  <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
  <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com>
  <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
  <Pine.LNX.4.64.0611211637120.3338@woody.osdl.org> <20061123163613.GA25818@skynet.ie>
- <Pine.LNX.4.64.0611230906110.27596@woody.osdl.org>
- <Pine.LNX.4.64.0611240955170.24649@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0611230906110.27596@woody.osdl.org> <20061124104422.GA23426@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Linus Torvalds <torvalds@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 24 Nov 2006, Christoph Lameter wrote:
+On Fri, 24 Nov 2006, Mel Gorman wrote:
 > 
-> So please do not require movable pages to be user allocations.
+> This is what the (compile-tested-only on x86) patch looks like for
+> GFP_HIGH_MOVABLE. The remaining in-tree GFP_HIGHUSER users are infiniband,
+> kvm, ncpfs, nfs, pipes (possible the most frequent user), m68knommu, hugepages
+> and kexec.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-I don't think you read the whole sentence I wrote.
+You need to add in something like the patch below (mutatis mutandis
+for whichever approach you end up taking): tmpfs uses highmem pages
+for its swap vector blocks, noting where on swap the data pages are,
+and allocates them with mapping_gfp_mask(inode->i_mapping); but we
+don't have any mechanism in place for reclaiming or migrating those.
 
-Go back: USER just means "it it can fail much more eagerly". It really has 
-nothing to do with user-mode per se. It's just not so core that the kernel 
-cannot handle allocation failures, so it doesn't get to retry the 
-allocation so eagerly.
+(We could add that; but there might be better things to do instead.
+I've often wanted to remove that whole layer from tmpfs, and note
+swap entries in the pagecache's radix-tree slots instead - but that
+does then lock them into low memory.  Hum, haw, never decided.)
 
-THAT is why "movable" is almost guaranteed to also imply USER. Not because 
-it's not a "kernel" allocation. After all, _all_ page allocations are 
-kernel allocations, it's just that some are more likely to be associated 
-with direct user requests, and some are more internal.
+You can certainly be forgiven for missing that, and may well wonder
+why it doesn't just use GFP_HIGHUSER explicitly: because the loop
+driver may be on top of that tmpfs file, masking off __GFP_IO and
+__GFP_FS: the swap vector blocks should be allocated with the same
+restrictions as the data pages.
 
-		Linus
+Excuse me for moving the __GFP_ZERO too: I think it's tidier to
+do them both within the little helper function.
+
+Hugh
+
+--- 2.6.19-rc5-mm2/mm/shmem.c	2006-11-14 09:58:21.000000000 +0000
++++ linux/mm/shmem.c	2006-11-24 19:22:30.000000000 +0000
+@@ -94,7 +94,8 @@ static inline struct page *shmem_dir_all
+ 	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
+ 	 * might be reconsidered if it ever diverges from PAGE_SIZE.
+ 	 */
+-	return alloc_pages(gfp_mask, PAGE_CACHE_SHIFT-PAGE_SHIFT);
++	return alloc_pages((gfp_mask & ~__GFP_MOVABLE) | __GFP_ZERO,
++				PAGE_CACHE_SHIFT-PAGE_SHIFT);
+ }
+ 
+ static inline void shmem_dir_free(struct page *page)
+@@ -372,7 +373,7 @@ static swp_entry_t *shmem_swp_alloc(stru
+ 		}
+ 
+ 		spin_unlock(&info->lock);
+-		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
++		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
+ 		if (page)
+ 			set_page_private(page, 0);
+ 		spin_lock(&info->lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
