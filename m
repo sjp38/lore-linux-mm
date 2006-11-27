@@ -1,73 +1,37 @@
-Date: Sun, 26 Nov 2006 00:44:59 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1/11] Add __GFP_MOVABLE flag and update callers
-In-Reply-To: <Pine.LNX.4.64.0611251058350.6991@woody.osdl.org>
-Message-ID: <Pine.LNX.4.64.0611260039070.27769@blonde.wat.veritas.com>
-References: <20061121225022.11710.72178.sendpatchset@skynet.skynet.ie>
- <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie>
- <Pine.LNX.4.64.0611211637120.3338@woody.osdl.org> <20061123163613.GA25818@skynet.ie>
- <Pine.LNX.4.64.0611230906110.27596@woody.osdl.org> <20061124104422.GA23426@skynet.ie>
- <Pine.LNX.4.64.0611241924110.17508@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0611251058350.6991@woody.osdl.org>
+Received: by nf-out-0910.google.com with SMTP id c2so1928630nfe
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2006 17:34:03 -0800 (PST)
+Message-ID: <8bd0f97a0611261734i292a5c14s196ae037608c2c32@mail.gmail.com>
+Date: Sun, 26 Nov 2006 20:34:02 -0500
+From: "Mike Frysinger" <vapier.adi@gmail.com>
+Subject: Re: The VFS cache is not freed when there is not enough free memory to allocate
+In-Reply-To: <1164192171.5968.186.camel@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <6d6a94c50611212351if1701ecx7b89b3fe79371554@mail.gmail.com>
+	 <1164185036.5968.179.camel@twins>
+	 <6d6a94c50611220202t1d076b4cye70dcdcc19f56e55@mail.gmail.com>
+	 <1164192171.5968.186.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Mel Gorman <mel@skynet.ie>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Aubrey <aubreylee@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 25 Nov 2006, Linus Torvalds wrote:
-> On Fri, 24 Nov 2006, Hugh Dickins wrote:
-> > 
-> > You need to add in something like the patch below (mutatis mutandis
-> > for whichever approach you end up taking): tmpfs uses highmem pages
-> > for its swap vector blocks, noting where on swap the data pages are,
-> > and allocates them with mapping_gfp_mask(inode->i_mapping); but we
-> > don't have any mechanism in place for reclaiming or migrating those.
-> 
-> I think this really just points out that you should _not_ put MOVABLE into 
-> the "mapping_gfp_mask()" at all.
-> 
-> The mapping_gfp_mask() should really just contain the "constraints" on 
-> the allocation, not the "how the allocation is used". So things like "I 
-> need all my pages to be in the 32bit DMA'able region" is a constraint on 
-> the allocator, as is something like "I need the allocation to be atomic". 
-> 
-> But MOVABLE is really not a constraint on the allocator, it's a guarantee 
-> by the code _calling_ the allocator that it will then make sure that it 
-> _uses_ the allocation in a way that means that it is movable.
-> 
-> So it shouldn't be a property of the mapping itself, it should always be a 
-> property of the code that actually does the allocation.
-> 
-> Hmm?
+On 11/22/06, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> Yes it does that, but there is no guarantee that those 50MB have a
+> single 1M contiguous region amongst them.
 
-Not anything I feel strongly about, but I don't see it that way.
+right ... the testcase posted is more to quickly illustrate the
+problem ... the requested size doesnt really matter, what does matter
+is that we cant seem to reclaim memory from the VFS cache in scenarios
+where the VFS cache is eating a ton of memory and we need some more
 
-mapping_gfp_mask() seems to me nothing more than a pragmatic way
-of getting the appropriate gfp_mask down to page_cache_alloc().
-
-alloc_inode() initializes it to whatever suits most filesystems
-(currently GFP_HIGHUSER), and those who differ adjust it (e.g.
-block_dev has good reason to avoid highmem so sets it to GFP_USER
-instead).  It used to be the case that several filesystems lacked
-kmap() where needed, and those too would set GFP_USER: what you call
-a constraint seems to me equally a property of the surrounding code.
-
-If __GFP_MOVABLE is coming in, and most fs's are indeed allocating
-movable pages, then I don't see why MOVABLE shouldn't be in the
-mapping_gfp_mask.  Specifying MOVABLE constrains both the caller's
-use of the pages, and the way they are allocated; as does HIGHMEM.
-
-And we shouldn't be guided by the way tmpfs (ab?)uses that gfp_mask
-for its metadata allocations as well as its page_cache_alloc()s:
-that's just a special case.  Though the ramfs case is more telling
-(its pagecache pages being not at present movable).
-
-Hugh
+another scenario is where an application is constantly reading data
+from a cd, re-encoding it to mp3, and then writing it to disk.  the
+VFS cache here quickly eats up the available memory.
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
