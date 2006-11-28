@@ -1,327 +1,600 @@
-Date: Mon, 27 Nov 2006 19:48:09 +0000
-Subject: Add __GFP_MOVABLE for callers to flag allocations that may be migrated
-Message-ID: <20061127194808.GA21655@skynet.ie>
-References: <20061121225042.11710.15200.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0611211529030.32283@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0611212340480.11982@skynet.skynet.ie> <Pine.LNX.4.64.0611211637120.3338@woody.osdl.org> <20061123163613.GA25818@skynet.ie> <Pine.LNX.4.64.0611230906110.27596@woody.osdl.org> <20061124104422.GA23426@skynet.ie> <Pine.LNX.4.64.0611241924110.17508@blonde.wat.veritas.com> <Pine.LNX.4.64.0611251058350.6991@woody.osdl.org> <Pine.LNX.4.64.0611260039070.27769@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0611260039070.27769@blonde.wat.veritas.com>
-From: mel@skynet.ie (Mel Gorman)
+Date: Mon, 27 Nov 2006 22:33:28 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [RFC] Extract kmalloc.h and slob.h from slab.h
+Message-ID: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, Christoph Lameter <clameter@sgi.com>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-It is often known at allocation time when a page may be migrated or not. This
-patch adds a flag called __GFP_MOVABLE. Allocations using the __GFP_MOVABLE
-can be either migrated using the page migration mechanism or reclaimed by
-syncing with backing storage and discarding.
+slab.h really defines multiple APIs. One is the classic slab api
+where one can define a slab cache by specifying exactly how
+the slab has to be generated. This API is not frequently used.
 
-Additional credit goes to Hugh Dickens for catching issues with shmem swap
-vector and ramfs allocations.
+Another is the kmalloc API. Quite a number of kernel source code files 
+need kmalloc but do not need to generate custom slabs. The kmalloc API 
+also use some funky macros that may be better isolated in an additional .h 
+file in order to ease future cleanup. Make kmalloc.h self contained by 
+adding two extern definitions local to kmalloc and kmalloc_node.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Then there is the SLOB api mixed in with slab. Take that out and define it 
+in its own header file.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/compat.c linux-2.6.19-rc5-mm2-mark_highmovable/fs/compat.c
---- linux-2.6.19-rc5-mm2-clean/fs/compat.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/fs/compat.c	2006-11-27 15:09:20.000000000 +0000
-@@ -1419,7 +1419,7 @@ static int compat_copy_strings(int argc,
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGH_MOVABLE);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/exec.c linux-2.6.19-rc5-mm2-mark_highmovable/fs/exec.c
---- linux-2.6.19-rc5-mm2-clean/fs/exec.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/fs/exec.c	2006-11-27 15:09:20.000000000 +0000
-@@ -239,7 +239,7 @@ static int copy_strings(int argc, char _
- 			page = bprm->page[i];
- 			new = 0;
- 			if (!page) {
--				page = alloc_page(GFP_HIGHUSER);
-+				page = alloc_page(GFP_HIGH_MOVABLE);
- 				bprm->page[i] = page;
- 				if (!page) {
- 					ret = -ENOMEM;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/inode.c linux-2.6.19-rc5-mm2-mark_highmovable/fs/inode.c
---- linux-2.6.19-rc5-mm2-clean/fs/inode.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/fs/inode.c	2006-11-27 15:09:20.000000000 +0000
-@@ -146,7 +146,7 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
--		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
-+		mapping_set_gfp_mask(mapping, GFP_HIGH_MOVABLE);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/fs/ramfs/inode.c linux-2.6.19-rc5-mm2-mark_highmovable/fs/ramfs/inode.c
---- linux-2.6.19-rc5-mm2-clean/fs/ramfs/inode.c	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/fs/ramfs/inode.c	2006-11-27 16:08:19.000000000 +0000
-@@ -61,6 +61,7 @@ struct inode *ramfs_get_inode(struct sup
- 		inode->i_blocks = 0;
- 		inode->i_mapping->a_ops = &ramfs_aops;
- 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-+		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
- 		switch (mode & S_IFMT) {
- 		default:
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-alpha/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-alpha/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-alpha/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-alpha/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -17,7 +17,7 @@
- extern void clear_page(void *page);
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vmaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vmaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- extern void copy_page(void * _to, void * _from);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-cris/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-cris/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-cris/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-cris/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -20,7 +20,7 @@
- #define clear_user_page(page, vaddr, pg)    clear_page(page)
- #define copy_user_page(to, from, vaddr, pg) copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-h8300/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-h8300/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-h8300/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-h8300/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -22,7 +22,7 @@
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-i386/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-i386/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-i386/page.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-i386/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -35,7 +35,7 @@
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr)	alloc_page_vma(GFP_HIGH_MOVABLE|__GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-ia64/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-ia64/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-ia64/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-ia64/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -89,7 +89,7 @@ do {						\
- 
- #define alloc_zeroed_user_highpage(vma, vaddr) \
- ({						\
--	struct page *page = alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr); \
-+	struct page *page = alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vaddr); 		\
- 	if (page)				\
-  		flush_dcache_page(page);	\
- 	page;					\
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-m32r/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-m32r/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-m32r/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-m32r/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -16,7 +16,7 @@ extern void copy_page(void *to, void *fr
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-s390/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-s390/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-s390/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-s390/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -64,7 +64,7 @@ static inline void copy_page(void *to, v
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE | __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/asm-x86_64/page.h linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-x86_64/page.h
---- linux-2.6.19-rc5-mm2-clean/include/asm-x86_64/page.h	2006-11-08 02:24:20.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/asm-x86_64/page.h	2006-11-27 15:09:20.000000000 +0000
-@@ -51,7 +51,7 @@ void copy_page(void *, void *);
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
- #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
- 
--#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
-+#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGH_MOVABLE|__GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- /*
-  * These are used to make use of C type-checking..
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/linux/gfp.h linux-2.6.19-rc5-mm2-mark_highmovable/include/linux/gfp.h
---- linux-2.6.19-rc5-mm2-clean/include/linux/gfp.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/linux/gfp.h	2006-11-27 15:09:20.000000000 +0000
-@@ -30,6 +30,9 @@ struct vm_area_struct;
-  * cannot handle allocation failures.
-  *
-  * __GFP_NORETRY: The VM implementation must not retry indefinitely.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.19-rc6-mm1/include/linux/kmalloc.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.19-rc6-mm1/include/linux/kmalloc.h	2006-11-27 21:57:25.000000000 -0800
+@@ -0,0 +1,221 @@
++#ifndef _LINUX_KMALLOC_H
++#define	_LINUX_KMALLOC_H
++
++#include <linux/gfp.h>
++#include <asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
++#include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
++
++#ifdef __KERNEL__
++
++/* Size description struct for general caches. */
++struct cache_sizes {
++	size_t		 cs_size;
++	struct kmem_cache *cs_cachep;
++#ifdef CONFIG_ZONE_DMA
++	struct kmem_cache *cs_dmacachep;
++#else
++#define cs_dmacachep cs_cachep
++#endif
++};
++extern struct cache_sizes malloc_sizes[];
++
++extern void *__kmalloc(size_t, gfp_t);
++
++/**
++ * kmalloc - allocate memory
++ * @size: how many bytes of memory are required.
++ * @flags: the type of memory to allocate.
 + *
-+ * __GFP_MOVABLE: Flag that this page will be movable by the page migration
-+ * mechanism
-  */
- #define __GFP_WAIT	((__force gfp_t)0x10u)	/* Can wait and reschedule? */
- #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
-@@ -46,6 +49,7 @@ struct vm_area_struct;
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_MOVABLE	((__force gfp_t)0x80000u) /* Page is movable */
++ * kmalloc is the normal method of allocating memory
++ * in the kernel.
++ *
++ * The @flags argument may be one of:
++ *
++ * %GFP_USER - Allocate memory on behalf of user.  May sleep.
++ *
++ * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
++ *
++ * %GFP_ATOMIC - Allocation will not sleep.
++ *   For example, use this inside interrupt handlers.
++ *
++ * %GFP_HIGHUSER - Allocate pages from high memory.
++ *
++ * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
++ *
++ * %GFP_NOFS - Do not make any fs calls while trying to get memory.
++ *
++ * Also it is possible to set different flags by OR'ing
++ * in one or more of the following additional @flags:
++ *
++ * %__GFP_COLD - Request cache-cold pages instead of
++ *   trying to return cache-warm pages.
++ *
++ * %__GFP_DMA - Request memory from the DMA-capable zone.
++ *
++ * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
++ *
++ * %__GFP_HIGHMEM - Allocated memory may be from highmem.
++ *
++ * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
++ *   (think twice before using).
++ *
++ * %__GFP_NORETRY - If memory is not immediately available,
++ *   then give up at once.
++ *
++ * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
++ *
++ * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
++ */
++static inline void *kmalloc(size_t size, gfp_t flags)
++{
++	extern void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
++
++	if (__builtin_constant_p(size)) {
++		int i = 0;
++#define CACHE(x) \
++		if (size <= x) \
++			goto found; \
++		else \
++			i++;
++#include "kmalloc_sizes.h"
++#undef CACHE
++		{
++			extern void __you_cannot_kmalloc_that_much(void);
++			__you_cannot_kmalloc_that_much();
++		}
++found:
++		return kmem_cache_alloc((flags & GFP_DMA) ?
++			malloc_sizes[i].cs_dmacachep :
++			malloc_sizes[i].cs_cachep, flags);
++	}
++	return __kmalloc(size, flags);
++}
++
++/*
++ * kmalloc_track_caller is a special version of kmalloc that records the
++ * calling function of the routine calling it for slab leak tracking instead
++ * of just the calling function (confusing, eh?).
++ * It's useful when the call to kmalloc comes from a widely-used standard
++ * allocator where we care about the real place the memory allocation
++ * request comes from.
++ */
++#ifndef CONFIG_DEBUG_SLAB
++#define kmalloc_track_caller(size, flags) \
++	__kmalloc(size, flags)
++#else
++extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
++#define kmalloc_track_caller(size, flags) \
++	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
++#endif
++
++extern void *__kzalloc(size_t, gfp_t);
++
++/**
++ * kzalloc - allocate memory. The memory is set to zero.
++ * @size: how many bytes of memory are required.
++ * @flags: the type of memory to allocate (see kmalloc).
++ */
++static inline void *kzalloc(size_t size, gfp_t flags)
++{
++	extern void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
++
++	if (__builtin_constant_p(size)) {
++		int i = 0;
++#define CACHE(x) \
++		if (size <= x) \
++			goto found; \
++		else \
++			i++;
++#include "kmalloc_sizes.h"
++#undef CACHE
++		{
++			extern void __you_cannot_kzalloc_that_much(void);
++			__you_cannot_kzalloc_that_much();
++		}
++found:
++		return kmem_cache_zalloc((flags & GFP_DMA) ?
++			malloc_sizes[i].cs_dmacachep :
++			malloc_sizes[i].cs_cachep, flags);
++	}
++	return __kzalloc(size, flags);
++}
++
++/**
++ * kcalloc - allocate memory for an array. The memory is set to zero.
++ * @n: number of elements.
++ * @size: element size.
++ * @flags: the type of memory to allocate.
++ */
++static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
++{
++	if (n != 0 && size > ULONG_MAX / n)
++		return NULL;
++	return kzalloc(n * size, flags);
++}
++
++extern void kfree(const void *);
++extern unsigned int ksize(const void *);
++
++#ifdef CONFIG_NUMA
++extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
++
++static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
++{
++	extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags,
++								int node);
++
++	if (__builtin_constant_p(size)) {
++		int i = 0;
++#define CACHE(x) \
++		if (size <= x) \
++			goto found; \
++		else \
++			i++;
++#include "kmalloc_sizes.h"
++#undef CACHE
++		{
++			extern void __you_cannot_kmalloc_that_much(void);
++			__you_cannot_kmalloc_that_much();
++		}
++found:
++		return kmem_cache_alloc_node((flags & GFP_DMA) ?
++			malloc_sizes[i].cs_dmacachep :
++			malloc_sizes[i].cs_cachep, flags, node);
++	}
++	return __kmalloc_node(size, flags, node);
++}
++
++/*
++ * kmalloc_node_track_caller is a special version of kmalloc_node that
++ * records the calling function of the routine calling it for slab leak
++ * tracking instead of just the calling function (confusing, eh?).
++ * It's useful when the call to kmalloc_node comes from a widely-used
++ * standard allocator where we care about the real place the memory
++ * allocation request comes from.
++ */
++#ifndef CONFIG_DEBUG_SLAB
++#define kmalloc_node_track_caller(size, flags, node) \
++	__kmalloc_node(size, flags, node)
++#else
++extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
++#define kmalloc_node_track_caller(size, flags, node) \
++	__kmalloc_node_track_caller(size, flags, node, \
++				__builtin_return_address(0))
++#endif
++#else
++static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
++{
++	return kmalloc(size, flags);
++}
++
++#define kmalloc_node_track_caller(size, flags, node) \
++	kmalloc_track_caller(size, flags)
++#endif
++
++extern void __init kmem_cache_init(void);
++extern int slab_is_available(void);
++extern int kmem_cache_reap(int);
++
++#endif	/* __KERNEL__ */
++
++#endif	/* _LINUX_KMALLOC_H */
+Index: linux-2.6.19-rc6-mm1/include/linux/slab.h
+===================================================================
+--- linux-2.6.19-rc6-mm1.orig/include/linux/slab.h	2006-11-27 21:56:49.000000000 -0800
++++ linux-2.6.19-rc6-mm1/include/linux/slab.h	2006-11-27 22:05:32.000000000 -0800
+@@ -15,8 +15,6 @@
+ #include	<linux/gfp.h>
+ #include	<linux/init.h>
+ #include	<linux/types.h>
+-#include	<asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
+-#include	<asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
  
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -54,7 +58,8 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|\
-+			__GFP_MOVABLE)
+ /* flags for kmem_cache_alloc() */
+ #define	SLAB_NOFS		GFP_NOFS
+@@ -53,11 +51,11 @@
+ #define SLAB_CTOR_ATOMIC	0x002UL		/* tell constructor it can't sleep */
+ #define	SLAB_CTOR_VERIFY	0x004UL		/* tell constructor it's a verify call */
  
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-@@ -66,6 +71,9 @@ struct vm_area_struct;
- #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
- #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
- 			 __GFP_HIGHMEM)
-+#define GFP_HIGH_MOVABLE	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
-+				 __GFP_HARDWALL | __GFP_HIGHMEM | \
-+				 __GFP_MOVABLE)
+-#ifndef CONFIG_SLOB
++#ifdef CONFIG_SLOB
++#include <linux/slob.h>
++#else
+ 
+ /* prototypes */
+-extern void __init kmem_cache_init(void);
+-
+ extern struct kmem_cache *kmem_cache_create(const char *,
+ 		size_t, size_t, unsigned long,
+ 		void (*)(void *, struct kmem_cache *, unsigned long),
+@@ -69,258 +67,24 @@
+ extern void kmem_cache_free(struct kmem_cache *, void *);
+ extern unsigned int kmem_cache_size(struct kmem_cache *);
+ extern const char *kmem_cache_name(struct kmem_cache *);
++extern int kmem_ptr_validate(struct kmem_cache *cachep, void *ptr);
+ 
+-/* Size description struct for general caches. */
+-struct cache_sizes {
+-	size_t		 cs_size;
+-	struct kmem_cache *cs_cachep;
+-#ifdef CONFIG_ZONE_DMA
+-	struct kmem_cache *cs_dmacachep;
+-#else
+-#define cs_dmacachep cs_cachep
+-#endif
+-};
+-extern struct cache_sizes malloc_sizes[];
+-
+-extern void *__kmalloc(size_t, gfp_t);
+-
+-/**
+- * kmalloc - allocate memory
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate.
+- *
+- * kmalloc is the normal method of allocating memory
+- * in the kernel.
+- *
+- * The @flags argument may be one of:
+- *
+- * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+- *
+- * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+- *
+- * %GFP_ATOMIC - Allocation will not sleep.
+- *   For example, use this inside interrupt handlers.
+- *
+- * %GFP_HIGHUSER - Allocate pages from high memory.
+- *
+- * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+- *
+- * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+- *
+- * Also it is possible to set different flags by OR'ing
+- * in one or more of the following additional @flags:
+- *
+- * %__GFP_COLD - Request cache-cold pages instead of
+- *   trying to return cache-warm pages.
+- *
+- * %__GFP_DMA - Request memory from the DMA-capable zone.
+- *
+- * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+- *
+- * %__GFP_HIGHMEM - Allocated memory may be from highmem.
+- *
+- * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+- *   (think twice before using).
+- *
+- * %__GFP_NORETRY - If memory is not immediately available,
+- *   then give up at once.
+- *
+- * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+- *
+- * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+- */
+-static inline void *kmalloc(size_t size, gfp_t flags)
+-{
+-	if (__builtin_constant_p(size)) {
+-		int i = 0;
+-#define CACHE(x) \
+-		if (size <= x) \
+-			goto found; \
+-		else \
+-			i++;
+-#include "kmalloc_sizes.h"
+-#undef CACHE
+-		{
+-			extern void __you_cannot_kmalloc_that_much(void);
+-			__you_cannot_kmalloc_that_much();
+-		}
+-found:
+-		return kmem_cache_alloc((flags & GFP_DMA) ?
+-			malloc_sizes[i].cs_dmacachep :
+-			malloc_sizes[i].cs_cachep, flags);
+-	}
+-	return __kmalloc(size, flags);
+-}
+-
+-/*
+- * kmalloc_track_caller is a special version of kmalloc that records the
+- * calling function of the routine calling it for slab leak tracking instead
+- * of just the calling function (confusing, eh?).
+- * It's useful when the call to kmalloc comes from a widely-used standard
+- * allocator where we care about the real place the memory allocation
+- * request comes from.
+- */
+-#ifndef CONFIG_DEBUG_SLAB
+-#define kmalloc_track_caller(size, flags) \
+-	__kmalloc(size, flags)
+-#else
+-extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
+-#define kmalloc_track_caller(size, flags) \
+-	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
+-#endif
+-
+-extern void *__kzalloc(size_t, gfp_t);
+-
+-/**
+- * kzalloc - allocate memory. The memory is set to zero.
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate (see kmalloc).
+- */
+-static inline void *kzalloc(size_t size, gfp_t flags)
+-{
+-	if (__builtin_constant_p(size)) {
+-		int i = 0;
+-#define CACHE(x) \
+-		if (size <= x) \
+-			goto found; \
+-		else \
+-			i++;
+-#include "kmalloc_sizes.h"
+-#undef CACHE
+-		{
+-			extern void __you_cannot_kzalloc_that_much(void);
+-			__you_cannot_kzalloc_that_much();
+-		}
+-found:
+-		return kmem_cache_zalloc((flags & GFP_DMA) ?
+-			malloc_sizes[i].cs_dmacachep :
+-			malloc_sizes[i].cs_cachep, flags);
+-	}
+-	return __kzalloc(size, flags);
+-}
+-
+-/**
+- * kcalloc - allocate memory for an array. The memory is set to zero.
+- * @n: number of elements.
+- * @size: element size.
+- * @flags: the type of memory to allocate.
+- */
+-static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+-{
+-	if (n != 0 && size > ULONG_MAX / n)
+-		return NULL;
+-	return kzalloc(n * size, flags);
+-}
+-
+-extern void kfree(const void *);
+-extern unsigned int ksize(const void *);
+-extern int slab_is_available(void);
++struct shrinker;
++extern void kmem_set_shrinker(kmem_cache_t *cachep, struct shrinker *shrinker);
  
  #ifdef CONFIG_NUMA
- #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/include/linux/highmem.h linux-2.6.19-rc5-mm2-mark_highmovable/include/linux/highmem.h
---- linux-2.6.19-rc5-mm2-clean/include/linux/highmem.h	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/include/linux/highmem.h	2006-11-27 15:09:20.000000000 +0000
-@@ -65,7 +65,7 @@ static inline void clear_user_highpage(s
- static inline struct page *
- alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+ extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+-extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+-
+-static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	if (__builtin_constant_p(size)) {
+-		int i = 0;
+-#define CACHE(x) \
+-		if (size <= x) \
+-			goto found; \
+-		else \
+-			i++;
+-#include "kmalloc_sizes.h"
+-#undef CACHE
+-		{
+-			extern void __you_cannot_kmalloc_that_much(void);
+-			__you_cannot_kmalloc_that_much();
+-		}
+-found:
+-		return kmem_cache_alloc_node((flags & GFP_DMA) ?
+-			malloc_sizes[i].cs_dmacachep :
+-			malloc_sizes[i].cs_cachep, flags, node);
+-	}
+-	return __kmalloc_node(size, flags, node);
+-}
+-
+-/*
+- * kmalloc_node_track_caller is a special version of kmalloc_node that
+- * records the calling function of the routine calling it for slab leak
+- * tracking instead of just the calling function (confusing, eh?).
+- * It's useful when the call to kmalloc_node comes from a widely-used
+- * standard allocator where we care about the real place the memory
+- * allocation request comes from.
+- */
+-#ifndef CONFIG_DEBUG_SLAB
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	__kmalloc_node(size, flags, node)
+-#else
+-extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	__kmalloc_node_track_caller(size, flags, node, \
+-			__builtin_return_address(0))
+-#endif
+ #else /* CONFIG_NUMA */
+ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+ 					gfp_t flags, int node)
  {
--	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
-+	struct page *page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, vaddr);
- 
- 	if (page)
- 		clear_user_highpage(page, vaddr);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/memory.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/memory.c
---- linux-2.6.19-rc5-mm2-clean/mm/memory.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/memory.c	2006-11-27 15:09:20.000000000 +0000
-@@ -1564,7 +1564,7 @@ gotten:
- 		if (!new_page)
- 			goto oom;
- 	} else {
--		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+		new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
- 		if (!new_page)
- 			goto oom;
- 		cow_user_page(new_page, old_page, address);
-@@ -2188,7 +2188,7 @@ retry:
- 
- 			if (unlikely(anon_vma_prepare(vma)))
- 				goto oom;
--			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+			page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
- 			if (!page)
- 				goto oom;
- 			copy_user_highpage(page, new_page, address);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/mempolicy.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/mempolicy.c
---- linux-2.6.19-rc5-mm2-clean/mm/mempolicy.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/mempolicy.c	2006-11-27 15:09:20.000000000 +0000
-@@ -598,7 +598,7 @@ static void migrate_page_add(struct page
- 
- static struct page *new_node_page(struct page *page, unsigned long node, int **x)
- {
--	return alloc_pages_node(node, GFP_HIGHUSER, 0);
-+	return alloc_pages_node(node, GFP_HIGH_MOVABLE, 0);
+ 	return kmem_cache_alloc(cachep, flags);
  }
+-static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+-{
+-	return kmalloc(size, flags);
+-}
+-
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	kmalloc_track_caller(size, flags)
+ #endif
  
- /*
-@@ -714,7 +714,7 @@ static struct page *new_vma_page(struct 
- {
- 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
+-extern int FASTCALL(kmem_cache_reap(int));
+-extern int FASTCALL(kmem_ptr_validate(struct kmem_cache *cachep, void *ptr));
+-
+-struct shrinker;
+-extern void kmem_set_shrinker(kmem_cache_t *cachep, struct shrinker *shrinker);
+-
+-#else /* CONFIG_SLOB */
+-
+-/* SLOB allocator routines */
+-
+-void kmem_cache_init(void);
+-struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
+-	unsigned long,
+-	void (*)(void *, struct kmem_cache *, unsigned long),
+-	void (*)(void *, struct kmem_cache *, unsigned long));
+-void kmem_cache_destroy(struct kmem_cache *c);
+-void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags);
+-void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
+-void kmem_cache_free(struct kmem_cache *c, void *b);
+-const char *kmem_cache_name(struct kmem_cache *);
+-void *kmalloc(size_t size, gfp_t flags);
+-void *__kzalloc(size_t size, gfp_t flags);
+-void kfree(const void *m);
+-unsigned int ksize(const void *m);
+-unsigned int kmem_cache_size(struct kmem_cache *c);
+-
+-static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+-{
+-	return __kzalloc(n * size, flags);
+-}
+-
+-#define kmem_cache_shrink(d) (0)
+-#define kmem_cache_reap(a)
+-#define kmem_ptr_validate(a, b) (0)
+-#define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
+-#define kmalloc_node(s, f, n) kmalloc(s, f)
+-#define kzalloc(s, f) __kzalloc(s, f)
+-#define kmalloc_track_caller kmalloc
+-
+-#define kmalloc_node_track_caller kmalloc_node
+-
+-struct shrinker;
+-static inline void kmem_set_shrinker(kmem_cache_t *cachep,
+-				     struct shrinker *shrinker) {}
++#include <linux/kmalloc.h>
  
--	return alloc_page_vma(GFP_HIGHUSER, vma, page_address_in_vma(page, vma));
-+	return alloc_page_vma(GFP_HIGH_MOVABLE, vma, page_address_in_vma(page, vma));
- }
- #else
+-#endif /* CONFIG_SLOB */
++#endif /* !CONFIG_SLOB */
  
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/migrate.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/migrate.c
---- linux-2.6.19-rc5-mm2-clean/mm/migrate.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/migrate.c	2006-11-27 15:09:20.000000000 +0000
-@@ -748,7 +748,7 @@ static struct page *new_page_node(struct
+ #endif	/* __KERNEL__ */
  
- 	*result = &pm->status;
- 
--	return alloc_pages_node(pm->node, GFP_HIGHUSER | GFP_THISNODE, 0);
-+	return alloc_pages_node(pm->node, GFP_HIGH_MOVABLE | GFP_THISNODE, 0);
- }
- 
- /*
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/shmem.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/shmem.c
---- linux-2.6.19-rc5-mm2-clean/mm/shmem.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/shmem.c	2006-11-27 15:45:19.000000000 +0000
-@@ -93,8 +93,11 @@ static inline struct page *shmem_dir_all
- 	 * The above definition of ENTRIES_PER_PAGE, and the use of
- 	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
- 	 * might be reconsidered if it ever diverges from PAGE_SIZE.
-+	 *
-+	 * __GFP_MOVABLE is masked out as swap vectors cannot move
- 	 */
--	return alloc_pages(gfp_mask, PAGE_CACHE_SHIFT-PAGE_SHIFT);
-+	return alloc_pages((gfp_mask & ~__GFP_MOVABLE) | __GFP_ZERO,
-+				PAGE_CACHE_SHIFT-PAGE_SHIFT);
- }
- 
- static inline void shmem_dir_free(struct page *page)
-@@ -372,7 +376,7 @@ static swp_entry_t *shmem_swp_alloc(stru
- 		}
- 
- 		spin_unlock(&info->lock);
--		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
-+		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
- 		if (page)
- 			set_page_private(page, 0);
- 		spin_lock(&info->lock);
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/swap_prefetch.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/swap_prefetch.c
---- linux-2.6.19-rc5-mm2-clean/mm/swap_prefetch.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/swap_prefetch.c	2006-11-27 15:09:20.000000000 +0000
-@@ -204,7 +204,7 @@ static enum trickle_return trickle_swap_
- 	 * Get a new page to read from swap. We have already checked the
- 	 * watermarks so __alloc_pages will not call on reclaim.
- 	 */
--	page = alloc_pages_node(node, GFP_HIGHUSER & ~__GFP_WAIT, 0);
-+	page = alloc_pages_node(node, GFP_HIGH_MOVABLE & ~__GFP_WAIT, 0);
- 	if (unlikely(!page)) {
- 		ret = TRICKLE_DELAY;
- 		goto out;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-rc5-mm2-clean/mm/swap_state.c linux-2.6.19-rc5-mm2-mark_highmovable/mm/swap_state.c
---- linux-2.6.19-rc5-mm2-clean/mm/swap_state.c	2006-11-14 14:01:37.000000000 +0000
-+++ linux-2.6.19-rc5-mm2-mark_highmovable/mm/swap_state.c	2006-11-27 15:09:20.000000000 +0000
-@@ -343,7 +343,7 @@ struct page *read_swap_cache_async(swp_e
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+			new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
- 		}
+Index: linux-2.6.19-rc6-mm1/include/linux/slob.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.19-rc6-mm1/include/linux/slob.h	2006-11-27 22:16:32.000000000 -0800
+@@ -0,0 +1,47 @@
++#ifndef _LINUX_SLOB_H
++#define	_LINUX_SLOB_H
++
++#if	defined(__KERNEL__)
++
++#include <linux/slab.h>
++
++/* SLOB allocator routines */
++
++void kmem_cache_init(void);
++struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
++	unsigned long,
++	void (*)(void *, struct kmem_cache *, unsigned long),
++	void (*)(void *, struct kmem_cache *, unsigned long));
++void kmem_cache_destroy(struct kmem_cache *c);
++void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags);
++void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
++void kmem_cache_free(struct kmem_cache *c, void *b);
++const char *kmem_cache_name(struct kmem_cache *);
++void *kmalloc(size_t size, gfp_t flags);
++void *__kzalloc(size_t size, gfp_t flags);
++void kfree(const void *m);
++unsigned int ksize(const void *m);
++unsigned int kmem_cache_size(struct kmem_cache *c);
++
++static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
++{
++	return __kzalloc(n * size, flags);
++}
++
++#define kmem_cache_shrink(d) (0)
++#define kmem_cache_reap(a)
++#define kmem_ptr_validate(a, b) (0)
++#define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
++#define kmalloc_node(s, f, n) kmalloc(s, f)
++#define kzalloc(s, f) __kzalloc(s, f)
++#define kmalloc_track_caller kmalloc
++
++#define kmalloc_node_track_caller kmalloc_node
++
++struct shrinker;
++static inline void kmem_set_shrinker(kmem_cache_t *cachep,
++				struct shrinker *shrinker) {}
++
++#endif	/* __KERNEL__ */
++
++#endif	/* _LINUX_SLOB_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
