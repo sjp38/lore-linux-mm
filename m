@@ -1,44 +1,40 @@
-Received: from [192.168.1.2] (CPE-65-30-169-162.wi.res.rr.com [65.30.169.162])
-	by ms-smtp-02.rdc-kc.rr.com (8.13.6/8.13.6) with ESMTP id kASE2fma022113
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2006 08:02:41 -0600 (CST)
-Message-ID: <456C4182.4020302@yahoo.com>
-Date: Tue, 28 Nov 2006 08:02:42 -0600
-From: John Fusco <fusco_john@yahoo.com>
+Date: Tue, 28 Nov 2006 10:05:03 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
+In-Reply-To: <84144f020611280000w26d74321i2804b3d04b87762@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0611281003190.8764@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
+ <84144f020611280000w26d74321i2804b3d04b87762@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Making PCI Memory Cachable
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: akpm@osdl.org, linux-mm@kvack.org, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-I have numerous custom PCI devices that implement SRAM or DRAM on the 
-PCI bus. I would like to explore making this memory cachable in the 
-hopes that writes to memory can be done from user space and will be done 
-in bursts rather than single cycles.
+On Tue, 28 Nov 2006, Pekka Enberg wrote:
 
-Is this crazy or what? I assumed that the VM_IO flag in remap_pfn_range 
-controls this, but that doesn't appear to be the case.
+> On 11/28/06, Christoph Lameter <clameter@sgi.com> wrote:
+> > @@ -0,0 +1,221 @@
+> > +#ifndef _LINUX_KMALLOC_H
+> > +#define        _LINUX_KMALLOC_H
+> > +
+> > +#include <linux/gfp.h>
+> > +#include <asm/page.h>          /* kmalloc_sizes.h needs PAGE_SIZE */
+> > +#include <asm/cache.h>         /* kmalloc_sizes.h needs L1_CACHE_BYTES */
+> > +
+> > +#ifdef __KERNEL__
+> 
+> This is an in-kernel header so why do we need the above #ifdef clause?
 
-A simple test from user space is the following:
-    ptr = mmap(...)
-    memset(ptr, 'a', size)
+What exactly is an in-kernel header?
 
+Why would slab.h be different from kmalloc.h? Yes currently kmalloc.h is 
+included by slab.h but in the future code that only relies on kmalloc can 
+just include kmalloc.h. Is it because it does not contain any constant 
+definitions?
 
-The driver gets the pointer with remap_pfn_range, but I always see 
-64-bit writes to memory (this is x86_64 architecture). If this were 
-cachable and the HW waqs cooperative, I would expect to see cache line 
-bursts (e.g. 128 bytes).
-
-I think one of two things is happening:
-    a) The kernel is not making this memory cachable
-    b) The memory is cachable, but the chipset is throttling the bursts
-
-Can someone enlighten me?
-
-Thanks,
-John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
