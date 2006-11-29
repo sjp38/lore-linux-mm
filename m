@@ -1,64 +1,86 @@
-Date: Wed, 29 Nov 2006 13:21:55 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: ia64 ORDERROUNDDOWN issue
-Message-Id: <20061129132155.f617dcfb.akpm@osdl.org>
-In-Reply-To: <617E1C2C70743745A92448908E030B2AD89B2A@scsmsx411.amr.corp.intel.com>
-References: <617E1C2C70743745A92448908E030B2AD89B2A@scsmsx411.amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id kATLvmpM006946
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 21:57:48 GMT
+Received: from ug-out-1314.google.com (ugck40.prod.google.com [10.66.112.40])
+	by spaceape13.eur.corp.google.com with ESMTP id kATLvYEZ029672
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 21:57:38 GMT
+Received: by ug-out-1314.google.com with SMTP id k40so1955194ugc
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2006 13:57:38 -0800 (PST)
+Message-ID: <6599ad830611291357w34f9427bje775dfefcd000dfa@mail.gmail.com>
+Date: Wed, 29 Nov 2006 13:57:37 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to userspace
+In-Reply-To: <456D23A0.9020008@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20061129030655.941148000@menage.corp.google.com>
+	 <20061129033826.268090000@menage.corp.google.com>
+	 <456D23A0.9020008@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: xb <xavier.bru@bull.net>, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-(add linux-mm)
+On 11/28/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> menage@google.com wrote:
+> > Currently the page migration APIs allow you to migrate pages from
+> > particular processes, but don't provide a clean and efficient way to
+> > migrate and/or reclaim memory from individual nodes.
+>
+> The mechanism for that should probably go in mm/migrate.c, shouldn't
+> it?
 
-On Wed, 29 Nov 2006 10:34:24 -0800
-"Luck, Tony" <tony.luck@intel.com> wrote:
+Quite possibly - I don't have a strong feeling for exactly where the
+code should go. There's existing code (sys_migrate_pages) that uses
+the migration mechanism that's in mm/mempolicy.c rather than
+migrate.c, and this was a pretty simple function to write.
 
-> > After some investigations I stated that count_node_pages() was computing 
-> > mem_data[1].min_pfn = 0, and mem_data[1].max_pfn = 20000 for node 1, 
-> > thus conflicting with the 0-2GB DMA memory range on node 0.
-> > This is due to the line:
-> >    start = ORDERROUNDDOWN(start);
-> 
-> There is an assumption here that the memory space on a node doesn't
-> cross a MAX_ORDER boundary ... and I'm not really sure where to go
-> with that.  Your patch papers over the problem for your specific case,
-> but as you point out it will just re-appear for someone who picks
-> a bigger MAX_ORDER.
-> 
-> Having nodes that are smaller than MAX_ORDER will cause confusion in
-> the allocator (if all the memory belonging to two nodes is in a
-> single MAX_ORDER page, the buddy allocator will give all the memory
-> to one node, and none to the other (won't it?).
-> 
-> > This should at least be checked in the count_node_pages() function.
-> 
-> Yes, a check should be made ... but count_node_pages() doesn't have
-> all the information if needs to do this (it just gets the start/size
-> for the memory on the node ... and it needs to check whether the
-> rounddown of the start address (or the roundup of the end address)
-> would cause conflicts with memory belonging to other nodes.
-> 
-> Do we need a "max_order" variable that could be adjusted to some lower
-> value that MAX_ORDER if we find the memory topology doesn't fit inside
-> the lines?  
-> 
+>
+> Also, why don't you scan the lru lists of the zones in the node, which
+> will a) be much more efficient if there are lots of non LRU pages, and
+> b) allow you to batch the lru lock.
 
-(Your email talks about nodes, but I am asuming that we're actually dealing
-with per-zone concepts here)
+I'll take a look at that.
 
-We could of course do that, although it looks like your runtime max_order
-should be per-zone and not global.  And making it a runtime thing would
-cause more code to be emitted for alloc_pages() and alloc_pages_node(), so
-we'd at least have to move their checks into .c.
+> >
+> > - a way to trigger try_to_free_pages() for a given node with a given
+> >   minimum priority, vy writing an integer to
+> >   /sys/device/system/node/node<id>/try_to_free_pages
+>
+> ... especially not to userspace. Why does this have to be exposed to
+> userspace at all?
 
-But I wonder if a better approach would be to teach ia64 to just throw away
-the last 1 ..  MAX_ORDER-1 pages from the oddball zone?
+We don't need to expose the raw "priority" value, but it would be
+really nice for user space to be able to specify how hard the kernel
+should try to free some memory.
 
+Then each job can specify a "reclaim pressure", i.e. how much
+back-pressure should be applied to its allocated memory, so you can
+get a good idea of how much memory the job is really using for a given
+level of performance. High reclaim pressure results in a smaller
+working set but possibly more paging in from disk; low reclaim
+pressure uses more memory but gets higher performance.
+
+> Can you not wire it up to your resource isolation
+> implementation in the kernel?
+
+This *is* the resource isolation implementation (plus the existing
+cpusets and fake-numa code). The intention is to expose just enough
+knobs/hooks to userspace that it can be handled there.
+
+>
+> ... yeah it would obviously be much nicer to do it in kernel space,
+> behind your higher level APIs.
+
+I don't think it would - keeping as much of the code as possible in
+userspace makes development and deployment much faster. We don't
+really have any higher-level APIs at this point - just userspace
+middleware manipulating cpusets.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
