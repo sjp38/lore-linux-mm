@@ -1,36 +1,56 @@
-Received: by ug-out-1314.google.com with SMTP id s2so1501592uge
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2006 23:08:28 -0800 (PST)
-Message-ID: <84144f020611282308x748c451fn6887e477b38e525@mail.gmail.com>
-Date: Wed, 29 Nov 2006 09:08:28 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
-In-Reply-To: <Pine.LNX.4.64.0611281629250.11531@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Tue, 28 Nov 2006 23:08:37 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: Slab: Remove kmem_cache_t
+Message-Id: <20061128230837.48fcc34f.akpm@osdl.org>
+In-Reply-To: <456D2B8E.4060802@yahoo.com.au>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+	<456D0757.6050903@yahoo.com.au>
+	<Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+	<456D0FC4.4050704@yahoo.com.au>
+	<20061128200619.67080e11.akpm@osdl.org>
+	<456D1D82.3060001@yahoo.com.au>
+	<20061128222409.cda8cd5e.akpm@osdl.org>
+	<456D2B8E.4060802@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
-	 <84144f020611280000w26d74321i2804b3d04b87762@mail.gmail.com>
-	 <Pine.LNX.4.64.0611281003190.8764@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0611282104170.32289@sbz-30.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0611281109150.9370@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.64.0611282118140.1597@sbz-30.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0611281123400.9465@schroedinger.engr.sgi.com>
-	 <84144f020611281132p5f3f042dq36728c78521efb57@mail.gmail.com>
-	 <Pine.LNX.4.64.0611281629250.11531@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/29/06, Christoph Lameter <clameter@sgi.com> wrote:
-> Patch on top of the other to remove the #ifdefs. Also add some annotation
-> on the other ifdefs.
+On Wed, 29 Nov 2006 17:41:18 +1100
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-Thanks! For both of them:
+> > Well, you'd just do
+> > 
+> > 	extern struct kmem_cache *wozzle;
+> > 
+> > because you "know" that struct kmem_cache == kmem_cache_t.  The compiler
+> > will swallow it all.
+> > 
+> > Do I need to explain how much that sucks?
+> > 
+> 
+> Well the only code that is doing this is presumably some slab internal
+> stuff. And that does "know" that struct kmem_cache == kmem_cache_t.
+> Actually, once struct kmem_cache gets moved into slab.h, I would be
+> interested to know what remaining forward dependencies are needed at
+> all. Christoph?
+> 
+> To be clear: this won't be some random driver or subsystem code (or
+> even anything outside of mm/slab.c, hopefully) that is doing this,
+> will it? 
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Yes, it will.
+
+Any module which calls kmem_cache_create() needs to save its return value
+into some storage.  That storage has type `struct kmem_cache *', or
+kmem_cache_t *.
+
+And, btw, in neither case does that kmem_cache_create() caller need to know
+what's inside `struct kmem_cache'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
