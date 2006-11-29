@@ -1,75 +1,28 @@
-Message-ID: <456D2B8E.4060802@yahoo.com.au>
-Date: Wed, 29 Nov 2006 17:41:18 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id s2so1501513uge
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2006 23:07:52 -0800 (PST)
+Message-ID: <84144f020611282307x4d1c2707i2d1cb1c9e929a7c3@mail.gmail.com>
+Date: Wed, 29 Nov 2006 09:07:52 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH 0/8] Slab: Remove GFP_XX aliases from slab.h
+In-Reply-To: <20061129004426.11682.36688.sendpatchset@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: Slab: Remove kmem_cache_t
-References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>	<456D0757.6050903@yahoo.com.au>	<Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>	<456D0FC4.4050704@yahoo.com.au>	<20061128200619.67080e11.akpm@osdl.org>	<456D1D82.3060001@yahoo.com.au> <20061128222409.cda8cd5e.akpm@osdl.org>
-In-Reply-To: <20061128222409.cda8cd5e.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20061129004426.11682.36688.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Wed, 29 Nov 2006 16:41:22 +1100
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
-> 
->>Andrew Morton wrote:
->>
->>>On Wed, 29 Nov 2006 15:42:44 +1100
->>>Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->>>
->>>
->>>
->>>>So what exactly is wrong with
->>>>a kmem_cache_t declaration in include files, then?
->>>
->>>
->>>a) it's a typedef and
->>>
->>>b) it's a typedef, and you cannot forward-declare typedefs.  We've hit this
->>>   a couple of times.  Header files need to include slab.h just to be able to do
->>>
->>>	extern kmem_cache_t *wozzle;
->>
->>So why doesn't
->>
->>   typedef struct kmem_cache kmem_cache_t;
->>   extern kmem_cache_t *wozzle;
->>
->>work?
->>
-> 
-> 
-> Well, you'd just do
-> 
-> 	extern struct kmem_cache *wozzle;
-> 
-> because you "know" that struct kmem_cache == kmem_cache_t.  The compiler
-> will swallow it all.
-> 
-> Do I need to explain how much that sucks?
-> 
+On 11/29/06, Christoph Lameter <clameter@sgi.com> wrote:
+> This patchset removes all the aliases from slab.h and also removes all
+> occurrences.
 
-Well the only code that is doing this is presumably some slab internal
-stuff. And that does "know" that struct kmem_cache == kmem_cache_t.
-Actually, once struct kmem_cache gets moved into slab.h, I would be
-interested to know what remaining forward dependencies are needed at
-all. Christoph?
+Looks good!
 
-To be clear: this won't be some random driver or subsystem code (or
-even anything outside of mm/slab.c, hopefully) that is doing this,
-will it? If so then it sounds like just the kind of horrible design
-that we should be trying to get away from (whether we're using
-kmem_cache_t or struct kmem_cache as the caller-visible slab handle).
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
