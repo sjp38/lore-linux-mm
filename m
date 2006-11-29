@@ -1,53 +1,30 @@
-Date: Tue, 28 Nov 2006 19:06:03 -0800
-From: Andrew Morton <akpm@osdl.org>
+Message-ID: <456D0757.6050903@yahoo.com.au>
+Date: Wed, 29 Nov 2006 15:06:47 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: Slab: Remove kmem_cache_t
-Message-Id: <20061128190603.bcaac2e6.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+Cc: akpm@osdl.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Nov 2006 18:49:23 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-
+Christoph Lameter wrote:
 > This patch replaces all uses of kmem_cache_t with struct kmem_cache.
 > 
-> The patch was generated using the following script:
-> 
-> #!/bin/sh
-> 
-> #
-> # Replace one string by another in all the kernel sources.
-> #
-> 
-> set -e
-> 
-> for file in `find * -name "*.c" -o -name "*.h"|xargs grep -l $1`; do
-> 	quilt add $file
-> 	sed -e "1,\$s/$1/$2/g" $file >/tmp/$$
-> 	mv /tmp/$$ $file
-> 	quilt refresh
-> done
-> 
-> 
-> The script was run like this
-> 
-> 	sh replace kmem_cache_t "struct kmem_cache"
 
-Fair enough.  Most of it applied.  Some didn't.  I'll sort it out.
+kmem_cache really is an opaque type outside of mm/slab.c, isn't it?
 
-> and then include/linux/slab.h was edited to remove the definition of
-> kmem_cache_t.
+In which case, shouldn't the policy be to go the other way? Like
+the pagetable types, for example.
 
-But it's too early for this.
-
-Happily, marking the typedef itself __deprecated appears to dtrt, so I dtt.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
