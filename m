@@ -1,51 +1,35 @@
-Date: Wed, 29 Nov 2006 11:24:56 -0800 (PST)
+Date: Wed, 29 Nov 2006 11:27:00 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
-In-Reply-To: <456D4722.2010202@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0611291119480.16189@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
- <20061129082650.GB12734@infradead.org> <456D4722.2010202@yahoo.com.au>
+Subject: Re: Slab: Remove kmem_cache_t
+In-Reply-To: <1164790207.32474.24.camel@taijtu>
+Message-ID: <Pine.LNX.4.64.0611291125210.16189@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+ <1164790207.32474.24.camel@taijtu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Hellwig <hch@infradead.org>, akpm@osdl.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Nov 2006, Nick Piggin wrote:
+On Wed, 29 Nov 2006, Peter Zijlstra wrote:
 
-> > NACK.  This is utterly braindead, easily shown by things like the need
-> > to duplicate the kmem_cache_alloc prototype.
-> > 
-> > What are you trying to solve with this?
+> - this will skip the .pc directory where quilt resides, so you could do
+> multiple iterations of this script.
 
-I am trying to detangle various things in the slab. Its a bit complex.
+find * ... does the same.
+
+> - does in-place replacement with sed
+
+Well I wanted to make sure that the original source is not corrupted if 
+sed failes for some reason.
  
-> It does seem wrong, I agree. For another thing, there is no "slob API".
-> Slob is an implementation of the *slab API*.
+> - doesn't do the find in back-ticks which can cause it to run out of env
+> space.
 
-But the definitions vary a lot. Should I try to find the common 
-function declarations and keep them together?
-
-> kmalloc seems OK to be split. But given that it is built on top of the
-> slab, then it should not be going out of its way to avoid the slab.h
-> include, as Christoph H points out.
-> 
-> If this whole exercise is to dispense with a few includes, then I'll
-> second Christoph's nack. This kinds of tricks does not make it easier
-> to untangle and redesign header dependencies properly in the long term.
-
-Right now the slab.h is difficult to understand. Separating things out 
-will make the .h files small and nicely focused on one thing.
-
-We have some ugly things in kmalloc.h like the include of kmalloc_sizes.h 
-and the CACHE definitions. I think those should be separated and then 
-hopefully we can fix this up at some point.
-
-Having kmalloc.h separate will also help if we put the definition of 
-struct kmem_cache in slab.c. Then the definition will be hidden from the 
-simple kmalloc users.
+Good point. Is there some sort of library of helpful kernel scripts that 
+you could contribute to?
 
 
 --
