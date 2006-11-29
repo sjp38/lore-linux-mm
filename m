@@ -1,86 +1,106 @@
-Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
-	by smtp-out.google.com with ESMTP id kATLvmpM006946
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 21:57:48 GMT
-Received: from ug-out-1314.google.com (ugck40.prod.google.com [10.66.112.40])
-	by spaceape13.eur.corp.google.com with ESMTP id kATLvYEZ029672
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 21:57:38 GMT
-Received: by ug-out-1314.google.com with SMTP id k40so1955194ugc
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2006 13:57:38 -0800 (PST)
-Message-ID: <6599ad830611291357w34f9427bje775dfefcd000dfa@mail.gmail.com>
-Date: Wed, 29 Nov 2006 13:57:37 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to userspace
-In-Reply-To: <456D23A0.9020008@yahoo.com.au>
+Date: Wed, 29 Nov 2006 15:01:59 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Slab: Fixup two issues in kmalloc_node / __cache_alloc_node
+Message-ID: <Pine.LNX.4.64.0611291500190.17858@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20061129030655.941148000@menage.corp.google.com>
-	 <20061129033826.268090000@menage.corp.google.com>
-	 <456D23A0.9020008@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/28/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> menage@google.com wrote:
-> > Currently the page migration APIs allow you to migrate pages from
-> > particular processes, but don't provide a clean and efficient way to
-> > migrate and/or reclaim memory from individual nodes.
->
-> The mechanism for that should probably go in mm/migrate.c, shouldn't
-> it?
+This addresses two issues:
 
-Quite possibly - I don't have a strong feeling for exactly where the
-code should go. There's existing code (sys_migrate_pages) that uses
-the migration mechanism that's in mm/mempolicy.c rather than
-migrate.c, and this was a pretty simple function to write.
+1. Kmalloc_node() may intermittently return NULL if
+we are allocating from the current node and are unable to obtain
+memory for the current node from the page allocator it. This is
+because we call ___cache_alloc() if nodeid == numa_node_id() and
+____cache_alloc is not able to fallback to other nodes.
 
->
-> Also, why don't you scan the lru lists of the zones in the node, which
-> will a) be much more efficient if there are lots of non LRU pages, and
-> b) allow you to batch the lru lock.
+This was introduced in the 2.6.19 development cycle. <= 2.6.18
+in that case does not do a restricted allocation and blindly
+trusts the page allocator to have given us memory from the
+indicated node. It inserts the page regardless of the node it
+came from into the queues for the current node.
 
-I'll take a look at that.
+2. If kmalloc_node() is used on a node that has not been bootstrapped
+yet then we may try to pass an invalid node number to ____cache_alloc_node()
+triggering a BUG().
 
-> >
-> > - a way to trigger try_to_free_pages() for a given node with a given
-> >   minimum priority, vy writing an integer to
-> >   /sys/device/system/node/node<id>/try_to_free_pages
->
-> ... especially not to userspace. Why does this have to be exposed to
-> userspace at all?
+Change the function to call fallback_alloc() instead. Only call
+fallback_alloc() if we are allowed to fallback at all. The need
+to handle a node not bootstrapped yet also first surfaced in the 2.6.19
+cycle.
 
-We don't need to expose the raw "priority" value, but it would be
-really nice for user space to be able to specify how hard the kernel
-should try to free some memory.
+Update the comments since they were still describing the old kmalloc_node
+from 2.6.12.
 
-Then each job can specify a "reclaim pressure", i.e. how much
-back-pressure should be applied to its allocated memory, so you can
-get a good idea of how much memory the job is really using for a given
-level of performance. High reclaim pressure results in a smaller
-working set but possibly more paging in from disk; low reclaim
-pressure uses more memory but gets higher performance.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> Can you not wire it up to your resource isolation
-> implementation in the kernel?
-
-This *is* the resource isolation implementation (plus the existing
-cpusets and fake-numa code). The intention is to expose just enough
-knobs/hooks to userspace that it can be handled there.
-
->
-> ... yeah it would obviously be much nicer to do it in kernel space,
-> behind your higher level APIs.
-
-I don't think it would - keeping as much of the code as possible in
-userspace makes development and deployment much faster. We don't
-really have any higher-level APIs at this point - just userspace
-middleware manipulating cpusets.
-
-Paul
+Index: linux-2.6.19-rc6-mm1/mm/slab.c
+===================================================================
+--- linux-2.6.19-rc6-mm1.orig/mm/slab.c	2006-11-29 15:44:04.482245706 -0600
++++ linux-2.6.19-rc6-mm1/mm/slab.c	2006-11-29 15:57:49.773012380 -0600
+@@ -3539,29 +3539,46 @@ out:
+  * @flags: See kmalloc().
+  * @nodeid: node number of the target node.
+  *
+- * Identical to kmem_cache_alloc, except that this function is slow
+- * and can sleep. And it will allocate memory on the given node, which
+- * can improve the performance for cpu bound structures.
+- * New and improved: it will now make sure that the object gets
+- * put on the correct node list so that there is no false sharing.
++ * Identical to kmem_cache_alloc but it will allocate memory on the given
++ * node, which can improve the performance for cpu bound structures.
++ *
++ * Fallback to other node is possible if __GFP_THISNODE is not set.
+  */
+ static __always_inline void *
+ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+ 		int nodeid, void *caller)
+ {
+ 	unsigned long save_flags;
+-	void *ptr;
++	void *ptr = NULL;
+ 
+ 	cache_alloc_debugcheck_before(cachep, flags);
+ 	local_irq_save(save_flags);
+ 
+-	if (nodeid == -1 || nodeid == numa_node_id() ||
+-			!cachep->nodelists[nodeid])
+-		ptr = ____cache_alloc(cachep, flags);
+-	else
+-		ptr = ____cache_alloc_node(cachep, flags, nodeid);
+-	local_irq_restore(save_flags);
++	if (unlikely(nodeid == -1))
++		nodeid = numa_node_id();
++
++	if (likely(cachep->nodelists[nodeid])) {
++
++		if (nodeid == numa_node_id())
++			/*
++			 * Use the locally cached objects if possible.
++			 * However ____cache_alloc does not allow fallback
++			 * to other nodes. It may fail while we still have
++			 * objects on other nodes available.
++			 */
++			ptr = ____cache_alloc(cachep, flags);
++
++		if (!ptr)
++			/* ___cache_alloc_node can fall back to other nodes */
++			ptr = ____cache_alloc_node(cachep, flags, nodeid);
+ 
++	} else {
++		/* Node not bootstrapped yet */
++		if (!(flags & __GFP_THISNODE))
++			ptr = fallback_alloc(cachep, flags);
++	}
++
++	local_irq_restore(save_flags);
+ 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
+ 
+ 	return ptr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
