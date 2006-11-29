@@ -1,71 +1,71 @@
-Message-ID: <456D5347.3000208@yahoo.com.au>
-Date: Wed, 29 Nov 2006 20:30:47 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 29 Nov 2006 07:48:34 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: Slab: Remove kmem_cache_t
+In-Reply-To: <456D1FDA.4040201@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0611290738270.3395@woody.osdl.org>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+ <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+ <456D0FC4.4050704@yahoo.com.au> <20061128200619.67080e11.akpm@osdl.org>
+ <Pine.LNX.4.64.0611282027431.3395@woody.osdl.org> <456D1FDA.4040201@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: The VFS cache is not freed when there is not enough free memory
- to allocate
-References: <6d6a94c50611212351if1701ecx7b89b3fe79371554@mail.gmail.com>	 <1164185036.5968.179.camel@twins>	 <6d6a94c50611220202t1d076b4cye70dcdcc19f56e55@mail.gmail.com>	 <456A964D.2050004@yahoo.com.au>	 <4e5ebad50611282317r55c22228qa5333306ccfff28e@mail.gmail.com> <6d6a94c50611290127u2b26976en1100217a69d651c0@mail.gmail.com>
-In-Reply-To: <6d6a94c50611290127u2b26976en1100217a69d651c0@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Aubrey <aubreylee@gmail.com>
-Cc: Sonic Zhang <sonic.adi@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vapier.adi@gmail.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aubrey wrote:
-> On 11/29/06, Sonic Zhang <sonic.adi@gmail.com> wrote:
+
+On Wed, 29 Nov 2006, Nick Piggin wrote:
 > 
->> Forward to the mailing list.
->>
->> > On 11/27/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->>
->>
->> >> I haven't actually written any nommu userspace code, but it is obvious
->> >> that you must try to keep malloc to <= PAGE_SIZE (although order 2 and
->> >> even 3 allocations seem to be reasonable, from process context)... 
->> Then
->> >> you would use something a bit more advanced than a linear array to 
->> store
->> >> data (a pagetable-like radix tree would be a nice, easy idea).
->> >>
->> >
->> > But, even we split the 8M memory into 2048 x 4k blocks, we still face
->> > this failure. The key problem is that available memory is small than
->> > 2048 x 4k, while there are still a lot of VFS cache. The VFS cache can
->> > be freed, but kernel allocation function ignores it. See the new test
->> > application.
->>
->>
->> Which kernel allocation function? If you can provide more details I'd
->> like to get to the bottom of this.
+> I don't see why pagetable types are conceptually different from slab here.
+
+Because they are fundamentally _different_ on different architectures.
+
+If they were always the same, they wouldn't be typedefs.
+
+> pagetable types can all have the same struct name. Should we do a script
+> to change them?
+
+Theyt aren't even necessarily structs. They're quite often "unsigned 
+long".
+
+In fact, they were that on x86 for the longest time (and making them into 
+a struct was a conscious thing to make sure that you couldn't use them as 
+integers even by mistake).
+
+> > 	"kmem_cache_t" is strictly _worse_ than "struct kmem_cache", not
+> > just because it causes declaration issues. It also hides the fact 	that
+> > the thing really is a structure (and hiding the fact that 	it's a pointer
+> > is a shooting offense: things like "voidptr_t" 	should not be allowed
+> > at all)
 > 
-> 
-> I posted it here, I think you missed it. So forwarded it to you.
+> Umm, but it's not a pointer, is it?
 
-That was the order-9 allocation failure. Which is not going to be
-solved properly by just dropping caches.
+No, I'm saying that some people hide the pointer-ness inside the typedef 
+too, and that should be a shooting offence.
 
-But Sonic apparently saw failures with 4K allocations, where the
-caches weren't getting shrunk properly. This would be more interesting
-because it would indicate a real problem with the kernel.
+> I think slab.c should use struct kmem_cache, but I don't see why this script
+> needs to change over all callers. At least, not in the name of solving
+> dependency issues?!?
 
->>
->> Also, do you happen to know of a reasonable toolchain + emulator setup
->> that I could test the nommu kernel with?
-> 
-> 
-> A project named skyeye.
-> http://www.skyeye.org/index.shtml
+The dependency issues can come up because of a problem with typedefs.
 
-Thanks, I'll give that one a try.
+It's strictly an error to declare the same typedef twice in the same 
+scope. So if you want to have robust header files, you can do that only in 
+a _single_ place. Which in turn means that you always have a dependency on 
+that magic header in anything that needs it.
 
-Nick
+On the other hand, you can always pre-declare an opaque structure however 
+many times you want, so there is no similar problem at all with "struct 
+kmem_cache". You can just sprinkle that one-liner "I know there is such a 
+thing, although I don't know what it contains" in multiple places, and 
+break the dependency.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+So "typedef" is strictly _inconvenient_ too, if you want to have split 
+header files.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
