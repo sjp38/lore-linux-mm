@@ -1,30 +1,36 @@
-Message-ID: <456D0757.6050903@yahoo.com.au>
-Date: Wed, 29 Nov 2006 15:06:47 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Tue, 28 Nov 2006 19:32:19 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Slab: Remove kmem_cache_t
+In-Reply-To: <456D0757.6050903@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+ <456D0757.6050903@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: akpm@osdl.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> This patch replaces all uses of kmem_cache_t with struct kmem_cache.
-> 
+On Wed, 29 Nov 2006, Nick Piggin wrote:
 
-kmem_cache really is an opaque type outside of mm/slab.c, isn't it?
+> Christoph Lameter wrote:
+> > This patch replaces all uses of kmem_cache_t with struct kmem_cache.
+> kmem_cache really is an opaque type outside of mm/slab.c, isn't it?
 
-In which case, shouldn't the policy be to go the other way? Like
-the pagetable types, for example.
+kmem_cache_t would require a declaration. struct kmem_cache * can be used 
+without a prior declaration in include files. Please review the earlier 
+discussion on linux-mm regarding the removal of the global slab caches 
+from <linux/slab.h>.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Frankly the maintenance of the opaque type here has caused us enough grief 
+over the years. I would like to get rid of it in the future and declare 
+the contents of struct kmem_cache in slab.h. That will allow us to 
+simplify the slab bootstrap and make it easier to understand. One 
+reason slab bootstrap is so complex because one cannot simple do a static 
+declaration of a struct kmem_cache and start off with it. See the earlier 
+discussion with Matt Mackall on the slabifier design.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
