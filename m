@@ -1,46 +1,36 @@
-Message-ID: <456D3EFC.8030701@yahoo.com.au>
-Date: Wed, 29 Nov 2006 19:04:12 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Slab: Remove kmem_cache_t
-References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>	<456D0757.6050903@yahoo.com.au>	<Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>	<456D0FC4.4050704@yahoo.com.au>	<20061128200619.67080e11.akpm@osdl.org>	<456D1D82.3060001@yahoo.com.au>	<20061128222409.cda8cd5e.akpm@osdl.org>	<456D2B8E.4060802@yahoo.com.au>	<20061128230837.48fcc34f.akpm@osdl.org>	<456D3576.2060109@yahoo.com.au> <20061128234104.9e23b4b1.akpm@osdl.org>
-In-Reply-To: <20061128234104.9e23b4b1.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 29 Nov 2006 08:26:50 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
+Message-ID: <20061129082650.GB12734@infradead.org>
+References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Wed, 29 Nov 2006 18:23:34 +1100
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Mon, Nov 27, 2006 at 10:33:28PM -0800, Christoph Lameter wrote:
+> slab.h really defines multiple APIs. One is the classic slab api
+> where one can define a slab cache by specifying exactly how
+> the slab has to be generated. This API is not frequently used.
 > 
+> Another is the kmalloc API. Quite a number of kernel source code files 
+> need kmalloc but do not need to generate custom slabs. The kmalloc API 
+> also use some funky macros that may be better isolated in an additional .h 
+> file in order to ease future cleanup. Make kmalloc.h self contained by 
+> adding two extern definitions local to kmalloc and kmalloc_node.
 > 
->>>Any module which calls kmem_cache_create() needs to save its return value
->>>into some storage.  That storage has type `struct kmem_cache *', or
->>>kmem_cache_t *.
->>
->>And why can't it include linux/slab.h to get the proper definitions
->>(+/- typdefs)?
-> 
-> 
-> argh.
-> 
-> Because then you need to include slab.h in header files which don't otherwise need it.
+> Then there is the SLOB api mixed in with slab. Take that out and define it 
+> in its own header file.
 
-Oh so it isn't a dependency problem, or one that prevents a cleaner
-slab bootstrapping process... Just that you'd like to skimp out on
-some includes. Why didn't you say that from the start? ;)
+NACK.  This is utterly braindead, easily shown by things like the need
+to duplicate the kmem_cache_alloc prototype.
 
-Personally I prefer to include declarations when they are needed,
-but whatever. I'll drop it, now that I know the justification for
-the patch.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+What are you trying to solve with this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
