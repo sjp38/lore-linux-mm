@@ -1,32 +1,49 @@
-Message-Id: <20061129030655.941148000@menage.corp.google.com>
-Date: Tue, 28 Nov 2006 19:06:55 -0800
-From: menage@google.com
-Subject: [RFC][PATCH 0/1] Node-based reclaim/migration
+Message-ID: <456D0FC4.4050704@yahoo.com.au>
+Date: Wed, 29 Nov 2006 15:42:44 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Slab: Remove kmem_cache_t
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com> <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
---
+Christoph Lameter wrote:
+> On Wed, 29 Nov 2006, Nick Piggin wrote:
+> 
+> 
+>>Christoph Lameter wrote:
+>>
+>>>This patch replaces all uses of kmem_cache_t with struct kmem_cache.
+>>
+>>kmem_cache really is an opaque type outside of mm/slab.c, isn't it?
+> 
+> 
+> kmem_cache_t would require a declaration. struct kmem_cache * can be used 
+> without a prior declaration in include files. Please review the earlier 
+> discussion on linux-mm regarding the removal of the global slab caches 
+> from <linux/slab.h>.
+> 
+> Frankly the maintenance of the opaque type here has caused us enough grief 
+> over the years. I would like to get rid of it in the future and declare 
+> the contents of struct kmem_cache in slab.h. That will allow us to 
+> simplify the slab bootstrap and make it easier to understand. One 
+> reason slab bootstrap is so complex because one cannot simple do a static 
+> declaration of a struct kmem_cache and start off with it. See the earlier 
+> discussion with Matt Mackall on the slabifier design.
 
-We're trying to use NUMA node isolation as a form of job resource
-control at Google, and the existing page migration APIs are all bound
-to individual processes and so are a bit clunky to use when you just
-want to affect all the pages on a given node.
+That's all fine, we're not talking about any of the mechanism to how any
+of that works, just what the type is called. So what exactly is wrong with
+a kmem_cache_t declaration in include files, then?
 
-How about an API to allow userspace to direct page migration (and page
-reclaim) on a per-node basis? This patch provides such an API, based
-around sysfs; a system call approach would certainly be possible too.
-
-It sort of overlaps with memory hot-unplug, but is simpler since it's
-not so bad if we miss a few pages.
-
-Comments? Also, can anyone clarify whether I need any locking when
-sacnning the pages in a pgdat? As far as I can see, even with memory
-hotplug this number can only increase, not decrease.
-
-Paul
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
