@@ -1,55 +1,56 @@
-Message-ID: <456D4722.2010202@yahoo.com.au>
-Date: Wed, 29 Nov 2006 19:38:58 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
-References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com> <20061129082650.GB12734@infradead.org>
-In-Reply-To: <20061129082650.GB12734@infradead.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: Slab: Remove kmem_cache_t
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 29 Nov 2006 09:50:07 +0100
+Message-Id: <1164790207.32474.24.camel@taijtu>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
-> On Mon, Nov 27, 2006 at 10:33:28PM -0800, Christoph Lameter wrote:
+On Tue, 2006-11-28 at 18:49 -0800, Christoph Lameter wrote:
+> This patch replaces all uses of kmem_cache_t with struct kmem_cache.
 > 
->>slab.h really defines multiple APIs. One is the classic slab api
->>where one can define a slab cache by specifying exactly how
->>the slab has to be generated. This API is not frequently used.
->>
->>Another is the kmalloc API. Quite a number of kernel source code files 
->>need kmalloc but do not need to generate custom slabs. The kmalloc API 
->>also use some funky macros that may be better isolated in an additional .h 
->>file in order to ease future cleanup. Make kmalloc.h self contained by 
->>adding two extern definitions local to kmalloc and kmalloc_node.
->>
->>Then there is the SLOB api mixed in with slab. Take that out and define it 
->>in its own header file.
+> The patch was generated using the following script:
 > 
+> #!/bin/sh
 > 
-> NACK.  This is utterly braindead, easily shown by things like the need
-> to duplicate the kmem_cache_alloc prototype.
+> #
+> # Replace one string by another in all the kernel sources.
+> #
 > 
-> What are you trying to solve with this?
+> set -e
+> 
+> for file in `find * -name "*.c" -o -name "*.h"|xargs grep -l $1`; do
+> 	quilt add $file
+> 	sed -e "1,\$s/$1/$2/g" $file >/tmp/$$
+> 	mv /tmp/$$ $file
+> 	quilt refresh
+> done
 
-It does seem wrong, I agree. For another thing, there is no "slob API".
-Slob is an implementation of the *slab API*.
 
-kmalloc seems OK to be split. But given that it is built on top of the
-slab, then it should not be going out of its way to avoid the slab.h
-include, as Christoph H points out.
+find . -name .pc -prune -o -name \*.[ch] | xargs grep -l $1 | 
+while read file; do
+  quilt add $file
+  sed -ie "1,\$s/$1/$2/g" $file
+  quilt refresh --strip-trailing-whitespace
+done
 
-If this whole exercise is to dispense with a few includes, then I'll
-second Christoph's nack. This kinds of tricks does not make it easier
-to untangle and redesign header dependencies properly in the long term.
 
--- 
-SUSE Labs, Novell Inc.
+- this will skip the .pc directory where quilt resides, so you could do
+multiple iterations of this script.
 
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+- does in-place replacement with sed
+
+- doesn't do the find in back-ticks which can cause it to run out of env
+space.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
