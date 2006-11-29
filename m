@@ -1,10 +1,10 @@
-Message-ID: <456D0FC4.4050704@yahoo.com.au>
-Date: Wed, 29 Nov 2006 15:42:44 +1100
+Message-ID: <456D031C.6020003@yahoo.com.au>
+Date: Wed, 29 Nov 2006 14:48:44 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: Slab: Remove kmem_cache_t
-References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com> <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com> <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com> <456D0FC4.4050704@yahoo.com.au>
+In-Reply-To: <456D0FC4.4050704@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,33 +13,37 @@ To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@osdl.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 29 Nov 2006, Nick Piggin wrote:
-> 
-> 
->>Christoph Lameter wrote:
->>
->>>This patch replaces all uses of kmem_cache_t with struct kmem_cache.
->>
->>kmem_cache really is an opaque type outside of mm/slab.c, isn't it?
-> 
-> 
-> kmem_cache_t would require a declaration. struct kmem_cache * can be used 
-> without a prior declaration in include files. Please review the earlier 
-> discussion on linux-mm regarding the removal of the global slab caches 
-> from <linux/slab.h>.
-> 
-> Frankly the maintenance of the opaque type here has caused us enough grief 
-> over the years. I would like to get rid of it in the future and declare 
-> the contents of struct kmem_cache in slab.h. That will allow us to 
-> simplify the slab bootstrap and make it easier to understand. One 
-> reason slab bootstrap is so complex because one cannot simple do a static 
-> declaration of a struct kmem_cache and start off with it. See the earlier 
-> discussion with Matt Mackall on the slabifier design.
+(sorry about the clock skew)
 
-That's all fine, we're not talking about any of the mechanism to how any
-of that works, just what the type is called. So what exactly is wrong with
-a kmem_cache_t declaration in include files, then?
+Nick Piggin wrote:
+> Christoph Lameter wrote:
+> 
+>>
+>> kmem_cache_t would require a declaration. struct kmem_cache * can be 
+>> used without a prior declaration in include files. Please review the 
+>> earlier discussion on linux-mm regarding the removal of the global 
+>> slab caches from <linux/slab.h>.
+>>
+>> Frankly the maintenance of the opaque type here has caused us enough 
+>> grief over the years. I would like to get rid of it in the future and 
+>> declare the contents of struct kmem_cache in slab.h. That will allow 
+>> us to simplify the slab bootstrap and make it easier to understand. 
+>> One reason slab bootstrap is so complex because one cannot simple do a 
+>> static declaration of a struct kmem_cache and start off with it. See 
+>> the earlier discussion with Matt Mackall on the slabifier design.
+> 
+> 
+> That's all fine, we're not talking about any of the mechanism to how any
+> of that works, just what the type is called. So what exactly is wrong with
+> a kmem_cache_t declaration in include files, then?
+
+
+Also note that when I say opaque type, I don't mean that you should leave
+the declaration of struct kmem_cache in mm/slab.c.
+
+I just mean that this patch seems like pointless churn, and a typedef is
+reasonable if not desirable in slab API users where kmem_cache_t *is* an
+opaque type (ie. they have no business accessing any struct members).
 
 -- 
 SUSE Labs, Novell Inc.
