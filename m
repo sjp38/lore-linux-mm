@@ -1,66 +1,62 @@
-Received: by nf-out-0910.google.com with SMTP id c2so2650143nfe
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2006 23:17:13 -0800 (PST)
-Message-ID: <4e5ebad50611282317r55c22228qa5333306ccfff28e@mail.gmail.com>
-Date: Wed, 29 Nov 2006 15:17:13 +0800
-From: "Sonic Zhang" <sonic.adi@gmail.com>
-Subject: Re: The VFS cache is not freed when there is not enough free memory to allocate
-In-Reply-To: <456A964D.2050004@yahoo.com.au>
+Message-ID: <456D3576.2060109@yahoo.com.au>
+Date: Wed, 29 Nov 2006 18:23:34 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: Slab: Remove kmem_cache_t
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>	<456D0757.6050903@yahoo.com.au>	<Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>	<456D0FC4.4050704@yahoo.com.au>	<20061128200619.67080e11.akpm@osdl.org>	<456D1D82.3060001@yahoo.com.au>	<20061128222409.cda8cd5e.akpm@osdl.org>	<456D2B8E.4060802@yahoo.com.au> <20061128230837.48fcc34f.akpm@osdl.org>
+In-Reply-To: <20061128230837.48fcc34f.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <6d6a94c50611212351if1701ecx7b89b3fe79371554@mail.gmail.com>
-	 <1164185036.5968.179.camel@twins>
-	 <6d6a94c50611220202t1d076b4cye70dcdcc19f56e55@mail.gmail.com>
-	 <456A964D.2050004@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Aubrey <aubreylee@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Forward to the mailing list.
-
-Sonic Zhang wrote:
-> On 11/27/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-
-
->> I haven't actually written any nommu userspace code, but it is obvious
->> that you must try to keep malloc to <= PAGE_SIZE (although order 2 and
->> even 3 allocations seem to be reasonable, from process context)... Then
->> you would use something a bit more advanced than a linear array to store
->> data (a pagetable-like radix tree would be a nice, easy idea).
+Andrew Morton wrote:
+> On Wed, 29 Nov 2006 17:41:18 +1100
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> 
+> 
+>>>Well, you'd just do
+>>>
+>>>	extern struct kmem_cache *wozzle;
+>>>
+>>>because you "know" that struct kmem_cache == kmem_cache_t.  The compiler
+>>>will swallow it all.
+>>>
+>>>Do I need to explain how much that sucks?
+>>>
 >>
->
-> But, even we split the 8M memory into 2048 x 4k blocks, we still face
-> this failure. The key problem is that available memory is small than
-> 2048 x 4k, while there are still a lot of VFS cache. The VFS cache can
-> be freed, but kernel allocation function ignores it. See the new test
-> application.
+>>Well the only code that is doing this is presumably some slab internal
+>>stuff. And that does "know" that struct kmem_cache == kmem_cache_t.
+>>Actually, once struct kmem_cache gets moved into slab.h, I would be
+>>interested to know what remaining forward dependencies are needed at
+>>all. Christoph?
+>>
+>>To be clear: this won't be some random driver or subsystem code (or
+>>even anything outside of mm/slab.c, hopefully) that is doing this,
+>>will it? 
+> 
+> 
+> Yes, it will.
+> 
+> Any module which calls kmem_cache_create() needs to save its return value
+> into some storage.  That storage has type `struct kmem_cache *', or
+> kmem_cache_t *.
 
+And why can't it include linux/slab.h to get the proper definitions
+(+/- typdefs)?
 
-Which kernel allocation function? If you can provide more details I'd
-like to get to the bottom of this.
+> And, btw, in neither case does that kmem_cache_create() caller need to know
+> what's inside `struct kmem_cache'.
 
-Because the anonymous memory allocation in mm/nommu.c is all allocated
-with GFP_KERNEL from process context, and in that case, the allocator
-should not fail but call into page reclaim which in turn will free VFS
-caches.
+Which is exactly why, in my opinion, there is nothing wrong with using
+a typedef in such a case.
 
-
-
-> What's a better way to free the VFS cache in memory allocator?
-
-
-It should be freeing it for you, so I'm not quite sure what is going
-on. Can you send over the kernel messages you see when the allocation
-fails?
-
-Also, do you happen to know of a reasonable toolchain + emulator setup
-that I could test the nommu kernel with?
-
-Thanks,
-Nick
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
