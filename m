@@ -1,11 +1,11 @@
-Date: Thu, 30 Nov 2006 11:33:32 -0800 (PST)
+Date: Thu, 30 Nov 2006 11:37:30 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC][PATCH 1/6] mm: slab allocation fairness
-In-Reply-To: <1164912915.6588.153.camel@twins>
-Message-ID: <Pine.LNX.4.64.0611301132530.24161@schroedinger.engr.sgi.com>
+In-Reply-To: <1164913365.6588.156.camel@twins>
+Message-ID: <Pine.LNX.4.64.0611301137120.24161@schroedinger.engr.sgi.com>
 References: <20061130101451.495412000@chello.nl> >  <20061130101921.113055000@chello.nl>
  >   <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
- <1164912915.6588.153.camel@twins>
+ <1164913365.6588.156.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,13 +16,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 30 Nov 2006, Peter Zijlstra wrote:
 
-> No, the forced allocation is to test the allocation hardness at that
-> point in time. I could not think of another way to test that than to
-> actually to an allocation.
+> On Thu, 2006-11-30 at 10:52 -0800, Christoph Lameter wrote:
+> 
+> > I would think that one would need a rank with each cached object and 
+> > free slab in order to do this the right way.
+> 
+> Allocation hardness is a temporal attribute, ie. it changes over time.
+> Hence I do it per slab.
 
-Typically we do this by checking the number of free pages in a zone 
-compared to the high low limits. See mmzone.h.
- 
+cached objects are also temporal and change over time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
