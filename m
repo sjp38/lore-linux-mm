@@ -1,117 +1,33 @@
-Date: Thu, 30 Nov 2006 17:56:03 +0000
-Subject: [PATCH] make compound page destructor handling explicit
-Message-ID: <d72f9ec8b9ba005fd9116037673cf461@pinky>
+Date: Thu, 30 Nov 2006 10:28:10 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
+In-Reply-To: <6599ad830611300325h3269a185x5794b0c585d985c0@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0611301027340.23649@schroedinger.engr.sgi.com>
+References: <20061129030655.941148000@menage.corp.google.com>
+ <20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
+ <6599ad830611291631hd6d3e52y971c35708004db00@mail.gmail.com>
+ <Pine.LNX.4.64.0611292015280.19628@schroedinger.engr.sgi.com>
+ <6599ad830611300245s5c0f40bdu4231832930e9c023@mail.gmail.com>
+ <20061130201232.7d5f5578.kamezawa.hiroyu@jp.fujitsu.com>
+ <6599ad830611300325h3269a185x5794b0c585d985c0@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-make compound page destructor handling explicit
+On Thu, 30 Nov 2006, Paul Menage wrote:
 
-Currently we we use the lru head link of the second page of a
-compound page to hold its destructor.  This was ok when it was purely
-an internal implmentation detail.  However, hugetlbfs overrides this
-destructor violating the layering.  Abstract this out as explicit
-calls, also introduce a type for the callback function allowing them
-to be type checked.  For each callback we pre-declare the function,
-causing a type error on definition rather than on use elsewhere.
+> OK, so we could do the same, and just assume that pages with a
+> page_mapcount() of 0 are either about to be freed or can be picked up
+> on a later migration sweep. Is it common for a page to have a 0
+> page_mapcount() for a long period of time without being freed or
+> remapped?
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
----
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index cd0528d..667a72e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -298,6 +298,24 @@ void put_pages_list(struct list_head *pa
- void split_page(struct page *page, unsigned int order);
- 
- /*
-+ * Compound pages have a destructor function.  Provide a 
-+ * prototype for that function and accessor functions.
-+ * These are _only_ valid on the head of a PG_compound page.
-+ */
-+typedef void compound_page_dtor(struct page *);
-+
-+static inline void set_compound_page_dtor(struct page *page,
-+						compound_page_dtor *dtor)
-+{
-+	page[1].lru.next = (void *)dtor;
-+}
-+
-+static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
-+{
-+	return (compound_page_dtor *)page[1].lru.next;
-+}
-+
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2911a36..2032fb2 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -88,6 +88,8 @@ static struct page *dequeue_huge_page(st
- 	return page;
- }
- 
-+/* declare the destructor to catch a missmatch on definition. */
-+static compound_page_dtor free_huge_page;
- static void free_huge_page(struct page *page)
- {
- 	BUG_ON(page_count(page));
-@@ -109,7 +111,7 @@ static int alloc_fresh_huge_page(void)
- 	if (nid == MAX_NUMNODES)
- 		nid = first_node(node_online_map);
- 	if (page) {
--		page[1].lru.next = (void *)free_huge_page;	/* dtor */
-+		set_compound_page_dtor(page, free_huge_page);
- 		spin_lock(&hugetlb_lock);
- 		nr_huge_pages++;
- 		nr_huge_pages_node[page_to_nid(page)]++;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7938e46..113d9bc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -240,6 +240,8 @@ static void bad_page(struct page *page)
-  * This usage means that zero-order pages may not be compound.
-  */
- 
-+/* declare the destructor to catch a missmatch on definition. */
-+static compound_page_dtor free_compound_page;
- static void free_compound_page(struct page *page)
- {
- 	__free_pages_ok(page, (unsigned long)page[1].lru.prev);
-@@ -250,7 +252,7 @@ static void prep_compound_page(struct pa
- 	int i;
- 	int nr_pages = 1 << order;
- 
--	page[1].lru.next = (void *)free_compound_page;	/* set dtor */
-+	set_compound_page_dtor(page, free_compound_page);
- 	page[1].lru.prev = (void *)order;
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *p = page + i;
-diff --git a/mm/swap.c b/mm/swap.c
-index 6cc9cb0..87456b2 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -58,9 +58,9 @@ static void put_compound_page(struct pag
- {
- 	page = (struct page *)page_private(page);
- 	if (put_page_testzero(page)) {
--		void (*dtor)(struct page *page);
-+		compound_page_dtor *dtor;
- 
--		dtor = (void (*)(struct page *))page[1].lru.next;
-+		dtor = get_compound_page_dtor(page);
- 		(*dtor)(page);
- 	}
- }
+page mapcount goes to zero during migration because the references to the 
+page are removed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
