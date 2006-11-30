@@ -1,34 +1,35 @@
-Date: Wed, 29 Nov 2006 18:43:52 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Extract kmalloc.h and slob.h from slab.h
-In-Reply-To: <456E3ACE.4040804@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0611291840120.19331@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0611272229290.6012@schroedinger.engr.sgi.com>
- <20061129082650.GB12734@infradead.org> <456D4722.2010202@yahoo.com.au>
- <Pine.LNX.4.64.0611291119480.16189@schroedinger.engr.sgi.com>
- <456E3ACE.4040804@yahoo.com.au>
+Message-ID: <456E472D.4060300@yahoo.com.au>
+Date: Thu, 30 Nov 2006 13:51:25 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Slab: Remove kmem_cache_t
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com> <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com> <456D0FC4.4050704@yahoo.com.au> <20061128200619.67080e11.akpm@osdl.org> <Pine.LNX.4.64.0611282027431.3395@woody.osdl.org> <456D1FDA.4040201@yahoo.com.au> <Pine.LNX.4.64.0611290738270.3395@woody.osdl.org> <456E36A7.2050401@yahoo.com.au> <Pine.LNX.4.64.0611291755310.3513@woody.osdl.org> <456E3E98.5010706@yahoo.com.au> <Pine.LNX.4.64.0611291822420.3513@woody.osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0611291822420.3513@woody.osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Hellwig <hch@infradead.org>, akpm@osdl.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006, Nick Piggin wrote:
+Linus Torvalds wrote:
 
-> kmalloc.h uses the slab, and it calls kmem_cache_alloc. How could it be
-> an improvement to not include slab.h? I don't think hiding a data type
-> definition has any value, does it?
+[stuff]
 
-Well you argued yesterday (today?) for hiding struct kmem_cache in a 
-opaque kmem_cache_t. Now its the other way around?
+Thanks, makes sense.
 
-Maybe its best if I just straighten out slab.h (make a segment for the 
-kmalloc material separate from the kmem_cache* functions and try to get 
-the special slob definitions out by defining empty function ins slob.c? 
+> This particular one doesn't disturb me the way some have done. I literally 
+> asked for the "task_t" typedef to be removed (ugh, that one _really_ 
+> irritated me, especially since code mixed the two, and "struct 
+> task_struct" was the traditional and long-standing way to do it).
 
-That will work for most of slob but not for the kmalloc portions.
+I agree task_t was horrible, especially as it was being used in
+places like sched.c that actually accessed fields in the structure.
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
