@@ -1,63 +1,48 @@
-Message-ID: <456E3783.20601@yahoo.com.au>
-Date: Thu, 30 Nov 2006 12:44:35 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Wed, 29 Nov 2006 17:59:07 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: Slab: Remove kmem_cache_t
-References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com> <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com> <456D0FC4.4050704@yahoo.com.au> <20061128200619.67080e11.akpm@osdl.org> <456D1D82.3060001@yahoo.com.au> <20061128222409.cda8cd5e.akpm@osdl.org> <456D2B8E.4060802@yahoo.com.au> <20061128230837.48fcc34f.akpm@osdl.org> <456D3576.2060109@yahoo.com.au> <20061128234104.9e23b4b1.akpm@osdl.org> <456D3EFC.8030701@yahoo.com.au> <Pine.LNX.4.64.0611290820080.3395@woody.osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0611290820080.3395@woody.osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <456E36A7.2050401@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0611291755310.3513@woody.osdl.org>
+References: <Pine.LNX.4.64.0611281847030.12440@schroedinger.engr.sgi.com>
+ <456D0757.6050903@yahoo.com.au> <Pine.LNX.4.64.0611281923460.12646@schroedinger.engr.sgi.com>
+ <456D0FC4.4050704@yahoo.com.au> <20061128200619.67080e11.akpm@osdl.org>
+ <Pine.LNX.4.64.0611282027431.3395@woody.osdl.org> <456D1FDA.4040201@yahoo.com.au>
+ <Pine.LNX.4.64.0611290738270.3395@woody.osdl.org> <456E36A7.2050401@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Wed, 29 Nov 2006, Nick Piggin wrote:
-> 
->>Oh so it isn't a dependency problem, or one that prevents a cleaner
->>slab bootstrapping process...
-> 
-> 
-> No, it really _can_ be a dependency issue.
 
-Ah true, but in this case it is not. In this case it is just being done
-so some places that declare a struct kmem_cache * do not have to include
-slab.h. Which doesn't seem like a good idea to me, but...
+On Thu, 30 Nov 2006, Nick Piggin wrote:
+> > 
+> > Because they are fundamentally _different_ on different architectures.
+> 
+> So is struct kmem_cache for slab vs slob.
 
-> 
-> A typedef really can only be done once. Which means that either you need 
-> to
-> 
->  (a) avoid them (easy, clean, and simple - especially if the typedef 
->      doesn't actually _buy_ you anything)
-> 
->  (b) have more complicated header file structure and dependencies (for 
->      example, you could have one special header that defines _just_ the 
->      basic types, and have everybody include that)
-> 
->  (c) declare it in multiple places, and use special markers that it's been 
->      declared (see a lot of the standard header files in /usr/include for 
->      thigns like this):
-> 
-> 		#ifndef __HAVE_DECLARED_KMEM_CACHE_T
-> 		#define __HAVE_DECLARED_KMEM_CACHE_T
-> 		typedef struct kmem_cache kmem_cache_t
-> 		#endif
-> 
-> and of the three choices, pick the simplest, cleanest, and least likely 
-> to cause confusion.
-> 
-> Hint: the winner is: "(a) don't use typedefs"
+No. It's always the same. Did you read the emails I send out?
 
-Or in this case "(d) include the correct header file when you use the type",
-is pretty close as well.
+I explicitly said that it doesn't matter if the _members_ change. That's 
+something else, and a typedef doesn't help at all.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+A "struct kmem_cache" is always a "struct kmem_cache". I don't understand 
+why you're even arguing.
+
+In contrast, a "pdt_t" can be "unsigned long" or an anonymous struct, or 
+anything else. A "u64" can be "unsigned long long" or "unsigned long" 
+depending on architecture, etc. But a "struct kmem_cache" is always a 
+"struct kmem_cache". 
+
+There is ZERO advantage to a typedef here. And when there is zero 
+advantage, you shouldn't use a typedef because of the _negatives_ 
+associated with it that have been discussed.
+
+So why use a typedef? 
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
