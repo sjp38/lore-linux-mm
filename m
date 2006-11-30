@@ -1,37 +1,45 @@
-Date: Wed, 29 Nov 2006 20:10:53 -0800 (PST)
+Date: Wed, 29 Nov 2006 20:13:44 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to
  userspace
-In-Reply-To: <20061129033826.268090000@menage.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0611292008020.19628@schroedinger.engr.sgi.com>
+In-Reply-To: <6599ad830611291357w34f9427bje775dfefcd000dfa@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0611292011540.19628@schroedinger.engr.sgi.com>
 References: <20061129030655.941148000@menage.corp.google.com>
- <20061129033826.268090000@menage.corp.google.com>
+ <20061129033826.268090000@menage.corp.google.com>  <456D23A0.9020008@yahoo.com.au>
+ <6599ad830611291357w34f9427bje775dfefcd000dfa@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: menage@google.com
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: Paul Menage <menage@google.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Nov 2006, menage@google.com wrote:
+On Wed, 29 Nov 2006, Paul Menage wrote:
 
-> +	for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-> +		struct page *page = pgdat_page_nr(pgdat, i);
-> +		if (!isolate_lru_page(page, &pagelist)) {
-> +			pagecount++;
-> +		} else {
-> +			failcount++;
-> +		}
-> +	}
+> Quite possibly - I don't have a strong feeling for exactly where the
+> code should go. There's existing code (sys_migrate_pages) that uses
+> the migration mechanism that's in mm/mempolicy.c rather than
+> migrate.c, and this was a pretty simple function to write.
 
-Go along the active / inactive LRU lists? isolate_lru_page will not 
-allow you isolate other pages.
+Plus there is another mechanism in mm/migrate.c that also uses the 
+migration mechanism.
 
-If you go along the lru lists then you also avoid having to deal with 
-holes in the memory map. You cannot simply assume that all struct pages in 
-the area are accessible.
+> We don't need to expose the raw "priority" value, but it would be
+> really nice for user space to be able to specify how hard the kernel
+> should try to free some memory.
 
+Would it not be sufficient to specify that in the number of attempts like
+already provided by the page migration scheme?
+
+> Then each job can specify a "reclaim pressure", i.e. how much
+> back-pressure should be applied to its allocated memory, so you can
+> get a good idea of how much memory the job is really using for a given
+> level of performance. High reclaim pressure results in a smaller
+> working set but possibly more paging in from disk; low reclaim
+> pressure uses more memory but gets higher performance.
+
+Reclaim? I thought you wanted to migrate memory of a node?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
