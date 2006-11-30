@@ -1,60 +1,44 @@
-Date: Thu, 30 Nov 2006 12:15:33 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
-In-Reply-To: <6599ad830611301207q4e4ab485lb0d3c99680db5a2a@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0611301211270.24331@schroedinger.engr.sgi.com>
-References: <20061129030655.941148000@menage.corp.google.com>
- <20061130201232.7d5f5578.kamezawa.hiroyu@jp.fujitsu.com>
- <6599ad830611300325h3269a185x5794b0c585d985c0@mail.gmail.com>
- <Pine.LNX.4.64.0611301027340.23649@schroedinger.engr.sgi.com>
- <6599ad830611301035u36a111dfye8c9414d257ebe07@mail.gmail.com>
- <Pine.LNX.4.64.0611301037590.23732@schroedinger.engr.sgi.com>
- <6599ad830611301109n8c4637ei338ecb4395c3702b@mail.gmail.com>
- <Pine.LNX.4.64.0611301139420.24215@schroedinger.engr.sgi.com>
- <6599ad830611301153i231765a0ke46846bcb73258d6@mail.gmail.com>
- <Pine.LNX.4.64.0611301158560.24331@schroedinger.engr.sgi.com>
- <6599ad830611301207q4e4ab485lb0d3c99680db5a2a@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 1/6] mm: slab allocation fairness
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0611301210190.24331@schroedinger.engr.sgi.com>
+References: <20061130101451.495412000@chello.nl> >
+	 <20061130101921.113055000@chello.nl> >
+	 <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
+	 <1164913365.6588.156.camel@twins>
+	 <Pine.LNX.4.64.0611301137120.24161@schroedinger.engr.sgi.com>
+	 <1164915612.6588.171.camel@twins>
+	 <Pine.LNX.4.64.0611301210190.24331@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 30 Nov 2006 21:15:15 +0100
+Message-Id: <1164917715.6588.177.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, akpm@osdl.org, Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006, Paul Menage wrote:
-
-> > We are talking about anonymous pages here.
+On Thu, 2006-11-30 at 12:11 -0800, Christoph Lameter wrote:
+> On Thu, 30 Nov 2006, Peter Zijlstra wrote:
 > 
-> No, I was talking about pagecache pages by this point - you'd
-> mentioned them as the case where page_mapcount() can be 0 for a long
-> period of time.
-
-Right but pagecache pages are mapped differently by a mapping attached to 
-the inode. The vma does not vanish. We have to distinguish clearly between 
-anonymous and file based pages.
-
-> > You cannot figure out
-> > that the vma is gone since that was the only connection to the process.
-> > Hmm... Not true we still have a migration pte in that processes space. But
-> > we cannot find the process without the anon_vma.
+> > Sure, but there is nothing wrong with using a slab page with a lower
+> > allocation rank when there is memory aplenty. 
 > 
-> What did you think of the approach that I proposed of adding a
-> migration count to anon_vma? unlink_anon_vma() doesn't free the
-> anon_vma if migration count is non-zero.
+> What does "a slab page with a lower allocation rank" mean? Slab pages have 
+> no allocation ranks that I am aware of.
 
-Hmmm.. Well talk to Hugh Dickins about that. anon_vmas are very 
-performance sensitive things.
+I just added allocation rank and didn't you suggest tracking it for all
+slab pages instead of per slab?
 
-> When gathering pages for migration, we use page_lock_anon_vma() to get
-> the anon_vma; if it returns NULL or has an empty vma list we skip the
-> page, else we bump migration count (and mapcount?) by 1 and unlock.
-> That will guarantee that the anon_vma sticks around until the end of
-> the migration.
+The rank is an expression of how hard it was to get that page, with 0
+being the hardest allocation (ALLOC_NO_WATERMARK) and 16 the easiest
+(ALLOC_WMARK_HIGH).
 
-You cannot use page_lock_anon_vma since the mapcount is of the page is  
-zero.  Something must be done before we reduce the mapcount to zero to 
-pin the vma.
+I store the rank of the last allocated page and retest the rank when a
+gfp flag indicates a higher rank, that is when the current slab
+allocation would have failed to grow the slab under the conditions of
+the previous allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
