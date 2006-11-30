@@ -1,44 +1,60 @@
-Date: Thu, 30 Nov 2006 21:18:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
-Message-Id: <20061130211841.6f1fb0f3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830611300325h3269a185x5794b0c585d985c0@mail.gmail.com>
-References: <20061129030655.941148000@menage.corp.google.com>
-	<20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830611291631hd6d3e52y971c35708004db00@mail.gmail.com>
-	<Pine.LNX.4.64.0611292015280.19628@schroedinger.engr.sgi.com>
-	<6599ad830611300245s5c0f40bdu4231832930e9c023@mail.gmail.com>
-	<20061130201232.7d5f5578.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830611300325h3269a185x5794b0c585d985c0@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by nz-out-0102.google.com with SMTP id r28so1272388nza
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2006 04:54:35 -0800 (PST)
+Message-ID: <6d6a94c50611300454g22196d2frec54e701abaebf17@mail.gmail.com>
+Date: Thu, 30 Nov 2006 20:54:34 +0800
+From: Aubrey <aubreylee@gmail.com>
+Subject: Re: The VFS cache is not freed when there is not enough free memory to allocate
+In-Reply-To: <456D5347.3000208@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <6d6a94c50611212351if1701ecx7b89b3fe79371554@mail.gmail.com>
+	 <1164185036.5968.179.camel@twins>
+	 <6d6a94c50611220202t1d076b4cye70dcdcc19f56e55@mail.gmail.com>
+	 <456A964D.2050004@yahoo.com.au>
+	 <4e5ebad50611282317r55c22228qa5333306ccfff28e@mail.gmail.com>
+	 <6d6a94c50611290127u2b26976en1100217a69d651c0@mail.gmail.com>
+	 <456D5347.3000208@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: clameter@sgi.com, linux-mm@kvack.org, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Sonic Zhang <sonic.adi@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vapier.adi@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006 03:25:21 -0800
-"Paul Menage" <menage@google.com> wrote:
+On 11/29/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> That was the order-9 allocation failure. Which is not going to be
+> solved properly by just dropping caches.
+>
+> But Sonic apparently saw failures with 4K allocations, where the
+> caches weren't getting shrunk properly. This would be more interesting
+> because it would indicate a real problem with the kernel.
+>
+I have done several test cases. when cat /proc/meminfo show MemFree < 8192KB,
 
-> On 11/30/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > > How does kswapd do this safely?
-> > >
-> > kswapd doesn't touches page->mapping after page_mapcount() goes down to 0.
-> 
-> OK, so we could do the same, and just assume that pages with a
-> page_mapcount() of 0 are either about to be freed or can be picked up
-> on a later migration sweep. Is it common for a page to have a 0
-> page_mapcount() for a long period of time without being freed or
-> remapped?
-> 
-see  shrink_page_list().
+1) malloc(1024 * 4),  256 times = 8MB, allocation successful.
+2) malloc(1024 * 16),  64 times = 8MB, allocation successful.
+3) malloc(1024 * 64),  16 times = 8MB, allocation successful.
+4) malloc(1024 * 128),  8 times = 8MB, allocation failed.
+5) malloc(1024 * 256),  4 times = 8MB, allocation failed.
 
-unmap -> (write to swap) -> freed. depends on how long write-back needs.
+>From those results,  we know, when allocation <=64K, cache can be
+shrunk properly.
+That means the malloc size of an application on nommu should be
+<=64KB. That's exactly our problem. Some video programmes need a big
+block which has contiguous physical address. But yes, as you said, we
+must keep malloc not to alloc a big block to make the current kernel
+working robust on nommu.
 
--Kame
+So, my question is, Can we improve this issue? why malloc(64K) is ok
+but malloc(128K) not? Is there any existing parameters about this
+issue? why not kernel attempt to shrunk cache no matter how big memory
+allocation is requested?
+
+Any thoughts?
+
+Thanks,
+-Aubrey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
