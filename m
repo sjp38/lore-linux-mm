@@ -1,9 +1,9 @@
-Date: Thu, 30 Nov 2006 10:52:52 -0800 (PST)
+Date: Thu, 30 Nov 2006 10:55:51 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 1/6] mm: slab allocation fairness
-In-Reply-To: <20061130101921.113055000@chello.nl>>
-Message-ID: <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
-References: <20061130101451.495412000@chello.nl>> <20061130101921.113055000@chello.nl>>
+Subject: Re: [RFC][PATCH 5/6] slab: kmem_cache_objs_to_pages()
+In-Reply-To: <20061130101922.175620000@chello.nl>>
+Message-ID: <Pine.LNX.4.64.0611301053340.23820@schroedinger.engr.sgi.com>
+References: <20061130101451.495412000@chello.nl>> <20061130101922.175620000@chello.nl>>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,26 +14,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 30 Nov 2006, Peter Zijlstra wrote:
 
-> The slab has some unfairness wrt gfp flags; when the slab is grown the gfp 
-> flags are used to allocate more memory, however when there is slab space 
-> available, gfp flags are ignored. Thus it is possible for less critical 
-> slab allocations to succeed and gobble up precious memory.
+> +unsigned int kmem_cache_objs_to_pages(struct kmem_cache *cachep, int nr)
+> +{
+> +	return ((nr + cachep->num - 1) / cachep->num) << cachep->gfporder;
 
-The gfpflags are ignored if there are
+cachep->num refers to the number of objects in a slab of gfporder.
 
-1) objects in the per cpu, shared or alien caches
+thus
 
-2) objects are in partial or free slabs in the per node queues.
+return (nr + cachep->num - 1) / cachep->num;
 
-> This patch avoids this by keeping track of the allocation hardness when 
-> growing. This is then compared to the current slab alloc's gfp flags.
-
-The approach is to force the allocation of additional slab to increase the 
-number of free slabs? The next free will drop the number of free slabs 
-back again to the allowed amount.
-
-I would think that one would need a rank with each cached object and 
-free slab in order to do this the right way.
+But then this is very optimistic estimate that assumes a single node and 
+no free objects in between.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
