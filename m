@@ -1,49 +1,59 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id kAU0PO42027782
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 16:25:25 -0800
-Received: from nf-out-0910.google.com (nfeb2.prod.google.com [10.48.154.2])
-	by zps75.corp.google.com with ESMTP id kAU0PMQo010244
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2006 16:25:23 -0800
-Received: by nf-out-0910.google.com with SMTP id b2so2889267nfe
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2006 16:25:22 -0800 (PST)
-Message-ID: <6599ad830611291625uf599963k7e6ff351c2b73e34@mail.gmail.com>
-Date: Wed, 29 Nov 2006 16:25:22 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to userspace
-In-Reply-To: <20061130091815.018f52fd.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Thu, 30 Nov 2006 09:31:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
+Message-Id: <20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20061129030655.941148000@menage.corp.google.com>
 References: <20061129030655.941148000@menage.corp.google.com>
-	 <20061129033826.268090000@menage.corp.google.com>
-	 <20061130091815.018f52fd.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: menage@google.com
 Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/29/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 28 Nov 2006 19:06:56 -0800
-> menage@google.com wrote:
+On Tue, 28 Nov 2006 19:06:55 -0800
+menage@google.com wrote:
+
+> --
+> 
+> We're trying to use NUMA node isolation as a form of job resource
+> control at Google, and the existing page migration APIs are all bound
+> to individual processes and so are a bit clunky to use when you just
+> want to affect all the pages on a given node.
+> 
+> How about an API to allow userspace to direct page migration (and page
+> reclaim) on a per-node basis? This patch provides such an API, based
+> around sysfs; a system call approach would certainly be possible too.
 >
-> >
-> > +     for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-> > +             struct page *page = pgdat_page_nr(pgdat, i);
-> you need pfn_valid() check before accessing page struct.
+> It sort of overlaps with memory hot-unplug, but is simpler since it's
+> not so bad if we miss a few pages.
+> 
+> Comments? Also, can anyone clarify whether I need any locking when
+> sacnning the pages in a pgdat? As far as I can see, even with memory
+> hotplug this number can only increase, not decrease.
+> 
 
-OK. (That check can only fail if CONFIG_SPARSEMEM, right?)
+Hi, I'm one of memory-hot-unplug men. (But I can't go ahead for now.)
 
->
->
-> > +             if (!isolate_lru_page(page, &pagelist)) {
-> you'll see panic if !PageLRU(page).
+a few comments.
+1. memory hot unplug will be implemnted based on *section* not on *node*.
+   section <-> node relationship will be displayed.
 
-In which kernel version? In 2.6.19-rc6 (also -mm1) there's no panic in
-isolate_lru_page().
+2. AFAIK, migrating pages without taking write lock of any mm->sem will
+   cause problem. anon_vma can be freed while migration.
 
-Paul
+3. It's maybe better to add a hook to stop page allocation from the target node(zone).
+   you may want to use this feature under heavly load.
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
