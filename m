@@ -1,27 +1,28 @@
+Date: Thu, 30 Nov 2006 11:33:32 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC][PATCH 1/6] mm: slab allocation fairness
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
-References: <20061130101451.495412000@chello.nl> >
-	 <20061130101921.113055000@chello.nl> >
-	  <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 30 Nov 2006 20:02:45 +0100
-Message-Id: <1164913365.6588.156.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1164912915.6588.153.camel@twins>
+Message-ID: <Pine.LNX.4.64.0611301132530.24161@schroedinger.engr.sgi.com>
+References: <20061130101451.495412000@chello.nl> >  <20061130101921.113055000@chello.nl>
+ >   <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
+ <1164912915.6588.153.camel@twins>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-11-30 at 10:52 -0800, Christoph Lameter wrote:
+On Thu, 30 Nov 2006, Peter Zijlstra wrote:
 
-> I would think that one would need a rank with each cached object and 
-> free slab in order to do this the right way.
+> No, the forced allocation is to test the allocation hardness at that
+> point in time. I could not think of another way to test that than to
+> actually to an allocation.
 
-Allocation hardness is a temporal attribute, ie. it changes over time.
-Hence I do it per slab.
+Typically we do this by checking the number of free pages in a zone 
+compared to the high low limits. See mmzone.h.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
