@@ -1,29 +1,47 @@
-Date: Thu, 30 Nov 2006 11:06:24 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 5/6] slab: kmem_cache_objs_to_pages()
-In-Reply-To: <1164912917.6588.155.camel@twins>
-Message-ID: <Pine.LNX.4.64.0611301103340.23913@schroedinger.engr.sgi.com>
-References: <20061130101451.495412000@chello.nl> >  <20061130101922.175620000@chello.nl>
- >   <Pine.LNX.4.64.0611301053340.23820@schroedinger.engr.sgi.com>
- <1164912917.6588.155.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 1/6] mm: slab allocation fairness
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
+References: <20061130101451.495412000@chello.nl> >
+	 <20061130101921.113055000@chello.nl> >
+	  <Pine.LNX.4.64.0611301049220.23820@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Thu, 30 Nov 2006 19:55:15 +0100
+Message-Id: <1164912915.6588.153.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006, Peter Zijlstra wrote:
+On Thu, 2006-11-30 at 10:52 -0800, Christoph Lameter wrote:
+> On Thu, 30 Nov 2006, Peter Zijlstra wrote:
+> 
+> > The slab has some unfairness wrt gfp flags; when the slab is grown the gfp 
+> > flags are used to allocate more memory, however when there is slab space 
+> > available, gfp flags are ignored. Thus it is possible for less critical 
+> > slab allocations to succeed and gobble up precious memory.
+> 
+> The gfpflags are ignored if there are
+> 
+> 1) objects in the per cpu, shared or alien caches
+> 
+> 2) objects are in partial or free slabs in the per node queues.
 
-> Right, perhaps my bad in wording the intent; the needed information is
-> how many more pages would I need to grow the slab with in order to store
-> so many new object.
+Yeah, basically as long as free objects can be found. No matter how
+'hard' is was to obtain these objects.
 
-Would you not have to take objects currently available in 
-caches into account? If you are short on memory then a flushing of all the 
-caches may give you the memory you need (especially on a system with a 
-large number of processors).
+> > This patch avoids this by keeping track of the allocation hardness when 
+> > growing. This is then compared to the current slab alloc's gfp flags.
+> 
+> The approach is to force the allocation of additional slab to increase the 
+> number of free slabs? The next free will drop the number of free slabs 
+> back again to the allowed amount.
+
+No, the forced allocation is to test the allocation hardness at that
+point in time. I could not think of another way to test that than to
+actually to an allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
