@@ -1,60 +1,56 @@
-Date: Thu, 30 Nov 2006 20:12:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
-Message-Id: <20061130201232.7d5f5578.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830611300245s5c0f40bdu4231832930e9c023@mail.gmail.com>
-References: <20061129030655.941148000@menage.corp.google.com>
-	<20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830611291631hd6d3e52y971c35708004db00@mail.gmail.com>
-	<Pine.LNX.4.64.0611292015280.19628@schroedinger.engr.sgi.com>
-	<6599ad830611300245s5c0f40bdu4231832930e9c023@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id kAUBNFrO002457
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2006 03:23:15 -0800
+Received: from nf-out-0910.google.com (nfec2.prod.google.com [10.48.155.2])
+	by zps37.corp.google.com with ESMTP id kAUBNA3r022283
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2006 03:23:10 -0800
+Received: by nf-out-0910.google.com with SMTP id c2so3014268nfe
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2006 03:23:09 -0800 (PST)
+Message-ID: <6599ad830611300323l40841241qaa39ee497c26769c@mail.gmail.com>
+Date: Thu, 30 Nov 2006 03:23:09 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to userspace
+In-Reply-To: <456EBACB.9080304@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20061129030655.941148000@menage.corp.google.com>
+	 <456E95C4.5020809@yahoo.com.au>
+	 <6599ad830611300039m334e276i9cb3141cc5358d00@mail.gmail.com>
+	 <456E9C90.4020909@yahoo.com.au>
+	 <6599ad830611300106w5f5deb60q6d83a684fd679d06@mail.gmail.com>
+	 <456EA28C.8070508@yahoo.com.au>
+	 <6599ad830611300145gae22510te7eaa63edf539ad1@mail.gmail.com>
+	 <456EAF4D.5000804@yahoo.com.au>
+	 <6599ad830611300240x388ef00s60183bc3a105ed2a@mail.gmail.com>
+	 <456EBACB.9080304@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: clameter@sgi.com, linux-mm@kvack.org, akpm@osdl.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006 02:45:51 -0800
-"Paul Menage" <menage@google.com> wrote:
+On 11/30/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> But I'm not sure that there is a good reason to use the same
+> abstraction. Maybe there is, but I think it needs more discussion
+> (unless I missed something in the past couple of weeks were you
+> managed to get all memory resource controller groups to agree with
+> your fakenodes approach).
 
-> On 11/29/06, Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > You do not have a problem as long as you hold a mmap_sem lock on any of
-> > the vmas in which the page appears. Kame and I discussed several
-> > approached on how to avoid the issue in the past but so far there was no
-> > need to resolve the issue.
-> >
-> 
-> It sounds like this would be useful for memory hot-unplug too, though.
-> A problem worth solving?
-> 
-It's not solved just because 'there is no user'.
-If you'll fix it, I welcome it.
+No, not at all - but we've observed that:
 
-> Why isn't page_lock_anon_vma() safe to use in this case? Because after
-> we've established migration ptes, page_mapped() will be false and so
-> page_lock_anon_vma() will return NULL?
-page_lock_anon_vma() will return NULL because mapcount is 0.
-We have to guarantee that we can trust anon_vma(from page->mapping0 even if
-page->mapcount is 0.maybe there is several ways.
+a) people have been proposing interesting memory controller approaches
+for a long time, and haven't made a great deal of progress so far, so
+there's no indication than something is going to be agreed upon in the
+near future
 
-> How does kswapd do this safely?
-> 
-kswapd doesn't touches page->mapping after page_mapcount() goes down to 0.
+b) the cpusets and fake numa code provide a fairly serviceable
+coarse-grained memory controller, modulo a few missing features such
+as per-node reclaim/migration and auto-expansion (see my patch
+proposal hopefully tomorrow).
 
-> Possible approach (apologies if you've already considered and rejected this):
-> 
-As you pointed out, there will be several approaches.
-
-I think one of the biggest concern will be performance impact. And this will 
-touch objrmap core, it is good to start discussion with a patch. 
-
--Kame
-
-> 
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
