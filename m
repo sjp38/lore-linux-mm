@@ -1,41 +1,50 @@
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id kAU0VOiW015718
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2006 00:31:24 GMT
-Received: from ug-out-1314.google.com (ugf39.prod.google.com [10.66.6.39])
-	by spaceape14.eur.corp.google.com with ESMTP id kAU0UCce012726
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2006 00:31:23 GMT
-Received: by ug-out-1314.google.com with SMTP id 39so3612068ugf
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2006 16:31:23 -0800 (PST)
-Message-ID: <6599ad830611291631hd6d3e52y971c35708004db00@mail.gmail.com>
-Date: Wed, 29 Nov 2006 16:31:22 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
-In-Reply-To: <20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Thu, 30 Nov 2006 09:38:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/1] Expose per-node reclaim and migration to
+ userspace
+Message-Id: <20061130093838.4ad6b301.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830611291625uf599963k7e6ff351c2b73e34@mail.gmail.com>
 References: <20061129030655.941148000@menage.corp.google.com>
-	 <20061130093105.d872c49d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20061129033826.268090000@menage.corp.google.com>
+	<20061130091815.018f52fd.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830611291625uf599963k7e6ff351c2b73e34@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Paul Menage <menage@google.com>
 Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/29/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
-> 2. AFAIK, migrating pages without taking write lock of any mm->sem will
->    cause problem. anon_vma can be freed while migration.
+On Wed, 29 Nov 2006 16:25:22 -0800
+"Paul Menage" <menage@google.com> wrote:
 
-Hmm, isn't migration just analagous to swapping out and swapping back
-in again, but without the actual swapping?
+> On 11/29/06, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Tue, 28 Nov 2006 19:06:56 -0800
+> > menage@google.com wrote:
+> >
+> > >
+> > > +     for (i = 0; i < pgdat->node_spanned_pages; ++i) {
+> > > +             struct page *page = pgdat_page_nr(pgdat, i);
+> > you need pfn_valid() check before accessing page struct.
+> 
+> OK. (That check can only fail if CONFIG_SPARSEMEM, right?)
+> 
+No, ia64's virtual memmap will fail too.
 
-If what you describe is a problem, then wouldn't you have a problem if
-you were doing migration on a particular mm structure, but it was
-sharing pages with another mm?
+> >
+> >
+> > > +             if (!isolate_lru_page(page, &pagelist)) {
+> > you'll see panic if !PageLRU(page).
+> 
+> In which kernel version? In 2.6.19-rc6 (also -mm1) there's no panic in
+> isolate_lru_page().
+> 
 
-Paul
+Sorry, my mistake. I checked isolate_lru_pages() (><
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
