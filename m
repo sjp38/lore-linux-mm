@@ -1,44 +1,76 @@
-Date: Thu, 30 Nov 2006 21:28:03 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH 0/1] Node-based reclaim/migration
-In-Reply-To: <20061201121055.6325bca6.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0611302127310.14699@schroedinger.engr.sgi.com>
-References: <20061129030655.941148000@menage.corp.google.com>
- <Pine.LNX.4.64.0611301037590.23732@schroedinger.engr.sgi.com>
- <6599ad830611301109n8c4637ei338ecb4395c3702b@mail.gmail.com>
- <Pine.LNX.4.64.0611301139420.24215@schroedinger.engr.sgi.com>
- <6599ad830611301153i231765a0ke46846bcb73258d6@mail.gmail.com>
- <Pine.LNX.4.64.0611301158560.24331@schroedinger.engr.sgi.com>
- <6599ad830611301207q4e4ab485lb0d3c99680db5a2a@mail.gmail.com>
- <Pine.LNX.4.64.0611301211270.24331@schroedinger.engr.sgi.com>
- <6599ad830611301333v48f2da03g747c088ed3b4ad60@mail.gmail.com>
- <Pine.LNX.4.64.0611301540390.13297@schroedinger.engr.sgi.com>
- <6599ad830611301548y66e5e66eo2f61df940a66711a@mail.gmail.com>
- <20061201114414.0c90f649.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0611301843440.14268@schroedinger.engr.sgi.com>
- <20061201121055.6325bca6.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 1 Dec 2006 09:54:11 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+In-Reply-To: <20061130173129.4ebccaa2.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>
+References: <20061130170746.GA11363@skynet.ie> <20061130173129.4ebccaa2.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: menage@google.com, hugh@veritas.com, linux-mm@kvack.org, akpm@osdl.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Dec 2006, KAMEZAWA Hiroyuki wrote:
+On Thu, 30 Nov 2006, Andrew Morton wrote:
 
-> On Thu, 30 Nov 2006 18:44:30 -0800 (PST)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Fixed up patch with more comments and a check that the migration_count is
-> > zero before freeing.
-> > 
-> 
-> Looks good, thanks. we need users and tests :)
+> On Thu, 30 Nov 2006 17:07:46 +0000
+> mel@skynet.ie (Mel Gorman) wrote:
+>
+>> Am reporting this patch after there were no further comments on the last
+>> version.
+>
+> Am not sure what to do with it - nothing actually uses __GFP_MOVABLE.
+>
 
-Yeah we would need something that is not process based. Paul Menage may 
-have something.
+Nothing yet. To begin with, this is just a documentation mechanism. I'll 
+be trying to push page clustering one piece at a time which will need 
+this. The markings may also be of interest to containers and to pagesets 
+because it will clearly flag what are allocations in use by userspace.
 
+>> It is often known at allocation time when a page may be migrated or not.
+>
+> "often", yes.
+>
+>> This
+>> page adds a flag called __GFP_MOVABLE and GFP_HIGH_MOVABLE. Allocations using
+>> the __GFP_MOVABLE can be either migrated using the page migration mechanism
+>> or reclaimed by syncing with backing storage and discarding.
+>>
+>> Additional credit goes to Christoph Lameter and Linus Torvalds for shaping
+>> the concept. Credit to Hugh Dickens for catching issues with shmem swap
+>> vector and ramfs allocations.
+>>
+>> ...
+>>
+>> @@ -65,7 +65,7 @@ static inline void clear_user_highpage(s
+>>  static inline struct page *
+>>  alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+>>  {
+>> -	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
+>> +	struct page *page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, vaddr);
+>>
+>>  	if (page)
+>>  		clear_user_highpage(page, vaddr);
+>
+> But this change is presumptuous.  alloc_zeroed_user_highpage() doesn't know
+> that its caller is going to use the page for moveable purposes.  (Ditto lots
+> of other places in this patch).
+>
+
+according to grep -r, alloc_zeroed_user_highpage() is only used in two 
+places, do_wp_page() (when write faulting the zero page)[1] and 
+do_anonymous_page() (when mapping the zero page for the first time and 
+writing). In these cases, they are known to be movable. What am I missing?
+
+[1] I missed a call to GFP_HIGHUSER in do_wp_page() that should have been 
+GFP_HIGH_MOVABLE.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
