@@ -1,76 +1,50 @@
-Date: Fri, 1 Dec 2006 09:54:11 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
- may be migrated
-In-Reply-To: <20061130173129.4ebccaa2.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>
-References: <20061130170746.GA11363@skynet.ie> <20061130173129.4ebccaa2.akpm@osdl.org>
+Received: by ug-out-1314.google.com with SMTP id s2so2107052uge
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2006 02:00:53 -0800 (PST)
+Message-ID: <6d6a94c50612010200t2c9dfc36m603ddc4948285bf@mail.gmail.com>
+Date: Fri, 1 Dec 2006 18:00:53 +0800
+From: Aubrey <aubreylee@gmail.com>
+Subject: Re: The VFS cache is not freed when there is not enough free memory to allocate
+In-Reply-To: <456F4A95.2090503@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <6d6a94c50611212351if1701ecx7b89b3fe79371554@mail.gmail.com>
+	 <1164185036.5968.179.camel@twins>
+	 <6d6a94c50611220202t1d076b4cye70dcdcc19f56e55@mail.gmail.com>
+	 <456A964D.2050004@yahoo.com.au>
+	 <4e5ebad50611282317r55c22228qa5333306ccfff28e@mail.gmail.com>
+	 <6d6a94c50611290127u2b26976en1100217a69d651c0@mail.gmail.com>
+	 <456D5347.3000208@yahoo.com.au>
+	 <6d6a94c50611300454g22196d2frec54e701abaebf17@mail.gmail.com>
+	 <456F4A95.2090503@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: clameter@sgi.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Sonic Zhang <sonic.adi@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vapier.adi@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Nov 2006, Andrew Morton wrote:
+On 12/1/06, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>
+> The pattern you are seeing here is probably due to the page allocator
+> always retrying process context allocations which are <= order 3 (64K
+> with 4K pages).
+>
+> You might be able to increase this limit a bit for your system, but it
+> could easily cause problems. Especially fragmentation on nommu systems
+> where the anonymous memory cannot be paged out.
 
-> On Thu, 30 Nov 2006 17:07:46 +0000
-> mel@skynet.ie (Mel Gorman) wrote:
->
->> Am reporting this patch after there were no further comments on the last
->> version.
->
-> Am not sure what to do with it - nothing actually uses __GFP_MOVABLE.
->
+Thanks for your clue. I found increasing this limit could really help
+my test cases.
+When MemFree < 8M, and the test case request 1M * 8 times, the
+allocation can be sucessful after 81 times rebalance, :). So far I
+haven't found any issue.
 
-Nothing yet. To begin with, this is just a documentation mechanism. I'll 
-be trying to push page clustering one piece at a time which will need 
-this. The markings may also be of interest to containers and to pagesets 
-because it will clearly flag what are allocations in use by userspace.
+If I make a patch to move this parameter to be tunable in the proc
+filesystem on nommu case, is it acceptable?
 
->> It is often known at allocation time when a page may be migrated or not.
->
-> "often", yes.
->
->> This
->> page adds a flag called __GFP_MOVABLE and GFP_HIGH_MOVABLE. Allocations using
->> the __GFP_MOVABLE can be either migrated using the page migration mechanism
->> or reclaimed by syncing with backing storage and discarding.
->>
->> Additional credit goes to Christoph Lameter and Linus Torvalds for shaping
->> the concept. Credit to Hugh Dickens for catching issues with shmem swap
->> vector and ramfs allocations.
->>
->> ...
->>
->> @@ -65,7 +65,7 @@ static inline void clear_user_highpage(s
->>  static inline struct page *
->>  alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
->>  {
->> -	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
->> +	struct page *page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, vaddr);
->>
->>  	if (page)
->>  		clear_user_highpage(page, vaddr);
->
-> But this change is presumptuous.  alloc_zeroed_user_highpage() doesn't know
-> that its caller is going to use the page for moveable purposes.  (Ditto lots
-> of other places in this patch).
->
-
-according to grep -r, alloc_zeroed_user_highpage() is only used in two 
-places, do_wp_page() (when write faulting the zero page)[1] and 
-do_anonymous_page() (when mapping the zero page for the first time and 
-writing). In these cases, they are known to be movable. What am I missing?
-
-[1] I missed a call to GFP_HIGHUSER in do_wp_page() that should have been 
-GFP_HIGH_MOVABLE.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+-Aubrey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
