@@ -1,40 +1,84 @@
-Date: Mon, 4 Dec 2006 10:47:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch/rfc 0/2] vmemmap for s390
-Message-Id: <20061204104714.bc800a03.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20061201140542.GA8788@osiris.boeblingen.de.ibm.com>
-References: <20061201140542.GA8788@osiris.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Mon, 04 Dec 2006 22:27:21 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: 2.6.19 randconfig build error
+In-Reply-To: <20061130210952.8fda882a.randy.dunlap@oracle.com>
+References: <20061130210952.8fda882a.randy.dunlap@oracle.com>
+Message-Id: <20061204222314.F7AC.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-mm@kvack.org, schwidefsky@de.ibm.com, cotte@de.ibm.com
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Dec 2006 15:05:42 +0100
-Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-
-> This is the s390 implementation (both 31 and 64 bit) of a virtual memmap.
-> ia64 was used as a blueprint of course. I hope I incorporated everything
-> I read lately on linux-mm wrt. vmemmap.
-> So I post this as an RFC, since I most probably have forgotten something,
-> or did something wrong. Comments highly appreciated.
 > 
-> This patchset is against linux-2.6.19-rc6-mm2.
-> 
-> Patch 1 is sort of unrelated to the vmemmap patch but still needed, so
-> that the patch applies.
-> Patch 2 is the vmemmap implementation.
-> 
+> mm/built-in.o: In function `add_memory':
+> (.text+0x24235): undefined reference to `arch_add_memory'
+> drivers/built-in.o: In function `memory_block_change_state':
+> memory.c:(.text+0x75a1d): undefined reference to `remove_memory'
+> make: *** [.tmp_vmlinux1] Error 1
 
-- Could you divide Patch 2 into a few pieces ?
-  * setup, vmemmap pagetable creation, shared memory codes , etc...
 
-- Do you need vmemmap for 32 bits ? (just a question)
+Hmmm. True cause was i386's memory hotplug code didn't support NUMA code.
+This compile error is fixed by this patch. 
 
--Kame
+But, if CONFIG_ACPI is on, memory_add_physaddr_to_nid() will 
+be cause of another compile error yet, because there is no definition
+of it. I'll fix it later.
+
+Thanks.
+
+-------------
+
+This patch is to fix compile error when CONFIG_NEED_MULTIPLE_NODES=y
+and config MEMORY_HOTPLUG=y as followings.
+
+mm/built-in.o: In function `add_memory':
+(.text+0x24235): undefined reference to `arch_add_memory'
+drivers/built-in.o: In function `memory_block_change_state':
+memory.c:(.text+0x75a1d): undefined reference to `remove_memory'
+make: *** [.tmp_vmlinux1] Error 1
+
+This is for 2.6.19, and I tested no compile error of it.
+
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+
+---
+ arch/i386/mm/init.c |    4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+Index: linux-2.6.19/arch/i386/mm/init.c
+===================================================================
+--- linux-2.6.19.orig/arch/i386/mm/init.c	2006-12-04 20:06:32.000000000 +0900
++++ linux-2.6.19/arch/i386/mm/init.c	2006-12-04 21:09:49.000000000 +0900
+@@ -681,10 +681,9 @@
+  * memory to the highmem for now.
+  */
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-#ifndef CONFIG_NEED_MULTIPLE_NODES
+ int arch_add_memory(int nid, u64 start, u64 size)
+ {
+-	struct pglist_data *pgdata = &contig_page_data;
++	struct pglist_data *pgdata = NODE_DATA(nid);
+ 	struct zone *zone = pgdata->node_zones + ZONE_HIGHMEM;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+@@ -697,7 +696,6 @@
+ 	return -EINVAL;
+ }
+ #endif
+-#endif
+ 
+ kmem_cache_t *pgd_cache;
+ kmem_cache_t *pmd_cache;
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
