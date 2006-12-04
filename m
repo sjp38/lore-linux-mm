@@ -1,61 +1,61 @@
-Date: Mon, 4 Dec 2006 15:55:52 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] possible page manipulation simplifications?
-Message-ID: <20061204145552.GB14383@wotan.suse.de>
-References: <20061202121519.GA20670@wotan.suse.de> <20061204144005.GA22233@skynet.ie>
+Date: Mon, 4 Dec 2006 11:30:51 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+Message-Id: <20061204113051.4e90b249.akpm@osdl.org>
+In-Reply-To: <20061204140747.GA21662@skynet.ie>
+References: <20061130170746.GA11363@skynet.ie>
+	<20061130173129.4ebccaa2.akpm@osdl.org>
+	<Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>
+	<20061201110103.08d0cf3d.akpm@osdl.org>
+	<20061204140747.GA21662@skynet.ie>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061204144005.GA22233@skynet.ie>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel Gorman <mel@skynet.ie>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: clameter@sgi.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 04, 2006 at 02:40:05PM +0000, Mel Gorman wrote:
-> On (02/12/06 13:15), Nick Piggin didst pronounce:
-> > Hi,
-> > 
-> > While working in this area, I noticed a few things we do that may not
-> > have a positive payoff under the most common conditions. Untested yet,
-> > and probably needs a bit of instrumentation, but it saves about half a
-> > K of code, lots of branches, and makes things look nicer. Any thoughts?
-> > 
-> > Quite a bit of code is used in maintaining these "cached pages" that are
-> > probably pretty unlikely to get used.
-> > 
+On Mon, 4 Dec 2006 14:07:47 +0000
+mel@skynet.ie (Mel Gorman) wrote:
+
+> o copy_strings() and variants are no longer setting the flag as the pages
+>   are not obviously movable when I took a much closer look.
 > 
-> I think you might be leaking now though. More comments below.
+> o The arch function alloc_zeroed_user_highpage() is now called
+>   __alloc_zeroed_user_highpage and takes flags related to
+>   movability that will be applied.  alloc_zeroed_user_highpage()
+>   calls __alloc_zeroed_user_highpage() with no additional flags to
+>   preserve existing behavior of the API for out-of-tree users and
+>   alloc_zeroed_user_highpage_movable() sets the __GFP_MOVABLE flag.
 > 
-> > Also, buffered write path (and others) uses its own LRU pagevec when we should
-> > be just using the per-CPU LRU pagevec (which will cut down on both data and
-> > code size cacheline footprint).
-> > 
-> 
-> Splitting the patch into two could be nice but it's grand for the
-> moment.
+> o new_inode() documents that it uses GFP_HIGH_MOVABLE and callers are expected
+>   to call mapping_set_gfp_mask() if that is not suitable.
 
-Hi Mel,
+umm, OK.  Could we please have some sort of statement pinning down the
+exact semantics of __GFP_MOVABLE, and what its envisaged applications are?
 
-I think you're right about the leakage, thanks for catching it.
+My concern is that __GFP_MOVABLE is useful for fragmentation-avoidance, but
+useless for memory hot-unplug.  So that if/when hot-unplug comes along
+we'll add more gunk which is a somewhat-superset of the GFP_MOVABLE
+infrastructure, hence we didn't need the GFP_MOVABLE code.  Or something.
 
-As far as allocating pages twice is concerned, I *strongly* believe
-it is the wrong tradeoff to fix this with a "cached_page" because we
-have to hit 2 reasonably rare races.
+That depends on how we do hot-unplug, if we do it.  I continue to suspect
+that it'll be done via memory zones: effectively by resurrecting
+GFP_HIGHMEM.  In which case there's little overlap with anti-frag.  (btw, I
+have a suspicion that the most important application of memory hot-unplug
+will be power management: destructively turning off DIMMs).
 
-Firstly, we must find no pagecache exists, then we discover a page
-has been installed after allocating. This will be rare for most
-workloads, but lets say that it comes up in a few because page alloc
-may sleep (a busy file server might have several processes reading
-the same file, triggering this race in the write path would be even
-less common).
+I'd also like to pin down the situation with lumpy-reclaim versus
+anti-fragmentation.  No offence, but I would of course prefer to avoid
+merging the anti-frag patches simply based on their stupendous size.  It
+seems to me that lumpy-reclaim is suitable for the e1000 problem, but
+perhaps not for the hugetlbpage problem.  Whereas anti-fragmentation adds
+vastly more code, but can address both problems?  Or something.
 
-However supposing this race is triggered, then we *also* need to
-fail the page lookup a few instructions after a similar operation
-has succeeded!
-
-Thanks, will post an updated and properly tested version in a while.
+IOW: big-picture where-do-we-go-from-here stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
