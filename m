@@ -1,84 +1,62 @@
-Date: Mon, 04 Dec 2006 22:27:21 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: 2.6.19 randconfig build error
-In-Reply-To: <20061130210952.8fda882a.randy.dunlap@oracle.com>
-References: <20061130210952.8fda882a.randy.dunlap@oracle.com>
-Message-Id: <20061204222314.F7AC.Y-GOTO@jp.fujitsu.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kB4DU9H4150498
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:30:09 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kB4DU9Re2060354
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:30:09 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kB4DU8mX023536
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:30:09 GMT
+Date: Mon, 4 Dec 2006 14:30:08 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [patch/rfc 0/2] vmemmap for s390
+Message-ID: <20061204133008.GA9209@osiris.boeblingen.de.ibm.com>
+References: <20061201140542.GA8788@osiris.boeblingen.de.ibm.com> <20061204104714.bc800a03.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20061204104714.bc800a03.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, schwidefsky@de.ibm.com, cotte@de.ibm.com
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Dec 04, 2006 at 10:47:14AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 1 Dec 2006 15:05:42 +0100
+> Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
 > 
-> mm/built-in.o: In function `add_memory':
-> (.text+0x24235): undefined reference to `arch_add_memory'
-> drivers/built-in.o: In function `memory_block_change_state':
-> memory.c:(.text+0x75a1d): undefined reference to `remove_memory'
-> make: *** [.tmp_vmlinux1] Error 1
+> > This is the s390 implementation (both 31 and 64 bit) of a virtual memmap.
+> > ia64 was used as a blueprint of course. I hope I incorporated everything
+> > I read lately on linux-mm wrt. vmemmap.
+> > So I post this as an RFC, since I most probably have forgotten something,
+> > or did something wrong. Comments highly appreciated.
+> >
+> > This patchset is against linux-2.6.19-rc6-mm2.
+> >
+> > Patch 1 is sort of unrelated to the vmemmap patch but still needed, so
+> > that the patch applies.
+> > Patch 2 is the vmemmap implementation.
+> >
+> 
+> - Could you divide Patch 2 into a few pieces ?
+>   * setup, vmemmap pagetable creation, shared memory codes , etc...
 
+Yes, will do.
 
-Hmmm. True cause was i386's memory hotplug code didn't support NUMA code.
-This compile error is fixed by this patch. 
+> - Do you need vmemmap for 32 bits ? (just a question)
 
-But, if CONFIG_ACPI is on, memory_add_physaddr_to_nid() will 
-be cause of another compile error yet, because there is no definition
-of it. I'll fix it later.
+Yes, because of two reasons:
 
-Thanks.
+- this way we can use the same code for both 31 and 64 bit, which simplifies
+  maintenance.
 
--------------
-
-This patch is to fix compile error when CONFIG_NEED_MULTIPLE_NODES=y
-and config MEMORY_HOTPLUG=y as followings.
-
-mm/built-in.o: In function `add_memory':
-(.text+0x24235): undefined reference to `arch_add_memory'
-drivers/built-in.o: In function `memory_block_change_state':
-memory.c:(.text+0x75a1d): undefined reference to `remove_memory'
-make: *** [.tmp_vmlinux1] Error 1
-
-This is for 2.6.19, and I tested no compile error of it.
-
-
-Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-
-
----
- arch/i386/mm/init.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
-
-Index: linux-2.6.19/arch/i386/mm/init.c
-===================================================================
---- linux-2.6.19.orig/arch/i386/mm/init.c	2006-12-04 20:06:32.000000000 +0900
-+++ linux-2.6.19/arch/i386/mm/init.c	2006-12-04 21:09:49.000000000 +0900
-@@ -681,10 +681,9 @@
-  * memory to the highmem for now.
-  */
- #ifdef CONFIG_MEMORY_HOTPLUG
--#ifndef CONFIG_NEED_MULTIPLE_NODES
- int arch_add_memory(int nid, u64 start, u64 size)
- {
--	struct pglist_data *pgdata = &contig_page_data;
-+	struct pglist_data *pgdata = NODE_DATA(nid);
- 	struct zone *zone = pgdata->node_zones + ZONE_HIGHMEM;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-@@ -697,7 +696,6 @@
- 	return -EINVAL;
- }
- #endif
--#endif
- 
- kmem_cache_t *pgd_cache;
- kmem_cache_t *pmd_cache;
-
--- 
-Yasunori Goto 
-
+- if we convert to Mel Gorman's 'add_active_range' interface then we still
+  need a way to add/initialize struct pages. Mel's new interface limits the
+  size of the created mem_map to the largest valid pfn passed via
+  'add_active_range'. Hence there is no way to add additional struct pages
+  to the end of the initial mem_map, even if 'mem=...' was given via the
+  kernel command line.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
