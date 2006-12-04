@@ -1,16 +1,16 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id kB4DeSCP199602
-	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:40:29 GMT
-Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kB4DeS6F3174428
-	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 14:40:28 +0100
-Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kB4DeRxU020979
-	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 14:40:28 +0100
-Date: Mon, 4 Dec 2006 14:40:27 +0100
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate2.uk.ibm.com (8.13.8/8.13.8) with ESMTP id kB4DfLwx101464
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:41:24 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kB4DfJ6g2760784
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:41:19 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kB4DfIef008789
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2006 13:41:19 GMT
+Date: Mon, 4 Dec 2006 14:41:18 +0100
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH/RFC 4/5] vmem shared memory hotplug support
-Message-ID: <20061204134027.GF9209@osiris.boeblingen.de.ibm.com>
+Subject: [PATCH/RFC 5/5] convert extmem to new interface
+Message-ID: <20061204134118.GG9209@osiris.boeblingen.de.ibm.com>
 References: <20061204133132.GB9209@osiris.boeblingen.de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -23,247 +23,183 @@ To: linux-mm@kvack.org
 Cc: Carsten Otte <cotte@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Unlike ia64 we need a mechanism which allows us to dynamically attach
-shared memory regions.
-These memory regions are accessed via the dcss device driver. dcss
-implements the 'direct_access' operation, which requires struct pages
-for every single shared page.
-Therefore this implementation provides an interface to attach/detach
-shared memory:
-
-int add_shared_memory(unsigned long start, unsigned long size);
-int remove_shared_memory(unsigned long start, unsigned long size);
-
-The purpose of the add_shared_memory function is to add the given
-memory range to the 1:1 mapping and to make sure that the
-corresponding range in the vmemmap is backed with physical pages.
-And of course to initialize the new struct pages.
-
-remove_shared_memory in turn only invalidates the page table
-entries in the 1:1 mapping. The page tables and the memory used for
-struct pages in the vmemmap are currently not freed. They will be
-reused when the next segment will be attached.
-Given that the maximum size of shared memory region will be 2GB and
-in addition all regions must reside below 2GB this is not too much of
-a restriction, but there is room for improvement.
+Convert extmem to use [add|remove]_shared_memory().
 
 Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 ---
- arch/s390/mm/vmem.c        |  168 +++++++++++++++++++++++++++++++++++++++++++++
- include/asm-s390/pgtable.h |    3 
- 2 files changed, 171 insertions(+)
+ arch/s390/kernel/setup.c |    2 
+ arch/s390/mm/extmem.c    |  106 +++++++++++------------------------------------
+ 2 files changed, 27 insertions(+), 81 deletions(-)
 
-Index: linux-2.6.19-rc6-mm2/arch/s390/mm/vmem.c
+Index: linux-2.6.19-rc6-mm2/arch/s390/kernel/setup.c
 ===================================================================
---- linux-2.6.19-rc6-mm2.orig/arch/s390/mm/vmem.c
-+++ linux-2.6.19-rc6-mm2/arch/s390/mm/vmem.c
-@@ -18,6 +18,14 @@ unsigned long vmalloc_end;
- EXPORT_SYMBOL(vmalloc_end);
+--- linux-2.6.19-rc6-mm2.orig/arch/s390/kernel/setup.c
++++ linux-2.6.19-rc6-mm2/arch/s390/kernel/setup.c
+@@ -64,7 +64,7 @@ unsigned int console_devno = -1;
+ unsigned int console_irq = -1;
+ unsigned long machine_flags = 0;
  
- static struct page *vmem_map;
-+static LIST_HEAD(mem_segs);
-+static DEFINE_MUTEX(vmem_mutex);
-+
-+struct memory_segment {
-+	struct list_head list;
-+	unsigned long start;
-+	unsigned long size;
-+};
- 
- void memmap_init(unsigned long size, int nid, unsigned long zone,
- 		 unsigned long start_pfn)
-@@ -126,6 +134,31 @@ static int vmem_add_range(unsigned long 
+-struct mem_chunk memory_chunk[MEMORY_CHUNKS];
++struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
+ volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
+ unsigned long __initdata zholes_size[MAX_NR_ZONES];
+ static unsigned long __initdata memory_end;
+Index: linux-2.6.19-rc6-mm2/arch/s390/mm/extmem.c
+===================================================================
+--- linux-2.6.19-rc6-mm2.orig/arch/s390/mm/extmem.c
++++ linux-2.6.19-rc6-mm2/arch/s390/mm/extmem.c
+@@ -16,6 +16,7 @@
+ #include <linux/bootmem.h>
+ #include <linux/ctype.h>
+ #include <asm/page.h>
++#include <asm/pgtable.h>
+ #include <asm/ebcdic.h>
+ #include <asm/errno.h>
+ #include <asm/extmem.h>
+@@ -238,65 +239,6 @@ query_segment_type (struct dcss_segment 
  }
  
  /*
-+ * Remove a physical memory range from the 1:1 mapping.
-+ * Currently only invalidates page table entries.
-+ */
-+static void vmem_remove_range(unsigned long start, unsigned long size)
-+{
-+	unsigned long address;
-+	pgd_t *pg_dir;
-+	pmd_t *pm_dir;
-+	pte_t *pt_dir;
-+	pte_t  pte;
+- * check if the given segment collides with guest storage.
+- * returns 1 if this is the case, 0 if no collision was found
+- */
+-static int
+-segment_overlaps_storage(struct dcss_segment *seg)
+-{
+-	int i;
+-
+-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+-		if (memory_chunk[i].type != CHUNK_READ_WRITE)
+-			continue;
+-		if ((memory_chunk[i].addr >> 20) > (seg->end >> 20))
+-			continue;
+-		if (((memory_chunk[i].addr + memory_chunk[i].size - 1) >> 20)
+-				< (seg->start_addr >> 20))
+-			continue;
+-		return 1;
+-	}
+-	return 0;
+-}
+-
+-/*
+- * check if segment collides with other segments that are currently loaded
+- * returns 1 if this is the case, 0 if no collision was found
+- */
+-static int
+-segment_overlaps_others (struct dcss_segment *seg)
+-{
+-	struct list_head *l;
+-	struct dcss_segment *tmp;
+-
+-	BUG_ON(!mutex_is_locked(&dcss_lock));
+-	list_for_each(l, &dcss_list) {
+-		tmp = list_entry(l, struct dcss_segment, list);
+-		if ((tmp->start_addr >> 20) > (seg->end >> 20))
+-			continue;
+-		if ((tmp->end >> 20) < (seg->start_addr >> 20))
+-			continue;
+-		if (seg == tmp)
+-			continue;
+-		return 1;
+-	}
+-	return 0;
+-}
+-
+-/*
+- * check if segment exceeds the kernel mapping range (detected or set via mem=)
+- * returns 1 if this is the case, 0 if segment fits into the range
+- */
+-static inline int
+-segment_exceeds_range (struct dcss_segment *seg)
+-{
+-	int seg_last_pfn = (seg->end) >> PAGE_SHIFT;
+-	if (seg_last_pfn > max_pfn)
+-		return 1;
+-	return 0;
+-}
+-
+-/*
+  * get info about a segment
+  * possible return values:
+  * -ENOSYS  : we are not running on VM
+@@ -341,24 +283,26 @@ __segment_load (char *name, int do_nonsh
+ 	rc = query_segment_type (seg);
+ 	if (rc < 0)
+ 		goto out_free;
+-	if (segment_exceeds_range(seg)) {
+-		PRINT_WARN ("segment_load: not loading segment %s - exceeds"
+-				" kernel mapping range\n",name);
+-		rc = -ERANGE;
 +
-+	pte_val(pte) = _PAGE_TYPE_EMPTY;
-+	for (address = start; address < start + size; address += PAGE_SIZE) {
-+		pg_dir = pgd_offset_k(address);
-+		if (pgd_none(*pg_dir))
-+			continue;
-+		pm_dir = pmd_offset(pg_dir, address);
-+		if (pmd_none(*pm_dir))
-+			continue;
-+		pt_dir = pte_offset_kernel(pm_dir, address);
-+		set_pte(pt_dir, pte);
-+	}
-+}
++	rc = add_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 +
-+/*
-  * Add a backed mem_map array to the virtual mem_map array.
-  */
- static int vmem_add_mem_map(unsigned long start, unsigned long size)
-@@ -185,6 +218,115 @@ static int vmem_add_mem(unsigned long st
- }
- 
- /*
-+ * Add memory segment to the segment list if it doesn't overlap with
-+ * an already present segment.
-+ */
-+static int insert_memory_segment(struct memory_segment *seg)
-+{
-+	struct memory_segment *tmp;
++	switch (rc) {
++	case 0:
++		break;
++	case -ENOSPC:
++		PRINT_WARN("segment_load: not loading segment %s - overlaps "
++			   "storage/segment\n", name);
+ 		goto out_free;
+-	}
+-	if (segment_overlaps_storage(seg)) {
+-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
+-				" storage\n",name);
+-		rc = -ENOSPC;
++	case -ERANGE:
++		PRINT_WARN("segment_load: not loading segment %s - exceeds "
++			   "kernel mapping range\n", name);
+ 		goto out_free;
+-	}
+-	if (segment_overlaps_others(seg)) {
+-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
+-				" other segments\n",name);
+-		rc = -EBUSY;
++	default:
++		PRINT_WARN("segment_load: not loading segment %s (rc: %d)\n",
++			   name, rc);
+ 		goto out_free;
+ 	}
 +
-+	if (PFN_DOWN(seg->start + seg->size) > max_pfn ||
-+	    seg->start + seg->size < seg->start)
-+		return -ERANGE;
-+
-+	list_for_each_entry(tmp, &mem_segs, list) {
-+		if (seg->start >= tmp->start + tmp->size)
-+			continue;
-+		if (seg->start + seg->size <= tmp->start)
-+			continue;
-+		return -ENOSPC;
-+	}
-+	list_add(&seg->list, &mem_segs);
-+	return 0;
-+}
-+
-+/*
-+ * Remove memory segment from the segment list.
-+ */
-+static void remove_memory_segment(struct memory_segment *seg)
-+{
+ 	if (do_nonshared)
+ 		dcss_command = DCSS_LOADNSR;
+ 	else
+@@ -372,7 +316,7 @@ __segment_load (char *name, int do_nonsh
+ 		rc = dcss_diag_translate_rc (seg->end);
+ 		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
+ 				&seg->start_addr, &seg->end);
+-		goto out_free;
++		goto out_shared;
+ 	}
+ 	seg->do_nonshared = do_nonshared;
+ 	atomic_set(&seg->ref_count, 1);
+@@ -391,6 +335,8 @@ __segment_load (char *name, int do_nonsh
+ 				(void*)seg->start_addr, (void*)seg->end,
+ 				segtype_string[seg->vm_segtype]);
+ 	goto out;
++ out_shared:
++	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+  out_free:
+ 	kfree(seg);
+  out:
+@@ -530,12 +476,12 @@ segment_unload(char *name)
+ 				"please report to linux390@de.ibm.com\n",name);
+ 		goto out_unlock;
+ 	}
+-	if (atomic_dec_return(&seg->ref_count) == 0) {
+-		list_del(&seg->list);
+-		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
+-			  &dummy, &dummy);
+-		kfree(seg);
+-	}
++	if (atomic_dec_return(&seg->ref_count) != 0)
++		goto out_unlock;
++	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 +	list_del(&seg->list);
-+}
-+
-+static void __remove_shared_memory(struct memory_segment *seg)
-+{
-+	remove_memory_segment(seg);
-+	vmem_remove_range(seg->start, seg->size);
-+}
-+
-+int remove_shared_memory(unsigned long start, unsigned long size)
-+{
-+	struct memory_segment *seg;
-+	int ret;
-+
-+	mutex_lock(&vmem_mutex);
-+
-+	ret = -ENOENT;
-+	list_for_each_entry(seg, &mem_segs, list) {
-+		if (seg->start == start && seg->size == size)
-+			break;
-+	}
-+
-+	if (seg->start != start || seg->size != size)
-+		goto out;
-+
-+	ret = 0;
-+	__remove_shared_memory(seg);
++	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 +	kfree(seg);
-+out:
-+	mutex_unlock(&vmem_mutex);
-+	return ret;
-+}
-+
-+int add_shared_memory(unsigned long start, unsigned long size)
-+{
-+	struct memory_segment *seg;
-+	struct page *page;
-+	unsigned long pfn, num_pfn, end_pfn;
-+	int ret;
-+
-+	mutex_lock(&vmem_mutex);
-+	ret = -ENOMEM;
-+	seg = kzalloc(sizeof(*seg), GFP_KERNEL);
-+	if (!seg)
-+		goto out;
-+	seg->start = start;
-+	seg->size = size;
-+
-+	ret = insert_memory_segment(seg);
-+	if (ret)
-+		goto out_free;
-+
-+	ret = vmem_add_mem(start, size);
-+	if (ret)
-+		goto out_remove;
-+
-+	pfn = PFN_DOWN(start);
-+	num_pfn = PFN_DOWN(size);
-+	end_pfn = pfn + num_pfn;
-+
-+	page = pfn_to_page(pfn);
-+	memset(page, 0, num_pfn * sizeof(struct page));
-+
-+	for (; pfn < end_pfn; pfn++) {
-+		page = pfn_to_page(pfn);
-+		init_page_count(page);
-+		reset_page_mapcount(page);
-+		SetPageReserved(page);
-+		INIT_LIST_HEAD(&page->lru);
-+	}
-+	goto out;
-+
-+out_remove:
-+	__remove_shared_memory(seg);
-+out_free:
-+	kfree(seg);
-+out:
-+	mutex_unlock(&vmem_mutex);
-+	return ret;
-+}
-+
-+/*
-  * map whole physical memory to virtual memory (identity mapping)
-  */
- void __init vmem_map_init(void)
-@@ -200,3 +342,29 @@ void __init vmem_map_init(void)
- 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
- 		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);
+ out_unlock:
+ 	mutex_unlock(&dcss_lock);
  }
-+
-+/*
-+ * Convert memory chunk array to a memory segment list so there is a single
-+ * list that contains both r/w memory and shared memory segments.
-+ */
-+static __init int vmem_convert_memory_chunk(void)
-+{
-+       struct memory_segment *seg;
-+       int i;
-+
-+       mutex_lock(&vmem_mutex);
-+       for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-+	       if (!memory_chunk[i].size)
-+		       continue;
-+	       seg = kzalloc(sizeof(*seg), GFP_KERNEL);
-+	       if (!seg)
-+		       panic("Out of memory...\n");
-+	       seg->start = memory_chunk[i].addr;
-+	       seg->size = memory_chunk[i].size;
-+	       insert_memory_segment(seg);
-+       }
-+       mutex_unlock(&vmem_mutex);
-+       return 0;
-+}
-+
-+core_initcall(vmem_convert_memory_chunk);
-Index: linux-2.6.19-rc6-mm2/include/asm-s390/pgtable.h
-===================================================================
---- linux-2.6.19-rc6-mm2.orig/include/asm-s390/pgtable.h
-+++ linux-2.6.19-rc6-mm2/include/asm-s390/pgtable.h
-@@ -817,6 +817,9 @@ static inline pte_t mk_swap_pte(unsigned
- 
- #define kern_addr_valid(addr)   (1)
- 
-+extern int add_shared_memory(unsigned long start, unsigned long size);
-+extern int remove_shared_memory(unsigned long start, unsigned long size);
-+
- /*
-  * No page table caches to initialise
-  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
