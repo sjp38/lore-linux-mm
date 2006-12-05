@@ -1,95 +1,109 @@
-Message-ID: <45751712.80301@yahoo.com.au>
-Date: Tue, 05 Dec 2006 17:52:02 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 5 Dec 2006 10:03:26 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+In-Reply-To: <20061205101629.5cb78828.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0612050952500.11807@skynet.skynet.ie>
+References: <20061130170746.GA11363@skynet.ie> <20061130173129.4ebccaa2.akpm@osdl.org>
+ <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie> <20061201110103.08d0cf3d.akpm@osdl.org>
+ <20061204140747.GA21662@skynet.ie> <20061204113051.4e90b249.akpm@osdl.org>
+ <Pine.LNX.4.64.0612041946460.26428@skynet.skynet.ie> <20061204143435.6ab587db.akpm@osdl.org>
+ <Pine.LNX.4.64.0612042338390.2108@skynet.skynet.ie>
+ <20061205101629.5cb78828.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Status of buffered write path (deadlock fixes)
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Mark Fasheh <mark.fasheh@oracle.com>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, clameter@sgi.com, apw@shadowen.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 5 Dec 2006, KAMEZAWA Hiroyuki wrote:
 
-I'd like to try to state where we are WRT the buffered write patches,
-and ask for comments. Sorry for the wide cc list, but this is an
-important issue which hasn't had enough review.
+> Hi, your plan looks good to me.
 
-Well the next -mm will include everything we've done so far. I won't
-repost patches unless someone would like to comment on a specific one.
+Thanks.
 
-I think the core generic_file_buffered_write is fairly robust, after
-fixing the efault and zerolength iov problems picked up in testing
-(thanks, very helpful!).
+> some comments.
+>
+> On Mon, 4 Dec 2006 23:45:32 +0000 (GMT)
+> Mel Gorman <mel@csn.ul.ie> wrote:
+>> 1. Use lumpy-reclaim to intelligently reclaim contigous pages. The same
+>>     logic can be used to reclaim within a PFN range
+>> 2. Merge anti-frag to help high-order allocations, hugetlbpage
+>>     allocations and freeing up SPARSEMEM sections of memory
+>
+> For freeing up SPARSEMEM sections of memory ?
 
-So now I *believe* we have an approach that solves the deadlock and
-doesn't expose transient or stale data, transient zeroes, or anything
-like that.
+Yes.
 
-Error handling is getting close, but there may be cases that nobody
-has picked up, and I've noticed a couple which I'll explain below.
+> It looks that you assumes MAX_ORDER_NR_PAGES equals to PAGES_PER_SECTION.
+> plz don't assume that when you talk about generic arch code.
+>
 
-I think we do the right thing WRT pagecache error handling: a
-!uptodate page remains !uptodate, an uptodate page can handle the
-write being done in several parts. Comments in the patches attempt
-to explain how this works. I think it is pretty straightforward.
+Yes, I was making the assumption that MAX_ORDER would be increased when 
+memory hot-remove was possible so that MAX_ORDER_NR_PAGES == 
+PAGES_PER_SECTION. I think it would be a reasonable restriction unless 
+section sizes can get really large.
 
-But WRT block allocation in the case of errors, it needs more review.
+>> 3. Anti-frag includes support for page flags that affected a MAX_ORDER block
+>>     of pages. These flags can be used to mark a section of memory that should
+>>     not be allocated from. This is of interest to both hugetlb page allocatoin
+>>     and memory hot-remove. Use the flags to mark a MAX_ORDER_NR_PAGES that
+>>     is currently being freed up and shouldn't be allocated.
+>
+>> 4. Use anti-frag fallback logic to bias unmovable allocations to the lower
+>>     PFNs.
+>
+> I think this can be one of the most diffcult things ;)
+>
 
-Block allocation:
-- prepare_write can allocate blocks
-- prepare_write doesn't need to initialize the pagecache on top of
-   these blocks where it is within the range specified in prepare_write
-   (because the copy_from_user will initialise it correctly)
-- In the case of a !uptodate page, unless the page is brought uptodate
-   (ie the copy_from_user completely succeeds) and marked dirty, then
-   a read that sneaks in after we unlock the page (to retry the write)
-   will try to bring it uptodate by pulling in the uninitialised blocks.
+It depends on how aggressive the bias is. If it's just "try and keep them 
+low but don't work too hard", then it's a simple case of searching the 
+free list at the order we are falling back to. If the lowest 
+MAX_ORDER_NR_PAGES must be reclaimed for use by unmovable allocations, it 
+gets harder but it's not impossible.
 
-Problem 1:
-I think that allocating blocks outside i_size is OK WRT uninitialised
-data, because we update i_size only after a successful copy. However,
-I don't think we trim these blocks off (eg. perhaps the "prepare_write
-may have instantiated a few blocks" path should be the normal error
-path for both the copy_from_user and the commit_write error cases as
-well?)
+>> 5. Add arch support where possible for offlining sections of memory that
+>>     can be powered down.
+>
+> I had a patch for ACPI-memory-hot-unplug, which ties memory sections to memory
+> chunk on ACPI.
+>
 
-We allocate blocks within holes, but these don't need to be trimmed: it
-is enough to just zero out any new buffers. It might be nicer if we had
-some kind of way to punch a hole, but it is a rare corner case.
+Great, I had a strong feeling something like that existed.
 
-Problem 2:
-nobh error handling[*]. We have just a single buffer that is used for
-each block in the prepare_write path, so the "zero new buffers" trick
-doesn't work.
+>> 6. Add arch support where possible to power down a DIMM when the memory
+>>     sections that make it up have been offlined. This is an extenstion of
+>>     step 5 only.
+>> 7. Add a zone that only allows __GFP_MOVABLE allocations so that
+>>     sections can 100% be reclaimed and powered-down
+>> 8. Allow nodes to only have a zone for __GFP_MOVABLE allocations so that
+>>     whole nodes can be offlined.
+>>
+> I (numa-node-hotplug) needs 7 and 8 basically. And Other people may not.
 
-I think one solution to this could be to allocate all buffers for the
-page like normal, and then strip them off when commit_write succeeds?
-This would allow the zero_new_buffers path to work properly.
+Power would be more interested in 2 for SPARSEMEM sections. Also, while 
+getting 7 and 8 right will be important, it won't help stuff like the 
+e1000 problem which is why I put it towards the end. I'm going to relook 
+at the adding-zone patches today and see if they can be brought forward so 
+we can take a proper look.
 
-[*] Actually I think there is a problem with the mainline nobh error
-handling in that a whole page of blocks will get zeroed on failure,
-even valid data that isn't being touched by the write.
+> IMHO:
+> For DIMM unplug, I suspect that we'll finally divide memory to core-memory and
+> hot-pluggable by pgdat even on SMP. If we use pgdat for that purpose, almost all
+> necessary infrastructure(statistics ,etc..) is ready.
+> But if we find better way, it's good.
+>
 
-Finally, filesystems. Only OGAWA Hirofumi and Mark Fasheh have given much
-feedback so far. I've tried to grok ext2/3 and think they'll work OK, and
-have at least *looked* at all the rest. However in the worst case, there
-might be many subtle and different problems :( Filesystem developers need
-to review this, please. I don't want to cc every filesystem dev list, but
-if anybody thinks it would be helpful to forward this then please do.
+That is one possibility. There are people working on fake nodes for 
+containers at the moment. If that pans out, the infrastructure would be 
+available to create one node per DIMM.
 
-Well, that's about where its at. Block allocation problems 1 and 2
-shouldn't be too hard to fix, but I would like confirmation / suggestions.
-
-Thanks,
-Nick
-
---
-SUSE Labs, Novell Inc.
-
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
