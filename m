@@ -1,371 +1,95 @@
-Message-ID: <365282812.05573@ustc.edu.cn>
-Date: Tue, 5 Dec 2006 09:40:11 +0800
-From: Fengguang Wu <fengguang.wu@gmail.com>
-Subject: Re: [rfc] possible page manipulation simplifications?
-Message-ID: <20061205014011.GA6806@mail.ustc.edu.cn>
-References: <20061202121519.GA20670@wotan.suse.de> <20061204144005.GA22233@skynet.ie> <20061204145552.GB14383@wotan.suse.de>
+Message-ID: <45751712.80301@yahoo.com.au>
+Date: Tue, 05 Dec 2006 17:52:02 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061204145552.GB14383@wotan.suse.de>
+Subject: Status of buffered write path (deadlock fixes)
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Mel Gorman <mel@skynet.ie>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Mark Fasheh <mark.fasheh@oracle.com>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 04, 2006 at 03:55:52PM +0100, Nick Piggin wrote:
-> Hi Mel,
-> 
-> I think you're right about the leakage, thanks for catching it.
+Hi,
 
-Yeah, it caused oom storm here.
+I'd like to try to state where we are WRT the buffered write patches,
+and ask for comments. Sorry for the wide cc list, but this is an
+important issue which hasn't had enough review.
 
-The pagevec simplification looks nice.
+Well the next -mm will include everything we've done so far. I won't
+repost patches unless someone would like to comment on a specific one.
 
-I've ported it to -mm, hope it is useful.
-I'm prepared to test your revised patch :)
+I think the core generic_file_buffered_write is fairly robust, after
+fixing the efault and zerolength iov problems picked up in testing
+(thanks, very helpful!).
 
-Fengguang Wu
----
+So now I *believe* we have an approach that solves the deadlock and
+doesn't expose transient or stale data, transient zeroes, or anything
+like that.
 
---- linux-2.6.19-rc6-mm2.orig/mm/filemap.c
-+++ linux-2.6.19-rc6-mm2/mm/filemap.c
-@@ -708,26 +708,18 @@ EXPORT_SYMBOL(find_lock_page);
- struct page *find_or_create_page(struct address_space *mapping,
- 		unsigned long index, gfp_t gfp_mask)
- {
--	struct page *page, *cached_page = NULL;
-+	struct page *page;
- 	int err;
- repeat:
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
--		if (!cached_page) {
--			cached_page = alloc_page(gfp_mask);
--			if (!cached_page)
--				return NULL;
--		}
--		err = add_to_page_cache_lru(cached_page, mapping,
--					index, gfp_mask);
--		if (!err) {
--			page = cached_page;
--			cached_page = NULL;
--		} else if (err == -EEXIST)
-+		page = alloc_page(gfp_mask);
-+		if (!page)
-+			return NULL;
-+		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
-+		if (err == -EEXIST)
- 			goto repeat;
- 	}
--	if (cached_page)
--		page_cache_release(cached_page);
- 	return page;
- }
- EXPORT_SYMBOL(find_or_create_page);
-@@ -922,11 +914,9 @@ void do_generic_mapping_read(struct addr
- 	unsigned long next_index;
- 	unsigned long prev_index;
- 	loff_t isize;
--	struct page *cached_page;
- 	int error;
- 	struct file_ra_state ra = *_ra;
- 
--	cached_page = NULL;
- 	index = *ppos >> PAGE_CACHE_SHIFT;
- 	next_index = index;
- 	prev_index = ra.prev_page;
-@@ -1107,14 +1097,12 @@ no_cached_page:
- 		 * Ok, it wasn't cached, so we need to create a new
- 		 * page..
- 		 */
--		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
--			if (!cached_page) {
--				desc->error = -ENOMEM;
--				goto out;
--			}
-+		page = page_cache_alloc_cold(mapping);
-+		if (!page) {
-+			desc->error = -ENOMEM;
-+			goto out;
- 		}
--		error = add_to_page_cache_lru(cached_page, mapping,
-+		error = add_to_page_cache_lru(page, mapping,
- 						index, GFP_KERNEL);
- 		if (error) {
- 			if (error == -EEXIST)
-@@ -1122,8 +1110,6 @@ no_cached_page:
- 			desc->error = error;
- 			goto out;
- 		}
--		page = cached_page;
--		cached_page = NULL;
- 		goto readpage;
- 	}
- 
-@@ -1133,8 +1119,6 @@ out:
- 		_ra->prev_page = prev_index;
- 
- 	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
--	if (cached_page)
--		page_cache_release(cached_page);
- 	if (filp)
- 		file_accessed(filp);
- }
-@@ -1826,35 +1810,28 @@ static inline struct page *__read_cache_
- 				int (*filler)(void *,struct page*),
- 				void *data)
- {
--	struct page *page, *cached_page = NULL;
-+	struct page *page;
- 	int err;
- repeat:
- 	page = find_get_page(mapping, index);
- 	if (!page) {
--		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
--			if (!cached_page)
--				return ERR_PTR(-ENOMEM);
--		}
--		err = add_to_page_cache_lru(cached_page, mapping,
--					index, GFP_KERNEL);
-+		page = page_cache_alloc_cold(mapping);
-+		if (!page)
-+			return ERR_PTR(-ENOMEM);
-+		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
- 		if (err == -EEXIST)
- 			goto repeat;
- 		if (err < 0) {
- 			/* Presumably ENOMEM for radix tree node */
--			page_cache_release(cached_page);
-+			page_cache_release(page);
- 			return ERR_PTR(err);
- 		}
--		page = cached_page;
--		cached_page = NULL;
- 		err = filler(data, page);
- 		if (err < 0) {
- 			page_cache_release(page);
- 			page = ERR_PTR(err);
- 		}
- 	}
--	if (cached_page)
--		page_cache_release(cached_page);
- 	return page;
- }
- 
-@@ -1905,40 +1882,6 @@ retry:
- EXPORT_SYMBOL(read_cache_page);
- 
- /*
-- * If the page was newly created, increment its refcount and add it to the
-- * caller's lru-buffering pagevec.  This function is specifically for
-- * generic_file_write().
-- */
--static inline struct page *
--__grab_cache_page(struct address_space *mapping, unsigned long index,
--			struct page **cached_page, struct pagevec *lru_pvec)
--{
--	int err;
--	struct page *page;
--repeat:
--	page = find_lock_page(mapping, index);
--	if (!page) {
--		if (!*cached_page) {
--			*cached_page = page_cache_alloc(mapping);
--			if (!*cached_page)
--				return NULL;
--		}
--		err = add_to_page_cache(*cached_page, mapping,
--					index, GFP_KERNEL);
--		if (err == -EEXIST)
--			goto repeat;
--		if (err == 0) {
--			page = *cached_page;
--			page_cache_get(page);
--			if (!pagevec_add(lru_pvec, page))
--				__pagevec_lru_add(lru_pvec);
--			*cached_page = NULL;
--		}
--	}
--	return page;
--}
--
--/*
-  * The logic we want is
-  *
-  *	if suid or (sgid and xgrp)
-@@ -2143,15 +2086,11 @@ generic_file_buffered_write(struct kiocb
- 	struct inode 	*inode = mapping->host;
- 	long		status = 0;
- 	struct page	*page;
--	struct page	*cached_page = NULL;
- 	size_t		bytes;
--	struct pagevec	lru_pvec;
- 	const struct iovec *cur_iov = iov; /* current iovec */
- 	size_t		iov_base = 0;	   /* offset in the current iovec */
- 	char __user	*buf;
- 
--	pagevec_init(&lru_pvec, 0);
--
- 	/*
- 	 * handle partial DIO write.  Adjust cur_iov if needed.
- 	 */
-@@ -2189,10 +2128,23 @@ generic_file_buffered_write(struct kiocb
- 		 */
- 		fault_in_pages_readable(buf, bytes);
- 
--		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
--		if (!page) {
--			status = -ENOMEM;
--			break;
-+
-+repeat:
-+		page = find_lock_page(mapping, index);
-+		if (unlikely(!page)) {
-+			page = page_cache_alloc(mapping);
-+			if (!page) {
-+				status = -ENOMEM;
-+				break;
-+			}
-+			status = add_to_page_cache_lru(page, mapping,
-+						index, GFP_KERNEL);
-+			if (status) {
-+				page_cache_release(page);
-+				if (status == -EEXIST)
-+					goto repeat;
-+				break;
-+			}
- 		}
- 
- 		if (unlikely(bytes == 0)) {
-@@ -2264,9 +2216,6 @@ zero_length_segment:
- 	} while (count);
- 	*ppos = pos;
- 
--	if (cached_page)
--		page_cache_release(cached_page);
--
- 	/*
- 	 * For now, when the user asks for O_SYNC, we'll actually give O_DSYNC
- 	 */
-@@ -2286,7 +2235,6 @@ zero_length_segment:
- 	if (unlikely(file->f_flags & O_DIRECT) && written)
- 		status = filemap_write_and_wait(mapping);
- 
--	pagevec_lru_add(&lru_pvec);
- 	return written ? written : status;
- }
- EXPORT_SYMBOL(generic_file_buffered_write);
---- linux-2.6.19-rc6-mm2.orig/fs/mpage.c
-+++ linux-2.6.19-rc6-mm2/fs/mpage.c
-@@ -389,33 +389,27 @@ mpage_readpages(struct address_space *ma
- 	struct bio *bio = NULL;
- 	unsigned page_idx;
- 	sector_t last_block_in_bio = 0;
--	struct pagevec lru_pvec;
- 	struct buffer_head map_bh;
- 	unsigned long first_logical_block = 0;
- 
- 	clear_buffer_mapped(&map_bh);
--	pagevec_init(&lru_pvec, 0);
- 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
- 		struct page *page = list_entry(pages->prev, struct page, lru);
- 
- 		prefetchw(&page->flags);
- 		list_del(&page->lru);
--		if (!add_to_page_cache(page, mapping,
-+		if (!add_to_page_cache_lru(page, mapping,
- 					page->index, GFP_KERNEL)) {
- 			bio = do_mpage_readpage(bio, page,
- 					nr_pages - page_idx,
- 					&last_block_in_bio, &map_bh,
- 					&first_logical_block,
- 					get_block);
--			if (!pagevec_add(&lru_pvec, page)) {
--				cond_resched();
--				__pagevec_lru_add(&lru_pvec);
--			}
-+			cond_resched();
- 		} else {
- 			page_cache_release(page);
- 		}
- 	}
--	pagevec_lru_add(&lru_pvec);
- 	BUG_ON(!list_empty(pages));
- 	if (bio)
- 		mpage_bio_submit(READ, bio);
---- linux-2.6.19-rc6-mm2.orig/mm/readahead.c
-+++ linux-2.6.19-rc6-mm2/mm/readahead.c
-@@ -230,30 +230,24 @@ int read_cache_pages(struct address_spac
- 			int (*filler)(void *, struct page *), void *data)
- {
- 	struct page *page;
--	struct pagevec lru_pvec;
- 	int ret = 0;
- 
--	pagevec_init(&lru_pvec, 0);
--
- 	while (!list_empty(pages)) {
- 		page = list_to_page(pages);
- 		list_del(&page->lru);
--		if (add_to_page_cache(page, mapping, page->index, GFP_KERNEL)) {
-+		if (add_to_page_cache_lru(page, mapping,
-+					page->index, GFP_KERNEL)) {
- 			page_cache_release(page);
- 			continue;
- 		}
- 		ret = filler(data, page);
--		if (!pagevec_add(&lru_pvec, page)) {
--			cond_resched();
--			__pagevec_lru_add(&lru_pvec);
--		}
--		if (ret) {
-+		if (unlikely(ret)) {
- 			put_pages_list(pages);
- 			break;
- 		}
- 		task_io_account_read(PAGE_CACHE_SIZE);
-+		cond_resched();
- 	}
--	pagevec_lru_add(&lru_pvec);
- 	return ret;
- }
- 
-@@ -263,7 +257,6 @@ static int read_pages(struct address_spa
- 		struct list_head *pages, unsigned nr_pages)
- {
- 	unsigned page_idx;
--	struct pagevec lru_pvec;
- 	int ret;
- 
- 	if (mapping->a_ops->readpages) {
-@@ -273,21 +266,16 @@ static int read_pages(struct address_spa
- 		goto out;
- 	}
- 
--	pagevec_init(&lru_pvec, 0);
- 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
- 		struct page *page = list_to_page(pages);
- 		list_del(&page->lru);
--		if (!add_to_page_cache(page, mapping,
-+		if (!add_to_page_cache_lru(page, mapping,
- 					page->index, GFP_KERNEL)) {
- 			mapping->a_ops->readpage(filp, page);
--			if (!pagevec_add(&lru_pvec, page)) {
--				cond_resched();
--				__pagevec_lru_add(&lru_pvec);
--			}
-+			cond_resched();
- 		} else
- 			page_cache_release(page);
- 	}
--	pagevec_lru_add(&lru_pvec);
- 	ret = 0;
- out:
- 	return ret;
+Error handling is getting close, but there may be cases that nobody
+has picked up, and I've noticed a couple which I'll explain below.
+
+I think we do the right thing WRT pagecache error handling: a
+!uptodate page remains !uptodate, an uptodate page can handle the
+write being done in several parts. Comments in the patches attempt
+to explain how this works. I think it is pretty straightforward.
+
+But WRT block allocation in the case of errors, it needs more review.
+
+Block allocation:
+- prepare_write can allocate blocks
+- prepare_write doesn't need to initialize the pagecache on top of
+   these blocks where it is within the range specified in prepare_write
+   (because the copy_from_user will initialise it correctly)
+- In the case of a !uptodate page, unless the page is brought uptodate
+   (ie the copy_from_user completely succeeds) and marked dirty, then
+   a read that sneaks in after we unlock the page (to retry the write)
+   will try to bring it uptodate by pulling in the uninitialised blocks.
+
+Problem 1:
+I think that allocating blocks outside i_size is OK WRT uninitialised
+data, because we update i_size only after a successful copy. However,
+I don't think we trim these blocks off (eg. perhaps the "prepare_write
+may have instantiated a few blocks" path should be the normal error
+path for both the copy_from_user and the commit_write error cases as
+well?)
+
+We allocate blocks within holes, but these don't need to be trimmed: it
+is enough to just zero out any new buffers. It might be nicer if we had
+some kind of way to punch a hole, but it is a rare corner case.
+
+Problem 2:
+nobh error handling[*]. We have just a single buffer that is used for
+each block in the prepare_write path, so the "zero new buffers" trick
+doesn't work.
+
+I think one solution to this could be to allocate all buffers for the
+page like normal, and then strip them off when commit_write succeeds?
+This would allow the zero_new_buffers path to work properly.
+
+[*] Actually I think there is a problem with the mainline nobh error
+handling in that a whole page of blocks will get zeroed on failure,
+even valid data that isn't being touched by the write.
+
+Finally, filesystems. Only OGAWA Hirofumi and Mark Fasheh have given much
+feedback so far. I've tried to grok ext2/3 and think they'll work OK, and
+have at least *looked* at all the rest. However in the worst case, there
+might be many subtle and different problems :( Filesystem developers need
+to review this, please. I don't want to cc every filesystem dev list, but
+if anybody thinks it would be helpful to forward this then please do.
+
+Well, that's about where its at. Block allocation problems 1 and 2
+shouldn't be too hard to fix, but I would like confirmation / suggestions.
+
+Thanks,
+Nick
+
+--
+SUSE Labs, Novell Inc.
+
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
