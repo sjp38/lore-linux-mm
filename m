@@ -1,43 +1,54 @@
-Date: Tue, 5 Dec 2006 12:01:57 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
- may be migrated
-In-Reply-To: <20061205112541.2a4b7414.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0612051159510.18687@schroedinger.engr.sgi.com>
-References: <20061130170746.GA11363@skynet.ie> <20061130173129.4ebccaa2.akpm@osdl.org>
- <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie> <20061201110103.08d0cf3d.akpm@osdl.org>
- <20061204140747.GA21662@skynet.ie> <20061204113051.4e90b249.akpm@osdl.org>
- <Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com>
- <20061204120611.4306024e.akpm@osdl.org> <Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com>
- <20061204131959.bdeeee41.akpm@osdl.org> <Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com>
- <20061204142259.3cdda664.akpm@osdl.org> <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com>
- <20061205112541.2a4b7414.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 5 Dec 2006 12:02:56 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: la la la la ... swappiness
+Message-Id: <20061205120256.b1db9887.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0612051130200.18569@schroedinger.engr.sgi.com>
+References: <200612050641.kB56f7wY018196@ms-smtp-06.texas.rr.com>
+	<Pine.LNX.4.64.0612050754020.3542@woody.osdl.org>
+	<20061205085914.b8f7f48d.akpm@osdl.org>
+	<f353cb6c194d4.194d4f353cb6c@texas.rr.com>
+	<Pine.LNX.4.64.0612051031170.11860@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0612051038250.3542@woody.osdl.org>
+	<Pine.LNX.4.64.0612051130200.18569@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Mel Gorman <mel@skynet.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Aucoin <aucoin@houston.rr.com>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, 'Tim Schmielau' <tim@physik3.uni-rostock.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Dec 2006, Andrew Morton wrote:
+On Tue, 5 Dec 2006 11:32:21 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> > We always run reclaim against the whole zone not against parts. Why 
-> > would we start running reclaim against a portion of a zone?
+> On Tue, 5 Dec 2006, Linus Torvalds wrote:
+> > On Tue, 5 Dec 2006, Christoph Lameter wrote:
+> > > We do not support swapping / reclaim for huge pages.
+> > 
+> > Well, Louis doesn't actually _want_ swapping or reclaim on them. He just 
+> > wants the system to run well with the remaining 400MB of memory in his 
+> > machine.
+> > 
+> > Which it doesn't. It just OOM's for some reason.
 > 
-> Oh for gawd's sake.
+> If you take huge chunks of memory out of a zone then the dirty limits as 
+> well as the min free kbytes etc are all off. As a result the VM may 
+> behave strangely.  F.e. too many dirty pages may cause an OOM since we do 
+> not enter synchrononous writeout during reclaim.
 
-Yes indeed. Another failure to answer a simple question.
- 
-> If you want to allocate a page from within the first 1/4 of a zone, and if
-> all those pages are in use for something else then you'll need to run
-> reclaim against the first 1/4 of that zone.  Or fail the allocation.  Or
-> run reclaim against the entire zone.  The second two options are
-> self-evidently dumb.
+yes, it's quite possible that this setup would cause the page reclaim
+arithmetic to go wrong.
 
-Why would one want to allocate from the 1/4th of a zone? (Are we still 
-discussing Mel's antifrag scheme or what is this about?)
+But otoh, it's a very common scenario, and nobody has observed it before. 
+For example:
 
+akpm2:/home/akpm# echo 4000 > /proc/sys/vm/nr_hugepages 
+
+Free memory on this box instantly fell from 7G down to ~250MB.  It's now
+happily chuggling its way through a `dbench 512' run.
+
+But this is a 64-bit machine.  Could be that there are problems on 32-bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
