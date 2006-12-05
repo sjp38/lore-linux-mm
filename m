@@ -1,84 +1,61 @@
-Date: Tue, 5 Dec 2006 15:20:45 -0800 (PST)
+Date: Tue, 5 Dec 2006 15:33:50 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: la la la la ... swappiness
-In-Reply-To: <20061205133954.92082982.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0612051507000.20570@schroedinger.engr.sgi.com>
-References: <200612050641.kB56f7wY018196@ms-smtp-06.texas.rr.com>
- <Pine.LNX.4.64.0612050754020.3542@woody.osdl.org> <20061205085914.b8f7f48d.akpm@osdl.org>
- <f353cb6c194d4.194d4f353cb6c@texas.rr.com> <Pine.LNX.4.64.0612051031170.11860@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0612051038250.3542@woody.osdl.org>
- <Pine.LNX.4.64.0612051130200.18569@schroedinger.engr.sgi.com>
- <20061205120256.b1db9887.akpm@osdl.org> <Pine.LNX.4.64.0612051207240.18863@schroedinger.engr.sgi.com>
- <20061205124859.333d980d.akpm@osdl.org> <Pine.LNX.4.64.0612051254110.19561@schroedinger.engr.sgi.com>
- <20061205133954.92082982.akpm@osdl.org>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+In-Reply-To: <20061205214721.GE20614@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0612051521060.20570@schroedinger.engr.sgi.com>
+References: <20061204113051.4e90b249.akpm@osdl.org>
+ <Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com>
+ <20061204120611.4306024e.akpm@osdl.org> <Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com>
+ <20061204131959.bdeeee41.akpm@osdl.org> <Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com>
+ <20061204142259.3cdda664.akpm@osdl.org> <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com>
+ <20061205112541.2a4b7414.akpm@osdl.org> <Pine.LNX.4.64.0612051159510.18687@schroedinger.engr.sgi.com>
+ <20061205214721.GE20614@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, Aucoin <aucoin@houston.rr.com>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, 'Tim Schmielau' <tim@physik3.uni-rostock.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Dec 2006, Andrew Morton wrote:
+On Tue, 5 Dec 2006, Mel Gorman wrote:
 
-> > However, since we do not recognize 
-> > that we are in a dirty overload situation we may not do synchrononous 
-> > writes but return without having reclaimed any memory
-> 
-> Return from what?  try_to_free_pages() or balance_dirty_pages()?
+> There are times you want to reclaim just part of a zone - specifically
+> satisfying a high-order allocations. See sitations 1 and 2 from elsewhere
+> in this thread. On a similar vein, there will be times when you want to
+> migrate a PFN range for similar reasons.
 
-If we do not reach the dirty_ratio then we will not block but simply 
-trigger writeouts.
+This is confusing reclaim with defragmentation. I think we are in 
+conceptually unclean territory because we mix the two. If you must use 
+reclaim to get a portion of contiguous memory free then yes we have this 
+problem. If you can migrate pages then no there is no need for reclaiming 
+a part of a zone. You can occasionally shuffle pages around to 
+get a large continous chunk. If there is not enough memory then an 
+independent reclaim subsystem can take care of freeing a sufficient amount 
+of memory. Marrying the two seems to be getting a bit complex and maybe 
+very difficult to get right.
 
-try_to_free_pages() will trigger pdflush and we may wait 1/10th of a 
-second in congestaion_wait() and in throttle_vm_writeout() (well not 
-really since we check global limits) but we will not block. I think what 
-happens is that try_to_free_pages() (given sufficient slowless of the 
-writeout) at some point will start to return 0 and thus 
-we OOM.
+The classification of the memory allocations is useful
+to find a potential starting point to reduce the minimum number of pages 
+to move to open up that hole.
 
-> The behaviour of page reclaim is independent of the level of dirty memory
-> and of the dirty-memory thresholds, as far as I recall...
+> > Why would one want to allocate from the 1/4th of a zone? (Are we still 
+> > discussing Mel's antifrag scheme or what is this about?)
+> Because you wanted contiguous blocks of pages.  This is related to anti-frag
+> because with anti-frag, reclaiming memory or migration memory will free up
+> contiguous blocks. Without it, you're probably wasting your time.
 
-You cannot easily free a dirty page. We can only trigger writeout.
+I am still not sure how this should work. Reclaim in a portion of the 
+reclaimable/movable portion of the zone? Or pick a huge page and simply 
+reclaim all the pages in that range? 
 
-> > Could we get to the inode from the reclaim path and just start writing out 
-> > all dirty pages of the indoe?
-> 
-> Yeah, maybe.  But of course the pages on the inode can be from any zone at
-> all so the problem is that in some scenarios, we could write out tremendous
-> numbers of pages from zones which don't need that writeout.
+This is required for anti-frag regardless of additonal zones right?
 
-But we know that at least one page was in the correct zone. Writeout will 
-be much faster if we can write a seris of block in sequence via the inode.
+BTW If one would successfully do this partial reclaim thing then we also 
+have no need anymore DMA zones because we can free up memory in the DMA 
+area of a zone at will if we run short on memory there.
 
-> > Its continual on the nodes of the cpuset. Reclaim is constantly running 
-> > and becomes very inefficient.
-> 
-> I think what you're saying is that we're not throttling in
-> balance_dirty_pages().  So a large write() which is performed by a process
-> inside your one-tenth-of-memory cpuset will just go and dirty all of the
-> pages in that cpuset's nodes and things get all gummed up.
-
-Correct.
- 
-> That can certainly happen, and I suppose we can make changes to
-> balance_dirty_pages() to fix it (although it will have the
-> we-wrote-lots-of-pages-we-didnt-need-to failure mode).
-
-Right. In addition to checking the limits of the nodes in the current 
-cpuset (requires looping over all nodes and adding up the counters we 
-need) I made some modification to pass a set of nodes in the 
-writeback_control structure. We can then check if there are sufficient 
-pages of the inode within the nodes of the cpuset. But I am a bit 
-concerned about performance.
-
-> But right now in 2.6.19 the machine should _not_ declare oom in this
-> situation.  If it does, then we should fix that.  If it's only happening
-> with NFS then yeah, OK, mumble, NFS still needs work.
-
-We OOM only in some rare cases. Mostly it seems that the
-machines just becomes extremely slow and the LRU locks become hot.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
