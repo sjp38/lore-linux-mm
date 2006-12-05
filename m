@@ -1,7 +1,8 @@
-Date: Tue, 5 Dec 2006 22:09:06 +0900
+Date: Tue, 5 Dec 2006 22:10:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] vmemmap on sparsemem v2 [4/5] optimized pfn_valid
-Message-Id: <20061205220906.f1d24dfc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] vmemmap on sparsemem v2 [5/5] optimzied pfn_valid
+ support for ia64
+Message-Id: <20061205221034.6bed736c.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,77 +14,56 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, clameter@engr.sgi.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-This implements pfn_valid() as ia64's vmem_map does.
-This eliminates access to mem_section[] array by usual ops.
+USE_OPT_PFN_VALID support for ia64.
+Because ia64 already has its own VIRTUAL_MEM_MAP handling,
+This patch is simple.
 
-Because vmemmap on sparsemem is aligned. access check function can be easier
-than ia64's.
+When porting other archs, you have to add hook in page fault handler
+and write a func like mapped_kernel_page_is_present() (ia64).
 
-Signed-Off-By: KAMEZAWA Hiruyoki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- include/linux/mmzone.h |   14 ++++++++++++++
- mm/sparse.c            |   23 +++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ arch/ia64/Kconfig    |    4 ++++
+ arch/ia64/mm/fault.c |    4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-Index: devel-2.6.19-rc6-mm2/include/linux/mmzone.h
+Index: devel-2.6.19-rc6-mm2/arch/ia64/Kconfig
 ===================================================================
---- devel-2.6.19-rc6-mm2.orig/include/linux/mmzone.h	2006-12-05 21:25:43.000000000 +0900
-+++ devel-2.6.19-rc6-mm2/include/linux/mmzone.h	2006-12-05 21:45:21.000000000 +0900
-@@ -752,12 +752,27 @@
- 	return __nr_to_section(pfn_to_section_nr(pfn));
- }
+--- devel-2.6.19-rc6-mm2.orig/arch/ia64/Kconfig	2006-12-05 20:41:55.000000000 +0900
++++ devel-2.6.19-rc6-mm2/arch/ia64/Kconfig	2006-12-05 20:45:34.000000000 +0900
+@@ -349,6 +349,10 @@
+ 	def_bool y
+ 	depends on ARCH_SPARSEMEM_ENABLE
  
-+#if defined(SPARSEMEM_VMEM_MAP) && defined(CONFIG_USE_OPT_PFN_VALID)
-+/*
-+ * Uses hardware assist instead of mem_section[] table walking.
-+ * good for SPARSEMEM_EXTREME
-+ * To use this, you may need arch support in page fault handler.
-+ */
-+static inline int pfn_valid(unsigned long pfn)
-+{
-+	struct page *pg = pfn_to_page(pfn);
-+	return (VIRTUAL_MEM_MAP <= pg &&
-+		pg < (VIRUTAL_MEM_MAP + VIRTUAL_MEM_MAP_SIZE) &&
-+		check_valid_memmap(pg));
-+}
-+#else
- static inline int pfn_valid(unsigned long pfn)
- {
- 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
- 		return 0;
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-+#endif
- 
- /*
-  * These are _only_ used during initialisation, therefore they
-Index: devel-2.6.19-rc6-mm2/mm/sparse.c
++config USE_OPT_PFN_VALID
++	def_bool y
++	depends on SPARSEMEM_VMEMMAP
++
+ config ARCH_DISCONTIGMEM_DEFAULT
+ 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
+ 	depends on ARCH_DISCONTIGMEM_ENABLE
+Index: devel-2.6.19-rc6-mm2/arch/ia64/mm/fault.c
 ===================================================================
---- devel-2.6.19-rc6-mm2.orig/mm/sparse.c	2006-12-05 21:25:43.000000000 +0900
-+++ devel-2.6.19-rc6-mm2/mm/sparse.c	2006-12-05 21:47:21.000000000 +0900
-@@ -103,6 +103,22 @@
+--- devel-2.6.19-rc6-mm2.orig/arch/ia64/mm/fault.c	2006-12-05 20:41:55.000000000 +0900
++++ devel-2.6.19-rc6-mm2/arch/ia64/mm/fault.c	2006-12-05 20:45:34.000000000 +0900
+@@ -103,7 +103,7 @@
+ 	if (in_atomic() || !mm)
+ 		goto no_context;
  
+-#ifdef CONFIG_VIRTUAL_MEM_MAP
++#if defined(CONFIG_VIRTUAL_MEM_MAP) || defined(CONFIG_USE_OPT_PFN_VALID)
+ 	/*
+ 	 * If fault is in region 5 and we are in the kernel, we may already
+ 	 * have the mmap_sem (pfn_valid macro is called during mmap). There
+@@ -211,7 +211,7 @@
  
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
-+#ifdef CONFIG_USE_OPT_PFN_VALID
-+
-+/* check mem_map is valid or not by accessing it.
-+   Because virtual mem_map/sparse mem is always alined, just __get_user()
-+   check is necessary.
-+ */
-+int check_valid_memmap(struct page *pg)
-+{
-+	char byte;
-+	if (__get_user(byte, (char __user*)pg) == 0)
-+		return 1;
-+	return 0;
-+}
-+
-+EXPORT_SYMBOL(check_valid_memmap);
-+#endif
- 
- static void* __meminit pte_alloc_vmem_map(int node)
- {
+   bad_area:
+ 	up_read(&mm->mmap_sem);
+-#ifdef CONFIG_VIRTUAL_MEM_MAP
++#if defined(CONFIG_VIRTUAL_MEM_MAP) || defined(CONFIG_SPARSEMEM_VMEMMAP)
+   bad_area_no_up:
+ #endif
+ 	if ((isr & IA64_ISR_SP)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
