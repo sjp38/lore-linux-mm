@@ -1,41 +1,54 @@
-Date: Tue, 5 Dec 2006 10:44:19 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: la la la la ... swappiness
-In-Reply-To: <Pine.LNX.4.64.0612051031170.11860@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0612051038250.3542@woody.osdl.org>
-References: <200612050641.kB56f7wY018196@ms-smtp-06.texas.rr.com>
- <Pine.LNX.4.64.0612050754020.3542@woody.osdl.org> <20061205085914.b8f7f48d.akpm@osdl.org>
- <f353cb6c194d4.194d4f353cb6c@texas.rr.com> <Pine.LNX.4.64.0612051031170.11860@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 5 Dec 2006 11:25:41 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+Message-Id: <20061205112541.2a4b7414.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com>
+References: <20061130170746.GA11363@skynet.ie>
+	<20061130173129.4ebccaa2.akpm@osdl.org>
+	<Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>
+	<20061201110103.08d0cf3d.akpm@osdl.org>
+	<20061204140747.GA21662@skynet.ie>
+	<20061204113051.4e90b249.akpm@osdl.org>
+	<Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com>
+	<20061204120611.4306024e.akpm@osdl.org>
+	<Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com>
+	<20061204131959.bdeeee41.akpm@osdl.org>
+	<Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com>
+	<20061204142259.3cdda664.akpm@osdl.org>
+	<Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Aucoin <aucoin@houston.rr.com>, Andrew Morton <akpm@osdl.org>, 'Nick Piggin' <nickpiggin@yahoo.com.au>, 'Tim Schmielau' <tim@physik3.uni-rostock.de>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Mel Gorman <mel@skynet.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 5 Dec 2006 08:00:39 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-On Tue, 5 Dec 2006, Christoph Lameter wrote:
+> On Mon, 4 Dec 2006, Andrew Morton wrote:
 > 
-> We do not support swapping / reclaim for huge pages.
+> > > > What happens when we need to run reclaim against just a section of a zone?
+> > > > Lumpy-reclaim could be used here; perhaps that's Mel's approach too?
+> > > 
+> > > Why would we run reclaim against a section of a zone?
+> > 
+> > Strange question.  Because all the pages are in use for something else.
+> 
+> We always run reclaim against the whole zone not against parts. Why 
+> would we start running reclaim against a portion of a zone?
 
-Well, Louis doesn't actually _want_ swapping or reclaim on them. He just 
-wants the system to run well with the remaining 400MB of memory in his 
-machine.
+Oh for gawd's sake.
 
-Which it doesn't. It just OOM's for some reason.
+If you want to allocate a page from within the first 1/4 of a zone, and if
+all those pages are in use for something else then you'll need to run
+reclaim against the first 1/4 of that zone.  Or fail the allocation.  Or
+run reclaim against the entire zone.  The second two options are
+self-evidently dumb.
 
-We still haven't seen the oom debug output though, I think. It should talk 
-about some of the state (it calls "show_mem()", which should call 
-"show_free_areas()", which should tell a lot about why the heck it 
-thought it was out of memory.
-
-But maybe Louis posted it and I just missed it.
-
-Anyway, if it's hugepages, then I don't see why Louis even _wants_ to turn 
-down swappiness. The hugepages won't be swapped out regardless.
-
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
