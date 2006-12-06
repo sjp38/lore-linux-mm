@@ -1,42 +1,47 @@
-Date: Wed, 6 Dec 2006 02:53:52 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Call to cpuset_zone_allowed() in slab.c:fallback_alloc() with
- irqs disabled
-Message-Id: <20061206025352.b1d9d63a.pj@sgi.com>
-In-Reply-To: <6599ad830611221634w6a768c1ek816dda61a97b68c@mail.gmail.com>
-References: <6599ad830611221634w6a768c1ek816dda61a97b68c@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4576D129.90909@shadowen.org>
+Date: Wed, 06 Dec 2006 14:18:17 +0000
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+References: <20061130170746.GA11363@skynet.ie>	 <20061130173129.4ebccaa2.akpm@osdl.org>	 <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>	 <20061201110103.08d0cf3d.akpm@osdl.org> <20061204140747.GA21662@skynet.ie>	 <20061204113051.4e90b249.akpm@osdl.org> <1165264640.23363.18.camel@lappy>
+In-Reply-To: <1165264640.23363.18.camel@lappy>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, clameter@sgi.com
+To: Peter Zijlstra <peter@programming.kicks-ass.net>
+Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@skynet.ie>, clameter@sgi.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-A couple of weeks ago, Paul M wrote:
-I just saw this backtrace on 2.6.19-rc5:
->
-> BUG: sleeping function called from invalid context at kernel/cpuset.c:1520
-> in_atomic():0, irqs_disabled():1
+Peter Zijlstra wrote:
+> On Mon, 2006-12-04 at 11:30 -0800, Andrew Morton wrote:
 > 
-> Call Trace:
->  ...
+>> I'd also like to pin down the situation with lumpy-reclaim versus
+>> anti-fragmentation.  No offence, but I would of course prefer to avoid
+>> merging the anti-frag patches simply based on their stupendous size.  It
+>> seems to me that lumpy-reclaim is suitable for the e1000 problem, but
+>> perhaps not for the hugetlbpage problem.  Whereas anti-fragmentation adds
+>> vastly more code, but can address both problems?  Or something.
 > 
-> kmem_cache_alloc_node() disables irqs, then calls __cache_alloc_node()
-> -> fallback_alloc() -> cpuset_zone_allowed(), with flags that appear
-> to be GFP_KERNEL.
+>>From my understanding they complement each other nicely. Without some
+> form of anti fragmentation there is no guarantee lumpy reclaim will ever
+> free really high order pages. Although it might succeed nicely for the
+> network sized allocations we now have problems with.
+> 
+> - Andy, do you have any number on non largepage order allocations? 
 
-Thanks for reporting this - it looks like a missing __GFP_HARDWALL flag
-on a new invocation of cpuset_zone_allowed().
+Currently no, we have focused on the worst case huge pages and assumed 
+lower orders would be easier and more successful.  Though it is (now) on 
+my todo list to see if we can do the same tests at some lower order; 
+with the aim of trying that on base+lumpy.
 
-I just sent a patch to lkml, and copied Christoph, since this is in his
-code, just to be sure I didn't break something.
+> But anti fragmentation as per Mel's patches is not good enough to
+> provide largepage allocations since we would need to shoot down most of
+> the LRU to obtain such a large contiguous area. Lumpy reclaim however
+> can quickly achieve these sizes.
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
