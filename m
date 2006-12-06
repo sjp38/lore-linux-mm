@@ -1,47 +1,55 @@
-Date: Wed, 6 Dec 2006 17:01:05 +0000
-Subject: [PATCH 4/4] lumpy take the other active inactive pages in the area
-Message-ID: <4fe113c0c99477e6ccb24e1d848e7ae5@pinky>
-References: <exportbomb.1165424343@pinky>
+Date: Wed, 6 Dec 2006 09:31:25 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+In-Reply-To: <Pine.LNX.4.64.0612060903161.7238@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0612060921230.26185@schroedinger.engr.sgi.com>
+References: <20061204113051.4e90b249.akpm@osdl.org>
+ <Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com>
+ <20061204120611.4306024e.akpm@osdl.org> <Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com>
+ <20061204131959.bdeeee41.akpm@osdl.org> <Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com>
+ <20061204142259.3cdda664.akpm@osdl.org> <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com>
+ <20061205112541.2a4b7414.akpm@osdl.org> <Pine.LNX.4.64.0612051159510.18687@schroedinger.engr.sgi.com>
+ <20061205214721.GE20614@skynet.ie> <Pine.LNX.4.64.0612051521060.20570@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0612060903161.7238@skynet.skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: Andy Whitcroft <apw@shadowen.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-When we scan an order N aligned area around our tag page take any
-other pages with a matching active state to that of the tag page.
-This will tend to demote areas of the order we are interested from
-the active list to the inactive list and from the end of the inactive
-list, increasing the chances of such areas coming free together.
+On Wed, 6 Dec 2006, Mel Gorman wrote:
+> Objective: Get contiguous block of free pages
+> Required: Pages that can move
+> Move means: Migrating them or reclaiming
+> How we do it for high-order allocations: Take a page from the LRU, move
+> 	the pages within that high-order block
+> How we do it for unplug: Take the pages within the range of interest, move
+> 	all the pages out of that range
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 85f626b..fc23d87 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -710,7 +710,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			case 0:
- 				list_move(&tmp->lru, dst);
- 				nr_taken++;
--				continue;
-+				break;
- 
- 			case -EBUSY:
- 				/* else it is being freed elsewhere */
-@@ -718,7 +718,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			default:
- 				break;
- 			}
--			break;
- 		}
- 	}
- 
+This is mostly the same. For unplug we would clear the freelists of 
+page in the unplug range and take the pages off the LRU that are in the 
+range of interest and then move them. Page migration takes pages off the 
+LRU.
+
+> In both cases, you are taking a subsection of a zone and doing something to
+> it. In the beginning, we'll be reclaiming because it's easier and it's
+> relatively well understood. Once stable, then work can start on defrag
+> properly.
+
+Both cases require a scanning of the LRU or freelists for pages in 
+that range. We are not actually doing reclaim since we do not age the 
+pages. We evict them all and are not doing reclaim in the usual way.
+
+> I don't intend to marry the two. However, I intend to handle reclaim first
+> because it's needed whether defrag exists or not.
+
+Yes and we already have reclaim implemented. It can be used for freeing up
+memory in a zone. But if you want to open up a specific range then what we
+do may look a bit like reclaim but its fundamentally different since we 
+unconditionally clear the range regardless of aging.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
