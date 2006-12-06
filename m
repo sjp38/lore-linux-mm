@@ -1,47 +1,80 @@
-Message-ID: <4576D129.90909@shadowen.org>
-Date: Wed, 06 Dec 2006 14:18:17 +0000
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Wed, 6 Dec 2006 16:59:04 +0000
+Subject: [PATCH 0/4] Lumpy Reclaim V3
+Message-ID: <exportbomb.1165424343@pinky>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
- may be migrated
-References: <20061130170746.GA11363@skynet.ie>	 <20061130173129.4ebccaa2.akpm@osdl.org>	 <Pine.LNX.4.64.0612010948320.32594@skynet.skynet.ie>	 <20061201110103.08d0cf3d.akpm@osdl.org> <20061204140747.GA21662@skynet.ie>	 <20061204113051.4e90b249.akpm@osdl.org> <1165264640.23363.18.camel@lappy>
-In-Reply-To: <1165264640.23363.18.camel@lappy>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: Andy Whitcroft <apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peter@programming.kicks-ass.net>
-Cc: Andrew Morton <akpm@osdl.org>, Mel Gorman <mel@skynet.ie>, clameter@sgi.com, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> On Mon, 2006-12-04 at 11:30 -0800, Andrew Morton wrote:
-> 
->> I'd also like to pin down the situation with lumpy-reclaim versus
->> anti-fragmentation.  No offence, but I would of course prefer to avoid
->> merging the anti-frag patches simply based on their stupendous size.  It
->> seems to me that lumpy-reclaim is suitable for the e1000 problem, but
->> perhaps not for the hugetlbpage problem.  Whereas anti-fragmentation adds
->> vastly more code, but can address both problems?  Or something.
-> 
->>From my understanding they complement each other nicely. Without some
-> form of anti fragmentation there is no guarantee lumpy reclaim will ever
-> free really high order pages. Although it might succeed nicely for the
-> network sized allocations we now have problems with.
-> 
-> - Andy, do you have any number on non largepage order allocations? 
+This is a repost of the lumpy reclaim patch set.  This is
+basically unchanged from the last post, other than being rebased
+to 2.6.19-rc2-mm2.  This has passed basic stress testing on a range
+of machines here.
 
-Currently no, we have focused on the worst case huge pages and assumed 
-lower orders would be easier and more successful.  Though it is (now) on 
-my todo list to see if we can do the same tests at some lower order; 
-with the aim of trying that on base+lumpy.
+[Sorry for the delay reposting, I had a test failure and needed
+to confirm it was not due to lumpy before posting.]
 
-> But anti fragmentation as per Mel's patches is not good enough to
-> provide largepage allocations since we would need to shoot down most of
-> the LRU to obtain such a large contiguous area. Lumpy reclaim however
-> can quickly achieve these sizes.
+As before, I have left the changes broken out for the time being
+so as to make it clear what is the original and what is my fault.
+I would expect to roll this up before acceptance.
 
 -apw
+
+=== 8< ===
+Lumpy Reclaim (V3)
+
+When we are out of memory of a suitable size we enter reclaim.
+The current reclaim algorithm targets pages in LRU order, which
+is great for fairness but highly unsuitable if you desire pages at
+higher orders.  To get pages of higher order we must shoot down a
+very high proportion of memory; >95% in a lot of cases.
+
+This patch set adds a lumpy reclaim algorithm to the allocator.
+It targets groups of pages at the specified order anchored at the
+end of the active and inactive lists.  This encourages groups of
+pages at the requested orders to move from active to inactive,
+and active to free lists.  This behaviour is only triggered out of
+direct reclaim when higher order pages have been requested.
+
+This patch set is particularly effective when utilised with
+an anti-fragmentation scheme which groups pages of similar
+reclaimability together.
+
+This patch set (against 2.6.19-rc6-mm2) is based on Peter Zijlstra's
+lumpy reclaim V2 patch which forms the foundation.  It comprises
+the following patches:
+
+lumpy-reclaim-v2 -- Peter Zijlstra's lumpy reclaim prototype,
+
+lumpy-cleanup-a-missplaced-comment-and-simplify-some-code --
+  cleanups to move a comment back to where it came from, to make
+  the area edge selection more comprehensible and also cleans up
+  the switch coding style to match the concensus in mm/*.c,
+
+lumpy-ensure-we-respect-zone-boundaries -- bug fix to ensure we do
+  not attempt to take pages from adjacent zones, and
+
+lumpy-take-the-other-active-inactive-pages-in-the-area -- patch to
+  increase aggression over the targetted order.
+
+Testing of this patch set under high fragmentation high allocation
+load conditions shows significantly improved high order reclaim
+rates than a standard kernel.  The stack here it is now within 5%
+of the best case linear-reclaim figures.
+
+It would be interesting to see if this setup is also successful in
+reducing order-2 allocation failures that you have been seeing with
+jumbo frames.
+
+Please consider for -mm.
+
+-apw
+(lumpy-v3r7)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
