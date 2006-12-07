@@ -1,48 +1,69 @@
-Date: Thu, 7 Dec 2006 19:50:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] vmemmap on sparsemem v2 [1/5] generic vmemmap on
- sparsemem
-Message-Id: <20061207195023.11cb3b52.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20061207101156.GB9059@osiris.ibm.com>
-References: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20061205214902.b8454d67.kamezawa.hiroyu@jp.fujitsu.com>
-	<20061206181317.GA10042@osiris.ibm.com>
-	<Pine.LNX.4.64.0612061014210.26523@schroedinger.engr.sgi.com>
-	<20061207092042.33533708.kamezawa.hiroyu@jp.fujitsu.com>
-	<20061207101156.GB9059@osiris.ibm.com>
+Date: Thu, 7 Dec 2006 03:19:03 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC][PATCH] Allow Cpuset nodesets to expand under pressure
+Message-Id: <20061207031903.e62971f7.pj@sgi.com>
+In-Reply-To: <20061207024436.2b24d418.pj@sgi.com>
+References: <20061205114513.4D7A63D675D@localhost>
+	<20061207024436.2b24d418.pj@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: clameter@sgi.com, linux-mm@kvack.org, clameter@engr.sgi.com, apw@shadowen.org
+To: Paul Jackson <pj@sgi.com>
+Cc: menage@google.com, akpm@osdl.org, linux-mm@kvack.org, mbligh@google.com, winget@google.com, rohitseth@google.com, nickpiggin@yahoo.com.au, ckrm-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Dec 2006 11:11:56 +0100
-Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-
-> > > vmap_end is only page aligned if sizeof(struct page) and PAGES_PER_SECTION
-> > > play nicely together. Which may not be the case on 64 bit platforms where
-> > > sizeof(struct page) is not a power of two.
-> > >
-> > Now, (for example ia64) sizeof(struct page)=56 and PAGES_PER_SECTION=65536,
-> > Then, sizeof(struct page) * PAGES_PER_SECTION is page-aligned.(16kbytes pages.)
+> I can imagine two more per-cpuset files, instead of the four above:
 > 
-> sizeof(struct page) depends also on at least two CONFIG options. I don't
-> think it's a good idea to assume that everything is page aligned, just
-> because it works right now and only with certain kernel configurations...
-> At least the kernel build should fail if your assumptions are not true
-> anymore.
-> 
-I'll add #error and check it. thanks.
+>   memory_expansion_pressure - level, 0-100, at which the callout is called
+>   memory_expansion_routine - string name of a registered callout.
 
--Kame
+These choice of names are too specific to Paul M's expansion patch.
 
+For the more generic module approach I'm suggesting, these names
+should be more like:
 
+    memory_pressure - level of current pressure on memory applied by tasks in cpuset
+    memory_pressure_trigger - level at which memory_pressure_callout called
+    memory_pressure_callout - string name of loadable module callback function
 
+And we need two 'level' files, a read-only one that indicates the current
+pressure being imposed on memory, and a read-write one that sets the trigger
+level at which the callout is invoked.
 
+The 'memory_pressure' read-only level is an aggregate across all the
+tasks in the cpuset.  That much it should continue to be, for API
+compatibility.  As to which aggregate, that's open to discussion.
 
+Since it's an aggregate of something that can only be sampled at
+discrete events (when the tasks in the cpuset ask for memory) it seems
+that we need some sort of filtering that is more than just 'the memory
+pressure of the most recent allocation request by any task in this
+cpuset.'
+
+The memory_pressure_trigger is evaluated for a particular memory
+request by a particular task.  It is not an aggregate.
+
+So I could imagine changing 'memory_pressure' to a filtered average of
+the mm/vmscan.c distress values seen in recent allocation requests by
+tasks in that cpuset.
+
+But it's still distinct from the instantaneous value that triggers
+the callout.
+
+I don't think Andrew gets to remove that single-pole low-pass recursive
+(IIR) filter code yet ;).
+
+And as long as it remains a time filtered aggregate, 'memory_pressure'
+might as well remain just what it is.  It's not worth the bother of
+futzing with it to make what are just hidden internal changes for a
+token show of greater commonality with the callout trigger metric.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
