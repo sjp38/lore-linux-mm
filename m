@@ -1,723 +1,115 @@
-Message-Id: <20061207162736.868838000@chello.nl>
-References: <20061207161800.426936000@chello.nl>
-Date: Thu, 07 Dec 2006 17:18:12 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/16] radix-tree: concurrent write side support
-Content-Disposition: inline; filename=radix-tree-concurrent.patch
+Date: Thu, 7 Dec 2006 11:55:18 -0800
+From: Mark Fasheh <mark.fasheh@oracle.com>
+Subject: Re: Status of buffered write path (deadlock fixes)
+Message-ID: <20061207195518.GG4497@ca-server1.us.oracle.com>
+Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
+References: <45751712.80301@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <45751712.80301@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Provide support for concurrent write side operations without changing the API
-for all current uses.
+Hi Nick,
 
-Concurrency is realized by means of two locking models; the simple one is 
-ladder locking, the more complex one is path locking.
+On Tue, Dec 05, 2006 at 05:52:02PM +1100, Nick Piggin wrote:
+> Hi,
+> 
+> I'd like to try to state where we are WRT the buffered write patches,
+> and ask for comments. Sorry for the wide cc list, but this is an
+> important issue which hasn't had enough review.
 
-Ladder locking is like walking down a ladder, you place your foot on a spoke
-below the one your other foot finds support etc.. There is no walking with both
-feet in the air. Likewise with walking a tree, you lock a node below the 
-current node before releasing it.
+I pulled broken-out-2006-12-05-01-0.tar.gz from ftp.kernel.org and applied
+the following patches to get a reasonable idea of what the final product
+would look like:
 
-This allows other modifying operations to start as soon as you release the
-lock on the root node and even complete before you if they walk another path
-downward.
+revert-generic_file_buffered_write-handle-zero-length-iovec-segments.patch
+revert-generic_file_buffered_write-deadlock-on-vectored-write.patch
+generic_file_buffered_write-cleanup.patch
+mm-only-mm-debug-write-deadlocks.patch
+mm-fix-pagecache-write-deadlocks.patch
+mm-fix-pagecache-write-deadlocks-comment.patch
+mm-fix-pagecache-write-deadlocks-xip.patch
+mm-fix-pagecache-write-deadlocks-mm-pagecache-write-deadlocks-efault-fix.patch
+mm-fix-pagecache-write-deadlocks-zerolength-fix.patch
+mm-fix-pagecache-write-deadlocks-stale-holes-fix.patch
+fs-prepare_write-fixes.patch
 
-The modifying operations: insert, lookup_slot and set_tag, use this simple
-method.
+If this is incorrect, or I should apply further patches, please let me know.
 
-The more complex path locking method is needed for operations that need to
-walk upwards again after they walked down, those are: tag_clear and delete.
+Hopefully my feedback can be of use to you.
 
-These lock their whole path downwards and release whole sections at points
-where it can be determined the walk upwards will stop, thus also allowing
-concurrency.
 
-Finding the conditions for the terminated walk upwards while doing the downward
-walk is the 'interesting' part of this approach.
+> Well the next -mm will include everything we've done so far. I won't
+> repost patches unless someone would like to comment on a specific one.
+> 
+> I think the core generic_file_buffered_write is fairly robust, after
+> fixing the efault and zerolength iov problems picked up in testing
+> (thanks, very helpful!).
+> 
+> So now I *believe* we have an approach that solves the deadlock and
+> doesn't expose transient or stale data, transient zeroes, or anything
+> like that.
 
-The remaining - unmodified - operations will have exclusive locking (since
-they're unmodified, they never move the lock downwards from the root node).
+In generic_file_buffered_write() we now do:
 
-The API for this looks like:
+	status = a_ops->commit_write(file, page, offset,offset+copied);
 
-  DECLARE_RADIX_TREE_CONTEXT(ctx, &mapping->page_tree)
+Which tells the file system to commit only the amount of data that
+filemap_copy_from_user() was able to pull in, despite our zeroing of 
+the newly allocated buffers in the copied != bytes case. Shouldn't we be
+doing:
 
-  radix_tree_lock(&ctx)
-  ... do _1_ modifying operation ...
-  radix_tree_unlock(&ctx)
+        status = a_ops->commit_write(file, page, offset,offset+bytes);
 
-Note that before the radix operation the root node is held and will provide
-exclusive locking, after the operation the held lock might only be enough to
-protect a single item.
+instead, thus preserving ordered writeout (for ext3, ocfs2, etc) for those
+parts of the page which are properly allocated and zero'd but haven't been
+copied into yet? I think that in the case of a crash just after the
+transaction is closed in ->commit_write(), we might lose those guarantees,
+exposing stale data on disk.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/radix-tree.h |   87 +++++++++++++-
- init/Kconfig               |    4 
- lib/radix-tree.c           |  279 +++++++++++++++++++++++++++++++++++----------
- 3 files changed, 306 insertions(+), 64 deletions(-)
+ 
+> Error handling is getting close, but there may be cases that nobody
+> has picked up, and I've noticed a couple which I'll explain below.
+> 
+> I think we do the right thing WRT pagecache error handling: a
+> !uptodate page remains !uptodate, an uptodate page can handle the
+> write being done in several parts. Comments in the patches attempt
+> to explain how this works. I think it is pretty straightforward.
+> 
+> But WRT block allocation in the case of errors, it needs more review.
+> 
+> Block allocation:
+> - prepare_write can allocate blocks
+> - prepare_write doesn't need to initialize the pagecache on top of
+>   these blocks where it is within the range specified in prepare_write
+>   (because the copy_from_user will initialise it correctly)
+> - In the case of a !uptodate page, unless the page is brought uptodate
+>   (ie the copy_from_user completely succeeds) and marked dirty, then
+>   a read that sneaks in after we unlock the page (to retry the write)
+>   will try to bring it uptodate by pulling in the uninitialised blocks.
 
-Index: linux-2.6-rt/include/linux/radix-tree.h
-===================================================================
---- linux-2.6-rt.orig/include/linux/radix-tree.h	2006-12-02 23:18:37.000000000 +0100
-+++ linux-2.6-rt/include/linux/radix-tree.h	2006-12-03 00:52:55.000000000 +0100
-@@ -63,23 +63,73 @@ struct radix_tree_root {
- 	unsigned int		height;
- 	gfp_t			gfp_mask;
- 	struct radix_tree_node	*rnode;
-+	spinlock_t		lock;
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	struct radix_tree_context *context;
-+	struct task_struct	*owner;
-+#endif
- };
- 
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+#define __RADIX_TREE_CONCURRENT_INIT					\
-+	.context = NULL,						\
-+	.owner = NULL,
-+#else
-+#define __RADIX_TREE_CONCURRENT_INIT
-+#endif
-+
- #define RADIX_TREE_INIT(mask)	{					\
- 	.height = 0,							\
- 	.gfp_mask = (mask),						\
- 	.rnode = NULL,							\
-+	.lock = __SPIN_LOCK_UNLOCKED(radix_tree_root.lock),		\
-+	__RADIX_TREE_CONCURRENT_INIT					\
- }
- 
- #define RADIX_TREE(name, mask) \
- 	struct radix_tree_root name = RADIX_TREE_INIT(mask)
- 
--#define INIT_RADIX_TREE(root, mask)					\
--do {									\
--	(root)->height = 0;						\
--	(root)->gfp_mask = (mask);					\
--	(root)->rnode = NULL;						\
--} while (0)
-+static inline void INIT_RADIX_TREE(struct radix_tree_root *root, gfp_t gfp_mask)
-+{
-+	root->height = 0;
-+	root->gfp_mask = gfp_mask;
-+	root->rnode = NULL;
-+	spin_lock_init(&root->lock);
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	root->context = NULL;
-+	root->owner = NULL;
-+#endif
-+}
-+
-+struct radix_tree_context {
-+	struct radix_tree_root	*root;
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	spinlock_t		*locked;
-+#endif
-+};
-+
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+#define __RADIX_TREE_CONTEXT_INIT					\
-+		.locked = NULL,
-+#else
-+#define __RADIX_TREE_CONTEXT_INIT
-+#endif
-+
-+#define DECLARE_RADIX_TREE_CONTEXT(context, tree) 			\
-+	struct radix_tree_context context = { 				\
-+		.root = (tree), 					\
-+		__RADIX_TREE_CONTEXT_INIT				\
-+       	}
-+
-+static inline void
-+init_radix_tree_context(struct radix_tree_context *wctx,
-+		struct radix_tree_root *root)
-+{
-+	wctx->root = root;
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	wctx->locked = NULL;
-+#endif
-+}
- 
- /**
-  * Radix-tree synchronization
-@@ -156,6 +206,31 @@ static inline void radix_tree_replace_sl
- 	rcu_assign_pointer(*pslot, item);
- }
- 
-+static inline void radix_tree_lock(struct radix_tree_context *context)
-+{
-+	struct radix_tree_root *root = context->root;
-+	rcu_read_lock();
-+	spin_lock(&root->lock);
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	BUG_ON(context->locked);
-+	context->locked = &root->lock;
-+	root->owner = current;
-+	root->context = context;
-+#endif
-+}
-+
-+static inline void radix_tree_unlock(struct radix_tree_context *context)
-+{
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	BUG_ON(!context->locked);
-+	spin_unlock(context->locked);
-+	context->locked = NULL;
-+#else
-+	spin_unlock(&context->root->lock);
-+#endif
-+	rcu_read_unlock();
-+}
-+
- int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
- void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
- void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
-Index: linux-2.6-rt/lib/radix-tree.c
-===================================================================
---- linux-2.6-rt.orig/lib/radix-tree.c	2006-12-02 23:18:37.000000000 +0100
-+++ linux-2.6-rt/lib/radix-tree.c	2006-12-03 00:52:57.000000000 +0100
-@@ -32,6 +32,7 @@
- #include <linux/string.h>
- #include <linux/bitops.h>
- #include <linux/rcupdate.h>
-+#include <linux/spinlock.h>
- 
- 
- #ifdef __KERNEL__
-@@ -52,11 +53,17 @@ struct radix_tree_node {
- 	struct rcu_head	rcu_head;
- 	void		*slots[RADIX_TREE_MAP_SIZE];
- 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	spinlock_t	lock;
-+#endif
- };
- 
- struct radix_tree_path {
- 	struct radix_tree_node *node;
- 	int offset;
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	spinlock_t *locked;
-+#endif
- };
- 
- #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
-@@ -64,6 +71,10 @@ struct radix_tree_path {
- 
- static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH] __read_mostly;
- 
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+static struct lock_class_key radix_node_class[RADIX_TREE_MAX_PATH];
-+#endif
-+
- /*
-  * Radix tree node cache.
-  */
-@@ -88,7 +99,7 @@ static inline gfp_t root_gfp_mask(struct
-  * that the caller has pinned this thread of control to the current CPU.
-  */
- static struct radix_tree_node *
--radix_tree_node_alloc(struct radix_tree_root *root)
-+radix_tree_node_alloc(struct radix_tree_root *root, int height)
- {
- 	struct radix_tree_node *ret;
- 	gfp_t gfp_mask = root_gfp_mask(root);
-@@ -105,6 +116,11 @@ radix_tree_node_alloc(struct radix_tree_
- 		}
- 	}
- 	BUG_ON(radix_tree_is_indirect_ptr(ret));
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+	spin_lock_init(&ret->lock);
-+	lockdep_set_class(&ret->lock, &radix_node_class[height]);
-+#endif
-+	ret->height = height;
- 	return ret;
- }
- 
-@@ -208,6 +224,22 @@ static inline int any_tag_set(struct rad
- 	return 0;
- }
- 
-+static inline int any_tag_set_but(struct radix_tree_node *node,
-+		unsigned int tag, int offset)
-+{
-+	int idx;
-+	int offset_idx = offset / BITS_PER_LONG;
-+	unsigned long offset_mask = ~(1 << (offset % BITS_PER_LONG));
-+	for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-+		unsigned long mask = ~0UL;
-+		if (idx == offset_idx)
-+			mask = offset_mask;
-+		if (node->tags[tag][idx] & mask)
-+			return 1;
-+	}
-+	return 0;
-+}
-+
- /*
-  *	Return the maximum key which can be store into a
-  *	radix tree with height HEIGHT.
-@@ -237,8 +269,8 @@ static int radix_tree_extend(struct radi
- 	}
- 
- 	do {
--		unsigned int newheight;
--		if (!(node = radix_tree_node_alloc(root)))
-+		unsigned int newheight = root->height + 1;
-+		if (!(node = radix_tree_node_alloc(root, newheight)))
- 			return -ENOMEM;
- 
- 		/* Increase the height.  */
-@@ -250,8 +282,6 @@ static int radix_tree_extend(struct radi
- 				tag_set(node, tag, 0);
- 		}
- 
--		newheight = root->height+1;
--		node->height = newheight;
- 		node->count = 1;
- 		node = radix_tree_ptr_to_indirect(node);
- 		rcu_assign_pointer(root->rnode, node);
-@@ -261,6 +291,78 @@ out:
- 	return 0;
- }
- 
-+#ifdef CONFIG_RADIX_TREE_CONCURRENT
-+static inline struct radix_tree_context *
-+radix_tree_get_context(struct radix_tree_root *root)
-+{
-+	struct radix_tree_context *context = NULL;
-+
-+	if (root->owner == current && root->context) {
-+		context = root->context;
-+		root->context = NULL;
-+	}
-+	return context;
-+}
-+
-+#define RADIX_TREE_CONTEXT(context, root) \
-+	struct radix_tree_context *context = radix_tree_get_context(root)
-+
-+static inline spinlock_t *radix_node_lock(struct radix_tree_root *root,
-+		struct radix_tree_node *node, int height)
-+{
-+	spinlock_t *locked = &node->lock;
-+	spin_lock(locked);
-+	return locked;
-+}
-+
-+static inline void radix_ladder_lock(struct radix_tree_context *context,
-+		struct radix_tree_node *node, int height)
-+{
-+	if (context) {
-+		struct radix_tree_root *root = context->root;
-+		spinlock_t *locked = radix_node_lock(root, node, height);
-+		if (locked) {
-+			spin_unlock(context->locked);
-+			context->locked = locked;
-+		}
-+	}
-+}
-+
-+static inline void radix_path_init(struct radix_tree_context *context,
-+		struct radix_tree_path *pathp)
-+{
-+	pathp->locked = context ? context->locked : NULL;
-+}
-+
-+static inline void radix_path_lock(struct radix_tree_context *context,
-+		struct radix_tree_path *pathp, struct radix_tree_node *node,
-+		int height)
-+{
-+	if (context) {
-+		struct radix_tree_root *root = context->root;
-+		spinlock_t *locked = radix_node_lock(root, node, height);
-+		if (locked)
-+			context->locked = locked;
-+		pathp->locked = locked;
-+	} else
-+		pathp->locked = NULL;
-+}
-+
-+static inline void radix_path_unlock(struct radix_tree_context *context,
-+		struct radix_tree_path *punlock)
-+{
-+	if (context && punlock->locked &&
-+			context->locked != punlock->locked)
-+		spin_unlock(punlock->locked);
-+}
-+#else
-+#define RADIX_TREE_CONTEXT(context, root) do { } while (0)
-+#define radix_ladder_lock(context, node, height) do { } while (0)
-+#define radix_path_init(context, pathp) do { } while (0)
-+#define radix_path_lock(context, pathp, node, height) do { } while (0)
-+#define radix_path_unlock(context, punlock) do { } while (0)
-+#endif
-+
- /**
-  *	radix_tree_insert    -    insert into a radix tree
-  *	@root:		radix tree root
-@@ -276,6 +378,8 @@ int radix_tree_insert(struct radix_tree_
- 	unsigned int height, shift;
- 	int offset;
- 	int error;
-+	int tag;
-+	RADIX_TREE_CONTEXT(context, root);
- 
- 	BUG_ON(radix_tree_is_indirect_ptr(item));
- 
-@@ -295,9 +399,8 @@ int radix_tree_insert(struct radix_tree_
- 	while (height > 0) {
- 		if (slot == NULL) {
- 			/* Have to add a child node.  */
--			if (!(slot = radix_tree_node_alloc(root)))
-+			if (!(slot = radix_tree_node_alloc(root, height)))
- 				return -ENOMEM;
--			slot->height = height;
- 			if (node) {
- 				rcu_assign_pointer(node->slots[offset], slot);
- 				node->count++;
-@@ -309,6 +412,9 @@ int radix_tree_insert(struct radix_tree_
- 		/* Go a level down */
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 		node = slot;
-+
-+		radix_ladder_lock(context, node, height);
-+
- 		slot = node->slots[offset];
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
-@@ -320,12 +426,12 @@ int radix_tree_insert(struct radix_tree_
- 	if (node) {
- 		node->count++;
- 		rcu_assign_pointer(node->slots[offset], item);
--		BUG_ON(tag_get(node, 0, offset));
--		BUG_ON(tag_get(node, 1, offset));
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-+			BUG_ON(tag_get(node, tag, offset));
- 	} else {
- 		rcu_assign_pointer(root->rnode, item);
--		BUG_ON(root_tag_get(root, 0));
--		BUG_ON(root_tag_get(root, 1));
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-+			BUG_ON(root_tag_get(root, tag));
- 	}
- 
- 	return 0;
-@@ -349,6 +455,7 @@ void **radix_tree_lookup_slot(struct rad
- {
- 	unsigned int height, shift;
- 	struct radix_tree_node *node, **slot;
-+	RADIX_TREE_CONTEXT(context, root);
- 
- 	node = rcu_dereference(root->rnode);
- 	if (node == NULL)
-@@ -374,6 +481,8 @@ void **radix_tree_lookup_slot(struct rad
- 		if (node == NULL)
- 			return NULL;
- 
-+		radix_ladder_lock(context, node, height);
-+
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
- 	} while (height > 0);
-@@ -449,6 +558,7 @@ void *radix_tree_tag_set(struct radix_tr
- {
- 	unsigned int height, shift;
- 	struct radix_tree_node *slot;
-+	RADIX_TREE_CONTEXT(context, root);
- 
- 	height = root->height;
- 	BUG_ON(index > radix_tree_maxindex(height));
-@@ -456,9 +566,15 @@ void *radix_tree_tag_set(struct radix_tr
- 	slot = radix_tree_indirect_to_ptr(root->rnode);
- 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
- 
-+	/* set the root's tag bit */
-+	if (slot && !root_tag_get(root, tag))
-+		root_tag_set(root, tag);
-+
- 	while (height > 0) {
- 		int offset;
- 
-+		radix_ladder_lock(context, slot, height);
-+
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 		if (!tag_get(slot, tag, offset))
- 			tag_set(slot, tag, offset);
-@@ -468,10 +584,6 @@ void *radix_tree_tag_set(struct radix_tr
- 		height--;
- 	}
- 
--	/* set the root's tag bit */
--	if (slot && !root_tag_get(root, tag))
--		root_tag_set(root, tag);
--
- 	return slot;
- }
- EXPORT_SYMBOL(radix_tree_tag_set);
-@@ -494,28 +606,51 @@ void *radix_tree_tag_clear(struct radix_
- 			unsigned long index, unsigned int tag)
- {
- 	struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
-+	struct radix_tree_path *punlock = path, *piter;
- 	struct radix_tree_node *slot = NULL;
- 	unsigned int height, shift;
-+	RADIX_TREE_CONTEXT(context, root);
-+
-+	pathp->node = NULL;
-+	radix_path_init(context, pathp);
- 
- 	height = root->height;
- 	if (index > radix_tree_maxindex(height))
- 		goto out;
- 
- 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
--	pathp->node = NULL;
- 	slot = radix_tree_indirect_to_ptr(root->rnode);
- 
- 	while (height > 0) {
- 		int offset;
-+		int parent_tag = 0;
- 
- 		if (slot == NULL)
- 			goto out;
- 
-+		if (pathp->node)
-+			parent_tag = tag_get(pathp->node, tag, pathp->offset);
-+		else
-+			parent_tag = root_tag_get(root, tag);
-+
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--		pathp[1].offset = offset;
--		pathp[1].node = slot;
--		slot = slot->slots[offset];
- 		pathp++;
-+		pathp->offset = offset;
-+		pathp->node = slot;
-+		radix_path_lock(context, pathp, slot, height);
-+
-+		/*
-+		 * If the parent node does not have the tag set or the current
-+		 * node has slots with the tag set other than the on we're
-+		 * potentially clearing, the change can never propagate upwards
-+		 * from here.
-+		 */
-+		if (!parent_tag || any_tag_set_but(slot, tag, offset)) {
-+			for (; punlock < pathp; punlock++)
-+				radix_path_unlock(context, punlock);
-+		}
-+
-+		slot = slot->slots[offset];
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
- 	}
-@@ -523,20 +658,16 @@ void *radix_tree_tag_clear(struct radix_
- 	if (slot == NULL)
- 		goto out;
- 
--	while (pathp->node) {
--		if (!tag_get(pathp->node, tag, pathp->offset))
--			goto out;
--		tag_clear(pathp->node, tag, pathp->offset);
--		if (any_tag_set(pathp->node, tag))
--			goto out;
--		pathp--;
-+	for (piter = pathp; piter >= punlock; piter--) {
-+		if (piter->node)
-+			tag_clear(piter->node, tag, piter->offset);
-+		else
-+			root_tag_clear(root, tag);
- 	}
- 
--	/* clear the root's tag bit */
--	if (root_tag_get(root, tag))
--		root_tag_clear(root, tag);
--
- out:
-+	for (; punlock < pathp; punlock++)
-+		radix_path_unlock(context, punlock);
- 	return slot;
- }
- EXPORT_SYMBOL(radix_tree_tag_clear);
-@@ -958,7 +1089,7 @@ radix_tree_gang_lookup_tag_slot(struct r
- 	if (!radix_tree_is_indirect_ptr(node)) {
- 		if (first_index > 0)
- 			return 0;
--		results[0] = node;
-+		results[0] = (void **)&root->rnode;
- 		return 1;
- 	}
- 	node = radix_tree_indirect_to_ptr(node);
-@@ -994,6 +1125,7 @@ static inline void radix_tree_shrink(str
- 	while (root->height > 0) {
- 		struct radix_tree_node *to_free = root->rnode;
- 		void *newptr;
-+		int tag;
- 
- 		BUG_ON(!radix_tree_is_indirect_ptr(to_free));
- 		to_free = radix_tree_indirect_to_ptr(to_free);
-@@ -1020,11 +1152,10 @@ static inline void radix_tree_shrink(str
- 		root->rnode = newptr;
- 		root->height--;
- 		/* must only free zeroed nodes into the slab */
--		tag_clear(to_free, 0, 0);
--		tag_clear(to_free, 1, 0);
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-+			tag_clear(to_free, tag, 0);
- 		to_free->slots[0] = NULL;
- 		to_free->count = 0;
--		radix_tree_node_free(to_free);
- 	}
- }
- 
-@@ -1040,11 +1171,15 @@ static inline void radix_tree_shrink(str
- void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
- {
- 	struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
-+	struct radix_tree_path *punlock = path, *piter;
- 	struct radix_tree_node *slot = NULL;
--	struct radix_tree_node *to_free;
- 	unsigned int height, shift;
- 	int tag;
- 	int offset;
-+	RADIX_TREE_CONTEXT(context, root);
-+
-+	pathp->node = NULL;
-+	radix_path_init(context, pathp);
- 
- 	height = root->height;
- 	if (index > radix_tree_maxindex(height))
-@@ -1059,16 +1194,42 @@ void *radix_tree_delete(struct radix_tre
- 	slot = radix_tree_indirect_to_ptr(slot);
- 
- 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
--	pathp->node = NULL;
- 
- 	do {
-+		int parent_tags = 0;
-+		int no_tags = 0;
-+
- 		if (slot == NULL)
- 			goto out;
- 
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
-+			if (pathp->node) {
-+				parent_tags |=
-+					tag_get(pathp->node, tag, pathp->offset);
-+			} else
-+				parent_tags |= root_tag_get(root, tag);
-+		}
-+
- 		pathp++;
- 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 		pathp->offset = offset;
- 		pathp->node = slot;
-+		radix_path_lock(context, pathp, slot, height);
-+
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-+			no_tags |= !any_tag_set_but(slot, tag, offset);
-+
-+		/*
-+		 * If the parent node does not have any tag set or the current
-+		 * node has slots with the tags set other than the one we're
-+		 * potentially clearing AND there are more children than just
-+		 * us, the changes can never propagate upwards from here.
-+		 */
-+		if ((!parent_tags || !no_tags) && slot->count > 2) {
-+			for (; punlock < pathp; punlock++)
-+				radix_path_unlock(context, punlock);
-+		}
-+
- 		slot = slot->slots[offset];
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
-@@ -1081,41 +1242,43 @@ void *radix_tree_delete(struct radix_tre
- 	 * Clear all tags associated with the just-deleted item
- 	 */
- 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
--		if (tag_get(pathp->node, tag, pathp->offset))
--			radix_tree_tag_clear(root, index, tag);
-+		for (piter = pathp; piter >= punlock; piter--) {
-+			if (piter->node) {
-+				if (!tag_get(piter->node, tag, piter->offset))
-+					break;
-+				tag_clear(piter->node, tag, piter->offset);
-+				if (any_tag_set(piter->node, tag))
-+					break;
-+			} else {
-+				if (root_tag_get(root, tag))
-+					root_tag_clear(root, tag);
-+			}
-+		}
- 	}
- 
--	to_free = NULL;
--	/* Now free the nodes we do not need anymore */
--	while (pathp->node) {
--		pathp->node->slots[pathp->offset] = NULL;
--		pathp->node->count--;
--		/*
--		 * Queue the node for deferred freeing after the
--		 * last reference to it disappears (set NULL, above).
--		 */
--		if (to_free)
--			radix_tree_node_free(to_free);
-+	/* Now unhook the nodes we do not need anymore */
-+	for (piter = pathp; piter >= punlock && piter->node; piter--) {
-+		piter->node->slots[piter->offset] = NULL;
-+		piter->node->count--;
- 
--		if (pathp->node->count) {
--			if (pathp->node ==
-+		if (piter->node->count) {
-+			if (piter->node ==
- 					radix_tree_indirect_to_ptr(root->rnode))
- 				radix_tree_shrink(root);
- 			goto out;
- 		}
--
--		/* Node with zero slots in use so free it */
--		to_free = pathp->node;
--		pathp--;
--
- 	}
-+
- 	root_tag_clear_all(root);
- 	root->height = 0;
- 	root->rnode = NULL;
--	if (to_free)
--		radix_tree_node_free(to_free);
- 
- out:
-+	for (; punlock <= pathp; punlock++) {
-+		radix_path_unlock(context, punlock);
-+		if (punlock->node && punlock->node->count == 0)
-+			radix_tree_node_free(punlock->node);
-+	}
- 	return slot;
- }
- EXPORT_SYMBOL(radix_tree_delete);
-Index: linux-2.6-rt/init/Kconfig
-===================================================================
---- linux-2.6-rt.orig/init/Kconfig	2006-12-02 23:18:16.000000000 +0100
-+++ linux-2.6-rt/init/Kconfig	2006-12-02 23:18:37.000000000 +0100
-@@ -287,6 +287,10 @@ config TASK_XACCT
- config SYSCTL
- 	bool
- 
-+config RADIX_TREE_CONCURRENT
-+	bool "Enable concurrent radix tree operations (EXPERIMENTAL)"
-+	default y if SMP
-+
- menuconfig EMBEDDED
- 	bool "Configure standard kernel features (for small systems)"
- 	help
+For some reason, I'm not seeing where BH_New is being cleared in case with
+no errors or faults. Hopefully I'm wrong, but if I'm not I believe we need
+to clear the flag somewhere (perhaps in block_commit_write()?).
+
+
+Ok, that's it for now. I have some thoughts regarding the asymmetry between
+ranges passed to ->prepare_write() and ->commit_write(), but I'd like to
+save those thoughts until I know whether my comments above uncovered real
+issues :)
+
+Thanks,
+	--Mark
 
 --
+Mark Fasheh
+Senior Software Developer, Oracle
+mark.fasheh@oracle.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
