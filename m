@@ -1,86 +1,145 @@
-Date: Thu, 7 Dec 2006 21:22:57 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Bugme-new] [Bug 7645] New: Kernel BUG at mm/memory.c:1124
-In-Reply-To: <45782B32.6040401@cern.ch>
-Message-ID: <Pine.LNX.4.64.0612072101120.27573@blonde.wat.veritas.com>
-References: <200612070355.kB73tGf4021820@fire-2.osdl.org>
- <20061206201246.be7fb860.akpm@osdl.org> <4577A36B.6090803@cern.ch>
- <20061206230338.b0bf2b9e.akpm@osdl.org> <45782B32.6040401@cern.ch>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 7 Dec 2006 14:36:11 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: new procfs memory analysis feature
+Message-Id: <20061207143611.7a2925e2.akpm@osdl.org>
+In-Reply-To: <45789124.1070207@mvista.com>
+References: <45789124.1070207@mvista.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ramiro Voicu <Ramiro.Voicu@cern.ch>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org
+To: David Singleton <dsingleton@mvista.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Dec 2006, Ramiro Voicu wrote:
-> Andrew Morton wrote:
-> > On Thu, 07 Dec 2006 06:15:23 +0100
-> > Ramiro Voicu <Ramiro.Voicu@cern.ch> wrote:
-> >>
-> >> Dec  7 06:12:11 xxxx kernel: [  319.720340] pte_val: 629025
-> > 
-> > hm.  A valid, read-only, accessed user page with a sane-looking pfn.
-> > And this is repeatable, on two different machines.
-> > 
-> > I don't know what to do, sorry.  A bisection-search would have a good
-> > chance of finding the bug, but that would be pretty painful.  It looks like
-> > you were able to hit the bug after five minutes uptime, which helps.  Is it
-> > always that easy to hit?
+On Thu, 07 Dec 2006 14:09:40 -0800
+David Singleton <dsingleton@mvista.com> wrote:
+
 > 
-> It depends ... It can take days or minutes until it happens. The program
-> is a simple FTP-like using multiple TCP Streams, implemented with Java NIO.
+> Andrew,
+> 
+>     this implements a feature for memory analysis tools to go along with 
+> smaps.
+> It shows reference counts for individual pages instead of aggregate 
+> totals for a given VMA.
+> It helps memory analysis tools determine how well pages are being 
+> shared, or not,
+> in a shared libraries, etc.
+> 
+>    The per page information is presented in /proc/<pid>/pagemaps.
+> 
 
-Interesting.  I think you needn't bother with that bisection.  I can't
-say why this started happening to you only with recent releases (timings
-changed somehow I guess): it looks like reading /dev/zero has been using
-zeromap_page_range unsafely for years.
+I think the concept is not a bad one, frankly - this requirement arises
+frequently.  What bugs me is that it only displays the mapcount and
+dirtiness.  Perhaps there are other things which people want to know.  I'm
+not sure what they would be though.
 
-First it zaps existing ptes, then it inserts the zero page ptes - but
-only while holding mmap_sem for read: could be racing against another
-thread doing the same, or against ordinary faulting.  Now, it may well
-be that the program is buggy to be racing against itself in this way
-(which would fit with why this hasn't been observed before - buggy
-programs are exceedingly rare, aren't they ;-?) but of course it
-shouldn't trigger a kernel BUG (or leak, which preceded the BUG).
+I wonder if it would be insane to display the info via a filesystem:
 
-Please try the simple patch below: I expect it to fix your problem.
-Whether it's the right patch, I'm not quite sure: we do commonly use
-zap_page_range and zeromap_page_range with mmap_sem held for write,
-but perhaps we'd want to avoid such serialization in this case?
+	cat /mnt/pagemaps/$(pidof crond)/pgd0/pmd1/pte45
 
-Hugh
+Probably it would.
 
---- 2.6.19/drivers/char/mem.c	2006-11-29 21:57:37.000000000 +0000
-+++ linux/drivers/char/mem.c	2006-12-07 20:21:46.000000000 +0000
-@@ -631,7 +631,7 @@ static inline size_t read_zero_pagealign
- 
- 	mm = current->mm;
- 	/* Oops, this was forgotten before. -ben */
--	down_read(&mm->mmap_sem);
-+	down_write(&mm->mmap_sem);
- 
- 	/* For private mappings, just map in zero pages. */
- 	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
-@@ -655,7 +655,7 @@ static inline size_t read_zero_pagealign
- 			goto out_up;
- 	}
- 
--	up_read(&mm->mmap_sem);
-+	up_write(&mm->mmap_sem);
- 	
- 	/* The shared case is hard. Let's do the conventional zeroing. */ 
- 	do {
-@@ -669,7 +669,7 @@ static inline size_t read_zero_pagealign
- 
- 	return size;
- out_up:
--	up_read(&mm->mmap_sem);
-+	up_write(&mm->mmap_sem);
- 	return size;
- }
- 
+> Index: linux-2.6.18/Documentation/filesystems/proc.txt
+
+Against 2.6.18?  I didn't know you could still buy copies of that ;)
+
+This patch's changelog should include sample output.
+
+Your email client wordwraps patches, and it replaces tabs with spaces.
+
+> ...
+>
+> +static void pagemaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> +                               unsigned long addr, unsigned long end,
+> +                               struct seq_file *m)
+> +{
+> +       pte_t *pte, ptent;
+> +       spinlock_t *ptl;
+> +       struct page *page;
+> +       int mapcount = 0;
+> +
+> +       pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +       do {
+> +               ptent = *pte;
+> +               if (pte_present(ptent)) {
+> +                       page = vm_normal_page(vma, addr, ptent);
+> +                       if (page) {
+> +                               if (pte_dirty(ptent))
+> +                                       mapcount = -page_mapcount(page);
+> +                               else
+> +                                       mapcount = page_mapcount(page);
+> +                       } else {
+> +                               mapcount = 1;
+> +                       }
+> +               }
+> +               seq_printf(m, " %d", mapcount);
+> +
+> +       } while (pte++, addr += PAGE_SIZE, addr != end);
+
+Well that's cute.  As long as both seq_file and pte-pages are of size
+PAGE_SIZE, and as long as pte's are more than three bytes, this will not
+overflow the seq_file output buffer.
+
+hm.  Unless the pages are all dirty and the mapcounts are all 10000.  I
+think it will overflow then?
+
+> +
+> +static inline void pagemaps_pmd_range(struct vm_area_struct *vma, pud_t 
+> *pud,
+> +                               unsigned long addr, unsigned long end,
+> +                               struct seq_file *m)
+> +{
+> +       pmd_t *pmd;
+> +       unsigned long next;
+> +
+> +       pmd = pmd_offset(pud, addr);
+> +       do {
+> +               next = pmd_addr_end(addr, end);
+> +               if (pmd_none_or_clear_bad(pmd))
+> +                       continue;
+> +               pagemaps_pte_range(vma, pmd, addr, next, m);
+> +       } while (pmd++, addr = next, addr != end);
+> +}
+> +
+> +static inline void pagemaps_pud_range(struct vm_area_struct *vma, pgd_t 
+> *pgd,
+> +                               unsigned long addr, unsigned long end,
+> +                               struct seq_file *m)
+> +{
+> +       pud_t *pud;
+> +       unsigned long next;
+> +
+> +       pud = pud_offset(pgd, addr);
+> +       do {
+> +               next = pud_addr_end(addr, end);
+> +               if (pud_none_or_clear_bad(pud))
+> +                       continue;
+> +               pagemaps_pmd_range(vma, pud, addr, next, m);
+> +       } while (pud++, addr = next, addr != end);
+> +}
+> +
+> +static inline void pagemaps_pgd_range(struct vm_area_struct *vma,
+> +                               unsigned long addr, unsigned long end,
+> +                               struct seq_file *m)
+> +{
+> +       pgd_t *pgd;
+> +       unsigned long next;
+> +
+> +       pgd = pgd_offset(vma->vm_mm, addr);
+> +       do {
+> +               next = pgd_addr_end(addr, end);
+> +               if (pgd_none_or_clear_bad(pgd))
+> +                       continue;
+> +               pagemaps_pud_range(vma, pgd, addr, next, m);
+> +       } while (pgd++, addr = next, addr != end);
+> +}
+
+I think that's our eighth open-coded pagetable walker.  Apparently they are
+all slightly different.  Perhaps we shouild do something about that one
+day.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
