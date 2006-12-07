@@ -1,138 +1,277 @@
-Message-Id: <20061207162735.576346000@chello.nl>
+Message-Id: <20061207162734.840226000@chello.nl>
 References: <20061207161800.426936000@chello.nl>
-Date: Thu, 07 Dec 2006 17:18:08 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/16] mm: speculative page get for PREEMPT_RT
-Content-Disposition: inline; filename=mm-lockless-preempt-rt-fixup.patch
+Date: Thu, 07 Dec 2006 17:18:06 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [PATCH 06/16] mm: lockless pagecache lookups
+Content-Disposition: inline; filename=mm-lockless-pagecache-lookups.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Since most of the locks are sleeping locks with PREEMPT_RT provide
-a sleeping implementation of wait_on_new_refs(). This also solves
-the preempt livelock and thus we can remove the preempt_disable()/
-preempt_enable() from the PG_nonewrefs functions.
+Combine page_cache_get_speculative with lockless radix tree lookups to
+introduce lockless page cache lookups (ie. no mapping->tree_lock on
+the read-side).
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+The only atomicity changes this introduces is that the gang pagecache
+lookup functions now behave as if they are implemented with multiple
+find_get_page calls, rather than operating on a snapshot of the pages.
+In practice, this atomicity guarantee is not used anyway, and it is
+difficult to see how it could be. Gang pagecache lookups are designed
+to replace individual lookups, so these semantics are natural.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- include/linux/pagemap.h |   51 +++++++++++++++++++++++++++++++++++++++++++++++-
- mm/filemap.c            |   17 ++--------------
- 2 files changed, 53 insertions(+), 15 deletions(-)
+ mm/filemap.c        |  133 +++++++++++++++++++++++++++++++++++++---------------
+ mm/page-writeback.c |    8 +--
+ mm/readahead.c      |    6 --
+ 3 files changed, 102 insertions(+), 45 deletions(-)
 
-Index: linux-2.6-rt/include/linux/pagemap.h
-===================================================================
---- linux-2.6-rt.orig/include/linux/pagemap.h	2006-11-29 14:20:55.000000000 +0100
-+++ linux-2.6-rt/include/linux/pagemap.h	2006-11-29 14:20:58.000000000 +0100
-@@ -13,6 +13,8 @@
- #include <linux/gfp.h>
- #include <linux/page-flags.h>
- #include <linux/hardirq.h> /* for in_interrupt() */
-+#include <linux/wait.h>
-+#include <linux/hash.h>
- 
- /*
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-@@ -53,6 +55,26 @@ static inline void mapping_set_gfp_mask(
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
- 
-+/*
-+ * In order to wait for pages to become available there must be
-+ * waitqueues associated with pages. By using a hash table of
-+ * waitqueues where the bucket discipline is to maintain all
-+ * waiters on the same queue and wake all when any of the pages
-+ * become available, and for the woken contexts to check to be
-+ * sure the appropriate page became available, this saves space
-+ * at a cost of "thundering herd" phenomena during rare hash
-+ * collisions.
-+ */
-+static inline wait_queue_head_t *page_waitqueue(struct page *page)
-+{
-+	const struct zone *zone = page_zone(page);
-+
-+	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
-+}
-+
-+extern int __sleep_on_page(void *);
-+
-+#ifndef CONFIG_PREEMPT_RT
- static inline void set_page_no_new_refs(struct page *page)
- {
- 	VM_BUG_ON(PageNoNewRefs(page));
-@@ -74,6 +96,33 @@ static inline void wait_on_new_refs(stru
- 	while (unlikely(PageNoNewRefs(page)))
- 		cpu_relax();
- }
-+#else
-+static inline void set_page_no_new_refs(struct page *page)
-+{
-+	VM_BUG_ON(PageNoNewRefs(page));
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
-+}
-+
-+static inline void end_page_no_new_refs(struct page *page)
-+{
-+	VM_BUG_ON(!PageNoNewRefs(page));
-+	smp_wmb();
-+	ClearPageNoNewRefs(page);
-+	smp_mb__after_clear_bit();
-+	__wake_up_bit(page_waitqueue(page), &page->flags, PG_nonewrefs);
-+}
-+
-+static inline void wait_on_new_refs(struct page *page)
-+{
-+	might_sleep();
-+	if (unlikely(PageNoNewRefs(page))) {
-+		DEFINE_WAIT_BIT(wait, &page->flags, PG_nonewrefs);
-+		__wait_on_bit(page_waitqueue(page), &wait, __sleep_on_page,
-+				TASK_UNINTERRUPTIBLE);
-+	}
-+}
-+#endif
- 
- /*
-  * speculatively take a reference to a page.
-@@ -124,7 +173,7 @@ static inline int page_cache_get_specula
- {
- 	VM_BUG_ON(in_interrupt());
- 
--#ifndef CONFIG_SMP
-+#if !defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_RT)
- # ifdef CONFIG_PREEMPT
- 	VM_BUG_ON(!in_atomic());
- # endif
 Index: linux-2.6-rt/mm/filemap.c
 ===================================================================
---- linux-2.6-rt.orig/mm/filemap.c	2006-11-29 14:20:55.000000000 +0100
-+++ linux-2.6-rt/mm/filemap.c	2006-11-29 14:20:58.000000000 +0100
-@@ -486,21 +486,10 @@ static int __sleep_on_page_lock(void *wo
- 	return 0;
- }
- 
--/*
-- * In order to wait for pages to become available there must be
-- * waitqueues associated with pages. By using a hash table of
-- * waitqueues where the bucket discipline is to maintain all
-- * waiters on the same queue and wake all when any of the pages
-- * become available, and for the woken contexts to check to be
-- * sure the appropriate page became available, this saves space
-- * at a cost of "thundering herd" phenomena during rare hash
-- * collisions.
-- */
--static wait_queue_head_t *page_waitqueue(struct page *page)
-+int __sleep_on_page(void *word)
+--- linux-2.6-rt.orig/mm/filemap.c	2006-11-29 14:20:48.000000000 +0100
++++ linux-2.6-rt/mm/filemap.c	2006-11-29 14:20:52.000000000 +0100
+@@ -596,15 +596,31 @@ void fastcall __lock_page_nosync(struct 
+  * Is there a pagecache struct page at the given (mapping, offset) tuple?
+  * If yes, increment its refcount and return it; if no, return NULL.
+  */
+-struct page * find_get_page(struct address_space *mapping, unsigned long offset)
++struct page *find_get_page(struct address_space *mapping, unsigned long offset)
  {
--	const struct zone *zone = page_zone(page);
++	void **pagep;
+ 	struct page *page;
+ 
+-	read_lock_irq(&mapping->tree_lock);
+-	page = radix_tree_lookup(&mapping->page_tree, offset);
+-	if (page)
+-		page_cache_get(page);
+-	read_unlock_irq(&mapping->tree_lock);
++	rcu_read_lock();
++repeat:
++	page = NULL;
++	pagep = radix_tree_lookup_slot(&mapping->page_tree, offset);
++	if (pagep) {
++		page = radix_tree_deref_slot(pagep);
++		if (unlikely(!page || page == RADIX_TREE_RETRY))
++			goto repeat;
++
++		if (!page_cache_get_speculative(page))
++			goto repeat;
++
++		/* Has the page moved? */
++		if (unlikely(page != *pagep)) {
++			page_cache_release(page);
++			goto repeat;
++		}
++	}
++	rcu_read_unlock();
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(find_get_page);
+@@ -644,26 +660,19 @@ struct page *find_lock_page(struct addre
+ {
+ 	struct page *page;
+ 
+-	read_lock_irq(&mapping->tree_lock);
+ repeat:
+-	page = radix_tree_lookup(&mapping->page_tree, offset);
++	page = find_get_page(mapping, offset);
+ 	if (page) {
+-		page_cache_get(page);
+-		if (TestSetPageLocked(page)) {
+-			read_unlock_irq(&mapping->tree_lock);
+-			__lock_page(page);
+-			read_lock_irq(&mapping->tree_lock);
 -
--	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
-+	schedule();
-+	return 0;
+-			/* Has the page been truncated while we slept? */
+-			if (unlikely(page->mapping != mapping ||
+-				     page->index != offset)) {
+-				unlock_page(page);
+-				page_cache_release(page);
+-				goto repeat;
+-			}
++		lock_page(page);
++		/* Has the page been truncated? */
++		if (unlikely(page->mapping != mapping
++				|| page->index != offset)) {
++			unlock_page(page);
++			page_cache_release(page);
++			goto repeat;
+ 		}
+ 	}
+-	read_unlock_irq(&mapping->tree_lock);
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(find_lock_page);
+@@ -733,13 +742,39 @@ unsigned find_get_pages(struct address_s
+ {
+ 	unsigned int i;
+ 	unsigned int ret;
++	unsigned int nr_found;
+ 
+-	read_lock_irq(&mapping->tree_lock);
+-	ret = radix_tree_gang_lookup(&mapping->page_tree,
+-				(void **)pages, start, nr_pages);
+-	for (i = 0; i < ret; i++)
+-		page_cache_get(pages[i]);
+-	read_unlock_irq(&mapping->tree_lock);
++	rcu_read_lock();
++restart:
++	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
++				(void ***)pages, start, nr_pages);
++	ret = 0;
++	for (i = 0; i < nr_found; i++) {
++		struct page *page;
++repeat:
++		page = radix_tree_deref_slot((void **)pages[i]);
++		if (unlikely(!page))
++			continue;
++		/*
++		 * this can only trigger if nr_found == 1, making livelock
++		 * a non issue.
++		 */
++		if (unlikely(page == RADIX_TREE_RETRY))
++			goto restart;
++
++		if (!page_cache_get_speculative(page))
++			goto repeat;
++
++		/* Has the page moved? */
++		if (unlikely(page != *((void **)pages[i]))) {
++			page_cache_release(page);
++			goto repeat;
++		}
++
++		pages[ret] = page;
++		ret++;
++	}
++	rcu_read_unlock();
+ 	return ret;
  }
  
- static inline void wake_up_page(struct page *page, int bit)
+@@ -760,19 +795,44 @@ unsigned find_get_pages_contig(struct ad
+ {
+ 	unsigned int i;
+ 	unsigned int ret;
++	unsigned int nr_found;
+ 
+-	read_lock_irq(&mapping->tree_lock);
+-	ret = radix_tree_gang_lookup(&mapping->page_tree,
+-				(void **)pages, index, nr_pages);
+-	for (i = 0; i < ret; i++) {
+-		if (pages[i]->mapping == NULL || pages[i]->index != index)
++	rcu_read_lock();
++restart:
++	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
++				(void ***)pages, index, nr_pages);
++	ret = 0;
++	for (i = 0; i < nr_found; i++) {
++		struct page *page;
++repeat:
++		page = radix_tree_deref_slot((void **)pages[i]);
++		if (unlikely(!page))
++			continue;
++		/*
++		 * this can only trigger if nr_found == 1, making livelock
++		 * a non issue.
++		 */
++		if (unlikely(page == RADIX_TREE_RETRY))
++			goto restart;
++
++		if (page->mapping == NULL || page->index != index)
+ 			break;
+ 
+-		page_cache_get(pages[i]);
++		if (!page_cache_get_speculative(page))
++			goto repeat;
++
++		/* Has the page moved? */
++		if (unlikely(page != *((void **)pages[i]))) {
++			page_cache_release(page);
++			goto repeat;
++		}
++
++		pages[ret] = page;
++		ret++;
+ 		index++;
+ 	}
+-	read_unlock_irq(&mapping->tree_lock);
+-	return i;
++	rcu_read_unlock();
++	return ret;
+ }
+ 
+ /**
+@@ -793,6 +853,7 @@ unsigned find_get_pages_tag(struct addre
+ 	unsigned int ret;
+ 
+ 	read_lock_irq(&mapping->tree_lock);
++	/* TODO: implement lookup_tag_slot and make this lockless */
+ 	ret = radix_tree_gang_lookup_tag(&mapping->page_tree,
+ 				(void **)pages, *index, nr_pages, tag);
+ 	for (i = 0; i < ret; i++)
+Index: linux-2.6-rt/mm/readahead.c
+===================================================================
+--- linux-2.6-rt.orig/mm/readahead.c	2006-11-29 14:20:36.000000000 +0100
++++ linux-2.6-rt/mm/readahead.c	2006-11-29 14:20:52.000000000 +0100
+@@ -285,27 +285,25 @@ __do_page_cache_readahead(struct address
+ 	/*
+ 	 * Preallocate as many pages as we will need.
+ 	 */
+-	read_lock_irq(&mapping->tree_lock);
+ 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
+ 		pgoff_t page_offset = offset + page_idx;
+ 		
+ 		if (page_offset > end_index)
+ 			break;
+ 
++		rcu_read_lock();
+ 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
++		rcu_read_unlock();
+ 		if (page)
+ 			continue;
+ 
+-		read_unlock_irq(&mapping->tree_lock);
+ 		page = page_cache_alloc_cold(mapping);
+-		read_lock_irq(&mapping->tree_lock);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
+ 		list_add(&page->lru, &page_pool);
+ 		ret++;
+ 	}
+-	read_unlock_irq(&mapping->tree_lock);
+ 
+ 	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
+Index: linux-2.6-rt/mm/page-writeback.c
+===================================================================
+--- linux-2.6-rt.orig/mm/page-writeback.c	2006-11-29 14:20:36.000000000 +0100
++++ linux-2.6-rt/mm/page-writeback.c	2006-11-29 14:20:52.000000000 +0100
+@@ -956,17 +956,15 @@ int test_set_page_writeback(struct page 
+ EXPORT_SYMBOL(test_set_page_writeback);
+ 
+ /*
+- * Return true if any of the pages in the mapping are marged with the
++ * Return true if any of the pages in the mapping are marked with the
+  * passed tag.
+  */
+ int mapping_tagged(struct address_space *mapping, int tag)
+ {
+-	unsigned long flags;
+ 	int ret;
+-
+-	read_lock_irqsave(&mapping->tree_lock, flags);
++	rcu_read_lock();
+ 	ret = radix_tree_tagged(&mapping->page_tree, tag);
+-	read_unlock_irqrestore(&mapping->tree_lock, flags);
++	rcu_read_unlock();
+ 	return ret;
+ }
+ EXPORT_SYMBOL(mapping_tagged);
 
 --
 
