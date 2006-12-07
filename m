@@ -1,330 +1,721 @@
-Message-Id: <20061207162734.636144000@chello.nl>
+Message-Id: <20061207162736.868838000@chello.nl>
 References: <20061207161800.426936000@chello.nl>
-Date: Thu, 07 Dec 2006 17:18:05 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [PATCH 05/16] mm: speculative get page
-Content-Disposition: inline; filename=mm-speculative-get-page.patch
+Date: Thu, 07 Dec 2006 17:18:12 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 12/16] radix-tree: concurrent write side support
+Content-Disposition: inline; filename=radix-tree-concurrent.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-If we can be sure that elevating the page_count on a pagecache
-page will pin it, we can speculatively run this operation, and
-subsequently check to see if we hit the right page rather than
-relying on holding a lock or otherwise pinning a reference to the
-page.
+Provide support for concurrent write side operations without changing the API
+for all current uses.
 
-This can be done if get_page/put_page behaves consistently
-throughout the whole tree (ie. if we "get" the page after it has
-been used for something else, we must be able to free it with a
-put_page).
+Concurrency is realized by means of two locking models; the simple one is 
+ladder locking, the more complex one is path locking.
 
-Actually, there is a period where the count behaves differently:
-when the page is free or if it is a constituent page of a compound
-page. We need an atomic_inc_not_zero operation to ensure we don't
-try to grab the page in either case.
+Ladder locking is like walking down a ladder, you place your foot on a spoke
+below the one your other foot finds support etc.. There is no walking with both
+feet in the air. Likewise with walking a tree, you lock a node below the 
+current node before releasing it.
 
-This patch introduces the core locking protocol to the pagecache
-(ie. adds page_cache_get_speculative, and tweaks some update-side
-code to make it work).
+This allows other modifying operations to start as soon as you release the
+lock on the root node and even complete before you if they walk another path
+downward.
 
+The modifying operations: insert, lookup_slot and set_tag, use this simple
+method.
 
-[Hugh notices that PG_nonewrefs might be dispensed with entirely
- if current SetPageNoNewRefs instead atomically save the page count
- and temporarily set it to zero. 
+The more complex path locking method is needed for operations that need to
+walk upwards again after they walked down, those are: tag_clear and delete.
 
- This is a nice idea, and simplifies find_get_page very much, but
- cannot be applied to all current SetPageNoNewRefs sites. Need to
- verify that add_to_page_cache and add_to_swap_cache can cope
- without it or make do some other way.
+These lock their whole path downwards and release whole sections at points
+where it can be determined the walk upwards will stop, thus also allowing
+concurrency.
 
- In the meantime, this version is a slightly more mechanical
- replacement.]
+Finding the conditions for the terminated walk upwards while doing the downward
+walk is the 'interesting' part of this approach.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+The remaining - unmodified - operations will have exclusive locking (since
+they're unmodified, they never move the lock downwards from the root node).
+
+The API for this looks like:
+
+  DECLARE_RADIX_TREE_CONTEXT(ctx, &mapping->page_tree)
+
+  radix_tree_lock(&ctx)
+  ... do _1_ modifying operation ...
+  radix_tree_unlock(&ctx)
+
+Note that before the radix operation the root node is held and will provide
+exclusive locking, after the operation the held lock might only be enough to
+protect a single item.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/page-flags.h |    8 +++
- include/linux/pagemap.h    |  105 +++++++++++++++++++++++++++++++++++++++++++++
- mm/filemap.c               |    4 +
- mm/migrate.c               |    9 +++
- mm/swap_state.c            |    4 +
- mm/vmscan.c                |   12 +++--
- 6 files changed, 136 insertions(+), 6 deletions(-)
+ include/linux/radix-tree.h |   87 +++++++++++++-
+ init/Kconfig               |    4 
+ lib/radix-tree.c           |  279 +++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 306 insertions(+), 64 deletions(-)
 
-Index: linux-2.6-rt/include/linux/page-flags.h
+Index: linux-2.6-rt/include/linux/radix-tree.h
 ===================================================================
---- linux-2.6-rt.orig/include/linux/page-flags.h	2006-11-29 14:20:36.000000000 +0100
-+++ linux-2.6-rt/include/linux/page-flags.h	2006-11-29 14:20:48.000000000 +0100
-@@ -91,7 +91,8 @@
- #define PG_nosave_free		18	/* Used for system suspend/resume */
- #define PG_buddy		19	/* Page is free, on buddy lists */
- 
--
-+#define PG_nonewrefs		20	/* Block concurrent pagecache lookups
-+					 * while testing refcount */
- #if (BITS_PER_LONG > 32)
- /*
-  * 64-bit-only flags build down from bit 31
-@@ -251,6 +252,11 @@ static inline void SetPageUptodate(struc
- #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
-+#define PageNoNewRefs(page)	test_bit(PG_nonewrefs, &(page)->flags)
-+#define SetPageNoNewRefs(page)	set_bit(PG_nonewrefs, &(page)->flags)
-+#define ClearPageNoNewRefs(page) clear_bit(PG_nonewrefs, &(page)->flags)
-+#define __ClearPageNoNewRefs(page) __clear_bit(PG_nonewrefs, &(page)->flags)
-+
- struct page;	/* forward declaration */
- 
- int test_clear_page_dirty(struct page *page);
-Index: linux-2.6-rt/include/linux/pagemap.h
-===================================================================
---- linux-2.6-rt.orig/include/linux/pagemap.h	2006-11-29 14:20:36.000000000 +0100
-+++ linux-2.6-rt/include/linux/pagemap.h	2006-11-29 14:20:48.000000000 +0100
-@@ -11,6 +11,8 @@
- #include <linux/compiler.h>
- #include <asm/uaccess.h>
- #include <linux/gfp.h>
-+#include <linux/page-flags.h>
-+#include <linux/hardirq.h> /* for in_interrupt() */
- 
- /*
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-@@ -51,6 +53,109 @@ static inline void mapping_set_gfp_mask(
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
- 
-+/*
-+ * speculatively take a reference to a page.
-+ * If the page is free (_count == 0), then _count is untouched, and 0
-+ * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
-+ *
-+ * This function must be run in the same rcu_read_lock() section as has
-+ * been used to lookup the page in the pagecache radix-tree: this allows
-+ * allocators to use a synchronize_rcu() to stabilize _count.
-+ *
-+ * Unless an RCU grace period has passed, the count of all pages coming out
-+ * of the allocator must be considered unstable. page_count may return higher
-+ * than expected, and put_page must be able to do the right thing when the
-+ * page has been finished with (because put_page is what is used to drop an
-+ * invalid speculative reference).
-+ *
-+ * After incrementing the refcount, this function spins until PageNoNewRefs
-+ * is clear, then a read memory barrier is issued.
-+ *
-+ * This forms the core of the lockless pagecache locking protocol, where
-+ * the lookup-side (eg. find_get_page) has the following pattern:
-+ * 1. find page in radix tree
-+ * 2. conditionally increment refcount
-+ * 3. wait for PageNoNewRefs
-+ * 4. check the page is still in pagecache
-+ *
-+ * Remove-side (that cares about _count, eg. reclaim) has the following:
-+ * A. SetPageNoNewRefs
-+ * B. check refcount is correct
-+ * C. remove page
-+ * D. ClearPageNoNewRefs
-+ *
-+ * There are 2 critical interleavings that matter:
-+ * - 2 runs before B: in this case, B sees elevated refcount and bails out
-+ * - B runs before 2: in this case, 3 ensures 4 will not run until *after* C
-+ *   (after D, even). In which case, 4 will notice C and lookup side can retry
-+ *
-+ * It is possible that between 1 and 2, the page is removed then the exact same
-+ * page is inserted into the same position in pagecache. That's OK: the
-+ * old find_get_page using tree_lock could equally have run before or after
-+ * the write-side, depending on timing.
-+ *
-+ * Pagecache insertion isn't a big problem: either 1 will find the page or
-+ * it will not. Likewise, the old find_get_page could run either before the
-+ * insertion or afterwards, depending on timing.
-+ */
-+static inline int page_cache_get_speculative(struct page *page)
-+{
-+	VM_BUG_ON(in_interrupt());
-+
-+#ifndef CONFIG_SMP
-+# ifdef CONFIG_PREEMPT
-+	VM_BUG_ON(!in_atomic());
-+# endif
-+	/*
-+	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-+	 * this for us.
-+	 *
-+	 * Pagecache won't be truncated from interrupt context, so if we have
-+	 * found a page in the radix tree here, we have pinned its refcount by
-+	 * disabling preempt, and hence no need for the "speculative get" that
-+	 * SMP requires.
-+	 */
-+	VM_BUG_ON(page_count(page) == 0);
-+	atomic_inc(&page->_count);
-+
-+#else
-+	if (unlikely(!get_page_unless_zero(page)))
-+		return 0; /* page has been freed */
-+
-+	/*
-+	 * Note that get_page_unless_zero provides a memory barrier.
-+	 * This is needed to ensure PageNoNewRefs is evaluated after the
-+	 * page refcount has been raised. See below comment.
-+	 */
-+
-+	while (unlikely(PageNoNewRefs(page)))
-+		cpu_relax();
-+
-+	/*
-+	 * smp_rmb is to ensure the load of page->flags (for PageNoNewRefs())
-+	 * is performed before a future load used to ensure the page is
-+	 * the correct on (usually: page->mapping and page->index).
-+	 *
-+	 * Those places that set PageNoNewRefs have the following pattern:
-+	 * 	SetPageNoNewRefs(page)
-+	 * 	wmb();
-+	 * 	if (page_count(page) == X)
-+	 * 		remove page from pagecache
-+	 * 	wmb();
-+	 * 	ClearPageNoNewRefs(page)
-+	 *
-+	 * If the load was out of order, page->mapping might be loaded before
-+	 * the page is removed from pagecache but PageNoNewRefs evaluated
-+	 * after the ClearPageNoNewRefs().
-+	 */
-+	smp_rmb();
-+
+--- linux-2.6-rt.orig/include/linux/radix-tree.h	2006-12-02 23:18:37.000000000 +0100
++++ linux-2.6-rt/include/linux/radix-tree.h	2006-12-03 00:52:55.000000000 +0100
+@@ -63,23 +63,73 @@ struct radix_tree_root {
+ 	unsigned int		height;
+ 	gfp_t			gfp_mask;
+ 	struct radix_tree_node	*rnode;
++	spinlock_t		lock;
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	struct radix_tree_context *context;
++	struct task_struct	*owner;
 +#endif
-+	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
+ };
+ 
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++#define __RADIX_TREE_CONCURRENT_INIT					\
++	.context = NULL,						\
++	.owner = NULL,
++#else
++#define __RADIX_TREE_CONCURRENT_INIT
++#endif
 +
-+	return 1;
+ #define RADIX_TREE_INIT(mask)	{					\
+ 	.height = 0,							\
+ 	.gfp_mask = (mask),						\
+ 	.rnode = NULL,							\
++	.lock = __SPIN_LOCK_UNLOCKED(radix_tree_root.lock),		\
++	__RADIX_TREE_CONCURRENT_INIT					\
+ }
+ 
+ #define RADIX_TREE(name, mask) \
+ 	struct radix_tree_root name = RADIX_TREE_INIT(mask)
+ 
+-#define INIT_RADIX_TREE(root, mask)					\
+-do {									\
+-	(root)->height = 0;						\
+-	(root)->gfp_mask = (mask);					\
+-	(root)->rnode = NULL;						\
+-} while (0)
++static inline void INIT_RADIX_TREE(struct radix_tree_root *root, gfp_t gfp_mask)
++{
++	root->height = 0;
++	root->gfp_mask = gfp_mask;
++	root->rnode = NULL;
++	spin_lock_init(&root->lock);
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	root->context = NULL;
++	root->owner = NULL;
++#endif
 +}
 +
- #ifdef CONFIG_NUMA
- extern struct page *__page_cache_alloc(gfp_t gfp);
- #else
-Index: linux-2.6-rt/mm/vmscan.c
-===================================================================
---- linux-2.6-rt.orig/mm/vmscan.c	2006-11-29 14:20:36.000000000 +0100
-+++ linux-2.6-rt/mm/vmscan.c	2006-11-29 14:20:48.000000000 +0100
-@@ -390,6 +390,8 @@ int remove_mapping(struct address_space 
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
- 
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
- 	write_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * The non racy check for a busy page.
-@@ -427,17 +429,21 @@ int remove_mapping(struct address_space 
- 		__delete_from_swap_cache(page);
- 		write_unlock_irq(&mapping->tree_lock);
- 		swap_free(swap);
--		__put_page(page);	/* The pagecache ref */
--		return 1;
-+		goto free_it;
- 	}
- 
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
--	__put_page(page);
++struct radix_tree_context {
++	struct radix_tree_root	*root;
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	spinlock_t		*locked;
++#endif
++};
 +
-+free_it:
-+	smp_wmb();
-+	__ClearPageNoNewRefs(page);
-+	__put_page(page); /* The pagecache ref */
- 	return 1;
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++#define __RADIX_TREE_CONTEXT_INIT					\
++		.locked = NULL,
++#else
++#define __RADIX_TREE_CONTEXT_INIT
++#endif
++
++#define DECLARE_RADIX_TREE_CONTEXT(context, tree) 			\
++	struct radix_tree_context context = { 				\
++		.root = (tree), 					\
++		__RADIX_TREE_CONTEXT_INIT				\
++       	}
++
++static inline void
++init_radix_tree_context(struct radix_tree_context *wctx,
++		struct radix_tree_root *root)
++{
++	wctx->root = root;
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	wctx->locked = NULL;
++#endif
++}
  
- cannot_free:
- 	write_unlock_irq(&mapping->tree_lock);
-+	ClearPageNoNewRefs(page);
+ /**
+  * Radix-tree synchronization
+@@ -156,6 +206,31 @@ static inline void radix_tree_replace_sl
+ 	rcu_assign_pointer(*pslot, item);
+ }
+ 
++static inline void radix_tree_lock(struct radix_tree_context *context)
++{
++	struct radix_tree_root *root = context->root;
++	rcu_read_lock();
++	spin_lock(&root->lock);
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	BUG_ON(context->locked);
++	context->locked = &root->lock;
++	root->owner = current;
++	root->context = context;
++#endif
++}
++
++static inline void radix_tree_unlock(struct radix_tree_context *context)
++{
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	BUG_ON(!context->locked);
++	spin_unlock(context->locked);
++	context->locked = NULL;
++#else
++	spin_unlock(&context->root->lock);
++#endif
++	rcu_read_unlock();
++}
++
+ int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
+Index: linux-2.6-rt/lib/radix-tree.c
+===================================================================
+--- linux-2.6-rt.orig/lib/radix-tree.c	2006-12-02 23:18:37.000000000 +0100
++++ linux-2.6-rt/lib/radix-tree.c	2006-12-03 00:52:57.000000000 +0100
+@@ -32,6 +32,7 @@
+ #include <linux/string.h>
+ #include <linux/bitops.h>
+ #include <linux/rcupdate.h>
++#include <linux/spinlock.h>
+ 
+ 
+ #ifdef __KERNEL__
+@@ -52,11 +53,17 @@ struct radix_tree_node {
+ 	struct rcu_head	rcu_head;
+ 	void		*slots[RADIX_TREE_MAP_SIZE];
+ 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	spinlock_t	lock;
++#endif
+ };
+ 
+ struct radix_tree_path {
+ 	struct radix_tree_node *node;
+ 	int offset;
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	spinlock_t *locked;
++#endif
+ };
+ 
+ #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
+@@ -64,6 +71,10 @@ struct radix_tree_path {
+ 
+ static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH] __read_mostly;
+ 
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++static struct lock_class_key radix_node_class[RADIX_TREE_MAX_PATH];
++#endif
++
+ /*
+  * Radix tree node cache.
+  */
+@@ -88,7 +99,7 @@ static inline gfp_t root_gfp_mask(struct
+  * that the caller has pinned this thread of control to the current CPU.
+  */
+ static struct radix_tree_node *
+-radix_tree_node_alloc(struct radix_tree_root *root)
++radix_tree_node_alloc(struct radix_tree_root *root, int height)
+ {
+ 	struct radix_tree_node *ret;
+ 	gfp_t gfp_mask = root_gfp_mask(root);
+@@ -105,6 +116,11 @@ radix_tree_node_alloc(struct radix_tree_
+ 		}
+ 	}
+ 	BUG_ON(radix_tree_is_indirect_ptr(ret));
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++	spin_lock_init(&ret->lock);
++	lockdep_set_class(&ret->lock, &radix_node_class[height]);
++#endif
++	ret->height = height;
+ 	return ret;
+ }
+ 
+@@ -208,6 +224,22 @@ static inline int any_tag_set(struct rad
  	return 0;
  }
  
-Index: linux-2.6-rt/mm/filemap.c
-===================================================================
---- linux-2.6-rt.orig/mm/filemap.c	2006-11-29 14:20:36.000000000 +0100
-+++ linux-2.6-rt/mm/filemap.c	2006-11-29 14:20:48.000000000 +0100
-@@ -440,6 +440,8 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
++static inline int any_tag_set_but(struct radix_tree_node *node,
++		unsigned int tag, int offset)
++{
++	int idx;
++	int offset_idx = offset / BITS_PER_LONG;
++	unsigned long offset_mask = ~(1 << (offset % BITS_PER_LONG));
++	for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
++		unsigned long mask = ~0UL;
++		if (idx == offset_idx)
++			mask = offset_mask;
++		if (node->tags[tag][idx] & mask)
++			return 1;
++	}
++	return 0;
++}
++
+ /*
+  *	Return the maximum key which can be store into a
+  *	radix tree with height HEIGHT.
+@@ -237,8 +269,8 @@ static int radix_tree_extend(struct radi
+ 	}
  
- 	if (error == 0) {
-+		SetPageNoNewRefs(page);
-+		smp_wmb();
- 		write_lock_irq(&mapping->tree_lock);
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
-@@ -451,6 +453,8 @@ int add_to_page_cache(struct page *page,
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 	do {
+-		unsigned int newheight;
+-		if (!(node = radix_tree_node_alloc(root)))
++		unsigned int newheight = root->height + 1;
++		if (!(node = radix_tree_node_alloc(root, newheight)))
+ 			return -ENOMEM;
+ 
+ 		/* Increase the height.  */
+@@ -250,8 +282,6 @@ static int radix_tree_extend(struct radi
+ 				tag_set(node, tag, 0);
  		}
- 		write_unlock_irq(&mapping->tree_lock);
-+		smp_wmb();
-+		ClearPageNoNewRefs(page);
- 		radix_tree_preload_end();
+ 
+-		newheight = root->height+1;
+-		node->height = newheight;
+ 		node->count = 1;
+ 		node = radix_tree_ptr_to_indirect(node);
+ 		rcu_assign_pointer(root->rnode, node);
+@@ -261,6 +291,78 @@ out:
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_RADIX_TREE_CONCURRENT
++static inline struct radix_tree_context *
++radix_tree_get_context(struct radix_tree_root *root)
++{
++	struct radix_tree_context *context = NULL;
++
++	if (root->owner == current && root->context) {
++		context = root->context;
++		root->context = NULL;
++	}
++	return context;
++}
++
++#define RADIX_TREE_CONTEXT(context, root) \
++	struct radix_tree_context *context = radix_tree_get_context(root)
++
++static inline spinlock_t *radix_node_lock(struct radix_tree_root *root,
++		struct radix_tree_node *node, int height)
++{
++	spinlock_t *locked = &node->lock;
++	spin_lock(locked);
++	return locked;
++}
++
++static inline void radix_ladder_lock(struct radix_tree_context *context,
++		struct radix_tree_node *node, int height)
++{
++	if (context) {
++		struct radix_tree_root *root = context->root;
++		spinlock_t *locked = radix_node_lock(root, node, height);
++		if (locked) {
++			spin_unlock(context->locked);
++			context->locked = locked;
++		}
++	}
++}
++
++static inline void radix_path_init(struct radix_tree_context *context,
++		struct radix_tree_path *pathp)
++{
++	pathp->locked = context ? context->locked : NULL;
++}
++
++static inline void radix_path_lock(struct radix_tree_context *context,
++		struct radix_tree_path *pathp, struct radix_tree_node *node,
++		int height)
++{
++	if (context) {
++		struct radix_tree_root *root = context->root;
++		spinlock_t *locked = radix_node_lock(root, node, height);
++		if (locked)
++			context->locked = locked;
++		pathp->locked = locked;
++	} else
++		pathp->locked = NULL;
++}
++
++static inline void radix_path_unlock(struct radix_tree_context *context,
++		struct radix_tree_path *punlock)
++{
++	if (context && punlock->locked &&
++			context->locked != punlock->locked)
++		spin_unlock(punlock->locked);
++}
++#else
++#define RADIX_TREE_CONTEXT(context, root) do { } while (0)
++#define radix_ladder_lock(context, node, height) do { } while (0)
++#define radix_path_init(context, pathp) do { } while (0)
++#define radix_path_lock(context, pathp, node, height) do { } while (0)
++#define radix_path_unlock(context, punlock) do { } while (0)
++#endif
++
+ /**
+  *	radix_tree_insert    -    insert into a radix tree
+  *	@root:		radix tree root
+@@ -276,6 +378,8 @@ int radix_tree_insert(struct radix_tree_
+ 	unsigned int height, shift;
+ 	int offset;
+ 	int error;
++	int tag;
++	RADIX_TREE_CONTEXT(context, root);
+ 
+ 	BUG_ON(radix_tree_is_indirect_ptr(item));
+ 
+@@ -295,9 +399,8 @@ int radix_tree_insert(struct radix_tree_
+ 	while (height > 0) {
+ 		if (slot == NULL) {
+ 			/* Have to add a child node.  */
+-			if (!(slot = radix_tree_node_alloc(root)))
++			if (!(slot = radix_tree_node_alloc(root, height)))
+ 				return -ENOMEM;
+-			slot->height = height;
+ 			if (node) {
+ 				rcu_assign_pointer(node->slots[offset], slot);
+ 				node->count++;
+@@ -309,6 +412,9 @@ int radix_tree_insert(struct radix_tree_
+ 		/* Go a level down */
+ 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+ 		node = slot;
++
++		radix_ladder_lock(context, node, height);
++
+ 		slot = node->slots[offset];
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+@@ -320,12 +426,12 @@ int radix_tree_insert(struct radix_tree_
+ 	if (node) {
+ 		node->count++;
+ 		rcu_assign_pointer(node->slots[offset], item);
+-		BUG_ON(tag_get(node, 0, offset));
+-		BUG_ON(tag_get(node, 1, offset));
++		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++			BUG_ON(tag_get(node, tag, offset));
+ 	} else {
+ 		rcu_assign_pointer(root->rnode, item);
+-		BUG_ON(root_tag_get(root, 0));
+-		BUG_ON(root_tag_get(root, 1));
++		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++			BUG_ON(root_tag_get(root, tag));
  	}
- 	return error;
-Index: linux-2.6-rt/mm/swap_state.c
-===================================================================
---- linux-2.6-rt.orig/mm/swap_state.c	2006-11-29 14:20:36.000000000 +0100
-+++ linux-2.6-rt/mm/swap_state.c	2006-11-29 14:20:48.000000000 +0100
-@@ -78,6 +78,8 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
-+		SetPageNoNewRefs(page);
-+		smp_wmb();
- 		write_lock_irq(&swapper_space.tree_lock);
- 		error = radix_tree_insert(&swapper_space.page_tree,
- 						entry.val, page);
-@@ -90,6 +92,8 @@ static int __add_to_swap_cache(struct pa
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
- 		}
- 		write_unlock_irq(&swapper_space.tree_lock);
-+		smp_wmb();
-+		ClearPageNoNewRefs(page);
- 		radix_tree_preload_end();
+ 
+ 	return 0;
+@@ -349,6 +455,7 @@ void **radix_tree_lookup_slot(struct rad
+ {
+ 	unsigned int height, shift;
+ 	struct radix_tree_node *node, **slot;
++	RADIX_TREE_CONTEXT(context, root);
+ 
+ 	node = rcu_dereference(root->rnode);
+ 	if (node == NULL)
+@@ -374,6 +481,8 @@ void **radix_tree_lookup_slot(struct rad
+ 		if (node == NULL)
+ 			return NULL;
+ 
++		radix_ladder_lock(context, node, height);
++
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+ 	} while (height > 0);
+@@ -449,6 +558,7 @@ void *radix_tree_tag_set(struct radix_tr
+ {
+ 	unsigned int height, shift;
+ 	struct radix_tree_node *slot;
++	RADIX_TREE_CONTEXT(context, root);
+ 
+ 	height = root->height;
+ 	BUG_ON(index > radix_tree_maxindex(height));
+@@ -456,9 +566,15 @@ void *radix_tree_tag_set(struct radix_tr
+ 	slot = radix_tree_indirect_to_ptr(root->rnode);
+ 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
+ 
++	/* set the root's tag bit */
++	if (slot && !root_tag_get(root, tag))
++		root_tag_set(root, tag);
++
+ 	while (height > 0) {
+ 		int offset;
+ 
++		radix_ladder_lock(context, slot, height);
++
+ 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+ 		if (!tag_get(slot, tag, offset))
+ 			tag_set(slot, tag, offset);
+@@ -468,10 +584,6 @@ void *radix_tree_tag_set(struct radix_tr
+ 		height--;
  	}
- 	return error;
-Index: linux-2.6-rt/mm/migrate.c
-===================================================================
---- linux-2.6-rt.orig/mm/migrate.c	2006-11-29 14:20:39.000000000 +0100
-+++ linux-2.6-rt/mm/migrate.c	2006-11-29 14:20:48.000000000 +0100
-@@ -303,6 +303,8 @@ static int migrate_page_move_mapping(str
- 		return 0;
- 	}
  
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
- 	write_lock_irq(&mapping->tree_lock);
- 
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-@@ -311,6 +313,7 @@ static int migrate_page_move_mapping(str
- 	if (page_count(page) != 2 + !!PagePrivate(page) ||
- 			(struct page *)radix_tree_deref_slot(pslot) != page) {
- 		write_unlock_irq(&mapping->tree_lock);
-+		ClearPageNoNewRefs(page);
- 		return -EAGAIN;
- 	}
- 
-@@ -326,6 +329,10 @@ static int migrate_page_move_mapping(str
- #endif
- 
- 	radix_tree_replace_slot(pslot, newpage);
-+	page->mapping = NULL;
-+  	write_unlock_irq(&mapping->tree_lock);
-+	smp_wmb();
-+	ClearPageNoNewRefs(page);
- 
- 	/*
- 	 * Drop cache reference from old page.
-@@ -333,8 +340,6 @@ static int migrate_page_move_mapping(str
- 	 */
- 	__put_page(page);
- 
--	write_unlock_irq(&mapping->tree_lock);
+-	/* set the root's tag bit */
+-	if (slot && !root_tag_get(root, tag))
+-		root_tag_set(root, tag);
 -
- 	return 0;
+ 	return slot;
+ }
+ EXPORT_SYMBOL(radix_tree_tag_set);
+@@ -494,28 +606,51 @@ void *radix_tree_tag_clear(struct radix_
+ 			unsigned long index, unsigned int tag)
+ {
+ 	struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
++	struct radix_tree_path *punlock = path, *piter;
+ 	struct radix_tree_node *slot = NULL;
+ 	unsigned int height, shift;
++	RADIX_TREE_CONTEXT(context, root);
++
++	pathp->node = NULL;
++	radix_path_init(context, pathp);
+ 
+ 	height = root->height;
+ 	if (index > radix_tree_maxindex(height))
+ 		goto out;
+ 
+ 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
+-	pathp->node = NULL;
+ 	slot = radix_tree_indirect_to_ptr(root->rnode);
+ 
+ 	while (height > 0) {
+ 		int offset;
++		int parent_tag = 0;
+ 
+ 		if (slot == NULL)
+ 			goto out;
+ 
++		if (pathp->node)
++			parent_tag = tag_get(pathp->node, tag, pathp->offset);
++		else
++			parent_tag = root_tag_get(root, tag);
++
+ 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+-		pathp[1].offset = offset;
+-		pathp[1].node = slot;
+-		slot = slot->slots[offset];
+ 		pathp++;
++		pathp->offset = offset;
++		pathp->node = slot;
++		radix_path_lock(context, pathp, slot, height);
++
++		/*
++		 * If the parent node does not have the tag set or the current
++		 * node has slots with the tag set other than the on we're
++		 * potentially clearing, the change can never propagate upwards
++		 * from here.
++		 */
++		if (!parent_tag || any_tag_set_but(slot, tag, offset)) {
++			for (; punlock < pathp; punlock++)
++				radix_path_unlock(context, punlock);
++		}
++
++		slot = slot->slots[offset];
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+ 	}
+@@ -523,20 +658,16 @@ void *radix_tree_tag_clear(struct radix_
+ 	if (slot == NULL)
+ 		goto out;
+ 
+-	while (pathp->node) {
+-		if (!tag_get(pathp->node, tag, pathp->offset))
+-			goto out;
+-		tag_clear(pathp->node, tag, pathp->offset);
+-		if (any_tag_set(pathp->node, tag))
+-			goto out;
+-		pathp--;
++	for (piter = pathp; piter >= punlock; piter--) {
++		if (piter->node)
++			tag_clear(piter->node, tag, piter->offset);
++		else
++			root_tag_clear(root, tag);
+ 	}
+ 
+-	/* clear the root's tag bit */
+-	if (root_tag_get(root, tag))
+-		root_tag_clear(root, tag);
+-
+ out:
++	for (; punlock < pathp; punlock++)
++		radix_path_unlock(context, punlock);
+ 	return slot;
+ }
+ EXPORT_SYMBOL(radix_tree_tag_clear);
+@@ -958,7 +1089,7 @@ radix_tree_gang_lookup_tag_slot(struct r
+ 	if (!radix_tree_is_indirect_ptr(node)) {
+ 		if (first_index > 0)
+ 			return 0;
+-		results[0] = node;
++		results[0] = (void **)&root->rnode;
+ 		return 1;
+ 	}
+ 	node = radix_tree_indirect_to_ptr(node);
+@@ -994,6 +1125,7 @@ static inline void radix_tree_shrink(str
+ 	while (root->height > 0) {
+ 		struct radix_tree_node *to_free = root->rnode;
+ 		void *newptr;
++		int tag;
+ 
+ 		BUG_ON(!radix_tree_is_indirect_ptr(to_free));
+ 		to_free = radix_tree_indirect_to_ptr(to_free);
+@@ -1020,11 +1152,10 @@ static inline void radix_tree_shrink(str
+ 		root->rnode = newptr;
+ 		root->height--;
+ 		/* must only free zeroed nodes into the slab */
+-		tag_clear(to_free, 0, 0);
+-		tag_clear(to_free, 1, 0);
++		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++			tag_clear(to_free, tag, 0);
+ 		to_free->slots[0] = NULL;
+ 		to_free->count = 0;
+-		radix_tree_node_free(to_free);
+ 	}
  }
  
+@@ -1040,11 +1171,15 @@ static inline void radix_tree_shrink(str
+ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+ {
+ 	struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
++	struct radix_tree_path *punlock = path, *piter;
+ 	struct radix_tree_node *slot = NULL;
+-	struct radix_tree_node *to_free;
+ 	unsigned int height, shift;
+ 	int tag;
+ 	int offset;
++	RADIX_TREE_CONTEXT(context, root);
++
++	pathp->node = NULL;
++	radix_path_init(context, pathp);
+ 
+ 	height = root->height;
+ 	if (index > radix_tree_maxindex(height))
+@@ -1059,16 +1194,42 @@ void *radix_tree_delete(struct radix_tre
+ 	slot = radix_tree_indirect_to_ptr(slot);
+ 
+ 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
+-	pathp->node = NULL;
+ 
+ 	do {
++		int parent_tags = 0;
++		int no_tags = 0;
++
+ 		if (slot == NULL)
+ 			goto out;
+ 
++		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
++			if (pathp->node) {
++				parent_tags |=
++					tag_get(pathp->node, tag, pathp->offset);
++			} else
++				parent_tags |= root_tag_get(root, tag);
++		}
++
+ 		pathp++;
+ 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+ 		pathp->offset = offset;
+ 		pathp->node = slot;
++		radix_path_lock(context, pathp, slot, height);
++
++		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++			no_tags |= !any_tag_set_but(slot, tag, offset);
++
++		/*
++		 * If the parent node does not have any tag set or the current
++		 * node has slots with the tags set other than the one we're
++		 * potentially clearing AND there are more children than just
++		 * us, the changes can never propagate upwards from here.
++		 */
++		if ((!parent_tags || !no_tags) && slot->count > 2) {
++			for (; punlock < pathp; punlock++)
++				radix_path_unlock(context, punlock);
++		}
++
+ 		slot = slot->slots[offset];
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+@@ -1081,41 +1242,43 @@ void *radix_tree_delete(struct radix_tre
+ 	 * Clear all tags associated with the just-deleted item
+ 	 */
+ 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+-		if (tag_get(pathp->node, tag, pathp->offset))
+-			radix_tree_tag_clear(root, index, tag);
++		for (piter = pathp; piter >= punlock; piter--) {
++			if (piter->node) {
++				if (!tag_get(piter->node, tag, piter->offset))
++					break;
++				tag_clear(piter->node, tag, piter->offset);
++				if (any_tag_set(piter->node, tag))
++					break;
++			} else {
++				if (root_tag_get(root, tag))
++					root_tag_clear(root, tag);
++			}
++		}
+ 	}
+ 
+-	to_free = NULL;
+-	/* Now free the nodes we do not need anymore */
+-	while (pathp->node) {
+-		pathp->node->slots[pathp->offset] = NULL;
+-		pathp->node->count--;
+-		/*
+-		 * Queue the node for deferred freeing after the
+-		 * last reference to it disappears (set NULL, above).
+-		 */
+-		if (to_free)
+-			radix_tree_node_free(to_free);
++	/* Now unhook the nodes we do not need anymore */
++	for (piter = pathp; piter >= punlock && piter->node; piter--) {
++		piter->node->slots[piter->offset] = NULL;
++		piter->node->count--;
+ 
+-		if (pathp->node->count) {
+-			if (pathp->node ==
++		if (piter->node->count) {
++			if (piter->node ==
+ 					radix_tree_indirect_to_ptr(root->rnode))
+ 				radix_tree_shrink(root);
+ 			goto out;
+ 		}
+-
+-		/* Node with zero slots in use so free it */
+-		to_free = pathp->node;
+-		pathp--;
+-
+ 	}
++
+ 	root_tag_clear_all(root);
+ 	root->height = 0;
+ 	root->rnode = NULL;
+-	if (to_free)
+-		radix_tree_node_free(to_free);
+ 
+ out:
++	for (; punlock <= pathp; punlock++) {
++		radix_path_unlock(context, punlock);
++		if (punlock->node && punlock->node->count == 0)
++			radix_tree_node_free(punlock->node);
++	}
+ 	return slot;
+ }
+ EXPORT_SYMBOL(radix_tree_delete);
+Index: linux-2.6-rt/init/Kconfig
+===================================================================
+--- linux-2.6-rt.orig/init/Kconfig	2006-12-02 23:18:16.000000000 +0100
++++ linux-2.6-rt/init/Kconfig	2006-12-02 23:18:37.000000000 +0100
+@@ -287,6 +287,10 @@ config TASK_XACCT
+ config SYSCTL
+ 	bool
+ 
++config RADIX_TREE_CONCURRENT
++	bool "Enable concurrent radix tree operations (EXPERIMENTAL)"
++	default y if SMP
++
+ menuconfig EMBEDDED
+ 	bool "Configure standard kernel features (for small systems)"
+ 	help
 
 --
 
