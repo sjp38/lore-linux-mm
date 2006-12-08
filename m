@@ -1,41 +1,39 @@
-Message-ID: <45790212.8000608@goop.org>
-Date: Thu, 07 Dec 2006 22:11:30 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Date: Fri, 8 Dec 2006 17:21:24 +1100 (EST)
+Subject: Re: new procfs memory analysis feature
+In-Reply-To: <20061207143611.7a2925e2.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0612081716440.28861@weill.orchestra.cse.unsw.EDU.AU>
+References: <45789124.1070207@mvista.com> <20061207143611.7a2925e2.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
- may be migrated
-References: <20061204113051.4e90b249.akpm@osdl.org> <Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com> <20061204120611.4306024e.akpm@osdl.org> <Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com> <20061204131959.bdeeee41.akpm@osdl.org> <Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com> <20061204142259.3cdda664.akpm@osdl.org> <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com> <20061205112541.2a4b7414.akpm@osdl.org> <Pine.LNX.4.64.0612051159510.18687@schroedinger.engr.sgi.com> <20061205214721.GE20614@skynet.ie> <Pine.LNX.4.64.0612051521060.20570@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0612060903161.7238@skynet.skynet.ie> <Pine.LNX.4.64.0612060921230.26185@schroedinger.engr.sgi.com> <4578BE37.1010109@goop.org> <Pine.LNX.4.64.0612071817280.11503@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0612071817280.11503@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: David Singleton <dsingleton@mvista.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> The same can be done using the virtual->physical mappings that exist on 
-> many platforms for the kernel address space (ia64 dynamically calculates 
-> those, x86_64 uses a page table with 2M pages for mapping the kernel).
+On Thu, 7 Dec 2006, Andrew Morton wrote:
 
-Yes, that's basically what Xen does - there's a nonlinear mapping from
-kernel virtual to machine pages (and usermode pages are put through the
-same transformation before being mapped).
+> I think that's our eighth open-coded pagetable walker.  Apparently they are
+> all slightly different.  Perhaps we shouild do something about that one
+> day.
 
->  The 
-> problem is that the 1-1 mapping between physical and virtual addresses 
-> will have to be (at least partially) sacrificed which may lead to 
-> complications with DMA devices.
->   
+At UNSW we have abstracted the page table into its own layer, and
+are running an alternate page table (a GPT), under a clean page table
+interface (PTI).
 
-Yes, any driver which expects contigious kernel pages to be physically
-contigious will be sorely disappointed.  This isn't too hard to deal
-with (since such drivers are often buggy anyway, making poor assumptions
-about the relationship between physical addresses and bus addresses). 
-An IOMMU could help as well.
+The PTI gathers all the open coded iterators togethers into one place,
+which would be a good precursor to providing generic iterators for
+non performance critical iterations.
 
-    J
+We are completing the updating/enhancements to this PTI for the latest 
+kernel, to be released just prior to LCA.  This PTI is benchmarking well. 
+We also plan to release the experimental guarded page table (GPT) running 
+under this PTI.
+
+Paul Davies
+Gelato@UNSW
+~
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
