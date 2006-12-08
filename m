@@ -1,167 +1,34 @@
-In-Reply-To: <20061207143611.7a2925e2.akpm@osdl.org>
-References: <45789124.1070207@mvista.com> <20061207143611.7a2925e2.akpm@osdl.org>
-Mime-Version: 1.0 (Apple Message framework v624)
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Message-Id: <33ee3d4b6b9cbe26cca3cb78c3189f3e@mvista.com>
+Date: Fri, 8 Dec 2006 10:09:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] vmemmap on sparsemem v2 [3/5] ia64 vmemamp on
+ sparsemem
+Message-Id: <20061208100932.09872376.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20061205215905.3fb8a582.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20061205215905.3fb8a582.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-From: david singleton <dsingleton@mvista.com>
-Subject: Re: new procfs memory analysis feature
-Date: Thu, 7 Dec 2006 16:30:01 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, clameter@engr.sgi.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Dec 7, 2006, at 2:36 PM, Andrew Morton wrote:
-
-> On Thu, 07 Dec 2006 14:09:40 -0800
-> David Singleton <dsingleton@mvista.com> wrote:
->
->>
->> Andrew,
->>
->>     this implements a feature for memory analysis tools to go along 
->> with
->> smaps.
->> It shows reference counts for individual pages instead of aggregate
->> totals for a given VMA.
->> It helps memory analysis tools determine how well pages are being
->> shared, or not,
->> in a shared libraries, etc.
->>
->>    The per page information is presented in /proc/<pid>/pagemaps.
->>
->
-> I think the concept is not a bad one, frankly - this requirement arises
-> frequently.  What bugs me is that it only displays the mapcount and
-> dirtiness.  Perhaps there are other things which people want to know.  
-> I'm
-> not sure what they would be though.
->
-> I wonder if it would be insane to display the info via a filesystem:
->
-> 	cat /mnt/pagemaps/$(pidof crond)/pgd0/pmd1/pte45
->
-> Probably it would.
->
->> Index: linux-2.6.18/Documentation/filesystems/proc.txt
->
-> Against 2.6.18?  I didn't know you could still buy copies of that ;)
-
-whoops, I have an old copy.  let me make a patch against 2.6.19.
+On Tue, 5 Dec 2006 21:59:05 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
 >
-> This patch's changelog should include sample output.
+> +/* fixed at compile time */
+> +#ifndef __ASSEMBLY__
+> +extern struct page vmem_map[];
+> +#endif
+> +
+I'm sorry that this cannot be compiled by gcc-4.0 because 'struct page' is not
+declared. I'll move this or use pointer struct page *vmem_map.
 
-okay.
-
->
-> Your email client wordwraps patches, and it replaces tabs with spaces.
-
-Is an attachment okay?  gziped tarfile?  a new mailer?
-
-David
->
->> ...
->>
->> +static void pagemaps_pte_range(struct vm_area_struct *vma, pmd_t 
->> *pmd,
->> +                               unsigned long addr, unsigned long end,
->> +                               struct seq_file *m)
->> +{
->> +       pte_t *pte, ptent;
->> +       spinlock_t *ptl;
->> +       struct page *page;
->> +       int mapcount = 0;
->> +
->> +       pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->> +       do {
->> +               ptent = *pte;
->> +               if (pte_present(ptent)) {
->> +                       page = vm_normal_page(vma, addr, ptent);
->> +                       if (page) {
->> +                               if (pte_dirty(ptent))
->> +                                       mapcount = 
->> -page_mapcount(page);
->> +                               else
->> +                                       mapcount = 
->> page_mapcount(page);
->> +                       } else {
->> +                               mapcount = 1;
->> +                       }
->> +               }
->> +               seq_printf(m, " %d", mapcount);
->> +
->> +       } while (pte++, addr += PAGE_SIZE, addr != end);
->
-> Well that's cute.  As long as both seq_file and pte-pages are of size
-> PAGE_SIZE, and as long as pte's are more than three bytes, this will 
-> not
-> overflow the seq_file output buffer.
->
-> hm.  Unless the pages are all dirty and the mapcounts are all 10000.  I
-> think it will overflow then?
->
->> +
->> +static inline void pagemaps_pmd_range(struct vm_area_struct *vma, 
->> pud_t
->> *pud,
->> +                               unsigned long addr, unsigned long end,
->> +                               struct seq_file *m)
->> +{
->> +       pmd_t *pmd;
->> +       unsigned long next;
->> +
->> +       pmd = pmd_offset(pud, addr);
->> +       do {
->> +               next = pmd_addr_end(addr, end);
->> +               if (pmd_none_or_clear_bad(pmd))
->> +                       continue;
->> +               pagemaps_pte_range(vma, pmd, addr, next, m);
->> +       } while (pmd++, addr = next, addr != end);
->> +}
->> +
->> +static inline void pagemaps_pud_range(struct vm_area_struct *vma, 
->> pgd_t
->> *pgd,
->> +                               unsigned long addr, unsigned long end,
->> +                               struct seq_file *m)
->> +{
->> +       pud_t *pud;
->> +       unsigned long next;
->> +
->> +       pud = pud_offset(pgd, addr);
->> +       do {
->> +               next = pud_addr_end(addr, end);
->> +               if (pud_none_or_clear_bad(pud))
->> +                       continue;
->> +               pagemaps_pmd_range(vma, pud, addr, next, m);
->> +       } while (pud++, addr = next, addr != end);
->> +}
->> +
->> +static inline void pagemaps_pgd_range(struct vm_area_struct *vma,
->> +                               unsigned long addr, unsigned long end,
->> +                               struct seq_file *m)
->> +{
->> +       pgd_t *pgd;
->> +       unsigned long next;
->> +
->> +       pgd = pgd_offset(vma->vm_mm, addr);
->> +       do {
->> +               next = pgd_addr_end(addr, end);
->> +               if (pgd_none_or_clear_bad(pgd))
->> +                       continue;
->> +               pagemaps_pud_range(vma, pgd, addr, next, m);
->> +       } while (pgd++, addr = next, addr != end);
->> +}
->
-> I think that's our eighth open-coded pagetable walker.  Apparently 
-> they are
-> all slightly different.  Perhaps we shouild do something about that one
-> day.
->
->
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
