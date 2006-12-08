@@ -1,142 +1,41 @@
-Message-ID: <4578DBCA.30604@yahoo.com.au>
-Date: Fri, 08 Dec 2006 14:28:10 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <45790212.8000608@goop.org>
+Date: Thu, 07 Dec 2006 22:11:30 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: Status of buffered write path (deadlock fixes)
-References: <45751712.80301@yahoo.com.au> <20061207195518.GG4497@ca-server1.us.oracle.com>
-In-Reply-To: <20061207195518.GG4497@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH] Add __GFP_MOVABLE for callers to flag allocations that
+ may be migrated
+References: <20061204113051.4e90b249.akpm@osdl.org> <Pine.LNX.4.64.0612041133020.32337@schroedinger.engr.sgi.com> <20061204120611.4306024e.akpm@osdl.org> <Pine.LNX.4.64.0612041211390.32337@schroedinger.engr.sgi.com> <20061204131959.bdeeee41.akpm@osdl.org> <Pine.LNX.4.64.0612041337520.851@schroedinger.engr.sgi.com> <20061204142259.3cdda664.akpm@osdl.org> <Pine.LNX.4.64.0612050754560.11213@schroedinger.engr.sgi.com> <20061205112541.2a4b7414.akpm@osdl.org> <Pine.LNX.4.64.0612051159510.18687@schroedinger.engr.sgi.com> <20061205214721.GE20614@skynet.ie> <Pine.LNX.4.64.0612051521060.20570@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0612060903161.7238@skynet.skynet.ie> <Pine.LNX.4.64.0612060921230.26185@schroedinger.engr.sgi.com> <4578BE37.1010109@goop.org> <Pine.LNX.4.64.0612071817280.11503@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0612071817280.11503@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fasheh <mark.fasheh@oracle.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mark Fasheh wrote:
-> Hi Nick,
-> 
-> On Tue, Dec 05, 2006 at 05:52:02PM +1100, Nick Piggin wrote:
-> 
->>Hi,
->>
->>I'd like to try to state where we are WRT the buffered write patches,
->>and ask for comments. Sorry for the wide cc list, but this is an
->>important issue which hasn't had enough review.
-> 
-> 
-> I pulled broken-out-2006-12-05-01-0.tar.gz from ftp.kernel.org and applied
-> the following patches to get a reasonable idea of what the final product
-> would look like:
-> 
-> revert-generic_file_buffered_write-handle-zero-length-iovec-segments.patch
-> revert-generic_file_buffered_write-deadlock-on-vectored-write.patch
-> generic_file_buffered_write-cleanup.patch
-> mm-only-mm-debug-write-deadlocks.patch
-> mm-fix-pagecache-write-deadlocks.patch
-> mm-fix-pagecache-write-deadlocks-comment.patch
-> mm-fix-pagecache-write-deadlocks-xip.patch
-> mm-fix-pagecache-write-deadlocks-mm-pagecache-write-deadlocks-efault-fix.patch
-> mm-fix-pagecache-write-deadlocks-zerolength-fix.patch
-> mm-fix-pagecache-write-deadlocks-stale-holes-fix.patch
-> fs-prepare_write-fixes.patch
-> 
-> If this is incorrect, or I should apply further patches, please let me know.
-> 
-> Hopefully my feedback can be of use to you.
+Christoph Lameter wrote:
+> The same can be done using the virtual->physical mappings that exist on 
+> many platforms for the kernel address space (ia64 dynamically calculates 
+> those, x86_64 uses a page table with 2M pages for mapping the kernel).
 
-That looks right (there are fixes for the "cont" buffer scheme, but they
-probably don't bother you).
+Yes, that's basically what Xen does - there's a nonlinear mapping from
+kernel virtual to machine pages (and usermode pages are put through the
+same transformation before being mapped).
 
->>Well the next -mm will include everything we've done so far. I won't
->>repost patches unless someone would like to comment on a specific one.
->>
->>I think the core generic_file_buffered_write is fairly robust, after
->>fixing the efault and zerolength iov problems picked up in testing
->>(thanks, very helpful!).
->>
->>So now I *believe* we have an approach that solves the deadlock and
->>doesn't expose transient or stale data, transient zeroes, or anything
->>like that.
-> 
-> 
-> In generic_file_buffered_write() we now do:
-> 
-> 	status = a_ops->commit_write(file, page, offset,offset+copied);
-> 
-> Which tells the file system to commit only the amount of data that
-> filemap_copy_from_user() was able to pull in, despite our zeroing of 
-> the newly allocated buffers in the copied != bytes case. Shouldn't we be
-> doing:
-> 
->         status = a_ops->commit_write(file, page, offset,offset+bytes);
-> 
-> instead, thus preserving ordered writeout (for ext3, ocfs2, etc) for those
-> parts of the page which are properly allocated and zero'd but haven't been
-> copied into yet? I think that in the case of a crash just after the
-> transaction is closed in ->commit_write(), we might lose those guarantees,
-> exposing stale data on disk.
+>  The 
+> problem is that the 1-1 mapping between physical and virtual addresses 
+> will have to be (at least partially) sacrificed which may lead to 
+> complications with DMA devices.
+>   
 
-No, because we might be talking about buffers that haven't been newly
-allocated, but are not uptodate (so the pagecache can contain junk).
+Yes, any driver which expects contigious kernel pages to be physically
+contigious will be sorely disappointed.  This isn't too hard to deal
+with (since such drivers are often buggy anyway, making poor assumptions
+about the relationship between physical addresses and bus addresses). 
+An IOMMU could help as well.
 
-We can't zero these guys and do the commit_write, because that exposes
-transient zeroes to a concurrent reader.
-
-What we *could* do, is to do the full length commit_write for uptodate
-pages, even if the copy is short. But we still need to do a zero-length
-commit_write if the page is not uptodate (this would reduce the number
-of new cases that need to be considered).
-
-Does a short commit_write cause a problem for filesystems? They can
-still do any and all operations they would have with a full-length one.
-But maybe it would be better to eliminate that case. OK.
-
-How about a zero-length commit_write? In that case again, they should
-be able to remain unchanged *except* that they are not to extend i_size
-or mark the page uptodate.
-
->>Error handling is getting close, but there may be cases that nobody
->>has picked up, and I've noticed a couple which I'll explain below.
->>
->>I think we do the right thing WRT pagecache error handling: a
->>!uptodate page remains !uptodate, an uptodate page can handle the
->>write being done in several parts. Comments in the patches attempt
->>to explain how this works. I think it is pretty straightforward.
->>
->>But WRT block allocation in the case of errors, it needs more review.
->>
->>Block allocation:
->>- prepare_write can allocate blocks
->>- prepare_write doesn't need to initialize the pagecache on top of
->>  these blocks where it is within the range specified in prepare_write
->>  (because the copy_from_user will initialise it correctly)
->>- In the case of a !uptodate page, unless the page is brought uptodate
->>  (ie the copy_from_user completely succeeds) and marked dirty, then
->>  a read that sneaks in after we unlock the page (to retry the write)
->>  will try to bring it uptodate by pulling in the uninitialised blocks.
-> 
-> 
-> For some reason, I'm not seeing where BH_New is being cleared in case with
-> no errors or faults. Hopefully I'm wrong, but if I'm not I believe we need
-> to clear the flag somewhere (perhaps in block_commit_write()?).
-
-Hmm, it is a bit inconsistent. It seems to be anywhere from prepare_write
-to block_write_full_page.
-
-Where do filesystems need the bit? It would be nice to clear it in
-commit_write if possible. Worst case we'll need a new bit.
-
-> Ok, that's it for now. I have some thoughts regarding the asymmetry between
-> ranges passed to ->prepare_write() and ->commit_write(), but I'd like to
-> save those thoughts until I know whether my comments above uncovered real
-> issues :)
-
-Very helpful, thanks ;)
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
