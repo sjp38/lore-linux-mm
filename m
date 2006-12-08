@@ -1,37 +1,109 @@
-Message-ID: <4579DD22.70609@goop.org>
-Date: Fri, 08 Dec 2006 13:46:10 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Date: Fri, 8 Dec 2006 15:48:52 -0800
+From: Mark Fasheh <mark.fasheh@oracle.com>
+Subject: Re: Status of buffered write path (deadlock fixes)
+Message-ID: <20061208234852.GI4497@ca-server1.us.oracle.com>
+Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
+References: <45751712.80301@yahoo.com.au> <20061207195518.GG4497@ca-server1.us.oracle.com> <4578DBCA.30604@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: new procfs memory analysis feature
-References: <45789124.1070207@mvista.com> <20061207143611.7a2925e2.akpm@osdl.org> <Pine.LNX.4.64.0612081716440.28861@weill.orchestra.cse.unsw.EDU.AU>
-In-Reply-To: <Pine.LNX.4.64.0612081716440.28861@weill.orchestra.cse.unsw.EDU.AU>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4578DBCA.30604@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Cc: Andrew Morton <akpm@osdl.org>, David Singleton <dsingleton@mvista.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Paul Cameron Davies wrote:
-> The PTI gathers all the open coded iterators togethers into one place,
-> which would be a good precursor to providing generic iterators for
-> non performance critical iterations.
->
-> We are completing the updating/enhancements to this PTI for the latest
-> kernel, to be released just prior to LCA.  This PTI is benchmarking
-> well. We also plan to release the experimental guarded page table
-> (GPT) running under this PTI.
+On Fri, Dec 08, 2006 at 02:28:10PM +1100, Nick Piggin wrote:
+> >In generic_file_buffered_write() we now do:
+> >
+> >	status = a_ops->commit_write(file, page, offset,offset+copied);
+> >
+> >Which tells the file system to commit only the amount of data that
+> >filemap_copy_from_user() was able to pull in, despite our zeroing of 
+> >the newly allocated buffers in the copied != bytes case. Shouldn't we be
+> >doing:
+> >
+> >        status = a_ops->commit_write(file, page, offset,offset+bytes);
+> >
+> >instead, thus preserving ordered writeout (for ext3, ocfs2, etc) for those
+> >parts of the page which are properly allocated and zero'd but haven't been
+> >copied into yet? I think that in the case of a crash just after the
+> >transaction is closed in ->commit_write(), we might lose those guarantees,
+> >exposing stale data on disk.
+> 
+> No, because we might be talking about buffers that haven't been newly
+> allocated, but are not uptodate (so the pagecache can contain junk).
+> 
+> We can't zero these guys and do the commit_write, because that exposes
+> transient zeroes to a concurrent reader.
 
-I looked at implementing linear pagetable mappings for x86 as a way of
-getting rid of CONFIG_HIGHPTE, and to make pagetable manipulations
-generally more efficient.  I gave up on it after a while because all the
-existing pagetable accessors are not suitable for a linear pagetable,
-and I didn't want to have to introduce a pile of new pagetable
-interfaces.  Would the PTI interface be helpful for this?
+Ahh ok - zeroing would populate with incorrect data and we can't write those
+buffers because we'd write junk over good data.
+
+And of course, the way it works right now will break ordered write mode.
+
+Sigh.
+
+ 
+> What we *could* do, is to do the full length commit_write for uptodate
+> pages, even if the copy is short. But we still need to do a zero-length
+> commit_write if the page is not uptodate (this would reduce the number
+> of new cases that need to be considered).
+>
+> Does a short commit_write cause a problem for filesystems? They can
+> still do any and all operations they would have with a full-length one.
+
+If they've done allocation, yes. You're telling the file system to stop
+early in the page, even though there may be BH_New buffers further on which
+should be processed (for things like ordered data mode).
+
+Hmm, I think we should just just change functions like walk_page_buffers()
+in fs/ext3/inode.c and fs/ocfs2/aops.c to look for BH_New buffers outside
+the range specified (they walk the entire buffer list anyway). If it finds
+one that's buffer_new() it passes it to the journal unconditionally. You'd
+also have to revert the change you did in fs/ext3/inode.c to at least always
+make the call to walk_page_buffers().
+
+I really don't like that we're hiding a detail of this interaction so deep
+within the file system commit_write() callback. I suppose we can just do our
+best to document it.
+
+
+> But maybe it would be better to eliminate that case. OK.
+> How about a zero-length commit_write? In that case again, they should
+> be able to remain unchanged *except* that they are not to extend i_size
+> or mark the page uptodate.
+
+If we make the change I described above (looking for BH_New buffers outside
+the range passed), then zero length or partial shouldn't matter, but zero
+length instead of partial would be nicer imho just for the sake of reducing
+the total number of cases down to the entire range or zero length.
+
+
+> >For some reason, I'm not seeing where BH_New is being cleared in case with
+> >no errors or faults. Hopefully I'm wrong, but if I'm not I believe we need
+> >to clear the flag somewhere (perhaps in block_commit_write()?).
+> 
+> Hmm, it is a bit inconsistent. It seems to be anywhere from prepare_write
+> to block_write_full_page.
+> 
+> Where do filesystems need the bit? It would be nice to clear it in
+> commit_write if possible. Worst case we'll need a new bit.
+
+->commit_write() would probably do fine. Currently, block_prepare_write()
+uses it to know which buffers were newly allocated (the file system specific
+get_block_t sets the bit after allocation). I think we could safely move
+the clearing of that bit to block_commit_write(), thus still allowing us to
+detect and zero those blocks in generic_file_buffered_write()
 
 Thanks,
-    J
+	--Mark
+
+--
+Mark Fasheh
+Senior Software Developer, Oracle
+mark.fasheh@oracle.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
