@@ -1,109 +1,97 @@
-Date: Fri, 8 Dec 2006 15:48:52 -0800
-From: Mark Fasheh <mark.fasheh@oracle.com>
-Subject: Re: Status of buffered write path (deadlock fixes)
-Message-ID: <20061208234852.GI4497@ca-server1.us.oracle.com>
-Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
-References: <45751712.80301@yahoo.com.au> <20061207195518.GG4497@ca-server1.us.oracle.com> <4578DBCA.30604@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4578DBCA.30604@yahoo.com.au>
+Date: Fri, 8 Dec 2006 15:52:00 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Bugme-new] [Bug 7645] New: Kernel BUG at mm/memory.c:1124
+Message-Id: <20061208155200.0e2794a1.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0612072101120.27573@blonde.wat.veritas.com>
+References: <200612070355.kB73tGf4021820@fire-2.osdl.org>
+	<20061206201246.be7fb860.akpm@osdl.org>
+	<4577A36B.6090803@cern.ch>
+	<20061206230338.b0bf2b9e.akpm@osdl.org>
+	<45782B32.6040401@cern.ch>
+	<Pine.LNX.4.64.0612072101120.27573@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Ramiro Voicu <Ramiro.Voicu@cern.ch>, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 08, 2006 at 02:28:10PM +1100, Nick Piggin wrote:
-> >In generic_file_buffered_write() we now do:
-> >
-> >	status = a_ops->commit_write(file, page, offset,offset+copied);
-> >
-> >Which tells the file system to commit only the amount of data that
-> >filemap_copy_from_user() was able to pull in, despite our zeroing of 
-> >the newly allocated buffers in the copied != bytes case. Shouldn't we be
-> >doing:
-> >
-> >        status = a_ops->commit_write(file, page, offset,offset+bytes);
-> >
-> >instead, thus preserving ordered writeout (for ext3, ocfs2, etc) for those
-> >parts of the page which are properly allocated and zero'd but haven't been
-> >copied into yet? I think that in the case of a crash just after the
-> >transaction is closed in ->commit_write(), we might lose those guarantees,
-> >exposing stale data on disk.
+On Thu, 7 Dec 2006 21:22:57 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Thu, 7 Dec 2006, Ramiro Voicu wrote:
+> > Andrew Morton wrote:
+> > > On Thu, 07 Dec 2006 06:15:23 +0100
+> > > Ramiro Voicu <Ramiro.Voicu@cern.ch> wrote:
+> > >>
+> > >> Dec  7 06:12:11 xxxx kernel: [  319.720340] pte_val: 629025
+> > > 
+> > > hm.  A valid, read-only, accessed user page with a sane-looking pfn.
+> > > And this is repeatable, on two different machines.
+> > > 
+> > > I don't know what to do, sorry.  A bisection-search would have a good
+> > > chance of finding the bug, but that would be pretty painful.  It looks like
+> > > you were able to hit the bug after five minutes uptime, which helps.  Is it
+> > > always that easy to hit?
+> > 
+> > It depends ... It can take days or minutes until it happens. The program
+> > is a simple FTP-like using multiple TCP Streams, implemented with Java NIO.
 > 
-> No, because we might be talking about buffers that haven't been newly
-> allocated, but are not uptodate (so the pagecache can contain junk).
+> Interesting.  I think you needn't bother with that bisection.  I can't
+> say why this started happening to you only with recent releases (timings
+> changed somehow I guess): it looks like reading /dev/zero has been using
+> zeromap_page_range unsafely for years.
 > 
-> We can't zero these guys and do the commit_write, because that exposes
-> transient zeroes to a concurrent reader.
-
-Ahh ok - zeroing would populate with incorrect data and we can't write those
-buffers because we'd write junk over good data.
-
-And of course, the way it works right now will break ordered write mode.
-
-Sigh.
-
- 
-> What we *could* do, is to do the full length commit_write for uptodate
-> pages, even if the copy is short. But we still need to do a zero-length
-> commit_write if the page is not uptodate (this would reduce the number
-> of new cases that need to be considered).
->
-> Does a short commit_write cause a problem for filesystems? They can
-> still do any and all operations they would have with a full-length one.
-
-If they've done allocation, yes. You're telling the file system to stop
-early in the page, even though there may be BH_New buffers further on which
-should be processed (for things like ordered data mode).
-
-Hmm, I think we should just just change functions like walk_page_buffers()
-in fs/ext3/inode.c and fs/ocfs2/aops.c to look for BH_New buffers outside
-the range specified (they walk the entire buffer list anyway). If it finds
-one that's buffer_new() it passes it to the journal unconditionally. You'd
-also have to revert the change you did in fs/ext3/inode.c to at least always
-make the call to walk_page_buffers().
-
-I really don't like that we're hiding a detail of this interaction so deep
-within the file system commit_write() callback. I suppose we can just do our
-best to document it.
-
-
-> But maybe it would be better to eliminate that case. OK.
-> How about a zero-length commit_write? In that case again, they should
-> be able to remain unchanged *except* that they are not to extend i_size
-> or mark the page uptodate.
-
-If we make the change I described above (looking for BH_New buffers outside
-the range passed), then zero length or partial shouldn't matter, but zero
-length instead of partial would be nicer imho just for the sake of reducing
-the total number of cases down to the entire range or zero length.
-
-
-> >For some reason, I'm not seeing where BH_New is being cleared in case with
-> >no errors or faults. Hopefully I'm wrong, but if I'm not I believe we need
-> >to clear the flag somewhere (perhaps in block_commit_write()?).
+> First it zaps existing ptes, then it inserts the zero page ptes - but
+> only while holding mmap_sem for read: could be racing against another
+> thread doing the same, or against ordinary faulting.  Now, it may well
+> be that the program is buggy to be racing against itself in this way
+> (which would fit with why this hasn't been observed before - buggy
+> programs are exceedingly rare, aren't they ;-?) but of course it
+> shouldn't trigger a kernel BUG (or leak, which preceded the BUG).
 > 
-> Hmm, it is a bit inconsistent. It seems to be anywhere from prepare_write
-> to block_write_full_page.
+> Please try the simple patch below: I expect it to fix your problem.
+> Whether it's the right patch, I'm not quite sure: we do commonly use
+> zap_page_range and zeromap_page_range with mmap_sem held for write,
+> but perhaps we'd want to avoid such serialization in this case?
 > 
-> Where do filesystems need the bit? It would be nice to clear it in
-> commit_write if possible. Worst case we'll need a new bit.
+> Hugh
+> 
+> --- 2.6.19/drivers/char/mem.c	2006-11-29 21:57:37.000000000 +0000
+> +++ linux/drivers/char/mem.c	2006-12-07 20:21:46.000000000 +0000
+> @@ -631,7 +631,7 @@ static inline size_t read_zero_pagealign
+>  
+>  	mm = current->mm;
+>  	/* Oops, this was forgotten before. -ben */
+> -	down_read(&mm->mmap_sem);
+> +	down_write(&mm->mmap_sem);
+>  
+>  	/* For private mappings, just map in zero pages. */
+>  	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
+> @@ -655,7 +655,7 @@ static inline size_t read_zero_pagealign
+>  			goto out_up;
+>  	}
+>  
+> -	up_read(&mm->mmap_sem);
+> +	up_write(&mm->mmap_sem);
+>  	
+>  	/* The shared case is hard. Let's do the conventional zeroing. */ 
+>  	do {
+> @@ -669,7 +669,7 @@ static inline size_t read_zero_pagealign
+>  
+>  	return size;
+>  out_up:
+> -	up_read(&mm->mmap_sem);
+> +	up_write(&mm->mmap_sem);
+>  	return size;
+>  }
+>  
 
-->commit_write() would probably do fine. Currently, block_prepare_write()
-uses it to know which buffers were newly allocated (the file system specific
-get_block_t sets the bit after allocation). I think we could safely move
-the clearing of that bit to block_commit_write(), thus still allowing us to
-detect and zero those blocks in generic_file_buffered_write()
+Ramiro, have you had a chance to test this yet?
 
-Thanks,
-	--Mark
-
---
-Mark Fasheh
-Senior Software Developer, Oracle
-mark.fasheh@oracle.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
