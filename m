@@ -1,52 +1,60 @@
-Date: Sat, 9 Dec 2006 18:40:56 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [Bugme-new] [Bug 7645] New: Kernel BUG at mm/memory.c:1124
-In-Reply-To: <457AF156.8070606@cern.ch>
-Message-ID: <Pine.LNX.4.64.0612091829550.22335@blonde.wat.veritas.com>
-References: <200612070355.kB73tGf4021820@fire-2.osdl.org>
- <20061206201246.be7fb860.akpm@osdl.org> <4577A36B.6090803@cern.ch>
- <20061206230338.b0bf2b9e.akpm@osdl.org> <45782B32.6040401@cern.ch>
- <Pine.LNX.4.64.0612072101120.27573@blonde.wat.veritas.com>
- <20061208155200.0e2794a1.akpm@osdl.org> <Pine.LNX.4.64.0612090427180.3684@blonde.wat.veritas.com>
- <457AF156.8070606@cern.ch>
+Date: Sat, 9 Dec 2006 11:01:47 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] Cleanup slab headers / API to allow easy addition of new
+ slab allocators
+In-Reply-To: <84144f020612090602w5c7f3f9ay8e771763ea8843cf@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0612091057390.24785@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0612081106320.16873@schroedinger.engr.sgi.com>
+ <84144f020612090602w5c7f3f9ay8e771763ea8843cf@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ramiro Voicu <Ramiro.Voicu@cern.ch>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 9 Dec 2006, Ramiro Voicu wrote:
-> Hugh Dickins wrote:
-> > On Fri, 8 Dec 2006, Andrew Morton wrote:
-> >> On Thu, 7 Dec 2006 21:22:57 +0000 (GMT)
-> >> Ramiro, have you had a chance to test this yet?
-> > 
-> > Here's a bigger but better patch: if you wouldn't mind,
-> > please try this one instead, Ramiro - thanks.
-> 
-> It seems that this patch fixed the problem. I tested on my desktop and
-> the problem seems gone.
+On Sat, 9 Dec 2006, Pekka Enberg wrote:
 
-Great, thanks.  Well, actually it's trivial that it has fixed
-the problem, in that it removed that particular BUG_ON: what's more
-important is that it then allowed your program to work as usual, good.
-
+> Hi Christoph,
 > 
-> Based on what Hugh supposed, I was able to have a small java program to
-> test it ... and indeed it is very possible that there was a race in the
-> initial app
+> On 12/8/06, Christoph Lameter <clameter@sgi.com> wrote:
+> > +#define        SLAB_POISON             0x00000800UL    /* DEBUG: Poison
+> > objects */
+> > +#define        SLAB_HWCACHE_ALIGN      0x00002000UL    /* Align objs on
+> > cache lines */
+> > +#define SLAB_CACHE_DMA         0x00004000UL    /* Use GFP_DMA memory */
+> > +#define SLAB_MUST_HWCACHE_ALIGN        0x00008000UL    /* Force alignment
+> > even if debuggin is active */
 > 
-> I will try to test it tomorrow on the other machine ( it is unable to
-> boot now after a hard reboot ), but I think the bug can be closed now.
+> Please fix formatting while you're at it.
+
+Yes I did that. Please look at it after you applied the diff.
+
+> > + * its own optimized kmalloc definitions (like SLOB).
+> > + */
+> > +
+> > +#if defined(CONFIG_NUMA) || defined(CONFIG_DEBUG_SLAB)
+> > +#error "SLAB fallback definitions not usable for NUMA or Slab debug"
 > 
-> Thank you very much for your support!
+> Do we need this? Shouldn't we just make sure no one can enable
+> CONFIG_NUMA and CONFIG_DEBUG_SLAB for non-compatible allocators?
 
-Thank _you_ very much for reporting and testing:
-it's a pleasure to deal with bugs we can fix so easily!
-
-Hugh
+Ok. Dropped it.
+> 
+> > -static inline void *kmalloc(size_t size, gfp_t flags)
+> > +void *kmalloc(size_t size, gfp_t flags)
+> 
+> static inline?
+> 
+> > +void *kzalloc(size_t size, gfp_t flags)
+> > +{
+> > +       return __kzalloc(size, flags);
+> > +}
+> 
+> same here.
+> 
+Ok. Fixed that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
