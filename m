@@ -1,57 +1,101 @@
-Received: by ug-out-1314.google.com with SMTP id s2so930769uge
-        for <linux-mm@kvack.org>; Sat, 09 Dec 2006 06:02:54 -0800 (PST)
-Message-ID: <84144f020612090602w5c7f3f9ay8e771763ea8843cf@mail.gmail.com>
-Date: Sat, 9 Dec 2006 16:02:53 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC] Cleanup slab headers / API to allow easy addition of new slab allocators
-In-Reply-To: <Pine.LNX.4.64.0612081106320.16873@schroedinger.engr.sgi.com>
+Message-ID: <20061209143341.90545.qmail@web52308.mail.yahoo.com>
+Date: Sat, 9 Dec 2006 06:33:41 -0800 (PST)
+From: John Fusco <fusco_john@yahoo.com>
+Subject: Re: Making PCI Memory Cachable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <Pine.LNX.4.64.0612081106320.16873@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ascii
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+----- Original Message ----
+  
 
-On 12/8/06, Christoph Lameter <clameter@sgi.com> wrote:
-> +#define        SLAB_POISON             0x00000800UL    /* DEBUG: Poison objects */
-> +#define        SLAB_HWCACHE_ALIGN      0x00002000UL    /* Align objs on cache lines */
-> +#define SLAB_CACHE_DMA         0x00004000UL    /* Use GFP_DMA memory */
-> +#define SLAB_MUST_HWCACHE_ALIGN        0x00008000UL    /* Force alignment even if debuggin is active */
+From: Andi Kleen <ak@suse.de>
+  
 
-Please fix formatting while you're at it.
+To: John Fusco <fusco_john@yahoo.com>
+  
 
-> +#ifdef CONFIG_SLAB
-> +#include <linux/slab_def.h>
-> +#else
-> +
-> +/*
-> + * Fallback definitions for an allocator not wanting to provide
-> + * its own optimized kmalloc definitions (like SLOB).
-> + */
-> +
-> +#if defined(CONFIG_NUMA) || defined(CONFIG_DEBUG_SLAB)
-> +#error "SLAB fallback definitions not usable for NUMA or Slab debug"
+Cc: linux-mm@kvack.org
+  
 
-Do we need this? Shouldn't we just make sure no one can enable
-CONFIG_NUMA and CONFIG_DEBUG_SLAB for non-compatible allocators?
+Sent: Wednesday, December 6, 2006 4:16:27 PM
+  
 
-> -static inline void *kmalloc(size_t size, gfp_t flags)
-> +void *kmalloc(size_t size, gfp_t flags)
+Subject: Re: Making PCI Memory Cachable
+  
 
-static inline?
 
-> +void *kzalloc(size_t size, gfp_t flags)
-> +{
-> +       return __kzalloc(size, flags);
-> +}
+  
 
-same here.
+On Tuesday 28 November 2006 15:02, John Fusco wrote:
+  
+
+> I have numerous custom PCI devices that implement SRAM or DRAM on the 
+  
+
+> PCI bus. I would like to explore making this memory cachable in the 
+  
+
+> hopes that writes to memory can be done from user space and will be done 
+  
+
+> in bursts rather than single cycles.
+  
+
+
+  
+
+You want write combining, not cacheable. The only way to do 
+  
+
+this currently is to set a MTRR. See Documentation/mtrr.txt 
+  
+
+by default.
+  
+
+
+  
+
+>     b) The memory is cachable, but the chipset is throttling the bursts
+  
+
+
+  
+
+The normal cache coherency protocol doesn't work over PCI
+  
+
+
+  
+
+-Andi
+
+Thanks for the reply.
+
+I am aware of the MTRRs, but I was hoping for a more elegant solution. 
+
+BTW, why won't cache coherency protocol work over PCI? It has commands to support this, such as "memory read line" and "memory write line". Is it that Linux does not allow memory outside of RAM to be cacheable?
+
+John
+
+
+
+
+
+
+
+
+ 
+____________________________________________________________________________________
+Do you Yahoo!?
+Everyone is raving about the all-new Yahoo! Mail beta.
+http://new.mail.yahoo.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
