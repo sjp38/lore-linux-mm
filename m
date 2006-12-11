@@ -1,27 +1,40 @@
-Date: Mon, 11 Dec 2006 09:23:13 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH] vmemmap on sparsemem v2
-In-Reply-To: <20061210151931.GB28442@osiris.ibm.com>
-Message-ID: <Pine.LNX.4.64.0612110922340.500@schroedinger.engr.sgi.com>
-References: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
- <457C0D86.70603@shadowen.org> <20061210151931.GB28442@osiris.ibm.com>
+Received: from ibmpc.myhome.or.jp ([210.171.168.39]:3754)
+	by parknet.jp with [XMail 1.21 ESMTP Server]
+	id <SD441> for <linux-mm@kvack.org> from <hirofumi@mail.parknet.co.jp>;
+	Tue, 12 Dec 2006 03:18:47 +0900
+Subject: Re: Status of buffered write path (deadlock fixes)
+References: <45751712.80301@yahoo.com.au>
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Date: Tue, 12 Dec 2006 03:17:19 +0900
+In-Reply-To: <45751712.80301@yahoo.com.au> (Nick Piggin's message of "Tue\, 05 Dec 2006 17\:52\:02 +1100")
+Message-ID: <878xhewb4g.fsf@duaron.myhome.or.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Dec 2006, Heiko Carstens wrote:
+Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
-> Hmm.. this implementation still requires sparsemem. Maybe it would be
-> possible to implement a generic vmem_map infrastructure that works with
-> and without sparsemem?
+> Finally, filesystems. Only OGAWA Hirofumi and Mark Fasheh have given much
+> feedback so far. I've tried to grok ext2/3 and think they'll work OK, and
+> have at least *looked* at all the rest. However in the worst case, there
+> might be many subtle and different problems :( Filesystem developers need
+> to review this, please. I don't want to cc every filesystem dev list, but
+> if anybody thinks it would be helpful to forward this then please do.
 
-What is the additional sparsemem overhead still around with this patchset?
+BTW, there are still some from==to users.
 
-I thought the sparsemem tables were replaced by the page tables?
+	fs/affs/file.c:affs_truncate
+	fs/hfs/extent.c:hfs_file_truncate
+	fs/hfsplus/extents.c:hfsplus_file_truncate
+	fs/reiserfs/ioctl.c:reiserfs_unpack
+
+I'll see those this weekend.
+-- 
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
