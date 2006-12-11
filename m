@@ -1,150 +1,40 @@
-Received: by nf-out-0910.google.com with SMTP id c2so1917126nfe
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2006 08:36:25 -0800 (PST)
-Message-ID: <457D895D.4010500@innova-card.com>
-Date: Mon, 11 Dec 2006 17:37:49 +0100
-Reply-To: Franck <vagabon.xyz@gmail.com>
+Message-ID: <457D89DA.5010705@yahoo.com.au>
+Date: Tue, 12 Dec 2006 03:39:54 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
-References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
-In-Reply-To: <200612111046.kBBAkV8Y029087@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Status of buffered write path (deadlock fixes)
+References: <45751712.80301@yahoo.com.au>	 <20061207195518.GG4497@ca-server1.us.oracle.com>	 <4578DBCA.30604@yahoo.com.au>	 <20061208234852.GI4497@ca-server1.us.oracle.com>	 <457D20AE.6040107@yahoo.com.au>  <457D7EBA.7070005@yahoo.com.au> <1165853552.3752.1015.camel@quoit.chygwyn.com>
+In-Reply-To: <1165853552.3752.1015.camel@quoit.chygwyn.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-From: Franck Bui-Huu <vagabon.xyz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jayakumar.lkml@gmail.com
-Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Steven Whitehouse <steve@chygwyn.com>
+Cc: Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Steven Whitehouse wrote:
 
-jayakumar.lkml@gmail.com wrote:
-> Hi Geert, James, FBdev, MM folk, 
+>>Hmm, doesn't look like we can do this either because at least GFS2
+>>uses BH_New for its own special things.
+>>
 > 
-> Appended is my attempt to support the Hecuba/E-Ink display. I've added
-> some code to do deferred IO. This is there in order to hide the latency
-> associated with updating the display (500ms to 800ms). The method used
-> is to fake a framebuffer in memory. Then use pagefaults followed by delayed
-> unmaping and only then do the actual framebuffer update. To explain this 
-> better, the usage scenario is like this:
-> 
-> - userspace app like Xfbdev mmaps framebuffer
-> - driver handles and sets up nopage and page_mkwrite handlers
-> - app tries to write to mmaped vaddress
-> - get pagefault and reaches driver's nopage handler
-> - driver's nopage handler finds and returns physical page ( no
->   actual framebuffer )
-> - write so get page_mkwrite where we add this page to a list
-> - also schedules a workqueue task to be run after a delay
-> - app continues writing to that page with no additional cost
-> - the workqueue task comes in and unmaps the pages on the list, then 
->   completes the work associated with updating the framebuffer
-> - app tries to write to the address (that has now been unmapped)
-> - get pagefault and the above sequence occurs again
-> 
-> The desire is roughly to allow bursty framebuffer writes to occur. 
-> Then after some time when hopefully things have gone quiet, we go and 
-> really update the framebuffer. For this type of nonvolatile high latency 
-> display, the desired image is the final image rather than intermediate 
-> stages which is why it's okay to not update for each write that is 
-> occuring.
-> 
-> Please let me know if this looks okay so far and if you have any feedback
-> or suggestions. Thanks to peterz for the page_mkwrite/clean suggestions
-> that made this possible.
-> 
+> What makes you say that? As far as I know we are not doing anything we
+> shouldn't with this flag, and if we are, then I'm quite happy to
+> consider fixing it up so that we don't,
 
-[snip]
+Bad wording. Many other filesystems seem to only make use of buffer_new
+between prepare and commit_write.
 
-> +struct hecubafb_par {
-> +	unsigned long dio_addr;
-> +	unsigned long cio_addr;
-> +	unsigned long c2io_addr;
-> +	unsigned char ctl;
-> +	atomic_t ref_count;
-> +	atomic_t vma_count;
+gfs2 seems to at least test it in a lot of places, so it is hard to know
+whether we can change the current semantics or not. I didn't mean that
+gfs2 is doing anything wrong.
 
-what purpose do these counters deserve ?
+So can we clear it in commit_write?
 
-> +	struct fb_info *info;
-> +	unsigned int irq;
-> +	spinlock_t lock;
-> +	struct workqueue_struct *wq;
-> +	struct work_struct work;
-> +	struct list_head pagelist;
-> +};
-> +
-
-[snip]
-
-> +
-> +void hcb_wait_for_ack(struct hecubafb_par *par)
-> +{
-> +
-> +	int timeout;
-> +	unsigned char ctl;
-> +
-> +	timeout=500;
-> +	do {
-> +		ctl = hcb_get_ctl(par);
-> +		if ((ctl & HCB_ACK_BIT)) 
-> +			return;
-> +		udelay(1);
-> +	} while (timeout--);
-> +	printk(KERN_ERR "timed out waiting for ack\n");
-> +}
-
-When timeout occur this function does not return any error values.
-the callers needn't to be warn in this case ?
-
-> +
-> +void hcb_wait_for_ack_clear(struct hecubafb_par *par)
-
-[snip]
-
-> +}
-> +
-> +/* this is to find and return the vmalloc-ed fb pages */
-> +static struct page* hecubafb_vm_nopage(struct vm_area_struct *vma, 
-> +					unsigned long vaddr, int *type)
-> +{
-> +	unsigned long offset;
-> +	struct page *page;
-> +	struct fb_info *info = vma->vm_private_data;
-> +
-> +	offset = (vaddr - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
-> +	if (offset >= (DPY_W*DPY_H)/8)
-> +		return NOPAGE_SIGBUS;
-> +
-> +	page = vmalloc_to_page(info->screen_base + offset);
-> +	if (!page)
-> +		return NOPAGE_OOM;
-> +
-> +	get_page(page);
-> +	if (type)
-> +		*type = VM_FAULT_MINOR;
-> +	return page;
-> +}
-> +
-
-so page can be accessed by using vma->start virtual address....
-
-> +static int hecubafb_page_mkwrite(struct vm_area_struct *vma, 
-
-[snip]
-
-> +
-> +	if (!(videomemory = vmalloc(videomemorysize)))
-> +		return retval;
-
-and here the kernel access to the same page by using address returned
-by vmalloc which are different from the previous one. So 2 different
-addresses map the same physical page. In this case are there any cache
-aliasing issues specially for x86 arch ?
-
-thanks
-
-		Franck
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
