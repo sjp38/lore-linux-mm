@@ -1,40 +1,40 @@
-Date: Mon, 11 Dec 2006 10:09:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] vmemmap on sparsemem v2
-Message-Id: <20061211100931.e3118330.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20061210151931.GB28442@osiris.ibm.com>
-References: <20061205214517.5ad924f6.kamezawa.hiroyu@jp.fujitsu.com>
-	<457C0D86.70603@shadowen.org>
-	<20061210151931.GB28442@osiris.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Date: Mon, 11 Dec 2006 13:19:38 +1100 (EST)
+Subject: Re: new procfs memory analysis feature
+In-Reply-To: <4579DD22.70609@goop.org>
+Message-ID: <Pine.LNX.4.64.0612111315500.14977@weill.orchestra.cse.unsw.EDU.AU>
+References: <45789124.1070207@mvista.com> <20061207143611.7a2925e2.akpm@osdl.org>
+ <Pine.LNX.4.64.0612081716440.28861@weill.orchestra.cse.unsw.EDU.AU>
+ <4579DD22.70609@goop.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: apw@shadowen.org, linux-mm@kvack.org, clameter@engr.sgi.com, schwidefsky@de.ibm.com
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Andrew Morton <akpm@osdl.org>, David Singleton <dsingleton@mvista.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Dec 2006 16:19:31 +0100
-Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-> > Would we expect to see this replace the existing ia64 implementation in
-> > the long term?  I'd hate to see us having competing implementations
-> > here.  Also Heiko would this framework with your s390 requirements for
-> > vmem_map, I know that you have a particularly challenging physical
-> > layout?  It would be great to see just one of these in the kernel.
-> 
-> Hmm.. this implementation still requires sparsemem. Maybe it would be
-> possible to implement a generic vmem_map infrastructure that works with
-> and without sparsemem?
+On Fri, 8 Dec 2006, Jeremy Fitzhardinge wrote:
 
-Maybe we need
-(1) stop making use of PAGE_SIZE alignment of sprasemem's mem_map
-(2) implement pfn_valid().
-(3) add generic style call for creating mem_map from the list of pfn range
-    and vmem_map alignment concept.
+> I looked at implementing linear pagetable mappings for x86 as a way of
+> getting rid of CONFIG_HIGHPTE, and to make pagetable manipulations
+> generally more efficient.  I gave up on it after a while because all the
+> existing pagetable accessors are not suitable for a linear pagetable,
+> and I didn't want to have to introduce a pile of new pagetable
+> interfaces.  Would the PTI interface be helpful for this?
 
-other ?
--Kame
+Yes.  The PTI is a useful vehicle for experimentation with page tables.
+The PTI has two components.  The first component provides for architectural
+and implementation independent page table access.  The second component
+provides for architecture dependendent access, but I have only done this 
+for IA64.  However, abstracting out the page table implementation for the 
+arch dependent stuff on x86 would enable experimentation with
+implementing linear page table mappings for x86, while leaving
+the current implementation in place as an alternative page table.
+
+Cheers
+
+Paul Davies
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
