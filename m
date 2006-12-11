@@ -1,78 +1,157 @@
-Date: Mon, 11 Dec 2006 12:40:52 -0800
+Date: Mon, 11 Dec 2006 15:29:07 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]  incorrect error handling inside
- generic_file_direct_write
-Message-Id: <20061211124052.144e69a0.akpm@osdl.org>
-In-Reply-To: <87k60y1rq4.fsf@sw.ru>
-References: <87k60y1rq4.fsf@sw.ru>
+Subject: Re: [PATCH 0/4] Lumpy Reclaim V3
+Message-Id: <20061211152907.f44cdd94.akpm@osdl.org>
+In-Reply-To: <exportbomb.1165424343@pinky>
+References: <exportbomb.1165424343@pinky>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dmitriy Monakhov <dmonakhov@openvz.org>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Dec 2006 16:34:27 +0300
-Dmitriy Monakhov <dmonakhov@openvz.org> wrote:
+On Wed, 6 Dec 2006 16:59:04 +0000
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-> OpenVZ team has discovered error inside generic_file_direct_write()
-> If generic_file_direct_IO() has fail (ENOSPC condition) it may have instantiated
-> a few blocks outside i_size. And fsck will complain about wrong i_size
-> (ext2, ext3 and reiserfs interpret i_size and biggest block difference as error),
-> after fsck will fix error i_size will be increased to the biggest block,
-> but this blocks contain gurbage from previous write attempt, this is not 
-> information leak, but its silence file data corruption. 
-> We need truncate any block beyond i_size after write have failed , do in simular
-> generic_file_buffered_write() error path.
-> 
-> Exampe:
-> open("mnt2/FILE3", O_WRONLY|O_CREAT|O_DIRECT, 0666) = 3
-> write(3, "aaaaaa"..., 4096) = -1 ENOSPC (No space left on device)
-> 
-> stat mnt2/FILE3
-> File: `mnt2/FILE3'
-> Size: 0               Blocks: 4          IO Block: 4096   regular empty file
-> >>>>>>>>>>>>>>>>>>>>>>^^^^^^^^^^ file size is less than biggest block idx
-> Device: 700h/1792d      Inode: 14          Links: 1
-> Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
-> 
-> fsck.ext2 -f -n  mnt1/fs_img
-> Pass 1: Checking inodes, blocks, and sizes
-> Inode 14, i_size is 0, should be 2048.  Fix? no
-> 
-> Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
-> ----------
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 7b84dc8..bf7cf6c 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2041,6 +2041,14 @@ generic_file_direct_write(struct kiocb *
->  			mark_inode_dirty(inode);
->  		}
->  		*ppos = end;
-> +	} else if (written < 0) {
-> +		loff_t isize = i_size_read(inode);
-> +		/*
-> +		 * generic_file_direct_IO() may have instantiated a few blocks
-> +		 * outside i_size.  Trim these off again.
-> +		 */
-> +		if (pos + count > isize)
-> +			vmtruncate(inode, isize);
->  	}
+> This is a repost of the lumpy reclaim patch set.  This is
+> basically unchanged from the last post, other than being rebased
+> to 2.6.19-rc2-mm2.
+
+The patch sequencing appeared to be designed to make the code hard to
+review, so I clumped them all into a single diff:
+
 >  
+>  /*
+> + * Attempt to remove the specified page from its LRU.  Only take this
+> + * page if it is of the appropriate PageActive status.  Pages which
+> + * are being freed elsewhere are also ignored.
+> + *
+> + * @page:	page to consider
+> + * @active:	active/inactive flag only take pages of this type
 
-XFS (at least) can call generic_file_direct_write() with i_mutex not held. 
-And vmtruncate() expects i_mutex to be held.
+I dunno who started adding these @'s into non-kernel-doc comments.  I'll
+un-add them.
 
-I guess a suitable solution would be to push this problem back up to the
-callers: let them decide whether to run vmtruncate() and if so, to ensure
-that i_mutex is held.
+> + * returns 0 on success, -ve errno on failure.
+> + */
+> +int __isolate_lru_page(struct page *page, int active)
+> +{
+> +	int ret = -EINVAL;
+> +
+> +	if (PageLRU(page) && (PageActive(page) == active)) {
 
-The existence of generic_file_aio_write_nolock() makes that rather messy
-though.
+We hope that all architectures remember that test_bit returns 0 or
+1.  We got that wrong a few years back.  What we do now is rather
+un-C-like.  And potentially inefficient.  Hopefully the compiler usually
+sorts it out though.
+
+
+> +		ret = -EBUSY;
+> +		if (likely(get_page_unless_zero(page))) {
+> +			/*
+> +			 * Be careful not to clear PageLRU until after we're
+> +			 * sure the page is not being freed elsewhere -- the
+> +			 * page release code relies on it.
+> +			 */
+> +			ClearPageLRU(page);
+> +			ret = 0;
+> +		}
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +/*
+>   * zone->lru_lock is heavily contended.  Some of the functions that
+>   * shrink the lists perform better by taking out a batch of pages
+>   * and working on them outside the LRU lock.
+> @@ -621,33 +653,71 @@ keep:
+>   */
+>  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		struct list_head *src, struct list_head *dst,
+> -		unsigned long *scanned)
+> +		unsigned long *scanned, int order)
+>  {
+>  	unsigned long nr_taken = 0;
+> -	struct page *page;
+> -	unsigned long scan;
+> +	struct page *page, *tmp;
+
+"tmp" isn't a very good identifier.
+
+> +	unsigned long scan, pfn, end_pfn, page_pfn;
+
+One declaration per line is preferred.  This gives you room for a brief
+comment, where appropriate.
+
+
+> +		/*
+> +		 * Attempt to take all pages in the order aligned region
+> +		 * surrounding the tag page.  Only take those pages of
+> +		 * the same active state as that tag page.
+> +		 */
+> +		zone_id = page_zone_id(page);
+> +		page_pfn = __page_to_pfn(page);
+> +		pfn = page_pfn & ~((1 << order) - 1);
+
+Is this always true?  It assumes that the absolute value of the starting
+pfn of each zone is a multiple of MAX_ORDER (doesn't it?) I don't see any
+reason per-se why that has to be true (although it might be).
+
+hm, I guess it has to be true, else hugetlb pages wouldn't work too well.
+
+> +		end_pfn = pfn + (1 << order);
+> +		for (; pfn < end_pfn; pfn++) {
+> +			if (unlikely(pfn == page_pfn))
+> +				continue;
+> +			if (unlikely(!pfn_valid(pfn)))
+> +				break;
+> +
+> +			tmp = __pfn_to_page(pfn);
+> +			if (unlikely(page_zone_id(tmp) != zone_id))
+> +				continue;
+> +			scan++;
+> +			switch (__isolate_lru_page(tmp, active)) {
+> +			case 0:
+> +				list_move(&tmp->lru, dst);
+> +				nr_taken++;
+> +				break;
+> +
+> +			case -EBUSY:
+> +				/* else it is being freed elsewhere */
+> +				list_move(&tmp->lru, src);
+> +			default:
+> +				break;
+> +			}
+> +		}
+
+I think each of those
+
+			if (expr)
+				continue;
+
+statements would benefit from a nice comment explaining why.
+
+
+This physical-scan part of the function will skip pages which happen to be
+on *src.  I guess that won't matter much, once the sytem has been up for a
+while and the LRU is nicely scrambled.
+
+
+If this function is passed a list of 32 pages, and order=4, I think it will
+go and give us as many as 512 pages on *dst?  A check of nr_taken might be
+needed.
+
+
+The patch is pretty simple, isn't it?
+
+I guess a shortcoming is that it doesn't address the situation where
+GFP_ATOMIC network rx is trying to allocate order-2 pages for large skbs,
+but kswapd doesn't know that.  AFACIT nobody will actually run the nice new
+code in this quite common scenario.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
