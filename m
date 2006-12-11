@@ -1,5 +1,5 @@
-Message-ID: <457D6944.4010703@yahoo.com.au>
-Date: Tue, 12 Dec 2006 01:20:52 +1100
+Message-ID: <457D7EBA.7070005@yahoo.com.au>
+Date: Tue, 12 Dec 2006 02:52:26 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: Status of buffered write path (deadlock fixes)
@@ -16,23 +16,46 @@ List-ID: <linux-mm.kvack.org>
 Nick Piggin wrote:
 > Mark Fasheh wrote:
 
->> If we make the change I described above (looking for BH_New buffers 
->> outside
->> the range passed), then zero length or partial shouldn't matter, but zero
->> length instead of partial would be nicer imho just for the sake of 
->> reducing
->> the total number of cases down to the entire range or zero length.
+>> ->commit_write() would probably do fine. Currently, block_prepare_write()
+>> uses it to know which buffers were newly allocated (the file system 
+>> specific
+>> get_block_t sets the bit after allocation). I think we could safely move
+>> the clearing of that bit to block_commit_write(), thus still allowing 
+>> us to
+>> detect and zero those blocks in generic_file_buffered_write()
 > 
 > 
-> We don't want to do zero length, because we might make the theoretical
-> livelock much easier to hit (eg. in the case of many small iovecs). But
-> yes we can restrict ourselves to zero-length or full-length.
+> OK, great, I'll make a few patches and see how they look. What did you
+> think of those other uninitialised buffer problems in my first email?
 
-On second thoughts, I think I'm wrong about that.
+Hmm, doesn't look like we can do this either because at least GFS2
+uses BH_New for its own special things.
 
-Consider the last page of a file, which is uptodate. A full length
-commit, which extends the file, will expose transient zeroes if the
-usercopy fails.
+Also, I don't know if the trick of only walking over BH_New buffers
+will work anyway, since we may still need to release resources on
+other buffers as well. As you say, filesystems are simply not set up
+to expect this, which is a problem.
+
+Maybe it isn't realistic to change the API this way, no matter how
+bad it is presently.
+
+What if we tackle the problem a different way?
+
+1. In the case of no page in the pagecache (or an otherwise
+!uptodate page), if the operation is a full-page write then we
+first copy all the user data *then* lock the page *then* insert it
+into pagecache and go on to call into the filesystem.
+
+2. In the case of a !uptodate page and a partial-page write, then
+we can first bring the page uptodate, then continue (goto 3).
+
+3. In the case of an uptodate page, we could perform a full-length
+commit_write so long as we didn't expand i_size further than was
+copied, and were sure to trim off blocks allocated past that
+point.
+
+This scheme IMO is not as "nice" as the partial commit patches,
+but in practical terms it may be much more realistic.
 
 -- 
 SUSE Labs, Novell Inc.
