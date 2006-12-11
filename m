@@ -1,157 +1,111 @@
-Date: Mon, 11 Dec 2006 15:29:07 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/4] Lumpy Reclaim V3
-Message-Id: <20061211152907.f44cdd94.akpm@osdl.org>
-In-Reply-To: <exportbomb.1165424343@pinky>
-References: <exportbomb.1165424343@pinky>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by an-out-0708.google.com with SMTP id b38so319556ana
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2006 15:54:05 -0800 (PST)
+Message-ID: <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
+Date: Mon, 11 Dec 2006 18:54:05 -0500
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
+In-Reply-To: <457D895D.4010500@innova-card.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
+	 <457D895D.4010500@innova-card.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: Franck <vagabon.xyz@gmail.com>
+Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Dec 2006 16:59:04 +0000
-Andy Whitcroft <apw@shadowen.org> wrote:
+On 12/11/06, Franck Bui-Huu <vagabon.xyz@gmail.com> wrote:
+> jayakumar.lkml@gmail.com wrote:
+> > +     atomic_t ref_count;
+> > +     atomic_t vma_count;
+>
+> what purpose do these counters deserve ?
 
-> This is a repost of the lumpy reclaim patch set.  This is
-> basically unchanged from the last post, other than being rebased
-> to 2.6.19-rc2-mm2.
+You are right. I can remove them.
 
-The patch sequencing appeared to be designed to make the code hard to
-review, so I clumped them all into a single diff:
+> > +
+> > +void hcb_wait_for_ack(struct hecubafb_par *par)
+> > +{
+> > +
+> > +     int timeout;
+> > +     unsigned char ctl;
+> > +
+> > +     timeout=500;
+> > +     do {
+> > +             ctl = hcb_get_ctl(par);
+> > +             if ((ctl & HCB_ACK_BIT))
+> > +                     return;
+> > +             udelay(1);
+> > +     } while (timeout--);
+> > +     printk(KERN_ERR "timed out waiting for ack\n");
+> > +}
+>
+> When timeout occur this function does not return any error values.
+> the callers needn't to be warn in this case ?
 
->  
->  /*
-> + * Attempt to remove the specified page from its LRU.  Only take this
-> + * page if it is of the appropriate PageActive status.  Pages which
-> + * are being freed elsewhere are also ignored.
-> + *
-> + * @page:	page to consider
-> + * @active:	active/inactive flag only take pages of this type
+You are right. I need to figure out what exactly to do. Currently, if
+a timeout is observed it normally means the display controller is
+hung. However, in some cases  the controller does seem to recover
+after some period of time. I guess I should probably return an error
+and terminate pending activity.
 
-I dunno who started adding these @'s into non-kernel-doc comments.  I'll
-un-add them.
+> > +
+> > +/* this is to find and return the vmalloc-ed fb pages */
+> > +static struct page* hecubafb_vm_nopage(struct vm_area_struct *vma,
+> > +                                     unsigned long vaddr, int *type)
+> > +{
+> > +     unsigned long offset;
+> > +     struct page *page;
+> > +     struct fb_info *info = vma->vm_private_data;
+> > +
+> > +     offset = (vaddr - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
+> > +     if (offset >= (DPY_W*DPY_H)/8)
+> > +             return NOPAGE_SIGBUS;
+> > +
+> > +     page = vmalloc_to_page(info->screen_base + offset);
+> > +     if (!page)
+> > +             return NOPAGE_OOM;
+> > +
+> > +     get_page(page);
+> > +     if (type)
+> > +             *type = VM_FAULT_MINOR;
+> > +     return page;
+> > +}
+> > +
+>
+> so page can be accessed by using vma->start virtual address....
 
-> + * returns 0 on success, -ve errno on failure.
-> + */
-> +int __isolate_lru_page(struct page *page, int active)
-> +{
-> +	int ret = -EINVAL;
-> +
-> +	if (PageLRU(page) && (PageActive(page) == active)) {
+The userspace app would be doing:
 
-We hope that all architectures remember that test_bit returns 0 or
-1.  We got that wrong a few years back.  What we do now is rather
-un-C-like.  And potentially inefficient.  Hopefully the compiler usually
-sorts it out though.
+ioctl(fd, FBIOGET_FSCREENINFO, &finfo);
+ioctl(fd, FBIOGET_VSCREENINFO, &vinfo);
+screensize = ( vinfo.xres * vinfo.yres * vinfo.bits_per_pixel) / 8;
+maddr = mmap(finfo.mmio_start, screensize, PROT_WRITE, MAP_SHARED, fd, 0);
 
+>
+> > +static int hecubafb_page_mkwrite(struct vm_area_struct *vma,
+>
+> [snip]
+>
+> > +
+> > +     if (!(videomemory = vmalloc(videomemorysize)))
+> > +             return retval;
+>
+> and here the kernel access to the same page by using address returned
+> by vmalloc which are different from the previous one. So 2 different
+> addresses map the same physical page. In this case are there any cache
+> aliasing issues specially for x86 arch ?
 
-> +		ret = -EBUSY;
-> +		if (likely(get_page_unless_zero(page))) {
-> +			/*
-> +			 * Be careful not to clear PageLRU until after we're
-> +			 * sure the page is not being freed elsewhere -- the
-> +			 * page release code relies on it.
-> +			 */
-> +			ClearPageLRU(page);
-> +			ret = 0;
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +/*
->   * zone->lru_lock is heavily contended.  Some of the functions that
->   * shrink the lists perform better by taking out a batch of pages
->   * and working on them outside the LRU lock.
-> @@ -621,33 +653,71 @@ keep:
->   */
->  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		struct list_head *src, struct list_head *dst,
-> -		unsigned long *scanned)
-> +		unsigned long *scanned, int order)
->  {
->  	unsigned long nr_taken = 0;
-> -	struct page *page;
-> -	unsigned long scan;
-> +	struct page *page, *tmp;
+I think that PTEs set up by vmalloc are marked cacheable and via the
+above nopage end up as cacheable. I'm not doing DMA. So the accesses
+are through the cache so I don't think cache aliasing is an issue for
+this case. Please let me know if I misunderstood.
 
-"tmp" isn't a very good identifier.
-
-> +	unsigned long scan, pfn, end_pfn, page_pfn;
-
-One declaration per line is preferred.  This gives you room for a brief
-comment, where appropriate.
-
-
-> +		/*
-> +		 * Attempt to take all pages in the order aligned region
-> +		 * surrounding the tag page.  Only take those pages of
-> +		 * the same active state as that tag page.
-> +		 */
-> +		zone_id = page_zone_id(page);
-> +		page_pfn = __page_to_pfn(page);
-> +		pfn = page_pfn & ~((1 << order) - 1);
-
-Is this always true?  It assumes that the absolute value of the starting
-pfn of each zone is a multiple of MAX_ORDER (doesn't it?) I don't see any
-reason per-se why that has to be true (although it might be).
-
-hm, I guess it has to be true, else hugetlb pages wouldn't work too well.
-
-> +		end_pfn = pfn + (1 << order);
-> +		for (; pfn < end_pfn; pfn++) {
-> +			if (unlikely(pfn == page_pfn))
-> +				continue;
-> +			if (unlikely(!pfn_valid(pfn)))
-> +				break;
-> +
-> +			tmp = __pfn_to_page(pfn);
-> +			if (unlikely(page_zone_id(tmp) != zone_id))
-> +				continue;
-> +			scan++;
-> +			switch (__isolate_lru_page(tmp, active)) {
-> +			case 0:
-> +				list_move(&tmp->lru, dst);
-> +				nr_taken++;
-> +				break;
-> +
-> +			case -EBUSY:
-> +				/* else it is being freed elsewhere */
-> +				list_move(&tmp->lru, src);
-> +			default:
-> +				break;
-> +			}
-> +		}
-
-I think each of those
-
-			if (expr)
-				continue;
-
-statements would benefit from a nice comment explaining why.
-
-
-This physical-scan part of the function will skip pages which happen to be
-on *src.  I guess that won't matter much, once the sytem has been up for a
-while and the LRU is nicely scrambled.
-
-
-If this function is passed a list of 32 pages, and order=4, I think it will
-go and give us as many as 512 pages on *dst?  A check of nr_taken might be
-needed.
-
-
-The patch is pretty simple, isn't it?
-
-I guess a shortcoming is that it doesn't address the situation where
-GFP_ATOMIC network rx is trying to allocate order-2 pages for large skbs,
-but kswapd doesn't know that.  AFACIT nobody will actually run the nice new
-code in this quite common scenario.
+Thanks,
+jayakumar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
