@@ -1,83 +1,42 @@
-Message-ID: <457D512F.3020605@sw.ru>
-Date: Mon, 11 Dec 2006 15:38:07 +0300
-From: Kirill Korotaev <dev@sw.ru>
+Message-ID: <457D6944.4010703@yahoo.com.au>
+Date: Tue, 12 Dec 2006 01:20:52 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [Devel] [PATCH] incorrect error handling inside	generic_file_direct_write
-References: <87k60y1rq4.fsf@sw.ru>
-In-Reply-To: <87k60y1rq4.fsf@sw.ru>
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Status of buffered write path (deadlock fixes)
+References: <45751712.80301@yahoo.com.au> <20061207195518.GG4497@ca-server1.us.oracle.com> <4578DBCA.30604@yahoo.com.au> <20061208234852.GI4497@ca-server1.us.oracle.com> <457D20AE.6040107@yahoo.com.au>
+In-Reply-To: <457D20AE.6040107@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, Monakhov Dmintiy <dmonakhov@sw.ru>
+To: Mark Fasheh <mark.fasheh@oracle.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-I guess you forgot to add Andrew on CC.
+Nick Piggin wrote:
+> Mark Fasheh wrote:
 
-Thanks,
-Kirill
+>> If we make the change I described above (looking for BH_New buffers 
+>> outside
+>> the range passed), then zero length or partial shouldn't matter, but zero
+>> length instead of partial would be nicer imho just for the sake of 
+>> reducing
+>> the total number of cases down to the entire range or zero length.
+> 
+> 
+> We don't want to do zero length, because we might make the theoretical
+> livelock much easier to hit (eg. in the case of many small iovecs). But
+> yes we can restrict ourselves to zero-length or full-length.
 
-> OpenVZ team has discovered error inside generic_file_direct_write()
-> If generic_file_direct_IO() has fail (ENOSPC condition) it may have instantiated
-> a few blocks outside i_size. And fsck will complain about wrong i_size
-> (ext2, ext3 and reiserfs interpret i_size and biggest block difference as error),
-> after fsck will fix error i_size will be increased to the biggest block,
-> but this blocks contain gurbage from previous write attempt, this is not 
-> information leak, but its silence file data corruption. 
-> We need truncate any block beyond i_size after write have failed , do in simular
-> generic_file_buffered_write() error path.
-> 
-> Exampe:
-> open("mnt2/FILE3", O_WRONLY|O_CREAT|O_DIRECT, 0666) = 3
-> write(3, "aaaaaa"..., 4096) = -1 ENOSPC (No space left on device)
-> 
-> stat mnt2/FILE3
-> File: `mnt2/FILE3'
-> Size: 0               Blocks: 4          IO Block: 4096   regular empty file
-> 
->>>>>>>>>>>>>>>>>>>>>>>^^^^^^^^^^ file size is less than biggest block idx
-> 
-> Device: 700h/1792d      Inode: 14          Links: 1
-> Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
-> 
-> fsck.ext2 -f -n  mnt1/fs_img
-> Pass 1: Checking inodes, blocks, and sizes
-> Inode 14, i_size is 0, should be 2048.  Fix? no
-> 
-> Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
-> ----------
-> 
-> 
-> ------------------------------------------------------------------------
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 7b84dc8..bf7cf6c 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2041,6 +2041,14 @@ generic_file_direct_write(struct kiocb *
->  			mark_inode_dirty(inode);
->  		}
->  		*ppos = end;
-> +	} else if (written < 0) {
-> +		loff_t isize = i_size_read(inode);
-> +		/*
-> +		 * generic_file_direct_IO() may have instantiated a few blocks
-> +		 * outside i_size.  Trim these off again.
-> +		 */
-> +		if (pos + count > isize)
-> +			vmtruncate(inode, isize);
->  	}
->  
->  	/*
-> 
-> 
-> ------------------------------------------------------------------------
-> 
-> _______________________________________________
-> Devel mailing list
-> Devel@openvz.org
-> https://openvz.org/mailman/listinfo/devel
+On second thoughts, I think I'm wrong about that.
+
+Consider the last page of a file, which is uptodate. A full length
+commit, which extends the file, will expose transient zeroes if the
+usercopy fails.
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
