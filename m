@@ -1,56 +1,32 @@
-Message-ID: <457DA9F9.9040106@cern.ch>
-Date: Mon, 11 Dec 2006 19:56:57 +0100
-From: Ramiro Voicu <Ramiro.Voicu@cern.ch>
+Date: Mon, 11 Dec 2006 11:03:13 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 00/16] concurrent pagecache (against 2.6.19-rt)
+In-Reply-To: <20061207161800.426936000@chello.nl>
+Message-ID: <Pine.LNX.4.64.0612111100300.2253@schroedinger.engr.sgi.com>
+References: <20061207161800.426936000@chello.nl>
 MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 7645] New: Kernel BUG at mm/memory.c:1124
-References: <200612070355.kB73tGf4021820@fire-2.osdl.org> <20061206201246.be7fb860.akpm@osdl.org> <4577A36B.6090803@cern.ch> <20061206230338.b0bf2b9e.akpm@osdl.org> <45782B32.6040401@cern.ch> <Pine.LNX.4.64.0612072101120.27573@blonde.wat.veritas.com> <20061208155200.0e2794a1.akpm@osdl.org> <Pine.LNX.4.64.0612090427180.3684@blonde.wat.veritas.com> <457AF156.8070606@cern.ch> <Pine.LNX.4.64.0612091829550.22335@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0612091829550.22335@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 7 Dec 2006, Peter Zijlstra wrote:
 
- I've tested the patch on the other machine also and it works as
-expected, so the bug ca be closed now.
+> Based on Nick's lockless (read-side) pagecache patches (included in the series)
+> here an attempt to make the write side concurrent.
 
- Thank you very much for your support!
+On first glance it looks quite interesting and very innovative. Removing 
+the tree_lock completely also reduces cache line usage. The page struct 
+cacheline is already references in most contexts.
 
-Regards,
-Ramiro
+> Comment away ;-)
 
-Hugh Dickins wrote:
-> On Sat, 9 Dec 2006, Ramiro Voicu wrote:
->> Hugh Dickins wrote:
->>> On Fri, 8 Dec 2006, Andrew Morton wrote:
->>>> On Thu, 7 Dec 2006 21:22:57 +0000 (GMT)
->>>> Ramiro, have you had a chance to test this yet?
->>> Here's a bigger but better patch: if you wouldn't mind,
->>> please try this one instead, Ramiro - thanks.
->> It seems that this patch fixed the problem. I tested on my desktop and
->> the problem seems gone.
-> 
-> Great, thanks.  Well, actually it's trivial that it has fixed
-> the problem, in that it removed that particular BUG_ON: what's more
-> important is that it then allowed your program to work as usual, good.
-> 
->> Based on what Hugh supposed, I was able to have a small java program to
->> test it ... and indeed it is very possible that there was a race in the
->> initial app
->>
->> I will try to test it tomorrow on the other machine ( it is unable to
->> boot now after a hard reboot ), but I think the bug can be closed now.
->>
->> Thank you very much for your support!
-> 
-> Thank _you_ very much for reporting and testing:
-> it's a pleasure to deal with bugs we can fix so easily!
-> 
-> Hugh
+Could you post Nick's patches from your email addres and add a From Nick 
+line in them? Its a bit confusing to have a patchset with different 
+originating email addresses. Or does this come about by the evil header 
+mangling of the list processor? Maybe you need to use >From ??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
