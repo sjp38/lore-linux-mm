@@ -1,45 +1,79 @@
-Received: from 69.5.6.180 (HELO mx.futurequest.net)
-     by kvack.org with esmtp (5333L05:V.Z 0UO/.5)
-     id *346/Z-A2*K?X-T:
-     for linux-mm@kvack.org; Tue, 12 Dec 2006 00:00:33 +0300
-From: "Marquita Haynes" <likewisesynopsizes@abcchemicals.com>
-Subject: Good Morning Marquita
-Date: Tue, 12 Dec 2006 00:00:33 +0300
-Message-ID: <01c71d80$8b9537a0$6c822ecf@likewisesynopsizes>
+Message-ID: <457E02B3.3000302@mvista.com>
+Date: Mon, 11 Dec 2006 17:15:31 -0800
+From: Joe Green <jgreen@mvista.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: new procfs memory analysis feature
+References: <787b0d920612110013w755996f8xf9bea48e900e304@mail.gmail.com>
+In-Reply-To: <787b0d920612110013w755996f8xf9bea48e900e304@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <likewisesynopsizes@abcchemicals.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Albert Cahalan <acahalan@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, dsingleton@mvista.com
 List-ID: <linux-mm.kvack.org>
 
-Investor alert for Tuesday, December 12th! 
-News Alert!
+Albert Cahalan wrote:
+> David Singleton writes:
+>
+>> Add variation of /proc/PID/smaps called /proc/PID/pagemaps.
+>> Shows reference counts for individual pages instead of aggregate totals.
+>> Allows more detailed memory usage information for memory analysis tools.
+>> An example of the output shows the shared text VMA for ld.so and
+>> the share depths of the pages in the VMA.
+>>
+>> a7f4b000-a7f65000 r-xp 00000000 00:0d 19185826   /lib/ld-2.5.90.so
+>>  11 11 11 11 11 11 11 11 11 13 13 13 13 13 13 13 8 8 8 13 13 13 13 13 
+>> 13 13
+>
+> Arrrgh! Not another ghastly maps file!
+>
+> Now we have /proc/*/smaps, which should make decent programmers cry.
 
-Company:  Wild Brush Energy
-Symbol:  WBRS
-Current Price:  $0.046
-Short-term target: $0.12
+Yes, that's what we based this implementation on.  :)
 
-WBRS is engaged in some of the most lucrative gas regions in North 
-America.  Major discoveries are happening all the time and WBRS is in 
-the thick of it.
+> Along the way, nobody bothered to add support for describing the
+> page size (IMHO your format ***severely*** needs this)
 
-With the array of drilling projects Wild Brush has going on at the moment 
-tension is building.  As the drilling gets closer to completion insiders are 
-accumulating ahead of that major discovery announcement.
+Since the map size and an entry for each page is given, it's possible to 
+figure out the page size, assuming each map uses only a single page 
+size.  But adding the page size would be reasonable.
 
-Word has just begun to leak out that there may soon be a 
-merger between WBRS and another major energy player with 
-close ties to the company.  In fact this major player's 
-stock was up 30% Monday on very strong volume.  WBRS is 
-showing similar signs this Monday and is looking like there 
-will be big gains on Tuesday.
-Once the merger is announced there will be a rush to get in.  
-Play it smart. Take a position BEFORE the information and 
-ride this one.
+> There can be a million pages in a mapping for a 32-bit process.
+> If my guess (since you too failed to document your format) is right,
+> you propose to have one decimal value per page.
+
+Yes, that's right.  We considered using repeat counts for sequences 
+pages with the same reference count (quite common), but it hasn't been 
+necessary in our application (see below).
+
+> In other words, the lines of this file can be megabytes long without 
+> even getting
+> to the issue of 64-bit hardware. This is no text file!
+>
+> How about a proper system call?
+
+Our use for this is to optimize memory usage on very small embedded 
+systems, so the number of pages hasn't been a problem.
+
+For the same reason, not needing a special program on the target system 
+to read the data is an advantage, because each extra program needed adds 
+to the footprint problem.
+
+The data is taken off the target and interpreted on another system, 
+which often is of a different architecture, so the portable text format 
+is useful also.
+
+This isn't mean to say your arguments aren't important, I'm just 
+explaining why this implementation is useful for us.
+
+
+-- 
+Joe Green <jgreen@mvista.com>
+MontaVista Software, Inc.
+
 --
-CAPE CANAVERAL, Florida (AP) -- It will be cheaper to build a permanent moon base and keep it running, than it will be to get to the moon. Just do not ask how much, NASA's boss says.
-BURBANK, California (AP) -- Nicole Richie was arrested early Monday for investigation of driving under the influence of alcohol, authorities said.
-MIAMI, Florida (AP) -- A congresswoman says a video clip showing her calling for Fidel Castro's assassination is fake, a charge denied Sunday by the film's director.
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
