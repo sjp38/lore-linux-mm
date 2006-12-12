@@ -1,121 +1,96 @@
-Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
-References: <87k60y1rq4.fsf@sw.ru> <20061211124052.144e69a0.akpm@osdl.org>
-	<87bqm9tie3.fsf@sw.ru> <20061212015232.eacfbb46.akpm@osdl.org>
-	<87psapz1zr.fsf@sw.ru> <20061212024027.6c2a79d3.akpm@osdl.org>
-From: Dmitriy Monakhov <dmonakhov@openvz.org>
-Date: Wed, 13 Dec 2006 02:14:18 +0300
-In-Reply-To: <20061212024027.6c2a79d3.akpm@osdl.org> (Andrew Morton's message of "Tue, 12 Dec 2006 02:40:27 -0800")
-Message-ID: <87y7pcn1v9.fsf@sw.ru>
+Date: Tue, 12 Dec 2006 14:31:09 -0800
+From: Mark Fasheh <mark.fasheh@oracle.com>
+Subject: Re: Status of buffered write path (deadlock fixes)
+Message-ID: <20061212223109.GG6831@ca-server1.us.oracle.com>
+Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
+References: <45751712.80301@yahoo.com.au> <20061207195518.GG4497@ca-server1.us.oracle.com> <4578DBCA.30604@yahoo.com.au> <20061208234852.GI4497@ca-server1.us.oracle.com> <457D20AE.6040107@yahoo.com.au> <457D7EBA.7070005@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <457D7EBA.7070005@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
---=-=-=
+On Tue, Dec 12, 2006 at 02:52:26AM +1100, Nick Piggin wrote:
+> Nick Piggin wrote:
+> >Mark Fasheh wrote:
+> 
+> >>->commit_write() would probably do fine. Currently, block_prepare_write()
+> >>uses it to know which buffers were newly allocated (the file system 
+> >>specific
+> >>get_block_t sets the bit after allocation). I think we could safely move
+> >>the clearing of that bit to block_commit_write(), thus still allowing 
+> >>us to
+> >>detect and zero those blocks in generic_file_buffered_write()
+> >
+> >
+> >OK, great, I'll make a few patches and see how they look. What did you
+> >think of those other uninitialised buffer problems in my first email?
+> 
+> Hmm, doesn't look like we can do this either because at least GFS2
+> uses BH_New for its own special things.
+> 
+> Also, I don't know if the trick of only walking over BH_New buffers
+> will work anyway, since we may still need to release resources on
+> other buffers as well.
 
-Andrew Morton <akpm@osdl.org> writes:
+Oh, my idea was that only the range passed to ->commit() would be walked,
+but any BH_New buffers (regardless of where they are in the page) would be
+passed to the journal as well. So the logic would be:
 
-> On Tue, 12 Dec 2006 16:18:32 +0300
-> Dmitriy Monakhov <dmonakhov@sw.ru> wrote:
->
->> >> but according to filemaps locking rules: mm/filemap.c:77
->> >>  ..
->> >>  *  ->i_mutex			(generic_file_buffered_write)
->> >>  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
->> >>  ..
->> >> I'm confused a litle bit, where is the truth? 
->> >
->> > xfs_write() calls generic_file_direct_write() without taking i_mutex for
->> > O_DIRECT writes.
->> Yes, but my quastion is about __generic_file_aio_write_nolock().
->> As i understand _nolock sufix means that i_mutex was already locked 
->> by caller, am i right ?
->
-> Nope.  It just means that __generic_file_aio_write_nolock() doesn't take
-> the lock.  We don't assume or require that the caller took it.  For example
-> the raw driver calls generic_file_aio_write_nolock() without taking
-> i_mutex.  Raw isn't relevant to the problem (although ocfs2 might be).  But
-> we cannot assume that all callers have taken i_mutex, I think.
->
-> I guess we can make that a rule (document it, add
-> BUG_ON(!mutex_is_locked(..)) if it isn't a blockdev) if needs be.  After
-> really checking that this matches reality for all callers.
-I've checked generic_file_aio_write_nolock() callers for non blockdev.
-Only ocfs2 call it explicitly, and do it under i_mutex.
-So we need to do: 
-1) Change wrong comments.
-2) Add BUG_ON(!mutex_is_locked(..)) for non blkdev.
-3) Invoke vmtruncate only for non blkdev.
+for all the buffers in the page:
+  If the buffer is new, or it is within the range passed to commit, pass to
+  the journal.
 
-Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
--------
+Is there anything I'm still missing here?
 
---=-=-=
-Content-Disposition: inline; filename=direct-io-fix.patch
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7b84dc8..540ef5e 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2046,8 +2046,8 @@ generic_file_direct_write(struct kiocb *
- 	/*
- 	 * Sync the fs metadata but not the minor inode changes and
- 	 * of course not the data as we did direct DMA for the IO.
--	 * i_mutex is held, which protects generic_osync_inode() from
--	 * livelocking.
-+	 * i_mutex may not being held, if so some specific locking
-+	 * ordering must protect generic_osync_inode() from livelocking.
- 	 */
- 	if (written >= 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
- 		int err = generic_osync_inode(inode, mapping, OSYNC_METADATA);
-@@ -2282,6 +2282,17 @@ __generic_file_aio_write_nolock(struct k
- 
- 		written = generic_file_direct_write(iocb, iov, &nr_segs, pos,
- 							ppos, count, ocount);
-+		/*
-+		 * If host is not S_ISBLK generic_file_direct_write() may 
-+		 * have instantiated a few blocks outside i_size  files
-+		 * Trim these off again.
-+		 */
-+		if (unlikely(written < 0) && !S_ISBLK(inode->i_mode)) {
-+			loff_t isize = i_size_read(inode);
-+			if (pos + count > isize)
-+				vmtruncate(inode, isize);
-+		}
-+
- 		if (written < 0 || written == count)
- 			goto out;
- 		/*
-@@ -2344,6 +2355,13 @@ ssize_t generic_file_aio_write_nolock(st
- 	ssize_t ret;
- 
- 	BUG_ON(iocb->ki_pos != pos);
-+	/*
-+	 *  generic_file_buffered_write() may be called inside 
-+	 *  __generic_file_aio_write_nolock() even in case of
-+	 *  O_DIRECT for non S_ISBLK files. So i_mutex must be held.
-+	 */
-+	if (!S_ISBLK(inode->i_mode))
-+		BUG_ON(!mutex_is_locked(&inode->i_mutex));
- 
- 	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
- 			&iocb->ki_pos);
-@@ -2386,8 +2404,8 @@ ssize_t generic_file_aio_write(struct ki
- EXPORT_SYMBOL(generic_file_aio_write);
- 
- /*
-- * Called under i_mutex for writes to S_ISREG files.   Returns -EIO if something
-- * went wrong during pagecache shootdown.
-+ * May be called without i_mutex for writes to S_ISREG files.
-+ * Returns -EIO if something went wrong during pagecache shootdown.
-  */
- static ssize_t
- generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+> As you say, filesystems are simply not set up to expect this, which is a
+> problem.
+> 
+> Maybe it isn't realistic to change the API this way, no matter how
+> bad it is presently.
 
---=-=-=--
+We definitely agree. It's not intuitive that the range should change
+between ->prepare_write() and ->commit_write() and IMHO, all the issues
+we've found are good evidence that this particular approach will be
+problematic.
+
+
+> What if we tackle the problem a different way?
+> 
+> 1. In the case of no page in the pagecache (or an otherwise
+> !uptodate page), if the operation is a full-page write then we
+> first copy all the user data *then* lock the page *then* insert it
+> into pagecache and go on to call into the filesystem.
+
+Silly question - what's preventing a reader from filling the !uptodate page with disk
+data while the writer is copying the user buffer into it?
+
+
+> 2. In the case of a !uptodate page and a partial-page write, then
+> we can first bring the page uptodate, then continue (goto 3).
+> 
+> 3. In the case of an uptodate page, we could perform a full-length
+> commit_write so long as we didn't expand i_size further than was
+> copied, and were sure to trim off blocks allocated past that
+> point.
+> 
+> This scheme IMO is not as "nice" as the partial commit patches,
+> but in practical terms it may be much more realistic.
+
+It seems more realistic in that it makes sure the write is properly setup
+before calling into the file system. What do you think is not as nice about
+it?
+	--Mark
+
+--
+Mark Fasheh
+Senior Software Developer, Oracle
+mark.fasheh@oracle.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
