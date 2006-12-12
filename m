@@ -1,76 +1,100 @@
-Message-ID: <457E02B3.3000302@mvista.com>
-Date: Mon, 11 Dec 2006 17:15:31 -0800
-From: Joe Green <jgreen@mvista.com>
+Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
+References: <87k60y1rq4.fsf@sw.ru> <20061211124052.144e69a0.akpm@osdl.org>
+From: Dmitriy Monakhov <dmonakhov@sw.ru>
+Date: Tue, 12 Dec 2006 12:22:14 +0300
+In-Reply-To: <20061211124052.144e69a0.akpm@osdl.org> (Andrew Morton's message of "Mon, 11 Dec 2006 12:40:52 -0800")
+Message-ID: <87lkld31vd.fsf@sw.ru>
 MIME-Version: 1.0
-Subject: Re: new procfs memory analysis feature
-References: <787b0d920612110013w755996f8xf9bea48e900e304@mail.gmail.com>
-In-Reply-To: <787b0d920612110013w755996f8xf9bea48e900e304@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Albert Cahalan <acahalan@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org, dsingleton@mvista.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Albert Cahalan wrote:
-> David Singleton writes:
+Andrew Morton <akpm@osdl.org> writes:
+
+> On Mon, 11 Dec 2006 16:34:27 +0300
+> Dmitriy Monakhov <dmonakhov@openvz.org> wrote:
 >
->> Add variation of /proc/PID/smaps called /proc/PID/pagemaps.
->> Shows reference counts for individual pages instead of aggregate totals.
->> Allows more detailed memory usage information for memory analysis tools.
->> An example of the output shows the shared text VMA for ld.so and
->> the share depths of the pages in the VMA.
+>> OpenVZ team has discovered error inside generic_file_direct_write()
+>> If generic_file_direct_IO() has fail (ENOSPC condition) it may have instantiated
+>> a few blocks outside i_size. And fsck will complain about wrong i_size
+>> (ext2, ext3 and reiserfs interpret i_size and biggest block difference as error),
+>> after fsck will fix error i_size will be increased to the biggest block,
+>> but this blocks contain gurbage from previous write attempt, this is not 
+>> information leak, but its silence file data corruption. 
+>> We need truncate any block beyond i_size after write have failed , do in simular
+>> generic_file_buffered_write() error path.
+>> 
+>> Exampe:
+>> open("mnt2/FILE3", O_WRONLY|O_CREAT|O_DIRECT, 0666) = 3
+>> write(3, "aaaaaa"..., 4096) = -1 ENOSPC (No space left on device)
+>> 
+>> stat mnt2/FILE3
+>> File: `mnt2/FILE3'
+>> Size: 0               Blocks: 4          IO Block: 4096   regular empty file
+>> >>>>>>>>>>>>>>>>>>>>>>^^^^^^^^^^ file size is less than biggest block idx
+>> Device: 700h/1792d      Inode: 14          Links: 1
+>> Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+>> 
+>> fsck.ext2 -f -n  mnt1/fs_img
+>> Pass 1: Checking inodes, blocks, and sizes
+>> Inode 14, i_size is 0, should be 2048.  Fix? no
+>> 
+>> Signed-off-by: Dmitriy Monakhov <dmonakhov@openvz.org>
+>> ----------
 >>
->> a7f4b000-a7f65000 r-xp 00000000 00:0d 19185826   /lib/ld-2.5.90.so
->>  11 11 11 11 11 11 11 11 11 13 13 13 13 13 13 13 8 8 8 13 13 13 13 13 
->> 13 13
+>> diff --git a/mm/filemap.c b/mm/filemap.c
+>> index 7b84dc8..bf7cf6c 100644
+>> --- a/mm/filemap.c
+>> +++ b/mm/filemap.c
+>> @@ -2041,6 +2041,14 @@ generic_file_direct_write(struct kiocb *
+>>  			mark_inode_dirty(inode);
+>>  		}
+>>  		*ppos = end;
+>> +	} else if (written < 0) {
+>> +		loff_t isize = i_size_read(inode);
+>> +		/*
+>> +		 * generic_file_direct_IO() may have instantiated a few blocks
+>> +		 * outside i_size.  Trim these off again.
+>> +		 */
+>> +		if (pos + count > isize)
+>> +			vmtruncate(inode, isize);
+>>  	}
+>>  
 >
-> Arrrgh! Not another ghastly maps file!
+> XFS (at least) can call generic_file_direct_write() with i_mutex not held. 
+How could it be ?
+
+from mm/filemap.c:2046 generic_file_direct_write() comment right after 
+place where i want to add vmtruncate()
+/*
+	 * Sync the fs metadata but not the minor inode changes and
+	 * of course not the data as we did direct DMA for the IO.
+	 * i_mutex is held, which protects generic_osync_inode() from
+	 * livelocking.
+	 */
+
+> And vmtruncate() expects i_mutex to be held.
+generic_file_direct_IO must called under i_mutex too
+from mm/filemap.c:2388
+  /*
+   * Called under i_mutex for writes to S_ISREG files.   Returns -EIO if something
+   * went wrong during pagecache shootdown.
+   */
+  static ssize_t
+  generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+
+This means XFS generic_file_direct_write() call generic_file_direct_IO() without
+i_mutex held too?
 >
-> Now we have /proc/*/smaps, which should make decent programmers cry.
-
-Yes, that's what we based this implementation on.  :)
-
-> Along the way, nobody bothered to add support for describing the
-> page size (IMHO your format ***severely*** needs this)
-
-Since the map size and an entry for each page is given, it's possible to 
-figure out the page size, assuming each map uses only a single page 
-size.  But adding the page size would be reasonable.
-
-> There can be a million pages in a mapping for a 32-bit process.
-> If my guess (since you too failed to document your format) is right,
-> you propose to have one decimal value per page.
-
-Yes, that's right.  We considered using repeat counts for sequences 
-pages with the same reference count (quite common), but it hasn't been 
-necessary in our application (see below).
-
-> In other words, the lines of this file can be megabytes long without 
-> even getting
-> to the issue of 64-bit hardware. This is no text file!
+> I guess a suitable solution would be to push this problem back up to the
+> callers: let them decide whether to run vmtruncate() and if so, to ensure
+> that i_mutex is held.
 >
-> How about a proper system call?
-
-Our use for this is to optimize memory usage on very small embedded 
-systems, so the number of pages hasn't been a problem.
-
-For the same reason, not needing a special program on the target system 
-to read the data is an advantage, because each extra program needed adds 
-to the footprint problem.
-
-The data is taken off the target and interpreted on another system, 
-which often is of a different architecture, so the portable text format 
-is useful also.
-
-This isn't mean to say your arguments aren't important, I'm just 
-explaining why this implementation is useful for us.
-
-
--- 
-Joe Green <jgreen@mvista.com>
-MontaVista Software, Inc.
+> The existence of generic_file_aio_write_nolock() makes that rather messy
+> though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
