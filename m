@@ -1,52 +1,42 @@
-Date: Tue, 12 Dec 2006 02:40:27 -0800
+Date: Tue, 12 Dec 2006 03:13:12 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]  incorrect error handling inside
- generic_file_direct_write
-Message-Id: <20061212024027.6c2a79d3.akpm@osdl.org>
-In-Reply-To: <87psapz1zr.fsf@sw.ru>
-References: <87k60y1rq4.fsf@sw.ru>
-	<20061211124052.144e69a0.akpm@osdl.org>
-	<87bqm9tie3.fsf@sw.ru>
-	<20061212015232.eacfbb46.akpm@osdl.org>
-	<87psapz1zr.fsf@sw.ru>
+Subject: Re: [PATCH 0/4] Lumpy Reclaim V3
+Message-Id: <20061212031312.e4c91778.akpm@osdl.org>
+In-Reply-To: <exportbomb.1165424343@pinky>
+References: <exportbomb.1165424343@pinky>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dmitriy Monakhov <dmonakhov@sw.ru>
-Cc: Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Dec 2006 16:18:32 +0300
-Dmitriy Monakhov <dmonakhov@sw.ru> wrote:
+On Wed, 6 Dec 2006 16:59:04 +0000
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-> >> but according to filemaps locking rules: mm/filemap.c:77
-> >>  ..
-> >>  *  ->i_mutex			(generic_file_buffered_write)
-> >>  *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
-> >>  ..
-> >> I'm confused a litle bit, where is the truth? 
-> >
-> > xfs_write() calls generic_file_direct_write() without taking i_mutex for
-> > O_DIRECT writes.
-> Yes, but my quastion is about __generic_file_aio_write_nolock().
-> As i understand _nolock sufix means that i_mutex was already locked 
-> by caller, am i right ?
+> This is a repost of the lumpy reclaim patch set.
 
-Nope.  It just means that __generic_file_aio_write_nolock() doesn't take
-the lock.  We don't assume or require that the caller took it.  For example
-the raw driver calls generic_file_aio_write_nolock() without taking
-i_mutex.  Raw isn't relevant to the problem (although ocfs2 might be).  But
-we cannot assume that all callers have taken i_mutex, I think.
+more...
 
-I guess we can make that a rule (document it, add
-BUG_ON(!mutex_is_locked(..)) if it isn't a blockdev) if needs be.  After
-really checking that this matches reality for all callers.
+One concern is that when the code goes to reclaim a lump and fails, we end
+up reclaiming a number of pages which we didn't really want to reclaim. 
+Regardless of the LRU status of those pages.
 
-It's important, too - if we have an unprotected i_size_write() then the
-seqlock can get out of sync due to a race and then i_size_read() locks up
-the kernel.
+I think what we should do here is to add the appropriate vmstat counters
+for us to be able to assess the frequency of this occurring, then throw a
+spread of workloads at it.  If that work indicates that there's a problem
+then we should look at being a bit smarter about whether all the pages look
+to be reclaimable and if not, restore them all and give up.
+
+Also, I suspect it would be cleaner and faster to pass the `active' flag
+into isolate_lru_pages(), rather than calculating it on the fly.  And I
+don't think we need to calculate it on every pass through the loop?
+
+
+We really do need those vmstat counters to let us see how effective this
+thing is being.  Basic success/fail stuff.  Per-zone, I guess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
