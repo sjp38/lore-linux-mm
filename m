@@ -1,158 +1,65 @@
-Subject: Re: [PATCH] nfs: fix NR_FILE_DIRTY underflow
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1166012781.5695.18.camel@lade.trondhjem.org>
-References: <1166011958.32332.97.camel@twins>
-	 <1166012781.5695.18.camel@lade.trondhjem.org>
-Content-Type: text/plain
-Date: Wed, 13 Dec 2006 17:22:49 +0100
-Message-Id: <1166026969.32332.129.camel@twins>
-Mime-Version: 1.0
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Bug: early_pfn_in_nid() called when not early
+Date: Wed, 13 Dec 2006 19:20:57 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200612131920.59270.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm <linux-mm@kvack.org>
+To: cbe-oss-dev@ozlabs.org
+Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andy Whitcroft <apw@shadowen.org>, mkravetz@us.ibm.com, hch@infradead.org, Jeremy Kerr <jk@ozlabs.org>, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-- Sorry for possible duplicates, but I don't seem to be getting to lkml -
+After a lot of debugging in spufs, I found that a crash that we encountered
+on Cell actually was caused by a change in the memory management.
 
-On Wed, 2006-12-13 at 07:26 -0500, Trond Myklebust wrote:
-> On Wed, 2006-12-13 at 13:12 +0100, Peter Zijlstra wrote:
-> > Still testing this patch, but it looks good so far.
-> > 
-> > ---
-> > Just setting PG_dirty can cause NR_FILE_DIRTY to underflow
-> > which is bad (TM).
-> > 
-> > Use set_page_dirty() which will do the right thing.
-> 
-> Actually, I'd prefer to have it do the right thing by getting rid of
-> that call to test_clear_page_dirty() inside
-> invalidate_inode_pages2_range(). That is causing loss of data integrity,
-> and is what is causing us to have to hack NFS in the first place.
+The patch that caused it is archived in http://lkml.org/lkml/2006/11/1/43,
+and this one has been discussed back and forth, but I fear that the current
+version may be broken for all setups that do memory hotplug with sparsemen
+and NUMA, at least on powerpc.
 
-Ah, I think I see what your problem is there.
-How about this totally untested patch:
+What happens exactly is that the spufs code tries to register the memory
+area owned by the SPU as hotplug memory in order to get page structs (we
+probably shouldn't do it that way, but that's a separate discussion).
 
-  (little update - it seems to compile and run, now testing if it fixes
-the problem too)
+memmap_init_zone now calls early_pfn_valid() and early_pfn_in_nid()
+in order to determine if the page struct should be initialized. This
+is wrong for two reasons:
 
----
-Delay clearing the dirty page state till after removing it from the
-mapping in invalidate_inode_pages2_range(). This will give
-try_to_release_pages() a shot to flush dirty data.
+- early_pfn_in_nid checks the early_node_map variable to determine
+  to which node the hot plugged memory belongs. However, the new
+  memory never was part of the early_node_map to start with, so
+  it incorrectly returns node zero, and then fails to initialize
+  the page struct if we were trying to add it to a nonzero node.
+  This is probably not a problem for pseries, but it is for cell.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- fs/nfs/file.c              |    2 --
- include/linux/page-flags.h |    2 ++
- mm/page-writeback.c        |   17 +++++++++++------
- mm/truncate.c              |   11 +++--------
- 4 files changed, 16 insertions(+), 16 deletions(-)
+- both early_pfn_{in,to}_nid and early_node_map are in the __init
+  section and may already have been freed at the time we are calling
+  memmap_init_zone().
 
-Index: linux-2.6-git/fs/nfs/file.c
-===================================================================
---- linux-2.6-git.orig/fs/nfs/file.c	2006-12-13 15:31:26.000000000 +0100
-+++ linux-2.6-git/fs/nfs/file.c	2006-12-13 15:39:33.000000000 +0100
-@@ -320,8 +320,6 @@ static int nfs_release_page(struct page 
- 	 */
- 	if (!(gfp & __GFP_FS))
- 		return 0;
--	/* Hack... Force nfs_wb_page() to write out the page */
--	SetPageDirty(page);
- 	return !nfs_wb_page(page_file_mapping(page)->host, page);
- }
- 
-Index: linux-2.6-git/include/linux/page-flags.h
-===================================================================
---- linux-2.6-git.orig/include/linux/page-flags.h	2006-12-13 15:35:50.000000000 +0100
-+++ linux-2.6-git/include/linux/page-flags.h	2006-12-13 15:36:14.000000000 +0100
-@@ -252,7 +252,9 @@ static inline void SetPageUptodate(struc
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
- struct page;	/* forward declaration */
-+struct address_space;
- 
-+int __test_clear_page_dirty(struct address_space *mapping, struct page *page);
- int test_clear_page_dirty(struct page *page);
- int test_clear_page_writeback(struct page *page);
- int test_set_page_writeback(struct page *page);
-Index: linux-2.6-git/mm/page-writeback.c
-===================================================================
---- linux-2.6-git.orig/mm/page-writeback.c	2006-12-13 15:34:15.000000000 +0100
-+++ linux-2.6-git/mm/page-writeback.c	2006-12-13 15:39:41.000000000 +0100
-@@ -850,13 +850,8 @@ int set_page_dirty_lock(struct page *pag
- }
- EXPORT_SYMBOL(set_page_dirty_lock);
- 
--/*
-- * Clear a page's dirty flag, while caring for dirty memory accounting. 
-- * Returns true if the page was previously dirty.
-- */
--int test_clear_page_dirty(struct page *page)
-+int __test_clear_page_dirty(struct address_space *mapping, struct page *page)
- {
--	struct address_space *mapping = page_mapping(page);
- 	unsigned long flags;
- 
- 	if (!mapping)
-@@ -880,6 +875,16 @@ int test_clear_page_dirty(struct page *p
- 	write_unlock_irqrestore(&mapping->tree_lock, flags);
- 	return 0;
- }
-+
-+/*
-+ * Clear a page's dirty flag, while caring for dirty memory accounting.
-+ * Returns true if the page was previously dirty.
-+ */
-+int test_clear_page_dirty(struct page *page)
-+{
-+	struct address_space *mapping = page_mapping(page);
-+	return __test_clear_page_dirty(mapping, page);
-+}
- EXPORT_SYMBOL(test_clear_page_dirty);
- 
- /*
-Index: linux-2.6-git/mm/truncate.c
-===================================================================
---- linux-2.6-git.orig/mm/truncate.c	2006-12-13 15:36:38.000000000 +0100
-+++ linux-2.6-git/mm/truncate.c	2006-12-13 15:44:01.000000000 +0100
-@@ -307,18 +307,12 @@ invalidate_complete_page2(struct address
- 		return 0;
- 
- 	write_lock_irq(&mapping->tree_lock);
--	if (PageDirty(page))
--		goto failed;
--
- 	BUG_ON(PagePrivate(page));
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
- 	ClearPageUptodate(page);
- 	page_cache_release(page);	/* pagecache ref */
- 	return 1;
--failed:
--	write_unlock_irq(&mapping->tree_lock);
--	return 0;
- }
- 
- /**
-@@ -386,12 +380,13 @@ int invalidate_inode_pages2_range(struct
- 					  PAGE_CACHE_SIZE, 0);
- 				}
- 			}
--			was_dirty = test_clear_page_dirty(page);
-+			was_dirty = PageDirty(page);
- 			if (!invalidate_complete_page2(mapping, page)) {
- 				if (was_dirty)
- 					set_page_dirty(page);
- 				ret = -EIO;
--			}
-+			} else
-+				__test_clear_page_dirty(mapping, page);
- 			unlock_page(page);
- 		}
- 		pagevec_release(&pvec);
+The patch below is not a suggested fix that I want to get into mainline
+(checking slab_is_available is the wrong here), but it is a quick fix
+that you should apply if you want to run a recent (post-2.6.18) kernel
+on the IBM QS20 blade. I'm sorry for not having reported this earlier,
+but we were always trying to find the problem in my own code...
 
+	Arnd <><
+
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -1962,7 +1962,8 @@ void __meminit memmap_init_zone(unsigned
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		if (!early_pfn_valid(pfn))
+ 			continue;
+-		if (!early_pfn_in_nid(pfn, nid))
++		if (!slab_is_available() &&
++		    !early_pfn_in_nid(pfn, nid))
+ 			continue;
+ 		page = pfn_to_page(pfn);
+ 		set_page_links(page, zone, nid, pfn);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
