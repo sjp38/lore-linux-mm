@@ -1,65 +1,158 @@
-Subject: Re: Status of buffered write path (deadlock fixes)
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <458004D6.7050406@redhat.com>
-References: <45751712.80301@yahoo.com.au>
-	 <20061207195518.GG4497@ca-server1.us.oracle.com>
-	 <4578DBCA.30604@yahoo.com.au>
-	 <20061208234852.GI4497@ca-server1.us.oracle.com>
-	 <457D20AE.6040107@yahoo.com.au> <457D7EBA.7070005@yahoo.com.au>
-	 <20061212223109.GG6831@ca-server1.us.oracle.com>
-	 <457F4EEE.9000601@yahoo.com.au>
-	 <1165974458.5695.17.camel@lade.trondhjem.org>
-	 <457F5DD8.3090909@yahoo.com.au>
-	 <1165977064.5695.38.camel@lade.trondhjem.org> <458004D6.7050406@redhat.com>
+Subject: Re: [PATCH] nfs: fix NR_FILE_DIRTY underflow
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1166012781.5695.18.camel@lade.trondhjem.org>
+References: <1166011958.32332.97.camel@twins>
+	 <1166012781.5695.18.camel@lade.trondhjem.org>
 Content-Type: text/plain
-Date: Wed, 13 Dec 2006 08:55:08 -0500
-Message-Id: <1166018108.5695.39.camel@lade.trondhjem.org>
+Date: Wed, 13 Dec 2006 17:22:49 +0100
+Message-Id: <1166026969.32332.129.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Staubach <staubach@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2006-12-13 at 08:49 -0500, Peter Staubach wrote:
-> Trond Myklebust wrote:
-> > On Wed, 2006-12-13 at 12:56 +1100, Nick Piggin wrote:
-> >   
-> >> Note that these pages should be *really* rare. Definitely even for normal
-> >> filesystems I think RMW would use too much bandwidth if it were required
-> >> for any significant number of writes.
-> >>     
-> >
-> > If file "foo" exists on the server, and contains data, then something
-> > like
-> >
-> > fd = open("foo", O_WRONLY);
-> > write(fd, "1", 1);
-> >
-> > should never need to trigger a read. That's a fairly common workload
-> > when you think about it (happens all the time in apps that do random
-> > write).
+- Sorry for possible duplicates, but I don't seem to be getting to lkml -
+
+On Wed, 2006-12-13 at 07:26 -0500, Trond Myklebust wrote:
+> On Wed, 2006-12-13 at 13:12 +0100, Peter Zijlstra wrote:
+> > Still testing this patch, but it looks good so far.
+> > 
+> > ---
+> > Just setting PG_dirty can cause NR_FILE_DIRTY to underflow
+> > which is bad (TM).
+> > 
+> > Use set_page_dirty() which will do the right thing.
 > 
-> I have to admit that I've only been paying attention with one eye, but
-> why doesn't this require a read?  If "foo" is non-zero in size, then
-> how does the client determine how much data in the buffer to write to
-> the server?
+> Actually, I'd prefer to have it do the right thing by getting rid of
+> that call to test_clear_page_dirty() inside
+> invalidate_inode_pages2_range(). That is causing loss of data integrity,
+> and is what is causing us to have to hack NFS in the first place.
 
-That is what the 'struct nfs_page' does. Whenever possible (i.e.
-whenever the VM uses prepare_write()/commit_write()), we use that to
-track the exact area of the page that was dirtied. That means that we
-don't need to care what is on the rest of the page, or whether or not
-the page was originally uptodate since we will only flush out the area
-of the page that contains data.
+Ah, I think I see what your problem is there.
+How about this totally untested patch:
 
-> Isn't RMW required for any i/o which is either not buffer aligned or
-> a multiple of the buffer size?
+  (little update - it seems to compile and run, now testing if it fixes
+the problem too)
 
-Nope.
+---
+Delay clearing the dirty page state till after removing it from the
+mapping in invalidate_inode_pages2_range(). This will give
+try_to_release_pages() a shot to flush dirty data.
 
-Cheers,
-  Trond
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ fs/nfs/file.c              |    2 --
+ include/linux/page-flags.h |    2 ++
+ mm/page-writeback.c        |   17 +++++++++++------
+ mm/truncate.c              |   11 +++--------
+ 4 files changed, 16 insertions(+), 16 deletions(-)
+
+Index: linux-2.6-git/fs/nfs/file.c
+===================================================================
+--- linux-2.6-git.orig/fs/nfs/file.c	2006-12-13 15:31:26.000000000 +0100
++++ linux-2.6-git/fs/nfs/file.c	2006-12-13 15:39:33.000000000 +0100
+@@ -320,8 +320,6 @@ static int nfs_release_page(struct page 
+ 	 */
+ 	if (!(gfp & __GFP_FS))
+ 		return 0;
+-	/* Hack... Force nfs_wb_page() to write out the page */
+-	SetPageDirty(page);
+ 	return !nfs_wb_page(page_file_mapping(page)->host, page);
+ }
+ 
+Index: linux-2.6-git/include/linux/page-flags.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/page-flags.h	2006-12-13 15:35:50.000000000 +0100
++++ linux-2.6-git/include/linux/page-flags.h	2006-12-13 15:36:14.000000000 +0100
+@@ -252,7 +252,9 @@ static inline void SetPageUptodate(struc
+ #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
+ 
+ struct page;	/* forward declaration */
++struct address_space;
+ 
++int __test_clear_page_dirty(struct address_space *mapping, struct page *page);
+ int test_clear_page_dirty(struct page *page);
+ int test_clear_page_writeback(struct page *page);
+ int test_set_page_writeback(struct page *page);
+Index: linux-2.6-git/mm/page-writeback.c
+===================================================================
+--- linux-2.6-git.orig/mm/page-writeback.c	2006-12-13 15:34:15.000000000 +0100
++++ linux-2.6-git/mm/page-writeback.c	2006-12-13 15:39:41.000000000 +0100
+@@ -850,13 +850,8 @@ int set_page_dirty_lock(struct page *pag
+ }
+ EXPORT_SYMBOL(set_page_dirty_lock);
+ 
+-/*
+- * Clear a page's dirty flag, while caring for dirty memory accounting. 
+- * Returns true if the page was previously dirty.
+- */
+-int test_clear_page_dirty(struct page *page)
++int __test_clear_page_dirty(struct address_space *mapping, struct page *page)
+ {
+-	struct address_space *mapping = page_mapping(page);
+ 	unsigned long flags;
+ 
+ 	if (!mapping)
+@@ -880,6 +875,16 @@ int test_clear_page_dirty(struct page *p
+ 	write_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	return 0;
+ }
++
++/*
++ * Clear a page's dirty flag, while caring for dirty memory accounting.
++ * Returns true if the page was previously dirty.
++ */
++int test_clear_page_dirty(struct page *page)
++{
++	struct address_space *mapping = page_mapping(page);
++	return __test_clear_page_dirty(mapping, page);
++}
+ EXPORT_SYMBOL(test_clear_page_dirty);
+ 
+ /*
+Index: linux-2.6-git/mm/truncate.c
+===================================================================
+--- linux-2.6-git.orig/mm/truncate.c	2006-12-13 15:36:38.000000000 +0100
++++ linux-2.6-git/mm/truncate.c	2006-12-13 15:44:01.000000000 +0100
+@@ -307,18 +307,12 @@ invalidate_complete_page2(struct address
+ 		return 0;
+ 
+ 	write_lock_irq(&mapping->tree_lock);
+-	if (PageDirty(page))
+-		goto failed;
+-
+ 	BUG_ON(PagePrivate(page));
+ 	__remove_from_page_cache(page);
+ 	write_unlock_irq(&mapping->tree_lock);
+ 	ClearPageUptodate(page);
+ 	page_cache_release(page);	/* pagecache ref */
+ 	return 1;
+-failed:
+-	write_unlock_irq(&mapping->tree_lock);
+-	return 0;
+ }
+ 
+ /**
+@@ -386,12 +380,13 @@ int invalidate_inode_pages2_range(struct
+ 					  PAGE_CACHE_SIZE, 0);
+ 				}
+ 			}
+-			was_dirty = test_clear_page_dirty(page);
++			was_dirty = PageDirty(page);
+ 			if (!invalidate_complete_page2(mapping, page)) {
+ 				if (was_dirty)
+ 					set_page_dirty(page);
+ 				ret = -EIO;
+-			}
++			} else
++				__test_clear_page_dirty(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
