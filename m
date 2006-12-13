@@ -1,55 +1,40 @@
-Subject: VM_RESERVED vs vm_normal_page()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Content-Type: text/plain
-Date: Wed, 13 Dec 2006 15:37:57 +1100
-Message-Id: <1165984677.11914.159.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id s2so94598uge
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2006 00:38:26 -0800 (PST)
+Message-ID: <cda58cb80612130038x6b81a00dv813d10726d495eda@mail.gmail.com>
+Date: Wed, 13 Dec 2006 09:38:26 +0100
+From: "Franck Bui-Huu" <vagabon.xyz@gmail.com>
+Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
+In-Reply-To: <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
+	 <457D895D.4010500@innova-card.com>
+	 <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>
+To: Jaya Kumar <jayakumar.lkml@gmail.com>
+Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi folks !
+On 12/12/06, Jaya Kumar <jayakumar.lkml@gmail.com> wrote:
+> I think that PTEs set up by vmalloc are marked cacheable and via the
+> above nopage end up as cacheable. I'm not doing DMA. So the accesses
+> are through the cache so I don't think cache aliasing is an issue for
+> this case. Please let me know if I misunderstood.
+>
 
-What is the logic regarding VM_RESERVED, and more specifically, why is
-vm_normal_page() nor returning NULL for these ?
+This issue is not related to DMA: there are 2 different virtual
+addresses that can map the same physical address. If these 2 virtual
+addresses use 2 different data cache entries then you have a cache
+aliasing issue. In your case the 2 different virtual addresses are (1)
+the one got by the kernel (returned by vmalloc) (2) the one got by the
+application (returned by mmap).
 
-I have struct pages that are a bit special for things like SPE mappings
-on Cell and I'd like to avoid a lot of the stuff the VM tries to do on
-them, like rmap accounting, etc... In fact, for almost everything, the
-semantics I want are vm_normal_page() to return NULL... I have struct
-pages because for now I need do_no_page() to work, but I must absolutely
-avoid things like getting swapped out etc...
-
-Thus I looked at the logic in vm_normal_page() and it really sucks...
-this is pretty much a "heuristic" to differenciate remap_page_range from
-copy_on_write stuff ... gack.
-
-What is VM_RESERVED for then ? Could I just use that ? I currently only
-have VM_IO set on my SPE VMAs but I could add it. The current
-implementation of vm_normal_page() doesn't test for it though, maybe it
-should ?
-
-I have still a problem though, in the case vm_normal_page() is made to
-return NULL...
-
-In that case, unmapping of pages will still cause them to be released
-(tlb_* -> free_pages_and_swap_cache -> release_pages ->
-put_page_testzero) but if you fork(), copy_one_pte() will not call an
-additional get_page() when vm_normal_page() returns NULL... thus I fear
-the page count will become bocus accross forks...
-
-In the long run, I want to stop using struct page's for the SPU
-registers and local store, once Nick's new stuff gets in, though I might
-have a go at hacking something together before... but in the meantime,
-I'd like to figure out what is the _safe_ way of having a VMA containing
-PTEs mapping to struct pages that are _not_ normal memory and thus
-aren't to be swapped out, freed, or anything like that.
-
-Cheers,
-Ben. 
+Hope that helps.
+-- 
+               Franck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
