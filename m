@@ -1,40 +1,92 @@
-Received: by ug-out-1314.google.com with SMTP id s2so94598uge
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2006 00:38:26 -0800 (PST)
-Message-ID: <cda58cb80612130038x6b81a00dv813d10726d495eda@mail.gmail.com>
-Date: Wed, 13 Dec 2006 09:38:26 +0100
-From: "Franck Bui-Huu" <vagabon.xyz@gmail.com>
-Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
-In-Reply-To: <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: Status of buffered write path (deadlock fixes)
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <457F7B90.5000900@yahoo.com.au>
+References: <45751712.80301@yahoo.com.au>
+	 <20061207195518.GG4497@ca-server1.us.oracle.com>
+	 <4578DBCA.30604@yahoo.com.au>
+	 <20061208234852.GI4497@ca-server1.us.oracle.com>
+	 <457D20AE.6040107@yahoo.com.au> <457D7EBA.7070005@yahoo.com.au>
+	 <20061212223109.GG6831@ca-server1.us.oracle.com>
+	 <457F4EEE.9000601@yahoo.com.au>
+	 <1165974458.5695.17.camel@lade.trondhjem.org>
+	 <457F5DD8.3090909@yahoo.com.au>
+	 <1165977064.5695.38.camel@lade.trondhjem.org>
+	 <457F7B90.5000900@yahoo.com.au>
+Content-Type: text/plain
+Date: Wed, 13 Dec 2006 07:21:50 -0500
+Message-Id: <1166012510.5695.15.camel@lade.trondhjem.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
-	 <457D895D.4010500@innova-card.com>
-	 <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On 12/12/06, Jaya Kumar <jayakumar.lkml@gmail.com> wrote:
-> I think that PTEs set up by vmalloc are marked cacheable and via the
-> above nopage end up as cacheable. I'm not doing DMA. So the accesses
-> are through the cache so I don't think cache aliasing is an issue for
-> this case. Please let me know if I misunderstood.
->
+On Wed, 2006-12-13 at 15:03 +1100, Nick Piggin wrote:
+> Trond Myklebust wrote:
+> > On Wed, 2006-12-13 at 12:56 +1100, Nick Piggin wrote:
+> > 
+> >>Note that these pages should be *really* rare. Definitely even for normal
+> >>filesystems I think RMW would use too much bandwidth if it were required
+> >>for any significant number of writes.
+> > 
+> > 
+> > If file "foo" exists on the server, and contains data, then something
+> > like
+> > 
+> > fd = open("foo", O_WRONLY);
+> > write(fd, "1", 1);
+> > 
+> > should never need to trigger a read. That's a fairly common workload
+> > when you think about it (happens all the time in apps that do random
+> > write).
+> 
+> Right. What I'm currently looking at doing in that case is two copies,
+> first into a temporary buffer. Unfortunate, but we'll see what the
+> performance looks like.
 
-This issue is not related to DMA: there are 2 different virtual
-addresses that can map the same physical address. If these 2 virtual
-addresses use 2 different data cache entries then you have a cache
-aliasing issue. In your case the 2 different virtual addresses are (1)
-the one got by the kernel (returned by vmalloc) (2) the one got by the
-application (returned by mmap).
+Yech.
 
-Hope that helps.
--- 
-               Franck
+> >>I don't want to mandate anything just yet, so I'm just going through our
+> >>options. The first two options (remove, and RMW) are probably trickier
+> >>than they need to be, given the 3rd option available (temp buffer). Given
+> >>your input, I'm increasingly thinking that the best course of action would
+> >>be to fix this with the temp buffer and look at improving that later if it
+> >>causes a noticable slowdown.
+> > 
+> > 
+> > What is the generic problem you are trying to resolve? I saw something
+> > fly by about a reader filling the !uptodate page while the writer is
+> > updating it: how is that going to happen if the writer has the page
+> > locked?
+> 
+> The problem is that you can't take a pagefault while holding the page
+> lock. You can deadlock against another page, the same page, or the
+> mmap_sem.
+> 
+> > AFAIK the only thing that can modify the page if it is locked (aside
+> > from the process that has locked it) is a process that has the page
+> > mmapped(). However mmapped pages are always uptodate, right?
+> 
+> That's right (modulo the pagefault vs invalidate race bug).
+> 
+> But we need to unlock the destination page in order to be able to take
+> a pagefault to bring the source user memory uptodate. If the page is
+> not uptodate, then a read might see uninitialised data.
+
+The NFS read code will automatically flush dirty data to disk if it sees
+that the page is marked as dirty or partially dirty. We do this without
+losing the page lock thanks to the helper function nfs_wb_page().
+
+BTW: We will do the same thing in our mapping->release_page() in order
+to fix the races you can have between invalidate_inode_pages2() and page
+dirtying, however that call to test_and_clear_page_dirty() screws us
+over for the case of mmapped files (although we're quite safe w.r.t.
+prepare_write()/commit_write()).
+
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
