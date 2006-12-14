@@ -1,42 +1,34 @@
-Subject: [PATCH] slab: fix kmem_ptr_validate prototype
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Content-Type: text/plain; charset=UTF-8
-Date: Thu, 14 Dec 2006 13:26:40 +0100
-Message-Id: <1166099200.32332.233.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Date: Thu, 14 Dec 2006 08:40:26 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] slab: fix kmem_ptr_validate prototype
+In-Reply-To: <1166099200.32332.233.camel@twins>
+Message-ID: <Pine.LNX.4.64.0612140839440.28557@schroedinger.engr.sgi.com>
+References: <1166099200.32332.233.camel@twins>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-648802997-1166114426=:28557"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Some fallout of: 2e892f43ccb602e8ffad73396a1000f2040c9e0b
+---1700579579-648802997-1166114426=:28557
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-  CC      mm/slab.o
-/usr/src/linux-2.6-git/mm/slab.c:3557: error: conflicting types for a??kmem_ptr_validatea??
-/usr/src/linux-2.6-git/include/linux/slab.h:58: error: previous declaration of a??kmem_ptr_validatea?? was here
+On Thu, 14 Dec 2006, Peter Zijlstra wrote:
 
+> Some fallout of: 2e892f43ccb602e8ffad73396a1000f2040c9e0b
+>=20
+>   CC mm/slab.o /usr/src/linux-2.6-git/mm/slab.c:3557: error: conflicting=
+=20
+> types for =FF=FFkmem_ptr_validate=FF=FF=20
+> /usr/src/linux-2.6-git/include/linux/slab.h:58: error: previous=20
+> declaration of =FF=FFkmem_ptr_validate=FF=FF was here
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/slab.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Why do we need the fastcall there? What is its role?
 
-Index: linux-2.6-git/include/linux/slab.h
-===================================================================
---- linux-2.6-git.orig/include/linux/slab.h	2006-12-14 11:56:35.000000000 +0100
-+++ linux-2.6-git/include/linux/slab.h	2006-12-14 11:56:46.000000000 +0100
-@@ -55,7 +55,7 @@ void *kmem_cache_zalloc(struct kmem_cach
- void kmem_cache_free(struct kmem_cache *, void *);
- unsigned int kmem_cache_size(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
--int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
-+int fastcall kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
- 
- #ifdef CONFIG_NUMA
- extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-
+---1700579579-648802997-1166114426=:28557--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
