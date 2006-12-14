@@ -1,31 +1,42 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17792.37821.279813.601921@cargo.ozlabs.ibm.com>
-Date: Thu, 14 Dec 2006 10:58:53 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: Bug: early_pfn_in_nid() called when not early
-In-Reply-To: <20061213231717.GC10708@monkey.ibm.com>
-References: <200612131920.59270.arnd@arndb.de>
-	<20061213231717.GC10708@monkey.ibm.com>
+Subject: [PATCH] slab: fix kmem_ptr_validate prototype
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Content-Type: text/plain; charset=UTF-8
+Date: Thu, 14 Dec 2006 13:26:40 +0100
+Message-Id: <1166099200.32332.233.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Kravetz <kravetz@us.ibm.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andy Whitcroft <apw@shadowen.org>, Michael Kravetz <mkravetz@us.ibm.com>, hch@infradead.org, Jeremy Kerr <jk@ozlabs.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Mike Kravetz writes:
+Some fallout of: 2e892f43ccb602e8ffad73396a1000f2040c9e0b
 
-> Thanks for the debug work!  Just curious if you really need
-> CONFIG_NODES_SPAN_OTHER_NODES defined for your platform?  Can you get
-> those types of memory layouts?  If not, an easy/immediate fix for you
-> might be to simply turn off the option.
+  CC      mm/slab.o
+/usr/src/linux-2.6-git/mm/slab.c:3557: error: conflicting types for a??kmem_ptr_validatea??
+/usr/src/linux-2.6-git/include/linux/slab.h:58: error: previous declaration of a??kmem_ptr_validatea?? was here
 
-We really need CONFIG_NODES_SPAN_OTHER_NODES for pSeries.  Since we
-can build a single kernel binary that runs on both Cell and pSeries,
-the Cell code needs to be able to work with that option turned on.
 
-Paul.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/slab.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6-git/include/linux/slab.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/slab.h	2006-12-14 11:56:35.000000000 +0100
++++ linux-2.6-git/include/linux/slab.h	2006-12-14 11:56:46.000000000 +0100
+@@ -55,7 +55,7 @@ void *kmem_cache_zalloc(struct kmem_cach
+ void kmem_cache_free(struct kmem_cache *, void *);
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+-int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++int fastcall kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
+ 
+ #ifdef CONFIG_NUMA
+ extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
