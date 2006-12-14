@@ -1,37 +1,93 @@
-Date: Thu, 14 Dec 2006 08:40:26 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slab: fix kmem_ptr_validate prototype
-In-Reply-To: <1166099200.32332.233.camel@twins>
-Message-ID: <Pine.LNX.4.64.0612140839440.28557@schroedinger.engr.sgi.com>
-References: <1166099200.32332.233.camel@twins>
+Date: Thu, 14 Dec 2006 21:47:06 +0500
+From: "EURO VIP Casino" <obsolescent@ondagrupera.com>
+Message-ID: <80122536.96086802@irredentist.com>
+Subject: 400 Euro willkommensbonus
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-648802997-1166114426=:28557"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+Return-Path: <obsolescent@ondagrupera.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
----1700579579-648802997-1166114426=:28557
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+<html>
 
-On Thu, 14 Dec 2006, Peter Zijlstra wrote:
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> Some fallout of: 2e892f43ccb602e8ffad73396a1000f2040c9e0b
->=20
->   CC mm/slab.o /usr/src/linux-2.6-git/mm/slab.c:3557: error: conflicting=
-=20
-> types for =FF=FFkmem_ptr_validate=FF=FF=20
-> /usr/src/linux-2.6-git/include/linux/slab.h:58: error: previous=20
-> declaration of =FF=FFkmem_ptr_validate=FF=FF was here
+<title>Haben Sie je eine echte VIP Behandlung genossen</title>
 
-Why do we need the fastcall there? What is its role?
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
----1700579579-648802997-1166114426=:28557--
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=EN link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Haben Sie je eine
+echte VIP Behandlung genossen? <br>
+<br>
+In EURO VIP Casino werden Sie das beste 
+Spielerlebnis erleben und gleichzeitig
+ein einzigartiges Spielerlebnis erfahren. <o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Die besten
+Spiele! Die besten Willkommensbonusse! Die besten Auszahlungsraten! <br>
+<br>
+Und nicht zu vergessen: Der beste Kundenservice IN DEUSTCH!!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>Kommen Sie
+spielen im </span><span lang=IT style='mso-ansi-language:IT'>EURO VIP 
+</span><span
+lang=DE style='mso-ansi-language:DE'>Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'><a
+href="http://www.vip-eu.org/lang-de/">
+http://www.vip-eu.org/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
