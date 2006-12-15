@@ -1,59 +1,53 @@
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: [PATCH]  incorrect error handling inside generic_file_direct_write
-Date: Fri, 15 Dec 2006 10:53:18 -0800
-Message-ID: <000101c7207a$48c138f0$ff0da8c0@amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Date: Fri, 15 Dec 2006 11:45:36 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Fix sparsemem on Cell
+Message-Id: <20061215114536.dc5c93af.akpm@osdl.org>
+In-Reply-To: <1166203440.8105.22.camel@localhost.localdomain>
+References: <20061215165335.61D9F775@localhost.localdomain>
+	<4582D756.7090702@shadowen.org>
+	<1166203440.8105.22.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20061215104341.GA20089@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Christoph Hellwig' <hch@infradead.org>
-Cc: 'Andrew Morton' <akpm@osdl.org>, Dmitriy Monakhov <dmonakhov@sw.ru>, Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, paulus@samba.org, benh@kernel.crashing.org, gone@us.ibm.com, Keith Mannthey <kmannth@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote on Friday, December 15, 2006 2:44 AM
-> So we're doing the sync_page_range once in __generic_file_aio_write
-> with i_mutex held.
+On Fri, 15 Dec 2006 09:24:00 -0800
+Dave Hansen <haveblue@us.ibm.com> wrote:
+
 > 
+> ...
+>
+> I think the comments added say it pretty well, but I'll repeat it here.
 > 
-> >  	mutex_lock(&inode->i_mutex);
-> > -	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
-> > -			&iocb->ki_pos);
-> > +	ret = __generic_file_aio_write(iocb, iov, nr_segs, pos);
-> >  	mutex_unlock(&inode->i_mutex);
-> >  
-> >  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+> This fix is pretty similar in concept to the one that Arnd posted
+> as a temporary workaround, but I've added a few comments explaining
+> what the actual assumptions are, and improved it a wee little bit.
 > 
-> And then another time after it's unlocked, this seems wrong.
+> The end goal here is to simply avoid calling the early_*() functions
+> when it is _not_ early.  Those functions stop working as soon as
+> free_initmem() is called.  system_state is set to SYSTEM_RUNNING
+> just after free_initmem() is called, so it seems appropriate to use
+> here.
 
+Would really prefer not to do this.  system_state is evil.  Its semantics
+are poorly-defined and if someone changes them a bit, or changes memory
+initialisation order, you get whacked.
 
-I didn't invent that mess though.
+I think an mm-private flag with /*documented*/ semantics would be better. 
+It's only a byte.
 
-I should've ask the question first: in 2.6.20-rc1, generic_file_aio_write
-will call sync_page_range twice, once from __generic_file_aio_write_nolock
-and once within the function itself.  Is it redundant?  Can we delete the
-one in the top level function?  Like the following?
+> +static int __meminit can_online_pfn_into_nid(unsigned long pfn, int nid)
 
+I spent some time trying to work out what "can_online_pfn_into_nid" can
+possibly mean and failed.  "We can bring a pfn online then turn it into a
+NID"?  Don't think so.  "We can bring this page online and allocate it to
+this node"?  Maybe.
 
---- ./mm/filemap.c.orig	2006-12-15 09:02:58.000000000 -0800
-+++ ./mm/filemap.c	2006-12-15 09:03:19.000000000 -0800
-@@ -2370,14 +2370,6 @@ ssize_t generic_file_aio_write(struct ki
- 	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
- 			&iocb->ki_pos);
- 	mutex_unlock(&inode->i_mutex);
--
--	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
--		ssize_t err;
--
--		err = sync_page_range(inode, mapping, pos, ret);
--		if (err < 0)
--			ret = err;
--	}
- 	return ret;
- }
- EXPORT_SYMBOL(generic_file_aio_write);
+Perhaps if the function's role in the world was commented it would be clearer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
