@@ -1,25 +1,58 @@
-Date: Thu, 14 Dec 2006 20:57:34 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/4] lumpy reclaim v2
-Message-Id: <20061214205734.0e385643.akpm@osdl.org>
-In-Reply-To: <6109d33145c0dcf3a8a3a6bd120d7985@pinky>
-References: <exportbomb.1165424343@pinky>
-	<6109d33145c0dcf3a8a3a6bd120d7985@pinky>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: [ckrm-tech] [RFC][PATCH 5/5] RSS accounting at the page level
+Message-Id: <20061215075751.AD3F41B6A7@openx4.frec.bull.fr>
+Date: Fri, 15 Dec 2006 08:57:51 +0100 (CET)
+From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: balbir@in.ibm.com
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Dec 2006 16:59:35 +0000
-Andy Whitcroft <apw@shadowen.org> wrote:
+> ...
+> This would limit the numbers to groups to the word size on the machine.
 
-> +			tmp = __pfn_to_page(pfn);
+yes, this should be the bigger disadvantage of this implementation...
+But may be acceptable for a prototype, at least to explain the concept ?
 
-ia64 doesn't implement __page_to_pfn.  Why did you not use page_to_pfn()?
+
+> It would be interesting if we can support shared pages without any
+> changes to struct page.
+
+I suppose that means you are on a system without kswapd...
+
+Is everybody OK with that ?
+This is a question for the linux-mm list...
+
+
+> Any particular reason for not implementing migration in this patch.
+
+Nothing special, only incremental code, step by step.
+So first try to have a sane shared pages accounting...
+
+> Do you have any test results with this patch? Showing the effect of
+> tracking shared pages
+
+Only the RSS counter after reboot (same hw/software config) :
+
+with your patch :
+# mount -t container none /dev/container
+# cat /dev/container/memctlr.stats
+RSS Pages 10571
+
+and with my shared pages accounting patch :
+# mount -t container none /dev/container
+# cat /dev/container/memctlr.stats
+RSS Pages 7329
+
+
+Patrick
+
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+    Patrick Le Dot
+ mailto: Patrick.Le-Dot@bull.net         Centre UNIX de BULL SAS
+ Phone : +33 4 76 29 73 20               1, Rue de Provence     BP 208
+ Fax   : +33 4 76 29 76 00               38130 ECHIROLLES Cedex FRANCE
+ Bull, Architect of an Open World TM
+ www.bull.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
