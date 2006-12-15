@@ -1,87 +1,50 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.5) with ESMTP id kBFAr0pi162646
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 21:53:05 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kBFAhphi167254
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 21:43:56 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kBFAeNre024325
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 21:40:23 +1100
-Message-ID: <45827B8F.7080808@in.ibm.com>
-Date: Fri, 15 Dec 2006 16:10:15 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
-MIME-Version: 1.0
-Subject: Re: [ckrm-tech] [RFC][PATCH 5/5] RSS accounting at the page level
-References: <20061215075751.AD3F41B6A7@openx4.frec.bull.fr>
-In-Reply-To: <20061215075751.AD3F41B6A7@openx4.frec.bull.fr>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Fri, 15 Dec 2006 10:43:41 +0000
+From: 'Christoph Hellwig' <hch@infradead.org>
+Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
+Message-ID: <20061215104341.GA20089@infradead.org>
+References: <20061212024027.6c2a79d3.akpm@osdl.org> <000001c71e60$7df9e010$e434030a@amr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000001c71e60$7df9e010$e434030a@amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Patrick.Le-Dot" <Patrick.Le-Dot@bull.net>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'Andrew Morton' <akpm@osdl.org>, Dmitriy Monakhov <dmonakhov@sw.ru>, 'Christoph Hellwig' <hch@infradead.org>, Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Patrick.Le-Dot wrote:
->> ...
->> This would limit the numbers to groups to the word size on the machine.
-> 
-> yes, this should be the bigger disadvantage of this implementation...
-> But may be acceptable for a prototype, at least to explain the concept ?
-> 
+> +ssize_t
+> +__generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+> +				unsigned long nr_segs, loff_t pos)
 
-I think we need to find a more efficient mechanism to track shared pages
+I'd still call this generic_file_aio_write_nolock.
 
-> 
->> It would be interesting if we can support shared pages without any
->> changes to struct page.
-> 
-> I suppose that means you are on a system without kswapd...
-> 
-> Is everybody OK with that ?
-> This is a question for the linux-mm list...
-> 
+> +	loff_t		*ppos = &iocb->ki_pos;
+
+I'd rather use iocb->ki_pos directly in the few places ppos is referenced
+currently.
+
+>  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+> -		ssize_t err;
+> -
+>  		err = sync_page_range_nolock(inode, mapping, pos, ret);
+>  		if (err < 0)
+>  			ret = err;
+>  	}
+
+So we're doing the sync_page_range once in __generic_file_aio_write
+with i_mutex held.
 
 
-No, I have kswapd, like I said earlier, I have a patch that uses rmap
-information for detecting and accounting shared pages. I hope to
-post a patch soon.
+>  	mutex_lock(&inode->i_mutex);
+> -	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
+> -			&iocb->ki_pos);
+> +	ret = __generic_file_aio_write(iocb, iov, nr_segs, pos);
+>  	mutex_unlock(&inode->i_mutex);
+>  
+>  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
 
-> 
->> Any particular reason for not implementing migration in this patch.
-> 
-> Nothing special, only incremental code, step by step.
-> So first try to have a sane shared pages accounting...
-
-Aah, ok
-
-> 
->> Do you have any test results with this patch? Showing the effect of
->> tracking shared pages
-> 
-> Only the RSS counter after reboot (same hw/software config) :
-> 
-> with your patch :
-> # mount -t container none /dev/container
-> # cat /dev/container/memctlr.stats
-> RSS Pages 10571
-> 
-> and with my shared pages accounting patch :
-> # mount -t container none /dev/container
-> # cat /dev/container/memctlr.stats
-> RSS Pages 7329
-> 
-> 
-
-Is there any way to print out the shared pages, I think it should
-easy to track shared pages per container as an accountable parameter.
-
--- 
-
-	Balbir Singh,
-	Linux Technology Center,
-	IBM Software Labs
+And then another time after it's unlocked, this seems wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
