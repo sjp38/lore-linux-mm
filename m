@@ -1,36 +1,68 @@
-Subject: Re: [ckrm-tech] [RFC][PATCH 5/5] RSS accounting at the page level
-Message-Id: <20061215133131.ECFEF1B6A7@openx4.frec.bull.fr>
-Date: Fri, 15 Dec 2006 14:31:31 +0100 (CET)
-From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
+Date: Fri, 15 Dec 2006 16:48:25 +0000
+Subject: [PATCH] Avoid excessive sorting of early_node_map[]
+Message-ID: <20061215164824.GA13580@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@in.ibm.com
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
->>> ...
->>> This would limit the numbers to groups to the word size on the machine.
->> 
->> yes, this should be the bigger disadvantage of this implementation...
->> But may be acceptable for a prototype, at least to explain the concept ?
->> 
-> 
-> I think we need to find a more efficient mechanism to track shared pages
+find_min_pfn_for_node() and find_min_pfn_with_active_regions() sort
+early_node_map[] on every call. This is an excessive amount of sorting and
+that can be avoided. This patch always searches the whole early_node_map[]
+in find_min_pfn_for_node() instead of returning the first value found. The
+map is then only sorted once when required. Successfully boot tested on a
+number of machines.
 
-To clarify, bitmap is just an idea to avoid the rmap walk when the number
-of groups is not too large and then kswapd can use a very fast check for
-each page...
-
-
-> ...
-> Is there any way to print out the shared pages, I think it should
-> easy to track shared pages per container as an accountable parameter.
-
-May be "private pages per container" is more representative ?
-I have to think about that...
-
-Patrick
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-mm1-clean/mm/page_alloc.c linux-2.6.19-mm1-excessivesort/mm/page_alloc.c
+--- linux-2.6.19-mm1-clean/mm/page_alloc.c	2006-11-29 21:57:37.000000000 +0000
++++ linux-2.6.19-mm1-excessivesort/mm/page_alloc.c	2006-12-14 15:59:40.000000000 +0000
+@@ -2607,20 +2607,23 @@ static void __init sort_node_map(void)
+ 			cmp_node_active_region, NULL);
+ }
+ 
+-/* Find the lowest pfn for a node. This depends on a sorted early_node_map */
++/* Find the lowest pfn for a node */
+ unsigned long __init find_min_pfn_for_node(unsigned long nid)
+ {
+ 	int i;
+-
+-	/* Regions in the early_node_map can be in any order */
+-	sort_node_map();
++	unsigned long min_pfn = -1UL;
+ 
+ 	/* Assuming a sorted map, the first range found has the starting pfn */
+ 	for_each_active_range_index_in_nid(i, nid)
+-		return early_node_map[i].start_pfn;
++		min_pfn = min(min_pfn, early_node_map[i].start_pfn);
+ 
+-	printk(KERN_WARNING "Could not find start_pfn for node %lu\n", nid);
+-	return 0;
++	if (min_pfn == -1UL) {
++		printk(KERN_WARNING
++			"Could not find start_pfn for node %lu\n", nid);
++		return 0;
++	}
++
++	return min_pfn;
+ }
+ 
+ /**
+@@ -2669,6 +2672,9 @@ void __init free_area_init_nodes(unsigne
+ 	unsigned long nid;
+ 	enum zone_type i;
+ 
++	/* Sort early_node_map as initialisation assumes it is sorted */
++	sort_node_map();
++
+ 	/* Record where the zone boundaries are */
+ 	memset(arch_zone_lowest_possible_pfn, 0,
+ 				sizeof(arch_zone_lowest_possible_pfn));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
