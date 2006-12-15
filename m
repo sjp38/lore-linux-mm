@@ -1,53 +1,43 @@
-Date: Fri, 15 Dec 2006 10:43:41 +0000
-From: 'Christoph Hellwig' <hch@infradead.org>
-Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
-Message-ID: <20061215104341.GA20089@infradead.org>
-References: <20061212024027.6c2a79d3.akpm@osdl.org> <000001c71e60$7df9e010$e434030a@amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000001c71e60$7df9e010$e434030a@amr.corp.intel.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Andrew Morton' <akpm@osdl.org>, Dmitriy Monakhov <dmonakhov@sw.ru>, 'Christoph Hellwig' <hch@infradead.org>, Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+Received: from 82.80.64.246 (HELO mail.abs.co.il)
+     by kvack.org with esmtp (+G4*M,.I=U K8'0)
+     id 263@AC-'(080D-D,
+     for linux-mm@kvack.org; Fri, 15 Dec 2006 12:55:46 -0120
+From: "Tami Curran" <summerierneonatal@abs.co.il>
+Subject: RE:Report
+Date: Fri, 15 Dec 2006 12:55:46 -0120
+Message-ID: <01c72048$565629d0$6c822ecf@summerierneonatal>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: 7bit
+Return-Path: <summerierneonatal@abs.co.il>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> +ssize_t
-> +__generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-> +				unsigned long nr_segs, loff_t pos)
-
-I'd still call this generic_file_aio_write_nolock.
-
-> +	loff_t		*ppos = &iocb->ki_pos;
-
-I'd rather use iocb->ki_pos directly in the few places ppos is referenced
-currently.
-
->  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-> -		ssize_t err;
-> -
->  		err = sync_page_range_nolock(inode, mapping, pos, ret);
->  		if (err < 0)
->  			ret = err;
->  	}
-
-So we're doing the sync_page_range once in __generic_file_aio_write
-with i_mutex held.
-
-
->  	mutex_lock(&inode->i_mutex);
-> -	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
-> -			&iocb->ki_pos);
-> +	ret = __generic_file_aio_write(iocb, iov, nr_segs, pos);
->  	mutex_unlock(&inode->i_mutex);
->  
->  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-
-And then another time after it's unlocked, this seems wrong.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Stable Company!	
+	
+Fueled by the possibility of an upcoming merger, Wild Brush 	
+Energy (WBRS) is gearing up for an explosion.  Tension is 	
+building and soon the scramble to take a position will push 	
+this one off the charts.	
+	
+Wild Brush Energy	
+Symbol: WBRS	
+Current Price: $0.048	
+Short Term Target: $0.10	
+Long Term Target: $0.80	
+	
+WBRS is engaged in some of the most lucrative gas regions in North 	
+America.  Major discoveries are happening all the time and WBRS is in 	
+the thick of it.	
+	
+With the array of drilling projects Wild Brush has going on at the moment 	
+tension is building.  As the drilling gets closer to completion insiders are 	
+accumulating ahead of that major discovery announcement.	
+	
+Wild Brush Energy are very stable working company. 	
+Charts are proving this words.	
+And now it will get to new level. 	
+We expect big price increase next several days.	
+Price will start to rise Firday, December 15 2006.	
+We hope you already get this one and will make money with us.	
