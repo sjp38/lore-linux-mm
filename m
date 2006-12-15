@@ -1,53 +1,45 @@
-Date: Fri, 15 Dec 2006 11:45:36 -0800
-From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] Fix sparsemem on Cell
-Message-Id: <20061215114536.dc5c93af.akpm@osdl.org>
-In-Reply-To: <1166203440.8105.22.camel@localhost.localdomain>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20061215165335.61D9F775@localhost.localdomain>
 References: <20061215165335.61D9F775@localhost.localdomain>
-	<4582D756.7090702@shadowen.org>
-	<1166203440.8105.22.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Sat, 16 Dec 2006 07:21:53 +1100
+Message-Id: <1166214113.31351.101.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, paulus@samba.org, benh@kernel.crashing.org, gone@us.ibm.com, Keith Mannthey <kmannth@us.ibm.com>
+Cc: cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, apw@shadowen.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, akpm@osdl.org, paulus@samba.org, gone@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Dec 2006 09:24:00 -0800
-Dave Hansen <haveblue@us.ibm.com> wrote:
-
+> The only other assumption is that all memory-hotplug-time pages 
+> given to memmap_init_zone() are valid and able to be onlined into
+> any any zone after the system is running.  The "valid" part is
+> really just a question of whether or not a 'struct page' is there
+> for the pfn, and *not* whether there is actual memory.  Since
+> all sparsemem sections have contiguous mem_map[]s within them,
+> and we only memory hotplug entire sparsemem sections, we can
+> be confident that this assumption will hold.
 > 
-> ...
->
-> I think the comments added say it pretty well, but I'll repeat it here.
-> 
-> This fix is pretty similar in concept to the one that Arnd posted
-> as a temporary workaround, but I've added a few comments explaining
-> what the actual assumptions are, and improved it a wee little bit.
-> 
-> The end goal here is to simply avoid calling the early_*() functions
-> when it is _not_ early.  Those functions stop working as soon as
-> free_initmem() is called.  system_state is set to SYSTEM_RUNNING
-> just after free_initmem() is called, so it seems appropriate to use
-> here.
+> As for the memory being in the right node, we'll assume tha
+> memory hotplug is putting things in the right node.
 
-Would really prefer not to do this.  system_state is evil.  Its semantics
-are poorly-defined and if someone changes them a bit, or changes memory
-initialisation order, you get whacked.
+BTW, just that people know, what we are adding isn't even memory :-) We
+are calling __add_pages() to create struct page for the SPE local stores
+and register space as we use them later from a nopage() handler (and no,
+we can't use no_pfn just yet for various reasons, notably we need to
+handle races with unmap_mapping_ranges() and thus have the truncate
+logic in).
 
-I think an mm-private flag with /*documented*/ semantics would be better. 
-It's only a byte.
+Those pages, thus, must never be onlined. Ever. It might make sense to
+create a way to inform memory hotplug of that fact, but on the other
+hand, I wouldn't bother as I have a plan to get rid of those
+__add_pages() completely and work without struct page, maybe in a 2.6.21
+timeframe.
 
-> +static int __meminit can_online_pfn_into_nid(unsigned long pfn, int nid)
+Ben.
 
-I spent some time trying to work out what "can_online_pfn_into_nid" can
-possibly mean and failed.  "We can bring a pfn online then turn it into a
-NID"?  Don't think so.  "We can bring this page online and allocate it to
-this node"?  Maybe.
-
-Perhaps if the function's role in the world was commented it would be clearer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
