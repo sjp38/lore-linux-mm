@@ -1,68 +1,119 @@
-Date: Fri, 15 Dec 2006 16:48:25 +0000
-Subject: [PATCH] Avoid excessive sorting of early_node_map[]
-Message-ID: <20061215164824.GA13580@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.8/8.12.11) with ESMTP id kBFGtXYs005404
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 11:55:33 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kBFGtWT4499778
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 09:55:32 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kBFGtWrX004907
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2006 09:55:32 -0700
+Subject: [PATCH] Fix sparsemem on Cell
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Fri, 15 Dec 2006 08:53:35 -0800
+Message-Id: <20061215165335.61D9F775@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: cbe-oss-dev@ozlabs.org
+Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org, apw@shadowen.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, akpm@osdl.org, paulus@samba.org, benh@kernel.crashing.org, gone@us.ibm.com, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-find_min_pfn_for_node() and find_min_pfn_with_active_regions() sort
-early_node_map[] on every call. This is an excessive amount of sorting and
-that can be avoided. This patch always searches the whole early_node_map[]
-in find_min_pfn_for_node() instead of returning the first value found. The
-map is then only sorted once when required. Successfully boot tested on a
-number of machines.
+I think the comments added say it pretty well, but I'll repeat it here.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.19-mm1-clean/mm/page_alloc.c linux-2.6.19-mm1-excessivesort/mm/page_alloc.c
---- linux-2.6.19-mm1-clean/mm/page_alloc.c	2006-11-29 21:57:37.000000000 +0000
-+++ linux-2.6.19-mm1-excessivesort/mm/page_alloc.c	2006-12-14 15:59:40.000000000 +0000
-@@ -2607,20 +2607,23 @@ static void __init sort_node_map(void)
- 			cmp_node_active_region, NULL);
- }
+This fix is pretty similar in concept to the one that Arnd posted
+as a temporary workaround, but I've added a few comments explaining
+what the actual assumptions are, and improved it a wee little bit.
+
+The end goal here is to simply avoid calling the early_*() functions
+when it is _not_ early.  Those functions stop working as soon as
+free_initmem() is called.  system_state is set to SYSTEM_RUNNING
+just after free_initmem() is called, so it seems appropriate to use
+here.
+
+I did think twice about actually using SYSTEM_RUNNING because we
+moved away from it in other parts of memory hotplug, but those
+were actually for _allocations_ in favor of slab_is_available(),
+and we really don't care about the slab here.
+
+The only other assumption is that all memory-hotplug-time pages 
+given to memmap_init_zone() are valid and able to be onlined into
+any any zone after the system is running.  The "valid" part is
+really just a question of whether or not a 'struct page' is there
+for the pfn, and *not* whether there is actual memory.  Since
+all sparsemem sections have contiguous mem_map[]s within them,
+and we only memory hotplug entire sparsemem sections, we can
+be confident that this assumption will hold.
+
+As for the memory being in the right node, we'll assume tha
+memory hotplug is putting things in the right node.
+
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+
+---
+
+ lxc-dave/init/main.c     |    4 ++++
+ lxc-dave/mm/page_alloc.c |   28 +++++++++++++++++++++++++---
+ 2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff -puN init/main.c~sparsemem-fix init/main.c
+--- lxc/init/main.c~sparsemem-fix	2006-12-15 08:49:53.000000000 -0800
++++ lxc-dave/init/main.c	2006-12-15 08:49:53.000000000 -0800
+@@ -770,6 +770,10 @@ static int init(void * unused)
+ 	free_initmem();
+ 	unlock_kernel();
+ 	mark_rodata_ro();
++	/*
++	 * Memory hotplug requires that this system_state transition
++	 * happer after free_initmem().  (see memmap_init_zone())
++	 */
+ 	system_state = SYSTEM_RUNNING;
+ 	numa_default_policy();
  
--/* Find the lowest pfn for a node. This depends on a sorted early_node_map */
-+/* Find the lowest pfn for a node */
- unsigned long __init find_min_pfn_for_node(unsigned long nid)
- {
- 	int i;
--
--	/* Regions in the early_node_map can be in any order */
--	sort_node_map();
-+	unsigned long min_pfn = -1UL;
+diff -puN mm/page_alloc.c~sparsemem-fix mm/page_alloc.c
+--- lxc/mm/page_alloc.c~sparsemem-fix	2006-12-15 08:49:53.000000000 -0800
++++ lxc-dave/mm/page_alloc.c	2006-12-15 08:49:53.000000000 -0800
+@@ -2056,6 +2056,30 @@ static inline unsigned long wait_table_b
  
- 	/* Assuming a sorted map, the first range found has the starting pfn */
- 	for_each_active_range_index_in_nid(i, nid)
--		return early_node_map[i].start_pfn;
-+		min_pfn = min(min_pfn, early_node_map[i].start_pfn);
+ #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
  
--	printk(KERN_WARNING "Could not find start_pfn for node %lu\n", nid);
--	return 0;
-+	if (min_pfn == -1UL) {
-+		printk(KERN_WARNING
-+			"Could not find start_pfn for node %lu\n", nid);
++static int can_online_pfn_into_nid(unsigned long pfn, int nid)
++{
++	/*
++	 * There are two things that make this work:
++	 * 1. The early_pfn...() functions are __init and
++	 *    use __initdata.  If the system is < SYSTEM_RUNNING,
++	 *    those functions and their data will still exist.
++	 * 2. We also assume that all actual memory hotplug
++	 *    (as opposed to boot-time) calls to this are only
++	 *    for contiguous memory regions.  With sparsemem,
++	 *    this guaranteed is easy because all sections are
++	 *    contiguous and we never online more than one
++	 *    section at a time.  Boot-time memory can have holes
++	 *    anywhere.
++	 */
++	if (system_state >= SYSTEM_RUNNING)
++		return 1;
++	if (!early_pfn_valid(pfn))
 +		return 0;
-+	}
++	if (!early_pfn_in_nid(pfn, nid))
++		return 0;
++	return 1;
++}
 +
-+	return min_pfn;
- }
+ /*
+  * Initially all pages are reserved - free ones are freed
+  * up by free_all_bootmem() once the early boot process is
+@@ -2069,9 +2093,7 @@ void __meminit memmap_init_zone(unsigned
+ 	unsigned long pfn;
  
- /**
-@@ -2669,6 +2672,9 @@ void __init free_area_init_nodes(unsigne
- 	unsigned long nid;
- 	enum zone_type i;
- 
-+	/* Sort early_node_map as initialisation assumes it is sorted */
-+	sort_node_map();
-+
- 	/* Record where the zone boundaries are */
- 	memset(arch_zone_lowest_possible_pfn, 0,
- 				sizeof(arch_zone_lowest_possible_pfn));
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+-		if (!early_pfn_valid(pfn))
+-			continue;
+-		if (!early_pfn_in_nid(pfn, nid))
++		if (!can_online_pfn_into_nid(pfn))
+ 			continue;
+ 		page = pfn_to_page(pfn);
+ 		set_page_links(page, zone, nid, pfn);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
