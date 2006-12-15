@@ -1,36 +1,25 @@
-Date: Thu, 14 Dec 2006 09:03:00 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] slab: fix kmem_ptr_validate prototype
-In-Reply-To: <1166099200.32332.233.camel@twins>
-Message-ID: <Pine.LNX.4.64.0612140857240.29461@schroedinger.engr.sgi.com>
-References: <1166099200.32332.233.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 14 Dec 2006 20:57:34 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 1/4] lumpy reclaim v2
+Message-Id: <20061214205734.0e385643.akpm@osdl.org>
+In-Reply-To: <6109d33145c0dcf3a8a3a6bd120d7985@pinky>
+References: <exportbomb.1165424343@pinky>
+	<6109d33145c0dcf3a8a3a6bd120d7985@pinky>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The declaration of kmem_ptr_validate in slab.h does not match the
-one in slab.c. Remove the fastcall attribute (this is the only use in 
-slab.c).
+On Wed, 6 Dec 2006 16:59:35 +0000
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> +			tmp = __pfn_to_page(pfn);
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2006-12-14 08:56:59.000000000 -0800
-+++ linux-2.6/mm/slab.c	2006-12-14 08:57:10.000000000 -0800
-@@ -3553,7 +3553,7 @@ EXPORT_SYMBOL(kmem_cache_zalloc);
-  *
-  * Currently only used for dentry validation.
-  */
--int fastcall kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr)
-+int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr)
- {
- 	unsigned long addr = (unsigned long)ptr;
- 	unsigned long min_addr = PAGE_OFFSET;
+ia64 doesn't implement __page_to_pfn.  Why did you not use page_to_pfn()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
