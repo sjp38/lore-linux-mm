@@ -1,41 +1,63 @@
-Date: Sat, 16 Dec 2006 19:18:19 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.19 file content corruption on ext3
-In-Reply-To: <20061216184310.GA891@unjust.cyrius.com>
-Message-ID: <Pine.LNX.4.64.0612161909460.25272@blonde.wat.veritas.com>
-References: <20061207155740.GC1434@torres.l21.ma.zugschlus.de>
- <4578465D.7030104@cfl.rr.com> <20061209092639.GA15443@torres.l21.ma.zugschlus.de>
- <20061216184310.GA891@unjust.cyrius.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Recent mm changes leading to filesystem corruption?
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20061216155044.GA14681@deprecation.cyrius.com>
+References: <20061216155044.GA14681@deprecation.cyrius.com>
+Content-Type: text/plain
+Date: Sat, 16 Dec 2006 21:55:16 +0100
+Message-Id: <1166302516.10372.5.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Martin Michlmayr <tbm@cyrius.com>
-Cc: Marc Haber <mh+linux-kernel@zugschlus.de>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, debian-kernel@lists.debian.org, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Dec 2006, Martin Michlmayr wrote:
-> * Marc Haber <mh+linux-kernel@zugschlus.de> [2006-12-09 10:26]:
-> > Unfortunately, I am lacking the knowledge needed to do this in an
-> > informed way. I am neither familiar enough with git nor do I possess
-> > the necessary C powers.
-> 
-> I wonder if what you're seein is related to
-> http://lkml.org/lkml/2006/12/16/73
-> 
-> You said that you don't see any corruption with 2.6.18.  Can you try
-> to apply the patch from
-> http://www2.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=d08b3851da41d0ee60851f2c75b118e1f7a5fc89
-> to 2.6.18 to see if the corruption shows up?
+On Sat, 2006-12-16 at 16:50 +0100, Martin Michlmayr wrote:
+> Debian recently applied a number of mm changes that went into 2.6.19
+> to their 2.6.18 kernel for LSB 3.1 compliance (msync() had problems
+> before).  Since then, some filesystem corruption has been observed
+> which can be traced back to these mm changes.  Is anyone aware of
+> problems with these patches?
 
-I did wonder about the very first hunk of Peter's patch, where the
-mapping->private_lock is unlocked earlier now in try_to_free_buffers,
-before the clear_page_dirty.  I'm not at all familiar with that area,
-I wonder if Jan has looked at that change, and might be able to say
-whether it's good or not (earlier he worried about his JBD changes,
-but they wouldn't be implicated if just 2.6.18+Peter's gives trouble).
+As said by Hugh, no we were not.
 
-Hugh
+> The patches that were applied are:
+> 
+>    - mm: tracking shared dirty pages
+>    - mm: balance dirty pages
+>    - mm: optimize the new mprotect() code a bit
+>    - mm: small cleanup of install_page()
+>    - mm: fixup do_wp_page()
+>    - mm: msync() cleanup
+> 
+> With these applied to 2.6.18, the Debian installer on a slow ARM
+> system fails because a program segfaults due to filesystem corruption:
+> http://bugs.debian.org/401980  This problem also occurs if you only
+> apply the "mm: tracking shared dirty pages" patch to 2.6.18 from the
+> series of 5 patches listed above.
+
+This made me think of a blog entry by DaveM from some time ago:
+  http://vger.kernel.org/~davem/cgi-bin/blog.cgi/2006/06/09
+
+> Another problem has been reported related to libtorrent: according to
+> http://bugs.debian.org/402707 someone also saw this with non-Debian
+> 2.6.19 but obviously it's hard to say whether the bugs are really
+> related.
+> http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=394392;msg=24 shows
+> some dmesg messages but again it's not 100% clear it's the same bug.
+> 
+> Has anyone else seen problems or is aware of a fix to the patches
+> listed above that I'm unaware of?  It's possible the problem only
+> shows up on slow systems. (The corruption is reproducible on a slow
+> NSLU2 ARM system with 32 MB ram, but it doesn't happen on a faster ARM
+> box with more RAM.)
+
+What is not clear from all these reports is what architectures this is
+seen on. I suspect some of them are i686, which together with the
+explicit mention of ARM make it a cross platform issue.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
