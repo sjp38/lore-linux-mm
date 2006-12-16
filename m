@@ -1,45 +1,121 @@
+Date: Sat, 16 Dec 2006 17:03:53 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] Fix sparsemem on Cell
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20061215165335.61D9F775@localhost.localdomain>
+Message-Id: <20061216170353.2dfa27b1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20061215114536.dc5c93af.akpm@osdl.org>
 References: <20061215165335.61D9F775@localhost.localdomain>
-Content-Type: text/plain
-Date: Sat, 16 Dec 2006 07:21:53 +1100
-Message-Id: <1166214113.31351.101.camel@localhost.localdomain>
+	<4582D756.7090702@shadowen.org>
+	<1166203440.8105.22.camel@localhost.localdomain>
+	<20061215114536.dc5c93af.akpm@osdl.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, apw@shadowen.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, akpm@osdl.org, paulus@samba.org, gone@us.ibm.com
+To: Andrew Morton <akpm@osdl.org>
+Cc: haveblue@us.ibm.com, apw@shadowen.org, cbe-oss-dev@ozlabs.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, mkravetz@us.ibm.com, hch@infradead.org, jk@ozlabs.org, linux-kernel@vger.kernel.org, paulus@samba.org, benh@kernel.crashing.org, gone@us.ibm.com, kmannth@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> The only other assumption is that all memory-hotplug-time pages 
-> given to memmap_init_zone() are valid and able to be onlined into
-> any any zone after the system is running.  The "valid" part is
-> really just a question of whether or not a 'struct page' is there
-> for the pfn, and *not* whether there is actual memory.  Since
-> all sparsemem sections have contiguous mem_map[]s within them,
-> and we only memory hotplug entire sparsemem sections, we can
-> be confident that this assumption will hold.
+On Fri, 15 Dec 2006 11:45:36 -0800
+Andrew Morton <akpm@osdl.org> wrote:
+
+> Perhaps if the function's role in the world was commented it would be clearer.
 > 
-> As for the memory being in the right node, we'll assume tha
-> memory hotplug is putting things in the right node.
 
-BTW, just that people know, what we are adding isn't even memory :-) We
-are calling __add_pages() to create struct page for the SPE local stores
-and register space as we use them later from a nopage() handler (and no,
-we can't use no_pfn just yet for various reasons, notably we need to
-handle races with unmap_mapping_ranges() and thus have the truncate
-logic in).
+How about patch like this ? (this one is not tested.)
+Already-exisiting-more-generic-flag is available ?
+ 
+-Kame
+==
+ include/linux/memory_hotplug.h |    8 ++++++++
+ mm/memory_hotplug.c            |   14 ++++++++++++++
+ mm/page_alloc.c                |   11 +++++++----
+ 3 files changed, 29 insertions(+), 4 deletions(-)
 
-Those pages, thus, must never be onlined. Ever. It might make sense to
-create a way to inform memory hotplug of that fact, but on the other
-hand, I wouldn't bother as I have a plan to get rid of those
-__add_pages() completely and work without struct page, maybe in a 2.6.21
-timeframe.
-
-Ben.
-
+Index: linux-2.6.20-rc1-mm1/include/linux/memory_hotplug.h
+===================================================================
+--- linux-2.6.20-rc1-mm1.orig/include/linux/memory_hotplug.h	2006-11-30 06:57:37.000000000 +0900
++++ linux-2.6.20-rc1-mm1/include/linux/memory_hotplug.h	2006-12-16 16:42:40.000000000 +0900
+@@ -133,6 +133,10 @@
+ #endif /* CONFIG_NUMA */
+ #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
+ 
++extern int under_memory_hotadd(void);
++
++
++
+ #else /* ! CONFIG_MEMORY_HOTPLUG */
+ /*
+  * Stub functions for when hotplug is off
+@@ -159,6 +163,10 @@
+ 	dump_stack();
+ 	return -ENOSYS;
+ }
++static inline int under_memory_hotadd()
++{
++	return 0;
++}
+ 
+ #endif /* ! CONFIG_MEMORY_HOTPLUG */
+ static inline int __remove_pages(struct zone *zone, unsigned long start_pfn,
+Index: linux-2.6.20-rc1-mm1/mm/memory_hotplug.c
+===================================================================
+--- linux-2.6.20-rc1-mm1.orig/mm/memory_hotplug.c	2006-12-16 14:24:10.000000000 +0900
++++ linux-2.6.20-rc1-mm1/mm/memory_hotplug.c	2006-12-16 16:51:08.000000000 +0900
+@@ -26,6 +26,17 @@
+ 
+ #include <asm/tlbflush.h>
+ 
++/*
++ * Because memory hotplug shares some codes for initilization with boot,
++ * we sometimes have to check what we are doing ?
++ */
++static atomic_t memory_hotadd_count;
++
++int under_memory_hotadd(void)
++{
++	return atomic_read(&memory_hotadd_count);
++}
++
+ /* add this memory to iomem resource */
+ static struct resource *register_memory_resource(u64 start, u64 size)
+ {
+@@ -273,10 +284,13 @@
+ 		if (ret)
+ 			goto error;
+ 	}
++	atomic_inc(&memory_hotadd_count);
+ 
+ 	/* call arch's memory hotadd */
+ 	ret = arch_add_memory(nid, start, size);
+ 
++	atomic_dec(&memory_hotadd_count);
++
+ 	if (ret < 0)
+ 		goto error;
+ 
+Index: linux-2.6.20-rc1-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.20-rc1-mm1.orig/mm/page_alloc.c	2006-12-16 14:24:38.000000000 +0900
++++ linux-2.6.20-rc1-mm1/mm/page_alloc.c	2006-12-16 16:53:02.000000000 +0900
+@@ -2069,10 +2069,13 @@
+ 	unsigned long pfn;
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+-		if (!early_pfn_valid(pfn))
+-			continue;
+-		if (!early_pfn_in_nid(pfn, nid))
+-			continue;
++		if (!under_memory_hotadd()) {
++			/* we are in boot */
++			if (!early_pfn_valid(pfn))
++				continue;
++			if (!early_pfn_in_nid(pfn, nid))
++				continue;
++		}
+ 		page = pfn_to_page(pfn);
+ 		set_page_links(page, zone, nid, pfn);
+ 		init_page_count(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
