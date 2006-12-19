@@ -1,38 +1,54 @@
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] Fix sparsemem on Cell
-Date: Tue, 19 Dec 2006 09:59:45 +0100
-References: <20061215165335.61D9F775@localhost.localdomain> <200612182354.47685.arnd@arndb.de> <1166483780.8648.26.camel@localhost.localdomain>
-In-Reply-To: <1166483780.8648.26.camel@localhost.localdomain>
+Date: Tue, 19 Dec 2006 20:01:15 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] handle SLOB with sparsemen
+In-Reply-To: <20061218213009.91101cdd.randy.dunlap@oracle.com>
+References: <20061218213009.91101cdd.randy.dunlap@oracle.com>
+Message-Id: <20061219195657.6835.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 8BIT
-Content-Disposition: inline
-Message-Id: <200612190959.47344.arnd@arndb.de>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@osdl.org>, kmannth@us.ibm.com, linux-kernel@vger.kernel.org, hch@infradead.org, linux-mm@kvack.org, paulus@samba.org, mkravetz@us.ibm.com, gone@us.ibm.com, cbe-oss-dev@ozlabs.org
+To: akpm <akpm@osdl.org>
+Cc: linux-mm@kvack.org, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 19 December 2006 00:16, Dave Hansen wrote:
-> How about an enum, or a pair of #defines?
+> (seems to have been lost)
+
+Ah, yes. Andrew-san, please apply.
+
 > 
-> enum context
-> {
->         EARLY,
->         HOTPLUG
-> };
+> This is to disallow to make SLOB with SMP or SPARSEMEM.
+> This avoids latent troubles of SLOB with SLAB_DESTROY_BY_RCU.
+> And fix compile error.
+> 
+> This patch is for 2.6.19-rc5-mm2.
+> 
+> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+> Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Acked-by: Hugh Dickins <hugh@veritas.com>
+> ----
+>  init/Kconfig |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- linux-2.6.20-rc1-mm1.orig/init/Kconfig
+> +++ linux-2.6.20-rc1-mm1/init/Kconfig
+> @@ -476,7 +476,7 @@ config SHMEM
+>  
+>  config SLAB
+>  	default y
+> -	bool "Use full SLAB allocator" if EMBEDDED
+> +	bool "Use full SLAB allocator" if (EMBEDDED && !SMP && !SPARSEMEM)
+>  	help
+>  	  Disabling this replaces the advanced SLAB allocator and
+>  	  kmalloc support with the drastically simpler SLOB allocator.
+> 
+> 
+> ---
 
-Sounds good, but since this is in a global header file, it needs
-to be in an appropriate name space, like
+-- 
+Yasunori Goto 
 
-enum memmap_context {
-	MEMMAP_EARLY,
-	MEMMAP_HOTPLUG,
-};
-
-	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
