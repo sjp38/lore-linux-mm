@@ -1,52 +1,46 @@
-Message-ID: <458760B0.7090803@yahoo.com.au>
-Date: Tue, 19 Dec 2006 14:46:56 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] Fix area->nr_free-- went (-1) issue in buddy system
-References: <6d6a94c50612181901m1bfd9d1bsc2d9496ab24eb3f8@mail.gmail.com>
-In-Reply-To: <6d6a94c50612181901m1bfd9d1bsc2d9496ab24eb3f8@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Mon, 18 Dec 2006 21:30:09 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH] handle SLOB with sparsemen
+Message-Id: <20061218213009.91101cdd.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Aubrey <aubreylee@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: akpm <akpm@osdl.org>, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Aubrey wrote:
-> Hi all,
-> 
-> When I setup two zones (NORMAL and DMA) in my system, I got the
-> following wired result from /proc/buddyinfo.
-> ----------------------------------------------------------------------------------------- 
-> 
-> root:~> cat /proc/buddyinfo
-> Node 0, zone      DMA      2      1      2      1      1      0      0
->     1      1      2      2      0      0      0
-> Node 0, zone   Normal      1      1      1      1      1      1      0
->     0 4294967295      0 4294967295      2      0      0
-> ----------------------------------------------------------------------------------------- 
-> 
-> 
-> As you see, two area->nr_free went -1.
-> 
-> After dig into the code, I found the problem is in the fun
-> __free_one_page() when the kernel boot up call free_all_bootmem(). If
-> two zones setup, it's possible NORMAL zone merged a block whose order
-> =8 at the first time(this time zone[NORMA]->free_area[8].nr_free = 0)
-> and found its buddy in the DMA zone. So the two blocks will be merged
-> and area->nr_free went to -1.
+(seems to have been lost)
 
-This should not happen because the pages are checked to ensure they are
-from the same zone before merging.
+This is to disallow to make SLOB with SMP or SPARSEMEM.
+This avoids latent troubles of SLOB with SLAB_DESTROY_BY_RCU.
+And fix compile error.
 
-What kind of system do you have? What is the dmesg and the .config? It
-could be that the zones are not properly aligned and CONFIG_HOLES_IN_ZONE
-is not set.
+This patch is for 2.6.19-rc5-mm2.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
+Acked-by: Hugh Dickins <hugh@veritas.com>
+----
+ init/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- linux-2.6.20-rc1-mm1.orig/init/Kconfig
++++ linux-2.6.20-rc1-mm1/init/Kconfig
+@@ -476,7 +476,7 @@ config SHMEM
+ 
+ config SLAB
+ 	default y
+-	bool "Use full SLAB allocator" if EMBEDDED
++	bool "Use full SLAB allocator" if (EMBEDDED && !SMP && !SPARSEMEM)
+ 	help
+ 	  Disabling this replaces the advanced SLAB allocator and
+ 	  kmalloc support with the drastically simpler SLOB allocator.
+
+
+---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
