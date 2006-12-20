@@ -1,70 +1,174 @@
-Received: by ug-out-1314.google.com with SMTP id s2so1951258uge
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2006 00:50:46 -0800 (PST)
-Message-ID: <cda58cb80612200050h6def9866nf1798753da9d842d@mail.gmail.com>
-Date: Wed, 20 Dec 2006 09:50:46 +0100
-From: "Franck Bui-Huu" <vagabon.xyz@gmail.com>
-Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
-In-Reply-To: <45a44e480612162025n5d7c77bdkc825e94f1fb37904@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Dec 2006 11:51:16 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: do we have mmap abuse in ehca ?, was Re:  mmap abuse in ehca
+Message-ID: <20061220115116.GA25709@infradead.org>
+References: <20061219113502.GA1416@infradead.org> <OF78487656.FBBD715F-ONC125724A.00287BE6-C125724A.002F4756@de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
-	 <457D895D.4010500@innova-card.com>
-	 <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
-	 <cda58cb80612130038x6b81a00dv813d10726d495eda@mail.gmail.com>
-	 <45a44e480612162025n5d7c77bdkc825e94f1fb37904@mail.gmail.com>
+In-Reply-To: <OF78487656.FBBD715F-ONC125724A.00287BE6-C125724A.002F4756@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Raisch <RAISCH@de.ibm.com>
+Cc: Hoang-Nam Nguyen <hnguyen@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/17/06, Jaya Kumar <jayakumar.lkml@gmail.com> wrote:
-> Ok. I now see what you mean. In typical cases, only one path is used
-> to write. Meaning an app will decide to use the mmap path or the slow
-> write path and the kernel only ever reads from its pte entry (unless
-> fbcon is used which is not suited for this type of display).
+On Wed, Dec 20, 2006 at 09:36:23AM +0100, Christoph Raisch wrote:
+> let me first try to show what functionality we need...
+> The ehca userspace driver needs 2 types of kernel/hw memory mapped into
+> userspace,
+> 
+> 1) 4k pages provided by HW, one per queue, mostly used for signalling
+>    from userspace to hardware that new send/receive/poll queue entries are
+>    available. In kernel that's the typical candidate for ioremap.
+>    For these areas we use ehca_mmap_register to do the actual mapping into
+>    a mm
+> 2) the actual queue memory itself, which has been allocated by
+>    get_zeroed_page(GPF_KERNEL). These pages need to be written by userspace
+> and
+>    read by the ehca, or the other way around
+>    For these areas we use ehca_mmap_nopage to do the mapping into
+>    a mm
+> 
+> 
+> 
+> let me try to explain what we thought this code should do....
+> 
+> Christoph Hellwig wrote on 19.12.2006 12:35:02:
+> >
+> > Folks, could you explain what this code is actually trying to do.
+> > Just to quote it in a little more detail the code looks like this:
+> >
+> > int ehca_mmap_nopage(u64 foffset, u64 length, void **mapped,
+> >                      struct vm_area_struct **vma)
+> > {
+> this is what a anonymous mapping request from userspace would do.
+> We didn't want to reimplement the complete mmap code in a driver
 
-Even if the kernel does only reads, you can be in trouble. For
-example, the kernel access (by reading) to a data A through the cache
-line 1. The application access (by writing a new value) data A through
-the cahe line 5. Now it's time to update your frame buffer, so the
-kernel access to data A through the cache line 1 which still contains
-the _stall_ value.
+Yes, this function is what an anonoyomus _shared_ mmap would do from
+userspace.  And there is absolutely zero reason to do such an anonymous
+mmap from kernel space at all.  There's a very nice mmap sysall for
+it and it's what you should use.
 
-Note that flushing data  before the kernel access it does not solve
-any problems. If the kernel is allowed to write into the frame buffer,
-the kernel don't know which line stores the up to date data...
+> unfortunately you don't get back a vma ...
 
-> But you
-> are right that it is possible for a situation to arise where one app
-> does mmap and another is doing write.
+And that's for a reason.  
 
-I would say that should be a safe case. Nornally the kernel takes care
-to flush caches between context switches (depending on your cache
-architecture). But it's only a guess, I haven't checked the code...
+> ...but you need the vma for installing nopage handlers
+> therefore:
 
-> My hope is that something takes
-> care of flushing the data cache for me in this case. Do you recommend
-> I add something to force that?
+As you absoutley must not install nopage handlers on anonymous vmas.
+If you want a mmap you need a filedescriptor to map and can easily
+install handlers and flags into your ->mmap routine.
 
-Well I'm not the right person to answer this question. I haven't
-looked at how Linux handles cache consistency yet. Knowing that I can
-give you only 2 recommandations:
+> >    *vma = find_vma(current->mm, (u64)*mapped);
+> >    if (!(*vma)) {
+> >       down_write(&current->mm->mmap_sem);
+> >       do_munmap(current->mm, 0, length);
+> >       up_write(&current->mm->mmap_sem);
+> >       ehca_gen_err("couldn't find vma queue=%p", *mapped);
+> >       return -EINVAL;
+> >    }
+> >
+> ...that should be straight forward file mmap code
+> The memory we're using shouldn't be handled by copy on write,
+> should not be swapped, its used by DMA from the hardware.
+> And it shouldn't get merged
+> In case of a fork we would like to get a pagefault in the new process if
+> he accesses this queue and a unchanged forking process.
+> Is VM_RESERVED ok for that type of vma?
 
-    - disable the cache when accessing your frame buffer (kernel and
-applications).
+No, the whole code is completely broken.  You need to implement an
+mmap routine on your own file descriptor and simply nack it by
+pages you got from alloc_page
 
-    - when mmaping your frame buffer , be sure that the virtual
-address returned by
-      mmap() to the application shares the same cache lines than the
-ones the kernel
-      is using.
+> >    ret = remap_pfn_range((*vma), (*vma)->vm_start,
+> >                physical >> PAGE_SHIFT,
+> >                vsize,
+> >                (*vma)->vm_page_prot);
+> >
+> > Aside from the very questionably naming of ehca_mmap_nopage this maps
+> > anonymous shared memory into a random location in the calling process
+> > from something that is not defined to change the callers address space,
+> 
+> these mappings occur exactly when the user calls create_qp and create_cq,
+> an ib user actually "wants" to have these queues in its adress space.
+> We though that the closest we could get to a mmap(NULL,...) from userspace.
 
-Hoping it helps,
--- 
-               Franck
+If user wants queues in it's address space the user (or rather a library)
+should call mmap on the device files for your queue pairs.  Remember we
+have this nice abstraction in unix where a device is a file you can do
+operations and not something that magically appears in your process like
+certain z/OS abstractions ;-)
+
+To repeat it remap_pfn_range is just fine, it just really needs to be
+called from ->mmap.  Alternatively you could also do a demand faulting
+variant using vm_insert_page that might provide further advantages.
+
+> > then racy looks up the vma for it and sets the VM_RESERVED flags and
+> > vm ops on this anonoymous vma.
+> could you explain where the race comes in?
+> How would that be different from a user calling mmap?
+
+The find_vma looks up the vma at the address you previously installed
+your hacked vma.  But there is no exclusion against other threads
+unmapping that region in the meantime, so you affectively mess with
+a random vma.
+
+> > This is definitly not
+> > how the mmap infrastructure should be used.
+> >
+> > I'd go as far as saying do_mmap(_pgoff) should not be exported at all,
+> > but we'd need to fix similar braindamage in drm first.
+> Maybe we shouldn't have looked at that driver how to use mmap
+> within the kernel while examining HOW to implement what we needed.
+> What other methods would you suggest?
+> Is there already a "proper" usage pattern for what we need in the
+> kernel?
+
+Pretty much every other mmap routine ;-)
+
+remap_pfn_range useage is obviously really trivial with a mmap routine,
+it's just a few lines of code when done proper, e.g. take a look at
+drivers/char/mbcs.c:
+
+int mbcs_gscr_mmap(struct file *fp, struct vm_area_struct *vma)
+{
+        struct cx_dev *cx_dev = fp->private_data;
+	struct mbcs_soft *soft = cx_dev->soft;
+
+	if (vma->vm_pgoff != 0)
+		return -EINVAL;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (remap_pfn_range(vma,
+			    vma->vm_start,
+			    __pa(soft->gscr_addr) >> PAGE_SHIFT,
+			    PAGE_SIZE,
+			    vma->vm_page_prot))
+		return -EAGAIN;
+		
+	return 0;
+}
+
+That's it.  if you dont need it you can remove the noncached setting, if
+you need you can add more checks, etc.
+
+Similary for the nopage variant you can just keep your nopage handle
+and have a trivial no-op ->mmap routine similar to drivers/kvm/kvm_main.c:
+
+static int kvm_dev_mmap(struct file *file, struct vm_area_struct *vma)
+{
+        vma->vm_ops = &kvm_dev_vm_ops;
+	return 0;
+}
+
+Note directly related but also important is that instead of abusing
+vm_pgoff for switching the type of mmap region you should
+simply have different nopage routines and vma_operations for them -
+the only code shared by the different case in ehca_nopage is the
+get_page() anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
