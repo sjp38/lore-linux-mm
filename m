@@ -1,196 +1,148 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id kBJJZjb4030172
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2006 14:35:45 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kBJJYfTU291490
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2006 14:34:41 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kBJJYeb2027810
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2006 14:34:41 -0500
-Subject: Re: [PATCH] Fix sparsemem on Cell
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200612190959.47344.arnd@arndb.de>
-References: <20061215165335.61D9F775@localhost.localdomain>
-	 <200612182354.47685.arnd@arndb.de>
-	 <1166483780.8648.26.camel@localhost.localdomain>
-	 <200612190959.47344.arnd@arndb.de>
-Content-Type: text/plain
-Date: Tue, 19 Dec 2006 11:34:34 -0800
-Message-Id: <1166556874.7834.24.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id kBK8aPCA062976
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2006 08:36:25 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id kBK8aPSI2789376
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2006 09:36:25 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id kBK8aPKG022797
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2006 09:36:25 +0100
+In-Reply-To: <20061219113502.GA1416@infradead.org>
+Subject: Re: do we have mmap abuse in ehca ?, was Re:  mmap abuse in ehca
+Message-ID: <OF78487656.FBBD715F-ONC125724A.00287BE6-C125724A.002F4756@de.ibm.com>
+From: Christoph Raisch <RAISCH@de.ibm.com>
+Date: Wed, 20 Dec 2006 09:36:23 +0100
+MIME-Version: 1.0
+Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@osdl.org>, kmannth@us.ibm.com, linux-kernel@vger.kernel.org, hch@infradead.org, linux-mm@kvack.org, paulus@samba.org, mkravetz@us.ibm.com, gone@us.ibm.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Hoang-Nam Nguyen <hnguyen@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pulling cbe... list off the cc because it is giving annoying 'too many
-recipients' warnings.
+let me first try to show what functionality we need...
+The ehca userspace driver needs 2 types of kernel/hw memory mapped into
+userspace,
 
-On Tue, 2006-12-19 at 09:59 +0100, Arnd Bergmann wrote:
-> On Tuesday 19 December 2006 00:16, Dave Hansen wrote:
-> > How about an enum, or a pair of #defines?
-> > 
-> > enum context
-> > {
-> >         EARLY,
-> >         HOTPLUG
-> > };
-
-This patch should do the trick.  Arnd, can you try this to make sure it
-solves the issue?  Also, if you get a chance, could you do a quick s390
-boot of it?  It was the only arch touched by this whole thing.
-
-It compiles on all of my i386 .configs.
-
---
-
-The following patch fixes an oops experienced on the Cell architecture
-when init-time functions, early_*(), are called at runtime.  It alters
-the call paths to make sure that the callers explicitly say whether the
-call is being made on behalf of a hotplug even, or happening at
-boot-time. 
-
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
-
----
-
- lxc-dave/arch/s390/mm/vmem.c    |    3 ++-
- lxc-dave/include/linux/mm.h     |    7 ++++++-
- lxc-dave/include/linux/mmzone.h |    3 ++-
- lxc-dave/mm/memory_hotplug.c    |    6 ++++--
- lxc-dave/mm/page_alloc.c        |   25 +++++++++++++++++--------
- 5 files changed, 31 insertions(+), 13 deletions(-)
-
-diff -puN mm/page_alloc.c~sparsemem-enum1 mm/page_alloc.c
---- lxc/mm/page_alloc.c~sparsemem-enum1	2006-12-19 09:38:34.000000000 -0800
-+++ lxc-dave/mm/page_alloc.c	2006-12-19 11:18:24.000000000 -0800
-@@ -2062,17 +2062,24 @@ static inline unsigned long wait_table_b
-  * done. Non-atomic initialization, single-pass.
-  */
- void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
--		unsigned long start_pfn)
-+		unsigned long start_pfn, enum memmap_context context)
- {
- 	struct page *page;
- 	unsigned long end_pfn = start_pfn + size;
- 	unsigned long pfn;
- 
- 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
--		if (!early_pfn_valid(pfn))
--			continue;
--		if (!early_pfn_in_nid(pfn, nid))
--			continue;
-+		/*
-+		 * There can be holes in boot-time mem_map[]s
-+		 * handed to this function.  They do not
-+		 * exist on hotplugged memory.
-+		 */
-+		if (context == MEMMAP_EARLY) {
-+			if (!early_pfn_valid(pfn))
-+				continue;
-+			if (!early_pfn_in_nid(pfn, nid))
-+				continue;
-+		}
- 		page = pfn_to_page(pfn);
- 		set_page_links(page, zone, nid, pfn);
- 		init_page_count(page);
-@@ -2102,7 +2109,7 @@ void zone_init_free_lists(struct pglist_
- 
- #ifndef __HAVE_ARCH_MEMMAP_INIT
- #define memmap_init(size, nid, zone, start_pfn) \
--	memmap_init_zone((size), (nid), (zone), (start_pfn))
-+	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
- #endif
- 
- static int __cpuinit zone_batchsize(struct zone *zone)
-@@ -2348,7 +2355,8 @@ static __meminit void zone_pcp_init(stru
- 
- __meminit int init_currently_empty_zone(struct zone *zone,
- 					unsigned long zone_start_pfn,
--					unsigned long size)
-+					unsigned long size,
-+					enum memmap_context context)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
- 	int ret;
-@@ -2792,7 +2800,8 @@ static void __meminit free_area_init_cor
- 		if (!size)
- 			continue;
- 
--		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
-+		ret = init_currently_empty_zone(zone, zone_start_pfn,
-+						size, MEMMAP_EARLY);
- 		BUG_ON(ret);
- 		zone_start_pfn += size;
- 	}
-diff -puN include/linux/mm.h~sparsemem-enum1 include/linux/mm.h
---- lxc/include/linux/mm.h~sparsemem-enum1	2006-12-19 09:38:45.000000000 -0800
-+++ lxc-dave/include/linux/mm.h	2006-12-19 09:50:47.000000000 -0800
-@@ -979,7 +979,12 @@ extern int early_pfn_to_nid(unsigned lon
- #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
- extern void set_dma_reserve(unsigned long new_dma_reserve);
--extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long);
-+enum memmap_context {
-+	MEMMAP_EARLY,
-+	MEMMAP_HOTPLUG,
-+};
-+extern void memmap_init_zone(unsigned long, int, unsigned long,
-+				unsigned long, enum memmap_context);
- extern void setup_per_zone_pages_min(void);
- extern void mem_init(void);
- extern void show_mem(void);
-diff -puN mm/memory_hotplug.c~sparsemem-enum1 mm/memory_hotplug.c
---- lxc/mm/memory_hotplug.c~sparsemem-enum1	2006-12-19 09:39:19.000000000 -0800
-+++ lxc-dave/mm/memory_hotplug.c	2006-12-19 09:50:24.000000000 -0800
-@@ -67,11 +67,13 @@ static int __add_zone(struct zone *zone,
- 	zone_type = zone - pgdat->node_zones;
- 	if (!populated_zone(zone)) {
- 		int ret = 0;
--		ret = init_currently_empty_zone(zone, phys_start_pfn, nr_pages);
-+		ret = init_currently_empty_zone(zone, phys_start_pfn,
-+						nr_pages, MEMMAP_HOTPLUG);
- 		if (ret < 0)
- 			return ret;
- 	}
--	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
-+	memmap_init_zone(nr_pages, nid, zone_type,
-+			 phys_start_pfn, MEMMAP_HOTPLUG);
- 	return 0;
- }
- 
-diff -puN arch/s390/mm/vmem.c~sparsemem-enum1 arch/s390/mm/vmem.c
---- lxc/arch/s390/mm/vmem.c~sparsemem-enum1	2006-12-19 09:42:26.000000000 -0800
-+++ lxc-dave/arch/s390/mm/vmem.c	2006-12-19 11:17:49.000000000 -0800
-@@ -61,7 +61,8 @@ void memmap_init(unsigned long size, int
- 
- 		if (map_start < map_end)
- 			memmap_init_zone((unsigned long)(map_end - map_start),
--					 nid, zone, page_to_pfn(map_start));
-+					 nid, zone, page_to_pfn(map_start),
-+					 context);
- 	}
- }
- 
-diff -puN include/linux/mmzone.h~sparsemem-enum1 include/linux/mmzone.h
---- lxc/include/linux/mmzone.h~sparsemem-enum1	2006-12-19 09:48:58.000000000 -0800
-+++ lxc-dave/include/linux/mmzone.h	2006-12-19 09:53:42.000000000 -0800
-@@ -474,7 +474,8 @@ int zone_watermark_ok(struct zone *z, in
- 		int classzone_idx, int alloc_flags);
- 
- extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
--				     unsigned long size);
-+				     unsigned long size,
-+				     enum memmap_context context);
- 
- #ifdef CONFIG_HAVE_MEMORY_PRESENT
- void memory_present(int nid, unsigned long start, unsigned long end);
-_
+1) 4k pages provided by HW, one per queue, mostly used for signalling
+   from userspace to hardware that new send/receive/poll queue entries are
+   available. In kernel that's the typical candidate for ioremap.
+   For these areas we use ehca_mmap_register to do the actual mapping into
+   a mm
+2) the actual queue memory itself, which has been allocated by
+   get_zeroed_page(GPF_KERNEL). These pages need to be written by userspace
+and
+   read by the ehca, or the other way around
+   For these areas we use ehca_mmap_nopage to do the mapping into
+   a mm
 
 
--- Dave
+
+let me try to explain what we thought this code should do....
+
+Christoph Hellwig wrote on 19.12.2006 12:35:02:
+>
+> Folks, could you explain what this code is actually trying to do.
+> Just to quote it in a little more detail the code looks like this:
+>
+> int ehca_mmap_nopage(u64 foffset, u64 length, void **mapped,
+>                      struct vm_area_struct **vma)
+> {
+this is what a anonymous mapping request from userspace would do.
+We didn't want to reimplement the complete mmap code in a driver
+>    down_write(&current->mm->mmap_sem);
+>    *mapped = (void*)do_mmap(NULL,0, length, PROT_WRITE,
+>                   MAP_SHARED | MAP_ANONYMOUS,
+>              foffset);
+>    up_write(&current->mm->mmap_sem);
+>
+>    if (!(*mapped)) {
+>       ehca_gen_err("couldn't mmap foffset=%lx length=%lx",
+>               foffset, length);
+>       return -EINVAL;
+>    }
+>
+unfortunately you don't get back a vma ...
+...but you need the vma for installing nopage handlers
+therefore:
+>    *vma = find_vma(current->mm, (u64)*mapped);
+>    if (!(*vma)) {
+>       down_write(&current->mm->mmap_sem);
+>       do_munmap(current->mm, 0, length);
+>       up_write(&current->mm->mmap_sem);
+>       ehca_gen_err("couldn't find vma queue=%p", *mapped);
+>       return -EINVAL;
+>    }
+>
+...that should be straight forward file mmap code
+The memory we're using shouldn't be handled by copy on write,
+should not be swapped, its used by DMA from the hardware.
+And it shouldn't get merged
+In case of a fork we would like to get a pagefault in the new process if
+he accesses this queue and a unchanged forking process.
+Is VM_RESERVED ok for that type of vma?
+>    (*vma)->vm_flags |= VM_RESERVED;
+>    (*vma)->vm_ops = &ehcau_vm_ops;
+>
+>    return 0;
+> }
+>
+> the worst caller then continues as:
+>
+> int ehca_mmap_register(u64 physical, void **mapped,
+>                        struct vm_area_struct **vma)
+> {
+>    int ret;
+>    unsigned long vsize;
+>    /* ehca hw supports only 4k page */
+>    ret = ehca_mmap_nopage(0, EHCA_PAGESIZE, mapped, vma);
+>
+>    (*vma)->vm_flags |= VM_RESERVED;
+>    vsize = (*vma)->vm_end - (*vma)->vm_start;
+>    if (vsize != EHCA_PAGESIZE) {
+>       ehca_gen_err("invalid vsize=%lx",
+>               (*vma)->vm_end - (*vma)->vm_start);
+>       return -EINVAL;
+>    }
+>
+>    (*vma)->vm_page_prot = pgprot_noncached((*vma)->vm_page_prot);
+>    (*vma)->vm_flags |= VM_IO | VM_RESERVED;
+>
+>    ret = remap_pfn_range((*vma), (*vma)->vm_start,
+>                physical >> PAGE_SHIFT,
+>                vsize,
+>                (*vma)->vm_page_prot);
+>
+> Aside from the very questionably naming of ehca_mmap_nopage this maps
+> anonymous shared memory into a random location in the calling process
+> from something that is not defined to change the callers address space,
+
+these mappings occur exactly when the user calls create_qp and create_cq,
+an ib user actually "wants" to have these queues in its adress space.
+We though that the closest we could get to a mmap(NULL,...) from userspace.
+
+> then racy looks up the vma for it and sets the VM_RESERVED flags and
+> vm ops on this anonoymous vma.
+could you explain where the race comes in?
+How would that be different from a user calling mmap?
+
+> Not enough ehca_mmap_register then does
+> a remap_pfn_range into that anonymous vma.
+We want to map bus adresses into userspace in this case...
+...just as mmap from userspace... ?
+
+> This is definitly not
+> how the mmap infrastructure should be used.
+>
+> I'd go as far as saying do_mmap(_pgoff) should not be exported at all,
+> but we'd need to fix similar braindamage in drm first.
+Maybe we shouldn't have looked at that driver how to use mmap
+within the kernel while examining HOW to implement what we needed.
+What other methods would you suggest?
+Is there already a "proper" usage pattern for what we need in the
+kernel?
+
+Christoph Raisch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
