@@ -1,35 +1,56 @@
-Message-ID: <367118962.32541@ustc.edu.cn>
-Date: Tue, 26 Dec 2006 15:42:57 +0800
-From: Fengguang Wu <fengguang.wu@gmail.com>
-Subject: Re: [PATCH] Sanely size hash tables when using large base pages.
-Message-ID: <20061226074257.GA5853@mail.ustc.edu.cn>
-References: <20061226061652.GA598@linux-sh.org>
+Message-ID: <1167152987.4591575b1a824@imp8-g19.free.fr>
+Date: Tue, 26 Dec 2006 18:09:47 +0100
+From: dimitri.gorokhovik@free.fr
+Subject: [PATCH 1/1 2.6.20-rc2] MM: ramfs breaks without CONFIG_BLOCK
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20061226061652.GA598@linux-sh.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
+From: Dimitri Gorokhovik <dimitri.gorokhovik@free.fr>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@osdl.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Paul,
+ramfs doesn't provide the .set_dirty_page a_op, and when the BLOCK
+layer is not configured in, 'set_page_dirty' makes a call via a NULL
+pointer.
 
-On Tue, Dec 26, 2006 at 03:16:52PM +0900, Paul Mundt wrote:
->  	pidhash_shift = max(4, fls(megabytes * 4));
->  	pidhash_shift = min(12, pidhash_shift);
->  	pidhash_size = 1 << pidhash_shift;
->  
-> +	size = pidhash_size * sizeof(struct hlist_head);
-> +	if (unlikely(size < PAGE_SIZE)) {
-> +		size = PAGE_SIZE;
-> +		pidhash_size = size / sizeof(struct hlist_head);
-> +		pidhash_shift = 0;
+Signed-off-by: Dimitri Gorokhovik <dimitri.gorokhovik@free.fr>
 
-But pidhash_shift is not the order of page ;-)
+---
 
-Regards,
-Wu
+--- linux-2.6.20-rc2-orig/mm/page-writeback.c	2006-12-26
+15:12:21.000000000 +0100
++++ linux-2.6.20-rc2/mm/page-writeback.c	2006-12-26 18:32:26.000000000
++0100
+@@ -800,8 +800,8 @@ int redirty_page_for_writepage(struct wr
+ EXPORT_SYMBOL(redirty_page_for_writepage);
+
+ /*
+- * If the mapping doesn't provide a set_page_dirty a_op, then
+- * just fall through and assume that it wants buffer_heads.
++ * If the mapping doesn't provide a set_page_dirty a_op, and the BLOCK
+layer is
++ * available, just fall through and assume that it wants buffer_heads.
+  */
+ int fastcall set_page_dirty(struct page *page)
+ {
+@@ -812,8 +812,12 @@ int fastcall set_page_dirty(struct page
+ #ifdef CONFIG_BLOCK
+ 		if (!spd)
+ 			spd = __set_page_dirty_buffers;
+-#endif
+ 		return (*spd)(page);
++#else
++		if (spd)
++			return (*spd)(page);
++#endif
++
+ 	}
+ 	if (!PageDirty(page)) {
+ 		if (!TestSetPageDirty(page))
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
