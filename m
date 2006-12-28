@@ -1,51 +1,42 @@
+Date: Thu, 28 Dec 2006 19:36:08 +0100 (MET)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
 Subject: Re: [PATCH] introduce config option to disable DMA zone on i386
-From: Arjan van de Ven <arjan@infradead.org>
 In-Reply-To: <20061228170302.GA4335@dmt>
+Message-ID: <Pine.LNX.4.61.0612281933570.23545@yvahk01.tjqt.qr>
 References: <20061228170302.GA4335@dmt>
-Content-Type: text/plain
-Date: Thu, 28 Dec 2006 18:43:03 +0100
-Message-Id: <1167327784.3281.4341.camel@laptopd505.fenrus.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@kvack.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, olpc-devel@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2006-12-28 at 15:03 -0200, Marcelo Tosatti wrote:
-> Hi,
-> 
-> The following patch adds a config option to get rid of the DMA zone on i386.
-> 
-> Architectures with devices that have no addressing limitations (eg. PPC)
-> already work this way.
-> 
-> This is useful for custom kernel builds where the developer is certain that 
-> there are no address limitations.
-> 
-> For example, the OLPC machine contains:
-> 
-> - USB devices
-> - no floppy
-> - no address limited PCI devices
-> - no floppy
-> 
-> A unified zone simplifies VM reclaiming work, and also simplifies OOM
-> killer heuristics (no need to deal with OOM on the DMA zone).
-> 
-> Comments?
+On Dec 28 2006 15:03, Marcelo Tosatti wrote:
+>
+>Comments?
+>
+>+config NO_DMA_ZONE
+         ^^^^^^
+>+	bool "DMA zone support"
+              ^^^
+>+	default n
+                ^
+>+	help
+>+	 This disables support for the 16MiB DMA zone. Only enable this 
+>+	 option if you are certain that your devices contain no DMA
+>+	 addressing limitations.
 
-Hi,
+The naming could be a bit better. If I have
+  [*] DMA zone support
+it should actually enable the DMA zone, not disable it. Wind it like you
+prefer, either
+(1) config NO_DMA_ZONE, bool "Disable DMA zone" default n or
+(2) config DMA_ZONE, bool "[Enable] DMA zone" default y
 
-since one gets random corruption if a user gets this wrong, at least
-make things like floppy and all CONFIG_ISA stuff conflict with this
-option.... without that your patch feels like a walking time bomb...
-(and please include all PCI drivers that only can do 24 bit or 28bit
-or .. non-32bit dma as well)
 
-Greetings,
-   Arjan van de Ven
+	-`J'
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
