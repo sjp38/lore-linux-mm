@@ -1,44 +1,78 @@
-Received: by an-out-0708.google.com with SMTP id b38so1097768ana
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2006 19:53:13 -0800 (PST)
-Message-ID: <45a44e480612271953we6fe8adg118560161579b7f9@mail.gmail.com>
-Date: Thu, 28 Dec 2006 04:53:13 +0100
-From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
-Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
-In-Reply-To: <cda58cb80612220157q5433c346pccd06b8b7cbaadba@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 28 Dec 2006 15:03:02 -0200
+From: Marcelo Tosatti <marcelo@kvack.org>
+Subject: [PATCH] introduce config option to disable DMA zone on i386
+Message-ID: <20061228170302.GA4335@dmt>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
-	 <457D895D.4010500@innova-card.com>
-	 <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
-	 <cda58cb80612130038x6b81a00dv813d10726d495eda@mail.gmail.com>
-	 <45a44e480612162025n5d7c77bdkc825e94f1fb37904@mail.gmail.com>
-	 <cda58cb80612200050h6def9866nf1798753da9d842d@mail.gmail.com>
-	 <cda58cb80612220157q5433c346pccd06b8b7cbaadba@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Franck Bui-Huu <vagabon.xyz@gmail.com>
-Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, olpc-devel@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/22/06, Franck Bui-Huu <vagabon.xyz@gmail.com> wrote:
->
-> Well thinking more about it, this wouldn't work for all cache types.
-> For example, if your cache is not a direct maped one, this workaround
-> won't work. So this is definitely not a portable solution.
->
+Hi,
 
->From asking peterz on #mm, I think page_mkclean will do the right
-thing and call something like flush_cache_page. I think that resolves
-the issue which I think you identified where the end symptom on archs
-with virtually tagged caches could be a line of pixels written by
-userspace through one PTE remain in-cache and therefore "undisplayed"
-when the kernel reads through another PTE that may fall on a different
-cacheline.
+The following patch adds a config option to get rid of the DMA zone on i386.
 
-Thanks,
-jayakumar
+Architectures with devices that have no addressing limitations (eg. PPC)
+already work this way.
+
+This is useful for custom kernel builds where the developer is certain that 
+there are no address limitations.
+
+For example, the OLPC machine contains:
+
+- USB devices
+- no floppy
+- no address limited PCI devices
+- no floppy
+
+A unified zone simplifies VM reclaiming work, and also simplifies OOM
+killer heuristics (no need to deal with OOM on the DMA zone).
+
+Comments?
+
+diff --git a/arch/i386/Kconfig b/arch/i386/Kconfig
+index 0d67a0a..8d4dd5e 100644
+--- a/arch/i386/Kconfig
++++ b/arch/i386/Kconfig
+@@ -547,6 +547,18 @@ choice
+ 		bool "1G/3G user/kernel split"
+ endchoice
+ 
++config NO_DMA_ZONE
++	bool "DMA zone support"
++	default n
++	help
++	 This disables support for the 16MiB DMA zone. Only enable this 
++	 option if you are certain that your devices contain no DMA
++	 addressing limitations. A few of them which do: 
++	 	- floppy
++	 	- ISA devices
++	 	- some PCI devices (soundcards, etc)
++
++
+ config PAGE_OFFSET
+ 	hex
+ 	default 0xB0000000 if VMSPLIT_3G_OPT
+diff --git a/arch/i386/kernel/setup.c b/arch/i386/kernel/setup.c
+index 79df6e6..3078019 100644
+--- a/arch/i386/kernel/setup.c
++++ b/arch/i386/kernel/setup.c
+@@ -371,9 +371,13 @@ void __init zone_sizes_init(void)
+ {
+ 	unsigned long max_zone_pfns[MAX_NR_ZONES];
+ 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
++#ifndef CONFIG_NO_DMA_ZONE
+ 	max_zone_pfns[ZONE_DMA] =
+ 		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+ 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
++#else
++	max_zone_pfns[ZONE_DMA] = max_low_pfn;
++#endif
+ #ifdef CONFIG_HIGHMEM
+ 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
+ 	add_active_range(0, 0, highend_pfn);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
