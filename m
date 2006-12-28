@@ -1,36 +1,44 @@
-Received: by ug-out-1314.google.com with SMTP id s2so3879614uge
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2006 19:49:37 -0800 (PST)
-Message-ID: <6d6a94c50612271949l66265cd4v4c63c1bdf3984417@mail.gmail.com>
-Date: Thu, 28 Dec 2006 11:49:37 +0800
-From: Aubrey <aubreylee@gmail.com>
-Subject: Re: Page alignment issue
-In-Reply-To: <6d6a94c50612270749j77cd53a9mba6280e4129d9d5a@mail.gmail.com>
+Received: by an-out-0708.google.com with SMTP id b38so1097768ana
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2006 19:53:13 -0800 (PST)
+Message-ID: <45a44e480612271953we6fe8adg118560161579b7f9@mail.gmail.com>
+Date: Thu, 28 Dec 2006 04:53:13 +0100
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: [RFC 2.6.19 1/1] fbdev,mm: hecuba/E-Ink fbdev driver v2
+In-Reply-To: <cda58cb80612220157q5433c346pccd06b8b7cbaadba@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <6d6a94c50612270749j77cd53a9mba6280e4129d9d5a@mail.gmail.com>
+References: <200612111046.kBBAkV8Y029087@localhost.localdomain>
+	 <457D895D.4010500@innova-card.com>
+	 <45a44e480612111554j1450f35ub4d9932e5cd32d4@mail.gmail.com>
+	 <cda58cb80612130038x6b81a00dv813d10726d495eda@mail.gmail.com>
+	 <45a44e480612162025n5d7c77bdkc825e94f1fb37904@mail.gmail.com>
+	 <cda58cb80612200050h6def9866nf1798753da9d842d@mail.gmail.com>
+	 <cda58cb80612220157q5433c346pccd06b8b7cbaadba@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+To: Franck Bui-Huu <vagabon.xyz@gmail.com>
+Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/27/06, Aubrey <aubreylee@gmail.com> wrote:
-> As for the buddy system, much of docs mention the physical address of
-> the first page frame of a block should be a multiple of the group
-> size. For example, the initial address of a 16-page-frame block should
-> be 16-page aligned. I happened to encounted an issue that the physical
-> addresss pf the block is not 4-page aligned(0x36c9000) while the order
-> of the block is 2. I want to know what out of buddy algorithm depend
-> on this feature? My problem seems to happen in
-> schedule()->context_switch() call, but so far I didn't figure out the
-> root cause.
+On 12/22/06, Franck Bui-Huu <vagabon.xyz@gmail.com> wrote:
+>
+> Well thinking more about it, this wouldn't work for all cache types.
+> For example, if your cache is not a direct maped one, this workaround
+> won't work. So this is definitely not a portable solution.
+>
 
-It seems nothing depend on this feature. the problem you encounted is
-the kernel task stack should be 2-page aligned.
+>From asking peterz on #mm, I think page_mkclean will do the right
+thing and call something like flush_cache_page. I think that resolves
+the issue which I think you identified where the end symptom on archs
+with virtually tagged caches could be a line of pixels written by
+userspace through one PTE remain in-cache and therefore "undisplayed"
+when the kernel reads through another PTE that may fall on a different
+cacheline.
 
--Aubrey
+Thanks,
+jayakumar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
