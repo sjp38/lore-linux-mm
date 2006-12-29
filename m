@@ -1,34 +1,33 @@
-Message-ID: <45975274.6020909@yahoo.com.au>
-Date: Sun, 31 Dec 2006 17:02:28 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from piper.riseup.net (unknown [10.0.1.11])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(Client CN "piper.riseup.net", Issuer "CA Cert Signing Authority" (verified OK))
+	by mx1.riseup.net (Postfix) with ESMTP id E29875713FF
+	for <linux-mm@kvack.org>; Sun, 31 Dec 2006 19:57:00 -0800 (PST)
+From: SYMPA <sympa@lists.riseup.net>
+Subject: auth 3c4f935f subscribe isn 
 MIME-Version: 1.0
-Subject: Re: Page alignment issue
-References: <6d6a94c50612270749j77cd53a9mba6280e4129d9d5a@mail.gmail.com>
-In-Reply-To: <6d6a94c50612270749j77cd53a9mba6280e4129d9d5a@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <20061229051033.3E3283E71E@piper.riseup.net>
+Date: Thu, 28 Dec 2006 21:10:33 -0800 (PST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Aubrey <aubreylee@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aubrey wrote:
-> As for the buddy system, much of docs mention the physical address of
-> the first page frame of a block should be a multiple of the group
-> size. For example, the initial address of a 16-page-frame block should
-> be 16-page aligned. I happened to encounted an issue that the physical
-> addresss pf the block is not 4-page aligned(0x36c9000) while the order
-> of the block is 2. I want to know what out of buddy algorithm depend
-> on this feature?
+Someone (hopefully you) asked for your e-mail address
+to be added to list 'isn'.
+If you want this action to be taken, please
 
-I think that's correct. The buddy allocator uses bitwise operations to
-find buddy pages and promote free pairs (eg. see __page_find_buddy()
-and __find_combined_index()).
+- reply to this mail
+OR
+- send a message to sympa@lists.riseup.net with subject
+ auth 3c4f935f subscribe isn 
+OR
+- hit the following mailto mailto:sympa@lists.riseup.net?subject=auth%203c4f935f%20subscribe%20isn%20
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+If you do not want this action to be taken, you can safely ignore
+this message.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
