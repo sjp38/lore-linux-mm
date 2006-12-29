@@ -1,202 +1,1076 @@
-Date: Fri, 29 Dec 2006 15:01:07 +0100
-From: Martin Michlmayr <tbm@cyrius.com>
-Subject: Re: Alternative msync() fix for 2.6.18?
-Message-ID: <20061229140107.GG2062@deprecation.cyrius.com>
-References: <20061226123106.GA32708@deprecation.cyrius.com> <Pine.LNX.4.64.0612261305510.18364@blonde.wat.veritas.com> <20061226132547.GC6256@deprecation.cyrius.com> <Pine.LNX.4.64.0612261411580.20159@blonde.wat.veritas.com> <Pine.LNX.4.64.0612270104020.11930@blonde.wat.veritas.com>
-MIME-Version: 1.0
+Date: Fri, 29 Dec 2006 21:03:57 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: [patch] remove MAX_ARG_PAGES
+Message-ID: <20061229200357.GA5940@elte.hu>
+References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com> <1160572460.2006.79.camel@taijtu> <65dd6fd50610111448q7ff210e1nb5f14917c311c8d4@mail.gmail.com> <65dd6fd50610241048h24af39d9ob49c3816dfe1ca64@mail.gmail.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0612270104020.11930@blonde.wat.veritas.com>
+In-Reply-To: <65dd6fd50610241048h24af39d9ob49c3816dfe1ca64@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, 394392@bugs.debian.org, Jeff Licquia <licquia@debian.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ollie Wild <aaw@google.com>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-CCing linux-kernel since Hugh's patch might be of interest to
-non-Debian people too.  This message concerns a problem with msync()
-in 2.6.17 and 2.6.18 that can be found with the LSB test suite.
+FYI, i have forward ported your MAX_ARG_PAGES limit removal patch to 
+2.6.20-rc2 and have included it in the -rt kernel. It's working great - 
+i can now finally do a "ls -t patches/*.patch" in my patch repository - 
+something i havent been able to do for years ;-)
 
-* Hugh Dickins <hugh@veritas.com> [2006-12-27 01:04]:
-> On Tue, 26 Dec 2006, Hugh Dickins wrote:
-> > On Tue, 26 Dec 2006, Martin Michlmayr wrote:
-> > > 
-> > > The first message at http://bugs.debian.org/394392 contains some
-> > > information about it, but I'm sure Jeff Licquia (CCed) can provide
-> > > more information if necessary.
-> > 
-> > I've given that a quick look, and I'll bet it's something very
-> > easily and safely fixed by a much simpler patch, to mm/msync.c alone,
-> > than by all the dirty pages rework and attendant unresolved problems.
-> 
-> How quickly I forget!  It wasn't until I looked into the git history
-> that I remembered how I'd discovered this already, just before 2.6.17
-> went out; but thought myself likely to introduce a more serious bug
-> if I tried to fix it in a hurry.  (Then forgot to send in a fix for
-> 2.6.18, expecting Linus to put in Peter's more significant mods.)
-> 
-> So beware of the fix below, which I'll confess to not even having
-> tested in practice: please review carefully, it's a confusing loop
-> (rather like the mincore one which Linus has just cleaned up in
-> 2.6.20-rc); and it took me a while to decide which of our many
-> versions of that loop to start from in fixing it - chose to
-> rely on what I'd worked out earlier when redoing it for 2.6.19.
-> 
-> Material for -stable?  Well, my judgement was, and is, not really:
-> the 2.6.17/2.6.18 behaviour isn't quite right, but though it doesn't
-> match the man page and that testsuite, what it does isn't actually
-> harmful at all.  If this patch is more acceptable to Debian if it
-> does appear in -stable, I can try sending it to Chris and Greg:
-> but I won't be able to argue for it very forcefully.
+what is keeping this fix from going upstream?
 
-I think it would make sense to have it in an -stable update because
-it's a regression from 2.6.16 after all and it means that 2.6.17 and
-2.6.18 are not LSB 3.1 compliant.  However, I don't have a strong
-opinion about it and I'm not sure another update for 2.6.18 is
-planned.
+	Ingo
 
-> Maybe better for you to consider it as just a subpatch of what went
-> into 2.6.19, which I was wrong to have mixed in with Peter's work.
->
-> I certainly think that this patch below (if it satisfies your review
-> and testing) is much more suitable for Debian's 2.6.18 than Peter's
-> suite of patches.  Not to put those down at all: the reverse, they're
-> a significant contribution to 2.6.19, which just wouldn't be expected
-> in any 2.6.18 kernel (and sadly, as you've found, are exposing still
-> unexplained problems there).  Anyway, the patch and its comment...
+-------------->
+Subject: [patch] remove MAX_ARG_PAGES
+From: Ollie Wild <aaw@google.com>
 
-Yes, I agree.  I'm CCing the linux-mm list in hope that someone can
-review your patch.  In the meantime, I've asked the Debian LSB folks to
-verify that your patch fixes the LSB problem.
+this patch removes the MAX_ARG_PAGES limit by copying between VMs. This 
+makes process argv/env limited by the stack limit (and it's thus 
+arbitrarily sizable). No more:
 
+  -bash: /bin/ls: Argument list too long
 
-From: Hugh Dickins <hugh@veritas.com>
-
-Fix 2.6.18 (or 2.6.17) sys_msync to report -ENOMEM as before when an
-unmapped area falls within its range, and not to overshoot: to satisfy
-LSB 3.1 tests and to fix Debian Bug#394392.  Took the 2.6.19 sys_msync
-as starting point (including its cleanup of repeated "current->mm"s),
-reintroducing the msync_interval and balance_dirty_pages_ratelimited_nr
-previously needed.
-
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
 ---
+ arch/x86_64/ia32/ia32_binfmt.c |   55 -----
+ fs/binfmt_elf.c                |   12 -
+ fs/binfmt_misc.c               |    4 
+ fs/binfmt_script.c             |    4 
+ fs/compat.c                    |  118 ++++--------
+ fs/exec.c                      |  382 +++++++++++++++++++----------------------
+ include/linux/binfmts.h        |   14 -
+ include/linux/mm.h             |    7 
+ kernel/auditsc.c               |    5 
+ mm/mprotect.c                  |    2 
+ mm/mremap.c                    |    2 
+ 11 files changed, 250 insertions(+), 355 deletions(-)
 
- mm/msync.c |   66 +++++++++++++++++++++++++++----------------------------------
- 1 file changed, 30 insertions(+), 36 deletions(-)
-
---- 2.6.18/mm/msync.c	2006-09-20 04:42:06.000000000 +0100
-+++ linux/mm/msync.c	2006-12-26 23:52:58.000000000 +0000
-@@ -146,10 +146,10 @@ static int msync_interval(struct vm_area
- asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
- {
- 	unsigned long end;
-+	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
- 	int unmapped_error = 0;
- 	int error = -EINVAL;
--	int done = 0;
-
- 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
- 		goto out;
-@@ -169,64 +169,58 @@ asmlinkage long sys_msync(unsigned long 
- 	 * If the interval [start,end) covers some unmapped address ranges,
- 	 * just ignore them, but return -ENOMEM at the end.
- 	 */
--	down_read(&current->mm->mmap_sem);
--	vma = find_vma(current->mm, start);
--	if (!vma) {
--		error = -ENOMEM;
--		goto out_unlock;
--	}
--	do {
-+	down_read(&mm->mmap_sem);
-+	vma = find_vma(mm, start);
-+	for (;;) {
- 		unsigned long nr_pages_dirtied = 0;
- 		struct file *file;
+Index: linux/arch/x86_64/ia32/ia32_binfmt.c
+===================================================================
+--- linux.orig/arch/x86_64/ia32/ia32_binfmt.c
++++ linux/arch/x86_64/ia32/ia32_binfmt.c
+@@ -279,9 +279,6 @@ do {							\
+ #define load_elf_binary load_elf32_binary
  
-+		/* Still start < end. */
-+		error = -ENOMEM;
-+		if (!vma)
-+			goto out_unlock;
- 		/* Here start < vma->vm_end. */
- 		if (start < vma->vm_start) {
--			unmapped_error = -ENOMEM;
- 			start = vma->vm_start;
+ #define ELF_PLAT_INIT(r, load_addr)	elf32_init(r)
+-#define setup_arg_pages(bprm, stack_top, exec_stack) \
+-	ia32_setup_arg_pages(bprm, stack_top, exec_stack)
+-int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int executable_stack);
+ 
+ #undef start_thread
+ #define start_thread(regs,new_rip,new_rsp) do { \
+@@ -336,57 +333,7 @@ static void elf32_init(struct pt_regs *r
+ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
+ 			 int executable_stack)
+ {
+-	unsigned long stack_base;
+-	struct vm_area_struct *mpnt;
+-	struct mm_struct *mm = current->mm;
+-	int i, ret;
+-
+-	stack_base = stack_top - MAX_ARG_PAGES * PAGE_SIZE;
+-	mm->arg_start = bprm->p + stack_base;
+-
+-	bprm->p += stack_base;
+-	if (bprm->loader)
+-		bprm->loader += stack_base;
+-	bprm->exec += stack_base;
+-
+-	mpnt = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+-	if (!mpnt) 
+-		return -ENOMEM; 
+-
+-	memset(mpnt, 0, sizeof(*mpnt));
+-
+-	down_write(&mm->mmap_sem);
+-	{
+-		mpnt->vm_mm = mm;
+-		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
+-		mpnt->vm_end = stack_top;
+-		if (executable_stack == EXSTACK_ENABLE_X)
+-			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
+-		else if (executable_stack == EXSTACK_DISABLE_X)
+-			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
+-		else
+-			mpnt->vm_flags = VM_STACK_FLAGS;
+- 		mpnt->vm_page_prot = (mpnt->vm_flags & VM_EXEC) ? 
+- 			PAGE_COPY_EXEC : PAGE_COPY;
+-		if ((ret = insert_vm_struct(mm, mpnt))) {
+-			up_write(&mm->mmap_sem);
+-			kmem_cache_free(vm_area_cachep, mpnt);
+-			return ret;
 -		}
--		/* Here vma->vm_start <= start < vma->vm_end. */
--		if (end <= vma->vm_end) {
--			if (start < end) {
--				error = msync_interval(vma, start, end, flags,
--							&nr_pages_dirtied);
--				if (error)
--					goto out_unlock;
--			}
--			error = unmapped_error;
--			done = 1;
--		} else {
--			/* Here vma->vm_start <= start < vma->vm_end < end. */
--			error = msync_interval(vma, start, vma->vm_end, flags,
--						&nr_pages_dirtied);
--			if (error)
-+			if (start >= end)
- 				goto out_unlock;
-+			unmapped_error = -ENOMEM;
- 		}
-+		/* Here vma->vm_start <= start < vma->vm_end. */
-+		error = msync_interval(vma, start, min(end, vma->vm_end),
-+						flags, &nr_pages_dirtied);
-+		if (error)
-+			goto out_unlock;
- 		file = vma->vm_file;
- 		start = vma->vm_end;
- 		if ((flags & MS_ASYNC) && file && nr_pages_dirtied) {
- 			get_file(file);
--			up_read(&current->mm->mmap_sem);
-+			up_read(&mm->mmap_sem);
- 			balance_dirty_pages_ratelimited_nr(file->f_mapping,
- 							nr_pages_dirtied);
- 			fput(file);
--			down_read(&current->mm->mmap_sem);
--			vma = find_vma(current->mm, start);
-+			if (start >= end)
-+				goto out;
-+			down_read(&mm->mmap_sem);
-+			vma = find_vma(mm, start);
- 		} else if ((flags & MS_SYNC) && file &&
- 				(vma->vm_flags & VM_SHARED)) {
- 			get_file(file);
--			up_read(&current->mm->mmap_sem);
-+			up_read(&mm->mmap_sem);
- 			error = do_fsync(file, 0);
- 			fput(file);
--			down_read(&current->mm->mmap_sem);
--			if (error)
--				goto out_unlock;
--			vma = find_vma(current->mm, start);
-+			if (error || start >= end)
-+				goto out;
-+			down_read(&mm->mmap_sem);
-+			vma = find_vma(mm, start);
- 		} else {
-+			if (start >= end)
-+				goto out_unlock;
- 			vma = vma->vm_next;
- 		}
--	} while (vma && !done);
-+	}
- out_unlock:
--	up_read(&current->mm->mmap_sem);
-+	up_read(&mm->mmap_sem);
- out:
--	return error;
-+	return error ? : unmapped_error;
+-		mm->stack_vm = mm->total_vm = vma_pages(mpnt);
+-	} 
+-
+-	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
+-		struct page *page = bprm->page[i];
+-		if (page) {
+-			bprm->page[i] = NULL;
+-			install_arg_page(mpnt, page, stack_base);
+-		}
+-		stack_base += PAGE_SIZE;
+-	}
+-	up_write(&mm->mmap_sem);
+-	
+-	return 0;
++	return setup_arg_pages(bprm, stack_top, executable_stack);
  }
-
--- 
-Martin Michlmayr
-http://www.cyrius.com/
+ EXPORT_SYMBOL(ia32_setup_arg_pages);
+ 
+Index: linux/fs/binfmt_elf.c
+===================================================================
+--- linux.orig/fs/binfmt_elf.c
++++ linux/fs/binfmt_elf.c
+@@ -253,8 +253,8 @@ create_elf_tables(struct linux_binprm *b
+ 		size_t len;
+ 		if (__put_user((elf_addr_t)p, argv++))
+ 			return -EFAULT;
+-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
+-		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
++		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
++		if (!len || len > MAX_ARG_STRLEN)
+ 			return 0;
+ 		p += len;
+ 	}
+@@ -265,8 +265,8 @@ create_elf_tables(struct linux_binprm *b
+ 		size_t len;
+ 		if (__put_user((elf_addr_t)p, envp++))
+ 			return -EFAULT;
+-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
+-		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
++		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
++		if (!len || len > MAX_ARG_STRLEN)
+ 			return 0;
+ 		p += len;
+ 	}
+@@ -767,10 +767,6 @@ static int load_elf_binary(struct linux_
+ 	}
+ 
+ 	/* OK, This is the point of no return */
+-	current->mm->start_data = 0;
+-	current->mm->end_data = 0;
+-	current->mm->end_code = 0;
+-	current->mm->mmap = NULL;
+ 	current->flags &= ~PF_FORKNOEXEC;
+ 	current->mm->def_flags = def_flags;
+ 
+Index: linux/fs/binfmt_misc.c
+===================================================================
+--- linux.orig/fs/binfmt_misc.c
++++ linux/fs/binfmt_misc.c
+@@ -126,7 +126,9 @@ static int load_misc_binary(struct linux
+ 		goto _ret;
+ 
+ 	if (!(fmt->flags & MISC_FMT_PRESERVE_ARGV0)) {
+-		remove_arg_zero(bprm);
++		retval = remove_arg_zero(bprm);
++		if (retval)
++			goto _ret;
+ 	}
+ 
+ 	if (fmt->flags & MISC_FMT_OPEN_BINARY) {
+Index: linux/fs/binfmt_script.c
+===================================================================
+--- linux.orig/fs/binfmt_script.c
++++ linux/fs/binfmt_script.c
+@@ -68,7 +68,9 @@ static int load_script(struct linux_binp
+ 	 * This is done in reverse order, because of how the
+ 	 * user environment and arguments are stored.
+ 	 */
+-	remove_arg_zero(bprm);
++	retval = remove_arg_zero(bprm);
++	if (retval)
++		return retval;
+ 	retval = copy_strings_kernel(1, &bprm->interp, bprm);
+ 	if (retval < 0) return retval; 
+ 	bprm->argc++;
+Index: linux/fs/compat.c
+===================================================================
+--- linux.orig/fs/compat.c
++++ linux/fs/compat.c
+@@ -1389,6 +1389,7 @@ static int compat_copy_strings(int argc,
+ {
+ 	struct page *kmapped_page = NULL;
+ 	char *kaddr = NULL;
++	unsigned long kpos = 0;
+ 	int ret;
+ 
+ 	while (argc-- > 0) {
+@@ -1397,92 +1398,72 @@ static int compat_copy_strings(int argc,
+ 		unsigned long pos;
+ 
+ 		if (get_user(str, argv+argc) ||
+-			!(len = strnlen_user(compat_ptr(str), bprm->p))) {
++		    !(len = strnlen_user(compat_ptr(str), MAX_ARG_STRLEN))) {
+ 			ret = -EFAULT;
+ 			goto out;
+ 		}
+ 
+-		if (bprm->p < len)  {
++		if (MAX_ARG_STRLEN < len) {
+ 			ret = -E2BIG;
+ 			goto out;
+ 		}
+ 
+-		bprm->p -= len;
+-		/* XXX: add architecture specific overflow check here. */
++		/* We're going to work our way backwords. */
+ 		pos = bprm->p;
++		str += len;
++		bprm->p -= len;
+ 
+ 		while (len > 0) {
+-			int i, new, err;
+ 			int offset, bytes_to_copy;
+-			struct page *page;
+ 
+ 			offset = pos % PAGE_SIZE;
+-			i = pos/PAGE_SIZE;
+-			page = bprm->page[i];
+-			new = 0;
+-			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
+-				bprm->page[i] = page;
+-				if (!page) {
+-					ret = -ENOMEM;
++			if (offset == 0)
++				offset = PAGE_SIZE;
++
++			bytes_to_copy = offset;
++			if (bytes_to_copy > len)
++				bytes_to_copy = len;
++
++			offset -= bytes_to_copy;
++			pos -= bytes_to_copy;
++			str -= bytes_to_copy;
++			len -= bytes_to_copy;
++
++			if (!kmapped_page || kpos != (pos & PAGE_MASK)) {
++				struct page *page;
++
++				ret = get_user_pages(current, bprm->mm, pos,
++						     1, 1, 1, &page, NULL);
++				if (ret <= 0) {
++					/* We've exceed the stack rlimit. */
++					ret = -E2BIG;
+ 					goto out;
+ 				}
+-				new = 1;
+-			}
+ 
+-			if (page != kmapped_page) {
+-				if (kmapped_page)
++				if (kmapped_page) {
+ 					kunmap(kmapped_page);
++					put_page(kmapped_page);
++				}
+ 				kmapped_page = page;
+ 				kaddr = kmap(kmapped_page);
++				kpos = pos & PAGE_MASK;
+ 			}
+-			if (new && offset)
+-				memset(kaddr, 0, offset);
+-			bytes_to_copy = PAGE_SIZE - offset;
+-			if (bytes_to_copy > len) {
+-				bytes_to_copy = len;
+-				if (new)
+-					memset(kaddr+offset+len, 0,
+-						PAGE_SIZE-offset-len);
+-			}
+-			err = copy_from_user(kaddr+offset, compat_ptr(str),
+-						bytes_to_copy);
+-			if (err) {
++			if (copy_from_user(kaddr+offset, compat_ptr(str),
++						bytes_to_copy)) {
+ 				ret = -EFAULT;
+ 				goto out;
+ 			}
+-
+-			pos += bytes_to_copy;
+-			str += bytes_to_copy;
+-			len -= bytes_to_copy;
+ 		}
+ 	}
+ 	ret = 0;
+ out:
+-	if (kmapped_page)
++	if (kmapped_page) {
+ 		kunmap(kmapped_page);
+-	return ret;
+-}
+-
+-#ifdef CONFIG_MMU
+-
+-#define free_arg_pages(bprm) do { } while (0)
+-
+-#else
+-
+-static inline void free_arg_pages(struct linux_binprm *bprm)
+-{
+-	int i;
+-
+-	for (i = 0; i < MAX_ARG_PAGES; i++) {
+-		if (bprm->page[i])
+-			__free_page(bprm->page[i]);
+-		bprm->page[i] = NULL;
++		put_page(kmapped_page);
+ 	}
++	return ret;
+ }
+ 
+-#endif /* CONFIG_MMU */
+-
+ /*
+  * compat_do_execve() is mostly a copy of do_execve(), with the exception
+  * that it processes 32 bit argv and envp pointers.
+@@ -1495,7 +1476,6 @@ int compat_do_execve(char * filename,
+ 	struct linux_binprm *bprm;
+ 	struct file *file;
+ 	int retval;
+-	int i;
+ 
+ 	retval = -ENOMEM;
+ 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+@@ -1509,24 +1489,19 @@ int compat_do_execve(char * filename,
+ 
+ 	sched_exec();
+ 
+-	bprm->p = PAGE_SIZE*MAX_ARG_PAGES-sizeof(void *);
+ 	bprm->file = file;
+ 	bprm->filename = filename;
+ 	bprm->interp = filename;
+-	bprm->mm = mm_alloc();
+-	retval = -ENOMEM;
+-	if (!bprm->mm)
+-		goto out_file;
+ 
+-	retval = init_new_context(current, bprm->mm);
+-	if (retval < 0)
+-		goto out_mm;
++	retval = bprm_mm_init(bprm);
++	if (retval)
++		goto out_file;
+ 
+-	bprm->argc = compat_count(argv, bprm->p / sizeof(compat_uptr_t));
++	bprm->argc = compat_count(argv, MAX_ARG_STRINGS);
+ 	if ((retval = bprm->argc) < 0)
+ 		goto out_mm;
+ 
+-	bprm->envc = compat_count(envp, bprm->p / sizeof(compat_uptr_t));
++	bprm->envc = compat_count(envp, MAX_ARG_STRINGS);
+ 	if ((retval = bprm->envc) < 0)
+ 		goto out_mm;
+ 
+@@ -1551,10 +1526,8 @@ int compat_do_execve(char * filename,
+ 	if (retval < 0)
+ 		goto out;
+ 
+-	retval = search_binary_handler(bprm, regs);
++	retval = search_binary_handler(bprm,regs);
+ 	if (retval >= 0) {
+-		free_arg_pages(bprm);
+-
+ 		/* execve success */
+ 		security_bprm_free(bprm);
+ 		acct_update_integrals(current);
+@@ -1563,19 +1536,12 @@ int compat_do_execve(char * filename,
+ 	}
+ 
+ out:
+-	/* Something went wrong, return the inode and free the argument pages*/
+-	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
+-		struct page * page = bprm->page[i];
+-		if (page)
+-			__free_page(page);
+-	}
+-
+ 	if (bprm->security)
+ 		security_bprm_free(bprm);
+ 
+ out_mm:
+ 	if (bprm->mm)
+-		mmdrop(bprm->mm);
++		mmput (bprm->mm);
+ 
+ out_file:
+ 	if (bprm->file) {
+Index: linux/fs/exec.c
+===================================================================
+--- linux.orig/fs/exec.c
++++ linux/fs/exec.c
+@@ -174,6 +174,79 @@ exit:
+ 	goto out;
+ }
+ 
++#ifdef CONFIG_STACK_GROWSUP
++#error	I broke your build because I rearchitected the stack code, and I \
++	don't have access to an architecture where CONFIG_STACK_GROWSUP is \
++	set.  Please fixe this or send me a machine which I can test this on. \
++	\
++	-- Ollie Wild <aaw@google.com>
++#endif
++
++/* Create a new mm_struct and populate it with a temporary stack
++ * vm_area_struct.  We don't have enough context at this point to set the
++ * stack flags, permissions, and offset, so we use temporary values.  We'll
++ * update them later in setup_arg_pages(). */
++int bprm_mm_init(struct linux_binprm *bprm)
++{
++	int err;
++	struct mm_struct *mm = NULL;
++	struct vm_area_struct *vma = NULL;
++
++	bprm->mm = mm = mm_alloc();
++	err = -ENOMEM;
++	if (!mm)
++		goto err;
++
++	if ((err = init_new_context(current, mm)))
++		goto err;
++
++	bprm->vma = vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
++	err = -ENOMEM;
++	if (!vma)
++		goto err;
++
++	down_write(&mm->mmap_sem);
++	{
++		vma->vm_mm = mm;
++
++		/* Place the stack at the top of user memory.  Later, we'll
++		 * move this to an appropriate place.  We don't use STACK_TOP
++		 * because that can depend on attributes which aren't
++		 * configured yet. */
++		vma->vm_end = TASK_SIZE;
++		vma->vm_start = vma->vm_end - PAGE_SIZE;
++
++		vma->vm_flags = VM_STACK_FLAGS;
++		vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
++		if ((err = insert_vm_struct(mm, vma))) {
++			up_write(&mm->mmap_sem);
++			goto err;
++		}
++
++		mm->stack_vm = mm->total_vm = 1;
++	}
++	up_write(&mm->mmap_sem);
++
++	bprm->p = vma->vm_end - sizeof(void *);
++
++	return 0;
++
++err:
++	if (vma) {
++		bprm->vma = NULL;
++		kmem_cache_free(vm_area_cachep, vma);
++	}
++
++	if (mm) {
++		bprm->mm = NULL;
++		mmdrop(mm);
++	}
++
++	return err;
++}
++
++EXPORT_SYMBOL(bprm_mm_init);
++
+ /*
+  * count() counts the number of strings in array ARGV.
+  */
+@@ -199,15 +272,16 @@ static int count(char __user * __user * 
+ }
+ 
+ /*
+- * 'copy_strings()' copies argument/environment strings from user
+- * memory to free pages in kernel mem. These are in a format ready
+- * to be put directly into the top of new user memory.
++ * 'copy_strings()' copies argument/environment strings from the old
++ * processes's memory to the new process's stack.  The call to get_user_pages()
++ * ensures the destination page is created and not swapped out.
+  */
+ static int copy_strings(int argc, char __user * __user * argv,
+ 			struct linux_binprm *bprm)
+ {
+ 	struct page *kmapped_page = NULL;
+ 	char *kaddr = NULL;
++	unsigned long kpos = 0;
+ 	int ret;
+ 
+ 	while (argc-- > 0) {
+@@ -216,69 +290,68 @@ static int copy_strings(int argc, char _
+ 		unsigned long pos;
+ 
+ 		if (get_user(str, argv+argc) ||
+-				!(len = strnlen_user(str, bprm->p))) {
++				!(len = strnlen_user(str, MAX_ARG_STRLEN))) {
+ 			ret = -EFAULT;
+ 			goto out;
+ 		}
+ 
+-		if (bprm->p < len)  {
++		if (MAX_ARG_STRLEN < len) {
+ 			ret = -E2BIG;
+ 			goto out;
+ 		}
+ 
+-		bprm->p -= len;
+-		/* XXX: add architecture specific overflow check here. */
++		/* We're going to work our way backwords. */
+ 		pos = bprm->p;
++		str += len;
++		bprm->p -= len;
+ 
+ 		while (len > 0) {
+-			int i, new, err;
+ 			int offset, bytes_to_copy;
+-			struct page *page;
+ 
+ 			offset = pos % PAGE_SIZE;
+-			i = pos/PAGE_SIZE;
+-			page = bprm->page[i];
+-			new = 0;
+-			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
+-				bprm->page[i] = page;
+-				if (!page) {
+-					ret = -ENOMEM;
++			if (offset == 0)
++				offset = PAGE_SIZE;
++
++			bytes_to_copy = offset;
++			if (bytes_to_copy > len)
++				bytes_to_copy = len;
++
++			offset -= bytes_to_copy;
++			pos -= bytes_to_copy;
++			str -= bytes_to_copy;
++			len -= bytes_to_copy;
++
++			if (!kmapped_page || kpos != (pos & PAGE_MASK)) {
++				struct page *page;
++
++				ret = get_user_pages(current, bprm->mm, pos,
++						     1, 1, 1, &page, NULL);
++				if (ret <= 0) {
++					/* We've exceed the stack rlimit. */
++					ret = -E2BIG;
+ 					goto out;
+ 				}
+-				new = 1;
+-			}
+ 
+-			if (page != kmapped_page) {
+-				if (kmapped_page)
++				if (kmapped_page) {
+ 					kunmap(kmapped_page);
++					put_page(kmapped_page);
++				}
+ 				kmapped_page = page;
+ 				kaddr = kmap(kmapped_page);
++				kpos = pos & PAGE_MASK;
+ 			}
+-			if (new && offset)
+-				memset(kaddr, 0, offset);
+-			bytes_to_copy = PAGE_SIZE - offset;
+-			if (bytes_to_copy > len) {
+-				bytes_to_copy = len;
+-				if (new)
+-					memset(kaddr+offset+len, 0,
+-						PAGE_SIZE-offset-len);
+-			}
+-			err = copy_from_user(kaddr+offset, str, bytes_to_copy);
+-			if (err) {
++			if (copy_from_user(kaddr+offset, str, bytes_to_copy)) {
+ 				ret = -EFAULT;
+ 				goto out;
+ 			}
+-
+-			pos += bytes_to_copy;
+-			str += bytes_to_copy;
+-			len -= bytes_to_copy;
+ 		}
+ 	}
+ 	ret = 0;
+ out:
+-	if (kmapped_page)
++	if (kmapped_page) {
+ 		kunmap(kmapped_page);
++		put_page(kmapped_page);
++	}
+ 	return ret;
+ }
+ 
+@@ -297,157 +370,79 @@ int copy_strings_kernel(int argc,char **
+ 
+ EXPORT_SYMBOL(copy_strings_kernel);
+ 
+-#ifdef CONFIG_MMU
+-/*
+- * This routine is used to map in a page into an address space: needed by
+- * execve() for the initial stack and environment pages.
+- *
+- * vma->vm_mm->mmap_sem is held for writing.
+- */
+-void install_arg_page(struct vm_area_struct *vma,
+-			struct page *page, unsigned long address)
+-{
+-	struct mm_struct *mm = vma->vm_mm;
+-	pte_t * pte;
+-	spinlock_t *ptl;
+-
+-	if (unlikely(anon_vma_prepare(vma)))
+-		goto out;
+-
+-	flush_dcache_page(page);
+-	pte = get_locked_pte(mm, address, &ptl);
+-	if (!pte)
+-		goto out;
+-	if (!pte_none(*pte)) {
+-		pte_unmap_unlock(pte, ptl);
+-		goto out;
+-	}
+-	inc_mm_counter(mm, anon_rss);
+-	lru_cache_add_active(page);
+-	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
+-					page, vma->vm_page_prot))));
+-	page_add_new_anon_rmap(page, vma, address);
+-	pte_unmap_unlock(pte, ptl);
+-
+-	/* no need for flush_tlb */
+-	return;
+-out:
+-	__free_page(page);
+-	force_sig(SIGKILL, current);
+-}
+-
+ #define EXTRA_STACK_VM_PAGES	20	/* random */
+ 
++/* Finalizes the stack vm_area_struct.  The flags and permissions are updated,
++ * the stack is optionally relocated, and some extra space is added.
++ */
+ int setup_arg_pages(struct linux_binprm *bprm,
+ 		    unsigned long stack_top,
+ 		    int executable_stack)
+ {
+-	unsigned long stack_base;
+-	struct vm_area_struct *mpnt;
++	unsigned long ret;
++	unsigned long stack_base, stack_shift;
+ 	struct mm_struct *mm = current->mm;
+-	int i, ret;
+-	long arg_size;
+ 
+-#ifdef CONFIG_STACK_GROWSUP
+-	/* Move the argument and environment strings to the bottom of the
+-	 * stack space.
+-	 */
+-	int offset, j;
+-	char *to, *from;
++	BUG_ON(stack_top > TASK_SIZE);
++	BUG_ON(stack_top & ~PAGE_MASK);
+ 
+-	/* Start by shifting all the pages down */
+-	i = 0;
+-	for (j = 0; j < MAX_ARG_PAGES; j++) {
+-		struct page *page = bprm->page[j];
+-		if (!page)
+-			continue;
+-		bprm->page[i++] = page;
+-	}
+-
+-	/* Now move them within their pages */
+-	offset = bprm->p % PAGE_SIZE;
+-	to = kmap(bprm->page[0]);
+-	for (j = 1; j < i; j++) {
+-		memmove(to, to + offset, PAGE_SIZE - offset);
+-		from = kmap(bprm->page[j]);
+-		memcpy(to + PAGE_SIZE - offset, from, offset);
+-		kunmap(bprm->page[j - 1]);
+-		to = from;
+-	}
+-	memmove(to, to + offset, PAGE_SIZE - offset);
+-	kunmap(bprm->page[j - 1]);
+-
+-	/* Limit stack size to 1GB */
+-	stack_base = current->signal->rlim[RLIMIT_STACK].rlim_max;
+-	if (stack_base > (1 << 30))
+-		stack_base = 1 << 30;
+-	stack_base = PAGE_ALIGN(stack_top - stack_base);
+-
+-	/* Adjust bprm->p to point to the end of the strings. */
+-	bprm->p = stack_base + PAGE_SIZE * i - offset;
+-
+-	mm->arg_start = stack_base;
+-	arg_size = i << PAGE_SHIFT;
+-
+-	/* zero pages that were copied above */
+-	while (i < MAX_ARG_PAGES)
+-		bprm->page[i++] = NULL;
+-#else
+-	stack_base = arch_align_stack(stack_top - MAX_ARG_PAGES*PAGE_SIZE);
++	stack_base = arch_align_stack(stack_top - mm->stack_vm*PAGE_SIZE);
+ 	stack_base = PAGE_ALIGN(stack_base);
+-	bprm->p += stack_base;
+-	mm->arg_start = bprm->p;
+-	arg_size = stack_top - (PAGE_MASK & (unsigned long) mm->arg_start);
+-#endif
+ 
+-	arg_size += EXTRA_STACK_VM_PAGES * PAGE_SIZE;
++	stack_shift = (bprm->p & PAGE_MASK) - stack_base;
++	BUG_ON(stack_shift < 0);
++	bprm->p -= stack_shift;
++	mm->arg_start = bprm->p;
+ 
+ 	if (bprm->loader)
+-		bprm->loader += stack_base;
+-	bprm->exec += stack_base;
+-
+-	mpnt = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+-	if (!mpnt)
+-		return -ENOMEM;
+-
+-	memset(mpnt, 0, sizeof(*mpnt));
++		bprm->loader -= stack_shift;
++	bprm->exec -= stack_shift;
+ 
+ 	down_write(&mm->mmap_sem);
+ 	{
+-		mpnt->vm_mm = mm;
+-#ifdef CONFIG_STACK_GROWSUP
+-		mpnt->vm_start = stack_base;
+-		mpnt->vm_end = stack_base + arg_size;
+-#else
+-		mpnt->vm_end = stack_top;
+-		mpnt->vm_start = mpnt->vm_end - arg_size;
+-#endif
++		struct vm_area_struct *vma = bprm->vma;
++		struct vm_area_struct *prev = NULL;
++		unsigned long vm_flags = vma->vm_flags;
++
+ 		/* Adjust stack execute permissions; explicitly enable
+ 		 * for EXSTACK_ENABLE_X, disable for EXSTACK_DISABLE_X
+ 		 * and leave alone (arch default) otherwise. */
+ 		if (unlikely(executable_stack == EXSTACK_ENABLE_X))
+-			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
++			vm_flags |= VM_EXEC;
+ 		else if (executable_stack == EXSTACK_DISABLE_X)
+-			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
+-		else
+-			mpnt->vm_flags = VM_STACK_FLAGS;
+-		mpnt->vm_flags |= mm->def_flags;
+-		mpnt->vm_page_prot = protection_map[mpnt->vm_flags & 0x7];
+-		if ((ret = insert_vm_struct(mm, mpnt))) {
++			vm_flags &= ~VM_EXEC;
++		vm_flags |= mm->def_flags;
++
++		ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
++				vm_flags);
++		if (ret) {
+ 			up_write(&mm->mmap_sem);
+-			kmem_cache_free(vm_area_cachep, mpnt);
+ 			return ret;
+ 		}
+-		mm->stack_vm = mm->total_vm = vma_pages(mpnt);
+-	}
++		BUG_ON(prev != vma);
++
++		/* Move stack pages down in memory. */
++		if (stack_shift) {
++			/* This should be safe even with overlap because we
++			 * are shifting down. */
++			ret = move_vma(vma, vma->vm_start,
++					vma->vm_end - vma->vm_start,
++					vma->vm_end - vma->vm_start,
++					vma->vm_start - stack_shift);
++			if (ret & ~PAGE_MASK) {
++				up_write(&mm->mmap_sem);
++				return ret;
++			}
++		}
+ 
+-	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
+-		struct page *page = bprm->page[i];
+-		if (page) {
+-			bprm->page[i] = NULL;
+-			install_arg_page(mpnt, page, stack_base);
++		// Expand the stack.
++		vma = find_vma(mm, bprm->p);
++		BUG_ON(!vma || bprm->p < vma->vm_start);
++		if (expand_stack(vma, stack_base -
++					EXTRA_STACK_VM_PAGES * PAGE_SIZE)) {
++			up_write(&mm->mmap_sem);
++			return -EFAULT;
+ 		}
+-		stack_base += PAGE_SIZE;
+ 	}
+ 	up_write(&mm->mmap_sem);
+ 	
+@@ -456,23 +451,6 @@ int setup_arg_pages(struct linux_binprm 
+ 
+ EXPORT_SYMBOL(setup_arg_pages);
+ 
+-#define free_arg_pages(bprm) do { } while (0)
+-
+-#else
+-
+-static inline void free_arg_pages(struct linux_binprm *bprm)
+-{
+-	int i;
+-
+-	for (i = 0; i < MAX_ARG_PAGES; i++) {
+-		if (bprm->page[i])
+-			__free_page(bprm->page[i]);
+-		bprm->page[i] = NULL;
+-	}
+-}
+-
+-#endif /* CONFIG_MMU */
+-
+ struct file *open_exec(const char *name)
+ {
+ 	struct nameidata nd;
+@@ -993,8 +971,10 @@ void compute_creds(struct linux_binprm *
+ 
+ EXPORT_SYMBOL(compute_creds);
+ 
+-void remove_arg_zero(struct linux_binprm *bprm)
++int remove_arg_zero(struct linux_binprm *bprm)
+ {
++	int ret = 0;
++
+ 	if (bprm->argc) {
+ 		unsigned long offset;
+ 		char * kaddr;
+@@ -1008,13 +988,23 @@ void remove_arg_zero(struct linux_binprm
+ 				continue;
+ 			offset = 0;
+ 			kunmap_atomic(kaddr, KM_USER0);
++			put_page(page);
+ inside:
+-			page = bprm->page[bprm->p/PAGE_SIZE];
++			ret = get_user_pages(current, bprm->mm, bprm->p,
++					     1, 0, 1, &page, NULL);
++			if (ret <= 0) {
++				ret = -EFAULT;
++				goto out;
++			}
+ 			kaddr = kmap_atomic(page, KM_USER0);
+ 		}
+ 		kunmap_atomic(kaddr, KM_USER0);
+ 		bprm->argc--;
++		ret = 0;
+ 	}
++
++out:
++	return ret;
+ }
+ 
+ EXPORT_SYMBOL(remove_arg_zero);
+@@ -1041,7 +1031,7 @@ int search_binary_handler(struct linux_b
+ 		fput(bprm->file);
+ 		bprm->file = NULL;
+ 
+-	        loader = PAGE_SIZE*MAX_ARG_PAGES-sizeof(void *);
++	        loader = bprm->vma->vm_end - sizeof(void *);
+ 
+ 		file = open_exec("/sbin/loader");
+ 		retval = PTR_ERR(file);
+@@ -1134,7 +1124,6 @@ int do_execve(char * filename,
+ 	struct linux_binprm *bprm;
+ 	struct file *file;
+ 	int retval;
+-	int i;
+ 
+ 	retval = -ENOMEM;
+ 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+@@ -1148,25 +1137,19 @@ int do_execve(char * filename,
+ 
+ 	sched_exec();
+ 
+-	bprm->p = PAGE_SIZE*MAX_ARG_PAGES-sizeof(void *);
+-
+ 	bprm->file = file;
+ 	bprm->filename = filename;
+ 	bprm->interp = filename;
+-	bprm->mm = mm_alloc();
+-	retval = -ENOMEM;
+-	if (!bprm->mm)
+-		goto out_file;
+ 
+-	retval = init_new_context(current, bprm->mm);
+-	if (retval < 0)
+-		goto out_mm;
++	retval = bprm_mm_init(bprm);
++	if (retval)
++		goto out_file;
+ 
+-	bprm->argc = count(argv, bprm->p / sizeof(void *));
++	bprm->argc = count(argv, MAX_ARG_STRINGS);
+ 	if ((retval = bprm->argc) < 0)
+ 		goto out_mm;
+ 
+-	bprm->envc = count(envp, bprm->p / sizeof(void *));
++	bprm->envc = count(envp, MAX_ARG_STRINGS);
+ 	if ((retval = bprm->envc) < 0)
+ 		goto out_mm;
+ 
+@@ -1193,8 +1176,6 @@ int do_execve(char * filename,
+ 
+ 	retval = search_binary_handler(bprm,regs);
+ 	if (retval >= 0) {
+-		free_arg_pages(bprm);
+-
+ 		/* execve success */
+ 		security_bprm_free(bprm);
+ 		acct_update_integrals(current);
+@@ -1203,19 +1184,12 @@ int do_execve(char * filename,
+ 	}
+ 
+ out:
+-	/* Something went wrong, return the inode and free the argument pages*/
+-	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
+-		struct page * page = bprm->page[i];
+-		if (page)
+-			__free_page(page);
+-	}
+-
+ 	if (bprm->security)
+ 		security_bprm_free(bprm);
+ 
+ out_mm:
+ 	if (bprm->mm)
+-		mmdrop(bprm->mm);
++		mmput (bprm->mm);
+ 
+ out_file:
+ 	if (bprm->file) {
+Index: linux/include/linux/binfmts.h
+===================================================================
+--- linux.orig/include/linux/binfmts.h
++++ linux/include/linux/binfmts.h
+@@ -5,12 +5,9 @@
+ 
+ struct pt_regs;
+ 
+-/*
+- * MAX_ARG_PAGES defines the number of pages allocated for arguments
+- * and envelope for the new program. 32 should suffice, this gives
+- * a maximum env+arg of 128kB w/4KB pages!
+- */
+-#define MAX_ARG_PAGES 32
++/* FIXME: Find real limits, or none. */
++#define MAX_ARG_STRLEN (PAGE_SIZE * 32)
++#define MAX_ARG_STRINGS 0x7FFFFFFF
+ 
+ /* sizeof(linux_binprm->buf) */
+ #define BINPRM_BUF_SIZE 128
+@@ -22,7 +19,7 @@ struct pt_regs;
+  */
+ struct linux_binprm{
+ 	char buf[BINPRM_BUF_SIZE];
+-	struct page *page[MAX_ARG_PAGES];
++	struct vm_area_struct *vma;
+ 	struct mm_struct *mm;
+ 	unsigned long p; /* current top of mem */
+ 	int sh_bang;
+@@ -65,7 +62,7 @@ extern int register_binfmt(struct linux_
+ extern int unregister_binfmt(struct linux_binfmt *);
+ 
+ extern int prepare_binprm(struct linux_binprm *);
+-extern void remove_arg_zero(struct linux_binprm *);
++extern int __must_check remove_arg_zero(struct linux_binprm *);
+ extern int search_binary_handler(struct linux_binprm *,struct pt_regs *);
+ extern int flush_old_exec(struct linux_binprm * bprm);
+ 
+@@ -82,6 +79,7 @@ extern int suid_dumpable;
+ extern int setup_arg_pages(struct linux_binprm * bprm,
+ 			   unsigned long stack_top,
+ 			   int executable_stack);
++extern int bprm_mm_init(struct linux_binprm *bprm);
+ extern int copy_strings_kernel(int argc,char ** argv,struct linux_binprm *bprm);
+ extern void compute_creds(struct linux_binprm *binprm);
+ extern int do_coredump(long signr, int exit_code, struct pt_regs * regs);
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -775,7 +775,6 @@ static inline int handle_mm_fault(struct
+ 
+ extern int make_pages_present(unsigned long addr, unsigned long end);
+ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
+-void install_arg_page(struct vm_area_struct *, struct page *, unsigned long);
+ 
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
+ 		int len, int write, int force, struct page **pages, struct vm_area_struct **vmas);
+@@ -791,9 +790,15 @@ int FASTCALL(set_page_dirty(struct page 
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
+ 
++extern unsigned long move_vma(struct vm_area_struct *vma,
++		unsigned long old_addr, unsigned long old_len,
++		unsigned long new_len, unsigned long new_addr);
+ extern unsigned long do_mremap(unsigned long addr,
+ 			       unsigned long old_len, unsigned long new_len,
+ 			       unsigned long flags, unsigned long new_addr);
++extern int mprotect_fixup(struct vm_area_struct *vma,
++			  struct vm_area_struct **pprev, unsigned long start,
++			  unsigned long end, unsigned long newflags);
+ 
+ /*
+  * Prototype to add a shrinker callback for ageable caches.
+Index: linux/kernel/auditsc.c
+===================================================================
+--- linux.orig/kernel/auditsc.c
++++ linux/kernel/auditsc.c
+@@ -1755,6 +1755,10 @@ int __audit_ipc_set_perm(unsigned long q
+ 
+ int audit_bprm(struct linux_binprm *bprm)
+ {
++	/* FIXME: Don't do anything for now until I figure out how to handle
++	 * this.  With the latest changes, kmalloc could well fail under good
++	 * scenarios. */
++#if 0
+ 	struct audit_aux_data_execve *ax;
+ 	struct audit_context *context = current->audit_context;
+ 	unsigned long p, next;
+@@ -1782,6 +1786,7 @@ int audit_bprm(struct linux_binprm *bprm
+ 	ax->d.type = AUDIT_EXECVE;
+ 	ax->d.next = context->aux;
+ 	context->aux = (void *)ax;
++#endif
+ 	return 0;
+ }
+ 
+Index: linux/mm/mprotect.c
+===================================================================
+--- linux.orig/mm/mprotect.c
++++ linux/mm/mprotect.c
+@@ -128,7 +128,7 @@ static void change_protection(struct vm_
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
+-static int
++int
+ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ 	unsigned long start, unsigned long end, unsigned long newflags)
+ {
+Index: linux/mm/mremap.c
+===================================================================
+--- linux.orig/mm/mremap.c
++++ linux/mm/mremap.c
+@@ -155,7 +155,7 @@ static unsigned long move_page_tables(st
+ 	return len + old_addr - old_end;	/* how much done */
+ }
+ 
+-static unsigned long move_vma(struct vm_area_struct *vma,
++unsigned long move_vma(struct vm_area_struct *vma,
+ 		unsigned long old_addr, unsigned long old_len,
+ 		unsigned long new_len, unsigned long new_addr)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
