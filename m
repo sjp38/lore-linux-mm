@@ -1,35 +1,50 @@
-Date: Mon, 1 Jan 2007 17:28:03 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [patch] remove MAX_ARG_PAGES
-Message-ID: <20070101172803.GC4214@ucw.cz>
-References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com> <1160572460.2006.79.camel@taijtu> <65dd6fd50610111448q7ff210e1nb5f14917c311c8d4@mail.gmail.com> <65dd6fd50610241048h24af39d9ob49c3816dfe1ca64@mail.gmail.com> <20061229200357.GA5940@elte.hu>
+Date: Tue, 2 Jan 2007 11:17:46 +0000
+From: 'Christoph Hellwig' <hch@infradead.org>
+Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
+Message-ID: <20070102111746.GA22657@infradead.org>
+References: <20061215104341.GA20089@infradead.org> <000101c7207a$48c138f0$ff0da8c0@amr.corp.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20061229200357.GA5940@elte.hu>
+In-Reply-To: <000101c7207a$48c138f0$ff0da8c0@amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Ollie Wild <aaw@google.com>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
+Cc: 'Christoph Hellwig' <hch@infradead.org>, 'Andrew Morton' <akpm@osdl.org>, Dmitriy Monakhov <dmonakhov@sw.ru>, Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> FYI, i have forward ported your MAX_ARG_PAGES limit removal patch to 
-> 2.6.20-rc2 and have included it in the -rt kernel. It's working great - 
-> i can now finally do a "ls -t patches/*.patch" in my patch repository - 
-> something i havent been able to do for years ;-)
+On Fri, Dec 15, 2006 at 10:53:18AM -0800, Chen, Kenneth W wrote:
+> Christoph Hellwig wrote on Friday, December 15, 2006 2:44 AM
+> > So we're doing the sync_page_range once in __generic_file_aio_write
+> > with i_mutex held.
+> > 
+> > 
+> > >  	mutex_lock(&inode->i_mutex);
+> > > -	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
+> > > -			&iocb->ki_pos);
+> > > +	ret = __generic_file_aio_write(iocb, iov, nr_segs, pos);
+> > >  	mutex_unlock(&inode->i_mutex);
+> > >  
+> > >  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+> > 
+> > And then another time after it's unlocked, this seems wrong.
 > 
-> what is keeping this fix from going upstream?
+> 
+> I didn't invent that mess though.
+> 
+> I should've ask the question first: in 2.6.20-rc1, generic_file_aio_write
+> will call sync_page_range twice, once from __generic_file_aio_write_nolock
+> and once within the function itself.  Is it redundant?  Can we delete the
+> one in the top level function?  Like the following?
 
-+1
+Really?  I'm looking at -rc3 now as -rc1 is rather old and it's definitly
+not the case there.  I also can't remember ever doing this - when I
+started the generic read/write path untangling I had exactly the same
+situation that's now in -rc3:
 
-I like this. I've been running with MAX_ARG_PAGES raised to insane
-value, and I'd love to get rid of that hack.
-
-							Pavel
--- 
-Thanks for all the (sleeping) penguins.
+  - generic_file_aio_write_nolock calls sync_page_range_nolock
+  - generic_file_aio_write calls sync_page_range
+  - __generic_file_aio_write_nolock doesn't call any sync_page_range variant
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
