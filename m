@@ -1,26 +1,42 @@
-Date: Tue, 2 Jan 2007 08:37:30 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/2] optional ZONE_DMA
-In-Reply-To: <20061229011151.GA2074@dmt>
-Message-ID: <Pine.LNX.4.64.0701020835170.15611@schroedinger.engr.sgi.com>
-References: <20061229011151.GA2074@dmt>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com> 
+References: <65dd6fd50610101705t3db93a72sc0847cd120aa05d3@mail.gmail.com> 
+Subject: Re: Removing MAX_ARG_PAGES (request for comments/assistance) 
+Date: Tue, 02 Jan 2007 17:52:14 +0000
+Message-ID: <22336.1167760334@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@kvack.org>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Andi Kleen <ak@suse.de>, Arjan van de Ven <arjan@infradead.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org
+To: Ollie Wild <aaw@google.com>
+Cc: linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, Linus Torvalds <torvalds@osdl.org>, Arjan van de Ven <arjan@infradead.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@muc.de>, linux-arch@vger.kernel.org, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Dec 2006, Marcelo Tosatti wrote:
+Ollie Wild <aaw@google.com> wrote:
 
-> Comments?
+> - I haven't tested this on a NOMMU architecture.  Could someone please
+> validate this?
 
-Great! Yes that is what I would like to see for x86. The general problem 
-that Andi saw was that ZONE_DMA is not only used by device drivers (where 
-we could add an explicit dependency) but also by subsystems for various 
-nefarious purposes (f.e. SCSI). Maybe Andi can give us some more clarity 
-on that issue?
+There are a number of potential problems with NOMMU:
+
+ (1) The argument data is copied twice (once into kernel memory and once out
+     of kernel memory).
+
+ (2) The permitted amount of argument data is governed by the stack size of
+     the program to be exec'd.  You should assume that NOMMU stacks cannot
+     grow.
+
+ (3) VMAs on NOMMU are a shared resource.
+
+However, we might be able to extend your idea to improve things.  If we work
+out the stack size required earlier, we can allocate the VMA and the memory
+for the stack *before* we reach the point of no return.  We can then fill in
+the stack and load up all the parameters *before* releasing the original
+executable.  That would eliminate one of the copied mentioned in (1).  Working
+out the stack size earlier may be difficult though, as we may need to load the
+interpreter header before we can do so.
+
+Overall, I don't think there should be too many problems with this for NOMMU.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
