@@ -1,50 +1,26 @@
-Date: Tue, 2 Jan 2007 11:17:46 +0000
-From: 'Christoph Hellwig' <hch@infradead.org>
-Subject: Re: [PATCH]  incorrect error handling inside generic_file_direct_write
-Message-ID: <20070102111746.GA22657@infradead.org>
-References: <20061215104341.GA20089@infradead.org> <000101c7207a$48c138f0$ff0da8c0@amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000101c7207a$48c138f0$ff0da8c0@amr.corp.intel.com>
+Date: Tue, 2 Jan 2007 08:37:30 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/2] optional ZONE_DMA
+In-Reply-To: <20061229011151.GA2074@dmt>
+Message-ID: <Pine.LNX.4.64.0701020835170.15611@schroedinger.engr.sgi.com>
+References: <20061229011151.GA2074@dmt>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Cc: 'Christoph Hellwig' <hch@infradead.org>, 'Andrew Morton' <akpm@osdl.org>, Dmitriy Monakhov <dmonakhov@sw.ru>, Dmitriy Monakhov <dmonakhov@openvz.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, devel@openvz.org, xfs@oss.sgi.com
+To: Marcelo Tosatti <marcelo@kvack.org>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Andi Kleen <ak@suse.de>, Arjan van de Ven <arjan@infradead.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 15, 2006 at 10:53:18AM -0800, Chen, Kenneth W wrote:
-> Christoph Hellwig wrote on Friday, December 15, 2006 2:44 AM
-> > So we're doing the sync_page_range once in __generic_file_aio_write
-> > with i_mutex held.
-> > 
-> > 
-> > >  	mutex_lock(&inode->i_mutex);
-> > > -	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
-> > > -			&iocb->ki_pos);
-> > > +	ret = __generic_file_aio_write(iocb, iov, nr_segs, pos);
-> > >  	mutex_unlock(&inode->i_mutex);
-> > >  
-> > >  	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-> > 
-> > And then another time after it's unlocked, this seems wrong.
-> 
-> 
-> I didn't invent that mess though.
-> 
-> I should've ask the question first: in 2.6.20-rc1, generic_file_aio_write
-> will call sync_page_range twice, once from __generic_file_aio_write_nolock
-> and once within the function itself.  Is it redundant?  Can we delete the
-> one in the top level function?  Like the following?
+On Thu, 28 Dec 2006, Marcelo Tosatti wrote:
 
-Really?  I'm looking at -rc3 now as -rc1 is rather old and it's definitly
-not the case there.  I also can't remember ever doing this - when I
-started the generic read/write path untangling I had exactly the same
-situation that's now in -rc3:
+> Comments?
 
-  - generic_file_aio_write_nolock calls sync_page_range_nolock
-  - generic_file_aio_write calls sync_page_range
-  - __generic_file_aio_write_nolock doesn't call any sync_page_range variant
+Great! Yes that is what I would like to see for x86. The general problem 
+that Andi saw was that ZONE_DMA is not only used by device drivers (where 
+we could add an explicit dependency) but also by subsystems for various 
+nefarious purposes (f.e. SCSI). Maybe Andi can give us some more clarity 
+on that issue?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
