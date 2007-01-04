@@ -1,45 +1,34 @@
-Date: Thu, 4 Jan 2007 11:16:42 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: [RFC] mbind: Restrict nodes to the currently allowed cpuset
-Message-ID: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 4 Jan 2007 11:20:06 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [RFC] mbind: Restrict nodes to the currently allowed cpuset
+Message-Id: <20070104112006.7c43e823.pj@sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ak@suse.de
-Cc: linux-mm@kvack.org, pj@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: ak@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently one can specify an arbitrary node mask to mbind that includes nodes
-not allowed. If that is done with an interleave policy then we will go around
-all the nodes. Those outside of the currently allowed cpuset will be redirected
-to the border nodes. Interleave will then create imbalances at the borders
-of the cpuset.
+Christoph wrote:
+> Could mbind be used to set 
+> up policies that are larger than the existing cpuset? Or could mbind be 
+> used to set up a policy and then the cpuset would change?
 
-This patch restricts the nodes to the currently allowed cpuset.
+My intention (hopefully the code matches this) is that mbind nodes are
+constrained to fit in the cpuset.  If you ask to mbind more nodes, those
+outside the cpuset are masked off.  If you later change the cpuset, then
+we mask more nodes off to continue to fit in the cpuset.  If this gets us
+down to an empty mbind list, then you get to use whatever memory nodes are
+in your new cpuset.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-----
-
-I still wonder if this is the right approach. Could mbind be used to set 
-up policies that are larger than the existing cpuset? Or could mbind be 
-used to set up a policy and then the cpuset would change?
-
-
-
-Index: linux-2.6.19-mm1/mm/mempolicy.c
-===================================================================
---- linux-2.6.19-mm1.orig/mm/mempolicy.c	2006-12-11 19:00:38.224610647 -0800
-+++ linux-2.6.19-mm1/mm/mempolicy.c	2006-12-13 11:13:10.175294067 -0800
-@@ -882,6 +882,7 @@ asmlinkage long sys_mbind(unsigned long 
- 	int err;
- 
- 	err = get_nodes(&nodes, nmask, maxnode);
-+	nodes_and(nodes, nodes, current->mems_allowed);
- 	if (err)
- 		return err;
- 	return do_mbind(start, len, mode, &nodes, flags);
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
