@@ -1,34 +1,23 @@
-Date: Thu, 4 Jan 2007 11:20:06 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC] mbind: Restrict nodes to the currently allowed cpuset
-Message-Id: <20070104112006.7c43e823.pj@sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: do we have mmap abuse in ehca ?, was Re:  mmap abuse in ehca
+References: <20061219113502.GA1416@infradead.org>
+	<OF78487656.FBBD715F-ONC125724A.00287BE6-C125724A.002F4756@de.ibm.com>
+	<20061220115116.GA25709@infradead.org>
+From: Roland Dreier <rdreier@cisco.com>
+Date: Thu, 04 Jan 2007 13:20:40 -0800
+In-Reply-To: <20061220115116.GA25709@infradead.org> (Christoph Hellwig's message of "Wed, 20 Dec 2006 11:51:16 +0000")
+Message-ID: <ada8xgi5w0n.fsf@cisco.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: ak@suse.de, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Christoph Raisch <RAISCH@de.ibm.com>, Hoang-Nam Nguyen <hnguyen@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> Could mbind be used to set 
-> up policies that are larger than the existing cpuset? Or could mbind be 
-> used to set up a policy and then the cpuset would change?
+Sorry I missed this original thread (on vacation since mid-December,
+just back today).  Anyway...
 
-My intention (hopefully the code matches this) is that mbind nodes are
-constrained to fit in the cpuset.  If you ask to mbind more nodes, those
-outside the cpuset are masked off.  If you later change the cpuset, then
-we mask more nodes off to continue to fit in the cpuset.  If this gets us
-down to an empty mbind list, then you get to use whatever memory nodes are
-in your new cpuset.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+ehca guys -- where do we stand on fixing this up?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
