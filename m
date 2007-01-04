@@ -1,51 +1,45 @@
-Date: Thu, 4 Jan 2007 10:37:12 -0800 (PST)
+Date: Thu, 4 Jan 2007 11:16:42 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: [PATCH] Check for populated zone in __drain_pages.
-Message-ID: <Pine.LNX.4.64.0701041036210.21784@schroedinger.engr.sgi.com>
+Subject: [RFC] mbind: Restrict nodes to the currently allowed cpuset
+Message-ID: <Pine.LNX.4.64.0701041115220.22710@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: ak@suse.de
+Cc: linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Both process_zones()and drain_node_pages() check for populated zones before
-touching pagesets. However, __drain_pages does not do so,
+Currently one can specify an arbitrary node mask to mbind that includes nodes
+not allowed. If that is done with an interleave policy then we will go around
+all the nodes. Those outside of the currently allowed cpuset will be redirected
+to the border nodes. Interleave will then create imbalances at the borders
+of the cpuset.
 
-This may result in a NULL pointer dereference for pagesets in unpopulated
-zones if a NUMA setup is combined with cpu hotplug.
-
-Initially the unpopulated zone has the pcp pointers pointing to the boot
-pagesets.  Since the zone is not populated the boot pageset pointers will
-not be changed during page allocator and slab bootstrap.
-
-If a cpu is later brought down (first call to __drain_pages()) then the pcp
-pointers for cpus in unpopulated zones are set to NULL since __drain_pages
-does not first check for an unpopulated zone.
-
-If the cpu is then brought up again then we call process_zones() which will ignore
-the unpopulated zone. So the pageset pointers will still be NULL.
-
-If the cpu is then again brought down then __drain_pages will attempt to drain
-pages by following the NULL pageset pointer for unpopulated zones.
+This patch restricts the nodes to the currently allowed cpuset.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6/mm/page_alloc.c
+----
+
+I still wonder if this is the right approach. Could mbind be used to set 
+up policies that are larger than the existing cpuset? Or could mbind be 
+used to set up a policy and then the cpuset would change?
+
+
+
+Index: linux-2.6.19-mm1/mm/mempolicy.c
 ===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2007-01-04 09:07:32.000000000 -0800
-+++ linux-2.6/mm/page_alloc.c	2007-01-04 09:08:00.000000000 -0800
-@@ -711,6 +711,9 @@
- 	for_each_zone(zone) {
- 		struct per_cpu_pageset *pset;
+--- linux-2.6.19-mm1.orig/mm/mempolicy.c	2006-12-11 19:00:38.224610647 -0800
++++ linux-2.6.19-mm1/mm/mempolicy.c	2006-12-13 11:13:10.175294067 -0800
+@@ -882,6 +882,7 @@ asmlinkage long sys_mbind(unsigned long 
+ 	int err;
  
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		pset = zone_pcp(zone, cpu);
- 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
- 			struct per_cpu_pages *pcp;
+ 	err = get_nodes(&nodes, nmask, maxnode);
++	nodes_and(nodes, nodes, current->mems_allowed);
+ 	if (err)
+ 		return err;
+ 	return do_mbind(start, len, mode, &nodes, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
