@@ -1,39 +1,99 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id l058HSTZ060616
-	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 08:17:29 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id l058HSiG3231968
-	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 09:17:28 +0100
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l058HSTT029843
-	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 09:17:28 +0100
-In-Reply-To: <ada8xgi5w0n.fsf@cisco.com>
-Subject: Re: do we have mmap abuse in ehca ?, was Re:  mmap abuse in ehca
-Message-ID: <OFBD9A4186.C6AB9FD1-ONC125725A.002D32C5-C125725A.002D8B42@de.ibm.com>
-From: Christoph Raisch <RAISCH@de.ibm.com>
-Date: Fri, 5 Jan 2007 09:17:27 +0100
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id l05Et43l130640
+	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 14:55:04 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.6/8.13.6/NCO v8.1.1) with ESMTP id l05Et4S13014784
+	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 15:55:04 +0100
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l05Et4VT009647
+	for <linux-mm@kvack.org>; Fri, 5 Jan 2007 15:55:04 +0100
+Date: Fri, 5 Jan 2007 15:55:01 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [patch] fix memmap accounting
+Message-ID: <20070105145501.GA9602@osiris.boeblingen.de.ibm.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roland Dreier <rdreier@cisco.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Hoang-Nam Nguyen <hnguyen@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Roland Dreier <rdreier@cisco.com> wrote on 04.01.2007 22:20:40:
+Using some rather large holes in memory gives me an error.
+Present memory areas are 0-1GB and 1023GB-1023.5GB (1.5GB in total)
 
-> Sorry I missed this original thread (on vacation since mid-December,
-> just back today).  Anyway...
->
-> ehca guys -- where do we stand on fixing this up?
+Kernel output on s390 with vmemmap is this:
 
-We're looking into it.
-It's a non-trivial change, because both kernel and userspace
-driver have to be in sync again and need a good amount of test.
+Entering add_active_range(0, 0, 262143) 0 entries of 256 used
+Entering add_active_range(0, 268173312, 268304383) 1 entries of 256 used
+Detected 4 CPU's
+Boot cpu address  0
+Zone PFN ranges:
+  DMA             0 ->   524288
+  Normal     524288 -> 268304384
+early_node_map[2] active PFN ranges
+    0:        0 ->   262143
+    0: 268173312 -> 268304383
+On node 0 totalpages: 393214
+  DMA zone: 9216 pages used for memmap
+  DMA zone: 0 pages reserved
+  DMA zone: 252927 pages, LIFO batch:31
 
-And beginning next week the christmas holiday season will be over.
+  Normal zone: 4707071 pages exceeds realsize 131071  <------
 
-Christoph Raisch
+  Normal zone: 131071 pages, LIFO batch:31
+Built 1 zonelists.  Total pages: 383998  
+
+So the calculation of the number of pages needed for the memmap is wrong.
+It just doesn't work with virtual memmaps since it expects that all pages
+of a memmap are actually backed with physical pages which is not the case
+here.
+
+This patch fixes it, but I guess something similar is also needed for
+SPARSEMEM and ia64 (with vmemmap).
+
+Cc: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andy Whitcroft <apw@shadowen.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+---
+ arch/s390/Kconfig |    3 +++
+ mm/page_alloc.c   |    4 ++++
+ 2 files changed, 7 insertions(+)
+
+Index: linux-2.6/arch/s390/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/s390/Kconfig
++++ linux-2.6/arch/s390/Kconfig
+@@ -30,6 +30,9 @@ config ARCH_HAS_ILOG2_U64
+ 	bool
+ 	default n
+ 
++config ARCH_HAS_VMEMMAP
++	def_bool y
++
+ config GENERIC_HWEIGHT
+ 	bool
+ 	default y
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -2629,7 +2629,11 @@ static void __meminit free_area_init_cor
+ 		 * is used by this zone for memmap. This affects the watermark
+ 		 * and per-cpu initialisations
+ 		 */
++#ifdef CONFIG_ARCH_HAS_VMEMMAP
++		memmap_pages = (realsize * sizeof(struct page)) >> PAGE_SHIFT;
++#else
+ 		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
++#endif
+ 		if (realsize >= memmap_pages) {
+ 			realsize -= memmap_pages;
+ 			printk(KERN_DEBUG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
