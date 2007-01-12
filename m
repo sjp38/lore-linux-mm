@@ -1,94 +1,50 @@
-Date: Fri, 12 Jan 2007 10:00:26 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: ext3 data=journal hangs
-Message-Id: <20070112100026.ce83d7a1.randy.dunlap@oracle.com>
-In-Reply-To: <20070111225848.dd9515f7.akpm@osdl.org>
-References: <20070111213412.0b52bf63.randy.dunlap@oracle.com>
-	<20070111225848.dd9515f7.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Jan 2007 11:46:22 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: High lock spin time for zone->lru_lock under extreme conditions
+In-Reply-To: <20070112160104.GA5766@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0701121137430.2306@schroedinger.engr.sgi.com>
+References: <20070112160104.GA5766@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Ravikiran G Thirumalai <kiran@scalex86.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>, "Shai Fultheim (Shai@scalex86.org)" <shai@scalex86.org>, pravin b shelar <pravin.shelar@calsoftinc.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Jan 2007 22:58:48 -0800 Andrew Morton wrote:
+On Fri, 12 Jan 2007, Ravikiran G Thirumalai wrote:
 
-> On Thu, 11 Jan 2007 21:34:12 -0800
-> Randy Dunlap <randy.dunlap@oracle.com> wrote:
-> 
-> > (resending for wider audience)
-> > 
-> > Date: Wed, 10 Jan 2007 16:03:51 -0800
-> > To: linux-ext4@vger.kernel.org
-> > 
-> > 
-> > On Tue, 9 Jan 2007 15:11:23 -0800 Randy Dunlap wrote:
-> > 
-> > > Hi,
-> > > 
-> > > (2.6.20-rc4, x86_64 1-proc on SMP kernel, 1 GB RAM)
-> > > 
-> > > I'm running fsx-linux (akpm ext3-tools version) on an ext3 fs
-> > > with data=journal and fs blocksize=2048.  I've been trying to
-> > > get some kind of kernel messages from it but I can't get any
-> > > debug IO done successfully.
-> > > 
-> > > It has hung on me 3 times in a row today.  I'm using this command:
-> > > fsx-linux -l 100M -N 50000 -S 0 fsxtestfile
-> > > 
-> > > This is run in a new partition on a IDE drive (/dev/hda7,
-> > > using legacy IDE drivers).
-> > > 
-> > > Any suggestions for debug output?  I can see SysRq output on-screen
-> > > (sometimes) but it doesn't make it to my serial console.
-> > > 
-> > > Any patches to test?  :)
-> > 
-> > More notes:
-> > Fails (hangs) with fs blocksize of 1024, 2048, or 4096.
-> > On data=journal mode hangs.  writeback and ordered run fine.
-> > 
-> > After several runs (hangs), I was able to get some sysrq output
-> > to the serial console.
-> > 
-> > kernel config:  http://oss.oracle.com/~rdunlap/configs/config-2620-rc4-hangs
-> > message log:    http://oss.oracle.com/~rdunlap/logs/fsx-capture.txt
-> > 
-> > Can anyone see what fsx-linux is waiting on there?
-> > 
-> 
-> Everybody got stuck in balance_dirty_pages().  The new thing in there is
-> that an nscd instance got stuck in balance_dirty_pages() on the pagefault's
-> new set_page_dirty_balance() path, so an mmap_sem is stuck, which causes
-> lots of other things to get stuck.
-> 
-> But I don't see why this should happen, really.  It all seems OK here. Is
-> any IO happening at all?
+> The test was simple, we have 16 processes, each allocating 3.5G of memory
+> and and touching each and every page and returning.  Each of the process is
+> bound to a node (socket), with the local node being the preferred node for
+> allocation (numactl --cpubind=$node ./numa-membomb --preferred=$node).  Each
+> socket has 4G of physical memory and there are two cores on each socket. On
+> start of the test, the machine becomes unresponsive after sometime and
+> prints out softlockup and OOM messages.  We then found out the cause
+> for softlockups being the excessive spin times on zone_lru lock.  The fact
+> that spin_lock_irq disables interrupts while spinning made matters very bad.
+> We instrumented the spin_lock_irq code and found that the spin time on the
+> lru locks was in the order of a few seconds (tens of seconds at times) and
+> the hold time was comparatively lesser.
 
-The disk IO LED blinks lightly 30 times in 60 seconds.
+So the issue is two processes contenting on the zone lock for one node? 
+You are overallocating the 4G node with two processes attempting to 
+allocate 7.5GB? So we go off node for 3.5G of the allocation?
 
-> You don't have any shells at all?  If you do, try running /bin/sync,
-> see if the disk lights up.  Run `watch -n1 cat /proc/meminfo' when testing
-> to see what dirty memory is doing.  And `vmstat 1'.  Try sysrq-S, see if
-> that gets things unstuck.
+Does the system scale the right way if you stay within the bounds of node 
+memory? I.e. allocate 1.5GB from each process?
 
-/bin/sync or sysrq-S cause a little disk activity, not much.
-Nothing comes unstuck AFAICT.
+Have you tried increasing the size of the per cpu caches in 
+/proc/sys/vm/percpu_pagelist_fraction?
 
-/proc/meminfo::Dirty began at around 400 MB, went down to around
-25 MB, now it's back at 400 MB.  I did 'vmstat 1 | tee vmstat.out'
-and that IO is now hung also.  :(
+> While the softlockups and the like went away by enabling interrupts during
+> spinning, as mentioned in http://lkml.org/lkml/2007/1/3/29 ,
+> Andi thought maybe this is exposing a problem with zone->lru_locks and 
+> hence warrants a discussion on lkml, hence this post.  Are there any 
+> plans/patches/ideas to address the spin time under such extreme conditions?
 
-> I guess it's consistent with the disk system losing its brains, too.
-
-It seems too reproducible for that, but maybe the entire thing is
-scrogged.  I'll see if some earlier kernels work for me.
-
----
-~Randy
+Could this be a hardware problem? Some issue with atomic ops in the 
+Sun hardware?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
