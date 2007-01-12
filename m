@@ -1,39 +1,121 @@
-Message-ID: <45A6D118.5030508@yahoo.com.au>
-Date: Fri, 12 Jan 2007 11:06:48 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by an-out-0708.google.com with SMTP id b38so388725ana
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2007 16:22:45 -0800 (PST)
+Message-ID: <45a44e480701111622i32fffddcn3b4270d539620743@mail.gmail.com>
+Date: Thu, 11 Jan 2007 19:22:45 -0500
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: [PATCH/RFC 2.6.20-rc4 1/1] fbdev,mm: hecuba/E-Ink fbdev driver
+In-Reply-To: <20070111133759.d17730a4.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [REGRESSION] 2.6.19/2.6.20-rc3 buffered write slowdown
-References: <20070110223731.GC44411608@melbourne.sgi.com> <Pine.LNX.4.64.0701101503310.22578@schroedinger.engr.sgi.com> <20070110230855.GF44411608@melbourne.sgi.com> <45A57333.6060904@yahoo.com.au> <20070111003158.GT33919298@melbourne.sgi.com> <45A58DFA.8050304@yahoo.com.au> <20070111012404.GW33919298@melbourne.sgi.com> <45A602F0.1090405@yahoo.com.au> <Pine.LNX.4.64.0701110950380.28802@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0701110950380.28802@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070111142427.GA1668@localhost>
+	 <20070111133759.d17730a4.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: David Chinner <dgc@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 11 Jan 2007, Nick Piggin wrote:
-> 
-> 
->>You're not turning on zone_reclaim, by any chance, are you?
-> 
-> 
-> It is not a NUMA system so zone reclaim is not available.
+On 1/11/07, Andrew Morton <akpm@osdl.org> wrote:
+> That's all very interesting.
+>
+> Please don't dump a bunch of new implementation concepts like this on us
+> with no description of what it does, why it does it and why it does it in
+> this particular manner.
 
-Ah yes... Can't you force it on if you have a NUMA complied kernel?
+Hi Andrew,
 
-> zone reclaim was 
-> already in 2.6.16.
+Actually, I didn't dump without description. :-) I had posted an RFC
+and an explanation of the design to the lists. Here's an archive link
+to that post. http://marc.theaimsgroup.com/?l=linux-kernel&m=116583546411423&w=2
+I wasn't sure whether to include that description with the patch email
+because it was long.
 
-Well it was a long shot, but that is something that has had a few
-changes recently and is something that could interact badly with
-the global pdflush.
+>From that email:
+---
+This is there in order to hide the latency
+associated with updating the display (500ms to 800ms). The method used
+is to fake a framebuffer in memory. Then use pagefaults followed by delayed
+unmaping and only then do the actual framebuffer update. To explain this
+better, the usage scenario is like this:
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+- userspace app like Xfbdev mmaps framebuffer
+- driver handles and sets up nopage and page_mkwrite handlers
+- app tries to write to mmaped vaddress
+- get pagefault and reaches driver's nopage handler
+- driver's nopage handler finds and returns physical page ( no
+  actual framebuffer )
+- write so get page_mkwrite where we add this page to a list
+- also schedules a workqueue task to be run after a delay
+- app continues writing to that page with no additional cost
+- the workqueue task comes in and unmaps the pages on the list, then
+  completes the work associated with updating the framebuffer
+- app tries to write to the address (that has now been unmapped)
+- get pagefault and the above sequence occurs again
+
+The desire is roughly to allow bursty framebuffer writes to occur.
+Then after some time when hopefully things have gone quiet, we go and
+really update the framebuffer. For this type of nonvolatile high latency
+display, the desired image is the final image rather than intermediate
+stages which is why it's okay to not update for each write that is
+occuring.
+---
+
+>
+> What is the "theory of operation" here?
+>
+> Presumably this is a performance optimisation to permit batching of the
+> copying from user memory into the frambuffer card?  If so, how much
+> performance does it gain?
+
+Yes, you are right. Updating the E-Ink display currently requires
+about 500ms - 800ms. It is a non-volatile display and as such it is
+typically used in a manner where only the final image is important. As
+a result, being able to avoid the bursts of IO associated with screen
+activity and only write the final result is attractive.
+
+I have not done any performance benchmarks. I'm not sure exactly what
+to compare. I imagine in one case would be using write() to deliver
+the image updates and the other case would be mmap(), memcpy(). The
+latter would win because it's hiding all the intermediate "writes".
+
+>
+> I expect the benefit will be large, and could be increased if you were to
+> add a small delay between first-touch and writeback to the display.  Let's
+> talk about that a bit.
+
+Agreed. Though I may be misunderstanding what you mean by first-touch.
+Currently, I do a schedule_delayed_work and leave 1s between when the
+page_mkwrite callback indicating the first touch is received and when
+the deferred IO is processed to actually deliver the data to the
+display. I picked 1s because it rounds up the display latency. I
+imagine increasing the delay further may make it miss some desirable
+display activity. For example, a slider indicating progress of music
+may be slower than optimal. Perhaps I should make the delay a module
+parameter and leave the choice to the user?
+
+>
+> Is the optimisation applicable to other drivers?  If so, should it be
+> generalised into library code somewhere?
+
+I think the deferred IO code would be useful to devices that have slow
+updates and where only the final result is important. So far, this is
+the only device I've encountered that has this characteristic.
+
+>
+> I guess the export of page_mkclean() makes sense for this application.
+>
+> The use of lock_page_nosync() is wrong.  It can still sleep, and here it's
+> inside spinlock.  And we don't want to export __lock_page_nosync() to
+> modules.  I suggest you convert the list locking here to a mutex and use
+> lock_page().
+>
+
+Oops, sorry about that. I will correct it.
+
+Thanks,
+jayakumar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
