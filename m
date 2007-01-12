@@ -1,64 +1,40 @@
-Message-ID: <45A6DAA2.8070605@yahoo.com.au>
-Date: Fri, 12 Jan 2007 11:47:30 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Thu, 11 Jan 2007 19:04:50 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [REGRESSION] 2.6.19/2.6.20-rc3 buffered write slowdown
+In-Reply-To: <45A6D118.5030508@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0701111903110.31979@schroedinger.engr.sgi.com>
+References: <20070110223731.GC44411608@melbourne.sgi.com>
+ <Pine.LNX.4.64.0701101503310.22578@schroedinger.engr.sgi.com>
+ <20070110230855.GF44411608@melbourne.sgi.com> <45A57333.6060904@yahoo.com.au>
+ <20070111003158.GT33919298@melbourne.sgi.com> <45A58DFA.8050304@yahoo.com.au>
+ <20070111012404.GW33919298@melbourne.sgi.com> <45A602F0.1090405@yahoo.com.au>
+ <Pine.LNX.4.64.0701110950380.28802@schroedinger.engr.sgi.com>
+ <45A6D118.5030508@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH/RFC 2.6.20-rc4 1/1] fbdev,mm: hecuba/E-Ink fbdev driver
-References: <20070111142427.GA1668@localhost>	 <20070111133759.d17730a4.akpm@osdl.org> <45a44e480701111622i32fffddcn3b4270d539620743@mail.gmail.com>
-In-Reply-To: <45a44e480701111622i32fffddcn3b4270d539620743@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: David Chinner <dgc@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jaya Kumar wrote:
-> On 1/11/07, Andrew Morton <akpm@osdl.org> wrote:
-> 
->> That's all very interesting.
->>
->> Please don't dump a bunch of new implementation concepts like this on us
->> with no description of what it does, why it does it and why it does it in
->> this particular manner.
-> 
-> 
-> Hi Andrew,
-> 
-> Actually, I didn't dump without description. :-) I had posted an RFC
-> and an explanation of the design to the lists. Here's an archive link
-> to that post. 
-> http://marc.theaimsgroup.com/?l=linux-kernel&m=116583546411423&w=2
-> I wasn't sure whether to include that description with the patch email
-> because it was long.
-> 
->> From that email:
-> 
-> ---
-> This is there in order to hide the latency
-> associated with updating the display (500ms to 800ms). The method used
-> is to fake a framebuffer in memory. Then use pagefaults followed by delayed
-> unmaping and only then do the actual framebuffer update. To explain this
-> better, the usage scenario is like this:
-> 
-> - userspace app like Xfbdev mmaps framebuffer
-> - driver handles and sets up nopage and page_mkwrite handlers
-> - app tries to write to mmaped vaddress
-> - get pagefault and reaches driver's nopage handler
-> - driver's nopage handler finds and returns physical page ( no
->  actual framebuffer )
-> - write so get page_mkwrite where we add this page to a list
-> - also schedules a workqueue task to be run after a delay
-> - app continues writing to that page with no additional cost
-> - the workqueue task comes in and unmaps the pages on the list, then
->  completes the work associated with updating the framebuffer
+On Fri, 12 Jan 2007, Nick Piggin wrote:
 
-Have you thought about implementing a traditional write-back cache using
-the dirty bits, rather than unmapping the page?
+> Ah yes... Can't you force it on if you have a NUMA complied kernel?
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+But it wont do anything since it only comes into action if you have an off 
+node allocation. If you run a NUMA kernel on an SMP system then you only 
+have one node. There is no way that an off node allocation can occur.
+
+> > zone reclaim was already in 2.6.16.
+> 
+> Well it was a long shot, but that is something that has had a few
+> changes recently and is something that could interact badly with
+> the global pdflush.
+
+zone reclaim is not touching dirty pages in its default configuration. It 
+would only remove up clean pagecache pages.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
