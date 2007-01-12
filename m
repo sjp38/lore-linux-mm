@@ -1,398 +1,94 @@
-Subject: Re: High lock spin time for zone->lru_lock under extreme conditions
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070112160104.GA5766@localhost.localdomain>
-References: <20070112160104.GA5766@localhost.localdomain>
-Content-Type: text/plain
-Date: Fri, 12 Jan 2007 18:03:54 +0100
-Message-Id: <1168621434.26496.50.camel@twins>
+Date: Fri, 12 Jan 2007 10:00:26 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: ext3 data=journal hangs
+Message-Id: <20070112100026.ce83d7a1.randy.dunlap@oracle.com>
+In-Reply-To: <20070111225848.dd9515f7.akpm@osdl.org>
+References: <20070111213412.0b52bf63.randy.dunlap@oracle.com>
+	<20070111225848.dd9515f7.akpm@osdl.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>, "Shai Fultheim (Shai@scalex86.org)" <shai@scalex86.org>, pravin b shelar <pravin.shelar@calsoftinc.com>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-01-12 at 08:01 -0800, Ravikiran G Thirumalai wrote:
-> Hi,
-> We noticed high interrupt hold off times while running some memory intensive
-> tests on a Sun x4600 8 socket 16 core x86_64 box.  We noticed softlockups,
-> lost ticks and even wall time drifting (which is probably a bug in the
-> x86_64 timer subsystem). 
-> 
-> The test was simple, we have 16 processes, each allocating 3.5G of memory
-> and and touching each and every page and returning.  Each of the process is
-> bound to a node (socket), with the local node being the preferred node for
-> allocation (numactl --cpubind=$node ./numa-membomb --preferred=$node).  Each
-> socket has 4G of physical memory and there are two cores on each socket. On
-> start of the test, the machine becomes unresponsive after sometime and
-> prints out softlockup and OOM messages.  We then found out the cause
-> for softlockups being the excessive spin times on zone_lru lock.  The fact
-> that spin_lock_irq disables interrupts while spinning made matters very bad.
-> We instrumented the spin_lock_irq code and found that the spin time on the
-> lru locks was in the order of a few seconds (tens of seconds at times) and
-> the hold time was comparatively lesser.
-> 
-> We did not use any lock debugging options and used plain old rdtsc to
-> measure cycles.  (We disable cpu freq scaling in the BIOS). All we did was
-> this:
-> 
-> void __lockfunc _spin_lock_irq(spinlock_t *lock)
-> {
->         local_irq_disable();
->         ------------------------> rdtsc(t1);
->         preempt_disable();
->         spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
->         _raw_spin_lock(lock);
->         ------------------------> rdtsc(t2);
->         if (lock->spin_time < (t2 - t1))
->                 lock->spin_time = t2 - t1;
-> }
-> 
-> On some runs, we found that the zone->lru_lock spun for 33 seconds or more
-> while the maximal CS time was 3 seconds or so.
-> 
-> While the softlockups and the like went away by enabling interrupts during
-> spinning, as mentioned in http://lkml.org/lkml/2007/1/3/29 ,
-> Andi thought maybe this is exposing a problem with zone->lru_locks and 
-> hence warrants a discussion on lkml, hence this post.  Are there any 
-> plans/patches/ideas to address the spin time under such extreme conditions?
-> 
-> I will be happy to provide any additional information (config/dmesg/test
-> case if needed.
+On Thu, 11 Jan 2007 22:58:48 -0800 Andrew Morton wrote:
 
-I have been tinkering with this because -rt shows similar issues.
-Find there the patch so far, it works on UP, but it still went *boom*
-the last time I tried an actual SMP box.
+> On Thu, 11 Jan 2007 21:34:12 -0800
+> Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> 
+> > (resending for wider audience)
+> > 
+> > Date: Wed, 10 Jan 2007 16:03:51 -0800
+> > To: linux-ext4@vger.kernel.org
+> > 
+> > 
+> > On Tue, 9 Jan 2007 15:11:23 -0800 Randy Dunlap wrote:
+> > 
+> > > Hi,
+> > > 
+> > > (2.6.20-rc4, x86_64 1-proc on SMP kernel, 1 GB RAM)
+> > > 
+> > > I'm running fsx-linux (akpm ext3-tools version) on an ext3 fs
+> > > with data=journal and fs blocksize=2048.  I've been trying to
+> > > get some kind of kernel messages from it but I can't get any
+> > > debug IO done successfully.
+> > > 
+> > > It has hung on me 3 times in a row today.  I'm using this command:
+> > > fsx-linux -l 100M -N 50000 -S 0 fsxtestfile
+> > > 
+> > > This is run in a new partition on a IDE drive (/dev/hda7,
+> > > using legacy IDE drivers).
+> > > 
+> > > Any suggestions for debug output?  I can see SysRq output on-screen
+> > > (sometimes) but it doesn't make it to my serial console.
+> > > 
+> > > Any patches to test?  :)
+> > 
+> > More notes:
+> > Fails (hangs) with fs blocksize of 1024, 2048, or 4096.
+> > On data=journal mode hangs.  writeback and ordered run fine.
+> > 
+> > After several runs (hangs), I was able to get some sysrq output
+> > to the serial console.
+> > 
+> > kernel config:  http://oss.oracle.com/~rdunlap/configs/config-2620-rc4-hangs
+> > message log:    http://oss.oracle.com/~rdunlap/logs/fsx-capture.txt
+> > 
+> > Can anyone see what fsx-linux is waiting on there?
+> > 
+> 
+> Everybody got stuck in balance_dirty_pages().  The new thing in there is
+> that an nscd instance got stuck in balance_dirty_pages() on the pagefault's
+> new set_page_dirty_balance() path, so an mmap_sem is stuck, which causes
+> lots of other things to get stuck.
+> 
+> But I don't see why this should happen, really.  It all seems OK here. Is
+> any IO happening at all?
 
-So take this patch only as an indication of the direction I'm working
-in.
+The disk IO LED blinks lightly 30 times in 60 seconds.
 
-One concern I have with the taken approach is cacheline bouncing.
-Perhaps I should retain some form of per-cpu data structure.
+> You don't have any shells at all?  If you do, try running /bin/sync,
+> see if the disk lights up.  Run `watch -n1 cat /proc/meminfo' when testing
+> to see what dirty memory is doing.  And `vmstat 1'.  Try sysrq-S, see if
+> that gets things unstuck.
+
+/bin/sync or sysrq-S cause a little disk activity, not much.
+Nothing comes unstuck AFAICT.
+
+/proc/meminfo::Dirty began at around 400 MB, went down to around
+25 MB, now it's back at 400 MB.  I did 'vmstat 1 | tee vmstat.out'
+and that IO is now hung also.  :(
+
+> I guess it's consistent with the disk system losing its brains, too.
+
+It seems too reproducible for that, but maybe the entire thing is
+scrogged.  I'll see if some earlier kernels work for me.
 
 ---
-Subject: mm: streamline zone->lock acquisition on lru_cache_add
-
-By buffering the lru pages on a per cpu basis the flush of that buffer
-is prone to bounce around zones. Furthermore release_pages can also acquire
-the zone->lock.
-
-Streeamline all this by replacing the per cpu buffer with a per zone
-lockless buffer. Once the buffer is filled flush it and perform
-all needed operation under one lock acquisition.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/mmzone.h |   12 +++
- mm/internal.h          |    2 
- mm/page_alloc.c        |   21 ++++++
- mm/swap.c              |  169 +++++++++++++++++++++++++++++++++----------------
- 4 files changed, 149 insertions(+), 55 deletions(-)
-
-Index: linux-2.6-rt/include/linux/mmzone.h
-===================================================================
---- linux-2.6-rt.orig/include/linux/mmzone.h	2007-01-11 16:27:08.000000000 +0100
-+++ linux-2.6-rt/include/linux/mmzone.h	2007-01-11 16:32:08.000000000 +0100
-@@ -153,6 +153,17 @@ enum zone_type {
- #define ZONES_SHIFT 2
- #endif
- 
-+/*
-+ * must be power of 2 to avoid wrap around artifacts
-+ */
-+#define PAGEBUF_SIZE	32
-+
-+struct pagebuf {
-+	atomic_t head;
-+	atomic_t tail;
-+	struct page *pages[PAGEBUF_SIZE];
-+};
-+
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
- 	unsigned long		free_pages;
-@@ -188,6 +199,7 @@ struct zone {
- #endif
- 	struct free_area	free_area[MAX_ORDER];
- 
-+	struct pagebuf		pagebuf;
- 
- 	ZONE_PADDING(_pad1_)
- 
-Index: linux-2.6-rt/mm/swap.c
-===================================================================
---- linux-2.6-rt.orig/mm/swap.c	2007-01-11 16:27:08.000000000 +0100
-+++ linux-2.6-rt/mm/swap.c	2007-01-11 16:36:34.000000000 +0100
-@@ -31,6 +31,8 @@
- #include <linux/notifier.h>
- #include <linux/init.h>
- 
-+#include "internal.h"
-+
- /* How many pages do we try to swap or page in/out together? */
- int page_cluster;
- 
-@@ -170,49 +172,131 @@ void fastcall mark_page_accessed(struct 
- 
- EXPORT_SYMBOL(mark_page_accessed);
- 
-+static int __pagebuf_add(struct zone *zone, struct page *page)
-+{
-+	BUG_ON(page_zone(page) != zone);
-+
-+	switch (page_count(page)) {
-+	case 0:
-+		BUG();
-+
-+	case 1:
-+		/*
-+		 * we're the sole owner, don't bother inserting
-+		 */
-+		if (PageActive(page))
-+			ClearPageActive(page);
-+		__put_page(page);
-+		return 0;
-+
-+	default:
-+		VM_BUG_ON(PageLRU(page));
-+		SetPageLRU(page);
-+		if (PageActive(page))
-+			add_page_to_active_list(zone, page);
-+		else
-+			add_page_to_inactive_list(zone, page);
-+
-+		if (unlikely(put_page_testzero(page))) {
-+			/*
-+			 * we are the last, remove again
-+			 */
-+			VM_BUG_ON(!PageLRU(page));
-+			ClearPageLRU(page);
-+			del_page_from_lru(zone, page);
-+			return 0;
-+		}
-+	}
-+
-+	return 1;
-+}
-+
-+static int __pagebuf_size(struct pagebuf *pb)
-+{
-+	int tail = atomic_read(&pb->tail);
-+	int head = atomic_read(&pb->head);
-+	int size = (head + PAGEBUF_SIZE - tail) % PAGEBUF_SIZE;
-+
-+	if (!size && pb->pages[tail])
-+		size = PAGEBUF_SIZE;
-+
-+	return size;
-+}
-+
-+static void __pagebuf_flush(struct zone *zone, int nr_pages)
-+{
-+	struct pagebuf *pb = &zone->pagebuf;
-+	int i;
-+
-+	for (i = 0; i < nr_pages && __pagebuf_size(pb); i++) {
-+		int pos = atomic_inc_return(&pb->tail) % PAGEBUF_SIZE;
-+		struct page *page = pb->pages[pos];
-+		if (page && cmpxchg(&pb->pages[pos], page, NULL) == page) {
-+			if (!__pagebuf_add(zone, page))
-+				__free_cache_page(zone, page);
-+		}
-+	}
-+}
-+
-+static void pagebuf_flush(struct zone *zone)
-+{
-+	spin_lock_irq(&zone->lock);
-+	__pagebuf_flush(zone, PAGEBUF_SIZE);
-+	spin_unlock_irq(&zone->lock);
-+}
-+
-+static void pagebuf_add(struct zone *zone, struct page *page)
-+{
-+	struct pagebuf *pb = &zone->pagebuf;
-+	int pos;
-+
-+	pos = atomic_inc_return(&pb->head) % PAGEBUF_SIZE;
-+	if (unlikely(cmpxchg(&pb->pages[pos], NULL, page) != NULL)) {
-+		/*
-+		 * This races, but should be harmless
-+		 */
-+		atomic_dec(&pb->head);
-+		spin_lock_irq(&zone->lock);
-+
-+		if (!__pagebuf_add(zone, page))
-+			__free_cache_page(zone, page);
-+
-+flush:
-+		__pagebuf_flush(zone, PAGEBUF_SIZE);
-+		spin_unlock_irq(&zone->lock);
-+		return;
-+	}
-+
-+	if (__pagebuf_size(pb) > PAGEBUF_SIZE/2 &&
-+			spin_trylock_irq(&zone->lock))
-+		goto flush;
-+}
-+
- /**
-  * lru_cache_add: add a page to the page lists
-  * @page: the page to add
-  */
--static DEFINE_PER_CPU_LOCKED(struct pagevec, lru_add_pvecs) = { 0, };
--static DEFINE_PER_CPU_LOCKED(struct pagevec, lru_add_active_pvecs) = { 0, };
--
- void fastcall lru_cache_add(struct page *page)
- {
--	int cpu;
--	struct pagevec *pvec = &get_cpu_var_locked(lru_add_pvecs, &cpu);
--
- 	page_cache_get(page);
--	if (!pagevec_add(pvec, page))
--		__pagevec_lru_add(pvec);
--	put_cpu_var_locked(lru_add_pvecs, cpu);
-+	pagebuf_add(page_zone(page), page);
- }
- 
- void fastcall lru_cache_add_active(struct page *page)
- {
--	int cpu;
--	struct pagevec *pvec = &get_cpu_var_locked(lru_add_active_pvecs, &cpu);
--
--	page_cache_get(page);
--	if (!pagevec_add(pvec, page))
--		__pagevec_lru_add_active(pvec);
--	put_cpu_var_locked(lru_add_active_pvecs, cpu);
-+	VM_BUG_ON(PageActive(page));
-+	SetPageActive(page);
-+	lru_cache_add(page);
- }
- 
- void lru_add_drain(void)
- {
--	struct pagevec *pvec;
--	int cpu;
-+	int i;
-+	struct zone *zones;
- 
--	pvec = &get_cpu_var_locked(lru_add_pvecs, &cpu);
--	if (pagevec_count(pvec))
--		__pagevec_lru_add(pvec);
--	put_cpu_var_locked(lru_add_pvecs, cpu);
--
--	pvec = &get_cpu_var_locked(lru_add_active_pvecs, &cpu);
--	if (pagevec_count(pvec))
--		__pagevec_lru_add_active(pvec);
--	put_cpu_var_locked(lru_add_active_pvecs, cpu);
-+	zones = NODE_DATA(cpu_to_node(cpu))->node_zones;
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		pagebuf_flush(&zones[i]);
- }
- 
- #ifdef CONFIG_NUMA
-@@ -351,25 +435,12 @@ void __pagevec_release_nonlru(struct pag
- void __pagevec_lru_add(struct pagevec *pvec)
- {
- 	int i;
--	struct zone *zone = NULL;
- 
- 	for (i = 0; i < pagevec_count(pvec); i++) {
- 		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
- 
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		VM_BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		add_page_to_inactive_list(zone, page);
-+		pagebuf_add(page_zone(page), page);
- 	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
- 
-@@ -378,27 +449,15 @@ EXPORT_SYMBOL(__pagevec_lru_add);
- void __pagevec_lru_add_active(struct pagevec *pvec)
- {
- 	int i;
--	struct zone *zone = NULL;
- 
- 	for (i = 0; i < pagevec_count(pvec); i++) {
- 		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
- 
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		VM_BUG_ON(PageLRU(page));
--		SetPageLRU(page);
- 		VM_BUG_ON(PageActive(page));
- 		SetPageActive(page);
--		add_page_to_active_list(zone, page);
-+
-+		pagebuf_add(page_zone(page), page);
- 	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
- 
-Index: linux-2.6-rt/mm/internal.h
-===================================================================
---- linux-2.6-rt.orig/mm/internal.h	2007-01-11 16:27:08.000000000 +0100
-+++ linux-2.6-rt/mm/internal.h	2007-01-11 16:27:15.000000000 +0100
-@@ -37,4 +37,6 @@ static inline void __put_page(struct pag
- extern void fastcall __init __free_pages_bootmem(struct page *page,
- 						unsigned int order);
- 
-+extern void __free_cache_page(struct zone *zone, struct page *page);
-+
- #endif
-Index: linux-2.6-rt/mm/page_alloc.c
-===================================================================
---- linux-2.6-rt.orig/mm/page_alloc.c	2007-01-11 16:27:08.000000000 +0100
-+++ linux-2.6-rt/mm/page_alloc.c	2007-01-11 16:27:15.000000000 +0100
-@@ -555,6 +555,27 @@ static void __free_pages_ok(struct page 
- 	unlock_cpu_pcp(flags, this_cpu);
- }
- 
-+void __free_cache_page(struct zone *zone, struct page *page)
-+{
-+	BUG_ON(PageCompound(page));
-+
-+	if (PageAnon(page))
-+		page->mapping = NULL;
-+	if (free_pages_check(page))
-+		return;
-+
-+	if (!PageHighMem(page))
-+		debug_check_no_locks_freed(page_address(page),PAGE_SIZE);
-+
-+	arch_free_page(page, 0);
-+	kernel_map_pages(page, 1, 0);
-+
-+	__count_vm_events(PGFREE, 1);
-+	zone->all_unreclaimable = 0;
-+	zone->pages_scanned = 0;
-+	__free_one_page(page, zone, 0);
-+}
-+
- /*
-  * permit the bootmem allocator to evade page validation on high-order frees
-  */
-
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
