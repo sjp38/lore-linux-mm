@@ -1,335 +1,153 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:48:03 +1100
-Message-Id: <20070113024803.29682.7531.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:48:14 +1100
+Message-Id: <20070113024814.29682.37247.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 27/29] Abstract implementation dependent code for mremap
+Subject: [PATCH 29/29] Tweak i386 arch dependent files to work with PTI
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 27
- * Moved implementation dependent page table code from mremap.c to
- pt_default.c. move_page_tables has been made part of the page table interface.
-   * Added partial page table lookup functions to pt-default-mm.h to
-   facilitate the abstraction of the page table dependent code.
+PATCH 29 i386
+ * Defines default page table config option: PT_DEFAULT in Kconfig.debug
+ to appear in kernel hacking.
+ * Adjusts arch dependent files referring to the pgd in the mm_struct
+ to do it via the new generic page table type (no pgd in mm_struct anymore).
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/pt-default-mm.h |   49 +++++++++++++++
- mm/mremap.c                   |  133 ------------------------------------------
- mm/pt-default.c               |   90 ++++++++++++++++++++++++++++
- 3 files changed, 140 insertions(+), 132 deletions(-)
-Index: linux-2.6.20-rc4/mm/mremap.c
+ arch/i386/Kconfig.debug        |    9 +++++++++
+ arch/i386/kernel/init_task.c   |    2 +-
+ arch/i386/mm/fault.c           |    2 +-
+ arch/i386/mm/pageattr.c        |    3 ++-
+ include/asm-i386/mmu_context.h |    4 ++--
+ include/asm-i386/pgtable.h     |    2 +-
+ 6 files changed, 16 insertions(+), 6 deletions(-)
+ arch/i386/Kconfig.debug        |    9 +++++++++
+ arch/i386/kernel/init_task.c   |    2 +-
+ arch/i386/mm/fault.c           |    2 +-
+ arch/i386/mm/pageattr.c        |    3 ++-
+ include/asm-i386/mmu_context.h |    4 ++--
+ include/asm-i386/pgtable.h     |    2 +-
+ 6 files changed, 16 insertions(+), 6 deletions(-)
+PATCH 06-i386
+ * Defines default page table config option: PT_DEFAULT in Kconfig.debug
+ to appear in kernel hacking.
+ * Adjusts arch dependent files referring to the pgd in the mm_struct
+ to do it via the new generic page table type (no pgd in mm_struct anymore).
+
+ arch/i386/Kconfig.debug        |    9 +++++++++
+ arch/i386/kernel/init_task.c   |    2 +-
+ arch/i386/mm/fault.c           |    2 +-
+ arch/i386/mm/pageattr.c        |    3 ++-
+ include/asm-i386/mmu_context.h |    4 ++--
+ include/asm-i386/pgtable.h     |    2 +-
+ 6 files changed, 16 insertions(+), 6 deletions(-)
+
+Index: linux-2.6.20-rc3/include/asm-i386/mmu_context.h
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/mremap.c	2007-01-11 12:40:58.728788000 +1100
-+++ linux-2.6.20-rc4/mm/mremap.c	2007-01-11 12:41:42.240788000 +1100
-@@ -18,143 +18,12 @@
+--- linux-2.6.20-rc3.orig/include/asm-i386/mmu_context.h	2007-01-01 11:53:20.000000000 +1100
++++ linux-2.6.20-rc3/include/asm-i386/mmu_context.h	2007-01-06 02:53:38.000000000 +1100
+@@ -38,7 +38,7 @@
+ 		cpu_set(cpu, next->cpu_vm_mask);
+ 
+ 		/* Re-load page tables */
+-		load_cr3(next->pgd);
++		load_cr3(next->page_table.pgd);
+ 
+ 		/*
+ 		 * load the LDT, if the LDT is different:
+@@ -55,7 +55,7 @@
+ 			/* We were in lazy tlb mode and leave_mm disabled 
+ 			 * tlb flush IPI delivery. We must reload %cr3.
+ 			 */
+-			load_cr3(next->pgd);
++			load_cr3(next->page_table.pgd);
+ 			load_LDT_nolock(&next->context);
+ 		}
+ 	}
+Index: linux-2.6.20-rc3/arch/i386/mm/pageattr.c
+===================================================================
+--- linux-2.6.20-rc3.orig/arch/i386/mm/pageattr.c	2007-01-01 11:53:20.000000000 +1100
++++ linux-2.6.20-rc3/arch/i386/mm/pageattr.c	2007-01-06 02:53:38.000000000 +1100
+@@ -8,10 +8,11 @@
  #include <linux/highmem.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
+ #include <linux/module.h>
+ #include <linux/slab.h>
++#include <linux/pt.h>
+ #include <asm/uaccess.h>
+ #include <asm/processor.h>
+ #include <asm/tlbflush.h>
+-#include <asm/pgalloc.h>
++//#include <asm/pgalloc.h>
+ #include <asm/sections.h>
+ 
+ static DEFINE_SPINLOCK(cpa_lock);
+Index: linux-2.6.20-rc3/include/asm-i386/pgtable.h
+===================================================================
+--- linux-2.6.20-rc3.orig/include/asm-i386/pgtable.h	2007-01-01 11:53:20.000000000 +1100
++++ linux-2.6.20-rc3/include/asm-i386/pgtable.h	2007-01-06 02:53:38.000000000 +1100
+@@ -415,7 +415,7 @@
+  * pgd_offset() returns a (pgd_t *)
+  * pgd_index() is used get the offset into the pgd page's array of pgd_t's;
+  */
+-#define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
++#define pgd_offset(mm, address) ((mm)->page_table.pgd+pgd_index(address))
+ 
+ /*
+  * a shortcut which implies the use of the kernel's pgd, instead
+Index: linux-2.6.20-rc3/arch/i386/kernel/init_task.c
+===================================================================
+--- linux-2.6.20-rc3.orig/arch/i386/kernel/init_task.c	2007-01-01 11:53:20.000000000 +1100
++++ linux-2.6.20-rc3/arch/i386/kernel/init_task.c	2007-01-06 02:53:38.000000000 +1100
+@@ -5,9 +5,9 @@
+ #include <linux/init_task.h>
+ #include <linux/fs.h>
+ #include <linux/mqueue.h>
 +#include <linux/pt.h>
  
  #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+-#include <asm/pgtable.h>
+ #include <asm/desc.h>
  
--static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--
--	pgd = pgd_offset(mm, addr);
--	if (pgd_none_or_clear_bad(pgd))
--		return NULL;
--
--	pud = pud_offset(pgd, addr);
--	if (pud_none_or_clear_bad(pud))
--		return NULL;
--
--	pmd = pmd_offset(pud, addr);
--	if (pmd_none_or_clear_bad(pmd))
--		return NULL;
--
--	return pmd;
--}
--
--static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--
--	pgd = pgd_offset(mm, addr);
--	pud = pud_alloc(mm, pgd, addr);
--	if (!pud)
--		return NULL;
--
--	pmd = pmd_alloc(mm, pud, addr);
--	if (!pmd)
--		return NULL;
--
--	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
--		return NULL;
--
--	return pmd;
--}
--
--static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
--		unsigned long old_addr, unsigned long old_end,
--		struct vm_area_struct *new_vma, pmd_t *new_pmd,
--		unsigned long new_addr)
--{
--	struct address_space *mapping = NULL;
--	struct mm_struct *mm = vma->vm_mm;
--	pte_t *old_pte, *new_pte, pte;
--	spinlock_t *old_ptl, *new_ptl;
--
--	if (vma->vm_file) {
--		/*
--		 * Subtle point from Rajesh Venkatasubramanian: before
--		 * moving file-based ptes, we must lock vmtruncate out,
--		 * since it might clean the dst vma before the src vma,
--		 * and we propagate stale pages into the dst afterward.
--		 */
--		mapping = vma->vm_file->f_mapping;
--		spin_lock(&mapping->i_mmap_lock);
--		if (new_vma->vm_truncate_count &&
--		    new_vma->vm_truncate_count != vma->vm_truncate_count)
--			new_vma->vm_truncate_count = 0;
--	}
--
--	/*
--	 * We don't have to worry about the ordering of src and dst
--	 * pte locks because exclusive mmap_sem prevents deadlock.
--	 */
--	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-- 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
--	new_ptl = pte_lockptr(mm, new_pmd);
--	if (new_ptl != old_ptl)
--		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
--	arch_enter_lazy_mmu_mode();
--
--	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
--				   new_pte++, new_addr += PAGE_SIZE) {
--		if (pte_none(*old_pte))
--			continue;
--		pte = ptep_clear_flush(vma, old_addr, old_pte);
--		/* ZERO_PAGE can be dependant on virtual addr */
--		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
--		set_pte_at(mm, new_addr, new_pte, pte);
--	}
--
--	arch_leave_lazy_mmu_mode();
--	if (new_ptl != old_ptl)
--		spin_unlock(new_ptl);
--	pte_unmap_nested(new_pte - 1);
--	pte_unmap_unlock(old_pte - 1, old_ptl);
--	if (mapping)
--		spin_unlock(&mapping->i_mmap_lock);
--}
--
--#define LATENCY_LIMIT	(64 * PAGE_SIZE)
--
--static unsigned long move_page_tables(struct vm_area_struct *vma,
--		unsigned long old_addr, struct vm_area_struct *new_vma,
--		unsigned long new_addr, unsigned long len)
--{
--	unsigned long extent, next, old_end;
--	pmd_t *old_pmd, *new_pmd;
--
--	old_end = old_addr + len;
--	flush_cache_range(vma, old_addr, old_end);
--
--	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
--		cond_resched();
--		next = (old_addr + PMD_SIZE) & PMD_MASK;
--		if (next - 1 > old_end)
--			next = old_end;
--		extent = next - old_addr;
--		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
--		if (!old_pmd)
--			continue;
--		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
--		if (!new_pmd)
--			break;
--		next = (new_addr + PMD_SIZE) & PMD_MASK;
--		if (extent > next - new_addr)
--			extent = next - new_addr;
--		if (extent > LATENCY_LIMIT)
--			extent = LATENCY_LIMIT;
--		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
--				new_vma, new_pmd, new_addr);
--	}
--
--	return len + old_addr - old_end;	/* how much done */
--}
--
- static unsigned long move_vma(struct vm_area_struct *vma,
- 		unsigned long old_addr, unsigned long old_len,
- 		unsigned long new_len, unsigned long new_addr)
-Index: linux-2.6.20-rc4/mm/pt-default.c
+ static struct fs_struct init_fs = INIT_FS;
+Index: linux-2.6.20-rc3/arch/i386/Kconfig.debug
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 12:40:58.728788000 +1100
-+++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 12:41:42.240788000 +1100
-@@ -1058,3 +1058,93 @@
- }
+--- linux-2.6.20-rc3.orig/arch/i386/Kconfig.debug	2007-01-01 11:53:20.000000000 +1100
++++ linux-2.6.20-rc3/arch/i386/Kconfig.debug	2007-01-06 02:53:38.000000000 +1100
+@@ -6,6 +6,15 @@
  
- #endif
+ source "lib/Kconfig.debug"
+ 
++choice
++	prompt "Page table selection"
++	default DEFAULT-PT
 +
-+static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
-+		unsigned long old_addr, unsigned long old_end,
-+		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-+		unsigned long new_addr)
-+{
-+	struct address_space *mapping = NULL;
-+	struct mm_struct *mm = vma->vm_mm;
-+	pte_t *old_pte, *new_pte, pte;
-+	spinlock_t *old_ptl, *new_ptl;
++config  PT_DEFAULT
++	bool "PT_DEFAULT"
 +
-+	if (vma->vm_file) {
-+		/*
-+		 * Subtle point from Rajesh Venkatasubramanian: before
-+		 * moving file-based ptes, we must lock vmtruncate out,
-+		 * since it might clean the dst vma before the src vma,
-+		 * and we propagate stale pages into the dst afterward.
-+		 */
-+		mapping = vma->vm_file->f_mapping;
-+		spin_lock(&mapping->i_mmap_lock);
-+		if (new_vma->vm_truncate_count &&
-+		    new_vma->vm_truncate_count != vma->vm_truncate_count)
-+			new_vma->vm_truncate_count = 0;
-+	}
++endchoice
 +
-+	/*
-+	 * We don't have to worry about the ordering of src and dst
-+	 * pte locks because exclusive mmap_sem prevents deadlock.
-+	 */
-+	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-+ 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
-+	new_ptl = pte_lockptr(mm, new_pmd);
-+	if (new_ptl != old_ptl)
-+		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-+	arch_enter_lazy_mmu_mode();
-+
-+	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
-+				   new_pte++, new_addr += PAGE_SIZE) {
-+		if (pte_none(*old_pte))
-+			continue;
-+		pte = ptep_clear_flush(vma, old_addr, old_pte);
-+		/* ZERO_PAGE can be dependant on virtual addr */
-+		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
-+		set_pte_at(mm, new_addr, new_pte, pte);
-+	}
-+
-+	arch_leave_lazy_mmu_mode();
-+	if (new_ptl != old_ptl)
-+		spin_unlock(new_ptl);
-+	pte_unmap_nested(new_pte - 1);
-+	pte_unmap_unlock(old_pte - 1, old_ptl);
-+	if (mapping)
-+		spin_unlock(&mapping->i_mmap_lock);
-+}
-+
-+#define LATENCY_LIMIT	(64 * PAGE_SIZE)
-+
-+unsigned long move_page_tables(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len)
-+{
-+	unsigned long extent, next, old_end;
-+	pmd_t *old_pmd, *new_pmd;
-+
-+	old_end = old_addr + len;
-+	flush_cache_range(vma, old_addr, old_end);
-+
-+	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
-+		cond_resched();
-+		next = (old_addr + PMD_SIZE) & PMD_MASK;
-+		if (next - 1 > old_end)
-+			next = old_end;
-+		extent = next - old_addr;
-+		old_pmd = lookup_pmd(vma->vm_mm, old_addr);
-+		if (!old_pmd)
-+			continue;
-+		new_pmd = build_pmd(vma->vm_mm, new_addr);
-+		if (!new_pmd)
-+			break;
-+		next = (new_addr + PMD_SIZE) & PMD_MASK;
-+		if (extent > next - new_addr)
-+			extent = next - new_addr;
-+		if (extent > LATENCY_LIMIT)
-+			extent = LATENCY_LIMIT;
-+		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-+				new_vma, new_pmd, new_addr);
-+	}
-+
-+	return len + old_addr - old_end;	/* how much done */
-+}
-Index: linux-2.6.20-rc4/include/linux/pt-default-mm.h
+ config EARLY_PRINTK
+ 	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
+ 	default y
+Index: linux-2.6.20-rc3/arch/i386/mm/fault.c
 ===================================================================
---- linux-2.6.20-rc4.orig/include/linux/pt-default-mm.h	2007-01-11 12:40:58.752788000 +1100
-+++ linux-2.6.20-rc4/include/linux/pt-default-mm.h	2007-01-11 12:41:42.268788000 +1100
-@@ -72,5 +72,54 @@
- 	((unlikely(!pmd_present(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
- 		NULL: pte_offset_kernel(pmd, address))
+--- linux-2.6.20-rc3.orig/arch/i386/mm/fault.c	2007-01-06 05:02:32.000000000 +1100
++++ linux-2.6.20-rc3/arch/i386/mm/fault.c	2007-01-06 05:03:24.000000000 +1100
+@@ -254,7 +254,7 @@
+ 	pmd_t *pmd, *pmd_k;
  
-+static inline pmd_t *lookup_pmd(struct mm_struct *mm, unsigned long address)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	if (mm!=&init_mm) { /* Look up user page table */
-+		pgd = pgd_offset(mm, address);
-+		if (pgd_none_or_clear_bad(pgd))
-+			return NULL;
-+	} else {            /* Look up kernel page table */
-+		pgd = pgd_offset_k(address);
-+		if (pgd_none_or_clear_bad(pgd))
-+			return NULL;
-+	}
-+
-+	pud = pud_offset(pgd, address);
-+	if (pud_none_or_clear_bad(pud)) {
-+		return NULL;
-+	}
-+
-+	pmd = pmd_offset(pud, address);
-+	if (pmd_none_or_clear_bad(pmd)) {
-+		return NULL;
-+	}
-+
-+	return pmd;
-+}
-+
-+static inline pmd_t *build_pmd(struct mm_struct *mm, unsigned long addr)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_offset(mm, addr);
-+	pud = pud_alloc(mm, pgd, addr);
-+	if (!pud)
-+		return NULL;
-+
-+	pmd = pmd_alloc(mm, pud, addr);
-+	if (!pmd)
-+		return NULL;
-+
-+	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-+		return NULL;
-+
-+	return pmd;
-+}
+ 	pgd += index;
+-	pgd_k = init_mm.pgd + index;
++	pgd_k = init_mm.page_table.pgd + index;
  
- #endif
+ 	if (!pgd_present(*pgd_k))
+ 		return NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
