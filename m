@@ -1,282 +1,266 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:48:51 +1100
-Message-Id: <20070113024851.29682.52851.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:49:07 +1100
+Message-Id: <20070113024907.29682.79438.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 2/12] Alternate page table implementation cont...
+Subject: [PATCH 5/12] Alternate page table implementation cont...
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH GPT 02
- * Creates /include/asm-ia64/page-gpt.h for GPT specific page.h requirements.
- and includes it in page.h. (similar to page-pt-default.h)
+PATCH GPT 05
+ * Adds IA64 GPT assembler lookup into ivt.h
+ * Adds other arch dependent implementation for GPT (parallels how
+ its done for default page table).
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- page-gpt.h |  238 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- page.h     |    4 +
- 2 files changed, 242 insertions(+)
-Index: linux-2.6.20-rc1/include/asm-ia64/page-gpt.h
+ arch/ia64/kernel/ivt.S         |    4 +-
+ arch/ia64/kernel/setup.c       |    4 ++
+ include/asm-ia64/ivt.h         |   77 +++++++++++++++++++++++++++++++++++++++++
+ include/asm-ia64/mmu_context.h |    3 +
+ include/asm-ia64/pgalloc-gpt.h |   18 +++++++++
+ include/asm-ia64/pgalloc.h     |    4 ++
+ include/asm-ia64/pt-gpt.h      |   40 +++++++++++++++++++++
+ include/asm-ia64/pt.h          |    4 ++
+ 8 files changed, 153 insertions(+), 1 deletion(-)
+Index: linux-2.6.20-rc1/include/asm-ia64/pt-gpt.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/page-gpt.h	2007-01-03 12:09:27.559871000 +1100
-@@ -0,0 +1,238 @@
-+/**
-+ *  include/asm-ia64/page-gpt.h
-+ *
-+ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
-+ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>.
-+ */
++++ linux-2.6.20-rc1/include/asm-ia64/pt-gpt.h	2007-01-03 12:43:01.693030000 +1100
+@@ -0,0 +1,40 @@
++#ifndef _ASM_IA64_GPT_H
++#define _ASM_IA64_GPT_H 1
 +
-+#ifndef _ASM_IA64_PAGE_GPT_H
-+#define _ASM_IA64_PAGE_GPT_H
++#include <linux/bootmem.h>
++#include <linux/pt.h>
 +
-+
-+#define GPT_NODE_LOG2BYTES   4 /* 128 bit == 16 (2^4) bytes. */
-+#define GPT_KEY_LENGTH_MAX   (64 - PAGE_SHIFT)
-+#define GPT_KEY_LENGTH_STORE 52 /* 64 - 12 (Smallest page size). */
-+
-+#define GPT_LEVEL_ORDER_MAX 16 /* 2^4 == 16 */
-+
-+#define GPT_NODE_TERM_BIT 0
-+#define GPT_NODE_MODE_BIT 1
-+#define GPT_NODE_TYPE(t,m) ((t) << GPT_NODE_TERM_BIT | (m) << GPT_NODE_MODE_BIT)
-+
-+#define GPT_NODE_TYPE_INVALID  GPT_NODE_TYPE(0,0)
-+#define GPT_NODE_TYPE_LEAF     GPT_NODE_TYPE(0,1)
-+#define GPT_NODE_TYPE_INTERNAL GPT_NODE_TYPE(1,0)
-+#define GPT_NODE_TYPE_SHARED   GPT_NODE_TYPE(1,1) // Shared sub-trees unimpl.
-+
-+#ifndef __ASSEMBLY__
-+
-+#include <linux/types.h>
-+#include <linux/kernel.h>
-+#include <asm/pgtable-gpt.h>
-+
-+/* awiggins (2006-06-27): Replace union/structs with defines/macro's for asm. */
-+typedef union {
-+	struct {
-+		uint64_t guard_length:  6;
-+		uint64_t type:          2;
-+		uint64_t order:         4; /* Remove. */
-+		uint64_t guard_value:  52; /* 64 - 12 (minimum page size) */
-+		union {
-+			struct {
-+				uint64_t ptr/*:      60*/;
-+				//uint64_t order:  4;
-+			} level;
-+			pte_t pte;
-+		} entry;
-+	} node ;
-+        struct {
-+			uint64_t guard;
-+			uint64_t entry;
-+        } raw;
-+} gpt_node_t;
-+
-+/* awiggins (2006-07-06): Next 2 functions are placeholders, should be atomic.*/
-+static inline gpt_node_t
-+gpt_node_get(gpt_node_t* node_p)
++/* Create kernel page table */
++static inline void create_kernel_page_table(void)
 +{
-+	return *node_p;
++	init_mm.page_table = gpt_node_invalid_init();
 +}
 +
-+static inline void
-+gpt_node_set(gpt_node_t* node_p, gpt_node_t node)
++/* Lookup the kernel page table */
++static inline pte_t *lookup_page_table_k(unsigned long address)
 +{
-+	/* Invalidate entry to mark node as being updated. */
-+	node_p->raw.entry = 0;
-+	/* Update node. */
-+	((gpt_node_t volatile *)node_p)->raw.guard = node.raw.guard;
-+	((gpt_node_t volatile *)node_p)->raw.entry = node.raw.entry;
-+
-+	/** awiggins 2006-08-02: The volatile typecasts should preserve
-+	 *  the ordering of the operations by tagging those stores as
-+	 *  releases.
-+	 */
++	return lookup_page_table(&init_mm, address, NULL);
 +}
 +
-+static inline int
-+gpt_node_type(gpt_node_t node)
++/* Lookup the kernel page table */
++static inline pte_t *lookup_page_table_k2(unsigned long *address)
 +{
-+	return node.node.type;
++	panic("Unimplemented");
++	return NULL;
 +}
 +
-+static inline int
-+gpt_node_valid(gpt_node_t node)
++/* Build the kernel page table */
++static inline pte_t *build_page_table_k(unsigned long address)
 +{
-+	switch(gpt_node_type(node)) {
-+	case GPT_NODE_TYPE_INTERNAL:
-+	case GPT_NODE_TYPE_LEAF:
-+		return 1;
-+	default:
-+		return 0;
-+	}
++	return build_page_table(&init_mm, address, NULL);
 +}
 +
-+static inline gpt_node_t
-+gpt_node_invalid_init(void)
++/* Builds the kernel page table from bootmem (before kernel memory allocation
++ * comes on line) */
++static inline pte_t *build_page_table_k_bootmem(unsigned long address, int _node)
 +{
-+	gpt_node_t invalid;
-+
-+	invalid.raw.guard = 0;
-+	invalid.raw.entry = 0;
-+//invalid.node.type = GPT_NODE_TYPE_INVALID;
-+	return invalid;
++	return build_page_table(&init_mm, address, NULL);
 +}
 +
-+static inline gpt_node_t
-+gpt_node_leaf_init(pte_t pte)
-+{
-+	gpt_node_t leaf;
 +
-+	leaf.node.type = GPT_NODE_TYPE_LEAF;
-+	leaf.node.entry.pte = pte;
-+	leaf.node.order = 0; // awiggins (2006-07-07): Should be set in pte.
-+
-+	return leaf;
-+}
-+
-+static inline int8_t
-+gpt_node_leaf_read_coverage(gpt_node_t node)
-+{
-+	return node.node.order;
-+}
-+
-+static inline pte_t*
-+gpt_node_leaf_read_ptep(gpt_node_t* node_p)
-+{
-+	return &(node_p->node.entry.pte);
-+}
-+
-+static inline gpt_node_t
-+gpt_node_internal_init(gpt_node_t* level, int8_t order)
-+{
-+	gpt_node_t internal;
-+
-+	internal.node.type = GPT_NODE_TYPE_INTERNAL;
-+	internal.node.entry.level.ptr =
-+			__pa((uint64_t)level) /*> GPT_NODE_LOG2BYTES*/;
-+	internal.node.order = order;
-+	return internal;
-+}
-+
-+static inline gpt_node_t*
-+gpt_node_internal_read_ptr(gpt_node_t node)
-+{
-+	return (gpt_node_t*)__va(node.node.entry.level.ptr
-+							 /*< GPT_NODE_LOG2BYTES*/);
-+}
-+
-+static inline int8_t
-+gpt_node_internal_read_order(gpt_node_t node)
-+{
-+	return (int8_t)node.node.order;
-+}
-+
-+/* Current node structure does not store the number of valid children. */
-+static inline gpt_node_t
-+gpt_node_internal_dec_children(gpt_node_t node)
-+{
-+	/* awiggins (2006-07-14): Decrement node's valid children count. */
-+	return node;
-+}
-+
-+static inline gpt_node_t
-+gpt_node_internal_inc_children(gpt_node_t node)
-+{
-+	/* awiggins (2006-07-14): Increment node's valid children count. */
-+	return node;
-+}
-+
-+static inline gpt_key_value_t
-+gpt_node_internal_count_children(gpt_node_t node)
-+{
-+	int8_t order;
-+	gpt_node_t* level;
-+	gpt_key_value_t index, valid;
-+
-+	level = gpt_node_internal_read_ptr(node);
-+	order = gpt_node_internal_read_order(node);
-+	for(index = valid = 0; index < (1 << order); index++) {
-+		if(gpt_node_valid(level[index])) {
-+			valid++;
-+		}
-+	}
-+	return valid;
-+}
-+
-+static inline gpt_key_value_t
-+gpt_node_internal_first_child(gpt_node_t node)
-+{
-+	gpt_key_value_t index;
-+	int8_t order;
-+	gpt_node_t* level;
-+
-+	level = gpt_node_internal_read_ptr(node);
-+	order = gpt_node_internal_read_order(node);
-+	for(index = 0; index < (1 << order); index++) {
-+		if(gpt_node_valid(level[index])) {
-+			return index;
-+		}
-+	}
-+	panic("Should empty level encountered!");
-+}
-+
-+static inline int
-+gpt_node_internal_elongation(gpt_node_t node)
-+{
-+	/* Elongations are unit sized levels. */
-+	return gpt_node_internal_read_order(node) == 0;
-+}
-+
-+static inline gpt_node_t
-+gpt_node_init_guard(gpt_node_t node, gpt_key_t guard)
-+{
-+	int8_t length, shift;
-+
-+	length = gpt_key_read_length(guard);
-+	node.node.guard_length = gpt_key_read_length(guard);
-+	/* Store guard value MSB aligned for assembly walker. */
-+	shift = GPT_KEY_LENGTH_STORE - length;
-+	node.node.guard_value = gpt_key_read_value(guard) << shift;
-+
-+	return node;
-+}
-+
-+static inline gpt_key_t
-+gpt_node_read_guard(gpt_node_t node)
-+{
-+	int8_t length, shift;
-+
-+	length = node.node.guard_length;
-+	shift = GPT_KEY_LENGTH_STORE - length;
-+	/* Need to LSB align guard before returning. */
-+	return gpt_key_init(node.node.guard_value >> shift, length);
-+}
-+
-+#endif /* !__ASSEMBLY__ */
-+
-+
-+#endif /* !_ASM_IA64_PAGE_GPT_H */
-Index: linux-2.6.20-rc1/include/asm-ia64/page.h
++#endif
+Index: linux-2.6.20-rc1/include/asm-ia64/pt.h
 ===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/page.h	2007-01-03 11:51:37.343593000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/page.h	2007-01-03 11:58:00.191871000 +1100
-@@ -217,4 +217,8 @@
- #include <asm/page-default.h>
+--- linux-2.6.20-rc1.orig/include/asm-ia64/pt.h	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/pt.h	2007-01-03 12:40:56.437030000 +1100
+@@ -5,6 +5,10 @@
+ #include <asm/pt-default.h>
  #endif
  
 +#ifdef CONFIG_GPT
-+#include <asm/page-gpt.h>
++#include <asm/pt-gpt.h>
 +#endif
 +
- #endif /* _ASM_IA64_PAGE_H */
+ void create_kernel_page_table(void);
+ 
+ pte_t *build_page_table_k(unsigned long address);
+Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc-gpt.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc1/include/asm-ia64/pgalloc-gpt.h	2007-01-03 12:40:56.441030000 +1100
+@@ -0,0 +1,18 @@
++/**
++ *  include/asm-ia64/ptalloc-gpt.h
++ *
++ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
++ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>,
++ *      Paul Davies <pauld@cse.unsw.edu.au>.
++ */
++
++#ifndef _ASM_IA64_PGALLOC_GPT_H
++#define _ASM_IA64_PGALLOC_GPT_H
++
++#define GPT_SPECIAL 1
++#define GPT_NORMAL  2
++
++extern int gpt_memsrc;
++
++
++#endif /* !_ASM_IA64_PGALLOC_GPT_H */
+Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/pgalloc.h	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/pgalloc.h	2007-01-03 12:40:56.441030000 +1100
+@@ -81,4 +81,8 @@
+ #include <asm/pgalloc-default.h>
+ #endif
+ 
++#ifdef CONFIG_GPT
++#include <asm/pgalloc-gpt.h>
++#endif
++
+ #endif				/* _ASM_IA64_PGALLOC_H */
+Index: linux-2.6.20-rc1/arch/ia64/kernel/setup.c
+===================================================================
+--- linux-2.6.20-rc1.orig/arch/ia64/kernel/setup.c	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/arch/ia64/kernel/setup.c	2007-01-03 12:40:56.441030000 +1100
+@@ -53,6 +53,7 @@
+ #include <asm/page.h>
+ #include <asm/patch.h>
+ #include <asm/pgtable.h>
++#include <asm/pgalloc.h>
+ #include <asm/processor.h>
+ #include <asm/sal.h>
+ #include <asm/sections.h>
+@@ -548,6 +549,9 @@
+ 	platform_setup(cmdline_p);
+ 	create_kernel_page_table();
+ 	paging_init();
++#ifdef CONFIG_GPT
++	gpt_memsrc = GPT_NORMAL;
++#endif
+ }
+ 
+ /*
+Index: linux-2.6.20-rc1/include/asm-ia64/ivt.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/ivt.h	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/ivt.h	2007-01-03 12:40:56.441030000 +1100
+@@ -54,3 +54,80 @@
+ .endm
+ 
+ #endif
++
++#ifdef CONFIG_GPT
++
++/*
++ * FIND_PTE
++ * Walks the page table to find a PTE
++ * @va,		register holding virtual address
++ * @ppte, 	register with pointer to page table entry
++ * @ok,		predicate set if found
++ * @fail,      	predicate set if !found
++ */
++
++#define tmp             r20     /* tmp val to work out key */
++#define pnode           \ppte   /* pointer to node         */
++#define guard           r20     /* lower node word         */
++#define key             r21     /* lookup key              */
++#define size            r22     /* size of node level      */
++#define multiplier      r23
++#define inc             r23     /* inc = multiplier        */
++#define cmp_value       r24     /* cmp val with guard      */
++#define length          r25     /* guard length            */
++#define shift           r26     /* justify guard shift     */
++#define type            r27     /* node type               */
++#define level           r27     /* higher node word.       */
++#define guard2          r18
++#define internal        p8      /* Internal node           */
++#define recurse         p9
++
++.macro find_pte va, ppte, fail, ok
++	;;
++        rsm psr.dt              /* switch to using physical data addressing. */
++        mov pnode = IA64_KR(CURRENT_MM)   /* Load pointer to tasks GPT root. */
++        shr.u tmp = \va, 61                       /* Pull out region number. */
++        ;;
++        cmp.eq \ok, p0=5, tmp  /* Compare if region number is kernel region. */
++        ;;
++        srlz.d                             /* Don't remove, clarify purpose. */
++        LOAD_PHYSICAL(\ok, pnode, init_mm) /* If kernel region, use init_mm. */
++        mov key = \va
++        ;;
++.F1:
++/*0 M */ld8.acq guard = [pnode], 8               /* Load first word of node. */
++        ;;
++/*1 M */xor cmp_value = guard, key          /* Compare guard and key's MSBs. */
++/*1 I0*/extr.u size = guard, 8, 4                      /* Extract level size */
++/*1 M */and length = 63, guard                      /* Extract guard length. */
++/*1 I */tbit.nz internal, p0 = guard, 6           /* Test for internal node. */
++        ;;
++/*2 I */(internal) sub multiplier = 64, size /* Prep key for level indexing. */
++/*2 M */sub shift = 64, length    /* Prep guard/key shift from guard length. */
++/*2 M */(internal) ld8.acq level = [pnode], -8 /* Get pointer to next level. */
++/*2 I */(internal) shl key = key, length             /* Strip guard from key */
++        ;;
++/*3 M */(internal) ld8 guard2 = [pnode]   /* Load guard to check for update. */
++/*3 I */(internal) shr.u inc = key, multiplier     /* Calculate level index. */
++/*3 I */shr.u cmp_value = cmp_value, shift     /* Clear out none guard bits. */
++/*3 M */(internal) cmp.ne.unc recurse, \fail = level, r0   /* Level updated? */
++        ;;
++/*4 M */(internal) cmp.eq.and.orcm recurse, \fail = guard, guard2/* Changed? */
++/*4 I */(internal) shladd pnode = inc, 4, level       /* Point to next node. */
++/*4 M */(internal) cmp.eq.and.orcm recurse, \fail = cmp_value, r0  /* Match? */
++/*4 I */(internal) shl key = key, size               /* strip level from va. */
++/*4 B */(recurse) br.cond.dptk .F1            /* Get next node or exit loop. */
++        ;;
++.F2:
++        extr.u type = guard, 6, 2                       /* Extract node type */
++        cmp.eq \ok, p0 = r0, r0
++        ;;
++        (\fail) cmp.eq p0, \ok = r0, r0
++        ;;
++        (\ok) cmp.eq \ok, \fail = 2, type /* Did we terminated on a leaf node. */
++        ;;
++        (\ok) cmp.eq \ok, \fail = cmp_value, r0 /* FIX! */   /* Check guard. */
++        ;;
++.endm
++
++#endif
+Index: linux-2.6.20-rc1/arch/ia64/kernel/ivt.S
+===================================================================
+--- linux-2.6.20-rc1.orig/arch/ia64/kernel/ivt.S	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/arch/ia64/kernel/ivt.S	2007-01-03 12:40:56.445030000 +1100
+@@ -490,8 +490,10 @@
+ 	;;
+ (p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was pmd_present(*pmd) == NULL?
+ 	dep r17=r19,r17,3,(PAGE_SHIFT-3)	// r17=pte_offset(pmd,addr);
++#endif		
++#ifdef CONFIG_GPT
++	find_pte r16,r17,p6,p7
+ #endif
+-	/* find_pte r16,r17,p6,p7 */
+ (p6)	br.cond.spnt page_fault
+ 	mov b0=r30
+ 	br.sptk.many b0				// return to continuation point
+Index: linux-2.6.20-rc1/include/asm-ia64/mmu_context.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/mmu_context.h	2007-01-03 12:35:16.310729000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/mmu_context.h	2007-01-03 12:40:56.445030000 +1100
+@@ -194,6 +194,9 @@
+ #ifdef CONFIG_PT_DEFAULT
+ 	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->page_table.pgd));
+ #endif
++#ifdef CONFIG_GPT
++	ia64_set_kr(IA64_KR_CURRENT_MM, __pa(next));
++#endif
+ 	activate_context(next);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
