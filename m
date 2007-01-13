@@ -1,266 +1,287 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:49:07 +1100
-Message-Id: <20070113024907.29682.79438.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:49:01 +1100
+Message-Id: <20070113024901.29682.85494.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 5/12] Alternate page table implementation cont...
+Subject: [PATCH 4/12] Alternate page table implementation cont...
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH GPT 05
- * Adds IA64 GPT assembler lookup into ivt.h
- * Adds other arch dependent implementation for GPT (parallels how
- its done for default page table).
+PATCH GPT 04
+ * Add C files for GPT implementation and update Makefile
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- arch/ia64/kernel/ivt.S         |    4 +-
- arch/ia64/kernel/setup.c       |    4 ++
- include/asm-ia64/ivt.h         |   77 +++++++++++++++++++++++++++++++++++++++++
- include/asm-ia64/mmu_context.h |    3 +
- include/asm-ia64/pgalloc-gpt.h |   18 +++++++++
- include/asm-ia64/pgalloc.h     |    4 ++
- include/asm-ia64/pt-gpt.h      |   40 +++++++++++++++++++++
- include/asm-ia64/pt.h          |    4 ++
- 8 files changed, 153 insertions(+), 1 deletion(-)
-Index: linux-2.6.20-rc1/include/asm-ia64/pt-gpt.h
+ Makefile             |    7 +
+ pt-gpt-alloc.c       |   38 +++++++++
+ pt-gpt-restructure.c |  195 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 239 insertions(+), 1 deletion(-)
+Index: linux-2.6.20-rc1/mm/Makefile
+===================================================================
+--- linux-2.6.20-rc1.orig/mm/Makefile	2007-01-03 12:30:42.879871000 +1100
++++ linux-2.6.20-rc1/mm/Makefile	2007-01-03 12:35:13.756007000 +1100
+@@ -5,7 +5,12 @@
+ mmu-y			:= nommu.o
+ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+-			   vmalloc.o pt-default.o
++			   vmalloc.o
++
++ifdef CONFIG_MMU
++mmu-$(CONFIG_PT_DEFAULT)+= pt-default.o
++mmu-$(CONFIG_GPT) += pt-gpt-core.o pt-gpt-restructure.o pt-gpt-alloc.o
++endif
+ 
+ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   page_alloc.o page-writeback.o pdflush.o \
+Index: linux-2.6.20-rc1/mm/pt-gpt-alloc.c
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/pt-gpt.h	2007-01-03 12:43:01.693030000 +1100
-@@ -0,0 +1,40 @@
-+#ifndef _ASM_IA64_GPT_H
-+#define _ASM_IA64_GPT_H 1
-+
-+#include <linux/bootmem.h>
-+#include <linux/pt.h>
-+
-+/* Create kernel page table */
-+static inline void create_kernel_page_table(void)
-+{
-+	init_mm.page_table = gpt_node_invalid_init();
-+}
-+
-+/* Lookup the kernel page table */
-+static inline pte_t *lookup_page_table_k(unsigned long address)
-+{
-+	return lookup_page_table(&init_mm, address, NULL);
-+}
-+
-+/* Lookup the kernel page table */
-+static inline pte_t *lookup_page_table_k2(unsigned long *address)
-+{
-+	panic("Unimplemented");
-+	return NULL;
-+}
-+
-+/* Build the kernel page table */
-+static inline pte_t *build_page_table_k(unsigned long address)
-+{
-+	return build_page_table(&init_mm, address, NULL);
-+}
-+
-+/* Builds the kernel page table from bootmem (before kernel memory allocation
-+ * comes on line) */
-+static inline pte_t *build_page_table_k_bootmem(unsigned long address, int _node)
-+{
-+	return build_page_table(&init_mm, address, NULL);
-+}
-+
-+
-+#endif
-Index: linux-2.6.20-rc1/include/asm-ia64/pt.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/pt.h	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/pt.h	2007-01-03 12:40:56.437030000 +1100
-@@ -5,6 +5,10 @@
- #include <asm/pt-default.h>
- #endif
- 
-+#ifdef CONFIG_GPT
-+#include <asm/pt-gpt.h>
-+#endif
-+
- void create_kernel_page_table(void);
- 
- pte_t *build_page_table_k(unsigned long address);
-Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc-gpt.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/pgalloc-gpt.h	2007-01-03 12:40:56.441030000 +1100
-@@ -0,0 +1,18 @@
++++ linux-2.6.20-rc1/mm/pt-gpt-alloc.c	2007-01-03 12:30:46.159871000 +1100
+@@ -0,0 +1,38 @@
 +/**
-+ *  include/asm-ia64/ptalloc-gpt.h
++ *  mm/pt-gpt-alloc.c
 + *
 + *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
 + *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>,
 + *      Paul Davies <pauld@cse.unsw.edu.au>.
 + */
 +
-+#ifndef _ASM_IA64_PGALLOC_GPT_H
-+#define _ASM_IA64_PGALLOC_GPT_H
++#include <linux/types.h>
++#include <linux/bootmem.h>
++#include <linux/gpt.h>
 +
-+#define GPT_SPECIAL 1
-+#define GPT_NORMAL  2
-+
-+extern int gpt_memsrc;
-+
-+
-+#endif /* !_ASM_IA64_PGALLOC_GPT_H */
-Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/pgalloc.h	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/pgalloc.h	2007-01-03 12:40:56.441030000 +1100
-@@ -81,4 +81,8 @@
- #include <asm/pgalloc-default.h>
- #endif
- 
-+#ifdef CONFIG_GPT
-+#include <asm/pgalloc-gpt.h>
-+#endif
-+
- #endif				/* _ASM_IA64_PGALLOC_H */
-Index: linux-2.6.20-rc1/arch/ia64/kernel/setup.c
-===================================================================
---- linux-2.6.20-rc1.orig/arch/ia64/kernel/setup.c	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/arch/ia64/kernel/setup.c	2007-01-03 12:40:56.441030000 +1100
-@@ -53,6 +53,7 @@
- #include <asm/page.h>
- #include <asm/patch.h>
- #include <asm/pgtable.h>
 +#include <asm/pgalloc.h>
- #include <asm/processor.h>
- #include <asm/sal.h>
- #include <asm/sections.h>
-@@ -548,6 +549,9 @@
- 	platform_setup(cmdline_p);
- 	create_kernel_page_table();
- 	paging_init();
-+#ifdef CONFIG_GPT
-+	gpt_memsrc = GPT_NORMAL;
-+#endif
- }
- 
- /*
-Index: linux-2.6.20-rc1/include/asm-ia64/ivt.h
++
++int gpt_memsrc = GPT_SPECIAL;
++
++/* awiggins (2006-07-17): Currently ignores the size and allocates a page. */
++gpt_node_t*
++gpt_level_allocate(int8_t order)
++{
++        gpt_node_t* level;
++
++        if(gpt_memsrc == GPT_SPECIAL) {
++                level = (gpt_node_t*)alloc_bootmem_pages(PAGE_SIZE);
++        } else {
++                level = (gpt_node_t*)pgtable_quicklist_alloc();
++		}
++        if(!level) {
++                panic("GPT level allocation failed!\n");
++        }
++        return level;
++}
++
++void
++gpt_level_deallocate(gpt_node_t* level, int8_t order)
++{
++        pgtable_quicklist_free((void*)level);
++}
+Index: linux-2.6.20-rc1/mm/pt-gpt-restructure.c
 ===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/ivt.h	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/ivt.h	2007-01-03 12:40:56.441030000 +1100
-@@ -54,3 +54,80 @@
- .endm
- 
- #endif
-+
-+#ifdef CONFIG_GPT
-+
-+/*
-+ * FIND_PTE
-+ * Walks the page table to find a PTE
-+ * @va,		register holding virtual address
-+ * @ppte, 	register with pointer to page table entry
-+ * @ok,		predicate set if found
-+ * @fail,      	predicate set if !found
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc1/mm/pt-gpt-restructure.c	2007-01-03 12:40:30.841030000 +1100
+@@ -0,0 +1,195 @@
++/**
++ *  mm/pt-gpt-restructure.c
++ *
++ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
++ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>,
++ *      Paul Davies <pauld@cse.unsw.edu.au>.
 + */
 +
-+#define tmp             r20     /* tmp val to work out key */
-+#define pnode           \ppte   /* pointer to node         */
-+#define guard           r20     /* lower node word         */
-+#define key             r21     /* lookup key              */
-+#define size            r22     /* size of node level      */
-+#define multiplier      r23
-+#define inc             r23     /* inc = multiplier        */
-+#define cmp_value       r24     /* cmp val with guard      */
-+#define length          r25     /* guard length            */
-+#define shift           r26     /* justify guard shift     */
-+#define type            r27     /* node type               */
-+#define level           r27     /* higher node word.       */
-+#define guard2          r18
-+#define internal        p8      /* Internal node           */
-+#define recurse         p9
++#include <linux/types.h>
++#include <linux/bootmem.h>
++#include <linux/gpt.h>
 +
-+.macro find_pte va, ppte, fail, ok
-+	;;
-+        rsm psr.dt              /* switch to using physical data addressing. */
-+        mov pnode = IA64_KR(CURRENT_MM)   /* Load pointer to tasks GPT root. */
-+        shr.u tmp = \va, 61                       /* Pull out region number. */
-+        ;;
-+        cmp.eq \ok, p0=5, tmp  /* Compare if region number is kernel region. */
-+        ;;
-+        srlz.d                             /* Don't remove, clarify purpose. */
-+        LOAD_PHYSICAL(\ok, pnode, init_mm) /* If kernel region, use init_mm. */
-+        mov key = \va
-+        ;;
-+.F1:
-+/*0 M */ld8.acq guard = [pnode], 8               /* Load first word of node. */
-+        ;;
-+/*1 M */xor cmp_value = guard, key          /* Compare guard and key's MSBs. */
-+/*1 I0*/extr.u size = guard, 8, 4                      /* Extract level size */
-+/*1 M */and length = 63, guard                      /* Extract guard length. */
-+/*1 I */tbit.nz internal, p0 = guard, 6           /* Test for internal node. */
-+        ;;
-+/*2 I */(internal) sub multiplier = 64, size /* Prep key for level indexing. */
-+/*2 M */sub shift = 64, length    /* Prep guard/key shift from guard length. */
-+/*2 M */(internal) ld8.acq level = [pnode], -8 /* Get pointer to next level. */
-+/*2 I */(internal) shl key = key, length             /* Strip guard from key */
-+        ;;
-+/*3 M */(internal) ld8 guard2 = [pnode]   /* Load guard to check for update. */
-+/*3 I */(internal) shr.u inc = key, multiplier     /* Calculate level index. */
-+/*3 I */shr.u cmp_value = cmp_value, shift     /* Clear out none guard bits. */
-+/*3 M */(internal) cmp.ne.unc recurse, \fail = level, r0   /* Level updated? */
-+        ;;
-+/*4 M */(internal) cmp.eq.and.orcm recurse, \fail = guard, guard2/* Changed? */
-+/*4 I */(internal) shladd pnode = inc, 4, level       /* Point to next node. */
-+/*4 M */(internal) cmp.eq.and.orcm recurse, \fail = cmp_value, r0  /* Match? */
-+/*4 I */(internal) shl key = key, size               /* strip level from va. */
-+/*4 B */(recurse) br.cond.dptk .F1            /* Get next node or exit loop. */
-+        ;;
-+.F2:
-+        extr.u type = guard, 6, 2                       /* Extract node type */
-+        cmp.eq \ok, p0 = r0, r0
-+        ;;
-+        (\fail) cmp.eq p0, \ok = r0, r0
-+        ;;
-+        (\ok) cmp.eq \ok, \fail = 2, type /* Did we terminated on a leaf node. */
-+        ;;
-+        (\ok) cmp.eq \ok, \fail = cmp_value, r0 /* FIX! */   /* Check guard. */
-+        ;;
-+.endm
++/****************************
++* Local function prototypes *
++****************************/
 +
-+#endif
-Index: linux-2.6.20-rc1/arch/ia64/kernel/ivt.S
-===================================================================
---- linux-2.6.20-rc1.orig/arch/ia64/kernel/ivt.S	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/arch/ia64/kernel/ivt.S	2007-01-03 12:40:56.445030000 +1100
-@@ -490,8 +490,10 @@
- 	;;
- (p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was pmd_present(*pmd) == NULL?
- 	dep r17=r19,r17,3,(PAGE_SHIFT-3)	// r17=pte_offset(pmd,addr);
-+#endif		
-+#ifdef CONFIG_GPT
-+	find_pte r16,r17,p6,p7
- #endif
--	/* find_pte r16,r17,p6,p7 */
- (p6)	br.cond.spnt page_fault
- 	mov b0=r30
- 	br.sptk.many b0				// return to continuation point
-Index: linux-2.6.20-rc1/include/asm-ia64/mmu_context.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/mmu_context.h	2007-01-03 12:35:16.310729000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/mmu_context.h	2007-01-03 12:40:56.445030000 +1100
-@@ -194,6 +194,9 @@
- #ifdef CONFIG_PT_DEFAULT
- 	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->page_table.pgd));
- #endif
-+#ifdef CONFIG_GPT
-+	ia64_set_kr(IA64_KR_CURRENT_MM, __pa(next));
-+#endif
- 	activate_context(next);
- }
- 
++static void gpt_node_restructure_merge(gpt_key_value_t merge_index,
++                                       int8_t coverage,
++                                       gpt_node_t* update_node_u);
++static int gpt_node_restructure_cut(int8_t cut_length,
++                                    gpt_node_t* update_node_u);
++
++/*********************
++* Exported functions *
++*********************/
++
++void
++gpt_node_restructure_delete(int is_root, int8_t coverage,
++                            gpt_node_t* update_node_u)
++{
++	gpt_node_t update_node;
++	gpt_key_value_t index_value;
++
++	/* If deletion window is the root node, no restructuring possible. */
++	update_node = gpt_node_get(update_node_u);
++	if(!is_root && (gpt_node_internal_count_children(update_node) == 1)) {
++		index_value = gpt_node_internal_first_child(update_node);
++		gpt_node_restructure_merge(index_value, coverage,
++									   update_node_u);
++	}
++}
++
++int
++gpt_node_restructure_insert(int is_root, gpt_thunk_t* update_thunk_u)
++{
++	int traversed = 0;
++	int8_t match_length;
++	gpt_key_t key, guard;
++	gpt_node_t node;
++	gpt_thunk_t temp_thunk;
++
++	/* If required, traverse to the node covering the insertion window. */
++	temp_thunk = *update_thunk_u;
++	if(!is_root && !gpt_node_internal_traverse(&temp_thunk)) {
++		traversed = 1;
++	} else {
++		temp_thunk.key = update_thunk_u->key;
++	}
++	/* Find if insertion window lays on a guard, if so restructure. */
++	node = gpt_node_get(temp_thunk.node_p);
++	if(!gpt_node_valid(node)) {
++		return GPT_OK;
++	}
++	key = temp_thunk.key;
++	guard = gpt_node_read_guard(node);
++	match_length = gptKeysCompareStripPrefix(&key, &guard);
++	if(gpt_key_compare_null(key)) {
++		return GPT_OVERLAP;
++	}
++	if(gpt_key_compare_null(guard)) {
++		switch(gpt_node_type(node)) {
++		case GPT_NODE_TYPE_LEAF:
++			return GPT_OVERLAP;
++		case GPT_NODE_TYPE_INTERNAL:
++			return GPT_OK;
++		default:
++			panic("Invalid GPT node type!");
++		}
++	}
++	/* Traverse to cut node and return it cut. */
++	if(traversed) {
++		*update_thunk_u = temp_thunk;
++	}
++	return gpt_node_restructure_cut(match_length, update_thunk_u->node_p);
++}
++
++int
++gptLevelRestructureInsert(int is_root, gpt_thunk_t* update_thunk_u)
++{
++	int8_t match_length;
++	gpt_key_t key, guard;
++	gpt_node_t node;
++	gpt_thunk_t temp_thunk;
++
++	/* If required, try traversing to node covering the insert point. */
++	key = update_thunk_u->key;
++	temp_thunk = *update_thunk_u;
++	if(!is_root &&
++	   (gpt_node_internal_traverse(&temp_thunk) == GPT_TRAVERSED_FULL)) {
++			update_thunk_u->key = key = temp_thunk.key;
++	}
++	update_thunk_u->node_p = temp_thunk.node_p;
++	/* Already at the insertion point. */
++	node = gpt_node_get(update_thunk_u->node_p);
++	if(!gpt_node_valid(node)) {
++		return GPT_OK;
++	}
++	guard = gpt_node_read_guard(node);
++	match_length = gptKeysCompareStripPrefix(&key, &guard);
++	if(gpt_key_compare_null(key)) {
++		return GPT_OVERLAP;
++	}
++	if(gpt_key_compare_null(guard)) {
++		switch(gpt_node_type(node)) {
++		case GPT_NODE_TYPE_LEAF:
++			return GPT_OVERLAP;
++		case GPT_NODE_TYPE_INTERNAL:
++			return GPT_OK;
++		default:
++			panic("Should never get here\n");
++		}
++	}
++	return gpt_node_restructure_cut(match_length, update_thunk_u->node_p);
++}
++
++/******************
++* Local functions *
++******************/
++
++static void
++gpt_node_restructure_merge(gpt_key_value_t merge_index, int8_t coverage,
++                           gpt_node_t* update_node_u)
++{
++	int8_t level_order, guard_length, replication;
++	gpt_key_t guard_top, guard, index;
++	gpt_node_t temp_node, update_node;
++	gpt_node_t* level;
++
++	/* Find the merge-node, guards and index for merging. */
++	update_node = gpt_node_get(update_node_u);
++	level = gpt_node_internal_read_ptr(update_node);
++	level_order = gpt_node_internal_read_order(update_node);
++	guard = gpt_node_read_guard(update_node);
++	temp_node = level[merge_index];
++	guard = gpt_node_read_guard(temp_node);
++
++	/* Merge guards and index into a single node. */
++	guard_length = gpt_key_read_length(guard_top);
++	coverage -= (level_order + guard_length);
++	replication = gptNodeReplication(temp_node, coverage);
++	index = gpt_key_init(merge_index >> replication,
++						 level_order - replication);
++	gptKeysMergeLSB(guard_top, &index); gptKeysMergeLSB(index, &guard);
++	gpt_node_set(update_node_u, gpt_node_init_guard(temp_node, guard));
++	gpt_level_deallocate(level, level_order);
++}
++
++static int
++gpt_node_restructure_cut(int8_t cut_length, gpt_node_t* update_node_u)
++{
++	int error;
++	int8_t index_length, coverage, order = GPT_ORDER;
++	gpt_key_t guard_top, guard_bottom, index;
++	gpt_node_t node, update_node;
++	gpt_node_t* level;
++	gpt_thunk_t thunk;
++
++	/* Preserve the update-node's guard. */
++	update_node = gpt_node_get(update_node_u);
++	thunk.key = gpt_node_read_guard(update_node);
++	guard_bottom = thunk.key;
++
++	/* Seperate the node in two. */
++	cut_length -= (cut_length % order); /* Top guard must be a multiple of trie's order. */
++	gptKeyCutMSB(cut_length, &guard_bottom, &guard_top);
++	index_length = gpt_key_read_length(guard_bottom);
++	if(gpt_node_type(update_node) == GPT_NODE_TYPE_LEAF) {
++		coverage = gpt_node_leaf_read_coverage(update_node);
++	} else {
++		coverage = 0;
++	}
++	index_length = (order > index_length + coverage) ?
++			index_length + coverage : order;
++	gptKeyCutMSB(index_length, &guard_bottom, &index);
++	level = gpt_level_allocate(index_length);
++	if(!level) {
++		return GPT_ALLOC_FAILED;
++	}
++	node = gpt_node_internal_init(level, index_length);
++	node = gpt_node_init_guard(node, guard_top);
++	thunk.node_p = &node;
++	error = gpt_node_insert(update_node, thunk);
++	gpt_node_set(update_node_u, node);
++	return GPT_OK;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
