@@ -1,228 +1,338 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:45:40 +1100
-Message-Id: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 0/29] Page Table Interface Explanation
+Date: Sat, 13 Jan 2007 13:45:45 +1100
+Message-Id: <20070113024545.29682.95671.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Subject: [PATCH 1/29] Abstract current page table implementation
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 00
-
-        A CLEAN PAGE TABLE INTERFACE FOR LINUX by Gelato@UNSW
-
-Linux currently uses the same page table format regardless of
-architecture.  Access to the page table is open-coded in a variety of
-places.  Architectures that walk a different page table format in
-hardware set up a hardware-walkable cache in their native format, that
-then has to be kept in step with Linux's page table.
-
-The first step to allowing different page table formats is to split
-the page table implementation into separate files from its use.
-This patch series abstracts the page table implementation, and cleans
-it up, so that:
-   1.  All page table operations are in one place, making future
-       maintenance easier
-   2.  Generic code no longer knows what format the page table is,
-       opening the way to experimentation with different
-       page table formats.
-
-The interface is separated into two parts.  The first part is
-architecture independent. All architectures must run through
-this interface regardless of whether or not that architecture
-can or will ever want to change page tables.
-
-This patch series provides:
-   1. Architecture independent page table interface to try on i386 and IA64
-   2. Architecture dependent page table interface for IA64
-   3. An alternative page table implementation (guarded page table) for IA64
-
-   The GPT is a a compile time alternative to the current page table on IA64.  
-   This is running rough at the moment and is intended as an example of
-   an alternative page table running under the PTI.
-
-Benchmarking results for the full page table interface on IA64
- * There is negligable regression demonstrated across the board
- demonstrated by testing so far.  For benchmarks, see the link below.
- 
-Benchmarking results for the arch independent PTI running on i386
- * There is negligable regression demonstrated across the board
- demonstrated by testing so far.  For benchmarks see the link below.
-
-Benchmarking of the GPT shows poor performance and is intended
-as a demonstration of an alternate implementation under the PTI.
-The GPT is still "under construction".  For benchmarks see the link below.
-
-INSTRUCTIONS,BENCHMARKS and further information at the site below:
- 
-http://www.gelato.unsw.edu.au/IA64wiki/PageTableInterface/PTI-LCA
-
-                PAGE TABLE INTERFACE
-
-int create_user_page_table(struct mm_struct *mm);
-
-void destroy_user_page_table(struct mm_struct *mm);
-
-pte_t *build_page_table(struct mm_struct *mm, unsigned long address,
-		pt_path_t *pt_path);
-
-pte_t *lookup_page_table(struct mm_struct *mm, unsigned long address,
-		pt_path_t *pt_path);
-
-void free_pt_range(struct mmu_gather **tlb, unsigned long addr,
-		unsigned long end, unsigned long floor, unsigned long ceiling);
-
-int copy_dual_iterator(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		unsigned long addr, unsigned long end, struct vm_area_struct *vma);
-
-unsigned long unmap_page_range_iterator(struct mmu_gather *tlb,
-        struct vm_area_struct *vma, unsigned long addr, unsigned long end,
-        long *zap_work, struct zap_details *details);
-
-int zeromap_build_iterator(struct mm_struct *mm,
-		unsigned long addr, unsigned long end, pgprot_t prot);
-
-int remap_build_iterator(struct mm_struct *mm,
-		unsigned long addr, unsigned long end, unsigned long pfn,
-		pgprot_t prot);
-
-void change_protection_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable);
-
-void vunmap_read_iterator(unsigned long addr, unsigned long end);
-
-int vmap_build_iterator(unsigned long addr,
-		unsigned long end, pgprot_t prot, struct page ***pages);
-
-int unuse_vma_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, swp_entry_t entry, struct page *page);
-
-void smaps_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, struct mem_size_stats *mss);
-
-int check_policy_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, const nodemask_t *nodes,
-		unsigned long flags, void *private);
-
-unsigned long move_page_tables(struct vm_area_struct *vma,
-		unsigned long old_addr, struct vm_area_struct *new_vma,
-		unsigned long new_addr, unsigned long len);
-
-
-Paul Davies
-Gelato@UNSW
+PATCH 01
+ * Creates the mm/pt-default.c to hold the implementation of 
+ the default page table.
+ * Adjusts mm/Makefile to compile default page table.
+ * Starts moving default page table implementation from memory.c to
+ pt-default.c.
+   * moves across pgd/pud/pmd_clear_bad
+   * moves accross pt alloc fns: __pte_alloc, __pte_alloc_kernel
+   __pud_alloc and __pmd_alloc
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- 0 files changed
-PATCH 00
-
-        A CLEAN PAGE TABLE INTERFACE FOR LINUX by Gelato@UNSW
-
-Linux currently uses the same page table format regardless of
-architecture.  Access to the page table is open-coded in a variety of
-places.  Architectures that walk a different page table format in
-hardware set up a hardware-walkable cache in their native format, that
-then has to be kept in step with Linux's page table.
-
-The first step to allowing different page table formats is to split
-the page table implementation into separate files from its use.
-This patch series abstracts the page table implementation, and cleans
-it up, so that:
-   1.  All page table operations are in one place, making future
-       maintenance easier
-   2.  Generic code no longer knows what format the page table is,
-       opening the way to experimentation with different
-       page table formats.
-
-The interface is separated into two parts.  The first part is
-architecture independent. All architectures must run through
-this interface regardless of whether or not that architecture
-can or will ever want to change page tables.
-
-This patch series provides:
-   1. Architecture independent page table interface to try on i386 and IA64
-   2. Architecture dependent page table interface for IA64
-   3. An alternative page table implementation (guarded page table)
-
-   The GPT is a a compile time alternative to the current page table on IA64.  
-   This is running rough at the moment and is intended as an example of
-   an alternative page table running under the PTI.
-
-Benchmarking results for the full page table interface on IA64
- * There is negligable regression demonstrated at the moment for testing
- so far.  For benchmarks see the link below.
-Benchmarking results for the arch independent PTI running on i386
- * There is negligable regression demonstrated at the moment for testing
- so far.  For benchmarks see link below.
-
-INSTRUCTIONS,BENCHMARKS and further information at the site below:
+ Makefile     |    2 
+ memory.c     |  121 --------------------------------------------------
+ pt-default.c |  141 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 142 insertions(+), 122 deletions(-)
+Index: linux-2.6.20-rc1/mm/Makefile
+===================================================================
+--- linux-2.6.20-rc1.orig/mm/Makefile	2006-12-21 11:41:06.410940000 +1100
++++ linux-2.6.20-rc1/mm/Makefile	2006-12-21 13:33:22.215470000 +1100
+@@ -5,7 +5,7 @@
+ mmu-y			:= nommu.o
+ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+-			   vmalloc.o
++			   vmalloc.o pt-default.o
  
-http://www.gelato.unsw.edu.au/IA64wiki/PageTableInterface/PTI-LCA
-and benchmarking results.
-
-                PAGE TABLE INTERFACE
-
-int create_user_page_table(struct mm_struct *mm);
-
-void destroy_user_page_table(struct mm_struct *mm);
-
-pte_t *build_page_table(struct mm_struct *mm, unsigned long address,
-		pt_path_t *pt_path);
-
-pte_t *lookup_page_table(struct mm_struct *mm, unsigned long address,
-		pt_path_t *pt_path);
-
-void free_pt_range(struct mmu_gather **tlb, unsigned long addr,
-		unsigned long end, unsigned long floor, unsigned long ceiling);
-
-int copy_dual_iterator(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		unsigned long addr, unsigned long end, struct vm_area_struct *vma);
-
-unsigned long unmap_page_range_iterator(struct mmu_gather *tlb,
-        struct vm_area_struct *vma, unsigned long addr, unsigned long end,
-        long *zap_work, struct zap_details *details);
-
-int zeromap_build_iterator(struct mm_struct *mm,
-		unsigned long addr, unsigned long end, pgprot_t prot);
-
-int remap_build_iterator(struct mm_struct *mm,
-		unsigned long addr, unsigned long end, unsigned long pfn,
-		pgprot_t prot);
-
-void change_protection_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable);
-
-void vunmap_read_iterator(unsigned long addr, unsigned long end);
-
-int vmap_build_iterator(unsigned long addr,
-		unsigned long end, pgprot_t prot, struct page ***pages);
-
-int unuse_vma_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, swp_entry_t entry, struct page *page);
-
-void smaps_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, struct mem_size_stats *mss);
-
-int check_policy_read_iterator(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, const nodemask_t *nodes,
-		unsigned long flags, void *private);
-
-unsigned long move_page_tables(struct vm_area_struct *vma,
-		unsigned long old_addr, struct vm_area_struct *new_vma,
-		unsigned long new_addr, unsigned long len);
-
-Please send questions regarding the PTI to pauld@cse.unsw.edu.au
-
-UNSW PhD student Adam Wiggins is the GPT author, questions regarding his
-GPT model should be addressed to awiggins@cse.unsw.edu.au.
-
-Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
+ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   page_alloc.o page-writeback.o pdflush.o \
+Index: linux-2.6.20-rc1/mm/memory.c
+===================================================================
+--- linux-2.6.20-rc1.orig/mm/memory.c	2006-12-21 11:41:06.410940000 +1100
++++ linux-2.6.20-rc1/mm/memory.c	2006-12-21 13:47:45.554231000 +1100
+@@ -93,31 +93,6 @@
+ }
+ __setup("norandmaps", disable_randmaps);
+ 
+-
+-/*
+- * If a p?d_bad entry is found while walking page tables, report
+- * the error, before resetting entry to p?d_none.  Usually (but
+- * very seldom) called out from the p?d_none_or_clear_bad macros.
+- */
+-
+-void pgd_clear_bad(pgd_t *pgd)
+-{
+-	pgd_ERROR(*pgd);
+-	pgd_clear(pgd);
+-}
+-
+-void pud_clear_bad(pud_t *pud)
+-{
+-	pud_ERROR(*pud);
+-	pud_clear(pud);
+-}
+-
+-void pmd_clear_bad(pmd_t *pmd)
+-{
+-	pmd_ERROR(*pmd);
+-	pmd_clear(pmd);
+-}
+-
+ /*
+  * Note: this doesn't free the actual pages themselves. That
+  * has been handled earlier when unmapping all the memory regions.
+@@ -300,41 +275,6 @@
+ 	}
+ }
+ 
+-int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
+-{
+-	struct page *new = pte_alloc_one(mm, address);
+-	if (!new)
+-		return -ENOMEM;
+-
+-	pte_lock_init(new);
+-	spin_lock(&mm->page_table_lock);
+-	if (pmd_present(*pmd)) {	/* Another has populated it */
+-		pte_lock_deinit(new);
+-		pte_free(new);
+-	} else {
+-		mm->nr_ptes++;
+-		inc_zone_page_state(new, NR_PAGETABLE);
+-		pmd_populate(mm, pmd, new);
+-	}
+-	spin_unlock(&mm->page_table_lock);
+-	return 0;
+-}
+-
+-int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
+-{
+-	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
+-	if (!new)
+-		return -ENOMEM;
+-
+-	spin_lock(&init_mm.page_table_lock);
+-	if (pmd_present(*pmd))		/* Another has populated it */
+-		pte_free_kernel(new);
+-	else
+-		pmd_populate_kernel(&init_mm, pmd, new);
+-	spin_unlock(&init_mm.page_table_lock);
+-	return 0;
+-}
+-
+ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
+ {
+ 	if (file_rss)
+@@ -2476,67 +2416,6 @@
+ 
+ EXPORT_SYMBOL_GPL(__handle_mm_fault);
+ 
+-#ifndef __PAGETABLE_PUD_FOLDED
+-/*
+- * Allocate page upper directory.
+- * We've already handled the fast-path in-line.
+- */
+-int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+-{
+-	pud_t *new = pud_alloc_one(mm, address);
+-	if (!new)
+-		return -ENOMEM;
+-
+-	spin_lock(&mm->page_table_lock);
+-	if (pgd_present(*pgd))		/* Another has populated it */
+-		pud_free(new);
+-	else
+-		pgd_populate(mm, pgd, new);
+-	spin_unlock(&mm->page_table_lock);
+-	return 0;
+-}
+-#else
+-/* Workaround for gcc 2.96 */
+-int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+-{
+-	return 0;
+-}
+-#endif /* __PAGETABLE_PUD_FOLDED */
+-
+-#ifndef __PAGETABLE_PMD_FOLDED
+-/*
+- * Allocate page middle directory.
+- * We've already handled the fast-path in-line.
+- */
+-int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+-{
+-	pmd_t *new = pmd_alloc_one(mm, address);
+-	if (!new)
+-		return -ENOMEM;
+-
+-	spin_lock(&mm->page_table_lock);
+-#ifndef __ARCH_HAS_4LEVEL_HACK
+-	if (pud_present(*pud))		/* Another has populated it */
+-		pmd_free(new);
+-	else
+-		pud_populate(mm, pud, new);
+-#else
+-	if (pgd_present(*pud))		/* Another has populated it */
+-		pmd_free(new);
+-	else
+-		pgd_populate(mm, pud, new);
+-#endif /* __ARCH_HAS_4LEVEL_HACK */
+-	spin_unlock(&mm->page_table_lock);
+-	return 0;
+-}
+-#else
+-/* Workaround for gcc 2.96 */
+-int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+-{
+-	return 0;
+-}
+-#endif /* __PAGETABLE_PMD_FOLDED */
+-
+ int make_pages_present(unsigned long addr, unsigned long end)
+ {
+ 	int ret, len, write;
+Index: linux-2.6.20-rc1/mm/pt-default.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc1/mm/pt-default.c	2006-12-21 13:46:59.270231000 +1100
+@@ -0,0 +1,141 @@
++#include <linux/kernel_stat.h>
++#include <linux/mm.h>
++#include <linux/hugetlb.h>
++#include <linux/mman.h>
++#include <linux/swap.h>
++#include <linux/highmem.h>
++#include <linux/pagemap.h>
++#include <linux/rmap.h>
++#include <linux/module.h>
++#include <linux/delayacct.h>
++#include <linux/init.h>
++#include <linux/writeback.h>
++
++#include <asm/pgalloc.h>
++#include <asm/uaccess.h>
++#include <asm/tlb.h>
++#include <asm/tlbflush.h>
++#include <asm/pgtable.h>
++
++#include <linux/swapops.h>
++#include <linux/elf.h>
++
++/*
++ * If a p?d_bad entry is found while walking page tables, report
++ * the error, before resetting entry to p?d_none.  Usually (but
++ * very seldom) called out from the p?d_none_or_clear_bad macros.
++ */
++
++void pgd_clear_bad(pgd_t *pgd)
++{
++	pgd_ERROR(*pgd);
++	pgd_clear(pgd);
++}
++
++void pud_clear_bad(pud_t *pud)
++{
++	pud_ERROR(*pud);
++	pud_clear(pud);
++}
++
++void pmd_clear_bad(pmd_t *pmd)
++{
++	pmd_ERROR(*pmd);
++	pmd_clear(pmd);
++}
++
++int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
++{
++	struct page *new = pte_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	pte_lock_init(new);
++	spin_lock(&mm->page_table_lock);
++	if (pmd_present(*pmd)) {	/* Another has populated it */
++		pte_lock_deinit(new);
++		pte_free(new);
++	} else {
++		mm->nr_ptes++;
++		inc_zone_page_state(new, NR_PAGETABLE);
++		pmd_populate(mm, pmd, new);
++	}
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++
++int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
++{
++	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&init_mm.page_table_lock);
++	if (pmd_present(*pmd))		/* Another has populated it */
++		pte_free_kernel(new);
++	else
++		pmd_populate_kernel(&init_mm, pmd, new);
++	spin_unlock(&init_mm.page_table_lock);
++	return 0;
++}
++
++#ifndef __PAGETABLE_PUD_FOLDED
++/*
++ * Allocate page upper directory.
++ * We've already handled the fast-path in-line.
++ */
++int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
++{
++	pud_t *new = pud_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&mm->page_table_lock);
++	if (pgd_present(*pgd))		/* Another has populated it */
++		pud_free(new);
++	else
++		pgd_populate(mm, pgd, new);
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++#else
++/* Workaround for gcc 2.96 */
++int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
++{
++	return 0;
++}
++#endif /* __PAGETABLE_PUD_FOLDED */
++
++#ifndef __PAGETABLE_PMD_FOLDED
++/*
++ * Allocate page middle directory.
++ * We've already handled the fast-path in-line.
++ */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	pmd_t *new = pmd_alloc_one(mm, address);
++	if (!new)
++		return -ENOMEM;
++
++	spin_lock(&mm->page_table_lock);
++#ifndef __ARCH_HAS_4LEVEL_HACK
++	if (pud_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pud_populate(mm, pud, new);
++#else
++	if (pgd_present(*pud))		/* Another has populated it */
++		pmd_free(new);
++	else
++		pgd_populate(mm, pud, new);
++#endif /* __ARCH_HAS_4LEVEL_HACK */
++	spin_unlock(&mm->page_table_lock);
++	return 0;
++}
++#else
++/* Workaround for gcc 2.96 */
++int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
++{
++	return 0;
++}
++#endif /* __PAGETABLE_PMD_FOLDED */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
