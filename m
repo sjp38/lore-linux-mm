@@ -1,122 +1,156 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:46:11 +1100
-Message-Id: <20070113024611.29682.41796.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:46:06 +1100
+Message-Id: <20070113024606.29682.18276.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 6/29] Tweak IA64 arch dependent files to work with PTI
+Subject: [PATCH 5/29] Start calling simple PTI functions
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 06 ia64
- * Defines default page table config option: PT_DEFAULT in Kconfig.debug
- to appear in kernel hacking.
- * Adjusts arch dependent files referring to the pgd in the mm_struct
- to do so via the new generic page table type (no pgd in mm_struct anymore).
+PATCH 05
+ * Creates /include/linux/pt-type.h for holding different page table types.
+  * Gives the default page table a type, and adjusts include/linux/sched.h 
+  to point to the generic page table type (as opposed to the pgd).
+ * Removes implementation dependent calls from fork.c and replaces them
+ with calls from the interface in pt.h. (create_page_table etc are called
+ instead).
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- arch/ia64/Kconfig.debug        |    9 +++++++++
- arch/ia64/kernel/init_task.c   |    2 +-
- arch/ia64/mm/hugetlbpage.c     |    4 ++--
- include/asm-ia64/mmu_context.h |    2 +-
- include/asm-ia64/pgtable.h     |    4 ++--
- 5 files changed, 15 insertions(+), 6 deletions(-)
-Index: linux-2.6.20-rc4/include/asm-ia64/mmu_context.h
+ include/linux/init_task.h |    2 +-
+ include/linux/pt-type.h   |    8 ++++++++
+ include/linux/sched.h     |    4 +++-
+ kernel/fork.c             |   25 +++++++------------------
+ 4 files changed, 19 insertions(+), 20 deletions(-)
+Index: linux-2.6.20-rc1/kernel/fork.c
 ===================================================================
---- linux-2.6.20-rc4.orig/include/asm-ia64/mmu_context.h	2007-01-11 13:15:05.228780000 +1100
-+++ linux-2.6.20-rc4/include/asm-ia64/mmu_context.h	2007-01-11 13:15:36.184250000 +1100
-@@ -191,7 +191,7 @@
- 	 * We may get interrupts here, but that's OK because interrupt
- 	 * handlers cannot touch user-space.
- 	 */
--	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->pgd));
-+	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->page_table.pgd));
- 	activate_context(next);
+--- linux-2.6.20-rc1.orig/kernel/fork.c	2006-12-23 14:54:16.573929000 +1100
++++ linux-2.6.20-rc1/kernel/fork.c	2006-12-23 14:55:07.173929000 +1100
+@@ -49,6 +49,7 @@
+ #include <linux/delayacct.h>
+ #include <linux/taskstats_kern.h>
+ #include <linux/random.h>
++#include <linux/pt.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -300,22 +301,10 @@
+ 	goto out;
  }
  
-Index: linux-2.6.20-rc4/include/asm-ia64/pgtable.h
-===================================================================
---- linux-2.6.20-rc4.orig/include/asm-ia64/pgtable.h	2007-01-11 13:15:05.232782000 +1100
-+++ linux-2.6.20-rc4/include/asm-ia64/pgtable.h	2007-01-11 13:15:36.184250000 +1100
-@@ -346,13 +346,13 @@
- static inline pgd_t*
- pgd_offset (struct mm_struct *mm, unsigned long address)
+-static inline int mm_alloc_pgd(struct mm_struct * mm)
+-{
+-	mm->pgd = pgd_alloc(mm);
+-	if (unlikely(!mm->pgd))
+-		return -ENOMEM;
+-	return 0;
+-}
+-
+-static inline void mm_free_pgd(struct mm_struct * mm)
+-{
+-	pgd_free(mm->pgd);
+-}
+ #else
+ #define dup_mmap(mm, oldmm)	(0)
+-#define mm_alloc_pgd(mm)	(0)
+-#define mm_free_pgd(mm)
++#define create_user_page_table(mm)	(0)
++#define destroy_user_page_table(mm)
+ #endif /* CONFIG_MMU */
+ 
+  __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
+@@ -340,11 +329,11 @@
+ 	mm->ioctx_list = NULL;
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+ 	mm->cached_hole_size = ~0UL;
+-
+-	if (likely(!mm_alloc_pgd(mm))) {
++	if (likely(!create_user_page_table(mm))) {
+ 		mm->def_flags = 0;
+ 		return mm;
+ 	}
++
+ 	free_mm(mm);
+ 	return NULL;
+ }
+@@ -372,7 +361,7 @@
+ void fastcall __mmdrop(struct mm_struct *mm)
  {
--	return mm->pgd + pgd_index(address);
-+	return mm->page_table.pgd + pgd_index(address);
+ 	BUG_ON(mm == &init_mm);
+-	mm_free_pgd(mm);
++	destroy_user_page_table(mm);
+ 	destroy_context(mm);
+ 	free_mm(mm);
  }
- 
- /* In the kernel's mapped region we completely ignore the region number
-    (since we know it's in region number 5). */
- #define pgd_offset_k(addr) \
--	(init_mm.pgd + (((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1)))
-+	(init_mm.page_table.pgd + (((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1)))
- 
- /* Look up a pgd entry in the gate area.  On IA-64, the gate-area
-    resides in the kernel-mapped segment, hence we use pgd_offset_k()
-Index: linux-2.6.20-rc4/arch/ia64/kernel/init_task.c
-===================================================================
---- linux-2.6.20-rc4.orig/arch/ia64/kernel/init_task.c	2007-01-11 13:15:05.232782000 +1100
-+++ linux-2.6.20-rc4/arch/ia64/kernel/init_task.c	2007-01-11 13:15:36.188252000 +1100
-@@ -12,9 +12,9 @@
- #include <linux/sched.h>
- #include <linux/init_task.h>
- #include <linux/mqueue.h>
-+#include <linux/pt.h>
- 
- #include <asm/uaccess.h>
--#include <asm/pgtable.h>
- 
- static struct fs_struct init_fs = INIT_FS;
- static struct files_struct init_files = INIT_FILES;
-Index: linux-2.6.20-rc4/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.20-rc4.orig/arch/ia64/mm/hugetlbpage.c	2007-01-11 13:15:05.232782000 +1100
-+++ linux-2.6.20-rc4/arch/ia64/mm/hugetlbpage.c	2007-01-11 13:16:53.160812000 +1100
-@@ -16,8 +16,8 @@
- #include <linux/smp_lock.h>
- #include <linux/slab.h>
- #include <linux/sysctl.h>
-+#include <linux/pt.h>
- #include <asm/mman.h>
--#include <asm/pgalloc.h>
- #include <asm/tlb.h>
- #include <asm/tlbflush.h>
- 
-@@ -136,7 +136,7 @@
- 	if (REGION_NUMBER(ceiling) == RGN_HPAGE)
- 		ceiling = htlbpage_to_page(ceiling);
- 
--	free_pgd_range(tlb, addr, end, floor, ceiling);
-+	free_pt_range(tlb, addr, end, floor, ceiling);
+@@ -519,7 +508,7 @@
+ 	 * If init_new_context() failed, we cannot use mmput() to free the mm
+ 	 * because it calls destroy_context()
+ 	 */
+-	mm_free_pgd(mm);
++	destroy_user_page_table(mm);
+ 	free_mm(mm);
+ 	return NULL;
  }
- 
- unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
-Index: linux-2.6.20-rc4/arch/ia64/Kconfig.debug
+Index: linux-2.6.20-rc1/include/linux/pt-type.h
 ===================================================================
---- linux-2.6.20-rc4.orig/arch/ia64/Kconfig.debug	2007-01-11 13:15:05.232782000 +1100
-+++ linux-2.6.20-rc4/arch/ia64/Kconfig.debug	2007-01-11 13:15:36.192254000 +1100
-@@ -3,6 +3,15 @@
- source "lib/Kconfig.debug"
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc1/include/linux/pt-type.h	2006-12-23 14:55:39.021929000 +1100
+@@ -0,0 +1,8 @@
++#ifndef _LINUX_PT_TYPE_H
++#define _LINUX_PT_TYPE_H
++
++#ifdef CONFIG_PT_DEFAULT
++typedef struct { pgd_t *pgd; } pt_t;
++#endif
++
++#endif
+Index: linux-2.6.20-rc1/include/linux/sched.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/linux/sched.h	2006-12-23 14:54:16.581929000 +1100
++++ linux-2.6.20-rc1/include/linux/sched.h	2006-12-23 14:55:07.173929000 +1100
+@@ -83,6 +83,7 @@
+ #include <linux/timer.h>
+ #include <linux/hrtimer.h>
+ #include <linux/task_io_accounting.h>
++#include <linux/pt-type.h>
  
- choice
-+	prompt "Page table selection"
-+	default DEFAULT-PT
-+
-+config  PT_DEFAULT
-+	bool "PT_DEFAULT"
-+
-+endchoice
-+
-+choice
- 	prompt "Physical memory granularity"
- 	default IA64_GRANULE_64MB
+ #include <asm/processor.h>
  
+@@ -308,6 +309,7 @@
+ } while (0)
+ 
+ struct mm_struct {
++	pt_t page_table;					/* Page table */
+ 	struct vm_area_struct * mmap;		/* list of VMAs */
+ 	struct rb_root mm_rb;
+ 	struct vm_area_struct * mmap_cache;	/* last find_vma result */
+@@ -319,7 +321,7 @@
+ 	unsigned long task_size;		/* size of task vm space */
+ 	unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
+ 	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
+-	pgd_t * pgd;
++		/*pgd_t * pgd;*/
+ 	atomic_t mm_users;			/* How many users with user space? */
+ 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+ 	int map_count;				/* number of VMAs */
+Index: linux-2.6.20-rc1/include/linux/init_task.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/linux/init_task.h	2006-12-23 14:54:16.581929000 +1100
++++ linux-2.6.20-rc1/include/linux/init_task.h	2006-12-23 14:55:07.177929000 +1100
+@@ -47,7 +47,7 @@
+ #define INIT_MM(name) \
+ {			 					\
+ 	.mm_rb		= RB_ROOT,				\
+-	.pgd		= swapper_pg_dir, 			\
++	INIT_PT 			\
+ 	.mm_users	= ATOMIC_INIT(2), 			\
+ 	.mm_count	= ATOMIC_INIT(1), 			\
+ 	.mmap_sem	= __RWSEM_INITIALIZER(name.mmap_sem),	\
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
