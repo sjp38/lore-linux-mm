@@ -1,156 +1,253 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:46:06 +1100
-Message-Id: <20070113024606.29682.18276.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:46:17 +1100
+Message-Id: <20070113024617.29682.90437.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 5/29] Start calling simple PTI functions
+Subject: [PATCH 7/29] Continue calling simple PTI functions
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 05
- * Creates /include/linux/pt-type.h for holding different page table types.
-  * Gives the default page table a type, and adjusts include/linux/sched.h 
-  to point to the generic page table type (as opposed to the pgd).
- * Removes implementation dependent calls from fork.c and replaces them
- with calls from the interface in pt.h. (create_page_table etc are called
- instead).
+PATCH 07
+ * get_locked_pte removed from memory.c (it is now absorbed into the default
+ page table implementation).
+ * removes the prototype for get_locked_pte from mm.h
+ * Goes through kernel code calling build_page_table in exec.c, fremap.c
+ and memory.c. Call new macros to lock and unlock ptes.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/init_task.h |    2 +-
- include/linux/pt-type.h   |    8 ++++++++
- include/linux/sched.h     |    4 +++-
- kernel/fork.c             |   25 +++++++------------------
- 4 files changed, 19 insertions(+), 20 deletions(-)
-Index: linux-2.6.20-rc1/kernel/fork.c
+ fs/exec.c          |   15 ++++++++++-----
+ include/linux/mm.h |    2 --
+ mm/fremap.c        |   20 ++++++++++++++------
+ mm/memory.c        |   40 ++++++++++++----------------------------
+ 4 files changed, 36 insertions(+), 41 deletions(-)
+Index: linux-2.6.20-rc4/fs/exec.c
 ===================================================================
---- linux-2.6.20-rc1.orig/kernel/fork.c	2006-12-23 14:54:16.573929000 +1100
-+++ linux-2.6.20-rc1/kernel/fork.c	2006-12-23 14:55:07.173929000 +1100
-@@ -49,6 +49,7 @@
- #include <linux/delayacct.h>
- #include <linux/taskstats_kern.h>
- #include <linux/random.h>
+--- linux-2.6.20-rc4.orig/fs/exec.c	2007-01-11 13:09:03.951868000 +1100
++++ linux-2.6.20-rc4/fs/exec.c	2007-01-11 13:11:42.147868000 +1100
+@@ -50,6 +50,7 @@
+ #include <linux/tsacct_kern.h>
+ #include <linux/cn_proc.h>
+ #include <linux/audit.h>
 +#include <linux/pt.h>
  
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -300,22 +301,10 @@
- 	goto out;
- }
- 
--static inline int mm_alloc_pgd(struct mm_struct * mm)
--{
--	mm->pgd = pgd_alloc(mm);
--	if (unlikely(!mm->pgd))
--		return -ENOMEM;
--	return 0;
--}
--
--static inline void mm_free_pgd(struct mm_struct * mm)
--{
--	pgd_free(mm->pgd);
--}
- #else
- #define dup_mmap(mm, oldmm)	(0)
--#define mm_alloc_pgd(mm)	(0)
--#define mm_free_pgd(mm)
-+#define create_user_page_table(mm)	(0)
-+#define destroy_user_page_table(mm)
- #endif /* CONFIG_MMU */
- 
-  __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
-@@ -340,11 +329,11 @@
- 	mm->ioctx_list = NULL;
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
--
--	if (likely(!mm_alloc_pgd(mm))) {
-+	if (likely(!create_user_page_table(mm))) {
- 		mm->def_flags = 0;
- 		return mm;
- 	}
-+
- 	free_mm(mm);
- 	return NULL;
- }
-@@ -372,7 +361,7 @@
- void fastcall __mmdrop(struct mm_struct *mm)
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -308,17 +309,21 @@
  {
- 	BUG_ON(mm == &init_mm);
--	mm_free_pgd(mm);
-+	destroy_user_page_table(mm);
- 	destroy_context(mm);
- 	free_mm(mm);
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t * pte;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto out;
+ 
+ 	flush_dcache_page(page);
+-	pte = get_locked_pte(mm, address, &ptl);
++
++	pte = build_page_table(mm, address, &pt_path);
++	lock_pte(mm, pt_path);
++
+ 	if (!pte)
+ 		goto out;
+ 	if (!pte_none(*pte)) {
+-		pte_unmap_unlock(pte, ptl);
++		unlock_pte(mm, pt_path);
++		pte_unmap(pte);
+ 		goto out;
+ 	}
+ 	inc_mm_counter(mm, anon_rss);
+@@ -326,8 +331,8 @@
+ 	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
+ 					page, vma->vm_page_prot))));
+ 	page_add_new_anon_rmap(page, vma, address);
+-	pte_unmap_unlock(pte, ptl);
+-
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+ 	/* no need for flush_tlb */
+ 	return;
+ out:
+Index: linux-2.6.20-rc4/mm/fremap.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/fremap.c	2007-01-11 13:09:03.951868000 +1100
++++ linux-2.6.20-rc4/mm/fremap.c	2007-01-11 13:11:42.227868000 +1100
+@@ -15,6 +15,7 @@
+ #include <linux/rmap.h>
+ #include <linux/module.h>
+ #include <linux/syscalls.h>
++#include <linux/pt.h>
+ 
+ #include <asm/mmu_context.h>
+ #include <asm/cacheflush.h>
+@@ -56,9 +57,11 @@
+ 	int err = -ENOMEM;
+ 	pte_t *pte;
+ 	pte_t pte_val;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
++
++	pte = build_page_table(mm, addr, &pt_path);
++	lock_pte(mm, pt_path);
+ 
+-	pte = get_locked_pte(mm, addr, &ptl);
+ 	if (!pte)
+ 		goto out;
+ 
+@@ -86,7 +89,8 @@
+ 	lazy_mmu_prot_update(pte_val);
+ 	err = 0;
+ unlock:
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+ out:
+ 	return err;
  }
-@@ -519,7 +508,7 @@
- 	 * If init_new_context() failed, we cannot use mmput() to free the mm
- 	 * because it calls destroy_context()
+@@ -101,9 +105,11 @@
+ {
+ 	int err = -ENOMEM;
+ 	pte_t *pte;
+-	spinlock_t *ptl;
++ 	pt_path_t pt_path;
++
++ 	pte = build_page_table(mm, addr, &pt_path);
++ 	lock_pte(mm, pt_path);
+ 
+-	pte = get_locked_pte(mm, addr, &ptl);
+ 	if (!pte)
+ 		goto out;
+ 
+@@ -120,7 +126,9 @@
+ 	 * be mapped there when there's a fault (in a non-linear vma where
+ 	 * that's not obvious).
  	 */
--	mm_free_pgd(mm);
-+	destroy_user_page_table(mm);
- 	free_mm(mm);
- 	return NULL;
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
++
+ 	err = 0;
+ out:
+ 	return err;
+Index: linux-2.6.20-rc4/mm/memory.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:11:37.315868000 +1100
++++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:11:42.227868000 +1100
+@@ -50,6 +50,7 @@
+ #include <linux/delayacct.h>
+ #include <linux/init.h>
+ #include <linux/writeback.h>
++#include <linux/pt.h>
+ 
+ #include <asm/pgalloc.h>
+ #include <asm/uaccess.h>
+@@ -1134,18 +1135,6 @@
+ 	return err;
  }
-Index: linux-2.6.20-rc1/include/linux/pt-type.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/linux/pt-type.h	2006-12-23 14:55:39.021929000 +1100
-@@ -0,0 +1,8 @@
-+#ifndef _LINUX_PT_TYPE_H
-+#define _LINUX_PT_TYPE_H
+ 
+-pte_t * fastcall get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl)
+-{
+-	pgd_t * pgd = pgd_offset(mm, addr);
+-	pud_t * pud = pud_alloc(mm, pgd, addr);
+-	if (pud) {
+-		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+-		if (pmd)
+-			return pte_alloc_map_lock(mm, pmd, addr, ptl);
+-	}
+-	return NULL;
+-}
+-
+ /*
+  * This is the old fallback for page remapping.
+  *
+@@ -1157,14 +1146,17 @@
+ {
+ 	int retval;
+ 	pte_t *pte;
+-	spinlock_t *ptl;  
++	pt_path_t pt_path;
+ 
+ 	retval = -EINVAL;
+ 	if (PageAnon(page))
+ 		goto out;
+ 	retval = -ENOMEM;
+ 	flush_dcache_page(page);
+-	pte = get_locked_pte(mm, addr, &ptl);
 +
-+#ifdef CONFIG_PT_DEFAULT
-+typedef struct { pgd_t *pgd; } pt_t;
-+#endif
++	pte = build_page_table(mm, addr, &pt_path);
++	lock_pte(mm, pt_path);
 +
-+#endif
-Index: linux-2.6.20-rc1/include/linux/sched.h
+ 	if (!pte)
+ 		goto out;
+ 	retval = -EBUSY;
+@@ -1179,7 +1171,8 @@
+ 
+ 	retval = 0;
+ out_unlock:
+-	pte_unmap_unlock(pte, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+ out:
+ 	return retval;
+ }
+@@ -2385,13 +2378,12 @@
+ /*
+  * By the time we get here, we already hold the mm semaphore
+  */
++
+ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, int write_access)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
++	pt_path_t pt_path;
+ 
+ 	__set_current_state(TASK_RUNNING);
+ 
+@@ -2400,20 +2392,12 @@
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
+ 		return hugetlb_fault(mm, vma, address, write_access);
+ 
+-	pgd = pgd_offset(mm, address);
+-	pud = pud_alloc(mm, pgd, address);
+-	if (!pud)
+-		return VM_FAULT_OOM;
+-	pmd = pmd_alloc(mm, pud, address);
+-	if (!pmd)
+-		return VM_FAULT_OOM;
+-	pte = pte_alloc_map(mm, pmd, address);
++	pte = build_page_table(mm, address, &pt_path);
+ 	if (!pte)
+ 		return VM_FAULT_OOM;
+ 
+-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++	return handle_pte_fault(mm, vma, address, pte, pt_path.pmd, write_access);
+ }
+-
+ EXPORT_SYMBOL_GPL(__handle_mm_fault);
+ 
+ int make_pages_present(unsigned long addr, unsigned long end)
+Index: linux-2.6.20-rc4/include/linux/mm.h
 ===================================================================
---- linux-2.6.20-rc1.orig/include/linux/sched.h	2006-12-23 14:54:16.581929000 +1100
-+++ linux-2.6.20-rc1/include/linux/sched.h	2006-12-23 14:55:07.173929000 +1100
-@@ -83,6 +83,7 @@
- #include <linux/timer.h>
- #include <linux/hrtimer.h>
- #include <linux/task_io_accounting.h>
-+#include <linux/pt-type.h>
+--- linux-2.6.20-rc4.orig/include/linux/mm.h	2007-01-11 13:11:38.999868000 +1100
++++ linux-2.6.20-rc4/include/linux/mm.h	2007-01-11 13:11:42.231868000 +1100
+@@ -849,8 +849,6 @@
+ 		mapping_cap_account_dirty(vma->vm_file->f_mapping);
+ }
  
- #include <asm/processor.h>
- 
-@@ -308,6 +309,7 @@
- } while (0)
- 
- struct mm_struct {
-+	pt_t page_table;					/* Page table */
- 	struct vm_area_struct * mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
- 	struct vm_area_struct * mmap_cache;	/* last find_vma result */
-@@ -319,7 +321,7 @@
- 	unsigned long task_size;		/* size of task vm space */
- 	unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
- 	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
--	pgd_t * pgd;
-+		/*pgd_t * pgd;*/
- 	atomic_t mm_users;			/* How many users with user space? */
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
- 	int map_count;				/* number of VMAs */
-Index: linux-2.6.20-rc1/include/linux/init_task.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/linux/init_task.h	2006-12-23 14:54:16.581929000 +1100
-+++ linux-2.6.20-rc1/include/linux/init_task.h	2006-12-23 14:55:07.177929000 +1100
-@@ -47,7 +47,7 @@
- #define INIT_MM(name) \
- {			 					\
- 	.mm_rb		= RB_ROOT,				\
--	.pgd		= swapper_pg_dir, 			\
-+	INIT_PT 			\
- 	.mm_users	= ATOMIC_INIT(2), 			\
- 	.mm_count	= ATOMIC_INIT(1), 			\
- 	.mmap_sem	= __RWSEM_INITIALIZER(name.mmap_sem),	\
+-extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
+-
+ #ifdef CONFIG_PT_DEFAULT
+ #include <linux/pt-default-mm.h>
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
