@@ -1,32 +1,39 @@
-Date: Fri, 12 Jan 2007 17:11:16 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: High lock spin time for zone->lru_lock under extreme conditions
-Message-Id: <20070112171116.a8f62ecb.akpm@osdl.org>
-In-Reply-To: <20070113010039.GA8465@localhost.localdomain>
-References: <20070112160104.GA5766@localhost.localdomain>
-	<Pine.LNX.4.64.0701121137430.2306@schroedinger.engr.sgi.com>
-	<20070112214021.GA4300@localhost.localdomain>
-	<Pine.LNX.4.64.0701121341320.3087@schroedinger.engr.sgi.com>
-	<20070113010039.GA8465@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <45A8387E.1050705@google.com>
+Date: Fri, 12 Jan 2007 17:40:14 -0800
+From: Ethan Solomita <solo@google.com>
+MIME-Version: 1.0
+Subject: zonelist cache performance
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, "Shai Fultheim (Shai@scalex86.org)" <shai@scalex86.org>, pravin b shelar <pravin.shelar@calsoftinc.com>, a.p.zijlstra@chello.nl
+To: pj@sgi.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jan 2007 17:00:39 -0800
-Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
+improve performance with changes to the zonelist cache. But I don't 
+claim to have tested on an extensive list of platforms and/or 
+benchmarks, so I was hoping for feedback.
 
-> But is
-> lru_lock an issue is another question.
+    The proposal is, essentially, to rip out the zonelist cache and 
+replace it with a single int which caches the index i into the 
+zonelist[i] for the most recently allocated page. Any future attempt to 
+allocate a page starts at zonelist[i], with a failure reverting to a 
+full scan of all zonelists. The theory is that this will succeed most of 
+the time, and as such it should be as lightweight as possible. 
+zonelist_cache is only fast if zonelist[0] has a free page.
 
-I doubt it, although there might be changes we can make in there to
-work around it.
+    In the context of fake numa where numa=fake=<n> has a large <n>, 
+zonelist[0] may well fill up quickly yet the system still has a lot of 
+free memory. As such, starting the allocation at zonelist[i] seems 
+faster. In the event the allocation fails, we do a slow, full search, so 
+this only works if that's the rare case.
 
-<mentions PAGEVEC_SIZE again>
+    As to the performance improvement, it improved kernbench by 6% with 
+numa=fake=64 and 2% without fake numa.
+
+    Thanks,
+    -- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
