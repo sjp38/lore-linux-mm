@@ -1,174 +1,208 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:48:35 +1100
-Message-Id: <20070113024835.29682.19560.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:48:46 +1100
+Message-Id: <20070113024846.29682.42796.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 4/5] Abstract assembler lookup
+Subject: [PATCH 1/12] Alternate page table implementation (GPT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH IA64 04
- * Create ivt.h to hold page table assembler lookup function.
- * Abstract implementation dependent assembler.
- NB: Not actually calling the defined lookup .macro for the default
- page table here.  We will probably get rid of this and have just #ifdefed
- it out at the moment.
+PATCH GPT 01
+ * The GPT itself is not being commented in these patches, just how
+ to fit this page table implementation in under the interface, next
+ to the default page table.
+   * Any queries regarding GPTs are best directed to 
+   awiggins@cse.unsw.edu.au
+ * Add GPT option as alternative to the default page table for IA64
+ * Create include/asm-ia64/pgtable-gpt.h for GPT specific pgtable.h
+ code.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- arch/ia64/kernel/ivt.S         |    7 +++++
- arch/ia64/mm/init.c            |    2 +
- include/asm-ia64/ivt.h         |   56 +++++++++++++++++++++++++++++++++++++++++
- include/asm-ia64/mmu_context.h |    2 +
- 4 files changed, 67 insertions(+)
-Index: linux-2.6.20-rc1/arch/ia64/kernel/ivt.S
+ arch/ia64/Kconfig.debug        |    3 
+ include/asm-ia64/pgtable-gpt.h |  157 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 160 insertions(+)
+Index: linux-2.6.20-rc4/arch/ia64/Kconfig.debug
 ===================================================================
---- linux-2.6.20-rc1.orig/arch/ia64/kernel/ivt.S	2006-12-23 21:02:16.115531000 +1100
-+++ linux-2.6.20-rc1/arch/ia64/kernel/ivt.S	2006-12-23 21:05:07.849355000 +1100
-@@ -51,6 +51,7 @@
- #include <asm/thread_info.h>
- #include <asm/unistd.h>
- #include <asm/errno.h>
-+#include <asm/ivt.h>
+--- linux-2.6.20-rc4.orig/arch/ia64/Kconfig.debug	2007-01-11 16:46:47.662747000 +1100
++++ linux-2.6.20-rc4/arch/ia64/Kconfig.debug	2007-01-11 16:58:15.245390000 +1100
+@@ -9,6 +9,9 @@
+ config  PT_DEFAULT
+ 	bool "PT_DEFAULT"
  
- #if 1
- # define PSR_DEFAULT_BITS	psr.ac
-@@ -102,12 +103,14 @@
- 	 *	- the faulting virtual address uses unimplemented address bits
- 	 *	- the faulting virtual address has no valid page table mapping
- 	 */
++config  GPT
++	bool "GPT"
 +
- 	mov r16=cr.ifa				// get address that caused the TLB miss
- #ifdef CONFIG_HUGETLB_PAGE
- 	movl r18=PAGE_SHIFT
- 	mov r25=cr.itir
- #endif
- 	;;
-+#ifdef CONFIG_PT_DEFAULT
- 	rsm psr.dt				// use physical addressing for data
- 	mov r31=pr				// save the predicate registers
- 	mov r19=IA64_KR(PT_BASE)		// get page table base address
-@@ -166,6 +169,7 @@
- 	;;
- (p7)	cmp.eq.or.andcm p6,p7=r20,r0		// was pmd_present(*pmd) == NULL?
- 	dep r21=r19,r20,3,(PAGE_SHIFT-3)	// r21=pte_offset(pmd,addr)
-+#endif
- 	;;
- (p7)	ld8 r18=[r21]				// read *pte
- 	mov r19=cr.isr				// cr.isr bit 32 tells us if this is an insn miss
-@@ -435,6 +439,7 @@
- 	 *
- 	 * Clobbered:	b0, r18, r19, r21, r22, psr.dt (cleared)
- 	 */
-+#ifdef CONFIG_PT_DEFAULT
- 	rsm psr.dt				// switch to using physical data addressing
- 	mov r19=IA64_KR(PT_BASE)		// get the page table base address
- 	shl r21=r16,3				// shift bit 60 into sign bit
-@@ -485,6 +490,8 @@
- 	;;
- (p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was pmd_present(*pmd) == NULL?
- 	dep r17=r19,r17,3,(PAGE_SHIFT-3)	// r17=pte_offset(pmd,addr);
-+#endif
-+	/* find_pte r16,r17,p6,p7 */
- (p6)	br.cond.spnt page_fault
- 	mov b0=r30
- 	br.sptk.many b0				// return to continuation point
-Index: linux-2.6.20-rc1/include/asm-ia64/ivt.h
+ endchoice
+ 
+ choice
+Index: linux-2.6.20-rc4/include/asm-ia64/pgtable-gpt.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/ivt.h	2006-12-23 21:05:07.849355000 +1100
-@@ -0,0 +1,56 @@
-+#ifdef CONFIG_PT_DEFAULT
++++ linux-2.6.20-rc4/include/asm-ia64/pgtable-gpt.h	2007-01-11 18:57:09.215823000 +1100
+@@ -0,0 +1,157 @@
++/**
++ *  include/asm-ia64/pgtable-gpt.h
++ *
++ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
++ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>,
++ */
 +
-+.macro find_pte va, ppte, p1, p2
-+	rsm psr.dt				// switch to using physical data addressing
-+	mov r19=IA64_KR(PT_BASE)		// get the page table base address
-+	shl r21=\va,3				// shift bit 60 into sign bit
-+	mov r18=cr.itir
-+	;;
-+	shr.u \ppte=\va,61			// get the region number into ppte
-+	extr.u r18=r18,2,6			// get the faulting page size
-+	;;
-+	cmp.eq \p1,\p2=5,\ppte			// is faulting address in region 5?
-+	add r22=-PAGE_SHIFT,r18			// adjustment for hugetlb address
-+	add r18=PGDIR_SHIFT-PAGE_SHIFT,r18
-+	;;
-+	shr.u r22=\va,r22
-+	shr.u r18=\va,r18
-+(\p2)	dep \ppte=\ppte,r19,(PAGE_SHIFT-3),3	// put region number bits in place
++#ifndef _ASM_IA64_PGTABLE_GPT_H
++#define _ASM_IA64_PGTABLE_GPT_H
 +
-+	srlz.d
-+	LOAD_PHYSICAL(\p1, r19, swapper_pg_dir)	// region 5 is rooted at swapper_pg_dir
++#ifndef __ASSEMBLY__
 +
-+	.pred.rel "mutex", \p1, \p2
-+(\p1)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT
-+(\p2)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT-3
-+	;;
-+(\p1)	dep \ppte=r18,r19,3,(PAGE_SHIFT-3)	// ppte=pgd_offset for region 5
-+(\p2)	dep \ppte=r18,\ppte,3,(PAGE_SHIFT-3)-3	// ppte=pgd_offset for region[0-4]
-+	cmp.eq \p2,\p1=0,r21			// unused address bits all zeroes?
-+#ifdef CONFIG_PGTABLE_4
-+	shr.u r18=r22,PUD_SHIFT			// shift pud index into position
-+#else
-+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
-+#endif
-+	;;
-+	ld8 \ppte=[\ppte]			// get *pgd (may be 0)
-+	;;
-+(\p2)	cmp.eq \p1,\p2=\ppte,r0			// was pgd_present(*pgd) == NULL?
-+	dep \ppte=r18,\ppte,3,(PAGE_SHIFT-3)	// ppte=p[u|m]d_offset(pgd,addr)
-+	;;
-+#ifdef CONFIG_PGTABLE_4
-+(\p2)	ld8 \ppte=[\ppte]			// get *pud (may be 0)
-+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
-+	;;
-+(\p2)	cmp.eq.or.andcm \p1,\p2=\ppte,r0	// was pud_present(*pud) == NULL?
-+	dep \ppte=r18,\ppte,3,(PAGE_SHIFT-3)	// ppte=pmd_offset(pud,addr)
-+	;;
-+#endif
-+(\p2)	ld8 \ppte=[\ppte]			// get *pmd (may be 0)
-+	shr.u r19=r22,PAGE_SHIFT		// shift pte index into position
-+	;;
-+(\p2)	cmp.eq.or.andcm \p1,\p2=\ppte,r0	// was pmd_present(*pmd) == NULL?
-+	dep \ppte=r19,\ppte,3,(PAGE_SHIFT-3)	// ppte=pte_offset(pmd,addr)
-+.endm
++#include <linux/types.h>
 +
-+#endif
-Index: linux-2.6.20-rc1/arch/ia64/mm/init.c
-===================================================================
---- linux-2.6.20-rc1.orig/arch/ia64/mm/init.c	2006-12-23 21:05:07.437149000 +1100
-+++ linux-2.6.20-rc1/arch/ia64/mm/init.c	2006-12-23 21:05:07.853357000 +1100
-@@ -597,9 +597,11 @@
- 	int i;
- 	static struct kcore_list kcore_mem, kcore_vmem, kcore_kernel;
- 
-+#ifdef CONFIG_PT_DEFAULT
- 	BUG_ON(PTRS_PER_PGD * sizeof(pgd_t) != PAGE_SIZE);
- 	BUG_ON(PTRS_PER_PMD * sizeof(pmd_t) != PAGE_SIZE);
- 	BUG_ON(PTRS_PER_PTE * sizeof(pte_t) != PAGE_SIZE);
-+#endif
- 
- #ifdef CONFIG_PCI
- 	/*
-Index: linux-2.6.20-rc1/include/asm-ia64/mmu_context.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/mmu_context.h	2006-12-23 21:04:57.420143000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/mmu_context.h	2006-12-23 21:05:07.857359000 +1100
-@@ -191,7 +191,9 @@
- 	 * We may get interrupts here, but that's OK because interrupt
- 	 * handlers cannot touch user-space.
- 	 */
-+#ifdef CONFIG_PT_DEFAULT
- 	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->page_table.pgd));
-+#endif
- 	activate_context(next);
- }
- 
++#define RGN_MAP_SHIFT 55
++#define ALIGNVAL (1UL << 25)
++
++typedef uint64_t gpt_key_value_t;
++
++typedef struct {
++	uint64_t _pad:    6;
++	uint64_t length:  6;
++	uint64_t value:  52;
++} gpt_key_t;
++
++static inline gpt_key_t
++gpt_key_init(gpt_key_value_t value, int8_t length)
++{
++	gpt_key_t key;
++
++	key.value = value;
++	key.length = length;
++	key._pad = 0;
++
++	return key;
++}
++
++static inline gpt_key_t
++gpt_key_null(void)
++{
++	return gpt_key_init(0, 0);
++}
++
++static inline gpt_key_value_t
++gpt_key_read_value(gpt_key_t key)
++{
++	return key.value;
++}
++
++static inline int8_t
++gpt_key_read_length(gpt_key_t key)
++{
++	return key.length;
++}
++
++static inline gpt_key_value_t
++gpt_key_value_mask(int8_t coverage)
++{
++	return (coverage < GPT_KEY_LENGTH_MAX) ?
++		~(((gpt_key_value_t)1 << coverage) - (gpt_key_value_t)1) : 0;
++}
++
++static inline int
++gpt_key_compare_null(gpt_key_t key)
++{
++	return gpt_key_read_length(key) == 0;
++}
++
++static inline gpt_key_t
++gpt_key_cut_LSB(int8_t length_lsb, gpt_key_t key)
++{
++	int8_t length;
++	gpt_key_value_t value;
++
++	value = gpt_key_read_value(key);
++	length = gpt_key_read_length(key);
++	if(length_lsb > length) {
++		return gpt_key_null();
++	}
++	length -= length_lsb;
++	value >>= length_lsb;
++	return gpt_key_init(value, length);
++}
++
++static inline gpt_key_t
++gpt_key_cut_LSB2(int8_t length_lsb, gpt_key_t* key_u)
++{
++	int8_t length;
++	gpt_key_value_t value;
++
++	value = gpt_key_read_value(*key_u);
++	length = gpt_key_read_length(*key_u);
++	if(length_lsb > length) {
++		length_lsb = length;
++	}
++	length -= length_lsb;
++	*key_u = ((length == 0) ? gpt_key_null() :
++			  gpt_key_init(value >> length_lsb, length));
++	return gpt_key_init(value & ~gpt_key_value_mask(length_lsb),
++			length_lsb);
++}
++
++static inline gpt_key_t
++gpt_keys_merge_MSB(gpt_key_t key_lsb, gpt_key_t key)
++{
++	int8_t length, length_lsb;
++	gpt_key_value_t value;
++
++	value = gpt_key_read_value(key);
++	length = gpt_key_read_length(key);
++	length_lsb = gpt_key_read_length(key_lsb);
++	value = (value << length_lsb) + gpt_key_read_value(key_lsb);
++	length += length_lsb;
++	return gpt_key_init(value, length);
++}
++
++static inline gpt_key_t
++gpt_keys_merge_LSB(gpt_key_t key_msb, gpt_key_t key)
++{
++    int8_t length;
++	gpt_key_value_t value;
++
++	value = gpt_key_read_value(key);
++	length = gpt_key_read_length(key);
++	value = (gpt_key_read_value(key_msb) << length) + value;
++	length += gpt_key_read_length(key_msb);
++	return gpt_key_init(value, length);
++}
++
++static inline int
++gptKeysCompareEqual(gpt_key_t key1, gpt_key_t key2)
++{
++	return ((gpt_key_read_length(key1) == gpt_key_read_length(key2)) &&
++            (gpt_key_read_value(key1) == gpt_key_read_value(key2)));
++}
++
++
++/* awiggins (2006-06-23): Massage in a little better, also optimise for ia64. */
++#define WORD_BIT 64
++static inline size_t
++gpt_ctlz(uint64_t n, int8_t msb)
++{
++	int8_t i;
++
++	if(msb > WORD_BIT) msb = WORD_BIT;
++	for(i = 0; i <= msb; i++) {
++		/* Check most significant bit is zero. */
++		if(n & (uint64_t)1 << msb) break;
++		/* Shift to the next test bit. */
++		n <<= 1;
++	}
++	return i;
++}
++
++#endif /* !__ASSEMBLY__ */
++
++#endif /* !_ASM_PGTABLE_GPT_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
