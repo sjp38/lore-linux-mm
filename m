@@ -1,254 +1,236 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:49:43 +1100
-Message-Id: <20070113024943.29682.62446.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:49:38 +1100
+Message-Id: <20070113024938.29682.59700.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 12/12] Alternate page table implementation cont...
+Subject: [PATCH 11/12] Alternate page table implementation cont...
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH GPT 12
- * Adds iterator implementations necessary to boot GPT, run LTP and lmbench
- without bringing down the machine (providing you have plenty of memory :))
-   * There are problems freeing the GPT at the moment so I have commented
-   it out :(
+PATCH GPT 11
+ * Continue adding GPT implementation
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- pt-gpt-core.c |  210 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 205 insertions(+), 5 deletions(-)
-Index: linux-2.6.20-rc4/mm/pt-gpt-core.c
+ pt-gpt-core.c |  205 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 205 insertions(+)
+Index: linux-2.6.20-rc1/mm/pt-gpt-core.c
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-gpt-core.c	2007-01-11 19:00:49.115823000 +1100
-+++ linux-2.6.20-rc4/mm/pt-gpt-core.c	2007-01-11 19:13:08.783823000 +1100
-@@ -573,14 +573,14 @@
- 	/* Process node once children have been processed. */
- 	// DEBUG [
- 	if(iterator_u->depth == 0) {
--		printk("Root");
-+//		printk("Root"); //pauld
+--- linux-2.6.20-rc1.orig/mm/pt-gpt-core.c	2007-01-03 16:07:14.297584000 +1100
++++ linux-2.6.20-rc1/mm/pt-gpt-core.c	2007-01-03 16:11:35.005312000 +1100
+@@ -819,3 +819,208 @@
  	}
- 	gpt_iterator_return(*iterator_u, &key, &node_temp_p);
- 	guard = gpt_node_read_guard(gpt_node_get(node_temp_p));
--	printk("\tinternal node (0x%lx, %d) guard (0x%lx, %d)",
--		   gpt_key_read_value(key), gpt_key_read_length(key),
--		   gpt_key_read_value(guard), gpt_key_read_length(guard));
--	printk((iterator_u->finished) ? "U\n" : "D\n");
-+//	printk("\tinternal node (0x%lx, %d) guard (0x%lx, %d)", //pauld
-+//		   gpt_key_read_value(key), gpt_key_read_length(key),
-+//		   gpt_key_read_value(guard), gpt_key_read_length(guard));
-+//	printk((iterator_u->finished) ? "U\n" : "D\n");
- 	// DEBUG ]
- 	if(iterator_u->finished) {
- 		// gpt_iterator_return(*iterator_u, &key, node_p_r);
-@@ -1024,3 +1024,203 @@
- 	}
- 	return GPT_OK;
  }
-+
-+/*
-+ * This function frees user-level page tables of a process.
-+ *
-+ * Must be called with pagetable lock held.
-+ */
-+void free_pt_range(struct mmu_gather **tlb,
-+			unsigned long addr, unsigned long end,
-+			unsigned long floor, unsigned long ceiling)
+ 
++static inline void
++gpt_iterator_inspect_pop(gpt_iterator_t* iterator_u)
 +{
-+	gpt_iterator_t iterator;
-+	gpt_node_t* node_p;
-+	/* buggy somewhere - so turned off temporarily */
-+	//gpt_iterator_inspect_init_range(&iterator, &(((*tlb)->mm)->page_table),
-+    //                                                 addr, end);
-+	//gpt_iterator_free_pgtables(&iterator, &node_p, floor, ceiling);
++	BUG_ON(iterator_u->depth <= 0);
++	iterator_u->node_p = iterator_u->stack[--(iterator_u->depth)];
++	iterator_u->finished = 1;
 +}
 +
-+int copy_dual_iterator(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+                       unsigned long addr, unsigned long end,
-+                       struct vm_area_struct *vma)
++static inline gpt_node_t*
++gpt_iterator_parent(gpt_iterator_t iterator)
 +{
-+	unsigned long i;
-+	pte_t* src_pte_p;
-+	pte_t* dst_pte_p;
-+	int rss[2];
-+	gpt_key_t key;
-+	gpt_node_t* node_p;
-+	gpt_iterator_t iterator;
++	return iterator.stack[iterator.depth - 1];
++}
 +
-+	gpt_iterator_inspect_init_range(&iterator, &(src_mm->page_table),
-+                                                     addr, end);
-+	spin_lock(&src_mm->page_table_lock);
-+	while(gpt_iterator_inspect_leaves_range(&iterator, &key, &node_p)) {
-+		BUG_ON(gpt_key_read_length(key) != GPT_KEY_LENGTH_MAX);
-+		i = get_real_address(gpt_key_read_value(key));
-+		src_pte_p = gpt_node_leaf_read_ptep(node_p);
-+		spin_lock(&dst_mm->page_table_lock);
-+		dst_pte_p = build_page_table(dst_mm, i, NULL);
-+		BUG_ON(!dst_pte_p); // Need to fix this with clean failure.
-+		spin_unlock(&dst_mm->page_table_lock);
-+		copy_one_pte(dst_mm, src_mm, dst_pte_p, src_pte_p, vma, addr,
-+					 rss);
-+		add_mm_rss(dst_mm, rss[0], rss[1]);
++static inline void
++gpt_iterator_return(gpt_iterator_t iterator,
++                    gpt_key_t* key_r, gpt_node_t** node_p_r)
++{
++	if(key_r) {
++		*key_r = iterator.key;
 +	}
-+	spin_unlock(&src_mm->page_table_lock);
-+	return 0;
++	if(node_p_r) {
++		*node_p_r = iterator.node_p;
++	}
 +}
 +
-+unsigned long unmap_page_range_iterator(struct mmu_gather *tlb,
-+		struct vm_area_struct *vma, unsigned long addr, unsigned long end,
-+		long *zap_work, struct zap_details *details)
++static int
++gpt_iterator_internal(gpt_iterator_t* iterator_u, gpt_key_t* key_r,
++                      gpt_node_t** node_p_r)
 +{
-+    gpt_key_t key; // DEBUG!
-+	pte_t* pte_p;
-+	int file_rss, anon_rss = 0;
-+    gpt_node_t* node_p;
-+    gpt_iterator_t iterator;
-+	struct mm_struct *mm = vma->vm_mm;
++	int found = 0;
++	int8_t replication;
 +
-+    gpt_iterator_inspect_init_range(&iterator, &(mm->page_table),
-+                                        addr, end);
-+    spin_lock(&mm->page_table_lock);
-+    while(gpt_iterator_inspect_leaves_range(&iterator, &key, &node_p)) {
-+        pte_p = gpt_node_leaf_read_ptep(node_p);
-+        node_p->raw.guard = 0; // zap doesn't clear gpt guard field.
-+        zap_one_pte(pte_p, mm, addr, vma, zap_work, details, tlb,
-+                    &anon_rss, &file_rss);
-+        add_mm_rss(mm, file_rss, anon_rss);
-+    }
-+    spin_unlock(&mm->page_table_lock);
-+ 	return end;
-+}
-+
-+int zeromap_build_iterator(struct mm_struct *mm,
-+			unsigned long addr, unsigned long end, pgprot_t prot)
-+{
-+	unsigned long i;
-+	pte_t *pte;
-+	int err;
-+
-+	spin_lock(&mm->page_table_lock);
-+	for(i=addr; i<end;) {
-+		if((pte = build_page_table(&init_mm,i, NULL))) {
-+			zeromap_one_pte(mm, pte, addr, prot);
++	/* Process node once children have been processed. */
++	if(iterator_u->finished) {
++		if(iterator_u->flags & GPT_ITERATE_INTERNALS) {
++			gpt_iterator_return(*iterator_u, key_r, node_p_r);
++			found = 1;
 +		}
-+		i+=PAGE_SIZE;
++		gpt_iterator_inspect_next(iterator_u, 0);
++		return found;
 +	}
-+	spin_unlock(&mm->page_table_lock);
-+	return 0;
-+}
-+
-+int remap_build_iterator(struct mm_struct *mm,
-+		unsigned long addr, unsigned long end, unsigned long pfn,
-+		pgprot_t prot)
-+{
-+	panic("TODO rebuild iterator\n");
-+	return 0;
-+}
-+
-+void change_protection_read_iterator(struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end, pgprot_t newprot,
-+		int dirty_accountable)
-+{
-+	unsigned long i;
-+	pte_t* pte_p;
-+	gpt_key_t key;
-+	gpt_node_t* node_p;
-+	gpt_iterator_t iterator;
-+	struct mm_struct* mm = vma->vm_mm;
-+
-+	gpt_iterator_inspect_init_range(&iterator, &(mm->page_table),
-+                                        addr, end);
-+	spin_lock(&mm->page_table_lock);
-+	while(gpt_iterator_inspect_leaves_range(&iterator, &key, &node_p)) {
-+		BUG_ON(gpt_key_read_length(key) != GPT_KEY_LENGTH_MAX);
-+		i = get_real_address(gpt_key_read_value(key));
-+		pte_p = gpt_node_leaf_read_ptep(node_p);
-+		change_prot_pte(mm, pte_p, i, newprot, dirty_accountable);
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
-+void vunmap_read_iterator(unsigned long addr, unsigned long end)
-+{
-+	unsigned long i;
-+	pte_t* pte_p;
-+    gpt_key_t key;
-+    gpt_node_t* node_p;
-+    gpt_iterator_t iterator;
-+
-+    gpt_iterator_inspect_init_range(&iterator, &(init_mm.page_table),
-+                                                     addr, end);
-+    while(gpt_iterator_inspect_leaves_range(&iterator, &key, &node_p)) {
-+         pte_p = gpt_node_leaf_read_ptep(node_p);
-+         BUG_ON(gpt_key_read_length(key) != GPT_KEY_LENGTH_MAX);
-+         i = get_real_address(gpt_key_read_value(key));
-+         vunmap_one_pte(pte_p, i);
-+    }
-+}
-+
-+int vmap_build_iterator(unsigned long addr,
-+			unsigned long end, pgprot_t prot, struct page ***pages)
-+{
-+	unsigned long i;
-+	pte_t *pte;
-+	int err;
-+
-+	for(i=addr; i<end;) {
-+		if((pte = build_page_table(&init_mm,i, NULL))) {
-+				err = vmap_one_pte(pte, addr, pages, prot);
-+				if(err)
-+				return err;
++	/* If guard is in range process child nodes if guard. */
++	switch(gpt_iterator_check_bounds(iterator_u, &replication)) {
++	case GPT_ITERATOR_INRANGE:
++		gpt_iterator_inspect_push_range(iterator_u);
++		break;
++	case GPT_ITERATOR_START:
++		if(replication != 0) {
++			panic("Internal nodes should not be replicated!");
 +		}
-+		i+=PAGE_SIZE;
++		gpt_iterator_inspect_next(iterator_u, 0);
++		break;
++	case GPT_ITERATOR_LIMIT:
++		iterator_u->node_p = NULL;
++		break;
++	default:
++		panic("Should never get here!");
 +	}
 +	return 0;
 +}
 +
-+int unuse_vma_read_iterator(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end, swp_entry_t entry,
-+				struct page *page)
++static int
++gpt_iterator_leaf(gpt_iterator_t* iterator_u, gpt_key_t* key_r,
++                  gpt_node_t** node_p_r)
 +{
-+	panic("TODO: unuse vma iterator\n");
-+	return 0;
++	int found = 0;
++	int8_t replication;
++
++	switch(gpt_iterator_check_bounds(iterator_u, &replication)) {
++	case GPT_ITERATOR_INRANGE:
++		if(iterator_u->flags & GPT_ITERATE_LEAVES) {
++			gpt_iterator_return(*iterator_u, key_r, node_p_r);
++			found = 1;
++		}
++		/* Fall through to update current. */
++	case GPT_ITERATOR_START:
++		gpt_iterator_inspect_next(iterator_u, replication);
++		break;
++	case GPT_ITERATOR_LIMIT:
++		iterator_u->node_p = NULL;
++		break;
++	default:
++		panic("Should never get here!");
++	}
++	return found;
 +}
 +
-+void smaps_read_iterator(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end,
-+				struct mem_size_stats *mss)
++static inline int
++gpt_iterator_invalid(gpt_iterator_t* iterator_u, gpt_key_t* key_r,
++                     gpt_node_t** node_p_r)
 +{
-+	panic("TODO: smaps read iterator\n");
++	int found = 0;
++
++	if(iterator_u->flags & GPT_ITERATE_INVALIDS) {
++		gpt_iterator_return(*iterator_u, key_r, node_p_r);
++		found = 1;
++	}
++	gpt_iterator_inspect_next(iterator_u, 0);
++	return found;
 +}
 +
-+#ifdef CONFIG_NUMA
-+
-+int check_policy_read_iterator(struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end,
-+		const nodemask_t *nodes, unsigned long flags,
-+		void *private)
++static inline int
++gpt_node_delete_single(gpt_thunk_t delete_thunk, gpt_node_t delete_node)
 +{
-+	panic("TODO: check policy iterator");
-+	return 0;
++	int8_t coverage;
++	gpt_key_t guard, key = delete_thunk.key;
++
++	guard = gpt_node_read_guard(delete_node);
++	coverage = gpt_node_leaf_read_coverage(delete_node);
++	/* Check the key matches the guard and coverage of the leaf node. */
++	gptKeysCompareStripPrefix(&key, &guard);
++	if(!gpt_key_compare_null(guard)) {
++		return GPT_NOT_FOUND;
++	}
++	gpt_node_set(delete_thunk.node_p, gpt_node_invalid_init());
++	return coverage;
 +}
-+#endif
-+
-+int ioremap_page_range(unsigned long addr,
-+		       unsigned long end, unsigned long phys_addr, pgprot_t prot)
++/* awiggins (2006-07-18): Review the use of gpt_node_delete_single, redundent?*/
++static int
++gpt_node_delete_replicate(gpt_thunk_t delete_thunk, gpt_node_t delete_node)
 +{
-+	panic("TODO: ioremap iterator");
-+	return 0;
++	int i;
++	int8_t level_order, key_length, delete_coverage;
++	gpt_key_t guard, key = delete_thunk.key;
++	gpt_node_t* level;
++	gpt_key_value_t key_value;
++
++	level = gpt_node_internal_read_ptr(delete_node);
++	level_order = gpt_node_internal_read_order(delete_node);
++	gpt_node_read_guard(delete_node);
++	gptKeysCompareStripPrefix(&guard, &key);
++	key_value = gpt_key_read_value(key);
++	key_length = gpt_key_read_length(key);
++	key_length = level_order - key_length;
++	key_value <<= key_length;
++	delete_thunk.key = gpt_key_null();
++	for(i = key_value; i < key_value + (1 << key_length); i++) {
++		delete_thunk.node_p = level + i;
++		delete_node = gpt_node_get(delete_thunk.node_p);
++		delete_coverage =
++				gpt_node_delete_single(delete_thunk, delete_node);
++	}
++	return delete_coverage;
 +}
 +
-+unsigned long move_page_tables(struct vm_area_struct *vma,
-+		unsigned long old_addr, struct vm_area_struct *new_vma,
-+		unsigned long new_addr, unsigned long len)
++static int
++gpt_node_internal_delete(gpt_thunk_t delete_thunk, gpt_node_t delete_node)
 +{
-+	panic("TODO: move page tables\n");
-+	return 0;
++	if(!gpt_node_internal_elongation(delete_node)) {
++		return gpt_node_delete_replicate(delete_thunk, delete_node);
++	}
++	panic("Fix me! Currently don't handle elongations");
++}
++
++static inline void
++gpt_node_insert_single(gpt_node_t new_node, gpt_thunk_t insert_thunk)
++{
++	new_node = gpt_node_init_guard(new_node, insert_thunk.key);
++	gpt_node_set(insert_thunk.node_p, new_node);
++}
++
++static int
++gpt_node_insert_replicate(gpt_node_t new_node, gpt_thunk_t insert_thunk,
++                          gpt_node_t insert_node)
++{
++	int i;
++	int8_t key_length, guard_length, level_order, log2replication;
++	gpt_key_t guard, key_temp, key = insert_thunk.key;
++	gpt_node_t* level;
++	gpt_key_value_t key_value;
++	unsigned long long interval;
++
++	level = gpt_node_internal_read_ptr(insert_node);
++	level_order = gpt_node_internal_read_order(insert_node);
++	guard = gpt_node_read_guard(insert_node);
++	guard_length = gpt_key_read_length(guard);
++	gptKeyCutMSB(guard_length, &key, &key_temp);
++	key_value = gpt_key_read_value(key);
++	key_length = gpt_key_read_length(key);
++	/* The split of key and guard should match. */
++	//assert(gptKeysCompareEqual(guard, key_temp));
++	/* Insert the new replicated node. */
++	key_temp = gpt_key_null();
++	log2replication = level_order - key_length;
++	interval = 1ULL << log2replication;
++	level = level + (interval * key_value);
++	insert_thunk.key = key_temp;
++	for(i = 0; i < interval; i++) {
++		insert_thunk.node_p = level + i;
++		/* Check for overlap. */
++		insert_node = gpt_node_get(insert_thunk.node_p);
++		if(gpt_node_type(insert_node) != GPT_NODE_TYPE_INVALID) {
++			/* Clean up the entries that we set. */
++				for(i--; i >= 0; i--) {
++					gpt_node_set(level + i,
++								 gpt_node_invalid_init());
++				}
++				return GPT_OVERLAP;
++		} else {
++			gpt_node_insert_single(new_node, insert_thunk);
++		}
++	}
++	return GPT_OK;
 +}
 
 --
