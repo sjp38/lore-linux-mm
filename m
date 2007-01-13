@@ -1,48 +1,65 @@
-Message-ID: <45A89008.2030408@yahoo.com.au>
-Date: Sat, 13 Jan 2007 18:53:44 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Sat, 13 Jan 2007 00:00:17 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: High lock spin time for zone->lru_lock under extreme conditions
-References: <20070112160104.GA5766@localhost.localdomain> <45A86291.8090408@yahoo.com.au> <20070113073643.GA4234@localhost.localdomain>
+Message-Id: <20070113000017.2ad2df12.akpm@osdl.org>
 In-Reply-To: <20070113073643.GA4234@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+References: <20070112160104.GA5766@localhost.localdomain>
+	<45A86291.8090408@yahoo.com.au>
+	<20070113073643.GA4234@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>, "Shai Fultheim (Shai@scalex86.org)" <shai@scalex86.org>, pravin b shelar <pravin.shelar@calsoftinc.com>
+Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, shai@scalex86.org, pravin.shelar@calsoftinc.com
 List-ID: <linux-mm.kvack.org>
 
-Ravikiran G Thirumalai wrote:
+> On Fri, 12 Jan 2007 23:36:43 -0800 Ravikiran G Thirumalai <kiran@scalex86.org> wrote:
 > On Sat, Jan 13, 2007 at 03:39:45PM +1100, Nick Piggin wrote:
-
->>What is the "CS time"?
-> 
+> > Ravikiran G Thirumalai wrote:
+> > >Hi,
+> > >We noticed high interrupt hold off times while running some memory 
+> > >intensive
+> > >tests on a Sun x4600 8 socket 16 core x86_64 box.  We noticed softlockups,
+> > 
+> > [...]
+> > 
+> > >We did not use any lock debugging options and used plain old rdtsc to
+> > >measure cycles.  (We disable cpu freq scaling in the BIOS). All we did was
+> > >this:
+> > >
+> > >void __lockfunc _spin_lock_irq(spinlock_t *lock)
+> > >{
+> > >        local_irq_disable();
+> > >        ------------------------> rdtsc(t1);
+> > >        preempt_disable();
+> > >        spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
+> > >        _raw_spin_lock(lock);
+> > >        ------------------------> rdtsc(t2);
+> > >        if (lock->spin_time < (t2 - t1))
+> > >                lock->spin_time = t2 - t1;
+> > >}
+> > >
+> > >On some runs, we found that the zone->lru_lock spun for 33 seconds or more
+> > >while the maximal CS time was 3 seconds or so.
+> > 
+> > What is the "CS time"?
 > 
 > Critical Section :).  This is the maximal time interval I measured  from 
 > t2 above to the time point we release the spin lock.  This is the hold 
 > time I guess.
-> 
-> 
->>It would be interesting to know how long the maximal lru_lock *hold* time 
->>is,
->>which could give us a better indication of whether it is a hardware problem.
->>
->>For example, if the maximum hold time is 10ms, that it might indicate a
->>hardware fairness problem.
-> 
-> 
-> The maximal hold time was about 3s.
 
-Well then it doesn't seem very surprising that this could cause a 30s wait
-time for one CPU in a 16 core system, regardless of fairness.
+By no means.  The theory here is that CPUA is taking and releasing the
+lock at high frequency, but CPUB never manages to get in and take it.  In
+which case the maximum-acquisition-time is much larger than the
+maximum-hold-time.
 
-I guess most of the contention, and the lock hold times are coming from
-vmscan? Do you know exactly which critical sections are the culprits?
+I'd suggest that you use a similar trick to measure the maximum hold time:
+start the timer after we got the lock, stop it just before we release the
+lock (assuming that the additional rdtsc delay doesn't "fix" things, of
+course...)
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
