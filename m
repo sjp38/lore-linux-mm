@@ -1,342 +1,181 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:46:43 +1100
-Message-Id: <20070113024643.29682.80308.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:46:38 +1100
+Message-Id: <20070113024638.29682.41909.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 12/29] Abstract page table tear down
+Subject: [PATCH 11/29] Call simple PTI functions cont...
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 12
- * Moves the default page table tear down iterator from memory.c to
- pt_default.c
+PATCH 11
+ * Abstract the implementation dependent page table lookup from
+ get_user_pages and make call from page table interface.
+ * Abstract implementation dependent page table lookups from rmap.c.
+ Abstract CLUSTER_SIZE to pt_default.h since it is implementation 
+ dependent.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- memory.c     |  148 ----------------------------------------------------------
- pt-default.c |  149 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 149 insertions(+), 148 deletions(-)
-Index: linux-2.6.20-rc1/mm/pt-default.c
+ memory.c  |   15 +--------------
+ migrate.c |   27 +++++++--------------------
+ rmap.c    |   25 ++++++-------------------
+ 3 files changed, 14 insertions(+), 53 deletions(-)
+Index: linux-2.6.20-rc3/mm/rmap.c
 ===================================================================
---- linux-2.6.20-rc1.orig/mm/pt-default.c	2006-12-21 16:50:32.218023000 +1100
-+++ linux-2.6.20-rc1/mm/pt-default.c	2006-12-21 17:34:52.106463000 +1100
-@@ -139,3 +139,152 @@
- 	return 0;
- }
- #endif /* __PAGETABLE_PMD_FOLDED */
+--- linux-2.6.20-rc3.orig/mm/rmap.c	2007-01-06 16:35:41.714144000 +1100
++++ linux-2.6.20-rc3/mm/rmap.c	2007-01-06 16:35:52.362144000 +1100
+@@ -709,19 +709,16 @@
+  * there there won't be many ptes located within the scan cluster.  In this case
+  * maybe we could scan further - to the end of the pte page, perhaps.
+  */
+-#define CLUSTER_SIZE	min(32*PAGE_SIZE, PMD_SIZE)
 +
-+
-+/*
-+ * Note: this doesn't free the actual pages themselves. That
-+ * has been handled earlier when unmapping all the memory regions.
-+ */
-+static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
-+{
-+	struct page *page = pmd_page(*pmd);
-+	pmd_clear(pmd);
-+	pte_lock_deinit(page);
-+	pte_free_tlb(tlb, page);
-+	dec_zone_page_state(page, NR_PAGETABLE);
-+	tlb->mm->nr_ptes--;
-+}
-+
-+static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-+				unsigned long addr, unsigned long end,
-+				unsigned long floor, unsigned long ceiling)
-+{
-+	pmd_t *pmd;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	start = addr;
-+	pmd = pmd_offset(pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		free_pte_range(tlb, pmd);
-+	} while (pmd++, addr = next, addr != end);
-+
-+	start &= PUD_MASK;
-+	if (start < floor)
-+		return;
-+	if (ceiling) {
-+		ceiling &= PUD_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		return;
-+
-+	pmd = pmd_offset(pud, start);
-+	pud_clear(pud);
-+	pmd_free_tlb(tlb, pmd);
-+}
-+
-+static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-+				unsigned long addr, unsigned long end,
-+				unsigned long floor, unsigned long ceiling)
-+{
-+	pud_t *pud;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	start = addr;
-+	pud = pud_offset(pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
-+	} while (pud++, addr = next, addr != end);
-+
-+	start &= PGDIR_MASK;
-+	if (start < floor)
-+		return;
-+	if (ceiling) {
-+		ceiling &= PGDIR_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		return;
-+
-+	pud = pud_offset(pgd, start);
-+	pgd_clear(pgd);
-+	pud_free_tlb(tlb, pud);
-+}
-+
-+/*
-+ * This function frees user-level page tables of a process.
-+ *
-+ * Must be called with pagetable lock held.
-+ */
-+void free_pgd_range(struct mmu_gather **tlb,
-+			unsigned long addr, unsigned long end,
-+			unsigned long floor, unsigned long ceiling)
-+{
-+	pgd_t *pgd;
-+	unsigned long next;
-+	unsigned long start;
-+
-+	/*
-+	 * The next few lines have given us lots of grief...
-+	 *
-+	 * Why are we testing PMD* at this top level?  Because often
-+	 * there will be no work to do at all, and we'd prefer not to
-+	 * go all the way down to the bottom just to discover that.
-+	 *
-+	 * Why all these "- 1"s?  Because 0 represents both the bottom
-+	 * of the address space and the top of it (using -1 for the
-+	 * top wouldn't help much: the masks would do the wrong thing).
-+	 * The rule is that addr 0 and floor 0 refer to the bottom of
-+	 * the address space, but end 0 and ceiling 0 refer to the top
-+	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
-+	 * that end 0 case should be mythical).
-+	 *
-+	 * Wherever addr is brought up or ceiling brought down, we must
-+	 * be careful to reject "the opposite 0" before it confuses the
-+	 * subsequent tests.  But what about where end is brought down
-+	 * by PMD_SIZE below? no, end can't go down to 0 there.
-+	 *
-+	 * Whereas we round start (addr) and ceiling down, by different
-+	 * masks at different levels, in order to test whether a table
-+	 * now has no other vmas using it, so can be freed, we don't
-+	 * bother to round floor or end up - the tests don't need that.
-+	 */
-+
-+	addr &= PMD_MASK;
-+	if (addr < floor) {
-+		addr += PMD_SIZE;
-+		if (!addr)
-+			return;
-+	}
-+	if (ceiling) {
-+		ceiling &= PMD_MASK;
-+		if (!ceiling)
-+			return;
-+	}
-+	if (end - 1 > ceiling - 1)
-+		end -= PMD_SIZE;
-+	if (addr > end - 1)
-+		return;
-+
-+	start = addr;
-+	pgd = pgd_offset((*tlb)->mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
-+	} while (pgd++, addr = next, addr != end);
-+
-+	if (!(*tlb)->fullmm)
-+		flush_tlb_pgtables((*tlb)->mm, start, end);
-+}
-Index: linux-2.6.20-rc1/mm/memory.c
-===================================================================
---- linux-2.6.20-rc1.orig/mm/memory.c	2006-12-21 17:23:31.325774000 +1100
-+++ linux-2.6.20-rc1/mm/memory.c	2006-12-21 17:34:48.882463000 +1100
-@@ -94,154 +94,6 @@
- }
- __setup("norandmaps", disable_randmaps);
+ #define CLUSTER_MASK	(~(CLUSTER_SIZE - 1))
  
--/*
-- * Note: this doesn't free the actual pages themselves. That
-- * has been handled earlier when unmapping all the memory regions.
-- */
--static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
--{
--	struct page *page = pmd_page(*pmd);
--	pmd_clear(pmd);
--	pte_lock_deinit(page);
--	pte_free_tlb(tlb, page);
--	dec_zone_page_state(page, NR_PAGETABLE);
--	tlb->mm->nr_ptes--;
--}
--
--static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				unsigned long floor, unsigned long ceiling)
--{
--	pmd_t *pmd;
--	unsigned long next;
--	unsigned long start;
--
--	start = addr;
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		free_pte_range(tlb, pmd);
--	} while (pmd++, addr = next, addr != end);
--
--	start &= PUD_MASK;
--	if (start < floor)
--		return;
--	if (ceiling) {
--		ceiling &= PUD_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		return;
--
--	pmd = pmd_offset(pud, start);
--	pud_clear(pud);
--	pmd_free_tlb(tlb, pmd);
--}
--
--static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				unsigned long floor, unsigned long ceiling)
--{
--	pud_t *pud;
--	unsigned long next;
--	unsigned long start;
--
--	start = addr;
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
--	} while (pud++, addr = next, addr != end);
--
--	start &= PGDIR_MASK;
--	if (start < floor)
--		return;
--	if (ceiling) {
--		ceiling &= PGDIR_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		return;
--
--	pud = pud_offset(pgd, start);
--	pgd_clear(pgd);
--	pud_free_tlb(tlb, pud);
--}
--
--/*
-- * This function frees user-level page tables of a process.
-- *
-- * Must be called with pagetable lock held.
-- */
--void free_pgd_range(struct mmu_gather **tlb,
--			unsigned long addr, unsigned long end,
--			unsigned long floor, unsigned long ceiling)
--{
--	pgd_t *pgd;
--	unsigned long next;
--	unsigned long start;
--
--	/*
--	 * The next few lines have given us lots of grief...
--	 *
--	 * Why are we testing PMD* at this top level?  Because often
--	 * there will be no work to do at all, and we'd prefer not to
--	 * go all the way down to the bottom just to discover that.
--	 *
--	 * Why all these "- 1"s?  Because 0 represents both the bottom
--	 * of the address space and the top of it (using -1 for the
--	 * top wouldn't help much: the masks would do the wrong thing).
--	 * The rule is that addr 0 and floor 0 refer to the bottom of
--	 * the address space, but end 0 and ceiling 0 refer to the top
--	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
--	 * that end 0 case should be mythical).
--	 *
--	 * Wherever addr is brought up or ceiling brought down, we must
--	 * be careful to reject "the opposite 0" before it confuses the
--	 * subsequent tests.  But what about where end is brought down
--	 * by PMD_SIZE below? no, end can't go down to 0 there.
--	 *
--	 * Whereas we round start (addr) and ceiling down, by different
--	 * masks at different levels, in order to test whether a table
--	 * now has no other vmas using it, so can be freed, we don't
--	 * bother to round floor or end up - the tests don't need that.
--	 */
--
--	addr &= PMD_MASK;
--	if (addr < floor) {
--		addr += PMD_SIZE;
--		if (!addr)
--			return;
--	}
--	if (ceiling) {
--		ceiling &= PMD_MASK;
--		if (!ceiling)
--			return;
--	}
--	if (end - 1 > ceiling - 1)
--		end -= PMD_SIZE;
--	if (addr > end - 1)
--		return;
--
--	start = addr;
--	pgd = pgd_offset((*tlb)->mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
--	} while (pgd++, addr = next, addr != end);
--
--	if (!(*tlb)->fullmm)
--		flush_tlb_pgtables((*tlb)->mm, start, end);
--}
--
- void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
- 		unsigned long floor, unsigned long ceiling)
+ static void try_to_unmap_cluster(unsigned long cursor,
+ 	unsigned int *mapcount, struct vm_area_struct *vma)
  {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
+ 	pte_t pteval;
+-	spinlock_t *ptl;
++	pt_path_t pt_path;
+ 	struct page *page;
+ 	unsigned long address;
+ 	unsigned long end;
+@@ -733,19 +730,8 @@
+ 	if (end > vma->vm_end)
+ 		end = vma->vm_end;
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		return;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
+-		return;
+-
+-	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
++	pte = lookup_page_table(mm, address, &pt_path);
++	lock_pte(mm, pt_path);
+ 
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
+@@ -776,7 +762,8 @@
+ 		dec_mm_counter(mm, file_rss);
+ 		(*mapcount)--;
+ 	}
+-	pte_unmap_unlock(pte - 1, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte-1);
+ }
+ 
+ static int try_to_unmap_anon(struct page *page, int migration)
+Index: linux-2.6.20-rc3/mm/migrate.c
+===================================================================
+--- linux-2.6.20-rc3.orig/mm/migrate.c	2007-01-06 13:01:46.930183000 +1100
++++ linux-2.6.20-rc3/mm/migrate.c	2007-01-06 16:35:52.366144000 +1100
+@@ -28,6 +28,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/vmalloc.h>
+ #include <linux/security.h>
++#include <linux/pt.h>
+ 
+ #include "internal.h"
+ 
+@@ -128,37 +129,22 @@
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	swp_entry_t entry;
+- 	pgd_t *pgd;
+- 	pud_t *pud;
+- 	pmd_t *pmd;
++	pt_path_t pt_path;
+ 	pte_t *ptep, pte;
+- 	spinlock_t *ptl;
+ 	unsigned long addr = page_address_in_vma(new, vma);
+ 
+ 	if (addr == -EFAULT)
+ 		return;
+ 
+- 	pgd = pgd_offset(mm, addr);
+-	if (!pgd_present(*pgd))
+-                return;
+-
+-	pud = pud_offset(pgd, addr);
+-	if (!pud_present(*pud))
+-                return;
+-
+-	pmd = pmd_offset(pud, addr);
+-	if (!pmd_present(*pmd))
+-		return;
+-
+-	ptep = pte_offset_map(pmd, addr);
++	ptep = lookup_page_table(mm, addr, &pt_path);
+ 
+ 	if (!is_swap_pte(*ptep)) {
+ 		pte_unmap(ptep);
+  		return;
+  	}
+ 
+- 	ptl = pte_lockptr(mm, pmd);
+- 	spin_lock(ptl);
++	lock_pte(mm, pt_path);
++
+ 	pte = *ptep;
+ 	if (!is_swap_pte(pte))
+ 		goto out;
+@@ -184,7 +170,8 @@
+ 	lazy_mmu_prot_update(pte);
+ 
+ out:
+-	pte_unmap_unlock(ptep, ptl);
++	unlock_pte(mm, pt_path);
++	pte_unmap(pte);
+ }
+ 
+ /*
+Index: linux-2.6.20-rc3/mm/memory.c
+===================================================================
+--- linux-2.6.20-rc3.orig/mm/memory.c	2007-01-06 16:34:55.534144000 +1100
++++ linux-2.6.20-rc3/mm/memory.c	2007-01-06 16:35:52.366144000 +1100
+@@ -927,23 +927,10 @@
+ 		if (!vma && in_gate_area(tsk, start)) {
+ 			unsigned long pg = start & PAGE_MASK;
+ 			struct vm_area_struct *gate_vma = get_gate_vma(tsk);
+-			pgd_t *pgd;
+-			pud_t *pud;
+-			pmd_t *pmd;
+ 			pte_t *pte;
+ 			if (write) /* user gate pages are read-only */
+ 				return i ? : -EFAULT;
+-			if (pg > TASK_SIZE)
+-				pgd = pgd_offset_k(pg);
+-			else
+-				pgd = pgd_offset_gate(mm, pg);
+-			BUG_ON(pgd_none(*pgd));
+-			pud = pud_offset(pgd, pg);
+-			BUG_ON(pud_none(*pud));
+-			pmd = pmd_offset(pud, pg);
+-			if (pmd_none(*pmd))
+-				return i ? : -EFAULT;
+-			pte = pte_offset_map(pmd, pg);
++			pte = lookup_gate_area(mm, pg);
+ 			if (pte_none(*pte)) {
+ 				pte_unmap(pte);
+ 				return i ? : -EFAULT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
