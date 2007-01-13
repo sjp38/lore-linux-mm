@@ -1,239 +1,205 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:46:59 +1100
-Message-Id: <20070113024659.29682.44554.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:47:04 +1100
+Message-Id: <20070113024704.29682.8753.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 15/29] Finish abstracting copy page range
+Subject: [PATCH 16/29] Abstract unmap page range iterator
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 15
- * Creates file called pt-iterators-ops.h to contain the implementation
- of functions called by various iterators, for operating on ptes.
-   * Moves copy_one_pte in here from memory.c
-   * Puts add_mm_rss into pt-iterator-ops.
-   * Puts is_cow_mapping in mm.h
- * Call pt-iterator-ops.h in pt-default.c so the default page table
- iterator implementations can call their operator functions.
+PATCH 16
+ * Remove add_mm_rss from memory.c (now only required in pt-iterator-ops.h)
+ * Start shift of default page table unmap page range iterator implementation
+ into pt_default.c. Call unmap_page_range_iterator from the interface.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/mm.h              |    5 ++
- include/linux/pt-iterator-ops.h |   79 ++++++++++++++++++++++++++++++++++++++++
- mm/memory.c                     |   76 --------------------------------------
- mm/pt-default.c                 |    1 
- 4 files changed, 85 insertions(+), 76 deletions(-)
-Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:34:22.720438000 +1100
-@@ -0,0 +1,79 @@
-+
-+static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
-+{
-+	if (file_rss)
-+		add_mm_counter(mm, file_rss, file_rss);
-+	if (anon_rss)
-+		add_mm_counter(mm, anon_rss, anon_rss);
-+}
-+
-+/*
-+ * copy one vm_area from one task to the other. Assumes the page tables
-+ * already present in the new task to be cleared in the whole range
-+ * covered by this vma.
-+ */
-+
-+static inline void
-+copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-+		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
-+		unsigned long addr, int *rss)
-+{
-+	unsigned long vm_flags = vma->vm_flags;
-+	pte_t pte = *src_pte;
-+	struct page *page;
-+
-+	/* pte contains position in swap or file, so copy. */
-+	if (unlikely(!pte_present(pte))) {
-+		if (!pte_file(pte)) {
-+			swp_entry_t entry = pte_to_swp_entry(pte);
-+
-+			swap_duplicate(entry);
-+			/* make sure dst_mm is on swapoff's mmlist. */
-+			if (unlikely(list_empty(&dst_mm->mmlist))) {
-+				spin_lock(&mmlist_lock);
-+				if (list_empty(&dst_mm->mmlist))
-+					list_add(&dst_mm->mmlist,
-+						 &src_mm->mmlist);
-+				spin_unlock(&mmlist_lock);
-+			}
-+			if (is_write_migration_entry(entry) &&
-+					is_cow_mapping(vm_flags)) {
-+				/*
-+				 * COW mappings require pages in both parent
-+				 * and child to be set to read.
-+				 */
-+				make_migration_entry_read(&entry);
-+				pte = swp_entry_to_pte(entry);
-+				set_pte_at(src_mm, addr, src_pte, pte);
-+			}
-+		}
-+		goto out_set_pte;
-+	}
-+
-+	/*
-+	 * If it's a COW mapping, write protect it both
-+	 * in the parent and the child
-+	 */
-+	if (is_cow_mapping(vm_flags)) {
-+		ptep_set_wrprotect(src_mm, addr, src_pte);
-+		pte = pte_wrprotect(pte);
-+	}
-+
-+	/*
-+	 * If it's a shared mapping, mark it clean in
-+	 * the child
-+	 */
-+	if (vm_flags & VM_SHARED)
-+		pte = pte_mkclean(pte);
-+	pte = pte_mkold(pte);
-+
-+	page = vm_normal_page(vma, addr, pte);
-+	if (page) {
-+		get_page(page);
-+		page_dup_rmap(page);
-+		rss[!!PageAnon(page)]++;
-+	}
-+
-+out_set_pte:
-+	set_pte_at(dst_mm, addr, dst_pte, pte);
-+}
+ memory.c |  149 ---------------------------------------------------------------
+ 1 file changed, 1 insertion(+), 148 deletions(-)
 Index: linux-2.6.20-rc4/mm/memory.c
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:32:59.516438000 +1100
-+++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:36:05.280438000 +1100
-@@ -147,11 +147,6 @@
- 	dump_stack();
+--- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:37:23.140438000 +1100
++++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:37:23.960438000 +1100
+@@ -122,14 +122,6 @@
+ 	}
  }
  
--static inline int is_cow_mapping(unsigned int flags)
+-static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
 -{
--	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+-	if (file_rss)
+-		add_mm_counter(mm, file_rss, file_rss);
+-	if (anon_rss)
+-		add_mm_counter(mm, anon_rss, anon_rss);
 -}
 -
  /*
-  * This function gets the "struct page" associated with a pte.
-  *
-@@ -205,77 +200,6 @@
- 	return pfn_to_page(pfn);
+  * This function is called to print an error when a bad pte
+  * is found. For example, we might have a PFN-mapped pte in
+@@ -223,158 +215,19 @@
+ 	return copy_dual_iterator(dst_mm, src_mm, addr, end, vma);
  }
  
--/*
-- * copy one vm_area from one task to the other. Assumes the page tables
-- * already present in the new task to be cleared in the whole range
-- * covered by this vma.
-- */
--
--static inline void
--copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
--		unsigned long addr, int *rss)
+-static unsigned long zap_pte_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pmd_t *pmd,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
 -{
--	unsigned long vm_flags = vma->vm_flags;
--	pte_t pte = *src_pte;
--	struct page *page;
+-	struct mm_struct *mm = tlb->mm;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-	int file_rss = 0;
+-	int anon_rss = 0;
 -
--	/* pte contains position in swap or file, so copy. */
--	if (unlikely(!pte_present(pte))) {
--		if (!pte_file(pte)) {
--			swp_entry_t entry = pte_to_swp_entry(pte);
--
--			swap_duplicate(entry);
--			/* make sure dst_mm is on swapoff's mmlist. */
--			if (unlikely(list_empty(&dst_mm->mmlist))) {
--				spin_lock(&mmlist_lock);
--				if (list_empty(&dst_mm->mmlist))
--					list_add(&dst_mm->mmlist,
--						 &src_mm->mmlist);
--				spin_unlock(&mmlist_lock);
--			}
--			if (is_write_migration_entry(entry) &&
--					is_cow_mapping(vm_flags)) {
--				/*
--				 * COW mappings require pages in both parent
--				 * and child to be set to read.
--				 */
--				make_migration_entry_read(&entry);
--				pte = swp_entry_to_pte(entry);
--				set_pte_at(src_mm, addr, src_pte, pte);
--			}
+-	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+-	arch_enter_lazy_mmu_mode();
+-	do {
+-		pte_t ptent = *pte;
+-		if (pte_none(ptent)) {
+-			(*zap_work)--;
+-			continue;
 -		}
--		goto out_set_pte;
--	}
 -
--	/*
--	 * If it's a COW mapping, write protect it both
--	 * in the parent and the child
--	 */
--	if (is_cow_mapping(vm_flags)) {
--		ptep_set_wrprotect(src_mm, addr, src_pte);
--		pte = pte_wrprotect(pte);
--	}
+-		(*zap_work) -= PAGE_SIZE;
 -
--	/*
--	 * If it's a shared mapping, mark it clean in
--	 * the child
--	 */
--	if (vm_flags & VM_SHARED)
--		pte = pte_mkclean(pte);
--	pte = pte_mkold(pte);
+-		if (pte_present(ptent)) {
+-			struct page *page;
 -
--	page = vm_normal_page(vma, addr, pte);
--	if (page) {
--		get_page(page);
--		page_dup_rmap(page);
--		rss[!!PageAnon(page)]++;
--	}
+-			page = vm_normal_page(vma, addr, ptent);
+-			if (unlikely(details) && page) {
+-				/*
+-				 * unmap_shared_mapping_pages() wants to
+-				 * invalidate cache without truncating:
+-				 * unmap shared but keep private pages.
+-				 */
+-				if (details->check_mapping &&
+-				    details->check_mapping != page->mapping)
+-					continue;
+-				/*
+-				 * Each page->index must be checked when
+-				 * invalidating or truncating nonlinear.
+-				 */
+-				if (details->nonlinear_vma &&
+-				    (page->index < details->first_index ||
+-				     page->index > details->last_index))
+-					continue;
+-			}
+-			ptent = ptep_get_and_clear_full(mm, addr, pte,
+-							tlb->fullmm);
+-			tlb_remove_tlb_entry(tlb, pte, addr);
+-			if (unlikely(!page))
+-				continue;
+-			if (unlikely(details) && details->nonlinear_vma
+-			    && linear_page_index(details->nonlinear_vma,
+-						addr) != page->index)
+-				set_pte_at(mm, addr, pte,
+-					   pgoff_to_pte(page->index));
+-			if (PageAnon(page))
+-				anon_rss--;
+-			else {
+-				if (pte_dirty(ptent))
+-					set_page_dirty(page);
+-				if (pte_young(ptent))
+-					mark_page_accessed(page);
+-				file_rss--;
+-			}
+-			page_remove_rmap(page, vma);
+-			tlb_remove_page(tlb, page);
+-			continue;
+-		}
+-		/*
+-		 * If details->check_mapping, we leave swap entries;
+-		 * if details->nonlinear_vma, we leave file entries.
+-		 */
+-		if (unlikely(details))
+-			continue;
+-		if (!pte_file(ptent))
+-			free_swap_and_cache(pte_to_swp_entry(ptent));
+-		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+-	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
 -
--out_set_pte:
--	set_pte_at(dst_mm, addr, dst_pte, pte);
+-	add_mm_rss(mm, file_rss, anon_rss);
+-	arch_leave_lazy_mmu_mode();
+-	pte_unmap_unlock(pte - 1, ptl);
+-
+-	return addr;
 -}
 -
- int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		struct vm_area_struct *vma)
+-static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pud_t *pud,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd)) {
+-			(*zap_work)--;
+-			continue;
+-		}
+-		next = zap_pte_range(tlb, vma, pmd, addr, next,
+-						zap_work, details);
+-	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
+-
+-	return addr;
+-}
+-
+-static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+-				struct vm_area_struct *vma, pgd_t *pgd,
+-				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud)) {
+-			(*zap_work)--;
+-			continue;
+-		}
+-		next = zap_pmd_range(tlb, vma, pud, addr, next,
+-						zap_work, details);
+-	} while (pud++, addr = next, (addr != end && *zap_work > 0));
+ 
+-	return addr;
+-}
+ 
+ static unsigned long unmap_page_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma,
+ 				unsigned long addr, unsigned long end,
+ 				long *zap_work, struct zap_details *details)
  {
-Index: linux-2.6.20-rc4/mm/pt-default.c
-===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:32:59.512438000 +1100
-+++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:33:00.300438000 +1100
-@@ -19,6 +19,7 @@
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+ 	if (details && !details->check_mapping && !details->nonlinear_vma)
+ 		details = NULL;
  
- #include <linux/swapops.h>
- #include <linux/elf.h>
-+#include <linux/pt-iterator-ops.h>
+ 	BUG_ON(addr >= end);
+ 	tlb_start_vma(tlb, vma);
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd)) {
+-			(*zap_work)--;
+-			continue;
+-		}
+-		next = zap_pud_range(tlb, vma, pgd, addr, next,
+-						zap_work, details);
+-	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
++	addr = unmap_page_range_iterator(tlb, vma, addr, end, zap_work, details);
+ 	tlb_end_vma(tlb, vma);
  
- /*
-  * If a p?d_bad entry is found while walking page tables, report
-Index: linux-2.6.20-rc4/include/linux/mm.h
-===================================================================
---- linux-2.6.20-rc4.orig/include/linux/mm.h	2007-01-11 13:31:31.440438000 +1100
-+++ linux-2.6.20-rc4/include/linux/mm.h	2007-01-11 13:35:32.024438000 +1100
-@@ -722,6 +722,11 @@
- 	unsigned long truncate_count;		/* Compare vm_truncate_count */
- };
- 
-+static inline int is_cow_mapping(unsigned int flags)
-+{
-+	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-+}
-+
- struct page *vm_normal_page(struct vm_area_struct *, unsigned long, pte_t);
- unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
- 		unsigned long size, struct zap_details *);
+ 	return addr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
