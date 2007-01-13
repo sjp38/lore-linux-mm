@@ -1,268 +1,347 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:48:25 +1100
-Message-Id: <20070113024825.29682.27750.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:48:20 +1100
+Message-Id: <20070113024820.29682.89721.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 2/5] Abstract pgtable
+Subject: [PATCH 1/5] Introduce IA64 page table interface
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH IA64 02
- * Create file page-default.h and move implementation dependent code from
- page.h into it.
- * Create pgtable-default.h and put implementation dependent code from
- pgtable.h into it.
+PATCH IA64 01
+ * Create /include/asm-ia64/pt.h and define IA64 page table interface.
+   * This file is for including various implementations of page table.
+   At the moment, just the default page table.
+ * Create /include/asm-ia64/pt-default.h and place abstracted page table
+ dependendent functions (for IA64) in there.
+ * Call create_kernel_page_table in arch-ia64/kernel/setup.c (which does
+ nothing for the current page table implementation, but may do for others).
+ * Make implementation independent call to lookup the kernel page table in
+ /arch/ia64/mm/fault.c
+ * Call implementation independent build and lookup functions in
+ /arch/ia64/mm/init.c.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- page-default.h    |   38 +++++++++++++++++++++++++++++++++++++
- page.h            |   20 ++++---------------
- pgtable-default.h |   54 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- pgtable.h         |   55 +++++-------------------------------------------------
- 4 files changed, 103 insertions(+), 64 deletions(-)
-Index: linux-2.6.20-rc1/include/asm-ia64/page-default.h
+ arch/ia64/kernel/setup.c      |    2 
+ arch/ia64/mm/fault.c          |   19 +------
+ arch/ia64/mm/init.c           |   59 ++--------------------
+ include/asm-ia64/pt-default.h |  112 ++++++++++++++++++++++++++++++++++++++++++
+ include/asm-ia64/pt.h         |   16 ++++++
+ 5 files changed, 140 insertions(+), 68 deletions(-)
+Index: linux-2.6.20-rc1/include/asm-ia64/pt.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/page-default.h	2006-12-23 20:24:57.787909000 +1100
-@@ -0,0 +1,38 @@
-+#ifndef _ASM_IA64_PAGE_DEFAULT_H
-+#define _ASM_IA64_PAGE_DEFAULT_H
-+
-+#ifdef __KERNEL__
-+
-+#ifdef STRICT_MM_TYPECHECKS
-+  /*
-+   * These are used to make use of C type-checking..
-+   */
-+  typedef struct { unsigned long pmd; } pmd_t;
-+#ifdef CONFIG_PGTABLE_4
-+  typedef struct { unsigned long pud; } pud_t;
-+#endif
-+  typedef struct { unsigned long pgd; } pgd_t;
-+
-+# define pmd_val(x)	((x).pmd)
-+#ifdef CONFIG_PGTABLE_4
-+# define pud_val(x)	((x).pud)
-+#endif
-+# define pgd_val(x)	((x).pgd)
-+
-+#else /* !STRICT_MM_TYPECHECKS */
-+  /*
-+   * .. while these make it easier on the compiler
-+   */
-+# ifndef __ASSEMBLY__
-+    typedef unsigned long pmd_t;
-+    typedef unsigned long pgd_t;
-+# endif
-+
-+# define pmd_val(x)	(x)
-+# define pgd_val(x)	(x)
-+
-+# define __pgd(x)	(x)
-+#endif /* !STRICT_MM_TYPECHECKS */
-+
-+#endif /* __KERNEL__ */
-+#endif /* _ASM_IA64_PAGE_DEFAULT_H */
-Index: linux-2.6.20-rc1/include/asm-ia64/page.h
-===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/page.h	2006-12-23 20:24:51.003909000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/page.h	2006-12-23 20:25:39.879909000 +1100
-@@ -180,19 +180,9 @@
-    * These are used to make use of C type-checking..
-    */
-   typedef struct { unsigned long pte; } pte_t;
--  typedef struct { unsigned long pmd; } pmd_t;
--#ifdef CONFIG_PGTABLE_4
--  typedef struct { unsigned long pud; } pud_t;
--#endif
--  typedef struct { unsigned long pgd; } pgd_t;
-   typedef struct { unsigned long pgprot; } pgprot_t;
- 
- # define pte_val(x)	((x).pte)
--# define pmd_val(x)	((x).pmd)
--#ifdef CONFIG_PGTABLE_4
--# define pud_val(x)	((x).pud)
--#endif
--# define pgd_val(x)	((x).pgd)
- # define pgprot_val(x)	((x).pgprot)
- 
- # define __pte(x)	((pte_t) { (x) } )
-@@ -204,18 +194,13 @@
-    */
- # ifndef __ASSEMBLY__
-     typedef unsigned long pte_t;
--    typedef unsigned long pmd_t;
--    typedef unsigned long pgd_t;
-     typedef unsigned long pgprot_t;
- # endif
- 
- # define pte_val(x)	(x)
--# define pmd_val(x)	(x)
--# define pgd_val(x)	(x)
- # define pgprot_val(x)	(x)
- 
- # define __pte(x)	(x)
--# define __pgd(x)	(x)
- # define __pgprot(x)	(x)
- #endif /* !STRICT_MM_TYPECHECKS */
- 
-@@ -227,4 +212,9 @@
- 					  ? VM_EXEC : 0))
- 
- # endif /* __KERNEL__ */
++++ linux-2.6.20-rc1/include/asm-ia64/pt.h	2006-12-23 20:55:49.287909000 +1100
+@@ -0,0 +1,16 @@
++#ifndef _ASM_IA64_PT_H
++#define _ASM_IA64_PT_H 1
 +
 +#ifdef CONFIG_PT_DEFAULT
-+#include <asm/page-default.h>
++#include <asm/pt-default.h>
 +#endif
 +
- #endif /* _ASM_IA64_PAGE_H */
-Index: linux-2.6.20-rc1/include/asm-ia64/pgtable-default.h
++void create_kernel_page_table(void);
++
++pte_t *build_page_table_k(unsigned long address);
++
++pte_t *build_page_table_k_bootmem(unsigned long address, int _node);
++
++pte_t *lookup_page_table_k(unsigned long address);
++
++#endif
+Index: linux-2.6.20-rc1/include/asm-ia64/pt-default.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc1/include/asm-ia64/pgtable-default.h	2006-12-23 20:24:57.791909000 +1100
-@@ -0,0 +1,54 @@
-+#ifndef _ASM_IA64_PGTABLE_DEFAULT_H
-+#define _ASM_IA64_PGTABLE_DEFAULT_H
++++ linux-2.6.20-rc1/include/asm-ia64/pt-default.h	2006-12-23 20:55:19.759909000 +1100
+@@ -0,0 +1,112 @@
++#ifndef _ASM_IA64_PT_DEFAULT_H
++#define _ASM_IA64_PT_DEFAULT_H 1
 +
-+/*
-+ * How many pointers will a page table level hold expressed in shift
-+ */
-+#define PTRS_PER_PTD_SHIFT	(PAGE_SHIFT-3)
++#include <linux/bootmem.h>
++#include <asm/pgalloc.h>
 +
-+/*
-+ * Definitions for fourth level:
-+ */
-+#define PTRS_PER_PTE	(__IA64_UL(1) << (PTRS_PER_PTD_SHIFT))
 +
-+/*
-+ * Definitions for third level:
-+ *
-+ * PMD_SHIFT determines the size of the area a third-level page table
-+ * can map.
-+ */
-+#define PMD_SHIFT	(PAGE_SHIFT + (PTRS_PER_PTD_SHIFT))
-+#define PMD_SIZE	(1UL << PMD_SHIFT)
-+#define PMD_MASK	(~(PMD_SIZE-1))
-+#define PTRS_PER_PMD	(1UL << (PTRS_PER_PTD_SHIFT))
++/* Create kernel page table */
++static inline void create_kernel_page_table(void) {}
 +
-+#ifdef CONFIG_PGTABLE_4
-+/*
-+ * Definitions for second level:
-+ *
-+ * PUD_SHIFT determines the size of the area a second-level page table
-+ * can map.
-+ */
-+#define PUD_SHIFT	(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
-+#define PUD_SIZE	(1UL << PUD_SHIFT)
-+#define PUD_MASK	(~(PUD_SIZE-1))
-+#define PTRS_PER_PUD	(1UL << (PTRS_PER_PTD_SHIFT))
++/* Lookup the kernel page table */
++static inline pte_t *lookup_page_table_k(unsigned long address)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep;
 +
-+#endif
-+/*
-+ * Definitions for first level:
-+ *
-+ * PGDIR_SHIFT determines what a first-level page table entry can map.
-+ */
-+#ifdef CONFIG_PGTABLE_4
-+#define PGDIR_SHIFT		(PUD_SHIFT + (PTRS_PER_PTD_SHIFT))
-+#else
-+#define PGDIR_SHIFT		(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
-+#endif
-+#define PGDIR_SIZE		(__IA64_UL(1) << PGDIR_SHIFT)
-+#define PGDIR_MASK		(~(PGDIR_SIZE-1))
-+#define PTRS_PER_PGD_SHIFT	PTRS_PER_PTD_SHIFT
-+#define PTRS_PER_PGD		(1UL << PTRS_PER_PGD_SHIFT)
-+#define USER_PTRS_PER_PGD	(5*PTRS_PER_PGD/8)	/* regions 0-4 are user regions */
++	pgd = pgd_offset_k(address);
++	if (pgd_none(*pgd) || pgd_bad(*pgd))
++		return 0;
 +
-+#endif
-Index: linux-2.6.20-rc1/include/asm-ia64/pgtable.h
++	pud = pud_offset(pgd, address);
++	if (pud_none(*pud) || pud_bad(*pud))
++		return 0;
++
++	pmd = pmd_offset(pud, address);
++	if (pmd_none(*pmd) || pmd_bad(*pmd))
++		return 0;
++
++	ptep = pte_offset_kernel(pmd, address);
++
++	return ptep;
++}
++
++static inline pte_t *lookup_page_table_k2(unsigned long *end_address)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset_k(*end_address);
++	if (pgd_none(*pgd)) {
++		*end_address += PGDIR_SIZE;
++		return NULL;
++	}
++
++	pud = pud_offset(pgd, *end_address);
++	if (pud_none(*pud)) {
++		*end_address += PUD_SIZE;
++		return NULL;
++	}
++
++	pmd = pmd_offset(pud, *end_address);
++	if (pmd_none(*pmd)) {
++		*end_address += PMD_SIZE;
++		return NULL;
++	}
++
++	return pte_offset_kernel(pmd, *end_address);
++}
++
++/* Build the kernel page table */
++static inline pte_t *build_page_table_k(unsigned long address)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
++
++	pud = pud_alloc(&init_mm, pgd, address);
++	if (!pud)
++		return NULL;
++	pmd = pmd_alloc(&init_mm, pud, address);
++	if (!pmd)
++		return NULL;
++
++	return  pte_alloc_kernel(pmd, address);
++}
++
++/* Builds the kernel page table from bootmem (before kernel memory allocation
++ * comes on line) */
++static inline pte_t *build_page_table_k_bootmem(unsigned long address, int _node)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	int node= _node;
++
++	pgd = pgd_offset_k(address);
++	if (pgd_none(*pgd))
++		pgd_populate(&init_mm, pgd,
++			     alloc_bootmem_pages_node(
++				     NODE_DATA(node), PAGE_SIZE));
++	pud = pud_offset(pgd, address);
++
++	if (pud_none(*pud))
++		pud_populate(&init_mm, pud,
++			     alloc_bootmem_pages_node(
++				     NODE_DATA(node), PAGE_SIZE));
++	pmd = pmd_offset(pud, address);
++
++	if (pmd_none(*pmd))
++		pmd_populate_kernel(&init_mm, pmd,
++				    alloc_bootmem_pages_node(
++					    NODE_DATA(node), PAGE_SIZE));
++	return pte_offset_kernel(pmd, address);
++}
++
++
++#endif /* !_PT_DEFAULT_H */
+Index: linux-2.6.20-rc1/arch/ia64/kernel/setup.c
 ===================================================================
---- linux-2.6.20-rc1.orig/include/asm-ia64/pgtable.h	2006-12-23 20:24:51.003909000 +1100
-+++ linux-2.6.20-rc1/include/asm-ia64/pgtable.h	2006-12-23 20:26:16.243909000 +1100
-@@ -19,6 +19,10 @@
+--- linux-2.6.20-rc1.orig/arch/ia64/kernel/setup.c	2006-12-23 20:55:06.603909000 +1100
++++ linux-2.6.20-rc1/arch/ia64/kernel/setup.c	2006-12-23 20:55:19.763909000 +1100
+@@ -61,6 +61,7 @@
  #include <asm/system.h>
- #include <asm/types.h>
+ #include <asm/unistd.h>
+ #include <asm/system.h>
++#include <asm/pt.h>
  
-+#ifdef CONFIG_PT_DEFAULT
-+#include <asm/pgtable-default.h>
-+#endif
+ #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
+ # error "struct cpuinfo_ia64 too big!"
+@@ -545,6 +546,7 @@
+ 		ia64_mca_init();
+ 
+ 	platform_setup(cmdline_p);
++	create_kernel_page_table();
+ 	paging_init();
+ }
+ 
+Index: linux-2.6.20-rc1/arch/ia64/mm/fault.c
+===================================================================
+--- linux-2.6.20-rc1.orig/arch/ia64/mm/fault.c	2006-12-23 20:55:06.603909000 +1100
++++ linux-2.6.20-rc1/arch/ia64/mm/fault.c	2006-12-23 20:55:19.763909000 +1100
+@@ -16,6 +16,7 @@
+ #include <asm/system.h>
+ #include <asm/uaccess.h>
+ #include <asm/kdebug.h>
++#include <asm/pt.h>
+ 
+ extern void die (char *, struct pt_regs *, long);
+ 
+@@ -57,27 +58,13 @@
+  * Return TRUE if ADDRESS points at a page in the kernel's mapped segment
+  * (inside region 5, on ia64) and that page is present.
+  */
 +
- #define IA64_MAX_PHYS_BITS	50	/* max. number of physical address bits (architected) */
+ static int
+ mapped_kernel_page_is_present (unsigned long address)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *ptep, pte;
  
- /*
-@@ -82,55 +86,6 @@
- #define __DIRTY_BITS_NO_ED	_PAGE_A | _PAGE_P | _PAGE_D | _PAGE_MA_WB
- #define __DIRTY_BITS		_PAGE_ED | __DIRTY_BITS_NO_ED
- 
--/*
-- * How many pointers will a page table level hold expressed in shift
-- */
--#define PTRS_PER_PTD_SHIFT	(PAGE_SHIFT-3)
+-	pgd = pgd_offset_k(address);
+-	if (pgd_none(*pgd) || pgd_bad(*pgd))
+-		return 0;
 -
--/*
-- * Definitions for fourth level:
-- */
--#define PTRS_PER_PTE	(__IA64_UL(1) << (PTRS_PER_PTD_SHIFT))
+-	pud = pud_offset(pgd, address);
+-	if (pud_none(*pud) || pud_bad(*pud))
+-		return 0;
 -
--/*
-- * Definitions for third level:
-- *
-- * PMD_SHIFT determines the size of the area a third-level page table
-- * can map.
-- */
--#define PMD_SHIFT	(PAGE_SHIFT + (PTRS_PER_PTD_SHIFT))
--#define PMD_SIZE	(1UL << PMD_SHIFT)
--#define PMD_MASK	(~(PMD_SIZE-1))
--#define PTRS_PER_PMD	(1UL << (PTRS_PER_PTD_SHIFT))
+-	pmd = pmd_offset(pud, address);
+-	if (pmd_none(*pmd) || pmd_bad(*pmd))
+-		return 0;
 -
--#ifdef CONFIG_PGTABLE_4
--/*
-- * Definitions for second level:
-- *
-- * PUD_SHIFT determines the size of the area a second-level page table
-- * can map.
-- */
--#define PUD_SHIFT	(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
--#define PUD_SIZE	(1UL << PUD_SHIFT)
--#define PUD_MASK	(~(PUD_SIZE-1))
--#define PTRS_PER_PUD	(1UL << (PTRS_PER_PTD_SHIFT))
--#endif
+-	ptep = pte_offset_kernel(pmd, address);
++	ptep = lookup_page_table_k(address);
+ 	if (!ptep)
+ 		return 0;
+ 
+Index: linux-2.6.20-rc1/arch/ia64/mm/init.c
+===================================================================
+--- linux-2.6.20-rc1.orig/arch/ia64/mm/init.c	2006-12-23 20:55:06.603909000 +1100
++++ linux-2.6.20-rc1/arch/ia64/mm/init.c	2006-12-23 20:55:19.763909000 +1100
+@@ -35,6 +35,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/unistd.h>
+ #include <asm/mca.h>
++#include <asm/pt.h>
+ 
+ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+ 
+@@ -269,25 +270,14 @@
+ static struct page * __init
+ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
+ 
+ 	if (!PageReserved(page))
+ 		printk(KERN_ERR "put_kernel_page: page at 0x%p not in reserved memory\n",
+ 		       page_address(page));
+ 
+-	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
 -
--/*
-- * Definitions for first level:
-- *
-- * PGDIR_SHIFT determines what a first-level page table entry can map.
-- */
--#ifdef CONFIG_PGTABLE_4
--#define PGDIR_SHIFT		(PUD_SHIFT + (PTRS_PER_PTD_SHIFT))
--#else
--#define PGDIR_SHIFT		(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
--#endif
--#define PGDIR_SIZE		(__IA64_UL(1) << PGDIR_SHIFT)
--#define PGDIR_MASK		(~(PGDIR_SIZE-1))
--#define PTRS_PER_PGD_SHIFT	PTRS_PER_PTD_SHIFT
--#define PTRS_PER_PGD		(1UL << PTRS_PER_PGD_SHIFT)
--#define USER_PTRS_PER_PGD	(5*PTRS_PER_PGD/8)	/* regions 0-4 are user regions */
- #define FIRST_USER_ADDRESS	0
+ 	{
+-		pud = pud_alloc(&init_mm, pgd, address);
+-		if (!pud)
+-			goto out;
+-		pmd = pmd_alloc(&init_mm, pud, address);
+-		if (!pmd)
+-			goto out;
+-		pte = pte_alloc_kernel(pmd, address);
++		pte = build_page_table_k(address);
+ 		if (!pte)
+ 			goto out;
+ 		if (!pte_none(*pte))
+@@ -428,30 +418,9 @@
+ 		pgdat->node_start_pfn + pgdat->node_spanned_pages];
  
- /*
-@@ -595,9 +550,11 @@
- #define __HAVE_ARCH_PGD_OFFSET_GATE
- #define __HAVE_ARCH_LAZY_MMU_PROT_UPDATE
+ 	do {
+-		pgd_t *pgd;
+-		pud_t *pud;
+-		pmd_t *pmd;
+ 		pte_t *pte;
  
-+#ifdef CONFIG_PT_DEFAULT
- #ifndef CONFIG_PGTABLE_4
- #include <asm-generic/pgtable-nopud.h>
- #endif
- #include <asm-generic/pgtable.h>
-+#endif
+-		pgd = pgd_offset_k(end_address);
+-		if (pgd_none(*pgd)) {
+-			end_address += PGDIR_SIZE;
+-			continue;
+-		}
+-
+-		pud = pud_offset(pgd, end_address);
+-		if (pud_none(*pud)) {
+-			end_address += PUD_SIZE;
+-			continue;
+-		}
+-
+-		pmd = pmd_offset(pud, end_address);
+-		if (pmd_none(*pmd)) {
+-			end_address += PMD_SIZE;
+-			continue;
+-		}
+-
+-		pte = pte_offset_kernel(pmd, end_address);
++		pte = lookup_page_table_k2(&end_address);
+ retry_pte:
+ 		if (pte_none(*pte)) {
+ 			end_address += PAGE_SIZE;
+@@ -477,9 +446,6 @@
+ 	unsigned long address, start_page, end_page;
+ 	struct page *map_start, *map_end;
+ 	int node;
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+ 	pte_t *pte;
  
- #endif /* _ASM_IA64_PGTABLE_H */
+ 	map_start = vmem_map + (__pa(start) >> PAGE_SHIFT);
+@@ -489,23 +455,12 @@
+ 	end_page = PAGE_ALIGN((unsigned long) map_end);
+ 	node = paddr_to_nid(__pa(start));
+ 
++	printk("MEMMAP\n");
+ 	for (address = start_page; address < end_page; address += PAGE_SIZE) {
+-		pgd = pgd_offset_k(address);
+-		if (pgd_none(*pgd))
+-			pgd_populate(&init_mm, pgd, alloc_bootmem_pages_node(NODE_DATA(node), PAGE_SIZE));
+-		pud = pud_offset(pgd, address);
+-
+-		if (pud_none(*pud))
+-			pud_populate(&init_mm, pud, alloc_bootmem_pages_node(NODE_DATA(node), PAGE_SIZE));
+-		pmd = pmd_offset(pud, address);
+-
+-		if (pmd_none(*pmd))
+-			pmd_populate_kernel(&init_mm, pmd, alloc_bootmem_pages_node(NODE_DATA(node), PAGE_SIZE));
+-		pte = pte_offset_kernel(pmd, address);
+-
++		pte = build_page_table_k_bootmem(address, node);
+ 		if (pte_none(*pte))
+-			set_pte(pte, pfn_pte(__pa(alloc_bootmem_pages_node(NODE_DATA(node), PAGE_SIZE)) >> PAGE_SHIFT,
+-					     PAGE_KERNEL));
++			set_pte(pte, pfn_pte(__pa(alloc_bootmem_pages_node(NODE_DATA(node),
++				PAGE_SIZE)) >> PAGE_SHIFT, PAGE_KERNEL));
+ 	}
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
