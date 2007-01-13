@@ -1,181 +1,239 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:46:38 +1100
-Message-Id: <20070113024638.29682.41909.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:46:59 +1100
+Message-Id: <20070113024659.29682.44554.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 11/29] Call simple PTI functions cont...
+Subject: [PATCH 15/29] Finish abstracting copy page range
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 11
- * Abstract the implementation dependent page table lookup from
- get_user_pages and make call from page table interface.
- * Abstract implementation dependent page table lookups from rmap.c.
- Abstract CLUSTER_SIZE to pt_default.h since it is implementation 
- dependent.
+PATCH 15
+ * Creates file called pt-iterators-ops.h to contain the implementation
+ of functions called by various iterators, for operating on ptes.
+   * Moves copy_one_pte in here from memory.c
+   * Puts add_mm_rss into pt-iterator-ops.
+   * Puts is_cow_mapping in mm.h
+ * Call pt-iterator-ops.h in pt-default.c so the default page table
+ iterator implementations can call their operator functions.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- memory.c  |   15 +--------------
- migrate.c |   27 +++++++--------------------
- rmap.c    |   25 ++++++-------------------
- 3 files changed, 14 insertions(+), 53 deletions(-)
-Index: linux-2.6.20-rc3/mm/rmap.c
+ include/linux/mm.h              |    5 ++
+ include/linux/pt-iterator-ops.h |   79 ++++++++++++++++++++++++++++++++++++++++
+ mm/memory.c                     |   76 --------------------------------------
+ mm/pt-default.c                 |    1 
+ 4 files changed, 85 insertions(+), 76 deletions(-)
+Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
 ===================================================================
---- linux-2.6.20-rc3.orig/mm/rmap.c	2007-01-06 16:35:41.714144000 +1100
-+++ linux-2.6.20-rc3/mm/rmap.c	2007-01-06 16:35:52.362144000 +1100
-@@ -709,19 +709,16 @@
-  * there there won't be many ptes located within the scan cluster.  In this case
-  * maybe we could scan further - to the end of the pte page, perhaps.
-  */
--#define CLUSTER_SIZE	min(32*PAGE_SIZE, PMD_SIZE)
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:34:22.720438000 +1100
+@@ -0,0 +1,79 @@
 +
- #define CLUSTER_MASK	(~(CLUSTER_SIZE - 1))
- 
- static void try_to_unmap_cluster(unsigned long cursor,
- 	unsigned int *mapcount, struct vm_area_struct *vma)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
- 	pte_t *pte;
- 	pte_t pteval;
--	spinlock_t *ptl;
-+	pt_path_t pt_path;
- 	struct page *page;
- 	unsigned long address;
- 	unsigned long end;
-@@ -733,19 +730,8 @@
- 	if (end > vma->vm_end)
- 		end = vma->vm_end;
- 
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		return;
--
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return;
--
--	pmd = pmd_offset(pud, address);
--	if (!pmd_present(*pmd))
--		return;
--
--	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	pte = lookup_page_table(mm, address, &pt_path);
-+	lock_pte(mm, pt_path);
- 
- 	/* Update high watermark before we lower rss */
- 	update_hiwater_rss(mm);
-@@ -776,7 +762,8 @@
- 		dec_mm_counter(mm, file_rss);
- 		(*mapcount)--;
- 	}
--	pte_unmap_unlock(pte - 1, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte-1);
++static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
++{
++	if (file_rss)
++		add_mm_counter(mm, file_rss, file_rss);
++	if (anon_rss)
++		add_mm_counter(mm, anon_rss, anon_rss);
++}
++
++/*
++ * copy one vm_area from one task to the other. Assumes the page tables
++ * already present in the new task to be cleared in the whole range
++ * covered by this vma.
++ */
++
++static inline void
++copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
++		unsigned long addr, int *rss)
++{
++	unsigned long vm_flags = vma->vm_flags;
++	pte_t pte = *src_pte;
++	struct page *page;
++
++	/* pte contains position in swap or file, so copy. */
++	if (unlikely(!pte_present(pte))) {
++		if (!pte_file(pte)) {
++			swp_entry_t entry = pte_to_swp_entry(pte);
++
++			swap_duplicate(entry);
++			/* make sure dst_mm is on swapoff's mmlist. */
++			if (unlikely(list_empty(&dst_mm->mmlist))) {
++				spin_lock(&mmlist_lock);
++				if (list_empty(&dst_mm->mmlist))
++					list_add(&dst_mm->mmlist,
++						 &src_mm->mmlist);
++				spin_unlock(&mmlist_lock);
++			}
++			if (is_write_migration_entry(entry) &&
++					is_cow_mapping(vm_flags)) {
++				/*
++				 * COW mappings require pages in both parent
++				 * and child to be set to read.
++				 */
++				make_migration_entry_read(&entry);
++				pte = swp_entry_to_pte(entry);
++				set_pte_at(src_mm, addr, src_pte, pte);
++			}
++		}
++		goto out_set_pte;
++	}
++
++	/*
++	 * If it's a COW mapping, write protect it both
++	 * in the parent and the child
++	 */
++	if (is_cow_mapping(vm_flags)) {
++		ptep_set_wrprotect(src_mm, addr, src_pte);
++		pte = pte_wrprotect(pte);
++	}
++
++	/*
++	 * If it's a shared mapping, mark it clean in
++	 * the child
++	 */
++	if (vm_flags & VM_SHARED)
++		pte = pte_mkclean(pte);
++	pte = pte_mkold(pte);
++
++	page = vm_normal_page(vma, addr, pte);
++	if (page) {
++		get_page(page);
++		page_dup_rmap(page);
++		rss[!!PageAnon(page)]++;
++	}
++
++out_set_pte:
++	set_pte_at(dst_mm, addr, dst_pte, pte);
++}
+Index: linux-2.6.20-rc4/mm/memory.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:32:59.516438000 +1100
++++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:36:05.280438000 +1100
+@@ -147,11 +147,6 @@
+ 	dump_stack();
  }
  
- static int try_to_unmap_anon(struct page *page, int migration)
-Index: linux-2.6.20-rc3/mm/migrate.c
-===================================================================
---- linux-2.6.20-rc3.orig/mm/migrate.c	2007-01-06 13:01:46.930183000 +1100
-+++ linux-2.6.20-rc3/mm/migrate.c	2007-01-06 16:35:52.366144000 +1100
-@@ -28,6 +28,7 @@
- #include <linux/mempolicy.h>
- #include <linux/vmalloc.h>
- #include <linux/security.h>
-+#include <linux/pt.h>
- 
- #include "internal.h"
- 
-@@ -128,37 +129,22 @@
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	swp_entry_t entry;
-- 	pgd_t *pgd;
-- 	pud_t *pud;
-- 	pmd_t *pmd;
-+	pt_path_t pt_path;
- 	pte_t *ptep, pte;
-- 	spinlock_t *ptl;
- 	unsigned long addr = page_address_in_vma(new, vma);
- 
- 	if (addr == -EFAULT)
- 		return;
- 
-- 	pgd = pgd_offset(mm, addr);
--	if (!pgd_present(*pgd))
--                return;
+-static inline int is_cow_mapping(unsigned int flags)
+-{
+-	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+-}
 -
--	pud = pud_offset(pgd, addr);
--	if (!pud_present(*pud))
--                return;
--
--	pmd = pmd_offset(pud, addr);
--	if (!pmd_present(*pmd))
--		return;
--
--	ptep = pte_offset_map(pmd, addr);
-+	ptep = lookup_page_table(mm, addr, &pt_path);
- 
- 	if (!is_swap_pte(*ptep)) {
- 		pte_unmap(ptep);
-  		return;
-  	}
- 
-- 	ptl = pte_lockptr(mm, pmd);
-- 	spin_lock(ptl);
-+	lock_pte(mm, pt_path);
-+
- 	pte = *ptep;
- 	if (!is_swap_pte(pte))
- 		goto out;
-@@ -184,7 +170,8 @@
- 	lazy_mmu_prot_update(pte);
- 
- out:
--	pte_unmap_unlock(ptep, ptl);
-+	unlock_pte(mm, pt_path);
-+	pte_unmap(pte);
+ /*
+  * This function gets the "struct page" associated with a pte.
+  *
+@@ -205,77 +200,6 @@
+ 	return pfn_to_page(pfn);
  }
+ 
+-/*
+- * copy one vm_area from one task to the other. Assumes the page tables
+- * already present in the new task to be cleared in the whole range
+- * covered by this vma.
+- */
+-
+-static inline void
+-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+-		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
+-		unsigned long addr, int *rss)
+-{
+-	unsigned long vm_flags = vma->vm_flags;
+-	pte_t pte = *src_pte;
+-	struct page *page;
+-
+-	/* pte contains position in swap or file, so copy. */
+-	if (unlikely(!pte_present(pte))) {
+-		if (!pte_file(pte)) {
+-			swp_entry_t entry = pte_to_swp_entry(pte);
+-
+-			swap_duplicate(entry);
+-			/* make sure dst_mm is on swapoff's mmlist. */
+-			if (unlikely(list_empty(&dst_mm->mmlist))) {
+-				spin_lock(&mmlist_lock);
+-				if (list_empty(&dst_mm->mmlist))
+-					list_add(&dst_mm->mmlist,
+-						 &src_mm->mmlist);
+-				spin_unlock(&mmlist_lock);
+-			}
+-			if (is_write_migration_entry(entry) &&
+-					is_cow_mapping(vm_flags)) {
+-				/*
+-				 * COW mappings require pages in both parent
+-				 * and child to be set to read.
+-				 */
+-				make_migration_entry_read(&entry);
+-				pte = swp_entry_to_pte(entry);
+-				set_pte_at(src_mm, addr, src_pte, pte);
+-			}
+-		}
+-		goto out_set_pte;
+-	}
+-
+-	/*
+-	 * If it's a COW mapping, write protect it both
+-	 * in the parent and the child
+-	 */
+-	if (is_cow_mapping(vm_flags)) {
+-		ptep_set_wrprotect(src_mm, addr, src_pte);
+-		pte = pte_wrprotect(pte);
+-	}
+-
+-	/*
+-	 * If it's a shared mapping, mark it clean in
+-	 * the child
+-	 */
+-	if (vm_flags & VM_SHARED)
+-		pte = pte_mkclean(pte);
+-	pte = pte_mkold(pte);
+-
+-	page = vm_normal_page(vma, addr, pte);
+-	if (page) {
+-		get_page(page);
+-		page_dup_rmap(page);
+-		rss[!!PageAnon(page)]++;
+-	}
+-
+-out_set_pte:
+-	set_pte_at(dst_mm, addr, dst_pte, pte);
+-}
+-
+ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		struct vm_area_struct *vma)
+ {
+Index: linux-2.6.20-rc4/mm/pt-default.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:32:59.512438000 +1100
++++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:33:00.300438000 +1100
+@@ -19,6 +19,7 @@
+ 
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
++#include <linux/pt-iterator-ops.h>
  
  /*
-Index: linux-2.6.20-rc3/mm/memory.c
+  * If a p?d_bad entry is found while walking page tables, report
+Index: linux-2.6.20-rc4/include/linux/mm.h
 ===================================================================
---- linux-2.6.20-rc3.orig/mm/memory.c	2007-01-06 16:34:55.534144000 +1100
-+++ linux-2.6.20-rc3/mm/memory.c	2007-01-06 16:35:52.366144000 +1100
-@@ -927,23 +927,10 @@
- 		if (!vma && in_gate_area(tsk, start)) {
- 			unsigned long pg = start & PAGE_MASK;
- 			struct vm_area_struct *gate_vma = get_gate_vma(tsk);
--			pgd_t *pgd;
--			pud_t *pud;
--			pmd_t *pmd;
- 			pte_t *pte;
- 			if (write) /* user gate pages are read-only */
- 				return i ? : -EFAULT;
--			if (pg > TASK_SIZE)
--				pgd = pgd_offset_k(pg);
--			else
--				pgd = pgd_offset_gate(mm, pg);
--			BUG_ON(pgd_none(*pgd));
--			pud = pud_offset(pgd, pg);
--			BUG_ON(pud_none(*pud));
--			pmd = pmd_offset(pud, pg);
--			if (pmd_none(*pmd))
--				return i ? : -EFAULT;
--			pte = pte_offset_map(pmd, pg);
-+			pte = lookup_gate_area(mm, pg);
- 			if (pte_none(*pte)) {
- 				pte_unmap(pte);
- 				return i ? : -EFAULT;
+--- linux-2.6.20-rc4.orig/include/linux/mm.h	2007-01-11 13:31:31.440438000 +1100
++++ linux-2.6.20-rc4/include/linux/mm.h	2007-01-11 13:35:32.024438000 +1100
+@@ -722,6 +722,11 @@
+ 	unsigned long truncate_count;		/* Compare vm_truncate_count */
+ };
+ 
++static inline int is_cow_mapping(unsigned int flags)
++{
++	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
++}
++
+ struct page *vm_normal_page(struct vm_area_struct *, unsigned long, pte_t);
+ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size, struct zap_details *);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
