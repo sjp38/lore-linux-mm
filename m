@@ -1,208 +1,216 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:48:46 +1100
-Message-Id: <20070113024846.29682.42796.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:48:40 +1100
+Message-Id: <20070113024840.29682.3206.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 1/12] Alternate page table implementation (GPT)
+Subject: [PATCH 5/5] Abstract pgalloc
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH GPT 01
- * The GPT itself is not being commented in these patches, just how
- to fit this page table implementation in under the interface, next
- to the default page table.
-   * Any queries regarding GPTs are best directed to 
-   awiggins@cse.unsw.edu.au
- * Add GPT option as alternative to the default page table for IA64
- * Create include/asm-ia64/pgtable-gpt.h for GPT specific pgtable.h
- code.
+PATCH IA64 05
+ * Abstract implementation dependent memory allocation stuff from
+ pgalloc.h into pgalloc-default.h
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- arch/ia64/Kconfig.debug        |    3 
- include/asm-ia64/pgtable-gpt.h |  157 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 160 insertions(+)
-Index: linux-2.6.20-rc4/arch/ia64/Kconfig.debug
-===================================================================
---- linux-2.6.20-rc4.orig/arch/ia64/Kconfig.debug	2007-01-11 16:46:47.662747000 +1100
-+++ linux-2.6.20-rc4/arch/ia64/Kconfig.debug	2007-01-11 16:58:15.245390000 +1100
-@@ -9,6 +9,9 @@
- config  PT_DEFAULT
- 	bool "PT_DEFAULT"
- 
-+config  GPT
-+	bool "GPT"
-+
- endchoice
- 
- choice
-Index: linux-2.6.20-rc4/include/asm-ia64/pgtable-gpt.h
+ pgalloc-default.h |   87 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ pgalloc.h         |   87 ++----------------------------------------------------
+ 2 files changed, 91 insertions(+), 83 deletions(-)
+Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc-default.h
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.20-rc4/include/asm-ia64/pgtable-gpt.h	2007-01-11 18:57:09.215823000 +1100
-@@ -0,0 +1,157 @@
-+/**
-+ *  include/asm-ia64/pgtable-gpt.h
-+ *
-+ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
-+ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au>,
-+ */
++++ linux-2.6.20-rc1/include/asm-ia64/pgalloc-default.h	2006-12-23 21:18:48.054043000 +1100
+@@ -0,0 +1,87 @@
++#ifndef _ASM_IA64_PGALLOC_DEFAULT_H
++#define _ASM_IA64_PGALLOC_DEFAULT_H
 +
-+#ifndef _ASM_IA64_PGTABLE_GPT_H
-+#define _ASM_IA64_PGTABLE_GPT_H
-+
-+#ifndef __ASSEMBLY__
-+
-+#include <linux/types.h>
-+
-+#define RGN_MAP_SHIFT 55
-+#define ALIGNVAL (1UL << 25)
-+
-+typedef uint64_t gpt_key_value_t;
-+
-+typedef struct {
-+	uint64_t _pad:    6;
-+	uint64_t length:  6;
-+	uint64_t value:  52;
-+} gpt_key_t;
-+
-+static inline gpt_key_t
-+gpt_key_init(gpt_key_value_t value, int8_t length)
++static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 +{
-+	gpt_key_t key;
-+
-+	key.value = value;
-+	key.length = length;
-+	key._pad = 0;
-+
-+	return key;
++	return pgtable_quicklist_alloc();
 +}
 +
-+static inline gpt_key_t
-+gpt_key_null(void)
++static inline void pgd_free(pgd_t * pgd)
 +{
-+	return gpt_key_init(0, 0);
++	pgtable_quicklist_free(pgd);
 +}
 +
-+static inline gpt_key_value_t
-+gpt_key_read_value(gpt_key_t key)
++#ifdef CONFIG_PGTABLE_4
++static inline void
++pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
 +{
-+	return key.value;
++	pgd_val(*pgd_entry) = __pa(pud);
 +}
 +
-+static inline int8_t
-+gpt_key_read_length(gpt_key_t key)
++static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 +{
-+	return key.length;
++	return pgtable_quicklist_alloc();
 +}
 +
-+static inline gpt_key_value_t
-+gpt_key_value_mask(int8_t coverage)
++static inline void pud_free(pud_t * pud)
 +{
-+	return (coverage < GPT_KEY_LENGTH_MAX) ?
-+		~(((gpt_key_value_t)1 << coverage) - (gpt_key_value_t)1) : 0;
++	pgtable_quicklist_free(pud);
++}
++#define __pud_free_tlb(tlb, pud)	pud_free(pud)
++#endif /* CONFIG_PGTABLE_4 */
++
++static inline void
++pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
++{
++	pud_val(*pud_entry) = __pa(pmd);
 +}
 +
-+static inline int
-+gpt_key_compare_null(gpt_key_t key)
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 +{
-+	return gpt_key_read_length(key) == 0;
++	return pgtable_quicklist_alloc();
 +}
 +
-+static inline gpt_key_t
-+gpt_key_cut_LSB(int8_t length_lsb, gpt_key_t key)
++static inline void pmd_free(pmd_t * pmd)
 +{
-+	int8_t length;
-+	gpt_key_value_t value;
-+
-+	value = gpt_key_read_value(key);
-+	length = gpt_key_read_length(key);
-+	if(length_lsb > length) {
-+		return gpt_key_null();
-+	}
-+	length -= length_lsb;
-+	value >>= length_lsb;
-+	return gpt_key_init(value, length);
++	pgtable_quicklist_free(pmd);
 +}
 +
-+static inline gpt_key_t
-+gpt_key_cut_LSB2(int8_t length_lsb, gpt_key_t* key_u)
-+{
-+	int8_t length;
-+	gpt_key_value_t value;
++#define __pmd_free_tlb(tlb, pmd)	pmd_free(pmd)
 +
-+	value = gpt_key_read_value(*key_u);
-+	length = gpt_key_read_length(*key_u);
-+	if(length_lsb > length) {
-+		length_lsb = length;
-+	}
-+	length -= length_lsb;
-+	*key_u = ((length == 0) ? gpt_key_null() :
-+			  gpt_key_init(value >> length_lsb, length));
-+	return gpt_key_init(value & ~gpt_key_value_mask(length_lsb),
-+			length_lsb);
++static inline void
++pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, struct page *pte)
++{
++	pmd_val(*pmd_entry) = page_to_phys(pte);
 +}
 +
-+static inline gpt_key_t
-+gpt_keys_merge_MSB(gpt_key_t key_lsb, gpt_key_t key)
++static inline void
++pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
 +{
-+	int8_t length, length_lsb;
-+	gpt_key_value_t value;
-+
-+	value = gpt_key_read_value(key);
-+	length = gpt_key_read_length(key);
-+	length_lsb = gpt_key_read_length(key_lsb);
-+	value = (value << length_lsb) + gpt_key_read_value(key_lsb);
-+	length += length_lsb;
-+	return gpt_key_init(value, length);
++	pmd_val(*pmd_entry) = __pa(pte);
 +}
 +
-+static inline gpt_key_t
-+gpt_keys_merge_LSB(gpt_key_t key_msb, gpt_key_t key)
++static inline struct page *pte_alloc_one(struct mm_struct *mm,
++					 unsigned long addr)
 +{
-+    int8_t length;
-+	gpt_key_value_t value;
-+
-+	value = gpt_key_read_value(key);
-+	length = gpt_key_read_length(key);
-+	value = (gpt_key_read_value(key_msb) << length) + value;
-+	length += gpt_key_read_length(key_msb);
-+	return gpt_key_init(value, length);
++	return virt_to_page(pgtable_quicklist_alloc());
 +}
 +
-+static inline int
-+gptKeysCompareEqual(gpt_key_t key1, gpt_key_t key2)
++static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
++					  unsigned long addr)
 +{
-+	return ((gpt_key_read_length(key1) == gpt_key_read_length(key2)) &&
-+            (gpt_key_read_value(key1) == gpt_key_read_value(key2)));
++	return pgtable_quicklist_alloc();
 +}
 +
-+
-+/* awiggins (2006-06-23): Massage in a little better, also optimise for ia64. */
-+#define WORD_BIT 64
-+static inline size_t
-+gpt_ctlz(uint64_t n, int8_t msb)
++static inline void pte_free(struct page *pte)
 +{
-+	int8_t i;
-+
-+	if(msb > WORD_BIT) msb = WORD_BIT;
-+	for(i = 0; i <= msb; i++) {
-+		/* Check most significant bit is zero. */
-+		if(n & (uint64_t)1 << msb) break;
-+		/* Shift to the next test bit. */
-+		n <<= 1;
-+	}
-+	return i;
++	pgtable_quicklist_free(page_address(pte));
 +}
 +
-+#endif /* !__ASSEMBLY__ */
++static inline void pte_free_kernel(pte_t * pte)
++{
++	pgtable_quicklist_free(pte);
++}
 +
-+#endif /* !_ASM_PGTABLE_GPT_H */
++#define __pte_free_tlb(tlb, pte)	pte_free(pte)
++
++#endif
+Index: linux-2.6.20-rc1/include/asm-ia64/pgalloc.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/pgalloc.h	2006-12-21 11:32:12.430004000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/pgalloc.h	2006-12-23 21:20:42.258043000 +1100
+@@ -75,89 +75,10 @@
+ 	preempt_enable();
+ }
+ 
+-static inline pgd_t *pgd_alloc(struct mm_struct *mm)
+-{
+-	return pgtable_quicklist_alloc();
+-}
+-
+-static inline void pgd_free(pgd_t * pgd)
+-{
+-	pgtable_quicklist_free(pgd);
+-}
+-
+-#ifdef CONFIG_PGTABLE_4
+-static inline void
+-pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
+-{
+-	pgd_val(*pgd_entry) = __pa(pud);
+-}
+-
+-static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+-{
+-	return pgtable_quicklist_alloc();
+-}
+-
+-static inline void pud_free(pud_t * pud)
+-{
+-	pgtable_quicklist_free(pud);
+-}
+-#define __pud_free_tlb(tlb, pud)	pud_free(pud)
+-#endif /* CONFIG_PGTABLE_4 */
+-
+-static inline void
+-pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
+-{
+-	pud_val(*pud_entry) = __pa(pmd);
+-}
+-
+-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+-{
+-	return pgtable_quicklist_alloc();
+-}
+-
+-static inline void pmd_free(pmd_t * pmd)
+-{
+-	pgtable_quicklist_free(pmd);
+-}
+-
+-#define __pmd_free_tlb(tlb, pmd)	pmd_free(pmd)
+-
+-static inline void
+-pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, struct page *pte)
+-{
+-	pmd_val(*pmd_entry) = page_to_phys(pte);
+-}
+-
+-static inline void
+-pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
+-{
+-	pmd_val(*pmd_entry) = __pa(pte);
+-}
+-
+-static inline struct page *pte_alloc_one(struct mm_struct *mm,
+-					 unsigned long addr)
+-{
+-	return virt_to_page(pgtable_quicklist_alloc());
+-}
+-
+-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+-					  unsigned long addr)
+-{
+-	return pgtable_quicklist_alloc();
+-}
+-
+-static inline void pte_free(struct page *pte)
+-{
+-	pgtable_quicklist_free(page_address(pte));
+-}
+-
+-static inline void pte_free_kernel(pte_t * pte)
+-{
+-	pgtable_quicklist_free(pte);
+-}
+-
+-#define __pte_free_tlb(tlb, pte)	pte_free(pte)
+-
+ extern void check_pgt_cache(void);
+ 
++#ifdef CONFIG_PT_DEFAULT
++#include <asm/pgalloc-default.h>
++#endif
++
+ #endif				/* _ASM_IA64_PGALLOC_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
