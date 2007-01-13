@@ -1,231 +1,64 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:47:26 +1100
-Message-Id: <20070113024726.29682.71586.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:47:42 +1100
+Message-Id: <20070113024742.29682.76296.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 20/29] Abstract change protection iterator
+Subject: [PATCH 23/29] Abstract unuse_vma
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 20
- * Move default change_protection iterator implementation from mprotect.c to
- pt-default.c
- * Abstract an operator function, change_prot_pte and place this function
- into pt-iterator-ops.h
+PATCH 23
+ * Move default page table iterator unuse_vma from swapfile.c to pt_default.c
+ * Move unuse_pte into pt-iterator-ops.h
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/pt-iterator-ops.h |   44 ++++++++++++++++++
- mm/mprotect.c                   |   94 +---------------------------------------
- mm/pt-default.c                 |   66 ++++++++++++++++++++++++++++
- 3 files changed, 113 insertions(+), 91 deletions(-)
-Index: linux-2.6.20-rc4/mm/mprotect.c
-===================================================================
---- linux-2.6.20-rc4.orig/mm/mprotect.c	2007-01-11 13:30:52.468438000 +1100
-+++ linux-2.6.20-rc4/mm/mprotect.c	2007-01-11 13:37:59.472438000 +1100
-@@ -21,110 +21,22 @@
- #include <linux/syscalls.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/pt.h>
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- 
--static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
--		unsigned long addr, unsigned long end, pgprot_t newprot,
--		int dirty_accountable)
--{
--	pte_t *pte, oldpte;
--	spinlock_t *ptl;
--
--	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
--	arch_enter_lazy_mmu_mode();
--	do {
--		oldpte = *pte;
--		if (pte_present(oldpte)) {
--			pte_t ptent;
--
--			/* Avoid an SMP race with hardware updated dirty/clean
--			 * bits by wiping the pte and then setting the new pte
--			 * into place.
--			 */
--			ptent = ptep_get_and_clear(mm, addr, pte);
--			ptent = pte_modify(ptent, newprot);
--			/*
--			 * Avoid taking write faults for pages we know to be
--			 * dirty.
--			 */
--			if (dirty_accountable && pte_dirty(ptent))
--				ptent = pte_mkwrite(ptent);
--			set_pte_at(mm, addr, pte, ptent);
--			lazy_mmu_prot_update(ptent);
--#ifdef CONFIG_MIGRATION
--		} else if (!pte_file(oldpte)) {
--			swp_entry_t entry = pte_to_swp_entry(oldpte);
--
--			if (is_write_migration_entry(entry)) {
--				/*
--				 * A protection check is difficult so
--				 * just be safe and disable write
--				 */
--				make_migration_entry_read(&entry);
--				set_pte_at(mm, addr, pte,
--					swp_entry_to_pte(entry));
--			}
--#endif
--		}
--
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	arch_leave_lazy_mmu_mode();
--	pte_unmap_unlock(pte - 1, ptl);
--}
--
--static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
--		unsigned long addr, unsigned long end, pgprot_t newprot,
--		int dirty_accountable)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
--	} while (pmd++, addr = next, addr != end);
--}
--
--static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
--		unsigned long addr, unsigned long end, pgprot_t newprot,
--		int dirty_accountable)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		change_pmd_range(mm, pud, addr, next, newprot, dirty_accountable);
--	} while (pud++, addr = next, addr != end);
--}
--
- static void change_protection(struct vm_area_struct *vma,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
--	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	unsigned long next;
- 	unsigned long start = addr;
- 
- 	BUG_ON(addr >= end);
--	pgd = pgd_offset(mm, addr);
-+
- 	flush_cache_range(vma, addr, end);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
--	} while (pgd++, addr = next, addr != end);
-+	change_protection_read_iterator(vma, addr, end, newprot, dirty_accountable);
- 	flush_tlb_range(vma, start, end);
- }
- 
-Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
-===================================================================
---- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:37:53.612438000 +1100
-+++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:37:59.476438000 +1100
-@@ -1,3 +1,5 @@
-+#include <linux/rmap.h>
-+#include <asm/tlb.h>
- 
- static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
- {
-@@ -166,3 +168,45 @@
- 	BUG_ON(!pte_none(*pte));
- 	set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
- }
-+
-+static inline void
-+change_prot_pte(struct mm_struct *mm, pte_t *pte,
-+	unsigned long addr, pgprot_t newprot, int dirty_accountable)
-+
-+{
-+	pte_t oldpte;
-+	oldpte = *pte;
-+
-+	if (pte_present(oldpte)) {
-+		pte_t ptent;
-+
-+		/* Avoid an SMP race with hardware updated dirty/clean
-+		 * bits by wiping the pte and then setting the new pte
-+		 * into place.
-+		 */
-+		ptent = ptep_get_and_clear(mm, addr, pte);
-+		ptent = pte_modify(ptent, newprot);
-+		/*
-+		 * Avoid taking write faults for pages we know to be
-+		 * dirty.
-+		 */
-+		if (dirty_accountable && pte_dirty(ptent))
-+			ptent = pte_mkwrite(ptent);
-+		set_pte_at(mm, addr, pte, ptent);
-+		lazy_mmu_prot_update(ptent);
-+#ifdef CONFIG_MIGRATION
-+	} else if (!pte_file(oldpte)) {
-+		swp_entry_t entry = pte_to_swp_entry(oldpte);
-+
-+		if (is_write_migration_entry(entry)) {
-+			/*
-+			 * A protection check is difficult so
-+			 * just be safe and disable write
-+			 */
-+			make_migration_entry_read(&entry);
-+			set_pte_at(mm, addr, pte,
-+				swp_entry_to_pte(entry));
-+		}
-+#endif
-+	}
-+}
+ include/linux/pt-iterator-ops.h |   21 ++++++++
+ mm/pt-default.c                 |   79 ++++++++++++++++++++++++++++++++
+ mm/swapfile.c                   |   97 +---------------------------------------
+ 3 files changed, 104 insertions(+), 93 deletions(-)
 Index: linux-2.6.20-rc4/mm/pt-default.c
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:37:53.600438000 +1100
-+++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:37:59.476438000 +1100
-@@ -644,3 +644,69 @@
+--- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:38:47.456438000 +1100
++++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:38:51.872438000 +1100
+@@ -832,3 +832,82 @@
  	} while (pgd++, addr = next, addr != end);
  	return 0;
  }
 +
-+static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+		unsigned long addr, unsigned long end, pgprot_t newprot,
-+		int dirty_accountable)
++static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
++	pte_t swp_pte = swp_entry_to_pte(entry);
 +	pte_t *pte;
 +	spinlock_t *ptl;
++	int found = 0;
 +
-+	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-+	arch_enter_lazy_mmu_mode();
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 +	do {
-+		change_prot_pte(mm, pte, addr, newprot, dirty_accountable);
++		/*
++		 * swapoff spends a _lot_ of time in this loop!
++		 * Test inline before going to call unuse_pte.
++		 */
++		if (unlikely(pte_same(*pte, swp_pte))) {
++			unuse_pte(vma, pte++, addr, entry, page);
++			found = 1;
++			break;
++		}
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	arch_leave_lazy_mmu_mode();
 +	pte_unmap_unlock(pte - 1, ptl);
++	return found;
 +}
 +
-+static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
-+		unsigned long addr, unsigned long end, pgprot_t newprot,
-+		int dirty_accountable)
++static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
@@ -235,13 +68,15 @@ Index: linux-2.6.20-rc4/mm/pt-default.c
 +		next = pmd_addr_end(addr, end);
 +		if (pmd_none_or_clear_bad(pmd))
 +			continue;
-+		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
++		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
++			return 1;
 +	} while (pmd++, addr = next, addr != end);
++	return 0;
 +}
 +
-+static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
-+		unsigned long addr, unsigned long end, pgprot_t newprot,
-+		int dirty_accountable)
++static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++				unsigned long addr, unsigned long end,
++				swp_entry_t entry, struct page *page)
 +{
 +	pud_t *pud;
 +	unsigned long next;
@@ -251,26 +86,182 @@ Index: linux-2.6.20-rc4/mm/pt-default.c
 +		next = pud_addr_end(addr, end);
 +		if (pud_none_or_clear_bad(pud))
 +			continue;
-+		change_pmd_range(mm, pud, addr, next, newprot, dirty_accountable);
++		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
++			return 1;
 +	} while (pud++, addr = next, addr != end);
++	return 0;
 +}
 +
-+void change_protection_read_iterator(struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end, pgprot_t newprot,
-+		int dirty_accountable)
++int unuse_vma_read_iterator(struct vm_area_struct *vma,
++				unsigned long addr, unsigned long end, swp_entry_t entry,
++				struct page *page)
 +{
-+	struct mm_struct *mm = vma->vm_mm;
 +	pgd_t *pgd;
 +	unsigned long next;
 +
-+	pgd = pgd_offset(mm, addr);
++	pgd = pgd_offset(vma->vm_mm, addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd)) {
++		if (pgd_none_or_clear_bad(pgd))
 +			continue;
-+		}
-+		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
++		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
++			return 1;
 +	} while (pgd++, addr = next, addr != end);
++	return 0;
++}
+Index: linux-2.6.20-rc4/mm/swapfile.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/swapfile.c	2007-01-11 13:30:52.300438000 +1100
++++ linux-2.6.20-rc4/mm/swapfile.c	2007-01-11 13:38:51.876438000 +1100
+@@ -27,6 +27,7 @@
+ #include <linux/mutex.h>
+ #include <linux/capability.h>
+ #include <linux/syscalls.h>
++#include <linux/pt.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -501,93 +502,10 @@
+ }
+ #endif
+ 
+-/*
+- * No need to decide whether this PTE shares the swap entry with others,
+- * just let do_wp_page work it out if a write is requested later - to
+- * force COW, vm_page_prot omits write permission from any private vma.
+- */
+-static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
+-		unsigned long addr, swp_entry_t entry, struct page *page)
+-{
+-	inc_mm_counter(vma->vm_mm, anon_rss);
+-	get_page(page);
+-	set_pte_at(vma->vm_mm, addr, pte,
+-		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
+-	page_add_anon_rmap(page, vma, addr);
+-	swap_free(entry);
+-	/*
+-	 * Move the page to the active list so it is not
+-	 * immediately swapped out again after swapon.
+-	 */
+-	activate_page(page);
+-}
+-
+-static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
+-{
+-	pte_t swp_pte = swp_entry_to_pte(entry);
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-	int found = 0;
+-
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	do {
+-		/*
+-		 * swapoff spends a _lot_ of time in this loop!
+-		 * Test inline before going to call unuse_pte.
+-		 */
+-		if (unlikely(pte_same(*pte, swp_pte))) {
+-			unuse_pte(vma, pte++, addr, entry, page);
+-			found = 1;
+-			break;
+-		}
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(pte - 1, ptl);
+-	return found;
+-}
+-
+-static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
+-			return 1;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-				unsigned long addr, unsigned long end,
+-				swp_entry_t entry, struct page *page)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
+-			return 1;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
+-
+ static int unuse_vma(struct vm_area_struct *vma,
+ 				swp_entry_t entry, struct page *page)
+ {
+-	pgd_t *pgd;
+-	unsigned long addr, end, next;
++	unsigned long addr, end;
+ 
+ 	if (page->mapping) {
+ 		addr = page_address_in_vma(page, vma);
+@@ -600,15 +518,8 @@
+ 		end = vma->vm_end;
+ 	}
+ 
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
+-			return 1;
+-	} while (pgd++, addr = next, addr != end);
+-	return 0;
++	return unuse_vma_read_iterator(vma, addr, end,
++		entry, page);
+ }
+ 
+ static int unuse_mm(struct mm_struct *mm,
+Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
+===================================================================
+--- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:38:47.456438000 +1100
++++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:38:51.876438000 +1100
+@@ -233,3 +233,24 @@
+ 	(*pages)++;
+ 	return 0;
+ }
++
++/*
++ * No need to decide whether this PTE shares the swap entry with others,
++ * just let do_wp_page work it out if a write is requested later - to
++ * force COW, vm_page_prot omits write permission from any private vma.
++ */
++static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
++		unsigned long addr, swp_entry_t entry, struct page *page)
++{
++	inc_mm_counter(vma->vm_mm, anon_rss);
++	get_page(page);
++	set_pte_at(vma->vm_mm, addr, pte,
++		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
++	page_add_anon_rmap(page, vma, addr);
++	swap_free(entry);
++	/*
++	 * Move the page to the active list so it is not
++	 * immediately swapped out again after swapon.
++	 */
++	activate_page(page);
 +}
 
 --
