@@ -1,40 +1,152 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:47:15 +1100
-Message-Id: <20070113024715.29682.712.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:47:20 +1100
+Message-Id: <20070113024720.29682.54508.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 18/29] Abstract zeromap page range
+Subject: [PATCH 19/29] Abstract remap pfn range
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 18 
- * Move zeromap_page_range iterator implemtenation from memory.c to pt-default.c
- * Abstract an operator function zeromap_one_pte from this iterator during
- the process and put it into pt-iterator-ops.h
+PATCH 19
+ * Move remap_pfn_range iterator implementation from memory.c to pt-default.c
+ * Abstract an operator function, remap_one_pte from the iterator and
+ put it into pt-iterator-ops.h
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/pt-iterator-ops.h |   12 ++++++
- include/linux/pt.h              |    1 
- mm/memory.c                     |   78 ----------------------------------------
- mm/pt-default.c                 |   67 ++++++++++++++++++++++++++++++++++
- 4 files changed, 81 insertions(+), 77 deletions(-)
+ include/linux/pt-iterator-ops.h |   11 ++++-
+ mm/memory.c                     |   79 --------------------------------------
+ mm/pt-default.c                 |   83 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 94 insertions(+), 79 deletions(-)
+Index: linux-2.6.20-rc4/mm/memory.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:37:46.832438000 +1100
++++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:37:53.600438000 +1100
+@@ -625,72 +625,6 @@
+ }
+ EXPORT_SYMBOL(vm_insert_page);
+ 
+-/*
+- * maps a range of physical memory into the requested pages. the old
+- * mappings are removed. any references to nonexistent pages results
+- * in null mappings (currently treated as "copy-on-access")
+- */
+-static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
+-			unsigned long addr, unsigned long end,
+-			unsigned long pfn, pgprot_t prot)
+-{
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-
+-	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+-	if (!pte)
+-		return -ENOMEM;
+-	arch_enter_lazy_mmu_mode();
+-	do {
+-		BUG_ON(!pte_none(*pte));
+-		set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
+-		pfn++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	arch_leave_lazy_mmu_mode();
+-	pte_unmap_unlock(pte - 1, ptl);
+-	return 0;
+-}
+-
+-static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
+-			unsigned long addr, unsigned long end,
+-			unsigned long pfn, pgprot_t prot)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pfn -= addr >> PAGE_SHIFT;
+-	pmd = pmd_alloc(mm, pud, addr);
+-	if (!pmd)
+-		return -ENOMEM;
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (remap_pte_range(mm, pmd, addr, next,
+-				pfn + (addr >> PAGE_SHIFT), prot))
+-			return -ENOMEM;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
+-			unsigned long addr, unsigned long end,
+-			unsigned long pfn, pgprot_t prot)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pfn -= addr >> PAGE_SHIFT;
+-	pud = pud_alloc(mm, pgd, addr);
+-	if (!pud)
+-		return -ENOMEM;
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (remap_pmd_range(mm, pud, addr, next,
+-				pfn + (addr >> PAGE_SHIFT), prot))
+-			return -ENOMEM;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
+-
+ /**
+  * remap_pfn_range - remap kernel memory to userspace
+  * @vma: user vma to map to
+@@ -704,11 +638,8 @@
+ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+ 		    unsigned long pfn, unsigned long size, pgprot_t prot)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+ 	unsigned long end = addr + PAGE_ALIGN(size);
+ 	struct mm_struct *mm = vma->vm_mm;
+-	int err;
+ 
+ 	/*
+ 	 * Physically remapped pages are special. Tell the
+@@ -738,16 +669,8 @@
+ 
+ 	BUG_ON(addr >= end);
+ 	pfn -= addr >> PAGE_SHIFT;
+-	pgd = pgd_offset(mm, addr);
+ 	flush_cache_range(vma, addr, end);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		err = remap_pud_range(mm, pgd, addr, next,
+-				pfn + (addr >> PAGE_SHIFT), prot);
+-		if (err)
+-			break;
+-	} while (pgd++, addr = next, addr != end);
+-	return err;
++	return remap_build_iterator(mm, addr, end, pfn, prot);
+ }
+ EXPORT_SYMBOL(remap_pfn_range);
+ 
 Index: linux-2.6.20-rc4/mm/pt-default.c
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:37:35.728438000 +1100
-+++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:37:46.828438000 +1100
-@@ -494,3 +494,70 @@
- 
- 	return addr;
+--- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:37:46.828438000 +1100
++++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:37:53.600438000 +1100
+@@ -561,3 +561,86 @@
+ 	} while (pgd++, addr = next, addr != end);
+ 	return 0;
  }
 +
-+static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+			unsigned long addr, unsigned long end, pgprot_t prot)
++/*
++ * maps a range of physical memory into the requested pages. the old
++ * mappings are removed. any references to nonexistent pages results
++ * in null mappings (currently treated as "copy-on-access")
++ */
++static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
++			unsigned long addr, unsigned long end,
++			unsigned long pfn, pgprot_t prot)
 +{
 +	pte_t *pte;
 +	spinlock_t *ptl;
@@ -44,191 +156,97 @@ Index: linux-2.6.20-rc4/mm/pt-default.c
 +		return -ENOMEM;
 +	arch_enter_lazy_mmu_mode();
 +	do {
-+		zeromap_one_pte(mm, pte, addr, prot);
++		remap_one_pte(mm, pte, addr, pfn++, prot);
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
 +	arch_leave_lazy_mmu_mode();
 +	pte_unmap_unlock(pte - 1, ptl);
 +	return 0;
 +}
 +
-+static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
-+			unsigned long addr, unsigned long end, pgprot_t prot)
++static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
++			unsigned long addr, unsigned long end,
++			unsigned long pfn, pgprot_t prot)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
 +
++	pfn -= addr >> PAGE_SHIFT;
 +	pmd = pmd_alloc(mm, pud, addr);
 +	if (!pmd)
 +		return -ENOMEM;
 +	do {
 +		next = pmd_addr_end(addr, end);
-+		if (zeromap_pte_range(mm, pmd, addr, next, prot))
++		if (remap_pte_range(mm, pmd, addr, next,
++				pfn + (addr >> PAGE_SHIFT), prot))
 +			return -ENOMEM;
 +	} while (pmd++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
-+			unsigned long addr, unsigned long end, pgprot_t prot)
++static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
++			unsigned long addr, unsigned long end,
++			unsigned long pfn, pgprot_t prot)
 +{
 +	pud_t *pud;
 +	unsigned long next;
 +
++	pfn -= addr >> PAGE_SHIFT;
 +	pud = pud_alloc(mm, pgd, addr);
 +	if (!pud)
 +		return -ENOMEM;
 +	do {
 +		next = pud_addr_end(addr, end);
-+		if (zeromap_pmd_range(mm, pud, addr, next, prot))
++		if (remap_pmd_range(mm, pud, addr, next,
++				pfn + (addr >> PAGE_SHIFT), prot))
 +			return -ENOMEM;
 +	} while (pud++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+int zeromap_build_iterator(struct mm_struct *mm,
-+			unsigned long addr, unsigned long end, pgprot_t prot)
++int remap_build_iterator(struct mm_struct *mm,
++		unsigned long addr, unsigned long end, unsigned long pfn,
++		pgprot_t prot)
 +{
-+	unsigned long next;
 +	pgd_t *pgd;
++	unsigned long next;
++	int err;
 +
 +	pgd = pgd_offset(mm, addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if(zeromap_pud_range(mm, pgd, addr, next, prot))
-+		  	return -ENOMEM;
++		err = remap_pud_range(mm, pgd, addr, next,
++				pfn + (addr >> PAGE_SHIFT), prot);
++		if (err)
++			break;
 +	} while (pgd++, addr = next, addr != end);
 +	return 0;
 +}
 Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
 ===================================================================
---- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:37:35.728438000 +1100
-+++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:37:46.832438000 +1100
-@@ -145,3 +145,15 @@
- 		free_swap_and_cache(pte_to_swp_entry(ptent));
- 	pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+--- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:37:46.832438000 +1100
++++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:37:53.612438000 +1100
+@@ -78,7 +78,8 @@
+ 	set_pte_at(dst_mm, addr, dst_pte, pte);
+ }
+ 
+-static inline void zap_one_pte(pte_t *pte, struct mm_struct *mm, unsigned long addr,
++static inline void 
++zap_one_pte(pte_t *pte, struct mm_struct *mm, unsigned long addr,
+ 		struct vm_area_struct *vma, long *zap_work, struct zap_details *details,
+ 		struct mmu_gather *tlb, int *anon_rss, int* file_rss)
+ {
+@@ -157,3 +158,11 @@
+ 	BUG_ON(!pte_none(*pte));
+ 	set_pte_at(mm, addr, pte, zero_pte);
  }
 +
 +static inline void
-+zeromap_one_pte(struct mm_struct *mm, pte_t *pte, unsigned long addr, pgprot_t prot)
++remap_one_pte(struct mm_struct *mm, pte_t *pte, unsigned long addr,
++			   unsigned long pfn, pgprot_t prot)
 +{
-+	struct page *page = ZERO_PAGE(addr);
-+	pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
-+	page_cache_get(page);
-+	page_add_file_rmap(page);
-+	inc_mm_counter(mm, file_rss);
 +	BUG_ON(!pte_none(*pte));
-+	set_pte_at(mm, addr, pte, zero_pte);
++	set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
 +}
-Index: linux-2.6.20-rc4/include/linux/pt.h
-===================================================================
---- linux-2.6.20-rc4.orig/include/linux/pt.h	2007-01-11 13:37:17.200438000 +1100
-+++ linux-2.6.20-rc4/include/linux/pt.h	2007-01-11 13:37:46.832438000 +1100
-@@ -20,6 +20,7 @@
- void free_pt_range(struct mmu_gather **tlb, unsigned long addr,
- 		unsigned long end, unsigned long floor, unsigned long ceiling);
- 
-+/* Iterators for memory.c */
- int copy_dual_iterator(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		unsigned long addr, unsigned long end, struct vm_area_struct *vma);
- 
-Index: linux-2.6.20-rc4/mm/memory.c
-===================================================================
---- linux-2.6.20-rc4.orig/mm/memory.c	2007-01-11 13:37:23.960438000 +1100
-+++ linux-2.6.20-rc4/mm/memory.c	2007-01-11 13:37:46.832438000 +1100
-@@ -537,92 +537,16 @@
- }
- EXPORT_SYMBOL(get_user_pages);
- 
--static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
--			unsigned long addr, unsigned long end, pgprot_t prot)
--{
--	pte_t *pte;
--	spinlock_t *ptl;
--	int err = 0;
--
--	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
--	if (!pte)
--		return -EAGAIN;
--	arch_enter_lazy_mmu_mode();
--	do {
--		struct page *page = ZERO_PAGE(addr);
--		pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
--
--		if (unlikely(!pte_none(*pte))) {
--			err = -EEXIST;
--			pte++;
--			break;
--		}
--		page_cache_get(page);
--		page_add_file_rmap(page);
--		inc_mm_counter(mm, file_rss);
--		set_pte_at(mm, addr, pte, zero_pte);
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	arch_leave_lazy_mmu_mode();
--	pte_unmap_unlock(pte - 1, ptl);
--	return err;
--}
--
--static inline int zeromap_pmd_range(struct mm_struct *mm, pud_t *pud,
--			unsigned long addr, unsigned long end, pgprot_t prot)
--{
--	pmd_t *pmd;
--	unsigned long next;
--	int err;
--
--	pmd = pmd_alloc(mm, pud, addr);
--	if (!pmd)
--		return -EAGAIN;
--	do {
--		next = pmd_addr_end(addr, end);
--		err = zeromap_pte_range(mm, pmd, addr, next, prot);
--		if (err)
--			break;
--	} while (pmd++, addr = next, addr != end);
--	return err;
--}
--
--static inline int zeromap_pud_range(struct mm_struct *mm, pgd_t *pgd,
--			unsigned long addr, unsigned long end, pgprot_t prot)
--{
--	pud_t *pud;
--	unsigned long next;
--	int err;
--
--	pud = pud_alloc(mm, pgd, addr);
--	if (!pud)
--		return -EAGAIN;
--	do {
--		next = pud_addr_end(addr, end);
--		err = zeromap_pmd_range(mm, pud, addr, next, prot);
--		if (err)
--			break;
--	} while (pud++, addr = next, addr != end);
--	return err;
--}
--
- int zeromap_page_range(struct vm_area_struct *vma,
- 			unsigned long addr, unsigned long size, pgprot_t prot)
- {
--	pgd_t *pgd;
--	unsigned long next;
- 	unsigned long end = addr + size;
- 	struct mm_struct *mm = vma->vm_mm;
- 	int err;
- 
- 	BUG_ON(addr >= end);
--	pgd = pgd_offset(mm, addr);
- 	flush_cache_range(vma, addr, end);
--	do {
--		next = pgd_addr_end(addr, end);
--		err = zeromap_pud_range(mm, pgd, addr, next, prot);
--		if (err)
--			break;
--	} while (pgd++, addr = next, addr != end);
-+	err = zeromap_build_iterator(mm, addr, end, prot);
- 	return err;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
