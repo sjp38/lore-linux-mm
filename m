@@ -1,236 +1,206 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:47:52 +1100
-Message-Id: <20070113024752.29682.76413.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:47:36 +1100
+Message-Id: <20070113024736.29682.55079.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 25/29] Abstact mempolicy iterator
+Subject: [PATCH 22/29] Abstract map vm area
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 25
- * Start moving the mempolicy iterator from mempolicy.c to pt_default.c
+PATCH 22
+ * Move default page table iterator map_vm_area from vmalloc.c to pt_default.c
+ * Abstract the operation performed by this iterator into vmap-one_pte and
+ put it in pt-iterator-ops.h
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- mempolicy.c  |  108 -----------------------------------------------------------
- pt-default.c |   84 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 108 deletions(-)
-Index: linux-2.6.20-rc3/mm/mempolicy.c
+ include/linux/pt-iterator-ops.h |   14 ++++++++
+ mm/pt-default.c                 |   67 ++++++++++++++++++++++++++++++++++++++++
+ mm/vmalloc.c                    |   63 -------------------------------------
+ 3 files changed, 82 insertions(+), 62 deletions(-)
+Index: linux-2.6.20-rc4/mm/pt-default.c
 ===================================================================
---- linux-2.6.20-rc3.orig/mm/mempolicy.c	2007-01-09 16:01:20.604363000 +1100
-+++ linux-2.6.20-rc3/mm/mempolicy.c	2007-01-09 16:05:35.496363000 +1100
-@@ -208,114 +208,6 @@
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags);
- 
--/* Scan through pages checking if pages follow certain conditions. */
--static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pte_t *orig_pte;
--	pte_t *pte;
--	spinlock_t *ptl;
--
--	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
--		struct page *page;
--		int nid;
--
--		if (!pte_present(*pte))
--			continue;
--		page = vm_normal_page(vma, addr, *pte);
--		if (!page)
--			continue;
--		/*
--		 * The check for PageReserved here is important to avoid
--		 * handling zero pages and other pages that may have been
--		 * marked special by the system.
--		 *
--		 * If the PageReserved would not be checked here then f.e.
--		 * the location of the zero page could have an influence
--		 * on MPOL_MF_STRICT, zero pages would be counted for
--		 * the per node stats, and there would be useless attempts
--		 * to put zero pages on the migration list.
--		 */
--		if (PageReserved(page))
--			continue;
--		nid = page_to_nid(page);
--		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
--			continue;
--
--		if (flags & MPOL_MF_STATS)
--			gather_stats(page, private, pte_dirty(*pte));
--		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
--			migrate_page_add(page, private, flags);
--		else
--			break;
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(orig_pte, ptl);
--	return addr != end;
--}
--
--static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		if (check_pte_range(vma, pmd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pmd++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		if (check_pmd_range(vma, pud, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pud++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int check_pgd_range(struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pgd_t *pgd;
--	unsigned long next;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		if (check_pud_range(vma, pgd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pgd++, addr = next, addr != end);
--	return 0;
--}
--
- /* Check if a vma is migratable */
- static inline int vma_migratable(struct vm_area_struct *vma)
- {
-Index: linux-2.6.20-rc3/mm/pt-default.c
-===================================================================
---- linux-2.6.20-rc3.orig/mm/pt-default.c	2007-01-09 16:05:30.932363000 +1100
-+++ linux-2.6.20-rc3/mm/pt-default.c	2007-01-09 16:05:35.496363000 +1100
-@@ -974,3 +974,87 @@
- 		smaps_pud_range(vma, pgd, addr, next, mss);
+--- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:38:30.352438000 +1100
++++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:38:47.456438000 +1100
+@@ -765,3 +765,70 @@
  	} while (pgd++, addr = next, addr != end);
  }
-+
-+#ifdef CONFIG_NUMA
-+/* Scan through pages checking if pages follow certain conditions. */
-+static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long addr, unsigned long end,
-+		const nodemask_t *nodes, unsigned long flags,
-+		void *private)
+ 
++static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
++			unsigned long end, pgprot_t prot, struct page ***pages)
 +{
-+	pte_t *orig_pte;
 +	pte_t *pte;
-+	spinlock_t *ptl;
-+	int ret;
++	int err;
 +
-+	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	pte = pte_alloc_kernel(pmd, addr);
++	if (!pte)
++		return -ENOMEM;
 +	do {
-+		ret = mempolicy_check_one_pte(vma, addr, pte, nodes, flags, private);
-+		if(ret)
-+			break;
++		err = vmap_one_pte(pte, addr, pages, prot);
++		if(err)
++			return err;
 +	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	pte_unmap_unlock(orig_pte, ptl);
-+	return addr != end;
++	return 0;
 +}
 +
-+static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-+		unsigned long addr, unsigned long end,
-+		const nodemask_t *nodes, unsigned long flags,
-+		void *private)
++static inline int vmap_pmd_range(pud_t *pud, unsigned long addr,
++			unsigned long end, pgprot_t prot, struct page ***pages)
 +{
 +	pmd_t *pmd;
 +	unsigned long next;
 +
-+	pmd = pmd_offset(pud, addr);
++	pmd = pmd_alloc(&init_mm, pud, addr);
++	if (!pmd)
++		return -ENOMEM;
 +	do {
 +		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		if (check_pte_range(vma, pmd, addr, next, nodes,
-+				    flags, private))
-+			return -EIO;
++		if (vmap_pte_range(pmd, addr, next, prot, pages))
++			return -ENOMEM;
 +	} while (pmd++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-+		unsigned long addr, unsigned long end,
-+		const nodemask_t *nodes, unsigned long flags,
-+		void *private)
++static inline int vmap_pud_range(pgd_t *pgd, unsigned long addr,
++			unsigned long end, pgprot_t prot, struct page ***pages)
 +{
 +	pud_t *pud;
 +	unsigned long next;
 +
-+	pud = pud_offset(pgd, addr);
++	pud = pud_alloc(&init_mm, pgd, addr);
++	if (!pud)
++		return -ENOMEM;
 +	do {
 +		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		if (check_pmd_range(vma, pud, addr, next, nodes,
-+				    flags, private))
-+			return -EIO;
++		if (vmap_pmd_range(pud, addr, next, prot, pages))
++			return -ENOMEM;
 +	} while (pud++, addr = next, addr != end);
 +	return 0;
 +}
 +
-+int check_policy_read_iterator(struct vm_area_struct *vma,
-+		unsigned long addr, unsigned long end,
-+		const nodemask_t *nodes, unsigned long flags,
-+		void *private)
++int vmap_build_iterator(unsigned long addr,
++			unsigned long end, pgprot_t prot, struct page ***pages)
 +{
 +	pgd_t *pgd;
 +	unsigned long next;
++	int err;
 +
-+	pgd = pgd_offset(vma->vm_mm, addr);
++	pgd = pgd_offset_k(addr);
 +	do {
 +		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		if (check_pud_range(vma, pgd, addr, next, nodes,
-+				    flags, private))
-+			return -EIO;
++		err = vmap_pud_range(pgd, addr, next, prot, pages);
++		if (err)
++			break;
 +	} while (pgd++, addr = next, addr != end);
 +	return 0;
 +}
+Index: linux-2.6.20-rc4/mm/vmalloc.c
+===================================================================
+--- linux-2.6.20-rc4.orig/mm/vmalloc.c	2007-01-11 13:38:30.352438000 +1100
++++ linux-2.6.20-rc4/mm/vmalloc.c	2007-01-11 13:38:47.456438000 +1100
+@@ -39,75 +39,14 @@
+ 	flush_tlb_kernel_range((unsigned long) area->addr, end);
+ }
+ 
+-static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page ***pages)
+-{
+-	pte_t *pte;
+-
+-	pte = pte_alloc_kernel(pmd, addr);
+-	if (!pte)
+-		return -ENOMEM;
+-	do {
+-		struct page *page = **pages;
+-		WARN_ON(!pte_none(*pte));
+-		if (!page)
+-			return -ENOMEM;
+-		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+-		(*pages)++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	return 0;
+-}
+-
+-static inline int vmap_pmd_range(pud_t *pud, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page ***pages)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_alloc(&init_mm, pud, addr);
+-	if (!pmd)
+-		return -ENOMEM;
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (vmap_pte_range(pmd, addr, next, prot, pages))
+-			return -ENOMEM;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+-			unsigned long end, pgprot_t prot, struct page ***pages)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_alloc(&init_mm, pgd, addr);
+-	if (!pud)
+-		return -ENOMEM;
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (vmap_pmd_range(pud, addr, next, prot, pages))
+-			return -ENOMEM;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
+-
+ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+ 	unsigned long addr = (unsigned long) area->addr;
+ 	unsigned long end = addr + area->size - PAGE_SIZE;
+ 	int err;
+ 
+ 	BUG_ON(addr >= end);
+-	pgd = pgd_offset_k(addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		err = vmap_pud_range(pgd, addr, next, prot, pages);
+-		if (err)
+-			break;
+-	} while (pgd++, addr = next, addr != end);
++	err = vmap_build_iterator(addr, end, prot, pages);
+ 	flush_cache_vmap((unsigned long) area->addr, end);
+ 	return err;
+ }
+Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
+===================================================================
+--- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:38:30.348438000 +1100
++++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:38:47.456438000 +1100
+@@ -219,3 +219,17 @@
+ 	pte_t ptent = ptep_get_and_clear(&init_mm, address, pte);
+ 	WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+ }
 +
-+#endif
++static inline int
++vmap_one_pte(pte_t *pte, unsigned long addr,
++			struct page ***pages, pgprot_t prot)
++{
++	struct page *page = **pages;
++
++	WARN_ON(!pte_none(*pte));
++	if (!page)
++		return -ENOMEM;
++	set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
++	(*pages)++;
++	return 0;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
