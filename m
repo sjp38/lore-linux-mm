@@ -1,179 +1,85 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:47:42 +1100
-Message-Id: <20070113024742.29682.76296.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:47:52 +1100
+Message-Id: <20070113024752.29682.76413.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 23/29] Abstract unuse_vma
+Subject: [PATCH 25/29] Abstact mempolicy iterator
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH 23
- * Move default page table iterator unuse_vma from swapfile.c to pt_default.c
- * Move unuse_pte into pt-iterator-ops.h
+PATCH 25
+ * Start moving the mempolicy iterator from mempolicy.c to pt_default.c
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- include/linux/pt-iterator-ops.h |   21 ++++++++
- mm/pt-default.c                 |   79 ++++++++++++++++++++++++++++++++
- mm/swapfile.c                   |   97 +---------------------------------------
- 3 files changed, 104 insertions(+), 93 deletions(-)
-Index: linux-2.6.20-rc4/mm/pt-default.c
+ mempolicy.c  |  108 -----------------------------------------------------------
+ pt-default.c |   84 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 108 deletions(-)
+Index: linux-2.6.20-rc3/mm/mempolicy.c
 ===================================================================
---- linux-2.6.20-rc4.orig/mm/pt-default.c	2007-01-11 13:38:47.456438000 +1100
-+++ linux-2.6.20-rc4/mm/pt-default.c	2007-01-11 13:38:51.872438000 +1100
-@@ -832,3 +832,82 @@
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
-+
-+static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+				unsigned long addr, unsigned long end,
-+				swp_entry_t entry, struct page *page)
-+{
-+	pte_t swp_pte = swp_entry_to_pte(entry);
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+	int found = 0;
-+
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	do {
-+		/*
-+		 * swapoff spends a _lot_ of time in this loop!
-+		 * Test inline before going to call unuse_pte.
-+		 */
-+		if (unlikely(pte_same(*pte, swp_pte))) {
-+			unuse_pte(vma, pte++, addr, entry, page);
-+			found = 1;
-+			break;
-+		}
-+	} while (pte++, addr += PAGE_SIZE, addr != end);
-+	pte_unmap_unlock(pte - 1, ptl);
-+	return found;
-+}
-+
-+static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-+				unsigned long addr, unsigned long end,
-+				swp_entry_t entry, struct page *page)
-+{
-+	pmd_t *pmd;
-+	unsigned long next;
-+
-+	pmd = pmd_offset(pud, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
-+			return 1;
-+	} while (pmd++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-+				unsigned long addr, unsigned long end,
-+				swp_entry_t entry, struct page *page)
-+{
-+	pud_t *pud;
-+	unsigned long next;
-+
-+	pud = pud_offset(pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
-+			return 1;
-+	} while (pud++, addr = next, addr != end);
-+	return 0;
-+}
-+
-+int unuse_vma_read_iterator(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long end, swp_entry_t entry,
-+				struct page *page)
-+{
-+	pgd_t *pgd;
-+	unsigned long next;
-+
-+	pgd = pgd_offset(vma->vm_mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
-+			return 1;
-+	} while (pgd++, addr = next, addr != end);
-+	return 0;
-+}
-Index: linux-2.6.20-rc4/mm/swapfile.c
-===================================================================
---- linux-2.6.20-rc4.orig/mm/swapfile.c	2007-01-11 13:30:52.300438000 +1100
-+++ linux-2.6.20-rc4/mm/swapfile.c	2007-01-11 13:38:51.876438000 +1100
-@@ -27,6 +27,7 @@
- #include <linux/mutex.h>
- #include <linux/capability.h>
- #include <linux/syscalls.h>
-+#include <linux/pt.h>
+--- linux-2.6.20-rc3.orig/mm/mempolicy.c	2007-01-09 16:01:20.604363000 +1100
++++ linux-2.6.20-rc3/mm/mempolicy.c	2007-01-09 16:05:35.496363000 +1100
+@@ -208,114 +208,6 @@
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
  
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
-@@ -501,93 +502,10 @@
- }
- #endif
- 
--/*
-- * No need to decide whether this PTE shares the swap entry with others,
-- * just let do_wp_page work it out if a write is requested later - to
-- * force COW, vm_page_prot omits write permission from any private vma.
-- */
--static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
--		unsigned long addr, swp_entry_t entry, struct page *page)
+-/* Scan through pages checking if pages follow certain conditions. */
+-static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
--	inc_mm_counter(vma->vm_mm, anon_rss);
--	get_page(page);
--	set_pte_at(vma->vm_mm, addr, pte,
--		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
--	page_add_anon_rmap(page, vma, addr);
--	swap_free(entry);
--	/*
--	 * Move the page to the active list so it is not
--	 * immediately swapped out again after swapon.
--	 */
--	activate_page(page);
--}
--
--static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
--{
--	pte_t swp_pte = swp_entry_to_pte(entry);
+-	pte_t *orig_pte;
 -	pte_t *pte;
 -	spinlock_t *ptl;
--	int found = 0;
 -
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 -	do {
+-		struct page *page;
+-		int nid;
+-
+-		if (!pte_present(*pte))
+-			continue;
+-		page = vm_normal_page(vma, addr, *pte);
+-		if (!page)
+-			continue;
 -		/*
--		 * swapoff spends a _lot_ of time in this loop!
--		 * Test inline before going to call unuse_pte.
+-		 * The check for PageReserved here is important to avoid
+-		 * handling zero pages and other pages that may have been
+-		 * marked special by the system.
+-		 *
+-		 * If the PageReserved would not be checked here then f.e.
+-		 * the location of the zero page could have an influence
+-		 * on MPOL_MF_STRICT, zero pages would be counted for
+-		 * the per node stats, and there would be useless attempts
+-		 * to put zero pages on the migration list.
 -		 */
--		if (unlikely(pte_same(*pte, swp_pte))) {
--			unuse_pte(vma, pte++, addr, entry, page);
--			found = 1;
+-		if (PageReserved(page))
+-			continue;
+-		nid = page_to_nid(page);
+-		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+-			continue;
+-
+-		if (flags & MPOL_MF_STATS)
+-			gather_stats(page, private, pte_dirty(*pte));
+-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+-			migrate_page_add(page, private, flags);
+-		else
 -			break;
--		}
 -	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(pte - 1, ptl);
--	return found;
+-	pte_unmap_unlock(orig_pte, ptl);
+-	return addr != end;
 -}
 -
--static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
+-static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
 -	pmd_t *pmd;
 -	unsigned long next;
@@ -183,15 +89,17 @@ Index: linux-2.6.20-rc4/mm/swapfile.c
 -		next = pmd_addr_end(addr, end);
 -		if (pmd_none_or_clear_bad(pmd))
 -			continue;
--		if (unuse_pte_range(vma, pmd, addr, next, entry, page))
--			return 1;
+-		if (check_pte_range(vma, pmd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pmd++, addr = next, addr != end);
 -	return 0;
 -}
 -
--static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
+-static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
 -{
 -	pud_t *pud;
 -	unsigned long next;
@@ -201,68 +109,128 @@ Index: linux-2.6.20-rc4/mm/swapfile.c
 -		next = pud_addr_end(addr, end);
 -		if (pud_none_or_clear_bad(pud))
 -			continue;
--		if (unuse_pmd_range(vma, pud, addr, next, entry, page))
--			return 1;
+-		if (check_pmd_range(vma, pud, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pud++, addr = next, addr != end);
 -	return 0;
 -}
 -
- static int unuse_vma(struct vm_area_struct *vma,
- 				swp_entry_t entry, struct page *page)
- {
+-static inline int check_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
 -	pgd_t *pgd;
--	unsigned long addr, end, next;
-+	unsigned long addr, end;
- 
- 	if (page->mapping) {
- 		addr = page_address_in_vma(page, vma);
-@@ -600,15 +518,8 @@
- 		end = vma->vm_end;
- 	}
- 
+-	unsigned long next;
+-
 -	pgd = pgd_offset(vma->vm_mm, addr);
 -	do {
 -		next = pgd_addr_end(addr, end);
 -		if (pgd_none_or_clear_bad(pgd))
 -			continue;
--		if (unuse_pud_range(vma, pgd, addr, next, entry, page))
--			return 1;
+-		if (check_pud_range(vma, pgd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
 -	} while (pgd++, addr = next, addr != end);
 -	return 0;
-+	return unuse_vma_read_iterator(vma, addr, end,
-+		entry, page);
- }
- 
- static int unuse_mm(struct mm_struct *mm,
-Index: linux-2.6.20-rc4/include/linux/pt-iterator-ops.h
+-}
+-
+ /* Check if a vma is migratable */
+ static inline int vma_migratable(struct vm_area_struct *vma)
+ {
+Index: linux-2.6.20-rc3/mm/pt-default.c
 ===================================================================
---- linux-2.6.20-rc4.orig/include/linux/pt-iterator-ops.h	2007-01-11 13:38:47.456438000 +1100
-+++ linux-2.6.20-rc4/include/linux/pt-iterator-ops.h	2007-01-11 13:38:51.876438000 +1100
-@@ -233,3 +233,24 @@
- 	(*pages)++;
- 	return 0;
+--- linux-2.6.20-rc3.orig/mm/pt-default.c	2007-01-09 16:05:30.932363000 +1100
++++ linux-2.6.20-rc3/mm/pt-default.c	2007-01-09 16:05:35.496363000 +1100
+@@ -974,3 +974,87 @@
+ 		smaps_pud_range(vma, pgd, addr, next, mss);
+ 	} while (pgd++, addr = next, addr != end);
  }
 +
-+/*
-+ * No need to decide whether this PTE shares the swap entry with others,
-+ * just let do_wp_page work it out if a write is requested later - to
-+ * force COW, vm_page_prot omits write permission from any private vma.
-+ */
-+static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
-+		unsigned long addr, swp_entry_t entry, struct page *page)
++#ifdef CONFIG_NUMA
++/* Scan through pages checking if pages follow certain conditions. */
++static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
 +{
-+	inc_mm_counter(vma->vm_mm, anon_rss);
-+	get_page(page);
-+	set_pte_at(vma->vm_mm, addr, pte,
-+		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
-+	page_add_anon_rmap(page, vma, addr);
-+	swap_free(entry);
-+	/*
-+	 * Move the page to the active list so it is not
-+	 * immediately swapped out again after swapon.
-+	 */
-+	activate_page(page);
++	pte_t *orig_pte;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int ret;
++
++	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	do {
++		ret = mempolicy_check_one_pte(vma, addr, pte, nodes, flags, private);
++		if(ret)
++			break;
++	} while (pte++, addr += PAGE_SIZE, addr != end);
++	pte_unmap_unlock(orig_pte, ptl);
++	return addr != end;
 +}
++
++static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
++{
++	pmd_t *pmd;
++	unsigned long next;
++
++	pmd = pmd_offset(pud, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none_or_clear_bad(pmd))
++			continue;
++		if (check_pte_range(vma, pmd, addr, next, nodes,
++				    flags, private))
++			return -EIO;
++	} while (pmd++, addr = next, addr != end);
++	return 0;
++}
++
++static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
++{
++	pud_t *pud;
++	unsigned long next;
++
++	pud = pud_offset(pgd, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none_or_clear_bad(pud))
++			continue;
++		if (check_pmd_range(vma, pud, addr, next, nodes,
++				    flags, private))
++			return -EIO;
++	} while (pud++, addr = next, addr != end);
++	return 0;
++}
++
++int check_policy_read_iterator(struct vm_area_struct *vma,
++		unsigned long addr, unsigned long end,
++		const nodemask_t *nodes, unsigned long flags,
++		void *private)
++{
++	pgd_t *pgd;
++	unsigned long next;
++
++	pgd = pgd_offset(vma->vm_mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd))
++			continue;
++		if (check_pud_range(vma, pgd, addr, next, nodes,
++				    flags, private))
++			return -EIO;
++	} while (pgd++, addr = next, addr != end);
++	return 0;
++}
++
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
