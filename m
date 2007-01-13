@@ -1,212 +1,159 @@
 From: Paul Davies <pauld@gelato.unsw.edu.au>
-Date: Sat, 13 Jan 2007 13:49:17 +1100
-Message-Id: <20070113024917.29682.82377.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Date: Sat, 13 Jan 2007 13:49:12 +1100
+Message-Id: <20070113024912.29682.33155.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Subject: [PATCH 7/12] Alternate page table implementation cont...
+Subject: [PATCH 6/12] Alternate page table implementation cont...
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Paul Davies <pauld@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-PATCH GPT 07
- * Adding GPT implementation
+PATCH GPT 06
+ * Adds more GPT implementation.
 
 Signed-Off-By: Paul Davies <pauld@gelato.unsw.edu.au>
 
 ---
 
- pt-gpt-core.c |  180 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 180 insertions(+)
+ include/asm-ia64/kregs.h       |    4 +
+ include/asm-ia64/mmu_context.h |    1 
+ mm/pt-gpt-core.c               |  101 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 106 insertions(+)
+Index: linux-2.6.20-rc1/include/asm-ia64/kregs.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/kregs.h	2007-01-03 15:34:29.855180000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/kregs.h	2007-01-03 15:34:36.303180000 +1100
+@@ -20,6 +20,10 @@
+ #define IA64_KR_CURRENT		6	/* ar.k6: "current" task pointer */
+ #define IA64_KR_PT_BASE		7	/* ar.k7: page table base address (physical) */
+ 
++#ifdef CONFIG_GPT
++#define IA64_KR_CURRENT_MM	7
++#endif
++
+ #define _IA64_KR_PASTE(x,y)	x##y
+ #define _IA64_KR_PREFIX(n)	_IA64_KR_PASTE(ar.k, n)
+ #define IA64_KR(n)		_IA64_KR_PREFIX(IA64_KR_##n)
+Index: linux-2.6.20-rc1/include/asm-ia64/mmu_context.h
+===================================================================
+--- linux-2.6.20-rc1.orig/include/asm-ia64/mmu_context.h	2007-01-03 15:34:29.859180000 +1100
++++ linux-2.6.20-rc1/include/asm-ia64/mmu_context.h	2007-01-03 15:34:36.303180000 +1100
+@@ -197,6 +197,7 @@
+ #ifdef CONFIG_GPT
+ 	ia64_set_kr(IA64_KR_CURRENT_MM, __pa(next));
+ #endif
++
+ 	activate_context(next);
+ }
+ 
 Index: linux-2.6.20-rc1/mm/pt-gpt-core.c
 ===================================================================
---- linux-2.6.20-rc1.orig/mm/pt-gpt-core.c	2007-01-03 15:35:25.427180000 +1100
-+++ linux-2.6.20-rc1/mm/pt-gpt-core.c	2007-01-03 15:42:21.973271000 +1100
-@@ -99,3 +99,183 @@
- static int gpt_node_insert_replicate(gpt_node_t new_node,
-                                      gpt_thunk_t insert_thunk,
-                                      gpt_node_t insert_node);
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.20-rc1/mm/pt-gpt-core.c	2007-01-03 15:35:25.427180000 +1100
+@@ -0,0 +1,101 @@
++/**
++ *  mm/pt-gpt.c
++ *
++ *  Copyright (C) 2005 - 2006 University of New South Wales, Australia
++ *      Adam 'WeirdArms' Wiggins <awiggins@cse.unsw.edu.au,
++ *      Paul Davies <pauld@cse.unsw.edu.au>.
++ */
++
++#include <linux/types.h>
++#include <linux/bootmem.h>
++#include <linux/gpt.h>
++
++#include <linux/mm.h>
++#include <linux/hugetlb.h>
++#include <linux/mman.h>
++#include <linux/swap.h>
++#include <linux/highmem.h>
++#include <linux/pagemap.h>
++#include <linux/rmap.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/pt.h>
++
++#include <asm/uaccess.h>
++#include <asm/tlb.h>
++#include <asm/tlbflush.h>
++#include <asm/pgtable.h>
++
++#include <linux/swapops.h>
++#include <linux/elf.h>
++#include <linux/pt-iterator-ops.h>
++
++#define GPT_ITERATOR_INRANGE 0
++#define GPT_ITERATOR_START   1
++#define GPT_ITERATOR_LIMIT   (-1)
 +
 +/*******************************************************************************
-+ * Exported functions.                                                         *
-+ *******************************************************************************/
++* Local function prototypes.                                                   *
++*******************************************************************************/
 +
-+void
-+gptKeyCutMSB(int8_t length_msb, gpt_key_t* key_u, gpt_key_t* key_msb_r)
-+{
-+	int8_t length;
-+	gpt_key_value_t value;
++static inline void gpt_iterator_inspect_init_all(gpt_iterator_t* iterator_r,
++                                                 gpt_t* trie_p);
++static inline void gpt_iterator_inspect_init_range(gpt_iterator_t* iterator_r,
++                                                   gpt_t* trie_p,
++                                                   unsigned long addr,
++                                                   unsigned long end);
++static inline int gpt_iterator_free_pgtables(gpt_iterator_t* iterator_u,
++                                             gpt_node_t** node_p_r,
++                                             unsigned long floor,
++                                             unsigned long ceiling);
++static inline int gpt_iterator_inspect_internals_all(gpt_iterator_t* iterator,
++                                                     gpt_key_t* key_r,
++                                                     gpt_node_t** node_p_r);
++static inline int gpt_iterator_inspect_leaves_range(gpt_iterator_t* iterator_u,
++                                                    gpt_key_t* key_r,
++                                                    gpt_node_t** node_p_r);
++static inline int gpt_iterator_leaf_visit_range(gpt_iterator_t* iterator_u,
++                                                gpt_key_t* key_r,
++                                                gpt_node_t** node_p_r);
++static inline int gpt_iterator_internal_free_pgtables(gpt_iterator_t* iterator_u,
++                                                      gpt_node_t**node_p_r,
++                                                      unsigned long floor,
++                                                      unsigned long ceiling);
++static inline int gpt_iterator_internal_visit_range(gpt_iterator_t* iterator_u,
++                                                    gpt_node_t** node_p_r);
++static inline int gpt_iterator_internal_visit_all(gpt_iterator_t* iterator_u,
++                                                  gpt_key_t* key_r,
++                                                  gpt_node_t** node_p_r);
++static inline void gpt_iterator_terminal_free_pgtables(gpt_iterator_t* iterator_u);
++static inline void gpt_iterator_terminal_skip_range(gpt_iterator_t* iterator_u);
++static inline void gpt_iterator_terminal_skip_all(gpt_iterator_t* iterator_u);
++static inline void gpt_iterator_internal_skip_range(gpt_iterator_t* iterator_u);
++static inline int gpt_iterator_check_bounds(gpt_iterator_t* iterator_u,
++                                            int8_t* replication_r);
++static inline void gpt_iterator_inspect_push_range(gpt_iterator_t* iterator_u);
++static inline void gpt_iterator_inspect_push_all(gpt_iterator_t* iterator_u);
++static inline void gpt_iterator_inspect_next(gpt_iterator_t* iterator_u,
++                                              int8_t replication);
 +
-+	value = gpt_key_read_value(*key_u);
-+	length = gpt_key_read_length(*key_u);
-+	if(length_msb > length) length_msb = length;
-+	length -= length_msb;
-+	if(key_msb_r) {
-+		*key_msb_r = ((length_msb == 0) ? gpt_key_null() :
-+					  gpt_key_init(value >> length, length_msb));
-+	}
-+	if(length == GPT_KEY_LENGTH_MAX) return;
-+	*key_u = gpt_key_init(value & (((gpt_key_value_t)1 << length) - 1),
-+						  length);
-+}
++static int gpt_iterator_internal(gpt_iterator_t* iterator_u, gpt_key_t* key_r,
++                                 gpt_node_t** node_p_r);
++static int gpt_iterator_leaf(gpt_iterator_t* iterator_u, gpt_key_t* key_r,
++                             gpt_node_t** node_p_r);
++static inline int gpt_iterator_invalid(gpt_iterator_t* iterator_u,
++                                       gpt_key_t* key_r, gpt_node_t** node_p_r);
++static inline void gpt_iterator_inspect_pop(gpt_iterator_t* iterator_u);
++static inline gpt_node_t* gpt_iterator_parent(gpt_iterator_t iterator);
++static inline void gpt_iterator_return(gpt_iterator_t iterator,
++                                       gpt_key_t* key_r, gpt_node_t** node_p_r);
 +
-+void
-+gptKeyCutLSB(int8_t length_lsb, gpt_key_t* key_u, gpt_key_t* key_lsb_r)
-+{
-+	int8_t length;
-+	gpt_key_value_t value;
-+
-+	value = gpt_key_read_value(*key_u);
-+	length = gpt_key_read_length(*key_u);
-+	if(length_lsb > length) length_lsb = length;
-+	length -= length_lsb;
-+	if(key_lsb_r) {
-+		*key_lsb_r = gpt_key_init(value & ~gpt_key_value_mask(length_lsb),
-+								  length_lsb);
-+	}
-+	*key_u = ((length == 0) ? gpt_key_null() :
-+			  gpt_key_init(value >> length_lsb, length));
-+}
-+
-+void
-+gptKeysMergeMSB(gpt_key_t key_lsb, gpt_key_t* key_u)
-+{
-+	int8_t length, length_lsb;
-+	gpt_key_value_t value;
-+
-+	value = gpt_key_read_value(*key_u);
-+	length = gpt_key_read_length(*key_u);
-+	length_lsb = gpt_key_read_length(key_lsb);
-+	value = (value << length_lsb) + gpt_key_read_value(key_lsb);
-+	length += length_lsb;
-+	*key_u = gpt_key_init(value, length);
-+}
-+
-+void
-+gptKeysMergeLSB(gpt_key_t key_msb, gpt_key_t* key_u)
-+{
-+	gpt_key_value_t value;
-+	int8_t length;
-+
-+	value = gpt_key_read_value(*key_u);
-+	length = gpt_key_read_length(*key_u);
-+	value = (gpt_key_read_value(key_msb) << length) + value;
-+	length += gpt_key_read_length(key_msb);
-+	*key_u = gpt_key_init(value, length);
-+}
-+
-+/* awiggins (2006-02-07): I'd like to simplify this function if possible. */
-+int8_t
-+gptKeysCompareStripPrefix(gpt_key_t* key1_u, gpt_key_t* key2_u)
-+{
-+	int8_t length, key1_length, key2_length;
-+	gpt_key_value_t value1, value2;
-+
-+	key1_length = key1_u->length; key2_length = key2_u->length;
-+	if(key1_length < key2_length) {
-+		length = key1_length;
-+		value1 = key1_u->value;
-+		value2 = key2_u->value >> (key2_length - length);
-+	} else {
-+		length = key2_length;
-+		value1 = key2_u->value;
-+		value2 = key1_u->value >> (key1_length - length);
-+	}
-+	if(length == 0) return 0;
-+	length = gpt_ctlz(value1 ^ value2, length - 1);
-+
-+	/* Strip matching prefix from keys. */
-+	gptKeyCutMSB(length, key1_u, NULL);
-+	gptKeyCutMSB(length, key2_u, NULL);
-+
-+	return length;
-+}
-+
-+int8_t
-+gptNodeReplication(gpt_node_t node, int8_t coverage)
-+{
-+	gpt_key_t guard;
-+	int8_t leaf_coverage, guard_length;
-+
-+	switch(gpt_node_type(node)) {
-+	case GPT_NODE_TYPE_INTERNAL:
-+	case GPT_NODE_TYPE_INVALID:
-+		return 0; /* These nodes are never replicated. */
-+	case GPT_NODE_TYPE_LEAF:
-+		guard = gpt_node_read_guard(node);
-+		leaf_coverage = gpt_node_leaf_read_coverage(node);
-+		guard_length = gpt_key_read_length(guard);
-+		coverage -= guard_length;
-+		return leaf_coverage - coverage;
-+	default: panic("Invalid GPT node encountered\n");
-+	}
-+}
-+
-+int
-+gpt_node_inspect_find(gpt_thunk_t* inspect_thunk_u)
-+{
-+	int8_t guard_length, key_length;
-+	gpt_key_t guard, key, temp_key;
-+	gpt_node_t node;
-+	gpt_thunk_t temp_thunk = *inspect_thunk_u;
-+
-+	/* Travrse to inspection node. */
-+	while(gpt_node_internal_traverse(&temp_thunk) == GPT_TRAVERSED_FULL) {
-+		inspect_thunk_u->key = temp_thunk.key;
-+	}
-+	key = inspect_thunk_u->key;
-+	node = gpt_node_get(temp_thunk.node_p);
-+	/* Only guardable entries are valid nodes. */
-+	if(!gpt_node_valid(node)) {
-+		return 0;
-+	}
-+	guard = gpt_node_read_guard(node);
-+	inspect_thunk_u->node_p = temp_thunk.node_p;
-+	key_length = gpt_key_read_length(key);
-+	guard_length = gpt_key_read_length(guard);
-+	/* Split the larger keys msb's off for comparison. */
-+	if(key_length < guard_length) {
-+		/* Cut the guard for checking. */
-+		gptKeyCutMSB(key_length, &guard, &temp_key);
-+		return gptKeysCompareEqual(key, temp_key);
-+	} else if(key_length > guard_length) {
-+		/* Cut the key for checking. */
-+		gptKeyCutMSB(guard_length, &key, &temp_key);
-+		return gptKeysCompareEqual(temp_key, guard);
-+	}else {
-+		return gptKeysCompareEqual(key, guard);
-+	}
-+}
-+
-+int
-+gpt_node_update_find(gpt_thunk_t* update_thunk_u)
-+{
-+	gpt_traversed_t traversed;
-+	gpt_thunk_t temp_thunk1, temp_thunk2;
-+
-+	/* Check if the deletion/insertion window covers the root node. */
-+	temp_thunk1 = *update_thunk_u;
-+	traversed = gpt_node_internal_traverse(&temp_thunk1);
-+	if(traversed == GPT_TRAVERSED_NONE ||
-+	   traversed == GPT_TRAVERSED_MISMATCH) {
-+		return 1;
-+	} else if (traversed == GPT_TRAVERSED_GUARD) {
-+		return 0;
-+	}
-+	/* Traverse to update-node. */
-+	temp_thunk2 = temp_thunk1;
-+	while((traversed = gpt_node_internal_traverse(&temp_thunk2)) ==
-+		  GPT_TRAVERSED_FULL) {
-+		*update_thunk_u = temp_thunk1;
-+		temp_thunk1 = temp_thunk2;
-+	}
-+	if(traversed == GPT_TRAVERSED_GUARD) {
-+		*update_thunk_u = temp_thunk1;
-+	}
-+	return 0; /* Deletion/insertion window dose not cover root node. */
-+}
-+
++static inline int gpt_node_delete_single(gpt_thunk_t delete_thunk,
++                                         gpt_node_t delete_node);
++static int gpt_node_delete_replicate(gpt_thunk_t delete_thunk,
++                                     gpt_node_t delete_node);
++static inline int gpt_node_internal_delete(gpt_thunk_t delete_thunk,
++                                           gpt_node_t delete_node);
++static inline void gpt_node_insert_single(gpt_node_t new_node,
++                                          gpt_thunk_t insert_thunk);
++static int gpt_node_insert_replicate(gpt_node_t new_node,
++                                     gpt_thunk_t insert_thunk,
++                                     gpt_node_t insert_node);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
