@@ -1,54 +1,36 @@
-From: "Valeriey Freddy" <gimbelnci@staudt-events.de>
-Date: Mon, 15 Jan 2007 08:58:05 +0100
-Subject: here's a winer  d
+From: "Freddy UDemetrius" <pesob@huijnen.com>
+Date: Mon, 15 Jan 2007 14:17:57 +0100
+Subject: Red Hot Stock Watch   nik
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0001_02C2E89E.D99D6FD0"
-Content-Transfer-Encoding: binary
-Message-Id: <20070115075815Z26813-3211+513@kvack.org>
-Return-Path: <gimbelnci@staudt-events.de>
-To: kernel@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
+Content-Type: text/plain
+Message-Id: <20070115131806Z26815-11037+2927@kvack.org>
+Return-Path: <pesob@huijnen.com>
+To: linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+THIS ONE IS BEING PROMOTED, TAKE ADVANTAGE
+BUY HSFI January 16th
+This advisory is based on exclusive insiders/agents information. (HSFI.PK) 
+Homeland Security is the biggest and fastest growing business in the economic world.
 
-------=_NextPart_000_0001_02C2E89E.D99D6FD0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-OF INTEREST PAY ATTENTION VITAL
-BUY APPM January 16th
-This advisory is based on exclusive insiders/agents information. (APPM.PK) 
-We took APPM from 6 Cents to $ 0.28, with the news release out there is NO DOUBT it will reach $ 2.00 per share
+At 9 cents this is a steal
 
 Don'nt sit out this one
 
-Apparel Manufacturing Associates, Inc. (APPM.PK)
+Homeland Safety International, Inc. (HSFI.PK)
 
 
 Call your broker Tuesday morning and get in before it makes the move.
 
 Lates News release: 
 
-BLOOMFIELD, Conn., Jan. 8 /PRNewswire-FirstCall/ -- Apparel Manufacturing Associates, Inc., (Pink Sheets: APPM - News) announced today the launch of a music production division. This is a collaboration with industry veteran Steve Thompson. Steve Thompson Productions has contributed to the sales of more than 200 million albums worldwide. With a history that spans more than two decades, Steve Thompson is credited for the production of many well-known artists. The company is currently in negotiations for a merger between the two entities. More information is available on their website
+Homeland Safety International, Inc. engages in the manufacture and marketing of bomb detection devices. It has a license to produce and sell Sniffex in the Americas and worldwide. Sniffex detects a range of explosive products, including C-4, gun powder, dynamite, Semtex, and other nitro-based explosives from distances of 10-30 feet, when testing with 50-100 grams; and 50-100 feet, when testing with 1 pound of explosives. The company also has selling agreements for other products that are related to the war on terror, including Flashcam; Thermalcam; and bio-terror chemical products that destroy viruses and bacteria from anthrax to Bird Flu. The company was founded in 2004 as Sniffex, Inc. and changed its name to Homeland Safety International, Inc. in September 2006. The company is headquartered in Irving, Texas.
 
-USA SMALL CAP WINNER
-USA SMALL CAP WINNER
-
-
-"This arrest really does help with some of the closure, the healing that we in the Forest Service community, and in the families, need," said Jeanne Wade Evans, the San Bernardino National Forest supervisor.
-President Bush, working a southwest Missouri campaign crowd like a yell leader, blasted Democrats on Friday, saying they have no plan to keep Americans safe from terrorists.
-"Nine days ago, one of the worst tragedies in the 100-year history of the Forest Service took the lives of five heroes," U.S. Forest Service Chaplain Steve Seltzner said as the service began. "It has shaken this agency and the men and women of the San Benardino National Forest to its very core and shocked the entire world."
-If the pilot used the full width of the river to turn, he would have had 2,100 feet, the NTSB said. Instead, the pilot was flying closer to the middle of the river, leaving a smaller margin for error, the staff report said.
+POWERHOUSE COMPANY
+POWERHOUSE COMPANY
 
 
-------=_NextPart_000_0001_02C2E89E.D99D6FD0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"><html><body>OF INTEREST PAY ATTENTION VITAL<br><font color="Red" size="4"><b>BUY APPM January 16th</b></font><br>This advisory is based on exclusive insiders/agents information. (<font color="Red"><b>APPM.PK</b></font>) <br>We took APPM from 6 Cents to $ 0.28, with the news release out there is NO DOUBT it will reach $ 2.00 per share<br><br><b><font color="Red">Don'nt sit out this one</font></b><br><br>Apparel Manufacturing Associates, Inc. (<b><font color="Red">APPM.PK</font></b>)<br><br><br><b><font color="Red">Call your broker Tuesday morning and get in before it makes the move.</font></b><br><br><u><b>Lates News release: </b></u> <br><br>BLOOMFIELD, Conn., Jan. 8 /PRNewswire-FirstCall/ -- Apparel Manufacturing Associates, Inc., (Pink Sheets: APPM - News) announced today the launch of a music production division. This is a collaboration with industry veteran Steve Thompson. Steve Thompson Productions has contributed to the sales of more than 200 million albums worldwide. With a history that spans more than two deccades, Steve Thompson is credited for the production of many well-known artists. The company is currently in negotiations for a merger between the two entities. More information is available on their website<br>USA SMALL CAP WINNER<br>USA SMALL CAP WINNER<br><br><br>McKay's funeral in Victorville was the first for the five U.S. Forest Service firefighters who were overrun by flames October 26 in Southern California's San Jacinto Mountains.<br>Violence against Iraqis has grown unabated in the past month, with more than 1,300 killed since October 1. Fearing more bloodshed after Sunday's expected announcement of a verdict in the trial of former Iraqi leader Saddam Hussein, Iraq's defense minister has canceled leave for all army officers.<br>The report issued Friday said the airplane was flying along the East River between Manhattan and Queens when it attempted a U-turn with only 1,300 feet of room for the turn. To make a successful turn, the aircraft would have had to bank so steeply that it might have stalled, the NTSB said in an update on the crash.<br>Missouri's Senate race is intertwined with a ballot measure that would engrave the right to conduct embryonic stem cell research into the state constitution. McCaskill supports it; Talent opposes it. Bush didn't mention it. (Watch Michael J. Fox back McCaskill on stem cells -- :32 )<br><br></body>/html>
-
-
-------=_NextPart_000_0001_02C2E89E.D99D6FD0--
+"The truth is the Democrats can't answer that question," Bush said. "Harsh criticism is not a plan for victory. Second guessing is not a strategy.
+Oyler was charged with five counts of murder, 11 counts of arson and 10 counts of use of an incendiary device. The charges include seven fires in June, one in July, one in September and two in October.
+Last week's fire was stoked by Santa Ana winds as it swept southwest through the mountains about 90 miles east of Los Angeles. The flames overran the fire crew, destroyed 34 homes and charred more than 60 square miles before being contained Monday.
+"If they say they want to win the war on terror, but call for America to pull out of what al Qaeda says is the central front in this war, ask them this question: 'What's your plan?' " Bush said at a rally for Missouri Sen. Jim Talent, who is seeking re-election in one of the tightest races in the nation. (Watch how Bush is picking his election battles -- 1:36 )
