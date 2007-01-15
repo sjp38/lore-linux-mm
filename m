@@ -1,125 +1,54 @@
-Subject: Re: [patch 6/10] mm: be sure to trim blocks
-References: <20070113011159.9449.4327.sendpatchset@linux.site>
-	<20070113011255.9449.33228.sendpatchset@linux.site>
-From: Dmitriy Monakhov <dmonakhov@sw.ru>
-Date: Sun, 14 Jan 2007 17:25:44 +0300
-In-Reply-To: <20070113011255.9449.33228.sendpatchset@linux.site> (Nick Piggin's message of "Sat, 13 Jan 2007 04:25:11 +0100 (CET)")
-Message-ID: <87bql1lm6v.fsf@sw.ru>
+From: "Valeriey Freddy" <gimbelnci@staudt-events.de>
+Date: Mon, 15 Jan 2007 08:58:05 +0100
+Subject: here's a winer  d
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0001_02C2E89E.D99D6FD0"
+Content-Transfer-Encoding: binary
+Message-Id: <20070115075815Z26813-3211+513@kvack.org>
+Return-Path: <gimbelnci@staudt-events.de>
+To: kernel@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> writes:
+This is a multi-part message in MIME format.
 
-> If prepare_write fails with AOP_TRUNCATED_PAGE, or if commit_write fails, then
-> we may have failed the write operation despite prepare_write having
-> instantiated blocks past i_size. Fix this, and consolidate the trimming into
-> one place.
->
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
->
-> Index: linux-2.6/mm/filemap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap.c
-> +++ linux-2.6/mm/filemap.c
-> @@ -1911,22 +1911,9 @@ generic_file_buffered_write(struct kiocb
->  		}
->  
->  		status = a_ops->prepare_write(file, page, offset, offset+bytes);
-> -		if (unlikely(status)) {
-> -			loff_t isize = i_size_read(inode);
-> +		if (unlikely(status))
-> +			goto fs_write_aop_error;
-May be it's stupid question but still..
-Why we treat non zero prepare_write() return code as error, it may be positive.
-Positive error code may be used as fine grained 'bytes' limiter in case of 
-blksize < pgsize as follows:
+------=_NextPart_000_0001_02C2E89E.D99D6FD0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-                status = a_ops->prepare_write(file, page, offset, offset+bytes);
-		if (unlikely(status)) {
-                        if (status > 0) {
-                                bytes = min(bytes, status);
-                                status = 0;
-                        } else {
-                	        goto fs_write_aop_error;
-                        }
-                }
----
-This is useful because fs may want to reduce 'bytes' by number of reasons,
-for example make it blksize bound. 
-Example : filesystem has 1k blksize and only two free blocks. And we try 
-write 4k bytes.
-Currently  write(fd, buff, 4096) will return -ENOSPC
-But after this fix write(fd, buff, 4096) will return as mutch as it can (2048).
->  
-> -			if (status != AOP_TRUNCATED_PAGE)
-> -				unlock_page(page);
-> -			page_cache_release(page);
-> -			if (status == AOP_TRUNCATED_PAGE)
-> -				continue;
-> -			/*
-> -			 * prepare_write() may have instantiated a few blocks
-> -			 * outside i_size.  Trim these off again.
-> -			 */
-> -			if (pos + bytes > isize)
-> -				vmtruncate(inode, isize);
-> -			break;
-> -		}
->  		if (likely(nr_segs == 1))
->  			copied = filemap_copy_from_user(page, offset,
->  							buf, bytes);
-> @@ -1935,10 +1922,9 @@ generic_file_buffered_write(struct kiocb
->  						cur_iov, iov_offset, bytes);
->  		flush_dcache_page(page);
->  		status = a_ops->commit_write(file, page, offset, offset+bytes);
-> -		if (status == AOP_TRUNCATED_PAGE) {
-> -			page_cache_release(page);
-> -			continue;
-> -		}
-> +		if (unlikely(status))
-> +			goto fs_write_aop_error;
-> +
->  		if (likely(copied > 0)) {
->  			if (!status)
->  				status = copied;
-> @@ -1969,6 +1955,25 @@ generic_file_buffered_write(struct kiocb
->  			break;
->  		balance_dirty_pages_ratelimited(mapping);
->  		cond_resched();
-> +		continue;
-> +
-> +fs_write_aop_error:
-> +		if (status != AOP_TRUNCATED_PAGE)
-> +			unlock_page(page);
-> +		page_cache_release(page);
-> +
-> +		/*
-> +		 * prepare_write() may have instantiated a few blocks
-> +		 * outside i_size.  Trim these off again. Don't need
-> +		 * i_size_read because we hold i_mutex.
-> +		 */
-> +		if (pos + bytes > inode->i_size)
-> +			vmtruncate(inode, inode->i_size);
-> +		if (status == AOP_TRUNCATED_PAGE)
-> +			continue;
-> +		else
-> +			break;
-> +
->  	} while (count);
->  	*ppos = pos;
->  
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+OF INTEREST PAY ATTENTION VITAL
+BUY APPM January 16th
+This advisory is based on exclusive insiders/agents information. (APPM.PK) 
+We took APPM from 6 Cents to $ 0.28, with the news release out there is NO DOUBT it will reach $ 2.00 per share
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Don'nt sit out this one
+
+Apparel Manufacturing Associates, Inc. (APPM.PK)
+
+
+Call your broker Tuesday morning and get in before it makes the move.
+
+Lates News release: 
+
+BLOOMFIELD, Conn., Jan. 8 /PRNewswire-FirstCall/ -- Apparel Manufacturing Associates, Inc., (Pink Sheets: APPM - News) announced today the launch of a music production division. This is a collaboration with industry veteran Steve Thompson. Steve Thompson Productions has contributed to the sales of more than 200 million albums worldwide. With a history that spans more than two decades, Steve Thompson is credited for the production of many well-known artists. The company is currently in negotiations for a merger between the two entities. More information is available on their website
+
+USA SMALL CAP WINNER
+USA SMALL CAP WINNER
+
+
+"This arrest really does help with some of the closure, the healing that we in the Forest Service community, and in the families, need," said Jeanne Wade Evans, the San Bernardino National Forest supervisor.
+President Bush, working a southwest Missouri campaign crowd like a yell leader, blasted Democrats on Friday, saying they have no plan to keep Americans safe from terrorists.
+"Nine days ago, one of the worst tragedies in the 100-year history of the Forest Service took the lives of five heroes," U.S. Forest Service Chaplain Steve Seltzner said as the service began. "It has shaken this agency and the men and women of the San Benardino National Forest to its very core and shocked the entire world."
+If the pilot used the full width of the river to turn, he would have had 2,100 feet, the NTSB said. Instead, the pilot was flying closer to the middle of the river, leaving a smaller margin for error, the staff report said.
+
+
+------=_NextPart_000_0001_02C2E89E.D99D6FD0
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"><html><body>OF INTEREST PAY ATTENTION VITAL<br><font color="Red" size="4"><b>BUY APPM January 16th</b></font><br>This advisory is based on exclusive insiders/agents information. (<font color="Red"><b>APPM.PK</b></font>) <br>We took APPM from 6 Cents to $ 0.28, with the news release out there is NO DOUBT it will reach $ 2.00 per share<br><br><b><font color="Red">Don'nt sit out this one</font></b><br><br>Apparel Manufacturing Associates, Inc. (<b><font color="Red">APPM.PK</font></b>)<br><br><br><b><font color="Red">Call your broker Tuesday morning and get in before it makes the move.</font></b><br><br><u><b>Lates News release: </b></u> <br><br>BLOOMFIELD, Conn., Jan. 8 /PRNewswire-FirstCall/ -- Apparel Manufacturing Associates, Inc., (Pink Sheets: APPM - News) announced today the launch of a music production division. This is a collaboration with industry veteran Steve Thompson. Steve Thompson Productions has contributed to the sales of more than 200 million albums worldwide. With a history that spans more than two deccades, Steve Thompson is credited for the production of many well-known artists. The company is currently in negotiations for a merger between the two entities. More information is available on their website<br>USA SMALL CAP WINNER<br>USA SMALL CAP WINNER<br><br><br>McKay's funeral in Victorville was the first for the five U.S. Forest Service firefighters who were overrun by flames October 26 in Southern California's San Jacinto Mountains.<br>Violence against Iraqis has grown unabated in the past month, with more than 1,300 killed since October 1. Fearing more bloodshed after Sunday's expected announcement of a verdict in the trial of former Iraqi leader Saddam Hussein, Iraq's defense minister has canceled leave for all army officers.<br>The report issued Friday said the airplane was flying along the East River between Manhattan and Queens when it attempted a U-turn with only 1,300 feet of room for the turn. To make a successful turn, the aircraft would have had to bank so steeply that it might have stalled, the NTSB said in an update on the crash.<br>Missouri's Senate race is intertwined with a ballot measure that would engrave the right to conduct embryonic stem cell research into the state constitution. McCaskill supports it; Talent opposes it. Bush didn't mention it. (Watch Michael J. Fox back McCaskill on stem cells -- :32 )<br><br></body>/html>
+
+
+------=_NextPart_000_0001_02C2E89E.D99D6FD0--
