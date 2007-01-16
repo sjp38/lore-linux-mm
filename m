@@ -1,51 +1,98 @@
-Subject: Re: [PATCH] nfs: fix congestion control
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <1168985323.5975.53.camel@lappy>
+Date: Tue, 16 Jan 2007 15:40:54 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC 0/8] Cpuset aware writeback
+Message-Id: <20070116154054.e655f75c.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070116135325.3441f62b.akpm@osdl.org>  <1168985323.5975.53.camel@lappy>
-Content-Type: text/plain
-Date: Tue, 16 Jan 2007 17:27:46 -0500
-Message-Id: <1168986466.6056.52.camel@lade.trondhjem.org>
+	<20070116135325.3441f62b.akpm@osdl.org>
+	<Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-01-16 at 23:08 +0100, Peter Zijlstra wrote:
-> Subject: nfs: fix congestion control
+> On Tue, 16 Jan 2007 14:15:56 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
+>
+> ...
+>
+> > > This may result in a large percentage of a cpuset
+> > > to become dirty without writeout being triggered. Under NFS
+> > > this can lead to OOM conditions.
+> > 
+> > OK, a big question: is this patchset a performance improvement or a
+> > correctness fix?  Given the above, and the lack of benchmark results I'm
+> > assuming it's for correctness.
 > 
-> The current NFS client congestion logic is severely broken, it marks the
-> backing device congested during each nfs_writepages() call and implements
-> its own waitqueue.
+> It is a correctness fix both for NFS OOM and doing proper cpuset writeout.
+
+It's a workaround for a still-unfixed NFS problem.
+
+> > - Why does NFS go oom?  Because it allocates potentially-unbounded
+> >   numbers of requests in the writeback path?
+> > 
+> >   It was able to go oom on non-numa machines before dirty-page-tracking
+> >   went in.  So a general problem has now become specific to some NUMA
+> >   setups.
 > 
-> Replace this by a more regular congestion implementation that puts a cap
-> on the number of active writeback pages and uses the bdi congestion waitqueue.
 > 
-> NFSv[34] commit pages are allowed to go unchecked as long as we are under 
-> the dirty page limit and not in direct reclaim.
+> Right. The issue is that large portions of memory become dirty / 
+> writeback since no writeback occurs because dirty limits are not checked 
+> for a cpuset. Then NFS attempt to writeout when doing LRU scans but is 
+> unable to allocate memory.
+>  
+> >   So an obvious, equivalent and vastly simpler "fix" would be to teach
+> >   the NFS client to go off-cpuset when trying to allocate these requests.
 > 
-> 	A buxom young lass from Neale's Flat,
-> 	Bore triplets, named Matt, Pat and Tat.
-> 	"Oh Lord," she protested,
-> 	"'Tis somewhat congested ...
-> 	"You've given me no tit for Tat." 
+> Yes we can fix these allocations by allowing processes to allocate from 
+> other nodes. But then the container function of cpusets is no longer 
+> there.
 
+But that's what your patch already does!
 
-What on earth is the point of adding congestion control to COMMIT?
-Strongly NACKed.
+It asks pdflush to write the pages instead of the direct-reclaim caller. 
+The only reason pdflush doesn't go oom is that pdflush lives outside the
+direct-reclaim caller's cpuset and is hence able to obtain those nfs
+requests from off-cpuset zones.
 
-Why 16MB of on-the-wire data? Why not 32, or 128, or ...
-Solaris already allows you to send 2MB of write data in a single RPC
-request, and the RPC engine has for some time allowed you to tune the
-number of simultaneous RPC requests you have on the wire: Chuck has
-already shown that read/write performance is greatly improved by upping
-that value to 64 or more in the case of RPC over TCP. Why are we then
-suddenly telling people that they are limited to 8 simultaneous writes?
+> > (But is it really bad? What actual problems will it cause once NFS is fixed?)
+> 
+> NFS is okay as far as I can tell. dirty throttling works fine in non 
+> cpuset environments because we throttle if 40% of memory becomes dirty or 
+> under writeback.
 
-Trond
+Repeat: NFS shouldn't go oom.  It should fail the allocation, recover, wait
+for existing IO to complete.  Back that up with a mempool for NFS requests
+and the problem is solved, I think?
+
+> > I don't understand why the proposed patches are cpuset-aware at all.  This
+> > is a per-zone problem, and a per-zone fix would seem to be appropriate, and
+> > more general.  For example, i386 machines can presumably get into trouble
+> > if all of ZONE_DMA or ZONE_NORMAL get dirty.  A good implementation would
+> > address that problem as well.  So I think it should all be per-zone?
+> 
+> No. A zone can be completely dirty as long as we are allowed to allocate 
+> from other zones.
+
+But we also can get into trouble if a *zone* is all-dirty.  Any solution to
+the cpuset problem should solve that problem too, no?
+
+> > Do we really need those per-inode cpumasks?  When page reclaim encounters a
+> > dirty page on the zone LRU, we automatically know that page->mapping->host
+> > has at least one dirty page in this zone, yes?  We could immediately ask
+> 
+> Yes, but when we enter reclaim most of the pages of a zone may already be 
+> dirty/writeback so we fail.
+
+No.  If the dirty limits become per-zone then no zone will ever have >40%
+dirty.
+
+The obvious fix here is: when a zone hits 40% dirty, perform dirty-memory
+reduction in that zone, throttling the dirtying process.  I suspect this
+would work very badly in common situations with, say, typical i386 boxes.
 
 
 --
