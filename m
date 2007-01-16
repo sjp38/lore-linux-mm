@@ -1,204 +1,132 @@
-Date: Mon, 15 Jan 2007 18:56:44 -0800
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: High lock spin time for zone->lru_lock under extreme conditions
-Message-ID: <20070116025644.GA3954@localhost.localdomain>
-References: <20070112160104.GA5766@localhost.localdomain> <45A86291.8090408@yahoo.com.au> <20070113073643.GA4234@localhost.localdomain> <20070113000017.2ad2df12.akpm@osdl.org> <20070113195334.GC4234@localhost.localdomain> <20070113132023.0f8d2da8.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070113132023.0f8d2da8.akpm@osdl.org>
+Date: Mon, 15 Jan 2007 21:47:48 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20070116054748.15358.31856.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [RFC 1/8] Convert higest_possible_node_id() into nr_node_ids
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, shai@scalex86.org, pravin.shelar@calsoftinc.com
+To: akpm@osdl.org
+Cc: Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 13, 2007 at 01:20:23PM -0800, Andrew Morton wrote:
-> 
-> Seeing the code helps.
+Replace highest_possible_node_id() with nr_node_ids
 
-But there was a subtle problem with hold time instrumentation here.
-The code assumed the critical section exiting through 
-spin_unlock_irq entered critical section with spin_lock_irq, but that
-might not be the case always, and the instrumentation for hold time goes bad
-when that happens (as in shrink_inactive_list)
+highest_possible_node_id() is used to calculate the last possible node id
+so that the network subsystem can figure out how to size per node arrays.
 
-> 
-> >  The
-> > instrumentation goes like this:
-> > 
-> > void __lockfunc _spin_lock_irq(spinlock_t *lock)
-> > {
-> >         unsigned long long t1,t2;
-> >         local_irq_disable();
-> >         t1 = get_cycles_sync();
-> >         preempt_disable();
-> >         spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
-> >         _raw_spin_lock(lock);
-> >         t2 = get_cycles_sync();
-> >         lock->raw_lock.htsc = t2;
-> >         if (lock->spin_time < (t2 - t1))
-> >                 lock->spin_time = t2 - t1;
-> > }
-> > ...
-> > 
-> > void __lockfunc _spin_unlock_irq(spinlock_t *lock)
-> > {
-> >         unsigned long long t1 ;
-> >         spin_release(&lock->dep_map, 1, _RET_IP_);
-> >         t1 = get_cycles_sync();
-> >         if (lock->cs_time < (t1 -  lock->raw_lock.htsc))
-> >                 lock->cs_time = t1 -  lock->raw_lock.htsc;
-> >         _raw_spin_unlock(lock);
-> >         local_irq_enable();
-> >         preempt_enable();
-> > }
-> > 
-...
-> 
-> OK, now we need to do a dump_stack() each time we discover a new max hold
-> time.  That might a bit tricky: the printk code does spinlocking too so
-> things could go recursively deadlocky.  Maybe make spin_unlock_irq() return
-> the hold time then do:
+I think having the ability to determine the maximum amount of nodes in
+a system at runtime is useful but then we should name this entry
+correspondingly and also only calculate the value once on bootup.
 
-What I found now after fixing the above is that hold time is not bad --
-249461 cycles on the 2.6 GHZ opteron with powernow disabled in the BIOS.
-The spin time is still in orders of seconds.
+This patch introduces nr_node_ids and replaces the use of
+highest_possible_node_id(). nr_node_ids is calculated on bootup when
+the page allocators pagesets are initialized.
 
-Hence this looks like a hardware fairness issue.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Attaching the instrumentation patch with this email FR.
-
-
-Index: linux-2.6.20-rc4.spin_instru/include/asm-x86_64/spinlock.h
+Index: linux-2.6.20-rc4-mm1/include/linux/nodemask.h
 ===================================================================
---- linux-2.6.20-rc4.spin_instru.orig/include/asm-x86_64/spinlock.h	2007-01-14 22:36:46.694248000 -0800
-+++ linux-2.6.20-rc4.spin_instru/include/asm-x86_64/spinlock.h	2007-01-15 15:40:36.554248000 -0800
-@@ -6,6 +6,18 @@
- #include <asm/page.h>
- #include <asm/processor.h>
- 
-+/* Like get_cycles, but make sure the CPU is synchronized. */
-+static inline unsigned long long get_cycles_sync2(void)
-+{
-+	unsigned long long ret;
-+	unsigned eax;
-+	/* Don't do an additional sync on CPUs where we know
-+	   RDTSC is already synchronous. */
-+	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
-+			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
-+	rdtscll(ret);
-+	return ret;
-+}
- /*
-  * Your basic SMP spinlocks, allowing only a single CPU anywhere
-  *
-@@ -34,6 +46,7 @@ static inline void __raw_spin_lock(raw_s
- 		"jle 3b\n\t"
- 		"jmp 1b\n"
- 		"2:\t" : "=m" (lock->slock) : : "memory");
-+	lock->htsc = get_cycles_sync2();
- }
- 
- /*
-@@ -62,6 +75,7 @@ static inline void __raw_spin_lock_flags
- 		"jmp 4b\n"
- 		"5:\n\t"
- 		: "+m" (lock->slock) : "r" ((unsigned)flags) : "memory");
-+		lock->htsc = get_cycles_sync2();
- }
- #endif
- 
-@@ -74,11 +88,16 @@ static inline int __raw_spin_trylock(raw
- 		:"=q" (oldval), "=m" (lock->slock)
- 		:"0" (0) : "memory");
- 
-+	if (oldval)
-+		lock->htsc = get_cycles_sync2();
- 	return oldval > 0;
- }
- 
- static inline void __raw_spin_unlock(raw_spinlock_t *lock)
- {
-+	unsigned long long t = get_cycles_sync2();
-+	if (lock->hold_time <  t - lock->htsc)
-+		lock->hold_time = t - lock->htsc;
- 	asm volatile("movl $1,%0" :"=m" (lock->slock) :: "memory");
- }
- 
-Index: linux-2.6.20-rc4.spin_instru/include/asm-x86_64/spinlock_types.h
-===================================================================
---- linux-2.6.20-rc4.spin_instru.orig/include/asm-x86_64/spinlock_types.h	2007-01-14 22:36:46.714248000 -0800
-+++ linux-2.6.20-rc4.spin_instru/include/asm-x86_64/spinlock_types.h	2007-01-15 14:23:37.204248000 -0800
-@@ -7,9 +7,11 @@
- 
- typedef struct {
- 	unsigned int slock;
-+	unsigned long long hold_time;
-+	unsigned long long htsc;
- } raw_spinlock_t;
- 
--#define __RAW_SPIN_LOCK_UNLOCKED	{ 1 }
-+#define __RAW_SPIN_LOCK_UNLOCKED	{ 1,0,0 }
- 
- typedef struct {
- 	unsigned int lock;
-Index: linux-2.6.20-rc4.spin_instru/include/linux/spinlock.h
-===================================================================
---- linux-2.6.20-rc4.spin_instru.orig/include/linux/spinlock.h	2007-01-14 22:36:48.464248000 -0800
-+++ linux-2.6.20-rc4.spin_instru/include/linux/spinlock.h	2007-01-14 22:41:30.964248000 -0800
-@@ -231,8 +231,8 @@ do {								\
- # define spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
- # define read_unlock(lock)		__raw_read_unlock(&(lock)->raw_lock)
- # define write_unlock(lock)		__raw_write_unlock(&(lock)->raw_lock)
--# define spin_unlock_irq(lock) \
--    do { __raw_spin_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
-+# define spin_unlock_irq(lock) _spin_unlock_irq(lock)
-+/*  do { __raw_spin_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)*/
- # define read_unlock_irq(lock) \
-     do { __raw_read_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
- # define write_unlock_irq(lock) \
-Index: linux-2.6.20-rc4.spin_instru/include/linux/spinlock_types.h
-===================================================================
---- linux-2.6.20-rc4.spin_instru.orig/include/linux/spinlock_types.h	2006-11-29 13:57:37.000000000 -0800
-+++ linux-2.6.20-rc4.spin_instru/include/linux/spinlock_types.h	2007-01-15 14:27:50.664248000 -0800
-@@ -19,6 +19,7 @@
- 
- typedef struct {
- 	raw_spinlock_t raw_lock;
-+	unsigned long long spin_time;
- #if defined(CONFIG_PREEMPT) && defined(CONFIG_SMP)
- 	unsigned int break_lock;
- #endif
-@@ -78,7 +79,8 @@ typedef struct {
- 				RW_DEP_MAP_INIT(lockname) }
+--- linux-2.6.20-rc4-mm1.orig/include/linux/nodemask.h	2007-01-06 21:45:51.000000000 -0800
++++ linux-2.6.20-rc4-mm1/include/linux/nodemask.h	2007-01-12 12:59:50.000000000 -0800
+@@ -352,7 +352,7 @@
+ #define node_possible(node)	node_isset((node), node_possible_map)
+ #define first_online_node	first_node(node_online_map)
+ #define next_online_node(nid)	next_node((nid), node_online_map)
+-int highest_possible_node_id(void);
++extern int nr_node_ids;
  #else
- # define __SPIN_LOCK_UNLOCKED(lockname) \
--	(spinlock_t)	{	.raw_lock = __RAW_SPIN_LOCK_UNLOCKED,	\
-+	(spinlock_t)	{	.raw_lock = __RAW_SPIN_LOCK_UNLOCKED,\
-+				.spin_time = 0	\
- 				SPIN_DEP_MAP_INIT(lockname) }
- #define __RW_LOCK_UNLOCKED(lockname) \
- 	(rwlock_t)	{	.raw_lock = __RAW_RW_LOCK_UNLOCKED,	\
-Index: linux-2.6.20-rc4.spin_instru/kernel/spinlock.c
-===================================================================
---- linux-2.6.20-rc4.spin_instru.orig/kernel/spinlock.c	2006-11-29 13:57:37.000000000 -0800
-+++ linux-2.6.20-rc4.spin_instru/kernel/spinlock.c	2007-01-15 14:29:47.374248000 -0800
-@@ -99,10 +99,15 @@ EXPORT_SYMBOL(_spin_lock_irqsave);
+ #define num_online_nodes()	1
+ #define num_possible_nodes()	1
+@@ -360,7 +360,7 @@
+ #define node_possible(node)	((node) == 0)
+ #define first_online_node	0
+ #define next_online_node(nid)	(MAX_NUMNODES)
+-#define highest_possible_node_id()	0
++#define nr_node_ids		1
+ #endif
  
- void __lockfunc _spin_lock_irq(spinlock_t *lock)
- {
-+	unsigned long long t1,t2;
- 	local_irq_disable();
-+	t1 = get_cycles_sync();
- 	preempt_disable();
- 	spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
- 	_raw_spin_lock(lock);
-+ 	t2 = get_cycles_sync();
-+ 	if (lock->spin_time < (t2 - t1))
-+ 		lock->spin_time = t2 - t1;
+ #define any_online_node(mask)			\
+Index: linux-2.6.20-rc4-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.20-rc4-mm1.orig/mm/page_alloc.c	2007-01-12 12:58:26.000000000 -0800
++++ linux-2.6.20-rc4-mm1/mm/page_alloc.c	2007-01-12 12:59:50.000000000 -0800
+@@ -679,6 +679,26 @@
+ 	return i;
  }
- EXPORT_SYMBOL(_spin_lock_irq);
+ 
++#if MAX_NUMNODES > 1
++int nr_node_ids __read_mostly;
++EXPORT_SYMBOL(nr_node_ids);
++
++/*
++ * Figure out the number of possible node ids.
++ */
++static void __init setup_nr_node_ids(void)
++{
++	unsigned int node;
++	unsigned int highest = 0;
++
++	for_each_node_mask(node, node_possible_map)
++		highest = node;
++	nr_node_ids = highest + 1;
++}
++#else
++static void __init setup_nr_node_ids(void) {}
++#endif
++
+ #ifdef CONFIG_NUMA
+ /*
+  * Called from the slab reaper to drain pagesets on a particular node that
+@@ -3318,6 +3338,7 @@
+ 		min_free_kbytes = 65536;
+ 	setup_per_zone_pages_min();
+ 	setup_per_zone_lowmem_reserve();
++	setup_nr_node_ids();
+ 	return 0;
+ }
+ module_init(init_per_zone_pages_min)
+@@ -3519,18 +3540,4 @@
+ EXPORT_SYMBOL(page_to_pfn);
+ #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+ 
+-#if MAX_NUMNODES > 1
+-/*
+- * Find the highest possible node id.
+- */
+-int highest_possible_node_id(void)
+-{
+-	unsigned int node;
+-	unsigned int highest = 0;
+ 
+-	for_each_node_mask(node, node_possible_map)
+-		highest = node;
+-	return highest;
+-}
+-EXPORT_SYMBOL(highest_possible_node_id);
+-#endif
+Index: linux-2.6.20-rc4-mm1/net/sunrpc/svc.c
+===================================================================
+--- linux-2.6.20-rc4-mm1.orig/net/sunrpc/svc.c	2007-01-06 21:45:51.000000000 -0800
++++ linux-2.6.20-rc4-mm1/net/sunrpc/svc.c	2007-01-12 12:59:50.000000000 -0800
+@@ -116,7 +116,7 @@
+ static int
+ svc_pool_map_init_percpu(struct svc_pool_map *m)
+ {
+-	unsigned int maxpools = highest_possible_processor_id()+1;
++	unsigned int maxpools = nr_node_ids;
+ 	unsigned int pidx = 0;
+ 	unsigned int cpu;
+ 	int err;
+@@ -144,7 +144,7 @@
+ static int
+ svc_pool_map_init_pernode(struct svc_pool_map *m)
+ {
+-	unsigned int maxpools = highest_possible_node_id()+1;
++	unsigned int maxpools = nr_node_ids;
+ 	unsigned int pidx = 0;
+ 	unsigned int node;
+ 	int err;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
