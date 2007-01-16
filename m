@@ -1,253 +1,146 @@
-Date: Mon, 15 Jan 2007 21:47:59 -0800 (PST)
+Date: Mon, 15 Jan 2007 21:48:19 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070116054759.15358.98106.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070116054819.15358.37282.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 3/8] Add a nodemask to pdflush functions
+Subject: [RFC 7/8] Exclude unreclaimable pages from dirty ration calculation
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-If we want to support nodeset specific writeout then we need a way
-to communicate the set of nodes that an operation should affect.
+Consider unreclaimable pages during dirty limit calculation
 
-So add a nodemask_t parameter to the pdflush functions and also
-store the nodemask in the pdflush control structure.
+Tracking unreclaimable pages helps us to calculate the dirty ratio
+the right way. If a large number of unreclaimable pages are allocated
+(through the slab or through huge pages) then write throttling will
+no longer work since the limit cannot be reached anymore.
+
+So we simply subtract the number of unreclaimable pages from the pages
+considered for writeout threshold calculation.
+
+Other code that allocates significant amounts of memory for device
+drivers etc could also be modified to take advantage of this functionality.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.20-rc5/include/linux/writeback.h
+Index: linux-2.6.20-rc5/include/linux/mmzone.h
 ===================================================================
---- linux-2.6.20-rc5.orig/include/linux/writeback.h	2007-01-15 21:34:38.564104333 -0600
-+++ linux-2.6.20-rc5/include/linux/writeback.h	2007-01-15 21:34:43.135798088 -0600
-@@ -81,7 +81,7 @@ static inline void wait_on_inode(struct 
- /*
-  * mm/page-writeback.c
-  */
--int wakeup_pdflush(long nr_pages);
-+int wakeup_pdflush(long nr_pages, nodemask_t *nodes);
- void laptop_io_completion(void);
- void laptop_sync_completion(void);
- void throttle_vm_writeout(void);
-@@ -109,7 +109,8 @@ balance_dirty_pages_ratelimited(struct a
- 	balance_dirty_pages_ratelimited_nr(mapping, 1);
- }
- 
--int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
-+int pdflush_operation(void (*fn)(unsigned long, nodemask_t *nodes),
-+		unsigned long arg0, nodemask_t *nodes);
- extern int generic_writepages(struct address_space *mapping,
- 			      struct writeback_control *wbc);
- int do_writepages(struct address_space *mapping, struct writeback_control *wbc);
+--- linux-2.6.20-rc5.orig/include/linux/mmzone.h	2007-01-12 12:54:26.000000000 -0600
++++ linux-2.6.20-rc5/include/linux/mmzone.h	2007-01-15 21:37:37.579950696 -0600
+@@ -53,6 +53,7 @@ enum zone_stat_item {
+ 	NR_FILE_PAGES,
+ 	NR_SLAB_RECLAIMABLE,
+ 	NR_SLAB_UNRECLAIMABLE,
++	NR_UNRECLAIMABLE,
+ 	NR_PAGETABLE,	/* used for pagetables */
+ 	NR_FILE_DIRTY,
+ 	NR_WRITEBACK,
+Index: linux-2.6.20-rc5/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.20-rc5.orig/fs/proc/proc_misc.c	2007-01-12 12:54:26.000000000 -0600
++++ linux-2.6.20-rc5/fs/proc/proc_misc.c	2007-01-15 21:37:37.641479580 -0600
+@@ -174,6 +174,7 @@ static int meminfo_read_proc(char *page,
+ 		"Slab:         %8lu kB\n"
+ 		"SReclaimable: %8lu kB\n"
+ 		"SUnreclaim:   %8lu kB\n"
++		"Unreclaimabl: %8lu kB\n"
+ 		"PageTables:   %8lu kB\n"
+ 		"NFS_Unstable: %8lu kB\n"
+ 		"Bounce:       %8lu kB\n"
+@@ -205,6 +206,7 @@ static int meminfo_read_proc(char *page,
+ 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
++		K(global_page_state(NR_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_PAGETABLE)),
+ 		K(global_page_state(NR_UNSTABLE_NFS)),
+ 		K(global_page_state(NR_BOUNCE)),
+Index: linux-2.6.20-rc5/mm/hugetlb.c
+===================================================================
+--- linux-2.6.20-rc5.orig/mm/hugetlb.c	2007-01-12 12:54:26.000000000 -0600
++++ linux-2.6.20-rc5/mm/hugetlb.c	2007-01-15 21:37:37.664919155 -0600
+@@ -115,6 +115,8 @@ static int alloc_fresh_huge_page(void)
+ 		nr_huge_pages_node[page_to_nid(page)]++;
+ 		spin_unlock(&hugetlb_lock);
+ 		put_page(page); /* free it into the hugepage allocator */
++		mod_zone_page_state(page_zone(page), NR_UNRECLAIMABLE,
++					HPAGE_SIZE / PAGE_SIZE);
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -183,6 +185,8 @@ static void update_and_free_page(struct 
+ 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+ 				1 << PG_private | 1<< PG_writeback);
+ 	}
++	mod_zone_page_state(page_zone(page), NR_UNRECLAIMABLE,
++					- (HPAGE_SIZE / PAGE_SIZE));
+ 	page[1].lru.next = NULL;
+ 	set_page_refcounted(page);
+ 	__free_pages(page, HUGETLB_PAGE_ORDER);
+Index: linux-2.6.20-rc5/mm/vmstat.c
+===================================================================
+--- linux-2.6.20-rc5.orig/mm/vmstat.c	2007-01-12 12:54:26.000000000 -0600
++++ linux-2.6.20-rc5/mm/vmstat.c	2007-01-15 21:37:37.686405431 -0600
+@@ -459,6 +459,7 @@ static const char * const vmstat_text[] 
+ 	"nr_file_pages",
+ 	"nr_slab_reclaimable",
+ 	"nr_slab_unreclaimable",
++	"nr_unreclaimable",
+ 	"nr_page_table_pages",
+ 	"nr_dirty",
+ 	"nr_writeback",
 Index: linux-2.6.20-rc5/mm/page-writeback.c
 ===================================================================
---- linux-2.6.20-rc5.orig/mm/page-writeback.c	2007-01-15 21:34:38.573870823 -0600
-+++ linux-2.6.20-rc5/mm/page-writeback.c	2007-01-15 21:34:43.150447823 -0600
-@@ -101,7 +101,7 @@ EXPORT_SYMBOL(laptop_mode);
- /* End of sysctl-exported parameters */
- 
- 
--static void background_writeout(unsigned long _min_pages);
-+static void background_writeout(unsigned long _min_pages, nodemask_t *nodes);
- 
- /*
-  * Work out the current dirty-memory clamping and background writeout
-@@ -244,7 +244,7 @@ static void balance_dirty_pages(struct a
- 	 */
- 	if ((laptop_mode && pages_written) ||
- 	     (!laptop_mode && (nr_reclaimable > background_thresh)))
--		pdflush_operation(background_writeout, 0);
-+		pdflush_operation(background_writeout, 0, NULL);
- }
- 
- void set_page_dirty_balance(struct page *page)
-@@ -325,7 +325,7 @@ void throttle_vm_writeout(void)
-  * writeback at least _min_pages, and keep writing until the amount of dirty
-  * memory is less than the background threshold, or until we're all clean.
-  */
--static void background_writeout(unsigned long _min_pages)
-+static void background_writeout(unsigned long _min_pages, nodemask_t *unused)
- {
- 	long min_pages = _min_pages;
- 	struct writeback_control wbc = {
-@@ -365,12 +365,12 @@ static void background_writeout(unsigned
-  * the whole world.  Returns 0 if a pdflush thread was dispatched.  Returns
-  * -1 if all pdflush threads were busy.
-  */
--int wakeup_pdflush(long nr_pages)
-+int wakeup_pdflush(long nr_pages, nodemask_t *nodes)
- {
- 	if (nr_pages == 0)
- 		nr_pages = global_page_state(NR_FILE_DIRTY) +
- 				global_page_state(NR_UNSTABLE_NFS);
--	return pdflush_operation(background_writeout, nr_pages);
-+	return pdflush_operation(background_writeout, nr_pages, nodes);
- }
- 
- static void wb_timer_fn(unsigned long unused);
-@@ -394,7 +394,7 @@ static DEFINE_TIMER(laptop_mode_wb_timer
-  * older_than_this takes precedence over nr_to_write.  So we'll only write back
-  * all dirty pages if they are all attached to "old" mappings.
-  */
--static void wb_kupdate(unsigned long arg)
-+static void wb_kupdate(unsigned long arg, nodemask_t *unused)
- {
- 	unsigned long oldest_jif;
- 	unsigned long start_jif;
-@@ -454,18 +454,18 @@ int dirty_writeback_centisecs_handler(ct
- 
- static void wb_timer_fn(unsigned long unused)
- {
--	if (pdflush_operation(wb_kupdate, 0) < 0)
-+	if (pdflush_operation(wb_kupdate, 0, NULL) < 0)
- 		mod_timer(&wb_timer, jiffies + HZ); /* delay 1 second */
- }
- 
--static void laptop_flush(unsigned long unused)
-+static void laptop_flush(unsigned long unused, nodemask_t *unused2)
- {
- 	sys_sync();
- }
- 
- static void laptop_timer_fn(unsigned long unused)
- {
--	pdflush_operation(laptop_flush, 0);
-+	pdflush_operation(laptop_flush, 0, NULL);
- }
- 
- /*
-Index: linux-2.6.20-rc5/mm/pdflush.c
+--- linux-2.6.20-rc5.orig/mm/page-writeback.c	2007-01-15 21:37:33.302228293 -0600
++++ linux-2.6.20-rc5/mm/page-writeback.c	2007-01-15 21:37:37.697148570 -0600
+@@ -165,7 +165,9 @@ get_dirty_limits(struct dirty_limits *dl
+ 			dl->nr_writeback +=
+ 				node_page_state(node, NR_WRITEBACK);
+ 			available_memory +=
+-				NODE_DATA(node)->node_present_pages;
++				NODE_DATA(node)->node_present_pages
++				- node_page_state(node, NR_UNRECLAIMABLE)
++				- node_page_state(node, NR_SLAB_UNRECLAIMABLE);
+ #ifdef CONFIG_HIGHMEM
+ 			high_memory += NODE_DATA(node)
+ 				->node_zones[ZONE_HIGHMEM]->present_pages;
+@@ -180,7 +182,9 @@ get_dirty_limits(struct dirty_limits *dl
+ 		dl->nr_dirty = global_page_state(NR_FILE_DIRTY);
+ 		dl->nr_unstable = global_page_state(NR_UNSTABLE_NFS);
+ 		dl->nr_writeback = global_page_state(NR_WRITEBACK);
+-		available_memory = vm_total_pages;
++		available_memory = vm_total_pages
++				- global_page_state(NR_UNRECLAIMABLE)
++				- global_page_state(NR_SLAB_UNRECLAIMABLE);
+ 		high_memory = totalhigh_pages;
+ 		nr_mapped = global_page_state(NR_FILE_MAPPED) +
+ 				global_page_state(NR_ANON_PAGES);
+Index: linux-2.6.20-rc5/drivers/base/node.c
 ===================================================================
---- linux-2.6.20-rc5.orig/mm/pdflush.c	2007-01-15 21:34:38.582660664 -0600
-+++ linux-2.6.20-rc5/mm/pdflush.c	2007-01-15 21:34:43.161190961 -0600
-@@ -83,10 +83,12 @@ static unsigned long last_empty_jifs;
-  */
- struct pdflush_work {
- 	struct task_struct *who;	/* The thread */
--	void (*fn)(unsigned long);	/* A callback function */
-+	void (*fn)(unsigned long, nodemask_t *); /* A callback function */
- 	unsigned long arg0;		/* An argument to the callback */
- 	struct list_head list;		/* On pdflush_list, when idle */
- 	unsigned long when_i_went_to_sleep;
-+	int have_nodes;			/* Nodes were specified */
-+	nodemask_t nodes;		/* Nodes of interest */
- };
- 
- static int __pdflush(struct pdflush_work *my_work)
-@@ -123,7 +125,8 @@ static int __pdflush(struct pdflush_work
- 		}
- 		spin_unlock_irq(&pdflush_lock);
- 
--		(*my_work->fn)(my_work->arg0);
-+		(*my_work->fn)(my_work->arg0,
-+			my_work->have_nodes ? &my_work->nodes : NULL);
- 
- 		/*
- 		 * Thread creation: For how long have there been zero
-@@ -197,7 +200,8 @@ static int pdflush(void *dummy)
-  * Returns zero if it indeed managed to find a worker thread, and passed your
-  * payload to it.
-  */
--int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
-+int pdflush_operation(void (*fn)(unsigned long, nodemask_t *),
-+			unsigned long arg0, nodemask_t *nodes)
- {
- 	unsigned long flags;
- 	int ret = 0;
-@@ -217,6 +221,11 @@ int pdflush_operation(void (*fn)(unsigne
- 			last_empty_jifs = jiffies;
- 		pdf->fn = fn;
- 		pdf->arg0 = arg0;
-+		if (nodes) {
-+			pdf->nodes = *nodes;
-+			pdf->have_nodes = 1;
-+		} else
-+			pdf->have_nodes = 0;
- 		wake_up_process(pdf->who);
- 		spin_unlock_irqrestore(&pdflush_lock, flags);
- 	}
-Index: linux-2.6.20-rc5/mm/vmscan.c
-===================================================================
---- linux-2.6.20-rc5.orig/mm/vmscan.c	2007-01-15 21:34:38.592427153 -0600
-+++ linux-2.6.20-rc5/mm/vmscan.c	2007-01-15 21:34:43.173887398 -0600
-@@ -1065,7 +1065,7 @@ unsigned long try_to_free_pages(struct z
- 		 */
- 		if (total_scanned > sc.swap_cluster_max +
- 					sc.swap_cluster_max / 2) {
--			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
-+			wakeup_pdflush(laptop_mode ? 0 : total_scanned, NULL);
- 			sc.may_writepage = 1;
- 		}
- 
-Index: linux-2.6.20-rc5/fs/buffer.c
-===================================================================
---- linux-2.6.20-rc5.orig/fs/buffer.c	2007-01-15 21:34:38.601216994 -0600
-+++ linux-2.6.20-rc5/fs/buffer.c	2007-01-15 21:34:43.195373675 -0600
-@@ -357,7 +357,7 @@ static void free_more_memory(void)
- 	struct zone **zones;
- 	pg_data_t *pgdat;
- 
--	wakeup_pdflush(1024);
-+	wakeup_pdflush(1024, NULL);
- 	yield();
- 
- 	for_each_online_pgdat(pgdat) {
-Index: linux-2.6.20-rc5/fs/super.c
-===================================================================
---- linux-2.6.20-rc5.orig/fs/super.c	2007-01-15 21:34:38.610983483 -0600
-+++ linux-2.6.20-rc5/fs/super.c	2007-01-15 21:34:43.208070111 -0600
-@@ -618,7 +618,7 @@ int do_remount_sb(struct super_block *sb
- 	return 0;
+--- linux-2.6.20-rc5.orig/drivers/base/node.c	2007-01-12 12:54:26.000000000 -0600
++++ linux-2.6.20-rc5/drivers/base/node.c	2007-01-15 21:37:37.759654103 -0600
+@@ -70,7 +70,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d Bounce:       %8lu kB\n"
+ 		       "Node %d Slab:         %8lu kB\n"
+ 		       "Node %d SReclaimable: %8lu kB\n"
+-		       "Node %d SUnreclaim:   %8lu kB\n",
++		       "Node %d SUnreclaim:   %8lu kB\n"
++		       "Node %d Unreclaimabl: %8lu kB\n",
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
+ 		       nid, K(i.totalram - i.freeram),
+@@ -93,7 +94,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
++		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
++		       nid, K(node_page_state(nid, NR_UNRECLAIMABLE)));
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
  }
- 
--static void do_emergency_remount(unsigned long foo)
-+static void do_emergency_remount(unsigned long foo, nodemask_t *bar)
- {
- 	struct super_block *sb;
- 
-@@ -646,7 +646,7 @@ static void do_emergency_remount(unsigne
- 
- void emergency_remount(void)
- {
--	pdflush_operation(do_emergency_remount, 0);
-+	pdflush_operation(do_emergency_remount, 0, NULL);
- }
- 
- /*
-Index: linux-2.6.20-rc5/fs/sync.c
-===================================================================
---- linux-2.6.20-rc5.orig/fs/sync.c	2007-01-15 21:34:38.622703271 -0600
-+++ linux-2.6.20-rc5/fs/sync.c	2007-01-15 21:34:43.217836601 -0600
-@@ -21,9 +21,9 @@
-  * sync everything.  Start out by waking pdflush, because that writes back
-  * all queues in parallel.
-  */
--static void do_sync(unsigned long wait)
-+static void do_sync(unsigned long wait, nodemask_t *unused)
- {
--	wakeup_pdflush(0);
-+	wakeup_pdflush(0, NULL);
- 	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
- 	DQUOT_SYNC(NULL);
- 	sync_supers();		/* Write the superblocks */
-@@ -38,13 +38,13 @@ static void do_sync(unsigned long wait)
- 
- asmlinkage long sys_sync(void)
- {
--	do_sync(1);
-+	do_sync(1, NULL);
- 	return 0;
- }
- 
- void emergency_sync(void)
- {
--	pdflush_operation(do_sync, 0);
-+	pdflush_operation(do_sync, 0, NULL);
- }
- 
- /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
