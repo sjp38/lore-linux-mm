@@ -1,40 +1,48 @@
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id l0GJqMrb023033
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2007 19:52:22 GMT
-Received: from ug-out-1314.google.com (ugfk3.prod.google.com [10.66.187.3])
-	by spaceape8.eur.corp.google.com with ESMTP id l0GJoaD2000310
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2007 19:52:17 GMT
-Received: by ug-out-1314.google.com with SMTP id k3so1734648ugf
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2007 11:52:17 -0800 (PST)
-Message-ID: <6599ad830701161152q75ff29cdo7306c9b8df5c351b@mail.gmail.com>
-Date: Tue, 16 Jan 2007 11:52:13 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [RFC 8/8] Reduce inode memory usage for systems with a high MAX_NUMNODES
-In-Reply-To: <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Tue, 16 Jan 2007 12:00:30 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 8/8] Reduce inode memory usage for systems with a high
+ MAX_NUMNODES
+In-Reply-To: <6599ad830701161152q75ff29cdo7306c9b8df5c351b@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0701161152450.2780@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
+  <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
+ <6599ad830701161152q75ff29cdo7306c9b8df5c351b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Paul Menage <menage@google.com>
 Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 1/15/07, Christoph Lameter <clameter@sgi.com> wrote:
->
-> This solution may be a bit hokey. I tried other approaches but this
-> one seemed to be the simplest with the least complications. Maybe someone
-> else can come up with a better solution?
+On Tue, 16 Jan 2007, Paul Menage wrote:
 
-How about a 64-bit field in struct inode that's used as a bitmask if
-there are no more than 64 nodes, and a pointer to a bitmask if there
-are more than 64 nodes. The filesystems wouldn't need to be involved
-then, as the bitmap allocation could be done in the generic code.
+> On 1/15/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > This solution may be a bit hokey. I tried other approaches but this
+> > one seemed to be the simplest with the least complications. Maybe someone
+> > else can come up with a better solution?
+> 
+> How about a 64-bit field in struct inode that's used as a bitmask if
+> there are no more than 64 nodes, and a pointer to a bitmask if there
+> are more than 64 nodes. The filesystems wouldn't need to be involved
+> then, as the bitmap allocation could be done in the generic code.
 
-Paul
+How would we decide if there are more than 64 nodes? Runtime or compile 
+time?
+
+If done at compile time then we will end up with a pointer to an unsigned 
+long for a system with <= 64 nodes. If we allocate the nodemask via 
+kmalloc then we will always end up with a mininum allocation size of 64 
+bytes. Then there is the slab management overhead which will increase 
+overhead closer to the 128 byte wastage that we have now. So its likely 
+not worth it. There are some additional complications since there is a 
+need to free and allocate the nodemask during inode initialization and 
+disposal.
+
+If the decision to allocate a node mask is made at run time then it gets 
+even more complex. And we still have the same troubling issues with the 
+64 byte mininum allocation by the slab.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
