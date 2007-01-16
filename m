@@ -1,38 +1,37 @@
-Date: Tue, 16 Jan 2007 12:10:38 -0800 (PST)
+Date: Tue, 16 Jan 2007 12:51:14 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <1168933090.22935.30.camel@twins>
-Message-ID: <Pine.LNX.4.64.0701161208590.2905@schroedinger.engr.sgi.com>
+Subject: Re: [RFC 8/8] Reduce inode memory usage for systems with a high
+ MAX_NUMNODES
+In-Reply-To: <6599ad830701161206w7dff0fa8y34f1e74f94ab9051@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0701161249400.3074@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <1168933090.22935.30.camel@twins>
+  <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
+ <6599ad830701161152q75ff29cdo7306c9b8df5c351b@mail.gmail.com>
+ <Pine.LNX.4.64.0701161152450.2780@schroedinger.engr.sgi.com>
+ <6599ad830701161206w7dff0fa8y34f1e74f94ab9051@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Paul Menage <menage@google.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Jan 2007, Peter Zijlstra wrote:
+On Tue, 16 Jan 2007, Paul Menage wrote:
 
-> > B. We add a new counter NR_UNRECLAIMABLE that is subtracted
-> >    from the available pages in a node. This allows us to
-> >    accurately calculate the dirty ratio even if large portions
-> >    of the node have been allocated for huge pages or for
-> >    slab pages.
+> I was thinking runtime, unless MAX_NUMNODES is less than 64 in which
+> case you can make the decision at compile time.
 > 
-> What about mlock'ed pages?
-
-mlocked pages can be dirty and written back right? So for the
-dirty ratio calculation they do not play a role. We may need a
-separate counter for mlocked pages if they are to be considered
-for other decisions in the VM.
-
-> Otherwise it all looks good.
+> > 
+> > If done at compile time then we will end up with a pointer to an unsigned
+> > long for a system with <= 64 nodes. If we allocate the nodemask via
+> > kmalloc then we will always end up with a mininum allocation size of 64
+> > bytes.
 > 
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Can't we get less overhead with a slab cache with appropriate-sized objects?
 
-Thanks.
+Ok but then we are going to have quite small objects. Plus we will have 
+additional slab overhead per node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
