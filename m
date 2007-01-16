@@ -1,28 +1,40 @@
-Date: Tue, 16 Jan 2007 11:08:15 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 7/29] Continue calling simple PTI functions
-In-Reply-To: <20070113024617.29682.90437.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.64.0701161106010.6637@schroedinger.engr.sgi.com>
-References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <20070113024617.29682.90437.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 6/10] mm: be sure to trim blocks
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1168968985.5975.30.camel@lappy>
+References: <20070113011159.9449.4327.sendpatchset@linux.site>
+	 <20070113011255.9449.33228.sendpatchset@linux.site>
+	 <1168968985.5975.30.camel@lappy>
+Content-Type: text/plain
+Date: Tue, 16 Jan 2007 20:14:16 +0100
+Message-Id: <1168974857.5975.36.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Davies <pauld@gelato.unsw.edu.au>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 13 Jan 2007, Paul Davies wrote:
+On Tue, 2007-01-16 at 18:36 +0100, Peter Zijlstra wrote:
+>   							buf, bytes);
+> > @@ -1935,10 +1922,9 @@ generic_file_buffered_write(struct kiocb
+> >  						cur_iov, iov_offset, bytes);
+> >  		flush_dcache_page(page);
+> >  		status = a_ops->commit_write(file, page, offset, offset+bytes);
+> > -		if (status == AOP_TRUNCATED_PAGE) {
+> > -			page_cache_release(page);
+> > -			continue;
+> > -		}
+> > +		if (unlikely(status))
+> > +			goto fs_write_aop_error;
+> > +
+> 
+> I don't think this is correct, see how status >= 0 is used a few lines
+> downwards. Perhaps something along the lines of an
+> is_positive_aop_return() to test on?
 
-> -	pte = pte_alloc_map(mm, pmd, address);
-> +	pte = build_page_table(mm, address, &pt_path);
-
-build_page_table as a name for a function whose role is mainly to lookup 
-a pte? Yes it adds entries as required. Maybe something like
-
-lookup_and_add_page_table()
-
+Hmm, if commit_write() will never return non error positive values then
+this and 8/10 look sane.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
