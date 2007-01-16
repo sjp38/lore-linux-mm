@@ -1,94 +1,52 @@
-Date: Tue, 16 Jan 2007 14:15:56 -0800 (PST)
+Date: Tue, 16 Jan 2007 14:18:28 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <20070116135325.3441f62b.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
+In-Reply-To: <200701170901.58757.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0701161416060.3545@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <20070116135325.3441f62b.akpm@osdl.org>
+ <200701170901.58757.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Jan 2007, Andrew Morton wrote:
+On Wed, 17 Jan 2007, Andi Kleen wrote:
 
-> > On Mon, 15 Jan 2007 21:47:43 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-> >
-> > Currently cpusets are not able to do proper writeback since
-> > dirty ratio calculations and writeback are all done for the system
-> > as a whole.
+> > Secondly we modify the dirty limit calculation to be based
+> > on the acctive cpuset.
 > 
-> We _do_ do proper writeback.  But it's less efficient than it might be, and
-> there's an NFS problem.
+> The global dirty limit definitely seems to be a problem
+> in several cases, but my feeling is that the cpuset is the wrong unit
+> to keep track of it. Most likely it should be more fine grained.
 
-Well yes we write back during LRU scans when a potentially high percentage 
-of the memory in cpuset is dirty.
+We already have zone reclaim that can take care of smaller units but why 
+would we start writeback if only one zone is full of dirty pages and there
+are lots of other zones (nodes) that are free?
 
-> > This may result in a large percentage of a cpuset
-> > to become dirty without writeout being triggered. Under NFS
-> > this can lead to OOM conditions.
+> > If we are in a cpuset then we select only inodes for writeback
+> > that have pages on the nodes of the cpuset.
 > 
-> OK, a big question: is this patchset a performance improvement or a
-> correctness fix?  Given the above, and the lack of benchmark results I'm
-> assuming it's for correctness.
+> Is there any indication this change helps on smaller systems
+> or is it purely a large system optimization?
 
-It is a correctness fix both for NFS OOM and doing proper cpuset writeout.
+The bigger the system the larger the problem because the ratio of dirty
+pages is calculated is currently based on the percentage of dirty pages
+in the system as a whole. The less percentage of a system a cpuset 
+contains the less effective the dirty_ratio and background_dirty_ratio 
+become.
 
-> - Why does NFS go oom?  Because it allocates potentially-unbounded
->   numbers of requests in the writeback path?
+> > B. We add a new counter NR_UNRECLAIMABLE that is subtracted
+> >    from the available pages in a node. This allows us to
+> >    accurately calculate the dirty ratio even if large portions
+> >    of the node have been allocated for huge pages or for
+> >    slab pages.
 > 
->   It was able to go oom on non-numa machines before dirty-page-tracking
->   went in.  So a general problem has now become specific to some NUMA
->   setups.
+> That sounds like a useful change by itself.
 
-
-Right. The issue is that large portions of memory become dirty / 
-writeback since no writeback occurs because dirty limits are not checked 
-for a cpuset. Then NFS attempt to writeout when doing LRU scans but is 
-unable to allocate memory.
- 
->   So an obvious, equivalent and vastly simpler "fix" would be to teach
->   the NFS client to go off-cpuset when trying to allocate these requests.
-
-Yes we can fix these allocations by allowing processes to allocate from 
-other nodes. But then the container function of cpusets is no longer 
-there.
-
-> (But is it really bad? What actual problems will it cause once NFS is fixed?)
-
-NFS is okay as far as I can tell. dirty throttling works fine in non 
-cpuset environments because we throttle if 40% of memory becomes dirty or 
-under writeback.
-
-> I don't understand why the proposed patches are cpuset-aware at all.  This
-> is a per-zone problem, and a per-zone fix would seem to be appropriate, and
-> more general.  For example, i386 machines can presumably get into trouble
-> if all of ZONE_DMA or ZONE_NORMAL get dirty.  A good implementation would
-> address that problem as well.  So I think it should all be per-zone?
-
-No. A zone can be completely dirty as long as we are allowed to allocate 
-from other zones.
-
-> Do we really need those per-inode cpumasks?  When page reclaim encounters a
-> dirty page on the zone LRU, we automatically know that page->mapping->host
-> has at least one dirty page in this zone, yes?  We could immediately ask
-
-Yes, but when we enter reclaim most of the pages of a zone may already be 
-dirty/writeback so we fail. Also when we enter reclaim we may not have
-the proper process / cpuset context. There is no use to throttle kswapd. 
-We need to throttle the process that is dirtying memory.
-
-> But all of this is, I think, unneeded if NFS is fixed.  It's hopefully a
-> performance optimisation to permit writeout in a less seeky fashion. 
-> Unless there's some other problem with excessively dirty zones.
-
-The patchset improves performance because the filesystem can do sequential 
-writeouts. So yes in some ways this is a performance improvement. But this 
-is only because this patch makes dirty throttling for cpusets work in the 
-same way as for non NUMA system.
+I can separate that one out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
