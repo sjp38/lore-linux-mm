@@ -1,33 +1,30 @@
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 1/8] Convert higest_possible_node_id() into nr_node_ids
-Date: Wed, 17 Jan 2007 15:15:19 +1100
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <200701170905.17234.ak@suse.de> <Pine.LNX.4.64.0701161913180.4677@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0701161913180.4677@schroedinger.engr.sgi.com>
+Subject: Re: [RFC 5/8] Make writeout during reclaim cpuset aware
+Date: Wed, 17 Jan 2007 09:07:14 +1100
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Message-Id: <200701171515.20380.ak@suse.de>
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200701170907.14670.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 17 January 2007 14:14, Christoph Lameter wrote:
-> On Wed, 17 Jan 2007, Andi Kleen wrote:
-> > On Tuesday 16 January 2007 16:47, Christoph Lameter wrote:
-> > > I think having the ability to determine the maximum amount of nodes in
-> > > a system at runtime is useful but then we should name this entry
-> > > correspondingly and also only calculate the value once on bootup.
-> >
-> > Are you sure this is even possible in general on systems with node
-> > hotplug? The firmware might not pass a maximum limit.
+On Tuesday 16 January 2007 16:48, Christoph Lameter wrote:
+> Direct reclaim: cpuset aware writeout
 >
-> In that case the node possible map must include all nodes right?
+> During direct reclaim we traverse down a zonelist and are carefully
+> checking each zone if its a member of the active cpuset. But then we call
+> pdflush without enforcing the same restrictions. In a larger system this
+> may have the effect of a massive amount of pages being dirtied and then
+> either
 
-Yes.
+Is there a reason this can't be just done by node, ignoring the cpusets? 
 
 -Andi
 
