@@ -1,10 +1,10 @@
-Date: Tue, 16 Jan 2007 10:55:29 -0800 (PST)
+Date: Tue, 16 Jan 2007 11:02:10 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/29] Abstract current page table implementation
-In-Reply-To: <20070113024556.29682.39765.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.64.0701161054410.30540@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/29] Introduce Page Table Interface (PTI)
+In-Reply-To: <20070113024601.29682.32487.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Message-ID: <Pine.LNX.4.64.0701161100080.6637@schroedinger.engr.sgi.com>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <20070113024556.29682.39765.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+ <20070113024601.29682.32487.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,10 +13,15 @@ To: Paul Davies <pauld@gelato.unsw.edu.au>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I think the last 3 patches could stand alone as a cleanup of the existing 
-API. Could you describe them differently? If they are all doing the same 
-then maybe make the 3 patches one patch?
+On Sat, 13 Jan 2007, Paul Davies wrote:
 
+> +	if (mm!=&init_mm) { /* Look up user page table */
+
+Missing blanks. Comment on a separate line please.
+
+> +#define lookup_page_table_lock(mm, pt_path, address)	\
+
+We need the complete path to the pte here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
