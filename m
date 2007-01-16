@@ -1,10 +1,10 @@
-Date: Tue, 16 Jan 2007 11:05:18 -0800 (PST)
+Date: Tue, 16 Jan 2007 11:08:15 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 6/29] Tweak IA64 arch dependent files to work with PTI
-In-Reply-To: <20070113024611.29682.41796.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.64.0701161104330.6637@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 7/29] Continue calling simple PTI functions
+In-Reply-To: <20070113024617.29682.90437.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Message-ID: <Pine.LNX.4.64.0701161106010.6637@schroedinger.engr.sgi.com>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <20070113024611.29682.41796.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+ <20070113024617.29682.90437.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,15 +15,14 @@ List-ID: <linux-mm.kvack.org>
 
 On Sat, 13 Jan 2007, Paul Davies wrote:
 
->  	 * We may get interrupts here, but that's OK because interrupt
->  	 * handlers cannot touch user-space.
->  	 */
-> -	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->pgd));
-> +	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->page_table.pgd));
->  	activate_context(next);
+> -	pte = pte_alloc_map(mm, pmd, address);
+> +	pte = build_page_table(mm, address, &pt_path);
 
-Argh... The requirement for patches is that the kernel compiles after each 
-patch was required. It looks as if the last patch broke the compile.
+build_page_table as a name for a function whose role is mainly to lookup 
+a pte? Yes it adds entries as required. Maybe something like
+
+lookup_and_add_page_table()
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
