@@ -1,128 +1,113 @@
-Subject: Re: [PATCH 9/9] net: vm deadlock avoidance core
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070116153315.GB710@2ka.mipt.ru>
-References: <20070116094557.494892000@taijtu.programming.kicks-ass.net>
-	 <20070116101816.115266000@taijtu.programming.kicks-ass.net>
-	 <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins>
-	 <20070116153315.GB710@2ka.mipt.ru>
-Content-Type: text/plain
-Date: Tue, 16 Jan 2007 17:08:15 +0100
-Message-Id: <1168963695.22935.78.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Jan 2007 09:13:19 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/8] Cpuset aware writeback
+In-Reply-To: <20070116012509.145ead36.pj@sgi.com>
+Message-ID: <Pine.LNX.4.64.0701160907280.17822@schroedinger.engr.sgi.com>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+ <20070116012509.145ead36.pj@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
+To: Paul Jackson <pj@sgi.com>
+Cc: akpm@osdl.org, menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-01-16 at 18:33 +0300, Evgeniy Polyakov wrote:
-> On Tue, Jan 16, 2007 at 02:47:54PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > > > +	if (unlikely(skb->emergency))
-> > > > +		current->flags |= PF_MEMALLOC;
-> > > 
-> > > Access to 'current' in netif_receive_skb()???
-> > > Why do you want to work with, for example keventd?
-> > 
-> > Can this run in keventd?
+On Tue, 16 Jan 2007, Paul Jackson wrote:
+
+> > 1. The nodemask expands the inode structure significantly if the
+> > architecture allows a high number of nodes. This is only an issue
+> > for IA64. 
 > 
-> Initial netchannel implementation by Kelly Daly (IBM) worked in keventd
-> (or dedicated kernel thread, I do not recall).
+> Should that logic be disabled if HOTPLUG is configured on?  Or is
+> nr_node_ids a valid upper limit on what could be plugged in, even on a
+> mythical HOTPLUG system?
+
+nr_node_ids is a valid upper limit on what could be plugged in. We could
+modify nodemasks to only use nr_node_ids bits and the kernel would still
+be functioning correctly.
+
+> > 2. The calculation of the per cpuset limits can require looping
+> > over a number of nodes which may bring the performance of get_dirty_limits
+> > near pre 2.6.18 performance
 > 
-> > I thought this was softirq context and thus this would either run in a
-> > borrowed context or in ksoftirqd. See patch 3/9.
+> Could we cache these limits?  Perhaps they only need to be recalculated if
+> a tasks mems_allowed changes?
+
+No they change dynamically. In particular writeout reduces the number of 
+dirty / unstable pages.
+
+> Separate question - what happens if a tasks mems_allowed changes while it is
+> dirtying pages?  We could easily end up with dirty pages on nodes that are
+> no longer allowed to the task.  Is there anyway that such a miscalculation
+> could cause us to do harmful things?
+
+The dirty_map on an inode is independent of a cpuset. The cpuset only 
+comes into effect when we decide to do writeout and are scanning for files 
+with pages on the nodes of interest.
+
+> In patch 2/8:
+> > The dirty map is cleared when the inode is cleared. There is no
+> > synchronization (except for atomic nature of node_set) for the dirty_map. The
+> > only problem that could be done is that we do not write out an inode if a
+> > node bit is not set.
 > 
-> And how are you going to access 'current' in softirq?
+> Does this mean that a dirty page could be left 'forever' in memory, unwritten,
+> exposing us to risk of data corruption on disk, from some write done weeks ago,
+> but unwritten, in the event of say a power loss?
+
+No it will age and be written out anyways. Note that there are usually 
+multiple dirty pages which reduces the chance of the race. These are node
+bits that help to decide when to start writeout of all dirty pages of an 
+inode regardless of where the other pages are.
+
+> Also in patch 2/8:
+> > +static inline void cpuset_update_dirty_nodes(struct inode *i,
+> > +		struct page *page) {}
 > 
-> netif_receive_skb() can also be called from a lot of other places
-> including keventd and/or different context - it is permitted to call it
-> everywhere to process packet.
+> Is an incomplete 'struct inode;' declaration needed here in cpuset.h,
+> to avoid a warning if compiling with CPUSETS not configured?
+
+Correct.
+
 > 
-> I meant that you break the rule accessing 'current' in that context.
-
-Yeah, I know, but as long as we're not actually in hard irq context
-current does point to the task_struct in charge of current execution and
-as long as we restore whatever was in the flags field before we started
-poking, nothing can go wrong.
-
-So, yes this is unconventional, but it does work as expected.
-
-As for breaking, 3/9 makes it legal.
-
-> > > > @@ -1798,6 +1811,8 @@ int netif_receive_skb(struct sk_buff *sk
-> > > >  		goto ncls;
-> > > >  	}
-> > > >  #endif
-> > > > +	if (unlikely(skb->emergency))
-> > > > +		goto skip_taps;
-> > > >  
-> > > >  	list_for_each_entry_rcu(ptype, &ptype_all, list) {
-> > > >  		if (!ptype->dev || ptype->dev == skb->dev) {
-> > > > @@ -1807,6 +1822,7 @@ int netif_receive_skb(struct sk_buff *sk
-> > > >  		}
-> > > >  	}
-> > > >  
-> > > > +skip_taps:
-> > > 
-> > > It is still a 'tap'.
-> > 
-> > Not sure what you are saying, I thought this should stop delivery of
-> > skbs to taps?
+> In patch 4/8:
+> > We now add per node information which I think is equal or less effort
+> > since there are less nodes than processors.
 > 
-> Ingres filter can do whatever it wants with skb at that point, likely
-> you want to skip that hunk too.
+> Not so on Paul Menage's fake NUMA nodes - he can have say 64 fake nodes on
+> a system with 2 or 4 CPUs and one real node.  But I guess that's ok ...
 
-Will look into Ingres filters, thanks for the pointer.
+True but then its fake.
 
-> > > Why don't you want to just setup PF_MEMALLOC for the socket and all
-> > > related processes?
-> > 
-> > I'm not understanding what you're saying here.
-> > 
-> > I want grant the processing of skb->emergency packets access to the
-> > memory reserves.
-> > 
-> > How would I set PF_MEMALLOC on a socket, its a process flag? And which
-> > related processes?
+> In patch 4/8:
+> > +#ifdef CONFIG_CPUSETS
+> > +	/*
+> > +	 * Calculate the limits relative to the current cpuset if necessary.
+> > +	 */
+> > +	if (unlikely(nodes &&
+> > +			!nodes_subset(node_online_map, *nodes))) {
+> > +		int node;
+> > +
+> > +		is_subset = 1;
+> > +		...
+> > +#ifdef CONFIG_HIGHMEM
+> > +			high_memory += NODE_DATA(node)
+> > +				->node_zones[ZONE_HIGHMEM]->present_pages;
+> > +#endif
+> > +			nr_mapped += node_page_state(node, NR_FILE_MAPPED) +
+> > +					node_page_state(node, NR_ANON_PAGES);
+> > +		}
+> > +	} else
+> > +#endif
+> > +	{
 > 
-> You use special flag for sockets to mark them as capable of
-> 'reserve-eating', too many flags are a bit confusing.
+> I'm wishing there was a clearer way to write the above code.  Nested
+> ifdef's and an ifdef block ending in an open 'else' and perhaps the first
+> #ifdef CONFIG_CPUSETS ever, outside of fs/proc/base.c ...
 
-Right, and I use PF_MEMALLOC to implement that reserve-eating. There
-must be a link between SOCK_VMIO and all allocations associated with
-that socket.
-
-> I meant that you can just mark process which created such socket as
-> PF_MEMALLOC, and clone that flag on forks and other relatest calls without 
-> all that checks for 'current' in different places.
-
-Ah, thats the wrong level to think here, these processes never reach
-user-space - nor should these sockets.
-
-Also, I only want the processing of the actual network packet to be able
-to eat the reserves, not any other thing that might happen in that
-context.
-
-And since network processing is mostly done in softirq context I must
-mark these sections like I did.
-
-> > > > +		/*
-> > > > +		   decrease window size..
-> > > > +		   tcp_enter_quickack_mode(sk);
-> > > > +		*/
-> > > 
-> > > How does this decrease window size?
-> > > Maybe ack scheduling would be better handled by inet_csk_schedule_ack()
-> > > or just directly send an ack, which in turn requires allocation, which
-> > > can be bound to this received frame processing...
-> > 
-> > It doesn't, I thought that it might be a good idea doing that, but never
-> > got around to actually figuring out how to do it.
-> 
-> tcp_send_ack()?
-> 
-
-does that shrink the window automagically?
+I have tried to replicate the structure for global dirty_limits 
+calculation which has the same ifdef.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
