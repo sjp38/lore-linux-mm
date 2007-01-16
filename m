@@ -1,26 +1,40 @@
-Date: Tue, 16 Jan 2007 11:14:22 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 0/29] Page Table Interface Explanation
-In-Reply-To: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
-Message-ID: <Pine.LNX.4.64.0701161112280.6637@schroedinger.engr.sgi.com>
-References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id l0GJqMrb023033
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2007 19:52:22 GMT
+Received: from ug-out-1314.google.com (ugfk3.prod.google.com [10.66.187.3])
+	by spaceape8.eur.corp.google.com with ESMTP id l0GJoaD2000310
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2007 19:52:17 GMT
+Received: by ug-out-1314.google.com with SMTP id k3so1734648ugf
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2007 11:52:17 -0800 (PST)
+Message-ID: <6599ad830701161152q75ff29cdo7306c9b8df5c351b@mail.gmail.com>
+Date: Tue, 16 Jan 2007 11:52:13 -0800
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [RFC 8/8] Reduce inode memory usage for systems with a high MAX_NUMNODES
+In-Reply-To: <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+	 <20070116054825.15358.65020.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Davies <pauld@gelato.unsw.edu.au>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-One important thing to note here is that the abstraction of the page table 
-goes way beyond the needs for other page table formats.
+On 1/15/07, Christoph Lameter <clameter@sgi.com> wrote:
+>
+> This solution may be a bit hokey. I tried other approaches but this
+> one seemed to be the simplest with the least complications. Maybe someone
+> else can come up with a better solution?
 
-Think about virtualization technologies such as VMware, Xen and KVM. If 
-those can implement an alternate page table update mechanism then we do 
-not need many of the hooks that are currently being proposed. There is the 
-potential that we can come up with forms of page tables that avoid the 
-current issues with shadow page tables.
+How about a 64-bit field in struct inode that's used as a bitmask if
+there are no more than 64 nodes, and a pointer to a bitmask if there
+are more than 64 nodes. The filesystems wouldn't need to be involved
+then, as the bitmap allocation could be done in the generic code.
 
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
