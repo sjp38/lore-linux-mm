@@ -1,321 +1,195 @@
-Message-Id: <20070116101815.261599000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070116101815.617343000@taijtu.programming.kicks-ass.net>
 References: <20070116094557.494892000@taijtu.programming.kicks-ass.net>
-Date: Tue, 16 Jan 2007 10:45:59 +0100
+Date: Tue, 16 Jan 2007 10:46:02 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 2/9] mm: slab allocation fairness
-Content-Disposition: inline; filename=slab-ranking.patch
+Subject: [PATCH 5/9] mm: emergency pool
+Content-Disposition: inline; filename=page_alloc-emerg.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
 Cc: David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-The slab allocator has some unfairness wrt gfp flags; when the slab cache is
-grown the gfp flags are used to allocate more memory, however when there is 
-slab cache available (in partial or free slabs, per cpu caches or otherwise)
-gfp flags are ignored.
+Provide means to reserve a specific amount pages.
 
-Thus it is possible for less critical slab allocations to succeed and gobble
-up precious memory when under memory pressure.
-
-This patch solves that by using the newly introduced page allocation rank.
-
-Page allocation rank is a scalar quantity connecting ALLOC_ and gfp flags which
-represents how deep we had to reach into our reserves when allocating a page. 
-Rank 0 is the deepest we can reach (ALLOC_NO_WATERMARK) and 16 is the most 
-shallow allocation possible (ALLOC_WMARK_HIGH).
-
-When the slab space is grown the rank of the page allocation is stored. For
-each slab allocation we test the given gfp flags against this rank. Thereby
-asking the question: would these flags have allowed the slab to grow.
-
-If not so, we need to test the current situation. This is done by forcing the
-growth of the slab space. (Just testing the free page limits will not work due
-to direct reclaim) Failing this we need to fail the slab allocation.
-
-Thus if we grew the slab under great duress while PF_MEMALLOC was set and we 
-really did access the memalloc reserve the rank would be set to 0. If the next
-allocation to that slab would be GFP_NOFS|__GFP_NOMEMALLOC (which ordinarily
-maps to rank 4 and always > 0) we'd want to make sure that memory pressure has
-decreased enough to allow an allocation with the given gfp flags.
-
-So in this case we try to force grow the slab cache and on failure we fail the
-slab allocation. Thus preserving the available slab cache for more pressing
-allocations.
-
-If this newly allocated slab will be trimmed on the next kmem_cache_free
-(not unlikely) this is no problem, since 1) it will free memory and 2) the
-sole purpose of the allocation was to probe the allocation rank, we didn't
-need the space itself.
-
-[AIM9 results go here]
+The emergency pool is separated from the min watermark because ALLOC_HARDER
+and ALLOC_HIGH modify the watermark in a relative way and thus do not ensure
+a strict minimum.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/slab.c |   61 ++++++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 38 insertions(+), 23 deletions(-)
+ include/linux/mmzone.h |    3 +-
+ mm/page_alloc.c        |   52 ++++++++++++++++++++++++++++++++++++++++---------
+ mm/vmstat.c            |    6 ++---
+ 3 files changed, 48 insertions(+), 13 deletions(-)
 
-Index: linux-2.6-git/mm/slab.c
+Index: linux-2.6-git/include/linux/mmzone.h
 ===================================================================
---- linux-2.6-git.orig/mm/slab.c	2007-01-08 11:53:13.000000000 +0100
-+++ linux-2.6-git/mm/slab.c	2007-01-09 11:30:00.000000000 +0100
-@@ -114,6 +114,7 @@
- #include	<asm/cacheflush.h>
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
-+#include	"internal.h"
- 
- /*
-  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_DEBUG_INITIAL,
-@@ -380,6 +381,7 @@ static void kmem_list3_init(struct kmem_
- 
- struct kmem_cache {
- /* 1) per-cpu data, touched during every alloc/free */
-+	int rank;
- 	struct array_cache *array[NR_CPUS];
- /* 2) Cache tunables. Protected by cache_chain_mutex */
- 	unsigned int batchcount;
-@@ -1021,21 +1023,21 @@ static inline int cache_free_alien(struc
- }
- 
- static inline void *alternate_node_alloc(struct kmem_cache *cachep,
--		gfp_t flags)
-+		gfp_t flags, int rank)
- {
- 	return NULL;
- }
- 
- static inline void *____cache_alloc_node(struct kmem_cache *cachep,
--		 gfp_t flags, int nodeid)
-+		 gfp_t flags, int nodeid, int rank)
- {
- 	return NULL;
- }
- 
- #else	/* CONFIG_NUMA */
- 
--static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
--static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
-+static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int, int);
-+static void *alternate_node_alloc(struct kmem_cache *, gfp_t, int);
- 
- static struct array_cache **alloc_alien_cache(int node, int limit)
- {
-@@ -1624,6 +1626,7 @@ static void *kmem_getpages(struct kmem_c
- 	if (!page)
- 		return NULL;
- 
-+	cachep->rank = page->index;
- 	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		add_zone_page_state(page_zone(page),
-@@ -2272,6 +2275,7 @@ kmem_cache_create (const char *name, siz
- 	}
- #endif
- #endif
-+	cachep->rank = MAX_ALLOC_RANK;
- 
+--- linux-2.6-git.orig/include/linux/mmzone.h	2007-01-15 09:58:44.000000000 +0100
++++ linux-2.6-git/include/linux/mmzone.h	2007-01-15 09:58:54.000000000 +0100
+@@ -156,7 +156,7 @@ enum zone_type {
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+ 	unsigned long		free_pages;
+-	unsigned long		pages_min, pages_low, pages_high;
++	unsigned long		pages_emerg, pages_min, pages_low, pages_high;
  	/*
- 	 * Determine if the slab management is 'on' or 'off' slab.
-@@ -2944,7 +2948,7 @@ bad:
- #define check_slabp(x,y) do { } while(0)
- #endif
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
+@@ -540,6 +540,7 @@ int sysctl_min_unmapped_ratio_sysctl_han
+ 			struct file *, void __user *, size_t *, loff_t *);
+ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
+ 			struct file *, void __user *, size_t *, loff_t *);
++void adjust_memalloc_reserve(int pages);
  
--static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
-+static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags, int rank)
- {
- 	int batchcount;
- 	struct kmem_list3 *l3;
-@@ -2956,6 +2960,8 @@ static void *cache_alloc_refill(struct k
- 	check_irq_off();
- 	ac = cpu_cache_get(cachep);
- retry:
-+	if (unlikely(rank > cachep->rank))
-+		goto force_grow;
- 	batchcount = ac->batchcount;
- 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
- 		/*
-@@ -3011,14 +3017,16 @@ must_grow:
- 	l3->free_objects -= ac->avail;
- alloc_done:
- 	spin_unlock(&l3->list_lock);
--
- 	if (unlikely(!ac->avail)) {
- 		int x;
-+force_grow:
- 		x = cache_grow(cachep, flags | GFP_THISNODE, node, NULL);
+ #include <linux/topology.h>
+ /* Returns the number of the current Node. */
+Index: linux-2.6-git/mm/page_alloc.c
+===================================================================
+--- linux-2.6-git.orig/mm/page_alloc.c	2007-01-15 09:58:51.000000000 +0100
++++ linux-2.6-git/mm/page_alloc.c	2007-01-15 09:58:54.000000000 +0100
+@@ -97,6 +97,7 @@ static char * const zone_names[MAX_NR_ZO
  
- 		/* cache_grow can reenable interrupts, then ac could change. */
- 		ac = cpu_cache_get(cachep);
--		if (!x && ac->avail == 0)	/* no objects in sight? abort */
-+
-+		/* no objects in sight? abort */
-+		if (!x && (ac->avail == 0 || rank > cachep->rank))
- 			return NULL;
+ static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
++int var_free_kbytes;
  
- 		if (!ac->avail)		/* objects refilled by interrupt? */
-@@ -3175,7 +3183,8 @@ static inline int should_failslab(struct
+ unsigned long __meminitdata nr_kernel_pages;
+ unsigned long __meminitdata nr_all_pages;
+@@ -991,7 +992,8 @@ int zone_watermark_ok(struct zone *z, in
+ 	if (alloc_flags & ALLOC_HARDER)
+ 		min -= min / 4;
  
- #endif /* CONFIG_FAILSLAB */
- 
--static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
-+static inline void *____cache_alloc(struct kmem_cache *cachep,
-+		gfp_t flags, int rank)
- {
- 	void *objp;
- 	struct array_cache *ac;
-@@ -3186,13 +3195,13 @@ static inline void *____cache_alloc(stru
- 		return NULL;
- 
- 	ac = cpu_cache_get(cachep);
--	if (likely(ac->avail)) {
-+	if (likely(ac->avail && rank <= cachep->rank)) {
- 		STATS_INC_ALLOCHIT(cachep);
- 		ac->touched = 1;
- 		objp = ac->entry[--ac->avail];
- 	} else {
- 		STATS_INC_ALLOCMISS(cachep);
--		objp = cache_alloc_refill(cachep, flags);
-+		objp = cache_alloc_refill(cachep, flags, rank);
+-	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
++	if (free_pages <= min + z->lowmem_reserve[classzone_idx] +
++			z->pages_emerg)
+ 		return 0;
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
+@@ -1344,8 +1346,8 @@ nofail_alloc:
+ nopage:
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+ 		printk(KERN_WARNING "%s: page allocation failure."
+-			" order:%d, mode:0x%x\n",
+-			p->comm, order, gfp_mask);
++			" order:%d, mode:0x%x, alloc_flags:0x%x, pflags:0x%lx\n",
++			p->comm, order, gfp_mask, alloc_flags, p->flags);
+ 		dump_stack();
+ 		show_mem();
  	}
- 	return objp;
- }
-@@ -3202,6 +3211,7 @@ static __always_inline void *__cache_all
- {
- 	unsigned long save_flags;
- 	void *objp = NULL;
-+	int rank = gfp_to_rank(flags);
+@@ -1590,9 +1592,9 @@ void show_free_areas(void)
+ 			"\n",
+ 			zone->name,
+ 			K(zone->free_pages),
+-			K(zone->pages_min),
+-			K(zone->pages_low),
+-			K(zone->pages_high),
++			K(zone->pages_emerg + zone->pages_min),
++			K(zone->pages_emerg + zone->pages_low),
++			K(zone->pages_emerg + zone->pages_high),
+ 			K(zone->nr_active),
+ 			K(zone->nr_inactive),
+ 			K(zone->present_pages),
+@@ -3025,7 +3027,7 @@ static void calculate_totalreserve_pages
+ 			}
  
- 	cache_alloc_debugcheck_before(cachep, flags);
+ 			/* we treat pages_high as reserved pages. */
+-			max += zone->pages_high;
++			max += zone->pages_high + zone->pages_emerg;
  
-@@ -3209,16 +3219,16 @@ static __always_inline void *__cache_all
- 
- 	if (unlikely(NUMA_BUILD &&
- 			current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
--		objp = alternate_node_alloc(cachep, flags);
-+		objp = alternate_node_alloc(cachep, flags, rank);
- 
- 	if (!objp)
--		objp = ____cache_alloc(cachep, flags);
-+		objp = ____cache_alloc(cachep, flags, rank);
- 	/*
- 	 * We may just have run out of memory on the local node.
- 	 * ____cache_alloc_node() knows how to locate memory on other nodes
- 	 */
-  	if (NUMA_BUILD && !objp)
-- 		objp = ____cache_alloc_node(cachep, flags, numa_node_id());
-+ 		objp = ____cache_alloc_node(cachep, flags, numa_node_id(), rank);
- 	local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
- 					    caller);
-@@ -3233,7 +3243,8 @@ static __always_inline void *__cache_all
-  * If we are in_interrupt, then process context, including cpusets and
-  * mempolicy, may not apply and should not be used for allocation policy.
+ 			if (max > zone->present_pages)
+ 				max = zone->present_pages;
+@@ -3082,7 +3084,8 @@ static void setup_per_zone_lowmem_reserv
   */
--static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
-+static void *alternate_node_alloc(struct kmem_cache *cachep,
-+		gfp_t flags, int rank)
+ static void __setup_per_zone_pages_min(void)
  {
- 	int nid_alloc, nid_here;
- 
-@@ -3245,7 +3256,7 @@ static void *alternate_node_alloc(struct
- 	else if (current->mempolicy)
- 		nid_alloc = slab_node(current->mempolicy);
- 	if (nid_alloc != nid_here)
--		return ____cache_alloc_node(cachep, flags, nid_alloc);
-+		return ____cache_alloc_node(cachep, flags, nid_alloc, rank);
- 	return NULL;
- }
- 
-@@ -3257,7 +3268,7 @@ static void *alternate_node_alloc(struct
-  * allocator to do its reclaim / fallback magic. We then insert the
-  * slab into the proper nodelist and then allocate from it.
-  */
--void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
-+void *fallback_alloc(struct kmem_cache *cache, gfp_t flags, int rank)
- {
- 	struct zonelist *zonelist = &NODE_DATA(slab_node(current->mempolicy))
- 					->node_zonelists[gfp_zone(flags)];
-@@ -3278,7 +3289,7 @@ retry:
- 			cache->nodelists[nid] &&
- 			cache->nodelists[nid]->free_objects)
- 				obj = ____cache_alloc_node(cache,
--					flags | GFP_THISNODE, nid);
-+					flags | GFP_THISNODE, nid, rank);
+-	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned pages_emerg = var_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+ 	struct zone *zone;
+ 	unsigned long flags;
+@@ -3094,11 +3097,13 @@ static void __setup_per_zone_pages_min(v
  	}
  
- 	if (!obj && !(flags & __GFP_NO_GROW)) {
-@@ -3301,7 +3312,7 @@ retry:
- 			nid = page_to_nid(virt_to_page(obj));
- 			if (cache_grow(cache, flags, nid, obj)) {
- 				obj = ____cache_alloc_node(cache,
--					flags | GFP_THISNODE, nid);
-+					flags | GFP_THISNODE, nid, rank);
- 				if (!obj)
- 					/*
- 					 * Another processor may allocate the
-@@ -3322,7 +3333,7 @@ retry:
-  * A interface to enable slab creation on nodeid
-  */
- static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
--				int nodeid)
-+				int nodeid, int rank)
- {
- 	struct list_head *entry;
- 	struct slab *slabp;
-@@ -3335,6 +3346,8 @@ static void *____cache_alloc_node(struct
+ 	for_each_zone(zone) {
+-		u64 tmp;
++		u64 tmp, tmp_emerg;
  
- retry:
- 	check_irq_off();
-+	if (unlikely(rank > cachep->rank))
-+		goto force_grow;
- 	spin_lock(&l3->list_lock);
- 	entry = l3->slabs_partial.next;
- 	if (entry == &l3->slabs_partial) {
-@@ -3370,13 +3383,14 @@ retry:
- 
- must_grow:
- 	spin_unlock(&l3->list_lock);
-+force_grow:
- 	x = cache_grow(cachep, flags | GFP_THISNODE, nodeid, NULL);
- 	if (x)
- 		goto retry;
- 
- 	if (!(flags & __GFP_THISNODE))
- 		/* Unable to grow the cache. Fall back to other nodes. */
--		return fallback_alloc(cachep, flags);
-+		return fallback_alloc(cachep, flags, rank);
- 
- 	return NULL;
- 
-@@ -3600,6 +3614,7 @@ __cache_alloc_node(struct kmem_cache *ca
- {
- 	unsigned long save_flags;
- 	void *ptr = NULL;
-+	int rank = gfp_to_rank(flags);
- 
- 	cache_alloc_debugcheck_before(cachep, flags);
- 	local_irq_save(save_flags);
-@@ -3615,16 +3630,16 @@ __cache_alloc_node(struct kmem_cache *ca
- 			 * to other nodes. It may fail while we still have
- 			 * objects on other nodes available.
+ 		spin_lock_irqsave(&zone->lru_lock, flags);
+ 		tmp = (u64)pages_min * zone->present_pages;
+ 		do_div(tmp, lowmem_pages);
++		tmp_emerg = (u64)pages_emerg * zone->present_pages;
++		do_div(tmp_emerg, lowmem_pages);
+ 		if (is_highmem(zone)) {
+ 			/*
+ 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+@@ -3117,12 +3122,14 @@ static void __setup_per_zone_pages_min(v
+ 			if (min_pages > 128)
+ 				min_pages = 128;
+ 			zone->pages_min = min_pages;
++			zone->pages_emerg = min_pages;
+ 		} else {
+ 			/*
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
  			 */
--			ptr = ____cache_alloc(cachep, flags);
-+			ptr = ____cache_alloc(cachep, flags, rank);
+ 			zone->pages_min = tmp;
++			zone->pages_emerg = tmp_emerg;
  		}
- 		if (!ptr) {
- 			/* ___cache_alloc_node can fall back to other nodes */
--			ptr = ____cache_alloc_node(cachep, flags, nodeid);
-+			ptr = ____cache_alloc_node(cachep, flags, nodeid, rank);
- 		}
- 	} else {
- 		/* Node not bootstrapped yet */
- 		if (!(flags & __GFP_THISNODE))
--			ptr = fallback_alloc(cachep, flags);
-+			ptr = fallback_alloc(cachep, flags, rank);
- 	}
  
- 	local_irq_restore(save_flags);
+ 		zone->pages_low   = zone->pages_min + (tmp >> 2);
+@@ -3143,6 +3150,33 @@ void setup_per_zone_pages_min(void)
+ 	spin_unlock_irqrestore(&min_free_lock, flags);
+ }
+ 
++/**
++ *	adjust_memalloc_reserve - adjust the memalloc reserve
++ *	@pages: number of pages to add
++ *
++ *	It adds a number of pages to the memalloc reserve; if
++ *	the number was positive it kicks kswapd into action to
++ *	satisfy the higher watermarks.
++ *
++ *	NOTE: there is only a single caller, hence no locking.
++ */
++void adjust_memalloc_reserve(int pages)
++{
++	var_free_kbytes += pages << (PAGE_SHIFT - 10);
++	BUG_ON(var_free_kbytes < 0);
++	setup_per_zone_pages_min();
++	if (pages > 0) {
++		struct zone *zone;
++		for_each_zone(zone)
++			wakeup_kswapd(zone, 0);
++	}
++	if (pages)
++		printk(KERN_DEBUG "Emergency reserve: %d\n",
++				var_free_kbytes);
++}
++
++EXPORT_SYMBOL_GPL(adjust_memalloc_reserve);
++
+ /*
+  * Initialise min_free_kbytes.
+  *
+Index: linux-2.6-git/mm/vmstat.c
+===================================================================
+--- linux-2.6-git.orig/mm/vmstat.c	2007-01-15 09:58:44.000000000 +0100
++++ linux-2.6-git/mm/vmstat.c	2007-01-15 09:58:54.000000000 +0100
+@@ -535,9 +535,9 @@ static int zoneinfo_show(struct seq_file
+ 			   "\n        spanned  %lu"
+ 			   "\n        present  %lu",
+ 			   zone->free_pages,
+-			   zone->pages_min,
+-			   zone->pages_low,
+-			   zone->pages_high,
++			   zone->pages_emerg + zone->pages_min,
++			   zone->pages_emerg + zone->pages_low,
++			   zone->pages_emerg + zone->pages_high,
+ 			   zone->nr_active,
+ 			   zone->nr_inactive,
+ 			   zone->pages_scanned,
 
 -- 
 
