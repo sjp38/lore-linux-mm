@@ -1,61 +1,73 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 5/8] Make writeout during reclaim cpuset aware
-Date: Wed, 17 Jan 2007 16:59:15 +1100
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <200701171528.16854.ak@suse.de> <20070116203622.7f1b4e87.pj@sgi.com>
-In-Reply-To: <20070116203622.7f1b4e87.pj@sgi.com>
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH] nfs: fix congestion control
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <1169001692.22935.84.camel@twins>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+	 <20070116135325.3441f62b.akpm@osdl.org>  <1168985323.5975.53.camel@lappy>
+	 <1168986466.6056.52.camel@lade.trondhjem.org>
+	 <1169001692.22935.84.camel@twins>
+Content-Type: text/plain
+Date: Wed, 17 Jan 2007 01:15:15 -0500
+Message-Id: <1169014515.6065.5.camel@lade.trondhjem.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <200701171659.16290.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: clameter@sgi.com, akpm@osdl.org, menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@sgi.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 17 January 2007 15:36, Paul Jackson wrote:
-> > With a per node dirty limit ...
->
-> What would this mean?
->
-> Lets say we have a simple machine with 4 nodes, cpusets disabled.
+On Wed, 2007-01-17 at 03:41 +0100, Peter Zijlstra wrote:
+> On Tue, 2007-01-16 at 17:27 -0500, Trond Myklebust wrote:
+> > On Tue, 2007-01-16 at 23:08 +0100, Peter Zijlstra wrote:
+> > > Subject: nfs: fix congestion control
+> > > 
+> > > The current NFS client congestion logic is severely broken, it marks the
+> > > backing device congested during each nfs_writepages() call and implements
+> > > its own waitqueue.
+> > > 
+> > > Replace this by a more regular congestion implementation that puts a cap
+> > > on the number of active writeback pages and uses the bdi congestion waitqueue.
+> > > 
+> > > NFSv[34] commit pages are allowed to go unchecked as long as we are under 
+> > > the dirty page limit and not in direct reclaim.
+> 
+> > 
+> > What on earth is the point of adding congestion control to COMMIT?
+> > Strongly NACKed.
+> 
+> They are dirty pages, how are we getting rid of them when we reached the
+> dirty limit?
 
-There can be always NUMA policy without cpusets for once.
+They are certainly _not_ dirty pages. They are pages that have been
+written to the server but are not yet guaranteed to have hit the disk
+(they were only written to the server's page cache). We don't care if
+they are paged in or swapped out on the local client.
 
-> Lets say all tasks are allowed to use all nodes, no set_mempolicy
-> either.
+\All the COMMIT does, is to ask the server to write the data from its
+page cache onto disk. Once that has been done, we can release the pages.
+If the commit fails, then we iterate through the whole writepage()
+process again. The commit itself does, however, not even look at the
+page data.
 
-Ok.
+> > Why 16MB of on-the-wire data? Why not 32, or 128, or ...
+> 
+> Andrew always promotes a fixed number for congestion control, I pulled
+> one from a dark place. I have no problem with a more dynamic solution.
+> 
+> > Solaris already allows you to send 2MB of write data in a single RPC
+> > request, and the RPC engine has for some time allowed you to tune the
+> > number of simultaneous RPC requests you have on the wire: Chuck has
+> > already shown that read/write performance is greatly improved by upping
+> > that value to 64 or more in the case of RPC over TCP. Why are we then
+> > suddenly telling people that they are limited to 8 simultaneous writes?
+> 
+> min(max RPC size * max concurrent RPC reqs, dirty threshold) then?
 
-> If a task happens to fill up 80% of one node with dirty pages, but
-> we have no dirty pages yet on other nodes, and we have a dirty ratio
-> of 40%, then do we throttle that task's writes?
+That would be far preferable. For instance, it allows those who have
+long latency fat pipes to actually use the bandwidth optimally when
+writing out the data.
 
-Yes we should actually. Every node should be able to supply
-memory (unless extreme circumstances like mlock) and that much dirty 
-memory on a node will make that hard.
-
-> I am surprised you are asking for this, Andi.  I would have thought
-> that on no-cpuset systems, the system wide throttling served your
-> needs fine.  
-
-No actually people are fairly unhappy when one node is filled with 
-file data and then they don't get local memory from it anymore.
-I get regular complaints about that for Opteron.
-
-Dirty limit wouldn't be a full solution, but a good step.
-
-> If not, then I can only guess that is because NUMA 
-> mempolicy constraints on allowed nodes are causing the same dirty page
-> problems as cpuset constrained systems -- is that your concern?
-
-That is another concern. I haven't checked recently, but it used
-to be fairly simple to put a system to its knees by oversubscribing
-a single node with a strict memory policy. Fixing that would be good.
-
--Andi
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
