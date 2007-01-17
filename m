@@ -1,56 +1,31 @@
-Subject: Re: [PATCH] nfs: fix congestion control
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1168986466.6056.52.camel@lade.trondhjem.org>
+Date: Tue, 16 Jan 2007 19:14:12 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 1/8] Convert higest_possible_node_id() into nr_node_ids
+In-Reply-To: <200701170905.17234.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0701161913180.4677@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070116135325.3441f62b.akpm@osdl.org>  <1168985323.5975.53.camel@lappy>
-	 <1168986466.6056.52.camel@lade.trondhjem.org>
-Content-Type: text/plain
-Date: Wed, 17 Jan 2007 03:41:32 +0100
-Message-Id: <1169001692.22935.84.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20070116054748.15358.31856.sendpatchset@schroedinger.engr.sgi.com>
+ <200701170905.17234.ak@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-01-16 at 17:27 -0500, Trond Myklebust wrote:
-> On Tue, 2007-01-16 at 23:08 +0100, Peter Zijlstra wrote:
-> > Subject: nfs: fix congestion control
-> > 
-> > The current NFS client congestion logic is severely broken, it marks the
-> > backing device congested during each nfs_writepages() call and implements
-> > its own waitqueue.
-> > 
-> > Replace this by a more regular congestion implementation that puts a cap
-> > on the number of active writeback pages and uses the bdi congestion waitqueue.
-> > 
-> > NFSv[34] commit pages are allowed to go unchecked as long as we are under 
-> > the dirty page limit and not in direct reclaim.
+On Wed, 17 Jan 2007, Andi Kleen wrote:
 
+> On Tuesday 16 January 2007 16:47, Christoph Lameter wrote:
 > 
-> What on earth is the point of adding congestion control to COMMIT?
-> Strongly NACKed.
+> > I think having the ability to determine the maximum amount of nodes in
+> > a system at runtime is useful but then we should name this entry
+> > correspondingly and also only calculate the value once on bootup.
+> 
+> Are you sure this is even possible in general on systems with node
+> hotplug? The firmware might not pass a maximum limit.
 
-They are dirty pages, how are we getting rid of them when we reached the
-dirty limit?
-
-> Why 16MB of on-the-wire data? Why not 32, or 128, or ...
-
-Andrew always promotes a fixed number for congestion control, I pulled
-one from a dark place. I have no problem with a more dynamic solution.
-
-> Solaris already allows you to send 2MB of write data in a single RPC
-> request, and the RPC engine has for some time allowed you to tune the
-> number of simultaneous RPC requests you have on the wire: Chuck has
-> already shown that read/write performance is greatly improved by upping
-> that value to 64 or more in the case of RPC over TCP. Why are we then
-> suddenly telling people that they are limited to 8 simultaneous writes?
-
-min(max RPC size * max concurrent RPC reqs, dirty threshold) then?
-
-
+In that case the node possible map must include all nodes right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
