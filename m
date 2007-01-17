@@ -1,124 +1,105 @@
-Date: Tue, 16 Jan 2007 17:07:34 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Tue, 16 Jan 2007 17:30:26 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [RFC 0/8] Cpuset aware writeback
-Message-Id: <20070116170734.947264f2.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
+In-Reply-To: <20070116170734.947264f2.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0701161709490.4455@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	<20070116135325.3441f62b.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
-	<20070116154054.e655f75c.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20070116135325.3441f62b.akpm@osdl.org> <Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
+ <20070116154054.e655f75c.akpm@osdl.org> <Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
+ <20070116170734.947264f2.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 16 Jan 2007 16:16:30 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-> On Tue, 16 Jan 2007, Andrew Morton wrote:
+On Tue, 16 Jan 2007, Andrew Morton wrote:
+
+> Nope.  You've completely omitted the little fact that we'll do writeback in
+> the offending zone off the LRU.  Slower, maybe.  But it should work and the
+> system should recover.  If it's not doing that (it isn't) then we should
+> fix it rather than avoiding it (by punting writeback over to pdflush).
+
+pdflush is not running *at* all nor is dirty throttling working. That is 
+correct behavior? We could do background writeback but we choose not to do 
+so? Instead we wait until we hit reclaim and then block (well it seems 
+that we do not block the blocking there also fails since we again check 
+global ratios)?
+
+> > The patchset does not allow processes to allocate from other nodes than 
+> > the current cpuset.
 > 
-> > It's a workaround for a still-unfixed NFS problem.
+> Yes it does.  It asks pdflush to perform writeback of the offending zone(s)
+> rather than (or as well as) doing it directly.  The only reason pdflush can
+> sucessfuly do that is because pdflush can allocate its requests from other
+> zones.
+
+Ok pdflush is able to do that. Still the application is not able to 
+extend its memory beyond the cpuset. What about writeback throttling? 
+There it all breaks down. The cpuset is effective and we are unable to 
+allocate any more memory. 
+
+The reason this works is because not all of memory is dirty. Thus reclaim 
+will be able to free up memory or there is enough memory free.
+
+> > AFAIK any filesyste/block device can go oom with the current broken 
+> > writeback it just does a few allocations. Its a matter of hitting the 
+> > sweet spots.
 > 
-> No its doing proper throttling. Without this patchset there will *no* 
-> writeback and throttling at all. F.e. lets say we have 20 nodes of 1G each
-> and a cpuset that only spans one node.
+> That shouldn't be possible, in theory.  Block IO is supposed to succeed if
+> *all memory in the machine is dirty*: the old
+> dirty-everything-with-MAP_SHARED-then-exit problem.  Lots of testing went
+> into that and it works.  It also failed on NFS although I thought that got
+> "fixed" a year or so ago.  Apparently not.
+
+Humm... Really?
+
+> > Nope. Why would a dirty zone pose a problem? The proble exist if you 
+> > cannot allocate more memory.
 > 
-> Then a process runniung in that cpuset can dirty all of memory and still 
-> continue running without writeback continuing. background dirty ratio
-> is at 10% and the dirty ratio at 40%. Neither of those boundaries can ever
-> be reached because the process will only ever be able to dirty memory on 
-> one node which is 5%. There will be no throttling, no background 
-> writeback, no blocking for dirty pages.
+> Well one example would be a GFP_KERNEL allocation on a highmem machine in
+> whcih all of ZONE_NORMAL is dirty.
+
+That is a restricted allocation which will lead to reclaim.
+
+> > If we have multiple zones then other zones may still provide memory to 
+> > continue (same as in UP).
 > 
-> At some point we run into reclaim (possibly we have ~99% of of the cpuset 
-> dirty) and then we trigger writeout. Okay so if the filesystem / block 
-> device is robust enough and does not require memory allocations then we 
-> likely will survive that and do slow writeback page by page from the LRU.
+> Not if all the eligible zones are all-dirty.
+
+They are all dirty if we do not throttle the dirty pages.
+
+> Right now, what we have is an NFS bug.  How about we fix it, then
+> reevaluate the situation?
+
+The "NFS bug" only exists when using a cpuset. If you run NFS without 
+cpusets then the throttling will kick in and everything is fine.
+
+> A good starting point would be to show us one of these oom-killer traces.
+
+No traces. Since the process is killed within a cpuset we only get 
+messages like:
+
+Nov 28 16:19:52 ic4 kernel: Out of Memory: Kill process 679783 (ncks) score 0 and children.
+Nov 28 16:19:52 ic4 kernel: No available memory in cpuset: Killed process 679783 (ncks).
+Nov 28 16:27:58 ic4 kernel: oom-killer: gfp_mask=0x200d2, order=0
+
+Probably need to rerun these with some patches.
+
+> > Lets say we have a cpuset with 4 nodes (thus 4 zones) and we are running 
+> > on the first node. Then we copy a large file to disk. Node local 
+> > allocation means that we allocate from the first node. After we reach 40% 
+> > of the node then we throttle? This is going to be a significant 
+> > performance degradation since we can no longer use the memory of other 
+> > nodes to buffer writeout.
 > 
-> writback is completely hosed for that situation. This patch restores 
-> expected behavior in a cpuset (which is a form of system partition that 
-> should mirror the system as a whole). At 10% dirty we should start 
-> background writeback and at 40% we should block. If that is done then even 
-> fragile combinations of filesystem/block devices will work as they do 
-> without cpusets.
+> That was what I was referring to.
 
-Nope.  You've completely omitted the little fact that we'll do writeback in
-the offending zone off the LRU.  Slower, maybe.  But it should work and the
-system should recover.  If it's not doing that (it isn't) then we should
-fix it rather than avoiding it (by punting writeback over to pdflush).
-
-Once that's fixed, if we determine that there are remaining and significant
-performance issues then we can take a look at that.
-
-> 
-> > > Yes we can fix these allocations by allowing processes to allocate from 
-> > > other nodes. But then the container function of cpusets is no longer 
-> > > there.
-> > But that's what your patch already does!
-> 
-> The patchset does not allow processes to allocate from other nodes than 
-> the current cpuset.
-
-Yes it does.  It asks pdflush to perform writeback of the offending zone(s)
-rather than (or as well as) doing it directly.  The only reason pdflush can
-sucessfuly do that is because pdflush can allocate its requests from other
-zones.
-
-> 
-> AFAIK any filesyste/block device can go oom with the current broken 
-> writeback it just does a few allocations. Its a matter of hitting the 
-> sweet spots.
-
-That shouldn't be possible, in theory.  Block IO is supposed to succeed if
-*all memory in the machine is dirty*: the old
-dirty-everything-with-MAP_SHARED-then-exit problem.  Lots of testing went
-into that and it works.  It also failed on NFS although I thought that got
-"fixed" a year or so ago.  Apparently not.
-
-> > But we also can get into trouble if a *zone* is all-dirty.  Any solution to
-> > the cpuset problem should solve that problem too, no?
-> 
-> Nope. Why would a dirty zone pose a problem? The proble exist if you 
-> cannot allocate more memory.
-
-Well one example would be a GFP_KERNEL allocation on a highmem machine in
-whcih all of ZONE_NORMAL is dirty.
-
-> If a cpuset contains a single node which is a 
-> single zone then this patchset will also address that issue.
-> 
-> If we have multiple zones then other zones may still provide memory to 
-> continue (same as in UP).
-
-Not if all the eligible zones are all-dirty.
-
-> > > Yes, but when we enter reclaim most of the pages of a zone may already be 
-> > > dirty/writeback so we fail.
-> > 
-> > No.  If the dirty limits become per-zone then no zone will ever have >40%
-> > dirty.
-> 
-> I am still confused as to why you would want per zone dirty limits?
-
-The need for that has yet to be demonstrated.  There _might_ be a problem,
-but we need test cases and analyses to demonstrate that need.
-
-Right now, what we have is an NFS bug.  How about we fix it, then
-reevaluate the situation?
-
-A good starting point would be to show us one of these oom-killer traces.
-
-> Lets say we have a cpuset with 4 nodes (thus 4 zones) and we are running 
-> on the first node. Then we copy a large file to disk. Node local 
-> allocation means that we allocate from the first node. After we reach 40% 
-> of the node then we throttle? This is going to be a significant 
-> performance degradation since we can no longer use the memory of other 
-> nodes to buffer writeout.
-
-That was what I was referring to.
+Note that this was describing the behavior you wanted not the way things 
+work. It is desired behavior not to use all the memory resources of the 
+cpuset and slow down the system?
 
 
 --
