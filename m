@@ -1,71 +1,56 @@
-Date: Tue, 16 Jan 2007 18:34:06 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-Message-Id: <20070116183406.ed777440.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701161709490.4455@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] nfs: fix congestion control
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1168986466.6056.52.camel@lade.trondhjem.org>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	<20070116135325.3441f62b.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
-	<20070116154054.e655f75c.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
-	<20070116170734.947264f2.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161709490.4455@schroedinger.engr.sgi.com>
+	 <20070116135325.3441f62b.akpm@osdl.org>  <1168985323.5975.53.camel@lappy>
+	 <1168986466.6056.52.camel@lade.trondhjem.org>
+Content-Type: text/plain
+Date: Wed, 17 Jan 2007 03:41:32 +0100
+Message-Id: <1169001692.22935.84.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 16 Jan 2007 17:30:26 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-> > Nope.  You've completely omitted the little fact that we'll do writeback in
-> > the offending zone off the LRU.  Slower, maybe.  But it should work and the
-> > system should recover.  If it's not doing that (it isn't) then we should
-> > fix it rather than avoiding it (by punting writeback over to pdflush).
+On Tue, 2007-01-16 at 17:27 -0500, Trond Myklebust wrote:
+> On Tue, 2007-01-16 at 23:08 +0100, Peter Zijlstra wrote:
+> > Subject: nfs: fix congestion control
+> > 
+> > The current NFS client congestion logic is severely broken, it marks the
+> > backing device congested during each nfs_writepages() call and implements
+> > its own waitqueue.
+> > 
+> > Replace this by a more regular congestion implementation that puts a cap
+> > on the number of active writeback pages and uses the bdi congestion waitqueue.
+> > 
+> > NFSv[34] commit pages are allowed to go unchecked as long as we are under 
+> > the dirty page limit and not in direct reclaim.
+
 > 
-> pdflush is not running *at* all nor is dirty throttling working. That is 
-> correct behavior? We could do background writeback but we choose not to do 
-> so? Instead we wait until we hit reclaim and then block (well it seems 
-> that we do not block the blocking there also fails since we again check 
-> global ratios)?
+> What on earth is the point of adding congestion control to COMMIT?
+> Strongly NACKed.
 
-I agree that it is a worthy objective to be able to constrain a cpuset's
-dirty memory levels.  But as a performance optimisation and NOT as a
-correctness fix.
+They are dirty pages, how are we getting rid of them when we reached the
+dirty limit?
 
-Consider: non-exclusive cpuset A consists of mems 0-15, non-exclusive
-cpuset B consists of mems 0-3.  A task running in cpuset A can freely dirty
-all of cpuset B's memory.  A task running in cpuset B gets oomkilled.
+> Why 16MB of on-the-wire data? Why not 32, or 128, or ...
 
-Consider: a 32-node machine has nodes 0-3 full of dirty memory.  I create a
-cpuset containing nodes 0-2 and start using it.  I get oomkilled.
+Andrew always promotes a fixed number for congestion control, I pulled
+one from a dark place. I have no problem with a more dynamic solution.
 
-There may be other scenarios.
+> Solaris already allows you to send 2MB of write data in a single RPC
+> request, and the RPC engine has for some time allowed you to tune the
+> number of simultaneous RPC requests you have on the wire: Chuck has
+> already shown that read/write performance is greatly improved by upping
+> that value to 64 or more in the case of RPC over TCP. Why are we then
+> suddenly telling people that they are limited to 8 simultaneous writes?
 
-
-IOW, we have a correctness problem, and we have a probable,
-not-yet-demonstrated-and-quantified performance problem.  Fixing the latter
-(in the proposed fashion) will *not* fix the former.
-
-So what I suggest we do is to fix the NFS bug, then move on to considering
-the performance problems.
+min(max RPC size * max concurrent RPC reqs, dirty threshold) then?
 
 
-
-On reflection, I agree that your proposed changes are sensible-looking for
-addressing the probable, not-yet-demonstrated-and-quantified performance
-problem.  The per-inode (should be per-address_space, maybe it is?) node
-map is unfortunate.  Need to think about that a bit more.  For a start, it
-should be dynamically allocated (from a new, purpose-created slab cache):
-most in-core inodes don't have any dirty pages and don't need this
-additional storage.
-
-Also, I worry about the worst-case performance of that linear search across
-the inodes.
-
-But this is unrelated to the NFS bug ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
