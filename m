@@ -1,32 +1,37 @@
-From: Andi Kleen <ak@suse.de>
+Date: Tue, 16 Jan 2007 20:20:56 -0800
+From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC 5/8] Make writeout during reclaim cpuset aware
-Date: Wed, 17 Jan 2007 09:07:14 +1100
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Message-Id: <20070116202056.075c4c03.pj@sgi.com>
+In-Reply-To: <200701170907.14670.ak@suse.de>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+	<20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
+	<200701170907.14670.ak@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200701170907.14670.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Andi Kleen <ak@suse.de>
+Cc: clameter@sgi.com, akpm@osdl.org, menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 16 January 2007 16:48, Christoph Lameter wrote:
-> Direct reclaim: cpuset aware writeout
->
-> During direct reclaim we traverse down a zonelist and are carefully
-> checking each zone if its a member of the active cpuset. But then we call
-> pdflush without enforcing the same restrictions. In a larger system this
-> may have the effect of a massive amount of pages being dirtied and then
-> either
+Andi wrote:
+> Is there a reason this can't be just done by node, ignoring the cpusets?
 
-Is there a reason this can't be just done by node, ignoring the cpusets? 
+This suggestion doesn't make a whole lot of sense to me.
 
--Andi
+We're looking to see if a task has dirtied most of the
+pages in the nodes it is allowed to use.  If it has, then
+we want to start pushing pages to the disk harder, and
+slowing down the tasks writes.
+
+What would it mean to do this per-node?  And why would
+that be better?
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.925.600.0401
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
