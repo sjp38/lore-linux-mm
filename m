@@ -1,106 +1,61 @@
-Date: Wed, 17 Jan 2007 07:54:26 +0300
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: [PATCH 9/9] net: vm deadlock avoidance core
-Message-ID: <20070117045426.GA20921@2ka.mipt.ru>
-References: <20070116094557.494892000@taijtu.programming.kicks-ass.net> <20070116101816.115266000@taijtu.programming.kicks-ass.net> <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins> <20070116153315.GB710@2ka.mipt.ru> <1168963695.22935.78.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC 5/8] Make writeout during reclaim cpuset aware
+Date: Wed, 17 Jan 2007 16:59:15 +1100
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <200701171528.16854.ak@suse.de> <20070116203622.7f1b4e87.pj@sgi.com>
+In-Reply-To: <20070116203622.7f1b4e87.pj@sgi.com>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <1168963695.22935.78.camel@twins>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200701171659.16290.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
+To: Paul Jackson <pj@sgi.com>
+Cc: clameter@sgi.com, akpm@osdl.org, menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 16, 2007 at 05:08:15PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> On Tue, 2007-01-16 at 18:33 +0300, Evgeniy Polyakov wrote:
-> > On Tue, Jan 16, 2007 at 02:47:54PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > > > > +	if (unlikely(skb->emergency))
-> > > > > +		current->flags |= PF_MEMALLOC;
-> > > > 
-> > > > Access to 'current' in netif_receive_skb()???
-> > > > Why do you want to work with, for example keventd?
-> > > 
-> > > Can this run in keventd?
-> > 
-> > Initial netchannel implementation by Kelly Daly (IBM) worked in keventd
-> > (or dedicated kernel thread, I do not recall).
-> > 
-> > > I thought this was softirq context and thus this would either run in a
-> > > borrowed context or in ksoftirqd. See patch 3/9.
-> > 
-> > And how are you going to access 'current' in softirq?
-> > 
-> > netif_receive_skb() can also be called from a lot of other places
-> > including keventd and/or different context - it is permitted to call it
-> > everywhere to process packet.
-> > 
-> > I meant that you break the rule accessing 'current' in that context.
-> 
-> Yeah, I know, but as long as we're not actually in hard irq context
-> current does point to the task_struct in charge of current execution and
-> as long as we restore whatever was in the flags field before we started
-> poking, nothing can go wrong.
-> 
-> So, yes this is unconventional, but it does work as expected.
-> 
-> As for breaking, 3/9 makes it legal.
+On Wednesday 17 January 2007 15:36, Paul Jackson wrote:
+> > With a per node dirty limit ...
+>
+> What would this mean?
+>
+> Lets say we have a simple machine with 4 nodes, cpusets disabled.
 
-You operate with 'current' in different contexts without any locks which
-looks racy and even is not allowed. What will be 'current' for
-netif_rx() case, which schedules softirq from hard irq context -
-ksoftirqd, why do you want to set its flags?
+There can be always NUMA policy without cpusets for once.
 
-> > I meant that you can just mark process which created such socket as
-> > PF_MEMALLOC, and clone that flag on forks and other relatest calls without 
-> > all that checks for 'current' in different places.
-> 
-> Ah, thats the wrong level to think here, these processes never reach
-> user-space - nor should these sockets.
+> Lets say all tasks are allowed to use all nodes, no set_mempolicy
+> either.
 
-You limit this just to send an ack?
-What about 'level-7' ack as you described in introduction?
+Ok.
 
-> Also, I only want the processing of the actual network packet to be able
-> to eat the reserves, not any other thing that might happen in that
-> context.
-> 
-> And since network processing is mostly done in softirq context I must
-> mark these sections like I did.
+> If a task happens to fill up 80% of one node with dirty pages, but
+> we have no dirty pages yet on other nodes, and we have a dirty ratio
+> of 40%, then do we throttle that task's writes?
 
-You artificially limit system to just add a reserve to generate one ack.
-For that purpose you do not need to have all those flags - just reseve
-some data in network core and use it when system is in OOM (or reclaim)
-for critical data pathes.
+Yes we should actually. Every node should be able to supply
+memory (unless extreme circumstances like mlock) and that much dirty 
+memory on a node will make that hard.
 
-> > > > > +		/*
-> > > > > +		   decrease window size..
-> > > > > +		   tcp_enter_quickack_mode(sk);
-> > > > > +		*/
-> > > > 
-> > > > How does this decrease window size?
-> > > > Maybe ack scheduling would be better handled by inet_csk_schedule_ack()
-> > > > or just directly send an ack, which in turn requires allocation, which
-> > > > can be bound to this received frame processing...
-> > > 
-> > > It doesn't, I thought that it might be a good idea doing that, but never
-> > > got around to actually figuring out how to do it.
-> > 
-> > tcp_send_ack()?
-> > 
-> 
-> does that shrink the window automagically?
+> I am surprised you are asking for this, Andi.  I would have thought
+> that on no-cpuset systems, the system wide throttling served your
+> needs fine.  
 
-Yes, it updates window, but having ack generated in that place is
-actually very wrong. In that place system has not processed incoming
-packet yet, so it can not generate correct ACK for received frame at
-all. And it seems that the only purpose of the whole patchset is to
-generate that poor ack - reseve 2007 ack packets (MAX_TCP_HEADER) 
-in system startup and reuse them when you are under memory pressure.
+No actually people are fairly unhappy when one node is filled with 
+file data and then they don't get local memory from it anymore.
+I get regular complaints about that for Opteron.
 
--- 
-	Evgeniy Polyakov
+Dirty limit wouldn't be a full solution, but a good step.
+
+> If not, then I can only guess that is because NUMA 
+> mempolicy constraints on allowed nodes are causing the same dirty page
+> problems as cpuset constrained systems -- is that your concern?
+
+That is another concern. I haven't checked recently, but it used
+to be fairly simple to put a system to its knees by oversubscribing
+a single node with a strict memory policy. Fixing that would be good.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
