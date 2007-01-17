@@ -1,11 +1,11 @@
-Date: Tue, 16 Jan 2007 20:23:04 -0800 (PST)
+Date: Tue, 16 Jan 2007 20:23:23 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 5/8] Make writeout during reclaim cpuset aware
-In-Reply-To: <200701170907.14670.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0701162021320.4849@schroedinger.engr.sgi.com>
+Subject: Re: [RFC 1/8] Convert higest_possible_node_id() into nr_node_ids
+In-Reply-To: <200701171515.20380.ak@suse.de>
+Message-ID: <Pine.LNX.4.64.0701162023140.4849@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <20070116054809.15358.22246.sendpatchset@schroedinger.engr.sgi.com>
- <200701170907.14670.ak@suse.de>
+ <200701170905.17234.ak@suse.de> <Pine.LNX.4.64.0701161913180.4677@schroedinger.engr.sgi.com>
+ <200701171515.20380.ak@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,19 +16,14 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 17 Jan 2007, Andi Kleen wrote:
 
-> On Tuesday 16 January 2007 16:48, Christoph Lameter wrote:
-> > Direct reclaim: cpuset aware writeout
+> > > Are you sure this is even possible in general on systems with node
+> > > hotplug? The firmware might not pass a maximum limit.
 > >
-> > During direct reclaim we traverse down a zonelist and are carefully
-> > checking each zone if its a member of the active cpuset. But then we call
-> > pdflush without enforcing the same restrictions. In a larger system this
-> > may have the effect of a massive amount of pages being dirtied and then
-> > either
+> > In that case the node possible map must include all nodes right?
 > 
-> Is there a reason this can't be just done by node, ignoring the cpusets? 
+> Yes.
 
-We want to writeout dirty pages that help our situation. Those are located 
-on the nodes of the cpuset.
+Then we are fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
