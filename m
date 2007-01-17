@@ -1,87 +1,124 @@
-Subject: Re: [PATCH] nfs: fix congestion control
+Subject: Re: [PATCH 9/9] net: vm deadlock avoidance core
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1169014515.6065.5.camel@lade.trondhjem.org>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070116135325.3441f62b.akpm@osdl.org>  <1168985323.5975.53.camel@lappy>
-	 <1168986466.6056.52.camel@lade.trondhjem.org>
-	 <1169001692.22935.84.camel@twins>
-	 <1169014515.6065.5.camel@lade.trondhjem.org>
+In-Reply-To: <20070117045426.GA20921@2ka.mipt.ru>
+References: <20070116094557.494892000@taijtu.programming.kicks-ass.net>
+	 <20070116101816.115266000@taijtu.programming.kicks-ass.net>
+	 <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins>
+	 <20070116153315.GB710@2ka.mipt.ru> <1168963695.22935.78.camel@twins>
+	 <20070117045426.GA20921@2ka.mipt.ru>
 Content-Type: text/plain
-Date: Wed, 17 Jan 2007 09:49:58 +0100
-Message-Id: <1169023798.22935.96.camel@twins>
+Date: Wed, 17 Jan 2007 10:07:28 +0100
+Message-Id: <1169024848.22935.109.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-01-17 at 01:15 -0500, Trond Myklebust wrote:
-> On Wed, 2007-01-17 at 03:41 +0100, Peter Zijlstra wrote:
-> > On Tue, 2007-01-16 at 17:27 -0500, Trond Myklebust wrote:
-> > > On Tue, 2007-01-16 at 23:08 +0100, Peter Zijlstra wrote:
-> > > > Subject: nfs: fix congestion control
+On Wed, 2007-01-17 at 07:54 +0300, Evgeniy Polyakov wrote:
+> On Tue, Jan 16, 2007 at 05:08:15PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
+> > On Tue, 2007-01-16 at 18:33 +0300, Evgeniy Polyakov wrote:
+> > > On Tue, Jan 16, 2007 at 02:47:54PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
+> > > > > > +	if (unlikely(skb->emergency))
+> > > > > > +		current->flags |= PF_MEMALLOC;
+> > > > > 
+> > > > > Access to 'current' in netif_receive_skb()???
+> > > > > Why do you want to work with, for example keventd?
 > > > > 
-> > > > The current NFS client congestion logic is severely broken, it marks the
-> > > > backing device congested during each nfs_writepages() call and implements
-> > > > its own waitqueue.
-> > > > 
-> > > > Replace this by a more regular congestion implementation that puts a cap
-> > > > on the number of active writeback pages and uses the bdi congestion waitqueue.
-> > > > 
-> > > > NFSv[34] commit pages are allowed to go unchecked as long as we are under 
-> > > > the dirty page limit and not in direct reclaim.
-> > 
+> > > > Can this run in keventd?
 > > > 
-> > > What on earth is the point of adding congestion control to COMMIT?
-> > > Strongly NACKed.
+> > > Initial netchannel implementation by Kelly Daly (IBM) worked in keventd
+> > > (or dedicated kernel thread, I do not recall).
+> > > 
+> > > > I thought this was softirq context and thus this would either run in a
+> > > > borrowed context or in ksoftirqd. See patch 3/9.
+> > > 
+> > > And how are you going to access 'current' in softirq?
+> > > 
+> > > netif_receive_skb() can also be called from a lot of other places
+> > > including keventd and/or different context - it is permitted to call it
+> > > everywhere to process packet.
+> > > 
+> > > I meant that you break the rule accessing 'current' in that context.
 > > 
-> > They are dirty pages, how are we getting rid of them when we reached the
-> > dirty limit?
+> > Yeah, I know, but as long as we're not actually in hard irq context
+> > current does point to the task_struct in charge of current execution and
+> > as long as we restore whatever was in the flags field before we started
+> > poking, nothing can go wrong.
+> > 
+> > So, yes this is unconventional, but it does work as expected.
+> > 
+> > As for breaking, 3/9 makes it legal.
 > 
-> They are certainly _not_ dirty pages. They are pages that have been
-> written to the server but are not yet guaranteed to have hit the disk
-> (they were only written to the server's page cache). We don't care if
-> they are paged in or swapped out on the local client.
+> You operate with 'current' in different contexts without any locks which
+> looks racy and even is not allowed. What will be 'current' for
+> netif_rx() case, which schedules softirq from hard irq context -
+> ksoftirqd, why do you want to set its flags?
+
+I don't touch current in hardirq context, do I (if I did, that is indeed
+a mistake)?
+
+In all other contexts, current is valid.
+
+> > > I meant that you can just mark process which created such socket as
+> > > PF_MEMALLOC, and clone that flag on forks and other relatest calls without 
+> > > all that checks for 'current' in different places.
+> > 
+> > Ah, thats the wrong level to think here, these processes never reach
+> > user-space - nor should these sockets.
 > 
-> \All the COMMIT does, is to ask the server to write the data from its
-> page cache onto disk. Once that has been done, we can release the pages.
-> If the commit fails, then we iterate through the whole writepage()
-> process again. The commit itself does, however, not even look at the
-> page data.
+> You limit this just to send an ack?
+> What about 'level-7' ack as you described in introduction?
 
-Thou art correct from an NFS point of view, however for the VM they are
-(still) just dirty pages and we need shed them.
+Take NFS, it does full data traffic in kernel.
 
-You talk of swapping them out, they are filecache pages not swapcache
-pages. The writepage() process needs to complete and that entails
-committing them.
-
-> > > Why 16MB of on-the-wire data? Why not 32, or 128, or ...
+> > Also, I only want the processing of the actual network packet to be able
+> > to eat the reserves, not any other thing that might happen in that
+> > context.
 > > 
-> > Andrew always promotes a fixed number for congestion control, I pulled
-> > one from a dark place. I have no problem with a more dynamic solution.
-> > 
-> > > Solaris already allows you to send 2MB of write data in a single RPC
-> > > request, and the RPC engine has for some time allowed you to tune the
-> > > number of simultaneous RPC requests you have on the wire: Chuck has
-> > > already shown that read/write performance is greatly improved by upping
-> > > that value to 64 or more in the case of RPC over TCP. Why are we then
-> > > suddenly telling people that they are limited to 8 simultaneous writes?
-> > 
-> > min(max RPC size * max concurrent RPC reqs, dirty threshold) then?
+> > And since network processing is mostly done in softirq context I must
+> > mark these sections like I did.
 > 
-> That would be far preferable. For instance, it allows those who have
-> long latency fat pipes to actually use the bandwidth optimally when
-> writing out the data.
+> You artificially limit system to just add a reserve to generate one ack.
+> For that purpose you do not need to have all those flags - just reseve
+> some data in network core and use it when system is in OOM (or reclaim)
+> for critical data pathes.
 
-I will make it so then ;-)
+How would that end up being different, I would have to replace all
+allocations done in the full network processing path.
 
-I found max concurrent RPCs to be xprt_{tcp,udp}_slot_table_entries(?),
-where might I find the max RPC size? 
+This seems a much less invasive method, all the (allocation) code can
+stay the way it is and use the normal allocation functions.
 
-(Any pointer to just RTFM are equally well received)
+> > > > > > +		/*
+> > > > > > +		   decrease window size..
+> > > > > > +		   tcp_enter_quickack_mode(sk);
+> > > > > > +		*/
+> > > > > 
+> > > > > How does this decrease window size?
+> > > > > Maybe ack scheduling would be better handled by inet_csk_schedule_ack()
+> > > > > or just directly send an ack, which in turn requires allocation, which
+> > > > > can be bound to this received frame processing...
+> > > > 
+> > > > It doesn't, I thought that it might be a good idea doing that, but never
+> > > > got around to actually figuring out how to do it.
+> > > 
+> > > tcp_send_ack()?
+> > > 
+> > 
+> > does that shrink the window automagically?
+> 
+> Yes, it updates window, but having ack generated in that place is
+> actually very wrong. In that place system has not processed incoming
+> packet yet, so it can not generate correct ACK for received frame at
+> all. And it seems that the only purpose of the whole patchset is to
+> generate that poor ack - reseve 2007 ack packets (MAX_TCP_HEADER) 
+> in system startup and reuse them when you are under memory pressure.
+
+Right, I suspected something like that; hence I wanted to just shrink
+the window. Anyway, this is not a very important issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
