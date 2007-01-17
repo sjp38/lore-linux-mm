@@ -1,70 +1,28 @@
-Date: Wed, 17 Jan 2007 14:10:46 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-Message-Id: <20070117141046.cd19c9e8.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701171140580.7397@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	<20070116135325.3441f62b.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
-	<20070116154054.e655f75c.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
-	<20070116170734.947264f2.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161709490.4455@schroedinger.engr.sgi.com>
-	<20070116183406.ed777440.akpm@osdl.org>
-	<Pine.LNX.4.64.0701161920480.4677@schroedinger.engr.sgi.com>
-	<20070116200506.d19eacf5.akpm@osdl.org>
-	<Pine.LNX.4.64.0701162219180.5215@schroedinger.engr.sgi.com>
-	<20070116230034.b8cb4263.akpm@osdl.org>
-	<Pine.LNX.4.64.0701171140580.7397@schroedinger.engr.sgi.com>
+Date: Wed, 17 Jan 2007 23:15:54 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] nfs: fix congestion control
+Message-ID: <20070117231554.GC9387@infradead.org>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1168985323.5975.53.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Trond Myklebust <trond.myklebust@fys.uio.no>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 17 Jan 2007 11:43:42 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-> On Tue, 16 Jan 2007, Andrew Morton wrote:
-> 
-> > Do what blockdevs do: limit the number of in-flight requests (Peter's
-> > recent patch seems to be doing that for us) (perhaps only when PF_MEMALLOC
-> > is in effect, to keep Trond happy) and implement a mempool for the NFS
-> > request critical store.  Additionally:
-> > 
-> > - we might need to twiddle the NFS gfp_flags so it doesn't call the
-> >   oom-killer on failure: just return NULL.
-> > 
-> > - consider going off-cpuset for critical allocations.  It's better than
-> >   going oom.  A suitable implementation might be to ignore the caller's
-> >   cpuset if PF_MEMALLOC.  Maybe put a WARN_ON_ONCE in there: we prefer that
-> >   it not happen and we want to know when it does.
-> 
-> Given the intermediate  layers (network, additional gizmos (ip over xxx) 
-> and the network cards) that will not be easy.
+> --- linux-2.6-git.orig/fs/inode.c	2007-01-12 08:03:47.000000000 +0100
+> +++ linux-2.6-git/fs/inode.c	2007-01-12 08:53:26.000000000 +0100
+> @@ -81,6 +81,7 @@ static struct hlist_head *inode_hashtabl
+>   * the i_state of an inode while it is in use..
+>   */
+>  DEFINE_SPINLOCK(inode_lock);
+> +EXPORT_SYMBOL_GPL(inode_lock);
 
-Paul has observed that it's already done.  But it seems to not be working.
-
-> > btw, regarding the per-address_space node mask: I think we should free it
-> > when the inode is clean (!mapping_tagged(PAGECACHE_TAG_DIRTY)).  Chances
-> > are, the inode will be dirty for 30 seconds and in-core for hours.  We
-> > might as well steal its nodemask storage and give it to the next file which
-> > gets written to.  A suitable place to do all this is in
-> > __mark_inode_dirty(I_DIRTY_PAGES), using inode_lock to protect
-> > address_space.dirty_page_nodemask.
-> 
-> The inode lock is not taken when the page is dirtied.
-
-The inode_lock is taken when the address_space's first page is dirtied.  It is
-also taken when the address_space's last dirty page is cleaned.  So the place
-where the inode is added to and removed from sb->s_dirty is, I think, exactly
-the place where we want to attach and detach address_space.dirty_page_nodemask.
-
-> The tree_lock
-> is already taken when the mapping is dirtied and so I used that to
-> avoid races adding and removing pointers to nodemasks from the address 
-> space.
+Btw, big "no fucking way" here.  There is no chance we're going to export
+this, even _GPL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
