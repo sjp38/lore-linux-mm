@@ -1,11 +1,10 @@
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Thu, 18 Jan 2007 17:43:13 +1100 (EST)
-Subject: Re: [PATCH 5/29] Start calling simple PTI functions
-In-Reply-To: <Pine.LNX.4.64.0701161103140.6637@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0701181729530.12779@weill.orchestra.cse.unsw.EDU.AU>
+Date: Thu, 18 Jan 2007 17:53:04 +1100 (EST)
+Subject: Re: [PATCH 0/29] Page Table Interface Explanation
+In-Reply-To: <Pine.LNX.4.64.0701161050330.30540@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0701181745480.12779@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <20070113024606.29682.18276.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <Pine.LNX.4.64.0701161103140.6637@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0701161050330.30540@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -18,21 +17,15 @@ On Tue, 16 Jan 2007, Christoph Lameter wrote:
 
 > On Sat, 13 Jan 2007, Paul Davies wrote:
 >
->> @@ -308,6 +309,7 @@
->>  } while (0)
->>
->>  struct mm_struct {
->> +	pt_t page_table;					/* Page table */
->>  	struct vm_area_struct * mmap;		/* list of VMAs */
+>> INSTRUCTIONS,BENCHMARKS and further information at the site below:
 >
-> Why are you changing the location of the page table pointer in mm struct?
-This was part of an ugly and temporary hack to get our alternative page
-table (a guarded page table) going.  I wrote an ugly hack to get the GPT
-lookup happening on my machine, then passed it on to a PhD student
-to deal with it (it still requires further work).  The lookup was
-dependent upon the position in the struct.
-
-It will be moved back next time I push the patches out.
+> The benchmarks seem to be a mixed bag. Mostly up to the same speed, some
+> minor improvements in some operations some minor regressions in others. If
+> we cannot find any major regressions on other platforms then I would
+> think that the patchset is acceptable on that ground.
+I will expand the PTI testing to other archictectures after LCA.  The
+results will be placed on our wiki and I will notify linux-mm when I have
+gathered some more interesting results.
 
 Cheers
 
