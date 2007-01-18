@@ -1,10 +1,11 @@
 From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
-Date: Thu, 18 Jan 2007 17:22:12 +1100 (EST)
-Subject: Re: [PATCH 0/29] Page Table Interface Explanation
-In-Reply-To: <Pine.LNX.4.64.0701161048450.30540@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0701181701320.12779@weill.orchestra.cse.unsw.EDU.AU>
+Date: Thu, 18 Jan 2007 17:43:13 +1100 (EST)
+Subject: Re: [PATCH 5/29] Start calling simple PTI functions
+In-Reply-To: <Pine.LNX.4.64.0701161103140.6637@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0701181729530.12779@weill.orchestra.cse.unsw.EDU.AU>
 References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
- <Pine.LNX.4.64.0701161048450.30540@schroedinger.engr.sgi.com>
+ <20070113024606.29682.18276.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+ <Pine.LNX.4.64.0701161103140.6637@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -15,21 +16,23 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 16 Jan 2007, Christoph Lameter wrote:
 
-> I am glad to see that this endeavor is still going forward.
-I will be working hard to make this happen over the coming period
-of time.  I will take your feedback, talk to my colleagues, and
-come up with a new version after LCA.
-
->> 		unsigned long new_addr, unsigned long len);
+> On Sat, 13 Jan 2007, Paul Davies wrote:
 >
-> Why do we need so many individual specialized iterators? Isnt there some
-> way to have a common iterator function?
-Yes - and this is the intention.  However, I thought that it might
-be easier to get the page table interface into the kernel by doing
-it in stages.
+>> @@ -308,6 +309,7 @@
+>>  } while (0)
+>>
+>>  struct mm_struct {
+>> +	pt_t page_table;					/* Page table */
+>>  	struct vm_area_struct * mmap;		/* list of VMAs */
+>
+> Why are you changing the location of the page table pointer in mm struct?
+This was part of an ugly and temporary hack to get our alternative page
+table (a guarded page table) going.  I wrote an ugly hack to get the GPT
+lookup happening on my machine, then passed it on to a PhD student
+to deal with it (it still requires further work).  The lookup was
+dependent upon the position in the struct.
 
-I was worried a common iterator function represented too much change
-too quickly.
+It will be moved back next time I push the patches out.
 
 Cheers
 
