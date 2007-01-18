@@ -1,156 +1,169 @@
-Date: Thu, 18 Jan 2007 16:58:40 +0300
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Possible ways of dealing with OOM conditions.
-Message-ID: <20070118135839.GA7075@2ka.mipt.ru>
-References: <20070116094557.494892000@taijtu.programming.kicks-ass.net> <20070116101816.115266000@taijtu.programming.kicks-ass.net> <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins> <20070116153315.GB710@2ka.mipt.ru> <1168963695.22935.78.camel@twins> <20070117045426.GA20921@2ka.mipt.ru> <1169024848.22935.109.camel@twins> <20070118104144.GA20925@2ka.mipt.ru> <1169122724.6197.50.camel@twins>
+Subject: Re: Possible ways of dealing with OOM conditions.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070118135839.GA7075@2ka.mipt.ru>
+References: <20070116094557.494892000@taijtu.programming.kicks-ass.net>
+	 <20070116101816.115266000@taijtu.programming.kicks-ass.net>
+	 <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins>
+	 <20070116153315.GB710@2ka.mipt.ru> <1168963695.22935.78.camel@twins>
+	 <20070117045426.GA20921@2ka.mipt.ru> <1169024848.22935.109.camel@twins>
+	 <20070118104144.GA20925@2ka.mipt.ru> <1169122724.6197.50.camel@twins>
+	 <20070118135839.GA7075@2ka.mipt.ru>
+Content-Type: text/plain
+Date: Thu, 18 Jan 2007 16:10:52 +0100
+Message-Id: <1169133052.6197.96.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <1169122724.6197.50.camel@twins>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 18, 2007 at 01:18:44PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > > How would that end up being different, I would have to replace all
-> > > allocations done in the full network processing path.
-> > > 
-> > > This seems a much less invasive method, all the (allocation) code can
-> > > stay the way it is and use the normal allocation functions.
-> 
-> > And acutally we are starting to talk about different approach - having
-> > separated allocator for network, which will be turned on on OOM (reclaim
-> > or at any other time).
-> 
-> I think we might be, I'm more talking about requirements on the
-> allocator, while you seem to talk about implementations.
-> 
-> Replacing the allocator, or splitting it in two based on a condition are
-> all fine as long as they observe the requirements.
-> 
-> The requirement I add is that there is a reserve nobody touches unless
-> given express permission.
-> 
-> You could implement this by modifying each reachable allocator call site
-> and stick a branch in and use an alternate allocator when the normal
-> route fails and we do have permission; much like:
-> 
->    foo = kmalloc(size, gfp_mask);
-> +  if (!foo && special)
-> +    foo = my_alloc(size)
+On Thu, 2007-01-18 at 16:58 +0300, Evgeniy Polyakov wrote:
 
-Network is special in this regard, since it only has one allocation path
-(actually it has one cache for skb, and usual kmalloc, but they are
-called from only two functions).
-
-So it would become 
-ptr = network_alloc();
-and network_alloc() would be usual kmalloc or call for own allocator in
-case of deadlock.
-
-> And earlier versions of this work did something like that. But it
-> litters the code quite badly and its quite easy to miss spots. There can
-> be quite a few allocations in processing network data.
+> Network is special in this regard, since it only has one allocation path
+> (actually it has one cache for skb, and usual kmalloc, but they are
+> called from only two functions).
 > 
-> Hence my work on integrating this into the regular memory allocators.
-> 
-> FYI; 'special' evaluates to something like:
->   !(gfp_mask & __GFP_NOMEMALLOC) &&
->   ((gfp_mask & __GFP_EMERGENCY) || 
->    (!in_irq() && (current->flags & PF_MEMALLOC)))
-> 
-> 
-> >  If you do not mind, I would likw to refresh a
-> > discussion about network tree allocator,
-> 
-> >  which utilizes own pool of
-> > pages, 
-> 
-> very high order pages, no?
->
-> This means that you have to either allocate at boot time and cannot
-> resize/add pools; which means you waste all that memory if the network
-> load never comes near using the reserved amount.
-> 
-> Or, you get into all the same trouble the hugepages folks are trying so
-> very hard to solve.
+> So it would become 
+> ptr = network_alloc();
+> and network_alloc() would be usual kmalloc or call for own allocator in
+> case of deadlock.
 
-It is configurable - by default it takes pool of 32k pages for allocations for
-jumbo-frames (e1000 requires such allocations for 9k frames
-unfortunately), without jumbo-frame support it works with pool of 0-order
-pages, which grows dynamically when needed.
+There is more to networking that skbs only, what about route cache,
+there is quite a lot of allocs in this fib_* stuff, IGMP etc...
 
-> > performs self-defragmentation of the memeory, 
+> > very high order pages, no?
+> >
+> > This means that you have to either allocate at boot time and cannot
+> > resize/add pools; which means you waste all that memory if the network
+> > load never comes near using the reserved amount.
+> > 
+> > Or, you get into all the same trouble the hugepages folks are trying so
+> > very hard to solve.
 > 
-> Does it move memory about? 
+> It is configurable - by default it takes pool of 32k pages for allocations for
+> jumbo-frames (e1000 requires such allocations for 9k frames
+> unfortunately), without jumbo-frame support it works with pool of 0-order
+> pages, which grows dynamically when needed.
 
-It works in a page, not as pages - when neighbour regions are freed,
-they are combined into single one with bigger size - it would be
-extended to move pages around to combied them into bigger one though
-too, but network stack requires high-order allocations in extremely rare
-cases of broken design (Intel folks, sorry, but your hardware sucks in
-that regard - jumbo frame of 9k should not require 16k of mem plu
-network overhead).
+With 0-order pages, you can only fit 2 1500 byte packets in there, you
+could perhaps stick some small skb heads in there as well, but why
+bother, the waste isn't _that_ high.
 
-NTA also does not align buffers to the power of two - extremely significant 
-win of that approach can be found on project's homepage with graps of
-failed allocations and state of the mem for different sizes of
-allocaions. Power-of-two overhead of SLAB is extremely high.
+Esp if you would make a slab for 1500 mtu packets (5*1638 < 2*4096; and
+1638 should be enough, right?)
 
-> All it does is try to avoid fragmentation by policy - a problem
-> impossible to solve in general; but can achieve good results in view of
-> practical limitations on program behaviour.
+It would make sense to pack related objects into a page so you could
+free all together.
+
+> > > performs self-defragmentation of the memeory, 
+> > 
+> > Does it move memory about? 
 > 
-> Does your policy work for the given workload? we'll see.
->
-> Also, on what level, each level has both internal and external
-> fragmentation. I can argue that having large immovable objects in memory
-> adds to the fragmentation issues on the page-allocator level.
+> It works in a page, not as pages - when neighbour regions are freed,
+> they are combined into single one with bigger size
 
-NTA works with pages, not with contiguous memory, it reduces
-fragmentation inside pages, which can not be solved in SLAB, where
-objects from the same page can live in different caches and thus _never_
-can be combined. Thus, the only soultuin for SLAB is copy, which is not a
-good one for big sizes and is just wrong for big pages.
-It is not about page moving and VM tricks, which are generally described
-as fragmentation avoidance technique, but about how fragmentation
-problem is solved in one page.
+Yeah, that is not defragmentation, defragmentation is moving active
+regions about to create contiguous free space. What you do is free space
+coalescence.
 
-> > is very SMP
-> > friendly in that regard that it is per-cpu like slab and never free
-> > objects on different CPUs, so they always stay in the same cache.
+>  but network stack requires high-order allocations in extremely rare
+> cases of broken design (Intel folks, sorry, but your hardware sucks in
+> that regard - jumbo frame of 9k should not require 16k of mem plu
+> network overhead).
+
+Well, if you have such hardware its not rare at all, But yeah that
+sucks.
+
+> NTA also does not align buffers to the power of two - extremely significant 
+> win of that approach can be found on project's homepage with graps of
+> failed allocations and state of the mem for different sizes of
+> allocaions. Power-of-two overhead of SLAB is extremely high.
+
+Sure you can pack the page a little better(*), but I thought the main
+advantage was a speed increase.
+
+(*) memory is generally cheaper than engineering efforts, esp on this
+scale. The only advantage in the manual packing is that (with the fancy
+hardware stream engine mentioned below) you could ensure they are
+grouped together (then again, the hardware stream engine would, together
+with a SG-DMA engine, take care of that).
+
 > 
-> This makes it very hard to guarantee a reserve limit. (Not impossible,
-> just more difficult)
-
-The whole pool of pages becomes reserve, since no one (and mainly VFS)
-can consume that reserve.
-
-> > Among other goodies it allows to have full sending/receiving zero-copy.
+> > All it does is try to avoid fragmentation by policy - a problem
+> > impossible to solve in general; but can achieve good results in view of
+> > practical limitations on program behaviour.
+> > 
+> > Does your policy work for the given workload? we'll see.
+> >
+> > Also, on what level, each level has both internal and external
+> > fragmentation. I can argue that having large immovable objects in memory
+> > adds to the fragmentation issues on the page-allocator level.
 > 
-> That won't ever work unless you have page aligned objects, otherwise you
-> cannot map them into user-space. Which seems to be at odds with your
-> tight packing/reduce internal fragmentation goals.
+> NTA works with pages, not with contiguous memory, it reduces
+> fragmentation inside pages, which can not be solved in SLAB, where
+> objects from the same page can live in different caches and thus _never_
+> can be combined. Thus, the only soultuin for SLAB is copy, which is not a
+> good one for big sizes and is just wrong for big pages.
+
+By allocating, and never returning the page to the page-allocator you've
+increased the fragmentation on the page-allocator level significantly.
+It will avoid a super page ever forming around that page.
+
+> It is not about page moving and VM tricks, which are generally described
+> as fragmentation avoidance technique, but about how fragmentation
+> problem is solved in one page.
+
+Short of defragmentation (move active regions about) fragmentation is an
+unsolved problem. For any heuristic there is a pattern that will defeat
+it. 
+
+Luckily program allocation behaviour is usually very regular (or
+decomposable in well behaved groups).
+
+> > > is very SMP
+> > > friendly in that regard that it is per-cpu like slab and never free
+> > > objects on different CPUs, so they always stay in the same cache.
+> > 
+> > This makes it very hard to guarantee a reserve limit. (Not impossible,
+> > just more difficult)
 > 
-> Zero-copy entails mapping the page the hardware writes the packet in
-> into user-space, right?
+> The whole pool of pages becomes reserve, since no one (and mainly VFS)
+> can consume that reserve.
+
+Ah, but there you violate my requirement, any network allocation can
+claim the last bit of memory. The whole idea was that the reserve is
+explicitly managed.
+
+It not only needs protection from other users but also from itself.
+
+> > > Among other goodies it allows to have full sending/receiving zero-copy.
+> > 
+> > That won't ever work unless you have page aligned objects, otherwise you
+> > cannot map them into user-space. Which seems to be at odds with your
+> > tight packing/reduce internal fragmentation goals.
+> > 
+> > Zero-copy entails mapping the page the hardware writes the packet in
+> > into user-space, right?
+> > 
+> > Since its impossible to predict to whoem the next packet is addressed
+> > the packets must be written (by hardware) to different pages.
 > 
-> Since its impossible to predict to whoem the next packet is addressed
-> the packets must be written (by hardware) to different pages.
+> Yes, receiving zero-copy without appropriate hardware assist is
+> impossible, so either absence of such facility at all, or special overhead,
+> which forces object to lie in different pages. With hardware assist it
+> would be possible to select a flow in advance, so data would be packet
+> in the same page.
 
-Yes, receiving zero-copy without appropriate hardware assist is
-impossible, so either absence of such facility at all, or special overhead,
-which forces object to lie in different pages. With hardware assist it
-would be possible to select a flow in advance, so data would be packet
-in the same page.
+I was not aware that hardware could order the packets in such a fashion.
+Yes, if it can do that it becomes doable.
 
-Sending zero-copy from userspace memory does not suffer with any such
-problem.
+> Sending zero-copy from userspace memory does not suffer with any such
+> problem.
 
--- 
-	Evgeniy Polyakov
+True, that is properly ordered. But for that I'm not sure how NTA (you
+really should change that name, there is no Tree anymore) helps here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
