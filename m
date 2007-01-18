@@ -1,169 +1,128 @@
-Subject: Re: Possible ways of dealing with OOM conditions.
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070118135839.GA7075@2ka.mipt.ru>
-References: <20070116094557.494892000@taijtu.programming.kicks-ass.net>
-	 <20070116101816.115266000@taijtu.programming.kicks-ass.net>
-	 <20070116132503.GA23144@2ka.mipt.ru> <1168955274.22935.47.camel@twins>
-	 <20070116153315.GB710@2ka.mipt.ru> <1168963695.22935.78.camel@twins>
-	 <20070117045426.GA20921@2ka.mipt.ru> <1169024848.22935.109.camel@twins>
-	 <20070118104144.GA20925@2ka.mipt.ru> <1169122724.6197.50.camel@twins>
-	 <20070118135839.GA7075@2ka.mipt.ru>
-Content-Type: text/plain
-Date: Thu, 18 Jan 2007 16:10:52 +0100
-Message-Id: <1169133052.6197.96.camel@twins>
-Mime-Version: 1.0
+From: Nikita Danilov <nikita@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <17839.38576.779132.455963@gargle.gargle.HOWL>
+Date: Thu, 18 Jan 2007 18:48:00 +0300
+Subject: Re: [RFC 7/8] Exclude unreclaimable pages from dirty ration calculation
+In-Reply-To: <20070116054819.15358.37282.sendpatchset@schroedinger.engr.sgi.com>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+	<20070116054819.15358.37282.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-01-18 at 16:58 +0300, Evgeniy Polyakov wrote:
+Christoph Lameter writes:
+ > Consider unreclaimable pages during dirty limit calculation
+ > 
+ > Tracking unreclaimable pages helps us to calculate the dirty ratio
+ > the right way. If a large number of unreclaimable pages are allocated
+ > (through the slab or through huge pages) then write throttling will
+ > no longer work since the limit cannot be reached anymore.
+ > 
+ > So we simply subtract the number of unreclaimable pages from the pages
+ > considered for writeout threshold calculation.
+ > 
+ > Other code that allocates significant amounts of memory for device
+ > drivers etc could also be modified to take advantage of this functionality.
 
-> Network is special in this regard, since it only has one allocation path
-> (actually it has one cache for skb, and usual kmalloc, but they are
-> called from only two functions).
-> 
-> So it would become 
-> ptr = network_alloc();
-> and network_alloc() would be usual kmalloc or call for own allocator in
-> case of deadlock.
+I think that simpler solution of this problem is to use only potentially
+reclaimable pages (that is, active, inactive, and free pages) to
+calculate writeout threshold. This way there is no need to maintain
+counters for unreclaimable pages. Below is a patch implementing this
+idea, it got some testing.
 
-There is more to networking that skbs only, what about route cache,
-there is quite a lot of allocs in this fib_* stuff, IGMP etc...
+Nikita.
 
-> > very high order pages, no?
-> >
-> > This means that you have to either allocate at boot time and cannot
-> > resize/add pools; which means you waste all that memory if the network
-> > load never comes near using the reserved amount.
-> > 
-> > Or, you get into all the same trouble the hugepages folks are trying so
-> > very hard to solve.
-> 
-> It is configurable - by default it takes pool of 32k pages for allocations for
-> jumbo-frames (e1000 requires such allocations for 9k frames
-> unfortunately), without jumbo-frame support it works with pool of 0-order
-> pages, which grows dynamically when needed.
+Fix write throttling to calculate its thresholds from amount of memory that
+can be consumed by file system and swap caches, rather than from the total
+amount of physical memory. This avoids situations (among other things) when
+memory consumed by kernel slab allocator prevents write throttling from ever
+happening.
 
-With 0-order pages, you can only fit 2 1500 byte packets in there, you
-could perhaps stick some small skb heads in there as well, but why
-bother, the waste isn't _that_ high.
+Signed-off-by: Nikita Danilov <danilov@gmail.com>
 
-Esp if you would make a slab for 1500 mtu packets (5*1638 < 2*4096; and
-1638 should be enough, right?)
+ mm/page-writeback.c |   33 ++++++++++++++++++++++++---------
+ 1 files changed, 24 insertions(+), 9 deletions(-)
 
-It would make sense to pack related objects into a page so you could
-free all together.
-
-> > > performs self-defragmentation of the memeory, 
-> > 
-> > Does it move memory about? 
-> 
-> It works in a page, not as pages - when neighbour regions are freed,
-> they are combined into single one with bigger size
-
-Yeah, that is not defragmentation, defragmentation is moving active
-regions about to create contiguous free space. What you do is free space
-coalescence.
-
->  but network stack requires high-order allocations in extremely rare
-> cases of broken design (Intel folks, sorry, but your hardware sucks in
-> that regard - jumbo frame of 9k should not require 16k of mem plu
-> network overhead).
-
-Well, if you have such hardware its not rare at all, But yeah that
-sucks.
-
-> NTA also does not align buffers to the power of two - extremely significant 
-> win of that approach can be found on project's homepage with graps of
-> failed allocations and state of the mem for different sizes of
-> allocaions. Power-of-two overhead of SLAB is extremely high.
-
-Sure you can pack the page a little better(*), but I thought the main
-advantage was a speed increase.
-
-(*) memory is generally cheaper than engineering efforts, esp on this
-scale. The only advantage in the manual packing is that (with the fancy
-hardware stream engine mentioned below) you could ensure they are
-grouped together (then again, the hardware stream engine would, together
-with a SG-DMA engine, take care of that).
-
-> 
-> > All it does is try to avoid fragmentation by policy - a problem
-> > impossible to solve in general; but can achieve good results in view of
-> > practical limitations on program behaviour.
-> > 
-> > Does your policy work for the given workload? we'll see.
-> >
-> > Also, on what level, each level has both internal and external
-> > fragmentation. I can argue that having large immovable objects in memory
-> > adds to the fragmentation issues on the page-allocator level.
-> 
-> NTA works with pages, not with contiguous memory, it reduces
-> fragmentation inside pages, which can not be solved in SLAB, where
-> objects from the same page can live in different caches and thus _never_
-> can be combined. Thus, the only soultuin for SLAB is copy, which is not a
-> good one for big sizes and is just wrong for big pages.
-
-By allocating, and never returning the page to the page-allocator you've
-increased the fragmentation on the page-allocator level significantly.
-It will avoid a super page ever forming around that page.
-
-> It is not about page moving and VM tricks, which are generally described
-> as fragmentation avoidance technique, but about how fragmentation
-> problem is solved in one page.
-
-Short of defragmentation (move active regions about) fragmentation is an
-unsolved problem. For any heuristic there is a pattern that will defeat
-it. 
-
-Luckily program allocation behaviour is usually very regular (or
-decomposable in well behaved groups).
-
-> > > is very SMP
-> > > friendly in that regard that it is per-cpu like slab and never free
-> > > objects on different CPUs, so they always stay in the same cache.
-> > 
-> > This makes it very hard to guarantee a reserve limit. (Not impossible,
-> > just more difficult)
-> 
-> The whole pool of pages becomes reserve, since no one (and mainly VFS)
-> can consume that reserve.
-
-Ah, but there you violate my requirement, any network allocation can
-claim the last bit of memory. The whole idea was that the reserve is
-explicitly managed.
-
-It not only needs protection from other users but also from itself.
-
-> > > Among other goodies it allows to have full sending/receiving zero-copy.
-> > 
-> > That won't ever work unless you have page aligned objects, otherwise you
-> > cannot map them into user-space. Which seems to be at odds with your
-> > tight packing/reduce internal fragmentation goals.
-> > 
-> > Zero-copy entails mapping the page the hardware writes the packet in
-> > into user-space, right?
-> > 
-> > Since its impossible to predict to whoem the next packet is addressed
-> > the packets must be written (by hardware) to different pages.
-> 
-> Yes, receiving zero-copy without appropriate hardware assist is
-> impossible, so either absence of such facility at all, or special overhead,
-> which forces object to lie in different pages. With hardware assist it
-> would be possible to select a flow in advance, so data would be packet
-> in the same page.
-
-I was not aware that hardware could order the packets in such a fashion.
-Yes, if it can do that it becomes doable.
-
-> Sending zero-copy from userspace memory does not suffer with any such
-> problem.
-
-True, that is properly ordered. But for that I'm not sure how NTA (you
-really should change that name, there is no Tree anymore) helps here.
+Index: git-linux/mm/page-writeback.c
+===================================================================
+--- git-linux.orig/mm/page-writeback.c
++++ git-linux/mm/page-writeback.c
+@@ -101,6 +101,18 @@ EXPORT_SYMBOL(laptop_mode);
+ 
+ static void background_writeout(unsigned long _min_pages);
+ 
++/* Maximal number of pages that can be consumed by pageable caches. */
++static unsigned long total_pageable_pages(void)
++{
++	unsigned long active;
++	unsigned long inactive;
++	unsigned long free;
++
++	get_zone_counts(&active, &inactive, &free);
++	/* +1 to never return 0. */
++	return active + inactive + free + 1;
++}
++
+ /*
+  * Work out the current dirty-memory clamping and background writeout
+  * thresholds.
+@@ -127,22 +139,31 @@ get_dirty_limits(long *pbackground, long
+ 	int unmapped_ratio;
+ 	long background;
+ 	long dirty;
+-	unsigned long available_memory = vm_total_pages;
++	unsigned long total_pages;
++	unsigned long available_memory;
+ 	struct task_struct *tsk;
+ 
++	available_memory = total_pages = total_pageable_pages();
++
+ #ifdef CONFIG_HIGHMEM
+ 	/*
+ 	 * If this mapping can only allocate from low memory,
+ 	 * we exclude high memory from our count.
+ 	 */
+-	if (mapping && !(mapping_gfp_mask(mapping) & __GFP_HIGHMEM))
++	if (mapping && !(mapping_gfp_mask(mapping) & __GFP_HIGHMEM)) {
++		if (available_memory > totalhigh_pages)
+ 		available_memory -= totalhigh_pages;
++		else
++			available_memory = 1;
++	}
+ #endif
+ 
+ 
+ 	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
+ 				global_page_state(NR_ANON_PAGES)) * 100) /
+-					vm_total_pages;
++					total_pages;
++	if (unmapped_ratio < 0)
++		unmapped_ratio = 0;
+ 
+ 	dirty_ratio = vm_dirty_ratio;
+ 	if (dirty_ratio > unmapped_ratio / 2)
+@@ -513,7 +534,7 @@ void laptop_sync_completion(void)
+ 
+ void writeback_set_ratelimit(void)
+ {
+-	ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
++	ratelimit_pages = total_pageable_pages() / (num_online_cpus() * 32);
+ 	if (ratelimit_pages < 16)
+ 		ratelimit_pages = 16;
+ 	if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
+@@ -542,7 +563,7 @@ void __init page_writeback_init(void)
+ 	long buffer_pages = nr_free_buffer_pages();
+ 	long correction;
+ 
+-	correction = (100 * 4 * buffer_pages) / vm_total_pages;
++	correction = (100 * 4 * buffer_pages) / total_pageable_pages();
+ 
+ 	if (correction < 100) {
+ 		dirty_background_ratio *= correction;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
