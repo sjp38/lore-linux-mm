@@ -1,48 +1,39 @@
-Date: Wed, 17 Jan 2007 21:21:33 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <20070117172534.fbe92a88.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0701172117090.9112@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <20070116135325.3441f62b.akpm@osdl.org> <Pine.LNX.4.64.0701161407530.3545@schroedinger.engr.sgi.com>
- <20070116154054.e655f75c.akpm@osdl.org> <Pine.LNX.4.64.0701161602480.4263@schroedinger.engr.sgi.com>
- <20070116170734.947264f2.akpm@osdl.org> <Pine.LNX.4.64.0701161709490.4455@schroedinger.engr.sgi.com>
- <20070116183406.ed777440.akpm@osdl.org> <Pine.LNX.4.64.0701161920480.4677@schroedinger.engr.sgi.com>
- <20070116200506.d19eacf5.akpm@osdl.org> <Pine.LNX.4.64.0701162219180.5215@schroedinger.engr.sgi.com>
- <20070116230034.b8cb4263.akpm@osdl.org> <Pine.LNX.4.64.0701171140580.7397@schroedinger.engr.sgi.com>
- <20070117141046.cd19c9e8.akpm@osdl.org> <Pine.LNX.4.64.0701171707430.8408@schroedinger.engr.sgi.com>
- <20070117172534.fbe92a88.akpm@osdl.org>
+From: Paul Cameron Davies <pauld@cse.unsw.EDU.AU>
+Date: Thu, 18 Jan 2007 17:22:12 +1100 (EST)
+Subject: Re: [PATCH 0/29] Page Table Interface Explanation
+In-Reply-To: <Pine.LNX.4.64.0701161048450.30540@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0701181701320.12779@weill.orchestra.cse.unsw.EDU.AU>
+References: <20070113024540.29682.27024.sendpatchset@weill.orchestra.cse.unsw.EDU.AU>
+ <Pine.LNX.4.64.0701161048450.30540@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: menage@google.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, ak@suse.de, pj@sgi.com, dgc@sgi.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Paul Davies <pauld@gelato.unsw.edu.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Jan 2007, Andrew Morton wrote:
+On Tue, 16 Jan 2007, Christoph Lameter wrote:
 
-> > The problem there is that we do a GFP_ATOMIC allocation (no allocation 
-> > context) that may fail when the first page is dirtied. We must therefore 
-> > be able to subsequently allocate the nodemask_t in set_page_dirty(). 
-> > Otherwise the first failure will mean that there will never be a dirty 
-> > map for the inode/mapping.
-> 
-> True.  But it's pretty simple to change __mark_inode_dirty() to fix this.
+> I am glad to see that this endeavor is still going forward.
+I will be working hard to make this happen over the coming period
+of time.  I will take your feedback, talk to my colleagues, and
+come up with a new version after LCA.
 
-Ok I tried it but this wont work unless I also pass the page struct pointer to 
-__mark_inode_dirty() since the dirty_node pointer could be freed 
-when the inode_lock is droppped. So I cannot dereference the 
-dirty_nodes pointer outside of __mark_inode_dirty. 
+>> 		unsigned long new_addr, unsigned long len);
+>
+> Why do we need so many individual specialized iterators? Isnt there some
+> way to have a common iterator function?
+Yes - and this is the intention.  However, I thought that it might
+be easier to get the page table interface into the kernel by doing
+it in stages.
 
-If I expand __mark_inode_dirty then all variations of mark_inode_dirty() 
-need to be changed and we need to pass a page struct everywhere. This 
-result in extensive changes.
+I was worried a common iterator function represented too much change
+too quickly.
 
-I think I need to stick with the tree_lock. This also makes more sense 
-since we modify dirty information in the address_space structure and the 
-radix tree is already protected by that lock.
+Cheers
 
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
