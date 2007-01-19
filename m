@@ -1,6 +1,6 @@
 Subject: Re: [PATCH] nfs: fix congestion control
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1169225506.5775.15.camel@lade.trondhjem.org>
+In-Reply-To: <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 	 <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
 	 <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
@@ -8,32 +8,30 @@ References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 	 <1169070886.6523.8.camel@lade.trondhjem.org>
 	 <1169126868.6197.55.camel@twins>
 	 <1169135375.6105.15.camel@lade.trondhjem.org>
-	 <1169199234.6197.129.camel@twins>  <1169212022.6197.148.camel@twins>
-	 <1169225506.5775.15.camel@lade.trondhjem.org>
+	 <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
+	 <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 19 Jan 2007 18:54:36 +0100
-Message-Id: <1169229276.6197.150.camel@twins>
+Date: Fri, 19 Jan 2007 18:57:41 +0100
+Message-Id: <1169229461.6197.154.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-01-19 at 11:51 -0500, Trond Myklebust wrote:
-
-> > So with that out of the way I now have this
+On Fri, 2007-01-19 at 09:20 -0800, Christoph Lameter wrote:
+> On Fri, 19 Jan 2007, Peter Zijlstra wrote:
 > 
-> Looks much better. Just one obvious buglet...
-
-> > @@ -1565,6 +1579,23 @@ int __init nfs_init_writepagecache(void)
-> >  	if (nfs_commit_mempool == NULL)
-> >  		return -ENOMEM;
-> >  
 > > +	/*
 > > +	 * NFS congestion size, scale with available memory.
 > > +	 *
+> 
+> Well this all depends on the memory available to the running process.
+> If the process is just allowed to allocate from a subset of memory 
+> (cpusets) then this may need to be lower.
+> 
 > > +	 *  64MB:    8192k
 > > +	 * 128MB:   11585k
 > > +	 * 256MB:   16384k
@@ -43,17 +41,22 @@ On Fri, 2007-01-19 at 11:51 -0500, Trond Myklebust wrote:
 > > +	 *   4GB:   65536k
 > > +	 *   8GB:   92681k
 > > +	 *  16GB:  131072k
-> > +	 *
-> > +	 * This allows larger machines to have larger/more transfers.
-> > +	 */
-> > +	nfs_congestion_size = 32*int_sqrt(totalram_pages);
-> > +
->           ^^^^^^^^^^^^^^^^^^^ nfs_congestion_pages?
+> 
+> Hmmm... lets say we have the worst case of an 8TB IA64 system with 1k 
+> nodes of 8G each.
 
-Ah, yeah, forgot to refresh the patch one last time before sending
-out :-(.
+Eeuh, right. Glad to have you around to remind how puny my boxens
+are :-)
 
+>  On Ia64 the number of pages is 8TB/16KB pagesize = 512 
+> million pages. Thus nfs_congestion_size is 724064 pages which is 
+> 11.1Gbytes?
+> 
+> If we now restrict a cpuset to a single node then have a 
+> nfs_congestion_size of 11.1G vs an available memory on a node of 8G.
 
+Right, perhaps cap this to a max of 256M. That would allow 128 2M RPC
+transfers, much more would not be needed I guess. Trond?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
