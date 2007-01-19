@@ -1,49 +1,36 @@
-Date: Fri, 19 Jan 2007 09:20:03 -0800 (PST)
+Date: Fri, 19 Jan 2007 09:54:53 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] nfs: fix congestion control
-In-Reply-To: <1169212022.6197.148.camel@twins>
-Message-ID: <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-  <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
- <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
- <1169070763.5975.70.camel@lappy>  <1169070886.6523.8.camel@lade.trondhjem.org>
-  <1169126868.6197.55.camel@twins>  <1169135375.6105.15.camel@lade.trondhjem.org>
-  <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
+Subject: Re: Possible ways of dealing with OOM conditions.
+In-Reply-To: <1169141513.6197.115.camel@twins>
+Message-ID: <Pine.LNX.4.64.0701190952090.14617@schroedinger.engr.sgi.com>
+References: <20070116132503.GA23144@2ka.mipt.ru>  <1168955274.22935.47.camel@twins>
+ <20070116153315.GB710@2ka.mipt.ru>  <1168963695.22935.78.camel@twins>
+ <20070117045426.GA20921@2ka.mipt.ru>  <1169024848.22935.109.camel@twins>
+ <20070118104144.GA20925@2ka.mipt.ru>  <1169122724.6197.50.camel@twins>
+ <20070118135839.GA7075@2ka.mipt.ru>  <1169133052.6197.96.camel@twins>
+ <20070118155003.GA6719@2ka.mipt.ru> <1169141513.6197.115.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
+Cc: Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Jan 2007, Peter Zijlstra wrote:
+On Thu, 18 Jan 2007, Peter Zijlstra wrote:
 
-> +	/*
-> +	 * NFS congestion size, scale with available memory.
-> +	 *
+> 
+> > Cache misses for small packet flow due to the fact, that the same data
+> > is allocated and freed  and accessed on different CPUs will become an
+> > issue soon, not right now, since two-four core CPUs are not yet to be
+> > very popular and price for the cache miss is not _that_ high.
+> 
+> SGI does networking too, right?
 
-Well this all depends on the memory available to the running process.
-If the process is just allowed to allocate from a subset of memory 
-(cpusets) then this may need to be lower.
-
-> +	 *  64MB:    8192k
-> +	 * 128MB:   11585k
-> +	 * 256MB:   16384k
-> +	 * 512MB:   23170k
-> +	 *   1GB:   32768k
-> +	 *   2GB:   46340k
-> +	 *   4GB:   65536k
-> +	 *   8GB:   92681k
-> +	 *  16GB:  131072k
-
-Hmmm... lets say we have the worst case of an 8TB IA64 system with 1k 
-nodes of 8G each. On Ia64 the number of pages is 8TB/16KB pagesize = 512 
-million pages. Thus nfs_congestion_size is 724064 pages which is 
-11.1Gbytes?
-
-If we now restrict a cpuset to a single node then have a 
-nfs_congestion_size of 11.1G vs an available memory on a node of 8G.
+Sslab deals with those issues the right way. We have per processor
+queues that attempt to keep the cache hot state. A special shared queue
+exists between neighboring processors to facilitate exchange of objects
+between then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
