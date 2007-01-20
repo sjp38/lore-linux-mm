@@ -1,35 +1,37 @@
-Date: Fri, 19 Jan 2007 21:15:32 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [PATCH 1/5] Add a map to to track dirty pages per node
-Message-Id: <20070119211532.d47793b1.pj@sgi.com>
-In-Reply-To: <20070120031012.17491.72105.sendpatchset@schroedinger.engr.sgi.com>
-References: <20070120031007.17491.33355.sendpatchset@schroedinger.engr.sgi.com>
-	<20070120031012.17491.72105.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by wx-out-0506.google.com with SMTP id s8so676631wxc
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2007 21:18:29 -0800 (PST)
+Message-ID: <8bd0f97a0701191940s32aff538r71afb96463b1a59b@mail.gmail.com>
+Date: Fri, 19 Jan 2007 22:40:15 -0500
+From: "Mike Frysinger" <vapier.adi@gmail.com>
+Subject: Re: [RPC][PATCH 2.6.20-rc5] limit total vfs page cache
+In-Reply-To: <45B18344.5020507@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <6d6a94c50701171923g48c8652ayd281a10d1cb5dd95@mail.gmail.com>
+	 <45B0DB45.4070004@linux.vnet.ibm.com>
+	 <6d6a94c50701190805saa0c7bbgbc59d2251bed8537@mail.gmail.com>
+	 <45B112B6.9060806@linux.vnet.ibm.com>
+	 <6d6a94c50701191804m79c70afdo1e664a072f928b9e@mail.gmail.com>
+	 <45B17D6D.2030004@yahoo.com.au>
+	 <8bd0f97a0701191835y49a61e7jb65a3b63f906ca56@mail.gmail.com>
+	 <45B18344.5020507@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, menage@google.com, a.p.zijlstra@chello.nl, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@sgi.com, ak@suse.de
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, "linux-os (Dick Johnson)" <linux-os@analogic.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph wrote:
-> + * Called without the tree_lock! So we may on rare occasions (when we race with
-> + * cpuset_clear_dirty_nodes()) follow the dirty_node pointer to random data.
+On 1/19/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Maybe, if you are talking about my advice to fix userspace... but you
+> *are* going to contribute those changes back for the nommu community
+> to use, right? So the end result of that is _not_ actually tweaking the
+> end solutions.
 
-Random is ok, on rate occassion, as you note.
-
-But is there any chance you could follow it to a non-existent memory location
-and oops?  These long nodemasks are kmalloc/kfree'd, and I thought that once
-kfree'd, there was no guarantee that the stale address would even point to
-a mapped page of RAM.  This situation reminds me of the one that led to adding
-some RCU dependent code to kernel/cpuset.c.
-
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.925.600.0401
+not quite sure what you're referring to here, but our approach is to
+contribute everything back in an acceptable form
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
