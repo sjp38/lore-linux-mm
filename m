@@ -1,87 +1,53 @@
-Date: Sat, 20 Jan 2007 01:56:43 +0300
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Subject: Re: Possible ways of dealing with OOM conditions.
-Message-ID: <20070119225643.GA22728@2ka.mipt.ru>
-References: <20070117045426.GA20921@2ka.mipt.ru> <1169024848.22935.109.camel@twins> <20070118104144.GA20925@2ka.mipt.ru> <1169122724.6197.50.camel@twins> <20070118135839.GA7075@2ka.mipt.ru> <1169133052.6197.96.camel@twins> <20070118155003.GA6719@2ka.mipt.ru> <1169141513.6197.115.camel@twins> <20070118183430.GA3345@2ka.mipt.ru> <1169211195.6197.143.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <1169211195.6197.143.camel@twins>
+Message-ID: <45B17D6D.2030004@yahoo.com.au>
+Date: Sat, 20 Jan 2007 13:24:45 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RPC][PATCH 2.6.20-rc5] limit total vfs page cache
+References: <6d6a94c50701171923g48c8652ayd281a10d1cb5dd95@mail.gmail.com>	 <45B0DB45.4070004@linux.vnet.ibm.com>	 <6d6a94c50701190805saa0c7bbgbc59d2251bed8537@mail.gmail.com>	 <45B112B6.9060806@linux.vnet.ibm.com> <6d6a94c50701191804m79c70afdo1e664a072f928b9e@mail.gmail.com>
+In-Reply-To: <6d6a94c50701191804m79c70afdo1e664a072f928b9e@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
+To: Aubrey Li <aubreylee@gmail.com>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, "linux-os (Dick Johnson)" <linux-os@analogic.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 19, 2007 at 01:53:15PM +0100, Peter Zijlstra (a.p.zijlstra@chello.nl) wrote:
-> > 2. You differentiate by hand between critical and non-critical
-> > allocations by specifying some kernel users as potentially possible to
-> > allocate from reserve. 
-> 
-> True, all sockets that are needed for swap, no-one else.
-> 
-> > This does not prevent from NVIDIA module to
-> > allocate from that reserve too, does it?
-> 
-> All users of the NVidiot crap deserve all the pain they get.
-> If it breaks they get to keep both pieces.
+Aubrey Li wrote:
+> On 1/20/07, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> wrote:
 
-I meant that pretty anyone can be those user, who can just add a bit
-into own gfp_flags which are used for allocation.
+>> If pagecache is overlimit, we expect old (cold) pagecache pages to
+>> be thrown out and reused for new file data.  We do not expect to
+>> drop a few text or data pages to make room for new pagecache.
+>>
+> Well, actually I think this probably not necessary. Because the
+> reclaimer has no way to predict the behavior of user mode processes,
+> how do you make sure the pagecache will not be access again in a short
 
-> > And you artificially limit
-> > system to process only tiny bits of what it must do, thus potentially
-> > leaking pathes which must use reserve too.
-> 
-> How so? I cover pretty much every allocation needed to process an skb by
-> setting PF_MEMALLOC - the only drawback there is that the reserve might
-> not actually be large enough because it covers more allocations that
-> were considered. (thats one of the TODO items, validate the reserve
-> functions parameters)
+It is not about predicting behaviour, it is about directing the reclaim
+effort at the actual resource that is under pressure.
 
-You only covered ipv4/v6 and arp, maybe some route updates.
-But it is very possible, that some allocations are missed like
-multicast/broadcast. Selecting only special pathes out of the whole
-possible network alocations tends to create a situation, when something
-is missed or cross dependant on other pathes.
+Even given a pagecache limiting patch which does the proper accounting
+to keep pagecache pages under a % limit (unlike yours), kicking off an
+undirected reclaim could (in theory) reclaim all slab and anonymous
+memory pages before bringing pagecache under the limit. So I think
+you need to be a bit more thorough than just assuming everything will
+be OK. Page reclaim behaviour is pretty strange and complex.
 
-> > So, solution is to have a reserve in advance, and manage it using
-> > special path when system is in OOM. So you will have network memory
-> > reserve, which will be used when system is in trouble. It is very
-> > similar to what you had.
-> > 
-> > But the whole reserve can never be used at all, so it should be used,
-> > but not by those who can create OOM condition, thus it should be
-> > exported to, for example, network only, and when system is in trouble,
-> > network would be still functional (although only critical pathes).
-> 
-> But the network can create OOM conditions for itself just fine. 
-> 
-> Consider the remote storage disappearing for a while (it got rebooted,
-> someone tripped over the wire etc..). Now the rest of the network
-> traffic keeps coming and will queue up - because user-space is stalled,
-> waiting for more memory - and we run out of memory.
+Secondly, your patch isn't actually very good. It unconditionally
+shrinks memory to below the given % mark each time a pagecache alloc
+occurs, regardless of how much pagecache is in the system. Effectively
+that seems to just reduce the amount of memory available to the system.
 
-Hmm... Neither UDP, nor TCP work that way actually.
-
-> There must be a point where we start dropping packets that are not
-> critical to the survival of the machine.
-
-You still can drop them, the main point is that network allocations do
-not depend on other allocations.
-
-> > Even further development of such idea is to prevent such OOM condition
-> > at all - by starting swapping early (but wisely) and reduce memory
-> > usage.
-> 
-> These just postpone execution but will not avoid it.
-
-No. If system allows to have such a condition, then
-something is broken. It must be prevented, instead of creating special
-hacks to recover from it.
+Luckily, there are actually good, robust solutions for your higher
+order allocation problem. Do higher order allocations at boot time,
+modifiy userspace applications, or set up otherwise-unused, or easily
+reclaimable reserve pools for higher order allocations. I don't
+understand why you are so resistant to all of these approaches?
 
 -- 
-	Evgeniy Polyakov
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
