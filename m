@@ -1,10 +1,10 @@
-Received: by wx-out-0506.google.com with SMTP id s8so676631wxc
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2007 21:18:29 -0800 (PST)
-Message-ID: <8bd0f97a0701191940s32aff538r71afb96463b1a59b@mail.gmail.com>
-Date: Fri, 19 Jan 2007 22:40:15 -0500
-From: "Mike Frysinger" <vapier.adi@gmail.com>
+Received: by wx-out-0506.google.com with SMTP id s8so677822wxc
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2007 21:24:36 -0800 (PST)
+Message-ID: <6d6a94c50701192026q4aad8954s2d2aaa6b66ab1fd0@mail.gmail.com>
+Date: Sat, 20 Jan 2007 12:26:13 +0800
+From: "Aubrey Li" <aubreylee@gmail.com>
 Subject: Re: [RPC][PATCH 2.6.20-rc5] limit total vfs page cache
-In-Reply-To: <45B18344.5020507@yahoo.com.au>
+In-Reply-To: <45B19483.6010300@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
@@ -15,23 +15,88 @@ References: <6d6a94c50701171923g48c8652ayd281a10d1cb5dd95@mail.gmail.com>
 	 <45B112B6.9060806@linux.vnet.ibm.com>
 	 <6d6a94c50701191804m79c70afdo1e664a072f928b9e@mail.gmail.com>
 	 <45B17D6D.2030004@yahoo.com.au>
-	 <8bd0f97a0701191835y49a61e7jb65a3b63f906ca56@mail.gmail.com>
-	 <45B18344.5020507@yahoo.com.au>
+	 <6d6a94c50701191908i63fe7eebi9a97a4afb94f5df4@mail.gmail.com>
+	 <45B19483.6010300@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, "linux-os (Dick Johnson)" <linux-os@analogic.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, "linux-os (Dick Johnson)" <linux-os@analogic.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>
 List-ID: <linux-mm.kvack.org>
 
-On 1/19/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> Maybe, if you are talking about my advice to fix userspace... but you
-> *are* going to contribute those changes back for the nommu community
-> to use, right? So the end result of that is _not_ actually tweaking the
-> end solutions.
+On 1/20/07, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> Aubrey Li wrote:
+>
+> > So what's the right way to limit pagecache?
+>
+> Probably something a lot more complicated... if you can say there
+> is a "right way".
+>
+> >> Secondly, your patch isn't actually very good. It unconditionally
+> >> shrinks memory to below the given % mark each time a pagecache alloc
+> >> occurs, regardless of how much pagecache is in the system. Effectively
+> >> that seems to just reduce the amount of memory available to the system.
+> >
+> >
+> > It doesn't reduce the amount of memory available to the system. It
+> > just reduce the amount of memory available to the page cache. So that
+> > page cache is limited and the reserved memory can be allocated by the
+> > application.
+>
+> But the patch doesn't do that, as I explained.
 
-not quite sure what you're referring to here, but our approach is to
-contribute everything back in an acceptable form
--mike
+I'm not sure you read the correct patch. Let me explain the logic again.
+
+assume:
+min = 123pages
+pagecache_reserved = 200 pages
+
+if( alloc_flags & ALLOC_PAGECACHE)
+        watermark = min + pagecache_reserved ( 323 pages)
+else
+        watermark = min ( 123 pages)
+
+So if request pagecache, when free pages < 323 pages, reclaim is triggered.
+But at this time if request memory not pagecache, reclaim will be
+triggered when free pages < 123 as the present reclaimer does.
+
+I verified it on my side, why do you think it doesn't work properly?
+
+>
+> >> Luckily, there are actually good, robust solutions for your higher
+> >> order allocation problem. Do higher order allocations at boot time,
+> >> modifiy userspace applications, or set up otherwise-unused, or easily
+> >> reclaimable reserve pools for higher order allocations. I don't
+> >> understand why you are so resistant to all of these approaches?
+> >>
+> >
+> > I think we have explained the reason too much. We are working on
+> > no-mmu arch and provide a platform running linux to our customer. They
+> > are doing very good things like mplayer, asterisk, ip camera, etc on
+> > our platform, some applications was migrated from mmu arch. I think
+> > that means in some cases no-mmu arch is somewhat better than mmu arch.
+> > So we are taking effort to make the migration smooth or make no-mmu
+> > linux stronger.
+> > It's no way to let our customer modify their applications, we also
+> > unwilling to do it. And we have not an existing mechanism to set up a
+> > pools for the complex applications. So I'm trying to do some coding
+> > hack in the kernel to satisfy these kinds of requirement.
+>
+> Oh, maybe you misunderstand the reserve pools idea: that is an entirely
+> kernel based solution where you can preallocate a large, contiguous
+> pool of memory at boot time which you can use to satisfy your nommu
+> higher order anonymous memory allocations.
+>
+> This is something that will not get fragmented by pagecache, nor will
+> it get fragmented by any other page allocation, slab allocation. Tt is
+> a pretty good solution provided that you size the pool correctly for
+> your application's needs.
+>
+
+So if application malloc(1M), how does kernel know to allocate
+reserved pool not from buddy system? I didn't see any special code
+about this. Is there any doc or example?
+
+-Aubrey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
