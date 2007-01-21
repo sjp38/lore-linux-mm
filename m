@@ -1,89 +1,48 @@
-Date: Sun, 21 Jan 2007 04:46:44 +0300
+Date: Sun, 21 Jan 2007 05:14:37 +0300
 From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Subject: Re: Possible ways of dealing with OOM conditions.
-Message-ID: <20070121014644.GA12070@2ka.mipt.ru>
-References: <20070118104144.GA20925@2ka.mipt.ru> <1169122724.6197.50.camel@twins> <20070118135839.GA7075@2ka.mipt.ru> <1169133052.6197.96.camel@twins> <20070118155003.GA6719@2ka.mipt.ru> <1169141513.6197.115.camel@twins> <20070118183430.GA3345@2ka.mipt.ru> <1169211195.6197.143.camel@twins> <20070119225643.GA22728@2ka.mipt.ru> <45B29953.5010505@surriel.com>
+Message-ID: <20070121021436.GA25292@2ka.mipt.ru>
+References: <1169122724.6197.50.camel@twins> <20070118135839.GA7075@2ka.mipt.ru> <1169133052.6197.96.camel@twins> <20070118155003.GA6719@2ka.mipt.ru> <1169141513.6197.115.camel@twins> <20070118183430.GA3345@2ka.mipt.ru> <1169211195.6197.143.camel@twins> <20070119225643.GA22728@2ka.mipt.ru> <45B29953.5010505@surriel.com> <20070121014644.GA12070@2ka.mipt.ru>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=koi8-r
 Content-Disposition: inline
-In-Reply-To: <45B29953.5010505@surriel.com>
+In-Reply-To: <20070121014644.GA12070@2ka.mipt.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@surriel.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 20, 2007 at 05:36:03PM -0500, Rik van Riel (riel@surriel.com) wrote:
-> Evgeniy Polyakov wrote:
-> >On Fri, Jan 19, 2007 at 01:53:15PM +0100, Peter Zijlstra 
-> >(a.p.zijlstra@chello.nl) wrote:
-> 
-> >>>Even further development of such idea is to prevent such OOM condition
-> >>>at all - by starting swapping early (but wisely) and reduce memory
-> >>>usage.
-> >>These just postpone execution but will not avoid it.
-> >
-> >No. If system allows to have such a condition, then
-> >something is broken. It must be prevented, instead of creating special
-> >hacks to recover from it.
-> 
-> Evgeniy, you may want to learn something about the VM before
-> stating that reality should not occur.
+> On Sat, Jan 20, 2007 at 05:36:03PM -0500, Rik van Riel (riel@surriel.com) wrote:
+> > Due to the way everything in the kernel works, you cannot
+> > prevent the memory allocator from allocating everything and
+> > running out, except maybe by setting aside reserves to deal
+> > with special subsystems.
 
-I.e. I should start believing that OOM can not be prevented, bugs can
-not be fixed and things can not be changed just because it happens right
-now? That is why I'm not subscribed to lkml :)
+As a technical side gets described, this is exactly the way I proposed -
+there is special dedicated pool which does not depend on main system
+allocator, so if the latter is empty, the former still _can_ work,
+although it is possible that it will be empty too.
 
-> Due to the way everything in the kernel works, you cannot
-> prevent the memory allocator from allocating everything and
-> running out, except maybe by setting aside reserves to deal
-> with special subsystems.
-> 
-> As for your "swapping early and reduce memory usage", that is
-> just not possible in a system where a memory writeout may need
-> one or more memory allocations to succeed and other I/O paths
-> (eg. file writes) can take memory from the same pools.
+Separation. 
+It removes avalanche effect when one problem produces several different.
 
-When system starts swapping only when it can not allocate new page, 
-then it is broken system. I bet you get warm closing way before you 
-hands are frostbitten, and you do not have a liter of alcohol in the 
-packet for such emergency. And to get warm closing you still need to 
-go over cold street into the shop, but you will do it before weather
-becomes arctic.
+I do not say that some allocator is the best for dealing with such
+situation, I just pointed that critical pathes were separated in NTA, so
+they do not depend on each one's failure.
 
-> With something like iscsi it may be _necessary_ for file writes
-> and swap to take memory from the same pools, because they can
-> share the same block device.
+Actually that separation was introduced way too long ago with memory
+pools, this is some kind of continuation, which adds a lot of additional
+extremely useful features.
 
-Of course swapping can require additional allocation, when it happens
-over network it is quite obvious.
-
-The main problem is the fact, that if system was put into the state,
-when its life depends on the last possible allocation, then it is
-broken.
-
-There is a light connected to car's fuel tank which starts blinking, 
-when amount of fuel is less then predefined level. Car just does not 
-stop suddenly and starts to get fuel from reserve (well eventually it 
-stops, but it says about problem long before it dies).
-
-> Please get out of your fantasy world and accept the constraints
-> the VM has to operate under.  Maybe then you and Peter can agree
-> on something.
-
-I can not accept the situation, when problem is not fixed, but instead
-recovery path is added. There must be both ways of dealing with it -
-emergency force majeur recovery and preventive steps.
-
-What we are talking about (except pointing to obvious things and sending
-to school-classes), at least how I see this, is ways of dealing with
-possible OOM condition. If OOM has happend, then there must be recovery
-path, but OOM must be prevented, and ways to do this were described too.
-
-> -- 
-> Politics is the struggle between those who want to make their country
-> the best in the world, and those who believe it already is.  Each group
-> calls the other unpatriotic.
+NTA used for network allocations is that pool, since in real life
+packets can not be allocated in advance without memory overhead. For
+simple situations like only ACK generatinos it is possible, which I
+suggested first, but long-term solution is special allocator.
+I selected NTA for this task because it has _additional_ features like
+self-deragmentation, which is very useful part for networking, but if
+only OOM recovery condition is concerned, then actually any other
+allocator can be used of course.
 
 -- 
 	Evgeniy Polyakov
