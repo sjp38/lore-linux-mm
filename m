@@ -1,33 +1,32 @@
-Date: Mon, 22 Jan 2007 09:59:27 -0800 (PST)
+Date: Mon, 22 Jan 2007 11:15:46 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] nfs: fix congestion control -v3
-In-Reply-To: <1169276500.6197.159.camel@twins>
-Message-ID: <Pine.LNX.4.64.0701220956590.24578@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-  <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
- <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
- <1169070763.5975.70.camel@lappy>  <1169070886.6523.8.camel@lade.trondhjem.org>
-  <1169126868.6197.55.camel@twins>  <1169135375.6105.15.camel@lade.trondhjem.org>
-  <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
- <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
- <1169229461.6197.154.camel@twins>  <1169231212.5775.29.camel@lade.trondhjem.org>
- <1169276500.6197.159.camel@twins>
+Subject: Re: [RPC][PATCH 2.6.20-rc5] limit total vfs page cache
+In-Reply-To: <45B19483.6010300@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0701221114060.25121@schroedinger.engr.sgi.com>
+References: <6d6a94c50701171923g48c8652ayd281a10d1cb5dd95@mail.gmail.com>
+ <45B0DB45.4070004@linux.vnet.ibm.com>  <6d6a94c50701190805saa0c7bbgbc59d2251bed8537@mail.gmail.com>
+  <45B112B6.9060806@linux.vnet.ibm.com>  <6d6a94c50701191804m79c70afdo1e664a072f928b9e@mail.gmail.com>
+  <45B17D6D.2030004@yahoo.com.au> <6d6a94c50701191908i63fe7eebi9a97a4afb94f5df4@mail.gmail.com>
+ <45B19483.6010300@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, "linux-os (Dick Johnson)" <linux-os@analogic.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 Jan 2007, Peter Zijlstra wrote:
+On Sat, 20 Jan 2007, Nick Piggin wrote:
 
-> Subject: nfs: fix congestion control
+> > It doesn't reduce the amount of memory available to the system. It
+> > just reduce the amount of memory available to the page cache. So that
+> > page cache is limited and the reserved memory can be allocated by the
+> > application.
+> 
+> But the patch doesn't do that, as I explained.
 
-I am not sure if its too valuable since I have limited experience with NFS 
-but it looks fine to me.
-
-Acked-by: Christoph Lameter <clameter@sgi.com>
+The patch could do it if he would be checking NR_FILE_PAGES against 
+a limit instead of the free pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
