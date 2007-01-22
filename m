@@ -1,40 +1,33 @@
-Date: Mon, 22 Jan 2007 09:41:29 -0800 (PST)
+Date: Mon, 22 Jan 2007 09:59:27 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 1/5] Add a map to to track dirty pages per node
-In-Reply-To: <20070119211532.d47793b1.pj@sgi.com>
-Message-ID: <Pine.LNX.4.64.0701220939060.24578@schroedinger.engr.sgi.com>
-References: <20070120031007.17491.33355.sendpatchset@schroedinger.engr.sgi.com>
- <20070120031012.17491.72105.sendpatchset@schroedinger.engr.sgi.com>
- <20070119211532.d47793b1.pj@sgi.com>
+Subject: Re: [PATCH] nfs: fix congestion control -v3
+In-Reply-To: <1169276500.6197.159.camel@twins>
+Message-ID: <Pine.LNX.4.64.0701220956590.24578@schroedinger.engr.sgi.com>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+  <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
+ <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
+ <1169070763.5975.70.camel@lappy>  <1169070886.6523.8.camel@lade.trondhjem.org>
+  <1169126868.6197.55.camel@twins>  <1169135375.6105.15.camel@lade.trondhjem.org>
+  <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
+ <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
+ <1169229461.6197.154.camel@twins>  <1169231212.5775.29.camel@lade.trondhjem.org>
+ <1169276500.6197.159.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: akpm@osdl.org, menage@google.com, a.p.zijlstra@chello.nl, nickpiggin@yahoo.com.au, linux-mm@kvack.org, dgc@sgi.com, ak@suse.de
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Jan 2007, Paul Jackson wrote:
+On Sat, 20 Jan 2007, Peter Zijlstra wrote:
 
-> Christoph wrote:
-> > + * Called without the tree_lock! So we may on rare occasions (when we race with
-> > + * cpuset_clear_dirty_nodes()) follow the dirty_node pointer to random data.
-> 
-> Random is ok, on rate occassion, as you note.
-> 
-> But is there any chance you could follow it to a non-existent memory location
-> and oops?  These long nodemasks are kmalloc/kfree'd, and I thought that once
-> kfree'd, there was no guarantee that the stale address would even point to
-> a mapped page of RAM.  This situation reminds me of the one that led to adding
-> some RCU dependent code to kernel/cpuset.c.
+> Subject: nfs: fix congestion control
 
-This could become an issue if we implement memory unplug and then RCU 
-locking could help. But right now that situation is only possible with 
-memory mapped via page tables (vmalloc or user space pages). The slab 
-allocator can currently only allocate from 1-1 mapped memory. So no danger 
-there.
+I am not sure if its too valuable since I have limited experience with NFS 
+but it looks fine to me.
 
-
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
