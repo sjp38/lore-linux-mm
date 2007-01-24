@@ -1,42 +1,62 @@
+Received: by wx-out-0506.google.com with SMTP id s8so177999wxc
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2007 06:22:43 -0800 (PST)
+Message-ID: <6d6a94c50701240622n30f1092cq4570f84160fe87f7@mail.gmail.com>
+Date: Wed, 24 Jan 2007 22:22:43 +0800
+From: "Aubrey Li" <aubreylee@gmail.com>
 Subject: Re: [RFC] Limit the size of the pagecache
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <45B7561C.9000102@yahoo.com.au>
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-	 <1169625333.4493.16.camel@taijtu>  <45B7561C.9000102@yahoo.com.au>
-Content-Type: text/plain
-Date: Wed, 24 Jan 2007 13:58:08 +0100
-Message-Id: <1169643488.6189.18.camel@twins>
-Mime-Version: 1.0
+In-Reply-To: <1169625333.4493.16.camel@taijtu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
+	 <1169625333.4493.16.camel@taijtu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Lameter <clameter@sgi.com>, Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <clameter@sgi.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Robin Getz <rgetz@blackfin.uclinux.org>, "Frysinger, Michael" <Michael.Frysinger@analog.com>, Bryan Wu <cooloney.lkml@gmail.com>, "Hennerich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-01-24 at 23:50 +1100, Nick Piggin wrote:
-> Peter Zijlstra wrote:
-> > On Tue, 2007-01-23 at 16:49 -0800, Christoph Lameter wrote:
-> 
-> >>2. Insure rapid turnaround of pages in the cache.
-> 
-> [...]
-> 
-> > The  only maybe valid point would be 2, and I'd like to see if we can't
-> > solve that differently - a better use-once logic comes to mind.
-> 
-> There must be something I'm missing with that point. The faster
-> the turnaround of pagecache pages, the *less* efficiently the
-> pagecache is working (assuming a rapid turnaround means a high
-> rate of pages brought into, then reclaimed from pagecache).
-> 
-> I can't argue that a smaller pagecache will be subject to a
-> higher turnaround given the same workload, but I don't know why
-> that would be a good thing.
+On 1/24/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> On Tue, 2007-01-23 at 16:49 -0800, Christoph Lameter wrote:
+> > This is a patch using some of Aubrey's work plugging it in what is IMHO
+> > the right way. Feel free to improve on it. I have gotten repeatedly
+> > requests to be able to limit the pagecache. With the revised VM statistics
+> > this is now actually possile. I'd like to know more about possible uses of
+> > such a feature.
+> >
+> >
+> >
+> >
+> > It may be useful to limit the size of the page cache for various reasons
+> > such as
+> >
+> > 1. Insure that anonymous pages that may contain performance
+> >    critical data is never subject to swap.
+>
+> This is what we have mlock for, no?
+>
+> > 2. Insure rapid turnaround of pages in the cache.
+>
+> This sounds like we either need more fadvise hints and/or understand why
+> the VM doesn't behave properly.
+>
+> > 3. Reserve memory for other uses? (Aubrey?)
+>
+> He wants to make a nommu system act like a mmu system; this will just
+> never ever work.
 
-I interpreted the issue as selecting the wrong pages for the 'working
-set'. Like not quickly evicting pages from a large streaming read, which
-then pushes out more useful pages.
+Nope. Actually my nommu system works great with some of patches made by us.
+What let you think this will never work?
+
+>Memory fragmentation is a real issue not some gimmick
+> thought up by the hardware folks to sell these mmu chips.
+>
+I totally disagree. Memory fragmentations is the issue not only on
+nommu, it's also on mmu chips. That's not the reason mmu chips can be
+sold.
+
+-Aubrey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
