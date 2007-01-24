@@ -1,77 +1,40 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l0P0ZEKL6336548
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2007 23:35:19 -0100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0OCb4t3244238
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2007 23:37:05 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0OCXZC3019316
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2007 23:33:35 +1100
-Message-ID: <45B75208.90208@linux.vnet.ibm.com>
-Date: Wed, 24 Jan 2007 18:03:12 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Message-ID: <45B7561C.9000102@yahoo.com.au>
+Date: Wed, 24 Jan 2007 23:50:36 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC] Limit the size of the pagecache
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII
+References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com> <1169625333.4493.16.camel@taijtu>
+In-Reply-To: <1169625333.4493.16.camel@taijtu>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Aubrey Li <aubreylee@gmail.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <clameter@sgi.com>, Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Peter Zijlstra wrote:
+> On Tue, 2007-01-23 at 16:49 -0800, Christoph Lameter wrote:
 
-Christoph Lameter wrote:
-> This is a patch using some of Aubrey's work plugging it in what is IMHO
-> the right way. Feel free to improve on it. I have gotten repeatedly
-> requests to be able to limit the pagecache. With the revised VM statistics
-> this is now actually possile. I'd like to know more about possible uses of
-> such a feature.
-> 
-> 
+>>2. Insure rapid turnaround of pages in the cache.
 
-[snip]
+[...]
 
-Hi Christoph,
+> The  only maybe valid point would be 2, and I'd like to see if we can't
+> solve that differently - a better use-once logic comes to mind.
 
-With your patch, MMAP of a file that will cross the pagecache limit hangs the
-system.  As I mentioned in my previous mail, without subtracting the
-NR_FILE_MAPPED, the reclaim will infinitely try and fail.
+There must be something I'm missing with that point. The faster
+the turnaround of pagecache pages, the *less* efficiently the
+pagecache is working (assuming a rapid turnaround means a high
+rate of pages brought into, then reclaimed from pagecache).
 
-I have tested your patch with the attached fix on my PPC64 box.
+I can't argue that a smaller pagecache will be subject to a
+higher turnaround given the same workload, but I don't know why
+that would be a good thing.
 
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-
----
- mm/page_alloc.c |    3 ++-
- mm/vmscan.c     |    3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
-
---- linux-2.6.20-rc5.orig/mm/page_alloc.c
-+++ linux-2.6.20-rc5/mm/page_alloc.c
-@@ -1171,7 +1171,8 @@ zonelist_scan:
-                                goto try_next_zone;
-
-                if ((gfp_mask & __GFP_PAGECACHE) &&
--                               zone_page_state(zone, NR_FILE_PAGES) >
-+                               (zone_page_state(zone, NR_FILE_PAGES) -
-+                                zone_page_state(zone, NR_FILE_MAPPED)) >
-                                        zone->max_pagecache_pages)
-                                goto try_next_zone;
-
---- linux-2.6.20-rc5.orig/mm/vmscan.c
-+++ linux-2.6.20-rc5/mm/vmscan.c
-@@ -936,7 +936,8 @@ static unsigned long shrink_zone(int pri
-         * If the page cache is too big then focus on page cache
-         * and ignore anonymous pages
-         */
--       if (sc->may_swap && zone_page_state(zone, NR_FILE_PAGES)
-+       if (sc->may_swap && (zone_page_state(zone, NR_FILE_PAGES) -
-+                       zone_page_state(zone, NR_FILE_MAPPED))
-                        > zone->max_pagecache_pages)
-                sc->may_swap = 0;
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
