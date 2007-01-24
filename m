@@ -1,45 +1,50 @@
-Date: Wed, 24 Jan 2007 11:53:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <45B6CBD9.80600@yahoo.com.au>
+Date: Wed, 24 Jan 2007 14:00:41 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [RFC] Limit the size of the pagecache
-Message-Id: <20070124115310.48cda374.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: aubreylee@gmail.com, svaidy@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, rgetz@blackfin.uclinux.org, Michael.Hennerich@analog.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Aubrey Li <aubreylee@gmail.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Jan 2007 16:49:55 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+Christoph Lameter wrote:
+> This is a patch using some of Aubrey's work plugging it in what is IMHO 
+> the right way. Feel free to improve on it. I have gotten repeatedly 
+> requests to be able to limit the pagecache. With the revised VM statistics 
+> this is now actually possile. I'd like to know more about possible uses of 
+> such a feature.
+> 
+> 
+> 
+> 
+> It may be useful to limit the size of the page cache for various reasons
+> such as
+> 
+> 1. Insure that anonymous pages that may contain performance
+>    critical data is never subject to swap.
+> 
+> 2. Insure rapid turnaround of pages in the cache.
 
-> If we enter reclaim and the number of page cache pages
-> is too high then we switch off swapping during reclaim
-> to avoid touching anonymous pages.
+So if these two aren't working properly at 100%, then I want to know the
+reason why. Or at least see what the workload and the numbers look like.
 
-In general, I like this (kind of) feature.
+> 
+> 3. Reserve memory for other uses? (Aubrey?)
 
-> +	/*
-> +	 * If the page cache is too big then focus on page cache
-> +	 * and ignore anonymous pages
-> +	 */
-> +	if (sc->may_swap && zone_page_state(zone, NR_FILE_PAGES)
-> +			> zone->max_pagecache_pages)
-> +		sc->may_swap = 0;
-> +
+Maybe. This is still a bad hack, and I don't like to legitimise such use
+though. I hope Aubrey isn't relying on this alone for his device to work
+because his customers might end up hitting fragmentation problems sooner
+or later.
 
-
-How about adding this (kind of) check ?
-
-if (sc->may_swap &&
-    zone_page_state(zone, NR_FILE_PAGES) &&
-    !(curreht->flags & PF_MEMALLOC))
-	sc->may_swap = 0;
-
--Kame
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
