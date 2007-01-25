@@ -1,47 +1,34 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070125234638.28809.50391.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070125234658.28809.91432.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
 References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 5/8] ppc and powerpc - Specify amount of kernel memory at boot time
-Date: Thu, 25 Jan 2007 23:46:38 +0000 (GMT)
+Subject: [PATCH 6/8] x86_64 - Specify amount of kernel memory at boot time
+Date: Thu, 25 Jan 2007 23:46:58 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds the kernelcore= parameter for ppc and powerpc.
+This patch adds the kernelcore= parameter for x86_64.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- powerpc/kernel/prom.c |    1 +
- ppc/mm/init.c         |    2 ++
- 2 files changed, 3 insertions(+)
+ e820.c |    1 +
+ 1 files changed, 1 insertion(+)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-004_x86_set_kernelcore/arch/powerpc/kernel/prom.c linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/powerpc/kernel/prom.c
---- linux-2.6.20-rc4-mm1-004_x86_set_kernelcore/arch/powerpc/kernel/prom.c	2007-01-07 05:45:51.000000000 +0000
-+++ linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/powerpc/kernel/prom.c	2007-01-25 17:38:17.000000000 +0000
-@@ -431,6 +431,7 @@ static int __init early_parse_mem(char *
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/x86_64/kernel/e820.c linux-2.6.20-rc4-mm1-006_x8664_set_kernelcore/arch/x86_64/kernel/e820.c
+--- linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/x86_64/kernel/e820.c	2007-01-17 17:08:01.000000000 +0000
++++ linux-2.6.20-rc4-mm1-006_x8664_set_kernelcore/arch/x86_64/kernel/e820.c	2007-01-25 17:40:16.000000000 +0000
+@@ -617,6 +617,7 @@ static int __init parse_memopt(char *p)
  	return 0;
- }
- early_param("mem", early_parse_mem);
+ } 
+ early_param("mem", parse_memopt);
 +early_param("kernelcore", cmdline_parse_kernelcore);
  
- /*
-  * The device tree may be allocated below our memory limit, or inside the
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-004_x86_set_kernelcore/arch/ppc/mm/init.c linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/ppc/mm/init.c
---- linux-2.6.20-rc4-mm1-004_x86_set_kernelcore/arch/ppc/mm/init.c	2007-01-07 05:45:51.000000000 +0000
-+++ linux-2.6.20-rc4-mm1-005_ppc64_set_kernelcore/arch/ppc/mm/init.c	2007-01-25 17:38:17.000000000 +0000
-@@ -214,6 +214,8 @@ void MMU_setup(void)
- 	}
- }
+ static int userdef __initdata;
  
-+early_param("kernelcore", cmdline_parse_kernelcore);
-+
- /*
-  * MMU_init sets up the basic memory mappings for the kernel,
-  * including both RAM and possibly some I/O regions,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
