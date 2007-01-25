@@ -1,55 +1,65 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l0PK91Pr7667748
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 19:09:01 -0100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0P8AggT224900
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 19:10:42 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0P87Cc4031103
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 19:07:13 +1100
-Message-ID: <45B8652B.5040200@linux.vnet.ibm.com>
-Date: Thu, 25 Jan 2007 13:37:07 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-MIME-Version: 1.0
+From: Bodo Eggert <7eggert@gmx.de>
 Subject: Re: [RFC] Limit the size of the pagecache
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com> <1169625333.4493.16.camel@taijtu> <45B7561C.9000102@yahoo.com.au> <Pine.LNX.4.64.0701240657130.9696@schroedinger.engr.sgi.com> <20070124200614.GA25690@codepoet.org> <Pine.LNX.4.64.0701241840090.12325@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0701241840090.12325@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Reply-To: 7eggert@gmx.de
+Date: Thu, 25 Jan 2007 15:51:34 +0100
+References: <7GEEK-4lH-39@gated-at.bofh.it> <7GLdb-5Uz-13@gated-at.bofh.it> <7GRix-7fU-1@gated-at.bofh.it> <7GRLZ-7Uy-29@gated-at.bofh.it>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8Bit
+Message-Id: <E1HA5ws-0000vQ-KM@be1.lrz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Erik Andersen <andersen@codepoet.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Aubrey Li <aubreylee@gmail.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Aubrey Li <aubreylee@gmail.com>, Christoph Lameter <clameter@sgi.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Robin Getz <rgetz@blackfin.uclinux.org>, ?missing, Michael <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> On Wed, 2007-01-24 at 22:22 +0800, Aubrey Li wrote:
+>> On 1/24/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-Christoph Lameter wrote:
-> On Wed, 24 Jan 2007, Erik Andersen wrote:
+>> > He wants to make a nommu system act like a mmu system; this will just
+>> > never ever work.
+>> 
+>> Nope. Actually my nommu system works great with some of patches made by us.
+>> What let you think this will never work?
 > 
->> It would be far more useful if an application could hint to the
->> pagecache as to which files are and which files as not worth
->> caching, especially when the application knows a priori that data
->> from a particular file will or will not ever be reused.
+> Because there are perfectly valid things user-space can do to mess you
+> up. I forgot the test-case but it had something to do with opening a
+> million files, this will scatter slab pages all over the place.
+
+a) Limit the number of open files.
+b) Don't do that then.
+
+> Also, if you cycle your large user-space allocations a bit unluckily
+> you'll also fragment it into oblivion.
 > 
-> It can give such hints via madvise(2).
+> So you can not guarantee it will not fragment into smithereens stopping
+> your user-space from using large than page size allocations.
 
-I think you meant fadvise.  That is certainly a possibility which we
-need to work on.  Current implementation of fadvise only throttles
-read ahead in case of sequential access and flushes the file in case
-of DONTNEED.  We leave it at default for NOREUSE.
+Therefore you should purposely increase the mess up to the point where the
+system is guaranteed not to work? IMO you should rather put the other issues
+onto the TODO list.
 
-In case of DONTNEED and NOREUSE, we need to limit the pages used for
-page cache and also reclaim them as soon as possible.  Interaction of
- mmap() and fadvise is little more dfficult to handle.
+BTW: I'm not sure a hard limit is the right thing to do for mmu systems,
+I'd rather implement high and low watermarks; if one pool is larger than
+it's high watermark, it will be next get it's pages evicted, and it won't
+lose pages if it's at the lower watermark.
 
---Vaidy
-
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> If your user-space consists of several applications that do dynamic
+> memory allocation of various sizes its a matter of (run-) time before
+> things will start failing.
 > 
+> If you prealloc a large area at boot time (like we now do for hugepages)
+> and use that for user-space, you might 'reset' the status quo by cycling
+> the whole of userspace.
+
+Preallocating the page cache (and maybe the slab space?) may very well be
+the right thing to do for nommu systems. It worked quite well in DOS times
+and on old MACs.
+-- 
+Funny quotes:
+30. Why is a person who plays the piano called a pianist but a person who
+    drives a race car not called a racist?
+Friss, Spammer: iz@7eggert.dyndns.org pveUtv@rFGfMneI.7eggert.dyndns.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
