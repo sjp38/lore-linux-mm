@@ -1,54 +1,35 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l0P64DgM071456
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 17:04:13 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0P5r56q222204
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 16:53:07 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0P5na6b014594
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 16:49:36 +1100
-Message-ID: <45B844E3.4050203@linux.vnet.ibm.com>
-Date: Thu, 25 Jan 2007 11:19:23 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Date: Wed, 24 Jan 2007 21:52:09 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/5] Add a map to to track dirty pages per node
+In-Reply-To: <45B81E5B.1090505@google.com>
+Message-ID: <Pine.LNX.4.64.0701242143200.13327@schroedinger.engr.sgi.com>
+References: <20070123185242.2640.8367.sendpatchset@schroedinger.engr.sgi.com>
+ <20070123185248.2640.87514.sendpatchset@schroedinger.engr.sgi.com>
+ <45B81E5B.1090505@google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] Limit the size of the pagecache
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com> <45B75208.90208@linux.vnet.ibm.com> <Pine.LNX.4.64.0701240655400.9696@schroedinger.engr.sgi.com> <45B82F41.9040705@linux.vnet.ibm.com> <45B835FE.6030107@redhat.com>
-In-Reply-To: <45B835FE.6030107@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Aubrey Li <aubreylee@gmail.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ethan Solomita <solo@google.com>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 24 Jan 2007, Ethan Solomita wrote:
 
-Rik van Riel wrote:
-> Vaidyanathan Srinivasan wrote:
-> 
->> In my opinion, once a
->> file page is mapped by the process, then it should be treated at par
->> with anon pages.  Application programs generally do not mmap a file
->> page if the reuse for the content is very low.
-> 
-> Why not have the VM measure this, instead of making wild
-> assumptions about every possible workload out there?
+>    The below addition makes us skip inodes outside of our dirty nodes. Do we
+> want this even with WB_SYNC_ALL and WB_SYNC_HOLD? It seems that callers from
+> sync_inodes_sb(), which are the ones that pass in those options, may want to
+> know that everything is written.
 
-Yes, VM page aging and page replacement algorithm should decide on the
-relevance of anon or mmap page.  However we may still need to limit
-total pages in memory for a given set of process.
+A constraint on the nodes requires setting wbc.nodes. I could not find a 
+writeback_control setup that uses either of those flags and also sets 
+wbc.nodes.
 
-> There are a few databases out there that mmap the whole
-> thing.  Sleepycat for one...
-> 
+And WB_SYNC_ALL is already used with another constraints on a 
+mapping to only partially sync.
 
-That is why my suggestion would be not to touch mmapped pagecache
-pages in the current pagecache limit code.  The limit should concern
-only unmapped pagecache pages.
-
-When the application unmaps the pages, then instantly we would go over
-limit and 'now' unmapped pages can be reclaimed.  This behavior has
-been verified with my fix on top of Christoph's patch.
+If a caller in the future sets wbc.nodes plus either of those options then 
+it is an attempt to perform these operations only on a subset of nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
