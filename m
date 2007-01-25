@@ -1,78 +1,86 @@
-Date: Thu, 25 Jan 2007 12:12:54 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l0P4VnBb276610
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 15:31:53 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0P4KfTm249676
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 15:20:44 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0P4HCsM028444
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2007 15:17:12 +1100
+Message-ID: <45B82F41.9040705@linux.vnet.ibm.com>
+Date: Thu, 25 Jan 2007 09:47:05 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Subject: Re: [RFC] Limit the size of the pagecache
-Message-Id: <20070125121254.a2e91875.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0701241841000.12325@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-	<20070124121318.6874f003.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0701232028520.6820@schroedinger.engr.sgi.com>
-	<20070124141510.7775829c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070125093259.74f76144.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0701241841000.12325@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
+References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com> <45B75208.90208@linux.vnet.ibm.com> <Pine.LNX.4.64.0701240655400.9696@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0701240655400.9696@schroedinger.engr.sgi.com>
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: aubreylee@gmail.com, svaidy@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, rgetz@blackfin.uclinux.org, Michael.Hennerich@analog.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Aubrey Li <aubreylee@gmail.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Robin Getz <rgetz@blackfin.uclinux.org>, "Henn, erich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jan 2007 18:41:27 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-> > But I can't think of the way to show that.
-> > ==
-> > [kamezawa@aworks src]$ free
-> >             total       used       free     shared    buffers     cached
-> > Mem:        741604     724628      16976          0      62700     564600
-> > -/+ buffers/cache:      97328     644276
-> > Swap:      1052216       2532    1049684
-> > ==
+
+Christoph Lameter wrote:
+> On Wed, 24 Jan 2007, Vaidyanathan Srinivasan wrote:
 > 
-> Could we call the free memory "unused memory" and not talk about free 
-> memory at all?
+>> With your patch, MMAP of a file that will cross the pagecache limit hangs the
+>> system.  As I mentioned in my previous mail, without subtracting the
+>> NR_FILE_MAPPED, the reclaim will infinitely try and fail.
 > 
-Ah, maybe it's better.
+> Well mapped pages are still pagecache pages.
+> 
 
-I met several memory troubles in user's systems in these days. (on older kernels)
-Thousands/hundreds of process works on it.
+Yes, but they can be classified under a process RSS pages.  Whether it
+is an anon page or shared mem or mmap of pagecache, it would show up
+under RSS.  Those pages can be limited by RSS limiter similar to the
+one we are discussing in pagecache limiter.  In my opinion, once a
+file page is mapped by the process, then it should be treated at par
+with anon pages.  Application programs generally do not mmap a file
+page if the reuse for the content is very low.
 
-When I explain the cutomers about memory management, I devides memory into..
+>> I have tested your patch with the attached fix on my PPC64 box.
+> 
+> Interesting. What is your reason for wanting to limit the size of the
+> pagecache?
 
-(1) unused memory  --- memory which is not used, in free-list of zones.
+1. Systems primarily running database workloads would benefit if
+background house keeping applications like backup processes do not
+fill the pagecache.  Databases use O_DIRECT and we do not want the
+kernel to even remove cold pages belonging to that application to make
+room for pagecache that is going to be used by an unimportant backup
+application.  The objective is to have some limit on pagecache usage
+and make the backup application take all the performance hit and have
+zero impact on the main database workload.
 
-(2) reclaimable memory --- page cache, which is reclaimable
-	clean pages  --- can be reclaimed soon
-	dirty pages  --- need to be written back
-	*BUT* busy pages are unreclaimable. 
+Solutions:
 
-(3) swappable memory --- user process's pages. basically reclaimable if 
-                         swap is available.
-			 shmem pages are included here.
+* The backup applications could use O_DIRECT as well, but this is not
+very flexible since there are restrictions in using O_DIRECT.
 
-(4) locked memory --- mlocked memory, which is not reclaimable(but movable)
+Please review http://lkml.org/lkml/2007/1/4/55 for issues with O_DIRECT
 
-(5) kernel memory --- used by kernel, 
-                      (and we can't see how many pages are reclaimable)
- 
-We can know the amount of (1) and (5) and total memory.
-Basically, (3) = (Total) - (2) - (1).
-busy data-set of (2)(3) is not reclaimable. but the amount of busy data-set
-is unknown. Many users takes log of 'ps' or 'sar' to estimate their memory
-usage. (and sometimes page-cache of 'log-file' eats their memory.....)
+* Improve fadvice to specify caching behavior.  Rightnow we only model
+the readahead behavior.  However this would need a change in all
+applications and more command line options.
 
-The amount of (4) is unknown. But there was a system with 6GB of 8GB
-memory was mlocked (--; and OOM works.
+* The technique we are discussing right now can serve the purpose
 
-I'm sorry that I can't catch up how the current kernel can show memory usage.
-I should investigate that. 
+2. In the context of 'containers' and per container resource
+management, there is a need to restrict resources utilized by each of
+the process groups within the container.  Resources like CPU time,
+RSS, pagecache usage, IO bandwidth etc may have to be controlled for
+each process groups.
 
-FYI:
-Because some customers are migrated from mainframes, they want to control
-almost all features in OS, IOW, designing memory usages.
+Some of today's open virtualisation solutions like UML instances, KVM
+instances among others also have a need to control CPU time, RSS and
+(unmapped) pagecache pages to be able to successfully execute
+commercial workloads within their virtual environments.  Each of these
+instances are normal Linux process within the host kernel.
 
--Kame
-
+--Vaidy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
