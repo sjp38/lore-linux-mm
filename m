@@ -1,43 +1,51 @@
-Date: Wed, 24 Jan 2007 18:41:27 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Limit the size of the pagecache
-In-Reply-To: <20070125093259.74f76144.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0701241841000.12325@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
- <20070124121318.6874f003.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0701232028520.6820@schroedinger.engr.sgi.com>
- <20070124141510.7775829c.kamezawa.hiroyu@jp.fujitsu.com>
- <20070125093259.74f76144.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <45B81E5B.1090505@google.com>
+Date: Wed, 24 Jan 2007 19:04:59 -0800
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/5] Add a map to to track dirty pages per node
+References: <20070123185242.2640.8367.sendpatchset@schroedinger.engr.sgi.com> <20070123185248.2640.87514.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20070123185248.2640.87514.sendpatchset@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: aubreylee@gmail.com, svaidy@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, rgetz@blackfin.uclinux.org, Michael.Hennerich@analog.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jan 2007, KAMEZAWA Hiroyuki wrote:
+Do we want this even with WB_SYNC_ALL and WB_SYNC_HOLD? It seems that 
+callers from sync_inodes_sb(), which are the ones that pass in those 
+options, may want to know that everything is written.
+    -- Ethan
 
-> On Wed, 24 Jan 2007 14:15:10 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> >   And...some customers want to keep memory Free as much as possible.
-> >   99% memory usage makes insecure them ;)
-> > 
-> If there is a way that the "free" command can show "never used" memory,
-> they will not complain ;).
-> 
-> But I can't think of the way to show that.
-> ==
-> [kamezawa@aworks src]$ free
->             total       used       free     shared    buffers     cached
-> Mem:        741604     724628      16976          0      62700     564600
-> -/+ buffers/cache:      97328     644276
-> Swap:      1052216       2532    1049684
-> ==
 
-Could we call the free memory "unused memory" and not talk about free 
-memory at all?
+Christoph Lameter wrote:
+> Index: linux-2.6.20-rc5/fs/fs-writeback.c
+> ===================================================================
+> --- linux-2.6.20-rc5.orig/fs/fs-writeback.c	2007-01-22 13:31:30.440219103 -0600
+> +++ linux-2.6.20-rc5/fs/fs-writeback.c	2007-01-23 12:21:44.669179863 -0600
+> @@ -22,6 +22,7 @@
+>  #include <linux/blkdev.h>
+>  #include <linux/backing-dev.h>
+>  #include <linux/buffer_head.h>
+> +#include <linux/cpuset.h>
+>  #include "internal.h"
+>  
+>  /**
+> @@ -349,6 +350,12 @@ sync_sb_inodes(struct super_block *sb, s
+>  			continue;		/* blockdev has wrong queue */
+>  		}
+>  
+> +		if (!cpuset_intersects_dirty_nodes(mapping, wbc->nodes)) {
+> +			/* No pages on the nodes under writeback */
+> +			list_move(&inode->i_list, &sb->s_dirty);
+> +			continue;
+> +		}
+> +
+>  		/* Was this inode dirtied after sync_sb_inodes was called? */
+>  		if (time_after(inode->dirtied_when, start))
+>  			break;
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
