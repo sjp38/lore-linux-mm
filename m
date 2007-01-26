@@ -1,48 +1,70 @@
-Date: Fri, 26 Jan 2007 12:27:47 -0800
+Date: Fri, 26 Jan 2007 12:34:32 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
- movable and non-movable pages
-Message-Id: <20070126122747.dde74c97.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-	<20070126030753.03529e7a.akpm@osdl.org>
-	<Pine.LNX.4.64.0701260751230.6141@schroedinger.engr.sgi.com>
-	<20070126114615.5aa9e213.akpm@osdl.org>
-	<Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH] typeof __page_to_pfn with SPARSEMEM=y
+Message-Id: <20070126123432.93a175f2.akpm@osdl.org>
+In-Reply-To: <20070126120113.c17c1174.randy.dunlap@oracle.com>
+References: <20070126120113.c17c1174.randy.dunlap@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Jan 2007 11:58:18 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Fri, 26 Jan 2007 12:01:13 -0800
+Randy Dunlap <randy.dunlap@oracle.com> wrote:
 
-> > If the only demonstrable benefit is a saving of a few k of text on a small
-> > number of machines then things are looking very grim, IMO.
+> From: Randy Dunlap <randy.dunlap@oracle.com>
 > 
-> The main benefit is a significant simplification of the VM, leading to 
-> robust and reliable operations and a reduction of the maintenance 
-> headaches coming with the additional zones.
+> With CONFIG_SPARSEMEM=y:
 > 
-> If we would introduce the ability of allocating from a range of 
-> physical addresses then the need for DMA zones would go away allowing 
-> flexibility for device driver DMA allocations and at the same time we get 
-> rid of special casing in the VM.
+> mm/rmap.c:579: warning: format '%lx' expects type 'long unsigned int', but argument 2 has type 'int'
+> 
+> Make __page_to_pfn() return unsigned long.
+> 
+> Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+> ---
+>  include/asm-generic/memory_model.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- linux-2620-rc6.orig/include/asm-generic/memory_model.h
+> +++ linux-2620-rc6/include/asm-generic/memory_model.h
+> @@ -54,7 +54,7 @@
+>  #define __page_to_pfn(pg)					\
+>  ({	struct page *__pg = (pg);				\
+>  	int __sec = page_to_section(__pg);			\
+> -	__pg - __section_mem_map_addr(__nr_to_section(__sec));	\
+> +	(unsigned long)(__pg - __section_mem_map_addr(__nr_to_section(__sec)));	\
+>  })
 
-None of this is valid.  The great majority of machines out there will
-continue to have the same number of zones.  Nothing changes.
+whaa?  The difference between two pointers has type `int' on a 64-bit
+compiler.  How stupid.
 
-What will happen is that a small number of machines will have different
-runtime behaviour.  So they don't benefit from the majority's testing and
-they don't contrinute to it and they potentially have unique-to-them
-problems which we need to worry about.
+<reads the book>
 
-That's all a real cost, so we need to see *good* benefits to outweigh that
-cost.  Thus far I don't think we've seen that.
+A.4 Important Data Types
+========================
+
+The result of subtracting two pointers in C is always an integer, but
+the precise data type varies from C compiler to C compiler.  Likewise,
+the data type of the result of `sizeof' also varies between compilers.
+ISO defines standard aliases for these two types, so you can refer to
+them in a portable fashion.  They are defined in the header file
+`stddef.h'.  
+
+ -- Data Type: ptrdiff_t
+     This is the signed integer type of the result of subtracting two
+     pointers.  For example, with the declaration `char *p1, *p2;', the
+     expression `p2 - p1' is of type `ptrdiff_t'.  This will probably
+     be one of the standard signed integer types (`short int', `int' or
+     `long int'), but might be a nonstandard type that exists only for
+     this purpose.
+
+So it seems that's `int' on (at least) x86_64.
+
+How the hell can that be reliable?  I'm missing something here...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
