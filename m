@@ -1,32 +1,42 @@
-Date: Thu, 25 Jan 2007 21:31:43 -0800 (PST)
+Date: Thu, 25 Jan 2007 21:41:53 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] nfs: fix congestion control -v4
-In-Reply-To: <20070125210950.bcdaa7f6.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0701252130500.7147@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
- <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
- <1169070763.5975.70.camel@lappy> <1169070886.6523.8.camel@lade.trondhjem.org>
- <1169126868.6197.55.camel@twins> <1169135375.6105.15.camel@lade.trondhjem.org>
- <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
- <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
- <1169229461.6197.154.camel@twins> <1169231212.5775.29.camel@lade.trondhjem.org>
- <1169276500.6197.159.camel@twins> <1169482343.6083.7.camel@lade.trondhjem.org>
- <1169739148.6189.68.camel@twins> <20070125210950.bcdaa7f6.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070126054153.10564.43218.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [RFC 0/8] Use ZVCs for accurate writeback ratio determination
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
+To: akpm@osdl.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Nikita Danilov <nikita@clusterfs.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jan 2007, Andrew Morton wrote:
+The determination of the dirty ratio to determine writeback behavior
+is currently based on the number of total pages on the system.
 
-> atomic_t is 32-bit.  Put 16TB of memory under writeback and blam.
+However, not all pages in the system may be dirtied. Thus the ratio
+is always too low and can never reach 100%. The ratio may be
+particularly skewed if large hugepage allocations, slab allocations
+or device driver buffers make large sections of memory not available
+anymore. In that case we may get into a situation in which f.e. the
+background writeback ratio of 40% cannot be reached anymore which
+leads to undesired writeback behavior.
 
-We have systems with 8TB main memory and are able to get to 16TB.
-Better change it now.
+This patchset fixes that issue by determining the ratio based
+on the actual pages that may potentially be dirty. These are
+the pages on the active and the inactive list plus free pages.
+
+The problem with those counts has so far been that it is expensive
+to calculate these because counts from multiple nodes and multiple
+zones will have to be summed up. This patchset makes these counters
+ZVC counters. This means that a current sum per zone, per node and
+for the whole system is always available via global variables
+and not expensive anymore to calculate.
+
+The patchset results in some other good side effects:
+
+- Removal of the various functions that sum up free, active
+  and inactive page counts
+
+- Cleanup of the functions that display information via the
+  proc filesystem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
