@@ -1,71 +1,101 @@
-Date: Thu, 25 Jan 2007 21:42:08 -0800 (PST)
+Date: Thu, 25 Jan 2007 21:42:29 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070126054208.10564.45172.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070126054229.10564.27252.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070126054153.10564.43218.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070126054153.10564.43218.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 3/8] Reorder ZVCs according to cacheline
+Subject: [RFC 7/8] Drop get_zone_counts()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Nikita Danilov <nikita@clusterfs.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Reorder ZVCs so that the main counters are in the same cacheline.
+Get rid of get_zone_counts
 
-The global and per zone counter sums are in arrays of longs. Reorder
-the ZVCs so that the most frequently used ZVCs are put into the same
-cacheline. That way calculations of the global, node and per zone
-vm state touches only a single cacheline. This is mostly important
-for 64 bit systems were one 128 byte cacheline takes only 8 longs.
+Values are available via ZVC sums.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.20-rc6/include/linux/mmzone.h
+Index: linux-2.6.20-rc6/fs/proc/proc_misc.c
 ===================================================================
---- linux-2.6.20-rc6.orig/include/linux/mmzone.h	2007-01-25 11:20:59.000000000 -0800
-+++ linux-2.6.20-rc6/include/linux/mmzone.h	2007-01-25 11:28:07.000000000 -0800
-@@ -47,6 +47,7 @@ struct zone_padding {
- #endif
+--- linux-2.6.20-rc6.orig/fs/proc/proc_misc.c	2007-01-25 10:52:06.000000000 -0800
++++ linux-2.6.20-rc6/fs/proc/proc_misc.c	2007-01-25 10:52:51.000000000 -0800
+@@ -121,16 +121,11 @@ static int meminfo_read_proc(char *page,
+ {
+ 	struct sysinfo i;
+ 	int len;
+-	unsigned long inactive;
+-	unsigned long active;
+-	unsigned long free;
+ 	unsigned long committed;
+ 	unsigned long allowed;
+ 	struct vmalloc_info vmi;
+ 	long cached;
  
- enum zone_stat_item {
-+	/* First 128 byte cacheline (assuming 64 bit words) */
- 	NR_FREE_PAGES,
- 	NR_INACTIVE,
- 	NR_ACTIVE,
-@@ -54,11 +55,12 @@ enum zone_stat_item {
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
- 	NR_FILE_PAGES,
--	NR_SLAB_RECLAIMABLE,
--	NR_SLAB_UNRECLAIMABLE,
--	NR_PAGETABLE,	/* used for pagetables */
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
-+	/* Second 128 byte cacheline */
-+	NR_SLAB_RECLAIMABLE,
-+	NR_SLAB_UNRECLAIMABLE,
-+	NR_PAGETABLE,		/* used for pagetables */
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_BOUNCE,
- 	NR_VMSCAN_WRITE,
+-	get_zone_counts(&active, &inactive, &free);
+-
+ /*
+  * display in kilobytes.
+  */
+@@ -187,8 +182,8 @@ static int meminfo_read_proc(char *page,
+ 		K(i.bufferram),
+ 		K(cached),
+ 		K(total_swapcache_pages),
+-		K(active),
+-		K(inactive),
++		K(global_page_state(NR_ACTIVE)),
++		K(global_page_state(NR_INACTIVE)),
+ #ifdef CONFIG_HIGHMEM
+ 		K(i.totalhigh),
+ 		K(i.freehigh),
+Index: linux-2.6.20-rc6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.20-rc6.orig/mm/page_alloc.c	2007-01-25 10:52:50.000000000 -0800
++++ linux-2.6.20-rc6/mm/page_alloc.c	2007-01-25 10:52:51.000000000 -0800
+@@ -1524,9 +1524,6 @@ void si_meminfo_node(struct sysinfo *val
+ void show_free_areas(void)
+ {
+ 	int cpu;
+-	unsigned long active;
+-	unsigned long inactive;
+-	unsigned long free;
+ 	struct zone *zone;
+ 
+ 	for_each_zone(zone) {
+@@ -1550,12 +1547,10 @@ void show_free_areas(void)
+ 		}
+ 	}
+ 
+-	get_zone_counts(&active, &inactive, &free);
+-
+ 	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
+ 		"unstable:%lu free:%lu slab:%lu mapped:%lu pagetables:%lu\n",
+-		active,
+-		inactive,
++		global_page_state(NR_ACTIVE),
++		global_page_state(NR_INACTIVE),
+ 		global_page_state(NR_FILE_DIRTY),
+ 		global_page_state(NR_WRITEBACK),
+ 		global_page_state(NR_UNSTABLE_NFS),
 Index: linux-2.6.20-rc6/mm/vmstat.c
 ===================================================================
---- linux-2.6.20-rc6.orig/mm/vmstat.c	2007-01-25 11:21:30.000000000 -0800
-+++ linux-2.6.20-rc6/mm/vmstat.c	2007-01-25 11:22:22.000000000 -0800
-@@ -447,11 +447,11 @@ static const char * const vmstat_text[] 
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
-+	"nr_dirty",
-+	"nr_writeback",
- 	"nr_slab_reclaimable",
- 	"nr_slab_unreclaimable",
- 	"nr_page_table_pages",
--	"nr_dirty",
--	"nr_writeback",
- 	"nr_unstable",
- 	"nr_bounce",
- 	"nr_vmscan_write",
+--- linux-2.6.20-rc6.orig/mm/vmstat.c	2007-01-25 10:52:51.000000000 -0800
++++ linux-2.6.20-rc6/mm/vmstat.c	2007-01-25 10:52:51.000000000 -0800
+@@ -13,14 +13,6 @@
+ #include <linux/module.h>
+ #include <linux/cpu.h>
+ 
+-void get_zone_counts(unsigned long *active,
+-		unsigned long *inactive, unsigned long *free)
+-{
+-	*active = global_page_state(NR_ACTIVE);
+-	*inactive = global_page_state(NR_INACTIVE);
+-	*free = global_page_state(NR_FREE_PAGES);
+-}
+-
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+ EXPORT_PER_CPU_SYMBOL(vm_event_states);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
