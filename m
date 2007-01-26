@@ -1,12 +1,10 @@
-Date: Fri, 26 Jan 2007 09:04:10 -0800 (PST)
+Date: Fri, 26 Jan 2007 09:16:50 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 3/8] Allow huge page allocations to use GFP_HIGH_MOVABLE
-In-Reply-To: <Pine.LNX.4.64.0701261649040.23091@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0701260903110.6966@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2/8] Create the ZONE_MOVABLE zone
+In-Reply-To: <20070125234538.28809.24662.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0701260915390.7209@schroedinger.engr.sgi.com>
 References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
- <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0701260832260.6141@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0701261649040.23091@skynet.skynet.ie>
+ <20070125234538.28809.24662.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,15 +13,8 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Jan 2007, Mel Gorman wrote:
-
-> Because Andrew has made it pretty clear he will not take those patches on the
-> grounds of complexity - at least until it can be shown that they fix the e1000
-> problem. Any improvement on the behavior of those patches such as address
-> biasing to allow memory hot-remove of the higher addresses makes them even
-> more complex.
-
-What is the e1000 problem? Jumbo packet allocation via GFP_KERNEL?
+I do not see any updates of vmstat.c and vmstat.h. This 
+means that VM statistics are not kept / considered for ZONE_MOVABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
