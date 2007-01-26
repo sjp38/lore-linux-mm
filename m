@@ -1,39 +1,29 @@
-Date: Fri, 26 Jan 2007 12:01:13 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH] typeof __page_to_pfn with SPARSEMEM=y
-Message-Id: <20070126120113.c17c1174.randy.dunlap@oracle.com>
+Date: Fri, 26 Jan 2007 12:05:54 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Don't allow the stack to grow into hugetlb reserved
+ regions
+Message-Id: <20070126120554.671b1d6a.akpm@osdl.org>
+In-Reply-To: <20070125214052.22841.33449.stgit@localhost.localdomain>
+References: <20070125214052.22841.33449.stgit@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Randy Dunlap <randy.dunlap@oracle.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm <akpm@osdl.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, david@gibson.dropbear.id.au, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-With CONFIG_SPARSEMEM=y:
+On Thu, 25 Jan 2007 13:40:52 -0800
+Adam Litke <agl@us.ibm.com> wrote:
 
-mm/rmap.c:579: warning: format '%lx' expects type 'long unsigned int', but argument 2 has type 'int'
+> When expanding the stack, we don't currently check if the VMA will cross into
+> an area of the address space that is reserved for hugetlb pages.  Subsequent
+> faults on the expanded portion of such a VMA will confuse the low-level MMU
+> code, resulting in an OOPS.  Check for this.
 
-Make __page_to_pfn() return unsigned long.
-
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- include/asm-generic/memory_model.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- linux-2620-rc6.orig/include/asm-generic/memory_model.h
-+++ linux-2620-rc6/include/asm-generic/memory_model.h
-@@ -54,7 +54,7 @@
- #define __page_to_pfn(pg)					\
- ({	struct page *__pg = (pg);				\
- 	int __sec = page_to_section(__pg);			\
--	__pg - __section_mem_map_addr(__nr_to_section(__sec));	\
-+	(unsigned long)(__pg - __section_mem_map_addr(__nr_to_section(__sec)));	\
- })
- 
- #define __pfn_to_page(pfn)				\
+We prefer not to oops.  Is there any reason why this isn't a serious fix, needed
+in 2.6.20 and 2.6.19?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
