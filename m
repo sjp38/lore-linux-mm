@@ -1,91 +1,76 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070125234738.28809.94612.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 8/8] Add documentation for additional boot parameter and sysctl
-Date: Thu, 25 Jan 2007 23:47:39 +0000 (GMT)
+Date: Thu, 25 Jan 2007 21:02:45 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] nfs: fix congestion control -v4
+Message-Id: <20070125210245.3fb0e30e.akpm@osdl.org>
+In-Reply-To: <1169739148.6189.68.camel@twins>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+	<20070116135325.3441f62b.akpm@osdl.org>
+	<1168985323.5975.53.camel@lappy>
+	<Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
+	<1169070763.5975.70.camel@lappy>
+	<1169070886.6523.8.camel@lade.trondhjem.org>
+	<1169126868.6197.55.camel@twins>
+	<1169135375.6105.15.camel@lade.trondhjem.org>
+	<1169199234.6197.129.camel@twins>
+	<1169212022.6197.148.camel@twins>
+	<Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
+	<1169229461.6197.154.camel@twins>
+	<1169231212.5775.29.camel@lade.trondhjem.org>
+	<1169276500.6197.159.camel@twins>
+	<1169482343.6083.7.camel@lade.trondhjem.org>
+	<1169739148.6189.68.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Once all patches are applied, a new command-line parameter exist and a new
-sysctl. This patch adds the necessary documentation.
+On Thu, 25 Jan 2007 16:32:28 +0100
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
+> +long congestion_wait_interruptible(int rw, long timeout)
+> +{
+> +	long ret;
+> +	DEFINE_WAIT(wait);
+> +	wait_queue_head_t *wqh = &congestion_wqh[rw];
+> +
+> +	prepare_to_wait(wqh, &wait, TASK_INTERRUPTIBLE);
+> +	if (signal_pending(current))
+> +		ret = -ERESTARTSYS;
+> +	else
+> +		ret = io_schedule_timeout(timeout);
+> +	finish_wait(wqh, &wait);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(congestion_wait_interruptible);
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
+I think this can share code with congestion_wait()?
 
- filesystems/proc.txt  |   15 +++++++++++++++
- kernel-parameters.txt |   16 ++++++++++++++++
- sysctl/vm.txt         |    3 ++-
- 3 files changed, 33 insertions(+), 1 deletion(-)
+static long __congestion_wait(int rw, long timeout, int state)
+{
+	long ret;
+	DEFINE_WAIT(wait);
+	wait_queue_head_t *wqh = &congestion_wqh[rw];
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/filesystems/proc.txt linux-2.6.20-rc4-mm1-008_documentation/Documentation/filesystems/proc.txt
---- linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/filesystems/proc.txt	2007-01-07 05:45:51.000000000 +0000
-+++ linux-2.6.20-rc4-mm1-008_documentation/Documentation/filesystems/proc.txt	2007-01-25 18:27:28.000000000 +0000
-@@ -1288,6 +1288,21 @@ nr_hugepages configures number of hugetl
- hugetlb_shm_group contains group id that is allowed to create SysV shared
- memory segment using hugetlb page.
- 
-+hugepages_treat_as_movable
-+--------------------------
-+
-+This paramter is only useful when kernelcore= is specified at boot time to
-+create ZONE_MOVABLE for pages that may be reclaimed or migrated. Huge pages
-+are not movable so are not normally allocated from ZONE_MOVABLE. A non-zero
-+value written to hugepages_treat_as_movable allows huge pages to be allocated
-+from ZONE_MOVABLE.
-+
-+Once enabled, the ZONE_MOVABLE is treated as an area of memory the huge
-+pages pool can easily grow or shrink within. Assuming that applications are
-+not running that mlock() a lot of memory, it is likely the huge pages pool
-+can grow to the size of ZONE_MOVABLE by repeatly entering the desired value
-+into nr_hugepages and triggering page reclaim.
-+
- laptop_mode
- -----------
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/kernel-parameters.txt linux-2.6.20-rc4-mm1-008_documentation/Documentation/kernel-parameters.txt
---- linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/kernel-parameters.txt	2007-01-17 17:07:54.000000000 +0000
-+++ linux-2.6.20-rc4-mm1-008_documentation/Documentation/kernel-parameters.txt	2007-01-25 18:27:28.000000000 +0000
-@@ -762,6 +762,22 @@ and is between 256 and 4096 characters. 
- 	js=		[HW,JOY] Analog joystick
- 			See Documentation/input/joystick.txt.
- 
-+	kernelcore=nn[KMG]	[KNL,IA-32,IA-64,PPC,X86-64] This parameter
-+			specifies the amount of memory usable by the kernel
-+			for non-movable allocations.  The requested amount is
-+			spread evenly throughout all nodes in the system. The
-+			remaining memory in each node is used for Movable
-+			pages. In the event, a node is too small to have both
-+			kernelcore and Movable pages, kernelcore pages will
-+			take priority and other nodes will have a larger number
-+			of kernelcore pages.  The Movable zone is used for the
-+			allocation of pages that may be reclaimed or moved
-+			by the page migration sybsystem.  This means that
-+			HugeTLB pages may not be allocated from this zone.
-+			Note that allocations like PTEs-from-HighMem still
-+			use the HighMem zone if it exists, and the Normal
-+			zone if it does not.
-+
- 	keepinitrd	[HW,ARM]
- 
- 	kstack=N	[IA-32,X86-64] Print N words from the kernel stack
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/sysctl/vm.txt linux-2.6.20-rc4-mm1-008_documentation/Documentation/sysctl/vm.txt
---- linux-2.6.20-rc4-mm1-007_ia64_set_kernelcore/Documentation/sysctl/vm.txt	2007-01-17 17:07:54.000000000 +0000
-+++ linux-2.6.20-rc4-mm1-008_documentation/Documentation/sysctl/vm.txt	2007-01-25 18:27:28.000000000 +0000
-@@ -39,7 +39,8 @@ Currently, these files are in /proc/sys/
- 
- dirty_ratio, dirty_background_ratio, dirty_expire_centisecs,
- dirty_writeback_centisecs, vfs_cache_pressure, laptop_mode,
--block_dump, swap_token_timeout, drop-caches:
-+block_dump, swap_token_timeout, drop-caches,
-+hugepages_treat_as_movable:
- 
- See Documentation/filesystems/proc.txt
- 
+	prepare_to_wait(wqh, &wait, state);
+	ret = io_schedule_timeout(timeout);
+	finish_wait(wqh, &wait);
+	return ret;
+}
+
+long congestion_wait_interruptible(int rw, long timeout)
+{
+	long ret = __congestion_wait(rw, timeout);
+
+	if (signal_pending(current))
+		ret = -ERESTARTSYS;
+	return ret;
+}
+
+it's only infinitesimally less efficient..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
