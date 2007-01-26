@@ -1,36 +1,67 @@
-Message-ID: <45BA49F2.2000804@nortel.com>
-Date: Fri, 26 Jan 2007 12:35:30 -0600
-From: "Chris Friesen" <cfriesen@nortel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] Allow huge page allocations to use GFP_HIGH_MOVABLE
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie> <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie> <Pine.LNX.4.64.0701260832260.6141@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0701261649040.23091@skynet.skynet.ie> <Pine.LNX.4.64.0701260903110.6966@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0701261720120.23091@skynet.skynet.ie> <Pine.LNX.4.64.0701260921310.7301@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0701261727400.23091@skynet.skynet.ie> <Pine.LNX.4.64.0701260944270.7457@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0701261747290.23091@skynet.skynet.ie>
-In-Reply-To: <Pine.LNX.4.64.0701261747290.23091@skynet.skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Fri, 26 Jan 2007 10:42:06 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC] Track mlock()ed pages
+Message-Id: <20070126104206.f0b45f74.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0701261021200.7848@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0701252141570.10629@schroedinger.engr.sgi.com>
+	<45B9A00C.4040701@yahoo.com.au>
+	<Pine.LNX.4.64.0701252234490.11230@schroedinger.engr.sgi.com>
+	<20070126031300.59f75b06.akpm@osdl.org>
+	<Pine.LNX.4.64.0701260742340.6141@schroedinger.engr.sgi.com>
+	<20070126101027.90bf3e63.akpm@osdl.org>
+	<Pine.LNX.4.64.0701261021200.7848@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
+On Fri, 26 Jan 2007 10:23:44 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Worse, the problem is to have high order contiguous blocks free at the 
-> time of allocation without reclaim or migration. If the allocations were 
-> not atomic, anti-fragmentation as it is today would be enough.
+> On Fri, 26 Jan 2007, Andrew Morton wrote:
+> 
+> > > Large amounts of mlocked pages may be a problem for 
+> > > 
+> > > 1. Reclaim behavior.
+> > > 
+> > > 2. Defragmentation
+> > > 
+> > 
+> > We know that.  What has that to do with this patch?
+> 
+> Knowing how much mlocked pages are where is necessary to solve these 
+> issues.
 
-Has anyone looked at marking the buffers as "needs refilling" then kick 
-off a kernel thread or something to do the allocations under GFP_KERNEL? 
-  That way we avoid having to allocate the buffers with GFP_ATOMIC.
+If we continue this dialogue for long enough, we'll actually have a changlog.
 
-I seem to recall that the tulip driver used to do this.  Is it just too 
-complicated from a race condition standpoint?
+> > > > You could perhaps go for a walk across all the other vmas which presently
+> > > > map this page.  If any of them have VM_LOCKED, don't increment the counter.
+> > > > Similar on removal: only decrement the counter when the final mlocked VMA
+> > > > is dropping the pte.
+> > > 
+> > > For that we would need an additional refcount for vmlocked maps in the 
+> > > page struct.
+> > 
+> > No you don't.  The refcount is already there.  It is "the sum of the VM_LOCKED
+> > VMAs which map this page".
+> > 
+> > It might be impractical or expensive to calculate it, but it's there.
+> 
+> Correct. Its so expensive that it cannot be used to build vm stats for 
+> mlocked pages. F.e. Determination of the final mlocked VMA dropping the 
+> page would require a scan over all vmas mapping the page.
 
-We currently see this issue on our systems, as we have older e1000 
-hardware with 9KB jumbo frames.  After a while we just fail to allocate 
-buffers and the system goes belly-up.
+Of course it would.  But how do you know it is "too expensive"?  We "scan
+all the vmas mapping a page" as a matter of course in the page scanner -
+millions of times a minute.  If that's "too expensive" then ouch.
 
-Chris
+That, plus if we have so many vmas mapping a page for this effect to
+matter, then your change as proposed will be so inaccurate as to be
+useless, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
