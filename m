@@ -1,44 +1,32 @@
-Subject: Re: [PATCH] nfs: fix congestion control -v4
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070126005117.5e376c16.akpm@osdl.org>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
-	 <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
-	 <1169070763.5975.70.camel@lappy>
-	 <1169070886.6523.8.camel@lade.trondhjem.org>
-	 <1169126868.6197.55.camel@twins>
-	 <1169135375.6105.15.camel@lade.trondhjem.org>
-	 <1169199234.6197.129.camel@twins> <1169212022.6197.148.camel@twins>
-	 <Pine.LNX.4.64.0701190912540.14617@schroedinger.engr.sgi.com>
-	 <1169229461.6197.154.camel@twins>
-	 <1169231212.5775.29.camel@lade.trondhjem.org>
-	 <1169276500.6197.159.camel@twins>
-	 <1169482343.6083.7.camel@lade.trondhjem.org>
-	 <1169739148.6189.68.camel@twins> <20070125210950.bcdaa7f6.akpm@osdl.org>
-	 <Pine.LNX.4.64.0701252130500.7147@schroedinger.engr.sgi.com>
-	 <20070125220457.a761ae6a.akpm@osdl.org> <1169798617.6189.83.camel@twins>
-	 <20070126005117.5e376c16.akpm@osdl.org>
-Content-Type: text/plain
-Date: Fri, 26 Jan 2007 10:01:47 +0100
-Message-Id: <1169802107.6189.90.camel@twins>
+Date: Fri, 26 Jan 2007 02:27:15 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC] Limit the size of the pagecache
+Message-Id: <20070126022715.afad8716.akpm@osdl.org>
+In-Reply-To: <45B6DA8B.7060004@yahoo.com.au>
+References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
+	<45B6CBD9.80600@yahoo.com.au>
+	<Pine.LNX.4.64.0701231908420.6123@schroedinger.engr.sgi.com>
+	<6d6a94c50701231951o66487813vcd078fc25e25ffa0@mail.gmail.com>
+	<45B6DA8B.7060004@yahoo.com.au>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Aubrey Li <aubreylee@gmail.com>, Christoph Lameter <clameter@sgi.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Robin Getz <rgetz@blackfin.uclinux.org>, "Hennerich, Michael" <Michael.Hennerich@analog.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-01-26 at 00:51 -0800, Andrew Morton wrote:
+On Wed, 24 Jan 2007 15:03:23 +1100
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-> A patch against next -mm would suit, thanks.
 > 
-> (But we already use atomic_long_t in generic code?)
+> Yeah, it will be failing at order=4, because the allocator won't try
+> very hard reclaim pagecache pages at that cutoff point. This needs to
+> be fixed in the allocator.
 
-but there is currently no atomic_long_{inc,dec}_return, or any
-atomic_long_*_return function for that matter.
-
-Mathieu adds these missing functions.
+A simple and perhaps sufficient fix for this nommu problem would be to replace
+the magic "3" in __alloc_pages() with a tunable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
