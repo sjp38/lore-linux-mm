@@ -1,55 +1,30 @@
-Date: Fri, 26 Jan 2007 02:29:55 -0800
+Date: Fri, 26 Jan 2007 03:00:21 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] Limit the size of the pagecache
-Message-Id: <20070126022955.f9b6b11f.akpm@osdl.org>
-In-Reply-To: <20070124141510.7775829c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
-	<20070124121318.6874f003.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0701232028520.6820@schroedinger.engr.sgi.com>
-	<20070124141510.7775829c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] lumpy reclaim v2
+Message-Id: <20070126030021.72fdeef1.akpm@osdl.org>
+In-Reply-To: <20061214205734.0e385643.akpm@osdl.org>
+References: <exportbomb.1165424343@pinky>
+	<6109d33145c0dcf3a8a3a6bd120d7985@pinky>
+	<20061214205734.0e385643.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>, aubreylee@gmail.com, svaidy@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, rgetz@blackfin.uclinux.org, Michael.Hennerich@analog.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jan 2007 14:15:10 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 14 Dec 2006 20:57:34 -0800
+Andrew Morton <akpm@osdl.org> wrote:
 
-> - One for stability
->   When a customer constructs their detabase(Oracle), the system often goes to oom.
->   This is because that the system cannot allocate DMA_ZOME memory for 32bit device.
->   (USB or e100)
->   Not allowing to use almost all pages as page cache (for temporal use) will be some help.
->   (Note: construction DB on ext3....so all writes are serialized and the system couldn't
->    free page cache.)
-
-I'm surprised that any reasonable driver has a dependency on ZONE_DMA.  Are
-you sure?  Send full oom-killer output, please.
-
-
-> - One for tuing.
->   Sometimes our cutomer requests us to limit size of page-cache.
->   
->   Many cutomers's memory usage reaches 99.x%. (this is very common situation.)
->   If almost all memories are used by page-cache, and we can think we can free it.
->   But the customer cannot estimate what amount of page-cache can be freed (without 
->   perfromance regression).
->   
->   When a cutomer wants to add a new application, he tunes the system.
->   But memory usage is always 99%.
->   page-cache limitation is useful when the customer tunes his system and find
->   sets of data and page-cache. 
->   (Of course, we can use some other complicated resource management system for this.)
->   This will allow the users to decide that they need extra memory or not.
+> On Wed, 6 Dec 2006 16:59:35 +0000
+> Andy Whitcroft <apw@shadowen.org> wrote:
 > 
->   And...some customers want to keep memory Free as much as possible.
->   99% memory usage makes insecure them ;)
+> > +			tmp = __pfn_to_page(pfn);
+> 
+> ia64 doesn't implement __page_to_pfn.  Why did you not use page_to_pfn()?
 
-Tell them to do "echo 3 > /proc/sys/vm/drop_caches", then wait three minutes?
+Poke.  I'm still a no-compile on ia64.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
