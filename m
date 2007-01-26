@@ -1,6 +1,6 @@
 Subject: Re: [PATCH] nfs: fix congestion control -v4
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070125220457.a761ae6a.akpm@osdl.org>
+In-Reply-To: <1169798412.6189.79.camel@twins>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 	 <20070116135325.3441f62b.akpm@osdl.org> <1168985323.5975.53.camel@lappy>
 	 <Pine.LNX.4.64.0701171158290.7397@schroedinger.engr.sgi.com>
@@ -14,41 +14,88 @@ References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 	 <1169231212.5775.29.camel@lade.trondhjem.org>
 	 <1169276500.6197.159.camel@twins>
 	 <1169482343.6083.7.camel@lade.trondhjem.org>
-	 <1169739148.6189.68.camel@twins> <20070125210950.bcdaa7f6.akpm@osdl.org>
-	 <Pine.LNX.4.64.0701252130500.7147@schroedinger.engr.sgi.com>
-	 <20070125220457.a761ae6a.akpm@osdl.org>
+	 <1169739148.6189.68.camel@twins>  <20070125210245.3fb0e30e.akpm@osdl.org>
+	 <1169798412.6189.79.camel@twins>
 Content-Type: text/plain
-Date: Fri, 26 Jan 2007 09:03:37 +0100
-Message-Id: <1169798617.6189.83.camel@twins>
+Date: Fri, 26 Jan 2007 09:50:34 +0100
+Message-Id: <1169801434.6189.85.camel@twins>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pj@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-01-25 at 22:04 -0800, Andrew Morton wrote:
-> On Thu, 25 Jan 2007 21:31:43 -0800 (PST)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > On Thu, 25 Jan 2007, Andrew Morton wrote:
+On Fri, 2007-01-26 at 09:00 +0100, Peter Zijlstra wrote:
+> On Thu, 2007-01-25 at 21:02 -0800, Andrew Morton wrote:
+> > On Thu, 25 Jan 2007 16:32:28 +0100
+> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > > 
-> > > atomic_t is 32-bit.  Put 16TB of memory under writeback and blam.
+> > > +long congestion_wait_interruptible(int rw, long timeout)
+> > > +{
+> > > +	long ret;
+> > > +	DEFINE_WAIT(wait);
+> > > +	wait_queue_head_t *wqh = &congestion_wqh[rw];
+> > > +
+> > > +	prepare_to_wait(wqh, &wait, TASK_INTERRUPTIBLE);
+> > > +	if (signal_pending(current))
+> > > +		ret = -ERESTARTSYS;
+> > > +	else
+> > > +		ret = io_schedule_timeout(timeout);
+> > > +	finish_wait(wqh, &wait);
+> > > +	return ret;
+> > > +}
+> > > +EXPORT_SYMBOL(congestion_wait_interruptible);
 > > 
-> > We have systems with 8TB main memory and are able to get to 16TB.
+> > I think this can share code with congestion_wait()?
+> > 
+> > static long __congestion_wait(int rw, long timeout, int state)
+> > {
+> > 	long ret;
+> > 	DEFINE_WAIT(wait);
+> > 	wait_queue_head_t *wqh = &congestion_wqh[rw];
+> > 
+> > 	prepare_to_wait(wqh, &wait, state);
+> > 	ret = io_schedule_timeout(timeout);
+> > 	finish_wait(wqh, &wait);
+> > 	return ret;
+> > }
+> > 
+> > long congestion_wait_interruptible(int rw, long timeout)
+> > {
+> > 	long ret = __congestion_wait(rw, timeout);
+> > 
+> > 	if (signal_pending(current))
+> > 		ret = -ERESTARTSYS;
+> > 	return ret;
+> > }
+> > 
+> > it's only infinitesimally less efficient..
 > 
-> But I bet you don't use 4k pages on 'em ;)
+> All the other _interruptible functions check signal_pending before
+> calling schedule. Which seems to make sense since its called in a loop
+> anyway, and if the loop condition turns false when interrupted you might
+> as well just finish up instead of bailing out.
 > 
-> > Better change it now.
-> 
-> yup.
+> However if you'd rather see your version, who am I to object ;-)
 
-I can change to atomic_long_t but that would make this patch depend on
-Mathieu Desnoyers' atomic.h patch series.
+ok, first wake up, then reply to emails :-)
 
-Do I send out a -v5 with this, or should I send an incremental patch
-once that hits your tree?
+How about this:
+
+long congestion_wait_interruptible(int rw, long timeout)
+{
+	long ret;
+
+	if (signal_pending(current))
+		ret = -ERESTARTSYS;
+	else
+		ret = congestion_wait(rw, timeout);
+	return ret;
+}
+EXPORT_SYMBOL(congestion_wait_interruptible);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
