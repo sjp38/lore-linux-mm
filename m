@@ -1,10 +1,10 @@
-Date: Fri, 26 Jan 2007 08:28:37 -0800 (PST)
+Date: Fri, 26 Jan 2007 08:33:45 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 2/8] Create the ZONE_MOVABLE zone
-In-Reply-To: <20070125234538.28809.24662.sendpatchset@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0701260822510.6141@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 3/8] Allow huge page allocations to use GFP_HIGH_MOVABLE
+In-Reply-To: <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0701260832260.6141@schroedinger.engr.sgi.com>
 References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
- <20070125234538.28809.24662.sendpatchset@skynet.skynet.ie>
+ <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,23 +13,9 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jan 2007, Mel Gorman wrote:
-
-> @@ -166,6 +168,8 @@ enum zone_type {
->  #define ZONES_SHIFT 1
->  #elif __ZONE_COUNT <= 4
->  #define ZONES_SHIFT 2
-> +#elif __ZONE_COUNT <= 8
-> +#define ZONES_SHIFT 3
->  #else
-
-You do not need a shift of 3. Even with ZONE_MOVABLE the maximum 
-number of zones is still 4.
-
-x86_64 has DMA, DMA32, NORMAL, MOVABLE
-i386 has DMA, NORMAL, HIGHMEM, MOVABLE
-
-x86_64 is the only platform that has DMA32.
+Unmovable allocations in the movable zone. Yuck. Why dont you abandon the 
+whole concept of statically sized movable zone and go back to the nice 
+earlier idea of dynamically assigning MAX_ORDER chunks to be movable or not?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
