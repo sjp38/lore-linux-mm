@@ -1,57 +1,50 @@
-Date: Fri, 26 Jan 2007 03:07:53 -0800
+Date: Fri, 26 Jan 2007 03:13:00 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
- movable and non-movable pages
-Message-Id: <20070126030753.03529e7a.akpm@osdl.org>
-In-Reply-To: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
+Subject: Re: [RFC] Track mlock()ed pages
+Message-Id: <20070126031300.59f75b06.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0701252234490.11230@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0701252141570.10629@schroedinger.engr.sgi.com>
+	<45B9A00C.4040701@yahoo.com.au>
+	<Pine.LNX.4.64.0701252234490.11230@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jan 2007 23:44:58 +0000 (GMT)
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, 25 Jan 2007 22:36:17 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> The following 8 patches against 2.6.20-rc4-mm1 create a zone called
-> ZONE_MOVABLE
+> On Fri, 26 Jan 2007, Nick Piggin wrote:
+> 
+> > Christoph Lameter wrote:
+> > > Add NR_MLOCK
+> > > 
+> > > Track mlocked pages via a ZVC
 
-Argh.  These surely get all tangled up with the
-make-zones-optional-by-adding-zillions-of-ifdef patches:
+Why?
 
-deal-with-cases-of-zone_dma-meaning-the-first-zone.patch
-introduce-config_zone_dma.patch
-optional-zone_dma-in-the-vm.patch
-optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set.patch
-optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set-reduce-config_zone_dma-ifdefs.patch
-optional-zone_dma-for-ia64.patch
-remove-zone_dma-remains-from-parisc.patch
-remove-zone_dma-remains-from-sh-sh64.patch
-set-config_zone_dma-for-arches-with-generic_isa_dma.patch
-zoneid-fix-up-calculations-for-zoneid_pgshift.patch
+> > I think it is not quite right. You are tracking the number of ptes
+> > that point to mlocked pages, which can be >= the actual number of pages.
+> 
+> Mlocked pages are not inherited. I would expect sharing to be very rare.
+>  
+> > Also, page_add_anon_rmap still needs to be balanced with page_remove_rmap.
+> 
+> Hmmm.... 
+>  
+> > I can't think of an easy way to do this without per-page state. ie.
+> > another page flag.
+> 
+> Thats what I am trying to avoid.
 
-My objections to those patches:
-
-- They add zillions of ifdefs
-
-- They make the VM's behaviour diverge between different platforms and
-  between differen configs on the same platforms, and hence degrade
-  maintainability and increase complexity.
-
-- We kicked around some quite different ways of implementing the same
-  things, but nothing came of it.  iirc, one was to remove the hard-coded
-  zones altogether and rework all the MM to operate in terms of
-
-	for (idx = 0; idx < NUMBER_OF_ZONES; idx++)
-		...
-
-- I haven't seen any hard numbers to justify the change.
-
-So I want to drop them all.
+You could perhaps go for a walk across all the other vmas which presently
+map this page.  If any of them have VM_LOCKED, don't increment the counter.
+Similar on removal: only decrement the counter when the final mlocked VMA
+is dropping the pte.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
