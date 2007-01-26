@@ -1,7 +1,7 @@
-Date: Thu, 25 Jan 2007 21:02:45 -0800
+Date: Thu, 25 Jan 2007 21:09:50 -0800
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] nfs: fix congestion control -v4
-Message-Id: <20070125210245.3fb0e30e.akpm@osdl.org>
+Message-Id: <20070125210950.bcdaa7f6.akpm@osdl.org>
 In-Reply-To: <1169739148.6189.68.camel@twins>
 References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
 	<20070116135325.3441f62b.akpm@osdl.org>
@@ -31,46 +31,34 @@ List-ID: <linux-mm.kvack.org>
 On Thu, 25 Jan 2007 16:32:28 +0100
 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> +long congestion_wait_interruptible(int rw, long timeout)
-> +{
-> +	long ret;
-> +	DEFINE_WAIT(wait);
-> +	wait_queue_head_t *wqh = &congestion_wqh[rw];
-> +
-> +	prepare_to_wait(wqh, &wait, TASK_INTERRUPTIBLE);
-> +	if (signal_pending(current))
-> +		ret = -ERESTARTSYS;
-> +	else
-> +		ret = io_schedule_timeout(timeout);
-> +	finish_wait(wqh, &wait);
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(congestion_wait_interruptible);
+> Hopefully the last version ;-)
+> 
+> 
+> ---
+> Subject: nfs: fix congestion control
+> 
+> The current NFS client congestion logic is severly broken, it marks the backing
+> device congested during each nfs_writepages() call but doesn't mirror this in
+> nfs_writepage() which makes for deadlocks. Also it implements its own waitqueue.
+> 
+> Replace this by a more regular congestion implementation that puts a cap on the
+> number of active writeback pages and uses the bdi congestion waitqueue.
+> 
+> Also always use an interruptible wait since it makes sense to be able to 
+> SIGKILL the process even for mounts without 'intr'.
+> 
+> ..
+>
+> --- linux-2.6-git.orig/include/linux/nfs_fs_sb.h	2007-01-25 16:07:03.000000000 +0100
+> +++ linux-2.6-git/include/linux/nfs_fs_sb.h	2007-01-25 16:07:12.000000000 +0100
+> @@ -82,6 +82,7 @@ struct nfs_server {
+>  	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
+>  	struct nfs_iostats *	io_stats;	/* I/O statistics */
+>  	struct backing_dev_info	backing_dev_info;
+> +	atomic_t		writeback;	/* number of writeback pages */
 
-I think this can share code with congestion_wait()?
-
-static long __congestion_wait(int rw, long timeout, int state)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	prepare_to_wait(wqh, &wait, state);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-	return ret;
-}
-
-long congestion_wait_interruptible(int rw, long timeout)
-{
-	long ret = __congestion_wait(rw, timeout);
-
-	if (signal_pending(current))
-		ret = -ERESTARTSYS;
-	return ret;
-}
-
-it's only infinitesimally less efficient..
+We're going to get in trouble with this sort of thing within a few years. 
+atomic_t is 32-bit.  Put 16TB of memory under writeback and blam.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
