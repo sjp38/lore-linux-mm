@@ -1,41 +1,30 @@
-Date: Fri, 26 Jan 2007 17:20:47 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
+Date: Fri, 26 Jan 2007 09:22:48 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 3/8] Allow huge page allocations to use GFP_HIGH_MOVABLE
-In-Reply-To: <Pine.LNX.4.64.0701260903110.6966@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0701261720120.23091@skynet.skynet.ie>
+In-Reply-To: <Pine.LNX.4.64.0701261720120.23091@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0701260921310.7301@schroedinger.engr.sgi.com>
 References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
  <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie>
  <Pine.LNX.4.64.0701260832260.6141@schroedinger.engr.sgi.com>
  <Pine.LNX.4.64.0701261649040.23091@skynet.skynet.ie>
  <Pine.LNX.4.64.0701260903110.6966@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0701261720120.23091@skynet.skynet.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Jan 2007, Christoph Lameter wrote:
+On Fri, 26 Jan 2007, Mel Gorman wrote:
 
-> On Fri, 26 Jan 2007, Mel Gorman wrote:
->
->> Because Andrew has made it pretty clear he will not take those patches on the
->> grounds of complexity - at least until it can be shown that they fix the e1000
->> problem. Any improvement on the behavior of those patches such as address
->> biasing to allow memory hot-remove of the higher addresses makes them even
->> more complex.
->
-> What is the e1000 problem? Jumbo packet allocation via GFP_KERNEL?
->
+> > What is the e1000 problem? Jumbo packet allocation via GFP_KERNEL?
+> Yes. Potentially the anti-fragmentation patches could address this by
+> clustering atomic allocations together as much as possible.
 
-Yes. Potentially the anti-fragmentation patches could address this by 
-clustering atomic allocations together as much as possible.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+GFP_ATOMIC allocs? Do you have a reference to the thread where this was 
+discussed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
