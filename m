@@ -1,65 +1,66 @@
-Date: Fri, 26 Jan 2007 17:53:24 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/8] Allow huge page allocations to use GFP_HIGH_MOVABLE
-In-Reply-To: <Pine.LNX.4.64.0701260944270.7457@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0701261747290.23091@skynet.skynet.ie>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
- <20070125234558.28809.21103.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0701260832260.6141@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0701261649040.23091@skynet.skynet.ie>
- <Pine.LNX.4.64.0701260903110.6966@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0701261720120.23091@skynet.skynet.ie>
- <Pine.LNX.4.64.0701260921310.7301@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0701261727400.23091@skynet.skynet.ie>
- <Pine.LNX.4.64.0701260944270.7457@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Date: Sat, 27 Jan 2007 03:01:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] Limit the size of the pagecache
+Message-Id: <20070127030143.3059dbb0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070126022955.f9b6b11f.akpm@osdl.org>
+References: <Pine.LNX.4.64.0701231645260.5239@schroedinger.engr.sgi.com>
+	<20070124121318.6874f003.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0701232028520.6820@schroedinger.engr.sgi.com>
+	<20070124141510.7775829c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070126022955.f9b6b11f.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: clameter@sgi.com, aubreylee@gmail.com, svaidy@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, rgetz@blackfin.uclinux.org, Michael.Hennerich@analog.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Jan 2007, Christoph Lameter wrote:
+On Fri, 26 Jan 2007 02:29:55 -0800
+Andrew Morton <akpm@osdl.org> wrote:
 
-> On Fri, 26 Jan 2007, Mel Gorman wrote:
->
->> It's come up a few times and the converation is always fairly similar although
->> the thread http://lkml.org/lkml/2006/9/22/44 has interesting information on
->> the topic. There has been no serious discussion on whether anti-fragmentation
->> would help it or not. I think it would if atomic allocations were clustered
->> together because then jumbo frame allocations would cluster together in the
->> same MAX_ORDER blocks and tend to keep other allocations away.
->
-> They are clustered in both schemes together with other non movable allocs
-> right?
+> On Wed, 24 Jan 2007 14:15:10 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > - One for stability
+> >   When a customer constructs their detabase(Oracle), the system often goes to oom.
+> >   This is because that the system cannot allocate DMA_ZOME memory for 32bit device.
+> >   (USB or e100)
+> >   Not allowing to use almost all pages as page cache (for temporal use) will be some help.
+> >   (Note: construction DB on ext3....so all writes are serialized and the system couldn't
+> >    free page cache.)
+> 
+> I'm surprised that any reasonable driver has a dependency on ZONE_DMA.  Are
+> you sure?  Send full oom-killer output, please.
+> 
+> 
+Our ia64 server's USB/e100 device uses 32bit-PCI, so sometimes OOM happens on DMA zone.
+(ia64's ZONE_DMA is 0-4G area.)
 
-For the jumbo frame problem, only the antifragmentation approach of 
-clustering types of pages together in MAX_ORDER blocks has any chance of 
-helping.
+But very sorry....I was confused.
 
-> The problem is to defrag while atomic?
+I looked the issue above again and found ZONE_NORMAL/x86 was exhausted.
 
-Worse, the problem is to have high order contiguous blocks free at the 
-time of allocation without reclaim or migration. If the allocations were 
-not atomic, anti-fragmentation as it is today would be enough.
+This was interesiting incident,
 
-By clustering atomic allocations together though, I would expect the jumbo 
-frames to be allocated and freed within the same area without interference 
-from other allocation types as long as min_free_kbytes was also set higher 
-than default. I lack the hardware to prove/disprove the idea though.
+Constructing DB on 4Gb system has no problem.
+Constructing DB on 8Gb system always causes OOM.
 
-> How is the zone based
-> concept different in that area from the max order block based one?
+I asked the users to change DB's parameter. (this happened on RHEL4/linux-2.6.9 series)
 
-The zone-based approach does nothing to help jumbo frame allocations. It 
-only helps hugepage allocations at runtime and potentially memory 
-hot-remove.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> >   And...some customers want to keep memory Free as much as possible.
+> >   99% memory usage makes insecure them ;)
+> 
+> Tell them to do "echo 3 > /proc/sys/vm/drop_caches", then wait three minutes?
+
+Ah, maybe we can use it on RHEL5. We'll test it. thank you.
+
+Thanks,
+-Kamezawa
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
