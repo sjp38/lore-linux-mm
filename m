@@ -1,99 +1,65 @@
-Date: Thu, 25 Jan 2007 21:42:24 -0800 (PST)
+Date: Thu, 25 Jan 2007 21:42:19 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070126054224.10564.64164.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070126054219.10564.13523.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070126054153.10564.43218.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070126054153.10564.43218.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 6/8] Drop __get_zone_counts()
+Subject: [RFC 5/8] Drop nr_free_pages_pgdat()
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Nikita Danilov <nikita@clusterfs.com>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Get rid of __get_zone_counts
+Get rid of nr_free_pages_pgdat()
 
-Values are readily available via ZVC per node and global sums.
+Function is unnecessary now. We can use the summing features of the ZVCs to
+get the values we need.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.20-rc6/drivers/base/node.c
+Index: linux-2.6.20-rc6/arch/ia64/mm/init.c
 ===================================================================
---- linux-2.6.20-rc6.orig/drivers/base/node.c	2007-01-25 20:29:22.000000000 -0800
-+++ linux-2.6.20-rc6/drivers/base/node.c	2007-01-25 20:30:17.000000000 -0800
-@@ -40,13 +40,8 @@ static ssize_t node_read_meminfo(struct 
- 	int n;
- 	int nid = dev->id;
- 	struct sysinfo i;
--	unsigned long inactive;
--	unsigned long active;
--	unsigned long free;
- 
- 	si_meminfo_node(&i, nid);
--	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
--
- 
- 	n = sprintf(buf, "\n"
- 		       "Node %d MemTotal:     %8lu kB\n"
-@@ -74,8 +69,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.totalram),
- 		       nid, K(i.freeram),
- 		       nid, K(i.totalram - i.freeram),
--		       nid, K(active),
--		       nid, K(inactive),
-+		       nid, node_page_state(nid, NR_ACTIVE),
-+		       nid, node_page_state(nid, NR_INACTIVE),
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
- 		       nid, K(i.freehigh),
-Index: linux-2.6.20-rc6/include/linux/mmzone.h
+--- linux-2.6.20-rc6.orig/arch/ia64/mm/init.c	2007-01-25 10:42:21.000000000 -0800
++++ linux-2.6.20-rc6/arch/ia64/mm/init.c	2007-01-25 10:43:05.000000000 -0800
+@@ -67,7 +67,7 @@ max_pgt_pages(void)
+ #ifndef	CONFIG_NUMA
+ 	node_free_pages = nr_free_pages();
+ #else
+-	node_free_pages = nr_free_pages_pgdat(NODE_DATA(numa_node_id()));
++	node_free_pages = node_page_state(numa_node_id(), NR_FREE_PAGES);
+ #endif
+ 	max_pgt_pages = node_free_pages / PGT_FRACTION_OF_NODE_MEM;
+ 	max_pgt_pages = max(max_pgt_pages, MIN_PGT_PAGES);
+Index: linux-2.6.20-rc6/include/linux/swap.h
 ===================================================================
---- linux-2.6.20-rc6.orig/include/linux/mmzone.h	2007-01-25 20:29:55.000000000 -0800
-+++ linux-2.6.20-rc6/include/linux/mmzone.h	2007-01-25 20:29:58.000000000 -0800
-@@ -444,8 +444,6 @@ typedef struct pglist_data {
+--- linux-2.6.20-rc6.orig/include/linux/swap.h	2007-01-25 10:41:14.000000000 -0800
++++ linux-2.6.20-rc6/include/linux/swap.h	2007-01-25 10:41:22.000000000 -0800
+@@ -170,7 +170,6 @@ extern void swapin_readahead(swp_entry_t
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
+ extern long nr_swap_pages;
+-extern unsigned int nr_free_pages_pgdat(pg_data_t *pgdat);
+ extern unsigned int nr_free_buffer_pages(void);
+ extern unsigned int nr_free_pagecache_pages(void);
  
- #include <linux/memory_hotplug.h>
- 
--void __get_zone_counts(unsigned long *active, unsigned long *inactive,
--			unsigned long *free, struct pglist_data *pgdat);
- void get_zone_counts(unsigned long *active, unsigned long *inactive,
- 			unsigned long *free);
- void build_all_zonelists(void);
-Index: linux-2.6.20-rc6/mm/readahead.c
+Index: linux-2.6.20-rc6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.20-rc6.orig/mm/readahead.c	2007-01-25 20:29:14.000000000 -0800
-+++ linux-2.6.20-rc6/mm/readahead.c	2007-01-25 20:29:58.000000000 -0800
-@@ -575,10 +575,6 @@ void handle_ra_miss(struct address_space
-  */
- unsigned long max_sane_readahead(unsigned long nr)
- {
--	unsigned long active;
--	unsigned long inactive;
--	unsigned long free;
--
--	__get_zone_counts(&active, &inactive, &free, NODE_DATA(numa_node_id()));
--	return min(nr, (inactive + free) / 2);
-+	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE)
-+		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
- }
-Index: linux-2.6.20-rc6/mm/vmstat.c
-===================================================================
---- linux-2.6.20-rc6.orig/mm/vmstat.c	2007-01-25 20:29:55.000000000 -0800
-+++ linux-2.6.20-rc6/mm/vmstat.c	2007-01-25 20:29:58.000000000 -0800
-@@ -13,14 +13,6 @@
- #include <linux/module.h>
- #include <linux/cpu.h>
+--- linux-2.6.20-rc6.orig/mm/page_alloc.c	2007-01-25 10:41:29.000000000 -0800
++++ linux-2.6.20-rc6/mm/page_alloc.c	2007-01-25 10:41:43.000000000 -0800
+@@ -1441,13 +1441,6 @@ fastcall void free_pages(unsigned long a
  
--void __get_zone_counts(unsigned long *active, unsigned long *inactive,
--			unsigned long *free, struct pglist_data *pgdat)
+ EXPORT_SYMBOL(free_pages);
+ 
+-#ifdef CONFIG_NUMA
+-unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
 -{
--	*active = node_page_state(pgdat->node_id, NR_ACTIVE);
--	*inactive = node_page_state(pgdat->node_id, NR_INACTIVE);
--	*free = node_page_state(pgdat->node_id, NR_FREE_PAGES);
+-	return node_page_state(pgdat->node_id, NR_FREE_PAGES);
 -}
+-#endif
 -
- void get_zone_counts(unsigned long *active,
- 		unsigned long *inactive, unsigned long *free)
+ static unsigned int nr_free_zone_pages(int offset)
  {
+ 	/* Just pick one node, since fallback list is circular */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
