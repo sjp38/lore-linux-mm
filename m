@@ -1,30 +1,57 @@
-Date: Fri, 26 Jan 2007 03:00:21 -0800
+Date: Fri, 26 Jan 2007 03:07:53 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 1/4] lumpy reclaim v2
-Message-Id: <20070126030021.72fdeef1.akpm@osdl.org>
-In-Reply-To: <20061214205734.0e385643.akpm@osdl.org>
-References: <exportbomb.1165424343@pinky>
-	<6109d33145c0dcf3a8a3a6bd120d7985@pinky>
-	<20061214205734.0e385643.akpm@osdl.org>
+Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
+ movable and non-movable pages
+Message-Id: <20070126030753.03529e7a.akpm@osdl.org>
+In-Reply-To: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
+References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Dec 2006 20:57:34 -0800
-Andrew Morton <akpm@osdl.org> wrote:
+On Thu, 25 Jan 2007 23:44:58 +0000 (GMT)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> On Wed, 6 Dec 2006 16:59:35 +0000
-> Andy Whitcroft <apw@shadowen.org> wrote:
-> 
-> > +			tmp = __pfn_to_page(pfn);
-> 
-> ia64 doesn't implement __page_to_pfn.  Why did you not use page_to_pfn()?
+> The following 8 patches against 2.6.20-rc4-mm1 create a zone called
+> ZONE_MOVABLE
 
-Poke.  I'm still a no-compile on ia64.
+Argh.  These surely get all tangled up with the
+make-zones-optional-by-adding-zillions-of-ifdef patches:
+
+deal-with-cases-of-zone_dma-meaning-the-first-zone.patch
+introduce-config_zone_dma.patch
+optional-zone_dma-in-the-vm.patch
+optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set.patch
+optional-zone_dma-in-the-vm-no-gfp_dma-check-in-the-slab-if-no-config_zone_dma-is-set-reduce-config_zone_dma-ifdefs.patch
+optional-zone_dma-for-ia64.patch
+remove-zone_dma-remains-from-parisc.patch
+remove-zone_dma-remains-from-sh-sh64.patch
+set-config_zone_dma-for-arches-with-generic_isa_dma.patch
+zoneid-fix-up-calculations-for-zoneid_pgshift.patch
+
+My objections to those patches:
+
+- They add zillions of ifdefs
+
+- They make the VM's behaviour diverge between different platforms and
+  between differen configs on the same platforms, and hence degrade
+  maintainability and increase complexity.
+
+- We kicked around some quite different ways of implementing the same
+  things, but nothing came of it.  iirc, one was to remove the hard-coded
+  zones altogether and rework all the MM to operate in terms of
+
+	for (idx = 0; idx < NUMBER_OF_ZONES; idx++)
+		...
+
+- I haven't seen any hard numbers to justify the change.
+
+So I want to drop them all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
