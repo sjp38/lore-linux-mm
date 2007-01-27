@@ -1,40 +1,46 @@
-Date: Sat, 27 Jan 2007 09:08:58 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Don't allow the stack to grow into hugetlb reserved
- regions
-In-Reply-To: <b040c32a0701261448k122f5cc7q5368b3b16ee1dc1f@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0701270904360.15686@blonde.wat.veritas.com>
-References: <20070125214052.22841.33449.stgit@localhost.localdomain>
- <Pine.LNX.4.64.0701262025590.22196@blonde.wat.veritas.com>
- <b040c32a0701261448k122f5cc7q5368b3b16ee1dc1f@mail.gmail.com>
+Message-ID: <45BBCFE9.5010600@redhat.com>
+Date: Sat, 27 Jan 2007 17:19:21 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] Track mlock()ed pages
+References: <Pine.LNX.4.64.0701252141570.10629@schroedinger.engr.sgi.com>	<45B9A00C.4040701@yahoo.com.au>	<Pine.LNX.4.64.0701252234490.11230@schroedinger.engr.sgi.com>	<20070126031300.59f75b06.akpm@osdl.org>	<Pine.LNX.4.64.0701260742340.6141@schroedinger.engr.sgi.com>	<20070126101027.90bf3e63.akpm@osdl.org>	<Pine.LNX.4.64.0701261021200.7848@schroedinger.engr.sgi.com> <20070126104206.f0b45f74.akpm@osdl.org>
+In-Reply-To: <20070126104206.f0b45f74.akpm@osdl.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@osdl.org>, William Irwin <wli@holomorphy.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Jan 2007, Ken Chen wrote:
-> On 1/26/07, Hugh Dickins <hugh@veritas.com> wrote:
-> > Less trivial (and I wonder whether you've come to this from an ia64
-> > or a powerpc direction): I notice that ia64 has more stringent REGION
-> > checks in its ia64_do_page_fault, before calling expand_stack or
-> > expand_upwards.  So on that path, the usual path, I think your
-> > new check in acct_stack_growth is unnecessary on ia64;
-> 
-> I think you are correct. This appears to affect powerpc only. On ia64,
-> hugetlb lives in a completely different region and they can never step
-> into normal stack address space. And for x86, there isn't a thing called
-> "reserved address space" for hugetlb mapping.
+Andrew Morton wrote:
 
-Thanks, that's reassuring for the hugetlb case, and therefore Adam's
-patch should not be delayed.  But it does leave open the question I
-was raising in the text you've snipped: if ia64 needs those stringent
-REGION checks in its ia64_do_page_fault path, don't we need to add
-them some(messy)how in the get_user_pages find_extend_vma path?
+> Of course it would.  But how do you know it is "too expensive"?  We "scan
+> all the vmas mapping a page" as a matter of course in the page scanner -
+> millions of times a minute.  If that's "too expensive" then ouch.
 
-Hugh
+We can do it lazily.
+
+At mlock time, move pages onto the mlocked list, unless they
+are there already.
+
+On munlock, move pages to the active list.  For mlock-only
+memory (shared memory segments?) we could add a simple check
+to see if the next process on the list has the page mlocked,
+checking only that one.
+
+While scanning the active list, move mlocked pages that are
+found back onto the mlocked list.
+
+This lazy movement of pages will impact shared libraries,
+but probably not shared memory segments.
+
+Does this sound workable?
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
