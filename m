@@ -1,39 +1,54 @@
-Date: Sun, 28 Jan 2007 19:19:09 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] mm: remove global locks from mm/highmem.c
-Message-ID: <20070128181909.GA12645@elte.hu>
-References: <1169993494.10987.23.camel@lappy> <20070128144933.GD16552@infradead.org> <20070128151700.GA7644@elte.hu> <20070128152858.GA23410@infradead.org> <20070128154806.GA10615@elte.hu> <20070128155429.GA26855@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id l0SKRorV027882
+	for <linux-mm@kvack.org>; Sun, 28 Jan 2007 20:27:50 GMT
+Received: from ug-out-1314.google.com (ugfj3.prod.google.com [10.66.186.3])
+	by spaceape10.eur.corp.google.com with ESMTP id l0SKRnJd020925
+	for <linux-mm@kvack.org>; Sun, 28 Jan 2007 20:27:49 GMT
+Received: by ug-out-1314.google.com with SMTP id j3so964446ugf
+        for <linux-mm@kvack.org>; Sun, 28 Jan 2007 12:27:49 -0800 (PST)
+Message-ID: <b040c32a0701281227r11fe02eblba07df7aa7400787@mail.gmail.com>
+Date: Sun, 28 Jan 2007 12:27:48 -0800
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: [PATCH] Don't allow the stack to grow into hugetlb reserved regions
+In-Reply-To: <Pine.LNX.4.64.0701270904360.15686@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070128155429.GA26855@infradead.org>
+References: <20070125214052.22841.33449.stgit@localhost.localdomain>
+	 <Pine.LNX.4.64.0701262025590.22196@blonde.wat.veritas.com>
+	 <b040c32a0701261448k122f5cc7q5368b3b16ee1dc1f@mail.gmail.com>
+	 <Pine.LNX.4.64.0701270904360.15686@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@osdl.org>, William Irwin <wli@holomorphy.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Hellwig <hch@infradead.org> wrote:
+On 1/27/07, Hugh Dickins <hugh@veritas.com> wrote:
+> Thanks, that's reassuring for the hugetlb case, and therefore Adam's
+> patch should not be delayed.  But it does leave open the question I
+> was raising in the text you've snipped: if ia64 needs those stringent
+> REGION checks in its ia64_do_page_fault path, don't we need to add
+> them some(messy)how in the get_user_pages find_extend_vma path?
 
-> On Sun, Jan 28, 2007 at 04:48:06PM +0100, Ingo Molnar wrote:
-> > i'm sorry, but do you realize that files_lock is a global lock, 
-> > triggered by /every single/ file close?
-> 
-> Please check which thread you're in before you start such lengthy 
-> rants.
+I left it out because I need more time to digest what you said. After
+looked through ia64's page fault and get_user_pages, I've concluded
+that the bug scenario Adam described is impossible to trigger on ia64
+due to various constrains and how the virtual address is laid out.
 
-my reply applies to the other thread too, you made a similar comment 
-there too:
+For ia64, the hugetlb address region is reserved at the top of user
+space address.  Stacks are below that region.  Throw in the mix, we
+have two stacks, one memory stack that grows down and one register
+stack backing store that grows up.  These two stacks are always in
+pair and grow towards each other. And lastly, we have virtual address
+holes in between regions.  It's just impossible to grow any of these
+two stacks into hugetlb region no matter how I played it.
 
-* Christoph Hellwig <hch@infradead.org> wrote:
+So, AFAICS this bug doesn't apply to ia64 (and certainly not x86). The
+new check of is_hugepage_only_range() is really a noop for both arches.
 
-> On Sun, Jan 28, 2007 at 12:51:18PM +0100, Peter Zijlstra wrote:
-> > This patch-set breaks up the global file_list_lock which was found 
-> > to be a severe contention point under basically any filesystem 
-> > intensive workload.
->
-> Benchmarks, please.  Where exactly do you see contention for this?
-
-	Ingo
+    - Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
