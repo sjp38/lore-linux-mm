@@ -1,334 +1,653 @@
-Message-Id: <20070128132434.692308000@programming.kicks-ass.net>
-References: <20070128131343.628722000@programming.kicks-ass.net>
-Date: Sun, 28 Jan 2007 14:13:47 +0100
+Subject: [PATCH] mm: remove global locks from mm/highmem.c
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/14] mm: speculative get page
-Content-Disposition: inline; filename=mm-speculative-get-page.patch
+Content-Type: text/plain
+Date: Sun, 28 Jan 2007 15:11:34 +0100
+Message-Id: <1169993494.10987.23.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-If we can be sure that elevating the page_count on a pagecache
-page will pin it, we can speculatively run this operation, and
-subsequently check to see if we hit the right page rather than
-relying on holding a lock or otherwise pinning a reference to the
-page.
+Eradicate global locks.
 
-This can be done if get_page/put_page behaves consistently
-throughout the whole tree (ie. if we "get" the page after it has
-been used for something else, we must be able to free it with a
-put_page).
+ - kmap_lock is removed by extensive use of atomic_t, a new flush
+   scheme and modifying set_page_address to only allow NULL<->virt
+   transitions.
 
-Actually, there is a period where the count behaves differently:
-when the page is free or if it is a constituent page of a compound
-page. We need an atomic_inc_not_zero operation to ensure we don't
-try to grab the page in either case.
+A count of 0 is an exclusive state acting as an entry lock. This is done
+using inc_not_zero and cmpxchg. The restriction on changing the virtual
+address closes the gap with concurrent additions of the same entry.
 
-This patch introduces the core locking protocol to the pagecache
-(ie. adds page_cache_get_speculative, and tweaks some update-side
-code to make it work).
+ - pool_lock is removed by using the pkmap index for the
+   page_address_maps.
 
+By using the pkmap index for the hash entries it is no longer needed to
+keep a free list.
 
-[Hugh notices that PG_nonewrefs might be dispensed with entirely
- if current SetPageNoNewRefs instead atomically save the page count
- and temporarily set it to zero. 
+This patch has been in -rt for a while but should also help regular
+highmem machines with multiple cores/cpus.
 
- This is a nice idea, and simplifies find_get_page very much, but
- cannot be applied to all current SetPageNoNewRefs sites. Need to
- verify that add_to_page_cache and add_to_swap_cache can cope
- without it or make do some other way.
-
- In the meantime, this version is a slightly more mechanical
- replacement.]
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/page-flags.h |    8 +++
- include/linux/pagemap.h    |  105 +++++++++++++++++++++++++++++++++++++++++++++
- mm/filemap.c               |    4 +
- mm/migrate.c               |    9 +++
- mm/swap_state.c            |    4 +
- mm/vmscan.c                |   12 +++--
- 6 files changed, 136 insertions(+), 6 deletions(-)
+ include/linux/mm.h |   32 ++-
+ mm/highmem.c       |  433 ++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 276 insertions(+), 189 deletions(-)
 
-Index: linux-2.6/include/linux/page-flags.h
+Index: linux/include/linux/mm.h
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2007-01-13 21:04:10.000000000 +0100
-+++ linux-2.6/include/linux/page-flags.h	2007-01-22 20:10:56.000000000 +0100
-@@ -91,7 +91,8 @@
- #define PG_nosave_free		18	/* Used for system suspend/resume */
- #define PG_buddy		19	/* Page is free, on buddy lists */
- 
--
-+#define PG_nonewrefs		20	/* Block concurrent pagecache lookups
-+					 * while testing refcount */
- #if (BITS_PER_LONG > 32)
- /*
-  * 64-bit-only flags build down from bit 31
-@@ -251,6 +252,11 @@ static inline void SetPageUptodate(struc
- #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
-+#define PageNoNewRefs(page)	test_bit(PG_nonewrefs, &(page)->flags)
-+#define SetPageNoNewRefs(page)	set_bit(PG_nonewrefs, &(page)->flags)
-+#define ClearPageNoNewRefs(page) clear_bit(PG_nonewrefs, &(page)->flags)
-+#define __ClearPageNoNewRefs(page) __clear_bit(PG_nonewrefs, &(page)->flags)
-+
- struct page;	/* forward declaration */
- 
- extern void cancel_dirty_page(struct page *page, unsigned int account_size);
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h	2007-01-13 21:04:10.000000000 +0100
-+++ linux-2.6/include/linux/pagemap.h	2007-01-22 20:10:30.000000000 +0100
-@@ -11,6 +11,8 @@
- #include <linux/compiler.h>
- #include <asm/uaccess.h>
- #include <linux/gfp.h>
-+#include <linux/page-flags.h>
-+#include <linux/hardirq.h> /* for in_interrupt() */
- 
- /*
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-@@ -51,6 +53,109 @@ static inline void mapping_set_gfp_mask(
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
- 
-+/*
-+ * speculatively take a reference to a page.
-+ * If the page is free (_count == 0), then _count is untouched, and 0
-+ * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
-+ *
-+ * This function must be run in the same rcu_read_lock() section as has
-+ * been used to lookup the page in the pagecache radix-tree: this allows
-+ * allocators to use a synchronize_rcu() to stabilize _count.
-+ *
-+ * Unless an RCU grace period has passed, the count of all pages coming out
-+ * of the allocator must be considered unstable. page_count may return higher
-+ * than expected, and put_page must be able to do the right thing when the
-+ * page has been finished with (because put_page is what is used to drop an
-+ * invalid speculative reference).
-+ *
-+ * After incrementing the refcount, this function spins until PageNoNewRefs
-+ * is clear, then a read memory barrier is issued.
-+ *
-+ * This forms the core of the lockless pagecache locking protocol, where
-+ * the lookup-side (eg. find_get_page) has the following pattern:
-+ * 1. find page in radix tree
-+ * 2. conditionally increment refcount
-+ * 3. wait for PageNoNewRefs
-+ * 4. check the page is still in pagecache
-+ *
-+ * Remove-side (that cares about _count, eg. reclaim) has the following:
-+ * A. SetPageNoNewRefs
-+ * B. check refcount is correct
-+ * C. remove page
-+ * D. ClearPageNoNewRefs
-+ *
-+ * There are 2 critical interleavings that matter:
-+ * - 2 runs before B: in this case, B sees elevated refcount and bails out
-+ * - B runs before 2: in this case, 3 ensures 4 will not run until *after* C
-+ *   (after D, even). In which case, 4 will notice C and lookup side can retry
-+ *
-+ * It is possible that between 1 and 2, the page is removed then the exact same
-+ * page is inserted into the same position in pagecache. That's OK: the
-+ * old find_get_page using tree_lock could equally have run before or after
-+ * the write-side, depending on timing.
-+ *
-+ * Pagecache insertion isn't a big problem: either 1 will find the page or
-+ * it will not. Likewise, the old find_get_page could run either before the
-+ * insertion or afterwards, depending on timing.
-+ */
-+static inline int page_cache_get_speculative(struct page *page)
-+{
-+	VM_BUG_ON(in_interrupt());
-+
-+#ifndef CONFIG_SMP
-+# ifdef CONFIG_PREEMPT
-+	VM_BUG_ON(!in_atomic());
-+# endif
-+	/*
-+	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-+	 * this for us.
-+	 *
-+	 * Pagecache won't be truncated from interrupt context, so if we have
-+	 * found a page in the radix tree here, we have pinned its refcount by
-+	 * disabling preempt, and hence no need for the "speculative get" that
-+	 * SMP requires.
-+	 */
-+	VM_BUG_ON(page_count(page) == 0);
-+	atomic_inc(&page->_count);
-+
-+#else
-+	if (unlikely(!get_page_unless_zero(page)))
-+		return 0; /* page has been freed */
-+
-+	/*
-+	 * Note that get_page_unless_zero provides a memory barrier.
-+	 * This is needed to ensure PageNoNewRefs is evaluated after the
-+	 * page refcount has been raised. See below comment.
-+	 */
-+
-+	while (unlikely(PageNoNewRefs(page)))
-+		cpu_relax();
-+
-+	/*
-+	 * smp_rmb is to ensure the load of page->flags (for PageNoNewRefs())
-+	 * is performed before a future load used to ensure the page is
-+	 * the correct on (usually: page->mapping and page->index).
-+	 *
-+	 * Those places that set PageNoNewRefs have the following pattern:
-+	 * 	SetPageNoNewRefs(page)
-+	 * 	wmb();
-+	 * 	if (page_count(page) == X)
-+	 * 		remove page from pagecache
-+	 * 	wmb();
-+	 * 	ClearPageNoNewRefs(page)
-+	 *
-+	 * If the load was out of order, page->mapping might be loaded before
-+	 * the page is removed from pagecache but PageNoNewRefs evaluated
-+	 * after the ClearPageNoNewRefs().
-+	 */
-+	smp_rmb();
-+
-+#endif
-+	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
-+
-+	return 1;
-+}
-+
- #ifdef CONFIG_NUMA
- extern struct page *__page_cache_alloc(gfp_t gfp);
- #else
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c	2007-01-13 21:04:13.000000000 +0100
-+++ linux-2.6/mm/vmscan.c	2007-01-22 20:10:30.000000000 +0100
-@@ -390,6 +390,8 @@ int remove_mapping(struct address_space 
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
- 
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
- 	write_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * The non racy check for a busy page.
-@@ -427,17 +429,21 @@ int remove_mapping(struct address_space 
- 		__delete_from_swap_cache(page);
- 		write_unlock_irq(&mapping->tree_lock);
- 		swap_free(swap);
--		__put_page(page);	/* The pagecache ref */
--		return 1;
-+		goto free_it;
- 	}
- 
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
--	__put_page(page);
-+
-+free_it:
-+	smp_wmb();
-+	__ClearPageNoNewRefs(page);
-+	__put_page(page); /* The pagecache ref */
- 	return 1;
- 
- cannot_free:
- 	write_unlock_irq(&mapping->tree_lock);
-+	ClearPageNoNewRefs(page);
- 	return 0;
- }
- 
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2007-01-13 21:04:13.000000000 +0100
-+++ linux-2.6/mm/filemap.c	2007-01-22 20:10:30.000000000 +0100
-@@ -440,6 +440,8 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
- 
- 	if (error == 0) {
-+		SetPageNoNewRefs(page);
-+		smp_wmb();
- 		write_lock_irq(&mapping->tree_lock);
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
-@@ -451,6 +453,8 @@ int add_to_page_cache(struct page *page,
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
- 		}
- 		write_unlock_irq(&mapping->tree_lock);
-+		smp_wmb();
-+		ClearPageNoNewRefs(page);
- 		radix_tree_preload_end();
- 	}
- 	return error;
-Index: linux-2.6/mm/swap_state.c
-===================================================================
---- linux-2.6.orig/mm/swap_state.c	2007-01-13 21:04:13.000000000 +0100
-+++ linux-2.6/mm/swap_state.c	2007-01-22 20:10:30.000000000 +0100
-@@ -78,6 +78,8 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
-+		SetPageNoNewRefs(page);
-+		smp_wmb();
- 		write_lock_irq(&swapper_space.tree_lock);
- 		error = radix_tree_insert(&swapper_space.page_tree,
- 						entry.val, page);
-@@ -90,6 +92,8 @@ static int __add_to_swap_cache(struct pa
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
- 		}
- 		write_unlock_irq(&swapper_space.tree_lock);
-+		smp_wmb();
-+		ClearPageNoNewRefs(page);
- 		radix_tree_preload_end();
- 	}
- 	return error;
-Index: linux-2.6/mm/migrate.c
-===================================================================
---- linux-2.6.orig/mm/migrate.c	2007-01-13 21:04:13.000000000 +0100
-+++ linux-2.6/mm/migrate.c	2007-01-22 20:10:30.000000000 +0100
-@@ -303,6 +303,8 @@ static int migrate_page_move_mapping(str
- 		return 0;
- 	}
- 
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
- 	write_lock_irq(&mapping->tree_lock);
- 
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-@@ -311,6 +313,7 @@ static int migrate_page_move_mapping(str
- 	if (page_count(page) != 2 + !!PagePrivate(page) ||
- 			(struct page *)radix_tree_deref_slot(pslot) != page) {
- 		write_unlock_irq(&mapping->tree_lock);
-+		ClearPageNoNewRefs(page);
- 		return -EAGAIN;
- 	}
- 
-@@ -326,6 +329,10 @@ static int migrate_page_move_mapping(str
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -543,23 +543,39 @@ static __always_inline void *lowmem_page
  #endif
  
- 	radix_tree_replace_slot(pslot, newpage);
-+	page->mapping = NULL;
-+  	write_unlock_irq(&mapping->tree_lock);
-+	smp_wmb();
-+	ClearPageNoNewRefs(page);
+ #if defined(WANT_PAGE_VIRTUAL)
+-#define page_address(page) ((page)->virtual)
+-#define set_page_address(page, address)			\
+-	do {						\
+-		(page)->virtual = (address);		\
+-	} while(0)
+-#define page_address_init()  do { } while(0)
++/*
++ * wrap page->virtual so it is safe to set/read locklessly
++ */
++#define page_address(page) \
++	({ typeof((page)->virtual) v = (page)->virtual; \
++	 smp_read_barrier_depends(); \
++	 v; })
++
++static inline int set_page_address(struct page *page, void *address)
++{
++	if (address)
++		return cmpxchg(&page->virtual, NULL, address) == NULL;
++	else {
++		/*
++		 * cmpxchg is a bit abused because it is not guaranteed
++		 * safe wrt direct assignment on all platforms.
++		 */
++		void *virt = page->virtual;
++		return cmpxchg(&page->vitrual, virt, NULL) == virt;
++	}
++}
++void page_address_init(void);
+ #endif
  
- 	/*
- 	 * Drop cache reference from old page.
-@@ -333,8 +340,6 @@ static int migrate_page_move_mapping(str
- 	 */
- 	__put_page(page);
+ #if defined(HASHED_PAGE_VIRTUAL)
+ void *page_address(struct page *page);
+-void set_page_address(struct page *page, void *virtual);
++int set_page_address(struct page *page, void *virtual);
+ void page_address_init(void);
+ #endif
  
--	write_unlock_irq(&mapping->tree_lock);
--
- 	return 0;
+ #if !defined(HASHED_PAGE_VIRTUAL) && !defined(WANT_PAGE_VIRTUAL)
+ #define page_address(page) lowmem_page_address(page)
+-#define set_page_address(page, address)  do { } while(0)
++#define set_page_address(page, address)  (0)
+ #define page_address_init()  do { } while(0)
+ #endif
+ 
+Index: linux/mm/highmem.c
+===================================================================
+--- linux.orig/mm/highmem.c
++++ linux/mm/highmem.c
+@@ -14,6 +14,11 @@
+  * based on Linus' idea.
+  *
+  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
++ *
++ * Largely rewritten to get rid of all global locks
++ *
++ * Copyright (C) 2006 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
+  */
+ 
+ #include <linux/mm.h>
+@@ -27,18 +32,14 @@
+ #include <linux/hash.h>
+ #include <linux/highmem.h>
+ #include <linux/blktrace_api.h>
++
+ #include <asm/tlbflush.h>
++#include <asm/pgtable.h>
+ 
+-/*
+- * Virtual_count is not a pure "count".
+- *  0 means that it is not mapped, and has not been mapped
+- *    since a TLB flush - it is usable.
+- *  1 means that there are no users, but it has been mapped
+- *    since the last TLB flush - so we can't use it.
+- *  n means that there are (n-1) current users of it.
+- */
+ #ifdef CONFIG_HIGHMEM
+ 
++static int __set_page_address(struct page *page, void *virtual, int pos);
++
+ unsigned long totalhigh_pages __read_mostly;
+ 
+ unsigned int nr_free_highpages (void)
+@@ -52,164 +53,208 @@ unsigned int nr_free_highpages (void)
+ 	return pages;
  }
  
+-static int pkmap_count[LAST_PKMAP];
+-static unsigned int last_pkmap_nr;
+-static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
++/*
++ * count is not a pure "count".
++ *  0 means its owned exclusively by someone
++ *  1 means its free for use - either mapped or not.
++ *  n means that there are (n-1) current users of it.
++ */
++static atomic_t pkmap_count[LAST_PKMAP];
++static atomic_t pkmap_hand;
+ 
+ pte_t * pkmap_page_table;
+ 
+ static DECLARE_WAIT_QUEUE_HEAD(pkmap_map_wait);
+ 
+-static void flush_all_zero_pkmaps(void)
++/*
++ * Try to free a given kmap slot.
++ *
++ * Returns:
++ *  -1 - in use
++ *   0 - free, no TLB flush needed
++ *   1 - free, needs TLB flush
++ */
++static int pkmap_try_free(int pos)
+ {
+-	int i;
+-
+-	flush_cache_kmaps();
++	if (atomic_cmpxchg(&pkmap_count[pos], 1, 0) != 1)
++		return -1;
+ 
+-	for (i = 0; i < LAST_PKMAP; i++) {
+-		struct page *page;
++	/*
++	 * TODO: add a young bit to make it CLOCK
++	 */
++	if (!pte_none(pkmap_page_table[pos])) {
++		struct page *page = pte_page(pkmap_page_table[pos]);
++		unsigned long addr = PKMAP_ADDR(pos);
++		pte_t *ptep = &pkmap_page_table[pos];
++
++		VM_BUG_ON(addr != (unsigned long)page_address(page));
++
++		if (!__set_page_address(page, NULL, pos))
++			BUG();
++		flush_kernel_dcache_page(page);
++		pte_clear(&init_mm, addr, ptep);
+ 
+-		/*
+-		 * zero means we don't have anything to do,
+-		 * >1 means that it is still in use. Only
+-		 * a count of 1 means that it is free but
+-		 * needs to be unmapped
+-		 */
+-		if (pkmap_count[i] != 1)
+-			continue;
+-		pkmap_count[i] = 0;
++		return 1;
++	}
+ 
+-		/* sanity check */
+-		BUG_ON(pte_none(pkmap_page_table[i]));
++	return 0;
++}
+ 
+-		/*
+-		 * Don't need an atomic fetch-and-clear op here;
+-		 * no-one has the page mapped, and cannot get at
+-		 * its virtual address (and hence PTE) without first
+-		 * getting the kmap_lock (which is held here).
+-		 * So no dangers, even with speculative execution.
+-		 */
+-		page = pte_page(pkmap_page_table[i]);
+-		pte_clear(&init_mm, (unsigned long)page_address(page),
+-			  &pkmap_page_table[i]);
++static inline void pkmap_put(atomic_t *counter)
++{
++	switch (atomic_dec_return(counter)) {
++	case 0:
++		BUG();
+ 
+-		set_page_address(page, NULL);
++	case 1:
++		wake_up(&pkmap_map_wait);
+ 	}
+-	flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+ }
+ 
+-static inline unsigned long map_new_virtual(struct page *page)
++#define TLB_BATCH	32
++
++static int pkmap_get_free(void)
+ {
+-	unsigned long vaddr;
+-	int count;
++	int i, pos, flush;
++	DECLARE_WAITQUEUE(wait, current);
+ 
+-start:
+-	count = LAST_PKMAP;
+-	/* Find an empty entry */
+-	for (;;) {
+-		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
+-		if (!last_pkmap_nr) {
+-			flush_all_zero_pkmaps();
+-			count = LAST_PKMAP;
+-		}
+-		if (!pkmap_count[last_pkmap_nr])
+-			break;	/* Found a usable entry */
+-		if (--count)
+-			continue;
++restart:
++	for (i = 0; i < LAST_PKMAP; i++) {
++		pos = atomic_inc_return(&pkmap_hand) % LAST_PKMAP;
++		flush = pkmap_try_free(pos);
++		if (flush >= 0)
++			goto got_one;
++	}
++
++	/*
++	 * wait for somebody else to unmap their entries
++	 */
++	__set_current_state(TASK_UNINTERRUPTIBLE);
++	add_wait_queue(&pkmap_map_wait, &wait);
++	schedule();
++	remove_wait_queue(&pkmap_map_wait, &wait);
++
++	goto restart;
++
++got_one:
++	if (flush) {
++#if 0
++		flush_tlb_kernel_range(PKMAP_ADDR(pos), PKMAP_ADDR(pos+1));
++#else
++		int pos2 = (pos + 1) % LAST_PKMAP;
++		int nr;
++		int entries[TLB_BATCH];
+ 
+ 		/*
+-		 * Sleep for somebody else to unmap their entries
++		 * For those architectures that cannot help but flush the
++		 * whole TLB, flush some more entries to make it worthwhile.
++		 * Scan ahead of the hand to minimise search distances.
+ 		 */
+-		{
+-			DECLARE_WAITQUEUE(wait, current);
++		for (i = 0, nr = 0; i < LAST_PKMAP && nr < TLB_BATCH;
++				i++, pos2 = (pos2 + 1) % LAST_PKMAP) {
+ 
+-			__set_current_state(TASK_UNINTERRUPTIBLE);
+-			add_wait_queue(&pkmap_map_wait, &wait);
+-			spin_unlock(&kmap_lock);
+-			schedule();
+-			remove_wait_queue(&pkmap_map_wait, &wait);
+-			spin_lock(&kmap_lock);
+-
+-			/* Somebody else might have mapped it while we slept */
+-			if (page_address(page))
+-				return (unsigned long)page_address(page);
++			flush = pkmap_try_free(pos2);
++			if (flush < 0)
++				continue;
++
++			if (!flush) {
++				atomic_t *counter = &pkmap_count[pos2];
++				VM_BUG_ON(atomic_read(counter) != 0);
++				atomic_set(counter, 2);
++				pkmap_put(counter);
++			} else
++				entries[nr++] = pos2;
++		}
++		flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+ 
+-			/* Re-start */
+-			goto start;
++		for (i = 0; i < nr; i++) {
++			atomic_t *counter = &pkmap_count[entries[i]];
++			VM_BUG_ON(atomic_read(counter) != 0);
++			atomic_set(counter, 2);
++			pkmap_put(counter);
+ 		}
++#endif
+ 	}
+-	vaddr = PKMAP_ADDR(last_pkmap_nr);
+-	set_pte_at(&init_mm, vaddr,
+-		   &(pkmap_page_table[last_pkmap_nr]), mk_pte(page, kmap_prot));
++	return pos;
++}
++
++static unsigned long pkmap_insert(struct page *page)
++{
++	int pos = pkmap_get_free();
++	unsigned long vaddr = PKMAP_ADDR(pos);
++	pte_t *ptep = &pkmap_page_table[pos];
++	pte_t entry = mk_pte(page, kmap_prot);
++	atomic_t *counter = &pkmap_count[pos];
++
++	VM_BUG_ON(atomic_read(counter) != 0);
+ 
+-	pkmap_count[last_pkmap_nr] = 1;
+-	set_page_address(page, (void *)vaddr);
++	set_pte_at(&init_mm, vaddr, ptep, entry);
++	if (unlikely(!__set_page_address(page, (void *)vaddr, pos))) {
++		/*
++		 * concurrent pkmap_inserts for this page -
++		 * the other won the race, release this entry.
++		 *
++		 * we can still clear the pte without a tlb flush since
++		 * it couldn't have been used yet.
++		 */
++		pte_clear(&init_mm, vaddr, ptep);
++		VM_BUG_ON(atomic_read(counter) != 0);
++		atomic_set(counter, 2);
++		pkmap_put(counter);
++		vaddr = 0;
++	} else
++		atomic_set(counter, 2);
+ 
+ 	return vaddr;
+ }
+ 
+-void fastcall *kmap_high(struct page *page)
++fastcall void *kmap_high(struct page *page)
+ {
+ 	unsigned long vaddr;
+-
+-	/*
+-	 * For highmem pages, we can't trust "virtual" until
+-	 * after we have the lock.
+-	 *
+-	 * We cannot call this from interrupts, as it may block
+-	 */
+-	spin_lock(&kmap_lock);
++again:
+ 	vaddr = (unsigned long)page_address(page);
++	if (vaddr) {
++		atomic_t *counter = &pkmap_count[PKMAP_NR(vaddr)];
++		if (atomic_inc_not_zero(counter)) {
++			/*
++			 * atomic_inc_not_zero implies a (memory) barrier on success
++			 * so page address will be reloaded.
++			 */
++			unsigned long vaddr2 = (unsigned long)page_address(page);
++			if (likely(vaddr == vaddr2))
++				return (void *)vaddr;
++
++			/*
++			 * Oops, we got someone else.
++			 *
++			 * This can happen if we get preempted after
++			 * page_address() and before atomic_inc_not_zero()
++			 * and during that preemption this slot is freed and
++			 * reused.
++			 */
++			pkmap_put(counter);
++			goto again;
++		}
++	}
++
++	vaddr = pkmap_insert(page);
+ 	if (!vaddr)
+-		vaddr = map_new_virtual(page);
+-	pkmap_count[PKMAP_NR(vaddr)]++;
+-	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+-	spin_unlock(&kmap_lock);
+-	return (void*) vaddr;
++		goto again;
++
++	return (void *)vaddr;
+ }
+ 
+ EXPORT_SYMBOL(kmap_high);
+ 
+-void fastcall kunmap_high(struct page *page)
++fastcall void kunmap_high(struct page *page)
+ {
+-	unsigned long vaddr;
+-	unsigned long nr;
+-	int need_wakeup;
+-
+-	spin_lock(&kmap_lock);
+-	vaddr = (unsigned long)page_address(page);
++	unsigned long vaddr = (unsigned long)page_address(page);
+ 	BUG_ON(!vaddr);
+-	nr = PKMAP_NR(vaddr);
+-
+-	/*
+-	 * A count must never go down to zero
+-	 * without a TLB flush!
+-	 */
+-	need_wakeup = 0;
+-	switch (--pkmap_count[nr]) {
+-	case 0:
+-		BUG();
+-	case 1:
+-		/*
+-		 * Avoid an unnecessary wake_up() function call.
+-		 * The common case is pkmap_count[] == 1, but
+-		 * no waiters.
+-		 * The tasks queued in the wait-queue are guarded
+-		 * by both the lock in the wait-queue-head and by
+-		 * the kmap_lock.  As the kmap_lock is held here,
+-		 * no need for the wait-queue-head's lock.  Simply
+-		 * test if the queue is empty.
+-		 */
+-		need_wakeup = waitqueue_active(&pkmap_map_wait);
+-	}
+-	spin_unlock(&kmap_lock);
+-
+-	/* do wake-up, if needed, race-free outside of the spin lock */
+-	if (need_wakeup)
+-		wake_up(&pkmap_map_wait);
++	pkmap_put(&pkmap_count[PKMAP_NR(vaddr)]);
+ }
+ 
+ EXPORT_SYMBOL(kunmap_high);
++
+ #endif
+ 
+ #if defined(HASHED_PAGE_VIRTUAL)
+@@ -217,19 +262,13 @@ EXPORT_SYMBOL(kunmap_high);
+ #define PA_HASH_ORDER	7
+ 
+ /*
+- * Describes one page->virtual association
++ * Describes one page->virtual address association.
+  */
+-struct page_address_map {
++static struct page_address_map {
+ 	struct page *page;
+ 	void *virtual;
+ 	struct list_head list;
+-};
+-
+-/*
+- * page_address_map freelist, allocated from page_address_maps.
+- */
+-static struct list_head page_address_pool;	/* freelist */
+-static spinlock_t pool_lock;			/* protects page_address_pool */
++} page_address_maps[LAST_PKMAP];
+ 
+ /*
+  * Hash table bucket
+@@ -244,91 +283,123 @@ static struct page_address_slot *page_sl
+ 	return &page_address_htable[hash_ptr(page, PA_HASH_ORDER)];
+ }
+ 
+-void *page_address(struct page *page)
++static void *__page_address(struct page_address_slot *pas, struct page *page)
+ {
+-	unsigned long flags;
+-	void *ret;
+-	struct page_address_slot *pas;
+-
+-	if (!PageHighMem(page))
+-		return lowmem_page_address(page);
++	void *ret = NULL;
+ 
+-	pas = page_slot(page);
+-	ret = NULL;
+-	spin_lock_irqsave(&pas->lock, flags);
+ 	if (!list_empty(&pas->lh)) {
+ 		struct page_address_map *pam;
+ 
+ 		list_for_each_entry(pam, &pas->lh, list) {
+ 			if (pam->page == page) {
+ 				ret = pam->virtual;
+-				goto done;
++				break;
+ 			}
+ 		}
+ 	}
+-done:
++
++	return ret;
++}
++
++void *page_address(struct page *page)
++{
++	unsigned long flags;
++	void *ret;
++	struct page_address_slot *pas;
++
++	if (!PageHighMem(page))
++		return lowmem_page_address(page);
++
++	pas = page_slot(page);
++	spin_lock_irqsave(&pas->lock, flags);
++	ret = __page_address(pas, page);
+ 	spin_unlock_irqrestore(&pas->lock, flags);
+ 	return ret;
+ }
+ 
+ EXPORT_SYMBOL(page_address);
+ 
+-void set_page_address(struct page *page, void *virtual)
++static int __set_page_address(struct page *page, void *virtual, int pos)
+ {
++	int ret = 0;
+ 	unsigned long flags;
+ 	struct page_address_slot *pas;
+ 	struct page_address_map *pam;
+ 
+-	BUG_ON(!PageHighMem(page));
++	VM_BUG_ON(!PageHighMem(page));
++	VM_BUG_ON(atomic_read(&pkmap_count[pos]) != 0);
++	VM_BUG_ON(pos < 0 || pos >= LAST_PKMAP);
+ 
+ 	pas = page_slot(page);
+-	if (virtual) {		/* Add */
+-		BUG_ON(list_empty(&page_address_pool));
++	pam = &page_address_maps[pos];
+ 
+-		spin_lock_irqsave(&pool_lock, flags);
+-		pam = list_entry(page_address_pool.next,
+-				struct page_address_map, list);
+-		list_del(&pam->list);
+-		spin_unlock_irqrestore(&pool_lock, flags);
+-
+-		pam->page = page;
+-		pam->virtual = virtual;
+-
+-		spin_lock_irqsave(&pas->lock, flags);
+-		list_add_tail(&pam->list, &pas->lh);
+-		spin_unlock_irqrestore(&pas->lock, flags);
+-	} else {		/* Remove */
+-		spin_lock_irqsave(&pas->lock, flags);
+-		list_for_each_entry(pam, &pas->lh, list) {
+-			if (pam->page == page) {
+-				list_del(&pam->list);
+-				spin_unlock_irqrestore(&pas->lock, flags);
+-				spin_lock_irqsave(&pool_lock, flags);
+-				list_add_tail(&pam->list, &page_address_pool);
+-				spin_unlock_irqrestore(&pool_lock, flags);
+-				goto done;
+-			}
++	spin_lock_irqsave(&pas->lock, flags);
++	if (virtual) { /* add */
++		VM_BUG_ON(!list_empty(&pam->list));
++
++		if (!__page_address(pas, page)) {
++			pam->page = page;
++			pam->virtual = virtual;
++			list_add_tail(&pam->list, &pas->lh);
++			ret = 1;
++		}
++	} else { /* remove */
++		if (!list_empty(&pam->list)) {
++			list_del_init(&pam->list);
++			ret = 1;
+ 		}
+-		spin_unlock_irqrestore(&pas->lock, flags);
+ 	}
+-done:
+-	return;
++	spin_unlock_irqrestore(&pas->lock, flags);
++
++	return ret;
+ }
+ 
+-static struct page_address_map page_address_maps[LAST_PKMAP];
++int set_page_address(struct page *page, void *virtual)
++{
++	/*
++	 * set_page_address is not supposed to be called when using
++	 * hashed virtual addresses.
++	 */
++	BUG();
++	return 0;
++}
+ 
+-void __init page_address_init(void)
++void __init __page_address_init(void)
+ {
+ 	int i;
+ 
+-	INIT_LIST_HEAD(&page_address_pool);
+ 	for (i = 0; i < ARRAY_SIZE(page_address_maps); i++)
+-		list_add(&page_address_maps[i].list, &page_address_pool);
++		INIT_LIST_HEAD(&page_address_maps[i].list);
++
+ 	for (i = 0; i < ARRAY_SIZE(page_address_htable); i++) {
+ 		INIT_LIST_HEAD(&page_address_htable[i].lh);
+ 		spin_lock_init(&page_address_htable[i].lock);
+ 	}
+-	spin_lock_init(&pool_lock);
++}
++
++#elif defined (CONFIG_HIGHMEM) /* HASHED_PAGE_VIRTUAL */
++
++static int __set_page_address(struct page *page, void *virtual, int pos)
++{
++	return set_page_address(page, virtual);
+ }
+ 
+ #endif	/* defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL) */
++
++#if defined(CONFIG_HIGHMEM) || defined(HASHED_PAGE_VIRTUAL)
++
++void __init page_address_init(void)
++{
++#ifdef CONFIG_HIGHMEM
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(pkmap_count); i++)
++		atomic_set(&pkmap_count[i], 1);
++#endif
++
++#ifdef HASHED_PAGE_VIRTUAL
++	__page_address_init();
++#endif
++}
++
++#endif
 
---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
