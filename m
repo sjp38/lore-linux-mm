@@ -1,76 +1,68 @@
-Message-Id: <20070128132437.299596000@programming.kicks-ass.net>
+Message-Id: <20070128132436.178008000@programming.kicks-ass.net>
 References: <20070128131343.628722000@programming.kicks-ass.net>
-Date: Sun, 28 Jan 2007 14:13:54 +0100
+Date: Sun, 28 Jan 2007 14:13:51 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/14] atomic_ulong_t
-Content-Disposition: inline; filename=atomic_ulong_t.patch
+Subject: [PATCH 08/14] mm: remove find_tylock_page
+Content-Disposition: inline; filename=kill-find_trylock_page.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-provide an unsigned long atomic type.
+its the last read_lock user of tree_lock, and since its unused remove
+it rather than convert it.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/asm-generic/atomic.h |   45 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ include/linux/pagemap.h |    2 --
+ mm/filemap.c            |   20 --------------------
+ 2 files changed, 22 deletions(-)
 
-Index: linux-2.6-git2/include/asm-generic/atomic.h
+Index: linux-2.6/mm/filemap.c
 ===================================================================
---- linux-2.6-git2.orig/include/asm-generic/atomic.h	2006-12-15 14:13:20.000000000 +0100
-+++ linux-2.6-git2/include/asm-generic/atomic.h	2006-12-20 22:28:23.000000000 +0100
-@@ -115,4 +115,49 @@ static inline void atomic_long_sub(long 
+--- linux-2.6.orig/mm/filemap.c	2007-01-22 20:11:09.000000000 +0100
++++ linux-2.6/mm/filemap.c	2007-01-22 20:11:13.000000000 +0100
+@@ -624,26 +624,6 @@ repeat:
+ EXPORT_SYMBOL(find_get_page);
  
- #endif  /*  BITS_PER_LONG == 64  */
- 
-+typedef atomic_long_t atomic_ulong_t;
-+
-+#define ATOMIC_ULONG_INIT(i)	ATOMIC_LONG_INIT(i)
-+static inline unsigned long atomic_ulong_read(atomic_ulong_t *l)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	return (unsigned long)atomic_long_read(v);
-+}
-+
-+static inline void atomic_ulong_set(atomic_ulong_t *l, unsigned long i)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	atomic_long_set(v, i);
-+}
-+
-+static inline void atomic_ulong_inc(atomic_ulong_t *l)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	atomic_long_inc(v);
-+}
-+
-+static inline void atomic_ulong_dec(atomic_ulong_t *l)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	atomic_long_dec(v);
-+}
-+
-+static inline void atomic_ulong_add(unsigned long i, atomic_ulong_t *l)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	atomic_long_add(i, v);
-+}
-+
-+static inline void atomic_ulong_sub(unsigned long i, atomic_ulong_t *l)
-+{
-+	atomic_long_t *v = (atomic_long_t *)l;
-+
-+	atomic_long_sub(i, v);
-+}
-+
- #endif  /*  _ASM_GENERIC_ATOMIC_H  */
+ /**
+- * find_trylock_page - find and lock a page
+- * @mapping: the address_space to search
+- * @offset: the page index
+- *
+- * Same as find_get_page(), but trylock it instead of incrementing the count.
+- */
+-struct page *find_trylock_page(struct address_space *mapping, unsigned long offset)
+-{
+-	struct page *page;
+-
+-	read_lock_irq(&mapping->tree_lock);
+-	page = radix_tree_lookup(&mapping->page_tree, offset);
+-	if (page && TestSetPageLocked(page))
+-		page = NULL;
+-	read_unlock_irq(&mapping->tree_lock);
+-	return page;
+-}
+-EXPORT_SYMBOL(find_trylock_page);
+-
+-/**
+  * find_lock_page - locate, pin and lock a pagecache page
+  * @mapping: the address_space to search
+  * @offset: the page index
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h	2007-01-22 20:11:07.000000000 +0100
++++ linux-2.6/include/linux/pagemap.h	2007-01-22 20:11:13.000000000 +0100
+@@ -202,8 +202,6 @@ extern struct page * find_get_page(struc
+ 				unsigned long index);
+ extern struct page * find_lock_page(struct address_space *mapping,
+ 				unsigned long index);
+-extern __deprecated_for_modules struct page * find_trylock_page(
+-			struct address_space *mapping, unsigned long index);
+ extern struct page * find_or_create_page(struct address_space *mapping,
+ 				unsigned long index, gfp_t gfp_mask);
+ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 
 --
 
