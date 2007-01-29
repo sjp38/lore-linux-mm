@@ -1,74 +1,73 @@
-Received: from localhost.localdomain ([127.0.0.1]:51436 "EHLO
-	dl5rb.ham-radio-op.net") by ftp.linux-mips.org with ESMTP
-	id S20037436AbXA2V5R (ORCPT <rfc822;linux-mm@kvack.org>);
-	Mon, 29 Jan 2007 21:57:17 +0000
-Date: Mon, 29 Jan 2007 21:27:19 +0000
-From: Ralf Baechle <ralf@linux-mips.org>
-Subject: Re: [patch] mm: mremap correct rmap accounting
-Message-ID: <20070129212719.GA12262@linux-mips.org>
-References: <45B61967.5000302@yahoo.com.au> <Pine.LNX.4.64.0701232041330.2461@blonde.wat.veritas.com> <45BD6A7B.7070501@yahoo.com.au> <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com> <Pine.LNX.4.64.0701291123460.3611@woody.linux-foundation.org> <20070129120325.26707d26.akpm@osdl.org> <Pine.LNX.4.64.0701291216340.3611@woody.linux-foundation.org>
+Date: Mon, 29 Jan 2007 14:36:54 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
+ movable and non-movable pages
+Message-Id: <20070129143654.27fcd4a4.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
+References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
+	<20070126030753.03529e7a.akpm@osdl.org>
+	<Pine.LNX.4.64.0701260751230.6141@schroedinger.engr.sgi.com>
+	<20070126114615.5aa9e213.akpm@osdl.org>
+	<Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
+	<20070126122747.dde74c97.akpm@osdl.org>
+	<Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0701291216340.3611@woody.linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, "Maciej W. Rozycki" <macro@linux-mips.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 29, 2007 at 12:18:29PM -0800, Linus Torvalds wrote:
+On Mon, 29 Jan 2007 13:54:38 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-(adding Maciej who is using R4000 for much of his MIPS hacking to cc ...)
-
-> > Can we convert those bits of mips to just have a single zero-page, like
-> > everyone else?
-> > 
-> > Is that trick a correctness thing, or a performance thing?  If the latter,
-> > how useful is it, and how common are the chips which use it?
+> On Fri, 26 Jan 2007, Andrew Morton wrote:
 > 
-> It was a performance thing, iirc. Apparently a fairly big deal: pages 
-> kicking each other out of the cache due to idiotic cache design. But I 
-> forget any details.
+> > > The main benefit is a significant simplification of the VM, leading to 
+> > > robust and reliable operations and a reduction of the maintenance 
+> > > headaches coming with the additional zones.
+> > > 
+> > > If we would introduce the ability of allocating from a range of 
+> > > physical addresses then the need for DMA zones would go away allowing 
+> > > flexibility for device driver DMA allocations and at the same time we get 
+> > > rid of special casing in the VM.
+> > 
+> > None of this is valid.  The great majority of machines out there will
+> > continue to have the same number of zones.  Nothing changes.
+> 
+> All 64 bit machine will only have a single zone if we have such a range 
+> alloc mechanism. The 32bit ones with HIGHMEM wont be able to avoid it, 
+> true. But all arches that do not need gymnastics to access their memory 
+> will be able run with a single zone.
 
-R4000 and R4400 SC and MC versions suffer from virtual aliases but have a
-hardware mechanism to detect them and will throw a virtual coherency
-exception if so.  So in theory for these processors the entire burden of
-handling cache aliases can be left to like ten lines of exception handling
-code.  A real world machine may encounter millions of these exceptions in
-a relativly short time which sucks performancewise, so aliasing avoidance
-by careful selection of addresses and cacheflushes is needed.
+What is "such a range alloc mechanism"?
 
-So to make that more explicit, it's not needed for correctness but it's
-a performance - and sometimes a fairly big one - thing.
+> > That's all a real cost, so we need to see *good* benefits to outweigh that
+> > cost.  Thus far I don't think we've seen that.
+> 
+> The real savings is the simplicity of VM design, robustness and 
+> efficiency. We loose on all these fronts if we keep or add useless zones. 
+> 
+> The main reason for the recent problems with dirty handling seem to be due 
+> to exactly such a multizone balancing issues involving ZONE_NORMAL and 
+> HIGHMEM. Those problems cannot occur on single ZONE arches (this means 
+> right now on a series of embedded arches, UML and IA64). 
+> 
+> Multiple ZONES are a recipie for VM fragility and result in complexity 
+> that is difficult to manage.
 
-(The easy solution for the issue would be raising the pagesize to the next
-higher supported values, 16kB or 64kB.  Now for the true idiocy of this
-exception-based scheme - it happens that the hardware checks three bits for
-aliasing as if the CPU had 32kB direct mapped caches even though these
-types only have 8kB (R4000) rsp 16kB (R4400) primary caches.  This means
-ramping up the page size to 16kB wouldn't suffice - it would have to be
-64kB to eleminate aliases which is impractical for memory reasons on many
-systems.
+Why do I have to keep repeating myself?  90% of known FC6-running machines
+are x86-32.  90% of vendor-shipped kernels need all three zones.  And the
+remaining 10% ship with multiple nodes as well.
 
-Anyway, no other MIPS processor has this "virtual coherency exception"
-and so I don't have an affected system at hand right now.  So I hacked
-a 2.6.20-rc6 kernel for another machine to do R4x00 style ZERO_PAGE
-handling - and the system did survive a quick 10min testing just fine
-until a test case which Nick had mailed to me killed the system as
-predicted.  I blame obsoletion of the chips and lucky choice of workload
-for this issue only ever having been reported once and that report was
-probably ignored because it was sufficiently obscure.
+So please stop telling me what a wonderful world it is to not have multiple
+zones.  It just isn't going to happen for a long long time.  The
+multiple-zone kernel is the case we need to care about most by a very large
+margin indeed.  Single-zone is an infinitesimal corner-case.
 
-> MIPS in general is a f*cking pain in the *ss. They have a few chips that 
-> are sane, but just an incredible amount of totally braindamaged ones. 
-> They're not the only ones with virtual caches, but they're certainly 
-> well-represented there. Sad.
 
-Eh...  MIPS isn't the architecture with VIVT data caches.  It's other
-arch maintainers that get their sleep robbed by truly st00pid caches.
-
-  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
