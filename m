@@ -1,35 +1,35 @@
-Received: from list by ciao.gmane.org with local (Exim 4.43)
-	id 1HBcTU-0007am-5s
-	for linux-mm@kvack.org; Mon, 29 Jan 2007 20:47:32 +0100
-Received: from 201.47.162.52.adsl.gvt.net.br ([201.47.162.52])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2007 20:47:32 +0100
-Received: from eriberto by 201.47.162.52.adsl.gvt.net.br with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2007 20:47:32 +0100
-From: Eriberto <eriberto@eriberto.pro.br>
-Subject: swap: which is the maximum size allowed?
-Date: Mon, 29 Jan 2007 17:46:21 -0200
-Message-ID: <epliuf$an7$1@sea.gmane.org>
+Date: Mon, 29 Jan 2007 20:53:07 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] mm: remove global locks from mm/highmem.c
+Message-ID: <20070129195307.GA24434@elte.hu>
+References: <1169993494.10987.23.camel@lappy> <20070128142925.df2f4dce.akpm@osdl.org> <20070129190806.GA14353@elte.hu> <Pine.LNX.4.64.0701291916420.10401@blonde.wat.veritas.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0701291916420.10401@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+* Hugh Dickins <hugh@veritas.com> wrote:
 
-I am trying understand the swap. I would like to know which is the
-maximum swap size on i386. Is 64 GB? If yes, how to know the origin of
-this "magic" number? How to calculate it? I don't found it (Internet).
+> > For every 64-bit Fedora box there's more than seven 32-bit boxes. I 
+> > think 32-bit is going to live with us far longer than many thought, 
+> > so we might as well make it work better. Both HIGHMEM and HIGHPTE is 
+> > the default on many distro kernels, which pushes the kmap 
+> > infrastructure quite a bit.
+> 
+> But HIGHPTE uses kmap_atomic (in mainline: does -rt use kmap there?)
 
-Thanks in advance.
+The contention i saw was on mainline and in the pagecache uses of 
+kmap(). With HIGHPTE i only meant that typically every available highmem 
+option is enabled on 32-bit distro kernel rpms, to make it work on as 
+wide selection of hardware as possible. Sometimes PAE is split into a 
+separate rpm, but mostly there's just one 32-bit kernel.
 
-Eriberto - Brazil
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
