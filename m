@@ -1,52 +1,41 @@
-Subject: Re: [PATCH 00/14] Concurrent Page Cache
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0701291013530.29254@schroedinger.engr.sgi.com>
-References: <20070128131343.628722000@programming.kicks-ass.net>
-	 <Pine.LNX.4.64.0701290918260.28330@schroedinger.engr.sgi.com>
-	 <1170093944.6189.192.camel@twins>
-	 <Pine.LNX.4.64.0701291013530.29254@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 29 Jan 2007 19:56:17 +0100
-Message-Id: <1170096978.10987.39.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 29 Jan 2007 19:08:25 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] mm: mremap correct rmap accounting
+In-Reply-To: <45BD6A7B.7070501@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com>
+References: <45B61967.5000302@yahoo.com.au> <Pine.LNX.4.64.0701232041330.2461@blonde.wat.veritas.com>
+ <45BD6A7B.7070501@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Ralf Baechle <ralf@linux-mips.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-01-29 at 10:15 -0800, Christoph Lameter wrote:
-> On Mon, 29 Jan 2007, Peter Zijlstra wrote:
+On Mon, 29 Jan 2007, Nick Piggin wrote:
 > 
-> > Ladder locking would end up:
-> > 
-> > lock A0
-> > lock B1
-> > unlock A0 -> a new operation can start
-> > lock C2
-> > unlock B1
-> > lock D5
-> > unlock C2
-> > ** we do stuff to D5
-> > unlock D5
-> > 
+> OK, how's this one?
+
+Grudging okay - so irritating to have to do this!
+
+We have different ideas of what's a good cleanup
+(pte -> old/new), but if you wish.
+
+I'd much rather you'd got rid of move_pte's prot argument,
+that can be taken from the old_vma you're now having to pass
+(because of your debug additions to page_remove_rmap).
+
+Grudging okay: thanks for fixing it.
+
+Hugh
+
 > 
-> Instead of taking one lock we would need to take 4?
-
-Yep.
-
-> Wont doing so cause significant locking overhead?
-> We probably would want to run some benchmarks. 
-
-Right, I was hoping the extra locking overhead would be more than
-compensated by the reduction in lock contention time. But testing is
-indeed in order.
-
-> Maybe disable the scheme for systems with a small number of 
-> processors?
-
-CONFIG_RADIX_TREE_CONCURRENT does exactly this.
+> Not tested on MIPS, but the same move_pte compiled on i386 here.
+> 
+> I sent Ralf a little test program that should eventually free a ZERO_PAGE
+> if it is run a few times (with a non-zero zero_page_mask). Do you have
+> time to confirm, Ralf?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
