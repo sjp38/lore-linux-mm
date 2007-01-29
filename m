@@ -1,60 +1,52 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.8/8.12.11) with ESMTP id l0TIYupL005546
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2007 13:34:56 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0TIYugY213944
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2007 13:34:56 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0TIYtMf012636
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2007 13:34:56 -0500
-From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH] Don't allow the stack to grow into hugetlb reserved regions
-Date: Mon, 29 Jan 2007 10:34:54 -0800
-Message-Id: <20070129183454.30193.88813.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8; format=fixed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 00/14] Concurrent Page Cache
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0701291013530.29254@schroedinger.engr.sgi.com>
+References: <20070128131343.628722000@programming.kicks-ass.net>
+	 <Pine.LNX.4.64.0701290918260.28330@schroedinger.engr.sgi.com>
+	 <1170093944.6189.192.camel@twins>
+	 <Pine.LNX.4.64.0701291013530.29254@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 29 Jan 2007 19:56:17 +0100
+Message-Id: <1170096978.10987.39.camel@lappy>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: stable@kernel.org
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, agl@us.ibm.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-When expanding the stack, we don't currently check if the VMA will cross into
-an area of the address space that is reserved for hugetlb pages.  Subsequent
-faults on the expanded portion of such a VMA will confuse the low-level MMU
-code, resulting in an OOPS.  Check for this.
+On Mon, 2007-01-29 at 10:15 -0800, Christoph Lameter wrote:
+> On Mon, 29 Jan 2007, Peter Zijlstra wrote:
+> 
+> > Ladder locking would end up:
+> > 
+> > lock A0
+> > lock B1
+> > unlock A0 -> a new operation can start
+> > lock C2
+> > unlock B1
+> > lock D5
+> > unlock C2
+> > ** we do stuff to D5
+> > unlock D5
+> > 
+> 
+> Instead of taking one lock we would need to take 4?
 
-Signed-off-by: Adam Litke <agl@us.ibm.com>
----
+Yep.
 
- mm/mmap.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+> Wont doing so cause significant locking overhead?
+> We probably would want to run some benchmarks. 
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9717337..2c6b163 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1477,6 +1477,7 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct rlimit *rlim = current->signal->rlim;
-+	unsigned long new_start;
- 
- 	/* address space limit tests */
- 	if (!may_expand_vm(mm, grow))
-@@ -1496,6 +1497,12 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
- 			return -ENOMEM;
- 	}
- 
-+	/* Check to make the stack will not grow into a hugetlb-only region. */
-+	new_start = (vma->vm_flags & VM_GROWSUP) ? vma->vm_start :
-+			vma->vm_end - size;
-+	if (is_hugepage_only_range(vma->vm_mm, new_start, size))
-+		return -EFAULT;
-+
- 	/*
- 	 * Overcommit..  This must be the final test, as it will
- 	 * update security statistics.
+Right, I was hoping the extra locking overhead would be more than
+compensated by the reduction in lock contention time. But testing is
+indeed in order.
+
+> Maybe disable the scheme for systems with a small number of 
+> processors?
+
+CONFIG_RADIX_TREE_CONCURRENT does exactly this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
