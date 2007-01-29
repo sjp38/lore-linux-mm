@@ -1,73 +1,155 @@
-Date: Mon, 29 Jan 2007 14:36:54 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
- movable and non-movable pages
-Message-Id: <20070129143654.27fcd4a4.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-	<20070126030753.03529e7a.akpm@osdl.org>
-	<Pine.LNX.4.64.0701260751230.6141@schroedinger.engr.sgi.com>
-	<20070126114615.5aa9e213.akpm@osdl.org>
-	<Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
-	<20070126122747.dde74c97.akpm@osdl.org>
-	<Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 29 Jan 2007 14:39:28 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH]Convert highest_possible_processor_id to nr_cpu_ids
+Message-ID: <Pine.LNX.4.64.0701291437590.1067@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jan 2007 13:54:38 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> On Fri, 26 Jan 2007, Andrew Morton wrote:
-> 
-> > > The main benefit is a significant simplification of the VM, leading to 
-> > > robust and reliable operations and a reduction of the maintenance 
-> > > headaches coming with the additional zones.
-> > > 
-> > > If we would introduce the ability of allocating from a range of 
-> > > physical addresses then the need for DMA zones would go away allowing 
-> > > flexibility for device driver DMA allocations and at the same time we get 
-> > > rid of special casing in the VM.
-> > 
-> > None of this is valid.  The great majority of machines out there will
-> > continue to have the same number of zones.  Nothing changes.
-> 
-> All 64 bit machine will only have a single zone if we have such a range 
-> alloc mechanism. The 32bit ones with HIGHMEM wont be able to avoid it, 
-> true. But all arches that do not need gymnastics to access their memory 
-> will be able run with a single zone.
-
-What is "such a range alloc mechanism"?
-
-> > That's all a real cost, so we need to see *good* benefits to outweigh that
-> > cost.  Thus far I don't think we've seen that.
-> 
-> The real savings is the simplicity of VM design, robustness and 
-> efficiency. We loose on all these fronts if we keep or add useless zones. 
-> 
-> The main reason for the recent problems with dirty handling seem to be due 
-> to exactly such a multizone balancing issues involving ZONE_NORMAL and 
-> HIGHMEM. Those problems cannot occur on single ZONE arches (this means 
-> right now on a series of embedded arches, UML and IA64). 
-> 
-> Multiple ZONES are a recipie for VM fragility and result in complexity 
-> that is difficult to manage.
-
-Why do I have to keep repeating myself?  90% of known FC6-running machines
-are x86-32.  90% of vendor-shipped kernels need all three zones.  And the
-remaining 10% ship with multiple nodes as well.
-
-So please stop telling me what a wonderful world it is to not have multiple
-zones.  It just isn't going to happen for a long long time.  The
-multiple-zone kernel is the case we need to care about most by a very large
-margin indeed.  Single-zone is an infinitesimal corner-case.
+This follows up on the patch to create nr_node_ids... Patch against 
+2.6.20-rc6 + Andrew's fix for mistakenly replacing  
+highest_possible_processor_id() with nr_node_ids.
 
 
+
+
+
+We frequently need the maximum number of possible processors in order
+to allocate arrays for all processors. So far this was done using
+highest_possible_processor_id(). However, we do need the number of
+processors not the highest id. Moreover the number was so far
+dynamically calculated on each invokation. The number of possible
+processors does not change when the system is running. We can
+therefore calculate that number once.
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.20-rc6-mm1/include/linux/cpumask.h
+===================================================================
+--- linux-2.6.20-rc6-mm1.orig/include/linux/cpumask.h	2007-01-29 14:11:44.000000000 -0600
++++ linux-2.6.20-rc6-mm1/include/linux/cpumask.h	2007-01-29 14:24:21.111873045 -0600
+@@ -398,11 +398,11 @@ extern cpumask_t cpu_present_map;
+ #endif
+ 
+ #ifdef CONFIG_SMP
+-int highest_possible_processor_id(void);
++extern int nr_cpu_ids;
+ #define any_online_cpu(mask) __any_online_cpu(&(mask))
+ int __any_online_cpu(const cpumask_t *mask);
+ #else
+-#define highest_possible_processor_id()	0
++#define nr_cpu_ids			0
+ #define any_online_cpu(mask)		0
+ #endif
+ 
+Index: linux-2.6.20-rc6-mm1/lib/cpumask.c
+===================================================================
+--- linux-2.6.20-rc6-mm1.orig/lib/cpumask.c	2007-01-29 14:11:44.000000000 -0600
++++ linux-2.6.20-rc6-mm1/lib/cpumask.c	2007-01-29 14:24:21.124569478 -0600
+@@ -15,22 +15,8 @@ int __next_cpu(int n, const cpumask_t *s
+ }
+ EXPORT_SYMBOL(__next_cpu);
+ 
+-/*
+- * Find the highest possible smp_processor_id()
+- *
+- * Note: if we're prepared to assume that cpu_possible_map never changes
+- * (reasonable) then this function should cache its return value.
+- */
+-int highest_possible_processor_id(void)
+-{
+-	unsigned int cpu;
+-	unsigned highest = 0;
+-
+-	for_each_cpu_mask(cpu, cpu_possible_map)
+-		highest = cpu;
+-	return highest;
+-}
+-EXPORT_SYMBOL(highest_possible_processor_id);
++int nr_cpu_ids;
++EXPORT_SYMBOL(nr_cpu_ids);
+ 
+ int __any_online_cpu(const cpumask_t *mask)
+ {
+Index: linux-2.6.20-rc6-mm1/net/bridge/netfilter/ebtables.c
+===================================================================
+--- linux-2.6.20-rc6-mm1.orig/net/bridge/netfilter/ebtables.c	2007-01-29 14:18:38.000000000 -0600
++++ linux-2.6.20-rc6-mm1/net/bridge/netfilter/ebtables.c	2007-01-29 14:24:21.149962345 -0600
+@@ -833,8 +833,7 @@ static int translate_table(char *name, s
+ 		/* this will get free'd in do_replace()/ebt_register_table()
+ 		   if an error occurs */
+ 		newinfo->chainstack =
+-			vmalloc((highest_possible_processor_id()+1)
+-				   	* sizeof(*(newinfo->chainstack)));
++			vmalloc(nr_cpu_ids * sizeof(*(newinfo->chainstack)));
+ 		if (!newinfo->chainstack)
+ 			return -ENOMEM;
+ 		for_each_possible_cpu(i) {
+@@ -947,8 +946,7 @@ static int do_replace(void __user *user,
+ 	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
+ 		return -ENOMEM;
+ 
+-	countersize = COUNTER_OFFSET(tmp.nentries) * 
+-					(highest_possible_processor_id()+1);
++	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
+ 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
+ 	if (!newinfo)
+ 		return -ENOMEM;
+@@ -1168,8 +1166,7 @@ int ebt_register_table(struct ebt_table 
+ 		return -EINVAL;
+ 	}
+ 
+-	countersize = COUNTER_OFFSET(repl->nentries) *
+-					(highest_possible_processor_id()+1);
++	countersize = COUNTER_OFFSET(repl->nentries) * nr_cpu_ids;
+ 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
+ 	ret = -ENOMEM;
+ 	if (!newinfo)
+Index: linux-2.6.20-rc6-mm1/net/sunrpc/svc.c
+===================================================================
+--- linux-2.6.20-rc6-mm1.orig/net/sunrpc/svc.c	2007-01-29 14:24:19.447663635 -0600
++++ linux-2.6.20-rc6-mm1/net/sunrpc/svc.c	2007-01-29 14:24:21.181215104 -0600
+@@ -115,7 +115,7 @@ fail:
+ static int
+ svc_pool_map_init_percpu(struct svc_pool_map *m)
+ {
+-	unsigned int maxpools = highest_possible_processor_id()+1;
++	unsigned int maxpools = nr_cpu_ids;
+ 	unsigned int pidx = 0;
+ 	unsigned int cpu;
+ 	int err;
+Index: linux-2.6.20-rc6-mm1/init/main.c
+===================================================================
+--- linux-2.6.20-rc6-mm1.orig/init/main.c	2007-01-29 14:18:35.000000000 -0600
++++ linux-2.6.20-rc6-mm1/init/main.c	2007-01-29 14:24:21.196841483 -0600
+@@ -386,14 +386,19 @@ static void __init setup_per_cpu_areas(v
+ /* Called by boot processor to activate the rest. */
+ static void __init smp_init(void)
+ {
+-	unsigned int i;
++	unsigned int cpu;
++	unsigned highest = 0;
++
++	for_each_cpu_mask(cpu, cpu_possible_map)
++		highest = cpu;
++	nr_cpu_ids = highest + 1;
+ 
+ 	/* FIXME: This should be done in userspace --RR */
+-	for_each_present_cpu(i) {
++	for_each_present_cpu(cpu) {
+ 		if (num_online_cpus() >= max_cpus)
+ 			break;
+-		if (!cpu_online(i))
+-			cpu_up(i);
++		if (!cpu_online(cpu))
++			cpu_up(cpu);
+ 	}
+ 
+ 	/* Any cleanup work */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
