@@ -1,62 +1,42 @@
-Message-ID: <45BDE7C1.203@shadowen.org>
-Date: Mon, 29 Jan 2007 12:25:37 +0000
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Sun, 28 Jan 2007 21:34:23 -0800 (PST)
+From: John Daniels <johnqdaniels@yahoo.com>
+Subject: Determining number of page faults caused by paging out
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Lumpy Reclaim V3
-References: <exportbomb.1165424343@pinky> <20061212031312.e4c91778.akpm@osdl.org>
-In-Reply-To: <20061212031312.e4c91778.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-ID: <268387.39294.qm@web56003.mail.re3.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Wed, 6 Dec 2006 16:59:04 +0000
-> Andy Whitcroft <apw@shadowen.org> wrote:
-> 
->> This is a repost of the lumpy reclaim patch set.
-> 
-> more...
-> 
-> One concern is that when the code goes to reclaim a lump and fails, we end
-> up reclaiming a number of pages which we didn't really want to reclaim. 
-> Regardless of the LRU status of those pages.
+Hi,
 
-Yes, the "ineffective reclaim" is more of an issue with this than
-linear, and the cost metric we are working on should help us show that;
-and then help us evaluate the utility of pushing the pages back without
-releasing them.
+I sent this message to kernelnewbies, but no one
+responded so I thought I'd see if anyone here could
+help me. Is there a way to determine the number of
+page faults which occur because a certain page has
+been paged out to disk and then back into memory (i.e.
+page faults that would have been avoided if the VM
+subsystem didn't swap the page to disk)? I know that
+major page faults are the ones that require reading
+the page from disk, but I think major page faults
+would count the pages being brought into memory for
+the first time also. I don't think pgpgin gives me
+what I want either, though I'm not sure. Maybe I will
+need to instrument the kernel to get this information?
+I'm sorry if this is too basic a question for this
+list.
 
-> I think what we should do here is to add the appropriate vmstat counters
-> for us to be able to assess the frequency of this occurring, then throw a
-> spread of workloads at it.  If that work indicates that there's a problem
-> then we should look at being a bit smarter about whether all the pages look
-> to be reclaimable and if not, restore them all and give up.
+Thanks,
+John
 
-Yes, what was obvious from the linear against lumpy was that the only
-valid comparison was on the 'effectiveness' metric (which was basically
-the same) and code complexity (where lumpy clearly wins).  But we have
-no feel for 'cost'.  We are working on a cost metric for reclaim which
-we can use to compare performance.
 
-> 
-> Also, I suspect it would be cleaner and faster to pass the `active' flag
-> into isolate_lru_pages(), rather than calculating it on the fly.  And I
-> don't think we need to calculate it on every pass through the loop?
-
-Yes this is actually IMO wrong for not doing this, and I've updated it.
-
-> 
-> We really do need those vmstat counters to let us see how effective this
-> thing is being.  Basic success/fail stuff.  Per-zone, I guess.
-
-Yes, though the ones I have seem sane the output isn't stable and we're
-investigating that right now.
-
--apw
+ 
+____________________________________________________________________________________
+Be a PS3 game guru.
+Get your game face on with the latest PS3 news and previews at Yahoo! Games.
+http://videogames.yahoo.com/platform?platform=120121
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
