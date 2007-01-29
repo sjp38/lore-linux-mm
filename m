@@ -1,41 +1,35 @@
-Date: Mon, 29 Jan 2007 11:27:56 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch] mm: mremap correct rmap accounting
-In-Reply-To: <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0701291123460.3611@woody.linux-foundation.org>
-References: <45B61967.5000302@yahoo.com.au> <Pine.LNX.4.64.0701232041330.2461@blonde.wat.veritas.com>
- <45BD6A7B.7070501@yahoo.com.au> <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from list by ciao.gmane.org with local (Exim 4.43)
+	id 1HBcTU-0007am-5s
+	for linux-mm@kvack.org; Mon, 29 Jan 2007 20:47:32 +0100
+Received: from 201.47.162.52.adsl.gvt.net.br ([201.47.162.52])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2007 20:47:32 +0100
+Received: from eriberto by 201.47.162.52.adsl.gvt.net.br with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2007 20:47:32 +0100
+From: Eriberto <eriberto@eriberto.pro.br>
+Subject: swap: which is the maximum size allowed?
+Date: Mon, 29 Jan 2007 17:46:21 -0200
+Message-ID: <epliuf$an7$1@sea.gmane.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Ralf Baechle <ralf@linux-mips.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hello,
 
-On Mon, 29 Jan 2007, Hugh Dickins wrote:
+I am trying understand the swap. I would like to know which is the
+maximum swap size on i386. Is 64 GB? If yes, how to know the origin of
+this "magic" number? How to calculate it? I don't found it (Internet).
 
-> On Mon, 29 Jan 2007, Nick Piggin wrote:
-> > 
-> > OK, how's this one?
-> 
-> Grudging okay - so irritating to have to do this!
+Thanks in advance.
 
-I really hate it. Like REALLY REALLY hate it.
+Eriberto - Brazil
 
-This just seems really stupid.
-
-How about making the zero-page on MIPS be PageCompound(), and then have 
-all the sub-pages just point to the first page - that's how compound pages 
-work anyway.
-
-Then the mapcount/refcount is all done on the compound page, and none of 
-these problems occur.
-
-Hmm? 
-
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
