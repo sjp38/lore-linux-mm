@@ -1,10 +1,9 @@
-Date: Mon, 29 Jan 2007 09:11:07 -0800 (PST)
+Date: Mon, 29 Jan 2007 09:20:25 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 11/14] atomic_ulong_t
-In-Reply-To: <20070128132437.299596000@programming.kicks-ass.net>
-Message-ID: <Pine.LNX.4.64.0701290910060.28330@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 00/14] Concurrent Page Cache
+In-Reply-To: <20070128131343.628722000@programming.kicks-ass.net>
+Message-ID: <Pine.LNX.4.64.0701290918260.28330@schroedinger.engr.sgi.com>
 References: <20070128131343.628722000@programming.kicks-ass.net>
- <20070128132437.299596000@programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,11 +14,17 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 28 Jan 2007, Peter Zijlstra wrote:
 
-> provide an unsigned long atomic type.
+> With Nick leading the way to getting rid of the read side of the tree_lock,
+> this work continues by breaking the write side of said lock.
 
-Is this really necessary? We have no atomic_uint_t type either.
+Could we get the read side in separately from the write side? I think I 
+get the read side but the write side still looks scary to me and 
+introduces new ways of locking. Ladder locking?
+ 
+> Aside from breaking MTD this version of the concurrent page cache seems
+> rock solid on my dual core x86_64 box.
 
-Could you use atomic_long_t instead?
+What exactly is the MTD doing and how does it break?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
