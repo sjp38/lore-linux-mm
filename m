@@ -1,36 +1,43 @@
-Date: Mon, 29 Jan 2007 16:09:21 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
- movable and non-movable pages
-Message-Id: <20070129160921.7b362c8d.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0701291533500.1169@schroedinger.engr.sgi.com>
-References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
-	<20070126030753.03529e7a.akpm@osdl.org>
-	<Pine.LNX.4.64.0701260751230.6141@schroedinger.engr.sgi.com>
-	<20070126114615.5aa9e213.akpm@osdl.org>
-	<Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
-	<20070126122747.dde74c97.akpm@osdl.org>
-	<Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
-	<20070129143654.27fcd4a4.akpm@osdl.org>
-	<Pine.LNX.4.64.0701291441260.1102@schroedinger.engr.sgi.com>
-	<20070129225000.GG6602@flint.arm.linux.org.uk>
-	<Pine.LNX.4.64.0701291533500.1169@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <45BE97D3.7090105@redhat.com>
+Date: Mon, 29 Jan 2007 19:56:51 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: Determining number of page faults caused by paging out
+References: <268387.39294.qm@web56003.mail.re3.yahoo.com>
+In-Reply-To: <268387.39294.qm@web56003.mail.re3.yahoo.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Russell King <rmk+lkml@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@engr.sgi.com>
+To: John Daniels <johnqdaniels@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jan 2007 15:37:29 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+John Daniels wrote:
+> Hi,
+> 
+> I sent this message to kernelnewbies, but no one
+> responded so I thought I'd see if anyone here could
+> help me. Is there a way to determine the number of
+> page faults which occur because a certain page has
+> been paged out to disk and then back into memory (i.e.
+> page faults that would have been avoided if the VM
+> subsystem didn't swap the page to disk)?
 
-> With a alloc_pages_range() one would be able to specify upper and lower 
-> boundaries.
+You'll need my /proc/refaults patches for that.
 
-Is there a proposal anywhere regarding how this would be implemented?
+See my paper on measuring resource demand, and the
+patches (which I am forward porting, though I keep
+getting distracted by other stuff):
+
+http://people.redhat.com/riel/riel-OLS2006.pdf
+
+http://surriel.com/patches/clockpro/
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
