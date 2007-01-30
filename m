@@ -1,37 +1,44 @@
-Date: Mon, 29 Jan 2007 17:51:59 -0800
-From: Mark Fasheh <mark.fasheh@oracle.com>
-Subject: Re: page_mkwrite caller is racy?
-Message-ID: <20070130015159.GA14799@ca-server1.us.oracle.com>
-Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
-References: <45BDCA8A.4050809@yahoo.com.au> <Pine.LNX.4.64.0701291521540.24726@blonde.wat.veritas.com> <45BE9BF0.10202@yahoo.com.au>
+Message-ID: <45BEA73C.5030809@yahoo.com.au>
+Date: Tue, 30 Jan 2007 13:02:36 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45BE9BF0.10202@yahoo.com.au>
+Subject: Re: [PATCH] mm: remove global locks from mm/highmem.c
+References: <1169993494.10987.23.camel@lappy> <20070128142925.df2f4dce.akpm@osdl.org> <20070129190806.GA14353@elte.hu>
+In-Reply-To: <20070129190806.GA14353@elte.hu>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>, Anton Altaparmakov <aia21@cam.ac.uk>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 30, 2007 at 12:14:24PM +1100, Nick Piggin wrote:
-> This is another discussion, but do we want the page locked here? Or
-> are the filesystems happy to exclude truncate themselves?
+Ingo Molnar wrote:
 
-No page lock please. Generally, Ocfs2 wants to order cluster locks outside
-of page locks. Also, the sparse b-tree support I'm working on right now will
-need to be able to allocate in ->page_mkwrite() which would become very
-nasty if we came in with the page lock - aside from the additional cluster
-locks taken, ocfs2 will want to zero some adjacent pages (because we support
-atomic allocation up to 1 meg).
+> For every 64-bit Fedora box there's more than seven 32-bit boxes. I 
+> think 32-bit is going to live with us far longer than many thought, so 
+> we might as well make it work better. Both HIGHMEM and HIGHPTE is the 
+> default on many distro kernels, which pushes the kmap infrastructure 
+> quite a bit.
 
-Thanks,
-	--Mark
+I don't think anybody would argue against numbers, but just that there
+are not many big 32-bit SMPs anymore. And if Bill Irwin didn't fix the
+kmap problem back then, it would be interesting to see a system and
+workload where it actually is a bottleneck.
 
---
-Mark Fasheh
-Senior Software Developer, Oracle
-mark.fasheh@oracle.com
+Not that I'm against any patch to improve scalability, if it doesn't
+hurt single-threaded performance ;)
+
+> the problem is that everything that was easy to migrate was migrated off 
+> kmap() already - and it's exactly those hard cases that cannot be 
+> converted (like the pagecache use) which is the most frequent kmap() 
+> users.
+
+Which pagecache use? file_read_actor()?
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
