@@ -1,44 +1,40 @@
-Date: Tue, 30 Jan 2007 14:58:50 +0000 (GMT)
-From: Anton Altaparmakov <aia21@cam.ac.uk>
-Subject: Re: page_mkwrite caller is racy?
-In-Reply-To: <20070130015159.GA14799@ca-server1.us.oracle.com>
-Message-ID: <Pine.LNX.4.64.0701301456250.6541@hermes-1.csi.cam.ac.uk>
-References: <45BDCA8A.4050809@yahoo.com.au> <Pine.LNX.4.64.0701291521540.24726@blonde.wat.veritas.com>
- <45BE9BF0.10202@yahoo.com.au> <20070130015159.GA14799@ca-server1.us.oracle.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.8/8.13.8) with ESMTP id l0UFlnKv190320
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2007 15:47:49 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0UFlnFW1503470
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2007 16:47:49 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0UFlmuh032093
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2007 16:47:48 +0100
+Message-ID: <45BF68A4.5070002@de.ibm.com>
+Date: Tue, 30 Jan 2007 16:47:48 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch] mm: mremap correct rmap accounting
+References: <45B61967.5000302@yahoo.com.au> <Pine.LNX.4.64.0701232041330.2461@blonde.wat.veritas.com> <45BD6A7B.7070501@yahoo.com.au> <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com> <Pine.LNX.4.64.0701291123460.3611@woody.linux-foundation.org> <Pine.LNX.4.64.0701292002310.16279@blonde.wat.veritas.com> <Pine.LNX.4.64.0701291219040.3611@woody.linux-foundation.org> <Pine.LNX.4.64.0701292029390.20859@blonde.wat.veritas.com> <Pine.LNX.4.64.0701292107510.26482@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0701292107510.26482@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fasheh <mark.fasheh@oracle.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@osdl.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Ralf Baechle <ralf@linux-mips.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jan 2007, Mark Fasheh wrote:
-> On Tue, Jan 30, 2007 at 12:14:24PM +1100, Nick Piggin wrote:
-> > This is another discussion, but do we want the page locked here? Or
-> > are the filesystems happy to exclude truncate themselves?
-> 
-> No page lock please. Generally, Ocfs2 wants to order cluster locks outside
-> of page locks. Also, the sparse b-tree support I'm working on right now will
-> need to be able to allocate in ->page_mkwrite() which would become very
-> nasty if we came in with the page lock - aside from the additional cluster
-> locks taken, ocfs2 will want to zero some adjacent pages (because we support
-> atomic allocation up to 1 meg).
+Hugh Dickins wrote:
+> Could make it loop over them all, but a quicker patch would be as
+> below.  I've no idea if the intersection of filemap_xip users and
+> MIPS users is the empty set or more interesting.  But I'd prefer
+> you don't just slam in the patch, better have an opinion from
+> Carsten and/or Nick first.
+Took me some time to catch up on this thread, sorry for that. Yea, I 
+think xip can be implemented correctly that it works on mips when we 
+loop over all zero pages on unmap. Let me try to come up with a patch 
+for that.
 
-Ditto for NTFS.  I will need to lock pages on both sides of the page for 
-large volume cluster sizes thus I will have to drop the page lock if it is 
-already taken so it might as well not be...  Although I do not feel 
-strongly about it.  If the page is locked I will just drop the lock and 
-then take it again.  If possible to not have the page locked that would 
-make my code a little easier/more efficient I expect...
-
-Best regards,
-
-	Anton
--- 
-Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
-Unix Support, Computing Service, University of Cambridge, CB2 3QH, UK
-Linux NTFS maintainer, http://www.linux-ntfs.org/
+Carsten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
