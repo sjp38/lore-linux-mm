@@ -1,44 +1,58 @@
-Message-ID: <45BEA73C.5030809@yahoo.com.au>
-Date: Tue, 30 Jan 2007 13:02:36 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Mon, 29 Jan 2007 18:15:57 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] mm: remove global locks from mm/highmem.c
-References: <1169993494.10987.23.camel@lappy> <20070128142925.df2f4dce.akpm@osdl.org> <20070129190806.GA14353@elte.hu>
-In-Reply-To: <20070129190806.GA14353@elte.hu>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20070129181557.d4d17dd0.akpm@osdl.org>
+In-Reply-To: <45BEA41A.6020209@mbligh.org>
+References: <1169993494.10987.23.camel@lappy>
+	<20070128142925.df2f4dce.akpm@osdl.org>
+	<1170063848.6189.121.camel@twins>
+	<45BE9FE8.4080603@mbligh.org>
+	<20070129174118.0e922ab3.akpm@osdl.org>
+	<45BEA41A.6020209@mbligh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, David Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
+On Mon, 29 Jan 2007 17:49:14 -0800
+"Martin J. Bligh" <mbligh@mbligh.org> wrote:
 
-> For every 64-bit Fedora box there's more than seven 32-bit boxes. I 
-> think 32-bit is going to live with us far longer than many thought, so 
-> we might as well make it work better. Both HIGHMEM and HIGHPTE is the 
-> default on many distro kernels, which pushes the kmap infrastructure 
-> quite a bit.
+> Andrew Morton wrote:
+> > On Mon, 29 Jan 2007 17:31:20 -0800
+> > "Martin J. Bligh" <mbligh@mbligh.org> wrote:
+> > 
+> >> Peter Zijlstra wrote:
+> >>> On Sun, 2007-01-28 at 14:29 -0800, Andrew Morton wrote:
+> >>>
+> >>>> As Christoph says, it's very much preferred that code be migrated over to
+> >>>> kmap_atomic().  Partly because kmap() is deadlockable in situations where a
+> >>>> large number of threads are trying to take two kmaps at the same time and
+> >>>> we run out.  This happened in the past, but incidences have gone away,
+> >>>> probably because of kmap->kmap_atomic conversions.
+> >>>> From which callsite have you measured problems?
+> >>> CONFIG_HIGHPTE code in -rt was horrid. I'll do some measurements on
+> >>> mainline.
+> >>>
+> >> CONFIG_HIGHPTE is always horrid -we've known that for years.
+> > 
+> > We have?  What's wrong with it?  <looks around for bug reports>
+> 
+> http://www.ussg.iu.edu/hypermail/linux/kernel/0307.0/0463.html
 
-I don't think anybody would argue against numbers, but just that there
-are not many big 32-bit SMPs anymore. And if Bill Irwin didn't fix the
-kmap problem back then, it would be interesting to see a system and
-workload where it actually is a bottleneck.
+2% overhead for a pte-intensive workload for unknown reasons four years
+ago.  Sort of a mini-horrid, no?
 
-Not that I'm against any patch to improve scalability, if it doesn't
-hurt single-threaded performance ;)
+We still don't know what is the source of kmap() activity which
+necessitated this patch btw.  AFAIK the busiest source is ext2 directories,
+but perhaps NFS under certain conditions?
 
-> the problem is that everything that was easy to migrate was migrated off 
-> kmap() already - and it's exactly those hard cases that cannot be 
-> converted (like the pagecache use) which is the most frequent kmap() 
-> users.
+<looks at xfs_iozero>
 
-Which pagecache use? file_read_actor()?
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+->prepare_write no longer requires that the caller kmap the page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
