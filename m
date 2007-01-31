@@ -1,29 +1,46 @@
-Date: Wed, 31 Jan 2007 11:30:01 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch] not to disturb page LRU state when unmapping memory
- range
-In-Reply-To: <45C0EAB7.5040903@in.ibm.com>
-Message-ID: <Pine.LNX.4.64.0701311126580.16788@schroedinger.engr.sgi.com>
-References: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com>
- <1170246396.9516.39.camel@twins> <45C0EAB7.5040903@in.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l0VKGQW5018545
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VKGQHh295628
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VKGP9W008028
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 0/6] hugetlb: Remove is_file_hugepages() macro
+Date: Wed, 31 Jan 2007 12:16:24 -0800
+Message-Id: <20070131201624.13810.45848.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@in.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ken Chen <kenchen@google.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, hugh@veritas.com, david@gibson.dropbear.id.au
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Feb 2007, Balbir Singh wrote:
+The kernel code is currently peppered with special casing for hugetlbfs
+mappings.  In many places we check a struct file's f_op member to see if it
+points to the hugetlbfs file_operations in which case we'll employ some sort of
+workaround.  The need to check file_operations in this manner suggests that we
+are either missing f_op operations, or have deficient abstraction elsewhere.
 
-> Does it make sense to do this only for shared mapped pages?
-> 
-> if (pte_young(ptent) && (page_mapcount(page) > 1))
-> 	SetPageReferenced(page);
+I am motivated to clean this up for two reasons:  1) The community has asked
+for huge pages to be kept "on the side" of the main VM.  I believe these
+patches advance that goal.  2) Proper abstraction of hugetlbfs allows the
+underlying implementation to be changed without disturbing the main VM.
 
-If the page is only mapped by the process releasing the memory then it may 
-be considered less likely that the page is reused. But the basic issue 
-that Huge mentioned remains.
+Removing the is_file_hugepages() macro involved finding all the call sites,
+determining the actual incompatibility that huge page mappings introduce, and
+applying a relatively trivial fix for the problem.  The following patches
+perform this surgery.
+
+When converting these, I have tried to use as general of a solution as
+possible.  Review of some of the design decisions would be appreciated --
+specifically the use of backing_dev_info for the note about special accounting,
+and hugetlbfs sharing the inode_info struct with shmem.
+
+Thanks to Andy Whitcroft and others for review of the preliminary patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
