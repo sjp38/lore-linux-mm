@@ -1,78 +1,68 @@
-Subject: Re: [patch] not to disturb page LRU state when unmapping memory
-	range
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com>
-References: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 31 Jan 2007 13:26:36 +0100
-Message-Id: <1170246396.9516.39.camel@twins>
-Mime-Version: 1.0
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id l0VDpSH7081224
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 13:51:28 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VDpSD81564778
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:51:28 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VDpRsS018235
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:51:28 +0100
+Message-ID: <45C09EDF.4060606@de.ibm.com>
+Date: Wed, 31 Jan 2007 14:51:27 +0100
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: carsteno@de.ibm.com
+MIME-Version: 1.0
+Subject: Re: [patch] mm: mremap correct rmap accounting
+References: <45B61967.5000302@yahoo.com.au> <Pine.LNX.4.64.0701232041330.2461@blonde.wat.veritas.com> <45BD6A7B.7070501@yahoo.com.au> <Pine.LNX.4.64.0701291901550.8996@blonde.wat.veritas.com> <Pine.LNX.4.64.0701291123460.3611@woody.linux-foundation.org> <Pine.LNX.4.64.0701292002310.16279@blonde.wat.veritas.com> <Pine.LNX.4.64.0701291219040.3611@woody.linux-foundation.org> <Pine.LNX.4.64.0701292029390.20859@blonde.wat.veritas.com> <Pine.LNX.4.64.0701292107510.26482@blonde.wat.veritas.com> <45BF68A4.5070002@de.ibm.com> <Pine.LNX.4.64.0701302157250.22828@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0701302157250.22828@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Carsten Otte <carsteno@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Ralf Baechle <ralf@linux-mips.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-01-30 at 20:41 -0800, Ken Chen wrote:
-> I stomped on another piece of code in zap_pte_range() that is a bit
-> questionable: when kernel unmaps an address range, it needs to transfer
-> PTE state into page struct. Currently, kernel transfer both dirty bit
-> and access bit via set_page_dirty and mark_page_accessed.
+Hugh Dickins wrote:
+> I think it's now clear that XIP won't be impacted at all by my
+> ZERO_PAGE(0) change, and that's the patch Linus should put in
+> for 2.6.20 (given how much he disliked Nick's patch to maintain
+> the different zeropage counts across mremap move).  Ah, good,
+> that's now gone into his tree since last I looked.
+Good to know this issue is solved. Thank you.
+
+> But there is a change which I now think you do need to make,
+> for 2.6.21 - let it not distract attention from the pagecount
+> correctness issue we've been discussing so far.  Something I
+> should have noticed when I first looked at your clever use of
+> the ZERO_PAGE, but have only noticed now.  Doesn't it clash
+> with the clever use of the ZERO_PAGE when reading /dev/zero
+> (see read_zero_pagealigned in drivers/char/mem.c)?
 > 
-> set_page_dirty is necessary and required.  However, transfering access
-> bit doesn't look logical.  Kernel usually mark the page accessed at the
-> time of fault, for example shmem_nopage() does so.  At unmap, another
-> call to mark_page_accessed is called and this causes page LRU state to
-> be bumped up one step closer to more recently used state. It is causing
-> quite a bit headache in a scenario when a process creates a shmem segment,
-> touch a whole bunch of pages, then unmaps it. The unmapping takes a long
-> time because mark_page_accessed() will start moving pages from inactive
-> to active list.
+> Consider two PROT_READ|PROT_WRITE,MAP_PRIVATE mappings of a
+> four-page hole in a XIP file.  One of them just readfaults the
+> four pages in (and is given ZERO_PAGE for each), the other has
+> four pages read from /dev/zero into it (which also maps the
+> ZERO_PAGE into its four ptes).
 > 
-> I'm not too much concerned with moving the page from one list to another
-> in LRU. Sooner or later it might be moved because of multiple mappings
-> from various processes.  But it just doesn't look logical that when user
-> asks a range to be unmapped, it's his intention that the process is no
-> longer interested in these pages. Moving those pages to active list (or
-> bumping up a state towards more active) seems to be an over reaction. It
-> also prolongs unmapping latency which is the core issue I'm trying to solve.
-> 
-> Given that the LRU state is maintained properly at fault time, I think we
-> should remove it in the unmap path.
+> Then imagine that non-zero data is written to the first page of
+> that hole, by a write syscall, or through a PROT_WRITE,MAP_SHARED
+> mapping.  __xip_unmap will replace the first ZERO_PAGE in each of
+> the MAP_PRIVATE mappings by the new non-zero data page.  Which is
+> correct for the first mapping which just did readfaults, but wrong
+> for the second mapping which has overwritten by reading /dev/zero
+> - those pages ought to remain zeroed, never seeing the later data.
+Wait a second, I fail to see why those pages in the second mapping 
+should remain zeroed and never see the later data; they do reflect the 
+file content that was mmap()ed there correctly at all times. I would 
+expect this behavior, and would expect to see both mappings reflect 
+this data. Am I missing something?
 
-We do not maintain the accessed state with faults. We might set an
-initial ref bit, but thereafter it is up to page reclaim to scan for pte
-young pages.
+> Or have I got it wrong?  A simple test should show.
+The test is simple indeed, will do that - and compare page cache 
+backed file behavior with xip file.
 
-So by blindly removing the mark_page_accessed() call we do lose
-information, it might have been recently referenced and it might still
-be relevant (think of sliding mmaps and such).
-
-That said, I think mark_page_accessed() does the wrong thing here, if it
-were the page scanner that would pass by it would only act as if
-PageReferenced() were set.
-
-So may I suggest the following?
-
-It preserves the information, but not more.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
-diff --git a/mm/memory.c b/mm/memory.c
-index ef09f0a..b1f9129 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -678,7 +678,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				if (pte_dirty(ptent))
- 					set_page_dirty(page);
- 				if (pte_young(ptent))
--					mark_page_accessed(page);
-+					SetPageReferenced(page);
- 				file_rss--;
- 			}
- 			page_remove_rmap(page, vma);
-
+Carsten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
