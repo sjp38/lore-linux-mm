@@ -1,16 +1,18 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l0VKGQW5018545
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VKGQHh295628
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VKGP9W008028
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:26 -0500
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l0VKGbqq012725
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:37 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VKGbZM552014
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 13:16:37 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VKGaNR026832
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 13:16:37 -0700
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 0/6] hugetlb: Remove is_file_hugepages() macro
-Date: Wed, 31 Jan 2007 12:16:24 -0800
-Message-Id: <20070131201624.13810.45848.stgit@localhost.localdomain>
+Subject: [PATCH 1/6] Define the shmem_inode_info flags directly
+Date: Wed, 31 Jan 2007 12:16:35 -0800
+Message-Id: <20070131201634.13810.18979.stgit@localhost.localdomain>
+In-Reply-To: <20070131201624.13810.45848.stgit@localhost.localdomain>
+References: <20070131201624.13810.45848.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8; format=fixed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -19,28 +21,47 @@ To: linux-mm@kvack.org
 Cc: agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, hugh@veritas.com, david@gibson.dropbear.id.au
 List-ID: <linux-mm.kvack.org>
 
-The kernel code is currently peppered with special casing for hugetlbfs
-mappings.  In many places we check a struct file's f_op member to see if it
-points to the hugetlbfs file_operations in which case we'll employ some sort of
-workaround.  The need to check file_operations in this manner suggests that we
-are either missing f_op operations, or have deficient abstraction elsewhere.
+Defining flags in terms of other flags is always confusing.  Give them literal
+values instead of defining them in terms of VM_flags.  While we're at it, move
+them to a header file so they can be used by a later patch in this series.
 
-I am motivated to clean this up for two reasons:  1) The community has asked
-for huge pages to be kept "on the side" of the main VM.  I believe these
-patches advance that goal.  2) Proper abstraction of hugetlbfs allows the
-underlying implementation to be changed without disturbing the main VM.
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
 
-Removing the is_file_hugepages() macro involved finding all the call sites,
-determining the actual incompatibility that huge page mappings introduce, and
-applying a relatively trivial fix for the problem.  The following patches
-perform this surgery.
+ include/linux/shmem_fs.h |    4 ++++
+ mm/shmem.c               |    4 ----
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-When converting these, I have tried to use as general of a solution as
-possible.  Review of some of the design decisions would be appreciated --
-specifically the use of backing_dev_info for the note about special accounting,
-and hugetlbfs sharing the inode_info struct with shmem.
-
-Thanks to Andy Whitcroft and others for review of the preliminary patches.
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index f3c5189..3ea0b6e 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -8,6 +8,10 @@
+ 
+ #define SHMEM_NR_DIRECT 16
+ 
++/* These info->flags are used to handle pagein/truncate races efficiently */
++#define SHMEM_PAGEIN	0x00000001
++#define SHMEM_TRUNCATE	0x00000002
++
+ struct shmem_inode_info {
+ 	spinlock_t		lock;
+ 	unsigned long		flags;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 70da7a0..a9bdb0d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -66,10 +66,6 @@
+ 
+ #define VM_ACCT(size)    (PAGE_CACHE_ALIGN(size) >> PAGE_SHIFT)
+ 
+-/* info->flags needs VM_flags to handle pagein/truncate races efficiently */
+-#define SHMEM_PAGEIN	 VM_READ
+-#define SHMEM_TRUNCATE	 VM_WRITE
+-
+ /* Definition to limit shmem_truncate's steps between cond_rescheds */
+ #define LATENCY_LIMIT	 64
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
