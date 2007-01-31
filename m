@@ -1,14 +1,14 @@
 Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.13.8/8.13.8) with ESMTP id l0VDpSH7081224
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 13:51:28 GMT
+	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id l0VDxDQk096076
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 13:59:13 GMT
 Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VDpSD81564778
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:51:28 +0100
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VDxDTk1663016
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:59:13 +0100
 Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VDpRsS018235
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:51:28 +0100
-Message-ID: <45C09EDF.4060606@de.ibm.com>
-Date: Wed, 31 Jan 2007 14:51:27 +0100
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VDxDh0027818
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:59:13 +0100
+Message-ID: <45C0A0B0.4030100@de.ibm.com>
+Date: Wed, 31 Jan 2007 14:59:12 +0100
 From: Carsten Otte <cotte@de.ibm.com>
 Reply-To: carsteno@de.ibm.com
 MIME-Version: 1.0
@@ -24,13 +24,6 @@ Cc: Carsten Otte <carsteno@de.ibm.com>, Linus Torvalds <torvalds@linux-foundatio
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> I think it's now clear that XIP won't be impacted at all by my
-> ZERO_PAGE(0) change, and that's the patch Linus should put in
-> for 2.6.20 (given how much he disliked Nick's patch to maintain
-> the different zeropage counts across mremap move).  Ah, good,
-> that's now gone into his tree since last I looked.
-Good to know this issue is solved. Thank you.
-
 > But there is a change which I now think you do need to make,
 > for 2.6.21 - let it not distract attention from the pagecount
 > correctness issue we've been discussing so far.  Something I
@@ -52,15 +45,16 @@ Good to know this issue is solved. Thank you.
 > correct for the first mapping which just did readfaults, but wrong
 > for the second mapping which has overwritten by reading /dev/zero
 > - those pages ought to remain zeroed, never seeing the later data.
-Wait a second, I fail to see why those pages in the second mapping 
-should remain zeroed and never see the later data; they do reflect the 
-file content that was mmap()ed there correctly at all times. I would 
-expect this behavior, and would expect to see both mappings reflect 
-this data. Am I missing something?
+Nasty. I got your point now, but as far as I can see we're still in-spec:
 
-> Or have I got it wrong?  A simple test should show.
-The test is simple indeed, will do that - and compare page cache 
-backed file behavior with xip file.
+MAP_PRIVATE
+Create a private copy-on-write mapping.  Stores to the region do not
+affect the original file.  It is unspecified whether changes made to
+the file after the mmap call are visible in the mapped region.
+
+A fix could be to use my own empty page instead of the ZERO_PAGE for 
+xip. At least we have different behavior with/without xip here, 
+therefore I agree that this requires fixing.
 
 Carsten
 
