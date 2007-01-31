@@ -1,15 +1,15 @@
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id l0V4715Q007551
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 04:07:01 GMT
-Received: from ug-out-1314.google.com (ugn78.prod.google.com [10.66.14.78])
-	by spaceape9.eur.corp.google.com with ESMTP id l0V46uL4023731
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 04:06:56 GMT
-Received: by ug-out-1314.google.com with SMTP id 78so65053ugn
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2007 20:06:56 -0800 (PST)
-Message-ID: <b040c32a0701302006y429dc981u980bee08f6a42854@mail.gmail.com>
-Date: Tue, 30 Jan 2007 20:06:55 -0800
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id l0V4fo88018614
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2007 20:41:50 -0800
+Received: from ug-out-1314.google.com (uga44.prod.google.com [10.66.1.44])
+	by zps38.corp.google.com with ESMTP id l0V4fFVG008210
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2007 20:41:45 -0800
+Received: by ug-out-1314.google.com with SMTP id 44so74964uga
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2007 20:41:45 -0800 (PST)
+Message-ID: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com>
+Date: Tue, 30 Jan 2007 20:41:44 -0800
 From: "Ken Chen" <kenchen@google.com>
-Subject: [patch] simplify shmem_aops.set_page_dirty method
+Subject: [patch] not to disturb page LRU state when unmapping memory range
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
@@ -20,81 +20,49 @@ To: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-shmem backed file does not have page write back, nor it participates in
-BDI_CAP_NO_ACCT_DIRTY or BDI_CAP_NO_WRITEBACK accounting. So using generic
-__set_page_dirty_nobuffers() for its .set_page_dirty aops method is a bit
-overkill.  It unnecessarily prolonged shm unmap latency.
+I stomped on another piece of code in zap_pte_range() that is a bit
+questionable: when kernel unmaps an address range, it needs to transfer
+PTE state into page struct. Currently, kernel transfer both dirty bit
+and access bit via set_page_dirty and mark_page_accessed.
 
-For example, on a densely populated large shm segment (sevearl GBs), the
-unmapping operation becomes painfully long. Because at unmap, kernel
-transfers dirty bit in PTE into page struct and to the radix tree tag. The
-operation of tagging the radix tree is particularlly expensive because it
-has to traverse the tree from the root to the leaf node on every dirty page.
-What's bothering is that radix tree tag is used for page write back. However,
-shmem is memory backed and there is no page write back for such file system.
-And in the end, we spend all that time tagging radix tree and none of that
-fancy tagging will be used.  So let's simplify it by introduce a new aops
-__set_page_dirty_no_write_back and this will speed up shm unmap.
+set_page_dirty is necessary and required.  However, transfering access
+bit doesn't look logical.  Kernel usually mark the page accessed at the
+time of fault, for example shmem_nopage() does so.  At unmap, another
+call to mark_page_accessed is called and this causes page LRU state to
+be bumped up one step closer to more recently used state. It is causing
+quite a bit headache in a scenario when a process creates a shmem segment,
+touch a whole bunch of pages, then unmaps it. The unmapping takes a long
+time because mark_page_accessed() will start moving pages from inactive
+to active list.
 
+I'm not too much concerned with moving the page from one list to another
+in LRU. Sooner or later it might be moved because of multiple mappings
+from various processes.  But it just doesn't look logical that when user
+asks a range to be unmapped, it's his intention that the process is no
+longer interested in these pages. Moving those pages to active list (or
+bumping up a state towards more active) seems to be an over reaction. It
+also prolongs unmapping latency which is the core issue I'm trying to solve.
+
+Given that the LRU state is maintained properly at fault time, I think we
+should remove it in the unmap path.
 
 Signed-off-by: Ken Chen <kenchen@google.com>
 
 ---
-Hugh, would you please kindly review this patch?
+Hugh, would you please review?
 
-
-diff -Nurp linux-2.6.20-rc6/include/linux/mm.h
-linux-2.6.20-rc6.unmap/include/linux/mm.h
---- linux-2.6.20-rc6/include/linux/mm.h	2007-01-30 19:23:44.000000000 -0800
-+++ linux-2.6.20-rc6.unmap/include/linux/mm.h	2007-01-30
-19:25:06.000000000 -0800
-@@ -785,6 +785,7 @@ extern int try_to_release_page(struct pa
- extern void do_invalidatepage(struct page *page, unsigned long offset);
-
- int __set_page_dirty_nobuffers(struct page *page);
-+int __set_page_dirty_no_write_back(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- int FASTCALL(set_page_dirty(struct page *page));
-diff -Nurp linux-2.6.20-rc6/mm/page-writeback.c
-linux-2.6.20-rc6.unmap/mm/page-writeback.c
---- linux-2.6.20-rc6/mm/page-writeback.c	2007-01-30 19:23:45.000000000 -0800
-+++ linux-2.6.20-rc6.unmap/mm/page-writeback.c	2007-01-30
-19:58:46.000000000 -0800
-@@ -742,6 +742,21 @@ int write_one_page(struct page *page, in
- EXPORT_SYMBOL(write_one_page);
-
- /*
-+ * For address_spaces which do not use buffers nor page write back.
-+ */
-+int __set_page_dirty_no_write_back(struct page *page)
-+{
-+	if (!TestSetPageDirty(page)) {
-+		struct address_space *mapping = page_mapping(page);
-+		if (mapping && mapping->host) {
-+			/* !PageAnon && !swapper_space */
-+			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+		}
-+	}
-+	return 0;
-+}
-+
-+/*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-  * its radix tree.
-  *
-diff -Nurp linux-2.6.20-rc6/mm/shmem.c linux-2.6.20-rc6.unmap/mm/shmem.c
---- linux-2.6.20-rc6/mm/shmem.c	2007-01-30 19:23:45.000000000 -0800
-+++ linux-2.6.20-rc6.unmap/mm/shmem.c	2007-01-30 19:38:26.000000000 -0800
-@@ -2316,7 +2316,7 @@ static void destroy_inodecache(void)
-
- static const struct address_space_operations shmem_aops = {
- 	.writepage	= shmem_writepage,
--	.set_page_dirty	= __set_page_dirty_nobuffers,
-+	.set_page_dirty	= __set_page_dirty_no_write_back,
- #ifdef CONFIG_TMPFS
- 	.prepare_write	= shmem_prepare_write,
- 	.commit_write	= simple_commit_write,
+diff -Nurp linux-2.6.20-rc6/mm/memory.c linux-2.6.20-rc6.unmap/mm/memory.c
+--- linux-2.6.20-rc6/mm/memory.c	2007-01-30 19:23:45.000000000 -0800
++++ linux-2.6.20-rc6.unmap/mm/memory.c	2007-01-30 19:25:38.000000000 -0800
+@@ -677,8 +677,6 @@ static unsigned long zap_pte_range(struc
+ 			else {
+ 				if (pte_dirty(ptent))
+ 					set_page_dirty(page);
+-				if (pte_young(ptent))
+-					mark_page_accessed(page);
+ 				file_rss--;
+ 			}
+ 			page_remove_rmap(page, vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
