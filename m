@@ -1,16 +1,16 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l0VKGwgl018557
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:58 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VKGw3p284450
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:58 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VKGwNC009737
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:16:58 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l0VKHKQV011119
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:17:20 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VKHKdS262682
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:17:20 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VKHJe5010944
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 15:17:20 -0500
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 3/6] Use inode_info to annotate hugetlbfs shm segments
-Date: Wed, 31 Jan 2007 12:16:56 -0800
-Message-Id: <20070131201656.13810.85086.stgit@localhost.localdomain>
+Subject: [PATCH 5/6] Abstract is_hugepage_only_range
+Date: Wed, 31 Jan 2007 12:17:18 -0800
+Message-Id: <20070131201717.13810.70579.stgit@localhost.localdomain>
 In-Reply-To: <20070131201624.13810.45848.stgit@localhost.localdomain>
 References: <20070131201624.13810.45848.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -21,122 +21,85 @@ To: linux-mm@kvack.org
 Cc: agl@us.ibm.com, wli@holomorphy.com, kenchen@google.com, hugh@veritas.com, david@gibson.dropbear.id.au
 List-ID: <linux-mm.kvack.org>
 
-Now that hugetlbfs and shmem share the same inode_info struct, add a
-SHMEM_flag to mark the hugetlb shm segments as special.  We can then check
-that flag (rather than using file_operations) for hugetlb special cases.
+Some architectures define regions of the address space that can be used
+exclusively for either normal pages or hugetlb pages.  Currently,
+prepare_hugepage_range() is used to validate an unmapped_area for use with
+hugepages and is_hugepage_only_range() is used to validate an unmapped_area for
+normal pages.
+
+Introduce a prepare_unmapped_area() file operation to abstract the validation
+of unmapped areas.  If prepare_unmapped_area() is not specified, the default
+behavior is to require the area to not overlap any "special" areas.
+
+Buh-bye to another is_file_hugepages() call.
 
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
 
- fs/hugetlbfs/inode.c     |    1 +
- include/linux/shmem_fs.h |   10 ++++++++++
- ipc/shm.c                |   12 ++++++------
- 3 files changed, 17 insertions(+), 6 deletions(-)
+ fs/hugetlbfs/inode.c |    1 +
+ include/linux/fs.h   |    1 +
+ mm/mmap.c            |   23 ++++++++++-------------
+ 3 files changed, 12 insertions(+), 13 deletions(-)
 
 diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index bd54e7e..c95dc47 100644
+index b61592f..3eea7a5 100644
 --- a/fs/hugetlbfs/inode.c
 +++ b/fs/hugetlbfs/inode.c
-@@ -357,6 +357,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
- 		INIT_LIST_HEAD(&inode->i_mapping->private_list);
- 		info = HUGETLBFS_I(inode);
- 		memset(info, 0, offsetof(hugetlbfs_inode_info, vfs_inode));
-+		info->flags |= SHMEM_HUGETLBFS;
- 		mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, NULL);
- 		switch (mode & S_IFMT) {
- 		default:
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 23707f1..c6ae0c8 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -3,6 +3,7 @@
+@@ -561,6 +561,7 @@ const struct file_operations hugetlbfs_file_operations = {
+ 	.mmap			= hugetlbfs_file_mmap,
+ 	.fsync			= simple_sync_file,
+ 	.get_unmapped_area	= hugetlb_get_unmapped_area,
++	.prepare_unmapped_area	= prepare_hugepage_range,
+ };
  
- #include <linux/swap.h>
- #include <linux/mempolicy.h>
-+#include <linux/shm.h>
- 
- /* inode in-kernel data */
- 
-@@ -11,6 +12,7 @@
- /* These info->flags are used to handle pagein/truncate races efficiently */
- #define SHMEM_PAGEIN	0x00000001
- #define SHMEM_TRUNCATE	0x00000002
-+#define SHMEM_HUGETLBFS	0x00000004 /* Backed by hugetlbfs */
- 
- /* Hugetlbfs is now using this structure definition */
- struct shmem_inode_info {
-@@ -45,6 +47,14 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
- 	return container_of(inode, struct shmem_inode_info, vfs_inode);
- }
- 
-+static inline int is_shm_hugetlbfs(struct shmid_kernel *shp)
-+{
-+	struct shmem_inode_info *info;
+ static struct inode_operations hugetlbfs_dir_inode_operations = {
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 1410e53..853a4f4 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1094,6 +1094,7 @@ struct file_operations {
+ 	ssize_t (*sendfile) (struct file *, loff_t *, size_t, read_actor_t, void *);
+ 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
+ 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
++	int (*prepare_unmapped_area)(unsigned long addr, unsigned long len, pgoff_t pgoff);
+ 	int (*check_flags)(int);
+ 	int (*dir_notify)(struct file *filp, unsigned long arg);
+ 	int (*flock) (struct file *, int, struct file_lock *);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a5cb0a5..f8e0bd0 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1374,20 +1374,17 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ 		return -ENOMEM;
+ 	if (addr & ~PAGE_MASK)
+ 		return -EINVAL;
+-	if (file && is_file_hugepages(file))  {
+-		/*
+-		 * Check if the given range is hugepage aligned, and
+-		 * can be made suitable for hugepages.
+-		 */
+-		ret = prepare_hugepage_range(addr, len, pgoff);
+-	} else {
+-		/*
+-		 * Ensure that a normal request is not falling in a
+-		 * reserved hugepage range.  For some archs like IA-64,
+-		 * there is a separate region for hugepages.
+-		 */
++	/*
++	 * This file may only be able to be mapped into special areas of the
++	 * addess space (eg. hugetlb pages).  If prepare_unmapped_area() is
++	 * specified, use it to validate the selected range.  If not, just
++	 * make sure the range does not overlap any special ranges.
++	 */
++	if (file && file->f_op && file->f_op->prepare_unmapped_area)
++		ret = file->f_op->prepare_unmapped_area(addr, len, pgoff);
++	else
+ 		ret = is_hugepage_only_range(current->mm, addr, len);
+-	}
 +
-+	info = SHMEM_I(shp->shm_file->f_path.dentry->d_inode);
-+	return info->flags & SHMEM_HUGETLBFS;
-+}
-+
- #ifdef CONFIG_TMPFS_POSIX_ACL
- int shmem_permission(struct inode *, int, struct nameidata *);
- int shmem_acl_init(struct inode *, struct inode *);
-diff --git a/ipc/shm.c b/ipc/shm.c
-index f8e10a2..6054b16 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -184,7 +184,7 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp)
- 	ns->shm_tot -= (shp->shm_segsz + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	shm_rmid(ns, shp->id);
- 	shm_unlock(shp);
--	if (!is_file_hugepages(shp->shm_file))
-+	if (!is_shm_hugetlbfs(shp))
- 		shmem_lock(shp->shm_file, 0, shp->mlock_user);
- 	else
- 		user_shm_unlock(shp->shm_file->f_path.dentry->d_inode->i_size,
-@@ -497,7 +497,7 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
- 
- 		inode = shp->shm_file->f_path.dentry->d_inode;
- 
--		if (is_file_hugepages(shp->shm_file)) {
-+		if (is_shm_hugetlbfs(shp)) {
- 			struct address_space *mapping = inode->i_mapping;
- 			*rss += (HPAGE_SIZE/PAGE_SIZE)*mapping->nrpages;
- 		} else {
-@@ -607,7 +607,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
- 		tbuf.shm_ctime	= shp->shm_ctim;
- 		tbuf.shm_cpid	= shp->shm_cprid;
- 		tbuf.shm_lpid	= shp->shm_lprid;
--		if (!is_file_hugepages(shp->shm_file))
-+		if (!is_shm_hugetlbfs(shp))
- 			tbuf.shm_nattch	= shp->shm_nattch;
- 		else
- 			tbuf.shm_nattch = file_count(shp->shm_file) - 1;
-@@ -650,14 +650,14 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
- 		
- 		if(cmd==SHM_LOCK) {
- 			struct user_struct * user = current->user;
--			if (!is_file_hugepages(shp->shm_file)) {
-+			if (!is_shm_hugetlbfs(shp)) {
- 				err = shmem_lock(shp->shm_file, 1, user);
- 				if (!err) {
- 					shp->shm_perm.mode |= SHM_LOCKED;
- 					shp->mlock_user = user;
- 				}
- 			}
--		} else if (!is_file_hugepages(shp->shm_file)) {
-+		} else if (!is_shm_hugetlbfs(shp)) {
- 			shmem_lock(shp->shm_file, 0, shp->mlock_user);
- 			shp->shm_perm.mode &= ~SHM_LOCKED;
- 			shp->mlock_user = NULL;
-@@ -1004,7 +1004,7 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
- 			  shp->shm_segsz,
- 			  shp->shm_cprid,
- 			  shp->shm_lprid,
--			  is_file_hugepages(shp->shm_file) ? (file_count(shp->shm_file) - 1) : shp->shm_nattch,
-+			  is_shm_hugetlbfs(shp) ? (file_count(shp->shm_file) - 1) : shp->shm_nattch,
- 			  shp->shm_perm.uid,
- 			  shp->shm_perm.gid,
- 			  shp->shm_perm.cuid,
+ 	if (ret)
+ 		return -EINVAL;
+ 	return addr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
