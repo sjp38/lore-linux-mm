@@ -1,56 +1,57 @@
-Subject: Re: [patch] not to disturb page LRU state when unmapping memory
-	range
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070131140450.09f174e9.akpm@osdl.org>
-References: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com>
-	 <Pine.LNX.4.64.0701311746230.6135@blonde.wat.veritas.com>
-	 <1170279811.10924.32.camel@lappy>  <20070131140450.09f174e9.akpm@osdl.org>
-Content-Type: text/plain
-Date: Wed, 31 Jan 2007 23:25:00 +0100
-Message-Id: <1170282300.10924.50.camel@lappy>
-Mime-Version: 1.0
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id l0VMdP1e009709
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 22:39:25 GMT
+Received: from wr-out-0506.google.com (wri57.prod.google.com [10.54.9.57])
+	by spaceape10.eur.corp.google.com with ESMTP id l0VMcneZ023807
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2007 22:39:20 GMT
+Received: by wr-out-0506.google.com with SMTP id 57so343124wri
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2007 14:39:20 -0800 (PST)
+Message-ID: <b040c32a0701311439y2e0ba4e6qcc25bc4d4ab8f7e4@mail.gmail.com>
+Date: Wed, 31 Jan 2007 14:39:19 -0800
+From: "Ken Chen" <kenchen@google.com>
+Subject: [patch] convert ramfs to use __set_page_dirty_no_writeback
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-01-31 at 14:04 -0800, Andrew Morton wrote:
+As pointed out by Hugh, ramfs would also benefit from using the new
+set_page_dirty aop method for memory backed file systems.
 
-> > Andrew, any strong opinions?
-> 
-> Not really.  If we change something in there, some workloads will get
-> better, some will get worse and most will be unaffected and any regressions
-> we cause won't be known until six months later.  The usual deal.
-> 
-> Remember that all this info is supposed to be estimating what is likely to
-> happen to this page in the future - we're not interested in what happened
-> in the past, per-se.
-> 
-> I'd have thought that if multiple processes are touching the same
-> page, this is a reason to think that the page will be required again in the
-> immediate future.  But you seem to think otherwise?
+Signed-off-by: Ken Chen <kenchen@google.com>
 
-Yes, why would unmapping a range make the pages more likely to be used
-in the immediate future than otherwise indicated by their individual
-young bits?
+---
+Hugh, I chickened out on swap_aops() as I'd rather not to muck with code
+that I'm not familiar with.
 
-Even the opposite was suggested, that unmapping a range makes it less
-likely to be used again.
 
-> > If only I could come up with a proper set of tests that covers all
-> > this...
-> 
-> Well yes, that's rather a sore point.  It's tough.  I wonder what $OTHER_OS
-> developers have done.  Probably their tests are priority ordered by
-> $market_share of their user's applications :(
+--- ./fs/ramfs/file-mmu.c.orig	2007-01-31 13:27:14.000000000 -0800
++++ ./fs/ramfs/file-mmu.c	2007-01-31 13:27:39.000000000 -0800
+@@ -31,7 +31,7 @@
+ 	.readpage	= simple_readpage,
+ 	.prepare_write	= simple_prepare_write,
+ 	.commit_write	= simple_commit_write,
+-	.set_page_dirty = __set_page_dirty_nobuffers,
++	.set_page_dirty = __set_page_dirty_no_writeback,
+ };
 
-Still requires them to set up and run said programs. If we could get a
-suite of programs that we consider interesting....
+ const struct file_operations ramfs_file_operations = {
+--- ./fs/ramfs/file-nommu.c.orig	2007-01-31 13:27:27.000000000 -0800
++++ ./fs/ramfs/file-nommu.c	2007-01-31 13:28:21.000000000 -0800
+@@ -32,7 +32,7 @@
+ 	.readpage		= simple_readpage,
+ 	.prepare_write		= simple_prepare_write,
+ 	.commit_write		= simple_commit_write,
+-	.set_page_dirty = __set_page_dirty_nobuffers,
++	.set_page_dirty		= __set_page_dirty_no_writeback,
+ };
 
-Just hoping, I seem to be stuck with quite a lot of code without means
-of evaluation.
+ const struct file_operations ramfs_file_operations = {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
