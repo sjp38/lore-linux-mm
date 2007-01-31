@@ -1,56 +1,44 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l117H4qx6815804
-	for <linux-mm@kvack.org>; Thu, 1 Feb 2007 06:17:05 -0100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l0VJIbdm238488
-	for <linux-mm@kvack.org>; Thu, 1 Feb 2007 06:18:37 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l0VJF7NV007634
-	for <linux-mm@kvack.org>; Thu, 1 Feb 2007 06:15:07 +1100
-Message-ID: <45C0EAB7.5040903@in.ibm.com>
-Date: Thu, 01 Feb 2007 00:45:03 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
+Date: Wed, 31 Jan 2007 19:17:54 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] simplify shmem_aops.set_page_dirty method
+In-Reply-To: <20070131111146.2b29d851.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0701311915230.19297@blonde.wat.veritas.com>
+References: <b040c32a0701302006y429dc981u980bee08f6a42854@mail.gmail.com>
+ <Pine.LNX.4.64.0701311648450.28314@blonde.wat.veritas.com>
+ <20070131111146.2b29d851.akpm@osdl.org>
 MIME-Version: 1.0
-Subject: Re: [patch] not to disturb page LRU state when unmapping memory range
-References: <b040c32a0701302041j2a99e2b6p91b0b4bfa065444a@mail.gmail.com> <1170246396.9516.39.camel@twins>
-In-Reply-To: <1170246396.9516.39.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ken Chen <kenchen@google.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Ken Chen <kenchen@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-[snip]
-
-> It preserves the information, but not more.
+On Wed, 31 Jan 2007, Andrew Morton wrote:
+> On Wed, 31 Jan 2007 17:17:10 +0000 (GMT) Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
-> diff --git a/mm/memory.c b/mm/memory.c
-> index ef09f0a..b1f9129 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -678,7 +678,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  				if (pte_dirty(ptent))
->  					set_page_dirty(page);
->  				if (pte_young(ptent))
-> -					mark_page_accessed(page);
-> +					SetPageReferenced(page);
->  				file_rss--;
->  			}
->  			page_remove_rmap(page, vma);
+> > 2.  Please remind me what good __mark_inode_dirty will do for shmem:
+> 
+> None that I can think of - tmpfs inodes don't get written back to swap (do
+> they?)
 
-Does it make sense to do this only for shared mapped pages?
+That's right, tmpfs inodes are only in RAM, only the data can go to swap.
 
-if (pte_young(ptent) && (page_mapcount(page) > 1))
-	SetPageReferenced(page);
+> 
+> > in my patch the equivalent function did nothing beyond SetPageDirty
+> > (your TestSetPageDirty looks better, less redirtying the cacheline).
+> 
+> Will test_and_set_bit() avoid dirtying the cacheline?  I guess it _could_
+> do this, and perhaps this depends upon the architecture.  Perhaps
+> 
+> 	if (!PageDirty(page))
+> 		SetPageDirty(page);
+> 
+> would be better here.
 
+Synchronicity or telepathy?  Our mails on that crossed.
 
-	Balbir Singh
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
