@@ -1,109 +1,64 @@
-Received: from 196.2.42.2 (HELO nav-gw3.mweb.co.za)
-     by kvack.org with esmtp (1+0WR16U)?:( -47233)
-     id V/R3+3-HU1QDF->*
-     for linux-mm@kvack.org; Thu, 1 Feb 2007 17:53:57 -0120
-Message-ID: <01c74629$f20907b0$6c822ecf@michael>
-From: "Israel Kenney" <michael@netactive.co.za>
-Subject: Of erotic idolatry that men.
-Date: Thu, 1 Feb 2007 17:53:57 -0120
+Date: Thu, 1 Feb 2007 15:15:23 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] Use parameter passed to cache_reap to determine pointer to
+ work structure
+Message-ID: <Pine.LNX.4.64.0702011512250.7969@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0007_01C7463A.B591D7B0"
-Return-Path: <michael@netactive.co.za>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Pekka J Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Use the pointer passed to cache_reap to determine the work
+pointer and consolidate exit paths.
 
-------=_NextPart_000_0007_01C7463A.B591D7B0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
+Index: current/mm/slab.c
+===================================================================
+--- current.orig/mm/slab.c	2007-02-01 15:02:54.000000000 -0800
++++ current/mm/slab.c	2007-02-01 15:11:52.000000000 -0800
+@@ -4045,18 +4045,17 @@ void drain_array(struct kmem_cache *cach
+  * If we cannot acquire the cache chain mutex then just give up - we'll try
+  * again on the next iteration.
+  */
+-static void cache_reap(struct work_struct *unused)
++static void cache_reap(struct work_struct *w)
+ {
+ 	struct kmem_cache *searchp;
+ 	struct kmem_list3 *l3;
+ 	int node = numa_node_id();
++	struct delayed_work *work =
++		container_of(w, struct delayed_work, work);
+ 
+-	if (!mutex_trylock(&cache_chain_mutex)) {
++	if (!mutex_trylock(&cache_chain_mutex))
+ 		/* Give up. Setup the next iteration. */
+-		schedule_delayed_work(&__get_cpu_var(reap_work),
+-				      round_jiffies_relative(REAPTIMEOUT_CPUC));
+-		return;
+-	}
++		goto out;
+ 
+ 	list_for_each_entry(searchp, &cache_chain, next) {
+ 		check_irq_on();
+@@ -4099,9 +4098,9 @@ next:
+ 	mutex_unlock(&cache_chain_mutex);
+ 	next_reap_node();
+ 	refresh_cpu_vm_stats(smp_processor_id());
++out:
+ 	/* Set up the next iteration */
+-	schedule_delayed_work(&__get_cpu_var(reap_work),
+-		round_jiffies_relative(REAPTIMEOUT_CPUC));
++	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_CPUC));
+ }
+ 
+ #ifdef CONFIG_PROC_FS
 
-Howdy 
-
-Best solution is Vairga or Cailis pllis.
-
- Visit us 
-
- Propceia  $1.08 Vaigra Sotf Tabs  $4.14 Vaigra Professoinal  $4.07 Cailis =
-Sotf Tabs   $5.73 Cailis  $5.65
-
- Przoac  $3.38 Somma  $1.32 Ambien  $2.89 Lorazpeam  $1.73 Paixl  $2.01 Vai=
-lum  $2.88 Thramadol  $2.19
-
- Leaxpro  $1.33 Liptior  $2.24 Jugnle Burn  $43.37 Cleairtol  $45.7 Pure Na=
-trual Hooida  $39.90 Zero Nicoitne  $53.30
-
-
-------=_NextPart_000_0007_01C7463A.B591D7B0
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-1">
-<META content=3D"MSHTML 5.00.2314.1300" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-<pre>
-Howdy 
-
-Best solution is Vairga or Cailis pllis.
-
-<a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL2J1bGsyLm9yZw=
-=3D=3D&p=3D100"> Visit us </a>
-
-<table width=3D"42%" border=3D"1" bgcolor=3D"#C9E4E4"  bordercolor=3D"#9999=
-99">
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Propceia </a></td><td> $1.08</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Vaigra Sotf Tabs </a></td><td> $4.14</td></t=
-r>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Vaigra Professoinal </a></td><td> $4.07</td>=
-</tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Cailis Sotf Tabs  </a></td><td> $5.73</td></=
-tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Cailis </a></td><td> $5.65</td></tr>
-
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Przoac </a></td><td> $3.38</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Somma </a></td><td> $1.32</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Ambien </a></td><td> $2.89</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Lorazpeam </a></td><td> $1.73</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Paixl </a></td><td> $2.01</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Vailum </a></td><td> $2.88</td></tr>
-<tr><td  NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDov=
-L2J1bGsyLm9yZw=3D=3D&p=3D100"> Thramadol </a></td><td> $2.19</td></tr>
-
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Leaxpro </a></td><td> $1.33</td></tr>
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Liptior </a></td><td> $2.24</td></tr>
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Jugnle Burn </a></td><td> $43.37</td></tr>
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Cleairtol </a></td><td> $45.7</td></tr>
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Pure Natrual Hooida </a></td><td> $39.90</td>=
-</tr>
-<tr><td NOWRAP><a href=3D"http://www.dadsslut.com/st/st.php?url=3DaHR0cDovL=
-2J1bGsyLm9yZw=3D=3D&p=3D100"> Zero Nicoitne </a></td><td> $53.30</td></tr>
-
-</table>
-</pre>
-</BODY></HTML>
-
-------=_NextPart_000_0007_01C7463A.B591D7B0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
