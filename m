@@ -1,75 +1,38 @@
-Date: Fri, 2 Feb 2007 15:52:36 -0800
+Date: Fri, 2 Feb 2007 15:52:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/9] fs: libfs buffered write leak fix
-Message-Id: <20070202155236.dae54aa2.akpm@linux-foundation.org>
-In-Reply-To: <20070129081914.23584.23886.sendpatchset@linux.site>
+Subject: Re: [patch 0/9] buffered write deadlock fix
+Message-Id: <20070202155232.babe1a52.akpm@linux-foundation.org>
+In-Reply-To: <20070129081905.23584.97878.sendpatchset@linux.site>
 References: <20070129081905.23584.97878.sendpatchset@linux.site>
-	<20070129081914.23584.23886.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@gmail.com>, Suparna Bhattacharya <suparna@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jan 2007 11:31:46 +0100 (CET)
+On Mon, 29 Jan 2007 11:31:37 +0100 (CET)
 Nick Piggin <npiggin@suse.de> wrote:
 
-> simple_prepare_write and nobh_prepare_write leak uninitialised kernel data.
+> The following set of patches attempt to fix the buffered write
+> locking problems (and there are a couple of peripheral patches
+> and cleanups there too).
+> 
+> Patches against 2.6.20-rc6. I was hoping that 2.6.20-rc6-mm2 would
+> be an easier diff with the fsaio patches gone, but the readahead
+> rewrite clashes badly :(
 
-They do?  Under what situation?
+Well fsaio is restored, but there's now considerable doubt over it due to
+the recent febril febrility.
 
-> Fix the former,
+How bad is the clash with the readahead patches?
 
-How?
+Clashes with git-block are likely, too.
 
-> make a note of the latter. Several other filesystems seem
-> to be iffy here, too.
-
-Please, tell us what the bug is so that others have a chance of reviewing
-and, if needed, fixing those other filesystems.
-
-> --- linux-2.6.orig/fs/libfs.c
-> +++ linux-2.6/fs/libfs.c
-> @@ -327,32 +327,35 @@ int simple_readpage(struct file *file, s
->  int simple_prepare_write(struct file *file, struct page *page,
->  			unsigned from, unsigned to)
->  {
-> -	if (!PageUptodate(page)) {
-> -		if (to - from != PAGE_CACHE_SIZE) {
-> -			void *kaddr = kmap_atomic(page, KM_USER0);
-> -			memset(kaddr, 0, from);
-> -			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-> -			flush_dcache_page(page);
-> -			kunmap_atomic(kaddr, KM_USER0);
-> -		}
-> +	if (PageUptodate(page))
-> +		return 0;
-> +
-> +	if (to - from != PAGE_CACHE_SIZE) {
-> +		clear_highpage(page);
-> +		flush_dcache_page(page);
->  		SetPageUptodate(page);
->  	}
-
-memclear_highpage_flush() is fashionable.
-
-> ===================================================================
-> --- linux-2.6.orig/fs/buffer.c
-> +++ linux-2.6/fs/buffer.c
-> @@ -2344,6 +2344,8 @@ int nobh_prepare_write(struct page *page
->  
->  	if (is_mapped_to_disk)
->  		SetPageMappedToDisk(page);
-> +
-> +	/* XXX: information leak vs read(2) */
->  	SetPageUptodate(page);
->  
->  	/*
-
-That comment is too terse to be useful.
+Bugfixes come first, so I will drop readahead and fsaio and git-block to get
+this work completed if needed - please work agaisnt mainline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
