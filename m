@@ -1,26 +1,44 @@
-Received: by ug-out-1314.google.com with SMTP id s2so672002uge
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2007 23:20:08 -0800 (PST)
-Message-ID: <84144f020702012320j314568dex748f3e6362cd70e0@mail.gmail.com>
-Date: Fri, 2 Feb 2007 09:20:06 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Use parameter passed to cache_reap to determine pointer to work structure
-In-Reply-To: <Pine.LNX.4.64.0702011512250.7969@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 2 Feb 2007 08:21:33 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch] mm: half-fix page tail zeroing on write problem
+Message-ID: <20070202072133.GA26431@wotan.suse.de>
+References: <20070202055142.GA5004@wotan.suse.de> <17858.55858.642522.861130@notabene.brown>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <Pine.LNX.4.64.0702011512250.7969@schroedinger.engr.sgi.com>
+In-Reply-To: <17858.55858.642522.861130@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org
+To: Neil Brown <neilb@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 2/2/07, Christoph Lameter <clameter@sgi.com> wrote:
-> Use the pointer passed to cache_reap to determine the work
-> pointer and consolidate exit paths.
+On Fri, Feb 02, 2007 at 05:29:06PM +1100, Neil Brown wrote:
+> On Friday February 2, npiggin@suse.de wrote:
+> > Hi,
+> > 
+> > For no important reason, I've again looked at those zeroing patches that
+> > Neil did a while back. I've always thought that a simple
+> > `write(fd, NULL, size)` would cause the same sorts of problems.
+> 
+> Yeh, but who in their right mind would do that???
+> Oh, you did :-)
 
-Looks good to me.
+Well that's the test-case. Obviously not many people do it, but that's
+all the more reason to be careful about correct behaviour.
+
+> I cannot see why you make a change to fault_in_pages_writeable.  Is it
+> just for symmetry?
+
+Yes.
+
+> For the rest, it certainly makes sense to return an early -EFAULT if
+> you cannot fault in the page.
+
+I think so.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
