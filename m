@@ -1,37 +1,54 @@
-Date: Thu, 1 Feb 2007 22:17:34 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <17858.54239.364738.88727@notabene.brown>
-Message-ID: <Pine.LNX.4.64.0702012213140.31640@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
- <20070201200358.89dd2991.akpm@osdl.org> <Pine.LNX.4.64.0702012044090.10575@schroedinger.engr.sgi.com>
- <17858.54239.364738.88727@notabene.brown>
+From: Neil Brown <neilb@suse.de>
+Date: Fri, 2 Feb 2007 17:29:06 +1100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <17858.55858.642522.861130@notabene.brown>
+Subject: Re: [rfc][patch] mm: half-fix page tail zeroing on write problem
+In-Reply-To: message from Nick Piggin on Friday February 2
+References: <20070202055142.GA5004@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ethan Solomita <solo@google.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Feb 2007, Neil Brown wrote:
+On Friday February 2, npiggin@suse.de wrote:
+> Hi,
+> 
+> For no important reason, I've again looked at those zeroing patches that
+> Neil did a while back. I've always thought that a simple
+> `write(fd, NULL, size)` would cause the same sorts of problems.
 
-> md/raid doesn't cause any problems here.  It preallocates enough to be
-> sure that it can always make forward progress.  In general the entire
-> block layer from generic_make_request down can always successfully
-> write a block out in a reasonable amount of time without requiring
-> kmalloc to succeed (with obvious exceptions like loop and nbd which go
-> back up to a higher layer).
+Yeh, but who in their right mind would do that???
+Oh, you did :-)
 
-Hmmm... I wonder if that could be generalized. A device driver could make 
-a reservation by increasing min_free_kbytes? Additional drivers in a 
-chain could make additional reservations in such a way that enough 
-memory is set aside for the worst case?
+> 
+> Turns out it does. If you first write all 1s into a page, then do the
+> `write(fd, NULL, size)` at the same position, you end up with all 0s in
+> the page (test-case available on request).  Incredible; surely this
+> violates the spec?
 
-> The network stack is of course a different (much harder) problem.
+Does it?
+I guess filling with zeros isn't what one would expect, but you could
+make a case for it being right.
+  write(fd, 0, size)
+writes 'size' 0s.  Cool.   Ok, bad-cool.
 
-An NFS solution is possible without solving the network stack issue?
+> 
+> The buffered-write fixes I've got actually fix this properly, but  they
+> don't look like getting merged any time soon. We could do this simple
+> patch which just reduces the chance of corruption from a certainty down
+> to a small race.
+> 
+> Any thoughts?
+
+I cannot see why you make a change to fault_in_pages_writeable.  Is it
+just for symmetry?
+For the rest, it certainly makes sense to return an early -EFAULT if
+you cannot fault in the page.
+
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
