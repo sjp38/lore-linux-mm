@@ -1,31 +1,38 @@
-Date: Thu, 1 Feb 2007 20:03:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-Message-Id: <20070201200358.89dd2991.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	<45C2960B.9070907@google.com>
-	<Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 1 Feb 2007 21:22:33 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 0/8] Create ZONE_MOVABLE to partition memory between
+ movable and non-movable pages
+In-Reply-To: <20070129160921.7b362c8d.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.64.0702012121020.10723@schroedinger.engr.sgi.com>
+References: <20070125234458.28809.5412.sendpatchset@skynet.skynet.ie>
+ <20070126030753.03529e7a.akpm@osdl.org> <Pine.LNX.4.64.0701260751230.6141@schroedinger.engr.sgi.com>
+ <20070126114615.5aa9e213.akpm@osdl.org> <Pine.LNX.4.64.0701261147300.15394@schroedinger.engr.sgi.com>
+ <20070126122747.dde74c97.akpm@osdl.org> <Pine.LNX.4.64.0701291349450.548@schroedinger.engr.sgi.com>
+ <20070129143654.27fcd4a4.akpm@osdl.org> <Pine.LNX.4.64.0701291441260.1102@schroedinger.engr.sgi.com>
+ <20070129225000.GG6602@flint.arm.linux.org.uk>
+ <Pine.LNX.4.64.0701291533500.1169@schroedinger.engr.sgi.com>
+ <20070129160921.7b362c8d.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Ethan Solomita <solo@google.com>, akpm@linux-foundation.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Russell King <rmk+lkml@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Feb 2007 18:16:05 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, 29 Jan 2007, Andrew Morton wrote:
 
-> On Thu, 1 Feb 2007, Ethan Solomita wrote:
+> On Mon, 29 Jan 2007 15:37:29 -0800 (PST)
+> Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> >    Hi Christoph -- has anything come of resolving the NFS / OOM concerns that
-> > Andrew Morton expressed concerning the patch? I'd be happy to see some
-> > progress on getting this patch (i.e. the one you posted on 1/23) through.
+> > With a alloc_pages_range() one would be able to specify upper and lower 
+> > boundaries.
 > 
-> Peter Zilkstra addressed the NFS issue.
+> Is there a proposal anywhere regarding how this would be implemented?
 
-Did he?  Are you yet in a position to confirm that?
+Yes it was discussed a while back in August. Look for alloc_pages_range. 
+Sadly I have not been able to do work on it since there are too many 
+other issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
