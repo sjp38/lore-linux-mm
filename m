@@ -1,48 +1,91 @@
-Date: Thu, 1 Feb 2007 21:29:06 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <20070201200358.89dd2991.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.64.0702012044090.10575@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
- <20070201200358.89dd2991.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 2 Feb 2007 06:51:42 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [rfc][patch] mm: half-fix page tail zeroing on write problem
+Message-ID: <20070202055142.GA5004@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ethan Solomita <solo@google.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Neil Brown <neilb@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Feb 2007, Andrew Morton wrote:
+Hi,
 
-> > Peter Zilkstra addressed the NFS issue.
-> 
-> Did he?  Are you yet in a position to confirm that?
+For no important reason, I've again looked at those zeroing patches that
+Neil did a while back. I've always thought that a simple
+`write(fd, NULL, size)` would cause the same sorts of problems.
 
-He provided a solution to fix the congestion issue in NFS. I thought 
-that is what you were looking for? That should make NFS behave more
-like a block device right?
+Turns out it does. If you first write all 1s into a page, then do the
+`write(fd, NULL, size)` at the same position, you end up with all 0s in
+the page (test-case available on request).  Incredible; surely this
+violates the spec?
 
-As I said before I think NFS is inherently unfixable given the layering of 
-a block device on top of the network stack (which consists of an unknown 
-number of additional intermediate layers). Cpuset writeback needs to work 
-in the same way as in a machine without cpusets. If fails then at least 
-let the cpuset behave as if we had a machine all on our own and fail in 
-both cases in the same way. Right now we create dangerous low memory 
-conditions due to high dirty ratios in a cpuset created by not having a 
-throttling method. The NFS problems also exist for non cpuset scenarios 
-and we have by and large been able to live with it so I think they are 
-lower priority. It seems that the basic problem is created by the dirty 
-ratios in a cpuset.
+The buffered-write fixes I've got actually fix this properly, but  they
+don't look like getting merged any time soon. We could do this simple
+patch which just reduces the chance of corruption from a certainty down
+to a small race.
 
-BTW the block layer also may be layered with raid and stuff and then we 
-have similar issues. There is no general way so far of handling these 
-situations except by twiddling around with min_free_kbytes praying 5 Hail 
-Mary's and trying again. Maybe we are able allocate all needed memory from 
-PF_MEMALLOC processes during reclaim and hopefully there is now enough 
-memory for these allocations and those that happen to occur during an 
-interrupt while we reclaim.
+Any thoughts?
+
+-- 
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h	2007-02-02 13:41:21.000000000 +1100
++++ linux-2.6/include/linux/pagemap.h	2007-02-02 13:42:09.000000000 +1100
+@@ -198,6 +198,9 @@ static inline int fault_in_pages_writeab
+ {
+ 	int ret;
+ 
++	if (unlikely(size == 0))
++		return 0;
++
+ 	/*
+ 	 * Writing zeroes into userspace here is OK, because we know that if
+ 	 * the zero gets there, we'll be overwriting it.
+@@ -217,19 +220,23 @@ static inline int fault_in_pages_writeab
+ 	return ret;
+ }
+ 
+-static inline void fault_in_pages_readable(const char __user *uaddr, int size)
++static inline int fault_in_pages_readable(const char __user *uaddr, int size)
+ {
+ 	volatile char c;
+ 	int ret;
+ 
++	if (unlikely(size == 0))
++		return 0;
++
+ 	ret = __get_user(c, uaddr);
+ 	if (ret == 0) {
+ 		const char __user *end = uaddr + size - 1;
+ 
+ 		if (((unsigned long)uaddr & PAGE_MASK) !=
+ 				((unsigned long)end & PAGE_MASK))
+-		 	__get_user(c, end);
++		 	ret = __get_user(c, end);
+ 	}
++	return ret;
+ }
+ 
+ #endif /* _LINUX_PAGEMAP_H */
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c	2007-02-02 13:42:40.000000000 +1100
++++ linux-2.6/mm/filemap.c	2007-02-02 14:00:19.000000000 +1100
+@@ -2112,7 +2112,10 @@ generic_file_buffered_write(struct kiocb
+ 		 * same page as we're writing to, without it being marked
+ 		 * up-to-date.
+ 		 */
+-		fault_in_pages_readable(buf, bytes);
++		if (fault_in_pages_readable(buf, bytes)) {
++			status = -EFAULT;
++			break;
++		}
+ 
+ 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
+ 		if (!page) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
