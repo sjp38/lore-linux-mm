@@ -1,43 +1,26 @@
-Date: Thu, 1 Feb 2007 23:12:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-Message-Id: <20070201231257.abdafbae.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0702012044090.10575@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
-	<45C2960B.9070907@google.com>
-	<Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
-	<20070201200358.89dd2991.akpm@osdl.org>
-	<Pine.LNX.4.64.0702012044090.10575@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by ug-out-1314.google.com with SMTP id s2so672002uge
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2007 23:20:08 -0800 (PST)
+Message-ID: <84144f020702012320j314568dex748f3e6362cd70e0@mail.gmail.com>
+Date: Fri, 2 Feb 2007 09:20:06 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Use parameter passed to cache_reap to determine pointer to work structure
+In-Reply-To: <Pine.LNX.4.64.0702011512250.7969@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <Pine.LNX.4.64.0702011512250.7969@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Ethan Solomita <solo@google.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Feb 2007 21:29:06 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
+On 2/2/07, Christoph Lameter <clameter@sgi.com> wrote:
+> Use the pointer passed to cache_reap to determine the work
+> pointer and consolidate exit paths.
 
-> On Thu, 1 Feb 2007, Andrew Morton wrote:
-> 
-> > > Peter Zilkstra addressed the NFS issue.
-> > 
-> > Did he?  Are you yet in a position to confirm that?
-> 
-> He provided a solution to fix the congestion issue in NFS. I thought 
-> that is what you were looking for? That should make NFS behave more
-> like a block device right?
-
-We hope so.
-
-The cpuset-aware-writeback patches were explicitly written to hide the bug which
-Peter's patches hopefully address.  They hence remove our best way of confirming
-that Peter's patches fix the problem which you've observed in a proper fashion.
-
-Until we've confirmed that the NFS problem is nailed, I wouldn't want to merge
-cpuset-aware-writeback.  I'm hoping to be able to do that with fake-numa on x86-64
-but haven't got onto it yet.
+Looks good to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
