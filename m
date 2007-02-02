@@ -1,29 +1,23 @@
-Date: Fri, 2 Feb 2007 11:13:52 -0800 (PST)
+Date: Fri, 2 Feb 2007 11:19:29 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Slab: reduce size of alien cache to cover only possible nodes
-In-Reply-To: <20070201235518.6c901bbf.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0702021113080.20232@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702012343020.17885@schroedinger.engr.sgi.com>
- <20070201235518.6c901bbf.akpm@linux-foundation.org>
+Subject: Re: [PATCH]Convert highest_possible_processor_id to nr_cpu_ids
+In-Reply-To: <45C363F3.2000207@argo.co.il>
+Message-ID: <Pine.LNX.4.64.0702021119121.20232@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0701291437590.1067@schroedinger.engr.sgi.com>
+ <45C363F3.2000207@argo.co.il>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Avi Kivity <avi@argo.co.il>
+Cc: akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Feb 2007, Andrew Morton wrote:
+On Fri, 2 Feb 2007, Avi Kivity wrote:
 
-> > The initialization of nr_node_ids occurred too late relative to the bootstrap
-> > of the slab allocator and so I moved the setup_nr_node_ids() into
-> > free_area_init_nodes().
-> 
-> How does/will this play with node hotplug?  Not at all, afaict.
+> Shouldn't this be 1?
 
-Plays well. You cannot plug in node that is not in the node possible map 
-and we use the node possible map for nr_node_id calculation.
-
+Yes it was changed to 1 by a later patch from me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
