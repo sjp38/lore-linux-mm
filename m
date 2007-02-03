@@ -1,97 +1,178 @@
-Date: Sat, 3 Feb 2007 02:33:16 +0100
+Date: Sat, 3 Feb 2007 02:38:23 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/9] fs: libfs buffered write leak fix
-Message-ID: <20070203013316.GB27300@wotan.suse.de>
-References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070129081914.23584.23886.sendpatchset@linux.site> <20070202155236.dae54aa2.akpm@linux-foundation.org>
+Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
+Message-ID: <20070203013823.GC27300@wotan.suse.de>
+References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070129082030.23584.72376.sendpatchset@linux.site> <20070202155311.e4f57985.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070202155236.dae54aa2.akpm@linux-foundation.org>
+In-Reply-To: <20070202155311.e4f57985.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 02, 2007 at 03:52:36PM -0800, Andrew Morton wrote:
-> On Mon, 29 Jan 2007 11:31:46 +0100 (CET)
+On Fri, Feb 02, 2007 at 03:53:11PM -0800, Andrew Morton wrote:
+> On Mon, 29 Jan 2007 11:33:03 +0100 (CET)
 > Nick Piggin <npiggin@suse.de> wrote:
 > 
-> > simple_prepare_write and nobh_prepare_write leak uninitialised kernel data.
+> > Modify the core write() code so that it won't take a pagefault while holding a
+> > lock on the pagecache page. There are a number of different deadlocks possible
+> > if we try to do such a thing:
+> > 
+> > 1.  generic_buffered_write
+> > 2.   lock_page
+> > 3.    prepare_write
+> > 4.     unlock_page+vmtruncate
+> > 5.     copy_from_user
+> > 6.      mmap_sem(r)
+> > 7.       handle_mm_fault
+> > 8.        lock_page (filemap_nopage)
+> > 9.    commit_write
+> > 10.  unlock_page
+> > 
+> > a. sys_munmap / sys_mlock / others
+> > b.  mmap_sem(w)
+> > c.   make_pages_present
+> > d.    get_user_pages
+> > e.     handle_mm_fault
+> > f.      lock_page (filemap_nopage)
+> > 
+> > 2,8	- recursive deadlock if page is same
+> > 2,8;2,8	- ABBA deadlock is page is different
+> > 2,6;b,f	- ABBA deadlock if page is same
+> > 
+> > The solution is as follows:
+> > 1.  If we find the destination page is uptodate, continue as normal, but use
+> >     atomic usercopies which do not take pagefaults and do not zero the uncopied
+> >     tail of the destination. The destination is already uptodate, so we can
+> >     commit_write the full length even if there was a partial copy: it does not
+> >     matter that the tail was not modified, because if it is dirtied and written
+> >     back to disk it will not cause any problems (uptodate *means* that the
+> >     destination page is as new or newer than the copy on disk).
+> > 
+> > 1a. The above requires that fault_in_pages_readable correctly returns access
+> >     information, because atomic usercopies cannot distinguish between
+> >     non-present pages in a readable mapping, from lack of a readable mapping.
+> > 
+> > 2.  If we find the destination page is non uptodate, unlock it (this could be
+> >     made slightly more optimal), then find and pin the source page with
+> >     get_user_pages. Relock the destination page and continue with the copy.
+> >     However, instead of a usercopy (which might take a fault), copy the data
+> >     via the kernel address space.
+> > 
 > 
-> They do?  Under what situation?
-
-Yes, I have at least reproduced the libfs leak.
-
-The situation is when you write into a !uptodate page, the prepare_write
-function runs SetPageUptodate *before* we have copied data in. Thus you
-can read uninitialised data out of there.
-
-SetPageUptodate must not be used (or at least used carefully) in
-prepare_write. commit_write is the correct place to do this.
-
-> > Fix the former,
+> Oh what a mess we're making :(
 > 
-> How?
-
-If doing a partial-write, simply clear the whole page and set it uptodate
-(don't need to get too tricky). If doing a full-write, only set it uptodate
-in the commit_write.
-
-> > make a note of the latter. Several other filesystems seem
-> > to be iffy here, too.
+> Unfortunately, write() into a non-uptodate page is very much the common
+> case.  We've always tried to avoid doing a pte-walk in the write() path to
+> fix this bug.  Careful performance testing is needed here so we can assess
+> the impact.  For threaded applications, simply the taking of mmap_sem might
+> be the biggest problem.
 > 
-> Please, tell us what the bug is so that others have a chance of reviewing
-> and, if needed, fixing those other filesystems.
-> 
-> > --- linux-2.6.orig/fs/libfs.c
-> > +++ linux-2.6/fs/libfs.c
-> > @@ -327,32 +327,35 @@ int simple_readpage(struct file *file, s
-> >  int simple_prepare_write(struct file *file, struct page *page,
-> >  			unsigned from, unsigned to)
-> >  {
-> > -	if (!PageUptodate(page)) {
-> > -		if (to - from != PAGE_CACHE_SIZE) {
-> > -			void *kaddr = kmap_atomic(page, KM_USER0);
-> > -			memset(kaddr, 0, from);
-> > -			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-> > -			flush_dcache_page(page);
-> > -			kunmap_atomic(kaddr, KM_USER0);
-> > -		}
-> > +	if (PageUptodate(page))
-> > +		return 0;
-> > +
-> > +	if (to - from != PAGE_CACHE_SIZE) {
-> > +		clear_highpage(page);
-> > +		flush_dcache_page(page);
-> >  		SetPageUptodate(page);
-> >  	}
-> 
-> memclear_highpage_flush() is fashionable.
+> And I can't think of any tricks we can play to avoid doing the pte-walk in
+> most cases.  For example, we don't yet have a page to run page_mapped()
+> against.
 
-Good one.
+After this patch series, I am working on another that will allow filesystems
+to specifically code around the problem (eg. by handling short usercopies
+properly).
 
-> > ===================================================================
-> > --- linux-2.6.orig/fs/buffer.c
-> > +++ linux-2.6/fs/buffer.c
-> > @@ -2344,6 +2344,8 @@ int nobh_prepare_write(struct page *page
+I tried to take this approach generically the first time, but it turns out
+lots of filesystems had subtle problems, so if we do it this way instead,
+then filesystem developers who actually care enough can improve their
+code, and those that don't won't hold them back (or prevent this bug from
+being fixed).
+
+> >  			break;
+> >  		}
 > >  
-> >  	if (is_mapped_to_disk)
-> >  		SetPageMappedToDisk(page);
+> > +		/*
+> > +		 * non-uptodate pages cannot cope with short copies, and we
+> > +		 * cannot take a pagefault with the destination page locked.
+> > +		 * So pin the source page to copy it.
+> > +		 */
+> > +		if (!PageUptodate(page)) {
+> > +			unlock_page(page);
 > > +
-> > +	/* XXX: information leak vs read(2) */
-> >  	SetPageUptodate(page);
-> >  
-> >  	/*
+> > +			bytes = min(bytes, PAGE_CACHE_SIZE -
+> > +				     ((unsigned long)buf & ~PAGE_CACHE_MASK));
+> > +
+> > +			/*
+> > +			 * Cannot get_user_pages with a page locked for the
+> > +			 * same reason as we can't take a page fault with a
+> > +			 * page locked (as explained below).
+> > +			 */
+> > +			down_read(&current->mm->mmap_sem);
+> > +			status = get_user_pages(current, current->mm,
+> > +					(unsigned long)buf & PAGE_CACHE_MASK, 1,
+> > +					0, 0, &src_page, NULL);
+> > +			up_read(&current->mm->mmap_sem);
+> > +			if (status != 1) {
+> > +				page_cache_release(page);
+> > +				break;
+> > +			}
+> > +
+> > +			lock_page(page);
+> > +			if (!page->mapping) {
 > 
-> That comment is too terse to be useful.
+> Hopefully this can't happen?  If it can, who went and took our page off the
+> mapping?  Reclaim?  The elevated page_count will prevent that?
 
-OK, similar problem here - we have brought all the buffers uptodate
-that we are *not* going to write over, or partially write over, but
-we can have an uninitialised hole over the region we want to write.
+Truncate/invalidate?
 
-I think just setting page uptodate in commit_write might do the
-trick? (and getting rid of the set_page_dirty there).
+> > +				unlock_page(page);
+> > +				page_cache_release(page);
+> > +				page_cache_release(src_page);
+> > +				continue;
+> > +			}
+> > +
+> > +		}
+> > +
+> >  		status = a_ops->prepare_write(file, page, offset, offset+bytes);
+> >  		if (unlikely(status))
+> >  			goto fs_write_aop_error;
+> >  
+> > -		copied = filemap_copy_from_user(page, offset,
+> > +		if (!src_page) {
+> > +			/*
+> > +			 * Must not enter the pagefault handler here, because
+> > +			 * we hold the page lock, so we might recursively
+> > +			 * deadlock on the same lock, or get an ABBA deadlock
+> > +			 * against a different lock, or against the mmap_sem
+> > +			 * (which nests outside the page lock).  So increment
+> > +			 * preempt count, and use _atomic usercopies.
+> > +			 *
+> > +			 * The page is uptodate so we are OK to encounter a
+> > +			 * short copy: if unmodified parts of the page are
+> > +			 * marked dirty and written out to disk, it doesn't
+> > +			 * really matter.
+> > +			 */
+> > +			pagefault_disable();
+> > +			copied = filemap_copy_from_user_atomic(page, offset,
+> >  					cur_iov, nr_segs, iov_offset, bytes);
+> > +			pagefault_enable();
+> > +		} else {
+> > +			char *src, *dst;
+> > +			src = kmap(src_page);
+> > +			dst = kmap(page);
+> > +			memcpy(dst + offset,
+> > +				src + ((unsigned long)buf & ~PAGE_CACHE_MASK),
+> > +				bytes);
+> > +			kunmap(page);
+> > +			kunmap(src_page);
+> > +			copied = bytes;
+> > +		}
+> 
+> As you say, we don't want to do this: taking two kmap()s at the same time
+> leaves us vulnerable to kmap() deadlocks: we deadlock when there are 512
+> tasks (LAST_PKMAP) each holding one kmap, and all waiting for someone else
+> to give one back.
+
+Yep, thinko. My updated version uses KM_USER[01].
+
+Thanks for reviewing so far.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
