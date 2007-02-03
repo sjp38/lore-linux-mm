@@ -1,39 +1,27 @@
-Message-ID: <45E63BF5.6040007@yahoo.com.au>
-Date: Thu, 01 Mar 2007 13:35:33 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Remove page flags for software suspend
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <20070228101403.GA8536@elf.ucw.cz> <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com> <200702281813.04643.rjw@sisk.pl> <Pine.LNX.4.64.0702280915030.3263@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0702280915030.3263@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+From: Fengguang Wu <fengguang.wu@gmail.com>
+Subject: Re: [patch 0/9] buffered write deadlock fix
+Date: Sat, 3 Feb 2007 23:31:45 +0800
+Message-ID: <20070203153145.GA3980__45888.3388237611$1170517118$gmane$org@mail.ustc.edu.cn>
+References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070202155232.babe1a52.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+Message-ID: <20070203153145.GA3980@mail.ustc.edu.cn>
+Content-Disposition: inline
+In-Reply-To: <20070202155232.babe1a52.akpm@linux-foundation.org>
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Suparna Bhattacharya <suparna@in.ibm.com>
+List-Id: linux-mm.kvack.org
 
-Christoph Lameter wrote:
-> On Wed, 28 Feb 2007, Rafael J. Wysocki wrote:
-> 
-> 
->>As I have already said for a couple of times, I think we can and I'm going to
->>do it, but right now I'm a bit busy with other things that I consider as more
->>urgent.
-> 
-> 
-> Ummm.. There are other parties who would like to use these flags!
+On Fri, Feb 02, 2007 at 03:52:32PM -0800, Andrew Morton wrote:
+> Bugfixes come first, so I will drop readahead and fsaio and git-block to get
+> this work completed if needed - please work agaisnt mainline.
 
-Lots of other parties. Let's make sure that no more backdoor page flags get
-allocated without going through the linux-mm list to work out whether we
-really need it or can live without it...
+OK with readahead.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+There are too much fixes in the series.  I'd like to fold them up and
+update some change logs. And then there would be one more update.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Regards,
+Wu
