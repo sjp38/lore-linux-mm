@@ -1,64 +1,76 @@
-Date: Sat, 3 Feb 2007 03:28:51 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/9] fs: libfs buffered write leak fix
-Message-ID: <20070203022851.GA16887@wotan.suse.de>
-References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070129081914.23584.23886.sendpatchset@linux.site> <20070202155236.dae54aa2.akpm@linux-foundation.org> <20070203013316.GB27300@wotan.suse.de> <20070202175801.3f97f79b.akpm@linux-foundation.org> <20070203020926.GD27300@wotan.suse.de> <20070202181955.a48d5b3c.akpm@linux-foundation.org>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l136fae8011193
+	for <linux-mm@kvack.org>; Sat, 3 Feb 2007 01:41:36 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l136euAO174694
+	for <linux-mm@kvack.org>; Sat, 3 Feb 2007 01:40:56 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l136euwT012222
+	for <linux-mm@kvack.org>; Sat, 3 Feb 2007 01:40:56 -0500
+Date: Sat, 3 Feb 2007 12:13:45 +0530
+From: Suparna Bhattacharya <suparna@in.ibm.com>
+Subject: Re: [patch 0/9] buffered write deadlock fix
+Message-ID: <20070203064345.GA22331@in.ibm.com>
+Reply-To: suparna@in.ibm.com
+References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070202155232.babe1a52.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070202181955.a48d5b3c.akpm@linux-foundation.org>
+In-Reply-To: <20070202155232.babe1a52.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 02, 2007 at 06:19:55PM -0800, Andrew Morton wrote:
-> On Sat, 3 Feb 2007 03:09:26 +0100
+On Fri, Feb 02, 2007 at 03:52:32PM -0800, Andrew Morton wrote:
+> On Mon, 29 Jan 2007 11:31:37 +0100 (CET)
 > Nick Piggin <npiggin@suse.de> wrote:
 > 
-> > From: Nick Piggin <npiggin@suse.de>
-> > To: Andrew Morton <akpm@osdl.org>
-> 
-> argh.  Yesterday all my emails were getting a mysterious
-> s/osdl/linux-foundation/ done to them at the server, so I switched everything
-> over.  Now it would appear that they are getting an equally mysterious
-> s/linux-foundation/osdl/ done to them.  I assume you sent this to
-> akpm@linux-foundation.org?
-
-No. Your first reply I got to this patch came as linux-foundantion, and
-that's what I replied to. Your subsequent reply back to me ("Yes, the page
-just isn't uptodate yet..."), came from osdl.org, which is what I replied
-to.
-
-> > Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
-> > Subject: Re: [patch 1/9] fs: libfs buffered write leak fix
-> > Date: Sat, 3 Feb 2007 03:09:26 +0100
-> > User-Agent: Mutt/1.5.9i
+> > The following set of patches attempt to fix the buffered write
+> > locking problems (and there are a couple of peripheral patches
+> > and cleanups there too).
 > > 
-> > On Fri, Feb 02, 2007 at 05:58:01PM -0800, Andrew Morton wrote:
-> > > On Sat, 3 Feb 2007 02:33:16 +0100
-> > > Nick Piggin <npiggin@suse.de> wrote:
-> > > 
-> > > > I think just setting page uptodate in commit_write might do the
-> > > > trick? (and getting rid of the set_page_dirty there).
-> > > 
-> > > Yes, the page just isn't uptodate yet in prepare_write() - moving things
-> > > to commti_write() sounds sane.
-> > > 
-> > > But please, can we have sufficient changelogs and comments in the next version?
-> > 
-> > You're right, sorry. Is this any better?
+> > Patches against 2.6.20-rc6. I was hoping that 2.6.20-rc6-mm2 would
+> > be an easier diff with the fsaio patches gone, but the readahead
+> > rewrite clashes badly :(
 > 
-> yup, thanks.
-> 
-> > (warning: nobh code is untested)
-> 
-> ow.
+> Well fsaio is restored, but there's now considerable doubt over it due to
+> the recent febril febrility.
 
-I'll get a chance to do that later today. I have to fire up the old test
-case and see if I can reproduce the problem with nobh on a real fs...
-Will get back to you when I do.
+I think Ingo made a point earlier about letting the old co-exist with the
+new. Fibrils + kevents have great potential for a next generation
+solution but we need to give the whole story some time to play out and prove
+it in practice, debate and benchmark the alternative combinations, optimize it
+for various workloads etc.  It will also take more work on top before we
+can get the whole POSIX AIO implementation supported on top of this. I'll be
+very happy when that happens ... it is just that it is still too early to
+be sure.
+
+Since this is going to be a new interface, not the existing linux AIO
+interface, I do not see any conflict between the two. Samba4 already uses
+fsaio, and we now have the ability to do POSIX AIO over kernel AIO (which
+depends on fsaio). The more we delay real world usage the longer we take
+to learn about the application patterns that matter. And it is those
+patterns that are key.
+
+> 
+> How bad is the clash with the readahead patches?
+> 
+> Clashes with git-block are likely, too.
+> 
+> Bugfixes come first, so I will drop readahead and fsaio and git-block to get
+> this work completed if needed - please work agaisnt mainline.
+
+If you need help with fixing the clashes, please let me know.
+
+Regards
+Suparna
+
+-- 
+Suparna Bhattacharya (suparna@in.ibm.com)
+Linux Technology Center
+IBM Software Lab, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
