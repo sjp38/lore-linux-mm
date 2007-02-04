@@ -1,9 +1,9 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20070204063735.23659.95941.sendpatchset@linux.site>
+Message-Id: <20070204063745.23659.11357.sendpatchset@linux.site>
 In-Reply-To: <20070204063707.23659.20741.sendpatchset@linux.site>
 References: <20070204063707.23659.20741.sendpatchset@linux.site>
-Subject: [patch 3/9] mm: revert "generic_file_buffered_write(): deadlock on vectored write"
-Date: Sun,  4 Feb 2007 09:50:09 +0100 (CET)
+Subject: [patch 4/9] mm: generic_file_buffered_write cleanup
+Date: Sun,  4 Feb 2007 09:50:19 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 From: Andrew Morton <akpm@osdl.org>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,82 +11,103 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Revert 6527c2bdf1f833cc18e8f42bd97973d583e4aa83
-
-This patch fixed the following bug:
-
-  When prefaulting in the pages in generic_file_buffered_write(), we only
-  faulted in the pages for the firts segment of the iovec.  If the second of
-  successive segment described a mmapping of the page into which we're
-  write()ing, and that page is not up-to-date, the fault handler tries to lock
-  the already-locked page (to bring it up to date) and deadlocks.
-
-  An exploit for this bug is in writev-deadlock-demo.c, in
-  http://www.zip.com.au/~akpm/linux/patches/stuff/ext3-tools.tar.gz.
-
-  (These demos assume blocksize < PAGE_CACHE_SIZE).
-
-The problem with this fix is that it takes the kernel back to doing a single
-prepare_write()/commit_write() per iovec segment.  So in the worst case we'll
-run prepare_write+commit_write 1024 times where we previously would have run
-it once. The other problem with the fix is that it fix all the locking problems.
-
-
-<insert numbers obtained via ext3-tools's writev-speed.c here>
-
-And apparently this change killed NFS overwrite performance, because, I
-suppose, it talks to the server for each prepare_write+commit_write.
-
-So just back that patch out - we'll be fixing the deadlock by other means.
+Clean up buffered write code. Rename some variables and fix some types.
 
 Signed-off-by: Andrew Morton <akpm@osdl.org>
-
-Nick says: also it only ever actually papered over the bug, because after
-faulting in the pages, they might be unmapped or reclaimed.
-
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
 Index: linux-2.6/mm/filemap.c
 ===================================================================
 --- linux-2.6.orig/mm/filemap.c
 +++ linux-2.6/mm/filemap.c
-@@ -2090,21 +2090,14 @@ generic_file_buffered_write(struct kiocb
- 	do {
- 		unsigned long index;
- 		unsigned long offset;
-+		unsigned long maxlen;
- 		size_t copied;
+@@ -2063,16 +2063,15 @@ generic_file_buffered_write(struct kiocb
+ 		size_t count, ssize_t written)
+ {
+ 	struct file *file = iocb->ki_filp;
+-	struct address_space * mapping = file->f_mapping;
++	struct address_space *mapping = file->f_mapping;
+ 	const struct address_space_operations *a_ops = mapping->a_ops;
+ 	struct inode 	*inode = mapping->host;
+ 	long		status = 0;
+ 	struct page	*page;
+ 	struct page	*cached_page = NULL;
+-	size_t		bytes;
+ 	struct pagevec	lru_pvec;
+ 	const struct iovec *cur_iov = iov; /* current iovec */
+-	size_t		iov_base = 0;	   /* offset in the current iovec */
++	size_t		iov_offset = 0;	   /* offset in the current iovec */
+ 	char __user	*buf;
  
- 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+ 	pagevec_init(&lru_pvec, 0);
+@@ -2083,31 +2082,33 @@ generic_file_buffered_write(struct kiocb
+ 	if (likely(nr_segs == 1))
+ 		buf = iov->iov_base + written;
+ 	else {
+-		filemap_set_next_iovec(&cur_iov, &iov_base, written);
+-		buf = cur_iov->iov_base + iov_base;
++		filemap_set_next_iovec(&cur_iov, &iov_offset, written);
++		buf = cur_iov->iov_base + iov_offset;
+ 	}
+ 
+ 	do {
+-		unsigned long index;
+-		unsigned long offset;
+-		unsigned long maxlen;
+-		size_t copied;
++		pgoff_t index;		/* Pagecache index for current page */
++		unsigned long offset;	/* Offset into pagecache page */
++		unsigned long maxlen;	/* Bytes remaining in current iovec */
++		size_t bytes;		/* Bytes to write to page */
++		size_t copied;		/* Bytes copied from user */
+ 
+-		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
++		offset = (pos & (PAGE_CACHE_SIZE - 1));
  		index = pos >> PAGE_CACHE_SHIFT;
  		bytes = PAGE_CACHE_SIZE - offset;
--
--		/* Limit the size of the copy to the caller's write size */
--		bytes = min(bytes, count);
--
--		/*
--		 * Limit the size of the copy to that of the current segment,
--		 * because fault_in_pages_readable() doesn't know how to walk
--		 * segments.
--		 */
--		bytes = min(bytes, cur_iov->iov_len - iov_base);
-+		if (bytes > count)
-+			bytes = count;
+ 		if (bytes > count)
+ 			bytes = count;
  
++		maxlen = cur_iov->iov_len - iov_offset;
++		if (maxlen > bytes)
++			maxlen = bytes;
++
  		/*
  		 * Bring in the user page that we will copy from _first_.
-@@ -2112,7 +2105,10 @@ generic_file_buffered_write(struct kiocb
+ 		 * Otherwise there's a nasty deadlock on copying from the
  		 * same page as we're writing to, without it being marked
  		 * up-to-date.
  		 */
--		fault_in_pages_readable(buf, bytes);
-+		maxlen = cur_iov->iov_len - iov_base;
-+		if (maxlen > bytes)
-+			maxlen = bytes;
-+		fault_in_pages_readable(buf, maxlen);
+-		maxlen = cur_iov->iov_len - iov_base;
+-		if (maxlen > bytes)
+-			maxlen = bytes;
+ 		fault_in_pages_readable(buf, maxlen);
  
  		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
- 		if (!page) {
+@@ -2138,7 +2139,7 @@ generic_file_buffered_write(struct kiocb
+ 							buf, bytes);
+ 		else
+ 			copied = filemap_copy_from_user_iovec(page, offset,
+-						cur_iov, iov_base, bytes);
++						cur_iov, iov_offset, bytes);
+ 		flush_dcache_page(page);
+ 		status = a_ops->commit_write(file, page, offset, offset+bytes);
+ 		if (status == AOP_TRUNCATED_PAGE) {
+@@ -2156,12 +2157,12 @@ generic_file_buffered_write(struct kiocb
+ 				buf += status;
+ 				if (unlikely(nr_segs > 1)) {
+ 					filemap_set_next_iovec(&cur_iov,
+-							&iov_base, status);
++							&iov_offset, status);
+ 					if (count)
+ 						buf = cur_iov->iov_base +
+-							iov_base;
++							iov_offset;
+ 				} else {
+-					iov_base += status;
++					iov_offset += status;
+ 				}
+ 			}
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
