@@ -1,74 +1,90 @@
-Date: Sun, 4 Feb 2007 03:15:49 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Sun, 4 Feb 2007 12:22:46 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
-Message-Id: <20070204031549.203f7b47.akpm@linux-foundation.org>
-In-Reply-To: <20070204110317.GA9034@wotan.suse.de>
-References: <20070204063707.23659.20741.sendpatchset@linux.site>
-	<20070204063833.23659.55105.sendpatchset@linux.site>
-	<20070204014445.88e6c8c7.akpm@linux-foundation.org>
-	<20070204101529.GA22004@wotan.suse.de>
-	<20070204023055.2583fd65.akpm@linux-foundation.org>
-	<20070204104609.GA29943@wotan.suse.de>
-	<20070204025602.a5f8c53a.akpm@linux-foundation.org>
-	<20070204110317.GA9034@wotan.suse.de>
+Message-ID: <20070204112246.GA12771@wotan.suse.de>
+References: <20070204063707.23659.20741.sendpatchset@linux.site> <20070204063833.23659.55105.sendpatchset@linux.site> <20070204014445.88e6c8c7.akpm@linux-foundation.org> <Pine.LNX.4.64.0702041036420.24838@hermes-1.csi.cam.ac.uk> <20070204031039.46b56dbb.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070204031039.46b56dbb.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anton Altaparmakov <aia21@cam.ac.uk>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 4 Feb 2007 12:03:17 +0100 Nick Piggin <npiggin@suse.de> wrote:
-
-> On Sun, Feb 04, 2007 at 02:56:02AM -0800, Andrew Morton wrote:
-> > On Sun, 4 Feb 2007 11:46:09 +0100 Nick Piggin <npiggin@suse.de> wrote:
+On Sun, Feb 04, 2007 at 03:10:39AM -0800, Andrew Morton wrote:
+> On Sun, 4 Feb 2007 10:59:58 +0000 (GMT) Anton Altaparmakov <aia21@cam.ac.uk> wrote:
 > > 
-> > > On Sun, Feb 04, 2007 at 02:30:55AM -0800, Andrew Morton wrote:
-> > > > On Sun, 4 Feb 2007 11:15:29 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> > > > 
-> > > > > The write path is broken. I prefer my kernels slow, than buggy.
-> > > > 
-> > > > That won't fly.
-> > > 
-> > > What won't fly?
+> > How about leaving the existing code with the following minor 
+> > modifications:
 > > 
-> > I suspect the performance cost of this approach would force us to redo it
-> > all.
-> 
-> That's the idea. But at least in the meantime we're correct.
-
-There's no way I'd support merging a change which we know we'll have to
-redo only we have no clue how.
-
-> > If that recollection is right, I think we could afford to reintroduce that
-> > problem, frankly.  Especially as it only happens in the incredibly rare
-> > case of that get_user()ed page getting unmapped under our feet.
-> 
-> Dang. I was hoping to fix it without introducing data corruption.
-
-Well.  It's a compromise.  Being practical about it, I reeeealy doubt that
-anyone will hit this combination of circumstances.
-
-> > > > > but you introduce the theoretical memory deadlock
-> > > > > where a task cannot reclaim its own memory.
-> > > > 
-> > > > Nah, that'll never happen - both pages are already allocated.
-> > > 
-> > > Both pages? I don't get it.
-> > > 
-> > > You set the don't-reclaim vma flag, then run get_user, which takes a
-> > > page fault and potentially has to allocate N pages for pagetables,
-> > > pagecache readahead, buffers and fs private data and pagecache radix
-> > > tree nodes for all of the pages read in.
+> > Instead of calling filemap_copy_from_user{,_iovec}() do only the atomic 
+> > bit with pagefaults disabled, i.e. instead of filemap_copy_from_user() we 
+> > would do (could of course move into a helper function of course):
 > > 
-> > Oh, OK.  Need to do the get_user() twice then.  Once before taking that new
-> > rwsem.
+> > pagefault_disable()
+> > kaddr = kmap_atomic(page, KM_USER0);
+> > left = __copy_from_user_inatomic_nocache(kaddr + offset, buf, bytes);
+> > kunmap_atomic(kaddr, KM_USER0);
+> > pagefault_enable()
+> > 
+> > if (unlikely(left)) {
+> > 	/* The user space page got unmapped before we got to copy it. */
+> > 	...
+> > }
+> > 
+> > Thus the 99.999% (or more!) of the time the code would just work as it 
+> > always has and there is no bug and no speed impact.  Only in the very rare 
+> > and hard to trigger race condition that the user space page after being 
+> > faulted in got thrown out again before we did the atomic memory copy do we 
+> > run into the above "..." code path.
 > 
-> Race condition remains.
+> Right.  And what I wanted to do here is to zero out the uncopied part of
+> the page (if it wasn't uptodate), then run commit_write(), then retry the
+> whole thing.
+> 
+> iirc, we ruled that out because those temporary zeroes are exposed to
+> userspace.  But the kernel used to do that anyway for a long time (years)
+> until someone noticed, and we'll only do it in your 0.0001% case anyway.
 
-No, not in a million years.
+Serious? I'd rather leave the deadlock in there than introduce a
+very hard to reproduce data corruption bug to fix it. At least the
+deadlock is fail-stop and you can tell exactly what happened when
+you hit it (assuming you can get a trace).
+
+Then again, we've got lots more similar little correctness corner
+cases like this that most people don't notice most of the time. Am
+I aiming too high?
+
+> (Actually, perhaps we can prevent it by not marking the page uptodate in
+> this case.  But that'll cause a read()er to try to bring it uptodate...)
+
+We have to write something back to the filesystem because it may have
+allocated blocks at this point.
+
+> > I would propose to call out a different function altogether which could do 
+> > a multitude of things including drop the lock on the destination page 
+> > (maintaining a reference on the page!), allocate a temporary page, copy 
+> > from the user space page into the temporary page, then lock the 
+> > destination page again, and copy from the temporary page into the 
+> > destination page.
+> 
+> The problem with all these things is that as soon as we unlock the page,
+> it's visible to read().  And in fact, as soon as we mark it uptodate it's
+> visible to mmap, even if it's still locked.
+> 
+> > This would be slow but who cares given it would only happen incredibly 
+> > rarely and on majority of machines it would never happen at all.
+> > 
+> > The only potential problem I can see is that the destination page could be 
+> > truncated whilst it is unlocked.  I can see two possible solutions to 
+> > this:
+> 
+> truncate's OK: we're holding i_mutex.
+
+Not all truncates hold i_mutex. Neither do all invalidates, for that
+matter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
