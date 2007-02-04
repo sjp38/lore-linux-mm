@@ -1,282 +1,62 @@
-From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20070204063833.23659.55105.sendpatchset@linux.site>
-In-Reply-To: <20070204063707.23659.20741.sendpatchset@linux.site>
+Date: Sun, 4 Feb 2007 01:44:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
+Message-Id: <20070204014445.88e6c8c7.akpm@linux-foundation.org>
+In-Reply-To: <20070204063833.23659.55105.sendpatchset@linux.site>
 References: <20070204063707.23659.20741.sendpatchset@linux.site>
-Subject: [patch 9/9] mm: fix pagecache write deadlocks
-Date: Sun,  4 Feb 2007 09:51:07 +0100 (CET)
+	<20070204063833.23659.55105.sendpatchset@linux.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Modify the core write() code so that it won't take a pagefault while holding a
-lock on the pagecache page. There are a number of different deadlocks possible
-if we try to do such a thing:
+On Sun,  4 Feb 2007 09:51:07 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
 
-1.  generic_buffered_write
-2.   lock_page
-3.    prepare_write
-4.     unlock_page+vmtruncate
-5.     copy_from_user
-6.      mmap_sem(r)
-7.       handle_mm_fault
-8.        lock_page (filemap_nopage)
-9.    commit_write
-10.  unlock_page
+> 2.  If we find the destination page is non uptodate, unlock it (this could be
+>     made slightly more optimal), then find and pin the source page with
+>     get_user_pages. Relock the destination page and continue with the copy.
+>     However, instead of a usercopy (which might take a fault), copy the data
+>     via the kernel address space.
 
-a. sys_munmap / sys_mlock / others
-b.  mmap_sem(w)
-c.   make_pages_present
-d.    get_user_pages
-e.     handle_mm_fault
-f.      lock_page (filemap_nopage)
+argh.  We just can't go adding all this gunk into the write() path. 
 
-2,8	- recursive deadlock if page is same
-2,8;2,8	- ABBA deadlock is page is different
-2,6;b,f	- ABBA deadlock if page is same
+mmap_sem, a full pte-walk, taking of pte-page locks, etc.  For every page. 
+Even single-process write() will suffer, let along multithreaded stuff,
+where mmap_sem contention may be the bigger problem.
 
-The solution is as follows:
-1.  If we find the destination page is uptodate, continue as normal, but use
-    atomic usercopies which do not take pagefaults and do not zero the uncopied
-    tail of the destination. The destination is already uptodate, so we can
-    commit_write the full length even if there was a partial copy: it does not
-    matter that the tail was not modified, because if it is dirtied and written
-    back to disk it will not cause any problems (uptodate *means* that the
-    destination page is as new or newer than the copy on disk).
+I was going to do some quick measurements of this, but the code oopses
+on power4 (http://userweb.kernel.org/~akpm/s5000402.jpg)
 
-1a. The above requires that fault_in_pages_readable correctly returns access
-    information, because atomic usercopies cannot distinguish between
-    non-present pages in a readable mapping, from lack of a readable mapping.
+There's a build error in filemap_xip.c btw.
 
-2.  If we find the destination page is non uptodate, unlock it (this could be
-    made slightly more optimal), then find and pin the source page with
-    get_user_pages. Relock the destination page and continue with the copy.
-    However, instead of a usercopy (which might take a fault), copy the data
-    via the kernel address space.
 
-(also, rename maxlen to seglen, because it was confusing)
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+We need to think different.
 
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -2052,11 +2052,12 @@ generic_file_buffered_write(struct kiocb
- 	filemap_set_next_iovec(&cur_iov, nr_segs, &iov_offset, written);
- 
- 	do {
-+		struct page *src_page;
- 		struct page *page;
- 		pgoff_t index;		/* Pagecache index for current page */
- 		unsigned long offset;	/* Offset into pagecache page */
--		unsigned long maxlen;	/* Bytes remaining in current iovec */
--		size_t bytes;		/* Bytes to write to page */
-+		unsigned long seglen;	/* Bytes remaining in current iovec */
-+		unsigned long bytes;	/* Bytes to write to page */
- 		size_t copied;		/* Bytes copied from user */
- 
- 		buf = cur_iov->iov_base + iov_offset;
-@@ -2066,20 +2067,30 @@ generic_file_buffered_write(struct kiocb
- 		if (bytes > count)
- 			bytes = count;
- 
--		maxlen = cur_iov->iov_len - iov_offset;
--		if (maxlen > bytes)
--			maxlen = bytes;
-+		/*
-+		 * a non-NULL src_page indicates that we're doing the
-+		 * copy via get_user_pages and kmap.
-+		 */
-+		src_page = NULL;
-+
-+		seglen = cur_iov->iov_len - iov_offset;
-+		if (seglen > bytes)
-+			seglen = bytes;
- 
--#ifndef CONFIG_DEBUG_VM
- 		/*
- 		 * Bring in the user page that we will copy from _first_.
- 		 * Otherwise there's a nasty deadlock on copying from the
- 		 * same page as we're writing to, without it being marked
- 		 * up-to-date.
-+		 *
-+		 * Not only is this an optimisation, but it is also required
-+		 * to check that the address is actually valid, when atomic
-+		 * usercopies are used, below.
- 		 */
--		fault_in_pages_readable(buf, maxlen);
--#endif
--
-+		if (unlikely(fault_in_pages_readable(buf, seglen))) {
-+			status = -EFAULT;
-+			break;
-+		}
- 
- 		page = __grab_cache_page(mapping, index);
- 		if (!page) {
-@@ -2087,32 +2098,94 @@ generic_file_buffered_write(struct kiocb
- 			break;
- 		}
- 
-+		/*
-+		 * non-uptodate pages cannot cope with short copies, and we
-+		 * cannot take a pagefault with the destination page locked.
-+		 * So pin the source page to copy it.
-+		 */
-+		if (!PageUptodate(page)) {
-+			unlock_page(page);
-+
-+			bytes = min(bytes, PAGE_CACHE_SIZE -
-+				     ((unsigned long)buf & ~PAGE_CACHE_MASK));
-+
-+			/*
-+			 * Cannot get_user_pages with a page locked for the
-+			 * same reason as we can't take a page fault with a
-+			 * page locked (as explained below).
-+			 */
-+			down_read(&current->mm->mmap_sem);
-+			status = get_user_pages(current, current->mm,
-+					(unsigned long)buf & PAGE_CACHE_MASK, 1,
-+					0, 0, &src_page, NULL);
-+			up_read(&current->mm->mmap_sem);
-+			if (status != 1) {
-+				page_cache_release(page);
-+				break;
-+			}
-+
-+			lock_page(page);
-+			if (!page->mapping) {
-+				unlock_page(page);
-+				page_cache_release(page);
-+				page_cache_release(src_page);
-+				continue;
-+			}
-+
-+		}
-+
- 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
- 		if (unlikely(status))
- 			goto fs_write_aop_error;
- 
--		copied = filemap_copy_from_user(page, offset,
-+		if (!src_page) {
-+			/*
-+			 * Must not enter the pagefault handler here, because
-+			 * we hold the page lock, so we might recursively
-+			 * deadlock on the same lock, or get an ABBA deadlock
-+			 * against a different lock, or against the mmap_sem
-+			 * (which nests outside the page lock).  So increment
-+			 * preempt count, and use _atomic usercopies.
-+			 *
-+			 * The page is uptodate so we are OK to encounter a
-+			 * short copy: if unmodified parts of the page are
-+			 * marked dirty and written out to disk, it doesn't
-+			 * really matter.
-+			 */
-+			pagefault_disable();
-+			copied = filemap_copy_from_user_atomic(page, offset,
- 					cur_iov, nr_segs, iov_offset, bytes);
-+			pagefault_enable();
-+		} else {
-+			char *src, *dst;
-+			src = kmap_atomic(src_page, KM_USER0);
-+			dst = kmap_atomic(page, KM_USER1);
-+			memcpy(dst + offset,
-+				src + ((unsigned long)buf & ~PAGE_CACHE_MASK),
-+				bytes);
-+			kunmap_atomic(dst, KM_USER1);
-+			kunmap_atomic(src, KM_USER0);
-+			copied = bytes;
-+		}
- 		flush_dcache_page(page);
- 
- 		status = a_ops->commit_write(file, page, offset, offset+bytes);
- 		if (unlikely(status < 0))
- 			goto fs_write_aop_error;
--		if (unlikely(copied != bytes)) {
--			status = -EFAULT;
--			goto fs_write_aop_error;
--		}
- 		if (unlikely(status > 0)) /* filesystem did partial write */
--			copied = status;
-+			copied = min_t(size_t, copied, status);
-+
-+		unlock_page(page);
-+		mark_page_accessed(page);
-+		page_cache_release(page);
-+		if (src_page)
-+			page_cache_release(src_page);
- 
- 		written += copied;
- 		count -= copied;
- 		pos += copied;
- 		filemap_set_next_iovec(&cur_iov, nr_segs, &iov_offset, copied);
- 
--		unlock_page(page);
--		mark_page_accessed(page);
--		page_cache_release(page);
- 		balance_dirty_pages_ratelimited(mapping);
- 		cond_resched();
- 		continue;
-@@ -2121,6 +2194,8 @@ fs_write_aop_error:
- 		if (status != AOP_TRUNCATED_PAGE)
- 			unlock_page(page);
- 		page_cache_release(page);
-+		if (src_page)
-+			page_cache_release(src_page);
- 
- 		/*
- 		 * prepare_write() may have instantiated a few blocks
-@@ -2133,7 +2208,6 @@ fs_write_aop_error:
- 			continue;
- 		else
- 			break;
--
- 	} while (count);
- 	*ppos = pos;
- 
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -198,6 +198,9 @@ static inline int fault_in_pages_writeab
- {
- 	int ret;
- 
-+	if (unlikely(size == 0))
-+		return 0;
-+
- 	/*
- 	 * Writing zeroes into userspace here is OK, because we know that if
- 	 * the zero gets there, we'll be overwriting it.
-@@ -217,19 +220,23 @@ static inline int fault_in_pages_writeab
- 	return ret;
- }
- 
--static inline void fault_in_pages_readable(const char __user *uaddr, int size)
-+static inline int fault_in_pages_readable(const char __user *uaddr, int size)
- {
- 	volatile char c;
- 	int ret;
- 
-+	if (unlikely(size == 0))
-+		return 0;
-+
- 	ret = __get_user(c, uaddr);
- 	if (ret == 0) {
- 		const char __user *end = uaddr + size - 1;
- 
- 		if (((unsigned long)uaddr & PAGE_MASK) !=
- 				((unsigned long)end & PAGE_MASK))
--		 	__get_user(c, end);
-+		 	ret = __get_user(c, end);
- 	}
-+	return ret;
- }
- 
- #endif /* _LINUX_PAGEMAP_H */
+What happened to the idea of doing an atomic copy into the non-uptodate
+page and handling it somehow?
+
+
+
+Another option might be to effectively pin the whole mm during the copy:
+
+	down_read(&current->mm->unpaging_lock);
+	get_user(addr);		/* Fault the page in */
+	...
+	copy_from_user()
+	up_read(&current->mm->unpaging_lock);
+
+then, anyone who wants to unmap pages from this mm requires
+write_lock(unpaging_lock).  So we know the results of that get_user()
+cannot be undone.
+
+Or perhaps something like this can be done on a per-vma basis.  Just
+something to tell the VM "hey, you're not allowed to unmap this page right
+now"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
