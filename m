@@ -1,169 +1,71 @@
-Date: Mon, 5 Feb 2007 12:52:45 -0800 (PST)
+Date: Mon, 5 Feb 2007 12:53:01 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070205205245.4500.64711.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070205205301.4500.41661.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 2/7] Add PageMlocked() page state bit and lru infrastructure
+Subject: [RFC 5/7] Consolidate new anonymous page code paths
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@osdl.org, Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Nigel Cunningham <nigel@nigel.suspend2.net>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Add PageMlocked() infrastructure
+Consolidate code to add an anonymous page in memory.c
 
-This adds a new PG_mlocked to mark pages that were taken off the LRU
-because they have a reference from a VM_LOCKED vma.
-
-Also add pagevec handling for returning mlocked pages to the LRU.
+There are two location in which we add anonymous pages. Both
+implement the same logic. Create a new function add_anon_page()
+to have a common code path.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: current/include/linux/page-flags.h
+Index: current/mm/memory.c
 ===================================================================
---- current.orig/include/linux/page-flags.h	2007-02-05 11:30:47.000000000 -0800
-+++ current/include/linux/page-flags.h	2007-02-05 11:33:00.000000000 -0800
-@@ -93,6 +93,7 @@
+--- current.orig/mm/memory.c	2007-02-05 12:31:49.000000000 -0800
++++ current/mm/memory.c	2007-02-05 12:32:34.000000000 -0800
+@@ -900,6 +900,17 @@ unsigned long zap_page_range(struct vm_a
+ }
  
- #define PG_readahead		20	/* Reminder to do read-ahead */
- 
-+#define PG_mlocked		21	/* Page is mlocked */
- 
- #if (BITS_PER_LONG > 32)
  /*
-@@ -235,6 +236,16 @@ static inline void SetPageUptodate(struc
- #define SetPageReadahead(page)	set_bit(PG_readahead, &(page)->flags)
- #define ClearPageReadahead(page) clear_bit(PG_readahead, &(page)->flags)
- 
-+/*
-+ * PageMlocked set means that the page was taken off the LRU because
-+ * a VM_LOCKED vma does exist. PageMlocked must be cleared before a
-+ * page is put back onto the LRU. PageMlocked is only modified
-+ * under the zone->lru_lock like PageLRU.
++ * Add a new anonymous page
 + */
-+#define PageMlocked(page)	test_bit(PG_mlocked, &(page)->flags)
-+#define SetPageMlocked(page)	set_bit(PG_mlocked, &(page)->flags)
-+#define ClearPageMlocked(page)	clear_bit(PG_mlocked, &(page)->flags)
-+
- struct page;	/* forward declaration */
- 
- extern void cancel_dirty_page(struct page *page, unsigned int account_size);
-Index: current/include/linux/pagevec.h
-===================================================================
---- current.orig/include/linux/pagevec.h	2007-02-05 11:30:47.000000000 -0800
-+++ current/include/linux/pagevec.h	2007-02-05 11:33:00.000000000 -0800
-@@ -25,6 +25,7 @@ void __pagevec_release_nonlru(struct pag
- void __pagevec_free(struct pagevec *pvec);
- void __pagevec_lru_add(struct pagevec *pvec);
- void __pagevec_lru_add_active(struct pagevec *pvec);
-+void __pagevec_lru_add_mlock(struct pagevec *pvec);
- void pagevec_strip(struct pagevec *pvec);
- unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
- 		pgoff_t start, unsigned nr_pages);
-Index: current/include/linux/swap.h
-===================================================================
---- current.orig/include/linux/swap.h	2007-02-05 11:30:47.000000000 -0800
-+++ current/include/linux/swap.h	2007-02-05 11:33:00.000000000 -0800
-@@ -181,6 +181,7 @@ extern unsigned int nr_free_pagecache_pa
- extern void FASTCALL(lru_cache_add(struct page *));
- extern void FASTCALL(lru_cache_add_active(struct page *));
- extern void FASTCALL(lru_cache_add_tail(struct page *));
-+extern void FASTCALL(lru_cache_add_mlock(struct page *));
- extern void FASTCALL(activate_page(struct page *));
- extern void FASTCALL(mark_page_accessed(struct page *));
- extern void lru_add_drain(void);
-Index: current/mm/swap.c
-===================================================================
---- current.orig/mm/swap.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/swap.c	2007-02-05 11:33:00.000000000 -0800
-@@ -178,6 +178,7 @@ EXPORT_SYMBOL(mark_page_accessed);
- static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
- static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
- static DEFINE_PER_CPU(struct pagevec, lru_add_tail_pvecs) = { 0, };
-+static DEFINE_PER_CPU(struct pagevec, lru_add_mlock_pvecs) = { 0, };
- 
- void fastcall lru_cache_add(struct page *page)
- {
-@@ -199,6 +200,16 @@ void fastcall lru_cache_add_active(struc
- 	put_cpu_var(lru_add_active_pvecs);
- }
- 
-+void fastcall lru_cache_add_mlock(struct page *page)
++static void add_anon_page(struct vm_area_struct *vma, struct page *page,
++				unsigned long address)
 +{
-+	struct pagevec *pvec = &get_cpu_var(lru_add_mlock_pvecs);
-+
-+	page_cache_get(page);
-+	if (!pagevec_add(pvec, page))
-+		__pagevec_lru_add_mlock(pvec);
-+	put_cpu_var(lru_add_mlock_pvecs);
++	inc_mm_counter(vma->vm_mm, anon_rss);
++	lru_cache_add_active(page);
++	page_add_new_anon_rmap(page, vma, address);
 +}
 +
- static void __pagevec_lru_add_tail(struct pagevec *pvec)
- {
- 	int i;
-@@ -237,6 +248,9 @@ static void __lru_add_drain(int cpu)
- 	pvec = &per_cpu(lru_add_tail_pvecs, cpu);
- 	if (pagevec_count(pvec))
- 		__pagevec_lru_add_tail(pvec);
-+	pvec = &per_cpu(lru_add_mlock_pvecs, cpu);
-+	if (pagevec_count(pvec))
-+		__pagevec_lru_add_mlock(pvec);
- }
- 
- void lru_add_drain(void)
-@@ -394,6 +408,7 @@ void __pagevec_lru_add(struct pagevec *p
- 			spin_lock_irq(&zone->lru_lock);
- 		}
- 		VM_BUG_ON(PageLRU(page));
-+		VM_BUG_ON(PageMlocked(page));
- 		SetPageLRU(page);
- 		add_page_to_inactive_list(zone, page);
- 	}
-@@ -423,6 +438,7 @@ void __pagevec_lru_add_active(struct pag
- 		VM_BUG_ON(PageLRU(page));
- 		SetPageLRU(page);
- 		VM_BUG_ON(PageActive(page));
-+		VM_BUG_ON(PageMlocked(page));
- 		SetPageActive(page);
- 		add_page_to_active_list(zone, page);
- 	}
-@@ -432,6 +448,36 @@ void __pagevec_lru_add_active(struct pag
- 	pagevec_reinit(pvec);
- }
- 
-+void __pagevec_lru_add_mlock(struct pagevec *pvec)
-+{
-+	int i;
-+	struct zone *zone = NULL;
-+
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		struct zone *pagezone = page_zone(page);
-+
-+		if (pagezone != zone) {
-+			if (zone)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = pagezone;
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+		BUG_ON(PageLRU(page));
-+		if (!PageMlocked(page))
-+			continue;
-+		ClearPageMlocked(page);
-+		smp_wmb();
-+		__dec_zone_state(zone, NR_MLOCK);
-+		SetPageLRU(page);
-+		add_page_to_active_list(zone, page);
-+	}
-+	if (zone)
-+		spin_unlock_irq(&zone->lru_lock);
-+	release_pages(pvec->pages, pvec->nr, pvec->cold);
-+	pagevec_reinit(pvec);
-+}
-+
- /*
-  * Function used uniquely to put pages back to the lru at the end of the
-  * inactive list to preserve the lru order. Currently only used by swap
++/*
+  * Do a quick page-table lookup for a single page.
+  */
+ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+@@ -2103,9 +2114,7 @@ static int do_anonymous_page(struct mm_s
+ 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		if (!pte_none(*page_table))
+ 			goto release;
+-		inc_mm_counter(mm, anon_rss);
+-		lru_cache_add_active(page);
+-		page_add_new_anon_rmap(page, vma, address);
++		add_anon_page(vma, page, address);
+ 	} else {
+ 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
+ 		page = ZERO_PAGE(address);
+@@ -2249,11 +2258,9 @@ retry:
+ 		if (write_access)
+ 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 		set_pte_at(mm, address, page_table, entry);
+-		if (anon) {
+-			inc_mm_counter(mm, anon_rss);
+-			lru_cache_add_active(new_page);
+-			page_add_new_anon_rmap(new_page, vma, address);
+-		} else {
++		if (anon)
++			add_anon_page(vma, new_page, address);
++		else {
+ 			inc_mm_counter(mm, file_rss);
+ 			page_add_file_rmap(new_page);
+ 			if (write_access) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
