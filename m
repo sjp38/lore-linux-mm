@@ -1,98 +1,98 @@
-Date: Mon, 5 Feb 2007 12:52:50 -0800 (PST)
+Date: Mon, 5 Feb 2007 12:52:40 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070205205250.4500.8247.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070205205240.4500.86694.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 3/7] Add NR_MLOCK ZVC
+Subject: [RFC 1/7] Make try_to_unmap return a special exit code
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Nigel Cunningham <nigel@nigel.suspend2.net>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Basic infrastructure to support NR_MLOCK
+[PATCH] Make try_to_unmap() return SWAP_MLOCK for mlocked pages
 
-Add a new ZVC to support NR_MLOCK. NR_MLOCK counts the number of
-mlocked pages taken off the LRU. Get rid of wrong calculation
-of cache line size in mmzone.h.
+Modify try_to_unmap() so that we can distinguish failing to
+unmap due to a mlocked page from other causes.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: current/drivers/base/node.c
+Index: current/include/linux/rmap.h
 ===================================================================
---- current.orig/drivers/base/node.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/drivers/base/node.c	2007-02-05 11:39:26.000000000 -0800
-@@ -60,6 +60,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d FilePages:    %8lu kB\n"
- 		       "Node %d Mapped:       %8lu kB\n"
- 		       "Node %d AnonPages:    %8lu kB\n"
-+		       "Node %d Mlock:        %8lu KB\n"
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d NFS_Unstable: %8lu kB\n"
- 		       "Node %d Bounce:       %8lu kB\n"
-@@ -82,6 +83,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(nid, NR_MLOCK)),
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-Index: current/fs/proc/proc_misc.c
-===================================================================
---- current.orig/fs/proc/proc_misc.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/fs/proc/proc_misc.c	2007-02-05 11:39:26.000000000 -0800
-@@ -166,6 +166,7 @@ static int meminfo_read_proc(char *page,
- 		"Writeback:    %8lu kB\n"
- 		"AnonPages:    %8lu kB\n"
- 		"Mapped:       %8lu kB\n"
-+		"Mlock:        %8lu KB\n"
- 		"Slab:         %8lu kB\n"
- 		"SReclaimable: %8lu kB\n"
- 		"SUnreclaim:   %8lu kB\n"
-@@ -196,6 +197,7 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
-+		K(global_page_state(NR_MLOCK)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
-Index: current/include/linux/mmzone.h
-===================================================================
---- current.orig/include/linux/mmzone.h	2007-02-05 11:30:47.000000000 -0800
-+++ current/include/linux/mmzone.h	2007-02-05 11:45:12.000000000 -0800
-@@ -47,17 +47,16 @@ struct zone_padding {
- #endif
+--- current.orig/include/linux/rmap.h	2007-02-03 10:24:47.000000000 -0800
++++ current/include/linux/rmap.h	2007-02-03 10:25:08.000000000 -0800
+@@ -134,5 +134,6 @@ static inline int page_mkclean(struct pa
+ #define SWAP_SUCCESS	0
+ #define SWAP_AGAIN	1
+ #define SWAP_FAIL	2
++#define SWAP_MLOCK	3
  
- enum zone_stat_item {
--	/* First 128 byte cacheline (assuming 64 bit words) */
- 	NR_FREE_PAGES,
- 	NR_INACTIVE,
- 	NR_ACTIVE,
-+	NR_MLOCK,	/* Mlocked pages */
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
- 	NR_FILE_PAGES,
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
--	/* Second 128 byte cacheline */
- 	NR_SLAB_RECLAIMABLE,
- 	NR_SLAB_UNRECLAIMABLE,
- 	NR_PAGETABLE,		/* used for pagetables */
-Index: current/mm/vmstat.c
+ #endif	/* _LINUX_RMAP_H */
+Index: current/mm/rmap.c
 ===================================================================
---- current.orig/mm/vmstat.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/vmstat.c	2007-02-05 11:43:38.000000000 -0800
-@@ -434,6 +434,7 @@ static const char * const vmstat_text[] 
- 	"nr_free_pages",
- 	"nr_active",
- 	"nr_inactive",
-+	"nr_mlock",
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
+--- current.orig/mm/rmap.c	2007-02-03 10:24:47.000000000 -0800
++++ current/mm/rmap.c	2007-02-03 10:25:08.000000000 -0800
+@@ -631,10 +631,16 @@ static int try_to_unmap_one(struct page 
+ 	 * If it's recently referenced (perhaps page_referenced
+ 	 * skipped over this mm) then we should reactivate it.
+ 	 */
+-	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
+-			(ptep_clear_flush_young(vma, address, pte)))) {
+-		ret = SWAP_FAIL;
+-		goto out_unmap;
++	if (!migration) {
++		if (vma->vm_flags & VM_LOCKED) {
++			ret = SWAP_MLOCK;
++			goto out_unmap;
++		}
++
++		if (ptep_clear_flush_young(vma, address, pte)) {
++			ret = SWAP_FAIL;
++			goto out_unmap;
++		}
+ 	}
+ 
+ 	/* Nuke the page table entry. */
+@@ -799,7 +805,8 @@ static int try_to_unmap_anon(struct page
+ 
+ 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+ 		ret = try_to_unmap_one(page, vma, migration);
+-		if (ret == SWAP_FAIL || !page_mapped(page))
++		if (ret == SWAP_FAIL || ret == SWAP_MLOCK ||
++				!page_mapped(page))
+ 			break;
+ 	}
+ 	spin_unlock(&anon_vma->lock);
+@@ -830,7 +837,8 @@ static int try_to_unmap_file(struct page
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		ret = try_to_unmap_one(page, vma, migration);
+-		if (ret == SWAP_FAIL || !page_mapped(page))
++		if (ret == SWAP_FAIL || ret == SWAP_MLOCK ||
++				!page_mapped(page))
+ 			goto out;
+ 	}
+ 
+@@ -913,6 +921,7 @@ out:
+  * SWAP_SUCCESS	- we succeeded in removing all mappings
+  * SWAP_AGAIN	- we missed a mapping, try again later
+  * SWAP_FAIL	- the page is unswappable
++ * SWAP_MLOCK	- the page is under mlock()
+  */
+ int try_to_unmap(struct page *page, int migration)
+ {
+Index: current/mm/vmscan.c
+===================================================================
+--- current.orig/mm/vmscan.c	2007-02-03 10:25:00.000000000 -0800
++++ current/mm/vmscan.c	2007-02-03 10:25:12.000000000 -0800
+@@ -516,6 +516,7 @@ static unsigned long shrink_page_list(st
+ 		if (page_mapped(page) && mapping) {
+ 			switch (try_to_unmap(page, 0)) {
+ 			case SWAP_FAIL:
++			case SWAP_MLOCK:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+ 				goto keep_locked;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
