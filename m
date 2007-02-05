@@ -1,6 +1,6 @@
-Subject: [RFC][PATCH 1/5] RSS accounting setup
-Message-Id: <20070205132408.0E9281B676@openx4.frec.bull.fr>
-Date: Mon, 5 Feb 2007 14:24:08 +0100 (CET)
+Subject: [RFC][PATCH 2/5] RSS accounting callbacks
+Message-Id: <20070205132529.367C91B676@openx4.frec.bull.fr>
+Date: Mon, 5 Feb 2007 14:25:29 +0100 (CET)
 From: Patrick.Le-Dot@bull.net (Patrick.Le-Dot)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -8,185 +8,93 @@ To: ckrm-tech@lists.sourceforge.net
 Cc: balbir@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-Basic setup for a memory controller written for resource groups.
-This patch registers a dummy controller.
+Add callbacks to allocate and free instances of the controller.
 
 Signed-off-by: Patrick Le Dot <Patrick.Le-Dot@bull.net>
 ---
 
- include/linux/memctlr.h    |   33 +++++++++++++++
- init/Kconfig               |   11 +++++
- kernel/res_group/Makefile  |    1
- kernel/res_group/memctlr.c |   98 +++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 143 insertions(+)
+ kernel/res_group/memctlr.c |   57 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 files changed, 54 insertions(+), 3 deletions(-)
 
-diff -puN /dev/null b/include/linux/memctlr.h
---- /dev/null	2004-02-23 22:02:56.000000000 +0100
-+++ b/include/linux/memctlr.h	2006-12-08 07:25:42.000000000 +0100
-@@ -0,0 +1,33 @@
-+/*
-+ * Memory controller - "Resource Groups Memory Usage Accounting"
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2006
-+ * Copyright (C) BULL SAS, 2006
-+ *
-+ * Author: Balbir Singh <balbir@in.ibm.com>
-+ *         Patrick Le Dot <Patrick.Le-Dot@bull.net>
-+ *
-+ */
-+
-+#ifndef _LINUX_MEMCTRL_H
-+#define _LINUX_MEMCTRL_H
-+
-+#ifdef CONFIG_RES_GROUPS_MEMORY
-+#include <linux/res_group_rc.h>
-+#endif /* CONFIG_RES_GROUPS_MEMORY */
-+
-+#endif /* _LINUX_MEMCTRL_H */
-diff -puN a/init/Kconfig b/init/Kconfig
---- a/init/Kconfig	2006-12-08 07:10:24.000000000 +0100
-+++ b/init/Kconfig	2006-12-08 07:11:54.000000000 +0100
-@@ -332,6 +332,17 @@ config RES_GROUPS_NUMTASKS
+diff -puN a/kernel/res_group/memctlr.c b/kernel/res_group/memctlr.c
+--- a/kernel/res_group/memctlr.c	2006-12-08 09:34:49.000000000 +0100
++++ b/kernel/res_group/memctlr.c	2006-12-08 09:44:15.000000000 +0100
+@@ -37,6 +37,8 @@
  
- 	  Say N if unsure, Y to use the feature.
+ static const char res_ctlr_name[] = "memctlr";
+ static struct resource_group *root_rgroup;
++static const char version[] = "0.01";
++static struct memctlr *memctlr_root;
  
-+config RES_GROUPS_MEMORY
-+	bool "Memory Controller for RSS"
-+	depends on RES_GROUPS
-+	default y
-+	help
-+	  Provides a Resource Controller for Resource Groups.
-+	  It limits the resident pages of the tasks belonging to the resource
-+	  group.
-+
-+	  Say N if unsure, Y to use the feature.
-+
- endmenu
- config SYSCTL
- 	bool
-diff -puN a/kernel/res_group/Makefile b/kernel/res_group/Makefile
---- a/kernel/res_group/Makefile	2006-12-08 07:10:24.000000000 +0100
-+++ b/kernel/res_group/Makefile	2006-12-08 07:11:03.000000000 +0100
-@@ -1,2 +1,3 @@
- obj-y = res_group.o shares.o rgcs.o
- obj-$(CONFIG_RES_GROUPS_NUMTASKS) += numtasks.o
-+obj-$(CONFIG_RES_GROUPS_MEMORY) += memctlr.o
-diff -puN /dev/null b/kernel/res_group/memctlr.c
---- /dev/null	2004-02-23 22:02:56.000000000 +0100
-+++ b/kernel/res_group/memctlr.c	2006-12-08 08:56:30.000000000 +0100
-@@ -0,0 +1,98 @@
-+/*
-+ * Memory controller - "Resource Groups Memory Usage Accounting"
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2006
-+ * Copyright (C) BULL SAS, 2006
-+ *
-+ * Author: Balbir Singh <balbir@in.ibm.com>
-+ *         Patrick Le Dot <Patrick.Le-Dot@bull.net>
-+ *
-+ */
-+
-+/*
-+ * Simple memory controller with a sane accounting.
-+ * First implementation : only pages in VMAs are concerned.
-+ * Limits and guarantees will be supported later.
-+ *
-+ * Tasks are group'ed virtually by thread groups - Add more details
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/res_group_rc.h>
-+#include <linux/memctlr.h>
-+
-+static const char res_ctlr_name[] = "memctlr";
-+static struct resource_group *root_rgroup;
-+
-+/*
-+ * this struct is used in mm_struct
-+ */
-+struct mem_counter {
-+	atomic_long_t	rss;	
-+};
-+
-+/*
-+ * one memctlr per group then counter is the group's rss value
-+ */
-+struct memctlr {
-+	struct res_shares shares;	/* My shares		  */
-+	struct mem_counter counter;	/* Accounting information */
-+};
-+
-+struct res_controller memctlr_rg;
-+
-+static struct memctlr *get_memctlr_from_shares(struct res_shares *shares)
+ /*
+  * this struct is used in mm_struct
+@@ -68,14 +70,63 @@ static struct memctlr *get_memctlr(struc
+ 								&memctlr_rg));
+ }
+ 
++static void memctlr_init_new(struct memctlr *res)
 +{
-+	if (shares)
-+		return container_of(shares, struct memctlr, shares);
-+	return NULL;
++	res->shares.min_shares = SHARE_DONT_CARE;
++	res->shares.max_shares = SHARE_DONT_CARE;
++	res->shares.child_shares_divisor = SHARE_DEFAULT_DIVISOR;
++	res->shares.unused_min_shares = SHARE_DEFAULT_DIVISOR;
 +}
 +
-+static struct memctlr *get_memctlr(struct resource_group *rgroup)
++static struct res_shares *memctlr_alloc_instance(struct resource_group *rgroup)
 +{
-+	return get_memctlr_from_shares(get_controller_shares(rgroup,
-+								&memctlr_rg));
++	struct memctlr *res;
++
++	res = kzalloc(sizeof(struct memctlr), GFP_KERNEL);
++	if (!res)
++		return NULL;
++	memctlr_init_new(res);
++	if (is_res_group_root(rgroup)) {
++		root_rgroup = rgroup;
++		memctlr_root = res;
++		printk("Memory Controller version %s\n", version);
++	}
++	return &res->shares;
 +}
 +
-+struct res_controller memctlr_rg = {
-+	.name = res_ctlr_name,
-+	.ctlr_id = NO_RES_ID,
-+	.alloc_shares_struct = NULL,
-+	.free_shares_struct = NULL,
-+	.move_task = NULL,
-+	.shares_changed = NULL,
-+	.show_stats = NULL,
-+};
-+
-+int __init memctlr_init(void)
++static void memctlr_free_instance(struct res_shares *shares)
 +{
-+	if (memctlr_rg.ctlr_id != NO_RES_ID)
-+		return -EBUSY;	/* already registered */
-+	return register_controller(&memctlr_rg);
++	struct memctlr *res;
++
++	res = get_memctlr_from_shares(shares);
++	BUG_ON(!res);
++	/*
++	 * Containers do not allow removal of groups that have tasks
++	 * associated with them. To free a container, it must be empty.
++	 * Handle transfer of charges in the move_task notification
++	 */
++	kfree(res);
 +}
 +
-+void __exit memctlr_exit(void)
++static ssize_t memctlr_show_stats(struct res_shares *shares, char *buf,
++					size_t len)
 +{
-+	int rc;
-+	do {
-+		rc = unregister_controller(&memctlr_rg);
-+	} while (rc == -EBUSY);
-+	BUG_ON(rc != 0);
++	int i = 0;
++
++	i += snprintf(buf, len, "Accounting will be added soon\n");
++	buf += i;
++	len -= i;
++	return i;
 +}
 +
-+module_init(memctlr_init);
-+module_exit(memctlr_exit);
+ struct res_controller memctlr_rg = {
+ 	.name = res_ctlr_name,
+ 	.ctlr_id = NO_RES_ID,
+-	.alloc_shares_struct = NULL,
+-	.free_shares_struct = NULL,
++	.alloc_shares_struct = memctlr_alloc_instance,
++	.free_shares_struct = memctlr_free_instance,
+ 	.move_task = NULL,
+ 	.shares_changed = NULL,
+-	.show_stats = NULL,
++	.show_stats = memctlr_show_stats,
+ };
+ 
+ int __init memctlr_init(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
