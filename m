@@ -1,150 +1,169 @@
-Date: Mon, 5 Feb 2007 12:52:56 -0800 (PST)
+Date: Mon, 5 Feb 2007 12:52:45 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070205205256.4500.22851.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070205205245.4500.64711.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 4/7] Logic to move mlocked pages
+Subject: [RFC 2/7] Add PageMlocked() page state bit and lru infrastructure
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Add logic to lazily remove/add mlocked pages from LRU
+Add PageMlocked() infrastructure
 
-This is the core of the patchset. It adds the necessary logic to
-remove mlocked pages from the LRU and put them back later. Basic idea
-by Andrew Morton and others.
+This adds a new PG_mlocked to mark pages that were taken off the LRU
+because they have a reference from a VM_LOCKED vma.
 
-During reclaim we attempt to unmap pages. In order to do so we have
-to scan all vmas that a page belongs to to check if VM_LOCKED is set.
-
-If we find that this is the case for a page then we remove the page from
-the LRU and mark it with SetMlocked so that we know that we need to put
-the page back to the LRU later should the mlocked state be cleared.
-
-We put the pages back in two places:
-
-zap_pte_range: 	Pages are removed from a vma. If a page is mlocked then we
-	add it back to the LRU. If other vmas with VM_LOCKED set have mapped
-	the page then we will discover that later during reclaim and move
-	the page off the LRU again.
-
-munlock/munlockall: We scan all pages in the vma and do the
-	same as in zap_pte_range.
-
-We also have to modify the page migration logic to handle PageMlocked
-pages. We simply clear the PageMlocked bit and then we can treat
-the page as a regular page from the LRU.
-
-Note that this is a lazy accounting for mlocked pages. NR_MLOCK may
-increase as the system discovers more mlocked pages. Some of the later
-patches opportunistically move pages off the LRU earlier avoiding
-some of the delayed accounting. However, the scheme is fundamentally
-lazy and one cannot count on NR_MLOCK to reflect the actual number of
-mlocked pages. It is the number of so far *discovered* mlocked pages
-which may be less than the actual number of mlocked pages.
+Also add pagevec handling for returning mlocked pages to the LRU.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: current/mm/memory.c
+Index: current/include/linux/page-flags.h
 ===================================================================
---- current.orig/mm/memory.c	2007-02-05 11:38:35.000000000 -0800
-+++ current/mm/memory.c	2007-02-05 11:57:28.000000000 -0800
-@@ -682,6 +682,8 @@ static unsigned long zap_pte_range(struc
- 				file_rss--;
- 			}
- 			page_remove_rmap(page, vma);
-+			if (PageMlocked(page) && vma->vm_flags & VM_LOCKED)
-+				lru_cache_add_mlock(page);
- 			tlb_remove_page(tlb, page);
- 			continue;
+--- current.orig/include/linux/page-flags.h	2007-02-05 11:30:47.000000000 -0800
++++ current/include/linux/page-flags.h	2007-02-05 11:33:00.000000000 -0800
+@@ -93,6 +93,7 @@
+ 
+ #define PG_readahead		20	/* Reminder to do read-ahead */
+ 
++#define PG_mlocked		21	/* Page is mlocked */
+ 
+ #if (BITS_PER_LONG > 32)
+ /*
+@@ -235,6 +236,16 @@ static inline void SetPageUptodate(struc
+ #define SetPageReadahead(page)	set_bit(PG_readahead, &(page)->flags)
+ #define ClearPageReadahead(page) clear_bit(PG_readahead, &(page)->flags)
+ 
++/*
++ * PageMlocked set means that the page was taken off the LRU because
++ * a VM_LOCKED vma does exist. PageMlocked must be cleared before a
++ * page is put back onto the LRU. PageMlocked is only modified
++ * under the zone->lru_lock like PageLRU.
++ */
++#define PageMlocked(page)	test_bit(PG_mlocked, &(page)->flags)
++#define SetPageMlocked(page)	set_bit(PG_mlocked, &(page)->flags)
++#define ClearPageMlocked(page)	clear_bit(PG_mlocked, &(page)->flags)
++
+ struct page;	/* forward declaration */
+ 
+ extern void cancel_dirty_page(struct page *page, unsigned int account_size);
+Index: current/include/linux/pagevec.h
+===================================================================
+--- current.orig/include/linux/pagevec.h	2007-02-05 11:30:47.000000000 -0800
++++ current/include/linux/pagevec.h	2007-02-05 11:33:00.000000000 -0800
+@@ -25,6 +25,7 @@ void __pagevec_release_nonlru(struct pag
+ void __pagevec_free(struct pagevec *pvec);
+ void __pagevec_lru_add(struct pagevec *pvec);
+ void __pagevec_lru_add_active(struct pagevec *pvec);
++void __pagevec_lru_add_mlock(struct pagevec *pvec);
+ void pagevec_strip(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+Index: current/include/linux/swap.h
+===================================================================
+--- current.orig/include/linux/swap.h	2007-02-05 11:30:47.000000000 -0800
++++ current/include/linux/swap.h	2007-02-05 11:33:00.000000000 -0800
+@@ -181,6 +181,7 @@ extern unsigned int nr_free_pagecache_pa
+ extern void FASTCALL(lru_cache_add(struct page *));
+ extern void FASTCALL(lru_cache_add_active(struct page *));
+ extern void FASTCALL(lru_cache_add_tail(struct page *));
++extern void FASTCALL(lru_cache_add_mlock(struct page *));
+ extern void FASTCALL(activate_page(struct page *));
+ extern void FASTCALL(mark_page_accessed(struct page *));
+ extern void lru_add_drain(void);
+Index: current/mm/swap.c
+===================================================================
+--- current.orig/mm/swap.c	2007-02-05 11:30:47.000000000 -0800
++++ current/mm/swap.c	2007-02-05 11:33:00.000000000 -0800
+@@ -178,6 +178,7 @@ EXPORT_SYMBOL(mark_page_accessed);
+ static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
+ static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
+ static DEFINE_PER_CPU(struct pagevec, lru_add_tail_pvecs) = { 0, };
++static DEFINE_PER_CPU(struct pagevec, lru_add_mlock_pvecs) = { 0, };
+ 
+ void fastcall lru_cache_add(struct page *page)
+ {
+@@ -199,6 +200,16 @@ void fastcall lru_cache_add_active(struc
+ 	put_cpu_var(lru_add_active_pvecs);
+ }
+ 
++void fastcall lru_cache_add_mlock(struct page *page)
++{
++	struct pagevec *pvec = &get_cpu_var(lru_add_mlock_pvecs);
++
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page))
++		__pagevec_lru_add_mlock(pvec);
++	put_cpu_var(lru_add_mlock_pvecs);
++}
++
+ static void __pagevec_lru_add_tail(struct pagevec *pvec)
+ {
+ 	int i;
+@@ -237,6 +248,9 @@ static void __lru_add_drain(int cpu)
+ 	pvec = &per_cpu(lru_add_tail_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+ 		__pagevec_lru_add_tail(pvec);
++	pvec = &per_cpu(lru_add_mlock_pvecs, cpu);
++	if (pagevec_count(pvec))
++		__pagevec_lru_add_mlock(pvec);
+ }
+ 
+ void lru_add_drain(void)
+@@ -394,6 +408,7 @@ void __pagevec_lru_add(struct pagevec *p
+ 			spin_lock_irq(&zone->lru_lock);
  		}
-Index: current/mm/migrate.c
-===================================================================
---- current.orig/mm/migrate.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/migrate.c	2007-02-05 11:47:23.000000000 -0800
-@@ -58,6 +58,11 @@ int isolate_lru_page(struct page *page, 
- 			else
- 				del_page_from_inactive_list(zone, page);
- 			list_add_tail(&page->lru, pagelist);
-+		} else
-+		if (PageMlocked(page)) {
-+			get_page(page);
-+			ClearPageMlocked(page);
-+			list_add_tail(&page->lru, pagelist);
- 		}
- 		spin_unlock_irq(&zone->lru_lock);
+ 		VM_BUG_ON(PageLRU(page));
++		VM_BUG_ON(PageMlocked(page));
+ 		SetPageLRU(page);
+ 		add_page_to_inactive_list(zone, page);
  	}
-Index: current/mm/mlock.c
-===================================================================
---- current.orig/mm/mlock.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/mlock.c	2007-02-05 11:47:23.000000000 -0800
-@@ -10,7 +10,7 @@
- #include <linux/mm.h>
- #include <linux/mempolicy.h>
- #include <linux/syscalls.h>
--
-+#include <linux/swap.h>
- 
- static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 	unsigned long start, unsigned long end, unsigned int newflags)
-@@ -63,6 +63,24 @@ success:
- 		pages = -pages;
- 		if (!(newflags & VM_IO))
- 			ret = make_pages_present(start, end);
-+	} else {
-+		unsigned long addr;
-+
-+		/*
-+		 * We are clearing VM_LOCKED. Feed all pages back via
-+		 * to the LRU via lru_cache_add_mlock()
-+		 */
-+		for (addr = start; addr < end; addr += PAGE_SIZE) {
-+			/*
-+			 * No need to get a page reference. mmap_sem
-+			 * writelock is held.
-+			 */
-+			struct page *page = follow_page(vma, start, 0);
-+
-+			if (PageMlocked(page))
-+				lru_cache_add_mlock(page);
-+			cond_resched();
-+		}
- 	}
- 
- 	mm->locked_vm -= pages;
-Index: current/mm/vmscan.c
-===================================================================
---- current.orig/mm/vmscan.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/vmscan.c	2007-02-05 11:57:40.000000000 -0800
-@@ -516,10 +516,11 @@ static unsigned long shrink_page_list(st
- 		if (page_mapped(page) && mapping) {
- 			switch (try_to_unmap(page, 0)) {
- 			case SWAP_FAIL:
--			case SWAP_MLOCK:
- 				goto activate_locked;
- 			case SWAP_AGAIN:
- 				goto keep_locked;
-+			case SWAP_MLOCK:
-+				goto mlocked;
- 			case SWAP_SUCCESS:
- 				; /* try to free the page below */
- 			}
-@@ -594,6 +595,13 @@ free_it:
- 			__pagevec_release_nonlru(&freed_pvec);
- 		continue;
- 
-+mlocked:
-+		ClearPageActive(page);
-+		unlock_page(page);
-+		__inc_zone_page_state(page, NR_MLOCK);
-+		SetPageMlocked(page);
-+		continue;
-+
- activate_locked:
+@@ -423,6 +438,7 @@ void __pagevec_lru_add_active(struct pag
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 		VM_BUG_ON(PageActive(page));
++		VM_BUG_ON(PageMlocked(page));
  		SetPageActive(page);
- 		pgactivate++;
+ 		add_page_to_active_list(zone, page);
+ 	}
+@@ -432,6 +448,36 @@ void __pagevec_lru_add_active(struct pag
+ 	pagevec_reinit(pvec);
+ }
+ 
++void __pagevec_lru_add_mlock(struct pagevec *pvec)
++{
++	int i;
++	struct zone *zone = NULL;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		struct zone *pagezone = page_zone(page);
++
++		if (pagezone != zone) {
++			if (zone)
++				spin_unlock_irq(&zone->lru_lock);
++			zone = pagezone;
++			spin_lock_irq(&zone->lru_lock);
++		}
++		BUG_ON(PageLRU(page));
++		if (!PageMlocked(page))
++			continue;
++		ClearPageMlocked(page);
++		smp_wmb();
++		__dec_zone_state(zone, NR_MLOCK);
++		SetPageLRU(page);
++		add_page_to_active_list(zone, page);
++	}
++	if (zone)
++		spin_unlock_irq(&zone->lru_lock);
++	release_pages(pvec->pages, pvec->nr, pvec->cold);
++	pagevec_reinit(pvec);
++}
++
+ /*
+  * Function used uniquely to put pages back to the lru at the end of the
+  * inactive list to preserve the lru order. Currently only used by swap
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
