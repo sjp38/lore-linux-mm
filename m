@@ -1,37 +1,117 @@
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id l16LhaQX028995
-	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 21:43:36 GMT
-Received: from wr-out-0506.google.com (wri71.prod.google.com [10.54.9.71])
-	by spaceape14.eur.corp.google.com with ESMTP id l16Lh5nd012754
-	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 21:43:35 GMT
-Received: by wr-out-0506.google.com with SMTP id 71so5085wri
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2007 13:43:35 -0800 (PST)
-Message-ID: <b040c32a0702061343g53d852bau3524d168eae490fd@mail.gmail.com>
-Date: Tue, 6 Feb 2007 13:43:26 -0800
-From: "Ken Chen" <kenchen@google.com>
-Subject: Re: hugetlb: preserve hugetlb pte dirty state
-In-Reply-To: <29495f1d0702061336ra41f060id52db9a1a26d47aa@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 7 Feb 2007 09:53:25 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: [RFC] Implement ->page_mkwrite for XFS
+Message-ID: <20070206225325.GP33919298@melbourne.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <b040c32a0702061306l771d2b71s719cee7cf4713e71@mail.gmail.com>
-	 <29495f1d0702061336ra41f060id52db9a1a26d47aa@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nish Aravamudan <nish.aravamudan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: xfs@oss.sgi.com
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/6/07, Nish Aravamudan <nish.aravamudan@gmail.com> wrote:
-> This fixes my bug with HugePages_Rsvd going to 2^64 - 1.
-> ("Hugepages_Rsvd goes huge in 2.6.20-rc7" is the subject on linux-mm).
-> Stable material, too, I would say.
+Folks,
 
-Wow, we hit the same bug in different ways, nice to hear that this
-patch fixed the problem you observed.
+I'm not sure of the exact locking rules and constraints for
+->page_mkwrite(), so I thought I better fish around for comments.
 
-- Ken
+With XFS, we need to hook pages being dirtied by mmap writes so that
+we can attach buffers of the correct state tothe pages.  This means
+that when we write them back, the correct thing happens.
+
+For example, if you mmap an unwritten extent (preallocated),
+currently your data will get written to disk but the extent will not
+get converted to a written extent. IOWs, you lose the data because
+when you read it back it will seen as unwritten and treated as a
+hole.
+
+AFAICT, it is safe to lock the page during ->page_mkwrite and that
+it is safe to issue I/O (e.g. metadata reads) to determine the
+current state of the file.  I am also assuming that, at this point,
+we are not allowed to change the file size and so we have to be
+careful in ->page_mkwrite we don't do that. What else have I missed
+here?
+
+IOWs, I've basically treated ->page_mkwrite() as wrapper for
+block_prepare_write/block_commit_write because they do all the
+buffer mapping and state manipulation I think is necessary.  Is it
+safe to call these functions, or are there some other constraints we
+have to work under here?
+
+Patch below. Comments?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
+
+
+---
+ fs/xfs/linux-2.6/xfs_file.c |   34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+Index: 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_file.c
+===================================================================
+--- 2.6.x-xfs-new.orig/fs/xfs/linux-2.6/xfs_file.c	2007-01-16 10:54:15.000000000 +1100
++++ 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_file.c	2007-02-07 09:49:00.508017483 +1100
+@@ -446,6 +446,38 @@ xfs_file_open_exec(
+ }
+ #endif /* HAVE_FOP_OPEN_EXEC */
+ 
++/*
++ * mmap()d file has taken write protection fault and is being made
++ * writable. We can set the page state up correctly for a writable
++ * page, which means we can do correct delalloc accounting (ENOSPC
++ * checking!) and unwritten extent mapping.
++ */
++STATIC int
++xfs_vm_page_mkwrite(
++	struct vm_area_struct	*vma,
++	struct page		*page)
++{
++	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
++	unsigned long	end;
++	int		ret = 0;
++
++	end = page->index + 1;
++	end <<= PAGE_CACHE_SHIFT;
++	if (end > i_size_read(inode))
++		end = i_size_read(inode) & ~PAGE_CACHE_MASK;
++	else
++		end = PAGE_CACHE_SIZE;
++
++	lock_page(page);
++	ret = block_prepare_write(page, 0, end, xfs_get_blocks);
++	if (!ret)
++		ret = block_commit_write(page, 0, end);
++	unlock_page(page);
++
++	return ret;
++}
++
++
+ const struct file_operations xfs_file_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= do_sync_read,
+@@ -503,12 +535,14 @@ const struct file_operations xfs_dir_fil
+ static struct vm_operations_struct xfs_file_vm_ops = {
+ 	.nopage		= filemap_nopage,
+ 	.populate	= filemap_populate,
++	.page_mkwrite	= xfs_vm_page_mkwrite,
+ };
+ 
+ #ifdef HAVE_DMAPI
+ static struct vm_operations_struct xfs_dmapi_file_vm_ops = {
+ 	.nopage		= xfs_vm_nopage,
+ 	.populate	= filemap_populate,
++	.page_mkwrite	= xfs_vm_page_mkwrite,
+ #ifdef HAVE_VMOP_MPROTECT
+ 	.mprotect	= xfs_vm_mprotect,
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
