@@ -1,59 +1,136 @@
-Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
-From: Anton Altaparmakov <aia21@cam.ac.uk>
-In-Reply-To: <20070206020916.GA31476@wotan.suse.de>
-References: <20070204063707.23659.20741.sendpatchset@linux.site>
-	 <20070204063833.23659.55105.sendpatchset@linux.site>
-	 <20070204014445.88e6c8c7.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0702041036420.24838@hermes-1.csi.cam.ac.uk>
-	 <20070204031039.46b56dbb.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0702041737110.19190@hermes-1.csi.cam.ac.uk>
-	 <20070206020916.GA31476@wotan.suse.de>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l16FuNqs024207
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 10:56:23 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l16FuNU8548902
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 08:56:23 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l16FuMVf029565
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 08:56:23 -0700
+Subject: Re: [RFC/PATCH] prepare_unmapped_area
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <1170738296.2620.220.camel@localhost.localdomain>
+References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net>
+	 <1170736938.2620.213.camel@localhost.localdomain>
+	 <20070206044516.GA16647@wotan.suse.de>
+	 <1170738296.2620.220.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Tue, 06 Feb 2007 13:13:06 +0000
-Message-Id: <1170767587.12042.4.camel@imp.csi.cam.ac.uk>
+Date: Tue, 06 Feb 2007 09:56:20 -0600
+Message-Id: <1170777380.26117.28.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>, hch@infradead.org, "David C. Hansen [imap]" <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-02-06 at 03:09 +0100, Nick Piggin wrote:
-> On Sun, Feb 04, 2007 at 05:40:35PM +0000, Anton Altaparmakov wrote:
-> > On Sun, 4 Feb 2007, Andrew Morton wrote:
-> > > truncate's OK: we're holding i_mutex.
-> > 
-> > How about excluding readpage() (in addition to truncate if Nick is right  
-> > and some cases of truncate do not hold i_mutex) with an extra page flag as
-> > I proposed for truncate exclusion?  Then it would not matter that
-> > prepare_write might have allocated blocks and might expose stale data.    
-> > It would go to sleep and wait on the bit to be cleared instead of trying  
-> > to bring the page uptodate.  It can then lock the page and either find it 
-> > uptodate (because commit_write did it) or not and then bring it uptodate.
-> > 
-> > Then we could safely fault in the page, copy from it into a temporary 
-> > page, then lock the destination page again and copy into it.
-> > 
-> > This is getting more involved as a patch again...  )-:  But at least it   
-> > does not affect the common case except for having to check the new page 
-> > flag in every readpage() and truncate() call.  But at least the checks 
-> > could be with an "if (unlikely(newpageflag()))" so should not be too bad.
-> > 
-> > Have I missed anything this time?
+On Tue, 2007-02-06 at 16:04 +1100, Benjamin Herrenschmidt wrote:
+> Hi folks !
 > 
-> Yes. If you have a flag to exclude readpage(), then you must also
-> exclude filemap_nopage, in which case it is still deadlocky.
+> On Cell, I have, for performance reasons, a need to create special
+> mappings of SPEs that use a different page size as the system base page
+> size _and_ as the huge page size.
+> 
+> Due to the way the PowerPC memory management works, however, I can only
+> have one page size per "segment" of 256MB (or 1T) and thus after such a
+> mapping have been created in its own segment, I need to constraint
+> -other- vma's to stay out of that area.
+> 
+> This currently cannot be done with the existing arch hooks (because of
+> MAP_FIXED). However, the hugetlbfs code already has a hack in there to
+> do the exact same thing for huge pages. Thus, this patch moves that hack
+> into something that can be overriden by the architectures. This approach
+> was choosen as the less ugly of the uglies after discussing with Nick
+> Piggin. If somebody has a better idea, I'd love to hear it.
 
-Ouch, you are of course right.  )-:
+Hi Ben.  Would my patch from last Jan 31 entitled "[PATCH 5/6] Abstract
+is_hugepage_only_range" (attached for your convienence) solve this
+problem?
 
-Best regards,
+commit ef36c6c859d37ac40f0bd12d08f41f103ab76657
+Author: litke@us.ibm.com <aglitke@kernel.localdomain>
+Date:   Tue Jan 16 08:57:16 2007 -0800
 
-        Anton
+    Abstract is_hugepage_only_range
+    
+    Some architectures define regions of the address space that can be used
+    exclusively for either normal pages or hugetlb pages.  Currently,
+    prepare_hugepage_range() is used to validate an unmapped_area for use with
+    hugepages and is_hugepage_only_range() is used to validate an unmapped_area for
+    normal pages.
+    
+    Introduce a prepare_unmapped_area() file operation to abstract the validation
+    of unmapped areas.  If prepare_unmapped_area() is not specified, the default
+    behavior is to require the area to not overlap any "special" areas.
+    
+    Buh-bye to another is_file_hugepages() call.
+    
+    Signed-off-by: Adam Litke <agl@us.ibm.com>
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index b61592f..3eea7a5 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -561,6 +561,7 @@ const struct file_operations hugetlbfs_file_operations = {
+ 	.mmap			= hugetlbfs_file_mmap,
+ 	.fsync			= simple_sync_file,
+ 	.get_unmapped_area	= hugetlb_get_unmapped_area,
++	.prepare_unmapped_area	= prepare_hugepage_range,
+ };
+ 
+ static struct inode_operations hugetlbfs_dir_inode_operations = {
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 1410e53..853a4f4 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1094,6 +1094,7 @@ struct file_operations {
+ 	ssize_t (*sendfile) (struct file *, loff_t *, size_t, read_actor_t, void *);
+ 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
+ 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
++	int (*prepare_unmapped_area)(unsigned long addr, unsigned long len, pgoff_t pgoff);
+ 	int (*check_flags)(int);
+ 	int (*dir_notify)(struct file *filp, unsigned long arg);
+ 	int (*flock) (struct file *, int, struct file_lock *);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a5cb0a5..f8e0bd0 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1374,20 +1374,17 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ 		return -ENOMEM;
+ 	if (addr & ~PAGE_MASK)
+ 		return -EINVAL;
+-	if (file && is_file_hugepages(file))  {
+-		/*
+-		 * Check if the given range is hugepage aligned, and
+-		 * can be made suitable for hugepages.
+-		 */
+-		ret = prepare_hugepage_range(addr, len, pgoff);
+-	} else {
+-		/*
+-		 * Ensure that a normal request is not falling in a
+-		 * reserved hugepage range.  For some archs like IA-64,
+-		 * there is a separate region for hugepages.
+-		 */
++	/*
++	 * This file may only be able to be mapped into special areas of the
++	 * addess space (eg. hugetlb pages).  If prepare_unmapped_area() is
++	 * specified, use it to validate the selected range.  If not, just
++	 * make sure the range does not overlap any special ranges.
++	 */
++	if (file && file->f_op && file->f_op->prepare_unmapped_area)
++		ret = file->f_op->prepare_unmapped_area(addr, len, pgoff);
++	else
+ 		ret = is_hugepage_only_range(current->mm, addr, len);
+-	}
++
+ 	if (ret)
+ 		return -EINVAL;
+ 	return addr;
+
 -- 
-Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
-Unix Support, Computing Service, University of Cambridge, CB2 3QH, UK
-Linux NTFS maintainer, http://www.linux-ntfs.org/
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
