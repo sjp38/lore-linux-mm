@@ -1,30 +1,42 @@
-Date: Tue, 6 Feb 2007 06:53:28 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
-Message-ID: <20070206055328.GD16647@wotan.suse.de>
-References: <20070204104609.GA29943@wotan.suse.de> <20070204025602.a5f8c53a.akpm@linux-foundation.org> <20070204110317.GA9034@wotan.suse.de> <20070204031549.203f7b47.akpm@linux-foundation.org> <20070204151051.GB12771@wotan.suse.de> <20070204103620.33c24cad.akpm@linux-foundation.org> <20070206022549.GB31476@wotan.suse.de> <20070206044146.GA11856@wotan.suse.de> <20070205213006.0ea2d918.akpm@linux-foundation.org> <20070206054905.GC16647@wotan.suse.de>
+Date: Mon, 5 Feb 2007 21:58:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC/PATCH] prepare_unmapped_area
+Message-Id: <20070205215827.a1a8ccdd.akpm@linux-foundation.org>
+In-Reply-To: <1170740760.2620.222.camel@localhost.localdomain>
+References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net>
+	<1170736938.2620.213.camel@localhost.localdomain>
+	<20070206044516.GA16647@wotan.suse.de>
+	<1170738296.2620.220.camel@localhost.localdomain>
+	<20070205213130.308a8c76.akpm@linux-foundation.org>
+	<1170740760.2620.222.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070206054905.GC16647@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 06, 2007 at 06:49:05AM +0100, Nick Piggin wrote:
-> > - If the get_user() doesn't fault, and if we're copying from and to the
-> >   same page, we know that we've locked it, so nobody will be able to unmap
-> >   it while we're copying from it.
-> > 
-> > Close, but no cigar!  This is still vulnerable to Hugh's ab/ba deadlock
-> > scenario.
-> 
-> Yes I considered this too. Hard isn't it?
+On Tue, 06 Feb 2007 16:46:00 +1100 Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 
-BTW, there are two different abba deadlocks. It's all documented in the
-patch 9/9 description.
+> On Mon, 2007-02-05 at 21:31 -0800, Andrew Morton wrote:
+> > On Tue, 06 Feb 2007 16:04:56 +1100 Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+> > 
+> > > +#ifndef HAVE_ARCH_PREPARE_UNMAPPED_AREA
+> > > +int arch_prepare_unmapped_area(struct file *file, unsigned long addr,
+> > 
+> > __attribute__((weak)), please.
+> 
+> Not sure about that ... it will usually be inline, in fact, should be
+> static inline...
+> 
+
+Bah.  function calls are fast, mmap() is slow and ARCH_HAVE_FOO is fugly.
+
+Alternative: implement include/asm-*/arch-mmap.h and put the implementation
+in there.  That way, we can lose HAVE_ARCH_UNMAPPED_AREA and maybe a few other
+things too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
