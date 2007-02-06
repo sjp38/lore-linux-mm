@@ -1,97 +1,55 @@
-Date: Tue, 6 Feb 2007 09:31:03 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/3] fs: buffer don't PageUptodate without page locked
-Message-ID: <20070206083103.GB16965@wotan.suse.de>
-References: <20070206054925.21042.50546.sendpatchset@linux.site> <20070206054947.21042.32493.sendpatchset@linux.site> <20070206002140.4030a11f.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070206002140.4030a11f.akpm@linux-foundation.org>
+Message-ID: <45C842A0.8010804@yahoo.com.au>
+Date: Tue, 06 Feb 2007 19:56:00 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [patch 3/3] mm: make read_cache_page synchronous
+References: <20070206054925.21042.50546.sendpatchset@linux.site>	<20070206054957.21042.18724.sendpatchset@linux.site> <20070206002839.f02a47bc.akpm@linux-foundation.org>
+In-Reply-To: <20070206002839.f02a47bc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 06, 2007 at 12:21:40AM -0800, Andrew Morton wrote:
-> On Tue,  6 Feb 2007 09:02:23 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
+Andrew Morton wrote:
+> On Tue,  6 Feb 2007 09:02:33 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
 > 
-> > __block_write_full_page is calling SetPageUptodate without the page locked.
-> > This is unusual, but not incorrect, as PG_writeback is still set.
-> > 
-> > However with the previous patch, this is now a problem: so don't bother
-> > setting the page uptodate in this case (it is weird that the write path
-> > does such a thing anyway). Instead just leave it to the read side to bring
-> > the page uptodate when it notices that all buffers are uptodate.
-> > 
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > 
-> > Index: linux-2.6/fs/buffer.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/buffer.c
-> > +++ linux-2.6/fs/buffer.c
-> > @@ -1679,6 +1679,7 @@ static int __block_write_full_page(struc
-> >  	 */
-> >  	BUG_ON(PageWriteback(page));
-> >  	set_page_writeback(page);
-> > +	unlock_page(page);
-> >  
-> >  	do {
-> >  		struct buffer_head *next = bh->b_this_page;
-> > @@ -1688,7 +1689,6 @@ static int __block_write_full_page(struc
-> >  		}
-> >  		bh = next;
-> >  	} while (bh != head);
-> > -	unlock_page(page);
-> >  
-> >  	err = 0;
-> >  done:
 > 
-> Why this change?  Without looking at it too hard, it seems that if
-> submit_bh() completes synchronously, this thread can end up playing with
-> the buffers on a non-locked, non-PageWriteback page.  Someone else could
-> whip the buffers away and oops?
+>>Ensure pages are uptodate after returning from read_cache_page, which allows
+>>us to cut out most of the filesystem-internal PageUptodate_NoLock calls.
+> 
+> 
+> Normally it's good to rename functions when we change their behaviour, but
+> I guess any missed (or out-of-tree) filesystems will just end up doing a
+> pointless wait_on_page_locked() and will continue to work OK, yes?
 
-Hmm, it definitely shouldn't be there, it leaked in from another patch
-to bring partiy with the error handling...
+Yeah.
 
-Here is an updated patch.
+> 
+> 
+>>I didn't have a great look down the call chains, but this appears to fixes 7
+>>possible use-before uptodate in hfs, 2 in hfsplus, 1 in jfs, a few in ecryptfs,
+>>1 in jffs2, and a possible cleared data overwritten with readpage in block2mtd.
+>>All depending on whether the filler is async and/or can return with a !uptodate
+>>page.
+>>
+>>Also, a memory leak in sys_swapon().
+> 
+> 
+> Separate patch?
 
---
+Well its fixed by virtue of read_cache_page now correctly dropping the page
+refcount if it finds the page !uptodate, rather than any special logic I
+added.
 
-__block_write_full_page is calling SetPageUptodate without the page locked.
-This is unusual, but not incorrect, as PG_writeback is still set.
+I can do another patch though. No problem, I'll be resending the series after
+this round of feedback.
 
-However with the previous patch, this is now a problem: so don't bother
-setting the page uptodate in this case (it is weird that the write path
-does such a thing anyway). Instead just leave it to the read side to bring
-the page uptodate when it notices that all buffers are uptodate.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-
-Index: linux-2.6/fs/buffer.c
-===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -1698,17 +1698,8 @@ done:
- 		 * clean.  Someone wrote them back by hand with
- 		 * ll_rw_block/submit_bh.  A rare case.
- 		 */
--		int uptodate = 1;
--		do {
--			if (!buffer_uptodate(bh)) {
--				uptodate = 0;
--				break;
--			}
--			bh = bh->b_this_page;
--		} while (bh != head);
--		if (uptodate)
--			SetPageUptodate(page);
- 		end_page_writeback(page);
-+
- 		/*
- 		 * The page and buffer_heads can be released at any time from
- 		 * here on.
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
