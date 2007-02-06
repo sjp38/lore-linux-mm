@@ -1,45 +1,102 @@
-Date: Tue, 6 Feb 2007 05:41:46 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 9/9] mm: fix pagecache write deadlocks
-Message-ID: <20070206044146.GA11856@wotan.suse.de>
-References: <20070204014445.88e6c8c7.akpm@linux-foundation.org> <20070204101529.GA22004@wotan.suse.de> <20070204023055.2583fd65.akpm@linux-foundation.org> <20070204104609.GA29943@wotan.suse.de> <20070204025602.a5f8c53a.akpm@linux-foundation.org> <20070204110317.GA9034@wotan.suse.de> <20070204031549.203f7b47.akpm@linux-foundation.org> <20070204151051.GB12771@wotan.suse.de> <20070204103620.33c24cad.akpm@linux-foundation.org> <20070206022549.GB31476@wotan.suse.de>
+Subject: [RFC/PATCH] prepare_unmapped_area
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20070206044516.GA16647@wotan.suse.de>
+References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net>
+	 <1170736938.2620.213.camel@localhost.localdomain>
+	 <20070206044516.GA16647@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 06 Feb 2007 16:04:56 +1100
+Message-Id: <1170738296.2620.220.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070206022549.GB31476@wotan.suse.de>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: akpm@linux-foundation.org, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 06, 2007 at 03:25:49AM +0100, Nick Piggin wrote:
-> On Sun, Feb 04, 2007 at 10:36:20AM -0800, Andrew Morton wrote:
-> > On Sun, 4 Feb 2007 16:10:51 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > They're not likely to hit the deadlocks, either. Probability gets more
-> > > likely after my patch to lock the page in the fault path. But practially,
-> > > we could live without that too, because the data corruption it fixes is
-> > > very rare as well. Which is exactly what we've been doing quite happily
-> > > for most of 2.6, including all distro kernels (I think).
-> > 
-> > Thing is, an application which is relying on the contents of that page is
-> > already unreliable (or really peculiar), because it can get indeterminate
-> > results anyway.
-> 
-> Not necessarily -- they could read from one part of a page and write to
-> another. I see this as the biggest data corruption problem.
+Hi folks !
 
-And in fact, it is not just transient errors either. This problem can
-add permanent corruption into the pagecache and onto disk, and it doesn't
-even require two processes to race.
+On Cell, I have, for performance reasons, a need to create special
+mappings of SPEs that use a different page size as the system base page
+size _and_ as the huge page size.
 
-After zeroing out the uncopied part of the page, and attempting to loop
-again, we might bail out of the loop for any reason before completing the
-rest of the copy, leaving the pagecache corrupted, which will soon go out
-to disk.
+Due to the way the PowerPC memory management works, however, I can only
+have one page size per "segment" of 256MB (or 1T) and thus after such a
+mapping have been created in its own segment, I need to constraint
+-other- vma's to stay out of that area.
 
-Nick
+This currently cannot be done with the existing arch hooks (because of
+MAP_FIXED). However, the hugetlbfs code already has a hack in there to
+do the exact same thing for huge pages. Thus, this patch moves that hack
+into something that can be overriden by the architectures. This approach
+was choosen as the less ugly of the uglies after discussing with Nick
+Piggin. If somebody has a better idea, I'd love to hear it.
+
+If it doesn't shoke anybody to death, I'd like to see that in -mm (and
+possibly upstream, I don't know yet if my code using that will make
+2.6.21 or not, but it would be nice if the list of "dependent" patches
+wasn't 3 pages long anyway :-)
+
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
+
+Index: linux-cell/mm/mmap.c
+===================================================================
+--- linux-cell.orig/mm/mmap.c	2007-02-06 15:56:42.000000000 +1100
++++ linux-cell/mm/mmap.c	2007-02-06 15:59:23.000000000 +1100
+@@ -1353,6 +1353,28 @@ void arch_unmap_area_topdown(struct mm_s
+ 		mm->free_area_cache = mm->mmap_base;
+ }
+ 
++#ifndef HAVE_ARCH_PREPARE_UNMAPPED_AREA
++int arch_prepare_unmapped_area(struct file *file, unsigned long addr,
++			       unsigned long len, unsigned long pgoff,
++			       unsigned long flags)
++{
++	if (file && is_file_hugepages(file))  {
++		/*
++		 * Check if the given range is hugepage aligned, and
++		 * can be made suitable for hugepages.
++		 */
++		return prepare_hugepage_range(addr, len, pgoff);
++	} else {
++		/*
++		 * Ensure that a normal request is not falling in a
++		 * reserved hugepage range.  For some archs like IA-64,
++		 * there is a separate region for hugepages.
++		 */
++		return is_hugepage_only_range(current->mm, addr, len);
++	}
++}
++#endif /* HAVE_ARCH_PREPARE_UNMAPPED_AREA */
++
+ unsigned long
+ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ 		unsigned long pgoff, unsigned long flags)
+@@ -1374,20 +1396,7 @@ get_unmapped_area(struct file *file, uns
+ 		return -ENOMEM;
+ 	if (addr & ~PAGE_MASK)
+ 		return -EINVAL;
+-	if (file && is_file_hugepages(file))  {
+-		/*
+-		 * Check if the given range is hugepage aligned, and
+-		 * can be made suitable for hugepages.
+-		 */
+-		ret = prepare_hugepage_range(addr, len, pgoff);
+-	} else {
+-		/*
+-		 * Ensure that a normal request is not falling in a
+-		 * reserved hugepage range.  For some archs like IA-64,
+-		 * there is a separate region for hugepages.
+-		 */
+-		ret = is_hugepage_only_range(current->mm, addr, len);
+-	}
++	ret = arch_prepare_unmapped_area(file, addr, len, pgoff, flags);
+ 	if (ret)
+ 		return -EINVAL;
+ 	return addr;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
