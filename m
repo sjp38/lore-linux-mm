@@ -1,27 +1,35 @@
-Date: Mon, 5 Feb 2007 21:31:30 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC/PATCH] prepare_unmapped_area
-Message-Id: <20070205213130.308a8c76.akpm@linux-foundation.org>
-In-Reply-To: <1170738296.2620.220.camel@localhost.localdomain>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20070205213130.308a8c76.akpm@linux-foundation.org>
 References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net>
-	<1170736938.2620.213.camel@localhost.localdomain>
-	<20070206044516.GA16647@wotan.suse.de>
-	<1170738296.2620.220.camel@localhost.localdomain>
+	 <1170736938.2620.213.camel@localhost.localdomain>
+	 <20070206044516.GA16647@wotan.suse.de>
+	 <1170738296.2620.220.camel@localhost.localdomain>
+	 <20070205213130.308a8c76.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 06 Feb 2007 16:46:00 +1100
+Message-Id: <1170740760.2620.222.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nick Piggin <npiggin@suse.de>, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 06 Feb 2007 16:04:56 +1100 Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+On Mon, 2007-02-05 at 21:31 -0800, Andrew Morton wrote:
+> On Tue, 06 Feb 2007 16:04:56 +1100 Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+> 
+> > +#ifndef HAVE_ARCH_PREPARE_UNMAPPED_AREA
+> > +int arch_prepare_unmapped_area(struct file *file, unsigned long addr,
+> 
+> __attribute__((weak)), please.
 
-> +#ifndef HAVE_ARCH_PREPARE_UNMAPPED_AREA
-> +int arch_prepare_unmapped_area(struct file *file, unsigned long addr,
+Not sure about that ... it will usually be inline, in fact, should be
+static inline...
 
-__attribute__((weak)), please.
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
