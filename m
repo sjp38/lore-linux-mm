@@ -1,43 +1,68 @@
-Subject: Re: [RFC/PATCH] prepare_unmapped_area
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1170795164.26117.35.camel@localhost.localdomain>
-References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net>
-	 <1170736938.2620.213.camel@localhost.localdomain>
-	 <20070206044516.GA16647@wotan.suse.de>
-	 <1170738296.2620.220.camel@localhost.localdomain>
-	 <1170777380.26117.28.camel@localhost.localdomain>
-	 <1170792754.2620.244.camel@localhost.localdomain>
-	 <1170795164.26117.35.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Wed, 07 Feb 2007 08:02:53 +1100
-Message-Id: <1170795774.2620.255.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id l16L6nFF008188
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 21:06:49 GMT
+Received: from ug-out-1314.google.com (ugc30.prod.google.com [10.66.3.30])
+	by spaceape13.eur.corp.google.com with ESMTP id l16L6drB009003
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2007 21:06:40 GMT
+Received: by ug-out-1314.google.com with SMTP id 30so679ugc
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2007 13:06:39 -0800 (PST)
+Message-ID: <b040c32a0702061306l771d2b71s719cee7cf4713e71@mail.gmail.com>
+Date: Tue, 6 Feb 2007 13:06:39 -0800
+From: "Ken Chen" <kenchen@google.com>
+Subject: hugetlb: preserve hugetlb pte dirty state
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>, hch@infradead.org, "David C. Hansen [imap]" <haveblue@us.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Yeah, you're right... Former revisions of the patch created a function
-> called is_special_range() which for the moment only called
-> is_hugepage_only_range().  The thought was that other types of "special
-> ranges" could be checked for in this function.  I guess that's basically
-> the same idea as validate_area() below.  That would work for me.
-> 
-> > I was talking to hch and arjan yesterday on irc and we though about
-> > having an mm hook validate_area() that could replace the
-> > is_hugepage_only_range() hack and deal with my issue as well. As for
-> > having prepare in the fops, do we need it at all if we call fops->g_u_a
-> > in the MAP_FIXED case ?
-> 
-> Nah, if we cleaned up g_u_a() so that it is always called, away goes the
-> need for f_ops->prepare_unmapped_area().
+__unmap_hugepage_range() is buggy that it does not preserve dirty
+state of huge_pte when unmapping hugepage range.  It causes data
+corruption in the event of dop_caches being used by sys admin.
+For example, an application creates a hugetlb file, modify pages,
+then unmap it.  While leaving the hugetlb file alive, comes along
+sys admin doing a "echo 3 > /proc/sys/vm/drop_caches".
+drop_pagecache_sb() will happily frees all pages that isn't marked
+dirty if there are no active mapping. Later when application remaps
+the hugetlb file back and all data are gone, triggering catastrophic
+flip over on application.
 
-Ok, I'll cook up a patch around those lines, possibly next week.
+Not only that, the internal resv_huge_pages count will also get all
+messed up.  Fix it up by marking page dirty appropriately.
 
-Ben.
+Signed-off-by: Ken Chen <kenchen@google.com>
 
+--- ./mm/hugetlb.c.orig	2007-02-06 08:28:33.000000000 -0800
++++ ./mm/hugetlb.c	2007-02-06 08:29:47.000000000 -0800
+@@ -389,6 +389,8 @@
+ 			continue;
+
+ 		page = pte_page(pte);
++		if (pte_dirty(pte))
++			set_page_dirty(page);
+ 		list_add(&page->lru, &page_list);
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+--- ./fs/hugetlbfs/inode.c.orig	2007-02-06 08:29:56.000000000 -0800
++++ ./fs/hugetlbfs/inode.c	2007-02-06 08:40:44.000000000 -0800
+@@ -449,10 +449,13 @@
+ }
+
+ /*
+- * For direct-IO reads into hugetlb pages
++ * mark the head page dirty
+  */
+ static int hugetlbfs_set_page_dirty(struct page *page)
+ {
++	struct page *head = (struct page *) page_private(page);
++
++	SetPageDirty(head);
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
