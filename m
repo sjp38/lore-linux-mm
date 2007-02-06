@@ -1,73 +1,45 @@
-Message-ID: <45C841A5.20702@yahoo.com.au>
-Date: Tue, 06 Feb 2007 19:51:49 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 1/3] mm: fix PageUptodate memorder
-References: <20070206054925.21042.50546.sendpatchset@linux.site>	<20070206054935.21042.13541.sendpatchset@linux.site> <20070206002512.4e0bbbad.akpm@linux-foundation.org>
-In-Reply-To: <20070206002512.4e0bbbad.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 6 Feb 2007 09:55:09 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC/PATCH] prepare_unmapped_area
+Message-ID: <20070206095509.GA8714@infradead.org>
+References: <200702060405.l1645R7G009668@shell0.pdx.osdl.net> <1170736938.2620.213.camel@localhost.localdomain> <20070206044516.GA16647@wotan.suse.de> <1170738296.2620.220.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1170738296.2620.220.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, hugh@veritas.com, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue,  6 Feb 2007 09:02:11 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
+On Tue, Feb 06, 2007 at 04:04:56PM +1100, Benjamin Herrenschmidt wrote:
+> Hi folks !
 > 
+> On Cell, I have, for performance reasons, a need to create special
+> mappings of SPEs that use a different page size as the system base page
+> size _and_ as the huge page size.
 > 
->>+static inline void __SetPageUptodate(struct page *page)
->>+{
->>+#ifdef CONFIG_S390
->> 	if (!test_and_set_bit(PG_uptodate, &page->flags))
->> 		page_test_and_clear_dirty(page);
->>-}
->> #else
->>-#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
->>+	/*
->>+	 * Memory barrier must be issued before setting the PG_uptodate bit,
->>+	 * so all previous writes that served to bring the page uptodate are
->>+	 * visible before PageUptodate becomes true.
->>+	 *
->>+	 * S390 is guaranteed to have a barrier in the test_and_set operation
->>+	 * (see Documentation/atomic_ops.txt).
->>+	 *
->>+	 * XXX: does this memory barrier need to be anything special to
->>+	 * handle things like DMA writes into the page?
->>+	 */
->>+	smp_wmb();
->>+	set_bit(PG_uptodate, &(page)->flags);
->> #endif
->>+}
->>+
->>+static inline void SetPageUptodate(struct page *page)
->>+{
->>+	WARN_ON(!PageLocked(page));
->>+	__SetPageUptodate(page);
->>+}
->>+
->>+static inline void SetNewPageUptodate(struct page *page)
->>+{
->>+	__SetPageUptodate(page);
->>+}
+> Due to the way the PowerPC memory management works, however, I can only
+> have one page size per "segment" of 256MB (or 1T) and thus after such a
+> mapping have been created in its own segment, I need to constraint
+> -other- vma's to stay out of that area.
 > 
+> This currently cannot be done with the existing arch hooks (because of
+> MAP_FIXED). However, the hugetlbfs code already has a hack in there to
+> do the exact same thing for huge pages. Thus, this patch moves that hack
+> into something that can be overriden by the architectures. This approach
+> was choosen as the less ugly of the uglies after discussing with Nick
+> Piggin. If somebody has a better idea, I'd love to hear it.
 > 
-> I was panicing for a minute when I saw that __SetPageUptodate() in there.
-> 
-> Conventionally the __SetPageFoo namespace is for nonatomic updates to
-> page->flags.  Can we call this something different?
+> If it doesn't shoke anybody to death, I'd like to see that in -mm (and
+> possibly upstream, I don't know yet if my code using that will make
+> 2.6.21 or not, but it would be nice if the list of "dependent" patches
+> wasn't 3 pages long anyway :-)
 
-Duh, of course, sorry.
-
-> What a fugly patchset :(
-
-Fugly problem. One could fix it by always locking the page, but I was
-worried about Hugh flaming me if I tried that ;)
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Eeek, this is more than fugly.  Dave Hansen suggested to move these
+checks into a file operation in response to Adam Litke's hugetlb cleanups,
+and this patch shows he was right :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
