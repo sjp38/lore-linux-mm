@@ -1,142 +1,56 @@
-Date: Tue, 6 Feb 2007 10:09:20 +0200 (EET)
-From: "Rus V. Brushkoff" <rus@SoyuzKT.Od.UA>
-Subject: Re: 'cat /proc/interrupts' memleak
-In-Reply-To: <20070205222927.095cb0d9.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0702061003060.11582@Soyuz-KT.TeNet.Odessa.UA>
-References: <Pine.LNX.4.64.0702022205470.17599@Soyuz-KT.TeNet.Odessa.UA>
- <20070205222927.095cb0d9.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="655616-2091314301-1170749360=:11582"
+Date: Tue, 6 Feb 2007 00:21:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/3] fs: buffer don't PageUptodate without page locked
+Message-Id: <20070206002140.4030a11f.akpm@linux-foundation.org>
+In-Reply-To: <20070206054947.21042.32493.sendpatchset@linux.site>
+References: <20070206054925.21042.50546.sendpatchset@linux.site>
+	<20070206054947.21042.32493.sendpatchset@linux.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---655616-2091314301-1170749360=:11582
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+On Tue,  6 Feb 2007 09:02:23 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
 
-On Mon, 5 Feb 2007, Andrew Morton wrote:
+> __block_write_full_page is calling SetPageUptodate without the page locked.
+> This is unusual, but not incorrect, as PG_writeback is still set.
+> 
+> However with the previous patch, this is now a problem: so don't bother
+> setting the page uptodate in this case (it is weird that the write path
+> does such a thing anyway). Instead just leave it to the read side to bring
+> the page uptodate when it notices that all buffers are uptodate.
+> 
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> 
+> Index: linux-2.6/fs/buffer.c
+> ===================================================================
+> --- linux-2.6.orig/fs/buffer.c
+> +++ linux-2.6/fs/buffer.c
+> @@ -1679,6 +1679,7 @@ static int __block_write_full_page(struc
+>  	 */
+>  	BUG_ON(PageWriteback(page));
+>  	set_page_writeback(page);
+> +	unlock_page(page);
+>  
+>  	do {
+>  		struct buffer_head *next = bh->b_this_page;
+> @@ -1688,7 +1689,6 @@ static int __block_write_full_page(struc
+>  		}
+>  		bh = next;
+>  	} while (bh != head);
+> -	unlock_page(page);
+>  
+>  	err = 0;
+>  done:
 
-	Hi.
-
-:>   Doing in loop cat /proc/interrupts leaks memory in the system, which can 
-:> be observerd by top. Seems like config depended, so one is attached.
-:I can't reproduce it here.  Can you please monitor /proc/meminfo and
-:/proc/slabinfo, work out where the memory is going to?
-
- Differrent people sees this 'leak' on different configs/boxes on vanilla 
-2.6.19.[2] kernel, see thread at :
-
-	https://mail.gna.org/public/xenomai-help/2007-02/msg00007.html
-
- May be this is some VM feature, but things looks strange. Meminfo logs 
-attached. If I reach the office will send you full logs with slabinfo.
-
-:
-
-		Rus
---655616-2091314301-1170749360=:11582
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name=4
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.64.0702061009200.11582@Soyuz-KT.TeNet.Odessa.UA>
-Content-Description: 
-Content-Disposition: attachment; filename=4
-
-TWVtVG90YWw6ICAgICAgMjA1NzQ2NCBrQg0KTWVtRnJlZTogICAgICAgIDMz
-NDA1NiBrQg0KQnVmZmVyczogICAgICAgIDEwNjQ1MiBrQg0KQ2FjaGVkOiAg
-ICAgICAgMTI0MTM3NiBrQg0KU3dhcENhY2hlZDogICAgICAgICAgMCBrQg0K
-QWN0aXZlOiAgICAgICAgMTIwMzY5NiBrQg0KSW5hY3RpdmU6ICAgICAgIDI2
-NzAyNCBrQg0KU3dhcFRvdGFsOiAgICAgNzgyMzYxMiBrQg0KU3dhcEZyZWU6
-ICAgICAgNzgyMzYxMiBrQg0KRGlydHk6ICAgICAgICAgICAgIDIwNCBrQg0K
-V3JpdGViYWNrOiAgICAgICAgICAgMCBrQg0KQW5vblBhZ2VzOiAgICAgIDEy
-Mjg5NiBrQg0KTWFwcGVkOiAgICAgICAgICAzOTM0MCBrQg0KU2xhYjogICAg
-ICAgICAgIDIyMTA2MCBrQg0KU1JlY2xhaW1hYmxlOiAgIDE5OTE3NiBrQg0K
-U1VucmVjbGFpbTogICAgICAyMTg4NCBrQg0KUGFnZVRhYmxlczogICAgICAg
-Mzg1NiBrQg0KTkZTX1Vuc3RhYmxlOiAgICAgICAgMCBrQg0KQm91bmNlOiAg
-ICAgICAgICAgICAgMCBrQg0KQ29tbWl0TGltaXQ6ICAgODg1MjM0NCBrQg0K
-Q29tbWl0dGVkX0FTOiAgIDI4MjY3MiBrQg0KVm1hbGxvY1RvdGFsOiAzNDM1
-OTczODM2NyBrQg0KVm1hbGxvY1VzZWQ6ICAgIDMwNTEzNiBrQg0KVm1hbGxv
-Y0NodW5rOiAzNDM1OTQzMjY5NSBrQg0KSHVnZVBhZ2VzX1RvdGFsOiAgICAg
-MA0KSHVnZVBhZ2VzX0ZyZWU6ICAgICAgMA0KSHVnZVBhZ2VzX1JzdmQ6ICAg
-ICAgMA0KSHVnZXBhZ2VzaXplOiAgICAgMjA0OCBrQg0K
-
---655616-2091314301-1170749360=:11582
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name=3
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.64.0702061009201.11582@Soyuz-KT.TeNet.Odessa.UA>
-Content-Description: 
-Content-Disposition: attachment; filename=3
-
-TWVtVG90YWw6ICAgICAgMjA1NzQ2NCBrQg0KTWVtRnJlZTogICAgICAgIDM0
-MjQ4OCBrQg0KQnVmZmVyczogICAgICAgIDEwNTM3NiBrQg0KQ2FjaGVkOiAg
-ICAgICAgMTI0MDM0NCBrQg0KU3dhcENhY2hlZDogICAgICAgICAgMCBrQg0K
-QWN0aXZlOiAgICAgICAgMTE5NzU5MiBrQg0KSW5hY3RpdmU6ICAgICAgIDI2
-NTQ0OCBrQg0KU3dhcFRvdGFsOiAgICAgNzgyMzYxMiBrQg0KU3dhcEZyZWU6
-ICAgICAgNzgyMzYxMiBrQg0KRGlydHk6ICAgICAgICAgICAgIDEyNCBrQg0K
-V3JpdGViYWNrOiAgICAgICAgICAgMCBrQg0KQW5vblBhZ2VzOiAgICAgIDEx
-NzM2MCBrQg0KTWFwcGVkOiAgICAgICAgICAzODkzMiBrQg0KU2xhYjogICAg
-ICAgICAgIDIyMDU3MiBrQg0KU1JlY2xhaW1hYmxlOiAgIDE5OTA5NiBrQg0K
-U1VucmVjbGFpbTogICAgICAyMTQ3NiBrQg0KUGFnZVRhYmxlczogICAgICAg
-Mzc4OCBrQg0KTkZTX1Vuc3RhYmxlOiAgICAgICAgMCBrQg0KQm91bmNlOiAg
-ICAgICAgICAgICAgMCBrQg0KQ29tbWl0TGltaXQ6ICAgODg1MjM0NCBrQg0K
-Q29tbWl0dGVkX0FTOiAgIDI3NDYwNCBrQg0KVm1hbGxvY1RvdGFsOiAzNDM1
-OTczODM2NyBrQg0KVm1hbGxvY1VzZWQ6ICAgIDMwNTEzNiBrQg0KVm1hbGxv
-Y0NodW5rOiAzNDM1OTQzMjY5NSBrQg0KSHVnZVBhZ2VzX1RvdGFsOiAgICAg
-MA0KSHVnZVBhZ2VzX0ZyZWU6ICAgICAgMA0KSHVnZVBhZ2VzX1JzdmQ6ICAg
-ICAgMA0KSHVnZXBhZ2VzaXplOiAgICAgMjA0OCBrQg0K
-
---655616-2091314301-1170749360=:11582
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name=2
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.64.0702061009202.11582@Soyuz-KT.TeNet.Odessa.UA>
-Content-Description: 
-Content-Disposition: attachment; filename=2
-
-TWVtVG90YWw6ICAgICAgMjA1NzQ2NCBrQg0KTWVtRnJlZTogICAgICAgIDM0
-MzA3NiBrQg0KQnVmZmVyczogICAgICAgIDEwNDkxMiBrQg0KQ2FjaGVkOiAg
-ICAgICAgMTI0MDIyOCBrQg0KU3dhcENhY2hlZDogICAgICAgICAgMCBrQg0K
-QWN0aXZlOiAgICAgICAgMTE5NzEzNiBrQg0KSW5hY3RpdmU6ICAgICAgIDI2
-NTE4MCBrQg0KU3dhcFRvdGFsOiAgICAgNzgyMzYxMiBrQg0KU3dhcEZyZWU6
-ICAgICAgNzgyMzYxMiBrQg0KRGlydHk6ICAgICAgICAgICAgICA4MCBrQg0K
-V3JpdGViYWNrOiAgICAgICAgICAgMCBrQg0KQW5vblBhZ2VzOiAgICAgIDEx
-NzIyOCBrQg0KTWFwcGVkOiAgICAgICAgICAzODkwOCBrQg0KU2xhYjogICAg
-ICAgICAgIDIyMDM4NCBrQg0KU1JlY2xhaW1hYmxlOiAgIDE5OTAyOCBrQg0K
-U1VucmVjbGFpbTogICAgICAyMTM1NiBrQg0KUGFnZVRhYmxlczogICAgICAg
-MzczMiBrQg0KTkZTX1Vuc3RhYmxlOiAgICAgICAgMCBrQg0KQm91bmNlOiAg
-ICAgICAgICAgICAgMCBrQg0KQ29tbWl0TGltaXQ6ICAgODg1MjM0NCBrQg0K
-Q29tbWl0dGVkX0FTOiAgIDI3NDMxNiBrQg0KVm1hbGxvY1RvdGFsOiAzNDM1
-OTczODM2NyBrQg0KVm1hbGxvY1VzZWQ6ICAgIDMwNTEzNiBrQg0KVm1hbGxv
-Y0NodW5rOiAzNDM1OTQzMjY5NSBrQg0KSHVnZVBhZ2VzX1RvdGFsOiAgICAg
-MA0KSHVnZVBhZ2VzX0ZyZWU6ICAgICAgMA0KSHVnZVBhZ2VzX1JzdmQ6ICAg
-ICAgMA0KSHVnZXBhZ2VzaXplOiAgICAgMjA0OCBrQg0K
-
---655616-2091314301-1170749360=:11582
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name=1
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.64.0702061009203.11582@Soyuz-KT.TeNet.Odessa.UA>
-Content-Description: 
-Content-Disposition: attachment; filename=1
-
-TWVtVG90YWw6ICAgICAgMjA1NzQ2NCBrQg0KTWVtRnJlZTogICAgICAgIDM0
-MzEyMCBrQg0KQnVmZmVyczogICAgICAgIDEwNDc3MiBrQg0KQ2FjaGVkOiAg
-ICAgICAgMTI0MDIyNCBrQg0KU3dhcENhY2hlZDogICAgICAgICAgMCBrQg0K
-QWN0aXZlOiAgICAgICAgMTE5NzE0OCBrQg0KSW5hY3RpdmU6ICAgICAgIDI2
-NTA1MiBrQg0KU3dhcFRvdGFsOiAgICAgNzgyMzYxMiBrQg0KU3dhcEZyZWU6
-ICAgICAgNzgyMzYxMiBrQg0KRGlydHk6ICAgICAgICAgICAgICA2OCBrQg0K
-V3JpdGViYWNrOiAgICAgICAgICAgMCBrQg0KQW5vblBhZ2VzOiAgICAgIDEx
-NzE0MCBrQg0KTWFwcGVkOiAgICAgICAgICAzODkwOCBrQg0KU2xhYjogICAg
-ICAgICAgIDIyMDQ4OCBrQg0KU1JlY2xhaW1hYmxlOiAgIDE5OTAzMiBrQg0K
-U1VucmVjbGFpbTogICAgICAyMTQ1NiBrQg0KUGFnZVRhYmxlczogICAgICAg
-Mzc3MiBrQg0KTkZTX1Vuc3RhYmxlOiAgICAgICAgMCBrQg0KQm91bmNlOiAg
-ICAgICAgICAgICAgMCBrQg0KQ29tbWl0TGltaXQ6ICAgODg1MjM0NCBrQg0K
-Q29tbWl0dGVkX0FTOiAgIDI4MjYwNCBrQg0KVm1hbGxvY1RvdGFsOiAzNDM1
-OTczODM2NyBrQg0KVm1hbGxvY1VzZWQ6ICAgIDMwNTEzNiBrQg0KVm1hbGxv
-Y0NodW5rOiAzNDM1OTQzMjY5NSBrQg0KSHVnZVBhZ2VzX1RvdGFsOiAgICAg
-MA0KSHVnZVBhZ2VzX0ZyZWU6ICAgICAgMA0KSHVnZVBhZ2VzX1JzdmQ6ICAg
-ICAgMA0KSHVnZXBhZ2VzaXplOiAgICAgMjA0OCBrQg0K
-
---655616-2091314301-1170749360=:11582--
+Why this change?  Without looking at it too hard, it seems that if
+submit_bh() completes synchronously, this thread can end up playing with
+the buffers on a non-locked, non-PageWriteback page.  Someone else could
+whip the buffers away and oops?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
