@@ -1,10 +1,10 @@
-Date: Tue, 6 Feb 2007 00:25:12 -0800
+Date: Tue, 6 Feb 2007 00:28:39 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/3] mm: fix PageUptodate memorder
-Message-Id: <20070206002512.4e0bbbad.akpm@linux-foundation.org>
-In-Reply-To: <20070206054935.21042.13541.sendpatchset@linux.site>
+Subject: Re: [patch 3/3] mm: make read_cache_page synchronous
+Message-Id: <20070206002839.f02a47bc.akpm@linux-foundation.org>
+In-Reply-To: <20070206054957.21042.18724.sendpatchset@linux.site>
 References: <20070206054925.21042.50546.sendpatchset@linux.site>
-	<20070206054935.21042.13541.sendpatchset@linux.site>
+	<20070206054957.21042.18724.sendpatchset@linux.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,50 +14,24 @@ To: Nick Piggin <npiggin@suse.de>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  6 Feb 2007 09:02:11 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
+On Tue,  6 Feb 2007 09:02:33 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
 
-> +static inline void __SetPageUptodate(struct page *page)
-> +{
-> +#ifdef CONFIG_S390
->  	if (!test_and_set_bit(PG_uptodate, &page->flags))
->  		page_test_and_clear_dirty(page);
-> -}
->  #else
-> -#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
-> +	/*
-> +	 * Memory barrier must be issued before setting the PG_uptodate bit,
-> +	 * so all previous writes that served to bring the page uptodate are
-> +	 * visible before PageUptodate becomes true.
-> +	 *
-> +	 * S390 is guaranteed to have a barrier in the test_and_set operation
-> +	 * (see Documentation/atomic_ops.txt).
-> +	 *
-> +	 * XXX: does this memory barrier need to be anything special to
-> +	 * handle things like DMA writes into the page?
-> +	 */
-> +	smp_wmb();
-> +	set_bit(PG_uptodate, &(page)->flags);
->  #endif
-> +}
-> +
-> +static inline void SetPageUptodate(struct page *page)
-> +{
-> +	WARN_ON(!PageLocked(page));
-> +	__SetPageUptodate(page);
-> +}
-> +
-> +static inline void SetNewPageUptodate(struct page *page)
-> +{
-> +	__SetPageUptodate(page);
-> +}
+> Ensure pages are uptodate after returning from read_cache_page, which allows
+> us to cut out most of the filesystem-internal PageUptodate_NoLock calls.
 
-I was panicing for a minute when I saw that __SetPageUptodate() in there.
+Normally it's good to rename functions when we change their behaviour, but
+I guess any missed (or out-of-tree) filesystems will just end up doing a
+pointless wait_on_page_locked() and will continue to work OK, yes?
 
-Conventionally the __SetPageFoo namespace is for nonatomic updates to
-page->flags.  Can we call this something different?
+> I didn't have a great look down the call chains, but this appears to fixes 7
+> possible use-before uptodate in hfs, 2 in hfsplus, 1 in jfs, a few in ecryptfs,
+> 1 in jffs2, and a possible cleared data overwritten with readpage in block2mtd.
+> All depending on whether the filler is async and/or can return with a !uptodate
+> page.
+> 
+> Also, a memory leak in sys_swapon().
 
-
-What a fugly patchset :(
+Separate patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
