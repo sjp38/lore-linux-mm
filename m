@@ -1,47 +1,56 @@
-Date: Wed, 7 Feb 2007 14:32:33 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Drop PageReclaim()
-In-Reply-To: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 8 Feb 2007 01:44:15 +1100
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [PATCH 1 of 2] Implement generic block_page_mkwrite() functionality
+Message-ID: <20070207144415.GN44411608@melbourne.sgi.com>
+References: <20070207124922.GK44411608@melbourne.sgi.com> <Pine.LNX.4.64.0702071256530.25060@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0702071256530.25060@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: David Chinner <dgc@sgi.com>, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Feb 2007, Christoph Lameter wrote:
-
-> Am I missing something here? I cannot see PageReclaim have any effect?
-
-I think you are missing something.
-
+On Wed, Feb 07, 2007 at 01:00:28PM +0000, Hugh Dickins wrote:
+> On Wed, 7 Feb 2007, David Chinner wrote:
 > 
-> PageReclaim is only used for dead code. The only current user is
-> end_page_writeback() which has the following lines:
+> > On Christoph's suggestion, take the guts of the proposed
+> > xfs_vm_page_mkwrite function and implement it as a generic
+> > core function as it used no specific XFS code at all.
+> > 
+> > This allows any filesystem to easily hook the ->page_mkwrite()
+> > VM callout to allow them to set up pages dirtied by mmap
+> > writes correctly for later writeout.
+> > 
+> > Signed-Off-By: Dave Chinner <dgc@sgi.com>
 > 
->  if (!TestClearPageReclaim(page) || rotate_reclaimable_page(page)) {
->          if (!test_clear_page_writeback(page))
->                   BUG();
->  }
-> 
-> So the if statement is performed if !PageReclaim(page).
-> If PageReclaim is set then we call rorate_reclaimable(page) which
-> does:
-> 
->  if (!PageLRU(page))
->        return 1;
-> 
-> The only user of PageReclaim is shrink_list(). The pages processed
-> by shrink_list have earlier been taken off the LRU. So !PageLRU is always 
-> true.
+> I'm worried about concurrent truncation.  Isn't it the case that
+> i_mutex is held when prepare_write and commit_write are normally
+> called?  But not here when page_mkwrite is called.
 
-On return from shrink_page_list(),
-doesn't shrink_inactive_list() put those pages back on the LRU?
+I'm not holding i_mutex. I assumed that it was probably safe to do
+because we are likely to be reading the page off disk just before we
+call mkwrite and that has to be synchronised with truncate in some
+manner....
 
-Hugh
+So, do I need to grab the i_mutex here? Is that safe to do that in
+the middle of a page fault? If we do race with a truncate and the
+page is now beyond EOF, what am I supposed to return?
+
+I'm fishing for what I'm supposed to be doing here because there's
+zero implementations of this callout in the kernel and the comments
+in the code explaining the interface constraints are
+non-existant....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
