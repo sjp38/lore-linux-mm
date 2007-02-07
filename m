@@ -1,137 +1,87 @@
-Date: Wed, 7 Feb 2007 10:18:23 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC] Implement ->page_mkwrite for XFS
-Message-ID: <20070207101823.GA2703@infradead.org>
-References: <20070206225325.GP33919298@melbourne.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070206225325.GP33919298@melbourne.sgi.com>
+Message-ID: <45C9AF25.9040107@redhat.com>
+Date: Wed, 07 Feb 2007 05:51:17 -0500
+From: Larry Woodman <lwoodman@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 0/7] Move mlocked pages off the LRU and track them
+References: <20070205205235.4500.54958.sendpatchset@schroedinger.engr.sgi.com>	<1170777882.4945.31.camel@localhost> <20070206115113.4a5db10c.akpm@linux-foundation.org>
+In-Reply-To: <20070206115113.4a5db10c.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 07, 2007 at 09:53:25AM +1100, David Chinner wrote:
-> Folks,
-> 
-> I'm not sure of the exact locking rules and constraints for
-> ->page_mkwrite(), so I thought I better fish around for comments.
-> 
-> With XFS, we need to hook pages being dirtied by mmap writes so that
-> we can attach buffers of the correct state tothe pages.  This means
-> that when we write them back, the correct thing happens.
-> 
-> For example, if you mmap an unwritten extent (preallocated),
-> currently your data will get written to disk but the extent will not
-> get converted to a written extent. IOWs, you lose the data because
-> when you read it back it will seen as unwritten and treated as a
-> hole.
-> 
-> AFAICT, it is safe to lock the page during ->page_mkwrite and that
-> it is safe to issue I/O (e.g. metadata reads) to determine the
-> current state of the file.  I am also assuming that, at this point,
-> we are not allowed to change the file size and so we have to be
-> careful in ->page_mkwrite we don't do that. What else have I missed
-> here?
-> 
-> IOWs, I've basically treated ->page_mkwrite() as wrapper for
-> block_prepare_write/block_commit_write because they do all the
-> buffer mapping and state manipulation I think is necessary.  Is it
-> safe to call these functions, or are there some other constraints we
-> have to work under here?
-> 
-> Patch below. Comments?
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> Principal Engineer
-> SGI Australian Software Group
-> 
-> 
-> ---
->  fs/xfs/linux-2.6/xfs_file.c |   34 ++++++++++++++++++++++++++++++++++
->  1 file changed, 34 insertions(+)
-> 
-> Index: 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_file.c
-> ===================================================================
-> --- 2.6.x-xfs-new.orig/fs/xfs/linux-2.6/xfs_file.c	2007-01-16 10:54:15.000000000 +1100
-> +++ 2.6.x-xfs-new/fs/xfs/linux-2.6/xfs_file.c	2007-02-07 09:49:00.508017483 +1100
-> @@ -446,6 +446,38 @@ xfs_file_open_exec(
->  }
->  #endif /* HAVE_FOP_OPEN_EXEC */
+Andrew Morton wrote:
+
+>On Tue, 06 Feb 2007 11:04:42 -0500
+>Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+>
 >  
-> +/*
-> + * mmap()d file has taken write protection fault and is being made
-> + * writable. We can set the page state up correctly for a writable
-> + * page, which means we can do correct delalloc accounting (ENOSPC
-> + * checking!) and unwritten extent mapping.
-> + */
-> +STATIC int
-> +xfs_vm_page_mkwrite(
-> +	struct vm_area_struct	*vma,
-> +	struct page		*page)
-> +{
-> +	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
-> +	unsigned long	end;
-> +	int		ret = 0;
-> +
-> +	end = page->index + 1;
-> +	end <<= PAGE_CACHE_SHIFT;
-> +	if (end > i_size_read(inode))
-> +		end = i_size_read(inode) & ~PAGE_CACHE_MASK;
-> +	else
-> +		end = PAGE_CACHE_SIZE;
-> +
-> +	lock_page(page);
-> +	ret = block_prepare_write(page, 0, end, xfs_get_blocks);
-> +	if (!ret)
-> +		ret = block_commit_write(page, 0, end);
-> +	unlock_page(page);
-> +
-> +	return ret;
-> +}
+>
+>>Note that anon [and shmem] pages in excess of available swap are
+>>effectively mlocked().  In the field, we have seen non-NUMA x86_64
+>>systems with 64-128GB [16-32million 4k pages] with little to no
+>>swap--big data base servers.  The majority of the memory is dedicated to
+>>large data base shared memory areas.  The remaining is divided between
+>>program anon and page cache [executable, libs] pages and any other page
+>>cache pages used by data base utilities, system daemons, ...
+>>
+>>The system runs fine until someone runs a backup [or multiple, as there
+>>are multiple data base instances running].  This over commits memory and
+>>we end up with all cpus in reclaim, contending for the zone lru lock,
+>>and walking an active list of 10s of millions of pages looking for pages
+>>to reclaim.  The reclaim logic spends a lot of time walking the lru
+>>lists, nominating shmem pages [the majority of pages on the list] for
+>>reclaim, only to find in shrink_pages() that it can't move the page to
+>>swap.  So, it puts it back on the list to be retried by the other cpus
+>>once they obtain the zone lru lock.  System appears to be hung for long
+>>periods of time.
+>>
+>>There are a lot of behaviors in the reclaim code that exacerbate the
+>>problems when we get into this mode, but the long lists of unswappable
+>>anon/shmem pages is the major culprit.  One of the guys at Red Hat has
+>>tried a "proof of concept" patch to move all anon/shmem pages in excess
+>>of swap space to "wired list" [currently global, per node/zone in
+>>progress] and it seems to alleviate the problem.  
+>>
+>>So, Christoph's patch addresses a real problem that we've seen.
+>>Unfortunately, not all data base applications lock their shmem areas
+>>into memory.  Excluding pages from consideration for reclaim that can't
+>>possibly be swapped out due to lack of swap space seems a natural
+>>extension of this concept.  I expect that many Christoph's customers run
+>>with swap space that is much smaller than system memory and would
+>>benefit from this extension.
+>>    
+>>
+>
+>Yeah.
+>
+>The scanner at present tries to handle out-of-swap by moving these pages
+>onto the active list (shrink_page_list) then keeping them there
+>(shrink_active_list) so it _should_ be the case that the performance
+>problems which you're observing are due to active list scanning.  Is that
+>correct?
+>
+>If not, something's busted.
+>
 
-This looks to me.  But given that this is generic code except for the
-get_block callback, shouldn't we put the guts into buffer.c and wire
-all filesystems up to use it? e.g.
+This is true but when mark_page_accessed() activates referenced 
+pagecache pages it
+mixes them with the non-swapable anonymous and system V shared memory pages
+on the active list.   This combined with lots of heavy filesystem 
+writing prevent kswapd
+from keeping up with the memory demmand so the free list(s) fall below 
+zone->pages_min
+and every call to __alloc_pages() results in calling 
+try_to_free_pages().  Once all CPUs
+are scanning and trying to reclaim the system chokes, especially on 
+systems with lots
+of CPUs and lots of RAM.
 
+Larry Woodman
 
-int block_page_mkwrite(struct vm_area_struct  *vma, struct page *page,
-		get_block_t get_block)
-{
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
-	unsigned long end;
-	int ret = 0;
-
-	if ((page->index + 1) << PAGE_CACHE_SHIFT > i_size_read(inode))
-		end = i_size_read(inode) & ~PAGE_CACHE_MASK;
-	else
-		end = PAGE_CACHE_SIZE;
-
-	lock_page(page);
-	ret = block_prepare_write(page, 0, end, block);
-	if (!ret)
-		ret = block_commit_write(page, 0, end);
-	unlock_page(page);
-	return ret;
-}
-
-and then in xfs and similar in other filesystems:
-
-STATIC int
-xfs_vm_page_mkwrite(
-	struct vm_area_struct	*vma,
-	struct page		*page)
-{
-	return block_page_mkwrite(vma, page, xfs_get_blocks);
-}
-
-BTW, why is xfs_get_blocks not called xfs_get_block?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
