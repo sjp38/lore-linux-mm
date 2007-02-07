@@ -1,95 +1,176 @@
-Date: Wed, 7 Feb 2007 13:00:28 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1 of 2] Implement generic block_page_mkwrite() functionality
-In-Reply-To: <20070207124922.GK44411608@melbourne.sgi.com>
-Message-ID: <Pine.LNX.4.64.0702071256530.25060@blonde.wat.veritas.com>
-References: <20070207124922.GK44411608@melbourne.sgi.com>
+Date: Wed, 7 Feb 2007 06:13:48 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Drop PageReclaim()
+Message-ID: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Feb 2007, David Chinner wrote:
+Am I missing something here? I cannot see PageReclaim have any effect?
 
-> On Christoph's suggestion, take the guts of the proposed
-> xfs_vm_page_mkwrite function and implement it as a generic
-> core function as it used no specific XFS code at all.
-> 
-> This allows any filesystem to easily hook the ->page_mkwrite()
-> VM callout to allow them to set up pages dirtied by mmap
-> writes correctly for later writeout.
-> 
-> Signed-Off-By: Dave Chinner <dgc@sgi.com>
 
-I'm worried about concurrent truncation.  Isn't it the case that
-i_mutex is held when prepare_write and commit_write are normally
-called?  But not here when page_mkwrite is called.
 
-Hugh
+PageReclaim is only used for dead code. The only current user is
+end_page_writeback() which has the following lines:
 
-> 
-> ---
->  fs/buffer.c                 |   30 ++++++++++++++++++++++++++++++
->  include/linux/buffer_head.h |    2 ++
->  2 files changed, 32 insertions(+)
-> 
-> Index: 2.6.x-xfs-new/fs/buffer.c
-> ===================================================================
-> --- 2.6.x-xfs-new.orig/fs/buffer.c	2007-02-07 23:00:05.000000000 +1100
-> +++ 2.6.x-xfs-new/fs/buffer.c	2007-02-07 23:09:47.642356116 +1100
-> @@ -2194,6 +2194,36 @@ int generic_commit_write(struct file *fi
->  	return 0;
->  }
->  
-> +/*
-> + * block_page_mkwrite() is not allowed to change the file size as
-> + * it gets called from a page fault handler when a page is first
-> + * dirtied. Hence we must be careful to check for EOF conditions
-> + * here. We set the page up correctly for a written page which means
-> + * we get ENOSPC checking when writing into holes and correct
-> + * delalloc and unwritten extent mapping on filesystems that support
-> + * these features.
-> + */
-> +int
-> +block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
-> +		   get_block_t get_block)
-> +{
-> +	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
-> +	unsigned long	end;
-> +	int		ret = 0;
-> +
-> +	if (((page->index + 1) << PAGE_CACHE_SHIFT) > i_size_read(inode))
-> +		end = i_size_read(inode) & ~PAGE_CACHE_MASK;
-> +	else
-> +		end = PAGE_CACHE_SIZE;
-> +
-> +	lock_page(page);
-> +	ret = block_prepare_write(page, 0, end, get_block);
-> +	if (!ret)
-> +		ret = block_commit_write(page, 0, end);
-> +	unlock_page(page);
-> +
-> +	return ret;
-> +}
->  
->  /*
->   * nobh_prepare_write()'s prereads are special: the buffer_heads are freed
-> Index: 2.6.x-xfs-new/include/linux/buffer_head.h
-> ===================================================================
-> --- 2.6.x-xfs-new.orig/include/linux/buffer_head.h	2007-02-07 23:00:02.000000000 +1100
-> +++ 2.6.x-xfs-new/include/linux/buffer_head.h	2007-02-07 23:12:33.156749344 +1100
-> @@ -206,6 +206,8 @@ int cont_prepare_write(struct page*, uns
->  int generic_cont_expand(struct inode *inode, loff_t size);
->  int generic_cont_expand_simple(struct inode *inode, loff_t size);
->  int block_commit_write(struct page *page, unsigned from, unsigned to);
-> +int block_page_mkwrite(struct vma_area_struct *vma, struct page *page,
-> +				get_block_t get_block);
->  void block_sync_page(struct page *);
->  sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
->  int generic_commit_write(struct file *, struct page *, unsigned, unsigned);
+ if (!TestClearPageReclaim(page) || rotate_reclaimable_page(page)) {
+         if (!test_clear_page_writeback(page))
+                  BUG();
+ }
+
+So the if statement is performed if !PageReclaim(page).
+If PageReclaim is set then we call rorate_reclaimable(page) which
+does:
+
+ if (!PageLRU(page))
+       return 1;
+
+The only user of PageReclaim is shrink_list(). The pages processed
+by shrink_list have earlier been taken off the LRU. So !PageLRU is always 
+true.
+
+The if statement is therefore always true and the rotating code
+is never executed.
+
+So drop all the PageReclaim() stuff. This yields one free
+page state flag that we need for PageMlocked().
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: current/mm/page_io.c
+===================================================================
+--- current.orig/mm/page_io.c	2007-02-07 00:16:20.000000000 -0800
++++ current/mm/page_io.c	2007-02-07 00:18:47.000000000 -0800
+@@ -67,7 +67,6 @@ static int end_swap_bio_write(struct bio
+ 				imajor(bio->bi_bdev->bd_inode),
+ 				iminor(bio->bi_bdev->bd_inode),
+ 				(unsigned long long)bio->bi_sector);
+-		ClearPageReclaim(page);
+ 	}
+ 	end_page_writeback(page);
+ 	bio_put(bio);
+Index: current/mm/swap.c
+===================================================================
+--- current.orig/mm/swap.c	2007-02-07 00:16:20.000000000 -0800
++++ current/mm/swap.c	2007-02-07 00:18:47.000000000 -0800
+@@ -95,47 +95,6 @@ void put_pages_list(struct list_head *pa
+ EXPORT_SYMBOL(put_pages_list);
+ 
+ /*
+- * Writeback is about to end against a page which has been marked for immediate
+- * reclaim.  If it still appears to be reclaimable, move it to the tail of the
+- * inactive list.  The page still has PageWriteback set, which will pin it.
+- *
+- * We don't expect many pages to come through here, so don't bother batching
+- * things up.
+- *
+- * To avoid placing the page at the tail of the LRU while PG_writeback is still
+- * set, this function will clear PG_writeback before performing the page
+- * motion.  Do that inside the lru lock because once PG_writeback is cleared
+- * we may not touch the page.
+- *
+- * Returns zero if it cleared PG_writeback.
+- */
+-int rotate_reclaimable_page(struct page *page)
+-{
+-	struct zone *zone;
+-	unsigned long flags;
+-
+-	if (PageLocked(page))
+-		return 1;
+-	if (PageDirty(page))
+-		return 1;
+-	if (PageActive(page))
+-		return 1;
+-	if (!PageLRU(page))
+-		return 1;
+-
+-	zone = page_zone(page);
+-	spin_lock_irqsave(&zone->lru_lock, flags);
+-	if (PageLRU(page) && !PageActive(page)) {
+-		list_move_tail(&page->lru, &zone->inactive_list);
+-		__count_vm_event(PGROTATED);
+-	}
+-	if (!test_clear_page_writeback(page))
+-		BUG();
+-	spin_unlock_irqrestore(&zone->lru_lock, flags);
+-	return 0;
+-}
+-
+-/*
+  * FIXME: speed this up?
+  */
+ void fastcall activate_page(struct page *page)
+Index: current/mm/vmscan.c
+===================================================================
+--- current.orig/mm/vmscan.c	2007-02-07 00:16:20.000000000 -0800
++++ current/mm/vmscan.c	2007-02-07 00:18:51.000000000 -0800
+@@ -366,18 +366,11 @@ static pageout_t pageout(struct page *pa
+ 			.for_reclaim = 1,
+ 		};
+ 
+-		SetPageReclaim(page);
+ 		res = mapping->a_ops->writepage(page, &wbc);
+ 		if (res < 0)
+ 			handle_write_error(mapping, page, res);
+-		if (res == AOP_WRITEPAGE_ACTIVATE) {
+-			ClearPageReclaim(page);
++		if (res == AOP_WRITEPAGE_ACTIVATE)
+ 			return PAGE_ACTIVATE;
+-		}
+-		if (!PageWriteback(page)) {
+-			/* synchronous write or broken a_ops? */
+-			ClearPageReclaim(page);
+-		}
+ 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
+ 		return PAGE_SUCCESS;
+ 	}
+Index: current/include/linux/swap.h
+===================================================================
+--- current.orig/include/linux/swap.h	2007-02-07 00:18:39.000000000 -0800
++++ current/include/linux/swap.h	2007-02-07 00:18:55.000000000 -0800
+@@ -185,7 +185,6 @@ extern void FASTCALL(activate_page(struc
+ extern void FASTCALL(mark_page_accessed(struct page *));
+ extern void lru_add_drain(void);
+ extern int lru_add_drain_all(void);
+-extern int rotate_reclaimable_page(struct page *page);
+ extern void swap_setup(void);
+ 
+ /* linux/mm/vmscan.c */
+Index: current/mm/filemap.c
+===================================================================
+--- current.orig/mm/filemap.c	2007-02-07 00:18:39.000000000 -0800
++++ current/mm/filemap.c	2007-02-07 00:18:55.000000000 -0800
+@@ -530,10 +530,8 @@ EXPORT_SYMBOL(unlock_page);
+  */
+ void end_page_writeback(struct page *page)
+ {
+-	if (!TestClearPageReclaim(page) || rotate_reclaimable_page(page)) {
+-		if (!test_clear_page_writeback(page))
+-			BUG();
+-	}
++	if (!test_clear_page_writeback(page))
++		BUG();
+ 	smp_mb__after_clear_bit();
+ 	wake_up_page(page, PG_writeback);
+ }
+Index: current/include/linux/page-flags.h
+===================================================================
+--- current.orig/include/linux/page-flags.h	2007-02-07 00:24:56.000000000 -0800
++++ current/include/linux/page-flags.h	2007-02-07 00:25:29.000000000 -0800
+@@ -30,7 +30,7 @@
+  * PG_uptodate tells whether the page's contents is valid.  When a read
+  * completes, the page becomes uptodate, unless a disk I/O error happened.
+  *
+- * PG_referenced, PG_reclaim are used for page reclaim for anonymous and
++ * PG_referenced is used for page reclaim for anonymous and
+  * file-backed pagecache (see mm/vmscan.c).
+  *
+  * PG_error is set to indicate that an I/O error occurred on this page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
