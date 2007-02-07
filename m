@@ -1,35 +1,35 @@
-Date: Wed, 7 Feb 2007 09:58:57 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [patch 0/3] 2.6.20 fix for PageUptodate memorder problem
-Message-ID: <20070206225857.GV44411608@melbourne.sgi.com>
-References: <20070206054925.21042.50546.sendpatchset@linux.site>
+Date: Tue, 6 Feb 2007 16:35:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: hugetlb: preserve hugetlb pte dirty state
+Message-Id: <20070206163531.8d524171.akpm@linux-foundation.org>
+In-Reply-To: <b040c32a0702061306l771d2b71s719cee7cf4713e71@mail.gmail.com>
+References: <b040c32a0702061306l771d2b71s719cee7cf4713e71@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070206054925.21042.50546.sendpatchset@linux.site>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>
+To: Ken Chen <kenchen@google.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 06, 2007 at 09:02:01AM +0100, Nick Piggin wrote:
-> Still no independent confirmation as to whether this is a problem or not.
-> I think it is, so I'll propose this patchset to fix it. Patch 1/3 has a
-> reasonable description of the problem.
+On Tue, 6 Feb 2007 13:06:39 -0800
+"Ken Chen" <kenchen@google.com> wrote:
+
+> --- ./mm/hugetlb.c.orig	2007-02-06 08:28:33.000000000 -0800
+> +++ ./mm/hugetlb.c	2007-02-06 08:29:47.000000000 -0800
+> @@ -389,6 +389,8 @@
+>  			continue;
 > 
+>  		page = pte_page(pte);
+> +		if (pte_dirty(pte))
+> +			set_page_dirty(page);
+>  		list_add(&page->lru, &page_list);
+>  	}
+>  	spin_unlock(&mm->page_table_lock);
 
-Nick, can you include a diffstat at the head of your patches? Makes
-it much easier to see what the scope of the changes are when you
-are changing code in several filesystems....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+I guess we really should be setting these pages dirty at fault-time, as we're
+now doing with regular pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
