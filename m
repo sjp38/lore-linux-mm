@@ -1,55 +1,50 @@
-Date: Fri, 9 Feb 2007 09:30:58 +1100
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [PATCH 1 of 2] Implement generic block_page_mkwrite() functionality
-Message-ID: <20070208223058.GV44411608@melbourne.sgi.com>
-References: <20070207124922.GK44411608@melbourne.sgi.com> <Pine.LNX.4.64.0702071256530.25060@blonde.wat.veritas.com> <20070207144415.GN44411608@melbourne.sgi.com> <Pine.LNX.4.64.0702071454250.32223@blonde.wat.veritas.com> <20070207225013.GQ44411608@melbourne.sgi.com> <20070208131100.GH11967@think.oraclecorp.com>
+Date: Thu, 8 Feb 2007 14:37:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Drop PageReclaim()
+Message-Id: <20070208143746.79c000f5.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0702081425000.14424@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0702081319530.12048@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0702081331290.12167@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0702081340380.13255@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0702081351270.14036@schroedinger.engr.sgi.com>
+	<20070208140338.971b3f53.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0702081411030.14424@schroedinger.engr.sgi.com>
+	<20070208142431.eb81ae70.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0702081425000.14424@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070208131100.GH11967@think.oraclecorp.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: David Chinner <dgc@sgi.com>, Hugh Dickins <hugh@veritas.com>, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 08, 2007 at 08:11:00AM -0500, Chris Mason wrote:
-> On Thu, Feb 08, 2007 at 09:50:13AM +1100, David Chinner wrote:
-> > > You don't need to lock out all truncation, but you do need to lock
-> > > out truncation of the page in question.  Instead of your i_size
-> > > checks, check page->mapping isn't NULL after the lock_page?
-> > 
-> > Yes, that can be done, but we still need to know if part of
-> > the page is beyond EOF for when we call block_commit_write()
-> > and mark buffers dirty. Hence we need to check the inode size.
-> > 
-> > I guess if we block the truncate with the page lock, then the
-> > inode size is not going to change until we unlock the page.
-> > If the inode size has already been changed but the page not yet
-> > removed from the mapping we'll be beyond EOF.
-> > 
-> > So it seems to me that we can get away with not using the i_mutex
-> > in the generic code here.
+On Thu, 8 Feb 2007 14:26:48 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
+
+> On Thu, 8 Feb 2007, Andrew Morton wrote:
 > 
-> vmtruncate changes the inode size before waiting on any pages.  So,
-> i_size could change any time during page_mkwrite.
+> > > We have a mechanism to trigger events based on the end of writeback 
+> > > (also triggered in end_page_writeback).
+> > 
+> > Not sure what you're referring to there.
+> 
+>       smp_mb__after_clear_bit();
+>       wake_up_page(page, PG_writeback);
+> 
+> > > But I guess we are not using it 
+> > > because we do not have a process context?
+> > 
+> > end_page_writeback() usually runs in hard IRQ context.
+> 
+> Those sleeping on the page must have their own process context
+> to do so.
 
-Which would put us beyond EOF. Ok.
-
-> It would be a good idea to read i_size once and put it in a local var
-> instead.
-
-Will do - I'll snap it once the page is locked....
-
-Thanks Chris.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+You've lost me.  I don't see what that sort of thing has to do with
+end_page_writeback() and rotate_reclaimable_page().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
