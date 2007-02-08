@@ -1,79 +1,28 @@
-Date: Thu, 8 Feb 2007 13:19:37 -0800 (PST)
+Date: Thu, 8 Feb 2007 13:20:08 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Drop PageReclaim()
-In-Reply-To: <20070207092517.15071f04.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0702081317200.12048@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0702081319530.12048@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
- <20070207092517.15071f04.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Feb 2007, Andrew Morton wrote:
+On Wed, 7 Feb 2007, Hugh Dickins wrote:
 
-> On Wed, 7 Feb 2007 06:13:48 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Am I missing something here? I cannot see PageReclaim have any effect?
-> > 
-> > 
-> > 
-> > PageReclaim is only used for dead code. The only current user is
-> > end_page_writeback() which has the following lines:
-> > 
-> >  if (!TestClearPageReclaim(page) || rotate_reclaimable_page(page)) {
-> >          if (!test_clear_page_writeback(page))
-> >                   BUG();
-> >  }
-> > 
-> > So the if statement is performed if !PageReclaim(page).
-> > If PageReclaim is set then we call rorate_reclaimable(page) which
-> > does:
-> > 
-> >  if (!PageLRU(page))
-> >        return 1;
-> > 
 > > The only user of PageReclaim is shrink_list(). The pages processed
 > > by shrink_list have earlier been taken off the LRU. So !PageLRU is always 
 > > true.
-> > 
-> > The if statement is therefore always true and the rotating code
-> > is never executed.
 > 
-> end_page_writeback() is amazingly obscure for such a short function.  For
-> which I apologise, but on revisit, it's still not obvious how to clean it
-> up.
-> 
-> It does:
-> 
-> 	if (!PageReclaim(page)) {
-> 		clear_page_writeback();
+> On return from shrink_page_list(),
+> doesn't shrink_inactive_list() put those pages back on the LRU?
 
-Well it does
-   if (!test_clear_page_writeback(page))
-                  BUG();
-
-> 	if (PageRecaim(page)) {
-> 		ClearPageReclaim(page);
-> 		foo = rotate_reclaimable_page(page);
-
-PageReclaim is only used while the page is off the LRU. In that case 
-rotate_reclaimable_page is always returning 1. So foo = 1 and 
-rotate_reclaimable_page is useless.
-
-> 		if (foo == 0) {
-
-> 			/*
-> 			 * rotate_reclaimable_page has already done
-> 			 * clear_page_writeback()
-> 			 */
-> 		} else {
-> 			clear_page_writeback(page);
-
-This is also a test_clear ...
+Yes but it has cleared PageReclaim by then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
