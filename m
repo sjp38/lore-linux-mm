@@ -1,40 +1,32 @@
-Date: Thu, 8 Feb 2007 14:14:39 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Drop PageReclaim()
-In-Reply-To: <20070208140338.971b3f53.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0702081411030.14424@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0702081319530.12048@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0702081331290.12167@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0702081340380.13255@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0702081351270.14036@schroedinger.engr.sgi.com>
- <20070208140338.971b3f53.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 0/3] 2.6.20 fix for PageUptodate memorder problem (try
+	2)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20070208111421.30513.77904.sendpatchset@linux.site>
+References: <20070208111421.30513.77904.sendpatchset@linux.site>
+Content-Type: text/plain
+Date: Fri, 09 Feb 2007 09:21:50 +1100
+Message-Id: <1170973310.2620.369.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Feb 2007, Andrew Morton wrote:
-
-> During the vmscan we encounter a page at the tail of the inactive list
-> which we want to reclaim, but it's dirty.  So we start writeout and then
-> move it to the head of the inactive list and keep scanning.
+On Thu, 2007-02-08 at 14:26 +0100, Nick Piggin wrote:
+> Still no independent confirmation as to whether this is a problem or not.
+> Updated some comments, added diffstats to patches, don't use __SetPageUptodate
+> as an internal page-flags.h private function.
 > 
-> When writeback completes, we take a look at the page to see if it still
-> seems to be reclaimable and if so, move it to the tail of the inactive list
-> so that it will be reclaimed very soon.
+> I would like to eventually get an ack from Hugh regarding the anon memory
+> and especially swap side of the equation, and a glance from whoever put the
+> smp_wmb()s into the copy functions (Was it Ben H or Anton maybe?)
 
-Still reclaimable means on the LRU and not activated?
- 
-> PG_reclaim is used to indicate pages which need this treatment.
+I don't remember adding that one ... Anton ?
 
-We have a mechanism to trigger events based on the end of writeback 
-(also triggered in end_page_writeback). But I guess we are not using it 
-because we do not have a process context?
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
