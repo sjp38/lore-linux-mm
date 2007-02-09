@@ -1,71 +1,75 @@
-Date: Thu, 8 Feb 2007 17:18:47 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Drop PageReclaim()
-Message-Id: <20070208171847.e7902ca7.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0702081700360.15866@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
-	<Pine.LNX.4.64.0702081319530.12048@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081331290.12167@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081340380.13255@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081351270.14036@schroedinger.engr.sgi.com>
-	<20070208140338.971b3f53.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081411030.14424@schroedinger.engr.sgi.com>
-	<20070208142431.eb81ae70.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081425000.14424@schroedinger.engr.sgi.com>
-	<20070208143746.79c000f5.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081438510.15063@schroedinger.engr.sgi.com>
-	<20070208151341.7e27ca59.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081613300.15669@schroedinger.engr.sgi.com>
-	<20070208163953.ab2bd694.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081700360.15866@schroedinger.engr.sgi.com>
+Date: Fri, 9 Feb 2007 02:31:16 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 0/3] 2.6.20 fix for PageUptodate memorder problem (try 2)
+Message-ID: <20070209013115.GA17334@wotan.suse.de>
+References: <20070208111421.30513.77904.sendpatchset@linux.site> <Pine.LNX.4.64.0702090027580.29905@blonde.wat.veritas.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0702090027580.29905@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Feb 2007 17:06:33 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> On Thu, 8 Feb 2007, Andrew Morton wrote:
+On Fri, Feb 09, 2007 at 12:41:51AM +0000, Hugh Dickins wrote:
+> On Thu, 8 Feb 2007, Nick Piggin wrote:
+> > Still no independent confirmation as to whether this is a problem or not.
 > 
-> > I doubt it.  One would need to troll five-year-old changelogs and mailing
-> > list discussion, but iirc that rotation was a large win in certain
-> > workloads, preventing scanning meltdowns and general memory stress.
+> I'm trying to convince myself none of your patch is necessary.  Probably
+> shall fail.  But how come we've survived for years with such an issue?
+
+Well I'm almost sure that the POWER guys hit this with anonymous pages
+being zeroed out then added to process address space -- they would
+occasionally see junk (via another thread, I presume).
+
+If that were the case, then I think that a read-vs-read over a hole
+(for example) should be buggy in the same way.
+
+> > Updated some comments, added diffstats to patches, don't use
+> > __SetPageUptodate as an internal page-flags.h private function.
 > 
-> I'd expect trouble here because of the taking of a LRU lock per page.
+> Depressed by profusion of PageUptodate_UpperAndlowercasevariants.
+> Those rmbs, you really only want them when it says "yes", don't you?
 
-PG_reclaim is there to prevent that problem (amongst other things).
+Yeah, any help with naming suggestions would be appreciated. I think
+we can get rid of the SetPageUptodate_nowarn variant, by making
+SetNewPageUptodate simply do an smp_wmb + __set_bit on all architectures?
+This frees us from the extra atomic ops I'd added into the page fault
+fastpaths as well.
 
-If the proportion of written-back pages due to the page scanner is large,
-things already suck.  The VM tries to minimise that IO and to maximise the
-inode-based writeback.
+Yes, we do only need the rmb if it is uptodate, that's a good point.
 
-> For 
-> large amounts of concurrent I/O this could be an issue.
+> > I would like to eventually get an ack from Hugh regarding the anon memory
+> > and especially swap side of the equation,
 > 
-> > > One additional issue that is raised by the writeback pages remaining on 
-> > > the LRU lists is that we can get into the same livelock situation as with 
-> > > mlocked pages if we keep on skipping over writeback pages.
-> > 
-> > That's why we rotate the reclaimable pages back to the head-of-queue.
+> Plea noted.  I'm pondering.  "Eventually" indeed.  OTOH I expect you're
+> right to criticize anon/swap PageUptodate being set where it was needed
+> to get by, rather than where it was natural to do so.
+
+Well if I can get you to warm to that aspect of the patch... :) I expect
+that using non-atomic bitops might help.
+
+Should I make that change into its own patch?
+
+> > and a glance from whoever put the
+> > smp_wmb()s into the copy functions (Was it Ben H or Anton maybe?)
 > 
-> I think the reclaim writeout is one minor contributor here.
+> From: Linus Torvalds <torvalds@ppc970.osdl.org>
+> Date: Thu, 14 Oct 2004 04:00:06 +0000 (-0700)
+> Subject: Fix threaded user page write memory ordering
+> X-Git-Tag: v2.6.9-final~3
+> X-Git-Url: http://127.0.0.1:1234/?p=.git;a=commitdiff_plain;h=538ce05c0ef4055cf29a92a4abcdf139d180a0f9;hp=8c225dbc5a7b13801a8254aae0ccebab8e4bece7
+> 
+> Fix threaded user page write memory ordering
 
-To what?
+Thanks, I did see that, but I'm sure it must have been prompted by a
+discussion or another proposed patch from IBM. Maybe I'm wrong
+though.
 
-> If there are 
-> large amounts of writeback pages from f.e. streaming general I/O then we 
-> may run still into bad situations because we need to scan over them.
-
-If the inactive list is small relative to the number of under-writeback
-pages in the zone then there could be problems there.  But we just throttle
-and wait for some pages to come clean, which seems to work OK.
-
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
