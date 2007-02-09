@@ -1,82 +1,80 @@
-Date: Thu, 8 Feb 2007 16:39:53 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Drop PageReclaim()
-Message-Id: <20070208163953.ab2bd694.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0702081613300.15669@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702070612010.14171@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702071428590.30412@blonde.wat.veritas.com>
-	<Pine.LNX.4.64.0702081319530.12048@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081331290.12167@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081340380.13255@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0702081351270.14036@schroedinger.engr.sgi.com>
-	<20070208140338.971b3f53.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081411030.14424@schroedinger.engr.sgi.com>
-	<20070208142431.eb81ae70.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081425000.14424@schroedinger.engr.sgi.com>
-	<20070208143746.79c000f5.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081438510.15063@schroedinger.engr.sgi.com>
-	<20070208151341.7e27ca59.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702081613300.15669@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 9 Feb 2007 00:41:51 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 0/3] 2.6.20 fix for PageUptodate memorder problem (try
+ 2)
+In-Reply-To: <20070208111421.30513.77904.sendpatchset@linux.site>
+Message-ID: <Pine.LNX.4.64.0702090027580.29905@blonde.wat.veritas.com>
+References: <20070208111421.30513.77904.sendpatchset@linux.site>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Feb 2007 16:22:17 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Thu, 8 Feb 2007, Nick Piggin wrote:
+> Still no independent confirmation as to whether this is a problem or not.
 
-> On Thu, 8 Feb 2007, Andrew Morton wrote:
+I'm trying to convince myself none of your patch is necessary.  Probably
+shall fail.  But how come we've survived for years with such an issue?
+
+> Updated some comments, added diffstats to patches, don't use
+> __SetPageUptodate as an internal page-flags.h private function.
+
+Depressed by profusion of PageUptodate_UpperAndlowercasevariants.
+Those rmbs, you really only want them when it says "yes", don't you?
+
 > 
-> > I expect that'll be OK for pages which were written back by the vm scanner.
-> >  But it also means that pages which were written back by
-> > pdflush/balance_dirty_pages/fsync/etc will now all also be eligible for
-> > rotation.  ie: the vast majority of written-back pages.
-> > 
-> > Whether that will make much difference to page aging I don't know.  But it
-> > will cause more lru->lock traffic.
-> 
-> I'd rather avoid more lru lock traffic. Could we simply drop the rotation?
+> I would like to eventually get an ack from Hugh regarding the anon memory
+> and especially swap side of the equation,
 
-I doubt it.  One would need to troll five-year-old changelogs and mailing
-list discussion, but iirc that rotation was a large win in certain
-workloads, preventing scanning meltdowns and general memory stress.
+Plea noted.  I'm pondering.  "Eventually" indeed.  OTOH I expect you're
+right to criticize anon/swap PageUptodate being set where it was needed
+to get by, rather than where it was natural to do so.
 
-It's probably more useful than tracking mlocked pages, put it that way.
+> and a glance from whoever put the
+> smp_wmb()s into the copy functions (Was it Ben H or Anton maybe?)
 
-> Writeback is typically a relatively long process. The page should 
-> have made some progress through the inactive list by the time the 
-> write is complete.
+From: Linus Torvalds <torvalds@ppc970.osdl.org>
+Date: Thu, 14 Oct 2004 04:00:06 +0000 (-0700)
+Subject: Fix threaded user page write memory ordering
+X-Git-Tag: v2.6.9-final~3
+X-Git-Url: http://127.0.0.1:1234/?p=.git;a=commitdiff_plain;h=538ce05c0ef4055cf29a92a4abcdf139d180a0f9;hp=8c225dbc5a7b13801a8254aae0ccebab8e4bece7
 
-huuuuuuge amounts of testing went into this stuff, on a large number of
-machine configurations and workloads.  Plus a few tens of millions of
-machine-years in the field.
+Fix threaded user page write memory ordering
 
-Possibly we could do it, but it'd be a ton of work in validating the
-change.
+Make sure we order the writes to a newly created page
+with the page table update that potentially exposes the
+page to another CPU.
 
-> One additional issue that is raised by the writeback pages remaining on 
-> the LRU lists is that we can get into the same livelock situation as with 
-> mlocked pages if we keep on skipping over writeback pages.
+This is a no-op on any architecture where getting the
+page table spinlock will already do the ordering (notably
+x86), but other architectures can care.
+---
 
-That's why we rotate the reclaimable pages back to the head-of-queue.
-
-The vm scanner will throttle twelve times before it fully traverses the
-inactive list.  And the extent of that throttling is dependent upon completion of
-writeback.  We expect that after a throttled reclaimer has been woken, the
-waker has dumped a pile of immediately-reclaimable pages at the tail of
-the LRU.
-
-> However, the 
-> system is already slow due to us waiting for I/O. I guess we just do not 
-> notice.
-
-Well.  IO.  People still seem to thing that vmscan.c is about page
-replacement.  It ain't.  Most of the problems in there and most of the work
-which has gone into it are IO-related.
+diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+index 232d8fd..7153aef 100644
+--- a/include/linux/highmem.h
++++ b/include/linux/highmem.h
+@@ -40,6 +40,8 @@ static inline void clear_user_highpage(s
+ 	void *addr = kmap_atomic(page, KM_USER0);
+ 	clear_user_page(addr, vaddr, page);
+ 	kunmap_atomic(addr, KM_USER0);
++	/* Make sure this page is cleared on other CPU's too before using it */
++	smp_wmb();
+ }
+ 
+ static inline void clear_highpage(struct page *page)
+@@ -73,6 +75,8 @@ static inline void copy_user_highpage(st
+ 	copy_user_page(vto, vfrom, vaddr, to);
+ 	kunmap_atomic(vfrom, KM_USER0);
+ 	kunmap_atomic(vto, KM_USER1);
++	/* Make sure this page is cleared on other CPU's too before using it */
++	smp_wmb();
+ }
+ 
+ static inline void copy_highpage(struct page *to, struct page *from)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
