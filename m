@@ -1,95 +1,100 @@
-Received: from localhost (localhost [127.0.0.1])
-	by mail2.syneticon.net (Postfix) with ESMTP id A58894FE20
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:34 +0100 (CET)
-Received: from mail2.syneticon.net ([127.0.0.1])
- by localhost (linux [127.0.0.1]) (amavisd-new, port 10024) with ESMTP
- id 18533-13 for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:20 +0100 (CET)
-Received: from postfix1.syneticon.net (postfix1.syneticon.net [192.168.112.6])
-	by mail2.syneticon.net (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:19 +0100 (CET)
-Received: from localhost (filter1.syneticon.net [192.168.113.3])
-	by postfix1.syneticon.net (Postfix) with ESMTP id 2920D95EF
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:21 +0100 (CET)
-Received: from postfix1.syneticon.net ([192.168.113.4])
-	by localhost (192.168.113.3 [192.168.113.3]) (amavisd-new, port 10025)
-	with ESMTP id iTLvjevCJE3G for <linux-mm@kvack.org>;
-	Fri,  9 Feb 2007 18:08:14 +0100 (CET)
-Received: from [84.44.195.93] (xdsl-84-44-195-93.netcologne.de [84.44.195.93])
-	by postfix1.syneticon.net (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:14 +0100 (CET)
-Message-ID: <45CCAA7B.5070805@wpkg.org>
-Date: Fri, 09 Feb 2007 18:08:11 +0100
-From: Tomasz Chmielewski <mangoo@wpkg.org>
+Received: by ug-out-1314.google.com with SMTP id s2so818607uge
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2007 09:22:36 -0800 (PST)
+From: Alon Bar-Lev <alonbl@opensc-project.org>
+Subject: Re: [PATCH 00/34] __initdata cleanup
+Date: Fri, 9 Feb 2007 19:25:02 +0200
+References: <200702091711.34441.alon.barlev@gmail.com> <20070209170005.GA8500@osiris.ibm.com>
+In-Reply-To: <20070209170005.GA8500@osiris.ibm.com>
 MIME-Version: 1.0
-Subject: does SCSI eat my PC's memory?
-Content-Type: text/plain; charset=ISO-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
+Message-Id: <200702091925.03314.alonbl@opensc-project.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, bwalle@suse.de, rmk+lkml@arm.linux.org.uk, spyro@f2s.com, davej@codemonkey.org.uk, hpa@zytor.com, Riley@williams.name, tony.luck@intel.com, geert@linux-m68k.org, zippel@linux-m68k.org, ralf@linux-mips.org, matthew@wil.cx, grundler@parisc-linux.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, davem@davemloft.net, uclinux-v850@lsi.nec.co.jp, ak@muc.de, vojtech@suse.cz, chris@zankel.net, len.brown@intel.com, lenb@kernel.org, herbert@gondor.apana.org.au, viro@zeniv.linux.org.uk, bzolnier@gmail.com, dmitry.torokhov@gmail.com, dtor@mail.ru, jgarzik@pobox.com, linux-mm@kvack.org, dwmw2@infradead.org, patrick@tykepenguin.com, kuznet@ms2.inr.ac.ru, pekkas@netcore.fi, jmorris@namei.org, philb@gnu.org, tim@cyberelk.net, andrea@suse.de, ambx1@neo.rr.com, James.Bottomley@steeleye.com, linux-serial@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Does SCSI eat my PC's memory? Probably not, but I can't find an 
-explanation of what uses so much RAM when I use SCSI disks.
+On Friday 09 February 2007, Heiko Carstens wrote:
+> And the top-level Makefile has:
+> 
+> CFLAGS          := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+>                    -fno-strict-aliasing -fno-common
+> 
+> Note the -fno-common.
+> 
+> And indeed all the __initdata annotated local and global variables on
+> s390 are in the init.data section. So I'm wondering what this patch
+> series is about. Or I must have missed something.
+> 
 
-A little background first.
+Hmmm... You have a valid point!
+So it reduces the patch to the following.
+>From the previous discussion I was afraid that I added some invalid variables.
 
-Overall, the system has 1 GB memory. When it boots and everything has
-started, about 60 MB of memory is used (excluding buffers).
+Thanks!
 
-One partition is on a iscsi target (I access it using open-iscsi):
+Best Regards,
+Alon Bar-Lev.
 
-/dev/sda              570G  402G  139G  75% /mnt/iscsi_backup
+---
 
-It contains lots of data, many files, hardlinked multiple times
-(in total, almost 100 000 000 files).
-
-
-When I run "find /mnt/iscsi_backup" for some time, and run
-"free" to see memory usage, I can see almost 500 MB is used (excluding
-buffers/cache):
-
-# free
-               total       used       free     shared    buffers     cached
-Mem:       1048576    1029360      19216          0     530972      17628
--/+ buffers/cache:     480760     567816
-Swap:      1048568         68    1048500
-
-
-Also, stopping all deamons and dropping cache doesn't help (sum of the
-memory used by all processes, displayed by "ps", is about 60 MB):
-
-# echo 1 > /proc/sys/vm/drop_caches
-# free
-               total       used       free     shared    buffers     cached
-Mem:       1048576     453932     594644          0        352       6408
--/+ buffers/cache:     447172     601404
-Swap:      1048568         68    1048500
-
-
-A single "umount" command releases almost 400 MB of memory:
-
-# umount /mnt/iscsi_backup/
-# free
-               total       used       free     shared    buffers     cached
-Mem:       1048576      64188     984388          0        232       6528
--/+ buffers/cache:      57428     991148
-Swap:      1048568         64    1048504
-
-
-
-What used almost 400 MB? SCSI buffers?
-
-I noticed that when I add RAM to the system, more "unexplained" RAM will 
-be used.
-When I remove some RAM, "unexplained" RAM usage will drop - as a rule of 
-thumb, I observed that about 50% of RAM is used by something I can't 
-identify.
-
-
--- 
-Tomasz Chmielewski
-http://wpkg.org
+diff -urNp linux-2.6.20-rc6-mm3.org/arch/x86_64/kernel/e820.c linux-2.6.20-rc6-mm3/arch/x86_64/kernel/e820.c
+--- linux-2.6.20-rc6-mm3.org/arch/x86_64/kernel/e820.c
++++ linux-2.6.20-rc6-mm3/arch/x86_64/kernel/e820.c
+@@ -402,10 +402,10 @@ static int __init sanitize_e820_map(stru
+ 		struct e820entry *pbios; /* pointer to original bios entry */
+ 		unsigned long long addr; /* address for this change point */
+ 	};
+-	static struct change_member change_point_list[2*E820MAX] __initdata;
+-	static struct change_member *change_point[2*E820MAX] __initdata;
+-	static struct e820entry *overlap_list[E820MAX] __initdata;
+-	static struct e820entry new_bios[E820MAX] __initdata;
++	static struct change_member change_point_list[2*E820MAX] __initdata = {{0}};
++	static struct change_member *change_point[2*E820MAX] __initdata = {0};
++	static struct e820entry *overlap_list[E820MAX] __initdata = {0};
++	static struct e820entry new_bios[E820MAX] __initdata = {{0}};
+ 	struct change_member *change_tmp;
+ 	unsigned long current_type, last_type;
+ 	unsigned long long last_addr;
+diff -urNp linux-2.6.20-rc6-mm3.org/fs/nfs/nfsroot.c linux-2.6.20-rc6-mm3/fs/nfs/nfsroot.c
+--- linux-2.6.20-rc6-mm3.org/fs/nfs/nfsroot.c	2007-01-25 04:19:28.000000000 +0200
++++ linux-2.6.20-rc6-mm3/fs/nfs/nfsroot.c	2007-01-31 22:19:30.000000000 +0200
+@@ -289,7 +289,7 @@ static int __init root_nfs_parse(char *n
+  */
+ static int __init root_nfs_name(char *name)
+ {
+-	static char buf[NFS_MAXPATHLEN] __initdata;
++	static char buf[NFS_MAXPATHLEN] __initdata = { 0, };
+ 	char *cp;
+ 
+ 	/* Set some default values */
+diff -urNp linux-2.6.20-rc6-mm3.org/init/main.c linux-2.6.20-rc6-mm3/init/main.c
+--- linux-2.6.20-rc6-mm3.org/init/main.c	2007-01-31 22:15:41.000000000 +0200
++++ linux-2.6.20-rc6-mm3/init/main.c	2007-01-31 22:19:30.000000000 +0200
+@@ -470,7 +470,7 @@ static int __init do_early_param(char *p
+ void __init parse_early_param(void)
+ {
+ 	static __initdata int done = 0;
+-	static __initdata char tmp_cmdline[COMMAND_LINE_SIZE];
++	static __initdata char tmp_cmdline[COMMAND_LINE_SIZE] = "";
+ 
+ 	if (done)
+ 		return;
+diff -urNp linux-2.6.20-rc6-mm3.org/drivers/input/keyboard/amikbd.c linux-2.6.20-rc6-mm3/drivers/input/keyboard/amikbd.c
+--- linux-2.6.20-rc6-mm3.org/drivers/input/keyboard/amikbd.c	2007-01-25 04:19:28.000000000 +0200
++++ linux-2.6.20-rc6-mm3/drivers/input/keyboard/amikbd.c	2007-01-31 22:19:30.000000000 +0200
+@@ -215,7 +215,7 @@ static int __init amikbd_init(void)
+ 		set_bit(i, amikbd_dev->keybit);
+ 
+ 	for (i = 0; i < MAX_NR_KEYMAPS; i++) {
+-		static u_short temp_map[NR_KEYS] __initdata;
++		static u_short temp_map[NR_KEYS] __initdata = {0};
+ 		if (!key_maps[i])
+ 			continue;
+ 		memset(temp_map, 0, sizeof(temp_map));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
