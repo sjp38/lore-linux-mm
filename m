@@ -1,69 +1,95 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate5.uk.ibm.com (8.13.8/8.13.8) with ESMTP id l19H1IoN358878
-	for <linux-mm@kvack.org>; Fri, 9 Feb 2007 17:01:18 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l19H1Inh1851530
-	for <linux-mm@kvack.org>; Fri, 9 Feb 2007 17:01:18 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l19H1F22012558
-	for <linux-mm@kvack.org>; Fri, 9 Feb 2007 17:01:18 GMT
-Date: Fri, 9 Feb 2007 18:00:05 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 00/34] __initdata cleanup
-Message-ID: <20070209170005.GA8500@osiris.ibm.com>
-References: <200702091711.34441.alon.barlev@gmail.com>
+Received: from localhost (localhost [127.0.0.1])
+	by mail2.syneticon.net (Postfix) with ESMTP id A58894FE20
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:34 +0100 (CET)
+Received: from mail2.syneticon.net ([127.0.0.1])
+ by localhost (linux [127.0.0.1]) (amavisd-new, port 10024) with ESMTP
+ id 18533-13 for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:20 +0100 (CET)
+Received: from postfix1.syneticon.net (postfix1.syneticon.net [192.168.112.6])
+	by mail2.syneticon.net (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:19 +0100 (CET)
+Received: from localhost (filter1.syneticon.net [192.168.113.3])
+	by postfix1.syneticon.net (Postfix) with ESMTP id 2920D95EF
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:21 +0100 (CET)
+Received: from postfix1.syneticon.net ([192.168.113.4])
+	by localhost (192.168.113.3 [192.168.113.3]) (amavisd-new, port 10025)
+	with ESMTP id iTLvjevCJE3G for <linux-mm@kvack.org>;
+	Fri,  9 Feb 2007 18:08:14 +0100 (CET)
+Received: from [84.44.195.93] (xdsl-84-44-195-93.netcologne.de [84.44.195.93])
+	by postfix1.syneticon.net (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2007 18:08:14 +0100 (CET)
+Message-ID: <45CCAA7B.5070805@wpkg.org>
+Date: Fri, 09 Feb 2007 18:08:11 +0100
+From: Tomasz Chmielewski <mangoo@wpkg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200702091711.34441.alon.barlev@gmail.com>
+Subject: does SCSI eat my PC's memory?
+Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alon Bar-Lev <alon.barlev@gmail.com>
-Cc: linux-kernel@vger.kernel.org, akpm@osdl.org, bwalle@suse.de, rmk+lkml@arm.linux.org.uk, spyro@f2s.com, davej@codemonkey.org.uk, hpa@zytor.com, Riley@williams.name, tony.luck@intel.com, geert@linux-m68k.org, zippel@linux-m68k.org, ralf@linux-mips.org, matthew@wil.cx, grundler@parisc-linux.org, kyle@parisc-linux.org, paulus@samba.org, schwidefsky@de.ibm.com, lethal@linux-sh.org, davem@davemloft.net, uclinux-v850@lsi.nec.co.jp, ak@muc.de, vojtech@suse.cz, chris@zankel.net, len.brown@intel.com, lenb@kernel.org, herbert@gondor.apana.org.au, viro@zeniv.linux.org.uk, bzolnier@gmail.com, dmitry.torokhov@gmail.com, dtor@mail.ru, jgarzik@pobox.com, linux-mm@kvack.org, dwmw2@infradead.org, patrick@tykepenguin.com, kuznet@ms2.inr.ac.ru, pekkas@netcore.fi, jmorris@namei.org, philb@gnu.org, tim@cyberelk.net, andrea@suse.de, ambx1@neo.rr.com, James.Bottomley@steeleye.com, linux-serial@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 09, 2007 at 05:11:32PM +0200, Alon Bar-Lev wrote:
->  
-> Follow-up Russell King comment at http://lkml.org/lkml/2007/1/22/267
->
-> All __initdata variables should be initialized so they won't end up
-> in BSS.
->  
-> There is no dependency between patches or even hunks.
->  
-> Some architecture patches are untested, this is documented as "UNTESTED"
->  
-> Against 2.6.20-rc6-mm3.
+Does SCSI eat my PC's memory? Probably not, but I can't find an 
+explanation of what uses so much RAM when I use SCSI disks.
 
-To quote parts of that:
+A little background first.
 
-Anyway, here's what the GCC manual has to say about use of
-__attribute__((section)) on variables:
+Overall, the system has 1 GB memory. When it boots and everything has
+started, about 60 MB of memory is used (excluding buffers).
 
-`section ("SECTION-NAME")'
-     Use the `section' attribute with an _initialized_ definition of a
-     _global_ variable, as shown in the example.  GCC issues a warning
-     and otherwise ignores the `section' attribute in uninitialized
-     variable declarations.
+One partition is on a iscsi target (I access it using open-iscsi):
 
-     You may only use the `section' attribute with a fully initialized
-     global definition because of the way linkers work.  The linker
-     requires each object be defined once, with the exception that
-     uninitialized variables tentatively go in the `common' (or `bss')
-     section and can be multiply "defined".  You can force a variable
-     to be initialized with the `-fno-common' flag or the `nocommon'
-     attribute.
+/dev/sda              570G  402G  139G  75% /mnt/iscsi_backup
 
-And the top-level Makefile has:
+It contains lots of data, many files, hardlinked multiple times
+(in total, almost 100 000 000 files).
 
-CFLAGS          := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-                   -fno-strict-aliasing -fno-common
 
-Note the -fno-common.
+When I run "find /mnt/iscsi_backup" for some time, and run
+"free" to see memory usage, I can see almost 500 MB is used (excluding
+buffers/cache):
 
-And indeed all the __initdata annotated local and global variables on
-s390 are in the init.data section. So I'm wondering what this patch
-series is about. Or I must have missed something.
+# free
+               total       used       free     shared    buffers     cached
+Mem:       1048576    1029360      19216          0     530972      17628
+-/+ buffers/cache:     480760     567816
+Swap:      1048568         68    1048500
+
+
+Also, stopping all deamons and dropping cache doesn't help (sum of the
+memory used by all processes, displayed by "ps", is about 60 MB):
+
+# echo 1 > /proc/sys/vm/drop_caches
+# free
+               total       used       free     shared    buffers     cached
+Mem:       1048576     453932     594644          0        352       6408
+-/+ buffers/cache:     447172     601404
+Swap:      1048568         68    1048500
+
+
+A single "umount" command releases almost 400 MB of memory:
+
+# umount /mnt/iscsi_backup/
+# free
+               total       used       free     shared    buffers     cached
+Mem:       1048576      64188     984388          0        232       6528
+-/+ buffers/cache:      57428     991148
+Swap:      1048568         64    1048504
+
+
+
+What used almost 400 MB? SCSI buffers?
+
+I noticed that when I add RAM to the system, more "unexplained" RAM will 
+be used.
+When I remove some RAM, "unexplained" RAM usage will drop - as a rule of 
+thumb, I observed that about 50% of RAM is used by something I can't 
+identify.
+
+
+-- 
+Tomasz Chmielewski
+http://wpkg.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
