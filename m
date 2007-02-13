@@ -1,86 +1,49 @@
-Date: Tue, 13 Feb 2007 00:04:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Use ZVC counters to establish exact size of dirtyable pages
-Message-Id: <20070213000411.a6d76e0c.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0702121014500.15560@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702121014500.15560@schroedinger.engr.sgi.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id l1D9PSb9066706
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2007 09:25:28 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1D9PRbb991478
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2007 09:25:28 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1D9PRXY015081
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2007 09:25:27 GMT
+Subject: Re: [patch 0/3] 2.6.20 fix for PageUptodate memorder problem (try
+	3)
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <20070213055229.GB18792@wotan.suse.de>
+References: <20070210001844.21921.48605.sendpatchset@linux.site>
+	 <1171147495.31563.5.camel@localhost> <20070213055229.GB18792@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 13 Feb 2007 10:25:33 +0100
+Message-Id: <1171358733.3138.0.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Feb 2007 10:16:23 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 2007-02-13 at 06:52 +0100, Nick Piggin wrote:
+> Thanks for the confirmation.
+> 
+> I'll obviously have to resend a new patchset because I made a silly
+> paper-bag bug with this one. May I say that the s390 specific part of
+> the change is acked-by: you?
 
-> +static unsigned long determine_dirtyable_memory(void)
-> +{
-> +	unsigned long x;
-> +
-> +#ifndef CONFIG_HIGHMEM
-> +	x = global_page_state(NR_FREE_PAGES)
-> +		+ global_page_state(NR_INACTIVE)
-> +		+ global_page_state(NR_ACTIVE);
-> +#else
-> +	/*
-> +	 * We always exclude high memory from our count
-> +	 */
-> +#if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-> +	/*
-> +	 * i386 32 bit NUMA configurations have all non HIGHMEM zones on
-> +	 * node 0. So its easier to just add up the lowmemt zones on node 0.
-> +	 */
-> +	struct zone * z;
-> +
-> +	x = 0;
-> +	for (z = NODE_DATA(0)->node_zones;
-> +			z < NODE_DATA(0)->node_zones + ZONE_HIGHMEM;
-> +			z++)
-> +		x = zone_page_state(z, NR_FREE_PAGES)
-> +			+ zone_page_state(z, NR_INACTIVE)
-> +			+ zone_page_state(z, NR_ACTIVE);
-> +
-> +#else
-> +	/*
-> +	 * Just subtract the HIGHMEM zones.
-> +	 */
-> +	int node;
-> +
-> +	x = global_page_state(NR_FREE_PAGES)
-> +		+ global_page_state(NR_INACTIVE)
-> +		+ global_page_state(NR_ACTIVE);
-> +
-> +	for_each_online_node(node) {
-> +		struct zone *z =
-> +			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
-> +
-> +		x -= zone_page_state(z, NR_FREE_PAGES)
-> +			+ zone_page_state(z, NR_INACTIVE)
-> +			+ zone_page_state(z, NR_ACTIVE);
-> +	}
-> +
-> +#endif
-> +#endif /* CONFIG_HIGHMEM */
-> +	return x;
-> +}
+Yes.
 
-gaaack.
+-- 
+blue skies,
+  Martin.
 
-If CONFIG_HIGHMEM=n and CONFIG_NUMA=n, that definition of `node' is going
-to come after the calculation of `x' and is going to spit a warning.
+Martin Schwidefsky
+Linux for zSeries Development & Services
+IBM Deutschland Entwicklung GmbH
 
-And we'll run global_page_state() six times where three would have
-sufficed.
+"Reality continues to ruin my life." - Calvin.
 
-Also I think you'll be wanting a += in that first loop.
-
-I believe i386 NUMA is rare as hen's teeth and perhaps we can just forget
-about optimising for it.
-
-Wanna have another go at this?  Perhaps split it into separate functions or
-something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
