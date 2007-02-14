@@ -1,47 +1,62 @@
-Message-ID: <45D2D1F6.1020303@yahoo.com.au>
-Date: Wed, 14 Feb 2007 20:10:14 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 14 Feb 2007 17:50:47 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [rfc][patch] rmap: more sanity checks
+Message-ID: <20070214165047.GB11002@v2.random>
+References: <20070214090425.GA14932@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [patch] build error: allnoconfig fails on mincore/swapper_space
-References: <20070212145040.c3aea56e.randy.dunlap@oracle.com> <20070212150802.f240e94f.akpm@linux-foundation.org> <45D12715.4070408@yahoo.com.au> <20070213121217.0f4e9f3a.randy.dunlap@oracle.com> <Pine.LNX.4.64.0702132224280.3729@blonde.wat.veritas.com> <20070213144909.70943de2.randy.dunlap@oracle.com> <Pine.LNX.4.64.0702140009320.21315@blonde.wat.veritas.com> <45D266E3.4050905@yahoo.com.au> <Pine.LNX.4.64.0702140727180.4224@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0702140727180.4224@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070214090425.GA14932@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, tony.luck@gmail.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Petr Tesarik <ptesarik@suse.cz>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Wed, 14 Feb 2007, Nick Piggin wrote:
-> 
->>Can't you have migration without swap?
-> 
-> 
-> Yes: but then the only swap entry it can find (short of page
-> table corruption, which isn't really the focus of mincore)
-> is a migration entry, isn't it?
+Hi Nick,
 
-Just doesn't seem logical to have CONFIG_SWAP ifdef cover the
-whole thing, regardless that it produces the desired result.
+On Wed, Feb 14, 2007 at 10:04:25AM +0100, Nick Piggin wrote:
+> It would be nice to get some of these checks back into mainline, IMO. I
 
-I'm going to submit a fixup patch to Linus covering all this
-stuff, after making a more comprehensive test case (yes I
-actually did test this patch with a few different cases before
-submitting it, so I must have been unlucky with uninitialised
-data).
+Obviously seconded. It's a bit ironic that my original implementation
+was effectively safer that what was further "sanitized" and pushed
+into mainline 8). (of course mainline over the dozen releases was
+significantly improved in the locking etc.etc.. I don't mean that, but
+as far as safety goes it clearly still lacks)
 
-If he wants to apply it rather than back out the patch entirely,
-its up to him.
+This isn't the first time that we catch subtle VM bugs in sles9 that
+aren't reproducible in mainline (but that affects mainline too). I
+tried a few times to complain about the removal of my bugchecks
+(notably I recall the ones in do_no_page):
 
-I don't think there is any reason to panic. I did completely
-forget the result vector, but AFAIKS that's the only real bug
-in it.
+#ifndef CONFIG_DISCONTIGMEM
+	/* this check is unreliable with numa enabled */
+	BUG_ON(!pfn_valid(page_to_pfn(new_page)));
+#endif
+	pageable = !PageReserved(new_page);
+	as = !!new_page->mapping;
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+	BUG_ON(!pageable && as);
+
+	pageable &= as;
+
+	/* ->nopage cannot return swapcache */
+	BUG_ON(PageSwapCache(new_page));
+	/* ->nopage cannot return anonymous pages */
+	BUG_ON(PageAnon(new_page));
+
+compare that with mainline...
+
+I hope this incident will be enough to resurrect some of the
+"sanitized" bugchecks.
+
+> wonder if I'm correct in thinking that checking the page index and mapping
+> is not actually racy?
+
+Index and mapping shouldn't change if the page is locked, and you
+already added the BUG_ON(!PageLocked(page)).
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
