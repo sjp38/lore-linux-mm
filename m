@@ -1,62 +1,55 @@
-Date: Wed, 14 Feb 2007 15:19:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Wed, 14 Feb 2007 15:35:59 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: Use ZVC counters to establish exact size of dirtyable pages
-Message-Id: <20070214151931.852766f9.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0702141433190.3228@schroedinger.engr.sgi.com>
+In-Reply-To: <20070214151931.852766f9.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0702141521090.3615@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702121014500.15560@schroedinger.engr.sgi.com>
-	<20070213000411.a6d76e0c.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702130933001.23798@schroedinger.engr.sgi.com>
-	<20070214142432.a7e913fa.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0702141433190.3228@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20070213000411.a6d76e0c.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0702130933001.23798@schroedinger.engr.sgi.com>
+ <20070214142432.a7e913fa.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0702141433190.3228@schroedinger.engr.sgi.com>
+ <20070214151931.852766f9.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Feb 2007 14:41:57 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 14 Feb 2007, Andrew Morton wrote:
 
-> On Wed, 14 Feb 2007, Andrew Morton wrote:
+> > > But this function can, I think, also return negative (ie: very large)
+> > > numbers.  I don't think we handle that right.
+> > 
+> > How would that occur? The only way that I could think this would happen is 
+> > if for some strange reason the highmem counts are bigger than the total 
+> > counts.
 > 
-> > Suppose a zone has ten dirty pages.  All the remaining pages in the zone
-> > are off being used for soundcard buffers and networking skbs.
+> Dunno, maybe it can't happen.  But those counters are approximate and
+> perhaps there are edge cases which occur when differences between them are
+> calculated and most of the pages are not free and not on the LRU.
 > 
-> Thats a pretty artificial situation.
+> It all needs careful thought.
 
-We hit weird situations in the VM all the time.  There have been
-unbelieveably improbable things which someone manages to hit regularly.
+That would require a deferral of counters greater than the size of low 
+memory. And this is bound highmem so we are talking about 32 bit systems 
+that are pretty limited in their number of processors and storage.
 
-> There is a min_free_kbytes that 
-> should give us some safety there. Only GFP_ATOMIC could get us there.
+The maximum deferral of a counter is 2 * stat_threshhold * nr_cpus. The 
+max that I know about on i386 are 64GB systems. The stat threshold for 
+zones with a size <128MB is 10 but we have a range from -threashold .. 
++threashold. So for 8 processors a counter can be deferred at most for 8 * 
+2 * 10 * 4 kbytes = 640 kbytes. Assume that all 3 counters are off the max 
+then we reach 1920 kbytes. Lets say the highmem counters are also off by 
+the max then we reach ~ 4 mbytes. This is still far less than the size of 
+low memory.
 
-network rx happens.  A nice pingflood will chew the page reserves.  e1000
-has insanely huge queues.
+One could now think that the LRU size could get to less than 4 mbytes 
+in lowmem and then we would have a problem. But would such a system still be 
+functional?
 
-> > This function will return zero.  Which I think we'll happen to handle OK.
-> 
-> One would expect the function to return 10. The 10 pages are on the LRU.
-> If we really have zero dirtyable pages then we will get a division by 
-> zero problem.
-
-The vm scanner does temporarily take these pages off the lru and will
-temporarily adjust NR_INACTIVE or NR_ACTIVE to account for this.
-
-> > But this function can, I think, also return negative (ie: very large)
-> > numbers.  I don't think we handle that right.
-> 
-> How would that occur? The only way that I could think this would happen is 
-> if for some strange reason the highmem counts are bigger than the total 
-> counts.
-
-Dunno, maybe it can't happen.  But those counters are approximate and
-perhaps there are edge cases which occur when differences between them are
-calculated and most of the pages are not free and not on the LRU.
-
-It all needs careful thought.
+If you want to be safe we can make sure that the number returned is > 0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
