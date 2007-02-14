@@ -1,62 +1,53 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1EH84OM274752
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2007 04:08:04 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1EGtxDL155722
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2007 03:56:00 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1EGqTFx028037
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2007 03:52:29 +1100
-Message-ID: <45D33E49.8070909@in.ibm.com>
-Date: Wed, 14 Feb 2007 22:22:25 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
+Date: Wed, 14 Feb 2007 10:57:00 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch] mm: NUMA replicated pagecache
+In-Reply-To: <20070213060924.GB20644@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0702141052350.975@schroedinger.engr.sgi.com>
+References: <20070213060924.GB20644@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch] rmap: more sanity checks
-References: <20070214090425.GA14932@wotan.suse.de>
-In-Reply-To: <20070214090425.GA14932@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrea Arcangeli <andrea@suse.de>, Petr Tesarik <ptesarik@suse.cz>, Hugh Dickins <hugh@veritas.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> We have seen a bug in SLES9 that only gets picked up with Andrea's extra
-> rmap checks that were removed from mainline.
+On Tue, 13 Feb 2007, Nick Piggin wrote:
+
+> Just tinkering around with this and got something working, so I'll see
+> if anyone else wants to try it.
 > 
-> Petr Tesarik has got a fix for the problem, which he is planning to send
-> upstream. The issue is a specific condition that causes an anon page to be
-> incorrectly inserted into the pagetables, outside a valid vma.
-> 
-> It would be nice to get some of these checks back into mainline, IMO. I
-> wonder if I'm correct in thinking that checking the page index and mapping
-> is not actually racy?
-> 
+> Not proposing for inclusion, but I'd be interested in comments or results.
 
-I hope so, if that is indeed the case my patches for tracking and accounting
-shared rss pages at
+We would be very interested in such a feature. We have another hack that 
+shows up to 40% performance improvements.
 
-http://marc.theaimsgroup.com/?l=linux-mm&m=116738715329816&w=2
+> At the moment the code is a bit ugly, but it won't take much to make it a
+> completely standalone ~400 line module with just a handful of hooks into
+> the core mm. So if anyone really wants it, it could be quite realistic to
+> get into an includable form.
 
-will get much simpler.
+Would be great but I am a bit skeptical regarding the locking and the 
+additonal overhead moving back and forth between replications and non 
+replicated page state.
 
-There used to be a rmap lock (PG_maplock bit) earlier to protect
-rmap information
+> At some point I did take a look at Dave Hansen's page replication patch for
+> ideas, but didn't get far because he was doing a per-inode scheme and I was
+> doing per-page. No judgments on which approach is better, but I feel this
+> per-page patch is quite neat.
 
-Please see
+Definitely looks better.
 
-http://marc.theaimsgroup.com/?l=linux-mm&m=116738715302690&w=2
+> - Would be nice to transfer master on reclaim. This should be quite easy,
+>   must transfer relevant flags, and only if !PagePrivate (which reclaim
+>   takes care of).
 
-and
+Transfer master? Meaning you need to remove the replicated pages? Removing 
+of replicated pages should transfer reference bit?
 
-http://lkml.org/lkml/2004/7/12/241
+> - Should go nicely with lockless pagecache, but haven't merged them yet.
 
-
-	Regards,
-	Balbir Singh
+When is that going to happen? Soon I hope?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
