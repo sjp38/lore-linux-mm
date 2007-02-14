@@ -1,45 +1,33 @@
-Message-ID: <45D266E3.4050905@yahoo.com.au>
-Date: Wed, 14 Feb 2007 12:33:23 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch] build error: allnoconfig fails on mincore/swapper_space
-References: <20070212145040.c3aea56e.randy.dunlap@oracle.com> <20070212150802.f240e94f.akpm@linux-foundation.org> <45D12715.4070408@yahoo.com.au> <20070213121217.0f4e9f3a.randy.dunlap@oracle.com> <Pine.LNX.4.64.0702132224280.3729@blonde.wat.veritas.com> <20070213144909.70943de2.randy.dunlap@oracle.com> <Pine.LNX.4.64.0702140009320.21315@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0702140009320.21315@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 14 Feb 2007 05:28:43 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: NUMA replicated pagecache
+Message-ID: <20070214042843.GD7125@wotan.suse.de>
+References: <20070213060924.GB20644@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070213060924.GB20644@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, tony.luck@gmail.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 13 Feb 2007, Randy Dunlap wrote:
+On Tue, Feb 13, 2007 at 07:09:24AM +0100, Nick Piggin wrote:
 > 
->>From: Randy Dunlap <randy.dunlap@oracle.com>
->>
->>Don't check for pte swap entries when CONFIG_SWAP=n.
->>And save 'present' in the vec array.
->>
->>mm/built-in.o: In function `sys_mincore':
->>(.text+0xe584): undefined reference to `swapper_space'
->>
->>Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
-> 
-> 
-> What you've done there is fine, Randy, thank you.
+> Issues:
+> - Not commented. I want to change the interfaces around anyway.
+> - Breaks filesystems that use filemap_nopage, but don't call filemap_mkwrite
+>   (eg. XFS). Fix is trivial for most cases.
+> - Haven't tested NUMA yet (only tested via a hack to do per-CPU replication)
+> - Would like to be able to control replication via userspace, and maybe
+>   even internally to the kernel.
+> - Ideally, reclaim might reclaim replicated pages preferentially, however
+>   I aim to be _minimally_ intrusive.
+> - Would like to replicate PagePrivate, but filesystem may dirty page via
+>   buffers. Any solutions? (currently should mount with 'nobh').
 
-Can't you have migration without swap?
-
-> But I just got out of bed to take another look, and indeed:
-> what is it doing in the none_mapped !vma->vm_file case?
-> passing back an uninitialized vector.
-
-I must have completely forgotten about the vector :(
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Hmm, I guess we should be able to do this for pagecache of regular files,
+as filesystems should not have any business dirtying that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
