@@ -1,77 +1,91 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070215012515.5343.28018.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 5/7] Consolidate new anonymous page code paths
-Date: Wed, 14 Feb 2007 17:25:15 -0800 (PST)
+Subject: [PATCH 7/7] Opportunistically move mlocked pages off the LRU
+Date: Wed, 14 Feb 2007 17:25:26 -0800 (PST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Nigel Cunningham <nigel@nigel.suspend2.net>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Consolidate code to add an anonymous page in memory.c
+Opportunistically move mlocked pages off the LRU
 
-There are two location in which we add anonymous pages. Both
-implement the same logic. Create a new function add_anon_page()
-to have a common code path.
+Add a new function try_to_mlock() that attempts to
+move a page off the LRU and marks it mlocked.
+
+This function can then be used in various code paths to move
+pages off the LRU immediately. Early discovery will make NR_MLOCK
+track the actual number of mlocked pages in the system more closely.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.20/mm/memory.c
 ===================================================================
---- linux-2.6.20.orig/mm/memory.c	2007-02-14 12:03:09.000000000 -0800
-+++ linux-2.6.20/mm/memory.c	2007-02-14 12:03:12.000000000 -0800
-@@ -900,6 +900,17 @@
+--- linux-2.6.20.orig/mm/memory.c	2007-02-14 13:10:09.000000000 -0800
++++ linux-2.6.20/mm/memory.c	2007-02-14 13:13:29.000000000 -0800
+@@ -59,6 +59,7 @@
+ 
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
++#include <linux/mm_inline.h>
+ 
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+@@ -920,6 +921,34 @@
  }
  
  /*
-+ * Add a new anonymous page
++ * Opportunistically move the page off the LRU
++ * if possible. If we do not succeed then the LRU
++ * scans will take the page off.
 + */
-+static void add_anon_page(struct vm_area_struct *vma, struct page *page,
-+				unsigned long address)
++static void try_to_set_mlocked(struct page *page)
 +{
-+	inc_mm_counter(vma->vm_mm, anon_rss);
-+	lru_cache_add_active(page);
-+	page_add_new_anon_rmap(page, vma, address);
-+}
++	struct zone *zone;
++	unsigned long flags;
 +
++	if (!PageLRU(page) || PageMlocked(page))
++		return;
++
++	zone = page_zone(page);
++	if (spin_trylock_irqsave(&zone->lru_lock, flags)) {
++		if (PageLRU(page) && !PageMlocked(page)) {
++			ClearPageLRU(page);
++			if (PageActive(page))
++				del_page_from_active_list(zone, page);
++			else
++				del_page_from_inactive_list(zone, page);
++			ClearPageActive(page);
++			SetPageMlocked(page);
++			__inc_zone_page_state(page, NR_MLOCK);
++		}
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	}
++}
 +/*
   * Do a quick page-table lookup for a single page.
   */
  struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-@@ -2148,9 +2159,7 @@
- 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 		if (!pte_none(*page_table))
- 			goto release;
--		inc_mm_counter(mm, anon_rss);
--		lru_cache_add_active(page);
--		page_add_new_anon_rmap(page, vma, address);
-+		add_anon_page(vma, page, address);
- 	} else {
- 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
- 		page = ZERO_PAGE(address);
-@@ -2294,11 +2303,9 @@
- 		if (write_access)
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		set_pte_at(mm, address, page_table, entry);
--		if (anon) {
--			inc_mm_counter(mm, anon_rss);
--			lru_cache_add_active(new_page);
--			page_add_new_anon_rmap(new_page, vma, address);
--		} else {
-+		if (anon)
-+			add_anon_page(vma, new_page, address);
-+		else {
+@@ -979,6 +1008,8 @@
+ 			set_page_dirty(page);
+ 		mark_page_accessed(page);
+ 	}
++	if (vma->vm_flags & VM_LOCKED)
++		try_to_set_mlocked(page);
+ unlock:
+ 	pte_unmap_unlock(ptep, ptl);
+ out:
+@@ -2317,6 +2348,8 @@
+ 		else {
  			inc_mm_counter(mm, file_rss);
  			page_add_file_rmap(new_page);
++			if (vma->vm_flags & VM_LOCKED)
++				try_to_set_mlocked(new_page);
  			if (write_access) {
-
------ End forwarded message -----
-
--- 
-"Time is of no importance, Mr. President, only life is important."
-Don't Email: <dont@kvack.org>.
+ 				dirty_page = new_page;
+ 				get_page(dirty_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
