@@ -1,98 +1,164 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070215012505.5343.65950.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070215012510.5343.52706.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 3/7] Add NR_MLOCK ZVC
-Date: Wed, 14 Feb 2007 17:25:05 -0800 (PST)
+Subject: [PATCH 4/7] Logic to move mlocked pages
+Date: Wed, 14 Feb 2007 17:25:10 -0800 (PST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Nigel Cunningham <nigel@nigel.suspend2.net>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Basic infrastructure to support NR_MLOCK
+Add logic to lazily remove/add mlocked pages from LRU
 
-Add a new ZVC to support NR_MLOCK. NR_MLOCK counts the number of
-mlocked pages taken off the LRU. Get rid of wrong calculation
-of cache line size in the comments in mmzone.h.
+This is the core of the patchset. It adds the necessary logic to
+remove mlocked pages from the LRU and put them back later. The basic idea
+by Andrew Morton and others has been around for awhile.
+
+During reclaim we attempt to unmap pages. In order to do so we have
+to scan all vmas that a page belongs to to check for VM_LOCKED.
+
+If we find that VM_LOCKED is set for a page then we remove the page from
+the LRU and mark it with SetMlocked. We must mark the page with a special
+flag bit. Without PageMLocked we have later no way to distinguish pages that
+are off the LRU because of mlock from pages that are off the LRU for other
+reasons. We should only feed back mlocked pages to the LRU and not the pages
+that were removed for other reasons.
+
+We feed pages back to the LRU in two places:
+
+zap_pte_range: 	Here pages are removed from a vma. If a page is mlocked then
+	we add it back to the LRU. If other vmas with VM_LOCKED set have
+	mapped the page then we will discover that later during reclaim and
+	move the page off the LRU again.
+
+munlock/munlockall: We scan all pages in the vma and do the
+	same as in zap_pte_range.
+
+We also have to modify the page migration logic to handle PageMlocked
+pages. We simply clear the PageMlocked bit and then we can treat
+the page as a regular page from the LRU. Page migration feeds all
+pages back the LRU and relies on reclaim to move them off again.
+
+Note that this is lazy accounting for mlocked pages. NR_MLOCK may
+increase as the system discovers more mlocked pages. If a machine has
+a large amount of memory then it may take awhile until reclaim gets through
+with all pages. We may only discover the extend of mlocked pages when
+memory gets tight.
+
+Some of the later patches opportunistically move pages off the LRU to avoid
+delays in accounting. Usually these opportunistic moves do a pretty good job
+but there are special situations (such as page migration and munlocking a
+memory area mlocked by multiple processes) where NR_MLOCK may become low until
+reclaim detects the mlocked pages again.
+
+So, the scheme is fundamentally lazy and one cannot count on NR_MLOCK to
+reflect the actual number of mlocked pages. NR_MLOCK represents the number
+*discovered* mlocked pages so far which may be less than the actual number
+of mlocked pages.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: current/drivers/base/node.c
+Index: linux-2.6.20/mm/memory.c
 ===================================================================
---- current.orig/drivers/base/node.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/drivers/base/node.c	2007-02-05 11:39:26.000000000 -0800
-@@ -60,6 +60,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d FilePages:    %8lu kB\n"
- 		       "Node %d Mapped:       %8lu kB\n"
- 		       "Node %d AnonPages:    %8lu kB\n"
-+		       "Node %d Mlock:        %8lu KB\n"
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d NFS_Unstable: %8lu kB\n"
- 		       "Node %d Bounce:       %8lu kB\n"
-@@ -82,6 +83,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(nid, NR_MLOCK)),
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-Index: current/fs/proc/proc_misc.c
+--- linux-2.6.20.orig/mm/memory.c	2007-02-14 17:07:44.000000000 -0800
++++ linux-2.6.20/mm/memory.c	2007-02-14 17:08:39.000000000 -0800
+@@ -682,6 +682,8 @@
+ 				file_rss--;
+ 			}
+ 			page_remove_rmap(page, vma);
++			if (PageMlocked(page) && vma->vm_flags & VM_LOCKED)
++				lru_cache_add_mlock(page);
+ 			tlb_remove_page(tlb, page);
+ 			continue;
+ 		}
+Index: linux-2.6.20/mm/migrate.c
 ===================================================================
---- current.orig/fs/proc/proc_misc.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/fs/proc/proc_misc.c	2007-02-05 11:39:26.000000000 -0800
-@@ -166,6 +166,7 @@ static int meminfo_read_proc(char *page,
- 		"Writeback:    %8lu kB\n"
- 		"AnonPages:    %8lu kB\n"
- 		"Mapped:       %8lu kB\n"
-+		"Mlock:        %8lu KB\n"
- 		"Slab:         %8lu kB\n"
- 		"SReclaimable: %8lu kB\n"
- 		"SUnreclaim:   %8lu kB\n"
-@@ -196,6 +197,7 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
-+		K(global_page_state(NR_MLOCK)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
-Index: current/include/linux/mmzone.h
+--- linux-2.6.20.orig/mm/migrate.c	2007-02-14 17:07:44.000000000 -0800
++++ linux-2.6.20/mm/migrate.c	2007-02-14 17:08:54.000000000 -0800
+@@ -58,6 +58,13 @@
+ 			else
+ 				del_page_from_inactive_list(zone, page);
+ 			list_add_tail(&page->lru, pagelist);
++		} else
++		if (PageMlocked(page)) {
++			ret = 0;
++			get_page(page);
++			ClearPageMlocked(page);
++			list_add_tail(&page->lru, pagelist);
++			__dec_zone_state(zone, NR_MLOCK);
+ 		}
+ 		spin_unlock_irq(&zone->lru_lock);
+ 	}
+Index: linux-2.6.20/mm/mlock.c
 ===================================================================
---- current.orig/include/linux/mmzone.h	2007-02-05 11:30:47.000000000 -0800
-+++ current/include/linux/mmzone.h	2007-02-05 11:45:12.000000000 -0800
-@@ -47,17 +47,16 @@ struct zone_padding {
- #endif
+--- linux-2.6.20.orig/mm/mlock.c	2007-02-14 17:07:44.000000000 -0800
++++ linux-2.6.20/mm/mlock.c	2007-02-14 17:08:39.000000000 -0800
+@@ -10,7 +10,7 @@
+ #include <linux/mm.h>
+ #include <linux/mempolicy.h>
+ #include <linux/syscalls.h>
+-
++#include <linux/swap.h>
  
- enum zone_stat_item {
--	/* First 128 byte cacheline (assuming 64 bit words) */
- 	NR_FREE_PAGES,
- 	NR_INACTIVE,
- 	NR_ACTIVE,
-+	NR_MLOCK,	/* Mlocked pages */
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
- 	NR_FILE_PAGES,
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
--	/* Second 128 byte cacheline */
- 	NR_SLAB_RECLAIMABLE,
- 	NR_SLAB_UNRECLAIMABLE,
- 	NR_PAGETABLE,		/* used for pagetables */
-Index: current/mm/vmstat.c
+ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 	unsigned long start, unsigned long end, unsigned int newflags)
+@@ -63,6 +63,23 @@
+ 		pages = -pages;
+ 		if (!(newflags & VM_IO))
+ 			ret = make_pages_present(start, end);
++	} else {
++		unsigned long addr;
++
++		/*
++		 * We are clearing VM_LOCKED. Feed all pages back
++		 * to the LRU via lru_cache_add_mlock()
++		 */
++		for (addr = start; addr < end; addr += PAGE_SIZE) {
++			struct page *page;
++
++			page = follow_page(vma, start, FOLL_GET);
++			if (page && PageMlocked(page)) {
++				lru_cache_add_mlock(page);
++				put_page(page);
++			}
++			cond_resched();
++		}
+ 	}
+ 
+ 	mm->locked_vm -= pages;
+Index: linux-2.6.20/mm/vmscan.c
 ===================================================================
---- current.orig/mm/vmstat.c	2007-02-05 11:30:47.000000000 -0800
-+++ current/mm/vmstat.c	2007-02-05 11:43:38.000000000 -0800
-@@ -434,6 +434,7 @@ static const char * const vmstat_text[] 
- 	"nr_free_pages",
- 	"nr_active",
- 	"nr_inactive",
-+	"nr_mlock",
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
+--- linux-2.6.20.orig/mm/vmscan.c	2007-02-14 17:07:44.000000000 -0800
++++ linux-2.6.20/mm/vmscan.c	2007-02-14 17:08:39.000000000 -0800
+@@ -509,10 +509,11 @@
+ 		if (page_mapped(page) && mapping) {
+ 			switch (try_to_unmap(page, 0)) {
+ 			case SWAP_FAIL:
+-			case SWAP_MLOCK:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+ 				goto keep_locked;
++			case SWAP_MLOCK:
++				goto mlocked;
+ 			case SWAP_SUCCESS:
+ 				; /* try to free the page below */
+ 			}
+@@ -587,6 +588,13 @@
+ 			__pagevec_release_nonlru(&freed_pvec);
+ 		continue;
+ 
++mlocked:
++		ClearPageActive(page);
++		unlock_page(page);
++		__inc_zone_page_state(page, NR_MLOCK);
++		SetPageMlocked(page);
++		continue;
++
+ activate_locked:
+ 		SetPageActive(page);
+ 		pgactivate++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
