@@ -1,49 +1,40 @@
-Date: Thu, 15 Feb 2007 13:39:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 7/7] Opportunistically move mlocked pages off the LRU
-Message-Id: <20070215133936.47ca3640.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
+Date: Wed, 14 Feb 2007 21:33:21 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/7] Logic to move mlocked pages
+Message-Id: <20070214213321.0633d570.akpm@linux-foundation.org>
+In-Reply-To: <20070215012510.5343.52706.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
-	<20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
+	<20070215012510.5343.52706.sendpatchset@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, hch@infradead.org, a.p.zijlstra@chello.nl, mbligh@mbligh.org, arjan@infradead.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, mpm@selenic.com, nigel@nigel.suspend2.net, riel@redhat.com
+Cc: Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Feb 2007 17:25:26 -0800 (PST)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Wed, 14 Feb 2007 17:25:10 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
 
-> Opportunistically move mlocked pages off the LRU
-> 
-> Add a new function try_to_mlock() that attempts to
-> move a page off the LRU and marks it mlocked.
-> 
-> This function can then be used in various code paths to move
-> pages off the LRU immediately. Early discovery will make NR_MLOCK
-> track the actual number of mlocked pages in the system more closely.
-> 
+> --- linux-2.6.20.orig/mm/migrate.c	2007-02-14 17:07:44.000000000 -0800
+> +++ linux-2.6.20/mm/migrate.c	2007-02-14 17:08:54.000000000 -0800
+> @@ -58,6 +58,13 @@
+>  			else
+>  				del_page_from_inactive_list(zone, page);
+>  			list_add_tail(&page->lru, pagelist);
+> +		} else
+> +		if (PageMlocked(page)) {
+> +			ret = 0;
+> +			get_page(page);
+> +			ClearPageMlocked(page);
+> +			list_add_tail(&page->lru, pagelist);
+> +			__dec_zone_state(zone, NR_MLOCK);
+>  		}
+>  		spin_unlock_irq(&zone->lru_lock);
 
-How about adding this check ?
+argh.  Please change your scripts to use `diff -p'.
 
->  struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-> @@ -979,6 +1008,8 @@
->  			set_page_dirty(page);
->  		mark_page_accessed(page);
->  	}
-> +	if (vma->vm_flags & VM_LOCKED)
-> +		try_to_set_mlocked(page);
-
-if (page != ZERO_PAGE(addres) && vma->vm_flags & VM_LOCKED)
-		try_to_set_mlocked(pages);
-
-
-I'm sorry if I misunderstand how ZERO_PAGE works.
-
--Kame
+Why does whatever-funtion-this-is do the get_page() there?  Looks odd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
