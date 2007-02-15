@@ -1,31 +1,40 @@
-Date: Thu, 15 Feb 2007 07:15:57 -0800 (PST)
+Date: Thu, 15 Feb 2007 07:19:49 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 7/7] Opportunistically move mlocked pages off the LRU
-In-Reply-To: <20070215133936.47ca3640.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0702150715170.10403@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 4/7] Logic to move mlocked pages
+In-Reply-To: <20070214213321.0633d570.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0702150717020.10403@schroedinger.engr.sgi.com>
 References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
- <20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
- <20070215133936.47ca3640.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070215012510.5343.52706.sendpatchset@schroedinger.engr.sgi.com>
+ <20070214213321.0633d570.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@osdl.org, hch@infradead.org, a.p.zijlstra@chello.nl, mbligh@mbligh.org, arjan@infradead.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, mpm@selenic.com, nigel@nigel.suspend2.net, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Feb 2007, KAMEZAWA Hiroyuki wrote:
+On Wed, 14 Feb 2007, Andrew Morton wrote:
 
-> > +	if (vma->vm_flags & VM_LOCKED)
-> > +		try_to_set_mlocked(page);
+> >  			list_add_tail(&page->lru, pagelist);
+> > +		} else
+> > +		if (PageMlocked(page)) {
+> > +			ret = 0;
+> > +			get_page(page);
+> > +			ClearPageMlocked(page);
+> > +			list_add_tail(&page->lru, pagelist);
+> > +			__dec_zone_state(zone, NR_MLOCK);
+> >  		}
+> >  		spin_unlock_irq(&zone->lru_lock);
 > 
-> if (page != ZERO_PAGE(addres) && vma->vm_flags & VM_LOCKED)
-> 		try_to_set_mlocked(pages);
-> 
-> 
-> I'm sorry if I misunderstand how ZERO_PAGE works.
+> argh.  Please change your scripts to use `diff -p'.
 
-Zero Pages are not on the LRU so try_to_set_mlocked will fail.
+Ok. That machine did not have it. Sigh.
+ 
+> Why does whatever-funtion-this-is do the get_page() there?  Looks odd.
+
+The refcount has to be elevated the same way as for regular LRU pages.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
