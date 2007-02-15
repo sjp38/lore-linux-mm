@@ -1,87 +1,144 @@
-Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
+Subject: Re: [patch] mm: NUMA replicated pagecache
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <45D4E3B6.8050009@redhat.com>
-References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
-	 <45D4DF28.7070409@redhat.com>
-	 <Pine.LNX.4.64.0702151439520.32026@schroedinger.engr.sgi.com>
-	 <45D4E3B6.8050009@redhat.com>
+In-Reply-To: <20070215003810.GE29797@wotan.suse.de>
+References: <20070213060924.GB20644@wotan.suse.de>
+	 <1171485124.5099.43.camel@localhost> <20070215003810.GE29797@wotan.suse.de>
 Content-Type: text/plain
-Date: Thu, 15 Feb 2007 18:20:58 -0500
-Message-Id: <1171581658.5114.76.camel@localhost>
+Date: Thu, 15 Feb 2007 18:29:29 -0500
+Message-Id: <1171582169.5114.86.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Larry Woodman <lwoodman@redhat.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-02-15 at 17:50 -0500, Rik van Riel wrote:
-> Christoph Lameter wrote:
-> > On Thu, 15 Feb 2007, Rik van Riel wrote:
+On Thu, 2007-02-15 at 01:38 +0100, Nick Piggin wrote:
+> On Wed, Feb 14, 2007 at 03:32:04PM -0500, Lee Schermerhorn wrote:
+> > On Tue, 2007-02-13 at 07:09 +0100, Nick Piggin wrote:
+> > > Hi,
+> > > 
+> > > Just tinkering around with this and got something working, so I'll see
+> > > if anyone else wants to try it.
+> > > 
+> > > Not proposing for inclusion, but I'd be interested in comments or results.
+> > > 
+> > > Thanks,
+> > > Nick
 > > 
-> >> Running out of swap is a temporary condition.
-> >> You need to have some way for those pages to
-> >> make it back onto the LRU list when swap
-> >> becomes available.
-> > 
-> > Yup any ideas how?
+> > I've included a small patch below that allow me to build and boot with
+> > these patches on an HP NUMA platform.  I'm still seeing an "unable to
 > 
-> Not really.
-> 
-> >> For example, we could try to reclaim the swap
-> >> space of every page that we scan on the active
-> >> list - when swap space starts getting tight.
-> > 
-> > Good idea.
-> 
-> I suspect this will be a better approach.  That way
-> the least used pages can cycle into swap space, and
-> the more used pages can be in RAM.
-> 
-> The only reason pages are unswappable when we run
-> out of swap is that we don't free up the swap space
-> used by pages that are in memory.
+> Thanks Lee. Merged.
 
-Many large memory systems [e.g., 64G-128G x86_64] running large database
-servers run with little [~2G] to no swap.  Most of physical memory is
-allocated to large shared memory areas which are never expected to swap
-out [even tho' some db apps may not lock the shmem down :-(].  In these
-systems, removing the shared memory pages from reclaim consideration may
-alleviate some nasty lockups we've seen when one of these systems gets
-pushed into reclaim because, e.g., someone ran a backup that filled the
-page cache.   We find all of the cpus walking the LRU list [millions of
-pages] to find eligible reclaim candidates.  [Almost] none of the shmem
-pages are reclaimable because of insufficient swap, and we don't want
-them swapped anyway.
+No worries...
 
-Now one could argue that this is an application error, because it
-doesn't lock the shared memory regions that it doesn't want swapped
-anyway.  This doesn't help the customers in the short term.  They're
-looking for a way to take control outside of the application and make
-their needs known to the system.  Needs like, never push out shmem [and
-maybe even anon] memory to make room for page cache pages.  This, I
-believe, is the motivation behind the "limit the page cache"
-patches/requests that we keep seeing.
+I've attached another patch that closes one race and fixes a context
+problem [irq/preemption state] in __unreplicate_page_range().  This
+makes the locking even uglier :-(.
 
-An idea for handling these:
+I get further with this patch.  Boot all the way up and can run fine
+with page replication.  However, I still get a NULL pcd in
+find_get_page_readonly() when attempting a highly parallel kernel build
+[16cpu/4node numa platform].  I'm still trying to track that down.
 
-With the addition of Christoph's patch to move mlock()ed pages out of
-the LRU, we could add a mechanism to automagically lock shared memory
-regions that either exceed some tunable threshold or that exceed the
-available amount of swap.
-
-Larry Woodman at Red Hat has been experimenting with patches to move
-shmem [and anon?] pages in excess of swap to a separate "wired list".
-This has alleviated part of the problems [apparent system hangs].  There
-are other issues, some that have been discussed on the mailing lists
-recently, with page cache pages messing up the LRU-ness of the active
-and inactive lists; vmscan not being proactive enough in keeping
-available memory [limits too low for large systems]; etc.  Those issues
-are exacerbated by a long active list with a high fraction of
-unreclaimable pages.
+Question about locking:  looks like the pcache_descriptor members are
+protected by the tree_lock of the mapping, right?
 
 Lee
+
+======================
+
+Additional fixes for Nick's page cache replication patch
+
+1) recheck that page is replicated after down grading mapping tree lock.
+   return results of check from __replicate_pcache().
+
+2) in __unreplicate_pcache_range(), call __unreplicate_pcache() in appropriate
+   context vis a vis irqs and preemption
+
+3) report null pcd in find_get_page_readonly().  shouldn't happen?
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/filemap.c |   27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
+
+Index: Linux/mm/filemap.c
+===================================================================
+--- Linux.orig/mm/filemap.c	2007-02-15 15:25:23.000000000 -0500
++++ Linux/mm/filemap.c	2007-02-15 17:42:27.000000000 -0500
+@@ -669,7 +669,6 @@ static int __replicate_pcache(struct pag
+ 	struct pcache_desc *pcd;
+ 	int nid, page_node;
+ 	int writelock = 0;
+-	int ret = 0;
+ 
+ 	if (unlikely(PageSwapCache(page)))
+ 		goto out;
+@@ -691,7 +690,7 @@ again:
+ 		lock_page(page);
+ 		if (!page->mapping) {
+ 			unlock_page(page);
+-			return 0;
++			goto read_lock_out;	/* reacquire read lock */
+ 		}
+ 		write_lock_irq(&mapping->tree_lock);
+ 		writelock = 1;
+@@ -716,15 +715,19 @@ again:
+ 	BUG_ON(radix_tree_insert(&mapping->page_tree, offset, pcd));
+ 	radix_tree_tag_set(&mapping->page_tree, offset,
+ 					PAGECACHE_TAG_REPLICATED);
+-	ret = 1;
+ out:
+ 	if (writelock) {
+ 		write_unlock_irq(&mapping->tree_lock);
+ 		unlock_page(page);
++read_lock_out:
+ 		read_lock_irq(&mapping->tree_lock);
+ 	}
+ 
+-	return ret;
++	/*
++	 * ensure page still replicated after demoting the tree lock
++	 */
++	return (radix_tree_tag_get(&mapping->page_tree, offset,
++					PAGECACHE_TAG_REPLICATED));
+ }
+ 
+ void __unreplicate_pcache(struct address_space *mapping, unsigned long offset)
+@@ -813,6 +816,11 @@ retry:
+ replicated:
+ 		nid = numa_node_id();
+ 		pcd = radix_tree_lookup(&mapping->page_tree, offset);
++		if (!pcd) {
++			printk(KERN_DEBUG "%s NULL pcd at tagged offset\n",
++				__FUNCTION__);
++			BUG();
++		}
+ 		if (!node_isset(nid, pcd->nodes_present)) {
+ 			struct page *repl_page;
+ 
+@@ -991,9 +999,16 @@ again:
+ 			struct pcache_desc *pcd = (struct pcache_desc *)pages[i];
+ 			pages[i] = (struct page *)pcd->master->index;
+ 		}
+-		read_unlock(&mapping->tree_lock);
++		read_unlock(&mapping->tree_lock);	/* irqs/preempt off */
+ 		for (i = 0; i < ret; i++) {
+-			write_lock(&mapping->tree_lock);
++			/*
++			 * __unreplicate_pcache() expects tree write locked
++			 * with irq/preemption disabled.
++			 */
++			if (i)
++				write_lock_irq(&mapping->tree_lock);
++			else
++				write_lock(&mapping->tree_lock);
+ 			__unreplicate_pcache(mapping, (unsigned long)pages[i]);
+ 		}
+ 		read_lock_irq(&mapping->tree_lock);
 
 
 --
