@@ -1,37 +1,31 @@
-Date: Thu, 15 Feb 2007 08:51:38 -0600
-From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 2/7] Add PageMlocked() page state bit and lru infrastructure
-Message-ID: <20070215145138.GT10108@waste.org>
-References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com> <20070215012459.5343.72021.sendpatchset@schroedinger.engr.sgi.com> <20070215020916.GS10108@waste.org> <Pine.LNX.4.64.0702141829410.5747@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0702141829410.5747@schroedinger.engr.sgi.com>
+Date: Thu, 15 Feb 2007 07:15:57 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 7/7] Opportunistically move mlocked pages off the LRU
+In-Reply-To: <20070215133936.47ca3640.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0702150715170.10403@schroedinger.engr.sgi.com>
+References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
+ <20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
+ <20070215133936.47ca3640.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Nigel Cunningham <nigel@nigel.suspend2.net>, "Martin J. Bligh" <mbligh@mbligh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@osdl.org, hch@infradead.org, a.p.zijlstra@chello.nl, mbligh@mbligh.org, arjan@infradead.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, mpm@selenic.com, nigel@nigel.suspend2.net, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 14, 2007 at 06:30:06PM -0800, Christoph Lameter wrote:
-> On Wed, 14 Feb 2007, Matt Mackall wrote:
-> 
-> > I think we should be much more precise in documenting the semantics of
-> > these bits. This particular comment is imprecise enough to be
-> > incorrect. This bit being set indicates that we saw that it was
-> > mlocked at some point in the past, not any guarantee that it's mlocked
-> > now. And the same for the converse.
-> 
-> See further down in the patch. The semantics are described when the 
-> PageMlockedXXX ops are defined.
+On Thu, 15 Feb 2007, KAMEZAWA Hiroyuki wrote:
 
-Fine. But -this- comment is still incorrect. If someone were to ask
-"what does this bit mean?" they would go the list of bit definitions
-and leave with the -wrong- answer. The page is not necessarily
-mlocked, it's just on the lazy mlock list.
+> > +	if (vma->vm_flags & VM_LOCKED)
+> > +		try_to_set_mlocked(page);
+> 
+> if (page != ZERO_PAGE(addres) && vma->vm_flags & VM_LOCKED)
+> 		try_to_set_mlocked(pages);
+> 
+> 
+> I'm sorry if I misunderstand how ZERO_PAGE works.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+Zero Pages are not on the LRU so try_to_set_mlocked will fail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
