@@ -1,29 +1,57 @@
-Message-ID: <45D52266.1040403@mbligh.org>
-Date: Thu, 15 Feb 2007 19:17:58 -0800
-From: Martin Bligh <mbligh@mbligh.org>
-MIME-Version: 1.0
+Date: Thu, 15 Feb 2007 19:18:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
-References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com> <20070215171355.67c7e8b4.akpm@linux-foundation.org> <45D50B79.5080002@mbligh.org> <Pine.LNX.4.64.0702151815230.1358@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0702151815230.1358@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20070215191858.1a864874.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0702151849030.1511@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
+	<20070215171355.67c7e8b4.akpm@linux-foundation.org>
+	<45D50B79.5080002@mbligh.org>
+	<20070215174957.f1fb8711.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0702151830080.1471@schroedinger.engr.sgi.com>
+	<20070215184800.e2820947.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0702151849030.1511@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+Cc: Martin Bligh <mbligh@mbligh.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 15 Feb 2007, Martin Bligh wrote:
-> 
->> Mine just created a locked list. If you stick them there, there's no
->> need for a page flag ... and we don't abuse the lru pointers AGAIN! ;-)
-> 
-> How would that work without a page flag? Without a flags there is no way 
-> of checking that a page is on a particular list.
+On Thu, 15 Feb 2007 18:50:39 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
 
-Depends what contexts you need to access it from. If you know the state
-before and after, list_del and list_add work.
+> On Thu, 15 Feb 2007, Andrew Morton wrote:
+> 
+> > We discussed that a while back and iirc ia64 has gone and gobbled most of
+> > the upper 32bits.  Someone went and added some ascii art around the
+> > PG_uncached definition but it is incomprehensible.  It seems to claim that
+> > ia64 has gone and used all 32 bits, dammit.  If so, some adjustments to
+> > ia64 might be called for.
+> 
+> Yes ia64 has used the upper 32 bit. However, the lower 32 bits are fully 
+> usable. So we have 32-20 = 12 bits to play with on 64 bit.
+
+OK.  But not many things are 64-bit-only?
+
+> > 
+> > > page_type = { SLAB, LRU, MLOCK, RESERVED, BUDDY, <add 3 more types here> }
+> > 
+> > Yeah, maybe.  There doesn't seem to be a lot of room for that though - a
+> > lot of those flags are quite independent and can occur simultaneously.
+> 
+> None of the above can occur simultaneously.
+
+<actually pays attention>
+
+OK.
+
+The actual implementation details might get messy though.  We can do a
+non-atomic rmw of the three bits but that could corrupt a concurrent
+modification of a different flag.  Or we could do a succession of three
+set_bit/clear_bit operations, but that exposes intermediate invalid states.
+
+It can be done I guess, but it'd be fiddly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
