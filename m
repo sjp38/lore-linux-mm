@@ -1,7 +1,7 @@
-Date: Thu, 15 Feb 2007 20:02:04 -0800
+Date: Thu, 15 Feb 2007 20:03:02 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
-Message-Id: <20070215200204.899811b4.akpm@linux-foundation.org>
+Message-Id: <20070215200302.8dbb815c.akpm@linux-foundation.org>
 In-Reply-To: <Pine.LNX.4.64.0702151945090.1696@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
 	<20070215171355.67c7e8b4.akpm@linux-foundation.org>
@@ -25,39 +25,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 15 Feb 2007 19:50:45 -0800 (PST) Christoph Lameter <clameter@sgi.com> wrote:
 
-> On Thu, 15 Feb 2007, Andrew Morton wrote:
-> 
-> > > Maybe we could somehow splite up page->flags into 4 separate bytes?
-> > > Updating one byte would not endanger the other bytes in the other 
-> > > sets?
-> > 
-> > yipes.  I'm not sure that'd work?
-> 
-> Are all arches able to do atomic ops on bytes?
-
-I think they are, but you only wanted three bits.  I don't think we'll be
-able to convert eight bits into a 256-value scalar efficiently.
-
-> > compare-and-swap-in-a-loop could be used, I guess.  With the obvious problem..
-> 
-> Yucks. There seems to be no easy solution.
->  
-> > I do think that those two swsusp flags are low-hanging-fruit.  It'd be
-> > trivial to vmalloc a bitmap or use a radix-tree-holding-longs, but I have a
-> > vague feeling that there were subtle issues with that.  Still, Something
-> > Needs To Be Done.
-> 
 > I tinkered with some similar radical ideas lately. Maybe a bit vector
 > could be used instead? For 1G of memory we would need 
 > 
 > 2^(30 - PAGE_SHIFT / 8 = 2^(30-12-3) = 2^15 = 32k bytes of a bitmap.
 > 
 > Seems to be reasonable?
-> 
 
-32k per bit per gig, yes.  Better for large PAGE_SIZE.  More cachemisses.
 
-But will it come unstuck for machines which have a super-sparse pfn space?
+Dave Hansen did have a patchset which did something along these lines, btw.  iirc
+it used a tree and/or a hash of some form.  Much terror ensued.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
