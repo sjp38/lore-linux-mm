@@ -1,37 +1,41 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
 Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
-Date: Fri, 16 Feb 2007 10:11:39 +0100
-References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com> <20070215184800.e2820947.akpm@linux-foundation.org> <1171613727.24923.54.camel@twins>
-In-Reply-To: <1171613727.24923.54.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200702161011.40640.rjw@sisk.pl>
+References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
+	 <20070215184800.e2820947.akpm@linux-foundation.org>
+	 <1171613727.24923.54.camel@twins>  <200702161011.40640.rjw@sisk.pl>
+Content-Type: text/plain
+Date: Fri, 16 Feb 2007 10:19:11 +0100
+Message-Id: <1171617551.24923.56.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200702161011.40640.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Martin Bligh <mbligh@mbligh.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday, 16 February 2007 09:15, Peter Zijlstra wrote:
-> On Thu, 2007-02-15 at 18:48 -0800, Andrew Morton wrote:
+On Fri, 2007-02-16 at 10:11 +0100, Rafael J. Wysocki wrote:
+> On Friday, 16 February 2007 09:15, Peter Zijlstra wrote:
+> > On Thu, 2007-02-15 at 18:48 -0800, Andrew Morton wrote:
+> > 
+> > > The two swsusp bits can be removed: they're only needed at suspend/resume
+> > > time and can be replaced by an external data structure.
+> > 
+> > I once had a talk with Rafael, and he said it would be possible to rid
+> > us of PG_nosave* with the now not so new bitmap code that is used to
+> > handle swsusp of highmem pages.
 > 
-> > The two swsusp bits can be removed: they're only needed at suspend/resume
-> > time and can be replaced by an external data structure.
+> Yes, that is true.
 > 
-> I once had a talk with Rafael, and he said it would be possible to rid
-> us of PG_nosave* with the now not so new bitmap code that is used to
-> handle swsusp of highmem pages.
+> I'm going to do this soon,
 
-Yes, that is true.
+Great!
 
-I'm going to do this soon, but first I'd like to help to make the task freezer
-suitable for the CPU hotplug.
+>  but first I'd like to help to make the task freezer
+> suitable for the CPU hotplug.
 
-Greetings,
-Rafael
+A worthy challenge, have fun :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
