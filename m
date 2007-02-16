@@ -1,89 +1,111 @@
-Message-ID: <45D5EBB9.4080903@student.ltu.se>
-Date: Fri, 16 Feb 2007 18:36:57 +0100
-From: Richard Knutsson <ricknu-0@student.ltu.se>
+Message-ID: <45D63445.5070005@redhat.com>
+Date: Fri, 16 Feb 2007 17:46:29 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [KJ] [PATCH] is_power_of_2 in ia64mm
-References: <1171627435.6127.0.camel@wriver-t81fb058.linuxcoe> <45D5C789.1090607@student.ltu.se> <jeire2nnik.fsf@sykes.suse.de> <45D5D47F.3000303@student.ltu.se> <je3b56nlds.fsf@sykes.suse.de> <45D5DE6F.6030604@student.ltu.se> <Pine.LNX.4.64.0702161202270.32716@CPE00045a9c397f-CM001225dbafb6>
-In-Reply-To: <Pine.LNX.4.64.0702161202270.32716@CPE00045a9c397f-CM001225dbafb6>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] free swap space when (re)activating page
+Content-Type: multipart/mixed;
+ boundary="------------000701030707080707010708"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Robert P. J. Day" <rpjday@mindspring.com>
-Cc: Andreas Schwab <schwab@suse.de>, linux-mm@kvack.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, Kernel Janitors List <kernel-janitors@lists.osdl.org>, linux-kernel@vger.kernel.org
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Robert P. J. Day wrote:
-> i'm not clear on what the possible problem is here:
->
-> On Fri, 16 Feb 2007, Richard Knutsson wrote:
->
->   
->> Andreas Schwab wrote:
->>     
->>> Richard Knutsson <ricknu-0@student.ltu.se> writes:
->>>
->>>       
->>>> Andreas Schwab wrote:
->>>>
->>>>         
->>>>> Richard Knutsson <ricknu-0@student.ltu.se> writes:
->>>>>
->>>>>
->>>>>           
->>>>>> Vignesh Babu BM wrote:
->>>>>>
->>>>>>             
->>>>>>> @@ -175,7 +176,7 @@ static int __init hugetlb_setup_sz(char *str)
->>>>>>>  		tr_pages = 0x15557000UL;
->>>>>>>   	size = memparse(str, &str);
->>>>>>> -	if (*str || (size & (size-1)) || !(tr_pages & size) ||
->>>>>>> +	if (*str || !is_power_of_2(size) || !(tr_pages & size) ||
->>>>>>>  		size <= PAGE_SIZE ||
->>>>>>>  		size >= (1UL << PAGE_SHIFT << MAX_ORDER)) {
->>>>>>>  		printk(KERN_WARNING "Invalid huge page size specified\n");
->>>>>>>
->>>>>>>               
->>>>>> As we talked about before; is this really correct? !is_power_of_2(0) ==
->>>>>> true while (0 & (0-1)) == 0.
->>>>>>
->>>>>>             
->>>>> size == 0 is also covered by the next two conditions, so the overall value
->>>>> does not change.
->>>>>
->>>>>           
->>>> Yes, but is it meant to state that 'size' is not a power of two?
->>>>
->>>>         
->>> What else can it mean?
->>>       
->> What about !one_or_less_bit()? It has not been implemented (yet?)
->> but been discussed.
->>     
->
-> but whether or not it's been implemented doesn't change whether or not
-> the code above can be simplified.  given what's being tested, and the
-> error message about whether a page size is valid, it seems fairly
-> clear that this is a power of two test.  what's the problem?
->   
-Fsck, I can't see that. But if that is what's intended, well then...
+This is a multi-part message in MIME format.
+--------------000701030707080707010708
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-(5 min later)
-Ok, now I think I see it. Sorry for the noise..
->   
->> It ended by concluding that is_power_of_2() should be fixed up first
->> and then we can see about it.
->>     
->
-> there's nothing about is_power_of_2() that needs "fixing".  it's
-> correct as it's currently implemented.
->   
-Oh, I didn't mean that is_power_of_2() need to be fixed, I meant 
-fixing/replacing the kernel with is_power_of_2().
+The attached patch does what I described in the other thread, it
+makes the pageout code free swap space when swap is getting full,
+by taking away the swap space from pages that get moved onto or
+back onto the active list.
 
+In some tests on a system with 2GB RAM and 1GB swap, it kept the
+free swap at 500MB for a 2.3GB qsbench, while without the patch
+over 950MB of swap was in use all of the time.
 
-Todays lesson: don't try to code while you have a cold...
-Richard Knutsson
+This should give kswapd more flexibility in what to swap out.
+
+What do you think?
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
+
+--------------000701030707080707010708
+Content-Type: text/x-patch;
+ name="linux-2.6-swapfree.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="linux-2.6-swapfree.patch"
+
+--- linux-2.6.20.x86_64/mm/vmscan.c.swapfull	2007-02-16 06:47:02.000000000 -0500
++++ linux-2.6.20.x86_64/mm/vmscan.c	2007-02-16 07:03:30.000000000 -0500
+@@ -587,6 +587,9 @@ free_it:
+ 		continue;
+ 
+ activate_locked:
++		/* Not a candidate for swapping, so reclaim swap space. */
++		if (PageSwapCache(page) && vm_swap_full())
++			remove_exclusive_swap_page(page);
+ 		SetPageActive(page);
+ 		pgactivate++;
+ keep_locked:
+@@ -875,6 +878,11 @@ force_reclaim_mapped:
+ 		pagevec_strip(&pvec);
+ 		spin_lock_irq(&zone->lru_lock);
+ 	}
++	if (vm_swap_full()) {
++		spin_unlock_irq(&zone->lru_lock);
++		pagevec_swap_free(&pvec);
++		spin_lock_irq(&zone->lru_lock);
++	}
+ 
+ 	pgmoved = 0;
+ 	while (!list_empty(&l_active)) {
+--- linux-2.6.20.x86_64/mm/swap.c.swapfull	2007-02-16 07:09:38.000000000 -0500
++++ linux-2.6.20.x86_64/mm/swap.c	2007-02-16 07:05:00.000000000 -0500
+@@ -420,6 +420,24 @@ void pagevec_strip(struct pagevec *pvec)
+ 	}
+ }
+ 
++/*
++ * Try to free swap space from the pages in a pagevec
++ */
++void pagevec_swap_free(struct pagevec *pvec)
++{
++	int i;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++
++		if (PageSwapCache(page) && !TestSetPageLocked(page)) {
++			if (PageSwapCache(page))
++				remove_exclusive_swap_page(page);
++			unlock_page(page);
++		}
++	}
++}
++
+ /**
+  * pagevec_lookup - gang pagecache lookup
+  * @pvec:	Where the resulting pages are placed
+--- linux-2.6.20.x86_64/include/linux/pagevec.h.swapfull	2007-02-16 07:06:29.000000000 -0500
++++ linux-2.6.20.x86_64/include/linux/pagevec.h	2007-02-16 07:06:41.000000000 -0500
+@@ -26,6 +26,7 @@ void __pagevec_free(struct pagevec *pvec
+ void __pagevec_lru_add(struct pagevec *pvec);
+ void __pagevec_lru_add_active(struct pagevec *pvec);
+ void pagevec_strip(struct pagevec *pvec);
++void pagevec_swap_free(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
+
+--------------000701030707080707010708--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
