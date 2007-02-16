@@ -1,62 +1,77 @@
-Message-ID: <45D55DC2.3070703@yahoo.com.au>
-Date: Fri, 16 Feb 2007 18:31:14 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [patch 11/21] Xen-paravirt: Add apply_to_page_range() which applies
- a function to a pte range.
-References: <20070216022449.739760547@goop.org>	<20070216022531.344125142@goop.org> <20070215223727.6819f962.akpm@linux-foundation.org>
-In-Reply-To: <20070215223727.6819f962.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <45D50B79.5080002@mbligh.org>
+References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
+	 <20070215171355.67c7e8b4.akpm@linux-foundation.org>
+	 <45D50B79.5080002@mbligh.org>
+Content-Type: text/plain
+Date: Fri, 16 Feb 2007 09:10:27 +0100
+Message-Id: <1171613427.24923.50.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Andi Kleen <ak@muc.de>, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, xen-devel@lists.xensource.com, Chris Wright <chrisw@sous-sol.org>, Zachary Amsden <zach@vmware.com>, Ian Pratt <ian.pratt@xensource.com>, Christian Limpach <Christian.Limpach@cl.cam.ac.uk>, Christoph Lameter <clameter@sgi.com>, Linux Memory Management <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Martin Bligh <mbligh@mbligh.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Thu, 15 Feb 2007 18:25:00 -0800 Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+On Thu, 2007-02-15 at 17:40 -0800, Martin Bligh wrote:
+
+> Mine just created a locked list. If you stick them there, there's no
+> need for a page flag ... and we don't abuse the lru pointers AGAIN! ;-)
+
+> --- linux-2.6.17/include/linux/mm_inline.h      2006-06-17 
+> 18:49:35.000000000 -0
+> 700
+> +++ linux-2.6.17-mlock_lru/include/linux/mm_inline.h    2006-07-28 
+> 15:53:15.0000
+> 00000 -0700
 > 
+> @@ -28,6 +27,20 @@ del_page_from_inactive_list(struct zone
+>   }
 > 
->>Add a new mm function apply_to_page_range() which applies a given
->>function to every pte in a given virtual address range in a given mm
->>structure. This is a generic alternative to cut-and-pasting the Linux
->>idiomatic pagetable walking code in every place that a sequence of
->>PTEs must be accessed.
->>
->>Although this interface is intended to be useful in a wide range of
->>situations, it is currently used specifically by several Xen
->>subsystems, for example: to ensure that pagetables have been allocated
->>for a virtual address range, and to construct batched special
->>pagetable update requests to map I/O memory (in ioremap()).
+>   static inline void
+> +add_page_to_mlocked_list(struct zone *zone, struct page *page)
+> +{
+> +       list_add(&page->lru, &zone->mlocked_list);
+> +       zone->nr_mlocked--;
+> +}
+> +
+> +static inline void
+> +del_page_from_mlocked_list(struct zone *zone, struct page *page)
+> +{
+> +       list_del(&page->lru);
+> +       zone->nr_mlocked--;
+> +}
+> +
+> +static inline void
+>   del_page_from_lru(struct zone *zone, struct page *page)
+>   {
+>          list_del(&page->lru);
+> diff -aurpN -X /home/mbligh/.diff.exclude 
+> linux-2.6.17/include/linux/mmzone.h li
+> nux-2.6.17-mlock_lru/include/linux/mmzone.h
+> --- linux-2.6.17/include/linux/mmzone.h 2006-06-17 18:49:35.000000000 -0700
+> +++ linux-2.6.17-mlock_lru/include/linux/mmzone.h       2006-07-28 
+> 15:49:05.0000
+> 00000 -0700
+> @@ -156,10 +156,12 @@ struct zone {
+>          spinlock_t              lru_lock;
+>          struct list_head        active_list;
+>          struct list_head        inactive_list;
+> +       struct list_head        mlocked_list;
+>          unsigned long           nr_scan_active;
+>          unsigned long           nr_scan_inactive;
+>          unsigned long           nr_active;
+>          unsigned long           nr_inactive;
+> +       unsigned long           nr_mlocked;
+>          unsigned long           pages_scanned;     /* since last reclaim */
+>          int                     all_unreclaimable; /* All pages pinned */
 > 
-> 
-> There was some discussion about this sort of thing last week.  The
-> consensus was that it's better to run the callback against a whole pmd's
-> worth of ptes, mainly to amortise the callback's cost (a lot).
-> 
-> It was implemented in
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.20/2.6.20-mm1/broken-out/smaps-extract-pmd-walker-from-smaps-code.patch
 
-
-Speaking of that patch, I missed the discussion, but I'd hope it doesn't
-go upstream in its current form.
-
-We now have one way of walking range of ptes. The code may be duplicated a
-few times, but it is simple, we know how it works, and it is easy to get
-right because everyone does the same thing.
-
-We used to have about a dozen slightly different ways of doing this until
-Hugh spent the effort to standardise it all. Isn't it nice?
-
-If we want an ever-so-slightly lower performing interface for those paths
-that don't care to count every cycle -- which I think is a fine idea BTW
--- it should be implemented in mm/memory.c and it should use our standard
-form of pagetable walking.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+The problem with such an approach would be that it takes O(n) time to
+find that a given pages is part of the mlocked_list; so you'd still need
+some marker to optimise that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
