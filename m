@@ -1,36 +1,33 @@
-Date: Thu, 15 Feb 2007 16:15:13 -0800
+Date: Thu, 15 Feb 2007 17:13:55 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
-Message-Id: <20070215161513.3a359cde.akpm@linux-foundation.org>
-In-Reply-To: <1171581658.5114.76.camel@localhost>
+Message-Id: <20070215171355.67c7e8b4.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com>
-	<45D4DF28.7070409@redhat.com>
-	<Pine.LNX.4.64.0702151439520.32026@schroedinger.engr.sgi.com>
-	<45D4E3B6.8050009@redhat.com>
-	<1171581658.5114.76.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Larry Woodman <lwoodman@redhat.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Martin J. Bligh" <mbligh@mbligh.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Feb 2007 18:20:58 -0500
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Thu, 15 Feb 2007 13:05:47 -0800 (PST)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> With the addition of Christoph's patch to move mlock()ed pages out of
-> the LRU, we could add a mechanism to automagically lock shared memory
-> regions that either exceed some tunable threshold or that exceed the
-> available amount of swap.
+> If we do not have any swap or we have run out of swap then anonymous pages
+> can no longer be removed from memory. In that case we simply treat them
+> like mlocked pages. For a kernel compiled CONFIG_SWAP off this means
+> that all anonymous pages are marked mlocked when they are allocated.
 
-But we have an out-of-band way of diddling shm segments?  So we could
-create
+It's nice and simple, but I think I'd prefer to wait for the existing mlock
+changes to crash a bit less before we do this.
 
-	/usr/bin/ipclock --lock -i 2432
+Is it true that PageMlocked() pages are never on the LRU?  If so, perhaps
+we could overload the lru.next/prev on these pages to flag an mlocked page.
 
-?
+#define PageMlocked(page)	(page->lru.next == some_address_which_isnt_used_for_anwything_else)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
