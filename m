@@ -1,55 +1,47 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC] Remove unswappable anonymous pages off the LRU
-Date: Fri, 16 Feb 2007 12:04:02 +0100
-References: <Pine.LNX.4.64.0702151300500.31366@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0702160208530.21862@schroedinger.engr.sgi.com> <1171621056.24923.61.camel@twins>
-In-Reply-To: <1171621056.24923.61.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+Subject: [KJ][PATCH] is_power_of_2 in ia64mm
+From: Vignesh Babu BM <vignesh.babu@wipro.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200702161204.03271.rjw@sisk.pl>
+Date: Fri, 16 Feb 2007 17:33:55 +0530
+Message-Id: <1171627435.6127.0.camel@wriver-t81fb058.linuxcoe>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Martin Bligh <mbligh@mbligh.org>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Kernel Janitors List <kernel-janitors@lists.osdl.org>
+Cc: tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday, 16 February 2007 11:17, Peter Zijlstra wrote:
-> On Fri, 2007-02-16 at 02:10 -0800, Christoph Lameter wrote:
-> > On Fri, 16 Feb 2007, Peter Zijlstra wrote:
-> > 
-> > > On Thu, 2007-02-15 at 18:48 -0800, Andrew Morton wrote:
-> > > 
-> > > > The two swsusp bits can be removed: they're only needed at suspend/resume
-> > > > time and can be replaced by an external data structure.
-> > > 
-> > > I once had a talk with Rafael, and he said it would be possible to rid
-> > > us of PG_nosave* with the now not so new bitmap code that is used to
-> > > handle swsusp of highmem pages.
-> > 
-> > Well we can just shift the stuff into the power subsystem I think. Like 
-> > this? Compiles but not tested.
-> 
-> That would work, however as Andrew pointed out, this data is only ever
-> used at suspend/resume time. I think we can postpone allocating this
-> bitmap until then and free it afterwards.
-> 
-> However I'm quite out of my depths here, so I'll leave more constructive
-> comments to Rafael.
+Replacing (n & (n-1)) in the context of power of 2 checks
+with is_power_of_2
 
-The PageNosave bits may also used during the initialization.  On x86_64 the
-arch code uses them to mark the pages that shouldn't be saved by swsusp.
 
-However, the PageNosaveFree bits can be allocated during the suspend, as
-they aren't needed before.
+diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
+index 0c7e94e..0ccc70e 100644
+--- a/arch/ia64/mm/hugetlbpage.c
++++ b/arch/ia64/mm/hugetlbpage.c
+@@ -16,6 +16,7 @@
+ #include <linux/smp_lock.h>
+ #include <linux/slab.h>
+ #include <linux/sysctl.h>
++#include <linux/log2.h>
+ #include <asm/mman.h>
+ #include <asm/pgalloc.h>
+ #include <asm/tlb.h>
+@@ -175,7 +176,7 @@ static int __init hugetlb_setup_sz(char *str)
+ 		tr_pages = 0x15557000UL;
+ 
+ 	size = memparse(str, &str);
+-	if (*str || (size & (size-1)) || !(tr_pages & size) ||
++	if (*str || !is_power_of_2(size) || !(tr_pages & size) ||
+ 		size <= PAGE_SIZE ||
+ 		size >= (1UL << PAGE_SHIFT << MAX_ORDER)) {
+ 		printk(KERN_WARNING "Invalid huge page size specified\n");
 
-Thus what I'd like to do would be to use the Christoph's approach to allocate
-the PageNosave bits on the architectures that need them (i386 doesn't, for
-example) and handle the rest using memory bitmaps in snapshot.c.
-
-Greetings,
-Rafael
+-- 
+Regards,  
+Vignesh Babu BM  
+_____________________________________________________________  
+"Why is it that every time I'm with you, makes me believe in magic?"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
