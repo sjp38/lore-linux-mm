@@ -1,48 +1,143 @@
-Subject: dirty balancing deadlock
-Message-Id: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Sun, 18 Feb 2007 19:28:18 +0100
+Date: Sun, 18 Feb 2007 18:56:35 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] mm: fix xip issue with /dev/zero
+In-Reply-To: <1171628558.7328.16.camel@cotte.boeblingen.de.ibm.com>
+Message-ID: <Pine.LNX.4.64.0702181855230.16343@blonde.wat.veritas.com>
+References: <1171628558.7328.16.camel@cotte.boeblingen.de.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: Carsten Otte <cotte@de.ibm.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, LinusTorvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-I was testing the new fuse shared writable mmap support, and finding
-that bash-shared-mapping deadlocks (which isn't so strange ;).  What
-is more strange is that this is not an OOM situation at all, with
-plenty of free and cached pages.
+On Fri, 16 Feb 2007, Carsten Otte wrote:
 
-A little more investigation shows that a similar deadlock happens
-reliably with bash-shared-mapping on a loopback mount, even if only
-half the total memory is used.
+> This patch removes usage of ZERO_PAGE for xip. We use our own zeroed
+> page for mapping sparse holes to userland now. That gets us rid of
+> dependencies with other users of ZERO_PAGE, such as /dev/zero. Thanks to
+> Hugh for reporting this issue. I tested this briefly and it seems to
+> work fine, please apply.
 
-The cause is slightly different in the two cases:
+That's too vague a description of the bug.  The problem was that
+a long read from /dev/zero into a private xip mapping would insert the
+ZERO_PAGE into the userspace page table, but xip could not distinguish
+that from its own use of the ZERO_PAGE where there's a hole: if the
+hole gets filled in later, it would wrongly update the private mapping
+from the zeroes read there to the data newly written into the file.
 
-  - loopback mount: allocation by the underlying filesystem is stalled
-    on throttle_vm_writeout()
+> 
+> Signed-off-by: Carsten Otte <cotte@de.ibm.com>
 
-  - fuse-loop: page dirtying on the underlying filesystem is stalled on
-    balance_dirty_pages()
+Your patch is on the right lines, but not yet correct:
+sorry if I misled you when I concentrated on the locking.
 
-In both cases the underlying fs is totally innocent, with no
-dirty/writback pages, yet it's waiting for the global dirty+writeback
-to go below the threshold, which obviously won't, until the
-allocation/dirtying succeeds.
+> 
+> ---
+> diff -ruN linux-2.6/mm/filemap_xip.c linux-2.6+fix/mm/filemap_xip.c
 
-I'm not quite sure what the solution is, and asking for thoughts.
+Please include the "-p" option in your diff flags, to show what
+function each hunk falls in: this is a case where that would have
+been helpful.
 
-Ideas:
+> --- linux-2.6/mm/filemap_xip.c	2007-02-02 13:02:58.000000000 +0100
+> +++ linux-2.6+fix/mm/filemap_xip.c	2007-02-15 15:18:51.000000000 +0100
+> @@ -17,6 +17,30 @@
+>  #include "filemap.h"
+>  
+>  /*
+> + * We do use our own empty page to avoid interference with other users
+> + * of ZERO_PAGE(), such as /dev/zero
+> + */
+> +static struct page * __xip_sparse_page = NULL;
+> +static spinlock_t   xip_alloc_lock = SPIN_LOCK_UNLOCKED;
 
-  - per filesystem dirty counters.  If filesystem is clean (or dirty
-    is below some minimum), then balance_dirty_pages() should no wait
-    any more
+(You tend to insert too many spaces for kernel CodingStyle,
+but filemap_xip.c is already like that, so I won't worry now.)
 
-  - throttle_vm_writeout() was meant to throttle swapping, no?  So in
-    that case there should be a separate swap-writback counter
+> +
+> +static inline struct page *
+> +xip_sparse_page(void)
 
-Thanks,
-Miklos
+Leave it to gcc to decide whether this is right to inline,
+and put the whole declaration on one line:
+
+static struct page *xip_sparse_page(void)
+
+> +{
+> +	unsigned long tmp;
+> +
+> +	if (!__xip_sparse_page) {
+> +		tmp = get_zeroed_page(GFP_KERNEL);
+
+It's rare for a GFP_KERNEL allocation to fail, but it can happen
+(last time I looked it could only happen if the calling process
+has been chosen for OOM-kill; but details are subject to change).
+
+You do need to allow for the 0 return here, and deal with it
+in your callers: proceeding with virt_to_page(0) will turn a
+temporary lack of memory into a crash for all subsequent users.
+
+> +		spin_lock(&xip_alloc_lock);
+> +		if (!__xip_sparse_page)
+> +			__xip_sparse_page = virt_to_page(tmp);
+> +		else
+> +			free_page (tmp);;
+> +		spin_unlock(&xip_alloc_lock);
+> +	}
+> +	return __xip_sparse_page;
+> +}
+> +
+> +/*
+>   * This is a file read routine for execute in place files, and uses
+>   * the mapping->a_ops->get_xip_page() function for the actual low-level
+>   * stuff.
+> @@ -68,7 +92,7 @@
+>  		if (unlikely(IS_ERR(page))) {
+>  			if (PTR_ERR(page) == -ENODATA) {
+>  				/* sparse */
+> -				page = ZERO_PAGE(0);
+> +				page = xip_sparse_page();
+>  			} else {
+>  				desc->error = PTR_ERR(page);
+>  				goto out;
+> @@ -162,7 +186,7 @@
+>   * xip_write
+>   *
+>   * This function walks all vmas of the address_space and unmaps the
+> - * ZERO_PAGE when found at pgoff. Should it go in rmap.c?
+> + * xip_sparse_page() when found at pgoff.
+>   */
+>  static void
+>  __xip_unmap (struct address_space * mapping,
+> @@ -183,7 +207,7 @@
+>  		address = vma->vm_start +
+>  			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+>  		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> -		page = ZERO_PAGE(0);
+> +		page = xip_sparse_page();
+
+No: "diff -p" would show this one is in __xip_unmap, and here you're
+inside spin_lock(&mapping->i_mmap_lock): it is not safe to allocate
+a page with GFP_KERNEL here, nor is there any point in doing so.
+__xip_unmap should return immediately if __xip_sparse_page has not
+yet been set.
+
+>  		pte = page_check_address(page, mm, address, &ptl);
+>  		if (pte) {
+>  			/* Nuke the page table entry. */
+> @@ -245,8 +269,8 @@
+>  		/* unmap page at pgoff from all other vmas */
+>  		__xip_unmap(mapping, pgoff);
+>  	} else {
+> -		/* not shared and writable, use ZERO_PAGE() */
+> -		page = ZERO_PAGE(0);
+> +		/* not shared and writable, use xip_sparse_page() */
+> +		page = xip_sparse_page();
+>  	}
+>  
+>  out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
