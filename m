@@ -1,58 +1,53 @@
-Date: Sun, 18 Feb 2007 15:59:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: dirty balancing deadlock
-Message-Id: <20070218155916.0d3c73a9.akpm@linux-foundation.org>
-In-Reply-To: <E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu>
-References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
-	<20070218125307.4103c04a.akpm@linux-foundation.org>
-	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
-	<20070218145929.547c21c7.akpm@linux-foundation.org>
-	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 19 Feb 2007 08:57:41 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH 2.6.20 1/1] fbdev,mm: hecuba/E-Ink fbdev driver
+Message-ID: <20070218235741.GA22298@linux-sh.org>
+References: <20070217104215.GB25512@localhost> <1171715652.5186.7.camel@lappy> <45a44e480702170525n9a15fafpb370cb93f1c1fcba@mail.gmail.com> <20070217135922.GA15373@linux-sh.org> <45a44e480702180331t7e76c396j1a9861f689d4186b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <45a44e480702180331t7e76c396j1a9861f689d4186b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jaya Kumar <jayakumar.lkml@gmail.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Feb 2007 00:22:11 +0100 Miklos Szeredi <miklos@szeredi.hu> wrote:
-
-> > If so, writes to B will decrease the dirty memory threshold.
+On Sun, Feb 18, 2007 at 06:31:23AM -0500, Jaya Kumar wrote:
+> On 2/17/07, Paul Mundt <lethal@linux-sh.org> wrote:
+> >This would also provide an interesting hook for setting up chained DMA
+> >for the real framebuffer updates when there's more than a couple of pages
+> >that have been touched, which would also be nice to have. There's more
+> >than a few drivers that could take advantage of that.
 > 
-> Yes, but not by enough.  Say A dirties a 1100 pages, limit is 1000.
-> Some pages queued for writeback (doesn't matter how much).  B writes
-> back 1, 1099 dirty remain in A, zero in B.  balance_dirty_pages() for
-> B doesn't know that there's nothing more to write back for B, it's
-> just waiting there for those 1099, which'll never get written.
-
-hm, OK, arguable.  I guess something like this..
-
---- a/fs/fs-writeback.c~a
-+++ a/fs/fs-writeback.c
-@@ -356,7 +356,7 @@ int generic_sync_sb_inodes(struct super_
- 			continue;		/* Skip a congested blockdev */
- 		}
- 
--		if (wbc->bdi && bdi != wbc->bdi) {
-+		if (wbc->bdi && bdi != wbc->bdi && bdi_write_congested(bdi)) {
- 			if (!sb_is_blkdev_sb(sb))
- 				break;		/* fs has the wrong queue */
- 			list_move(&inode->i_list, &sb->s_dirty);
-_
-
-but where's pdflush?  It should be busily transferring dirtiness from A to
-B.
-
-> > The writeout code _should_ just sit there transferring dirtyiness from A to
-> > B and cleaning pages via B, looping around, alternating between both.
-> > 
-> > What does sysrq-t say?
+> I could benefit from knowing which driver and display device you are
+> considering to be applicable.
 > 
-> This is the fuse daemon thread that got stuck.
+> I was thinking the method used in hecubafb would only be useful to
+> devices with very slow update paths, where "losing" some of the
+> display activity is not an issue since the device would not have been
+> able to update fast enough to show that activity anyway.
+> 
+> What you described with chained DMA sounds different to this. I
+> suppose one could use this technique to coalesce framebuffer IO to get
+> better performance/utilization even for fast display devices. Sounds
+> interesting to try. Did I understand you correctly?
+> 
+Yes, that's what I'm interested in trying. In the SH case we can
+basically make use of the on-chip DMAC for any non-PCI device. Some of
+these permit scatterlists and chained DMA in hardware, others do not. The
+general problem is that since we have to go and poke at the dcache prior
+to kicking off the DMA, it's rarely a win for a small number of pages,
+memory bursts just end up being faster.
 
-Where's pdflsuh?
+The other issue is that most of the "big" writers are doing so via mmap()
+anyways, so it's futile to attempt to handle the DMA case in the
+->write() path. Your approach seems like it might be an appropriate
+interface for building something like this on top of.
+
+Given that, this would have to be something that's dealt with at the
+subsystem level rather than in individual drivers, hence the desire to
+see something like this more generically visible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
