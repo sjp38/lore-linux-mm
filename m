@@ -1,52 +1,123 @@
-Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
-	by smtp-out.google.com with ESMTP id l1J9oSQC025287
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 01:50:28 -0800
-Received: from mu-out-0910.google.com (mufg7.prod.google.com [10.102.183.7])
-	by zps37.corp.google.com with ESMTP id l1J9oNlP031089
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 01:50:24 -0800
-Received: by mu-out-0910.google.com with SMTP id g7so429698muf
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2007 01:50:22 -0800 (PST)
-Message-ID: <6599ad830702190150w254a8d4dncce45a1f9b369579@mail.gmail.com>
-Date: Mon, 19 Feb 2007 01:50:22 -0800
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [ckrm-tech] [RFC][PATCH][0/4] Memory controller (RSS Control)
-In-Reply-To: <45D972CC.2010702@sw.ru>
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1JAGalP283182
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 21:16:39 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JA4HRT069788
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 21:04:18 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JA0liT011860
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 21:00:47 +1100
+Message-ID: <45D97547.3000502@in.ibm.com>
+Date: Mon, 19 Feb 2007 15:30:39 +0530
+From: Balbir Singh <balbir@in.ibm.com>
+Reply-To: balbir@in.ibm.com
 MIME-Version: 1.0
+Subject: Re: [RFC][PATCH][0/4] Memory controller (RSS Control)
+References: <20070219065019.3626.33947.sendpatchset@balbir-laptop> <20070219005441.7fa0eccc.akpm@linux-foundation.org>
+In-Reply-To: <20070219005441.7fa0eccc.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070219065019.3626.33947.sendpatchset@balbir-laptop>
-	 <20070219005441.7fa0eccc.akpm@linux-foundation.org>
-	 <6599ad830702190106m3f391de4x170326fef2e4872@mail.gmail.com>
-	 <45D972CC.2010702@sw.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirill Korotaev <dev@sw.ru>
-Cc: Andrew Morton <akpm@linux-foundation.org>, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, Balbir Singh <balbir@in.ibm.com>, xemul@sw.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, svaidy@linux.vnet.ibm.com, devel@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, xemul@sw.ru, linux-mm@kvack.org, menage@google.com, svaidy@linux.vnet.ibm.com, devel@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/19/07, Kirill Korotaev <dev@sw.ru> wrote:
-> >
-> > I think it's OK for a container to consume lots of system time during
-> > reclaim, as long as we can account that time to the container involved
-> > (i.e. if it's done during direct reclaim rather than by something like
-> > kswapd).
-> hmm, is it ok to scan 100Gb of RAM for 10MB RAM container?
-> in UBC patch set we used page beancounters to track containter pages.
-> This allows to make efficient scan contoler and reclamation.
+Andrew Morton wrote:
+> On Mon, 19 Feb 2007 12:20:19 +0530 Balbir Singh <balbir@in.ibm.com> wrote:
+> 
+>> This patch applies on top of Paul Menage's container patches (V7) posted at
+>>
+>> 	http://lkml.org/lkml/2007/2/12/88
+>>
+>> It implements a controller within the containers framework for limiting
+>> memory usage (RSS usage).
+> 
+> It's good to see someone building on someone else's work for once, rather
+> than everyone going off in different directions.  It makes one hope that we
+> might actually achieve something at last.
+> 
 
-I don't mean that we shouldn't go for the most efficient method that's
-practical. If we can do reclaim without spinning across so much of the
-LRU, then that's obviously better.
+Thanks! It's good to know we are headed in the right direction.
 
-But if the best approach in the general case results in a process in
-the container spending lots of CPU time trying to do the reclaim,
-that's probably OK as long as we can account for that time and (once
-we have a CPU controller) throttle back the container in that case. So
-then, a container can only hurt itself by thrashing/reclaiming, rather
-than hurting other containers. (LRU churn notwithstanding ...)
+> 
+> The key part of this patchset is the reclaim algorithm:
+> 
+>> @@ -636,6 +642,15 @@ static unsigned long isolate_lru_pages(u
+>>  
+>>  		list_del(&page->lru);
+>>  		target = src;
+>> +		/*
+>> + 		 * For containers, do not scan the page unless it
+>> + 		 * belongs to the container we are reclaiming for
+>> + 		 */
+>> +		if (container && !page_in_container(page, zone, container)) {
+>> +			scan--;
+>> +			goto done;
+>> +		}
+> 
+> Alas, I fear this might have quite bad worst-case behaviour.  One small
+> container which is under constant memory pressure will churn the
+> system-wide LRUs like mad, and will consume rather a lot of system time. 
+> So it's a point at which container A can deleteriously affect things which
+> are running in other containers, which is exactly what we're supposed to
+> not do.
+> 
 
-Paul
+Hmm.. I guess it's space vs time then :-) A CPU controller could
+control how much time is spent reclaiming ;)
+
+Coming back, I see the problem you mentioned and we have been thinking
+of several possible solutions. In my introduction I pointed out
+
+    "Come up with cool page replacement algorithms for containers
+    (if possible without any changes to struct page)"
+
+
+The solutions we have looked at are
+
+1. Overload the LRU list_head in struct page to have a global
+    LRU + a per container LRU
+
++------+           prev       +------+
+| page +--------------------->| page +---------
+|  0   |<---------------------+  1   |<--------
++------+           next       +------+
+
+                  Global LRU
+
+             +------+
+    +------- + prev |
+    |        | next +-------------------------------------------+
+    |        +------+                                           |
+    V            ^                                              V
++------+        |  prev       +------+                     +------+
+| page +        +------------ + page +---------.....       | page +
+|  0   |--------------------->+  1   |<--------            |  n   |
++------+           next       +------+                     +------+
+
+                  Global LRU + Container LRU
+
+
+Page 1 and n belong to the same container, to get to page 0, you need
+two de-references
+
+
+2. Modify struct page to point to a container and allow each container to
+    have a per-container LRU along with the global LRU
+
+
+For efficiency we need the container LRU and we don't want to split
+the global LRU either.
+
+We need to optimize the reclaim path, but I thought of that as a secondary
+problem. Once we all agree that the controller looks simple, accounts well
+and works. We can/should definitely optimize the reclaim path.
+
+
+-- 
+	Warm Regards,
+	Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
