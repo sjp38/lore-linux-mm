@@ -1,12 +1,10 @@
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated
-	helper macros.
+Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API
 From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20070219183133.27318.92920.stgit@localhost.localdomain>
+In-Reply-To: <20070219183123.27318.27319.stgit@localhost.localdomain>
 References: <20070219183123.27318.27319.stgit@localhost.localdomain>
-	 <20070219183133.27318.92920.stgit@localhost.localdomain>
 Content-Type: text/plain
-Date: Mon, 19 Feb 2007 19:41:23 +0100
-Message-Id: <1171910483.3531.87.camel@laptopd505.fenrus.org>
+Date: Mon, 19 Feb 2007 19:43:01 +0100
+Message-Id: <1171910581.3531.89.camel@laptopd505.fenrus.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,27 +14,17 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2007-02-19 at 10:31 -0800, Adam Litke wrote:
-> Signed-off-by: Adam Litke <agl@us.ibm.com>
-> ---
-> 
->  include/linux/mm.h |   25 +++++++++++++++++++++++++
->  1 files changed, 25 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 2d2c08d..a2fa66d 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -98,6 +98,7 @@ struct vm_area_struct {
->  
->  	/* Function pointers to deal with this struct. */
->  	struct vm_operations_struct * vm_ops;
-> +	struct pagetable_operations_struct * pagetable_ops;
->  
+> The page tables for hugetlb mappings are handled differently than page tables
+> for normal pages.  Rather than integrating multiple page size support into the
+> main VM (which would tremendously complicate the code) some hooks were created.
+> This allows hugetlb special cases to be handled "out of line" by a separate
+> interface.
 
-please make it at least const, those things have no business ever being
-written to right? And by making them const the compiler helps catch
-that, and as bonus the data gets moved to rodata so that it won't share
-cachelines with anything that gets dirty
+ok it makes sense to clean this up.. what I don't like is that there
+STILL are all the double cases... for this to work and be worth it both
+the common case and the hugetlb case should be using the ops structure
+always! Anything else and you're just replacing bad code with bad
+code ;(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
