@@ -1,92 +1,65 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1K4J6ab8138880
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2007 03:19:06 -0100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JGL2BF132560
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2007 03:21:02 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JGHWsk005877
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2007 03:17:32 +1100
-Message-ID: <45D9CD97.6000804@in.ibm.com>
-Date: Mon, 19 Feb 2007 21:47:27 +0530
-From: Balbir Singh <balbir@in.ibm.com>
-Reply-To: balbir@in.ibm.com
-MIME-Version: 1.0
-Subject: Re: [ckrm-tech] [RFC][PATCH][2/4] Add RSS accounting and control
-References: <20070219065019.3626.33947.sendpatchset@balbir-laptop> <20070219065034.3626.2658.sendpatchset@balbir-laptop> <20070219005828.3b774d8f.akpm@linux-foundation.org> <45D97DF8.5080000@in.ibm.com> <20070219030141.42c65bc0.akpm@linux-foundation.org> <45D9856D.1070902@in.ibm.com> <20070219032352.2856af36.akpm@linux-foundation.org> <45D9906F.2090605@in.ibm.com> <6599ad830702190409x4f64e56ex4044a12d949e44af@mail.gmail.com> <45D9AFBE.5020107@in.ibm.com> <45D9CB43.6000909@linux.vnet.ibm.com>
-In-Reply-To: <45D9CB43.6000909@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-reply-to: <20070218155916.0d3c73a9.akpm@linux-foundation.org> (message from
+	Andrew Morton on Sun, 18 Feb 2007 15:59:16 -0800)
+Subject: Re: dirty balancing deadlock
+References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
+	<20070218125307.4103c04a.akpm@linux-foundation.org>
+	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
+	<20070218145929.547c21c7.akpm@linux-foundation.org>
+	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu> <20070218155916.0d3c73a9.akpm@linux-foundation.org>
+Message-Id: <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 19 Feb 2007 18:11:55 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: Paul Menage <menage@google.com>, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, linux-kernel@vger.kernel.org, xemul@sw.ru, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Vaidyanathan Srinivasan wrote:
-> 
-> Balbir Singh wrote:
->> Paul Menage wrote:
->>> On 2/19/07, Balbir Singh <balbir@in.ibm.com> wrote:
->>>>> More worrisome is the potential for use-after-free.  What prevents the
->>>>> pointer at mm->container from referring to freed memory after we're dropped
->>>>> the lock?
->>>>>
->>>> The container cannot be freed unless all tasks holding references to it are
->>>> gone,
->>> ... or have been moved to other containers. If you're not holding
->>> task->alloc_lock or one of the container mutexes, there's nothing to
->>> stop the task being moved to another container, and the container
->>> being deleted.
->>>
->>> If you're in an RCU section then you can guarantee that the container
->>> (that you originally read from the task) and its subsystems at least
->>> won't be deleted while you're accessing them, but for accounting like
->>> this I suspect that's not enough, since you need to be adding to the
->>> accounting stats on the correct container. I think you'll need to hold
->>> mm->container_lock for the duration of memctl_update_rss()
->>>
->>> Paul
->>>
->> Yes, that sounds like the correct thing to do.
->>
-> 
-> Accounting accuracy will anyway be affected when a process is migrated
-> while it is still allocating pages.  Having a lock here does not
-> necessarily improve the accounting accuracy.  Charges from the old
-> container would have to be moved to the new container before deletion
-> which implies all tasks have already left the container and no
-> mm_struct is holding a pointer to it.
-> 
-> The only condition that will break our code will be if the container
-> pointer becomes invalid while we are updating stats.  This can be
-> prevented by RCU section as mentioned by Paul.  I believe explicit
-> lock and unlock may not provide additional benefit here.
-> 
+How about this?
 
-Yes, if the container pointer becomes invalid, then consider the following
-scenario
+Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
+I'll try to tackle that one as well.
 
-1. Use RCU, get a reference to the container
-2. All tasks/mm's move to newer container (and the accounting information
-    moves)
-3. Container is RCU deleted
-4. We still charge the older container that is going to be deleted soon
-5. Release RCU
-6. RCU garbage collects (callback runs)
+If the per-bdi dirty counter goes below 16, balance_dirty_pages()
+returns.
 
-We end up charging/uncharging a soon to be deleted container, that
-is not good.
+Does the constant need to tunable?  If it's too large, then the global
+threshold is more easily exceeded.  If it's too small, then in a tight
+situation progress will be slower.
 
-What did I miss?
+Thanks,
+Miklos
 
-> --Vaidy
-> 
-
-
--- 
-	Warm Regards,
-	Balbir Singh
+Index: linux/mm/page-writeback.c
+===================================================================
+--- linux.orig/mm/page-writeback.c	2007-02-19 17:32:41.000000000 +0100
++++ linux/mm/page-writeback.c	2007-02-19 18:05:28.000000000 +0100
+@@ -198,6 +198,25 @@ static void balance_dirty_pages(struct a
+ 			dirty_thresh)
+ 				break;
+ 
++		/*
++		 * Acquit this producer if there's little or nothing
++		 * to write back to this particular queue
++		 *
++		 * Without this check a deadlock is possible in the
++		 * following case:
++		 *
++		 * - filesystem A writes data through filesystem B
++		 * - filesystem A has dirty pages over dirty_thresh
++		 * - writeback is started, this triggers a write in B
++		 * - balance_dirty_pages() is called synchronously
++		 * - the write to B blocks
++		 * - the writeback completes, but dirty is still over threshold
++		 * - the blocking write prevents futher writes from happening
++		 */
++		if (atomic_long_read(&bdi->nr_dirty) +
++		    atomic_long_read(&bdi->nr_writeback) < 16)
++			break;
++
+ 		if (!dirty_exceeded)
+ 			dirty_exceeded = 1;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
