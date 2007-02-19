@@ -1,111 +1,53 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1J76g8d252756
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 18:06:42 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1J6sN5F122696
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:54:23 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1J6orp7015781
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:50:53 +1100
-From: Balbir Singh <balbir@in.ibm.com>
-Date: Mon, 19 Feb 2007 12:20:50 +0530
-Message-Id: <20070219065050.3626.42273.sendpatchset@balbir-laptop>
+Date: Mon, 19 Feb 2007 00:54:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH][0/4] Memory controller (RSS Control)
+Message-Id: <20070219005441.7fa0eccc.akpm@linux-foundation.org>
 In-Reply-To: <20070219065019.3626.33947.sendpatchset@balbir-laptop>
 References: <20070219065019.3626.33947.sendpatchset@balbir-laptop>
-Subject: [RFC][PATCH][4/4] RSS controller documentation
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, xemul@sw.ru, linux-mm@kvack.org, menage@google.com, svaidy@linux.vnet.ibm.com, Balbir Singh <balbir@in.ibm.com>, devel@openvz.org
+To: Balbir Singh <balbir@in.ibm.com>
+Cc: linux-kernel@vger.kernel.org, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, xemul@sw.ru, linux-mm@kvack.org, menage@google.com, svaidy@linux.vnet.ibm.com, devel@openvz.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 19 Feb 2007 12:20:19 +0530 Balbir Singh <balbir@in.ibm.com> wrote:
+
+> This patch applies on top of Paul Menage's container patches (V7) posted at
+> 
+> 	http://lkml.org/lkml/2007/2/12/88
+> 
+> It implements a controller within the containers framework for limiting
+> memory usage (RSS usage).
+
+It's good to see someone building on someone else's work for once, rather
+than everyone going off in different directions.  It makes one hope that we
+might actually achieve something at last.
 
 
-Signed-off-by: <balbir@in.ibm.com>
----
+The key part of this patchset is the reclaim algorithm:
 
- Documentation/memctlr.txt |   70 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 70 insertions(+)
+> @@ -636,6 +642,15 @@ static unsigned long isolate_lru_pages(u
+>  
+>  		list_del(&page->lru);
+>  		target = src;
+> +		/*
+> + 		 * For containers, do not scan the page unless it
+> + 		 * belongs to the container we are reclaiming for
+> + 		 */
+> +		if (container && !page_in_container(page, zone, container)) {
+> +			scan--;
+> +			goto done;
+> +		}
 
-diff -puN /dev/null Documentation/memctlr.txt
---- /dev/null	2007-02-02 22:51:23.000000000 +0530
-+++ linux-2.6.20-balbir/Documentation/memctlr.txt	2007-02-19 00:51:44.000000000 +0530
-@@ -0,0 +1,70 @@
-+Introduction
-+------------
-+
-+The memory controller is a controller module written under the containers
-+framework. It can be used to limit the resource usage of a group of
-+tasks grouped by the container.
-+
-+Accounting
-+----------
-+
-+The memory controller tracks the RSS usage of the tasks in the container.
-+The definition of RSS was debated on lkml in the following thread
-+
-+	http://lkml.org/lkml/2006/10/10/130
-+
-+This patch is flexible, it is easy to adapt the patch to any definition
-+of RSS. The current accounting is based on the current definition of
-+RSS. Each page mapped is charged to the container.
-+
-+The accounting is done at two levels, each process has RSS accounting in
-+the mm_struct and in the container it belongs to. The mm_struct accounting
-+is used when a task switches (migrates to a different) container(s). The
-+accounting information for the task is subtracted from the source container
-+and added to the destination container. If as result of the migration, the
-+destination container goes over limit, no action is taken until some task
-+in the destination container runs and tries to map a new page in its
-+page table.
-+
-+The current RSS usage can be seen in the memctlr_usage file. The value
-+is in units of pages.
-+
-+Control
-+-------
-+
-+The memctlr_limit file allows the user to set a limit on the number of
-+pages that can be mapped by the processes in the container. A special
-+value of 0 (which is the default limit of any new container), indicates
-+that the container can use unlimited amount of RSS.
-+
-+Reclaim
-+-------
-+
-+When the limit set in the container is hit, the memory controller starts
-+reclaiming pages belonging to the container (simulating a local LRU in
-+some sense). isolate_lru_pages() has been modified to isolate lru
-+pages belonging to a specific container. Parallel reclaims on the same
-+container are not allowed, other tasks end up waiting for the any existing
-+reclaim to finish.
-+
-+The reclaim code uses two internal knobs, retries and pushback. pushback
-+specifies the percentage of memory to be reclaimed when the container goes
-+over limit. The retries knob, controls how many times reclaim is retried
-+before the task is killed (because reclaim failed).
-+
-+Shared pages are treated specially during reclaim. They are not force
-+reclaimed, they are only unmapped from containers which are over limit.
-+This ensures that other containers do not pay a penalty for a shared
-+page being reclaimed when a paritcular container goes over its limit.
-+
-+NOTE: All limits are hard limits.
-+
-+Future Plans
-+------------
-+
-+The current controller implements only RSS control. It is planned to add
-+the following components
-+
-+1. Page Cache control
-+2. mlock'ed memory control
-+3. kernel memory allocation control (memory allocated on behalf of a task)
-_
-
--- 
-	Warm Regards,
-	Balbir Singh
+Alas, I fear this might have quite bad worst-case behaviour.  One small
+container which is under constant memory pressure will churn the
+system-wide LRUs like mad, and will consume rather a lot of system time. 
+So it's a point at which container A can deleteriously affect things which
+are running in other containers, which is exactly what we're supposed to
+not do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
