@@ -1,63 +1,100 @@
-Date: Mon, 19 Feb 2007 22:29:06 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated helper macros.
-Message-ID: <20070219222906.GA16385@infradead.org>
-References: <20070219183123.27318.27319.stgit@localhost.localdomain> <20070219183133.27318.92920.stgit@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070219183133.27318.92920.stgit@localhost.localdomain>
+In-reply-to: <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu> (message from Miklos
+	Szeredi on Mon, 19 Feb 2007 18:11:55 +0100)
+Subject: Re: dirty balancing deadlock
+References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
+	<20070218125307.4103c04a.akpm@linux-foundation.org>
+	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
+	<20070218145929.547c21c7.akpm@linux-foundation.org>
+	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu> <20070218155916.0d3c73a9.akpm@linux-foundation.org> <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
+Message-Id: <E1HJHgV-0007UQ-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 20 Feb 2007 00:12:39 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 19, 2007 at 10:31:34AM -0800, Adam Litke wrote:
-> Signed-off-by: Adam Litke <agl@us.ibm.com>
-> ---
+> Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
+> I'll try to tackle that one as well.
 > 
->  include/linux/mm.h |   25 +++++++++++++++++++++++++
->  1 files changed, 25 insertions(+), 0 deletions(-)
+> If the per-bdi dirty counter goes below 16, balance_dirty_pages()
+> returns.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 2d2c08d..a2fa66d 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -98,6 +98,7 @@ struct vm_area_struct {
->  
->  	/* Function pointers to deal with this struct. */
->  	struct vm_operations_struct * vm_ops;
-> +	struct pagetable_operations_struct * pagetable_ops;
->  
->  	/* Information about our backing store: */
->  	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-> @@ -218,6 +219,30 @@ struct vm_operations_struct {
->  };
->  
->  struct mmu_gather;
-> +
-> +struct pagetable_operations_struct {
-> +	int (*fault)(struct mm_struct *mm,
-> +		struct vm_area_struct *vma,
-> +		unsigned long address, int write_access);
-> +	int (*copy_vma)(struct mm_struct *dst, struct mm_struct *src,
-> +		struct vm_area_struct *vma);
-> +	int (*pin_pages)(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		struct page **pages, struct vm_area_struct **vmas,
-> +		unsigned long *position, int *length, int i);
-> +	void (*change_protection)(struct vm_area_struct *vma,
-> +		unsigned long address, unsigned long end, pgprot_t newprot);
-> +	unsigned long (*unmap_page_range)(struct vm_area_struct *vma,
-> +		unsigned long address, unsigned long end, long *zap_work);
-> +	void (*free_pgtable_range)(struct mmu_gather **tlb,
-> +		unsigned long addr, unsigned long end,
-> +		unsigned long floor, unsigned long ceiling);
-> +};
+> Does the constant need to tunable?  If it's too large, then the global
+> threshold is more easily exceeded.  If it's too small, then in a tight
+> situation progress will be slower.
 
-I don't think adding another operation vector is a good idea.  But I'd
-rather extend the vma operations vector to deal with all nessecary
-buts ubstead if addubg a second one.
+Similar in spirit, this should solve the deadlock on throttle_vm_writeout().
+Totally untested.
+
+Does this approach look workable?
+
+Thanks,
+Miklos
+
+
+Index: linux/include/linux/swap.h
+===================================================================
+--- linux.orig/include/linux/swap.h	2007-02-19 23:39:36.000000000 +0100
++++ linux/include/linux/swap.h	2007-02-20 00:03:38.000000000 +0100
+@@ -277,10 +277,14 @@ static inline void disable_swap_token(vo
+ 	put_swap_token(swap_token_mm);
+ }
+ 
++#define nr_swap_writeback \
++	atomic_long_read(&swapper_space.backing_dev_info->nr_writeback)
++
+ #else /* CONFIG_SWAP */
+ 
+ #define total_swap_pages			0
+ #define total_swapcache_pages			0UL
++#define nr_swap_writeback			0UL
+ 
+ #define si_swapinfo(val) \
+ 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+Index: linux/mm/page-writeback.c
+===================================================================
+--- linux.orig/mm/page-writeback.c	2007-02-19 23:43:03.000000000 +0100
++++ linux/mm/page-writeback.c	2007-02-20 00:03:49.000000000 +0100
+@@ -33,6 +33,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/buffer_head.h>
+ #include <linux/pagevec.h>
++#include <linux/swap.h>
+ 
+ /*
+  * The maximum number of pages to writeout in a single bdflush/kupdate
+@@ -332,6 +333,9 @@ void throttle_vm_writeout(void)
+                 if (global_page_state(NR_UNSTABLE_NFS) +
+ 			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+                         	break;
++
++		if (nr_swap_writeback < 16)
++			break;
+                 congestion_wait(WRITE, HZ/10);
+         }
+ }
+Index: linux/mm/page_io.c
+===================================================================
+--- linux.orig/mm/page_io.c	2007-02-19 23:24:23.000000000 +0100
++++ linux/mm/page_io.c	2007-02-19 23:42:21.000000000 +0100
+@@ -70,6 +70,7 @@ static int end_swap_bio_write(struct bio
+ 		ClearPageReclaim(page);
+ 	}
+ 	end_page_writeback(page);
++	atomic_long_dec(&swapper_space.backing_dev_info->nr_writeback);
+ 	bio_put(bio);
+ 	return 0;
+ }
+@@ -121,6 +122,7 @@ int swap_writepage(struct page *page, st
+ 	if (wbc->sync_mode == WB_SYNC_ALL)
+ 		rw |= (1 << BIO_RW_SYNC);
+ 	count_vm_event(PSWPOUT);
++	atomic_long_inc(&swapper_space.backing_dev_info->nr_writeback);
+ 	set_page_writeback(page);
+ 	unlock_page(page);
+ 	submit_bio(rw, bio);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
