@@ -1,572 +1,721 @@
 Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1JIq6688560672
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:52:07 -0100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1J6s71f150808
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:54:09 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1J6obTr006312
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:50:37 +1100
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1J76ZOm276480
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 18:06:35 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1J6sFC8168184
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:54:16 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1J6ojbJ007707
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 17:50:45 +1100
 From: Balbir Singh <balbir@in.ibm.com>
-Date: Mon, 19 Feb 2007 12:20:34 +0530
-Message-Id: <20070219065034.3626.2658.sendpatchset@balbir-laptop>
+Date: Mon, 19 Feb 2007 12:20:42 +0530
+Message-Id: <20070219065042.3626.95544.sendpatchset@balbir-laptop>
 In-Reply-To: <20070219065019.3626.33947.sendpatchset@balbir-laptop>
 References: <20070219065019.3626.33947.sendpatchset@balbir-laptop>
-Subject: [RFC][PATCH][2/4] Add RSS accounting and control
+Subject: [RFC][PATCH][3/4] Add reclaim support
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, xemul@sw.ru, linux-mm@kvack.org, menage@google.com, svaidy@linux.vnet.ibm.com, Balbir Singh <balbir@in.ibm.com>, devel@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds the basic accounting hooks to account for pages allocated
-into the RSS of a process. Accounting is maintained at two levels, in
-the mm_struct of each task and in the memory controller data structure
-associated with each node in the container.
+This patch reclaims pages from a container when the container limit is hit.
+The executable is oom'ed only when the container it is running in, is overlimit
+and we could not reclaim any pages belonging to the container
 
-When the limit specified for the container is exceeded, the task is killed.
-RSS accounting is consistent with the current definition of RSS in the
-kernel. Shared pages are accounted into the RSS of each process as is
-done in the kernel currently. The code is flexible in that it can be easily
-modified to work with any definition of RSS.
+A parameter called pushback, controls how much memory is reclaimed when the
+limit is hit. It should be easy to expose this knob to user space, but
+currently it is hard coded to 20% of the total limit of the container.
+
+isolate_lru_pages() has been modified to isolate pages belonging to a
+particular container, so that reclaim code will reclaim only container
+pages. For shared pages, reclaim does not unmap all mappings of the page,
+it only unmaps those mappings that are over their limit. This ensures
+that other containers are not penalized while reclaiming shared pages.
+
+Parallel reclaim per container is not allowed. Each controller has a wait
+queue that ensures that only one task per control is running reclaim on
+that container.
+
 
 Signed-off-by: <balbir@in.ibm.com>
 ---
 
- fs/exec.c               |    4 +
- include/linux/memctlr.h |   38 ++++++++++++
- include/linux/sched.h   |   11 +++
- kernel/fork.c           |   10 +++
- mm/memctlr.c            |  148 ++++++++++++++++++++++++++++++++++++++++++------
- mm/memory.c             |   33 +++++++++-
- mm/rmap.c               |    5 +
- mm/swapfile.c           |    2 
- 8 files changed, 232 insertions(+), 19 deletions(-)
+ include/linux/memctlr.h |    8 ++
+ include/linux/rmap.h    |   13 +++-
+ include/linux/swap.h    |    4 +
+ mm/memctlr.c            |  137 ++++++++++++++++++++++++++++++++++++++++++++----
+ mm/migrate.c            |    2 
+ mm/rmap.c               |   96 +++++++++++++++++++++++++++++++--
+ mm/vmscan.c             |   94 ++++++++++++++++++++++++++++----
+ 7 files changed, 324 insertions(+), 30 deletions(-)
 
-diff -puN fs/exec.c~memctlr-acct fs/exec.c
---- linux-2.6.20/fs/exec.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/fs/exec.c	2007-02-18 22:55:50.000000000 +0530
-@@ -50,6 +50,7 @@
- #include <linux/tsacct_kern.h>
- #include <linux/cn_proc.h>
- #include <linux/audit.h>
-+#include <linux/memctlr.h>
- 
- #include <asm/uaccess.h>
- #include <asm/mmu_context.h>
-@@ -313,6 +314,9 @@ void install_arg_page(struct vm_area_str
- 	if (unlikely(anon_vma_prepare(vma)))
- 		goto out;
- 
-+	if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+		goto out;
-+
- 	flush_dcache_page(page);
- 	pte = get_locked_pte(mm, address, &ptl);
- 	if (!pte)
-diff -puN include/linux/memctlr.h~memctlr-acct include/linux/memctlr.h
---- linux-2.6.20/include/linux/memctlr.h~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/include/linux/memctlr.h	2007-02-18 23:28:16.000000000 +0530
-@@ -14,9 +14,47 @@
- #ifndef _LINUX_MEMCTLR_H
- #define _LINUX_MEMCTLR_H
- 
-+enum {
-+	MEMCTLR_CHECK_LIMIT = true,
-+	MEMCTLR_DONT_CHECK_LIMIT = false,
-+};
-+
- #ifdef CONFIG_CONTAINER_MEMCTLR
- 
-+struct res_counter {
-+	atomic_long_t usage;	/* The current usage of the resource being */
-+				/* counted 				   */
-+	atomic_long_t limit;	/* The limit on the resource		   */
-+	atomic_long_t nr_limit_exceeded;
-+};
-+
-+extern int memctlr_mm_init(struct mm_struct *mm);
-+extern void memctlr_mm_free(struct mm_struct *mm);
-+extern void memctlr_mm_assign_container(struct mm_struct *mm,
-+						struct task_struct *p);
-+extern int memctlr_update_rss(struct mm_struct *mm, int count, bool check);
-+
- #else /* CONFIG_CONTAINER_MEMCTLR  */
- 
-+static inline int memctlr_mm_init(struct mm_struct *mm)
-+{
-+	return 0;
-+}
-+
-+static inline void memctlr_mm_free(struct mm_struct *mm)
-+{
-+}
-+
-+static inline void memctlr_mm_assign_container(struct mm_struct *mm,
-+						struct task_struct *p)
-+{
-+}
-+
-+static inline int memctlr_update_rss(struct mm_struct *mm, int count,
-+					bool check)
-+{
-+	return 0;
-+}
-+
- #endif /* CONFIG_CONTAINER_MEMCTLR */
- #endif /* _LINUX_MEMCTLR_H */
-diff -puN include/linux/sched.h~memctlr-acct include/linux/sched.h
---- linux-2.6.20/include/linux/sched.h~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/include/linux/sched.h	2007-02-18 22:57:03.000000000 +0530
-@@ -83,6 +83,7 @@ struct sched_param {
- #include <linux/timer.h>
- #include <linux/hrtimer.h>
- #include <linux/task_io_accounting.h>
-+#include <linux/memctlr.h>
- 
- #include <asm/processor.h>
- 
-@@ -373,6 +374,16 @@ struct mm_struct {
- 	/* aio bits */
- 	rwlock_t		ioctx_list_lock;
- 	struct kioctx		*ioctx_list;
-+#ifdef CONFIG_CONTAINER_MEMCTLR
-+	/*
-+	 * Each mm_struct's container, sums up in the container's counter
-+	 * We can extend this such that, VMA's counters sum up into this
-+	 * counter
-+	 */
-+	struct res_counter	*counter;
-+	struct container	*container;
-+	rwlock_t 		container_lock;
-+#endif /* CONFIG_CONTAINER_MEMCTLR */
+diff -puN include/linux/memctlr.h~memctlr-reclaim-on-limit include/linux/memctlr.h
+--- linux-2.6.20/include/linux/memctlr.h~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/include/linux/memctlr.h	2007-02-18 23:29:14.000000000 +0530
+@@ -20,6 +20,7 @@ enum {
  };
  
- struct sighand_struct {
-diff -puN kernel/fork.c~memctlr-acct kernel/fork.c
---- linux-2.6.20/kernel/fork.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/kernel/fork.c	2007-02-18 22:55:50.000000000 +0530
-@@ -50,6 +50,7 @@
- #include <linux/taskstats_kern.h>
- #include <linux/random.h>
- #include <linux/numtasks.h>
-+#include <linux/memctlr.h>
+ #ifdef CONFIG_CONTAINER_MEMCTLR
++#include <linux/wait.h>
  
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -342,10 +343,15 @@ static struct mm_struct * mm_init(struct
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
+ struct res_counter {
+ 	atomic_long_t usage;	/* The current usage of the resource being */
+@@ -33,6 +34,9 @@ extern void memctlr_mm_free(struct mm_st
+ extern void memctlr_mm_assign_container(struct mm_struct *mm,
+ 						struct task_struct *p);
+ extern int memctlr_update_rss(struct mm_struct *mm, int count, bool check);
++extern int memctlr_mm_overlimit(struct mm_struct *mm, void *sc_cont);
++extern wait_queue_head_t memctlr_reclaim_wq;
++extern bool memctlr_reclaim_in_progress;
  
-+	if (!memctlr_mm_init(mm))
-+		goto err;
-+
- 	if (likely(!mm_alloc_pgd(mm))) {
- 		mm->def_flags = 0;
- 		return mm;
- 	}
-+
-+err:
- 	free_mm(mm);
- 	return NULL;
- }
-@@ -361,6 +367,8 @@ struct mm_struct * mm_alloc(void)
- 	if (mm) {
- 		memset(mm, 0, sizeof(*mm));
- 		mm = mm_init(mm);
-+		if (mm)
-+			memctlr_mm_assign_container(mm, current);
- 	}
- 	return mm;
- }
-@@ -375,6 +383,7 @@ void fastcall __mmdrop(struct mm_struct 
- 	BUG_ON(mm == &init_mm);
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
-+	memctlr_mm_free(mm);
- 	free_mm(mm);
+ #else /* CONFIG_CONTAINER_MEMCTLR  */
+ 
+@@ -56,5 +60,9 @@ static inline int memctlr_update_rss(str
+ 	return 0;
  }
  
-@@ -500,6 +509,7 @@ static struct mm_struct *dup_mm(struct t
- 	if (init_new_context(tsk, mm))
- 		goto fail_nocontext;
++int memctlr_mm_overlimit(struct mm_struct *mm, void *sc_cont)
++{
++	return 0;
++}
+ #endif /* CONFIG_CONTAINER_MEMCTLR */
+ #endif /* _LINUX_MEMCTLR_H */
+diff -puN include/linux/rmap.h~memctlr-reclaim-on-limit include/linux/rmap.h
+--- linux-2.6.20/include/linux/rmap.h~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/include/linux/rmap.h	2007-02-18 23:29:14.000000000 +0530
+@@ -90,7 +90,15 @@ static inline void page_dup_rmap(struct 
+  * Called from mm/vmscan.c to handle paging out
+  */
+ int page_referenced(struct page *, int is_locked);
+-int try_to_unmap(struct page *, int ignore_refs);
++int try_to_unmap(struct page *, int ignore_refs, void *container);
++#ifdef CONFIG_CONTAINER_MEMCTLR
++bool page_in_container(struct page *page, struct zone *zone, void *container);
++#else
++static inline bool page_in_container(struct page *page, struct zone *zone, void *container)
++{
++	return true;
++}
++#endif /* CONFIG_CONTAINER_MEMCTLR */
  
-+	memctlr_mm_assign_container(mm, tsk);
- 	err = dup_mmap(mm, oldmm);
- 	if (err)
- 		goto free_pt;
-diff -puN mm/memctlr.c~memctlr-acct mm/memctlr.c
---- linux-2.6.20/mm/memctlr.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/mm/memctlr.c	2007-02-18 23:29:09.000000000 +0530
-@@ -23,13 +23,6 @@
- #define RES_USAGE_NO_LIMIT			0
+ /*
+  * Called from mm/filemap_xip.c to unmap empty zero page
+@@ -118,7 +126,8 @@ int page_mkclean(struct page *);
+ #define anon_vma_link(vma)	do {} while (0)
+ 
+ #define page_referenced(page,l) TestClearPageReferenced(page)
+-#define try_to_unmap(page, refs) SWAP_FAIL
++#define try_to_unmap(page, refs, container) SWAP_FAIL
++#define page_in_container(page, zone, container)  true
+ 
+ static inline int page_mkclean(struct page *page)
+ {
+diff -puN include/linux/swap.h~memctlr-reclaim-on-limit include/linux/swap.h
+--- linux-2.6.20/include/linux/swap.h~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/include/linux/swap.h	2007-02-18 23:29:14.000000000 +0530
+@@ -188,6 +188,10 @@ extern void swap_setup(void);
+ /* linux/mm/vmscan.c */
+ extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
++#ifdef CONFIG_CONTAINER_MEMCTLR
++extern unsigned long memctlr_shrink_mapped_memory(unsigned long nr_pages,
++							void *container);
++#endif
+ extern int vm_swappiness;
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+ extern long vm_total_pages;
+diff -puN mm/memctlr.c~memctlr-reclaim-on-limit mm/memctlr.c
+--- linux-2.6.20/mm/memctlr.c~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/mm/memctlr.c	2007-02-18 23:34:51.000000000 +0530
+@@ -17,16 +17,26 @@
+ #include <linux/fs.h>
+ #include <linux/container.h>
+ #include <linux/memctlr.h>
++#include <linux/swap.h>
+ 
+ #include <asm/uaccess.h>
+ 
+-#define RES_USAGE_NO_LIMIT			0
++#define RES_USAGE_NO_LIMIT	0
  static const char version[] = "0.1";
++/*
++ * Explore exporting these knobs to user space
++ */
++static const int pushback = 20;	 /* What percentage of memory to reclaim */
++static const int nr_retries = 5; /* How many times do we try to reclaim  */
++
++static atomic_t nr_reclaim;
  
--struct res_counter {
--	unsigned long usage;	/* The current usage of the resource being */
--				/* counted 				   */
--	unsigned long limit;	/* The limit on the resource		   */
--	unsigned long nr_limit_exceeded;
--};
--
  struct memctlr {
  	struct container_subsys_state	css;
  	struct res_counter 		counter;
-@@ -49,6 +42,74 @@ static inline struct memctlr *memctlr_fr
+ 	spinlock_t 			lock;
++	wait_queue_head_t		wq;
++	bool				reclaim_in_progress;
+ };
+ 
+ static struct container_subsys memctlr_subsys;
+@@ -42,6 +52,44 @@ static inline struct memctlr *memctlr_fr
  	return memctlr_from_cont(task_container(p, &memctlr_subsys));
  }
  
-+int memctlr_mm_init(struct mm_struct *mm)
-+{
-+	mm->counter = kmalloc(sizeof(struct res_counter), GFP_KERNEL);
-+	if (!mm->counter)
-+		return 0;
-+	atomic_long_set(&mm->counter->usage, 0);
-+	atomic_long_set(&mm->counter->limit, 0);
-+	rwlock_init(&mm->container_lock);
-+	return 1;
-+}
-+
-+void memctlr_mm_free(struct mm_struct *mm)
-+{
-+	kfree(mm->counter);
-+}
-+
-+static inline void memctlr_mm_assign_container_direct(struct mm_struct *mm,
-+							struct container *cont)
-+{
-+	write_lock(&mm->container_lock);
-+	mm->container = cont;
-+	write_unlock(&mm->container_lock);
-+}
-+
-+void memctlr_mm_assign_container(struct mm_struct *mm, struct task_struct *p)
-+{
-+	struct container *cont = task_container(p, &memctlr_subsys);
-+	struct memctlr *mem = memctlr_from_cont(cont);
-+
-+	BUG_ON(!mem);
-+	write_lock(&mm->container_lock);
-+	mm->container = cont;
-+	write_unlock(&mm->container_lock);
-+}
-+
 +/*
-+ * Update the rss usage counters for the mm_struct and the container it belongs
-+ * to. We do not fail rss for pages shared during fork (see copy_one_pte()).
++ * checks if the mm's container and scan control passed container match, if
++ * so, is the container over it's limit. Returns 1 if the container is above
++ * its limit.
 + */
-+int memctlr_update_rss(struct mm_struct *mm, int count, bool check)
++int memctlr_mm_overlimit(struct mm_struct *mm, void *sc_cont)
 +{
-+	int ret = 1;
 +	struct container *cont;
-+	long usage, limit;
 +	struct memctlr *mem;
++	long usage, limit;
++	int ret = 1;
++
++	if (!sc_cont)
++		goto out;
 +
 +	read_lock(&mm->container_lock);
 +	cont = mm->container;
-+	read_unlock(&mm->container_lock);
 +
-+	if (!cont)
-+		goto done;
++	/*
++ 	 * Regular reclaim, let it proceed as usual
++ 	 */
++	if (!sc_cont)
++		goto out;
++
++	ret = 0;
++	if (cont != sc_cont)
++		goto out;
 +
 +	mem = memctlr_from_cont(cont);
 +	usage = atomic_long_read(&mem->counter.usage);
 +	limit = atomic_long_read(&mem->counter.limit);
-+	usage += count;
-+	if (check && limit && (usage > limit))
-+		ret = 0;	/* Above limit, fail */
-+	else {
-+		atomic_long_add(count, &mem->counter.usage);
-+		atomic_long_add(count, &mm->counter->usage);
-+	}
-+
-+done:
++	if (limit && (usage > limit))
++		ret = 1;
++out:
++	read_unlock(&mm->container_lock);
 +	return ret;
 +}
 +
- static int memctlr_create(struct container_subsys *ss, struct container *cont)
+ int memctlr_mm_init(struct mm_struct *mm)
  {
- 	struct memctlr *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-@@ -57,6 +118,8 @@ static int memctlr_create(struct contain
- 
- 	spin_lock_init(&mem->lock);
- 	cont->subsys[memctlr_subsys.subsys_id] = &mem->css;
-+	atomic_long_set(&mem->counter.usage, 0);
-+	atomic_long_set(&mem->counter.limit, 0);
- 	return 0;
+ 	mm->counter = kmalloc(sizeof(struct res_counter), GFP_KERNEL);
+@@ -77,6 +125,46 @@ void memctlr_mm_assign_container(struct 
+ 	write_unlock(&mm->container_lock);
  }
  
-@@ -98,9 +161,7 @@ static ssize_t memctlr_write(struct cont
- 	if (!limit && strcmp(buffer, "0"))
- 		goto out_unlock;
- 
--	spin_lock(&mem->lock);
--	mem->counter.limit = limit;
--	spin_unlock(&mem->lock);
-+	atomic_long_set(&mem->counter.limit, limit);
- 
- 	ret = nbytes;
- out_unlock:
-@@ -114,17 +175,15 @@ static ssize_t memctlr_read(struct conta
- 				struct file *file, char __user *userbuf,
- 				size_t nbytes, loff_t *ppos)
- {
--	unsigned long usage, limit;
-+	long usage, limit;
- 	char usagebuf[64];		/* Move away from stack later */
- 	char *s = usagebuf;
- 	struct memctlr *mem = memctlr_from_cont(cont);
- 
--	spin_lock(&mem->lock);
--	usage = mem->counter.usage;
--	limit = mem->counter.limit;
--	spin_unlock(&mem->lock);
-+	usage = atomic_long_read(&mem->counter.usage);
-+	limit = atomic_long_read(&mem->counter.limit);
- 
--	s += sprintf(s, "usage %lu, limit %ld\n", usage, limit);
-+	s += sprintf(s, "usage %ld, limit %ld\n", usage, limit);
- 	return simple_read_from_buffer(userbuf, nbytes, ppos, usagebuf,
- 					s - usagebuf);
- }
-@@ -150,11 +209,68 @@ static int memctlr_populate(struct conta
- 	return 0;
- }
- 
-+static inline void memctlr_double_lock(struct memctlr *mem1,
-+					struct memctlr *mem2)
++static int memctlr_check_and_reclaim(struct container *cont, long usage,
++					long limit)
 +{
-+	if (mem1 > mem2) {
-+		spin_lock(&mem1->lock);
-+		spin_lock(&mem2->lock);
-+	} else {
-+		spin_lock(&mem2->lock);
-+		spin_lock(&mem1->lock);
-+	}
-+}
-+
-+static inline void memctlr_double_unlock(struct memctlr *mem1,
-+						struct memctlr *mem2)
-+{
-+	if (mem1 > mem2) {
-+		spin_unlock(&mem2->lock);
-+		spin_unlock(&mem1->lock);
-+	} else {
-+		spin_unlock(&mem1->lock);
-+		spin_unlock(&mem2->lock);
-+	}
-+}
-+
-+/*
-+ * This routine decides how task movement across containers is handled
-+ * The simplest strategy is to just move the task (without carrying any old
-+ * baggage) The other possibility is move over last accounting information
-+ * from mm_struct and charge the new container
-+ */
-+static void memctlr_attach(struct container_subsys *ss,
-+				struct container *cont,
-+				struct container *old_cont,
-+				struct task_struct *p)
-+{
-+	struct memctlr *mem, *old_mem;
-+	long usage;
++	unsigned long nr_pages = 0;
++	unsigned long nr_reclaimed = 0;
++	int retries = nr_retries;
++	int ret = 1;
++	struct memctlr *mem;
 +
 +	mem = memctlr_from_cont(cont);
-+	old_mem = memctlr_from_cont(old_cont);
++	spin_lock(&mem->lock);
++	while ((retries-- > 0) && limit && (usage > limit)) {
++		if (mem->reclaim_in_progress) {
++			spin_unlock(&mem->lock);
++			wait_event(mem->wq, !mem->reclaim_in_progress);
++			spin_lock(&mem->lock);
++		} else {
++			if (!nr_pages)
++				nr_pages = (pushback * limit) / 100;
++			mem->reclaim_in_progress = true;
++			spin_unlock(&mem->lock);
++			nr_reclaimed += memctlr_shrink_mapped_memory(nr_pages,
++									cont);
++			spin_lock(&mem->lock);
++			mem->reclaim_in_progress = false;
++			wake_up_all(&mem->wq);
++		}
++		/*
++ 		 * Resample usage and limit after reclaim
++ 		 */
++		usage = atomic_long_read(&mem->counter.usage);
++		limit = atomic_long_read(&mem->counter.limit);
++	}
++	spin_unlock(&mem->lock);
 +
-+	memctlr_double_lock(mem, old_mem);
-+
-+	memctlr_mm_assign_container_direct(p->mm, cont);
-+	usage = atomic_read(&p->mm->counter->usage);
-+	/*
-+	 * NOTE: we do not fail the movement in case the addition of a new
-+	 * task, puts the container overlimit. We reclaim and try our best
-+	 * to push back the usage of the container.
-+	 */
-+	atomic_long_add(usage, &mem->counter.usage);
-+	atomic_long_sub(usage, &old_mem->counter.usage);
-+
-+	memctlr_double_unlock(mem, old_mem);
++	if (limit && (usage > limit))
++		ret = 0;
++	return ret;
 +}
 +
- static struct container_subsys memctlr_subsys = {
- 	.name = "memctlr",
- 	.create = memctlr_create,
- 	.destroy = memctlr_destroy,
- 	.populate = memctlr_populate,
-+	.attach = memctlr_attach,
- };
- 
- int __init memctlr_init(void)
-diff -puN mm/memory.c~memctlr-acct mm/memory.c
---- linux-2.6.20/mm/memory.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/mm/memory.c	2007-02-18 22:55:50.000000000 +0530
-@@ -50,6 +50,7 @@
- #include <linux/delayacct.h>
- #include <linux/init.h>
- #include <linux/writeback.h>
-+#include <linux/memctlr.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -532,6 +533,7 @@ again:
- 	spin_unlock(src_ptl);
- 	pte_unmap_nested(src_pte - 1);
- 	add_mm_rss(dst_mm, rss[0], rss[1]);
-+	memctlr_update_rss(dst_mm, rss[0] + rss[1], MEMCTLR_DONT_CHECK_LIMIT);
- 	pte_unmap_unlock(dst_pte - 1, dst_ptl);
- 	cond_resched();
- 	if (addr != end)
-@@ -1128,6 +1130,7 @@ static int zeromap_pte_range(struct mm_s
- 		page_cache_get(page);
- 		page_add_file_rmap(page);
- 		inc_mm_counter(mm, file_rss);
-+		memctlr_update_rss(mm, 1, MEMCTLR_DONT_CHECK_LIMIT);
- 		set_pte_at(mm, addr, pte, zero_pte);
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	arch_leave_lazy_mmu_mode();
-@@ -1223,6 +1226,10 @@ static int insert_page(struct mm_struct 
- 	if (PageAnon(page))
- 		goto out;
- 	retval = -ENOMEM;
-+
-+	if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+		goto out;
-+
- 	flush_dcache_page(page);
- 	pte = get_locked_pte(mm, addr, &ptl);
- 	if (!pte)
-@@ -1580,6 +1587,9 @@ gotten:
- 		cow_user_page(new_page, old_page, address, vma);
- 	}
- 
-+	if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+		goto oom;
-+
- 	/*
- 	 * Re-check the pte - we dropped the lock
- 	 */
-@@ -1612,7 +1622,9 @@ gotten:
- 		/* Free the old page.. */
- 		new_page = old_page;
- 		ret |= VM_FAULT_WRITE;
+ /*
+  * Update the rss usage counters for the mm_struct and the container it belongs
+  * to. We do not fail rss for pages shared during fork (see copy_one_pte()).
+@@ -99,13 +187,14 @@ int memctlr_update_rss(struct mm_struct 
+ 	usage = atomic_long_read(&mem->counter.usage);
+ 	limit = atomic_long_read(&mem->counter.limit);
+ 	usage += count;
+-	if (check && limit && (usage > limit))
+-		ret = 0;	/* Above limit, fail */
+-	else {
+-		atomic_long_add(count, &mem->counter.usage);
+-		atomic_long_add(count, &mm->counter->usage);
 -	}
-+	} else
-+		memctlr_update_rss(mm, -1, MEMCTLR_DONT_CHECK_LIMIT);
-+
- 	if (new_page)
- 		page_cache_release(new_page);
- 	if (old_page)
-@@ -2024,16 +2036,19 @@ static int do_swap_page(struct mm_struct
- 	mark_page_accessed(page);
- 	lock_page(page);
  
-+	if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+		goto out_nomap;
-+
- 	/*
- 	 * Back out if somebody else already faulted in this pte.
- 	 */
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (unlikely(!pte_same(*page_table, orig_pte)))
--		goto out_nomap;
-+		goto out_nomap_uncharge;
- 
- 	if (unlikely(!PageUptodate(page))) {
- 		ret = VM_FAULT_SIGBUS;
--		goto out_nomap;
-+		goto out_nomap_uncharge;
- 	}
- 
- 	/* The page isn't present yet, go ahead with the fault. */
-@@ -2068,6 +2083,8 @@ unlock:
- 	pte_unmap_unlock(page_table, ptl);
- out:
++	if (check) {
++		ret = memctlr_check_and_reclaim(cont, usage, limit);
++		if (!ret)
++			goto done;
++	}
++	atomic_long_add(count, &mem->counter.usage);
++	atomic_long_add(count, &mm->counter->usage);
+ done:
  	return ret;
-+out_nomap_uncharge:
-+	memctlr_update_rss(mm, -1, MEMCTLR_DONT_CHECK_LIMIT);
- out_nomap:
- 	pte_unmap_unlock(page_table, ptl);
- 	unlock_page(page);
-@@ -2092,6 +2109,9 @@ static int do_anonymous_page(struct mm_s
- 		/* Allocate our own private page. */
- 		pte_unmap(page_table);
- 
-+		if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+			goto oom;
-+
- 		if (unlikely(anon_vma_prepare(vma)))
- 			goto oom;
- 		page = alloc_zeroed_user_highpage(vma, address);
-@@ -2108,6 +2128,8 @@ static int do_anonymous_page(struct mm_s
- 		lru_cache_add_active(page);
- 		page_add_new_anon_rmap(page, vma, address);
- 	} else {
-+		memctlr_update_rss(mm, 1, MEMCTLR_DONT_CHECK_LIMIT);
-+
- 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
- 		page = ZERO_PAGE(address);
- 		page_cache_get(page);
-@@ -2218,6 +2240,9 @@ retry:
- 		}
- 	}
- 
-+	if (!memctlr_update_rss(mm, 1, MEMCTLR_CHECK_LIMIT))
-+		goto oom;
-+
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	/*
- 	 * For a file-backed vma, someone could have truncated or otherwise
-@@ -2227,6 +2252,7 @@ retry:
- 	if (mapping && unlikely(sequence != mapping->truncate_count)) {
- 		pte_unmap_unlock(page_table, ptl);
- 		page_cache_release(new_page);
-+		memctlr_update_rss(mm, -1, MEMCTLR_DONT_CHECK_LIMIT);
- 		cond_resched();
- 		sequence = mapping->truncate_count;
- 		smp_rmb();
-@@ -2265,6 +2291,7 @@ retry:
- 	} else {
- 		/* One of our sibling threads was faster, back out. */
- 		page_cache_release(new_page);
-+		memctlr_update_rss(mm, -1, MEMCTLR_DONT_CHECK_LIMIT);
- 		goto unlock;
- 	}
- 
-diff -puN mm/rmap.c~memctlr-acct mm/rmap.c
---- linux-2.6.20/mm/rmap.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/mm/rmap.c	2007-02-18 23:28:16.000000000 +0530
-@@ -602,6 +602,11 @@ void page_remove_rmap(struct page *page,
- 		__dec_zone_page_state(page,
- 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
- 	}
-+	/*
-+	 * When we pass MEMCTLR_DONT_CHECK_LIMIT, it is ok to call
-+	 * this function under the pte lock (since we will not block in reclaim)
-+	 */
-+	memctlr_update_rss(vma->vm_mm, -1, MEMCTLR_DONT_CHECK_LIMIT);
+ }
+@@ -120,6 +209,8 @@ static int memctlr_create(struct contain
+ 	cont->subsys[memctlr_subsys.subsys_id] = &mem->css;
+ 	atomic_long_set(&mem->counter.usage, 0);
+ 	atomic_long_set(&mem->counter.limit, 0);
++	init_waitqueue_head(&mem->wq);
++	mem->reclaim_in_progress = 0;
+ 	return 0;
  }
  
+@@ -134,8 +225,8 @@ static ssize_t memctlr_write(struct cont
+ 				size_t nbytes, loff_t *ppos)
+ {
+ 	char *buffer;
+-	int ret = 0;
+-	unsigned long limit;
++	int ret = nbytes;
++	unsigned long cur_limit, limit, usage;
+ 	struct memctlr *mem = memctlr_from_cont(cont);
+ 
+ 	BUG_ON(!mem);
+@@ -162,8 +253,16 @@ static ssize_t memctlr_write(struct cont
+ 		goto out_unlock;
+ 
+ 	atomic_long_set(&mem->counter.limit, limit);
++	usage = atomic_read(&mem->counter.usage);
++	cur_limit = atomic_read(&mem->counter.limit);
++	if (limit && (usage > limit)) {
++		ret = memctlr_check_and_reclaim(cont, usage, cur_limit);
++		if (!ret) {
++			ret = -EAGAIN;	/* Try again, later */
++			goto out_unlock;
++		}
++	}
+ 
+-	ret = nbytes;
+ out_unlock:
+ 	container_manage_unlock();
+ out_err:
+@@ -233,6 +332,17 @@ static inline void memctlr_double_unlock
+ 	}
+ }
+ 
++int memctlr_can_attach(struct container_subsys *ss, struct container *cont,
++			struct task_struct *p)
++{
++	/*
++	 * Allow only the thread group leader to change containers
++	 */
++	if (p->pid != p->tgid)
++		return -EINVAL;
++	return 0;
++}
++
  /*
-diff -puN mm/swapfile.c~memctlr-acct mm/swapfile.c
---- linux-2.6.20/mm/swapfile.c~memctlr-acct	2007-02-18 22:55:50.000000000 +0530
-+++ linux-2.6.20-balbir/mm/swapfile.c	2007-02-18 22:55:50.000000000 +0530
-@@ -27,6 +27,7 @@
- #include <linux/mutex.h>
- #include <linux/capability.h>
- #include <linux/syscalls.h>
+  * This routine decides how task movement across containers is handled
+  * The simplest strategy is to just move the task (without carrying any old
+@@ -247,6 +357,12 @@ static void memctlr_attach(struct contai
+ 	struct memctlr *mem, *old_mem;
+ 	long usage;
+ 
++	/*
++ 	 * See if this can be stopped at the upper layer
++ 	 */
++	if (cont == old_cont)
++		return;
++
+ 	mem = memctlr_from_cont(cont);
+ 	old_mem = memctlr_from_cont(old_cont);
+ 
+@@ -278,6 +394,7 @@ int __init memctlr_init(void)
+ 	int id;
+ 
+ 	id = container_register_subsys(&memctlr_subsys);
++	atomic_set(&nr_reclaim, 0);
+ 	printk("Initializing memctlr version %s, id %d\n", version, id);
+ 	return id < 0 ? id : 0;
+ }
+diff -puN mm/migrate.c~memctlr-reclaim-on-limit mm/migrate.c
+--- linux-2.6.20/mm/migrate.c~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/mm/migrate.c	2007-02-18 23:29:14.000000000 +0530
+@@ -623,7 +623,7 @@ static int unmap_and_move(new_page_t get
+ 	/*
+ 	 * Establish migration ptes or remove ptes
+ 	 */
+-	try_to_unmap(page, 1);
++	try_to_unmap(page, 1, NULL);
+ 	if (!page_mapped(page))
+ 		rc = move_to_new_page(newpage, page);
+ 
+diff -puN mm/rmap.c~memctlr-reclaim-on-limit mm/rmap.c
+--- linux-2.6.20/mm/rmap.c~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/mm/rmap.c	2007-02-18 23:29:14.000000000 +0530
+@@ -792,7 +792,7 @@ static void try_to_unmap_cluster(unsigne
+ 	pte_unmap_unlock(pte - 1, ptl);
+ }
+ 
+-static int try_to_unmap_anon(struct page *page, int migration)
++static int try_to_unmap_anon(struct page *page, int migration, void *container)
+ {
+ 	struct anon_vma *anon_vma;
+ 	struct vm_area_struct *vma;
+@@ -803,6 +803,13 @@ static int try_to_unmap_anon(struct page
+ 		return ret;
+ 
+ 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
++		/*
++ 		 * When reclaiming memory on behalf of overlimit containers
++ 		 * shared pages are spared, they are only unmapped from
++ 		 * the vma's (mm's) whose containers are over limit
++ 		 */
++		if (!memctlr_mm_overlimit(vma->vm_mm, container))
++			continue;
+ 		ret = try_to_unmap_one(page, vma, migration);
+ 		if (ret == SWAP_FAIL || !page_mapped(page))
+ 			break;
+@@ -820,7 +827,7 @@ static int try_to_unmap_anon(struct page
+  *
+  * This function is only called from try_to_unmap for object-based pages.
+  */
+-static int try_to_unmap_file(struct page *page, int migration)
++static int try_to_unmap_file(struct page *page, int migration, void *container)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+@@ -834,6 +841,12 @@ static int try_to_unmap_file(struct page
+ 
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
++		/*
++ 		 * If we are reclaiming memory due to containers being overlimit
++ 		 * and this mm is not over it's limit, spare the page
++ 		 */
++		if (!memctlr_mm_overlimit(vma->vm_mm, container))
++			continue;
+ 		ret = try_to_unmap_one(page, vma, migration);
+ 		if (ret == SWAP_FAIL || !page_mapped(page))
+ 			goto out;
+@@ -880,6 +893,8 @@ static int try_to_unmap_file(struct page
+ 						shared.vm_set.list) {
+ 			if ((vma->vm_flags & VM_LOCKED) && !migration)
+ 				continue;
++			if (!memctlr_mm_overlimit(vma->vm_mm, container))
++				continue;
+ 			cursor = (unsigned long) vma->vm_private_data;
+ 			while ( cursor < max_nl_cursor &&
+ 				cursor < vma->vm_end - vma->vm_start) {
+@@ -919,19 +934,90 @@ out:
+  * SWAP_AGAIN	- we missed a mapping, try again later
+  * SWAP_FAIL	- the page is unswappable
+  */
+-int try_to_unmap(struct page *page, int migration)
++int try_to_unmap(struct page *page, int migration, void *container)
+ {
+ 	int ret;
+ 
+ 	BUG_ON(!PageLocked(page));
+ 
+ 	if (PageAnon(page))
+-		ret = try_to_unmap_anon(page, migration);
++		ret = try_to_unmap_anon(page, migration, container);
+ 	else
+-		ret = try_to_unmap_file(page, migration);
++		ret = try_to_unmap_file(page, migration, container);
+ 
+ 	if (!page_mapped(page))
+ 		ret = SWAP_SUCCESS;
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_CONTAINER_MEMCTLR
++bool anon_page_in_container(struct page *page, void *container)
++{
++	struct anon_vma *anon_vma;
++	struct vm_area_struct *vma;
++	bool ret = false;
++
++	anon_vma = page_lock_anon_vma(page);
++	if (!anon_vma)
++		return ret;
++
++	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
++		if (memctlr_mm_overlimit(vma->vm_mm, container)) {
++			ret = true;
++			break;
++		}
++
++	spin_unlock(&anon_vma->lock);
++	return ret;
++}
++
++bool file_page_in_container(struct page *page, void *container)
++{
++	bool ret = false;
++	struct vm_area_struct *vma;
++	struct address_space *mapping = page_mapping(page);
++	struct prio_tree_iter iter;
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++
++	if (!mapping)
++		return ret;
++
++	spin_lock(&mapping->i_mmap_lock);
++
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
++		/*
++ 		 * Check if the page belongs to the container and it is overlimit
++ 		 */
++		if (memctlr_mm_overlimit(vma->vm_mm, container)) {
++			ret = true;
++			goto done;
++		}
++
++	if (list_empty(&mapping->i_mmap_nonlinear))
++		goto done;
++
++	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
++						shared.vm_set.list)
++		if (memctlr_mm_overlimit(vma->vm_mm, container)) {
++			ret = true;
++			goto done;
++		}
++done:
++	spin_unlock(&mapping->i_mmap_lock);
++	return ret;
++}
++
++bool page_in_container(struct page *page, struct zone *zone, void *container)
++{
++	bool ret;
++
++	spin_unlock_irq(&zone->lru_lock);
++	if (PageAnon(page))
++		ret = anon_page_in_container(page, container);
++	else
++		ret = file_page_in_container(page, container);
++
++	spin_lock_irq(&zone->lru_lock);
++	return ret;
++}
++#endif
+diff -puN mm/vmscan.c~memctlr-reclaim-on-limit mm/vmscan.c
+--- linux-2.6.20/mm/vmscan.c~memctlr-reclaim-on-limit	2007-02-18 23:29:14.000000000 +0530
++++ linux-2.6.20-balbir/mm/vmscan.c	2007-02-18 23:29:14.000000000 +0530
+@@ -42,6 +42,7 @@
+ #include <asm/div64.h>
+ 
+ #include <linux/swapops.h>
 +#include <linux/memctlr.h>
  
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
-@@ -514,6 +515,7 @@ static void unuse_pte(struct vm_area_str
- 	set_pte_at(vma->vm_mm, addr, pte,
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	page_add_anon_rmap(page, vma, addr);
-+	memctlr_update_rss(vma->vm_mm, 1, MEMCTLR_DONT_CHECK_LIMIT);
- 	swap_free(entry);
- 	/*
- 	 * Move the page to the active list so it is not
+ #include "internal.h"
+ 
+@@ -66,6 +67,9 @@ struct scan_control {
+ 	int swappiness;
+ 
+ 	int all_unreclaimable;
++
++	void *container;		/* Used by containers for reclaiming */
++					/* pages when the limit is exceeded  */
+ };
+ 
+ /*
+@@ -507,7 +511,7 @@ static unsigned long shrink_page_list(st
+ 		 * processes. Try to unmap it here.
+ 		 */
+ 		if (page_mapped(page) && mapping) {
+-			switch (try_to_unmap(page, 0)) {
++			switch (try_to_unmap(page, 0, sc->container)) {
+ 			case SWAP_FAIL:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+@@ -621,13 +625,15 @@ keep:
+  */
+ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 		struct list_head *src, struct list_head *dst,
+-		unsigned long *scanned)
++		unsigned long *scanned, struct zone *zone, void *container,
++		unsigned long max_scan)
+ {
+ 	unsigned long nr_taken = 0;
+ 	struct page *page;
+-	unsigned long scan;
++	unsigned long scan, vscan;
+ 
+-	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
++	for (scan = 0, vscan = 0; scan < nr_to_scan && (vscan < max_scan) &&
++					!list_empty(src); scan++, vscan++) {
+ 		struct list_head *target;
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+@@ -636,6 +642,15 @@ static unsigned long isolate_lru_pages(u
+ 
+ 		list_del(&page->lru);
+ 		target = src;
++		/*
++ 		 * For containers, do not scan the page unless it
++ 		 * belongs to the container we are reclaiming for
++ 		 */
++		if (container && !page_in_container(page, zone, container)) {
++			scan--;
++			goto done;
++		}
++
+ 		if (likely(get_page_unless_zero(page))) {
+ 			/*
+ 			 * Be careful not to clear PageLRU until after we're
+@@ -646,7 +661,7 @@ static unsigned long isolate_lru_pages(u
+ 			target = dst;
+ 			nr_taken++;
+ 		} /* else it is being freed elsewhere */
+-
++done:
+ 		list_add(&page->lru, target);
+ 	}
+ 
+@@ -678,7 +693,8 @@ static unsigned long shrink_inactive_lis
+ 
+ 		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
+ 					     &zone->inactive_list,
+-					     &page_list, &nr_scan);
++					     &page_list, &nr_scan, zone,
++					     sc->container, zone->nr_inactive);
+ 		zone->nr_inactive -= nr_taken;
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
+@@ -823,7 +839,8 @@ force_reclaim_mapped:
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
+-				    &l_hold, &pgscanned);
++				    &l_hold, &pgscanned, zone, sc->container,
++				    zone->nr_active);
+ 	zone->pages_scanned += pgscanned;
+ 	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
+@@ -1361,7 +1378,7 @@ void wakeup_kswapd(struct zone *zone, in
+ 	wake_up_interruptible(&pgdat->kswapd_wait);
+ }
+ 
+-#ifdef CONFIG_PM
++#if defined(CONFIG_PM) || defined(CONFIG_CONTAINER_MEMCTLR)
+ /*
+  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+  * from LRU lists system-wide, for given pass and priority, and returns the
+@@ -1370,7 +1387,7 @@ void wakeup_kswapd(struct zone *zone, in
+  * For pass > 3 we also try to shrink the LRU lists that contain a few pages
+  */
+ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+-				      int pass, struct scan_control *sc)
++				      int pass, int max_pass, struct scan_control *sc)
+ {
+ 	struct zone *zone;
+ 	unsigned long nr_to_scan, ret = 0;
+@@ -1386,7 +1403,7 @@ static unsigned long shrink_all_zones(un
+ 		/* For pass = 0 we don't shrink the active list */
+ 		if (pass > 0) {
+ 			zone->nr_scan_active += (zone->nr_active >> prio) + 1;
+-			if (zone->nr_scan_active >= nr_pages || pass > 3) {
++			if (zone->nr_scan_active >= nr_pages || pass > max_pass) {
+ 				zone->nr_scan_active = 0;
+ 				nr_to_scan = min(nr_pages, zone->nr_active);
+ 				shrink_active_list(nr_to_scan, zone, sc, prio);
+@@ -1394,7 +1411,7 @@ static unsigned long shrink_all_zones(un
+ 		}
+ 
+ 		zone->nr_scan_inactive += (zone->nr_inactive >> prio) + 1;
+-		if (zone->nr_scan_inactive >= nr_pages || pass > 3) {
++		if (zone->nr_scan_inactive >= nr_pages || pass > max_pass) {
+ 			zone->nr_scan_inactive = 0;
+ 			nr_to_scan = min(nr_pages, zone->nr_inactive);
+ 			ret += shrink_inactive_list(nr_to_scan, zone, sc);
+@@ -1405,7 +1422,9 @@ static unsigned long shrink_all_zones(un
+ 
+ 	return ret;
+ }
++#endif
+ 
++#ifdef CONFIG_PM
+ static unsigned long count_lru_pages(void)
+ {
+ 	struct zone *zone;
+@@ -1477,7 +1496,7 @@ unsigned long shrink_all_memory(unsigned
+ 			unsigned long nr_to_scan = nr_pages - ret;
+ 
+ 			sc.nr_scanned = 0;
+-			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
++			ret += shrink_all_zones(nr_to_scan, prio, pass, 3, &sc);
+ 			if (ret >= nr_pages)
+ 				goto out;
+ 
+@@ -1512,6 +1531,57 @@ out:
+ }
+ #endif
+ 
++#ifdef CONFIG_CONTAINER_MEMCTLR
++/*
++ * Try to free `nr_pages' of memory, system-wide, and return the number of
++ * freed pages.
++ * Modelled after shrink_all_memory()
++ */
++unsigned long memctlr_shrink_mapped_memory(unsigned long nr_pages, void *container)
++{
++	unsigned long ret = 0;
++	int pass;
++	unsigned long nr_total_scanned = 0;
++
++	struct scan_control sc = {
++		.gfp_mask = GFP_KERNEL,
++		.may_swap = 0,
++		.swap_cluster_max = nr_pages,
++		.may_writepage = 1,
++		.swappiness = vm_swappiness,
++		.container = container,
++		.may_swap = 1,
++		.swappiness = 100,
++	};
++
++	/*
++	 * We try to shrink LRUs in 3 passes:
++	 * 0 = Reclaim from inactive_list only
++	 * 1 = Reclaim mapped (normal reclaim)
++	 * 2 = 2nd pass of type 1
++	 */
++	for (pass = 0; pass < 3; pass++) {
++		int prio;
++
++		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
++			unsigned long nr_to_scan = nr_pages - ret;
++
++			sc.nr_scanned = 0;
++			ret += shrink_all_zones(nr_to_scan, prio,
++						pass, 1, &sc);
++			if (ret >= nr_pages)
++				goto out;
++
++			nr_total_scanned += sc.nr_scanned;
++			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
++				congestion_wait(WRITE, HZ / 10);
++		}
++	}
++out:
++	return ret;
++}
++#endif
++
+ /* It's optimal to keep kswapds on the same CPUs as their memory, but
+    not required for correctness.  So if the last cpu in a node goes
+    away, we get changed to run anywhere: as the first one comes back,
 _
 
 -- 
