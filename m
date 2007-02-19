@@ -1,22 +1,20 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1JJVVW1008920
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 14:31:31 -0500
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l1JJY9UH030698
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 14:34:09 -0500
 Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JJVUOE495168
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 12:31:30 -0700
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JJYqGo518994
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 12:34:52 -0700
 Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JJVUAI024789
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 12:31:30 -0700
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated
-	helper macros.
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JJYqeQ005437
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 12:34:52 -0700
+Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <1171910483.3531.87.camel@laptopd505.fenrus.org>
+In-Reply-To: <1171910581.3531.89.camel@laptopd505.fenrus.org>
 References: <20070219183123.27318.27319.stgit@localhost.localdomain>
-	 <20070219183133.27318.92920.stgit@localhost.localdomain>
-	 <1171910483.3531.87.camel@laptopd505.fenrus.org>
+	 <1171910581.3531.89.camel@laptopd505.fenrus.org>
 Content-Type: text/plain
-Date: Mon, 19 Feb 2007 13:31:29 -0600
-Message-Id: <1171913489.22940.26.camel@localhost.localdomain>
+Date: Mon, 19 Feb 2007 13:34:51 -0600
+Message-Id: <1171913691.22940.30.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,31 +23,23 @@ To: Arjan van de Ven <arjan@infradead.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-02-19 at 19:41 +0100, Arjan van de Ven wrote:
+On Mon, 2007-02-19 at 19:43 +0100, Arjan van de Ven wrote:
 > On Mon, 2007-02-19 at 10:31 -0800, Adam Litke wrote:
-> > Signed-off-by: Adam Litke <agl@us.ibm.com>
-> > ---
-> > 
-> >  include/linux/mm.h |   25 +++++++++++++++++++++++++
-> >  1 files changed, 25 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 2d2c08d..a2fa66d 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -98,6 +98,7 @@ struct vm_area_struct {
-> >  
-> >  	/* Function pointers to deal with this struct. */
-> >  	struct vm_operations_struct * vm_ops;
-> > +	struct pagetable_operations_struct * pagetable_ops;
-> >  
+> > The page tables for hugetlb mappings are handled differently than page tables
+> > for normal pages.  Rather than integrating multiple page size support into the
+> > main VM (which would tremendously complicate the code) some hooks were created.
+> > This allows hugetlb special cases to be handled "out of line" by a separate
+> > interface.
 > 
-> please make it at least const, those things have no business ever being
-> written to right? And by making them const the compiler helps catch
-> that, and as bonus the data gets moved to rodata so that it won't share
-> cachelines with anything that gets dirty
+> ok it makes sense to clean this up.. what I don't like is that there
+> STILL are all the double cases... for this to work and be worth it both
+> the common case and the hugetlb case should be using the ops structure
+> always! Anything else and you're just replacing bad code with bad
+> code ;(
 
-Yep I agree.  Changed.
+Hmm.  Do you think everyone would support an extra pointer indirection
+for every handle_pte_fault() call?  If not, then I definitely wouldn't
+mind creating a default_pagetable_ops and calling into that.
 
 -- 
 Adam Litke - (agl at us.ibm.com)
