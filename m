@@ -1,65 +1,53 @@
-In-reply-to: <20070218155916.0d3c73a9.akpm@linux-foundation.org> (message from
-	Andrew Morton on Sun, 18 Feb 2007 15:59:16 -0800)
-Subject: Re: dirty balancing deadlock
-References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
-	<20070218125307.4103c04a.akpm@linux-foundation.org>
-	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
-	<20070218145929.547c21c7.akpm@linux-foundation.org>
-	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu> <20070218155916.0d3c73a9.akpm@linux-foundation.org>
-Message-Id: <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 19 Feb 2007 18:11:55 +0100
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1JIVOh8015154
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:24 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JIVObp282230
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:24 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JIVOJQ004728
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:24 -0500
+From: Adam Litke <agl@us.ibm.com>
+Subject: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API
+Date: Mon, 19 Feb 2007 10:31:23 -0800
+Message-Id: <20070219183123.27318.27319.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8; format=fixed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, agl@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-How about this?
+The page tables for hugetlb mappings are handled differently than page tables
+for normal pages.  Rather than integrating multiple page size support into the
+main VM (which would tremendously complicate the code) some hooks were created.
+This allows hugetlb special cases to be handled "out of line" by a separate
+interface.
 
-Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
-I'll try to tackle that one as well.
+Hugetlbfs was the huge page interface chosen.  At the time, large database
+users were the only big users of huge pages and the hugetlbfs design meets
+their needs pretty well.  Over time, hugetlbfs has been expanded to enable new
+uses of huge page memory with varied results.  As features are added, the
+semantics become a permanent part of the Linux API.  This makes maintenance of
+hugetlbfs an increasingly difficult task and inhibits the addition of features
+and functionality in support of ever-changing hardware.
 
-If the per-bdi dirty counter goes below 16, balance_dirty_pages()
-returns.
+To remedy the situation, I propose an API (currently called
+pagetable_operations).  All of the current hugetlbfs-specific hooks are moved
+into an operations struct that is attached to VMAs.  The end result is a more
+explicit and IMO a cleaner interface between hugetlbfs and the core VM.  We are
+then free to add other hugetlb interfaces (such as a /dev/zero-styled character
+device) that can operate either in concert with or independent of hugetlbfs.
 
-Does the constant need to tunable?  If it's too large, then the global
-threshold is more easily exceeded.  If it's too small, then in a tight
-situation progress will be slower.
+There should be no measurable performance impact for normal page users (we're
+checking if pagetable_ops != NULL instead of checking for vm_flags &
+VM_HUGETLB).  Of course we do increase the VMA size by one pointer.  For huge
+pages, there is an added indirection for pt_op() calls.  This patch series does
+not change the logic of the the hugetlbfs operations, just moves them into the
+pagetable_operations struct.
 
-Thanks,
-Miklos
-
-Index: linux/mm/page-writeback.c
-===================================================================
---- linux.orig/mm/page-writeback.c	2007-02-19 17:32:41.000000000 +0100
-+++ linux/mm/page-writeback.c	2007-02-19 18:05:28.000000000 +0100
-@@ -198,6 +198,25 @@ static void balance_dirty_pages(struct a
- 			dirty_thresh)
- 				break;
- 
-+		/*
-+		 * Acquit this producer if there's little or nothing
-+		 * to write back to this particular queue
-+		 *
-+		 * Without this check a deadlock is possible in the
-+		 * following case:
-+		 *
-+		 * - filesystem A writes data through filesystem B
-+		 * - filesystem A has dirty pages over dirty_thresh
-+		 * - writeback is started, this triggers a write in B
-+		 * - balance_dirty_pages() is called synchronously
-+		 * - the write to B blocks
-+		 * - the writeback completes, but dirty is still over threshold
-+		 * - the blocking write prevents futher writes from happening
-+		 */
-+		if (atomic_long_read(&bdi->nr_dirty) +
-+		    atomic_long_read(&bdi->nr_writeback) < 16)
-+			break;
-+
- 		if (!dirty_exceeded)
- 			dirty_exceeded = 1;
- 
+Comments?  Do you think it's as good of an idea as I do?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
