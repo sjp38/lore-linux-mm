@@ -1,16 +1,16 @@
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1JIVZFD018183
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:35 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JIVZBZ287008
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:35 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JIVYqm001370
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:35 -0500
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1JIWTmS028252
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:32:29 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1JIVk9d292748
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:46 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1JIVjSD011041
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2007 13:31:45 -0500
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 1/7] Introduce the pagetable_operations and associated helper macros.
-Date: Mon, 19 Feb 2007 10:31:34 -0800
-Message-Id: <20070219183133.27318.92920.stgit@localhost.localdomain>
+Subject: [PATCH 2/7] copy_vma for hugetlbfs
+Date: Mon, 19 Feb 2007 10:31:44 -0800
+Message-Id: <20070219183144.27318.64028.stgit@localhost.localdomain>
 In-Reply-To: <20070219183123.27318.27319.stgit@localhost.localdomain>
 References: <20070219183123.27318.27319.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8; format=fixed
@@ -24,52 +24,56 @@ List-ID: <linux-mm.kvack.org>
 Signed-off-by: Adam Litke <agl@us.ibm.com>
 ---
 
- include/linux/mm.h |   25 +++++++++++++++++++++++++
- 1 files changed, 25 insertions(+), 0 deletions(-)
+ fs/hugetlbfs/inode.c |    6 ++++++
+ mm/memory.c          |    4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 2d2c08d..a2fa66d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -98,6 +98,7 @@ struct vm_area_struct {
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 4f4cd13..c0a7984 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -36,6 +36,7 @@
+ static struct super_operations hugetlbfs_ops;
+ static const struct address_space_operations hugetlbfs_aops;
+ const struct file_operations hugetlbfs_file_operations;
++static struct pagetable_operations_struct hugetlbfs_pagetable_ops;
+ static struct inode_operations hugetlbfs_dir_inode_operations;
+ static struct inode_operations hugetlbfs_inode_operations;
  
- 	/* Function pointers to deal with this struct. */
- 	struct vm_operations_struct * vm_ops;
-+	struct pagetable_operations_struct * pagetable_ops;
+@@ -70,6 +71,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+ 	 */
+ 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+ 	vma->vm_ops = &hugetlb_vm_ops;
++	vma->pagetable_ops = &hugetlbfs_pagetable_ops;
  
- 	/* Information about our backing store: */
- 	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-@@ -218,6 +219,30 @@ struct vm_operations_struct {
+ 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+ 
+@@ -560,6 +562,10 @@ const struct file_operations hugetlbfs_file_operations = {
+ 	.get_unmapped_area	= hugetlb_get_unmapped_area,
  };
  
- struct mmu_gather;
-+
-+struct pagetable_operations_struct {
-+	int (*fault)(struct mm_struct *mm,
-+		struct vm_area_struct *vma,
-+		unsigned long address, int write_access);
-+	int (*copy_vma)(struct mm_struct *dst, struct mm_struct *src,
-+		struct vm_area_struct *vma);
-+	int (*pin_pages)(struct mm_struct *mm, struct vm_area_struct *vma,
-+		struct page **pages, struct vm_area_struct **vmas,
-+		unsigned long *position, int *length, int i);
-+	void (*change_protection)(struct vm_area_struct *vma,
-+		unsigned long address, unsigned long end, pgprot_t newprot);
-+	unsigned long (*unmap_page_range)(struct vm_area_struct *vma,
-+		unsigned long address, unsigned long end, long *zap_work);
-+	void (*free_pgtable_range)(struct mmu_gather **tlb,
-+		unsigned long addr, unsigned long end,
-+		unsigned long floor, unsigned long ceiling);
++static struct pagetable_operations_struct hugetlbfs_pagetable_ops = {
++	.copy_vma		= copy_hugetlb_page_range,
 +};
 +
-+#define has_pt_op(vma, op) \
-+	((vma)->pagetable_ops && (vma)->pagetable_ops->op)
-+#define pt_op(vma, call) \
-+	((vma)->pagetable_ops->call)
-+
- struct inode;
+ static struct inode_operations hugetlbfs_dir_inode_operations = {
+ 	.create		= hugetlbfs_create,
+ 	.lookup		= simple_lookup,
+diff --git a/mm/memory.c b/mm/memory.c
+index ef09f0a..80eafd5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -602,8 +602,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			return 0;
+ 	}
  
- #define page_private(page)		((page)->private)
+-	if (is_vm_hugetlb_page(vma))
+-		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
++	if (has_pt_op(vma, copy_vma))
++		return pt_op(vma, copy_vma)(dst_mm, src_mm, vma);
+ 
+ 	dst_pgd = pgd_offset(dst_mm, addr);
+ 	src_pgd = pgd_offset(src_mm, addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
