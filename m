@@ -1,34 +1,46 @@
-Date: Tue, 20 Feb 2007 11:00:05 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] free swap space when (re)activating page
-Message-ID: <20070220190005.GQ21484@holomorphy.com>
-References: <45D63445.5070005@redhat.com>
+Message-ID: <45DB4C87.6050809@redhat.com>
+Date: Tue, 20 Feb 2007 14:31:19 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45D63445.5070005@redhat.com>
+Subject: Re: [PATCH] free swap space when (re)activating page
+References: <45D63445.5070005@redhat.com> <Pine.LNX.4.64.0702192048150.9934@schroedinger.engr.sgi.com> <45DAF794.2000209@redhat.com> <Pine.LNX.4.64.0702200833460.13913@schroedinger.engr.sgi.com> <45DB25E1.7030504@redhat.com> <Pine.LNX.4.64.0702201015590.14497@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0702201015590.14497@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 16, 2007 at 05:46:29PM -0500, Rik van Riel wrote:
-> The attached patch does what I described in the other thread, it
-> makes the pageout code free swap space when swap is getting full,
-> by taking away the swap space from pages that get moved onto or
-> back onto the active list.
-> In some tests on a system with 2GB RAM and 1GB swap, it kept the
-> free swap at 500MB for a 2.3GB qsbench, while without the patch
-> over 950MB of swap was in use all of the time.
-> This should give kswapd more flexibility in what to swap out.
-> What do you think?
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+Christoph Lameter wrote:
+> On Tue, 20 Feb 2007, Rik van Riel wrote:
+> 
+>> Nono, I try to remove the swap space occupied by pages that
+>> go back onto the active list.  Regardless of whether they
+>> were already there, or whether they started out on the
+>> inactive list.
+> 
+> Ok then do it for all pages that go back not just for those leftover from 
+> the moving of pages to the inactive list (why would you move those???)
 
-I would call this a bugfix, not an optimization.
+I do.  The only pages that are exempt are the pages that move
+from the active list to the inactive list, because those will
+probably be evicted soon enough.
 
+> Maybe the hunk does apply in a different location than I thought.
 
--- wli
+I suspect that's the case ...
+
+> If you 
+> do that in the loop over the pages on active list then it would make 
+> sense. But in that case you need another piece of it doing the same to the 
+> pages that are released at the end of shrink_active_list().
+
+... because I think this is what my patch does :)
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
