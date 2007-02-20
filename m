@@ -1,112 +1,51 @@
-Received: by wr-out-0506.google.com with SMTP id 71so1860035wri
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2007 01:07:00 -0800 (PST)
-Message-ID: <4df04b840702200106q670ff944k118d218fed17b884@mail.gmail.com>
-Date: Tue, 20 Feb 2007 17:06:58 +0800
-From: "yunfeng zhang" <zyf.zeroos@gmail.com>
-Subject: Re: [PATCH 2.6.20-rc5 1/1] MM: enhance Linux swap subsystem
-In-Reply-To: <4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>
+Date: Tue, 20 Feb 2007 06:30:12 -0500
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: dirty balancing deadlock
+Message-ID: <20070220113012.GN6133@think.oraclecorp.com>
+References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu> <20070218125307.4103c04a.akpm@linux-foundation.org> <E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu> <20070218145929.547c21c7.akpm@linux-foundation.org> <E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu> <20070218155916.0d3c73a9.akpm@linux-foundation.org> <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu> <20070220001351.GJ6133@think.oraclecorp.com> <E1HJQeV-0008Kq-00@dorka.pomaz.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <4df04b840701212309l2a283357jbdaa88794e5208a7@mail.gmail.com>
-	 <200701222300.41960.a1426z@gawab.com>
-	 <4df04b840701222021w5e1aaab2if2ba7fc38d06d64b@mail.gmail.com>
-	 <4df04b840701222108o6992933bied5fff8a525413@mail.gmail.com>
-	 <Pine.LNX.4.64.0701242015090.1770@blonde.wat.veritas.com>
-	 <4df04b840701301852i41687edfl1462c4ca3344431c@mail.gmail.com>
-	 <Pine.LNX.4.64.0701312022340.26857@blonde.wat.veritas.com>
-	 <4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>
+In-Reply-To: <E1HJQeV-0008Kq-00@dorka.pomaz.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hugh@veritas.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Following arithmetic is based on SwapSpace bitmap management which is discussed
-in the postscript section of my patch. Two purposes are implemented, one is
-allocating a group of fake continual swap entries, another is re-allocating
-swap entries in stage 3 for such as series length is too short.
+On Tue, Feb 20, 2007 at 09:47:11AM +0100, Miklos Szeredi wrote:
+> > > How about this?
+> > > 
+> > > Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
+> > > I'll try to tackle that one as well.
+> > > 
+> > > If the per-bdi dirty counter goes below 16, balance_dirty_pages()
+> > > returns.
+> > > 
+> > > Does the constant need to tunable?  If it's too large, then the global
+> > > threshold is more easily exceeded.  If it's too small, then in a tight
+> > > situation progress will be slower.
+> > 
+> > Ok, what is supposed to happen here is that filesystems are supposed to
+> > be throttled from making more dirty pages when the system is over the
+> > threshold.  Even if filesystem A doesn't have much to contribute, and
+> > filesystem B is the cause of 99% of the dirty pages, the goal of the
+> > threshold is to prevent more dirty data from happening, and filesystem A
+> > should block.
+> 
+> Which is the cause of the current deadlock.  But if we allow
+> filesystem A to go into the red just a little, the deadlock is
+> avoided, because it can continue to make progress with cleaning the
+> dirtyness produced by B.
+> 
+> The maximum that filesystems can go over the limit will be
+> 
+>   (16 + epsilon) * number-of-queues
 
+Right, even for thousands of mounted filesystems ~16 pages per FS
+effectively pinned is not horrible.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-// 2 hardware cache line. You can also concentrate it to a hareware cache line.
-char bits_per_short[256] = {
-	8, 7, 7, 6, 7, 6, 6, 5,
-	7, 6, 6, 5, 6, 5, 5, 4,
-	7, 6, 6, 5, 6, 5, 5, 4,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	7, 6, 6, 5, 6, 5, 5, 4,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	7, 6, 6, 5, 6, 5, 5, 4,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	4, 3, 3, 2, 3, 2, 2, 1,
-	7, 6, 6, 5, 6, 5, 5, 4,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	4, 3, 3, 2, 3, 2, 2, 1,
-	6, 5, 5, 4, 5, 4, 4, 3,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	4, 3, 3, 2, 3, 2, 2, 1,
-	5, 4, 4, 3, 4, 3, 3, 2,
-	4, 3, 3, 2, 3, 2, 2, 1,
-	4, 3, 3, 2, 3, 2, 2, 1,
-	3, 2, 2, 1, 2, 1, 1, 0
-};
-unsigned char swap_bitmap[32];
-// Allocate a group of fake continual swap entries.
-int alloc(int size)
-{
-	int i, found = 0, result_offset;
-	unsigned char a = 0, b = 0;
-	for (i = 0; i < 32; i++) {
-		b = bits_per_short[swap_bitmap[i]];
-		if (a + b >= size) {
-			found = 1;
-			break;
-		}
-		a = b;
-	}
-	result_offset = i == 0 ? 0 : i - 1;
-	result_offset = found ? result_offset : -1;
-	return result_offset;
-}
-// Re-allocate in stage 3 if necessary.
-int re_alloc(int position)
-{
-	int offset = position / 8;
-	int a = offset == 0 ? 0 : offset - 1;
-	int b = offset == 31 ? 31 : offset + 1;
-	int i, empty_bits = 0;
-	for (i = a; i <= b; i++) {
-		empty_bits += bits_per_short[swap_bitmap[i]];
-	}
-	return empty_bits;
-}
-int main(int argc, char **argv)
-{
-	int i;
-	for (i = 0; i < 32; i++) {
-		swap_bitmap[i] = (unsigned char) (rand() % 0xff);
-	}
-	i = 9;
-	int temp = alloc(i);
-	temp = re_alloc(i);
-}
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
