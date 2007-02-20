@@ -1,8 +1,8 @@
-Date: Tue, 20 Feb 2007 12:26:54 -0800 (PST)
+Date: Tue, 20 Feb 2007 12:57:40 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] free swap space when (re)activating page
 In-Reply-To: <45DB51E3.8090909@redhat.com>
-Message-ID: <Pine.LNX.4.64.0702201226140.16722@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0702201257190.16830@schroedinger.engr.sgi.com>
 References: <45D63445.5070005@redhat.com> <Pine.LNX.4.64.0702192048150.9934@schroedinger.engr.sgi.com>
  <45DAF794.2000209@redhat.com> <Pine.LNX.4.64.0702200833460.13913@schroedinger.engr.sgi.com>
  <45DB25E1.7030504@redhat.com> <Pine.LNX.4.64.0702201015590.14497@schroedinger.engr.sgi.com>
@@ -17,14 +17,11 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 20 Feb 2007, Rik van Riel wrote:
 
-> The attached patch should be correct.
-
-Oh. It vanished again when I replied to your mail.
- 
-> Btw, why do we not call pagevec_strip on the pages on l_active?
+ > Btw, why do we not call pagevec_strip on the pages on l_active?
 > I assume we want to reclaim their buffer heads, too...
 
-Yes we want to reduce buffer heads if we are over the limit.
+But those buffer heads may be used soon. So its better to leave them 
+alone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
