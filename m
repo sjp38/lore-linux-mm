@@ -1,49 +1,35 @@
-Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1171919736.3531.98.camel@laptopd505.fenrus.org>
-References: <20070219183123.27318.27319.stgit@localhost.localdomain>
-	 <1171910581.3531.89.camel@laptopd505.fenrus.org>
-	 <1171913691.22940.30.camel@localhost.localdomain>
-	 <1171919736.3531.98.camel@laptopd505.fenrus.org>
-Content-Type: text/plain
-Date: Wed, 21 Feb 2007 06:57:40 +1100
-Message-Id: <1172001460.18571.134.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <45DB5365.2090207@redhat.com>
+Date: Tue, 20 Feb 2007 15:00:37 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] mm: balance_dirty_pages() vs throttle_vm_writeout()
+ deadlock
+References: <1171986565.23046.5.camel@twins>
+In-Reply-To: <1171986565.23046.5.camel@twins>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, Trond Myklebust <Trond.Myklebust@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> maybe. I'm not entirely convinced... (I like the cleanup potential a lot
-> code wise.. but if it costs performance, then... well I'd hate to see
-> linux get slower for hugetlbfs)
-> 
-> > If not, then I definitely wouldn't
-> > mind creating a default_pagetable_ops and calling into that.
-> 
-> ... but without it to be honest, your patch adds nothing real.. there's
-> ONE user of your code, and there's no real cleanup unless you get rid of
-> all the special casing.... since the special casing is the really ugly
-> part of hugetlbfs, not the actual code inside the special case..
+Peter Zijlstra wrote:
 
-Well... I disagree there too :-)
+> However unstable pages don't go away automagickally, they need a push. While
+> balance_dirty_pages() does this push, throttle_vm_writeout() doesn't. So we can
+> sit here ad infintum.
 
-I've been working recently for example on some spufs improvements that
-require similar tweaking of the user address space as hugetlbfs. The
-problem I have is that while there are hooks in the generic code pretty
-much everywhere I need.... they are all hugetlb specific, that is they
-call directly into the hugetlb code.
+That would certainly explain the bad interactive behaviour when
+doing heavy NFS writeouts!
 
-For now, I found ways of doing my stuff without hooking all over the
-page table operations (well, I had no real choices) but I can imagine it
-making sense to allow something (hugetlb being one of them) to take over
-part of the user address space.
+> Hence I propose to remove the NR_UNSTABLE_NFS count from throttle_vm_writeout().
 
-Ben.
+As long as something else ensures that the unstable pages still
+get taken care of like they should, I guess...
 
-
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
