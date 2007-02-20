@@ -1,27 +1,31 @@
-From: Fengguang Wu <fengguang.wu@gmail.com>
-Subject: Re: [patch 0/9] buffered write deadlock fix
-Date: Sat, 3 Feb 2007 23:31:45 +0800
-Message-ID: <20070203153145.GA3980__45888.3388237611$1170517118$gmane$org@mail.ustc.edu.cn>
-References: <20070129081905.23584.97878.sendpatchset@linux.site> <20070202155232.babe1a52.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Message-ID: <20070203153145.GA3980@mail.ustc.edu.cn>
-Content-Disposition: inline
-In-Reply-To: <20070202155232.babe1a52.akpm@linux-foundation.org>
-Sender: linux-fsdevel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>, Suparna Bhattacharya <suparna@in.ibm.com>
+From: Prarit Bhargava <prarit@redhat.com>
+Subject: [PATCH]: remove __initdata from initkmem_list3
+Date: Tue, 20 Feb 2007 11:32:09 -0500
+Message-ID: <20070220163209.23777.90564.sendpatchset@prarit.boston.redhat.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1030232AbXBTQcS@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: Prarit Bhargava <prarit@redhat.com>
 List-Id: linux-mm.kvack.org
 
-On Fri, Feb 02, 2007 at 03:52:32PM -0800, Andrew Morton wrote:
-> Bugfixes come first, so I will drop readahead and fsaio and git-block to get
-> this work completed if needed - please work agaisnt mainline.
+Remove __initdata from initkmem_list3
 
-OK with readahead.
+Resolves MODPOST warning similar to:
 
-There are too much fixes in the series.  I'd like to fold them up and
-update some change logs. And then there would be one more update.
+WARNING: vmlinux - Section mismatch: reference to .init.data:initkmem_list3 from .text between 'set_up_list3s' (at offset 0xc046a3ed) and 's_start'
 
-Regards,
-Wu
+Signed-off-by: Prarit Bhargava <prarit@redhat.com>
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 70784b8..d97f252 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -305,7 +305,7 @@ struct kmem_list3 {
+  * Need this for bootstrapping a per node allocator.
+  */
+ #define NUM_INIT_LISTS (2 * MAX_NUMNODES + 1)
+-struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
++struct kmem_list3 initkmem_list3[NUM_INIT_LISTS];
+ #define	CACHE_CACHE 0
+ #define	SIZE_AC 1
+ #define	SIZE_L3 (1 + MAX_NUMNODES)
