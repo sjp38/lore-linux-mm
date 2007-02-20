@@ -1,81 +1,49 @@
-Date: Tue, 20 Feb 2007 15:50:47 +0000
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated helper macros.
-Message-ID: <20070220155047.GA16142@skynet.ie>
-References: <20070219183123.27318.27319.stgit@localhost.localdomain> <20070219183133.27318.92920.stgit@localhost.localdomain> <20070219222906.GA16385@infradead.org>
+Subject: [RFC][PATCH] mm: balance_dirty_pages() vs throttle_vm_writeout()
+	deadlock
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Content-Type: text/plain
+Date: Tue, 20 Feb 2007 16:49:24 +0100
+Message-Id: <1171986565.23046.5.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070219222906.GA16385@infradead.org>
-From: mel@skynet.ie (Mel Gorman)
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On (19/02/07 22:29), Christoph Hellwig didst pronounce:
-> On Mon, Feb 19, 2007 at 10:31:34AM -0800, Adam Litke wrote:
-> > Signed-off-by: Adam Litke <agl@us.ibm.com>
-> > ---
-> > 
-> >  include/linux/mm.h |   25 +++++++++++++++++++++++++
-> >  1 files changed, 25 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 2d2c08d..a2fa66d 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -98,6 +98,7 @@ struct vm_area_struct {
-> >  
-> >  	/* Function pointers to deal with this struct. */
-> >  	struct vm_operations_struct * vm_ops;
-> > +	struct pagetable_operations_struct * pagetable_ops;
-> >  
-> >  	/* Information about our backing store: */
-> >  	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-> > @@ -218,6 +219,30 @@ struct vm_operations_struct {
-> >  };
-> >  
-> >  struct mmu_gather;
-> > +
-> > +struct pagetable_operations_struct {
-> > +	int (*fault)(struct mm_struct *mm,
-> > +		struct vm_area_struct *vma,
-> > +		unsigned long address, int write_access);
-> > +	int (*copy_vma)(struct mm_struct *dst, struct mm_struct *src,
-> > +		struct vm_area_struct *vma);
-> > +	int (*pin_pages)(struct mm_struct *mm, struct vm_area_struct *vma,
-> > +		struct page **pages, struct vm_area_struct **vmas,
-> > +		unsigned long *position, int *length, int i);
-> > +	void (*change_protection)(struct vm_area_struct *vma,
-> > +		unsigned long address, unsigned long end, pgprot_t newprot);
-> > +	unsigned long (*unmap_page_range)(struct vm_area_struct *vma,
-> > +		unsigned long address, unsigned long end, long *zap_work);
-> > +	void (*free_pgtable_range)(struct mmu_gather **tlb,
-> > +		unsigned long addr, unsigned long end,
-> > +		unsigned long floor, unsigned long ceiling);
-> > +};
-> 
-> I don't think adding another operation vector is a good idea.  But I'd
-> rather extend the vma operations vector to deal with all nessecary
-> buts ubstead if addubg a second one.
+If we have a lot of dirty memory and hit the throttle in balance_dirty_pages()
+we (potentially) generate a lot of writeback and unstable pages, if however
+during this writeback we need to reclaim a bit, we might hit
+throttle_vm_writeout(), which might delay us until the combined total of
+NR_UNSTABLE_NFS + NR_WRITEBACK falls below the dirty limit.
 
-Well, there are a lot of users of vm_operations_struct that have no interest in
-the operations in pagetable_operations_struct. Expanding vm_operations_struct
-would increase the size of all VMAs by more than is necessary.
+However unstable pages don't go away automagickally, they need a push. While
+balance_dirty_pages() does this push, throttle_vm_writeout() doesn't. So we can
+sit here ad infintum.
 
-Also, having the pagetable ops in vm_operations_struct might lead device
-drivers to believe they should be doing something entertaining there. In
-reality, we would only want drivers playing with pagetable_operations when
-they really know what they are doing and why.  Having the pagetable_ops
-set is similar to VM_HUGETLB set as a strong sign that something unusual is
-going on that is fairly easy to check for.
+Hence I propose to remove the NR_UNSTABLE_NFS count from throttle_vm_writeout().
 
-I prefer the additional struct to extending VMAs anyway.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ mm/page-writeback.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Index: linux-2.6-git/mm/page-writeback.c
+===================================================================
+--- linux-2.6-git.orig/mm/page-writeback.c	2007-02-20 15:07:43.000000000 +0100
++++ linux-2.6-git/mm/page-writeback.c	2007-02-20 16:42:45.000000000 +0100
+@@ -310,8 +310,7 @@ void throttle_vm_writeout(void)
+                  */
+                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+ 
+-                if (global_page_state(NR_UNSTABLE_NFS) +
+-			global_page_state(NR_WRITEBACK) <= dirty_thresh)
++                if (global_page_state(NR_WRITEBACK) <= dirty_thresh)
+                         	break;
+                 congestion_wait(WRITE, HZ/10);
+         }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
