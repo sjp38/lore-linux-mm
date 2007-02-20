@@ -1,91 +1,81 @@
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070215012525.5343.71985.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
-References: <20070215012449.5343.22942.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [PATCH 7/7] Opportunistically move mlocked pages off the LRU
-Date: Wed, 14 Feb 2007 17:25:26 -0800 (PST)
+Date: Tue, 20 Feb 2007 15:50:47 +0000
+Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated helper macros.
+Message-ID: <20070220155047.GA16142@skynet.ie>
+References: <20070219183123.27318.27319.stgit@localhost.localdomain> <20070219183133.27318.92920.stgit@localhost.localdomain> <20070219222906.GA16385@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20070219222906.GA16385@infradead.org>
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Martin J. Bligh" <mbligh@mbligh.org>, Arjan van de Ven <arjan@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <clameter@sgi.com>, Nigel Cunningham <nigel@nigel.suspend2.net>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Hellwig <hch@infradead.org>, Adam Litke <agl@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Opportunistically move mlocked pages off the LRU
+On (19/02/07 22:29), Christoph Hellwig didst pronounce:
+> On Mon, Feb 19, 2007 at 10:31:34AM -0800, Adam Litke wrote:
+> > Signed-off-by: Adam Litke <agl@us.ibm.com>
+> > ---
+> > 
+> >  include/linux/mm.h |   25 +++++++++++++++++++++++++
+> >  1 files changed, 25 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 2d2c08d..a2fa66d 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -98,6 +98,7 @@ struct vm_area_struct {
+> >  
+> >  	/* Function pointers to deal with this struct. */
+> >  	struct vm_operations_struct * vm_ops;
+> > +	struct pagetable_operations_struct * pagetable_ops;
+> >  
+> >  	/* Information about our backing store: */
+> >  	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
+> > @@ -218,6 +219,30 @@ struct vm_operations_struct {
+> >  };
+> >  
+> >  struct mmu_gather;
+> > +
+> > +struct pagetable_operations_struct {
+> > +	int (*fault)(struct mm_struct *mm,
+> > +		struct vm_area_struct *vma,
+> > +		unsigned long address, int write_access);
+> > +	int (*copy_vma)(struct mm_struct *dst, struct mm_struct *src,
+> > +		struct vm_area_struct *vma);
+> > +	int (*pin_pages)(struct mm_struct *mm, struct vm_area_struct *vma,
+> > +		struct page **pages, struct vm_area_struct **vmas,
+> > +		unsigned long *position, int *length, int i);
+> > +	void (*change_protection)(struct vm_area_struct *vma,
+> > +		unsigned long address, unsigned long end, pgprot_t newprot);
+> > +	unsigned long (*unmap_page_range)(struct vm_area_struct *vma,
+> > +		unsigned long address, unsigned long end, long *zap_work);
+> > +	void (*free_pgtable_range)(struct mmu_gather **tlb,
+> > +		unsigned long addr, unsigned long end,
+> > +		unsigned long floor, unsigned long ceiling);
+> > +};
+> 
+> I don't think adding another operation vector is a good idea.  But I'd
+> rather extend the vma operations vector to deal with all nessecary
+> buts ubstead if addubg a second one.
 
-Add a new function try_to_mlock() that attempts to
-move a page off the LRU and marks it mlocked.
+Well, there are a lot of users of vm_operations_struct that have no interest in
+the operations in pagetable_operations_struct. Expanding vm_operations_struct
+would increase the size of all VMAs by more than is necessary.
 
-This function can then be used in various code paths to move
-pages off the LRU immediately. Early discovery will make NR_MLOCK
-track the actual number of mlocked pages in the system more closely.
+Also, having the pagetable ops in vm_operations_struct might lead device
+drivers to believe they should be doing something entertaining there. In
+reality, we would only want drivers playing with pagetable_operations when
+they really know what they are doing and why.  Having the pagetable_ops
+set is similar to VM_HUGETLB set as a strong sign that something unusual is
+going on that is fairly easy to check for.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+I prefer the additional struct to extending VMAs anyway.
 
-Index: linux-2.6.20/mm/memory.c
-===================================================================
---- linux-2.6.20.orig/mm/memory.c	2007-02-14 13:10:09.000000000 -0800
-+++ linux-2.6.20/mm/memory.c	2007-02-14 13:13:29.000000000 -0800
-@@ -59,6 +59,7 @@
- 
- #include <linux/swapops.h>
- #include <linux/elf.h>
-+#include <linux/mm_inline.h>
- 
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- /* use the per-pgdat data instead for discontigmem - mbligh */
-@@ -920,6 +921,34 @@
- }
- 
- /*
-+ * Opportunistically move the page off the LRU
-+ * if possible. If we do not succeed then the LRU
-+ * scans will take the page off.
-+ */
-+static void try_to_set_mlocked(struct page *page)
-+{
-+	struct zone *zone;
-+	unsigned long flags;
-+
-+	if (!PageLRU(page) || PageMlocked(page))
-+		return;
-+
-+	zone = page_zone(page);
-+	if (spin_trylock_irqsave(&zone->lru_lock, flags)) {
-+		if (PageLRU(page) && !PageMlocked(page)) {
-+			ClearPageLRU(page);
-+			if (PageActive(page))
-+				del_page_from_active_list(zone, page);
-+			else
-+				del_page_from_inactive_list(zone, page);
-+			ClearPageActive(page);
-+			SetPageMlocked(page);
-+			__inc_zone_page_state(page, NR_MLOCK);
-+		}
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	}
-+}
-+/*
-  * Do a quick page-table lookup for a single page.
-  */
- struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-@@ -979,6 +1008,8 @@
- 			set_page_dirty(page);
- 		mark_page_accessed(page);
- 	}
-+	if (vma->vm_flags & VM_LOCKED)
-+		try_to_set_mlocked(page);
- unlock:
- 	pte_unmap_unlock(ptep, ptl);
- out:
-@@ -2317,6 +2348,8 @@
- 		else {
- 			inc_mm_counter(mm, file_rss);
- 			page_add_file_rmap(new_page);
-+			if (vma->vm_flags & VM_LOCKED)
-+				try_to_set_mlocked(new_page);
- 			if (write_access) {
- 				dirty_page = new_page;
- 				get_page(dirty_page);
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
