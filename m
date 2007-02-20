@@ -1,49 +1,34 @@
-Subject: [RFC][PATCH] mm: balance_dirty_pages() vs throttle_vm_writeout()
-	deadlock
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Content-Type: text/plain
-Date: Tue, 20 Feb 2007 16:49:24 +0100
-Message-Id: <1171986565.23046.5.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 20 Feb 2007 08:37:52 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] free swap space when (re)activating page
+In-Reply-To: <45DAF794.2000209@redhat.com>
+Message-ID: <Pine.LNX.4.64.0702200833460.13913@schroedinger.engr.sgi.com>
+References: <45D63445.5070005@redhat.com> <Pine.LNX.4.64.0702192048150.9934@schroedinger.engr.sgi.com>
+ <45DAF794.2000209@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-If we have a lot of dirty memory and hit the throttle in balance_dirty_pages()
-we (potentially) generate a lot of writeback and unstable pages, if however
-during this writeback we need to reclaim a bit, we might hit
-throttle_vm_writeout(), which might delay us until the combined total of
-NR_UNSTABLE_NFS + NR_WRITEBACK falls below the dirty limit.
+On Tue, 20 Feb 2007, Rik van Riel wrote:
 
-However unstable pages don't go away automagickally, they need a push. While
-balance_dirty_pages() does this push, throttle_vm_writeout() doesn't. So we can
-sit here ad infintum.
+> > It was the portion that modifies shrink_active_list. Why operate
+> > on the pagevec there? The pagevec only contains the leftovers to be released
+> > from scanning over the temporary inactive list.
+> 
+> Why?  Because the pages that were not referenced will be
+> going onto the inactive list and are now a candidate for
+> swapping out.  I don't see why we would want to reclaim
+> the swap space for pages that area about to be swapped
+> out again.
 
-Hence I propose to remove the NR_UNSTABLE_NFS count from throttle_vm_writeout().
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/page-writeback.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-Index: linux-2.6-git/mm/page-writeback.c
-===================================================================
---- linux-2.6-git.orig/mm/page-writeback.c	2007-02-20 15:07:43.000000000 +0100
-+++ linux-2.6-git/mm/page-writeback.c	2007-02-20 16:42:45.000000000 +0100
-@@ -310,8 +310,7 @@ void throttle_vm_writeout(void)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
- 
--                if (global_page_state(NR_UNSTABLE_NFS) +
--			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-+                if (global_page_state(NR_WRITEBACK) <= dirty_thresh)
-                         	break;
-                 congestion_wait(WRITE, HZ/10);
-         }
-
+Sounds sane. Then drop that piece. Again, you were only operating on the 
+pages left over in the pagevec after the move of the pages to the 
+inactive list. If you really wanted to do something there then the 
+processing should have covered all pages that go to the inactive list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
