@@ -1,68 +1,56 @@
-Date: Tue, 20 Feb 2007 09:07:56 +0100 (CET)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [PATCH 2.6.20 1/1] fbdev,mm: hecuba/E-Ink fbdev driver
-In-Reply-To: <45a44e480702192013s7d49d05ai31e576f0448a485e@mail.gmail.com>
-Message-ID: <Pine.LNX.4.62.0702200906070.2082@pademelon.sonytel.be>
-References: <20070217104215.GB25512@localhost> <1171715652.5186.7.camel@lappy>
- <45a44e480702170525n9a15fafpb370cb93f1c1fcba@mail.gmail.com>
- <20070217135922.GA15373@linux-sh.org> <45a44e480702180331t7e76c396j1a9861f689d4186b@mail.gmail.com>
- <20070218235741.GA22298@linux-sh.org> <45a44e480702192013s7d49d05ai31e576f0448a485e@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-reply-to: <20070220001351.GJ6133@think.oraclecorp.com> (message from Chris
+	Mason on Mon, 19 Feb 2007 19:13:51 -0500)
+Subject: Re: dirty balancing deadlock
+References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu> <20070218125307.4103c04a.akpm@linux-foundation.org> <E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu> <20070218145929.547c21c7.akpm@linux-foundation.org> <E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu> <20070218155916.0d3c73a9.akpm@linux-foundation.org> <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu> <20070220001351.GJ6133@think.oraclecorp.com>
+Message-Id: <E1HJQeV-0008Kq-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 20 Feb 2007 09:47:11 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Frame Buffer Device Development <linux-fbdev-devel@lists.sourceforge.net>, Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, James Simmons <jsimmons@infradead.org>
+To: chris.mason@oracle.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Feb 2007, Jaya Kumar wrote:
-> On 2/18/07, Paul Mundt <lethal@linux-sh.org> wrote:
-> > Given that, this would have to be something that's dealt with at the
-> > subsystem level rather than in individual drivers, hence the desire to
-> > see something like this more generically visible.
+> > How about this?
 > > 
+> > Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
+> > I'll try to tackle that one as well.
+> > 
+> > If the per-bdi dirty counter goes below 16, balance_dirty_pages()
+> > returns.
+> > 
+> > Does the constant need to tunable?  If it's too large, then the global
+> > threshold is more easily exceeded.  If it's too small, then in a tight
+> > situation progress will be slower.
 > 
-> Hi Peter, Paul, fbdev folk,
-> 
-> Ok. Here's what I'm thinking for abstracting this:
-> 
-> fbdev drivers would setup fb_mmap with their own_mmap as usual. In
-> own_mmap, they would do what they normally do and setup a vm_ops. They
-> are free to have their own nopage handler but would set the
-> page_mkwrite handler to be fbdev_deferred_io_mkwrite().
-> fbdev_deferred_io_mkwrite would build up the list of touched pages and
-> pass it to a delayed workqueue which would then mkclean on each page
-> and then pass a copy of that page list down to a driver's callback
-> function. The fbdev driver's callback function can then do the actual
-> IO to the framebuffer or coalesce DMA based on the provided page list.
-> 
-> I would like to add something like the following to struct fb_info:
-> 
-> #ifdef CONFIG_FB_DEFERRED_IO
-> struct fb_deferred_io *defio;
-> #endif
+> Ok, what is supposed to happen here is that filesystems are supposed to
+> be throttled from making more dirty pages when the system is over the
+> threshold.  Even if filesystem A doesn't have much to contribute, and
+> filesystem B is the cause of 99% of the dirty pages, the goal of the
+> threshold is to prevent more dirty data from happening, and filesystem A
+> should block.
 
-Don't you need a way to specify the maximum deferral time? E.g. a field in
-fb_info.
+Which is the cause of the current deadlock.  But if we allow
+filesystem A to go into the red just a little, the deadlock is
+avoided, because it can continue to make progress with cleaning the
+dirtyness produced by B.
 
-> to store the mutex (to protect the page list), the touched page list,
-> and the driver's callback function.
-> 
-> I hope this sounds sufficiently generic to meet everyone's (the two of
-> us? :) needs.
+The maximum that filesystems can go over the limit will be
 
-Looks fine!
+  (16 + epsilon) * number-of-queues
 
-Gr{oetje,eeting}s,
+This is usually insignificant compared to the limit itself (~2000
+pages on a machine with 32MB)
 
-						Geert
+However with thousands of fuse mounts this may become a problem, as
+each filesystem gets a separate queue.  In theory, just 2 pages are
+enough to always make progress, but current dirty balancing can't
+enforce this, as the ratelimit is at least 8 pages.
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+So there may have to be some more strict page accounting within fuse
+itself, but that doesn't change the overall concept I think.
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
