@@ -1,255 +1,261 @@
-Message-Id: <20070221144843.702331000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144841.627489000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:26 +0100
+Date: Wed, 21 Feb 2007 15:43:05 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 22/29] mm: add support for non block device backed swap files
-Content-Disposition: inline; filename=mm-swapfile.patch
+Subject: [PATCH 01/29] mm: page allocation rank
+Content-Disposition: inline; filename=mm-page_alloc-rank.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-A new addres_space_operations method is added:
-  int swapfile(struct address_space *, int)
+Introduce page allocation rank.
 
-When during sys_swapon() this method is found and returns no error the 
-swapper_space.a_ops will proxy to sis->swap_file->f_mapping->a_ops.
+This allocation rank is an measure of the 'hardness' of the page allocation.
+Where hardness refers to how deep we have to reach (and thereby if reclaim 
+was activated) to obtain the page.
 
-The swapfile method will be used to communicate to the address_space that the
-VM relies on it, and the address_space should take adequate measures (like 
-reserving memory for mempools or the like).
+It basically is a mapping from the ALLOC_/gfp flags into a scalar quantity,
+which allows for comparisons of the kind: 
+  'would this allocation have succeeded using these gfp flags'.
+
+For the gfp -> alloc_flags mapping we use the 'hardest' possible, those
+used by __alloc_pages() right before going into direct reclaim.
+
+The alloc_flags -> rank mapping is given by: 2*2^wmark - harder - 2*high
+where wmark = { min = 1, low, high } and harder, high are booleans.
+This gives:
+  0 is the hardest possible allocation - ALLOC_NO_WATERMARK,
+  1 is ALLOC_WMARK_MIN|ALLOC_HARDER|ALLOC_HIGH,
+  ...
+  15 is ALLOC_WMARK_HIGH|ALLOC_HARDER,
+  16 is the softest allocation - ALLOC_WMARK_HIGH.
+
+Rank <= 4 will have woke up kswapd and when also > 0 might have ran into
+direct reclaim.
+
+Rank > 8 rarely happens and means lots of memory free (due to parallel oom kill).
+
+The allocation rank is stored in page->index for successful allocations.
+
+'offline' testing of the rank is made impossible by direct reclaim and
+fragmentation issues. That is, it is impossible to tell if a given allocation
+will succeed without actually doing it.
+
+The purpose of this measure is to introduce some fairness into the slab
+allocator.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- Documentation/filesystems/Locking |    9 ++++++++
- include/linux/fs.h                |    1 
- include/linux/swap.h              |    3 ++
- mm/Kconfig                        |    4 +++
- mm/page_io.c                      |   42 ++++++++++++++++++++++++++++++++++++++
- mm/swap_state.c                   |    4 +++
- mm/swapfile.c                     |   22 +++++++++++++++++++
- 7 files changed, 84 insertions(+), 1 deletion(-)
+ mm/internal.h   |   89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c |   58 ++++++++++--------------------------
+ 2 files changed, 106 insertions(+), 41 deletions(-)
 
-Index: linux-2.6/include/linux/swap.h
+Index: linux-2.6-git/mm/internal.h
 ===================================================================
---- linux-2.6.orig/include/linux/swap.h
-+++ linux-2.6/include/linux/swap.h
-@@ -163,6 +163,7 @@ enum {
- 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
- 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
- 	SWP_ACTIVE	= (SWP_USED | SWP_WRITEOK),
-+	SWP_FILE	= (1 << 2),	/* file swap area */
- 					/* add others here before... */
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
-@@ -265,6 +266,8 @@ extern int shmem_unuse(swp_entry_t entry
- /* linux/mm/page_io.c */
- extern int swap_readpage(struct file *, struct page *);
- extern int swap_writepage(struct page *page, struct writeback_control *wbc);
-+extern void swap_sync_page(struct page *page);
-+extern int swap_set_page_dirty(struct page *page);
- extern int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err);
+--- linux-2.6-git.orig/mm/internal.h	2007-01-08 11:53:13.000000000 +0100
++++ linux-2.6-git/mm/internal.h	2007-01-09 11:29:18.000000000 +0100
+@@ -12,6 +12,7 @@
+ #define __MM_INTERNAL_H
  
- /* linux/mm/swap_state.c */
-Index: linux-2.6/mm/page_io.c
-===================================================================
---- linux-2.6.orig/mm/page_io.c
-+++ linux-2.6/mm/page_io.c
-@@ -17,6 +17,7 @@
- #include <linux/bio.h>
- #include <linux/swapops.h>
- #include <linux/writeback.h>
-+#include <linux/buffer_head.h>
- #include <asm/pgtable.h>
+ #include <linux/mm.h>
++#include <linux/hardirq.h>
  
- static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
-@@ -110,6 +111,18 @@ int swap_writepage(struct page *page, st
- 		unlock_page(page);
- 		goto out;
- 	}
-+#ifdef CONFIG_SWAP_FILE
-+	{
-+		struct swap_info_struct *sis = page_swap_info(page);
-+		if (sis->flags & SWP_FILE) {
-+			ret = sis->swap_file->f_mapping->
-+				a_ops->writepage(page, wbc);
-+			if (!ret)
-+				count_vm_event(PSWPOUT);
-+			return ret;
-+		}
-+	}
-+#endif
- 	bio = get_swap_bio(GFP_NOIO, page_private(page), page,
- 				end_swap_bio_write);
- 	if (bio == NULL) {
-@@ -128,6 +141,23 @@ out:
- 	return ret;
- }
- 
-+#ifdef CONFIG_SWAP_FILE
-+int swap_set_page_dirty(struct page *page)
-+{
-+	struct swap_info_struct *sis = page_swap_info(page);
-+
-+	if (sis->flags & SWP_FILE) {
-+		const struct address_space_operations * a_ops =
-+			sis->swap_file->f_mapping->a_ops;
-+		if (a_ops->set_page_dirty)
-+			return a_ops->set_page_dirty(page);
-+		return __set_page_dirty_buffers(page);
-+	}
-+
-+	return __set_page_dirty_nobuffers(page);
-+}
-+#endif
-+
- int swap_readpage(struct file *file, struct page *page)
+ static inline void set_page_count(struct page *page, int v)
  {
- 	struct bio *bio;
-@@ -135,6 +165,18 @@ int swap_readpage(struct file *file, str
+@@ -37,4 +38,92 @@ static inline void __put_page(struct pag
+ extern void fastcall __init __free_pages_bootmem(struct page *page,
+ 						unsigned int order);
  
- 	BUG_ON(!PageLocked(page));
- 	ClearPageUptodate(page);
-+#ifdef CONFIG_SWAP_FILE
-+	{
-+		struct swap_info_struct *sis = page_swap_info(page);
-+		if (sis->flags & SWP_FILE) {
-+			ret = sis->swap_file->f_mapping->
-+				a_ops->readpage(sis->swap_file, page);
-+			if (!ret)
-+				count_vm_event(PSWPIN);
-+			return ret;
-+		}
++#define ALLOC_HARDER		0x01 /* try to alloc harder */
++#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
++#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
++#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++
++/*
++ * get the deepest reaching allocation flags for the given gfp_mask
++ */
++static int inline gfp_to_alloc_flags(gfp_t gfp_mask)
++{
++	struct task_struct *p = current;
++	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
++	const gfp_t wait = gfp_mask & __GFP_WAIT;
++
++	/*
++	 * The caller may dip into page reserves a bit more if the caller
++	 * cannot run direct reclaim, or if the caller has realtime scheduling
++	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
++	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
++	 */
++	if (gfp_mask & __GFP_HIGH)
++		alloc_flags |= ALLOC_HIGH;
++
++	if (!wait) {
++		alloc_flags |= ALLOC_HARDER;
++		/*
++		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
++		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
++		 */
++		alloc_flags &= ~ALLOC_CPUSET;
++	} else if (unlikely(rt_task(p)) && !in_interrupt())
++		alloc_flags |= ALLOC_HARDER;
++
++	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
++		if (!in_interrupt() &&
++		    ((p->flags & PF_MEMALLOC) ||
++		     unlikely(test_thread_flag(TIF_MEMDIE))))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
 +	}
-+#endif
- 	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
- 				end_swap_bio_read);
- 	if (bio == NULL) {
-Index: linux-2.6/mm/swap_state.c
-===================================================================
---- linux-2.6.orig/mm/swap_state.c
-+++ linux-2.6/mm/swap_state.c
-@@ -26,7 +26,11 @@
-  */
- static const struct address_space_operations swap_aops = {
- 	.writepage	= swap_writepage,
-+#ifdef CONFIG_SWAP_FILE
-+	.set_page_dirty	= swap_set_page_dirty,
-+#else
- 	.set_page_dirty	= __set_page_dirty_nobuffers,
-+#endif
- 	.migratepage	= migrate_page,
- };
- 
-Index: linux-2.6/mm/swapfile.c
-===================================================================
---- linux-2.6.orig/mm/swapfile.c
-+++ linux-2.6/mm/swapfile.c
-@@ -948,6 +948,13 @@ static void destroy_swap_extents(struct 
- 		list_del(&se->list);
- 		kfree(se);
- 	}
-+#ifdef CONFIG_SWAP_FILE
-+	if (sis->flags & SWP_FILE) {
-+		sis->flags &= ~SWP_FILE;
-+		sis->swap_file->f_mapping->a_ops->
-+			swapfile(sis->swap_file->f_mapping, 0);
++
++	return alloc_flags;
++}
++
++#define MAX_ALLOC_RANK	16
++
++/*
++ * classify the allocation: 0 is hardest, 16 is easiest.
++ */
++static inline int alloc_flags_to_rank(int alloc_flags)
++{
++	int rank;
++
++	if (alloc_flags & ALLOC_NO_WATERMARKS)
++		return 0;
++
++	rank = alloc_flags & (ALLOC_WMARK_MIN|ALLOC_WMARK_LOW|ALLOC_WMARK_HIGH);
++	rank -= alloc_flags & (ALLOC_HARDER|ALLOC_HIGH);
++
++	return rank;
++}
++
++static inline int gfp_to_rank(gfp_t gfp_mask)
++{
++	/*
++	 * Although correct this full version takes a ~3% performance
++	 * hit on the network tests in aim9.
++	 *
++
++	return alloc_flags_to_rank(gfp_to_alloc_flags(gfp_mask));
++
++	 *
++	 * Just check the bare essential ALLOC_NO_WATERMARKS case this keeps
++	 * the aim9 results within the error margin.
++	 */
++
++	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
++		if (!in_interrupt() &&
++		    ((current->flags & PF_MEMALLOC) ||
++		     unlikely(test_thread_flag(TIF_MEMDIE))))
++			return 0;
 +	}
-+#endif
++
++	return 1;
++}
++
+ #endif
+Index: linux-2.6-git/mm/page_alloc.c
+===================================================================
+--- linux-2.6-git.orig/mm/page_alloc.c	2007-01-08 11:53:13.000000000 +0100
++++ linux-2.6-git/mm/page_alloc.c	2007-01-09 11:29:18.000000000 +0100
+@@ -888,14 +888,6 @@ failed:
+ 	return NULL;
  }
  
- /*
-@@ -1040,6 +1047,19 @@ static int setup_swap_extents(struct swa
- 		goto done;
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+-#define ALLOC_HARDER		0x10 /* try to alloc harder */
+-#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+-#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+-
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+ static struct fail_page_alloc_attr {
+@@ -1186,6 +1178,7 @@ zonelist_scan:
+ 
+ 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
+ 		if (page)
++			page->index = alloc_flags_to_rank(alloc_flags);
+ 			break;
+ this_zone_full:
+ 		if (NUMA_BUILD)
+@@ -1259,48 +1252,27 @@ restart:
+ 	 * OK, we're below the kswapd watermark and have kicked background
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 	 * to how we want to proceed.
+-	 *
+-	 * The caller may dip into page reserves a bit more if the caller
+-	 * cannot run direct reclaim, or if the caller has realtime scheduling
+-	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+-	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+ 	 */
+-	alloc_flags = ALLOC_WMARK_MIN;
+-	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+-		alloc_flags |= ALLOC_HARDER;
+-	if (gfp_mask & __GFP_HIGH)
+-		alloc_flags |= ALLOC_HIGH;
+-	if (wait)
+-		alloc_flags |= ALLOC_CPUSET;
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+ 
+-	/*
+-	 * Go through the zonelist again. Let __GFP_HIGH and allocations
+-	 * coming from realtime tasks go deeper into reserves.
+-	 *
+-	 * This is the last chance, in general, before the goto nopage.
+-	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+-	 */
+-	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
++	/* This is the last chance, in general, before the goto nopage. */
++	page = get_page_from_freelist(gfp_mask, order, zonelist,
++			alloc_flags & ~ALLOC_NO_WATERMARKS);
+ 	if (page)
+ 		goto got_pg;
+ 
+ 	/* This allocation should allow future memory freeing. */
+-
+ rebalance:
+-	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+-			&& !in_interrupt()) {
+-		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
++	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+ nofail_alloc:
+-			/* go through the zonelist yet again, ignoring mins */
+-			page = get_page_from_freelist(gfp_mask, order,
++		/* go through the zonelist yet again, ignoring mins */
++		page = get_page_from_freelist(gfp_mask, order,
+ 				zonelist, ALLOC_NO_WATERMARKS);
+-			if (page)
+-				goto got_pg;
+-			if (gfp_mask & __GFP_NOFAIL) {
+-				congestion_wait(WRITE, HZ/50);
+-				goto nofail_alloc;
+-			}
++		if (page)
++			goto got_pg;
++		if (wait && (gfp_mask & __GFP_NOFAIL)) {
++			congestion_wait(WRITE, HZ/50);
++			goto nofail_alloc;
+ 		}
+ 		goto nopage;
  	}
+@@ -1309,6 +1281,10 @@ nofail_alloc:
+ 	if (!wait)
+ 		goto nopage;
  
-+#ifdef CONFIG_SWAP_FILE
-+	if (sis->swap_file->f_mapping->a_ops->swapfile) {
-+		ret = sis->swap_file->f_mapping->a_ops->
-+			swapfile(sis->swap_file->f_mapping, 1);
-+		if (!ret) {
-+			sis->flags |= SWP_FILE;
-+			ret = add_swap_extent(sis, 0, sis->max, 0);
-+			*span = sis->pages;
-+		}
-+		goto done;
-+	}
-+#endif
++	/* Avoid recursion of direct reclaim */
++	if (p->flags & PF_MEMALLOC)
++		goto nopage;
 +
- 	blkbits = inode->i_blkbits;
- 	blocks_per_page = PAGE_SIZE >> blkbits;
+ 	cond_resched();
  
-@@ -1603,7 +1623,7 @@ asmlinkage long sys_swapon(const char __
- 
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
--	p->flags = SWP_ACTIVE;
-+	p->flags |= SWP_WRITEOK;
- 	nr_swap_pages += nr_good_pages;
- 	total_swap_pages += nr_good_pages;
- 
-Index: linux-2.6/include/linux/fs.h
-===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -428,6 +428,7 @@ struct address_space_operations {
- 	int (*migratepage) (struct address_space *,
- 			struct page *, struct page *);
- 	int (*launder_page) (struct page *);
-+	int (*swapfile)(struct address_space *, int);
- };
- 
- struct backing_dev_info;
-Index: linux-2.6/Documentation/filesystems/Locking
-===================================================================
---- linux-2.6.orig/Documentation/filesystems/Locking
-+++ linux-2.6/Documentation/filesystems/Locking
-@@ -172,6 +172,7 @@ prototypes:
- 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
- 			loff_t offset, unsigned long nr_segs);
- 	int (*launder_page) (struct page *);
-+	int (*swapfile) (struct address_space *, int);
- 
- locking rules:
- 	All except set_page_dirty may block
-@@ -190,6 +191,7 @@ invalidatepage:		no	yes
- releasepage:		no	yes
- direct_IO:		no
- launder_page:		no	yes
-+swapfile		no
- 
- 	->prepare_write(), ->commit_write(), ->sync_page() and ->readpage()
- may be called from the request handler (/dev/loop).
-@@ -289,6 +291,13 @@ cleaned, or an error value if not. Note 
- getting mapped back in and redirtied, it needs to be kept locked
- across the entire operation.
- 
-+	->swapfile() will be called with a non zero argument on address spaces
-+backing non block device backed swapfiles. A return value of zero indicates
-+success. In which case this address space can be used for backing swapspace.
-+The swapspace operations will be proxied to the address space operations.
-+Swapoff will call this method with a zero argument to release the address
-+space.
-+
- 	Note: currently almost all instances of address_space methods are
- using BKL for internal serialization and that's one of the worst sources
- of contention. Normally they are calling library functions (in fs/buffer.c)
-Index: linux-2.6/mm/Kconfig
-===================================================================
---- linux-2.6.orig/mm/Kconfig
-+++ linux-2.6/mm/Kconfig
-@@ -165,6 +165,9 @@ config ZONE_DMA_FLAG
- 
- config SLAB_FAIR
- 	def_bool n
-+
-+config SWAP_FILE
-+	def_bool n
- #
- # Adaptive file readahead
- #
+ 	/* We now go into synchronous reclaim */
 
 -- 
 
