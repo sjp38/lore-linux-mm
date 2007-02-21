@@ -1,154 +1,185 @@
-Message-Id: <20070221144844.179417000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144842.593196000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:31 +0100
+Date: Wed, 21 Feb 2007 15:43:15 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 27/29] nfs: disable data cache revalidation for swapfiles
-Content-Disposition: inline; filename=nfs-swapper.patch
+Subject: [PATCH 11/29] net: packet split receive api
+Content-Disposition: inline; filename=net-ps_rx.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Do as Trond suggested:
-  http://lkml.org/lkml/2006/8/25/348
+Add some packet-split receive hooks.
 
-Disable NFS data cache revalidation on swap files since it doesn't really 
-make sense to have other clients change the file while you are using it.
-
-Thereby we can stop setting PG_private on swap pages, since there ought to
-be no further races with invalidate_inode_pages2() to deal with.
-
-And since we cannot set PG_private we cannot use page->private (which is
-already used by PG_swapcache pages anyway) to store the nfs_page. Thus
-augment the new nfs_page_find_request logic.
+For one this allows to do NUMA node affine page allocs.  Later on these hooks
+will be extended to do emergency reserve allocations for fragments.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- fs/nfs/inode.c |    6 ++++++
- fs/nfs/write.c |   35 +++++++++++++++++++++++------------
- 2 files changed, 29 insertions(+), 12 deletions(-)
+ drivers/net/e1000/e1000_main.c |    8 ++------
+ drivers/net/sky2.c             |   16 ++++++----------
+ include/linux/skbuff.h         |   23 +++++++++++++++++++++++
+ net/core/skbuff.c              |   20 ++++++++++++++++++++
+ 4 files changed, 51 insertions(+), 16 deletions(-)
 
-Index: linux-2.6-git/fs/nfs/inode.c
+Index: linux-2.6-git/drivers/net/e1000/e1000_main.c
 ===================================================================
---- linux-2.6-git.orig/fs/nfs/inode.c	2007-02-21 11:04:08.000000000 +0100
-+++ linux-2.6-git/fs/nfs/inode.c	2007-02-21 11:52:21.000000000 +0100
-@@ -719,6 +719,12 @@ int nfs_revalidate_mapping_nolock(struct
- 	struct nfs_inode *nfsi = NFS_I(inode);
- 	int ret = 0;
+--- linux-2.6-git.orig/drivers/net/e1000/e1000_main.c	2007-02-14 08:31:12.000000000 +0100
++++ linux-2.6-git/drivers/net/e1000/e1000_main.c	2007-02-14 11:42:07.000000000 +0100
+@@ -4412,12 +4412,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapt
+ 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
+ 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
+ 			ps_page_dma->ps_page_dma[j] = 0;
+-			skb_fill_page_desc(skb, j, ps_page->ps_page[j], 0,
+-			                   length);
++			skb_add_rx_frag(skb, j, ps_page->ps_page[j], 0, length);
+ 			ps_page->ps_page[j] = NULL;
+-			skb->len += length;
+-			skb->data_len += length;
+-			skb->truesize += length;
+ 		}
  
-+	/*
-+	 * swapfiles are not supposed to be shared.
-+	 */
-+	if (IS_SWAPFILE(inode))
-+		goto out;
+ 		/* strip the ethernet crc, problem is we're using pages now so
+@@ -4623,7 +4619,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_a
+ 			if (j < adapter->rx_ps_pages) {
+ 				if (likely(!ps_page->ps_page[j])) {
+ 					ps_page->ps_page[j] =
+-						alloc_page(GFP_ATOMIC);
++						netdev_alloc_page(netdev);
+ 					if (unlikely(!ps_page->ps_page[j])) {
+ 						adapter->alloc_rx_buff_failed++;
+ 						goto no_buffers;
+Index: linux-2.6-git/include/linux/skbuff.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/skbuff.h	2007-02-14 11:29:54.000000000 +0100
++++ linux-2.6-git/include/linux/skbuff.h	2007-02-14 11:59:04.000000000 +0100
+@@ -813,6 +813,9 @@ static inline void skb_fill_page_desc(st
+ 	skb_shinfo(skb)->nr_frags = i + 1;
+ }
+ 
++extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
++			    int off, int size);
 +
- 	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
- 			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
- 		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
-Index: linux-2.6-git/fs/nfs/write.c
+ #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
+ #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
+ #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
+@@ -1148,6 +1151,26 @@ static inline struct sk_buff *netdev_all
+ 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
+ }
+ 
++extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
++
++/**
++ *	netdev_alloc_page - allocate a page for ps-rx on a specific device
++ *	@dev: network device to receive on
++ *
++ * 	Allocate a new page node local to the specified device.
++ *
++ * 	%NULL is returned if there is no free memory.
++ */
++static inline struct page *netdev_alloc_page(struct net_device *dev)
++{
++	return __netdev_alloc_page(dev, GFP_ATOMIC);
++}
++
++static inline void netdev_free_page(struct net_device *dev, struct page *page)
++{
++	__free_page(page);
++}
++
+ /**
+  *	skb_cow - copy header of skb when it is required
+  *	@skb: buffer to cow
+Index: linux-2.6-git/net/core/skbuff.c
 ===================================================================
---- linux-2.6-git.orig/fs/nfs/write.c	2007-02-21 11:52:17.000000000 +0100
-+++ linux-2.6-git/fs/nfs/write.c	2007-02-21 11:53:18.000000000 +0100
-@@ -107,7 +107,7 @@ void nfs_writedata_release(void *wdata)
- 	nfs_writedata_free(wdata);
+--- linux-2.6-git.orig/net/core/skbuff.c	2007-02-14 11:29:54.000000000 +0100
++++ linux-2.6-git/net/core/skbuff.c	2007-02-14 12:01:40.000000000 +0100
+@@ -279,6 +279,24 @@ struct sk_buff *__netdev_alloc_skb(struc
+ 	return skb;
  }
  
--static struct nfs_page *nfs_page_find_request_locked(struct page *page)
-+static struct nfs_page *nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
++struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
++{
++	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
++	struct page *page;
++
++	page = alloc_pages_node(node, gfp_mask, 0);
++	return page;
++}
++
++void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
++		int size)
++{
++	skb_fill_page_desc(skb, i, page, off, size);
++	skb->len += size;
++	skb->data_len += size;
++	skb->truesize += size;
++}
++
+ static void skb_drop_list(struct sk_buff **listp)
  {
- 	struct nfs_page *req = NULL;
+ 	struct sk_buff *list = *listp;
+@@ -2066,6 +2084,8 @@ EXPORT_SYMBOL(kfree_skb);
+ EXPORT_SYMBOL(__pskb_pull_tail);
+ EXPORT_SYMBOL(__alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_skb);
++EXPORT_SYMBOL(__netdev_alloc_page);
++EXPORT_SYMBOL(skb_add_rx_frag);
+ EXPORT_SYMBOL(pskb_copy);
+ EXPORT_SYMBOL(pskb_expand_head);
+ EXPORT_SYMBOL(skb_checksum);
+Index: linux-2.6-git/drivers/net/sky2.c
+===================================================================
+--- linux-2.6-git.orig/drivers/net/sky2.c	2007-02-14 08:31:12.000000000 +0100
++++ linux-2.6-git/drivers/net/sky2.c	2007-02-14 12:00:22.000000000 +0100
+@@ -1083,7 +1083,7 @@ static struct sk_buff *sky2_rx_alloc(str
+ 	skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
  
-@@ -115,6 +115,10 @@ static struct nfs_page *nfs_page_find_re
- 		req = (struct nfs_page *)page_private(page);
- 		if (req != NULL)
- 			atomic_inc(&req->wb_count);
-+	} else if (unlikely(PageSwapCache(page))) {
-+		req = radix_tree_lookup(&nfsi->nfs_page_tree, page_file_index(page));
-+		if (req != NULL)
-+			atomic_inc(&req->wb_count);
- 	}
- 	return req;
+ 	for (i = 0; i < sky2->rx_nfrags; i++) {
+-		struct page *page = alloc_page(GFP_ATOMIC);
++		struct page *page = netdev_alloc_page(sky2->netdev);
+ 
+ 		if (!page)
+ 			goto free_partial;
+@@ -1972,8 +1972,8 @@ static struct sk_buff *receive_copy(stru
  }
-@@ -122,10 +126,11 @@ static struct nfs_page *nfs_page_find_re
- static struct nfs_page *nfs_page_find_request(struct page *page)
+ 
+ /* Adjust length of skb with fragments to match received data */
+-static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
+-			  unsigned int length)
++static void skb_put_frags(struct sky2_port *sky2, struct sk_buff *skb,
++			  unsigned int hdr_space, unsigned int length)
  {
- 	struct nfs_page *req = NULL;
--	spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
-+	struct nfs_inode *nfsi = NFS_I(page_file_mapping(page)->host);
-+	spinlock_t *req_lock = &nfsi->req_lock;
+ 	int i, num_frags;
+ 	unsigned int size;
+@@ -1990,15 +1990,11 @@ static void skb_put_frags(struct sk_buff
  
- 	spin_lock(req_lock);
--	req = nfs_page_find_request_locked(page);
-+	req = nfs_page_find_request_locked(nfsi, page);
- 	spin_unlock(req_lock);
- 	return req;
- }
-@@ -248,12 +253,13 @@ static void nfs_end_page_writeback(struc
- static int nfs_page_mark_flush(struct page *page)
- {
- 	struct nfs_page *req;
--	spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
-+	struct nfs_inode *nfsi = NFS_I(page_file_mapping(page)->host);
-+	spinlock_t *req_lock = &nfsi->req_lock;
- 	int ret;
- 
- 	spin_lock(req_lock);
- 	for(;;) {
--		req = nfs_page_find_request_locked(page);
-+		req = nfs_page_find_request_locked(nfsi, page);
- 		if (req == NULL) {
- 			spin_unlock(req_lock);
- 			return 1;
-@@ -368,8 +374,14 @@ static int nfs_inode_add_request(struct 
- 		if (nfs_have_delegation(inode, FMODE_WRITE))
- 			nfsi->change_attr++;
+ 		if (length == 0) {
+ 			/* don't need this page */
+-			__free_page(frag->page);
++			netdev_free_page(sky2->netdev, frag->page);
+ 			--skb_shinfo(skb)->nr_frags;
+ 		} else {
+ 			size = min(length, (unsigned) PAGE_SIZE);
+-
+-			frag->size = size;
+-			skb->data_len += size;
+-			skb->truesize += size;
+-			skb->len += size;
++			skb_add_rx_frag(skb, i, frag->page, 0, size);
+ 			length -= size;
+ 		}
  	}
--	SetPagePrivate(req->wb_page);
--	set_page_private(req->wb_page, (unsigned long)req);
-+	/*
-+	 * Swap-space should not get truncated. Hence no need to plug the race
-+	 * with invalidate/truncate.
-+	 */
-+	if (likely(!PageSwapCache(req->wb_page))) {
-+		SetPagePrivate(req->wb_page);
-+		set_page_private(req->wb_page, (unsigned long)req);
-+	}
- 	nfsi->npages++;
- 	atomic_inc(&req->wb_count);
- 	return 0;
-@@ -386,8 +398,10 @@ static void nfs_inode_remove_request(str
- 	BUG_ON (!NFS_WBACK_BUSY(req));
+@@ -2027,7 +2023,7 @@ static struct sk_buff *receive_new(struc
+ 	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
  
- 	spin_lock(&nfsi->req_lock);
--	set_page_private(req->wb_page, 0);
--	ClearPagePrivate(req->wb_page);
-+	if (likely(!PageSwapCache(req->wb_page))) {
-+		set_page_private(req->wb_page, 0);
-+		ClearPagePrivate(req->wb_page);
-+	}
- 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
- 	nfsi->npages--;
- 	if (!nfsi->npages) {
-@@ -600,7 +614,7 @@ static struct nfs_page * nfs_update_requ
- 		 * A request for the page we wish to update
- 		 */
- 		spin_lock(&nfsi->req_lock);
--		req = nfs_page_find_request_locked(page);
-+		req = nfs_page_find_request_locked(nfsi, page);
- 		if (req) {
- 			if (!nfs_lock_request_dontget(req)) {
- 				int error;
-@@ -1472,8 +1486,6 @@ int nfs_wb_page_priority(struct inode *i
- 		if (ret < 0)
- 			goto out;
- 	}
--	if (!PagePrivate(page))
--		return 0;
- 	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
- 	if (ret >= 0)
- 		return 0;
+ 	if (skb_shinfo(skb)->nr_frags)
+-		skb_put_frags(skb, hdr_space, length);
++		skb_put_frags(sky2, skb, hdr_space, length);
+ 	else
+ 		skb_put(skb, length);
+ 	return skb;
 
 -- 
 
