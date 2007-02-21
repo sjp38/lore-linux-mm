@@ -1,78 +1,81 @@
-Message-Id: <20070221144841.823705000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144843.196543000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:07 +0100
+Date: Wed, 21 Feb 2007 15:43:21 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 03/29] mm: allow PF_MEMALLOC from softirq context
-Content-Disposition: inline; filename=mm-PF_MEMALLOC-softirq.patch
+Subject: [PATCH 17/29] netvm: prevent a TCP specific deadlock
+Content-Disposition: inline; filename=netvm-tcp-deadlock.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Allow PF_MEMALLOC to be set in softirq context. When running softirqs from
-a borrowed context save current->flags, ksoftirqd will have its own 
-task_struct.
+It could happen that all !SOCK_VMIO sockets have buffered so much data
+that we're over the global rmem limit. This will prevent SOCK_VMIO buffers
+from receiving data, which will prevent userspace from running, which is needed
+to reduce the buffered data.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- kernel/softirq.c |    3 +++
- mm/internal.h    |   14 ++++++++------
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ include/net/sock.h  |    7 ++++---
+ net/core/stream.c   |    5 +++--
+ net/ipv4/tcp_ipv4.c |    8 ++++++++
+ net/ipv6/tcp_ipv6.c |    8 ++++++++
+ 4 files changed, 23 insertions(+), 5 deletions(-)
 
-Index: linux-2.6-git/mm/internal.h
+Index: linux-2.6-git/include/net/sock.h
 ===================================================================
---- linux-2.6-git.orig/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
-+++ linux-2.6-git/mm/internal.h	2006-12-14 10:10:09.000000000 +0100
-@@ -75,9 +75,10 @@ static int inline gfp_to_alloc_flags(gfp
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_interrupt() &&
--		    ((p->flags & PF_MEMALLOC) ||
--		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_interrupt() &&
-+				unlikely(test_thread_flag(TIF_MEMDIE)))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 	}
- 
-@@ -117,9 +118,10 @@ static inline int gfp_to_rank(gfp_t gfp_
- 	 */
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_interrupt() &&
--		    ((current->flags & PF_MEMALLOC) ||
--		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+		if (!in_irq() && (current->flags & PF_MEMALLOC))
-+			return 0;
-+		else if (!in_interrupt() &&
-+				unlikely(test_thread_flag(TIF_MEMDIE)))
- 			return 0;
- 	}
- 
-Index: linux-2.6-git/kernel/softirq.c
-===================================================================
---- linux-2.6-git.orig/kernel/softirq.c	2006-12-14 10:02:18.000000000 +0100
-+++ linux-2.6-git/kernel/softirq.c	2006-12-14 10:02:52.000000000 +0100
-@@ -209,6 +209,8 @@ asmlinkage void __do_softirq(void)
- 	__u32 pending;
- 	int max_restart = MAX_SOFTIRQ_RESTART;
- 	int cpu;
-+	unsigned long pflags = current->flags;
-+	current->flags &= ~PF_MEMALLOC;
- 
- 	pending = local_softirq_pending();
- 	account_system_vtime(current);
-@@ -247,6 +249,7 @@ restart:
- 
- 	account_system_vtime(current);
- 	_local_bh_enable();
-+	current->flags = pflags;
+--- linux-2.6-git.orig/include/net/sock.h	2007-02-14 12:09:05.000000000 +0100
++++ linux-2.6-git/include/net/sock.h	2007-02-14 12:09:21.000000000 +0100
+@@ -730,7 +730,8 @@ static inline struct inode *SOCK_INODE(s
  }
  
- #ifndef __ARCH_HAS_DO_SOFTIRQ
+ extern void __sk_stream_mem_reclaim(struct sock *sk);
+-extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
++extern int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb,
++		int size, int kind);
+ 
+ #define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
+ 
+@@ -757,13 +758,13 @@ static inline void sk_stream_writequeue_
+ static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
+ {
+ 	return (int)skb->truesize <= sk->sk_forward_alloc ||
+-		sk_stream_mem_schedule(sk, skb->truesize, 1);
++		sk_stream_mem_schedule(sk, skb, skb->truesize, 1);
+ }
+ 
+ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
+ {
+ 	return size <= sk->sk_forward_alloc ||
+-	       sk_stream_mem_schedule(sk, size, 0);
++	       sk_stream_mem_schedule(sk, NULL, size, 0);
+ }
+ 
+ /* Used by processes to "lock" a socket state, so that
+Index: linux-2.6-git/net/core/stream.c
+===================================================================
+--- linux-2.6-git.orig/net/core/stream.c	2007-02-14 12:09:05.000000000 +0100
++++ linux-2.6-git/net/core/stream.c	2007-02-14 12:09:21.000000000 +0100
+@@ -207,7 +207,7 @@ void __sk_stream_mem_reclaim(struct sock
+ 
+ EXPORT_SYMBOL(__sk_stream_mem_reclaim);
+ 
+-int sk_stream_mem_schedule(struct sock *sk, int size, int kind)
++int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb, int size, int kind)
+ {
+ 	int amt = sk_stream_pages(size);
+ 
+@@ -224,7 +224,8 @@ int sk_stream_mem_schedule(struct sock *
+ 	/* Over hard limit. */
+ 	if (atomic_read(sk->sk_prot->memory_allocated) > sk->sk_prot->sysctl_mem[2]) {
+ 		sk->sk_prot->enter_memory_pressure();
+-		goto suppress_allocation;
++		if (!skb || (skb && !skb_emergency(skb)))
++			goto suppress_allocation;
+ 	}
+ 
+ 	/* Under pressure. */
 
 -- 
 
