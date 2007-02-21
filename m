@@ -1,80 +1,68 @@
-Date: Wed, 21 Feb 2007 13:36:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: dirty balancing deadlock
-Message-Id: <20070221133631.a5cbf49f.akpm@linux-foundation.org>
-In-Reply-To: <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
-References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
-	<20070218125307.4103c04a.akpm@linux-foundation.org>
-	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
-	<20070218145929.547c21c7.akpm@linux-foundation.org>
-	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu>
-	<20070218155916.0d3c73a9.akpm@linux-foundation.org>
-	<E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 21 Feb 2007 21:52:16 +0000 (GMT)
+From: James Simmons <jsimmons@infradead.org>
+Subject: Re: [PATCH 2.6.20 1/1] fbdev,mm: hecuba/E-Ink fbdev driver
+In-Reply-To: <45a44e480702210855t344441c1xf8e081c82ece4e63@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0702212151190.20620@pentafluge.infradead.org>
+References: <20070217104215.GB25512@localhost> <1171715652.5186.7.camel@lappy>
+  <45a44e480702170525n9a15fafpb370cb93f1c1fcba@mail.gmail.com>
+ <20070217135922.GA15373@linux-sh.org>  <45a44e480702180331t7e76c396j1a9861f689d4186b@mail.gmail.com>
+  <20070218235741.GA22298@linux-sh.org>  <45a44e480702192013s7d49d05ai31e576f0448a485e@mail.gmail.com>
+  <Pine.LNX.4.62.0702200906070.2082@pademelon.sonytel.be>
+ <45a44e480702210855t344441c1xf8e081c82ece4e63@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jaya Kumar <jayakumar.lkml@gmail.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Frame Buffer Device Development <linux-fbdev-devel@lists.sourceforge.net>, Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Feb 2007 18:11:55 +0100
-Miklos Szeredi <miklos@szeredi.hu> wrote:
+Could you make it work without the framebuffer. There are embedded LCD 
+displays that have internal memory that need data flushed to them.
 
-> How about this?
+On Wed, 21 Feb 2007, Jaya Kumar wrote:
 
-I still don't understand this bug.
-
-> Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
-> I'll try to tackle that one as well.
+> On 2/20/07, Geert Uytterhoeven <geert@linux-m68k.org> wrote:
+> > Don't you need a way to specify the maximum deferral time? E.g. a field in
+> > fb_info.
+> > 
 > 
-> If the per-bdi dirty counter goes below 16, balance_dirty_pages()
-> returns.
+> You are right. I will need that. I could put that into struct
+> fb_deferred_io. So drivers would setup like:
 > 
-> Does the constant need to tunable?  If it's too large, then the global
-> threshold is more easily exceeded.  If it's too small, then in a tight
-> situation progress will be slower.
+> static struct fb_deferred_io hecubafb_defio = {
+>        .delay          = HZ,
+>        .deferred_io    = hecubafb_dpy_update,
+> };
+> 
+> where that would be:
+> struct fb_deferred_io {
+>        unsigned long delay;    /* delay between mkwrite and deferred handler
+> */
+>        struct mutex lock;      /* mutex that protects the page list */
+>        struct list_head pagelist;      /* list of touched pages */
+>        struct delayed_work deferred_work;
+>        void (*deferred_io)(struct fb_info *info, struct list_head
+> *pagelist); /* callback */
+> };
+> 
+> and the driver would do:
+> ...
+> info->fbdefio = hecubafb_defio;
+> register_framebuffer...
+> 
+> When the driver calls register_framebuffer and unregister_framebuffer,
+> I can then do the init and destruction of the other members of that
+> struct. Does this sound okay?
 > 
 > Thanks,
-> Miklos
+> jaya
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
-> Index: linux/mm/page-writeback.c
-> ===================================================================
-> --- linux.orig/mm/page-writeback.c	2007-02-19 17:32:41.000000000 +0100
-> +++ linux/mm/page-writeback.c	2007-02-19 18:05:28.000000000 +0100
-> @@ -198,6 +198,25 @@ static void balance_dirty_pages(struct a
->  			dirty_thresh)
->  				break;
->  
-> +		/*
-> +		 * Acquit this producer if there's little or nothing
-> +		 * to write back to this particular queue
-> +		 *
-> +		 * Without this check a deadlock is possible in the
-> +		 * following case:
-> +		 *
-> +		 * - filesystem A writes data through filesystem B
-> +		 * - filesystem A has dirty pages over dirty_thresh
-> +		 * - writeback is started, this triggers a write in B
-> +		 * - balance_dirty_pages() is called synchronously
-> +		 * - the write to B blocks
-> +		 * - the writeback completes, but dirty is still over threshold
-> +		 * - the blocking write prevents futher writes from happening
-> +		 */
-> +		if (atomic_long_read(&bdi->nr_dirty) +
-> +		    atomic_long_read(&bdi->nr_writeback) < 16)
-> +			break;
-> +
-
-The problem seems to that little "- the write to B blocks".
-
-How come it blocks?  I mean, if we cannot retire writes to that filesystem
-then we're screwed anyway.
-
-Anyway, I think I'll think about this issue a little later on.  You might
-as well prepare full changelogs for your proposed changes, because we'll be
-needing them anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
