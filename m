@@ -1,44 +1,74 @@
-In-reply-to: <1172083004.9108.6.camel@heimdal.trondhjem.org> (message from
-	Trond Myklebust on Wed, 21 Feb 2007 13:36:44 -0500)
+Message-ID: <45DC9581.4070909@redhat.com>
+Date: Wed, 21 Feb 2007 13:54:57 -0500
+From: Peter Staubach <staubach@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] update ctime and mtime for mmaped write
-References: <E1HJvdA-0003Nj-00@dorka.pomaz.szeredi.hu>
-	 <1172081562.9108.1.camel@heimdal.trondhjem.org>
-	 <E1HJwCl-0003V6-00@dorka.pomaz.szeredi.hu> <1172083004.9108.6.camel@heimdal.trondhjem.org>
-Message-Id: <E1HJwXe-0003bD-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 21 Feb 2007 19:50:14 +0100
+References: <E1HJvdA-0003Nj-00@dorka.pomaz.szeredi.hu> <45DC8A47.5050900@redhat.com> <E1HJw7l-0003Tq-00@dorka.pomaz.szeredi.hu>
+In-Reply-To: <E1HJw7l-0003Tq-00@dorka.pomaz.szeredi.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: trond.myklebust@fys.uio.no
-Cc: akpm@linux-foundation.org, staubach@redhat.com, hugh@veritas.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, hugh@veritas.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > > > This flag is checked in msync() and __fput(), and if set, the file
-> > > > times are updated and the flag is cleared
-> > > 
-> > > Why not also check inside vfs_getattr?
-> > 
-> > This is the minimum, that the standard asks for.
-> > 
-> > Note, your porposal would touch the times in vfs_getattr(), which
-> > means, that the modification times would depend on the time of the
-> > last stat() call, which is not really right, though it would still be
-> > conforming.
-> > 
-> > It is much saner, if the modification time is always the time of the
-> > last write() or msync().
-> 
-> I disagree. The above doesn't allow a program like 'make' to discover
-> whether or not the file has changed by simply calling stat(). Instead,
-> you're forcing a call to msync()+stat().
+Miklos Szeredi wrote:
+>>> Inspired by Peter Staubach's patch and the resulting comments.
+>>>
+>>>   
+>>>       
+>> An updated version of the original patch was submitted to LKML
+>> yesterday...  :-)
+>>     
+>
+> Strange coincidence :)
+>
+>   
+>>>  		file = vma->vm_file;
+>>>  		start = vma->vm_end;
+>>> +		mapping_update_time(file);
+>>>  		if ((flags & MS_SYNC) && file &&
+>>>  				(vma->vm_flags & VM_SHARED)) {
+>>>  			get_file(file);
+>>>   
+>>>       
+>> It seems to me that this might lead to file times being updated for
+>> non-MAP_SHARED mappings.
+>>     
+>
+> In theory no, because the COW-ed pages become anonymous and are not
+> part of the original mapping any more.
+>
+>   
 
-Yes, but that's the only portable way _anyway_.
+I must profess to having a incomplete understanding of all of this
+support, but then why would it be necessary to test VM_SHARED at
+this point in msync()?
 
-And it probably doesn't matter, programs using mmap to write to a file
-_will_ call msync, or at least close the file, when they're done.
+I ran into problems early on with file times being updated incorrectly
+so I am a little sensitive this aspect.
 
-Thanks,
-Miklos
+>>> +int set_page_dirty_mapping(struct page *page);
+>>>   
+>>>       
+>> This aspect of the design seems intrusive to me.  I didn't see a strong
+>> reason to introduce new versions of many of the routines just to handle
+>> these semantics.  What motivated this part of your design?  Why the new
+>> _mapping versions of routines?
+>>     
+>
+> Because there's no way to know inside the set_page_dirty() functions
+> if the dirtying comes from a memory mapping or from a modification
+> through a normal write().  And they have different semantics, for
+> write() the modification times are updated immediately.
+
+Perhaps I didn't understand what page_mapped() does, but it does seem to
+have the right semantics as far as I could see.
+
+    Thanx...
+
+       ps
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
