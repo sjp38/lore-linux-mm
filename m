@@ -1,209 +1,256 @@
-Message-Id: <20070221144842.896272000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144842.828329000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:18 +0100
+Date: Wed, 21 Feb 2007 15:43:17 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 14/29] netvm: INET reserves.
-Content-Disposition: inline; filename=netvm-reserve-inet.patch
+Subject: [PATCH 13/29] netvm: link network to vm layer
+Content-Disposition: inline; filename=netvm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Add reserves for INET.
+Hook up networking to the memory reserve.
 
-The two big users seem to be the route cache and ip-fragment cache.
+There are two kinds of reserves: skb and aux. 
+ - skb reserves are used for incomming packets,
+ - aux reserves are used for processing these packets.
 
-Account the route cache to the auxillary reserve.
-Account the fragments to the skb reserve so that one can at least
-overflow the fragment cache (avoids fragment deadlocks).
+The consumers for these reserves are sockets marked with:
+  SOCK_VMIO
+
+Such sockets are to be used to service the VM (iow. to swap over). They
+must be handled kernel side, exposing such a socket to user-space is a BUG.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- net/ipv4/ip_fragment.c     |    1 +
- net/ipv4/route.c           |   18 +++++++++++++++++-
- net/ipv4/sysctl_net_ipv4.c |   13 ++++++++++++-
- net/ipv6/reassembly.c      |    1 +
- net/ipv6/route.c           |   18 +++++++++++++++++-
- net/ipv6/sysctl_net_ipv6.c |   12 +++++++++++-
- 6 files changed, 59 insertions(+), 4 deletions(-)
+ include/net/sock.h |   31 ++++++++++++
+ net/Kconfig        |    3 +
+ net/core/sock.c    |  134 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 168 insertions(+)
 
-Index: linux-2.6-git/net/ipv4/sysctl_net_ipv4.c
+Index: linux-2.6-git/include/net/sock.h
 ===================================================================
---- linux-2.6-git.orig/net/ipv4/sysctl_net_ipv4.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv4/sysctl_net_ipv4.c	2007-02-20 16:41:28.000000000 +0100
-@@ -18,6 +18,7 @@
- #include <net/route.h>
- #include <net/tcp.h>
- #include <net/cipso_ipv4.h>
-+#include <net/sock.h>
+--- linux-2.6-git.orig/include/net/sock.h	2007-02-20 15:06:17.000000000 +0100
++++ linux-2.6-git/include/net/sock.h	2007-02-20 15:07:45.000000000 +0100
+@@ -392,6 +392,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_VMIO, /* the VM depends on us - make sure we're serviced */
+ };
  
- /* From af_inet.c */
- extern int sysctl_ip_nonlocal_bind;
-@@ -186,6 +187,16 @@ static int strategy_allowed_congestion_c
- 
+ static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+@@ -414,6 +415,36 @@ static inline int sock_flag(struct sock 
+ 	return test_bit(flag, &sk->sk_flags);
  }
  
-+static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
++static inline int sk_has_vmio(struct sock *sk)
 +{
-+	int ret;
-+	int old_thresh = *(int *)table->data;
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	skb_reserve_memory(*(int *)table->data - old_thresh);
-+	return ret;
++	return sock_flag(sk, SOCK_VMIO);
 +}
 +
- ctl_table ipv4_table[] = {
- 	{
- 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
-@@ -291,7 +302,7 @@ ctl_table ipv4_table[] = {
- 		.data		= &sysctl_ipfrag_high_thresh,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment
- 	},
- 	{
- 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
-Index: linux-2.6-git/net/ipv6/sysctl_net_ipv6.c
-===================================================================
---- linux-2.6-git.orig/net/ipv6/sysctl_net_ipv6.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv6/sysctl_net_ipv6.c	2007-02-20 16:41:28.000000000 +0100
-@@ -15,6 +15,16 @@
- 
- #ifdef CONFIG_SYSCTL
- 
-+static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
++#define MAX_PAGES_PER_SKB 3
++#define MAX_FRAGMENTS ((65536 + 1500 - 1) / 1500)
++/*
++ * Guestimate the per request queue TX upper bound.
++ */
++#define TX_RESERVE_PAGES \
++	(4 * MAX_FRAGMENTS * MAX_PAGES_PER_SKB)
++
++extern atomic_t vmio_socks;
++
++static inline int sk_vmio_socks(void)
 +{
-+	int ret;
-+	int old_thresh = *(int *)table->data;
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	skb_reserve_memory(*(int *)table->data - old_thresh);
-+	return ret;
++	return atomic_read(&vmio_socks);
 +}
 +
- static ctl_table ipv6_table[] = {
- 	{
- 		.ctl_name	= NET_IPV6_ROUTE,
-@@ -44,7 +54,7 @@ static ctl_table ipv6_table[] = {
- 		.data		= &sysctl_ip6frag_high_thresh,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment
- 	},
- 	{
- 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
-Index: linux-2.6-git/net/ipv4/ip_fragment.c
++extern int rx_emergency_get(int bytes);
++extern int rx_emergency_get_overcommit(int bytes);
++extern void rx_emergency_put(int bytes);
++
++extern void sk_adjust_memalloc(int socks, int tx_reserve_pages);
++extern void skb_reserve_memory(int skb_reserve_bytes);
++extern void aux_reserve_memory(int aux_reserve_pages);
++extern int sk_set_vmio(struct sock *sk);
++extern int sk_clear_vmio(struct sock *sk);
++
+ static inline void sk_acceptq_removed(struct sock *sk)
+ {
+ 	sk->sk_ack_backlog--;
+Index: linux-2.6-git/net/core/sock.c
 ===================================================================
---- linux-2.6-git.orig/net/ipv4/ip_fragment.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv4/ip_fragment.c	2007-02-20 16:41:28.000000000 +0100
-@@ -743,6 +743,7 @@ void ipfrag_init(void)
- 	ipfrag_secret_timer.function = ipfrag_secret_rebuild;
- 	ipfrag_secret_timer.expires = jiffies + sysctl_ipfrag_secret_interval;
- 	add_timer(&ipfrag_secret_timer);
-+	skb_reserve_memory(sysctl_ipfrag_high_thresh);
- }
+--- linux-2.6-git.orig/net/core/sock.c	2007-02-20 15:06:17.000000000 +0100
++++ linux-2.6-git/net/core/sock.c	2007-02-20 15:18:48.000000000 +0100
+@@ -112,6 +112,7 @@
+ #include <linux/tcp.h>
+ #include <linux/init.h>
+ #include <linux/highmem.h>
++#include <linux/log2.h>
  
- EXPORT_SYMBOL(ip_defrag);
-Index: linux-2.6-git/net/ipv6/reassembly.c
-===================================================================
---- linux-2.6-git.orig/net/ipv6/reassembly.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv6/reassembly.c	2007-02-20 16:41:28.000000000 +0100
-@@ -772,4 +772,5 @@ void __init ipv6_frag_init(void)
- 	ip6_frag_secret_timer.function = ip6_frag_secret_rebuild;
- 	ip6_frag_secret_timer.expires = jiffies + sysctl_ip6frag_secret_interval;
- 	add_timer(&ip6_frag_secret_timer);
-+	skb_reserve_memory(sysctl_ip6frag_high_thresh);
- }
-Index: linux-2.6-git/net/ipv4/route.c
-===================================================================
---- linux-2.6-git.orig/net/ipv4/route.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv4/route.c	2007-02-20 16:41:28.000000000 +0100
-@@ -2884,6 +2884,20 @@ static int ipv4_sysctl_rtcache_flush_str
- 	return 0;
- }
+ #include <asm/uaccess.h>
+ #include <asm/system.h>
+@@ -196,6 +197,138 @@ __u32 sysctl_rmem_default __read_mostly 
+ /* Maximal space eaten by iovec or ancilliary data plus some space */
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
  
-+static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
++static atomic_t rx_emergency_bytes;
++
++static int skb_reserve_bytes;
++static int aux_reserve_pages;
++
++static DEFINE_SPINLOCK(memalloc_lock);
++static int rx_net_reserve;
++atomic_t vmio_socks;
++EXPORT_SYMBOL_GPL(vmio_socks);
++
++/*
++ * is there room for another emergency packet?
++ * we account in power of two units to approx the slab allocator.
++ */
++static int __rx_emergency_get(int bytes, bool overcommit)
 +{
-+	int ret;
-+	int new_pages;
-+	int old_pages = kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	new_pages = kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	aux_reserve_memory(new_pages - old_pages);
-+	return ret;
++	int size = roundup_pow_of_two(bytes);
++	int nr = atomic_add_return(size, &rx_emergency_bytes);
++	int thresh = (3 * skb_reserve_bytes) / 2;
++	if (nr < thresh || overcommit)
++		return 1;
++
++	atomic_dec(&rx_emergency_bytes);
++	return 0;
 +}
 +
- ctl_table ipv4_route_table[] = {
- 	{
- 		.ctl_name 	= NET_IPV4_ROUTE_FLUSH,
-@@ -2926,7 +2940,7 @@ ctl_table ipv4_route_table[] = {
- 		.data		= &ip_rt_max_size,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec,
-+		.proc_handler	= &proc_dointvec_rt_size,
- 	},
- 	{
- 		/*  Deprecated. Use gc_min_interval_ms */
-@@ -3153,6 +3167,8 @@ int __init ip_rt_init(void)
- 
- 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
- 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
-+	aux_reserve_memory(kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
-+				ip_rt_max_size));
- 
- 	devinet_init();
- 	ip_fib_init();
-Index: linux-2.6-git/net/ipv6/route.c
-===================================================================
---- linux-2.6-git.orig/net/ipv6/route.c	2007-02-20 15:12:56.000000000 +0100
-+++ linux-2.6-git/net/ipv6/route.c	2007-02-20 17:46:13.000000000 +0100
-@@ -2370,6 +2370,20 @@ int ipv6_sysctl_rtcache_flush(ctl_table 
- 		return -EINVAL;
- }
- 
-+static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
++int rx_emergency_get(int bytes)
 +{
-+	int ret;
-+	int new_pages;
-+	int old_pages = kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	new_pages = kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	aux_reserve_memory(new_pages - old_pages);
-+	return ret;
++	return __rx_emergency_get(bytes, false);
 +}
 +
- ctl_table ipv6_route_table[] = {
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_FLUSH,
-@@ -2393,7 +2407,7 @@ ctl_table ipv6_route_table[] = {
- 		.data		=	&ip6_rt_max_size,
- 		.maxlen		=	sizeof(int),
- 		.mode		=	0644,
--		.proc_handler	=	&proc_dointvec,
-+         	.proc_handler	=	&proc_dointvec_rt_size,
- 	},
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
-@@ -2478,6 +2492,8 @@ void __init ip6_route_init(void)
++int rx_emergency_get_overcommit(int bytes)
++{
++	return __rx_emergency_get(bytes, true);
++}
++
++void rx_emergency_put(int bytes)
++{
++	int size = roundup_pow_of_two(bytes);
++	return atomic_sub(size, &rx_emergency_bytes);
++}
++
++/**
++ *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
++ *	@socks: number of new %SOCK_VMIO sockets
++ *	@tx_resserve_pages: number of pages to (un)reserve for TX
++ *
++ *	This function adjusts the memalloc reserve based on system demand.
++ *	The RX reserve is a limit, and only added once, not for each socket.
++ *
++ *	NOTE:
++ *	   @tx_reserve_pages is an upper-bound of memory used for TX hence
++ *	   we need not account the pages like we do for RX pages.
++ */
++void sk_adjust_memalloc(int socks, int tx_reserve_pages)
++{
++	unsigned long flags;
++	int reserve = tx_reserve_pages;
++	int nr_socks;
++
++	spin_lock_irqsave(&memalloc_lock, flags);
++	nr_socks = atomic_add_return(socks, &vmio_socks);
++	BUG_ON(nr_socks < 0);
++
++	if (nr_socks) {
++		int skb_reserve_pages = skb_reserve_bytes / PAGE_SIZE;
++		int rx_pages = 2 * skb_reserve_pages + aux_reserve_pages;
++		reserve += rx_pages - rx_net_reserve;
++		rx_net_reserve = rx_pages;
++	} else {
++		reserve -= rx_net_reserve;
++		rx_net_reserve = 0;
++	}
++
++	if (reserve)
++		adjust_memalloc_reserve(reserve);
++	spin_unlock_irqrestore(&memalloc_lock, flags);
++}
++EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
++
++/*
++ * tiny helper functions to track the memory reserves
++ * needed because of modular ipv6
++ */
++void skb_reserve_memory(int bytes)
++{
++	skb_reserve_bytes += bytes;
++	sk_adjust_memalloc(0, 0);
++}
++EXPORT_SYMBOL_GPL(skb_reserve_memory);
++
++void aux_reserve_memory(int pages)
++{
++	aux_reserve_pages += pages;
++	sk_adjust_memalloc(0, 0);
++}
++EXPORT_SYMBOL_GPL(aux_reserve_memory);
++
++/**
++ *	sk_set_vmio - sets %SOCK_VMIO
++ *	@sk: socket to set it on
++ *
++ *	Set %SOCK_VMIO on a socket and increase the memalloc reserve
++ *	accordingly.
++ */
++int sk_set_vmio(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_VMIO);
++#ifndef CONFIG_NETVM
++	BUG();
++#endif
++	if (!set) {
++		sk_adjust_memalloc(1, 0);
++		sock_set_flag(sk, SOCK_VMIO);
++		sk->sk_allocation |= __GFP_EMERGENCY;
++	}
++	return !set;
++}
++EXPORT_SYMBOL_GPL(sk_set_vmio);
++
++int sk_clear_vmio(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_VMIO);
++	if (set) {
++		sk_adjust_memalloc(-1, 0);
++		sock_reset_flag(sk, SOCK_VMIO);
++		sk->sk_allocation &= ~__GFP_EMERGENCY;
++	}
++	return set;
++}
++EXPORT_SYMBOL_GPL(sk_clear_vmio);
++
+ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+ {
+ 	struct timeval tv;
+@@ -868,6 +1001,7 @@ void sk_free(struct sock *sk)
+ 	struct sk_filter *filter;
+ 	struct module *owner = sk->sk_prot_creator->owner;
  
- 	proc_net_fops_create("rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
- #endif
-+	aux_reserve_memory(kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
-+				ip6_rt_max_size));
- #ifdef CONFIG_XFRM
- 	xfrm6_init();
- #endif
++	sk_clear_vmio(sk);
+ 	if (sk->sk_destruct)
+ 		sk->sk_destruct(sk);
+ 
+Index: linux-2.6-git/net/Kconfig
+===================================================================
+--- linux-2.6-git.orig/net/Kconfig	2007-02-20 14:42:09.000000000 +0100
++++ linux-2.6-git/net/Kconfig	2007-02-20 15:06:17.000000000 +0100
+@@ -227,6 +227,9 @@ config WIRELESS_EXT
+ config FIB_RULES
+ 	bool
+ 
++config NETVM
++	def_bool n
++
+ endif   # if NET
+ endmenu # Networking
+ 
 
 -- 
 
