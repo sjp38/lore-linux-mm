@@ -1,99 +1,273 @@
 Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1LEPbT0008256
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2007 09:25:37 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1LEPbHg474584
+	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l1LEOojN007624
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2007 09:24:50 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1LEPbH6494432
 	for <linux-mm@kvack.org>; Wed, 21 Feb 2007 07:25:37 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1LEPako015468
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2007 07:25:36 -0700
-Message-Id: <20070221142451.193001000@linux.vnet.ibm.com>>
-Date: Wed, 21 Feb 2007 19:54:51 +0530
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1LEPaX8013364
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2007 07:25:37 -0700
+Message-Id: <20070221142534.850666000@linux.vnet.ibm.com>>
+References: <20070221142451.193001000@linux.vnet.ibm.com>>
+Date: Wed, 21 Feb 2007 19:54:54 +0530
 From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Subject: [PATCH 0/3][RFC] Containers: Pagecache accounting and control subsystem (v1)
+Subject: [PATCH 3/3][RFC] Containers: Pagecache controller reclaim
+Content-Disposition: inline; filename=pagecache-controller-reclaim.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: balbir@in.ibm.com, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, devel@openvz.org, xemul@sw.ru, menage@google.com, clameter@sgi.com, riel@redhat.com
+Cc: balbir@in.ibm.com, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, devel@openvz.org, xemul@sw.ru, menage@google.com, clameter@sgi.com, riel@redhat.com, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
------------------------------------------------------------
+The reclaim code is similar to RSS memory controller.  Scan control is 
+slightly different since we are targeting different type of pages.
 
-This patch adds pagecache accounting and control on top of 
-Paul's container subsystem v7 posted at 
-http://lkml.org/lkml/2007/2/12/88
+Additionally no mapped pages are touched when scanning for pagecache pages.
 
-and Balbir's RSS controller posted at
-http://lkml.org/lkml/2007/2/19/10
+RSS memory controller and pagecache controller share common code in reclaim 
+and hence pagecache controller patches are dependent on RSS memory controller 
+patch even though the features are independently configurable at compile time.
 
-This patchset depends on Balbir's RSS controller and cannot 
-work independent of it. The page reclaim code has been merged 
-with container RSS controller.  However compile time options 
-can individually enable/disable memory controller and/or 
-pagecache controller.
+Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+---
+ include/linux/memctlr.h |    6 ++++
+ mm/memctlr.c            |    4 +-
+ mm/pagecache_acct.c     |   11 +++++++-
+ mm/vmscan.c             |   65 +++++++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 71 insertions(+), 15 deletions(-)
 
-Comments, suggestions and criticisms are welcome.
+--- linux-2.6.20.orig/include/linux/memctlr.h
++++ linux-2.6.20/include/linux/memctlr.h
+@@ -19,6 +19,12 @@ enum {
+ 	MEMCTLR_DONT_CHECK_LIMIT = false,
+ };
+ 
++/* Type of memory to reclaim in shrink_container_memory() */
++enum {
++	RECLAIM_MAPPED_MEMORY = 1,
++	RECLAIM_PAGECACHE_MEMORY,
++};
++
+ #ifdef CONFIG_CONTAINER_MEMCTLR
+ #include <linux/wait.h>
+ 
+--- linux-2.6.20.orig/mm/memctlr.c
++++ linux-2.6.20/mm/memctlr.c
+@@ -146,8 +146,8 @@ static int memctlr_check_and_reclaim(str
+ 				nr_pages = (pushback * limit) / 100;
+ 			mem->reclaim_in_progress = true;
+ 			spin_unlock(&mem->lock);
+-			nr_reclaimed += memctlr_shrink_mapped_memory(nr_pages,
+-									cont);
++			nr_reclaimed += shrink_container_memory(
++					RECLAIM_MAPPED_MEMORY, nr_pages, cont);
+ 			spin_lock(&mem->lock);
+ 			mem->reclaim_in_progress = false;
+ 			wake_up_all(&mem->wq);
+--- linux-2.6.20.orig/mm/pagecache_acct.c
++++ linux-2.6.20/mm/pagecache_acct.c
+@@ -30,6 +30,7 @@
+ #include <asm/div64.h>
+ #include <linux/klog.h>
+ #include <linux/pagecache_acct.h>
++#include <linux/memctlr.h>
+ 
+ /*
+  * Convert unit from pages to kilobytes
+@@ -338,12 +339,20 @@ int pagecache_acct_cont_overlimit(struct
+ 		return 0;
+ }
+ 
+-extern unsigned long shrink_all_pagecache_memory(unsigned long nr_pages);
++extern unsigned long shrink_container_memory(unsigned int memory_type,
++				unsigned long nr_pages, void *container);
+ 
+ int pagecache_acct_shrink_used(unsigned long nr_pages)
+ {
+ 	unsigned long ret = 0;
+ 	atomic_inc(&reclaim_count);
++
++	/* Don't call reclaim for each page above limit */
++	if (nr_pages > NR_PAGES_RECLAIM_THRESHOLD) {
++		ret += shrink_container_memory(
++				RECLAIM_PAGECACHE_MEMORY, nr_pages, NULL);
++	}
++
+ 	return 0;
+ }
+ 
+--- linux-2.6.20.orig/mm/vmscan.c
++++ linux-2.6.20/mm/vmscan.c
+@@ -43,6 +43,7 @@
+ 
+ #include <linux/swapops.h>
+ #include <linux/memctlr.h>
++#include <linux/pagecache_acct.h>
+ 
+ #include "internal.h"
+ 
+@@ -70,6 +71,8 @@ struct scan_control {
+ 
+ 	void *container;		/* Used by containers for reclaiming */
+ 					/* pages when the limit is exceeded  */
++	int reclaim_pagecache_only;     /* Set when called from
++					   pagecache controller */
+ };
+ 
+ /*
+@@ -474,6 +477,15 @@ static unsigned long shrink_page_list(st
+ 			goto keep;
+ 
+ 		VM_BUG_ON(PageActive(page));
++		/* Take it easy if we are doing only pagecache pages */
++		if (sc->reclaim_pagecache_only) {
++			/* Check if this is a pagecache page they are not mapped */
++			if (page_mapped(page))
++				goto keep_locked;
++			/* Check if this container has exceeded pagecache limit */
++			if (!pagecache_acct_page_overlimit(page))
++				goto keep_locked;
++		}
+ 
+ 		sc->nr_scanned++;
+ 
+@@ -522,7 +534,8 @@ static unsigned long shrink_page_list(st
+ 		}
+ 
+ 		if (PageDirty(page)) {
+-			if (referenced)
++			/* Reclaim even referenced pagecache pages if over limit */
++			if (!pagecache_acct_page_overlimit(page) && referenced)
+ 				goto keep_locked;
+ 			if (!may_enter_fs)
+ 				goto keep_locked;
+@@ -849,6 +862,13 @@ force_reclaim_mapped:
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+ 		list_del(&page->lru);
++		/* While reclaiming pagecache make it easy */
++		if (sc->reclaim_pagecache_only) {
++			if (page_mapped(page) || !pagecache_acct_page_overlimit(page)) {
++				list_add(&page->lru, &l_active);
++				continue;
++			}
++		}
+ 		if (page_mapped(page)) {
+ 			if (!reclaim_mapped ||
+ 			    (total_swap_pages == 0 && PageAnon(page)) ||
+@@ -1044,6 +1064,7 @@ unsigned long try_to_free_pages(struct z
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
+ 		.may_swap = 1,
+ 		.swappiness = vm_swappiness,
++		.reclaim_pagecache_only = 0,
+ 	};
+ 
+ 	count_vm_event(ALLOCSTALL);
+@@ -1148,6 +1169,7 @@ static unsigned long balance_pgdat(pg_da
+ 		.may_swap = 1,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
+ 		.swappiness = vm_swappiness,
++		.reclaim_pagecache_only = 0,
+ 	};
+ 	/*
+ 	 * temp_priority is used to remember the scanning priority at which
+@@ -1378,7 +1400,7 @@ void wakeup_kswapd(struct zone *zone, in
+ 	wake_up_interruptible(&pgdat->kswapd_wait);
+ }
+ 
+-#if defined(CONFIG_PM) || defined(CONFIG_CONTAINER_MEMCTLR)
++#if defined(CONFIG_PM) || defined(CONFIG_CONTAINER_MEMCTLR) || defined(CONFIG_CONTAINER_PAGECACHE_ACCT)
+ /*
+  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+  * from LRU lists system-wide, for given pass and priority, and returns the
+@@ -1455,6 +1477,7 @@ unsigned long shrink_all_memory(unsigned
+ 		.swap_cluster_max = nr_pages,
+ 		.may_writepage = 1,
+ 		.swappiness = vm_swappiness,
++		.reclaim_pagecache_only = 0,
+ 	};
+ 
+ 	current->reclaim_state = &reclaim_state;
+@@ -1531,33 +1554,50 @@ out:
+ }
+ #endif
+ 
+-#ifdef CONFIG_CONTAINER_MEMCTLR
++#if defined(CONFIG_CONTAINER_MEMCTLR) || defined(CONFIG_CONTAINER_PAGECACHE_ACCT)
++
+ /*
+  * Try to free `nr_pages' of memory, system-wide, and return the number of
+  * freed pages.
+  * Modelled after shrink_all_memory()
+  */
+-unsigned long memctlr_shrink_mapped_memory(unsigned long nr_pages, void *container)
++
++unsigned long shrink_container_memory(unsigned int memory_type, unsigned long nr_pages, void *container)
+ {
+ 	unsigned long ret = 0;
+ 	int pass;
+ 	unsigned long nr_total_scanned = 0;
+-
++	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+-		.may_swap = 0,
+ 		.swap_cluster_max = nr_pages,
+ 		.may_writepage = 1,
+-		.swappiness = vm_swappiness,
+-		.container = container,
+-		.may_swap = 1,
+-		.swappiness = 100,
+ 	};
+ 
++	switch (memory_type) {
++		case RECLAIM_PAGECACHE_MEMORY:
++			sc.may_swap = 0;
++			sc.swappiness = 0; /* Do not swap, only pagecache reclaim */
++			sc.reclaim_pagecache_only = 1; /* Flag it */
++			break;
++
++		case RECLAIM_MAPPED_MEMORY:
++			sc.container = container;
++			sc.may_swap = 1;
++			sc.swappiness = 100; /* Do swap and free memory */
++			sc.reclaim_pagecache_only = 0; /* Flag it */
++			break;
++
++		default:
++			BUG();
++	}
++	current->reclaim_state = &reclaim_state;
++
+ 	/*
+ 	 * We try to shrink LRUs in 3 passes:
+ 	 * 0 = Reclaim from inactive_list only
+-	 * 1 = Reclaim mapped (normal reclaim)
++	 * 1 = Reclaim from active list
++	 * 	(Mapped or pagecache pages depending on memory type)
+ 	 * 2 = 2nd pass of type 1
+ 	 */
+ 	for (pass = 0; pass < 3; pass++) {
+@@ -1565,7 +1605,6 @@ unsigned long memctlr_shrink_mapped_memo
+ 
+ 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+ 			unsigned long nr_to_scan = nr_pages - ret;
+-
+ 			sc.nr_scanned = 0;
+ 			ret += shrink_all_zones(nr_to_scan, prio,
+ 						pass, 1, &sc);
+@@ -1578,8 +1617,10 @@ unsigned long memctlr_shrink_mapped_memo
+ 		}
+ 	}
+ out:
++	current->reclaim_state = NULL;
+ 	return ret;
+ }
++
+ #endif
+ 
+ /* It's optimal to keep kswapds on the same CPUs as their memory, but
 
-Features:
---------
-* New subsystem called 'pagecache_acct' is registered with containers 
-* Container pointer is added to struct address_space to keep track of  
-  associated container
-* In filemap.c and swap_state.c, the corresponding container's 
-  pagecache_acct subsystem is charged and uncharged whenever a new 
-  page is added or removed from pagecache
-* The accounting number include pages in swap cache and filesystem 
-  buffer pages apart from pagecache, basically everything under 
-  NR_FILE_PAGES is counted as pagecache.  However this excluded 
-  mapped and anonymous pages
-* Limits on pagecache can be set by echo 100000 > pagecache_limit on 
-  the /container file system.  The unit is in kilobytes  
-* If the pagecache utilisation limit is exceeded, pagecache reclaim
-  code is invoked to recover dirty and clean pagecache pages only.
-
-Advantages:
------------
-* Does not add container pointers in struct page
-
-Limitations:
------------
-* Code is not safe for container deletion/task migration
-* Pagecache page reclaim needs performance improvements
-* Global LRU is churned in search of pagecache pages
-
-Usage:
------
-
-* Add patch on top of Paul container (v7) at kernel version 2.6.20
-* Enable CONFIG_CONTAINER_PAGECACHE_ACCT in 'General Setup'
-* Boot new kernel
-* Mount container filesystem 
-	mount -t container /container
-	cd /container
-* Create new container
-	mkdir mybox 
-	cd /container/mybox
-* Add current shell to container
-	echo $$ > tasks
-* There are two files pagecache_usage and pagecache_limit
-* In order to set limit, echo value in kilobytes to pagecache_limit
-	echo 100000 > pagecache_limit 
-	#This would set 100MB limit on pagecache usage
-* Trash the system from current shell using scp/cp/dd/tar etc
-* Watch pagecache_usage and /proc/meminfo to verify behavior
-
-* Only unmapped pagecache data will be accounted and controlled.  
-  These are memory used by cp, scp, tar etc.  While file mmap will 
-  be controlled by Balbir's RSS controller.
-
-ToDo:
-----
-
-* Merge with container RSS controller and eliminate redundant code
-* Support and test task migration and container deletion
-* Review reclaim performance
-* Optimise page reclaim
-	
 -- 
 
 --
