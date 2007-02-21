@@ -1,77 +1,80 @@
-In-reply-to: <45DC9581.4070909@redhat.com> (message from Peter Staubach on
-	Wed, 21 Feb 2007 13:54:57 -0500)
-Subject: Re: [PATCH] update ctime and mtime for mmaped write
-References: <E1HJvdA-0003Nj-00@dorka.pomaz.szeredi.hu> <45DC8A47.5050900@redhat.com> <E1HJw7l-0003Tq-00@dorka.pomaz.szeredi.hu> <45DC9581.4070909@redhat.com>
-Message-Id: <E1HJwoe-0003el-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 21 Feb 2007 20:07:48 +0100
+Date: Wed, 21 Feb 2007 13:36:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: dirty balancing deadlock
+Message-Id: <20070221133631.a5cbf49f.akpm@linux-foundation.org>
+In-Reply-To: <E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
+References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
+	<20070218125307.4103c04a.akpm@linux-foundation.org>
+	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
+	<20070218145929.547c21c7.akpm@linux-foundation.org>
+	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu>
+	<20070218155916.0d3c73a9.akpm@linux-foundation.org>
+	<E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: staubach@redhat.com
-Cc: akpm@linux-foundation.org, hugh@veritas.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >>> Inspired by Peter Staubach's patch and the resulting comments.
-> >>>
-> >>>   
-> >>>       
-> >> An updated version of the original patch was submitted to LKML
-> >> yesterday...  :-)
-> >>     
-> >
-> > Strange coincidence :)
-> >
-> >   
-> >>>  		file = vma->vm_file;
-> >>>  		start = vma->vm_end;
-> >>> +		mapping_update_time(file);
-> >>>  		if ((flags & MS_SYNC) && file &&
-> >>>  				(vma->vm_flags & VM_SHARED)) {
-> >>>  			get_file(file);
-> >>>   
-> >>>       
-> >> It seems to me that this might lead to file times being updated for
-> >> non-MAP_SHARED mappings.
-> >>     
-> >
-> > In theory no, because the COW-ed pages become anonymous and are not
-> > part of the original mapping any more.
-> >
-> >   
+On Mon, 19 Feb 2007 18:11:55 +0100
+Miklos Szeredi <miklos@szeredi.hu> wrote:
+
+> How about this?
+
+I still don't understand this bug.
+
+> Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
+> I'll try to tackle that one as well.
 > 
-> I must profess to having a incomplete understanding of all of this
-> support, but then why would it be necessary to test VM_SHARED at
-> this point in msync()?
-
-That's basically just an optimization.  If it wasn't there, then data
-from a another (shared) mapping could be written back, which is not
-wrong, but not required either.
-
-> I ran into problems early on with file times being updated incorrectly
-> so I am a little sensitive this aspect.
+> If the per-bdi dirty counter goes below 16, balance_dirty_pages()
+> returns.
 > 
-> >>> +int set_page_dirty_mapping(struct page *page);
-> >>>   
-> >>>       
-> >> This aspect of the design seems intrusive to me.  I didn't see a strong
-> >> reason to introduce new versions of many of the routines just to handle
-> >> these semantics.  What motivated this part of your design?  Why the new
-> >> _mapping versions of routines?
-> >>     
-> >
-> > Because there's no way to know inside the set_page_dirty() functions
-> > if the dirtying comes from a memory mapping or from a modification
-> > through a normal write().  And they have different semantics, for
-> > write() the modification times are updated immediately.
+> Does the constant need to tunable?  If it's too large, then the global
+> threshold is more easily exceeded.  If it's too small, then in a tight
+> situation progress will be slower.
 > 
-> Perhaps I didn't understand what page_mapped() does, but it does seem to
-> have the right semantics as far as I could see.
+> Thanks,
+> Miklos
+> 
+> Index: linux/mm/page-writeback.c
+> ===================================================================
+> --- linux.orig/mm/page-writeback.c	2007-02-19 17:32:41.000000000 +0100
+> +++ linux/mm/page-writeback.c	2007-02-19 18:05:28.000000000 +0100
+> @@ -198,6 +198,25 @@ static void balance_dirty_pages(struct a
+>  			dirty_thresh)
+>  				break;
+>  
+> +		/*
+> +		 * Acquit this producer if there's little or nothing
+> +		 * to write back to this particular queue
+> +		 *
+> +		 * Without this check a deadlock is possible in the
+> +		 * following case:
+> +		 *
+> +		 * - filesystem A writes data through filesystem B
+> +		 * - filesystem A has dirty pages over dirty_thresh
+> +		 * - writeback is started, this triggers a write in B
+> +		 * - balance_dirty_pages() is called synchronously
+> +		 * - the write to B blocks
+> +		 * - the writeback completes, but dirty is still over threshold
+> +		 * - the blocking write prevents futher writes from happening
+> +		 */
+> +		if (atomic_long_read(&bdi->nr_dirty) +
+> +		    atomic_long_read(&bdi->nr_writeback) < 16)
+> +			break;
+> +
 
-The problems will start, when you have a file that is both mapped and
-modified with write().  Then the dirying from the write() will set the
-flag, and that will have undesirable consequences.
+The problem seems to that little "- the write to B blocks".
 
-Miklos
+How come it blocks?  I mean, if we cannot retire writes to that filesystem
+then we're screwed anyway.
+
+Anyway, I think I'll think about this issue a little later on.  You might
+as well prepare full changelogs for your proposed changes, because we'll be
+needing them anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
