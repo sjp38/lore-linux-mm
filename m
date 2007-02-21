@@ -1,185 +1,209 @@
-Message-Id: <20070221144842.593196000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144842.896272000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:15 +0100
+Date: Wed, 21 Feb 2007 15:43:18 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/29] net: packet split receive api
-Content-Disposition: inline; filename=net-ps_rx.patch
+Subject: [PATCH 14/29] netvm: INET reserves.
+Content-Disposition: inline; filename=netvm-reserve-inet.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Add some packet-split receive hooks.
+Add reserves for INET.
 
-For one this allows to do NUMA node affine page allocs.  Later on these hooks
-will be extended to do emergency reserve allocations for fragments.
+The two big users seem to be the route cache and ip-fragment cache.
+
+Account the route cache to the auxillary reserve.
+Account the fragments to the skb reserve so that one can at least
+overflow the fragment cache (avoids fragment deadlocks).
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- drivers/net/e1000/e1000_main.c |    8 ++------
- drivers/net/sky2.c             |   16 ++++++----------
- include/linux/skbuff.h         |   23 +++++++++++++++++++++++
- net/core/skbuff.c              |   20 ++++++++++++++++++++
- 4 files changed, 51 insertions(+), 16 deletions(-)
+ net/ipv4/ip_fragment.c     |    1 +
+ net/ipv4/route.c           |   18 +++++++++++++++++-
+ net/ipv4/sysctl_net_ipv4.c |   13 ++++++++++++-
+ net/ipv6/reassembly.c      |    1 +
+ net/ipv6/route.c           |   18 +++++++++++++++++-
+ net/ipv6/sysctl_net_ipv6.c |   12 +++++++++++-
+ 6 files changed, 59 insertions(+), 4 deletions(-)
 
-Index: linux-2.6-git/drivers/net/e1000/e1000_main.c
+Index: linux-2.6-git/net/ipv4/sysctl_net_ipv4.c
 ===================================================================
---- linux-2.6-git.orig/drivers/net/e1000/e1000_main.c	2007-02-14 08:31:12.000000000 +0100
-+++ linux-2.6-git/drivers/net/e1000/e1000_main.c	2007-02-14 11:42:07.000000000 +0100
-@@ -4412,12 +4412,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapt
- 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
- 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
- 			ps_page_dma->ps_page_dma[j] = 0;
--			skb_fill_page_desc(skb, j, ps_page->ps_page[j], 0,
--			                   length);
-+			skb_add_rx_frag(skb, j, ps_page->ps_page[j], 0, length);
- 			ps_page->ps_page[j] = NULL;
--			skb->len += length;
--			skb->data_len += length;
--			skb->truesize += length;
- 		}
+--- linux-2.6-git.orig/net/ipv4/sysctl_net_ipv4.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv4/sysctl_net_ipv4.c	2007-02-20 16:41:28.000000000 +0100
+@@ -18,6 +18,7 @@
+ #include <net/route.h>
+ #include <net/tcp.h>
+ #include <net/cipso_ipv4.h>
++#include <net/sock.h>
  
- 		/* strip the ethernet crc, problem is we're using pages now so
-@@ -4623,7 +4619,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_a
- 			if (j < adapter->rx_ps_pages) {
- 				if (likely(!ps_page->ps_page[j])) {
- 					ps_page->ps_page[j] =
--						alloc_page(GFP_ATOMIC);
-+						netdev_alloc_page(netdev);
- 					if (unlikely(!ps_page->ps_page[j])) {
- 						adapter->alloc_rx_buff_failed++;
- 						goto no_buffers;
-Index: linux-2.6-git/include/linux/skbuff.h
-===================================================================
---- linux-2.6-git.orig/include/linux/skbuff.h	2007-02-14 11:29:54.000000000 +0100
-+++ linux-2.6-git/include/linux/skbuff.h	2007-02-14 11:59:04.000000000 +0100
-@@ -813,6 +813,9 @@ static inline void skb_fill_page_desc(st
- 	skb_shinfo(skb)->nr_frags = i + 1;
+ /* From af_inet.c */
+ extern int sysctl_ip_nonlocal_bind;
+@@ -186,6 +187,16 @@ static int strategy_allowed_congestion_c
+ 
  }
  
-+extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
-+			    int off, int size);
-+
- #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
- #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
- #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
-@@ -1148,6 +1151,26 @@ static inline struct sk_buff *netdev_all
- 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
- }
- 
-+extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
-+
-+/**
-+ *	netdev_alloc_page - allocate a page for ps-rx on a specific device
-+ *	@dev: network device to receive on
-+ *
-+ * 	Allocate a new page node local to the specified device.
-+ *
-+ * 	%NULL is returned if there is no free memory.
-+ */
-+static inline struct page *netdev_alloc_page(struct net_device *dev)
++static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
 +{
-+	return __netdev_alloc_page(dev, GFP_ATOMIC);
++	int ret;
++	int old_thresh = *(int *)table->data;
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	skb_reserve_memory(*(int *)table->data - old_thresh);
++	return ret;
 +}
 +
-+static inline void netdev_free_page(struct net_device *dev, struct page *page)
-+{
-+	__free_page(page);
-+}
-+
- /**
-  *	skb_cow - copy header of skb when it is required
-  *	@skb: buffer to cow
-Index: linux-2.6-git/net/core/skbuff.c
+ ctl_table ipv4_table[] = {
+ 	{
+ 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
+@@ -291,7 +302,7 @@ ctl_table ipv4_table[] = {
+ 		.data		= &sysctl_ipfrag_high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
+Index: linux-2.6-git/net/ipv6/sysctl_net_ipv6.c
 ===================================================================
---- linux-2.6-git.orig/net/core/skbuff.c	2007-02-14 11:29:54.000000000 +0100
-+++ linux-2.6-git/net/core/skbuff.c	2007-02-14 12:01:40.000000000 +0100
-@@ -279,6 +279,24 @@ struct sk_buff *__netdev_alloc_skb(struc
- 	return skb;
- }
+--- linux-2.6-git.orig/net/ipv6/sysctl_net_ipv6.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv6/sysctl_net_ipv6.c	2007-02-20 16:41:28.000000000 +0100
+@@ -15,6 +15,16 @@
  
-+struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
+ #ifdef CONFIG_SYSCTL
+ 
++static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
 +{
-+	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
-+	struct page *page;
-+
-+	page = alloc_pages_node(node, gfp_mask, 0);
-+	return page;
++	int ret;
++	int old_thresh = *(int *)table->data;
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	skb_reserve_memory(*(int *)table->data - old_thresh);
++	return ret;
 +}
 +
-+void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
-+		int size)
-+{
-+	skb_fill_page_desc(skb, i, page, off, size);
-+	skb->len += size;
-+	skb->data_len += size;
-+	skb->truesize += size;
-+}
-+
- static void skb_drop_list(struct sk_buff **listp)
- {
- 	struct sk_buff *list = *listp;
-@@ -2066,6 +2084,8 @@ EXPORT_SYMBOL(kfree_skb);
- EXPORT_SYMBOL(__pskb_pull_tail);
- EXPORT_SYMBOL(__alloc_skb);
- EXPORT_SYMBOL(__netdev_alloc_skb);
-+EXPORT_SYMBOL(__netdev_alloc_page);
-+EXPORT_SYMBOL(skb_add_rx_frag);
- EXPORT_SYMBOL(pskb_copy);
- EXPORT_SYMBOL(pskb_expand_head);
- EXPORT_SYMBOL(skb_checksum);
-Index: linux-2.6-git/drivers/net/sky2.c
+ static ctl_table ipv6_table[] = {
+ 	{
+ 		.ctl_name	= NET_IPV6_ROUTE,
+@@ -44,7 +54,7 @@ static ctl_table ipv6_table[] = {
+ 		.data		= &sysctl_ip6frag_high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
+Index: linux-2.6-git/net/ipv4/ip_fragment.c
 ===================================================================
---- linux-2.6-git.orig/drivers/net/sky2.c	2007-02-14 08:31:12.000000000 +0100
-+++ linux-2.6-git/drivers/net/sky2.c	2007-02-14 12:00:22.000000000 +0100
-@@ -1083,7 +1083,7 @@ static struct sk_buff *sky2_rx_alloc(str
- 	skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
- 
- 	for (i = 0; i < sky2->rx_nfrags; i++) {
--		struct page *page = alloc_page(GFP_ATOMIC);
-+		struct page *page = netdev_alloc_page(sky2->netdev);
- 
- 		if (!page)
- 			goto free_partial;
-@@ -1972,8 +1972,8 @@ static struct sk_buff *receive_copy(stru
+--- linux-2.6-git.orig/net/ipv4/ip_fragment.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv4/ip_fragment.c	2007-02-20 16:41:28.000000000 +0100
+@@ -743,6 +743,7 @@ void ipfrag_init(void)
+ 	ipfrag_secret_timer.function = ipfrag_secret_rebuild;
+ 	ipfrag_secret_timer.expires = jiffies + sysctl_ipfrag_secret_interval;
+ 	add_timer(&ipfrag_secret_timer);
++	skb_reserve_memory(sysctl_ipfrag_high_thresh);
  }
  
- /* Adjust length of skb with fragments to match received data */
--static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
--			  unsigned int length)
-+static void skb_put_frags(struct sky2_port *sky2, struct sk_buff *skb,
-+			  unsigned int hdr_space, unsigned int length)
- {
- 	int i, num_frags;
- 	unsigned int size;
-@@ -1990,15 +1990,11 @@ static void skb_put_frags(struct sk_buff
+ EXPORT_SYMBOL(ip_defrag);
+Index: linux-2.6-git/net/ipv6/reassembly.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv6/reassembly.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv6/reassembly.c	2007-02-20 16:41:28.000000000 +0100
+@@ -772,4 +772,5 @@ void __init ipv6_frag_init(void)
+ 	ip6_frag_secret_timer.function = ip6_frag_secret_rebuild;
+ 	ip6_frag_secret_timer.expires = jiffies + sysctl_ip6frag_secret_interval;
+ 	add_timer(&ip6_frag_secret_timer);
++	skb_reserve_memory(sysctl_ip6frag_high_thresh);
+ }
+Index: linux-2.6-git/net/ipv4/route.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv4/route.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv4/route.c	2007-02-20 16:41:28.000000000 +0100
+@@ -2884,6 +2884,20 @@ static int ipv4_sysctl_rtcache_flush_str
+ 	return 0;
+ }
  
- 		if (length == 0) {
- 			/* don't need this page */
--			__free_page(frag->page);
-+			netdev_free_page(sky2->netdev, frag->page);
- 			--skb_shinfo(skb)->nr_frags;
- 		} else {
- 			size = min(length, (unsigned) PAGE_SIZE);
--
--			frag->size = size;
--			skb->data_len += size;
--			skb->truesize += size;
--			skb->len += size;
-+			skb_add_rx_frag(skb, i, frag->page, 0, size);
- 			length -= size;
- 		}
- 	}
-@@ -2027,7 +2023,7 @@ static struct sk_buff *receive_new(struc
- 	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
++static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int new_pages;
++	int old_pages = kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	new_pages = kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	aux_reserve_memory(new_pages - old_pages);
++	return ret;
++}
++
+ ctl_table ipv4_route_table[] = {
+ 	{
+ 		.ctl_name 	= NET_IPV4_ROUTE_FLUSH,
+@@ -2926,7 +2940,7 @@ ctl_table ipv4_route_table[] = {
+ 		.data		= &ip_rt_max_size,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec,
++		.proc_handler	= &proc_dointvec_rt_size,
+ 	},
+ 	{
+ 		/*  Deprecated. Use gc_min_interval_ms */
+@@ -3153,6 +3167,8 @@ int __init ip_rt_init(void)
  
- 	if (skb_shinfo(skb)->nr_frags)
--		skb_put_frags(skb, hdr_space, length);
-+		skb_put_frags(sky2, skb, hdr_space, length);
- 	else
- 		skb_put(skb, length);
- 	return skb;
+ 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
+ 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
++	aux_reserve_memory(kmem_cache_objs_to_pages(ipv4_dst_ops.kmem_cachep,
++				ip_rt_max_size));
+ 
+ 	devinet_init();
+ 	ip_fib_init();
+Index: linux-2.6-git/net/ipv6/route.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv6/route.c	2007-02-20 15:12:56.000000000 +0100
++++ linux-2.6-git/net/ipv6/route.c	2007-02-20 17:46:13.000000000 +0100
+@@ -2370,6 +2370,20 @@ int ipv6_sysctl_rtcache_flush(ctl_table 
+ 		return -EINVAL;
+ }
+ 
++static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int new_pages;
++	int old_pages = kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	new_pages = kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	aux_reserve_memory(new_pages - old_pages);
++	return ret;
++}
++
+ ctl_table ipv6_route_table[] = {
+ 	{
+ 		.ctl_name	=	NET_IPV6_ROUTE_FLUSH,
+@@ -2393,7 +2407,7 @@ ctl_table ipv6_route_table[] = {
+ 		.data		=	&ip6_rt_max_size,
+ 		.maxlen		=	sizeof(int),
+ 		.mode		=	0644,
+-		.proc_handler	=	&proc_dointvec,
++         	.proc_handler	=	&proc_dointvec_rt_size,
+ 	},
+ 	{
+ 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
+@@ -2478,6 +2492,8 @@ void __init ip6_route_init(void)
+ 
+ 	proc_net_fops_create("rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
+ #endif
++	aux_reserve_memory(kmem_cache_objs_to_pages(ip6_dst_ops.kmem_cachep,
++				ip6_rt_max_size));
+ #ifdef CONFIG_XFRM
+ 	xfrm6_init();
+ #endif
 
 -- 
 
