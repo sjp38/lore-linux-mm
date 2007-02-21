@@ -1,95 +1,154 @@
-Message-Id: <20070221144842.108927000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144844.179417000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:10 +0100
+Date: Wed, 21 Feb 2007 15:43:31 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/29] mm: __GFP_EMERGENCY
-Content-Disposition: inline; filename=mm-page_alloc-GFP_EMERGENCY.patch
+Subject: [PATCH 27/29] nfs: disable data cache revalidation for swapfiles
+Content-Disposition: inline; filename=nfs-swapper.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-__GFP_EMERGENCY will allow the allocation to disregard the watermarks, 
-much like PF_MEMALLOC.
+Do as Trond suggested:
+  http://lkml.org/lkml/2006/8/25/348
+
+Disable NFS data cache revalidation on swap files since it doesn't really 
+make sense to have other clients change the file while you are using it.
+
+Thereby we can stop setting PG_private on swap pages, since there ought to
+be no further races with invalidate_inode_pages2() to deal with.
+
+And since we cannot set PG_private we cannot use page->private (which is
+already used by PG_swapcache pages anyway) to store the nfs_page. Thus
+augment the new nfs_page_find_request logic.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/linux/gfp.h |    7 ++++++-
- mm/internal.h       |   10 +++++++---
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ fs/nfs/inode.c |    6 ++++++
+ fs/nfs/write.c |   35 +++++++++++++++++++++++------------
+ 2 files changed, 29 insertions(+), 12 deletions(-)
 
-Index: linux-2.6-git/include/linux/gfp.h
+Index: linux-2.6-git/fs/nfs/inode.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/gfp.h	2006-12-14 10:02:18.000000000 +0100
-+++ linux-2.6-git/include/linux/gfp.h	2006-12-14 10:02:52.000000000 +0100
-@@ -35,17 +35,21 @@ struct vm_area_struct;
- #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
- #define __GFP_IO	((__force gfp_t)0x40u)	/* Can start physical IO? */
- #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
-+
- #define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
- #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
- #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
- #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
-+
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
- #define __GFP_NO_GROW	((__force gfp_t)0x2000u)/* Slab internal usage */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
-+
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_EMERGENCY  ((__force gfp_t)0x80000u) /* Use emergency reserves */
+--- linux-2.6-git.orig/fs/nfs/inode.c	2007-02-21 11:04:08.000000000 +0100
++++ linux-2.6-git/fs/nfs/inode.c	2007-02-21 11:52:21.000000000 +0100
+@@ -719,6 +719,12 @@ int nfs_revalidate_mapping_nolock(struct
+ 	struct nfs_inode *nfsi = NFS_I(inode);
+ 	int ret = 0;
  
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -54,7 +58,8 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
-+			__GFP_EMERGENCY)
- 
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-Index: linux-2.6-git/mm/internal.h
++	/*
++	 * swapfiles are not supposed to be shared.
++	 */
++	if (IS_SWAPFILE(inode))
++		goto out;
++
+ 	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+ 			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
+ 		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+Index: linux-2.6-git/fs/nfs/write.c
 ===================================================================
---- linux-2.6-git.orig/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
-+++ linux-2.6-git/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
-@@ -75,7 +75,9 @@ static int inline gfp_to_alloc_flags(gfp
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+		if (gfp_mask & __GFP_EMERGENCY)
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_irq() && (p->flags & PF_MEMALLOC))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 		else if (!in_interrupt() &&
- 				unlikely(test_thread_flag(TIF_MEMDIE)))
-@@ -103,7 +105,7 @@ static inline int alloc_flags_to_rank(in
- 	return rank;
+--- linux-2.6-git.orig/fs/nfs/write.c	2007-02-21 11:52:17.000000000 +0100
++++ linux-2.6-git/fs/nfs/write.c	2007-02-21 11:53:18.000000000 +0100
+@@ -107,7 +107,7 @@ void nfs_writedata_release(void *wdata)
+ 	nfs_writedata_free(wdata);
  }
  
--static inline int gfp_to_rank(gfp_t gfp_mask)
-+static __always_inline int gfp_to_rank(gfp_t gfp_mask)
+-static struct nfs_page *nfs_page_find_request_locked(struct page *page)
++static struct nfs_page *nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
  {
- 	/*
- 	 * Although correct this full version takes a ~3% performance
-@@ -118,7 +120,9 @@ static inline int gfp_to_rank(gfp_t gfp_
- 	 */
+ 	struct nfs_page *req = NULL;
  
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_irq() && (current->flags & PF_MEMALLOC))
-+		if (gfp_mask & __GFP_EMERGENCY)
-+			return 0;
-+		else if (!in_irq() && (current->flags & PF_MEMALLOC))
- 			return 0;
- 		else if (!in_interrupt() &&
- 				unlikely(test_thread_flag(TIF_MEMDIE)))
+@@ -115,6 +115,10 @@ static struct nfs_page *nfs_page_find_re
+ 		req = (struct nfs_page *)page_private(page);
+ 		if (req != NULL)
+ 			atomic_inc(&req->wb_count);
++	} else if (unlikely(PageSwapCache(page))) {
++		req = radix_tree_lookup(&nfsi->nfs_page_tree, page_file_index(page));
++		if (req != NULL)
++			atomic_inc(&req->wb_count);
+ 	}
+ 	return req;
+ }
+@@ -122,10 +126,11 @@ static struct nfs_page *nfs_page_find_re
+ static struct nfs_page *nfs_page_find_request(struct page *page)
+ {
+ 	struct nfs_page *req = NULL;
+-	spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
++	struct nfs_inode *nfsi = NFS_I(page_file_mapping(page)->host);
++	spinlock_t *req_lock = &nfsi->req_lock;
+ 
+ 	spin_lock(req_lock);
+-	req = nfs_page_find_request_locked(page);
++	req = nfs_page_find_request_locked(nfsi, page);
+ 	spin_unlock(req_lock);
+ 	return req;
+ }
+@@ -248,12 +253,13 @@ static void nfs_end_page_writeback(struc
+ static int nfs_page_mark_flush(struct page *page)
+ {
+ 	struct nfs_page *req;
+-	spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
++	struct nfs_inode *nfsi = NFS_I(page_file_mapping(page)->host);
++	spinlock_t *req_lock = &nfsi->req_lock;
+ 	int ret;
+ 
+ 	spin_lock(req_lock);
+ 	for(;;) {
+-		req = nfs_page_find_request_locked(page);
++		req = nfs_page_find_request_locked(nfsi, page);
+ 		if (req == NULL) {
+ 			spin_unlock(req_lock);
+ 			return 1;
+@@ -368,8 +374,14 @@ static int nfs_inode_add_request(struct 
+ 		if (nfs_have_delegation(inode, FMODE_WRITE))
+ 			nfsi->change_attr++;
+ 	}
+-	SetPagePrivate(req->wb_page);
+-	set_page_private(req->wb_page, (unsigned long)req);
++	/*
++	 * Swap-space should not get truncated. Hence no need to plug the race
++	 * with invalidate/truncate.
++	 */
++	if (likely(!PageSwapCache(req->wb_page))) {
++		SetPagePrivate(req->wb_page);
++		set_page_private(req->wb_page, (unsigned long)req);
++	}
+ 	nfsi->npages++;
+ 	atomic_inc(&req->wb_count);
+ 	return 0;
+@@ -386,8 +398,10 @@ static void nfs_inode_remove_request(str
+ 	BUG_ON (!NFS_WBACK_BUSY(req));
+ 
+ 	spin_lock(&nfsi->req_lock);
+-	set_page_private(req->wb_page, 0);
+-	ClearPagePrivate(req->wb_page);
++	if (likely(!PageSwapCache(req->wb_page))) {
++		set_page_private(req->wb_page, 0);
++		ClearPagePrivate(req->wb_page);
++	}
+ 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
+ 	nfsi->npages--;
+ 	if (!nfsi->npages) {
+@@ -600,7 +614,7 @@ static struct nfs_page * nfs_update_requ
+ 		 * A request for the page we wish to update
+ 		 */
+ 		spin_lock(&nfsi->req_lock);
+-		req = nfs_page_find_request_locked(page);
++		req = nfs_page_find_request_locked(nfsi, page);
+ 		if (req) {
+ 			if (!nfs_lock_request_dontget(req)) {
+ 				int error;
+@@ -1472,8 +1486,6 @@ int nfs_wb_page_priority(struct inode *i
+ 		if (ret < 0)
+ 			goto out;
+ 	}
+-	if (!PagePrivate(page))
+-		return 0;
+ 	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
+ 	if (ret >= 0)
+ 		return 0;
 
 -- 
 
