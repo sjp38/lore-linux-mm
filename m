@@ -1,261 +1,490 @@
-Message-Id: <20070221144841.627489000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144843.002458000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:05 +0100
+Date: Wed, 21 Feb 2007 15:43:19 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 01/29] mm: page allocation rank
-Content-Disposition: inline; filename=mm-page_alloc-rank.patch
+Subject: [PATCH 15/29] netvm: hook skb allocation to reserves
+Content-Disposition: inline; filename=netvm-skbuff-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Introduce page allocation rank.
+Change the skb allocation api to indicate RX usage and use this to fall back to
+the reserve when needed. Skbs allocated from the reserve are tagged in
+skb->emergency.
 
-This allocation rank is an measure of the 'hardness' of the page allocation.
-Where hardness refers to how deep we have to reach (and thereby if reclaim 
-was activated) to obtain the page.
+Teach all other skb ops about emergency skbs and the reserve accounting.
 
-It basically is a mapping from the ALLOC_/gfp flags into a scalar quantity,
-which allows for comparisons of the kind: 
-  'would this allocation have succeeded using these gfp flags'.
+Use the (new) packet split API to allocate and track fragment pages from the
+emergency reserve. Do this using an atomic counter in page->index. This is
+needed because the fragments have a different sharing semantic than that
+indicated by skb_shinfo()->dataref. 
 
-For the gfp -> alloc_flags mapping we use the 'hardest' possible, those
-used by __alloc_pages() right before going into direct reclaim.
-
-The alloc_flags -> rank mapping is given by: 2*2^wmark - harder - 2*high
-where wmark = { min = 1, low, high } and harder, high are booleans.
-This gives:
-  0 is the hardest possible allocation - ALLOC_NO_WATERMARK,
-  1 is ALLOC_WMARK_MIN|ALLOC_HARDER|ALLOC_HIGH,
-  ...
-  15 is ALLOC_WMARK_HIGH|ALLOC_HARDER,
-  16 is the softest allocation - ALLOC_WMARK_HIGH.
-
-Rank <= 4 will have woke up kswapd and when also > 0 might have ran into
-direct reclaim.
-
-Rank > 8 rarely happens and means lots of memory free (due to parallel oom kill).
-
-The allocation rank is stored in page->index for successful allocations.
-
-'offline' testing of the rank is made impossible by direct reclaim and
-fragmentation issues. That is, it is impossible to tell if a given allocation
-will succeed without actually doing it.
-
-The purpose of this measure is to introduce some fairness into the slab
-allocator.
+(NOTE the extra atomic overhead is only for those pages allocated from the
+reserves - it does not affect the normal fast path.)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/internal.h   |   89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c |   58 ++++++++++--------------------------
- 2 files changed, 106 insertions(+), 41 deletions(-)
+ include/linux/skbuff.h |   22 ++++--
+ net/core/skbuff.c      |  170 ++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 165 insertions(+), 27 deletions(-)
 
-Index: linux-2.6-git/mm/internal.h
+Index: linux-2.6-git/include/linux/skbuff.h
 ===================================================================
---- linux-2.6-git.orig/mm/internal.h	2007-01-08 11:53:13.000000000 +0100
-+++ linux-2.6-git/mm/internal.h	2007-01-09 11:29:18.000000000 +0100
-@@ -12,6 +12,7 @@
- #define __MM_INTERNAL_H
+--- linux-2.6-git.orig/include/linux/skbuff.h	2007-02-15 12:31:05.000000000 +0100
++++ linux-2.6-git/include/linux/skbuff.h	2007-02-15 12:31:05.000000000 +0100
+@@ -284,7 +284,8 @@ struct sk_buff {
+ 				nfctinfo:3;
+ 	__u8			pkt_type:3,
+ 				fclone:2,
+-				ipvs_property:1;
++				ipvs_property:1,
++				emergency:1;
+ 	__be16			protocol;
  
- #include <linux/mm.h>
-+#include <linux/hardirq.h>
+ 	void			(*destructor)(struct sk_buff *skb);
+@@ -329,10 +330,19 @@ struct sk_buff {
  
- static inline void set_page_count(struct page *page, int v)
+ #include <asm/system.h>
+ 
++#define SKB_ALLOC_FCLONE	0x01
++#define SKB_ALLOC_RX		0x02
++
++#ifdef CONFIG_NETVM
++#define skb_emergency(skb)	unlikely((skb)->emergency)
++#else
++#define skb_emergency(skb)	false
++#endif
++
+ extern void kfree_skb(struct sk_buff *skb);
+ extern void	       __kfree_skb(struct sk_buff *skb);
+ extern struct sk_buff *__alloc_skb(unsigned int size,
+-				   gfp_t priority, int fclone, int node);
++				   gfp_t priority, int flags, int node);
+ static inline struct sk_buff *alloc_skb(unsigned int size,
+ 					gfp_t priority)
  {
-@@ -37,4 +38,92 @@ static inline void __put_page(struct pag
- extern void fastcall __init __free_pages_bootmem(struct page *page,
- 						unsigned int order);
- 
-+#define ALLOC_HARDER		0x01 /* try to alloc harder */
-+#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
-+#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
-+#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
-+#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
-+#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
-+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-+
-+/*
-+ * get the deepest reaching allocation flags for the given gfp_mask
-+ */
-+static int inline gfp_to_alloc_flags(gfp_t gfp_mask)
-+{
-+	struct task_struct *p = current;
-+	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-+	const gfp_t wait = gfp_mask & __GFP_WAIT;
-+
-+	/*
-+	 * The caller may dip into page reserves a bit more if the caller
-+	 * cannot run direct reclaim, or if the caller has realtime scheduling
-+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-+	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-+	 */
-+	if (gfp_mask & __GFP_HIGH)
-+		alloc_flags |= ALLOC_HIGH;
-+
-+	if (!wait) {
-+		alloc_flags |= ALLOC_HARDER;
-+		/*
-+		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-+		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-+		 */
-+		alloc_flags &= ~ALLOC_CPUSET;
-+	} else if (unlikely(rt_task(p)) && !in_interrupt())
-+		alloc_flags |= ALLOC_HARDER;
-+
-+	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-+		if (!in_interrupt() &&
-+		    ((p->flags & PF_MEMALLOC) ||
-+		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+	}
-+
-+	return alloc_flags;
-+}
-+
-+#define MAX_ALLOC_RANK	16
-+
-+/*
-+ * classify the allocation: 0 is hardest, 16 is easiest.
-+ */
-+static inline int alloc_flags_to_rank(int alloc_flags)
-+{
-+	int rank;
-+
-+	if (alloc_flags & ALLOC_NO_WATERMARKS)
-+		return 0;
-+
-+	rank = alloc_flags & (ALLOC_WMARK_MIN|ALLOC_WMARK_LOW|ALLOC_WMARK_HIGH);
-+	rank -= alloc_flags & (ALLOC_HARDER|ALLOC_HIGH);
-+
-+	return rank;
-+}
-+
-+static inline int gfp_to_rank(gfp_t gfp_mask)
-+{
-+	/*
-+	 * Although correct this full version takes a ~3% performance
-+	 * hit on the network tests in aim9.
-+	 *
-+
-+	return alloc_flags_to_rank(gfp_to_alloc_flags(gfp_mask));
-+
-+	 *
-+	 * Just check the bare essential ALLOC_NO_WATERMARKS case this keeps
-+	 * the aim9 results within the error margin.
-+	 */
-+
-+	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-+		if (!in_interrupt() &&
-+		    ((current->flags & PF_MEMALLOC) ||
-+		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+			return 0;
-+	}
-+
-+	return 1;
-+}
-+
- #endif
-Index: linux-2.6-git/mm/page_alloc.c
-===================================================================
---- linux-2.6-git.orig/mm/page_alloc.c	2007-01-08 11:53:13.000000000 +0100
-+++ linux-2.6-git/mm/page_alloc.c	2007-01-09 11:29:18.000000000 +0100
-@@ -888,14 +888,6 @@ failed:
- 	return NULL;
+@@ -342,7 +352,7 @@ static inline struct sk_buff *alloc_skb(
+ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
+ 					       gfp_t priority)
+ {
+-	return __alloc_skb(size, priority, 1, -1);
++	return __alloc_skb(size, priority, SKB_ALLOC_FCLONE, -1);
  }
  
--#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
--#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
--#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
--#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
--#define ALLOC_HARDER		0x10 /* try to alloc harder */
--#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
--#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
--
- #ifdef CONFIG_FAIL_PAGE_ALLOC
+ extern void	       kfree_skbmem(struct sk_buff *skb);
+@@ -1103,7 +1113,8 @@ static inline void __skb_queue_purge(str
+ static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
+ 					      gfp_t gfp_mask)
+ {
+-	struct sk_buff *skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
++	struct sk_buff *skb =
++		__alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, -1);
+ 	if (likely(skb))
+ 		skb_reserve(skb, NET_SKB_PAD);
+ 	return skb;
+@@ -1149,6 +1160,7 @@ static inline struct sk_buff *netdev_all
+ }
  
- static struct fail_page_alloc_attr {
-@@ -1186,6 +1178,7 @@ zonelist_scan:
+ extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
++extern void __netdev_free_page(struct net_device *dev, struct page *page);
  
- 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
- 		if (page)
-+			page->index = alloc_flags_to_rank(alloc_flags);
- 			break;
- this_zone_full:
- 		if (NUMA_BUILD)
-@@ -1259,48 +1252,27 @@ restart:
- 	 * OK, we're below the kswapd watermark and have kicked background
- 	 * reclaim. Now things get more complex, so set up alloc_flags according
- 	 * to how we want to proceed.
--	 *
--	 * The caller may dip into page reserves a bit more if the caller
--	 * cannot run direct reclaim, or if the caller has realtime scheduling
--	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
--	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
- 	 */
--	alloc_flags = ALLOC_WMARK_MIN;
--	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
--		alloc_flags |= ALLOC_HARDER;
--	if (gfp_mask & __GFP_HIGH)
--		alloc_flags |= ALLOC_HIGH;
--	if (wait)
--		alloc_flags |= ALLOC_CPUSET;
-+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+ /**
+  *	netdev_alloc_page - allocate a page for ps-rx on a specific device
+@@ -1165,7 +1177,7 @@ static inline struct page *netdev_alloc_
  
--	/*
--	 * Go through the zonelist again. Let __GFP_HIGH and allocations
--	 * coming from realtime tasks go deeper into reserves.
--	 *
--	 * This is the last chance, in general, before the goto nopage.
--	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
--	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
--	 */
--	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
-+	/* This is the last chance, in general, before the goto nopage. */
-+	page = get_page_from_freelist(gfp_mask, order, zonelist,
-+			alloc_flags & ~ALLOC_NO_WATERMARKS);
- 	if (page)
- 		goto got_pg;
+ static inline void netdev_free_page(struct net_device *dev, struct page *page)
+ {
+-	__free_page(page);
++	__netdev_free_page(dev, page);
+ }
  
- 	/* This allocation should allow future memory freeing. */
--
- rebalance:
--	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
--			&& !in_interrupt()) {
--		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- nofail_alloc:
--			/* go through the zonelist yet again, ignoring mins */
--			page = get_page_from_freelist(gfp_mask, order,
-+		/* go through the zonelist yet again, ignoring mins */
-+		page = get_page_from_freelist(gfp_mask, order,
- 				zonelist, ALLOC_NO_WATERMARKS);
--			if (page)
--				goto got_pg;
--			if (gfp_mask & __GFP_NOFAIL) {
--				congestion_wait(WRITE, HZ/50);
--				goto nofail_alloc;
--			}
-+		if (page)
-+			goto got_pg;
-+		if (wait && (gfp_mask & __GFP_NOFAIL)) {
-+			congestion_wait(WRITE, HZ/50);
-+			goto nofail_alloc;
- 		}
- 		goto nopage;
+ /**
+Index: linux-2.6-git/net/core/skbuff.c
+===================================================================
+--- linux-2.6-git.orig/net/core/skbuff.c	2007-02-15 12:31:05.000000000 +0100
++++ linux-2.6-git/net/core/skbuff.c	2007-02-15 12:45:50.000000000 +0100
+@@ -142,28 +142,36 @@ EXPORT_SYMBOL(skb_truesize_bug);
+  *	%GFP_ATOMIC.
+  */
+ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+-			    int fclone, int node)
++			    int flags, int node)
+ {
+ 	struct kmem_cache *cache;
+ 	struct skb_shared_info *shinfo;
+ 	struct sk_buff *skb;
+ 	u8 *data;
++	int emergency = 0;
+ 
+-	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
++	size = SKB_DATA_ALIGN(size);
++	cache = (flags & SKB_ALLOC_FCLONE)
++		? skbuff_fclone_cache : skbuff_head_cache;
++#ifdef CONFIG_NETVM
++	if (flags & SKB_ALLOC_RX)
++		gfp_mask |= __GFP_NOMEMALLOC|__GFP_NOWARN;
++#endif
+ 
++retry_alloc:
+ 	/* Get the HEAD */
+ 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
+ 	if (!skb)
+-		goto out;
++		goto noskb;
+ 
+ 	/* Get the DATA. Size must match skb_add_mtu(). */
+-	size = SKB_DATA_ALIGN(size);
+ 	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
+ 			gfp_mask, node);
+ 	if (!data)
+ 		goto nodata;
+ 
+ 	memset(skb, 0, offsetof(struct sk_buff, truesize));
++	skb->emergency = emergency;
+ 	skb->truesize = size + sizeof(struct sk_buff);
+ 	atomic_set(&skb->users, 1);
+ 	skb->head = data;
+@@ -180,7 +188,7 @@ struct sk_buff *__alloc_skb(unsigned int
+ 	shinfo->ip6_frag_id = 0;
+ 	shinfo->frag_list = NULL;
+ 
+-	if (fclone) {
++	if (flags & SKB_ALLOC_FCLONE) {
+ 		struct sk_buff *child = skb + 1;
+ 		atomic_t *fclone_ref = (atomic_t *) (child + 1);
+ 
+@@ -188,12 +196,31 @@ struct sk_buff *__alloc_skb(unsigned int
+ 		atomic_set(fclone_ref, 1);
+ 
+ 		child->fclone = SKB_FCLONE_UNAVAILABLE;
++		child->emergency = skb->emergency;
  	}
-@@ -1309,6 +1281,10 @@ nofail_alloc:
- 	if (!wait)
- 		goto nopage;
- 
-+	/* Avoid recursion of direct reclaim */
-+	if (p->flags & PF_MEMALLOC)
-+		goto nopage;
+ out:
+ 	return skb;
 +
- 	cond_resched();
+ nodata:
+ 	kmem_cache_free(cache, skb);
+ 	skb = NULL;
++noskb:
++#ifdef CONFIG_NETVM
++	/* Attempt emergency allocation when RX skb. */
++	if (likely(!(flags & SKB_ALLOC_RX) || !sk_vmio_socks()))
++		goto out;
++
++	if (!emergency) {
++		if (rx_emergency_get(size)) {
++			gfp_mask &= ~(__GFP_NOMEMALLOC|__GFP_NOWARN);
++			gfp_mask |= __GFP_EMERGENCY;
++			emergency = 1;
++			goto retry_alloc;
++		}
++	} else
++		rx_emergency_put(size);
++#endif
++
+ 	goto out;
+ }
  
- 	/* We now go into synchronous reclaim */
+@@ -216,7 +243,7 @@ struct sk_buff *__netdev_alloc_skb(struc
+ 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
+ 	struct sk_buff *skb;
+ 
+-	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
++ 	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, node);
+ 	if (likely(skb)) {
+ 		skb_reserve(skb, NET_SKB_PAD);
+ 		skb->dev = dev;
+@@ -229,10 +256,34 @@ struct page *__netdev_alloc_page(struct 
+ 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
+ 	struct page *page;
+ 
++#ifdef CONFIG_NETVM
++	gfp_mask |= __GFP_NOMEMALLOC | __GFP_NOWARN;
++#endif
++
+ 	page = alloc_pages_node(node, gfp_mask, 0);
++
++#ifdef CONFIG_NETVM
++	if (!page && rx_emergency_get(PAGE_SIZE)) {
++		gfp_mask &= ~(__GFP_NOMEMALLOC | __GFP_NOWARN);
++		gfp_mask |= __GFP_EMERGENCY;
++		page = alloc_pages_node(node, gfp_mask, 0);
++		if (!page)
++			rx_emergency_put(PAGE_SIZE);
++	}
++#endif
++
+ 	return page;
+ }
+ 
++void __netdev_free_page(struct net_device *dev, struct page *page)
++{
++#ifdef CONFIG_NETVM
++	if (unlikely(page->index == 0))
++		rx_emergency_put(PAGE_SIZE);
++#endif
++	__free_page(page);
++}
++
+ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
+ 		int size)
+ {
+@@ -240,6 +291,33 @@ void skb_add_rx_frag(struct sk_buff *skb
+ 	skb->len += size;
+ 	skb->data_len += size;
+ 	skb->truesize += size;
++
++#ifdef CONFIG_NETVM
++	/*
++	 * Fix-up the emergency accounting; make sure all pages match
++	 * skb->emergency.
++	 *
++	 * This relies on the page rank (page->index) to be preserved between
++	 * the call to __netdev_alloc_page() and this call.
++	 */
++	if (skb_emergency(skb)) {
++		/*
++		 * If the page rank wasn't 0 (ALLOC_NO_WATERMARK) we can use
++		 * overcommit accounting, since we already have the memory.
++		 */
++		if (page->index != 0)
++			rx_emergency_get_overcommit(PAGE_SIZE);
++		atomic_set((atomic_t *)&page->index, 1);
++	} else if (unlikely(page->index == 0)) {
++		/*
++		 * Rare case; the skb wasn't allocated under pressure but
++		 * the page was. We need to return the page. This can offset
++		 * the accounting a little, but its a constant shift, it does
++		 * not accumulate.
++		 */
++		rx_emergency_put(PAGE_SIZE);
++	}
++#endif
+ }
+ 
+ static void skb_drop_list(struct sk_buff **listp)
+@@ -273,16 +351,25 @@ static void skb_release_data(struct sk_b
+ 	if (!skb->cloned ||
+ 	    !atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
+ 			       &skb_shinfo(skb)->dataref)) {
++		int size = skb->end - skb->head;
++
+ 		if (skb_shinfo(skb)->nr_frags) {
+ 			int i;
+-			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+-				put_page(skb_shinfo(skb)->frags[i].page);
++			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
++				struct page *page = skb_shinfo(skb)->frags[i].page;
++				put_page(page);
++				if (skb_emergency(skb) &&
++				    atomic_dec_and_test((atomic_t *)&page->index))
++					rx_emergency_put(PAGE_SIZE);
++			}
+ 		}
+ 
+ 		if (skb_shinfo(skb)->frag_list)
+ 			skb_drop_fraglist(skb);
+ 
+ 		kfree(skb->head);
++		if (skb_emergency(skb))
++			rx_emergency_put(size);
+ 	}
+ }
+ 
+@@ -403,6 +490,9 @@ struct sk_buff *skb_clone(struct sk_buff
+ 		n->fclone = SKB_FCLONE_CLONE;
+ 		atomic_inc(fclone_ref);
+ 	} else {
++		if (skb_emergency(skb))
++			gfp_mask |= __GFP_EMERGENCY;
++
+ 		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+ 		if (!n)
+ 			return NULL;
+@@ -437,6 +527,7 @@ struct sk_buff *skb_clone(struct sk_buff
+ #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+ 	C(ipvs_property);
+ #endif
++	C(emergency);
+ 	C(protocol);
+ 	n->destructor = NULL;
+ 	C(mark);
+@@ -530,6 +621,8 @@ static void copy_skb_header(struct sk_bu
+ 	skb_shinfo(new)->gso_type = skb_shinfo(old)->gso_type;
+ }
+ 
++#define skb_alloc_rx(skb) (skb_emergency(skb) ? SKB_ALLOC_RX : 0)
++
+ /**
+  *	skb_copy	-	create private copy of an sk_buff
+  *	@skb: buffer to copy
+@@ -553,8 +646,8 @@ struct sk_buff *skb_copy(const struct sk
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
+-	struct sk_buff *n = alloc_skb(skb->end - skb->head + skb->data_len,
+-				      gfp_mask);
++	struct sk_buff *n = __alloc_skb(skb->end - skb->head + skb->data_len,
++					gfp_mask, skb_alloc_rx(skb), -1);
+ 	if (!n)
+ 		return NULL;
+ 
+@@ -591,7 +684,8 @@ struct sk_buff *pskb_copy(struct sk_buff
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
+-	struct sk_buff *n = alloc_skb(skb->end - skb->head, gfp_mask);
++	struct sk_buff *n = __alloc_skb(skb->end - skb->head, gfp_mask,
++					skb_alloc_rx(skb), -1);
+ 
+ 	if (!n)
+ 		goto out;
+@@ -613,8 +707,11 @@ struct sk_buff *pskb_copy(struct sk_buff
+ 		int i;
+ 
+ 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+-			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
+-			get_page(skb_shinfo(n)->frags[i].page);
++			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
++			skb_shinfo(n)->frags[i] = *frag;
++			get_page(frag->page);
++			if (skb_emergency(n))
++				atomic_inc((atomic_t *)&frag->page->index);
+ 		}
+ 		skb_shinfo(n)->nr_frags = i;
+ 	}
+@@ -652,12 +749,19 @@ int pskb_expand_head(struct sk_buff *skb
+ 	u8 *data;
+ 	int size = nhead + (skb->end - skb->head) + ntail;
+ 	long off;
++	int emergency = 0;
+ 
+ 	if (skb_shared(skb))
+ 		BUG();
+ 
+ 	size = SKB_DATA_ALIGN(size);
+ 
++	if (skb_emergency(skb) && rx_emergency_get(size)) {
++		gfp_mask |= __GFP_EMERGENCY;
++		emergency = 1;
++	} else
++		gfp_mask |= __GFP_NOMEMALLOC;
++
+ 	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
+ 	if (!data)
+ 		goto nodata;
+@@ -667,8 +771,12 @@ int pskb_expand_head(struct sk_buff *skb
+ 	memcpy(data + nhead, skb->head, skb->tail - skb->head);
+ 	memcpy(data + size, skb->end, sizeof(struct skb_shared_info));
+ 
+-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+-		get_page(skb_shinfo(skb)->frags[i].page);
++	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
++		struct page *page = skb_shinfo(skb)->frags[i].page;
++		get_page(page);
++		if (emergency)
++			atomic_inc((atomic_t *)&page->index);
++	}
+ 
+ 	if (skb_shinfo(skb)->frag_list)
+ 		skb_clone_fraglist(skb);
+@@ -690,6 +798,8 @@ int pskb_expand_head(struct sk_buff *skb
+ 	return 0;
+ 
+ nodata:
++	if (unlikely(emergency))
++		rx_emergency_put(size);
+ 	return -ENOMEM;
+ }
+ 
+@@ -742,8 +852,8 @@ struct sk_buff *skb_copy_expand(const st
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
+-	struct sk_buff *n = alloc_skb(newheadroom + skb->len + newtailroom,
+-				      gfp_mask);
++	struct sk_buff *n = __alloc_skb(newheadroom + skb->len + newtailroom,
++					gfp_mask, skb_alloc_rx(skb), -1);
+ 	int head_copy_len, head_copy_off;
+ 
+ 	if (!n)
+@@ -849,8 +959,13 @@ int ___pskb_trim(struct sk_buff *skb, un
+ drop_pages:
+ 		skb_shinfo(skb)->nr_frags = i;
+ 
+-		for (; i < nfrags; i++)
+-			put_page(skb_shinfo(skb)->frags[i].page);
++		for (; i < nfrags; i++) {
++			struct page *page = skb_shinfo(skb)->frags[i].page;
++			put_page(page);
++			if (skb_emergency(skb) &&
++			    atomic_dec_and_test((atomic_t *)&page->index))
++				rx_emergency_put(PAGE_SIZE);
++		}
+ 
+ 		if (skb_shinfo(skb)->frag_list)
+ 			skb_drop_fraglist(skb);
+@@ -1019,7 +1134,11 @@ pull_pages:
+ 	k = 0;
+ 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+ 		if (skb_shinfo(skb)->frags[i].size <= eat) {
+-			put_page(skb_shinfo(skb)->frags[i].page);
++			struct page *page = skb_shinfo(skb)->frags[i].page;
++			put_page(page);
++			if (skb_emergency(skb) &&
++			    atomic_dec_and_test((atomic_t *)&page->index))
++				rx_emergency_put(PAGE_SIZE);
+ 			eat -= skb_shinfo(skb)->frags[i].size;
+ 		} else {
+ 			skb_shinfo(skb)->frags[k] = skb_shinfo(skb)->frags[i];
+@@ -1593,6 +1712,7 @@ static inline void skb_split_no_header(s
+ 			skb_shinfo(skb1)->frags[k] = skb_shinfo(skb)->frags[i];
+ 
+ 			if (pos < len) {
++				struct page *page = skb_shinfo(skb)->frags[i].page;
+ 				/* Split frag.
+ 				 * We have two variants in this case:
+ 				 * 1. Move all the frag to the second
+@@ -1601,7 +1721,9 @@ static inline void skb_split_no_header(s
+ 				 *    where splitting is expensive.
+ 				 * 2. Split is accurately. We make this.
+ 				 */
+-				get_page(skb_shinfo(skb)->frags[i].page);
++				get_page(page);
++				if (skb_emergency(skb1))
++					atomic_inc((atomic_t *)&page->index);
+ 				skb_shinfo(skb1)->frags[0].page_offset += len - pos;
+ 				skb_shinfo(skb1)->frags[0].size -= len - pos;
+ 				skb_shinfo(skb)->frags[i].size	= len - pos;
+@@ -1927,7 +2049,8 @@ struct sk_buff *skb_segment(struct sk_bu
+ 		if (hsize > len || !sg)
+ 			hsize = len;
+ 
+-		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
++		nskb = __alloc_skb(hsize + doffset + headroom, GFP_ATOMIC,
++				   skb_alloc_rx(skb), -1);
+ 		if (unlikely(!nskb))
+ 			goto err;
+ 
+@@ -1970,6 +2093,8 @@ struct sk_buff *skb_segment(struct sk_bu
+ 
+ 			*frag = skb_shinfo(skb)->frags[i];
+ 			get_page(frag->page);
++			if (skb_emergency(nskb))
++				atomic_inc((atomic_t *)&frag->page->index);
+ 			size = frag->size;
+ 
+ 			if (pos < offset) {
+@@ -2030,6 +2155,7 @@ EXPORT_SYMBOL(__pskb_pull_tail);
+ EXPORT_SYMBOL(__alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_page);
++EXPORT_SYMBOL(__netdev_free_page);
+ EXPORT_SYMBOL(skb_add_rx_frag);
+ EXPORT_SYMBOL(pskb_copy);
+ EXPORT_SYMBOL(pskb_expand_head);
 
 -- 
 
