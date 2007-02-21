@@ -1,184 +1,187 @@
-Message-Id: <20070221144843.433257000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144843.599206000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:23 +0100
+Date: Wed, 21 Feb 2007 15:43:25 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 19/29] netvm: skb processing
-Content-Disposition: inline; filename=netvm.patch
+Subject: [PATCH 21/29] mm: prepare swap entry methods for use in page methods
+Content-Disposition: inline; filename=mm-swap_entry_methods.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-In order to make sure emergency packets receive all memory needed to proceed
-ensure processing of emergency skbs happens under PF_MEMALLOC.
+Move around the swap entry methods in preparation for use from
+page methods.
 
-Use the (new) sk_backlog_rcv() wrapper to ensure this for backlog processing.
-
-Skip taps, since those are user-space again.
+Also provide a function to obtain the swap_info_struct backing
+a swap cache page.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/net/sock.h |    4 ++++
- net/core/dev.c     |   42 +++++++++++++++++++++++++++++++++++++-----
- net/core/sock.c    |   19 +++++++++++++++++++
- 3 files changed, 60 insertions(+), 5 deletions(-)
+ include/linux/mm.h      |    8 ++++++++
+ include/linux/swap.h    |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/swapops.h |   44 --------------------------------------------
+ mm/swapfile.c           |    1 +
+ 4 files changed, 57 insertions(+), 44 deletions(-)
 
-Index: linux-2.6-git/net/core/dev.c
+Index: linux-2.6-git/include/linux/mm.h
 ===================================================================
---- linux-2.6-git.orig/net/core/dev.c	2007-02-14 12:16:03.000000000 +0100
-+++ linux-2.6-git/net/core/dev.c	2007-02-14 12:28:33.000000000 +0100
-@@ -1767,10 +1767,23 @@ int netif_receive_skb(struct sk_buff *sk
- 	struct net_device *orig_dev;
- 	int ret = NET_RX_DROP;
- 	__be16 type;
-+	unsigned long pflags = current->flags;
-+
-+	/* Emergency skb are special, they should
-+	 *  - be delivered to SOCK_VMIO sockets only
-+	 *  - stay away from userspace
-+	 *  - have bounded memory usage
-+	 *
-+	 * Use PF_MEMALLOC as a poor mans memory pool - the grouping kind.
-+	 * This saves us from propagating the allocation context down to all
-+	 * allocation sites.
-+	 */
-+	if (skb_emergency(skb))
-+		current->flags |= PF_MEMALLOC;
+--- linux-2.6-git.orig/include/linux/mm.h	2007-02-21 12:15:00.000000000 +0100
++++ linux-2.6-git/include/linux/mm.h	2007-02-21 12:15:01.000000000 +0100
+@@ -17,6 +17,7 @@
+ #include <linux/debug_locks.h>
+ #include <linux/backing-dev.h>
+ #include <linux/mm_types.h>
++#include <linux/swap.h>
  
- 	/* if we've gotten here through NAPI, check netpoll */
- 	if (skb->dev->poll && netpoll_rx(skb))
--		return NET_RX_DROP;
-+		goto out;
- 
- 	if (!skb->tstamp.off_sec)
- 		net_timestamp(skb);
-@@ -1781,7 +1794,7 @@ int netif_receive_skb(struct sk_buff *sk
- 	orig_dev = skb_bond(skb);
- 
- 	if (!orig_dev)
--		return NET_RX_DROP;
-+		goto out;
- 
- 	__get_cpu_var(netdev_rx_stat).total++;
- 
-@@ -1799,6 +1812,9 @@ int netif_receive_skb(struct sk_buff *sk
- 	}
- #endif
- 
-+	if (skb_emergency(skb))
-+		goto skip_taps;
-+
- 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
- 		if (!ptype->dev || ptype->dev == skb->dev) {
- 			if (pt_prev)
-@@ -1807,6 +1823,7 @@ int netif_receive_skb(struct sk_buff *sk
- 		}
- 	}
- 
-+skip_taps:
- #ifdef CONFIG_NET_CLS_ACT
- 	if (pt_prev) {
- 		ret = deliver_skb(skb, pt_prev, orig_dev);
-@@ -1819,15 +1836,27 @@ int netif_receive_skb(struct sk_buff *sk
- 
- 	if (ret == TC_ACT_SHOT || (ret == TC_ACT_STOLEN)) {
- 		kfree_skb(skb);
--		goto out;
-+		goto unlock;
- 	}
- 
- 	skb->tc_verd = 0;
- ncls:
- #endif
- 
-+	if (skb_emergency(skb))
-+		switch(skb->protocol) {
-+			case __constant_htons(ETH_P_ARP):
-+			case __constant_htons(ETH_P_IP):
-+			case __constant_htons(ETH_P_IPV6):
-+			case __constant_htons(ETH_P_8021Q):
-+				break;
-+
-+			default:
-+				goto drop;
-+		}
-+
- 	if (handle_bridge(&skb, &pt_prev, &ret, orig_dev))
--		goto out;
-+		goto unlock;
- 
- 	type = skb->protocol;
- 	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type)&15], list) {
-@@ -1842,6 +1871,7 @@ ncls:
- 	if (pt_prev) {
- 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
- 	} else {
-+drop:
- 		kfree_skb(skb);
- 		/* Jamal, now you will not able to escape explaining
- 		 * me how you were going to use this. :-)
-@@ -1849,8 +1879,10 @@ ncls:
- 		ret = NET_RX_DROP;
- 	}
- 
--out:
-+unlock:
- 	rcu_read_unlock();
-+out:
-+	current->flags = pflags;
- 	return ret;
+ struct mempolicy;
+ struct anon_vma;
+@@ -586,6 +587,13 @@ static inline struct address_space *page
+ 	return mapping;
  }
  
-Index: linux-2.6-git/include/net/sock.h
-===================================================================
---- linux-2.6-git.orig/include/net/sock.h	2007-02-14 12:32:03.000000000 +0100
-+++ linux-2.6-git/include/net/sock.h	2007-02-14 12:32:37.000000000 +0100
-@@ -510,10 +510,14 @@ static inline void sk_add_backlog(struct
- 	skb->next = NULL;
- }
- 
-+#ifndef CONFIG_NETVM
- static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
- {
- 	return sk->sk_backlog_rcv(sk, skb);
- }
-+#else
-+extern int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
-+#endif
- 
- #define sk_wait_event(__sk, __timeo, __condition)		\
- ({	int rc;							\
-Index: linux-2.6-git/net/core/sock.c
-===================================================================
---- linux-2.6-git.orig/net/core/sock.c	2007-02-14 12:32:07.000000000 +0100
-+++ linux-2.6-git/net/core/sock.c	2007-02-14 12:37:11.000000000 +0100
-@@ -332,6 +332,25 @@ int sk_clear_vmio(struct sock *sk)
- }
- EXPORT_SYMBOL_GPL(sk_clear_vmio);
- 
-+#ifdef CONFIG_NETVM
-+int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++static inline struct swap_info_struct *page_swap_info(struct page *page)
 +{
-+	if (skb_emergency(skb)) {
-+		int ret;
-+		unsigned long pflags = current->flags;
-+	       	/* these should have been dropped before queueing */
-+		BUG_ON(!sk_has_vmio(sk));
-+		current->flags |= PF_MEMALLOC;
-+		ret = sk->sk_backlog_rcv(sk, skb);
-+		current->flags = pflags;
-+		return ret;
-+	}
-+
-+	return sk->sk_backlog_rcv(sk, skb);
++	swp_entry_t swap = { .val = page_private(page) };
++	BUG_ON(!PageSwapCache(page));
++	return get_swap_info_struct(swp_type(swap));
 +}
-+EXPORT_SYMBOL(sk_backlog_rcv);
-+#endif
 +
- static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+ static inline int PageAnon(struct page *page)
  {
- 	struct timeval tv;
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+Index: linux-2.6-git/include/linux/swap.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/swap.h	2007-02-21 12:15:00.000000000 +0100
++++ linux-2.6-git/include/linux/swap.h	2007-02-21 12:15:01.000000000 +0100
+@@ -79,6 +79,50 @@ typedef struct {
+ } swp_entry_t;
+ 
+ /*
++ * swapcache pages are stored in the swapper_space radix tree.  We want to
++ * get good packing density in that tree, so the index should be dense in
++ * the low-order bits.
++ *
++ * We arrange the `type' and `offset' fields so that `type' is at the five
++ * high-order bits of the swp_entry_t and `offset' is right-aligned in the
++ * remaining bits.
++ *
++ * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
++ */
++#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
++#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
++
++/*
++ * Store a type+offset into a swp_entry_t in an arch-independent format
++ */
++static inline swp_entry_t swp_entry(unsigned long type, pgoff_t offset)
++{
++	swp_entry_t ret;
++
++	ret.val = (type << SWP_TYPE_SHIFT(ret)) |
++			(offset & SWP_OFFSET_MASK(ret));
++	return ret;
++}
++
++/*
++ * Extract the `type' field from a swp_entry_t.  The swp_entry_t is in
++ * arch-independent format
++ */
++static inline unsigned swp_type(swp_entry_t entry)
++{
++	return (entry.val >> SWP_TYPE_SHIFT(entry));
++}
++
++/*
++ * Extract the `offset' field from a swp_entry_t.  The swp_entry_t is in
++ * arch-independent format
++ */
++static inline pgoff_t swp_offset(swp_entry_t entry)
++{
++	return entry.val & SWP_OFFSET_MASK(entry);
++}
++
++/*
+  * current->reclaim_state points to one of these when a task is running
+  * memory reclaim
+  */
+@@ -326,6 +370,10 @@ static inline int valid_swaphandles(swp_
+ 	return 0;
+ }
+ 
++static inline struct swap_info_struct *get_swap_info_struct(unsigned type)
++{
++	return NULL;
++}
+ #define can_share_swap_page(p)			(page_mapcount(p) == 1)
+ 
+ static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
+Index: linux-2.6-git/include/linux/swapops.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/swapops.h	2007-02-21 12:15:00.000000000 +0100
++++ linux-2.6-git/include/linux/swapops.h	2007-02-21 12:15:01.000000000 +0100
+@@ -1,48 +1,4 @@
+ /*
+- * swapcache pages are stored in the swapper_space radix tree.  We want to
+- * get good packing density in that tree, so the index should be dense in
+- * the low-order bits.
+- *
+- * We arrange the `type' and `offset' fields so that `type' is at the five
+- * high-order bits of the swp_entry_t and `offset' is right-aligned in the
+- * remaining bits.
+- *
+- * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
+- */
+-#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
+-#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
+-
+-/*
+- * Store a type+offset into a swp_entry_t in an arch-independent format
+- */
+-static inline swp_entry_t swp_entry(unsigned long type, pgoff_t offset)
+-{
+-	swp_entry_t ret;
+-
+-	ret.val = (type << SWP_TYPE_SHIFT(ret)) |
+-			(offset & SWP_OFFSET_MASK(ret));
+-	return ret;
+-}
+-
+-/*
+- * Extract the `type' field from a swp_entry_t.  The swp_entry_t is in
+- * arch-independent format
+- */
+-static inline unsigned swp_type(swp_entry_t entry)
+-{
+-	return (entry.val >> SWP_TYPE_SHIFT(entry));
+-}
+-
+-/*
+- * Extract the `offset' field from a swp_entry_t.  The swp_entry_t is in
+- * arch-independent format
+- */
+-static inline pgoff_t swp_offset(swp_entry_t entry)
+-{
+-	return entry.val & SWP_OFFSET_MASK(entry);
+-}
+-
+-/*
+  * Convert the arch-dependent pte representation of a swp_entry_t into an
+  * arch-independent swp_entry_t.
+  */
+Index: linux-2.6-git/mm/swapfile.c
+===================================================================
+--- linux-2.6-git.orig/mm/swapfile.c	2007-02-21 12:15:00.000000000 +0100
++++ linux-2.6-git/mm/swapfile.c	2007-02-21 12:15:01.000000000 +0100
+@@ -1764,6 +1764,7 @@ get_swap_info_struct(unsigned type)
+ {
+ 	return &swap_info[type];
+ }
++EXPORT_SYMBOL_GPL(get_swap_info_struct);
+ 
+ /*
+  * swap_lock prevents swap_map being freed. Don't grab an extra
 
 -- 
 
