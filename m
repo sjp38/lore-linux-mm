@@ -1,39 +1,45 @@
-Received: by ug-out-1314.google.com with SMTP id s2so1095249uge
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2007 07:48:00 -0800 (PST)
-Message-ID: <84144f020702210747t50d7d92ei1a2f5da8bf117d40@mail.gmail.com>
-Date: Wed, 21 Feb 2007 17:47:59 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH 08/29] mm: kmem_cache_objs_to_pages()
-In-Reply-To: <20070221144842.299190000@taijtu.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [PATCH 03/29] mm: allow PF_MEMALLOC from softirq context
+From: Arjan van de Ven <arjan@infradead.org>
+In-Reply-To: <20070221144841.823705000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-	 <20070221144842.299190000@taijtu.programming.kicks-ass.net>
+	 <20070221144841.823705000@taijtu.programming.kicks-ass.net>
+Content-Type: text/plain
+Date: Wed, 21 Feb 2007 16:53:37 +0100
+Message-Id: <1172073217.3531.200.camel@laptopd505.fenrus.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Hi Peter,
+> Index: linux-2.6-git/kernel/softirq.c
+> ===================================================================
+> --- linux-2.6-git.orig/kernel/softirq.c	2006-12-14 10:02:18.000000000 +0100
+> +++ linux-2.6-git/kernel/softirq.c	2006-12-14 10:02:52.000000000 +0100
+> @@ -209,6 +209,8 @@ asmlinkage void __do_softirq(void)
+>  	__u32 pending;
+>  	int max_restart = MAX_SOFTIRQ_RESTART;
+>  	int cpu;
+> +	unsigned long pflags = current->flags;
+> +	current->flags &= ~PF_MEMALLOC;
+>  
+>  	pending = local_softirq_pending();
+>  	account_system_vtime(current);
+> @@ -247,6 +249,7 @@ restart:
+>  
+>  	account_system_vtime(current);
+>  	_local_bh_enable();
+> +	current->flags = pflags;
 
-On 2/21/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> Provide a method to calculate the number of pages needed to store a given
-> number of slab objects (upper bound when considering possible partial and
-> free slabs).
+this wipes out all the flags in one go.... evil.
+What if something just selected this process for OOM killing? you nuke
+that flag here again. Would be nicer if only the PF_MEMALLOC bit got
+inherited in the restore path..
 
-So how does this work? You ask the slab allocator how many pages you
-need for a given number of objects and then those pages are available
-to it via the page allocator? Can other users also dip into those
-reserves?
 
-I would prefer we simply have an API for telling the slab allocator to
-keep certain number of pages in a reserve for a cache rather than
-exposing internals such as object size to rest of the world.
 
-                                 Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
