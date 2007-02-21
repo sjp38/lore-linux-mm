@@ -1,81 +1,94 @@
-Message-Id: <20070221144843.196543000@taijtu.programming.kicks-ass.net>
+Message-Id: <20070221144843.829793000@taijtu.programming.kicks-ass.net>
 References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-Date: Wed, 21 Feb 2007 15:43:21 +0100
+Date: Wed, 21 Feb 2007 15:43:27 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 17/29] netvm: prevent a TCP specific deadlock
-Content-Disposition: inline; filename=netvm-tcp-deadlock.patch
+Subject: [PATCH 23/29] mm: methods for teaching filesystems about PG_swapcache pages
+Content-Disposition: inline; filename=mm-page_file_methods.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-It could happen that all !SOCK_VMIO sockets have buffered so much data
-that we're over the global rmem limit. This will prevent SOCK_VMIO buffers
-from receiving data, which will prevent userspace from running, which is needed
-to reduce the buffered data.
+In order to teach filesystems to handle swap cache pages, two new page
+functions are introduced:
+
+  pgoff_t page_file_index(struct page *);
+  struct address_space *page_file_mapping(struct page *);
+
+page_file_index - gives the offset of this page in the file in PAGE_CACHE_SIZE
+blocks. Like page->index is for mapped pages, this function also gives the
+correct index for PG_swapcache pages.
+
+page_file_mapping - gives the mapping backing the actual page; that is for
+swap cache pages it will give swap_file->f_mapping.
+
+page_offset() is modified to use page_file_index(), so that it will give the
+expected result, even for PG_swapcache pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/net/sock.h  |    7 ++++---
- net/core/stream.c   |    5 +++--
- net/ipv4/tcp_ipv4.c |    8 ++++++++
- net/ipv6/tcp_ipv6.c |    8 ++++++++
- 4 files changed, 23 insertions(+), 5 deletions(-)
+ include/linux/mm.h      |   25 +++++++++++++++++++++++++
+ include/linux/pagemap.h |    2 +-
+ 2 files changed, 26 insertions(+), 1 deletion(-)
 
-Index: linux-2.6-git/include/net/sock.h
+Index: linux-2.6-git/include/linux/mm.h
 ===================================================================
---- linux-2.6-git.orig/include/net/sock.h	2007-02-14 12:09:05.000000000 +0100
-+++ linux-2.6-git/include/net/sock.h	2007-02-14 12:09:21.000000000 +0100
-@@ -730,7 +730,8 @@ static inline struct inode *SOCK_INODE(s
+--- linux-2.6-git.orig/include/linux/mm.h	2007-02-21 12:15:01.000000000 +0100
++++ linux-2.6-git/include/linux/mm.h	2007-02-21 12:15:07.000000000 +0100
+@@ -594,6 +594,16 @@ static inline struct swap_info_struct *p
+ 	return get_swap_info_struct(swp_type(swap));
  }
  
- extern void __sk_stream_mem_reclaim(struct sock *sk);
--extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
-+extern int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb,
-+		int size, int kind);
- 
- #define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
- 
-@@ -757,13 +758,13 @@ static inline void sk_stream_writequeue_
- static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
++static inline
++struct address_space *page_file_mapping(struct page *page)
++{
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page)))
++		return page_swap_info(page)->swap_file->f_mapping;
++#endif
++	return page->mapping;
++}
++
+ static inline int PageAnon(struct page *page)
  {
- 	return (int)skb->truesize <= sk->sk_forward_alloc ||
--		sk_stream_mem_schedule(sk, skb->truesize, 1);
-+		sk_stream_mem_schedule(sk, skb, skb->truesize, 1);
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+@@ -611,6 +621,21 @@ static inline pgoff_t page_index(struct 
  }
  
- static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
- {
- 	return size <= sk->sk_forward_alloc ||
--	       sk_stream_mem_schedule(sk, size, 0);
-+	       sk_stream_mem_schedule(sk, NULL, size, 0);
- }
- 
- /* Used by processes to "lock" a socket state, so that
-Index: linux-2.6-git/net/core/stream.c
+ /*
++ * Return the file index of the page. Regular pagecache pages use ->index
++ * whereas swapcache pages use swp_offset(->private)
++ */
++static inline pgoff_t page_file_index(struct page *page)
++{
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page))) {
++		swp_entry_t swap = { .val = page_private(page) };
++		return swp_offset(swap);
++	}
++#endif
++	return page->index;
++}
++
++/*
+  * The atomic page->_mapcount, like _count, starts from -1:
+  * so that transitions both from it and to it can be tracked,
+  * using atomic_inc_and_test and atomic_add_negative(-1).
+Index: linux-2.6-git/include/linux/pagemap.h
 ===================================================================
---- linux-2.6-git.orig/net/core/stream.c	2007-02-14 12:09:05.000000000 +0100
-+++ linux-2.6-git/net/core/stream.c	2007-02-14 12:09:21.000000000 +0100
-@@ -207,7 +207,7 @@ void __sk_stream_mem_reclaim(struct sock
- 
- EXPORT_SYMBOL(__sk_stream_mem_reclaim);
- 
--int sk_stream_mem_schedule(struct sock *sk, int size, int kind)
-+int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb, int size, int kind)
+--- linux-2.6-git.orig/include/linux/pagemap.h	2007-02-21 12:14:54.000000000 +0100
++++ linux-2.6-git/include/linux/pagemap.h	2007-02-21 12:15:07.000000000 +0100
+@@ -120,7 +120,7 @@ extern void __remove_from_page_cache(str
+  */
+ static inline loff_t page_offset(struct page *page)
  {
- 	int amt = sk_stream_pages(size);
+-	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
++	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
+ }
  
-@@ -224,7 +224,8 @@ int sk_stream_mem_schedule(struct sock *
- 	/* Over hard limit. */
- 	if (atomic_read(sk->sk_prot->memory_allocated) > sk->sk_prot->sysctl_mem[2]) {
- 		sk->sk_prot->enter_memory_pressure();
--		goto suppress_allocation;
-+		if (!skb || (skb && !skb_emergency(skb)))
-+			goto suppress_allocation;
- 	}
- 
- 	/* Under pressure. */
+ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 
 -- 
 
