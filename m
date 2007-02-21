@@ -1,27 +1,37 @@
-Date: Tue, 20 Feb 2007 12:57:40 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] free swap space when (re)activating page
-In-Reply-To: <45DB51E3.8090909@redhat.com>
-Message-ID: <Pine.LNX.4.64.0702201257190.16830@schroedinger.engr.sgi.com>
-References: <45D63445.5070005@redhat.com> <Pine.LNX.4.64.0702192048150.9934@schroedinger.engr.sgi.com>
- <45DAF794.2000209@redhat.com> <Pine.LNX.4.64.0702200833460.13913@schroedinger.engr.sgi.com>
- <45DB25E1.7030504@redhat.com> <Pine.LNX.4.64.0702201015590.14497@schroedinger.engr.sgi.com>
- <45DB4C87.6050809@redhat.com> <45DB51E3.8090909@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Nick Piggin <npiggin@suse.de>
+Message-Id: <20070221023706.6306.55204.sendpatchset@linux.site>
+In-Reply-To: <20070221023656.6306.246.sendpatchset@linux.site>
+References: <20070221023656.6306.246.sendpatchset@linux.site>
+Subject: [patch 1/6] mm: debug check for the fault vs invalidate race
+Date: Wed, 21 Feb 2007 05:49:47 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Feb 2007, Rik van Riel wrote:
+Add a bugcheck for Andrea's pagefault vs invalidate race. This is triggerable
+for both linear and nonlinear pages with a userspace test harness (using
+direct IO and truncate, respectively).
 
- > Btw, why do we not call pagevec_strip on the pages on l_active?
-> I assume we want to reclaim their buffer heads, too...
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-But those buffer heads may be used soon. So its better to leave them 
-alone.
+ mm/filemap.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -120,6 +120,8 @@ void __remove_from_page_cache(struct pag
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
++
++	BUG_ON(page_mapped(page));
+ }
+ 
+ void remove_from_page_cache(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
