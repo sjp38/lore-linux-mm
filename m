@@ -1,37 +1,39 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20070221023706.6306.55204.sendpatchset@linux.site>
-In-Reply-To: <20070221023656.6306.246.sendpatchset@linux.site>
-References: <20070221023656.6306.246.sendpatchset@linux.site>
-Subject: [patch 1/6] mm: debug check for the fault vs invalidate race
-Date: Wed, 21 Feb 2007 05:49:47 +0100 (CET)
+Message-Id: <20070221023656.6306.246.sendpatchset@linux.site>
+Subject: [patch 0/6] fault vs truncate/invalidate race fix
+Date: Wed, 21 Feb 2007 05:49:38 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Add a bugcheck for Andrea's pagefault vs invalidate race. This is triggerable
-for both linear and nonlinear pages with a userspace test harness (using
-direct IO and truncate, respectively).
+The following set of patches are based on current git.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+These fix the fault vs invalidate and fault vs truncate_range race for
+filemap_nopage mappings, plus those and fault vs truncate race for nonlinear
+mappings.
 
- mm/filemap.c |    2 ++
- 1 file changed, 2 insertions(+)
+These patches fix silent data corruption that we've had several people hitting
+in SUSE kernels. Our kernels have similar patches to lock the page over page
+fault, and no problem.
 
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -120,6 +120,8 @@ void __remove_from_page_cache(struct pag
- 	page->mapping = NULL;
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
-+
-+	BUG_ON(page_mapped(page));
- }
- 
- void remove_from_page_cache(struct page *page)
+I've also got rid of the horrible populate API, and integrated nonlinear pages
+properly with the page fault path.
+
+Downside is that this adds one more vector through which the buffered write
+deadlock can occur. However this is just a very tiny one (pte being unmapped
+for reclaim), compared to all the other ways that deadlock can occur (unmap,
+reclaim, truncate, invalidate). I doubt it will be noticable. At any rate, it
+is better than data corruption.
+
+I hope these can get merged (at least into -mm) soon.
+
+Thanks,
+Nick
+
+--
+SuSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
