@@ -1,42 +1,62 @@
-Received: by ug-out-1314.google.com with SMTP id s2so70651uge
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2007 02:49:11 -0800 (PST)
-Message-ID: <84144f020702220249k37306252q627bf3ceb28e8b5d@mail.gmail.com>
-Date: Thu, 22 Feb 2007 12:49:11 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: SLUB: The unqueued Slab allocator
-In-Reply-To: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
+Message-ID: <45DD88E3.2@redhat.com>
+Date: Thu, 22 Feb 2007 07:13:23 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] Take anonymous pages off the LRU if we have no swap
+References: <Pine.LNX.4.64.0702211409001.27422@schroedinger.engr.sgi.com> <45DCD309.5010109@redhat.com> <Pine.LNX.4.64.0702211600430.28364@schroedinger.engr.sgi.com> <45DCFD22.2020300@redhat.com> <Pine.LNX.4.64.0702211900340.29703@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0702211900340.29703@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+Christoph Lameter wrote:
+> On Wed, 21 Feb 2007, Rik van Riel wrote:
+> 
+>>>> http://linux-mm.org/PageReplacementDesign
+>>> I do not see how this issue would be solved there.
+>> If there is no swap space, we do not bother scanning the anonymous
+>> page pool.  When swap space becomes available, we may end up scanning
+>> it again.
+> 
+> Ok. This is for linux 3.0?
 
-On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> This is a new slab allocator which was motivated by the complexity of the
-> existing code in mm/slab.c. It attempts to address a variety of concerns
-> with the existing implementation.
+No, I think the changes can be introduced one at a time,
+after each change gets benchmarked.
 
-So do you want to add a new allocator or replace slab?
+>> I would like to move the kernel towards something that fixes all
+>> of the problem workloads, instead of thinking about one problem
+>> at a time and reintroducing bugs for other workloads.
+> 
+> Problem workloads appear as machines grow to handle more memory.
 
-On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> B. Storage overhead of object queues
+Absolutely.  I am convinced that the whole "swappiness" thing
+of scanning past the anonymous pages in order to find the page
+cache pages will fall apart on 256GB systems even with somewhat
+friendly workloads.
 
-Does this make sense for non-NUMA too? If not, can we disable the
-queues for NUMA in current slab?
+It is already falling apart on some workloads with 32GB systems
+today...
 
-On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> C. SLAB metadata overhead
+>> Changes still need to be introduced incrementally, of course, but
+>> I think it would be good if we had an idea where we were headed
+>> in the medium (or even long) term.
+> 
+> That is difficult to foresee. I am pretty happy right now with what we 
+> have and it seems to be adaptable enough for different workloads. I am a 
+> bit concerned about the advanced page replacement algorithms since we 
+> toyed with them and only found advantages for specialized workloads. LRU 
+> is simple and easy to handle.
 
-Can be done for the current slab code too, no?
+Linux hasn't been near LRU since the 2.3 days.
 
-                                                 Pekka
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
