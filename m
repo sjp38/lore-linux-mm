@@ -1,58 +1,62 @@
-Date: Thu, 22 Feb 2007 00:58:24 -0800 (PST)
-Message-Id: <20070222.005824.34601725.davem@davemloft.net>
-Subject: Re: SLUB: The unqueued Slab allocator
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 03/29] mm: allow PF_MEMALLOC from softirq context
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1172073217.3531.200.camel@laptopd505.fenrus.org>
+References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
+	 <20070221144841.823705000@taijtu.programming.kicks-ass.net>
+	 <1172073217.3531.200.camel@laptopd505.fenrus.org>
+Content-Type: text/plain
+Date: Thu, 22 Feb 2007 10:16:23 +0100
+Message-Id: <1172135783.6374.30.camel@twins>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@sgi.com>
-Date: Wed, 21 Feb 2007 23:00:30 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-> +#ifdef CONFIG_ZONE_DMA
-> +static struct kmem_cache *kmalloc_caches_dma[KMALLOC_NR_CACHES];
-> +#endif
+On Wed, 2007-02-21 at 16:53 +0100, Arjan van de Ven wrote:
+> > Index: linux-2.6-git/kernel/softirq.c
+> > ===================================================================
+> > --- linux-2.6-git.orig/kernel/softirq.c	2006-12-14 10:02:18.000000000 +0100
+> > +++ linux-2.6-git/kernel/softirq.c	2006-12-14 10:02:52.000000000 +0100
+> > @@ -209,6 +209,8 @@ asmlinkage void __do_softirq(void)
+> >  	__u32 pending;
+> >  	int max_restart = MAX_SOFTIRQ_RESTART;
+> >  	int cpu;
+> > +	unsigned long pflags = current->flags;
+> > +	current->flags &= ~PF_MEMALLOC;
+> >  
+> >  	pending = local_softirq_pending();
+> >  	account_system_vtime(current);
+> > @@ -247,6 +249,7 @@ restart:
+> >  
+> >  	account_system_vtime(current);
+> >  	_local_bh_enable();
+> > +	current->flags = pflags;
+> 
+> this wipes out all the flags in one go.... evil.
+> What if something just selected this process for OOM killing? you nuke
+> that flag here again. Would be nicer if only the PF_MEMALLOC bit got
+> inherited in the restore path..
 
-Therefore.
+would something like this:
 
-> +static struct kmem_cache *get_slab(size_t size, gfp_t flags)
-> +{
- ...
-> +	s = kmalloc_caches_dma[index];
-> +	if (s)
-> +		return s;
-> +
-> +	/* Dynamically create dma cache */
-> +	x = kmalloc(sizeof(struct kmem_cache), flags & ~(__GFP_DMA));
-> +
-> +	if (!x)
-> +		panic("Unable to allocate memory for dma cache\n");
-> +
-> +#ifdef KMALLOC_EXTRA
-> +	if (index <= KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW)
-> +#endif
-> +		realsize = 1 << index;
-> +#ifdef KMALLOC_EXTRA
-> +	else if (index == KMALLOC_EXTRAS)
-> +		realsize = 96;
-> +	else
-> +		realsize = 192;
-> +#endif
-> +
-> +	s = create_kmalloc_cache(x, "kmalloc_dma", realsize);
-> +	kmalloc_caches_dma[index] = s;
-> +	return s;
-> +}
+#define PF_PUSH(tsk, pflags, mask)		\
+do {						\
+	(pflags) = ((tsk)->flags) & (mask);	\
+} while (0)
 
-All of that logic needs to be protected by CONFIG_ZONE_DMA too.
 
-I noticed this due to a build failure on sparc64 with this patch.
+#define PF_POP(tsk, pflags, mask)		\
+do {						\
+	((tsk)->flags &= ~(mask);		\
+	((tsk)->flags |= (pflags);		\
+} while (0)
+
+be useful, or shall I just open code it in various places?
+
+(I made this same mistake; ignorant of the problem; all over this patch series)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
