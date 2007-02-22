@@ -1,43 +1,43 @@
-Subject: Re: SLUB: The unqueued Slab allocator
-References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 22 Feb 2007 18:54:06 +0100
-In-Reply-To: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
-Message-ID: <p73hctecc3l.fsf@bingen.suse.de>
+Message-ID: <45DDCD38.6000807@redhat.com>
+Date: Thu, 22 Feb 2007 12:04:56 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] Take anonymous pages off the LRU if we have no swap
+References: <Pine.LNX.4.64.0702211409001.27422@schroedinger.engr.sgi.com> <45DCD309.5010109@redhat.com> <Pine.LNX.4.64.0702211600430.28364@schroedinger.engr.sgi.com> <45DCFD22.2020300@redhat.com> <Pine.LNX.4.64.0702211900340.29703@schroedinger.engr.sgi.com> <45DD88E3.2@redhat.com> <45DDB85D.209@in.ibm.com>
+In-Reply-To: <45DDB85D.209@in.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@in.ibm.com
+Cc: Christoph Lameter <clameter@sgi.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> writes:
-
-> This is a new slab allocator which was motivated by the complexity of the
-> with the existing implementation.
-
-Thanks for doing that work. It certainly was long overdue.
-
-> D. SLAB has a complex cache reaper
+Balbir Singh wrote:
+> Rik van Riel wrote:
+>> Christoph Lameter wrote:
+>>> On Wed, 21 Feb 2007, Rik van Riel wrote:
+>>>
+>> Absolutely.  I am convinced that the whole "swappiness" thing
+>> of scanning past the anonymous pages in order to find the page
+>> cache pages will fall apart on 256GB systems even with somewhat
+>> friendly workloads.
 > 
->    SLUB does not need a cache reaper for UP systems.
+> That should probably make a good case for splitting the LRU
+> into unmapped and mapped page LRU's :-) 
 
-This means constructors/destructors are becomming worthless? 
-Can you describe your rationale why you think they don't make
-sense on UP?
+Please read http://linux-mm.org/PageReplacementDesign.
 
-> G. Slab merging
-> 
->    We often have slab caches with similar parameters. SLUB detects those
->    on bootup and merges them into the corresponding general caches. This
->    leads to more effective memory use.
+There are good reasons why the split should probably be
+between anonymous/swap backed and file backed pages,
+not between mapped and unmapped.
 
-Did you do any tests on what that does to long term memory fragmentation?
-It is against the "object of same type have similar livetime and should
-be clustered together" theory at least.
+> I hope to get to it, implement it and get some results.
 
--Andi
+Ditto here :)
+
+-- 
+All Rights Reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
