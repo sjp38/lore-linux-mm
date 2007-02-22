@@ -1,61 +1,41 @@
-In-reply-to: <45DDD498.9050202@redhat.com> (message from Peter Staubach on
-	Thu, 22 Feb 2007 12:36:24 -0500)
-Subject: Re: [PATCH] update ctime and mtime for mmaped write
-References: <E1HJvdA-0003Nj-00@dorka.pomaz.szeredi.hu> <45DC8A47.5050900@redhat.com> <E1HJw7l-0003Tq-00@dorka.pomaz.szeredi.hu> <45DC9581.4070909@redhat.com> <E1HJwoe-0003el-00@dorka.pomaz.szeredi.hu> <45DDD498.9050202@redhat.com>
-Message-Id: <E1HKIUk-0006Sl-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 22 Feb 2007 19:16:42 +0100
+Date: Thu, 22 Feb 2007 10:42:23 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: SLUB: The unqueued Slab allocator
+In-Reply-To: <p73hctecc3l.fsf@bingen.suse.de>
+Message-ID: <Pine.LNX.4.64.0702221040140.2011@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
+ <p73hctecc3l.fsf@bingen.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: staubach@redhat.com
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, hugh@veritas.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >>>>> +int set_page_dirty_mapping(struct page *page);
-> >>>>>   
-> >>>>>       
-> >>>>>           
-> >>>> This aspect of the design seems intrusive to me.  I didn't see a strong
-> >>>> reason to introduce new versions of many of the routines just to handle
-> >>>> these semantics.  What motivated this part of your design?  Why the new
-> >>>> _mapping versions of routines?
-> >>>>     
-> >>>>         
-> >>> Because there's no way to know inside the set_page_dirty() functions
-> >>> if the dirtying comes from a memory mapping or from a modification
-> >>> through a normal write().  And they have different semantics, for
-> >>> write() the modification times are updated immediately.
-> >>>       
-> >> Perhaps I didn't understand what page_mapped() does, but it does seem to
-> >> have the right semantics as far as I could see.
-> >>     
-> >
-> > The problems will start, when you have a file that is both mapped and
-> > modified with write().  Then the dirying from the write() will set the
-> > flag, and that will have undesirable consequences.
+On Thu, 22 Feb 2007, Andi Kleen wrote:
+
+> >    SLUB does not need a cache reaper for UP systems.
 > 
-> I don't think that I quite follow the logic.  The dirtying from write()
-> will set the flag, but then the mtime will get updated and the flag will
-> be cleared by the hook in file_update_time().  Right?
+> This means constructors/destructors are becomming worthless? 
+> Can you describe your rationale why you think they don't make
+> sense on UP?
 
-Take this example:
+Cache reaping has nothing to do with constructors and destructors. SLUB 
+fully supports constructors and destructors.
 
-    fd = open()
-    addr = mmap(.., fd)
-    write(fd, ...)
-    close(fd)
-    sleep(100)
-    msync(addr,...)
-    munmap(addr)
+> > G. Slab merging
+> > 
+> >    We often have slab caches with similar parameters. SLUB detects those
+> >    on bootup and merges them into the corresponding general caches. This
+> >    leads to more effective memory use.
+> 
+> Did you do any tests on what that does to long term memory fragmentation?
+> It is against the "object of same type have similar livetime and should
+> be clustered together" theory at least.
 
-The file times will be updated in write(), but with your patch, the
-bit in the mapping will also be set.
-
-Then in msync() the file times will be updated again, which is wrong,
-since the memory was _not_ modified through the mapping.
-
-Thanks,
-Miklos
+I have done no tests in that regard and we would have to assess the impact 
+that the merging has to overall system behavior.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
