@@ -1,77 +1,56 @@
-In-reply-to: <20070221133631.a5cbf49f.akpm@linux-foundation.org> (message from
-	Andrew Morton on Wed, 21 Feb 2007 13:36:31 -0800)
-Subject: Re: dirty balancing deadlock
-References: <E1HIqlm-0004iZ-00@dorka.pomaz.szeredi.hu>
-	<20070218125307.4103c04a.akpm@linux-foundation.org>
-	<E1HIurG-0005Bw-00@dorka.pomaz.szeredi.hu>
-	<20070218145929.547c21c7.akpm@linux-foundation.org>
-	<E1HIvMB-0005Fd-00@dorka.pomaz.szeredi.hu>
-	<20070218155916.0d3c73a9.akpm@linux-foundation.org>
-	<E1HJC3P-0006tz-00@dorka.pomaz.szeredi.hu> <20070221133631.a5cbf49f.akpm@linux-foundation.org>
-Message-Id: <E1HK8aw-0005Lg-00@dorka.pomaz.szeredi.hu>
+In-reply-to: <20070221202615.a0a167f4.akpm@linux-foundation.org> (message from
+	Andrew Morton on Wed, 21 Feb 2007 20:26:15 -0800)
+Subject: Re: [PATCH] update ctime and mtime for mmaped write
+References: <E1HJvdA-0003Nj-00@dorka.pomaz.szeredi.hu> <20070221202615.a0a167f4.akpm@linux-foundation.org>
+Message-Id: <E1HK8hU-0005Mq-00@dorka.pomaz.szeredi.hu>
 From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 22 Feb 2007 08:42:26 +0100
+Date: Thu, 22 Feb 2007 08:49:12 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: staubach@redhat.com, hugh@veritas.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > How about this?
+> On Wed, 21 Feb 2007 18:51:52 +0100 Miklos Szeredi <miklos@szeredi.hu> wrote:
 > 
-> I still don't understand this bug.
+> > This patch makes writing to shared memory mappings update st_ctime and
+> > st_mtime as defined by SUSv3:
+> > 
+> >    The st_ctime and st_mtime fields of a file that is mapped with
+> >    MAP_SHARED and PROT_WRITE shall be marked for update at some point
+> >    in the interval between a write reference to the mapped region and
+> >    the next call to msync() with MS_ASYNC or MS_SYNC for that portion
+> >    of the file by any process. If there is no such call and if the
+> >    underlying file is modified as a result of a write reference, then
+> >    these fields shall be marked for update at some time after the
+> >    write reference.
+> > 
+> > A new address_space flag is introduced: AS_CMTIME.  This is set each
+> > time a page is dirtied through a userspace memory mapping.  This
+> > includes write accesses via get_user_pages().
+> > 
+> > Note, the flag is set unconditionally, even if the page is already
+> > dirty.  This is important, because the page might have been dirtied
+> > earlier by a non-mmap write.
+> > 
+> > This flag is checked in msync() and __fput(), and if set, the file
+> > times are updated and the flag is cleared
+> > 
+> > The flag is also cleared, if the time update is triggered by a normal
+> > write.  This is not mandated by the standard, but seems to be a sane
+> > thing to do.
 > 
-> > Solves the FUSE deadlock, but not the throttle_vm_writeout() one.
-> > I'll try to tackle that one as well.
-> > 
-> > If the per-bdi dirty counter goes below 16, balance_dirty_pages()
-> > returns.
-> > 
-> > Does the constant need to tunable?  If it's too large, then the global
-> > threshold is more easily exceeded.  If it's too small, then in a tight
-> > situation progress will be slower.
-> > 
-> > Thanks,
-> > Miklos
-> > 
-> > Index: linux/mm/page-writeback.c
-> > ===================================================================
-> > --- linux.orig/mm/page-writeback.c	2007-02-19 17:32:41.000000000 +0100
-> > +++ linux/mm/page-writeback.c	2007-02-19 18:05:28.000000000 +0100
-> > @@ -198,6 +198,25 @@ static void balance_dirty_pages(struct a
-> >  			dirty_thresh)
-> >  				break;
-> >  
-> > +		/*
-> > +		 * Acquit this producer if there's little or nothing
-> > +		 * to write back to this particular queue
-> > +		 *
-> > +		 * Without this check a deadlock is possible in the
-> > +		 * following case:
-> > +		 *
-> > +		 * - filesystem A writes data through filesystem B
-> > +		 * - filesystem A has dirty pages over dirty_thresh
-> > +		 * - writeback is started, this triggers a write in B
-> > +		 * - balance_dirty_pages() is called synchronously
-> > +		 * - the write to B blocks
-> > +		 * - the writeback completes, but dirty is still over threshold
-> > +		 * - the blocking write prevents futher writes from happening
-> > +		 */
-> > +		if (atomic_long_read(&bdi->nr_dirty) +
-> > +		    atomic_long_read(&bdi->nr_writeback) < 16)
-> > +			break;
-> > +
-> 
-> The problem seems to that little "- the write to B blocks".
-> 
-> How come it blocks?  I mean, if we cannot retire writes to that filesystem
-> then we're screwed anyway.
+> Why is the flag checked in __fput()?
 
-Sorry about the sloppy description.  I mean, it's not the lowlevel
-write that will block, but rather the VFS one
-(generic_file_aio_write).  It will block (or rather loop forever with
-0.1 second sleeps) in balance_dirty_pages().  That means, that for
-this inode, i_mutex is held and no other writer can continue the work.
+It's because of this bit in the standard:
+
+    If there is no such call and if the underlying file is modified
+    as a result of a write reference, then these fields shall be
+    marked for update at some time after the write reference.
+
+It could be done in munmap/mremap, but it seemed more difficult to
+track down all the places where the vma is removed.  But yes, that may
+be a nicer solution.
 
 Miklos
 
