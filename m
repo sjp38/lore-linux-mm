@@ -1,44 +1,32 @@
-Date: Thu, 22 Feb 2007 07:15:11 -0800 (PST)
+Date: Thu, 22 Feb 2007 07:25:54 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: SLUB: The unqueued Slab allocator
-In-Reply-To: <84144f020702220249k37306252q627bf3ceb28e8b5d@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0702220712440.757@schroedinger.engr.sgi.com>
+In-Reply-To: <1172133274.6374.12.camel@twins>
+Message-ID: <Pine.LNX.4.64.0702220724340.858@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
- <84144f020702220249k37306252q627bf3ceb28e8b5d@mail.gmail.com>
+ <1172133274.6374.12.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Feb 2007, Pekka Enberg wrote:
+On Thu, 22 Feb 2007, Peter Zijlstra wrote:
 
-> On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > This is a new slab allocator which was motivated by the complexity of the
-> > existing code in mm/slab.c. It attempts to address a variety of concerns
-> > with the existing implementation.
+> On Wed, 2007-02-21 at 23:00 -0800, Christoph Lameter wrote:
 > 
-> So do you want to add a new allocator or replace slab?
-
-Add. The performance and quality is not comparable to SLAB at this point.
-
-> On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > B. Storage overhead of object queues
+> > +/*
+> > + * Lock order:
+> > + *   1. slab_lock(page)
+> > + *   2. slab->list_lock
+> > + *
 > 
-> Does this make sense for non-NUMA too? If not, can we disable the
-> queues for NUMA in current slab?
+> That seems to contradict this:
 
-Given the locking scheme in the current slab you cannot do that. Otherwise
-there will be a single lock taken for every operation limiting performace
-
-> On 2/22/07, Christoph Lameter <clameter@sgi.com> wrote:
-> > C. SLAB metadata overhead
-> 
-> Can be done for the current slab code too, no?
-
-The per slab metadata of the SLAB does not fit into the page_struct. 
+This is a trylock. If it fails then we can compensate by allocating
+a new slab.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
