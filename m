@@ -1,71 +1,31 @@
-Subject: Re: [PATCH 03/29] mm: allow PF_MEMALLOC from softirq context
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <1172135783.6374.30.camel@twins>
-References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
-	 <20070221144841.823705000@taijtu.programming.kicks-ass.net>
-	 <1172073217.3531.200.camel@laptopd505.fenrus.org>
-	 <1172135783.6374.30.camel@twins>
-Content-Type: text/plain
-Date: Thu, 22 Feb 2007 10:48:08 +0100
-Message-Id: <1172137688.3531.233.camel@laptopd505.fenrus.org>
-Mime-Version: 1.0
+Received: by ug-out-1314.google.com with SMTP id s2so60873uge
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2007 01:49:18 -0800 (PST)
+Message-ID: <84144f020702220149m21543847ge6af27e0468a5c86@mail.gmail.com>
+Date: Thu, 22 Feb 2007 11:49:16 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH 08/29] mm: kmem_cache_objs_to_pages()
+In-Reply-To: <84144f020702220145h4f670ec6g428dc046ee9dcc71@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070221144304.512721000@taijtu.programming.kicks-ass.net>
+	 <20070221144842.299190000@taijtu.programming.kicks-ass.net>
+	 <84144f020702210747t50d7d92ei1a2f5da8bf117d40@mail.gmail.com>
+	 <1172136508.6374.41.camel@twins>
+	 <84144f020702220145h4f670ec6g428dc046ee9dcc71@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-02-22 at 10:16 +0100, Peter Zijlstra wrote:
-> On Wed, 2007-02-21 at 16:53 +0100, Arjan van de Ven wrote:
-> > > Index: linux-2.6-git/kernel/softirq.c
-> > > ===================================================================
-> > > --- linux-2.6-git.orig/kernel/softirq.c	2006-12-14 10:02:18.000000000 +0100
-> > > +++ linux-2.6-git/kernel/softirq.c	2006-12-14 10:02:52.000000000 +0100
-> > > @@ -209,6 +209,8 @@ asmlinkage void __do_softirq(void)
-> > >  	__u32 pending;
-> > >  	int max_restart = MAX_SOFTIRQ_RESTART;
-> > >  	int cpu;
-> > > +	unsigned long pflags = current->flags;
-> > > +	current->flags &= ~PF_MEMALLOC;
-> > >  
-> > >  	pending = local_softirq_pending();
-> > >  	account_system_vtime(current);
-> > > @@ -247,6 +249,7 @@ restart:
-> > >  
-> > >  	account_system_vtime(current);
-> > >  	_local_bh_enable();
-> > > +	current->flags = pflags;
-> > 
-> > this wipes out all the flags in one go.... evil.
-> > What if something just selected this process for OOM killing? you nuke
-> > that flag here again. Would be nicer if only the PF_MEMALLOC bit got
-> > inherited in the restore path..
-> 
-> would something like this:
-> 
-> #define PF_PUSH(tsk, pflags, mask)		\
-> do {						\
-> 	(pflags) = ((tsk)->flags) & (mask);	\
-> } while (0)
-> 
-> 
-> #define PF_POP(tsk, pflags, mask)		\
-> do {						\
-> 	((tsk)->flags &= ~(mask);		\
-> 	((tsk)->flags |= (pflags);		\
-> } while (0)
-> 
-> be useful, or shall I just open code it in various places?
+On 2/22/07, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> So you are only interested in rough estimation of how much many pages
+> you need for a given amount of objects? Why not use ksize() for that
+> then?
 
-technically all you need is __get_bit and __set_bit() right?
-(well a set_bit which sets to a value, not to always-1)
-
-more generic name at least ;)
-
--- 
-if you want to mail me at work (you don't), use arjan (at) linux.intel.com
-Test the interaction between Linux and your BIOS via http://www.linuxfirmwarekit.org
+Uhm, I obviously meant, why not expose obj_size() instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
