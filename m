@@ -1,52 +1,22 @@
-Message-ID: <45DCFD22.2020300@redhat.com>
-Date: Wed, 21 Feb 2007 21:17:06 -0500
+Message-ID: <45DCFDBE.50209@redhat.com>
+Date: Wed, 21 Feb 2007 21:19:42 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Take anonymous pages off the LRU if we have no swap
-References: <Pine.LNX.4.64.0702211409001.27422@schroedinger.engr.sgi.com> <45DCD309.5010109@redhat.com> <Pine.LNX.4.64.0702211600430.28364@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0702211600430.28364@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 2.6.20-rc5 1/1] MM: enhance Linux swap subsystem
+References: <4df04b840701212309l2a283357jbdaa88794e5208a7@mail.gmail.com>	 <200701222300.41960.a1426z@gawab.com>	 <4df04b840701222021w5e1aaab2if2ba7fc38d06d64b@mail.gmail.com>	 <4df04b840701222108o6992933bied5fff8a525413@mail.gmail.com>	 <Pine.LNX.4.64.0701242015090.1770@blonde.wat.veritas.com>	 <4df04b840701301852i41687edfl1462c4ca3344431c@mail.gmail.com>	 <Pine.LNX.4.64.0701312022340.26857@blonde.wat.veritas.com>	 <4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>	 <4df04b840702200106q670ff944k118d218fed17b884@mail.gmail.com> <4df04b840702211758t1906083x78fb53b6283349ca@mail.gmail.com>
+In-Reply-To: <4df04b840702211758t1906083x78fb53b6283349ca@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: yunfeng zhang <zyf.zeroos@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 21 Feb 2007, Rik van Riel wrote:
-> 
->> I am working on a VM design that would take care of this issue in
->> a somewhat cleaner way.  I'm writing up the bits and pieces as I
->> find easy ways to explain them.
->>
->> Want to help out with brainstorming and implementing?
->>
->> http://linux-mm.org/PageReplacementDesign
-> 
-> I do not see how this issue would be solved there.
+yunfeng zhang wrote:
+> Any comments or suggestions are always welcomed.
 
-If there is no swap space, we do not bother scanning the anonymous
-page pool.  When swap space becomes available, we may end up scanning
-it again.
-
-> The patch here is just the leftover from last weeks discussion in which 
-> the ability to remove anonymous pages was requested. Which can be done
-> in the limited form presented here within the current code in mm.
-
-Yes, we can pile more limited fixes on top of the VM.  I suspect
-that too many "limited fixes" on top of each other will just end
-up introducing too many corner cases, though.
-
-I would like to move the kernel towards something that fixes all
-of the problem workloads, instead of thinking about one problem
-at a time and reintroducing bugs for other workloads.
-
-Changes still need to be introduced incrementally, of course, but
-I think it would be good if we had an idea where we were headed
-in the medium (or even long) term.
-
-http://linux-mm.org/ProblemWorkloads
+Same question as always: what problem are you trying to solve?
 
 -- 
 Politics is the struggle between those who want to make their country
