@@ -1,41 +1,33 @@
-Date: Thu, 22 Feb 2007 10:42:23 -0800 (PST)
+Date: Thu, 22 Feb 2007 10:45:06 -0800 (PST)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: The unqueued Slab allocator
-In-Reply-To: <p73hctecc3l.fsf@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0702221040140.2011@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
- <p73hctecc3l.fsf@bingen.suse.de>
+Subject: Re: [PATCH] Take anonymous pages off the LRU if we have no swap
+In-Reply-To: <6599ad830702220921w71126a5bg2a21a08befce7bec@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0702221044270.2011@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702211409001.27422@schroedinger.engr.sgi.com>
+ <6599ad830702220921w71126a5bg2a21a08befce7bec@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Feb 2007, Andi Kleen wrote:
+On Thu, 22 Feb 2007, Paul Menage wrote:
 
-> >    SLUB does not need a cache reaper for UP systems.
+> On 2/21/07, Christoph Lameter <clameter@sgi.com> wrote:
+> > If the kernel was compiled without support for swapping then we have no
+> > means
+> > of evicting anonymous pages and they become like mlocked pages.
 > 
-> This means constructors/destructors are becomming worthless? 
-> Can you describe your rationale why you think they don't make
-> sense on UP?
+> How will this interact with page migration?
 
-Cache reaping has nothing to do with constructors and destructors. SLUB 
-fully supports constructors and destructors.
+The same way as mlocked pages are handled.
 
-> > G. Slab merging
-> > 
-> >    We often have slab caches with similar parameters. SLUB detects those
-> >    on bootup and merges them into the corresponding general caches. This
-> >    leads to more effective memory use.
-> 
-> Did you do any tests on what that does to long term memory fragmentation?
-> It is against the "object of same type have similar livetime and should
-> be clustered together" theory at least.
+> In order to start migrating a page, the migration paths call
+> isolate_lru_page(), which returns -EBUSY if the page isn't on an LRU.
 
-I have done no tests in that regard and we would have to assess the impact 
-that the merging has to overall system behavior.
+Not anymore. Check Andrew's tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
