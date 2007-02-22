@@ -1,105 +1,58 @@
+Date: Thu, 22 Feb 2007 00:58:24 -0800 (PST)
+Message-Id: <20070222.005824.34601725.davem@davemloft.net>
 Subject: Re: SLUB: The unqueued Slab allocator
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: David Miller <davem@davemloft.net>
 In-Reply-To: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0702212250271.30485@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 22 Feb 2007 09:34:34 +0100
-Message-Id: <1172133274.6374.12.camel@twins>
 Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@sgi.com>
+Date: Wed, 21 Feb 2007 23:00:30 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-02-21 at 23:00 -0800, Christoph Lameter wrote:
-
-> +/*
-> + * Lock order:
-> + *   1. slab_lock(page)
-> + *   2. slab->list_lock
-> + *
-
-That seems to contradict this:
-
-> +/*
-> + * Lock page and remove it from the partial list
-> + *
-> + * Must hold list_lock
-> + */
-> +static __always_inline int lock_and_del_slab(struct kmem_cache *s,
-> +						struct page *page)
-> +{
-> +	if (slab_trylock(page)) {
-> +		list_del(&page->lru);
-> +		s->nr_partial--;
-> +		return 1;
-> +	}
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Get a partial page, lock it and return it.
-> + */
-> +#ifdef CONFIG_NUMA
-> +static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
-> +{
-> +	struct page *page;
-> +	int searchnode = (node == -1) ? numa_node_id() : node;
-> +
-> +	if (!s->nr_partial)
-> +		return NULL;
-> +
-> +	spin_lock(&s->list_lock);
-> +	/*
-> +	 * Search for slab on the right node
-> +	 */
-> +	list_for_each_entry(page, &s->partial, lru)
-> +		if (likely(page_to_nid(page) == searchnode) &&
-> +			lock_and_del_slab(s, page))
-> +				goto out;
-> +
-> +	if (likely(!(flags & __GFP_THISNODE))) {
-> +		/*
-> +		 * We can fall back to any other node in order to
-> +		 * reduce the size of the partial list.
-> +		 */
-> +		list_for_each_entry(page, &s->partial, lru)
-> +			if (likely(lock_and_del_slab(s, page)))
-> +				goto out;
-> +	}
-> +
-> +	/* Nothing found */
-> +	page = NULL;
-> +out:
-> +	spin_unlock(&s->list_lock);
-> +	return page;
-> +}
-> +#else
-> +static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
-> +{
-> +	struct page *page;
-> +
-> +	/*
-> +	 * Racy check. If we mistakenly see no partial slabs then we
-> +	 * just allocate an empty slab.
-> +	 */
-> +	if (!s->nr_partial)
-> +		return NULL;
-> +
-> +	spin_lock(&s->list_lock);
-> +	list_for_each_entry(page, &s->partial, lru)
-> +		if (likely(lock_and_del_slab(s, page)))
-> +			goto out;
-> +
-> +	/* No slab or all slabs busy */
-> +	page = NULL;
-> +out:
-> +	spin_unlock(&s->list_lock);
-> +	return page;
-> +}
+> +#ifdef CONFIG_ZONE_DMA
+> +static struct kmem_cache *kmalloc_caches_dma[KMALLOC_NR_CACHES];
 > +#endif
+
+Therefore.
+
+> +static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+> +{
+ ...
+> +	s = kmalloc_caches_dma[index];
+> +	if (s)
+> +		return s;
+> +
+> +	/* Dynamically create dma cache */
+> +	x = kmalloc(sizeof(struct kmem_cache), flags & ~(__GFP_DMA));
+> +
+> +	if (!x)
+> +		panic("Unable to allocate memory for dma cache\n");
+> +
+> +#ifdef KMALLOC_EXTRA
+> +	if (index <= KMALLOC_SHIFT_HIGH - KMALLOC_SHIFT_LOW)
+> +#endif
+> +		realsize = 1 << index;
+> +#ifdef KMALLOC_EXTRA
+> +	else if (index == KMALLOC_EXTRAS)
+> +		realsize = 96;
+> +	else
+> +		realsize = 192;
+> +#endif
+> +
+> +	s = create_kmalloc_cache(x, "kmalloc_dma", realsize);
+> +	kmalloc_caches_dma[index] = s;
+> +	return s;
+> +}
+
+All of that logic needs to be protected by CONFIG_ZONE_DMA too.
+
+I noticed this due to a build failure on sparc64 with this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
