@@ -1,87 +1,51 @@
-Date: Fri, 23 Feb 2007 18:22:37 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [RFC 2.6.20 1/1] fbdev,mm: Deferred IO and hecubafb driver
-Message-ID: <20070223092237.GA16889@linux-sh.org>
-References: <20070223063228.GA9906@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070223063228.GA9906@localhost>
+Subject: Re: [RFC] [PATCH 2.6.20-mm2] Optionally inherit mlockall()
+	semantics across fork()/exec()
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0702221507080.22567@schroedinger.engr.sgi.com>
+References: <1172178237.5341.38.camel@localhost>
+	 <Pine.LNX.4.64.0702221507080.22567@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 23 Feb 2007 09:58:01 -0500
+Message-Id: <1172242682.5059.19.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jaya Kumar <jayakumar.lkml@gmail.com>
-Cc: linux-fbdev-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@engr.sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 23, 2007 at 07:32:28AM +0100, Jaya Kumar wrote:
-> This is a first pass at abstracting deferred IO out from hecubafb and
-> into fbdev as was discussed before: 
-> http://marc.theaimsgroup.com/?l=linux-fbdev-devel&m=117187443327466&w=2
+On Thu, 2007-02-22 at 15:09 -0800, Christoph Lameter wrote:
+> On Thu, 22 Feb 2007, Lee Schermerhorn wrote:
 > 
-> Please let me know your feedback and if it looks okay so far.
+> > Add an int to mm_struct to remember inheritance of future locks.
 > 
-How about this for an fsync()? I wonder if this will be sufficient for
-msync() based flushing, or whether the ->sync VMA op is needed again..
+> Should that not go into the task_struct rather than into mm_struct? 
+> If you run your gizmo on a thread then all other threads of the process 
+> will also be pinned.
 
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+Well, you currently can't run it on a thread--i.e., no way to affect an
+existing task/thread.  It only works when launching an application.  I
+have considered how to apply it to a running process, but I wanted to
+float this proposal first.
 
---
+The semantics of mlockall(), whether you use the '_CURRENT and/or the
+'_FUTURE flag, apply to the entire address space of the process.  [See
+http://www.opengroup.org/onlinepubs/7990989775/xsh/mlockall.html]  The
+patch enables inheritance of these semantics across fork() [CURRENT] and
+exec() [FUTURE].
 
- drivers/video/fb_defio.c |   12 ++++++++++++
- drivers/video/fbmem.c    |    3 +++
- include/linux/fb.h       |    2 ++
- 3 files changed, 17 insertions(+)
+> 
+> Or put it into the vma like VM_MLOCK and inherit it when vmas are copied.
 
-diff --git a/drivers/video/fb_defio.c b/drivers/video/fb_defio.c
-index c3e57cc..8a66dc8 100644
---- a/drivers/video/fb_defio.c
-+++ b/drivers/video/fb_defio.c
-@@ -52,6 +52,18 @@ static void fb_deferred_io_work(struct work_struct *work)
- 	mutex_unlock(&fbdefio->lock);
- }
- 
-+int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
-+{
-+	struct fb_info *info = file->private_data;
-+
-+	/* Kill off the delayed work */
-+	cancel_rearming_delayed_work(&info->deferred_work);
-+
-+	/* Run it immediately */
-+	return schedule_delayed_work(&info->deferred_work, 0);
-+}
-+EXPORT_SYMBOL_GPL(fb_deferred_io_fsync);
-+
- /* vm_ops->page_mkwrite handler */
- int fb_deferred_io_mkwrite(struct vm_area_struct *vma, 
- 					struct page *page)
-diff --git a/drivers/video/fbmem.c b/drivers/video/fbmem.c
-index 863126a..69bbbe2 100644
---- a/drivers/video/fbmem.c
-+++ b/drivers/video/fbmem.c
-@@ -1266,6 +1266,9 @@ static const struct file_operations fb_fops = {
- #ifdef HAVE_ARCH_FB_UNMAPPED_AREA
- 	.get_unmapped_area = get_fb_unmapped_area,
- #endif
-+#ifdef CONFIG_FB_DEFERRED_IO
-+	.fsync =	fb_deferred_io_fsync,
-+#endif
- };
- 
- struct class *fb_class;
-diff --git a/include/linux/fb.h b/include/linux/fb.h
-index af217dd..3f62652 100644
---- a/include/linux/fb.h
-+++ b/include/linux/fb.h
-@@ -933,6 +933,8 @@ extern void fb_deferred_io_init(struct fb_info *info);
- extern void fb_deferred_io_cleanup(struct fb_info *info);
- extern int fb_deferred_io_mkwrite(struct vm_area_struct *vma, 
- 					struct page *page);
-+extern int fb_deferred_io_fsync(struct file *file, struct dentry *dentry,
-+				int datasync);
- #else
- #define fb_deferred_io_init(fb_info)	do { } while (0)
- #define fb_deferred_io_cleanup(fb_info)	do { } while (0)
+Again, mlockall(MCL_FUTURE) sets def_flags in the mm_struct so that it
+applies to the entire address space.  Without this patch, dup_mm()
+unconditionally removes the VM_LOCKED flags from vmas, in keeping with
+the specified semantics of fork().  The MCL_INHERIT flag overrides this
+particular semantic, and leaves the VM_LOCKED flag untouched in the
+duplicated vmas.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
