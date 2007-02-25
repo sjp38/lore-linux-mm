@@ -1,37 +1,35 @@
-Date: Sat, 24 Feb 2007 16:14:48 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
+Date: Sat, 24 Feb 2007 16:53:11 -0800 (PST)
+Message-Id: <20070224.165311.71091931.davem@davemloft.net>
 Subject: Re: SLUB: The unqueued Slab allocator
-In-Reply-To: <20070224193322.GA17276@lazybastard.org>
-Message-ID: <Pine.LNX.4.64.0702241613520.4891@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702221040140.2011@schroedinger.engr.sgi.com>
- <20070224142835.4c7a3207.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0702232145340.1872@schroedinger.engr.sgi.com>
- <20070223.215439.92580943.davem@davemloft.net>
- <Pine.LNX.4.64.0702240931030.3912@schroedinger.engr.sgi.com>
- <20070224193322.GA17276@lazybastard.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1700579579-637110898-1172362488=:4891"
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.64.0702240931030.3912@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702232145340.1872@schroedinger.engr.sgi.com>
+	<20070223.215439.92580943.davem@davemloft.net>
+	<Pine.LNX.4.64.0702240931030.3912@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@engr.sgi.com>
+Date: Sat, 24 Feb 2007 09:32:49 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?utf-8?B?SsO2cm4=?= Engel <joern@lazybastard.org>
-Cc: David Miller <davem@davemloft.net>, kamezawa.hiroyu@jp.fujitsu.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: clameter@engr.sgi.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
----1700579579-637110898-1172362488=:4891
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> On Fri, 23 Feb 2007, David Miller wrote:
+> 
+> > I also agree with Andi in that merging could mess up how object type
+> > local lifetimes help reduce fragmentation in object pools.
+> 
+> If that is a problem for particular object pools then we may be able to 
+> except those from the merging.
 
-On Sat, 24 Feb 2007, J=F6rn Engel wrote:
+If it is a problem, it's going to be a problem "in general"
+and not for specific SLAB caches.
 
-> How much of a gain is the merging anyway?  Once you start having
-> explicit whitelists or blacklists of pools that can be merged, one can
-> start to wonder if the result is worth the effort.
-
-It eliminates 50% of the slab caches. Thus it reduces the management=20
-overhead by half.
-
-
----1700579579-637110898-1172362488=:4891--
+I think this is really a very unwise idea.  We have enough
+fragmentation problems as it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
