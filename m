@@ -1,35 +1,38 @@
-Date: Sat, 24 Feb 2007 16:53:11 -0800 (PST)
-Message-Id: <20070224.165311.71091931.davem@davemloft.net>
-Subject: Re: SLUB: The unqueued Slab allocator
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0702240931030.3912@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702232145340.1872@schroedinger.engr.sgi.com>
-	<20070223.215439.92580943.davem@davemloft.net>
-	<Pine.LNX.4.64.0702240931030.3912@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: by nz-out-0506.google.com with SMTP id f1so885382nzc
+        for <linux-mm@kvack.org>; Sat, 24 Feb 2007 17:47:41 -0800 (PST)
+Message-ID: <4df04b840702241747ne903699w636d37b40351b752@mail.gmail.com>
+Date: Sun, 25 Feb 2007 09:47:41 +0800
+From: "yunfeng zhang" <zyf.zeroos@gmail.com>
+Subject: Re: [PATCH 2.6.20-rc5 1/1] MM: enhance Linux swap subsystem
+In-Reply-To: <45DE6080.6030904@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <4df04b840701212309l2a283357jbdaa88794e5208a7@mail.gmail.com>
+	 <Pine.LNX.4.64.0701242015090.1770@blonde.wat.veritas.com>
+	 <4df04b840701301852i41687edfl1462c4ca3344431c@mail.gmail.com>
+	 <Pine.LNX.4.64.0701312022340.26857@blonde.wat.veritas.com>
+	 <4df04b840702122152o64b2d59cy53afcd43bb24cb7a@mail.gmail.com>
+	 <4df04b840702200106q670ff944k118d218fed17b884@mail.gmail.com>
+	 <4df04b840702211758t1906083x78fb53b6283349ca@mail.gmail.com>
+	 <45DCFDBE.50209@redhat.com>
+	 <4df04b840702221831x76626de1rfa70cb653b12f495@mail.gmail.com>
+	 <45DE6080.6030904@redhat.com>
 Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@engr.sgi.com>
-Date: Sat, 24 Feb 2007 09:32:49 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@engr.sgi.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 23 Feb 2007, David Miller wrote:
-> 
-> > I also agree with Andi in that merging could mess up how object type
-> > local lifetimes help reduce fragmentation in object pools.
-> 
-> If that is a problem for particular object pools then we may be able to 
-> except those from the merging.
+To a two-CPU architecture, its page distribution just like theoretically
 
-If it is a problem, it's going to be a problem "in general"
-and not for specific SLAB caches.
+ABABAB....
 
-I think this is really a very unwise idea.  We have enough
-fragmentation problems as it is.
+So every readahead of A process will create 4 unused readahead pages unless you
+are sure B will resume soon.
+
+Have you ever compared the results among UP, 2 or 4-CPU?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
