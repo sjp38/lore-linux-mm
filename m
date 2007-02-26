@@ -1,64 +1,107 @@
-Date: Mon, 26 Feb 2007 03:37:12 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/3] mm: fix PageUptodate memorder
-Message-ID: <20070226023712.GA23985@wotan.suse.de>
-References: <20070215051822.7443.30110.sendpatchset@linux.site> <20070215051851.7443.65811.sendpatchset@linux.site> <20070225040657.eb4fc159.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070225040657.eb4fc159.akpm@linux-foundation.org>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l1Q6UhUh130446
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2007 17:30:44 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1Q6I3Jj041758
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2007 17:18:04 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1Q6EMc4019377
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2007 17:14:22 +1100
+From: Balbir Singh <balbir@in.ibm.com>
+Date: Mon, 26 Feb 2007 11:44:28 +0530
+Message-Id: <20070226061428.28810.19037.sendpatchset@balbir-laptop>
+Subject: [RFC][PATCH][0/4] Memory controller (RSS Control) (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 25, 2007 at 04:06:57AM -0800, Andrew Morton wrote:
-> 
-> What an unpleasing patchset.  I really really hope we really have a bug in
-> there, and that all this crap isn't pointless uglification.
+This is a repost of the patches at
+		http://lkml.org/lkml/2007/2/24/65
+The previous post had a misleading subject which ended with a "(".
 
-It's the same bug for file pages as we had for anonymous pages, which
-the POWER guys actually hit. Do you disagree? I like this patch much
-better than the smp_wmb that we currently do just for anon pages.
 
-> We _do_ need a flush_dcaceh_page() in all cases which you're concerned
-> about.  Perhaps we should stick the appropriate barriers in there.
+This patch applies on top of Paul Menage's container patches (V7) posted at
 
-I think the memorder problem is conceptually a page data vs PG_uptodate
-one, because the read-side assumes that the data will be initialised before
-PG_uptodate is set.
+	http://lkml.org/lkml/2007/2/12/88
 
-After the page is uptodate, you don't need subsequent barriers (that you
-would get via flush_dcache_page), because we've never really tried to
-impose any synchronisation on parallel read vs write.
+It implements a controller within the containers framework for limiting
+memory usage (RSS usage).
 
-A memory barrier in flush_dcache_page would do the trick as well, I think,
-but it is not really any better. It is misleading because it is not the
-canonical fix. And we'd still need the smp_rmb in the PageUptodate read-side.
+The memory controller was discussed at length in the RFC posted to lkml
+	http://lkml.org/lkml/2006/10/30/51
 
-> > On Thu, 15 Feb 2007 08:31:31 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
-> > +static inline void SetNewPageUptodate(struct page *page)
-> > +{
-> > +	/*
-> > +	 * S390 sets page dirty bit on IO operations, which is why it is
-> > +	 * cleared in SetPageUptodate. This is not an issue for newly
-> > +	 * allocated pages that are brought uptodate by zeroing memory.
-> > +	 */
-> > +	smp_wmb();
-> > +	__set_bit(PG_uptodate, &(page)->flags);
-> > +}
-> 
-> __SetPageUptodate() might be more conventional.
+This is version 2 of the patch, version 1 was posted at
+	http://lkml.org/lkml/2007/2/19/10
 
-I guess so. I guess that the __ variants *can* only be used on new pages
-anyway. I wanted to make it clear that it wasn't a non-atomic version of
-exactly the same operation, but __SetPageUptodate probably would be fine.
+I have tried to incorporate all comments, more details can be found
+in the changelog's of induvidual patches. Any remaining mistakes are
+all my fault.
 
-> Boy we'd better get the callers of this little handgrenade right.
+The next question could be why release version 2?
 
-Newly initialised pages, before they become visible to anyone else. We
-could put a BUG_ON(page_count(page) != 1); in there?
+1. It serves a decision point to decide if we should move to a per-container
+   LRU list. Walking through the global LRU is slow, in this patchset I've
+   tried to address the LRU churning issue. The patch
+   memcontrol-reclaim-on-limit has more details
+2. I've included fixes for several of the comments/issues raised in version 1
+
+Steps to use the controller
+--------------------------
+0. Download the patches, apply the patches
+1. Turn on CONFIG_CONTAINER_MEMCONTROL in kernel config, build the kernel
+   and boot into the new kernel
+2. mount -t container container -o memcontrol /<mount point>
+3. cd /<mount point>
+   optionally do (mkdir <directory>; cd <directory>) under /<mount point>
+4. echo $$ > tasks (attaches the current shell to the container)
+5. echo -n (limit value) > memcontrol_limit
+6. cat memcontrol_usage
+7. Run tasks, check the usage of the controller, reclaim behaviour
+8. Report bugs, get bug fixes and iterate (goto step 0).
+
+Advantages of the patchset
+--------------------------
+1. Zero overhead in struct page (struct page is not expanded)
+2. Minimal changes to the core-mm code
+3. Shared pages are not reclaimed unless all mappings belong to overlimit
+   containers.
+4. It can be used to debug drivers/applications/kernel components in a
+   constrained memory environment (similar to mem=XXX option), except that
+   several containers can be created simultaneously without rebooting and
+   the limits can be changed. NOTE: There is no support for limiting
+   kernel memory allocations and page cache control (presently).
+
+Testing
+-------
+Created containers, attached tasks to containers with lower limits than
+the memory the tasks require (memory hog tests) and ran some basic tests on
+them.
+Tested the patches on UML and PowerPC. On UML tried the patches with the
+config enabled and disabled (sanity check) and with containers enabled
+but the memory controller disabled.
+
+TODO's and improvement areas
+----------------------------
+1. Come up with cool page replacement algorithms for containers - still holds
+   good (if possible without any changes to struct page)
+2. Add page cache control
+3. Add kernel memory allocator control
+4. Extract benchmark numbers and overhead data
+
+Comments & criticism are welcome.
+
+Series
+------
+memcontrol-setup.patch
+memcontrol-acct.patch
+memcontrol-reclaim-on-limit.patch
+memcontrol-doc.patch
+
+-- 
+	Warm Regards,
+	Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
