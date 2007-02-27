@@ -1,35 +1,27 @@
-Date: Mon, 26 Feb 2007 16:36:42 -0800 (PST)
-Message-Id: <20070226.163642.59469811.davem@davemloft.net>
-Subject: Re: [PATCH] SLUB v2
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0702242234060.20557@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702242234060.20557@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=iso-2022-jp-2
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-From: Christoph Lameter <clameter@engr.sgi.com>
-Date: Sat, 24 Feb 2007 22:36:26 -0800 (PST)
-Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@engr.sgi.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Message-ID: <098e01c75a38$3ecd61b0$7194e7f0@uturquoises>
+Reply-To: "Estela Kaufmanx" <ahegeneva@mhequipment.com>
+From: "Estela Kaufmanx" <ahegeneva@mhequipment.com>
+Subject: off life support and died this week. The last time so many firefighters were killed
+Date: Mon, 26 Feb 2007 21:06:49 -0600
+MIME-Version: 1.0
+Content-Type: text/plain
+Return-Path: <ahegeneva@mhequipment.com>
+To: kelda@kvack.org
+Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> V1->V2
-> - Fix up various issues. Tested on i386 UP, X86_64 SMP, ia64 NUMA.
-> - Provide NUMA support by splitting partial lists per node.
-> - Better Slabcache merge support (now at around 50% of slabs)
-> - List slabcache aliases if slabcaches are merged.
-> - Updated descriptions /proc/slabinfo output
+ statewide tour and plans to begin a 24-hour campaign blitz in St. Louis on Friday 
 
-Seems to work fine on sparc64, sane the following build warning:
+Critical Care Inc, 
+S.Y.M.B.O.L: .CTCX.
+This one is an easy doubler
+@ 65 cents wont last long
+Expected target : $ 3.00  .
+ Critical Care Announces Expansion of Cost Containment Activities 
+Business Wire (Fri, Feb 16)  
+ Critical Care to Acquire Health Care Company 
+Business Wire (Wed, Jan 31)  
 
-mm/slub.c:1470: warning: $,1rx(Bfor_all_slabs$,1ry(B defined but not used
+GET IN TOMORROW, This one is g.u.a.r.a.n.t.e.e.d to DO.UBLE
 
-That function needs CONFIG_SMP ifdef protection or similar.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ before flying back to California. If the pilot used the full width of the river to turn,
