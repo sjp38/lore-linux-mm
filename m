@@ -1,77 +1,90 @@
-Date: Tue, 27 Feb 2007 09:50:25 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 0/6] fault vs truncate/invalidate race fix
-Message-ID: <20070227085025.GA2710@wotan.suse.de>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <21d7e9970702262036h3575229ex3bf3cd4474a57068@mail.gmail.com> <20070226213204.14f8b584.akpm@linux-foundation.org>
+Subject: Possible ppc64 (and maybe others ?) mm problem
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain
+Date: Tue, 27 Feb 2007 10:48:33 +0100
+Message-Id: <1172569714.11949.73.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070226213204.14f8b584.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Airlie <airlied@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>
+Cc: linuxppc-dev list <linuxppc-dev@ozlabs.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 26, 2007 at 09:32:04PM -0800, Andrew Morton wrote:
-> > On Tue, 27 Feb 2007 15:36:03 +1100 "Dave Airlie" <airlied@gmail.com> wrote:
-> > >
-> > > I've also got rid of the horrible populate API, and integrated nonlinear pages
-> > > properly with the page fault path.
-> > >
-> > > Downside is that this adds one more vector through which the buffered write
-> > > deadlock can occur. However this is just a very tiny one (pte being unmapped
-> > > for reclaim), compared to all the other ways that deadlock can occur (unmap,
-> > > reclaim, truncate, invalidate). I doubt it will be noticable. At any rate, it
-> > > is better than data corruption.
-> > >
-> > > I hope these can get merged (at least into -mm) soon.
-> > 
-> > Have these been put into mm?
-> 
-> Not yet - I need to get back on the correct continent, review the code,
-> stuff like that.  It still hurts that this work makes the write() deadlock
-> harder to hit,
+We have a lingering problem that I stumbled upon the other day just
+before leaving for a rather long trip. I have a few minutes now and feel
+like writing it all down before I forget :-)
 
-s/harder/easier of course...
+So the main issue is that the ppc64 mmu hash table must not ever have a
+duplicate entry. That is, there must never be two entries in a hash
+group that can match the same virtual address. Ever.
 
-I think there is good reason to assume the buffered write page lock
-deadlocks would not occur in "normal" programs (or very very few),
-because it would require writing from the same page you are writing to,
-or 2 processes writing from the page the other is writing to. If any
-innocent users do hit this, at least it is not data corrupting, and is
-relatively easy to trace back to the kernel.
+I don't know wether other archs with things like software loaded TLBs
+can have a similar problems ending up in trying to load two TLB entries
+for the same address and what the consequences can be.
 
-In the case of local DoS exploits, the deadlocks already present in the
-buffered write path are already trivial to exploit...  locking the page
-in the fault path doesn't make the deadlock exploit any more possible.
+Thus it's very important when invalidating mappings, to always make sure
+we cannot fault in a new entry before we have cleared any possible
+previous entry from the hash table on powerpc (and possibly by
+extension, from the TLB on some sw loaded platforms).
 
-So the downside to merging is that we _may_ get some additional deadlocks.
+The powerpc kernel tracks the fact that a hash table entry may be
+present for a given linux PTE via a bit in the PTE (_PAGE_HASHPTE)
+along, on 64 bits, with some bits indicating which slot is used in a
+given "group" so we don't have to perform a search when invalidating.
 
-What is being fixed is silent data corruption that has been reported by
-several different users of the SLES kernel (because we have assertions
-there to catch it), and can be triggered by DIO or NFS, or anything using
-vmtruncate_range or invalidate_inode_pages2 on regular files. Or even a
-regular truncate with nonlinear pages. These are known problems on
-production workloads.
+Now there is a race that I'm pretty sure we might hit, though I don't
+know if it's always been there or only got there due to the recent
+locking changes arund the vm, but basically, the problem is when we
+batch invalidations.
 
-That's my argument for merging these. I think it's reasonable, but I'm
-open to debate.
+When doing things like pte_clear, which are part of a batch, we
+atomically replace the PTE with a non-present one, and store the old one
+in the batch for further hash invalidations.
 
-I did get some page fault performance numbers at one stage. Nothing
-really exciting seemed to happen IIRC, but I can do another set of tests
-if you want?
+That means that we must -not- allow a new PTE to be re-faulted in for
+that same page and thus potentially re-hashed in before we actually
+flush the hash table (which we do when "completing" the hash, with
+flush_tlb_*() called from tlb_finish_mmu() among others.
 
-> and we haven't worked out how to fix that.
+The possible scenario I found out however was when looking at this like
+unmap_mapping_range(). It looks like this can call zap_page_range() and
+thus do batched invalidations, without taking any useful locks
+preventing new PTEs to be faulted in on the same range before we
+invalidate the batch.
 
-To be fair, I have 2 ways to fix it. Unfortunately one is slow and the
-other requires cooperation from filesystem developers. perform_write() is
-still on track, but it is going to take a reasonable amount of time and
-effort to convert filesystems. I just can't see any gain in holding these
-patches back until that all happens.
+This can happen more specifically if the previously hashed PTE had
+non-full permissions (for example, is read only). In this case, we would
+hit do_page_fault() which wouldn't see any pte_present() and would
+basically fault a new one in despite one being already present in the
+hash table.
 
-Thanks,
-Nick
+I think we used to be safe thanks to the PTL, but not anymore. We
+sort-of assumed that insertions vs. removal races of that sort would
+never happen because we would always either be protected by the mmap_sem
+or the ptl while doing a batch.
+
+The "quick fix" I can see would be for us to have a way to flush a
+pending batch in zap_pte_range(), before we unlock the PTE page (that is
+before pte_unmap_unlock()). That would prevent batches from spawning
+accross PTE page locks (whatever the granularity of that lock is).
+
+I suppose the above can be acheived by "hijacking" the
+arch_leave_lazy_mmu_mode() hook that was added for paravirt ops and make
+it flush any pending batch on powerpc, though I haven't had time to grep
+around other call sites to see if that could be a performance issue in
+other areas.
+
+I also need to dbl check if there are other similar scenarios with other
+code path.
+
+I -think- sparc64's hash management is immune to that problem, though
+I'm not 100% sure, I just had a quick look at the code and I'm not
+entirely sure I grasp it all just yet.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
