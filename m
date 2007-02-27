@@ -1,27 +1,40 @@
-Message-ID: <098e01c75a38$3ecd61b0$7194e7f0@uturquoises>
-Reply-To: "Estela Kaufmanx" <ahegeneva@mhequipment.com>
-From: "Estela Kaufmanx" <ahegeneva@mhequipment.com>
-Subject: off life support and died this week. The last time so many firefighters were killed
-Date: Mon, 26 Feb 2007 21:06:49 -0600
+Received: by ug-out-1314.google.com with SMTP id s2so955742uge
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2007 20:36:04 -0800 (PST)
+Message-ID: <21d7e9970702262036h3575229ex3bf3cd4474a57068@mail.gmail.com>
+Date: Tue, 27 Feb 2007 15:36:03 +1100
+From: "Dave Airlie" <airlied@gmail.com>
+Subject: Re: [patch 0/6] fault vs truncate/invalidate race fix
+In-Reply-To: <20070221023656.6306.246.sendpatchset@linux.site>
 MIME-Version: 1.0
-Content-Type: text/plain
-Return-Path: <ahegeneva@mhequipment.com>
-To: kelda@kvack.org
-Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070221023656.6306.246.sendpatchset@linux.site>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
- statewide tour and plans to begin a 24-hour campaign blitz in St. Louis on Friday 
+>
+> I've also got rid of the horrible populate API, and integrated nonlinear pages
+> properly with the page fault path.
+>
+> Downside is that this adds one more vector through which the buffered write
+> deadlock can occur. However this is just a very tiny one (pte being unmapped
+> for reclaim), compared to all the other ways that deadlock can occur (unmap,
+> reclaim, truncate, invalidate). I doubt it will be noticable. At any rate, it
+> is better than data corruption.
+>
+> I hope these can get merged (at least into -mm) soon.
 
-Critical Care Inc, 
-S.Y.M.B.O.L: .CTCX.
-This one is an easy doubler
-@ 65 cents wont last long
-Expected target : $ 3.00  .
- Critical Care Announces Expansion of Cost Containment Activities 
-Business Wire (Fri, Feb 16)  
- Critical Care to Acquire Health Care Company 
-Business Wire (Wed, Jan 31)  
+Have these been put into mm? can I expect them in the next -mm so I
+can start merging up the drm memory manager code to my -mm tree..
 
-GET IN TOMORROW, This one is g.u.a.r.a.n.t.e.e.d to DO.UBLE
+Dave.
 
- before flying back to California. If the pilot used the full width of the river to turn,
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
