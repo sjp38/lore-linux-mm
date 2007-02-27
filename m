@@ -1,101 +1,61 @@
-Message-ID: <45E40B5B.4040909@yahoo.com.au>
-Date: Tue, 27 Feb 2007 21:43:39 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Possible ppc64 (and maybe others ?) mm problem
-References: <1172569714.11949.73.camel@localhost.localdomain>
-In-Reply-To: <1172569714.11949.73.camel@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l1RJXrgV005003
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2007 14:33:53 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v8.2) with ESMTP id l1RJXqBX301984
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2007 14:33:53 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l1RJXqIL012418
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2007 14:33:52 -0500
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/5] Lumpy Reclaim V4
+Message-ID: <exportbomb.1172604830@kernel>
+Date: Tue, 27 Feb 2007 11:33:51 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev list <linuxppc-dev@ozlabs.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> We have a lingering problem that I stumbled upon the other day just
-> before leaving for a rather long trip. I have a few minutes now and feel
-> like writing it all down before I forget :-)
-> 
-> So the main issue is that the ppc64 mmu hash table must not ever have a
-> duplicate entry. That is, there must never be two entries in a hash
-> group that can match the same virtual address. Ever.
-> 
-> I don't know wether other archs with things like software loaded TLBs
-> can have a similar problems ending up in trying to load two TLB entries
-> for the same address and what the consequences can be.
-> 
-> Thus it's very important when invalidating mappings, to always make sure
-> we cannot fault in a new entry before we have cleared any possible
-> previous entry from the hash table on powerpc (and possibly by
-> extension, from the TLB on some sw loaded platforms).
-> 
-> The powerpc kernel tracks the fact that a hash table entry may be
-> present for a given linux PTE via a bit in the PTE (_PAGE_HASHPTE)
-> along, on 64 bits, with some bits indicating which slot is used in a
-> given "group" so we don't have to perform a search when invalidating.
-> 
-> Now there is a race that I'm pretty sure we might hit, though I don't
-> know if it's always been there or only got there due to the recent
-> locking changes arund the vm, but basically, the problem is when we
-> batch invalidations.
-> 
-> When doing things like pte_clear, which are part of a batch, we
-> atomically replace the PTE with a non-present one, and store the old one
-> in the batch for further hash invalidations.
-> 
-> That means that we must -not- allow a new PTE to be re-faulted in for
-> that same page and thus potentially re-hashed in before we actually
-> flush the hash table (which we do when "completing" the hash, with
-> flush_tlb_*() called from tlb_finish_mmu() among others.
-> 
-> The possible scenario I found out however was when looking at this like
-> unmap_mapping_range(). It looks like this can call zap_page_range() and
-> thus do batched invalidations, without taking any useful locks
-> preventing new PTEs to be faulted in on the same range before we
-> invalidate the batch.
-> 
-> This can happen more specifically if the previously hashed PTE had
-> non-full permissions (for example, is read only). In this case, we would
-> hit do_page_fault() which wouldn't see any pte_present() and would
-> basically fault a new one in despite one being already present in the
-> hash table.
-> 
-> I think we used to be safe thanks to the PTL, but not anymore. We
-> sort-of assumed that insertions vs. removal races of that sort would
-> never happen because we would always either be protected by the mmap_sem
-> or the ptl while doing a batch.
+Following this email are five patches which represent the current
+state of the lumpy reclaim patches; collectivly lumpy v4.  This
+patch kit is designed as a complete drop-in replacement for the
+lumpy patches in 2.6.20-mm2.  This stack is split out to show the
+incremental changes in this version.  Andrew please replace your
+current lumpy stack with this one, you may prefer to fold this kit
+into a single patch lumpy-v4.
 
-I think you're right.
+Comparitive testing between lumpy-v3 and lump-v4 generally shows a
+small improvement, coming from the improved matching of pages taken
+from the end of the active/inactive list (patch 2 in this series).
 
-> The "quick fix" I can see would be for us to have a way to flush a
-> pending batch in zap_pte_range(), before we unlock the PTE page (that is
-> before pte_unmap_unlock()). That would prevent batches from spawning
-> accross PTE page locks (whatever the granularity of that lock is).
+I have taken the lumpy-v2 patches and fixes as found in
+2.6.20-rc6-mm2 and folded them back into a single patch (collectivly
+lumpy v3), updating attribution.  On top of this are are four patches
+which represent the updates mainly coming from the detailed review
+comments from Andrew Morton:
 
-That seems like it would work. The granularity is a pmd page worth of
-ptes (PTRS_PER_PTE). That looks quite a bit larger than your flush batch
-size, so it hopefully won't hurt too much.
+lumpy-reclaim-v3: folded back base, lumpy-v3,
 
-> I suppose the above can be acheived by "hijacking" the
-> arch_leave_lazy_mmu_mode() hook that was added for paravirt ops and make
-> it flush any pending batch on powerpc, though I haven't had time to grep
-> around other call sites to see if that could be a performance issue in
-> other areas.
+lumpy-isolate_lru_pages-wants-to-specifically-take-active-or-inactive-pages:
+  ensure we take pages of the expected type from the end of
+  the active/ inactive lists.  This is both a performance and
+  correctness fix,
 
-So long as SPLIT_PTLOCK_CPUS is a generic and not a per-arch config option,
-it seems safer to tlb_finish_mmu unconditionally, before dropping the PTL.
-Then, some new tlb flush hooks could be added for ptl-less-safe flush
-designs to convert over to. No?
+lumpy-ensure-that-we-compare-PageActive-and-active-safely: ensure
+  comparisons between PageActive() and coded booleans are safe
+  should PageActive() not return 1/0,
 
-Alternatively, we could do it the other way around and make it a per-arch
-option, defaulting to off, and with a new set of tlb hooks for those that
-want to keep the batch inside the PTL.
+lumpy-update-commentry-on-subtle-comparisons-and-rounding-assumptions:
+  update the code commentary to explain the subtle exit conditions, and
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+lumpy-only-check-for-valid-pages-when-holes-are-present:
+  remove expensive check for invalid pages within MAX_ORDER blocks
+  where those cannot exist.
+
+Against: 2.6.20-mm2
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
