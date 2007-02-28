@@ -1,31 +1,40 @@
-Date: Wed, 28 Feb 2007 09:35:26 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
 Subject: Re: Remove page flags for software suspend
-In-Reply-To: <200702281833.03914.rjw@sisk.pl>
-Message-ID: <Pine.LNX.4.64.0702280932160.5371@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
- <200702281813.04643.rjw@sisk.pl> <Pine.LNX.4.64.0702280915030.3263@schroedinger.engr.sgi.com>
- <200702281833.03914.rjw@sisk.pl>
+Date: Wed, 28 Feb 2007 18:51:51 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200702281833.03914.rjw@sisk.pl> <Pine.LNX.4.64.0702280932160.5371@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0702280932160.5371@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200702281851.51666.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Christoph Lameter <clameter@engr.sgi.com>
 Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Feb 2007, Rafael J. Wysocki wrote:
+On Wednesday, 28 February 2007 18:35, Christoph Lameter wrote:
+> On Wed, 28 Feb 2007, Rafael J. Wysocki wrote:
+> 
+> > Yes, I know that.  On the other hand, we have terminally broken CPU hotplug
+> > code in the kernel that I'd like to get fixed _first_.
+> 
+> The cpu hotplug code has been terminal for years.
 
-> Yes, I know that.  On the other hand, we have terminally broken CPU hotplug
-> code in the kernel that I'd like to get fixed _first_.
+But recently it's been becoming a real pain.
 
-The cpu hotplug code has been terminal for years.
+> > PageNosaveFree is only needed at the suspend time, so we need not allocate
+> > it in advance.
+> 
+> Well it should be simple to change the patch to allocate the bitmaps 
+> later.
 
-> PageNosaveFree is only needed at the suspend time, so we need not allocate
-> it in advance.
+Well, yes, I think so.  Still, there may be another way of doing it and I need
+some time to have a look.
 
-Well it should be simple to change the patch to allocate the bitmaps 
-later.
+BTW, have you tested the patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
