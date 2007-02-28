@@ -1,7 +1,7 @@
-Date: Wed, 28 Feb 2007 11:14:03 +0100
+Date: Wed, 28 Feb 2007 11:14:48 +0100
 From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: Remove page flags for software suspend
-Message-ID: <20070228101403.GA8536@elf.ucw.cz>
+Message-ID: <20070228101448.GB8536@elf.ucw.cz>
 References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200702161156.21496.rjw@sisk.pl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -21,11 +21,13 @@ Hi!
 > 
 > Yes, I think we can do it this way, but can we generally assume that the
 > offset for eg. test_bit() won't be taken modulo 32 (or 64)?
+> 
+> And ...
 
-I... actually do not like that patch. It adds code... at little or no
-benefit.
+Ouch... I somehow assumed it was Nigel doing this patch, and noticed
+too late. Sorry.
 
-(And Nigel, please cc me when changing  kernel/power/*).
+I still wish to be cc-ed on swsusp changes.
 								Pavel
 
 -- 
