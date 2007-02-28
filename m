@@ -1,36 +1,33 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Date: Wed, 28 Feb 2007 09:17:52 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: Remove page flags for software suspend
-Date: Wed, 28 Feb 2007 18:13:04 +0100
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <20070228101403.GA8536@elf.ucw.cz> <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com>
+In-Reply-To: <200702281813.04643.rjw@sisk.pl>
+Message-ID: <Pine.LNX.4.64.0702280915030.3263@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
+ <20070228101403.GA8536@elf.ucw.cz> <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com>
+ <200702281813.04643.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200702281813.04643.rjw@sisk.pl>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
 Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, 28 February 2007 16:25, Christoph Lameter wrote:
-> On Wed, 28 Feb 2007, Pavel Machek wrote:
-> 
-> > I... actually do not like that patch. It adds code... at little or no
-> > benefit.
-> 
-> We are looking into saving page flags since we are running out. The two 
-> page flags used by software suspend are rarely needed and should be taken 
-> out of the flags. If you can do it a different way then please do.
+On Wed, 28 Feb 2007, Rafael J. Wysocki wrote:
 
-As I have already said for a couple of times, I think we can and I'm going to
-do it, but right now I'm a bit busy with other things that I consider as more
-urgent.
+> As I have already said for a couple of times, I think we can and I'm going to
+> do it, but right now I'm a bit busy with other things that I consider as more
+> urgent.
 
-Greetings,
-Rafael
+Ummm.. There are other parties who would like to use these flags!
+
+I think my patch localizes the suspend material properly. In fact there 
+is *no* reason for the page flags to be visible outside of snapshot.c.
+What is the problem with the patch?
+
+How long will it take you to remove the flags on your own?
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
