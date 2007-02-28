@@ -1,9 +1,10 @@
-Date: Wed, 28 Feb 2007 10:14:30 -0800 (PST)
+Date: Wed, 28 Feb 2007 10:17:03 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: [PATCH 1/5] Lumpy Reclaim V3
-In-Reply-To: <96f80944962593738d72a803797dbddc@kernel>
-Message-ID: <Pine.LNX.4.64.0702281008330.21257@schroedinger.engr.sgi.com>
-References: <exportbomb.1172604830@kernel> <96f80944962593738d72a803797dbddc@kernel>
+Subject: Re: [PATCH 2/5] lumpy: isolate_lru_pages wants to specifically take
+ active or inactive pages
+In-Reply-To: <f2cdac47f652dc10d19f6041997e85b1@kernel>
+Message-ID: <Pine.LNX.4.64.0702281015340.21257@schroedinger.engr.sgi.com>
+References: <exportbomb.1172604830@kernel> <f2cdac47f652dc10d19f6041997e85b1@kernel>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,31 +15,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 27 Feb 2007, Andy Whitcroft wrote:
 
-> +static int __isolate_lru_page(struct page *page, int active)
-> +{
-> +	int ret = -EINVAL;
-> +
-> +	if (PageLRU(page) && (PageActive(page) == active)) {
-> +		ret = -EBUSY;
-> +		if (likely(get_page_unless_zero(page))) {
-> +			/*
-> +			 * Be careful not to clear PageLRU until after we're
-> +			 * sure the page is not being freed elsewhere -- the
-> +			 * page release code relies on it.
-> +			 */
-> +			ClearPageLRU(page);
-> +			ret = 0;
+> The caller of isolate_lru_pages specifically knows whether it wants
+> to take either inactive or active pages.  Currently we take the
+> state of the LRU page at hand and use that to scan for matching
+> pages in the order sized block.  If that page is transiting we
+> can scan for the wrong type.  The caller knows what they want and
+> should be telling us.  Pass in the required active/inactive state
+> and match against that.
 
-Is that really necessary? PageLRU is clear when a page is freed right? 
-And clearing PageLRU requires the zone->lru_lock since we have to move it 
-off the LRU.
-
-> -			ClearPageLRU(page);
-> -			target = dst;
-> +		active = PageActive(page);
-
-Why are we saving the active state? Page cannot be moved between LRUs 
-while we hold the lru lock anyways.
+The page cannot be transiting since we hold the lru lock?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
