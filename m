@@ -1,41 +1,76 @@
-Date: Wed, 28 Feb 2007 21:22:36 +0000
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: Remove page flags for software suspend
-Message-ID: <20070228212235.GD4760@ucw.cz>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200702161156.21496.rjw@sisk.pl> <20070228101403.GA8536@elf.ucw.cz> <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com> <20070228210837.GA4760@ucw.cz> <Pine.LNX.4.64.0702281315560.28432@schroedinger.engr.sgi.com>
+Date: Wed, 28 Feb 2007 14:00:22 -0800 (PST)
+Message-Id: <20070228.140022.74750199.davem@davemloft.net>
+Subject: Re: [PATCH] SLUB The unqueued slab allocator V3
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.64.0702281120110.27828@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702281120110.27828@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0702281315560.28432@schroedinger.engr.sgi.com>
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Christoph Lameter <clameter@engr.sgi.com>
+Date: Wed, 28 Feb 2007 11:20:44 -0800 (PST)
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org
+To: clameter@engr.sgi.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 2007-02-28 13:16:51, Christoph Lameter wrote:
-> On Wed, 28 Feb 2007, Pavel Machek wrote:
-> 
-> > Hmm, can't we just add another word to struct page?
+> V2->V3
+> - Debugging and diagnostic support. This is runtime enabled and not compile
+>   time enabled. Runtime debugging can be controlled via kernel boot options
+>   on an individual slab cache basis or globally.
+> - Slab Trace support (For individual slab caches).
+> - Resiliency support: If basic sanity checks are enabled (via F f.e.)
+>   (boot option) then SLUB will do the best to perform diagnostics and
+>   then continue (i.e. mark corrupted objects as used).
+> - Fix up numerous issues including clash of SLUBs use of page
+>   flags with i386 arch use for pmd and pgds (which are managed
+>   as slab caches, sigh).
+> - Dynamic per CPU array sizing.
+> - Explain SLUB slabcache flags
 
-?
+V3 doesn't boot successfully on sparc64, sorry I don't have the
+ability to track this down at the moment since it resets the
+machine right as the video device is initialized and after diffing
+V2 to V3 there is way too much stuff changing for me to try and
+"bisect" between V2 to V3 to find the guilty sub-change.
 
-> > Plus we really need PageNosave from boot on...
-> 
-> Well it would be great to get the story straight. First I was told that 
-> the bitmaps can be allocated later. Now we dont. The current patch should 
-> do what you want.
+Maybe if you managed your individual changes in GIT or similar
+this could be debugged very quickly. :-)
 
-PageNosave is set by boot code in some cases, as Rafael told you.
+Meanwhile I noticed that your alignment algorithm is different
+than SLAB's.  And I think this is important for the page table
+SLABs that some platforms use.
 
-It may be possible to redo boot processing at suspend time, but it
-would be ugly can of worms, I'm not sure if BIOS data are still
-available, and neccessary functions are probably __init.
+No matter what flags are specified, SLAB gives at least the
+passed in alignment specified in kmem_cache_create().  That
+logic in slab is here:
 
-							Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+	/* 3) caller mandated alignment */
+	if (ralign < align) {
+		ralign = align;
+	}
+
+Whereas SLUB uses the CPU cacheline size when the MUSTALIGN
+flag is set.  Architectures do things like:
+
+	pgtable_cache = kmem_cache_create("pgtable_cache",
+					  PAGE_SIZE, PAGE_SIZE,
+					  SLAB_HWCACHE_ALIGN |
+					  SLAB_MUST_HWCACHE_ALIGN,
+					  zero_ctor,
+					  NULL);
+
+to get a PAGE_SIZE aligned slab, SLUB doesn't give the same
+behavior SLAB does in this case.
+
+Arguably SLAB_HWCACHE_ALIGN and SLAB_MUST_HWCACHE_ALIGN should
+not be set here, but SLUBs change in semantics in this area
+could cause similar grief in other areas, an audit is probably
+in order.
+
+The above example was from sparc64, but x86 does the same thing
+as probably do other platforms which use SLAB for pagetables.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
