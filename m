@@ -1,28 +1,44 @@
-Date: Wed, 28 Feb 2007 09:56:40 -0800 (PST)
+Date: Wed, 28 Feb 2007 10:14:30 -0800 (PST)
 From: Christoph Lameter <clameter@engr.sgi.com>
-Subject: Re: Remove page flags for software suspend
-In-Reply-To: <200702281851.51666.rjw@sisk.pl>
-Message-ID: <Pine.LNX.4.64.0702280950460.15607@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
- <200702281833.03914.rjw@sisk.pl> <Pine.LNX.4.64.0702280932160.5371@schroedinger.engr.sgi.com>
- <200702281851.51666.rjw@sisk.pl>
+Subject: Re: [PATCH 1/5] Lumpy Reclaim V3
+In-Reply-To: <96f80944962593738d72a803797dbddc@kernel>
+Message-ID: <Pine.LNX.4.64.0702281008330.21257@schroedinger.engr.sgi.com>
+References: <exportbomb.1172604830@kernel> <96f80944962593738d72a803797dbddc@kernel>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Feb 2007, Rafael J. Wysocki wrote:
+On Tue, 27 Feb 2007, Andy Whitcroft wrote:
 
-> Well, yes, I think so.  Still, there may be another way of doing it and I need
-> some time to have a look.
-> 
-> BTW, have you tested the patch?
+> +static int __isolate_lru_page(struct page *page, int active)
+> +{
+> +	int ret = -EINVAL;
+> +
+> +	if (PageLRU(page) && (PageActive(page) == active)) {
+> +		ret = -EBUSY;
+> +		if (likely(get_page_unless_zero(page))) {
+> +			/*
+> +			 * Be careful not to clear PageLRU until after we're
+> +			 * sure the page is not being freed elsewhere -- the
+> +			 * page release code relies on it.
+> +			 */
+> +			ClearPageLRU(page);
+> +			ret = 0;
 
-Nope. Sorry, have no use for software suspend.
+Is that really necessary? PageLRU is clear when a page is freed right? 
+And clearing PageLRU requires the zone->lru_lock since we have to move it 
+off the LRU.
 
+> -			ClearPageLRU(page);
+> -			target = dst;
+> +		active = PageActive(page);
+
+Why are we saving the active state? Page cannot be moved between LRUs 
+while we hold the lru lock anyways.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
