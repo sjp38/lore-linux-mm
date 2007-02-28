@@ -1,36 +1,29 @@
-Date: Wed, 28 Feb 2007 21:11:48 +0000
-From: Pavel Machek <pavel@ucw.cz>
+Date: Wed, 28 Feb 2007 13:16:51 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: Remove page flags for software suspend
-Message-ID: <20070228211148.GB4760@ucw.cz>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200702281833.03914.rjw@sisk.pl> <Pine.LNX.4.64.0702280932160.5371@schroedinger.engr.sgi.com> <200702281851.51666.rjw@sisk.pl> <Pine.LNX.4.64.0702280950460.15607@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0702280950460.15607@schroedinger.engr.sgi.com>
+In-Reply-To: <20070228210837.GA4760@ucw.cz>
+Message-ID: <Pine.LNX.4.64.0702281315560.28432@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
+ <200702161156.21496.rjw@sisk.pl> <20070228101403.GA8536@elf.ucw.cz>
+ <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com>
+ <20070228210837.GA4760@ucw.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
+To: Pavel Machek <pavel@ucw.cz>
 Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Wed, 28 Feb 2007, Pavel Machek wrote:
 
-> > Well, yes, I think so.  Still, there may be another way of doing it and I need
-> > some time to have a look.
-> > 
-> > BTW, have you tested the patch?
+> Hmm, can't we just add another word to struct page?
 > 
-> Nope. Sorry, have no use for software suspend.
+> Plus we really need PageNosave from boot on...
 
-It is a matter of adding resume=/dev/hda9 to kernel cmdline and then echo disk
-> /sys/power/state... I guess that is not too much to ask?
-
-Anyway, if you want to submit patch to swsusp, please test it, and cc
-me on that mail.
-							Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Well it would be great to get the story straight. First I was told that 
+the bitmaps can be allocated later. Now we dont. The current patch should 
+do what you want.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
