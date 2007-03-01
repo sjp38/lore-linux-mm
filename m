@@ -1,57 +1,53 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070301100630.29753.64743.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070301100229.29753.86342.sendpatchset@skynet.skynet.ie>
-References: <20070301100229.29753.86342.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 12/12] Be more agressive about stealing when MIGRATE_RECLAIMABLE allocations fallback
-Date: Thu,  1 Mar 2007 10:06:30 +0000 (GMT)
+Message-Id: <20070301100802.30048.45045.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/8] Create optional ZONE_MOVABLE to partition memory between movable and non-movable pages v2
+Date: Thu,  1 Mar 2007 10:08:02 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-MIGRATE_RECLAIMABLE allocations tend to be very bursty in nature like
-when updatedb starts. It is likely this will occur in situations where
-MAX_ORDER blocks of pages are not free. This means that updatedb can scatter
-MIGRATE_RECLAIMABLE pages throughout the address space. This patch is more
-agressive about stealing blocks of pages for MIGRATE_RECLAIMABLE.
+Changelog since v1
+o Rebased to 2.6.20-rc6-mm2
+o Added necessary changes to per-zone VM stats for new zone (Christoph)
+o Removed unnecessary changes to __ZONE_SHIFT (Christoph)
+o Added paranoid check for overflow in cmdline_parse_kernelcore (Andy)
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
+The following 8 patches against 2.6.20-mm2 create a zone called ZONE_MOVABLE
+that is only usable by allocations that specify both __GFP_HIGHMEM and
+__GFP_MOVABLE. This has the effect of keeping all non-movable pages within a
+single memory partition while allowing movable allocations to be satisfied
+from either partition. The patches may be applied with the list-based
+anti-fragmentation patches that groups pages together based on mobility.
 
- page_alloc.c |   18 +++++++++++++++---
- 1 files changed, 15 insertions(+), 3 deletions(-)
+The size of the zone is determined by a kernelcore= parameter specified at
+boot-time. This specifies how much memory is usable by non-movable allocations
+and the remainder is used for ZONE_MOVABLE. Any range of pages within
+ZONE_MOVABLE can be released by migrating the pages or by reclaiming.
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-011_biasplacement/mm/page_alloc.c linux-2.6.20-mm2-012_grabbyreclaim/mm/page_alloc.c
---- linux-2.6.20-mm2-011_biasplacement/mm/page_alloc.c	2007-02-20 18:52:18.000000000 +0000
-+++ linux-2.6.20-mm2-012_grabbyreclaim/mm/page_alloc.c	2007-02-20 18:54:35.000000000 +0000
-@@ -806,11 +806,23 @@ retry:
- 
- 			/*
- 			 * If breaking a large block of pages, move all free
--			 * pages to the preferred allocation list
-+			 * pages to the preferred allocation list. If falling
-+			 * back for a reclaimable kernel allocation, be more
-+			 * agressive about taking ownership of free pages
- 			 */
--			if (unlikely(current_order >= MAX_ORDER / 2)) {
-+			if (unlikely(current_order >= MAX_ORDER / 2) ||
-+					start_migratetype == MIGRATE_RECLAIMABLE) {
-+				unsigned long pages;
-+				pages = move_freepages_block(zone, page,
-+								start_migratetype);
-+
-+				/* Claim the whole block if over half of it is free */
-+				if ((pages << current_order) >= (1 << (MAX_ORDER-2)) &&
-+						migratetype != MIGRATE_HIGHATOMIC)
-+					set_pageblock_migratetype(page,
-+								start_migratetype);
-+
- 				migratetype = start_migratetype;
--				move_freepages_block(zone, page, migratetype);
- 			}
- 
- 			/* Remove the page from the freelists */
+When selecting a zone to take pages from for ZONE_MOVABLE, there are two
+things to consider. First, only memory from the highest populated zone is
+used for ZONE_MOVABLE. On the x86, this is probably going to be ZONE_HIGHMEM
+but it would be ZONE_DMA on ppc64 or possibly ZONE_DMA32 on x86_64. Second,
+the amount of memory usable by the kernel will be spread evenly throughout
+NUMA nodes where possible. If the nodes are not of equal size, the amount
+of memory usable by the kernel on some nodes may be greater than others.
+
+By default, the zone is not as useful for hugetlb allocations because they
+are pinned and non-migratable (currently at least). A sysctl is provided that
+allows huge pages to be allocated from that zone. This means that the huge
+page pool can be resized to the size of ZONE_MOVABLE during the lifetime of
+the system assuming that pages are not mlocked. Despite huge pages being
+non-movable, we do not introduce additional external fragmentation of note
+as huge pages are always the largest contiguous block we care about.
+
+Credit goes to Andy Whitcroft for catching a large variety of problems during
+review of the patches.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
