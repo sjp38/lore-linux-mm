@@ -1,272 +1,435 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070301100249.29753.43752.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070301100309.29753.51339.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070301100229.29753.86342.sendpatchset@skynet.skynet.ie>
 References: <20070301100229.29753.86342.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 1/12] Add a bitmap that is used to track flags affecting a block of pages
-Date: Thu,  1 Mar 2007 10:02:49 +0000 (GMT)
+Subject: [PATCH 2/12] Add __GFP_MOVABLE for callers to flag allocations from high memory that may be migrated
+Date: Thu,  1 Mar 2007 10:03:10 +0000 (GMT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The fragmentation reduction strategy needs to track if pages within a block
-can be moved or reclaimed so that pages are freed to the appropriate list.
-This patch adds a bitmap for flags affecting a whole a MAX_ORDER block
-of pages.
+It is often known at allocation time whether a page may be migrated or
+not. This patch adds a flag called __GFP_MOVABLE and a new mask called
+GFP_HIGH_MOVABLE. Allocations using the __GFP_MOVABLE can be either migrated
+using the page migration mechanism or reclaimed by syncing with backing
+storage and discarding.
 
-In non-SPARSEMEM configurations, the bitmap is stored in the struct zone
-and allocated during initialisation. SPARSEMEM statically allocates the
-bitmap in a struct mem_section so that bitmaps do not have to be resized
-during memory hotadd. This wastes a small amount of memory per unused section
-(usually sizeof(unsigned long)) but the complexity of dynamically allocating
-the memory is quite high.
+An API function very similar to alloc_zeroed_user_highpage() is added for
+__GFP_MOVABLE allocations called alloc_zeroed_user_highpage_movable(). The
+flags used by alloc_zeroed_user_highpage() are not changed because it would
+change the semantics of an existing API. After this patch is applied there
+are no in-kernel users of alloc_zeroed_user_highpage() so it probably should
+be marked deprecated if this patch is merged.
 
-Additional credit to Andy Whitcroft who reviewed up an earlier implementation
-of the mechanism an suggested how to make it a *lot* cleaner.
+Note that this patch includes a minor cleanup to the use of __GFP_ZERO
+in shmem.c to keep all flag modifications to inode->mapping in the
+shmem_dir_alloc() helper function. This clean-up suggestion is courtesy of
+Hugh Dickens.
+
+Additional credit goes to Christoph Lameter and Linus Torvalds for shaping
+the concept. Credit to Hugh Dickens for catching issues with shmem swap
+vector and ramfs allocations.
+
+[hugh@veritas.com: __GFP_ZERO cleanup]
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
- include/linux/mmzone.h          |   13 ++++
- include/linux/pageblock-flags.h |   51 +++++++++++++++
- mm/page_alloc.c                 |  113 +++++++++++++++++++++++++++++++++++
- 3 files changed, 177 insertions(+)
+ fs/inode.c                |   10 ++++++--
+ fs/ramfs/inode.c          |    1 
+ include/asm-alpha/page.h  |    3 +-
+ include/asm-cris/page.h   |    3 +-
+ include/asm-h8300/page.h  |    3 +-
+ include/asm-i386/page.h   |    3 +-
+ include/asm-ia64/page.h   |    5 ++--
+ include/asm-m32r/page.h   |    3 +-
+ include/asm-s390/page.h   |    3 +-
+ include/asm-x86_64/page.h |    3 +-
+ include/linux/gfp.h       |   10 +++++++-
+ include/linux/highmem.h   |   51 +++++++++++++++++++++++++++++++++++++++--
+ mm/memory.c               |    8 +++---
+ mm/mempolicy.c            |    4 +--
+ mm/migrate.c              |    2 -
+ mm/shmem.c                |    7 ++++-
+ mm/swap_prefetch.c        |    2 -
+ mm/swap_state.c           |    2 -
+ 18 files changed, 98 insertions(+), 25 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-clean/include/linux/mmzone.h linux-2.6.20-mm2-001_pageblock_bits/include/linux/mmzone.h
---- linux-2.6.20-mm2-clean/include/linux/mmzone.h	2007-02-19 01:22:30.000000000 +0000
-+++ linux-2.6.20-mm2-001_pageblock_bits/include/linux/mmzone.h	2007-02-20 18:23:25.000000000 +0000
-@@ -13,6 +13,7 @@
- #include <linux/init.h>
- #include <linux/seqlock.h>
- #include <linux/nodemask.h>
-+#include <linux/pageblock-flags.h>
- #include <asm/atomic.h>
- #include <asm/page.h>
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/fs/inode.c linux-2.6.20-mm2-002_clustering_flags/fs/inode.c
+--- linux-2.6.20-mm2-001_pageblock_bits/fs/inode.c	2007-02-19 01:21:38.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/fs/inode.c	2007-02-20 18:25:33.000000000 +0000
+@@ -145,7 +145,7 @@ static struct inode *alloc_inode(struct 
+ 		mapping->a_ops = &empty_aops;
+  		mapping->host = inode;
+ 		mapping->flags = 0;
+-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
++		mapping_set_gfp_mask(mapping, GFP_HIGH_MOVABLE);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
  
-@@ -209,6 +210,14 @@ struct zone {
- #endif
- 	struct free_area	free_area[MAX_ORDER];
- 
-+#ifndef CONFIG_SPARSEMEM
-+	/*
-+	 * Flags for a MAX_ORDER_NR_PAGES block. See pageblock-flags.h.
-+	 * In SPARSEMEM, this map is stored in struct mem_section
-+	 */
-+	unsigned long		*pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+
- 
- 	ZONE_PADDING(_pad1_)
- 
-@@ -661,6 +670,9 @@ extern struct zone *next_zone(struct zon
- #define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
- #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
- 
-+#define SECTION_BLOCKFLAGS_BITS \
-+		((SECTION_SIZE_BITS - (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS)
-+
- #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
- #error Allocator MAX_ORDER exceeds SECTION_SIZE
- #endif
-@@ -680,6 +692,7 @@ struct mem_section {
- 	 * before using it wrong.
- 	 */
- 	unsigned long section_mem_map;
-+	DECLARE_BITMAP(pageblock_flags, SECTION_BLOCKFLAGS_BITS);
- };
- 
- #ifdef CONFIG_SPARSEMEM_EXTREME
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-clean/include/linux/pageblock-flags.h linux-2.6.20-mm2-001_pageblock_bits/include/linux/pageblock-flags.h
---- linux-2.6.20-mm2-clean/include/linux/pageblock-flags.h	2007-02-19 13:53:43.000000000 +0000
-+++ linux-2.6.20-mm2-001_pageblock_bits/include/linux/pageblock-flags.h	2007-02-20 19:44:47.000000000 +0000
-@@ -0,0 +1,51 @@
-+/*
-+ * Macros for manipulating and testing flags related to a
-+ * MAX_ORDER_NR_PAGES block of pages.
+@@ -521,7 +521,13 @@ repeat:
+  *	new_inode 	- obtain an inode
+  *	@sb: superblock
+  *
+- *	Allocates a new inode for given superblock.
++ *	Allocates a new inode for given superblock. The default gfp_mask
++ *	for allocations related to inode->i_mapping is GFP_HIGH_MOVABLE. If
++ *	HIGHMEM pages are unsuitable or it is known that pages allocated
++ *	for the page cache are not reclaimable or migratable,
++ *	mapping_set_gfp_mask() must be called with suitable flags on the
++ *	newly created inode's mapping
 + *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation version 2 of the License
+  */
+ struct inode *new_inode(struct super_block *sb)
+ {
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/fs/ramfs/inode.c linux-2.6.20-mm2-002_clustering_flags/fs/ramfs/inode.c
+--- linux-2.6.20-mm2-001_pageblock_bits/fs/ramfs/inode.c	2007-02-19 01:21:42.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/fs/ramfs/inode.c	2007-02-20 18:25:33.000000000 +0000
+@@ -61,6 +61,7 @@ struct inode *ramfs_get_inode(struct sup
+ 		inode->i_blocks = 0;
+ 		inode->i_mapping->a_ops = &ramfs_aops;
+ 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
++		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		switch (mode & S_IFMT) {
+ 		default:
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-alpha/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-alpha/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-alpha/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-alpha/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -17,7 +17,8 @@
+ extern void clear_page(void *page);
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vmaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vmaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ extern void copy_page(void * _to, void * _from);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-cris/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-cris/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-cris/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-cris/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -20,7 +20,8 @@
+ #define clear_user_page(page, vaddr, pg)    clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg) copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-h8300/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-h8300/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-h8300/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-h8300/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -22,7 +22,8 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-i386/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-i386/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-i386/page.h	2007-02-19 01:21:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-i386/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -34,7 +34,8 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-ia64/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-ia64/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-ia64/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-ia64/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -87,9 +87,10 @@ do {						\
+ } while (0)
+ 
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) \
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
+ ({						\
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr); \
++	struct page *page = alloc_page_vma(
++		GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr); \
+ 	if (page)				\
+  		flush_dcache_page(page);	\
+ 	page;					\
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-m32r/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-m32r/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-m32r/page.h	2007-02-19 01:21:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-m32r/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -15,7 +15,8 @@ extern void copy_page(void *to, void *fr
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-s390/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-s390/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-s390/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-s390/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -64,7 +64,8 @@ static inline void copy_page(void *to, v
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/asm-x86_64/page.h linux-2.6.20-mm2-002_clustering_flags/include/asm-x86_64/page.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/asm-x86_64/page.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/asm-x86_64/page.h	2007-02-20 18:25:33.000000000 +0000
+@@ -51,7 +51,8 @@ void copy_page(void *, void *);
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
++#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ /*
+  * These are used to make use of C type-checking..
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/linux/gfp.h linux-2.6.20-mm2-002_clustering_flags/include/linux/gfp.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/linux/gfp.h	2007-02-19 01:22:30.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/linux/gfp.h	2007-02-20 18:25:33.000000000 +0000
+@@ -30,6 +30,9 @@ struct vm_area_struct;
+  * cannot handle allocation failures.
+  *
+  * __GFP_NORETRY: The VM implementation must not retry indefinitely.
 + *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2006
-+ *
-+ * Original author, Mel Gorman
-+ * Major cleanups and reduction of bit operations, Andy Whitcroft
-+ */
-+#ifndef PAGEBLOCK_FLAGS_H
-+#define PAGEBLOCK_FLAGS_H
-+
-+#include <linux/types.h>
-+
-+/* Macro to aid the definition of ranges of bits */
-+#define PB_range(name, required_bits) \
-+	name, name ## _end = (name + required_bits) - 1
-+
-+/* Bit indices that affect a whole block of pages */
-+enum pageblock_bits {
-+	NR_PAGEBLOCK_BITS
-+};
-+
-+/* Forward declaration */
-+struct page;
-+
-+/* Declarations for getting and setting flags. See mm/page_alloc.c */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx);
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx);
-+
-+#define get_pageblock_flags(page) \
-+			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+#define set_pageblock_flags(page) \
-+			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-+
-+#endif	/* PAGEBLOCK_FLAGS_H */
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-clean/mm/page_alloc.c linux-2.6.20-mm2-001_pageblock_bits/mm/page_alloc.c
---- linux-2.6.20-mm2-clean/mm/page_alloc.c	2007-02-19 01:22:35.000000000 +0000
-+++ linux-2.6.20-mm2-001_pageblock_bits/mm/page_alloc.c	2007-02-20 18:23:25.000000000 +0000
-@@ -2715,6 +2715,41 @@ static void __init calculate_node_totalp
- 							realtotalpages);
++ * __GFP_MOVABLE: Flag that this page will be movable by the page migration
++ * mechanism or reclaimed
+  */
+ #define __GFP_WAIT	((__force gfp_t)0x10u)	/* Can wait and reschedule? */
+ #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
+@@ -46,6 +49,7 @@ struct vm_area_struct;
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+ #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+ #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
++#define __GFP_MOVABLE	((__force gfp_t)0x80000u) /* Page is movable */
+ 
+ #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+@@ -54,7 +58,8 @@ struct vm_area_struct;
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+ 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
+-			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
++			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
++			__GFP_MOVABLE)
+ 
+ /* This equals 0, but use constants in case they ever change */
+ #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
+@@ -66,6 +71,9 @@ struct vm_area_struct;
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+ #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
+ 			 __GFP_HIGHMEM)
++#define GFP_HIGH_MOVABLE	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
++				 __GFP_HARDWALL | __GFP_HIGHMEM | \
++				 __GFP_MOVABLE)
+ 
+ #ifdef CONFIG_NUMA
+ #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/include/linux/highmem.h linux-2.6.20-mm2-002_clustering_flags/include/linux/highmem.h
+--- linux-2.6.20-mm2-001_pageblock_bits/include/linux/highmem.h	2007-02-04 18:44:54.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/include/linux/highmem.h	2007-02-20 18:25:33.000000000 +0000
+@@ -62,10 +62,27 @@ static inline void clear_user_highpage(s
  }
  
-+#ifndef CONFIG_SPARSEMEM
-+/*
-+ * Calculate the size of the zone->blockflags rounded to an unsigned long
-+ * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
-+ * Then figure 1 NR_PAGEBLOCK_BITS worth of bits per MAX_ORDER-1, finally
-+ * round what is now in bits to nearest long in bits, then return it in
-+ * bytes.
+ #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
++/**
++ * __alloc_zeroed_user_highpage - Allocate a zeroed HIGHMEM page for a VMA with caller-specified movable GFP flags
++ * @movableflags: The GFP flags related to the pages future ability to move like __GFP_MOVABLE
++ * @vma: The VMA the page is to be allocated for
++ * @vaddr: The virtual address the page will be inserted into
++ *
++ * This function will allocate a page for a VMA but the caller is expected
++ * to specify via movableflags whether the page will be movable in the
++ * future or not
++ *
++ * An architecture may override this function by defining
++ * __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE and providing their own
++ * implementation.
 + */
-+static unsigned long __init usemap_size(unsigned long zonesize)
+ static inline struct page *
+-alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
++__alloc_zeroed_user_highpage(gfp_t movableflags,
++			struct vm_area_struct *vma,
++			unsigned long vaddr)
+ {
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER, vma, vaddr);
++	struct page *page = alloc_page_vma(GFP_HIGHUSER | movableflags,
++			vma, vaddr);
+ 
+ 	if (page)
+ 		clear_user_highpage(page, vaddr);
+@@ -74,6 +91,36 @@ alloc_zeroed_user_highpage(struct vm_are
+ }
+ #endif
+ 
++/**
++ * alloc_zeroed_user_highpage - Allocate a zeroed HIGHMEM page for a VMA
++ * @vma: The VMA the page is to be allocated for
++ * @vaddr: The virtual address the page will be inserted into
++ *
++ * This function will allocate a page for a VMA that the caller knows will
++ * not be able to move in the future using move_pages() or reclaim. If it
++ * is known that the page can move, use alloc_zeroed_user_highpage_movable
++ */
++static inline struct page *
++alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
 +{
-+	unsigned long usemapsize;
-+
-+	usemapsize = roundup(zonesize, MAX_ORDER_NR_PAGES);
-+	usemapsize = usemapsize >> (MAX_ORDER-1);
-+	usemapsize *= NR_PAGEBLOCK_BITS;
-+	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
-+
-+	return usemapsize / 8;
++	return __alloc_zeroed_user_highpage(0, vma, vaddr);
 +}
 +
-+static void __init setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize)
++/**
++ * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
++ * @vma: The VMA the page is to be allocated for
++ * @vaddr: The virtual address the page will be inserted into
++ *
++ * This function will allocate a page for a VMA that the caller knows will
++ * be able to migrate in the future using move_pages() or reclaimed
++ */
++static inline struct page *
++alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
++					unsigned long vaddr)
 +{
-+	unsigned long usemapsize = usemap_size(zonesize);
-+	zone->pageblock_flags = NULL;
-+	if (usemapsize) {
-+		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
-+		memset(zone->pageblock_flags, 0, usemapsize);
-+	}
++	return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
 +}
-+#else
-+static void inline setup_usemap(struct pglist_data *pgdat,
-+				struct zone *zone, unsigned long zonesize) {}
-+#endif /* CONFIG_SPARSEMEM */
 +
+ static inline void clear_highpage(struct page *page)
+ {
+ 	void *kaddr = kmap_atomic(page, KM_USER0);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/memory.c linux-2.6.20-mm2-002_clustering_flags/mm/memory.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/memory.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/memory.c	2007-02-20 18:25:33.000000000 +0000
+@@ -1761,11 +1761,11 @@ gotten:
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto oom;
+ 	if (old_page == ZERO_PAGE(address)) {
+-		new_page = alloc_zeroed_user_highpage(vma, address);
++		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+ 		if (!new_page)
+ 			goto oom;
+ 	} else {
+-		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++		new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
+ 		if (!new_page)
+ 			goto oom;
+ 		cow_user_page(new_page, old_page, address, vma);
+@@ -2283,7 +2283,7 @@ static int do_anonymous_page(struct mm_s
+ 
+ 		if (unlikely(anon_vma_prepare(vma)))
+ 			goto oom;
+-		page = alloc_zeroed_user_highpage(vma, address);
++		page = alloc_zeroed_user_highpage_movable(vma, address);
+ 		if (!page)
+ 			goto oom;
+ 
+@@ -2384,7 +2384,7 @@ retry:
+ 
+ 			if (unlikely(anon_vma_prepare(vma)))
+ 				goto oom;
+-			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++			page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
+ 			if (!page)
+ 				goto oom;
+ 			copy_user_highpage(page, new_page, address, vma);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/mempolicy.c linux-2.6.20-mm2-002_clustering_flags/mm/mempolicy.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/mempolicy.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/mempolicy.c	2007-02-20 18:25:33.000000000 +0000
+@@ -603,7 +603,7 @@ static void migrate_page_add(struct page
+ 
+ static struct page *new_node_page(struct page *page, unsigned long node, int **x)
+ {
+-	return alloc_pages_node(node, GFP_HIGHUSER, 0);
++	return alloc_pages_node(node, GFP_HIGH_MOVABLE, 0);
+ }
+ 
  /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -2795,6 +2830,7 @@ static void __meminit free_area_init_cor
- 		if (!size)
- 			continue;
+@@ -719,7 +719,7 @@ static struct page *new_vma_page(struct 
+ {
+ 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
  
-+		setup_usemap(pgdat, zone, size);
- 		ret = init_currently_empty_zone(zone, zone_start_pfn,
- 						size, MEMMAP_EARLY);
- 		BUG_ON(ret);
-@@ -3512,4 +3548,81 @@ EXPORT_SYMBOL(pfn_to_page);
- EXPORT_SYMBOL(page_to_pfn);
- #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+-	return alloc_page_vma(GFP_HIGHUSER, vma, page_address_in_vma(page, vma));
++	return alloc_page_vma(GFP_HIGH_MOVABLE, vma, page_address_in_vma(page, vma));
+ }
+ #else
  
-+/* Return a pointer to the bitmap storing bits affecting a block of pages */
-+static inline unsigned long *get_pageblock_bitmap(struct zone *zone,
-+							unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	unsigned long blockpfn;
-+	blockpfn = pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+	return __pfn_to_section(blockpfn)->pageblock_flags;
-+#else
-+	return zone->pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+}
-+
-+static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	pfn &= (PAGES_PER_SECTION-1);
-+	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
-+#else
-+	pfn = pfn - zone->zone_start_pfn;
-+	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
-+#endif /* CONFIG_SPARSEMEM */
-+}
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/migrate.c linux-2.6.20-mm2-002_clustering_flags/mm/migrate.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/migrate.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/migrate.c	2007-02-20 18:25:33.000000000 +0000
+@@ -755,7 +755,7 @@ static struct page *new_page_node(struct
  
-+/**
-+ * get_pageblock_flags_group - Return the requested group of flags for the MAX_ORDER_NR_PAGES block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest to retrieve
-+ * @end_bitidx: The last bit of interest
-+ * returns pageblock_bits flags
-+ */
-+unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long flags = 0;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (test_bit(bitidx + start_bitidx, bitmap))
-+			flags |= value;
-+
-+	return flags;
-+}
-+
-+/**
-+ * set_pageblock_flags_group - Set the requested group of flags for a MAX_ORDER_NR_PAGES block of pages
-+ * @page: The page within the block of interest
-+ * @start_bitidx: The first bit of interest
-+ * @end_bitidx: The last bit of interest
-+ * @flags: The flags to set
-+ */
-+void set_pageblock_flags_group(struct page *page, unsigned long flags,
-+					int start_bitidx, int end_bitidx)
-+{
-+	struct zone *zone;
-+	unsigned long *bitmap;
-+	unsigned long pfn, bitidx;
-+	unsigned long value = 1;
-+
-+	zone = page_zone(page);
-+	pfn = page_to_pfn(page);
-+	bitmap = get_pageblock_bitmap(zone, pfn);
-+	bitidx = pfn_to_bitidx(zone, pfn);
-+
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
-+		if (flags & value)
-+			__set_bit(bitidx + start_bitidx, bitmap);
-+		else
-+			__clear_bit(bitidx + start_bitidx, bitmap);
-+}
+ 	*result = &pm->status;
+ 
+-	return alloc_pages_node(pm->node, GFP_HIGHUSER | GFP_THISNODE, 0);
++	return alloc_pages_node(pm->node, GFP_HIGH_MOVABLE | GFP_THISNODE, 0);
+ }
+ 
+ /*
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/shmem.c linux-2.6.20-mm2-002_clustering_flags/mm/shmem.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/shmem.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/shmem.c	2007-02-20 18:25:33.000000000 +0000
+@@ -93,8 +93,11 @@ static inline struct page *shmem_dir_all
+ 	 * The above definition of ENTRIES_PER_PAGE, and the use of
+ 	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
+ 	 * might be reconsidered if it ever diverges from PAGE_SIZE.
++	 *
++	 * __GFP_MOVABLE is masked out as swap vectors cannot move
+ 	 */
+-	return alloc_pages(gfp_mask, PAGE_CACHE_SHIFT-PAGE_SHIFT);
++	return alloc_pages((gfp_mask & ~__GFP_MOVABLE) | __GFP_ZERO,
++				PAGE_CACHE_SHIFT-PAGE_SHIFT);
+ }
+ 
+ static inline void shmem_dir_free(struct page *page)
+@@ -371,7 +374,7 @@ static swp_entry_t *shmem_swp_alloc(stru
+ 		}
+ 
+ 		spin_unlock(&info->lock);
+-		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
++		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
+ 		if (page)
+ 			set_page_private(page, 0);
+ 		spin_lock(&info->lock);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/swap_prefetch.c linux-2.6.20-mm2-002_clustering_flags/mm/swap_prefetch.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/swap_prefetch.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/swap_prefetch.c	2007-02-20 18:25:33.000000000 +0000
+@@ -204,7 +204,7 @@ static enum trickle_return trickle_swap_
+ 	 * Get a new page to read from swap. We have already checked the
+ 	 * watermarks so __alloc_pages will not call on reclaim.
+ 	 */
+-	page = alloc_pages_node(node, GFP_HIGHUSER & ~__GFP_WAIT, 0);
++	page = alloc_pages_node(node, GFP_HIGH_MOVABLE & ~__GFP_WAIT, 0);
+ 	if (unlikely(!page)) {
+ 		ret = TRICKLE_DELAY;
+ 		goto out;
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.20-mm2-001_pageblock_bits/mm/swap_state.c linux-2.6.20-mm2-002_clustering_flags/mm/swap_state.c
+--- linux-2.6.20-mm2-001_pageblock_bits/mm/swap_state.c	2007-02-19 01:22:35.000000000 +0000
++++ linux-2.6.20-mm2-002_clustering_flags/mm/swap_state.c	2007-02-20 18:25:33.000000000 +0000
+@@ -340,7 +340,7 @@ struct page *read_swap_cache_async(swp_e
+ 		 * Get a new page to read into from swap.
+ 		 */
+ 		if (!new_page) {
+-			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
++			new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, addr);
+ 			if (!new_page)
+ 				break;		/* Out of memory */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
