@@ -1,56 +1,48 @@
-Date: Fri, 2 Mar 2007 11:02:45 -0800
-From: Mark Gross <mgross@linux.intel.com>
-Subject: Re: The performance and behaviour of the anti-fragmentation related patches
-Message-ID: <20070302190245.GA10019@linux.intel.com>
-Reply-To: mgross@linux.intel.com
-References: <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org> <20070301195943.8ceb221a.akpm@linux-foundation.org> <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org> <20070302162023.GA4691@linux.intel.com> <20070302090753.b06ed267.akpm@linux-foundation.org> <20070302173527.GA7280@linux.intel.com> <20070302100257.fd0d44a8.akpm@linux-foundation.org>
+Date: Fri, 2 Mar 2007 11:31:16 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: The performance and behaviour of the anti-fragmentation related
+ patches
+In-Reply-To: <45E86BA0.50508@redhat.com>
+Message-ID: <Pine.LNX.4.64.0703021126470.17883@schroedinger.engr.sgi.com>
+References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
+ <45E842F6.5010105@redhat.com> <20070302085838.bcf9099e.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703020919350.16719@schroedinger.engr.sgi.com>
+ <20070302093501.34c6ef2a.akpm@linux-foundation.org> <45E8624E.2080001@redhat.com>
+ <20070302100619.cec06d6a.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703021012170.17676@schroedinger.engr.sgi.com>
+ <45E86BA0.50508@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070302100257.fd0d44a8.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 02, 2007 at 10:02:57AM -0800, Andrew Morton wrote:
-> On Fri, 2 Mar 2007 09:35:27 -0800
-> Mark Gross <mgross@linux.intel.com> wrote:
-> 
-> > > 
-> > > Will it be possible to just power the DIMMs off?  I don't see much point in
-> > > some half-power non-destructive mode.
-> > 
-> > I think so, but need to double check with the HW folks.
-> > 
-> > Technically, the dims could be powered off, and put into 2 different low
-> > power non-destructive states.  (standby and suspend), but putting them
-> > in a low power non-destructive mode has much less latency and provides
-> > good bang for the buck or LOC change needed to make work.
-> > 
-> > Which lower power mode an application chooses will depend on latency
-> > tolerances of the app.  For the POC activities we are looking at we are
-> > targeting the lower latency option, but that doesn't lock out folks from
-> > trying to do something with the other options.
-> > 
-> 
-> If we don't evacuate all live data from all of the DIMM, we'll never be
-> able to power the thing down in many situations.
-> 
-> Given that we _have_ emptied the DIMM, we can just turn it off.  And
-> refilling it will be slow - often just disk speed.
-> 
-> So I don't see a useful use-case for non-destructive states.
+On Fri, 2 Mar 2007, Rik van Riel wrote:
 
-I'll post the RFC very soon to provide a better thread context for this
-line of discussion, but to answer your question:
+> I would like to see separate pageout selection queues
+> for anonymous/tmpfs and page cache backed pages.  That
+> way we can simply scan only that what we want to scan.
+> 
+> There are several ways available to balance pressure
+> between both sets of lists.
+> 
+> Splitting them out will also make it possible to do
+> proper use-once replacement for the page cache pages.
+> Ie. leaving the really active page cache pages on the
+> page cache active list, instead of deactivating them
+> because they're lower priority than anonymous pages.
 
-There are 2 power management policies we are looking at.  The first one
-is allocation based PM, and the other is access base PM.  The access
-based PM needs chip set support which is coming at a TBD date.
-
---mgross
+Well I would expect this to have marginal improvements and delay the 
+inevitable for awhile until we have even bigger memory. If the app uses 
+mmapped data areas then the problem is still there. And such tinkering 
+does not solve the issue of large scale I/O requiring the handling of 
+gazillions of page structs. I do not think that there is a way around 
+somehow handling larger chunks of memory in an easier way. We already do 
+handle larger page sizes for some limited purposes and with huge pages we 
+already have a larger page size. Mel's defrag/anti-frag patches are 
+necessary to allow us to deal with the resulting fragmentation problems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
