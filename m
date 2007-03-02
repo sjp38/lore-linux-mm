@@ -1,43 +1,73 @@
-Received: by nf-out-0910.google.com with SMTP id b2so1033046nfe
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2007 16:02:35 -0800 (PST)
-Message-ID: <45a44e480703011602j698f67dev469b49d6b527f502@mail.gmail.com>
-Date: Thu, 1 Mar 2007 19:02:34 -0500
-From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
-Subject: Re: [PATCH/RFC 2.6.20 1/2] fbdev, mm: Deferred IO support
-In-Reply-To: <20070301140131.GA6603@linux-sh.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Thu, 1 Mar 2007 16:09:15 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: The performance and behaviour of the anti-fragmentation related
+ patches
+Message-Id: <20070301160915.6da876c5.akpm@linux-foundation.org>
+In-Reply-To: <20070301101249.GA29351@skynet.ie>
+References: <20070301101249.GA29351@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070225051312.17454.80741.sendpatchset@localhost>
-	 <20070301140131.GA6603@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>, Jaya Kumar <jayakumar.lkml@gmail.com>, linux-fbdev-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/1/07, Paul Mundt <lethal@linux-sh.org> wrote:
-> On Sun, Feb 25, 2007 at 06:13:12AM +0100, Jaya Kumar wrote:
-> > This patch implements deferred IO support in fbdev. Deferred IO is a way to
-> > delay and repurpose IO. This implementation is done using mm's page_mkwrite
-> > and page_mkclean hooks in order to detect, delay and then rewrite IO. This
-> > functionality is used by hecubafb.
-> >
-> Any updates on this? If there are no other concerns, it would be nice to
-> at least get this in to -mm for testing if nothing else.
+On Thu, 1 Mar 2007 10:12:50 +0000
+mel@skynet.ie (Mel Gorman) wrote:
 
-I think Andrew merged it into -mm.
+> Any opinion on merging these patches into -mm
+> for wider testing?
 
->
-> Jaya, can you roll the fsync() patch in to your defio patch? There's not
-> much point in keeping them separate.
->
+I'm a little reluctant to make changes to -mm's core mm unless those
+changes are reasonably certain to be on track for mainline, so let's talk
+about that.
 
-I forgot to add that. Sorry about that. Should I resubmit with it or
-would you prefer to post it?
+What worries me is memory hot-unplug and per-container RSS limits.  We
+don't know how we're going to do either of these yet, and it could well be
+that the anti-frag work significantly complexicates whatever we end up
+doing there.
 
-Thanks,
-jaya
+For prioritisation purposes I'd judge that memory hot-unplug is of similar
+value to the antifrag work (because memory hot-unplug permits DIMM
+poweroff).
+
+And I'd judge that per-container RSS limits are of considerably more value
+than antifrag (in fact per-container RSS might be a superset of antifrag,
+in the sense that per-container RSS and containers could be abused to fix
+the i-cant-get-any-hugepages problem, dunno).
+
+
+
+So some urgent questions are: how are we going to do mem hotunplug and
+per-container RSS?
+
+
+
+Our basic unit of memory management is the zone.  Right now, a zone maps
+onto some hardware-imposed thing.  But the zone-based MM works *well*.  I
+suspect that a good way to solve both per-container RSS and mem hotunplug
+is to split the zone concept away from its hardware limitations: create a
+"software zone" and a "hardware zone".  All the existing page allocator and
+reclaim code remains basically unchanged, and it operates on "software
+zones".  Each software zones always lies within a single hardware zone. 
+The software zones are resizeable.  For per-container RSS we give each
+container one (or perhaps multiple) resizeable software zones.
+
+For memory hotunplug, some of the hardware zone's software zones are marked
+reclaimable and some are not; DIMMs which are wholly within reclaimable
+zones can be depopulated and powered off or removed.
+
+NUMA and cpusets screwed up: they've gone and used nodes as their basic
+unit of memory management whereas they should have used zones.  This will
+need to be untangled.
+
+
+Anyway, that's just a shot in the dark.  Could be that we implement unplug
+and RSS control by totally different means.  But I do wish that we'd sort
+out what those means will be before we potentially complicate the story a
+lot by adding antifragmentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
