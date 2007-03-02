@@ -1,52 +1,66 @@
-Date: Fri, 2 Mar 2007 06:06:25 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: The performance and behaviour of the anti-fragmentation related patches
-Message-ID: <20070302050625.GD15867@wotan.suse.de>
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011854540.5530@schroedinger.engr.sgi.com> <20070302035751.GA15867@wotan.suse.de> <Pine.LNX.4.64.0703012001260.5548@schroedinger.engr.sgi.com> <20070302042149.GB15867@wotan.suse.de> <Pine.LNX.4.64.0703012022320.14299@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0703012022320.14299@schroedinger.engr.sgi.com>
+Date: Thu, 1 Mar 2007 21:11:58 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: The performance and behaviour of the anti-fragmentation related
+ patches
+In-Reply-To: <20070301195943.8ceb221a.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org>
+References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org>
+ <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
+ <20070301195943.8ceb221a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 01, 2007 at 08:31:24PM -0800, Christoph Lameter wrote:
-> On Fri, 2 Mar 2007, Nick Piggin wrote:
+
+On Thu, 1 Mar 2007, Andrew Morton wrote:
+>
+> On Thu, 1 Mar 2007 19:44:27 -0800 (PST) Linus Torvalds <torvalds@linux-foundation.org> wrote:
 > 
-> > > Yes, we (SGI) need exactly that: Use of higher order pages in the kernel 
-> > > in order to reduce overhead of managing page structs for large I/O and 
-> > > large memory applications. We need appropriate measures to deal with the 
-> > > fragmentation problem.
-> > 
-> > I don't understand why, out of any architecture, ia64 would have to hack
-> > around this in software :(
+> > In other words, I really don't see a huge upside. I see *lots* of 
+> > downsides, but upsides? Not so much. Almost everybody who wants unplug 
+> > wants virtualization, and right now none of the "big virtualization" 
+> > people would want to have kernel-level anti-fragmentation anyway sicne 
+> > they'd need to do it on their own.
 > 
-> Ummm... We have x86_64 platforms with the 4k page problem. 4k pages are 
-> very useful for the large number of small files that are around. But for 
-> the large streams of data you would want other methods of handling these.
-> 
-> If I want to write 1 terabyte (2^50) to disk then the I/O subsystem has 
-> to handle 2^(50-12) = 2^38 = 256 million page structs! This limits I/O 
-> bandwiths and leads to huge scatter gather lists (and we are limited in 
-> terms of the numbe of items on those lists in many drivers). Our future 
-> platforms have up to serveral petabytes of memory. There needs to be some 
-> way to handle these capacities in an efficient way. We cannot wait 
-> an hour for the terabyte to reach the disk.
+> Agree with all that, but you're missing the other application: power
+> saving.  FBDIMMs take eight watts a pop.
 
-I guess you mean 256 billion page structs.
+This is a hardware problem. Let's see how long it takes for Intel to 
+realize that FBDIMM's were a hugely bad idea from a power perspective.
 
-So what do you mean by efficient? I guess you aren't talking about CPU
-efficiency, because even if you make the IO subsystem submit larger
-physical IOs, you still have to deal with 256 billion TLB entries, the
-pagecache has to deal with 256 billion struct pages, so does the
-filesystem code to build the bios.
+Yes, the same issues exist for other DRAM forms too, but to a *much* 
+smaller degree.
 
-So you are having problems with your IO controller's handling of sg
-lists?
+Also, IN PRACTICE you're never ever going to see this anyway. Almost 
+everybody wants bank interleaving, because it's a huge performance win on 
+many loads. That, in turn, means that your memory will be spread out over 
+multiple DIMM's even for a single page, much less any bigger area.
 
+In other words - forget about DRAM power savings. It's not realistic. And 
+if you want low-power, don't use FBDIMM's. It really *is* that simple.
+
+(And yes, maybe FBDIMM controllers in a few years won't use 8 W per 
+buffer. I kind of doubt that, since FBDIMM fairly fundamentally is highish 
+voltage swings at high frequencies.)
+
+Also, on a *truly* idle system, we'll see the power savings whatever we 
+do, because the working set will fit in D$, and to get those DRAM power 
+savings in reality you need to have the DRAM controller shut down on its 
+own anyway (ie sw would only help a bit).
+
+The whole DRAM power story is a bedtime story for gullible children. Don't 
+fall for it. It's not realistic. The hardware support for it DOES NOT 
+EXIST today, and probably won't for several years. And the real fix is 
+elsewhere anyway (ie people will have to do a FBDIMM-2 interface, which 
+is against the whole point of FBDIMM in the first place, but that's what 
+you get when you ignore power in the first version!).
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
