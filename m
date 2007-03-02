@@ -1,9 +1,9 @@
-Received: by an-out-0708.google.com with SMTP id b38so481707ana
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2007 15:44:15 -0800 (PST)
-Message-ID: <b00ca3bd0703011544n6a9eccc8gfa9e44964bd68e9d@mail.gmail.com>
-Date: Fri, 2 Mar 2007 07:44:15 +0800
-From: "Antonino Daplas" <adaplas@gmail.com>
-Subject: Re: [Linux-fbdev-devel] [PATCH/RFC 2.6.20 1/2] fbdev, mm: Deferred IO support
+Received: by nf-out-0910.google.com with SMTP id b2so1033046nfe
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2007 16:02:35 -0800 (PST)
+Message-ID: <45a44e480703011602j698f67dev469b49d6b527f502@mail.gmail.com>
+Date: Thu, 1 Mar 2007 19:02:34 -0500
+From: "Jaya Kumar" <jayakumar.lkml@gmail.com>
+Subject: Re: [PATCH/RFC 2.6.20 1/2] fbdev, mm: Deferred IO support
 In-Reply-To: <20070301140131.GA6603@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
@@ -13,7 +13,7 @@ References: <20070225051312.17454.80741.sendpatchset@localhost>
 	 <20070301140131.GA6603@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-fbdev-devel@lists.sourceforge.net, Paul Mundt <lethal@linux-sh.org>, Jaya Kumar <jayakumar.lkml@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Paul Mundt <lethal@linux-sh.org>, Jaya Kumar <jayakumar.lkml@gmail.com>, linux-fbdev-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
 On 3/1/07, Paul Mundt <lethal@linux-sh.org> wrote:
@@ -26,15 +26,18 @@ On 3/1/07, Paul Mundt <lethal@linux-sh.org> wrote:
 > Any updates on this? If there are no other concerns, it would be nice to
 > at least get this in to -mm for testing if nothing else.
 
-The driver is already in the -mm tree.
+I think Andrew merged it into -mm.
 
 >
 > Jaya, can you roll the fsync() patch in to your defio patch? There's not
 > much point in keeping them separate.
+>
 
-The fsync() patch was not included by Jaya, I believe.
+I forgot to add that. Sorry about that. Should I resubmit with it or
+would you prefer to post it?
 
-Tony
+Thanks,
+jaya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
