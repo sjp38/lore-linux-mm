@@ -1,58 +1,50 @@
-Date: Fri, 2 Mar 2007 14:50:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 1 Mar 2007 21:53:42 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-Message-Id: <20070302145029.d4847577.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org>
-References: <20070301101249.GA29351@skynet.ie>
-	<20070301160915.6da876c5.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org>
-	<45E7835A.8000908@in.ibm.com>
-	<Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
-	<20070301195943.8ceb221a.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20070302054944.GE15867@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703012150290.1768@schroedinger.engr.sgi.com>
+References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703011854540.5530@schroedinger.engr.sgi.com>
+ <20070302035751.GA15867@wotan.suse.de> <Pine.LNX.4.64.0703012001260.5548@schroedinger.engr.sgi.com>
+ <20070302042149.GB15867@wotan.suse.de> <Pine.LNX.4.64.0703012022320.14299@schroedinger.engr.sgi.com>
+ <20070302050625.GD15867@wotan.suse.de> <Pine.LNX.4.64.0703012137580.1768@schroedinger.engr.sgi.com>
+ <20070302054944.GE15867@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: akpm@linux-foundation.org, balbir@in.ibm.com, mel@skynet.ie, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Mar 2007 21:11:58 -0800 (PST)
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Fri, 2 Mar 2007, Nick Piggin wrote:
 
-> The whole DRAM power story is a bedtime story for gullible children. Don't 
-> fall for it. It's not realistic. The hardware support for it DOES NOT 
-> EXIST today, and probably won't for several years. And the real fix is 
-> elsewhere anyway (ie people will have to do a FBDIMM-2 interface, which 
-> is against the whole point of FBDIMM in the first place, but that's what 
-> you get when you ignore power in the first version!).
+> > You do not have to deal with TLB entries if you do buffered I/O.
 > 
+> Where does the data come from?
 
-At first, we have memory hot-add now. So I want to implement hot-removing 
-hot-added memory, at least. (in this case, we don't have to write invasive
-patches to memory-init-core.)
+>From the I/O controller and from the application. 
 
-Our(Fujtisu's) product, ia64-NUMA server, has a feature to offline memory.
-It supports dynamic reconfigraion of nodes, node-hoplug.
+> > We currently have problems with the kernel limits of 128 SG 
+> > entries but the fundamental issue is that we can only do 2 Meg of I/O in 
+> > one go given the default limits of the block layer. Typically the number 
+> > of hardware SG entrie is also limited. We never will be able to put a 
+> 
+> Seems like changing the default limits would be the easiest way to
+> fix it then?
 
-But there is no *shipped* firmware for hotplug yet. RHEL4 couldn't boot on
-such hotplug-supported-firmware...so firmware-team were not in hurry.
-It will be shipped after RHEL5 comes.
-IMHO, a firmware which supports memory-hot-add are ready to support memory-hot-remove
-if OS can handle it.
+This would only be a temporary fix pushing the limits to the double or so?
+ 
+> As far as hardware limits go, I don't think you need to scale that
+> number linearly with the amount of memory you have, or even with the
+> IO throughput. You should reach a point where your command overhead
+> is amortised sufficiently, and the controller will be pipelining the
+> commands.
 
-Note:
-I heard embeded people often designs their own memory-power-off control on
-embeded Linux. (but it never seems to be posted to the list.) But I don't know
-they are interested in generic memory hotremove or not.
-
-Thanks,
--Kame
-
-
+Amortized? The controller still would have to hunt down the 4kb page 
+pieces that we have to feed him right now. Result: Huge scatter gather 
+lists that may themselves create issues with higher page order.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
