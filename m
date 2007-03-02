@@ -1,43 +1,64 @@
-Date: Fri, 2 Mar 2007 15:15:48 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: The performance and behaviour of the anti-fragmentation related patches
-Message-ID: <20070302061548.GA13552@linux-sh.org>
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org> <20070301195943.8ceb221a.akpm@linux-foundation.org> <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org> <20070302145029.d4847577.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 1 Mar 2007 22:19:48 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: The performance and behaviour of the anti-fragmentation related
+ patches
+In-Reply-To: <20070302060831.GF15867@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703012213130.1917@schroedinger.engr.sgi.com>
+References: <20070301160915.6da876c5.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703011854540.5530@schroedinger.engr.sgi.com>
+ <20070302035751.GA15867@wotan.suse.de> <Pine.LNX.4.64.0703012001260.5548@schroedinger.engr.sgi.com>
+ <20070302042149.GB15867@wotan.suse.de> <Pine.LNX.4.64.0703012022320.14299@schroedinger.engr.sgi.com>
+ <20070302050625.GD15867@wotan.suse.de> <Pine.LNX.4.64.0703012137580.1768@schroedinger.engr.sgi.com>
+ <20070302054944.GE15867@wotan.suse.de> <Pine.LNX.4.64.0703012150290.1768@schroedinger.engr.sgi.com>
+ <20070302060831.GF15867@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070302145029.d4847577.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, balbir@in.ibm.com, mel@skynet.ie, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 02, 2007 at 02:50:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 1 Mar 2007 21:11:58 -0800 (PST)
-> Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Fri, 2 Mar 2007, Nick Piggin wrote:
+
+> > >From the I/O controller and from the application. 
 > 
-> > The whole DRAM power story is a bedtime story for gullible children. Don't 
-> > fall for it. It's not realistic. The hardware support for it DOES NOT 
-> > EXIST today, and probably won't for several years. And the real fix is 
-> > elsewhere anyway (ie people will have to do a FBDIMM-2 interface, which 
-> > is against the whole point of FBDIMM in the first place, but that's what 
-> > you get when you ignore power in the first version!).
-> > 
+> Why doesn't the application need to deal with TLB entries?
+
+Because it may only operate on a small section of the file and hopefully 
+splice the rest through? But yes support for mmapped I/O would be 
+necessary.
+
+> > This would only be a temporary fix pushing the limits to the double or so?
 > 
-> Note:
-> I heard embeded people often designs their own memory-power-off control on
-> embeded Linux. (but it never seems to be posted to the list.) But I don't know
-> they are interested in generic memory hotremove or not.
+> And using slightly larger page sizes isn't?
+
+There was no talk about slightly. 1G page size would actually be quite 
+convenient for some applications.
+
+> > Amortized? The controller still would have to hunt down the 4kb page 
+> > pieces that we have to feed him right now. Result: Huge scatter gather 
+> > lists that may themselves create issues with higher page order.
 > 
-Yes, this is not that uncommon of a thing. People tend to do this in a
-couple of different ways, in some cases the system is too loaded to ever
-make doing such a thing at run-time worthwhile, and in those cases these
-sorts of things tend to be munged in with the suspend code. Unfortunately
-it tends to be quite difficult in practice to keep pages in one place,
-so people rely on lame chip-select hacks and limiting the amount of
-memory that the kernel treats as RAM instead so it never ends up being an
-issue. Having some sort of a balance would certainly be nice, though.
+> What sort of numbers do you have for these controllers that aren't
+> very good at doing sg?
+
+Writing a terabyte of memory to disk with handling 256 billion page 
+structs? In case of a system with 1 petabyte of memory this may be rather 
+typical and necessary for the application to be able to save its state
+on disk.
+
+> Isn't the issue was something like your IO controllers have only a
+> limited number of sg entries, which is fine with 16K pages, but with
+> 4K pages that doesn't give enough data to cover your RAID stripe?
+> 
+> We're never going to do a variable sized pagecache just because of that.
+
+No, we need support for larger page sizes than 16k. 16k has not been fine 
+for a couple of years. We only agreed to 16k because that was the common 
+consensus. Best performance was always at 64k 4 years ago (but then we 
+have no numbers for higher page sizes yet). Now we would prefer much 
+larger sizes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
