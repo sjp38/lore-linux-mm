@@ -1,66 +1,57 @@
-Date: Thu, 1 Mar 2007 21:11:58 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Message-ID: <45E7B276.3020504@goop.org>
+Date: Thu, 01 Mar 2007 21:13:26 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-In-Reply-To: <20070301195943.8ceb221a.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org>
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org>
- <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
- <20070301195943.8ceb221a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Balbir Singh <balbir@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 1 Mar 2007, Andrew Morton wrote:
+Linus Torvalds wrote:
+> Virtualization in general. We don't know what it is - in IBM machines it's 
+> a hypervisor. With Xen and VMware, it's usually a hypervisor too. With 
+> KVM, it's obviously a host Linux kernel/user-process combination.
 >
-> On Thu, 1 Mar 2007 19:44:27 -0800 (PST) Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > In other words, I really don't see a huge upside. I see *lots* of 
-> > downsides, but upsides? Not so much. Almost everybody who wants unplug 
-> > wants virtualization, and right now none of the "big virtualization" 
-> > people would want to have kernel-level anti-fragmentation anyway sicne 
-> > they'd need to do it on their own.
-> 
-> Agree with all that, but you're missing the other application: power
-> saving.  FBDIMMs take eight watts a pop.
+> The point being that in the guests, hotunplug is almost useless (for 
+> bigger ranges), and we're much better off just telling the virtualization 
+> hosts on a per-page level whether we care about a page or not, than to 
+> worry about fragmentation.
+>
+> And in hosts, we usually don't care EITHER, since it's usually done in a 
+> hypervisor.
+>   
 
-This is a hardware problem. Let's see how long it takes for Intel to 
-realize that FBDIMM's were a hugely bad idea from a power perspective.
+The paravirt_ops patches I just posted implement all the machinery
+required to create a pseudo-physical to machine address mapping under
+the kernel.  This is used under Xen because it directly exposes the
+pagetables to its guests, but there's no reason why you couldn't use
+this layer to implement the same mapping without an underlying
+hypervisor.  This allows the kernel to see a normal linear "physical"
+address space which is in fact its mapped over a discontigious set of
+machine ("real physical") pages.
 
-Yes, the same issues exist for other DRAM forms too, but to a *much* 
-smaller degree.
+Andrew and I discussed using it for a kdump kernel, so that you could
+load it into a random bunch of pages, and set things up so that it sees
+itself as being contiguous.
 
-Also, IN PRACTICE you're never ever going to see this anyway. Almost 
-everybody wants bank interleaving, because it's a huge performance win on 
-many loads. That, in turn, means that your memory will be spread out over 
-multiple DIMM's even for a single page, much less any bigger area.
+The mapping is pretty simple.  It intercepts __pte (__pmd, etc) to map
+the "physical" page to the real machine page, and pte_val does the
+reverse mapping.
 
-In other words - forget about DRAM power savings. It's not realistic. And 
-if you want low-power, don't use FBDIMM's. It really *is* that simple.
+You could implement this today as a farily simple, thin paravirt_ops
+backend.  The main tricky part is making sure all the device drivers are
+correct in using bus addresses (which are mapped to real machine
+addresses), and that they don't assume that adjacent kernel virtual
+pages are physically adjacent.
 
-(And yes, maybe FBDIMM controllers in a few years won't use 8 W per 
-buffer. I kind of doubt that, since FBDIMM fairly fundamentally is highish 
-voltage swings at high frequencies.)
-
-Also, on a *truly* idle system, we'll see the power savings whatever we 
-do, because the working set will fit in D$, and to get those DRAM power 
-savings in reality you need to have the DRAM controller shut down on its 
-own anyway (ie sw would only help a bit).
-
-The whole DRAM power story is a bedtime story for gullible children. Don't 
-fall for it. It's not realistic. The hardware support for it DOES NOT 
-EXIST today, and probably won't for several years. And the real fix is 
-elsewhere anyway (ie people will have to do a FBDIMM-2 interface, which 
-is against the whole point of FBDIMM in the first place, but that's what 
-you get when you ignore power in the first version!).
-
-		Linus
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
