@@ -1,77 +1,56 @@
-Date: Fri, 2 Mar 2007 11:03:58 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: The performance and behaviour of the anti-fragmentation related
- patches
-In-Reply-To: <20070302184529.GA8761@linux.intel.com>
-Message-ID: <Pine.LNX.4.64.0703021051580.3953@woody.linux-foundation.org>
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org>
- <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
- <20070301195943.8ceb221a.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org>
- <20070302162023.GA4691@linux.intel.com> <Pine.LNX.4.64.0703020903190.3953@woody.linux-foundation.org>
- <20070302184529.GA8761@linux.intel.com>
+Date: Fri, 2 Mar 2007 11:02:45 -0800
+From: Mark Gross <mgross@linux.intel.com>
+Subject: Re: The performance and behaviour of the anti-fragmentation related patches
+Message-ID: <20070302190245.GA10019@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org> <20070301195943.8ceb221a.akpm@linux-foundation.org> <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org> <20070302162023.GA4691@linux.intel.com> <20070302090753.b06ed267.akpm@linux-foundation.org> <20070302173527.GA7280@linux.intel.com> <20070302100257.fd0d44a8.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070302100257.fd0d44a8.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Gross <mgross@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 2 Mar 2007, Mark Gross wrote:
+On Fri, Mar 02, 2007 at 10:02:57AM -0800, Andrew Morton wrote:
+> On Fri, 2 Mar 2007 09:35:27 -0800
+> Mark Gross <mgross@linux.intel.com> wrote:
 > 
-> I think there will be more than just 2 dims per cpu socket on systems
-> that care about this type of capability.
+> > > 
+> > > Will it be possible to just power the DIMMs off?  I don't see much point in
+> > > some half-power non-destructive mode.
+> > 
+> > I think so, but need to double check with the HW folks.
+> > 
+> > Technically, the dims could be powered off, and put into 2 different low
+> > power non-destructive states.  (standby and suspend), but putting them
+> > in a low power non-destructive mode has much less latency and provides
+> > good bang for the buck or LOC change needed to make work.
+> > 
+> > Which lower power mode an application chooses will depend on latency
+> > tolerances of the app.  For the POC activities we are looking at we are
+> > targeting the lower latency option, but that doesn't lock out folks from
+> > trying to do something with the other options.
+> > 
+> 
+> If we don't evacuate all live data from all of the DIMM, we'll never be
+> able to power the thing down in many situations.
+> 
+> Given that we _have_ emptied the DIMM, we can just turn it off.  And
+> refilling it will be slow - often just disk speed.
+> 
+> So I don't see a useful use-case for non-destructive states.
 
-I agree. I think you'll have a nice mix of 2 and 4, although not likely a 
-lot more. You want to have independent channels, and then within a channel 
-you want to have as close to point-to-point as possible. 
+I'll post the RFC very soon to provide a better thread context for this
+line of discussion, but to answer your question:
 
-But the reason that I think you're better off looking at a "node level" is 
-that 
+There are 2 power management policies we are looking at.  The first one
+is allocation based PM, and the other is access base PM.  The access
+based PM needs chip set support which is coming at a TBD date.
 
- (a) describing the DIMM setup is a total disaster. The interleaving is 
-     part of it, but even in the absense of interleaving, we have so far 
-     seen that describing DIMM mapping simply isn't a realistic thing to 
-     be widely deplyed, judging by the fact that we cannot even get a 
-     first-order approximate mapping for the ECC error events.
-
-     Going node-level means that we just piggy-back on the existing node 
-     mapping, which is a lot more likely to actually be correct and 
-     available (ie you may not know which bank is bank0 and how the 
-     interleaving works, but you usually *do* know which bank is connected 
-     to which CPU package)
-
-     (Btw, I shouldn't have used the word "die", since it's really about 
-     package - Intel obviously has a penchant for putting two dies per 
-     package)
-
- (b) especially if you can actually shut down the memory, going node-wide 
-     may mean that you can shut down the CPU's too (ie per-package sleep). 
-     I bet the people who care enough to care about DIMM's would want to 
-     have that *anyway*, so tying them together simplifies the problem.
-
-> BTW I hope we aren't talking past each other, there are low power states
-> where the ram contents are persevered.
-
-Yes. They are almost as hard to handle, but the advantage is that if we 
-get things wrong, it can still work most of the time (ie we don't have to 
-migrate everything off, we just need to try to migrate the stuff that gets 
-*used* off a DIMM, and hardware will hopefully end up quiescing the right 
-memory controller channel totally automatically, without us having to know 
-the exact mapping or even having to 100% always get it 100% right).
-
-With FBDIMM in particular, I guess the biggest power cost isn't actually 
-the DRAM content, but just the controllers.
-
-Of course, I wonder how much actual point there is to FBDIMM's once you 
-have on-die memory controllers and thus the reason for deep queueing is 
-basically gone (since you'd spread out the memory rather than having it 
-behind a few central controllers).
-
-		Linus
+--mgross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
