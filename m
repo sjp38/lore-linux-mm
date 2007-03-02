@@ -1,57 +1,44 @@
-Message-ID: <45E7B276.3020504@goop.org>
-Date: Thu, 01 Mar 2007 21:13:26 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
+Date: Thu, 1 Mar 2007 21:40:45 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20070302050625.GD15867@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703012137580.1768@schroedinger.engr.sgi.com>
+References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703011854540.5530@schroedinger.engr.sgi.com>
+ <20070302035751.GA15867@wotan.suse.de> <Pine.LNX.4.64.0703012001260.5548@schroedinger.engr.sgi.com>
+ <20070302042149.GB15867@wotan.suse.de> <Pine.LNX.4.64.0703012022320.14299@schroedinger.engr.sgi.com>
+ <20070302050625.GD15867@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Balbir Singh <balbir@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> Virtualization in general. We don't know what it is - in IBM machines it's 
-> a hypervisor. With Xen and VMware, it's usually a hypervisor too. With 
-> KVM, it's obviously a host Linux kernel/user-process combination.
->
-> The point being that in the guests, hotunplug is almost useless (for 
-> bigger ranges), and we're much better off just telling the virtualization 
-> hosts on a per-page level whether we care about a page or not, than to 
-> worry about fragmentation.
->
-> And in hosts, we usually don't care EITHER, since it's usually done in a 
-> hypervisor.
->   
+On Fri, 2 Mar 2007, Nick Piggin wrote:
 
-The paravirt_ops patches I just posted implement all the machinery
-required to create a pseudo-physical to machine address mapping under
-the kernel.  This is used under Xen because it directly exposes the
-pagetables to its guests, but there's no reason why you couldn't use
-this layer to implement the same mapping without an underlying
-hypervisor.  This allows the kernel to see a normal linear "physical"
-address space which is in fact its mapped over a discontigious set of
-machine ("real physical") pages.
+> So what do you mean by efficient? I guess you aren't talking about CPU
+> efficiency, because even if you make the IO subsystem submit larger
+> physical IOs, you still have to deal with 256 billion TLB entries, the
+> pagecache has to deal with 256 billion struct pages, so does the
+> filesystem code to build the bios.
 
-Andrew and I discussed using it for a kdump kernel, so that you could
-load it into a random bunch of pages, and set things up so that it sees
-itself as being contiguous.
+You do not have to deal with TLB entries if you do buffered I/O.
 
-The mapping is pretty simple.  It intercepts __pte (__pmd, etc) to map
-the "physical" page to the real machine page, and pte_val does the
-reverse mapping.
+For mmapped I/O you would want to transparently use 2M TLBs if the 
+page size is large.
 
-You could implement this today as a farily simple, thin paravirt_ops
-backend.  The main tricky part is making sure all the device drivers are
-correct in using bus addresses (which are mapped to real machine
-addresses), and that they don't assume that adjacent kernel virtual
-pages are physically adjacent.
+> So you are having problems with your IO controller's handling of sg
+> lists?
 
-    J
+We currently have problems with the kernel limits of 128 SG 
+entries but the fundamental issue is that we can only do 2 Meg of I/O in 
+one go given the default limits of the block layer. Typically the number 
+of hardware SG entrie is also limited. We never will be able to put a 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
