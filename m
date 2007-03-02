@@ -1,64 +1,72 @@
-Message-ID: <45E8624E.2080001@redhat.com>
-Date: Fri, 02 Mar 2007 12:43:42 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Date: Fri, 2 Mar 2007 10:06:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-References: <20070301101249.GA29351@skynet.ie>	<20070301160915.6da876c5.akpm@linux-foundation.org>	<45E842F6.5010105@redhat.com>	<20070302085838.bcf9099e.akpm@linux-foundation.org>	<Pine.LNX.4.64.0703020919350.16719@schroedinger.engr.sgi.com> <20070302093501.34c6ef2a.akpm@linux-foundation.org>
-In-Reply-To: <20070302093501.34c6ef2a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Message-Id: <20070302100619.cec06d6a.akpm@linux-foundation.org>
+In-Reply-To: <45E8624E.2080001@redhat.com>
+References: <20070301101249.GA29351@skynet.ie>
+	<20070301160915.6da876c5.akpm@linux-foundation.org>
+	<45E842F6.5010105@redhat.com>
+	<20070302085838.bcf9099e.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0703020919350.16719@schroedinger.engr.sgi.com>
+	<20070302093501.34c6ef2a.akpm@linux-foundation.org>
+	<45E8624E.2080001@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
 Cc: Christoph Lameter <clameter@engr.sgi.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Fri, 2 Mar 2007 09:23:49 -0800 (PST) Christoph Lameter <clameter@engr.sgi.com> wrote:
+On Fri, 02 Mar 2007 12:43:42 -0500
+Rik van Riel <riel@redhat.com> wrote:
+
+> Andrew Morton wrote:
+> > On Fri, 2 Mar 2007 09:23:49 -0800 (PST) Christoph Lameter <clameter@engr.sgi.com> wrote:
+> > 
+> >> On Fri, 2 Mar 2007, Andrew Morton wrote:
+> >>
+> >>>> Linux is *not* happy on 256GB systems.  Even on some 32GB systems
+> >>>> the swappiness setting *needs* to be tweaked before Linux will even
+> >>>> run in a reasonable way.
+> >>> Please send testcases.
+> >> It is not happy if you put 256GB into one zone.
+> > 
+> > Oh come on.  What's the workload?  What happens?  system time?  user time?
+> > kernel profiles?
 > 
->> On Fri, 2 Mar 2007, Andrew Morton wrote:
->>
->>>> Linux is *not* happy on 256GB systems.  Even on some 32GB systems
->>>> the swappiness setting *needs* to be tweaked before Linux will even
->>>> run in a reasonable way.
->>> Please send testcases.
->> It is not happy if you put 256GB into one zone.
+> I can't share all the details, since a lot of the problems are customer
+> workloads.
 > 
-> Oh come on.  What's the workload?  What happens?  system time?  user time?
-> kernel profiles?
+> One particular case is a 32GB system with a database that takes most
+> of memory.  The amount of actually freeable page cache memory is in
+> the hundreds of MB.
 
-I can't share all the details, since a lot of the problems are customer
-workloads.
+Where's the rest of the memory? tmpfs?  mlocked?  hugetlb?
 
-One particular case is a 32GB system with a database that takes most
-of memory.  The amount of actually freeable page cache memory is in
-the hundreds of MB.   With swappiness at the default level of 60, kswapd
-ends up eating most of a CPU, and other tasks also dive into the pageout
-code.  Even with swappiness as high as 98, that system still has
-problems with the CPU use in the pageout code!
+>   With swappiness at the default level of 60, kswapd
+> ends up eating most of a CPU, and other tasks also dive into the pageout
+> code.  Even with swappiness as high as 98, that system still has
+> problems with the CPU use in the pageout code!
+> 
+> Another typical problem is that people want to back up their database
+> servers.  During the backup, parts of the working set get evicted from
+> the VM and performance is horrible.
 
-Another typical problem is that people want to back up their database
-servers.  During the backup, parts of the working set get evicted from
-the VM and performance is horrible.
+userspace fixes for this are far, far better than any magic goo the kernel
+can implement.  We really need to get off our butts and start educating
+people.
 
-A third scenario is where a system has way more RAM than swap, and not
-a whole lot of freeable page cache.  In this case, the VM ends up
-spending WAY too much CPU time scanning and shuffling around essentially
-unswappable anonymous memory and tmpfs files.
+> A third scenario is where a system has way more RAM than swap, and not
+> a whole lot of freeable page cache.  In this case, the VM ends up
+> spending WAY too much CPU time scanning and shuffling around essentially
+> unswappable anonymous memory and tmpfs files.
 
-I have briefly characterized some of these working sets on:
+Well we've allegedly fixed that, but it isn't going anywhere without
+testing.
 
-http://linux-mm.org/ProblemWorkloads
-
-One thing I do not yet have are easily runnable test cases.  I know
-the problems that happen because customers run into them, but it is
-not as easy to reproduce on test systems...
-
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
