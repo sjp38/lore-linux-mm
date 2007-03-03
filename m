@@ -1,53 +1,55 @@
-Date: Fri, 2 Mar 2007 17:58:56 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: The performance and behaviour of the anti-fragmentation related
- patches
-Message-Id: <20070302175856.bb9de72d.akpm@linux-foundation.org>
-In-Reply-To: <20070303014004.GC23573@holomorphy.com>
-References: <20070302100619.cec06d6a.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0703021012170.17676@schroedinger.engr.sgi.com>
-	<45E86BA0.50508@redhat.com>
-	<20070302211207.GJ10643@holomorphy.com>
-	<45E894D7.2040309@redhat.com>
-	<20070302135243.ada51084.akpm@linux-foundation.org>
-	<45E89F1E.8020803@redhat.com>
-	<20070302142256.0127f5ac.akpm@linux-foundation.org>
-	<45E8A677.7000205@redhat.com>
-	<20070302145906.653d3b82.akpm@linux-foundation.org>
-	<20070303014004.GC23573@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Con Kolivas <kernel@kolivas.org>
+Subject: Re: [PATCH] free swap space of (re)activated pages
+Date: Sat, 3 Mar 2007 14:04:20 +1100
+References: <45E88997.4050308@redhat.com> <20070302171818.d271348e.akpm@linux-foundation.org> <45E8CFD8.7050808@redhat.com>
+In-Reply-To: <45E8CFD8.7050808@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200703031404.21064.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Rik van Riel <riel@redhat.com>, Bill Irwin <bill.irwin@oracle.com>, Christoph Lameter <clameter@engr.sgi.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>, ck list <ck@vds.kolivas.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Mar 2007 17:40:04 -0800
-William Lee Irwin III <wli@holomorphy.com> wrote:
+On Saturday 03 March 2007 12:31, Rik van Riel wrote:
+> Andrew Morton wrote:
+> > On Fri, 02 Mar 2007 15:31:19 -0500
+> >
+> > Rik van Riel <riel@redhat.com> wrote:
+> >> the attached patch frees the swap space of already resident pages
+> >> when swap space starts getting tight, instead of only freeing up
+> >> the swap space taken up by newly swapped in pages.
+> >>
+> >> This should result in the swap space of pages that remain resident
+> >> in memory being freed, allowing kswapd more chances to actually swap
+> >> a page out (instead of rotating it back onto the active list).
+> >
+> > Fair enough.   How do we work out if this helps things?
+>
+> I suspect it should mostly help on desktop systems that slowly
+> fill up (and run out of) swap.  I'm not sure how to create that
+> synthetically.
 
-> On Fri, Mar 02, 2007 at 02:59:06PM -0800, Andrew Morton wrote:
-> > Somehow I don't believe that a person or organisation which is incapable of
-> > preparing even a simple testcase will be capable of fixing problems such as
-> > this without breaking things.
-> 
-> My gut feeling is to agree, but I get nagging doubts when I try to
-> think of how to boil things like [major benchmarks whose names are
-> trademarked/copyrighted/etc. censored] down to simple testcases. Some
-> other things are obvious but require vast resources, like zillions of
-> disks fooling throttling/etc. heuristics of ancient downrev kernels.
+Ooh you have a vm patch that helps swap on the desktop! I can help you here 
+with my experience from swap prefetch.
 
-noooooooooo.  You're approaching it from the wrong direction.
+1. Get it reviewed and have noone show any evidence it harms
+2. Find hundreds of users who can testify it helps
+3. Find a way of quantifying it.
+4. ...
+5. Merge into mainline.
 
-Step 1 is to understand what is happening on the affected production
-system.  Completely.  Once that is fully understood then it is a relatively
-simple matter to concoct a test case which triggers the same failure mode.
 
-It is very hard to go the other way: to poke around with various stress
-tests which you think are doing something similar to what you think the
-application does in the hope that similar symptoms will trigger so you can
-then work out what the kernel is doing.  yuk.
+There, that should get you as far as 4. 
+
+I haven't figured out what 4 is yet. I believe it may be goto 1;
+
+-- 
+-ck
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
