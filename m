@@ -1,53 +1,82 @@
-Message-ID: <45E8BA31.3050808@google.com>
-Date: Fri, 02 Mar 2007 15:58:41 -0800
-From: "Martin J. Bligh" <mbligh@google.com>
-MIME-Version: 1.0
+Date: Fri, 2 Mar 2007 16:24:30 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E7835A.8000908@in.ibm.com> <Pine.LNX.4.64.0703011939120.12485@woody.linux-foundation.org> <20070301195943.8ceb221a.akpm@linux-foundation.org> <Pine.LNX.4.64.0703012105080.3953@woody.linux-foundation.org> <20070302162023.GA4691@linux.intel.com> <Pine.LNX.4.64.0703020903190.3953@woody.linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0703020903190.3953@woody.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20070302162430.27489cec.akpm@linux-foundation.org>
+In-Reply-To: <45E8B32B.4050903@mbligh.org>
+References: <20070301101249.GA29351@skynet.ie>
+	<20070301160915.6da876c5.akpm@linux-foundation.org>
+	<45E842F6.5010105@redhat.com>
+	<20070302085838.bcf9099e.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0703020919350.16719@schroedinger.engr.sgi.com>
+	<20070302093501.34c6ef2a.akpm@linux-foundation.org>
+	<45E8624E.2080001@redhat.com>
+	<20070302100619.cec06d6a.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0703021012170.17676@schroedinger.engr.sgi.com>
+	<45E86BA0.50508@redhat.com>
+	<20070302211207.GJ10643@holomorphy.com>
+	<45E894D7.2040309@redhat.com>
+	<20070302135243.ada51084.akpm@linux-foundation.org>
+	<45E89F1E.8020803@redhat.com>
+	<20070302142256.0127f5ac.akpm@linux-foundation.org>
+	<45E8A677.7000205@redhat.com>
+	<45E8AA64.3050506@mbligh.org>
+	<45E8AB36.3030104@redhat.com>
+	<45E8B32B.4050903@mbligh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mark Gross <mgross@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, clameter@engr.sgi.com, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Martin J. Bligh" <mbligh@mbligh.org>
+Cc: Rik van Riel <riel@redhat.com>, Bill Irwin <bill.irwin@oracle.com>, Christoph Lameter <clameter@engr.sgi.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> .. and think about a realistic future.
+On Fri, 02 Mar 2007 15:28:43 -0800
+"Martin J. Bligh" <mbligh@mbligh.org> wrote:
+
+> >>> 32GB is pretty much the minimum size to reproduce some of these
+> >>> problems. Some workloads may need larger systems to easily trigger
+> >>> them.
+> >>
+> >> We can find a 32GB system here pretty easily to test things on if
+> >> need be.  Setting up large commercial databases is much harder.
+> > 
+> > That's my problem, too.
+> > 
+> > There does not seem to exist any single set of test cases that
+> > accurately predicts how the VM will behave with customer
+> > workloads.
 > 
-> EVERYBODY will do on-die memory controllers. Yes, Intel doesn't do it 
-> today, but in the one- to two-year timeframe even Intel will.
+> Tracing might help? Showing Andrew traces of what happened in
+> production for the prev_priority change made it much easier to
+> demonstrate and explain the real problem ...
 > 
-> What does that mean? It means that in bigger systems, you will no longer 
-> even *have* 8 or 16 banks where turning off a few banks makes sense. 
-> You'll quite often have just a few DIMM's per die, because that's what you 
-> want for latency. Then you'll have CSI or HT or another interconnect.
-> 
-> And with a few DIMM's per die, you're back where even just 2-way 
-> interleaving basically means that in order to turn off your DIMM, you 
-> probably need to remove HALF the memory for that CPU.
-> 
-> In other words: TURNING OFF DIMM's IS A BEDTIME STORY FOR DIMWITTED 
-> CHILDREN.
 
-Even with only 4 banks per CPU, and 2-way interleaving, we could still
-power off half the DIMMs in the system. That's a huge impact on the
-power budget for a large cluster.
+Tracing is one way.
 
-No, it's not ideal, but what was that quote again ... "perfect is the
-enemy of good"? Something like that ;-)
+The other way is the old scientific method:
 
-> There are maybe a couple machines IN EXISTENCE TODAY that can do it. But 
-> nobody actually does it in practice, and nobody even knows if it's going 
-> to be viable (yes, DRAM takes energy, but trying to keep memory free will 
-> likely waste power *too*, and I doubt anybody has any real idea of how 
-> much any of this would actually help in practice).
+- develop a theory
+- add sufficient instrumentation to prove or disprove that theory
+- run workload, crunch on numbers
+- repeat
 
-Batch jobs across clusters have spikes at different times of the day,
-etc that are fairly predictable in many cases.
+Of course, multiple theories can be proven/disproven in a single pass.
 
-M.
+Practically, this means adding one new /prov/vmstat entry for each `goto
+keep*' in shrink_page_list().  And more instrumentation in
+shrink_active_list() to determine the behaviour of swap_tendency.
+
+Once that process is finished, we should have a thorough understanding of
+what the problem is.  We can then construct a testcase (it'll be a couple
+hundred lines only) and use that testcase to determine what implementation
+changes are needed, and whether it actually worked.
+
+Then go back to the real workload, verify that it's still fixed.
+
+Then do whitebox testing of other workloads to check that they haven't
+regressed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
