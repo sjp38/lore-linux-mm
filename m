@@ -1,61 +1,67 @@
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [RFC][PATCH 3/3] mm: Remove nosave and nosave_free page flags
-Date: Sun, 4 Mar 2007 15:08:11 +0100
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703011633.54625.rjw@sisk.pl> <200703041450.02178.rjw@sisk.pl>
-In-Reply-To: <200703041450.02178.rjw@sisk.pl>
+Subject: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re: Remove page flags for software suspend)
+Date: Sun, 4 Mar 2007 14:50:01 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <45E6EEC5.4060902@yahoo.com.au> <200703011633.54625.rjw@sisk.pl>
+In-Reply-To: <200703011633.54625.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Disposition: inline
-Message-Id: <200703041508.12540.rjw@sisk.pl>
 Content-Type: text/plain;
   charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200703041450.02178.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>, Pavel Machek <pavel@ucw.cz>
 Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Johannes Berg <johannes@sipsolutions.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Remove two page flags that are no longer needed.
+On Thursday, 1 March 2007 16:33, Rafael J. Wysocki wrote:
+> On Thursday, 1 March 2007 16:18, Nick Piggin wrote:
+> > Rafael J. Wysocki wrote:
+> > > On Wednesday, 28 February 2007 16:25, Christoph Lameter wrote:
+> > > 
+> > >>On Wed, 28 Feb 2007, Pavel Machek wrote:
+> > >>
+> > >>
+> > >>>I... actually do not like that patch. It adds code... at little or no
+> > >>>benefit.
+> > >>
+> > >>We are looking into saving page flags since we are running out. The two 
+> > >>page flags used by software suspend are rarely needed and should be taken 
+> > >>out of the flags. If you can do it a different way then please do.
+> > > 
+> > > 
+> > > As I have already said for a couple of times, I think we can and I'm going to
+> > > do it, but right now I'm a bit busy with other things that I consider as more
+> > > urgent.
+> > 
+> > I need one bit for lockless pagecache ;)
+> > 
+> > Anyway, I guess if you want something done you have to do it yourself.
+> > 
+> > This patch still needs work (and I don't know if it even works, because
+> > I can't make swsusp resume even on a vanilla kernel). But this is my
+> > WIP for removing swsusp page flags.
+> > 
+> > This patch adds a simple extent based nosave region tracker, and
+> > rearranges some of the snapshot code to be a bit simpler and more
+> > amenable to having dynamically allocated flags (they aren't actually
+> > dynamically allocated in this patch, however).
+> 
+> Thanks for the patch.
+> 
+> Probably I'd like to do some things in a different way, I'll think about that
+> later today.
+> 
+> I hope I'll have a working patch that removes the "offending" page flags after
+> the weekend.
 
----
- include/linux/page-flags.h |   12 ------------
- 1 file changed, 12 deletions(-)
+Okay, the next three messages contain patches that should do the trick.
 
-Index: linux-2.6.21-rc2/include/linux/page-flags.h
-===================================================================
---- linux-2.6.21-rc2.orig/include/linux/page-flags.h	2007-02-04 19:44:54.000000000 +0100
-+++ linux-2.6.21-rc2/include/linux/page-flags.h	2007-03-04 13:37:57.000000000 +0100
-@@ -82,13 +82,11 @@
- #define PG_private		11	/* If pagecache, has fs-private data */
- 
- #define PG_writeback		12	/* Page is under writeback */
--#define PG_nosave		13	/* Used for system suspend/resume */
- #define PG_compound		14	/* Part of a compound page */
- #define PG_swapcache		15	/* Swap page: swp_entry_t in private */
- 
- #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
- #define PG_reclaim		17	/* To be reclaimed asap */
--#define PG_nosave_free		18	/* Used for system suspend/resume */
- #define PG_buddy		19	/* Page is free, on buddy lists */
- 
- 
-@@ -212,16 +210,6 @@ static inline void SetPageUptodate(struc
- 		ret;							\
- 	})
- 
--#define PageNosave(page)	test_bit(PG_nosave, &(page)->flags)
--#define SetPageNosave(page)	set_bit(PG_nosave, &(page)->flags)
--#define TestSetPageNosave(page)	test_and_set_bit(PG_nosave, &(page)->flags)
--#define ClearPageNosave(page)		clear_bit(PG_nosave, &(page)->flags)
--#define TestClearPageNosave(page)	test_and_clear_bit(PG_nosave, &(page)->flags)
--
--#define PageNosaveFree(page)	test_bit(PG_nosave_free, &(page)->flags)
--#define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
--#define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
--
- #define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
- #define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
- #define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
+They have been tested on x86_64, but not very thoroughly.
+
+Greetings,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
