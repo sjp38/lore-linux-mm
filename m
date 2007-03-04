@@ -1,45 +1,34 @@
-Date: Sat, 3 Mar 2007 09:50:58 -0800 (PST)
-From: Christoph Lameter <clameter@engr.sgi.com>
+Message-ID: <45EA2037.9060303@redhat.com>
+Date: Sat, 03 Mar 2007 20:26:15 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: The performance and behaviour of the anti-fragmentation related
  patches
-In-Reply-To: <45E9AD74.4060704@mbligh.org>
-Message-ID: <Pine.LNX.4.64.0703030942490.921@schroedinger.engr.sgi.com>
-References: <20070302093501.34c6ef2a.akpm@linux-foundation.org>
- <45E8624E.2080001@redhat.com> <20070302100619.cec06d6a.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703021012170.17676@schroedinger.engr.sgi.com>
- <45E86BA0.50508@redhat.com> <20070302211207.GJ10643@holomorphy.com>
- <45E894D7.2040309@redhat.com> <20070302135243.ada51084.akpm@linux-foundation.org>
- <45E89F1E.8020803@redhat.com> <20070302142256.0127f5ac.akpm@linux-foundation.org>
- <20070303003319.GB23573@holomorphy.com> <Pine.LNX.4.64.0703021913030.31787@schroedinger.engr.sgi.com>
- <45E9AD74.4060704@mbligh.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <20070302050625.GD15867@wotan.suse.de> <Pine.LNX.4.64.0703012137580.1768@schroedinger.engr.sgi.com> <20070302054944.GE15867@wotan.suse.de> <Pine.LNX.4.64.0703012150290.1768@schroedinger.engr.sgi.com> <20070302060831.GF15867@wotan.suse.de> <Pine.LNX.4.64.0703012213130.1917@schroedinger.engr.sgi.com> <20070302062950.GG15867@wotan.suse.de> <Pine.LNX.4.64.0703012236160.1979@schroedinger.engr.sgi.com> <20070302071955.GA5557@wotan.suse.de> <Pine.LNX.4.64.0703012335250.13224@schroedinger.engr.sgi.com> <20070302081210.GD5557@wotan.suse.de>
+In-Reply-To: <20070302081210.GD5557@wotan.suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@mbligh.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Bill Irwin <bill.irwin@oracle.com>, Mel Gorman <mel@skynet.ie>, npiggin@suse.de, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, mingo@elte.hu, jschopp@austin.ibm.com, arjan@infradead.org, torvalds@linux-foundation.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Mar 2007, Martin J. Bligh wrote:
+Nick Piggin wrote:
 
-> That'd be nice. Unfortunately we're stuck in the real world with
-> real hardware, and the situation is likely to remain thus for
-> quite some time ...
+> Different issue, isn't it? Rik wants to be smarter in figuring out which
+> pages to throw away. More work per page == worse for you.
 
-Our real hardware does behave as described and therefore does not suffer 
-from the problem.
+Being smarter about figuring out which pages to evict does
+not equate to spending more work.  One big component is
+sorting the pages beforehand, so we do not end up scanning
+through (and randomizing the LRU order of) anonymous pages
+when we do not want to, or cannot, evict them anyway.
 
-If you want a software solution then you may want to look at Zoran 
-Radovic's work on Hierachical Backoff locks. I had a draft of a patch a 
-couple of years back that showed some promise to reduce lock contention. 
-HBO locks can solve starvation issues by stopping local lock takers.
-
-See Zoran Radovic "Software Techniques for Distributed Shared Memory", 
-Uppsala Universitet, 2005 ISBN 91-554-6385-1.
-
-http://www.gelato.org/pdf/may2005/gelato_may2005_numa_lameter_sgi.pdf
-
-http://www.gelato.unsw.edu.au/archives/linux-ia64/0506/14368.html
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
