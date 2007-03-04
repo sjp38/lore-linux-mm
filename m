@@ -1,347 +1,600 @@
-Date: Sun, 04 Mar 2007 05:45:33 -0800
-From: "PURCELL Ross" <mfkfprsmqvk@eon.net.au>
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: [RFC][PATCH 2/3] swsusp: Do not use page flags
+Date: Sun, 4 Mar 2007 15:07:56 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703011633.54625.rjw@sisk.pl> <200703041450.02178.rjw@sisk.pl>
+In-Reply-To: <200703041450.02178.rjw@sisk.pl>
 MIME-Version: 1.0
-Subject: Whatever you do .. keep this on the lowdown!
-Message-Id: <1902D927.572506.13042@LLBO>
-Content-Type: multipart/related;
- boundary="------------MultiBound494514679703611881791695"
-Return-Path: <mfkfprsmqvk@eon.net.au>
-To: linux-mm-archive@kvack.org, majordomo@kvack.org, kelda@kvack.org, linux-mm@kvack.org, kernel@kvack.org, linux-aio@kvack.org
+Content-Disposition: inline
+Message-Id: <200703041507.57122.rjw@sisk.pl>
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>, Pavel Machek <pavel@ucw.cz>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Johannes Berg <johannes@sipsolutions.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------MultiBound494514679703611881791695
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Make swsusp use memory bitmaps instead of page flags for marking 'nosave' and
+free pages.  This allows us to 'recycle' two page flags that can be used for other
+purposes.  Also, the memory needed to store the bitmaps is allocated when
+necessary (ie. before the suspend) and freed after the resume which is more
+reasonable.
 
-<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+The patch is designed to minimize the amount of changes and there are some nice
+simplifications and optimizations possible on top of it.  I am going to post
+them as separate patches in the future.
 
-<head>
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=us-ascii">
-<meta name=Generator content="Microsoft Word 12 (filtered medium)">
-<!--[if !mso]>
-<style>
-v\:* {behavior:url(#default#VML);}
-o\:* {behavior:url(#default#VML);}
-w\:* {behavior:url(#default#VML);}
-shape {behavior:url(#default#VML);}
-</style>
-<![endif]-->
-<style>
-<!--
- /* Font Definitions */
- @font-face
-	{font-family:"Cambria Math";
-	panose-1:0 0 0 0 0 0 0 0 0 0;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
-@font-face
-	{font-family:Tahoma;
-	panose-1:2 11 6 4 3 5 4 4 2 4;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
-p.MsoAcetate, li.MsoAcetate, div.MsoAcetate
-	{mso-style-priority:99;
-	mso-style-link:"Balloon Text Char";
-	margin:0in;
-	margin-bottom:.0001pt;
-	font-size:8.0pt;
-	font-family:"Tahoma","sans-serif";}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-span.BalloonTextChar
-	{mso-style-name:"Balloon Text Char";
-	mso-style-priority:99;
-	mso-style-link:"Balloon Text";
-	font-family:"Tahoma","sans-serif";}
-MsoChpDefault
-	{mso-style-type:export-only;}
-@page Section1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-<!--[if gte mso 9]><xml>
- <o:shapedefaults v:ext="edit" spidmax="2050" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <o:shapelayout v:ext="edit">
-  <o:idmap v:ext="edit" data="1" />
- </o:shapelayout></xml><![endif]-->
-</head>
+---
+ arch/x86_64/kernel/e820.c |   26 +---
+ include/linux/suspend.h   |   58 +++-------
+ kernel/power/disk.c       |   23 +++-
+ kernel/power/power.h      |    2 
+ kernel/power/snapshot.c   |  250 +++++++++++++++++++++++++++++++++++++++++++---
+ kernel/power/user.c       |    4 
+ 6 files changed, 281 insertions(+), 82 deletions(-)
 
-<body lang=EN-US link=blue vlink=purple>
+Index: linux-2.6.21-rc2/include/linux/suspend.h
+===================================================================
+--- linux-2.6.21-rc2.orig/include/linux/suspend.h	2007-03-04 11:52:46.000000000 +0100
++++ linux-2.6.21-rc2/include/linux/suspend.h	2007-03-04 11:52:46.000000000 +0100
+@@ -24,63 +24,41 @@ struct pbe {
+ extern void drain_local_pages(void);
+ extern void mark_free_pages(struct zone *zone);
+ 
+-#ifdef CONFIG_PM
+-/* kernel/power/swsusp.c */
+-extern int software_suspend(void);
+-
+-#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
++#if defined(CONFIG_PM) && defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
+ extern int pm_prepare_console(void);
+ extern void pm_restore_console(void);
+ #else
+ static inline int pm_prepare_console(void) { return 0; }
+ static inline void pm_restore_console(void) {}
+-#endif /* defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE) */
++#endif
++
++#if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
++/* kernel/power/swsusp.c */
++extern int software_suspend(void);
++/* kernel/power/snapshot.c */
++extern void __init register_nosave_region(unsigned long, unsigned long);
++extern int swsusp_page_is_forbidden(struct page *);
++extern void swsusp_set_page_free(struct page *);
++extern void swsusp_unset_page_free(struct page *);
++extern unsigned long get_safe_page(gfp_t gfp_mask);
+ #else
+ static inline int software_suspend(void)
+ {
+ 	printk("Warning: fake suspend called\n");
+ 	return -ENOSYS;
+ }
+-#endif /* CONFIG_PM */
++
++static inline void register_nosave_region(unsigned long b, unsigned long e) {}
++static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
++static inline void swsusp_set_page_free(struct page *p) {}
++static inline void swsusp_unset_page_free(struct page *p) {}
++#endif /* defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND) */
+ 
+ void save_processor_state(void);
+ void restore_processor_state(void);
+ struct saved_context;
+ void __save_processor_state(struct saved_context *ctxt);
+ void __restore_processor_state(struct saved_context *ctxt);
+-unsigned long get_safe_page(gfp_t gfp_mask);
+-
+-/* Page management functions for the software suspend (swsusp) */
+-
+-static inline void swsusp_set_page_forbidden(struct page *page)
+-{
+-	SetPageNosave(page);
+-}
+-
+-static inline int swsusp_page_is_forbidden(struct page *page)
+-{
+-	return PageNosave(page);
+-}
+-
+-static inline void swsusp_unset_page_forbidden(struct page *page)
+-{
+-	ClearPageNosave(page);
+-}
+-
+-static inline void swsusp_set_page_free(struct page *page)
+-{
+-	SetPageNosaveFree(page);
+-}
+-
+-static inline int swsusp_page_is_free(struct page *page)
+-{
+-	return PageNosaveFree(page);
+-}
+-
+-static inline void swsusp_unset_page_free(struct page *page)
+-{
+-	ClearPageNosaveFree(page);
+-}
+ 
+ /*
+  * XXX: We try to keep some more pages free so that I/O operations succeed
+Index: linux-2.6.21-rc2/kernel/power/snapshot.c
+===================================================================
+--- linux-2.6.21-rc2.orig/kernel/power/snapshot.c	2007-03-04 11:52:46.000000000 +0100
++++ linux-2.6.21-rc2/kernel/power/snapshot.c	2007-03-04 15:06:13.000000000 +0100
+@@ -21,6 +21,7 @@
+ #include <linux/kernel.h>
+ #include <linux/pm.h>
+ #include <linux/device.h>
++#include <linux/init.h>
+ #include <linux/bootmem.h>
+ #include <linux/syscalls.h>
+ #include <linux/console.h>
+@@ -34,6 +35,10 @@
+ 
+ #include "power.h"
+ 
++static int swsusp_page_is_free(struct page *);
++static void swsusp_set_page_forbidden(struct page *);
++static void swsusp_unset_page_forbidden(struct page *);
++
+ /* List of PBEs needed for restoring the pages that were allocated before
+  * the suspend and included in the suspend image, but have also been
+  * allocated by the "resume" kernel, so their contents cannot be written
+@@ -224,11 +229,6 @@ static void chain_free(struct chain_allo
+  *	of type unsigned long each).  It also contains the pfns that
+  *	correspond to the start and end of the represented memory area and
+  *	the number of bit chunks in the block.
+- *
+- *	NOTE: Memory bitmaps are used for two types of operations only:
+- *	"set a bit" and "find the next bit set".  Moreover, the searching
+- *	is always carried out after all of the "set a bit" operations
+- *	on given bitmap.
+  */
+ 
+ #define BM_END_OF_MAP	(~0UL)
+@@ -443,15 +443,13 @@ static void memory_bm_free(struct memory
+ }
+ 
+ /**
+- *	memory_bm_set_bit - set the bit in the bitmap @bm that corresponds
++ *	memory_bm_find_bit - find the bit in the bitmap @bm that corresponds
+  *	to given pfn.  The cur_zone_bm member of @bm and the cur_block member
+  *	of @bm->cur_zone_bm are updated.
+- *
+- *	If the bit cannot be set, the function returns -EINVAL .
+  */
+ 
+-static int
+-memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
++static void memory_bm_find_bit(struct memory_bitmap *bm, unsigned long pfn,
++				void **addr, unsigned int *bit_nr)
+ {
+ 	struct zone_bitmap *zone_bm;
+ 	struct bm_block *bb;
+@@ -463,8 +461,8 @@ memory_bm_set_bit(struct memory_bitmap *
+ 		/* We don't assume that the zones are sorted by pfns */
+ 		while (pfn < zone_bm->start_pfn || pfn >= zone_bm->end_pfn) {
+ 			zone_bm = zone_bm->next;
+-			if (unlikely(!zone_bm))
+-				return -EINVAL;
++
++			BUG_ON(!zone_bm);
+ 		}
+ 		bm->cur.zone_bm = zone_bm;
+ 	}
+@@ -475,13 +473,40 @@ memory_bm_set_bit(struct memory_bitmap *
+ 
+ 	while (pfn >= bb->end_pfn) {
+ 		bb = bb->next;
+-		if (unlikely(!bb))
+-			return -EINVAL;
++
++		BUG_ON(!bb);
+ 	}
+ 	zone_bm->cur_block = bb;
+ 	pfn -= bb->start_pfn;
+-	set_bit(pfn % BM_BITS_PER_CHUNK, bb->data + pfn / BM_BITS_PER_CHUNK);
+-	return 0;
++	*bit_nr = pfn % BM_BITS_PER_CHUNK;
++	*addr = bb->data + pfn / BM_BITS_PER_CHUNK;
++}
++
++static void memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
++{
++	void *addr;
++	unsigned int bit;
++
++	memory_bm_find_bit(bm, pfn, &addr, &bit);
++	set_bit(bit, addr);
++}
++
++static void memory_bm_clear_bit(struct memory_bitmap *bm, unsigned long pfn)
++{
++	void *addr;
++	unsigned int bit;
++
++	memory_bm_find_bit(bm, pfn, &addr, &bit);
++	clear_bit(bit, addr);
++}
++
++static int memory_bm_test_bit(struct memory_bitmap *bm, unsigned long pfn)
++{
++	void *addr;
++	unsigned int bit;
++
++	memory_bm_find_bit(bm, pfn, &addr, &bit);
++	return test_bit(bit, addr);
+ }
+ 
+ /* Two auxiliary functions for memory_bm_next_pfn */
+@@ -564,6 +589,199 @@ static unsigned long memory_bm_next_pfn(
+ }
+ 
+ /**
++ *	This structure represents a range of page frames the contents of which
++ *	should not be saved during the suspend.
++ */
++
++struct nosave_region {
++	struct list_head list;
++	unsigned long start_pfn;
++	unsigned long end_pfn;
++};
++
++static LIST_HEAD(nosave_regions);
++
++/**
++ *	register_nosave_region - register a range of page frames the contents
++ *	of which should not be saved during the suspend (to be used in the early
++ *	initializatoion code)
++ */
++
++void __init
++register_nosave_region(unsigned long start_pfn, unsigned long end_pfn)
++{
++	struct nosave_region *region;
++
++	if (start_pfn >= end_pfn)
++		return;
++
++	if (!list_empty(&nosave_regions)) {
++		/* Try to extend the previous region (they should be sorted) */
++		region = list_entry(nosave_regions.prev,
++					struct nosave_region, list);
++		if (region->end_pfn == start_pfn) {
++			region->end_pfn = end_pfn;
++			goto Report;
++		}
++	}
++	/* This allocation cannot fail */
++	region = alloc_bootmem_low(sizeof(struct nosave_region));
++	region->start_pfn = start_pfn;
++	region->end_pfn = end_pfn;
++	list_add_tail(&region->list, &nosave_regions);
++ Report:
++	printk("swsusp: Registered nosave memory region: %016lx - %016lx\n",
++		start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
++}
++
++/*
++ * Set bits in this map correspond to the page frames the contents of which
++ * should not be saved during the suspend.
++ */
++static struct memory_bitmap *forbidden_pages_map;
++
++/* Set bits in this map correspond to free page frames. */
++static struct memory_bitmap *free_pages_map;
++
++/*
++ * Each page frame allocated for creating the image is marked by setting the
++ * corresponding bits in forbidden_pages_map and free_pages_map simultaneously
++ */
++
++void swsusp_set_page_free(struct page *page)
++{
++	if (free_pages_map)
++		memory_bm_set_bit(free_pages_map, page_to_pfn(page));
++}
++
++static int swsusp_page_is_free(struct page *page)
++{
++	return free_pages_map ?
++		memory_bm_test_bit(free_pages_map, page_to_pfn(page)) : 0;
++}
++
++void swsusp_unset_page_free(struct page *page)
++{
++	if (free_pages_map)
++		memory_bm_clear_bit(free_pages_map, page_to_pfn(page));
++}
++
++static void swsusp_set_page_forbidden(struct page *page)
++{
++	if (forbidden_pages_map)
++		memory_bm_set_bit(forbidden_pages_map, page_to_pfn(page));
++}
++
++int swsusp_page_is_forbidden(struct page *page)
++{
++	return forbidden_pages_map ?
++		memory_bm_test_bit(forbidden_pages_map, page_to_pfn(page)) : 0;
++}
++
++static void swsusp_unset_page_forbidden(struct page *page)
++{
++	if (forbidden_pages_map)
++		memory_bm_clear_bit(forbidden_pages_map, page_to_pfn(page));
++}
++
++/**
++ *	mark_nosave_pages - set bits corresponding to the page frames the
++ *	contents of which should not be saved in a given bitmap.
++ */
++
++static void mark_nosave_pages(struct memory_bitmap *bm)
++{
++	struct nosave_region *region;
++
++	if (list_empty(&nosave_regions))
++		return;
++
++	list_for_each_entry(region, &nosave_regions, list) {
++		unsigned long pfn;
++
++		printk("swsusp: Marking nosave pages: %016lx - %016lx\n",
++				region->start_pfn << PAGE_SHIFT,
++				region->end_pfn << PAGE_SHIFT);
++
++		for (pfn = region->start_pfn; pfn < region->end_pfn; pfn++)
++			memory_bm_set_bit(bm, pfn);
++	}
++}
++
++/**
++ *	create_basic_memory_bitmaps - create bitmaps needed for marking page
++ *	frames that should not be saved and free page frames.  The pointers
++ *	forbidden_pages_map and free_pages_map are only modified if everything
++ *	goes well, because we don't want the bits to be used before both bitmaps
++ *	are set up.
++ */
++
++int create_basic_memory_bitmaps(void)
++{
++	struct memory_bitmap *bm1, *bm2;
++	int error = 0;
++
++	BUG_ON(forbidden_pages_map || free_pages_map);
++
++	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
++	if (!bm1)
++		return -ENOMEM;
++
++	error = memory_bm_create(bm1, GFP_ATOMIC | __GFP_COLD, PG_ANY);
++	if (error)
++		goto Free_first_object;
++
++	bm2 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
++	if (!bm2)
++		goto Free_first_bitmap;
++
++	error = memory_bm_create(bm2, GFP_ATOMIC | __GFP_COLD, PG_ANY);
++	if (error)
++		goto Free_second_object;
++
++	forbidden_pages_map = bm1;
++	free_pages_map = bm2;
++	mark_nosave_pages(forbidden_pages_map);
++
++	printk("swsusp: Basic memory bitmaps created\n");
++
++	return 0;
++
++ Free_second_object:
++	kfree(bm2);
++ Free_first_bitmap:
++ 	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
++ Free_first_object:
++	kfree(bm1);
++	return -ENOMEM;
++}
++
++/**
++ *	free_basic_memory_bitmaps - free memory bitmaps allocated by
++ *	create_basic_memory_bitmaps().  The auxiliary pointers are necessary
++ *	so that the bitmaps themselves are not referred to while they are being
++ *	freed.
++ */
++
++void free_basic_memory_bitmaps(void)
++{
++	struct memory_bitmap *bm1, *bm2;
++
++	BUG_ON(!(forbidden_pages_map && free_pages_map));
++
++	bm1 = forbidden_pages_map;
++	bm2 = free_pages_map;
++	forbidden_pages_map = NULL;
++	free_pages_map = NULL;
++	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
++	kfree(bm1);
++	memory_bm_free(bm2, PG_UNSAFE_CLEAR);
++	kfree(bm2);
++
++	printk("swsusp: Basic memory bitmaps freed\n");
++}
++
++/**
+  *	snapshot_additional_pages - estimate the number of additional pages
+  *	be needed for setting up the suspend image data structures for given
+  *	zone (usually the returned value is greater than the exact number)
+Index: linux-2.6.21-rc2/arch/x86_64/kernel/e820.c
+===================================================================
+--- linux-2.6.21-rc2.orig/arch/x86_64/kernel/e820.c	2007-03-04 11:30:18.000000000 +0100
++++ linux-2.6.21-rc2/arch/x86_64/kernel/e820.c	2007-03-04 13:25:20.000000000 +0100
+@@ -17,6 +17,8 @@
+ #include <linux/kexec.h>
+ #include <linux/module.h>
+ #include <linux/mm.h>
++#include <linux/suspend.h>
++#include <linux/pfn.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/page.h>
+@@ -255,22 +257,6 @@ void __init e820_reserve_resources(void)
+ 	}
+ }
+ 
+-/* Mark pages corresponding to given address range as nosave */
+-static void __init
+-e820_mark_nosave_range(unsigned long start, unsigned long end)
+-{
+-	unsigned long pfn, max_pfn;
+-
+-	if (start >= end)
+-		return;
+-
+-	printk("Nosave address range: %016lx - %016lx\n", start, end);
+-	max_pfn = end >> PAGE_SHIFT;
+-	for (pfn = start >> PAGE_SHIFT; pfn < max_pfn; pfn++)
+-		if (pfn_valid(pfn))
+-			SetPageNosave(pfn_to_page(pfn));
+-}
+-
+ /*
+  * Find the ranges of physical addresses that do not correspond to
+  * e820 RAM areas and mark the corresponding pages as nosave for software
+@@ -289,13 +275,13 @@ void __init e820_mark_nosave_regions(voi
+ 		struct e820entry *ei = &e820.map[i];
+ 
+ 		if (paddr < ei->addr)
+-			e820_mark_nosave_range(paddr,
+-					round_up(ei->addr, PAGE_SIZE));
++			register_nosave_region(PFN_DOWN(paddr),
++						PFN_UP(ei->addr));
+ 
+ 		paddr = round_down(ei->addr + ei->size, PAGE_SIZE);
+ 		if (ei->type != E820_RAM)
+-			e820_mark_nosave_range(round_up(ei->addr, PAGE_SIZE),
+-					paddr);
++			register_nosave_region(PFN_UP(ei->addr),
++						PFN_DOWN(paddr));
+ 
+ 		if (paddr >= (end_pfn << PAGE_SHIFT))
+ 			break;
+Index: linux-2.6.21-rc2/kernel/power/power.h
+===================================================================
+--- linux-2.6.21-rc2.orig/kernel/power/power.h	2007-03-04 11:30:18.000000000 +0100
++++ linux-2.6.21-rc2/kernel/power/power.h	2007-03-04 11:52:46.000000000 +0100
+@@ -49,6 +49,8 @@ extern sector_t swsusp_resume_block;
+ extern asmlinkage int swsusp_arch_suspend(void);
+ extern asmlinkage int swsusp_arch_resume(void);
+ 
++extern int create_basic_memory_bitmaps(void);
++extern void free_basic_memory_bitmaps(void);
+ extern unsigned int count_data_pages(void);
+ 
+ /**
+Index: linux-2.6.21-rc2/kernel/power/user.c
+===================================================================
+--- linux-2.6.21-rc2.orig/kernel/power/user.c	2007-03-04 11:30:18.000000000 +0100
++++ linux-2.6.21-rc2/kernel/power/user.c	2007-03-04 14:02:19.000000000 +0100
+@@ -52,6 +52,9 @@ static int snapshot_open(struct inode *i
+ 	if ((filp->f_flags & O_ACCMODE) == O_RDWR)
+ 		return -ENOSYS;
+ 
++	if(create_basic_memory_bitmaps())
++		return -ENOMEM;
++
+ 	nonseekable_open(inode, filp);
+ 	data = &snapshot_state;
+ 	filp->private_data = data;
+@@ -77,6 +80,7 @@ static int snapshot_release(struct inode
+ 	struct snapshot_data *data;
+ 
+ 	swsusp_free();
++	free_basic_memory_bitmaps();
+ 	data = filp->private_data;
+ 	free_all_swap_pages(data->swap, data->bitmap);
+ 	free_bitmap(data->bitmap);
+Index: linux-2.6.21-rc2/kernel/power/disk.c
+===================================================================
+--- linux-2.6.21-rc2.orig/kernel/power/disk.c	2007-03-04 11:30:18.000000000 +0100
++++ linux-2.6.21-rc2/kernel/power/disk.c	2007-03-04 11:52:46.000000000 +0100
+@@ -127,14 +127,19 @@ int pm_suspend_disk(void)
+ 		mdelay(5000);
+ 		goto Thaw;
+ 	}
++	/* Allocate memory management structures */
++	error = create_basic_memory_bitmaps();
++	if (error)
++		goto Thaw;
++
+ 	/* Free memory before shutting down devices. */
+ 	error = swsusp_shrink_memory();
+ 	if (error)
+-		goto Thaw;
++		goto Finish;
+ 
+ 	error = platform_prepare();
+ 	if (error)
+-		goto Thaw;
++		goto Finish;
+ 
+ 	suspend_console();
+ 	error = device_suspend(PMSG_FREEZE);
+@@ -169,7 +174,7 @@ int pm_suspend_disk(void)
+ 			power_down(pm_disk_mode);
+ 		else {
+ 			swsusp_free();
+-			goto Thaw;
++			goto Finish;
+ 		}
+ 	} else {
+ 		pr_debug("PM: Image restored successfully.\n");
+@@ -182,6 +187,8 @@ int pm_suspend_disk(void)
+ 	platform_finish();
+ 	device_resume();
+ 	resume_console();
++ Finish:
++	free_basic_memory_bitmaps();
+  Thaw:
+ 	unprepare_processes();
+ 	return error;
+@@ -227,13 +234,15 @@ static int software_resume(void)
+ 	}
+ 
+ 	pr_debug("PM: Checking swsusp image.\n");
+-
+ 	error = swsusp_check();
+ 	if (error)
+-		goto Done;
++		goto Unlock;
+ 
+-	pr_debug("PM: Preparing processes for restore.\n");
++	error = create_basic_memory_bitmaps();
++	if (error)
++		goto Unlock;
+ 
++	pr_debug("PM: Preparing processes for restore.\n");
+ 	error = prepare_processes();
+ 	if (error) {
+ 		swsusp_close();
+@@ -275,7 +284,9 @@ static int software_resume(void)
+ 	printk(KERN_ERR "PM: Restore failed, recovering.\n");
+ 	unprepare_processes();
+  Done:
++	free_basic_memory_bitmaps();
+ 	/* For success case, the suspend path will release the lock */
++ Unlock:
+ 	mutex_unlock(&pm_mutex);
+ 	pr_debug("PM: Resume from disk failed.\n");
+ 	return 0;
 
-<div class=Section1>
-
-<p class=MsoNormal><a href="http://pemana.com"><span style='color:windowtext;
-text-decoration:none'><img border=0 id=bridge.5.gif
-src="cid:4.0.0.87.0.76384850185479.41387921@judge.email.de.7"></span></a><o:p></o:p></p>
-
-<p class=MsoNormal>tight in &nbsp;rod on liquid but thread
-, natural see store a level it's company in sex
-but coal it's print see present some late , young
-it solid some kiss or scissors ! coat it's stamp
-some kiss and heart but meat and value try play
-! flower see week not <o:p></o:p></p>
-
-<p class=MsoNormal>poor in &nbsp;money see copper it space
-may dress try comb but burn may fight see comb
-or conscious and thread on pain ! statement , past
-! branch be distribution and flag not salt in street
-may stem be building it's wise ! great on war
-be news it right but <o:p></o:p></p>
-
-<p class=MsoNormal>foot see &nbsp;self see angle the daughter
-! waste the white try property ! first but twist
-or plate or hand on step be rat or harbor
-or sky may damage , bed in father be letter
-some tired , acid some medical ! question the political
-the love some society may <o:p></o:p></p>
-</div>
-
-</body>
-
-</html>
-
---------------MultiBound494514679703611881791695
-Content-Type: image/gif;
- name="bridge.5.gif"
-Content-Transfer-Encoding: base64
-Content-ID: <4.0.0.87.0.76384850185479.41387921@judge.email.de.7>
-Content-Disposition: inline;
- filename="bridge.5.gif"
-
-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
-34Ibrrjjkluuueeim66667IbbhAAOw==
-
---------------MultiBound494514679703611881791695--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
