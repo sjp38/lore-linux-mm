@@ -1,53 +1,87 @@
-Date: Mon, 5 Mar 2007 04:21:16 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: The performance and behaviour of the anti-fragmentation related patches
-Message-ID: <20070305032116.GA29678@wotan.suse.de>
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E8594B.6020904@austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45E8594B.6020904@austin.ibm.com>
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l262x5QD3956978
+	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 01:59:09 -0100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l25F1Gat171922
+	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 02:01:17 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l25EvkA1022906
+	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 01:57:46 +1100
+Message-Id: <20070305145310.876347000@linux.vnet.ibm.com>>
+References: <20070305145237.003560000@linux.vnet.ibm.com>>
+Date: Mon, 05 Mar 2007 20:22:39 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Subject: [PATCH 2/3][RFC] Containers: Pagecache controller accounting
+Content-Disposition: inline; filename=pagecache-controller-acct.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, clameter@engr.sgi.com, mingo@elte.hu, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: balbir@in.ibm.com, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, devel@openvz.org, xemul@sw.ru, menage@google.com, clameter@sgi.com, riel@redhat.com, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 02, 2007 at 11:05:15AM -0600, Joel Schopp wrote:
-> Linus Torvalds wrote:
-> >
-> >On Thu, 1 Mar 2007, Andrew Morton wrote:
-> >>So some urgent questions are: how are we going to do mem hotunplug and
-> >>per-container RSS?
-> 
-> The people who were trying to do memory hot-unplug basically all stopped 
-> waiting for these patches, or something similar, to solve the fragmentation 
-> problem.  Our last working set of patches built on top of an earlier 
-> version of Mel's list based solution.
-> 
-> >
-> >Also: how are we going to do this in virtualized environments? Usually the 
-> >people who care abotu memory hotunplug are exactly the same people who 
-> >also care (or claim to care, or _will_ care) about virtualization.
-> 
-> Yes, we are.  And we are very much in favor of these patches.  At last 
-> year's OLS developers from IBM, HP, Xen coauthored a paper titled "Resizing 
-> Memory with Balloons and Hotplug".  
-> http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf  Our 
-> conclusion was that ballooning is simply not good enough and we need memory 
-> hot-unplug.  Here is a quote from the article I find relevant to today's 
-> discussion:
+The accounting framework works by adding a container pointer in 
+address_space structure.  Each page in pagecache belongs to a 
+radix tree within the address_space structure corresponding to the inode.
 
-But if you don't require a lot of higher order allocations anyway, then
-guest fragmentation caused by ballooning doesn't seem like much problem.
+In order to charge the container for pagecache usage, the corresponding 
+address_space is obtained from struct page which holds the container pointer.  
+This framework avoids any additional pointers in struct page.
 
-If you need higher order allocations, then ballooning is bad because of
-fragmentation, so you need memory unplug, so you need higher order
-allocations. Goto 1.
+additions and deletions from pagecache are hooked to charge and uncharge 
+the corresponding container.
 
-Balooning probably does skew memory management stats and watermarks, but
-that's just because it is implemented as a module. A couple of hooks
-should be enough to allow things to be adjusted?
+Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+---
+ include/linux/fs.h |    4 ++++
+ mm/filemap.c       |    8 ++++++++
+ 2 files changed, 12 insertions(+)
+
+--- linux-2.6.20.orig/include/linux/fs.h
++++ linux-2.6.20/include/linux/fs.h
+@@ -447,6 +447,10 @@ struct address_space {
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++#ifdef CONFIG_CONTAINER_PAGECACHE_ACCT
++	struct container *container; 	/* Charge page to the right container
++					   using page->mapping */
++#endif
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+--- linux-2.6.20.orig/mm/filemap.c
++++ linux-2.6.20/mm/filemap.c
+@@ -30,6 +30,7 @@
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+ #include <linux/cpuset.h>
++#include <linux/pagecache_acct.h>
+ #include "filemap.h"
+ #include "internal.h"
+ 
+@@ -117,6 +118,8 @@ void __remove_from_page_cache(struct pag
+ 	struct address_space *mapping = page->mapping;
+ 
+ 	radix_tree_delete(&mapping->page_tree, page->index);
++	/* Uncharge before the mapping is gone */
++	pagecache_acct_uncharge(page);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+@@ -451,6 +454,11 @@ int add_to_page_cache(struct page *page,
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 		}
+ 		write_unlock_irq(&mapping->tree_lock);
++		/* Unlock before charge, because we may reclaim this inline */
++		if (!error) {
++			pagecache_acct_init_page_ptr(page);
++			pagecache_acct_charge(page);
++		}
+ 		radix_tree_preload_end();
+ 	}
+ 	return error;
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
