@@ -1,28 +1,35 @@
-Date: Mon, 5 Mar 2007 17:12:24 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
-Message-ID: <20070305171224.GB2909@infradead.org>
-References: <20070305161746.GD8128@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070305161746.GD8128@wotan.suse.de>
+Date: Mon, 5 Mar 2007 09:47:16 -0800 (PST)
+From: Christoph Lameter <clameter@engr.sgi.com>
+Subject: Re: [rfc][patch 1/2] mm: rework isolate_lru_page
+In-Reply-To: <20070305161655.GC8128@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703050945290.6620@schroedinger.engr.sgi.com>
+References: <20070305161655.GC8128@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <clameter@engr.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 05, 2007 at 05:17:46PM +0100, Nick Piggin wrote:
-> +#include "internal.h"
-> +
-> +#define page_mlock_count(page)		(*(unsigned long *)&(page)->lru.next)
-> +#define set_page_mlock_count(page, v)	(page_mlock_count(page) = (v))
-> +#define inc_page_mlock_count(page)	(page_mlock_count(page)++)
-> +#define dec_page_mlock_count(page)	(page_mlock_count(page)--)
+On Mon, 5 Mar 2007, Nick Piggin wrote:
 
-Now that we've dropped support for old gccs this would be a lot using
-anonymous unions.
+> isolate_lru_page logically belongs to be in vmscan.c than migrate.c.
+
+Good idea.
+
+> + * Isolate one page from the LRU lists. Must be called with an elevated
+> + * refcount on the page, which is how it differs from isolate_lru_pages
+> + * (which is called without a stable reference).
+> + *
+> + * lru_lock must not be held, interrupts must be enabled.
+> + *
+> + * Returns:
+> + *  -EBUSY: page not on LRU list
+> + *  0: page removed from LRU list and added to the specified list.
+
+The new version of isolate_lru_page no longer adds the page to a list.
+Remove that portion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
