@@ -1,85 +1,109 @@
 Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id l262x5QD3956978
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 01:59:09 -0100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.250.237])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l25F1Gat171922
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l25FEHFF186824
+	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 02:14:25 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.250.243])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l25F1GF9181832
 	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 02:01:17 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l25EvkA1022906
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l25EvkZG025912
 	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 01:57:46 +1100
-Message-Id: <20070305145310.876347000@linux.vnet.ibm.com>>
-References: <20070305145237.003560000@linux.vnet.ibm.com>>
-Date: Mon, 05 Mar 2007 20:22:39 +0530
+Message-Id: <20070305145237.003560000@linux.vnet.ibm.com>>
+Date: Mon, 05 Mar 2007 20:22:37 +0530
 From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Subject: [PATCH 2/3][RFC] Containers: Pagecache controller accounting
-Content-Disposition: inline; filename=pagecache-controller-acct.patch
+Subject: [PATCH 0/3][RFC] Containers: Pagecache accounting and control subsystem (v1)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: balbir@in.ibm.com, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, devel@openvz.org, xemul@sw.ru, menage@google.com, clameter@sgi.com, riel@redhat.com, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: balbir@in.ibm.com, vatsa@in.ibm.com, ckrm-tech@lists.sourceforge.net, devel@openvz.org, xemul@sw.ru, menage@google.com, clameter@sgi.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-The accounting framework works by adding a container pointer in 
-address_space structure.  Each page in pagecache belongs to a 
-radix tree within the address_space structure corresponding to the inode.
+-----------------------------------------------------------
 
-In order to charge the container for pagecache usage, the corresponding 
-address_space is obtained from struct page which holds the container pointer.  
-This framework avoids any additional pointers in struct page.
+This patch adds pagecache accounting and control on top of 
+Paul's container subsystem v7 posted at 
+http://lkml.org/lkml/2007/2/12/88
 
-additions and deletions from pagecache are hooked to charge and uncharge 
-the corresponding container.
+and Balbir's RSS controller posted at
+http://lkml.org/lkml/2007/2/26/8
 
-Signed-off-by: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
----
- include/linux/fs.h |    4 ++++
- mm/filemap.c       |    8 ++++++++
- 2 files changed, 12 insertions(+)
+This patchset depends on Balbir's RSS controller and cannot 
+work independent of it. The page reclaim code has been merged 
+with container RSS controller.  However compile time options 
+can individually enable/disable memory controller and/or 
+pagecache controller.
 
---- linux-2.6.20.orig/include/linux/fs.h
-+++ linux-2.6.20/include/linux/fs.h
-@@ -447,6 +447,10 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+#ifdef CONFIG_CONTAINER_PAGECACHE_ACCT
-+	struct container *container; 	/* Charge page to the right container
-+					   using page->mapping */
-+#endif
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
---- linux-2.6.20.orig/mm/filemap.c
-+++ linux-2.6.20/mm/filemap.c
-@@ -30,6 +30,7 @@
- #include <linux/security.h>
- #include <linux/syscalls.h>
- #include <linux/cpuset.h>
-+#include <linux/pagecache_acct.h>
- #include "filemap.h"
- #include "internal.h"
- 
-@@ -117,6 +118,8 @@ void __remove_from_page_cache(struct pag
- 	struct address_space *mapping = page->mapping;
- 
- 	radix_tree_delete(&mapping->page_tree, page->index);
-+	/* Uncharge before the mapping is gone */
-+	pagecache_acct_uncharge(page);
- 	page->mapping = NULL;
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
-@@ -451,6 +454,11 @@ int add_to_page_cache(struct page *page,
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
- 		}
- 		write_unlock_irq(&mapping->tree_lock);
-+		/* Unlock before charge, because we may reclaim this inline */
-+		if (!error) {
-+			pagecache_acct_init_page_ptr(page);
-+			pagecache_acct_charge(page);
-+		}
- 		radix_tree_preload_end();
- 	}
- 	return error;
+Comments, suggestions and criticisms are welcome.
+
+Features:
+--------
+* New subsystem called 'pagecache_acct' is registered with containers 
+* Container pointer is added to struct address_space to keep track of  
+  associated container
+* In filemap.c and swap_state.c, the corresponding container's 
+  pagecache_acct subsystem is charged and uncharged whenever a new 
+  page is added or removed from pagecache
+* The accounting number include pages in swap cache and filesystem 
+  buffer pages apart from pagecache, basically everything under 
+  NR_FILE_PAGES is counted as pagecache.  However this excluded 
+  mapped and anonymous pages
+* Limits on pagecache can be set by echo 100000 > pagecache_limit on 
+  the /container file system.  The unit is in kilobytes  
+* If the pagecache utilisation limit is exceeded, pagecache reclaim
+  code is invoked to recover dirty and clean pagecache pages only.
+
+Advantages:
+-----------
+* Does not add container pointers in struct page
+
+Limitations:
+-----------
+* Code is not safe for container deletion/task migration
+* Pagecache page reclaim needs performance improvements
+* Global LRU is churned in search of pagecache pages
+
+Usage:
+-----
+
+* Add patch on top of Paul container (v7) at kernel version 2.6.20
+* Enable CONFIG_CONTAINER_PAGECACHE_ACCT in 'General Setup'
+* Boot new kernel
+* Mount container filesystem 
+	mount -t container /container
+	cd /container
+* Create new container
+	mkdir mybox 
+	cd /container/mybox
+* Add current shell to container
+	echo $$ > tasks
+* There are two files pagecache_usage and pagecache_limit
+* In order to set limit, echo value in kilobytes to pagecache_limit
+	echo 100000 > pagecache_limit 
+	#This would set 100MB limit on pagecache usage
+* Trash the system from current shell using scp/cp/dd/tar etc
+* Watch pagecache_usage and /proc/meminfo to verify behavior
+
+* Only unmapped pagecache data will be accounted and controlled.  
+  These are memory used by cp, scp, tar etc.  While file mmap will 
+  be controlled by Balbir's RSS controller.
+
+Tests:
+------
+
+* Ran kernbench within container with pagecache_limits set
+
+ToDo:
+----
+
+* Merge with container RSS controller and eliminate redundant code
+* Test and support task migration and container deletion
+* Review reclaim performance
+* Optimise page reclaim
+
+Patch Series:
+-------------
+pagecache-controller-setup.patch
+pagecache-controller-acct.patch
+pagecache-controller-reclaim.patch
 
 -- 
 
