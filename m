@@ -1,67 +1,176 @@
-Date: Tue, 6 Mar 2007 03:13:07 +0100
+Date: Tue, 6 Mar 2007 03:23:19 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
-Message-ID: <20070306021307.GE23845@wotan.suse.de>
-References: <20070305161746.GD8128@wotan.suse.de> <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com> <20070306010529.GB23845@wotan.suse.de> <Pine.LNX.4.64.0703051723240.16842@schroedinger.engr.sgi.com> <20070306014403.GD23845@wotan.suse.de> <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
+Subject: Re: [RFC][PATCH 3/5] mm: RCUify vma lookup
+Message-ID: <20070306022319.GF23845@wotan.suse.de>
+References: <20070306013815.951032000@taijtu.programming.kicks-ass.net> <20070306014211.293824000@taijtu.programming.kicks-ass.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
+In-Reply-To: <20070306014211.293824000@taijtu.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@engr.sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 05, 2007 at 05:55:57PM -0800, Christoph Lameter wrote:
-> On Tue, 6 Mar 2007, Nick Piggin wrote:
+On Tue, Mar 06, 2007 at 02:38:18AM +0100, Peter Zijlstra wrote:
+> mostly lockless vma lookup using the new b+tree
+> pin the vma using an atomic refcount
 > 
-> > > > > I think there is still some thinking going on about also removing 
-> > > > > anonymous pages off the LRU if we are out of swap or have no swap. In 
-> > > > > that case we may need page->lru to track these pages so that they can be 
-> > > > > fed back to the LRU when swap is added later.
-> > > > 
-> > > > That's OK: they won't get mlocked if they are not on the LRU (and won't
-> > > > get taken off the LRU if they are mlocked).
-> > > 
-> > > But we may want to keep them off the LRU.
-> > 
-> > They will be. Either by mlock or by the !swap condition.
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  include/linux/init_task.h |    3 
+>  include/linux/mm.h        |    7 +
+>  include/linux/sched.h     |    2 
+>  kernel/fork.c             |    4 
+>  mm/mmap.c                 |  212 ++++++++++++++++++++++++++++++++++++++++------
+>  5 files changed, 199 insertions(+), 29 deletions(-)
 > 
-> The above is a bit contradictory. Assuming they are taken off the LRU:
-> How will they be returned to the LRU?
+> Index: linux-2.6/include/linux/mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm.h
+> +++ linux-2.6/include/linux/mm.h
+> @@ -103,12 +103,14 @@ struct vm_area_struct {
+>  	void * vm_private_data;		/* was vm_pte (shared mem) */
+>  	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
+>  
+> +	atomic_t vm_count;
+>  #ifndef CONFIG_MMU
+>  	atomic_t vm_usage;		/* refcount (VMAs shared if !MMU) */
+>  #endif
+>  #ifdef CONFIG_NUMA
+>  	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+>  #endif
+> +	struct rcu_head vm_rcu_head;
+>  };
+>  
+>  static inline struct vm_area_struct *
+> @@ -1047,6 +1049,8 @@ static inline void vma_nonlinear_insert(
+>  }
+>  
+>  /* mmap.c */
+> +extern void btree_rcu_flush(struct btree_freevec *);
+> +extern void free_vma(struct vm_area_struct *vma);
+>  extern int __vm_enough_memory(long pages, int cap_sys_admin);
+>  extern void vma_adjust(struct vm_area_struct *vma, unsigned long start,
+>  	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
+> @@ -1132,6 +1136,9 @@ extern struct vm_area_struct * find_vma(
+>  extern struct vm_area_struct * find_vma_prev(struct mm_struct * mm, unsigned long addr,
+>  					     struct vm_area_struct **pprev);
+>  
+> +extern struct vm_area_struct * find_get_vma(struct mm_struct *mm, unsigned long addr);
+> +extern void put_vma(struct vm_area_struct *vma);
+> +
+>  /* Look up the first VMA which intersects the interval start_addr..end_addr-1,
+>     NULL if none.  Assume start_addr < end_addr. */
+>  static inline struct vm_area_struct * find_vma_intersection(struct mm_struct * mm, unsigned long start_addr, unsigned long end_addr)
+> Index: linux-2.6/include/linux/sched.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/sched.h
+> +++ linux-2.6/include/linux/sched.h
+> @@ -54,6 +54,7 @@ struct sched_param {
+>  #include <linux/cpumask.h>
+>  #include <linux/errno.h>
+>  #include <linux/nodemask.h>
+> +#include <linux/rcupdate.h>
+>  
+>  #include <asm/system.h>
+>  #include <asm/semaphore.h>
+> @@ -311,6 +312,7 @@ struct mm_struct {
+>  	struct list_head mm_vmas;
+>  	struct btree_root mm_btree;
+>  	spinlock_t mm_btree_lock;
+> +	wait_queue_head_t mm_wq;
+>  	struct vm_area_struct * mmap_cache;	/* last find_vma result */
+>  	unsigned long (*get_unmapped_area) (struct file *filp,
+>  				unsigned long addr, unsigned long len,
+> Index: linux-2.6/mm/mmap.c
+> ===================================================================
+> --- linux-2.6.orig/mm/mmap.c
+> +++ linux-2.6/mm/mmap.c
+> @@ -39,6 +39,18 @@ static void unmap_region(struct mm_struc
+>  		struct vm_area_struct *vma, struct vm_area_struct *prev,
+>  		unsigned long start, unsigned long end);
+>  
+> +static void __btree_rcu_flush(struct rcu_head *head)
+> +{
+> +	struct btree_freevec *freevec =
+> +		container_of(head, struct btree_freevec, rcu_head);
+> +	btree_freevec_flush(freevec);
+> +}
+> +
+> +void btree_rcu_flush(struct btree_freevec *freevec)
+> +{
+> +	call_rcu(&freevec->rcu_head, __btree_rcu_flush);
+> +}
+> +
+>  /*
+>   * WARNING: the debugging will use recursive algorithms so never enable this
+>   * unless you know what you are doing.
+> @@ -217,6 +229,18 @@ void unlink_file_vma(struct vm_area_stru
+>  	}
+>  }
+>  
+> +static void __free_vma(struct rcu_head *head)
+> +{
+> +	struct vm_area_struct *vma =
+> +		container_of(head, struct vm_area_struct, vm_rcu_head);
+> +	kmem_cache_free(vm_area_cachep, vma);
+> +}
+> +
+> +void free_vma(struct vm_area_struct *vma)
+> +{
+> +	call_rcu(&vma->vm_rcu_head, __free_vma);
+> +}
+> +
+>  /*
+>   * Close a vm structure and free it, returning the next.
+>   */
+> @@ -229,7 +253,7 @@ static void remove_vma(struct vm_area_st
+>  		fput(vma->vm_file);
+>  	mpol_free(vma_policy(vma));
+>  	list_del(&vma->vm_list);
+> -	kmem_cache_free(vm_area_cachep, vma);
+> +	free_vma(vma);
+>  }
+>  
+>  asmlinkage unsigned long sys_brk(unsigned long brk)
+> @@ -312,6 +336,7 @@ __vma_link_list(struct mm_struct *mm, st
+>  void __vma_link_btree(struct mm_struct *mm, struct vm_area_struct *vma)
+>  {
+>  	int err;
+> +	atomic_set(&vma->vm_count, 1);
+>  	spin_lock(&mm->mm_btree_lock);
+>  	err = btree_insert(&mm->mm_btree, vma->vm_start, vma);
+>  	spin_unlock(&mm->mm_btree_lock);
+> @@ -388,6 +413,17 @@ __insert_vm_struct(struct mm_struct * mm
+>  	mm->map_count++;
+>  }
+>  
+> +static void lock_vma(struct vm_area_struct *vma)
+> +{
+> +	wait_event(vma->vm_mm->mm_wq, (atomic_cmpxchg(&vma->vm_count, 1, 0) == 1));
+> +}
+> +
+> +static void unlock_vma(struct vm_area_struct *vma)
+> +{
+> +	BUG_ON(atomic_read(&vma->vm_count));
+> +	atomic_set(&vma->vm_count, 1);
+> +}
 
-In what way is it contradictory? If they are mlocked, we put them on the
-LRU when they get munlocked. If they are off the LRU due to a !swap condition,
-then we put them back on the LRU by whatever mechanism that uses (eg. a
-3rd LRU list that we go through much more slowly...).
+This is a funny scheme you're trying to do in order to try to avoid
+rwsems. Of course it is subject to writer starvation, so please just
+use an rwsem per vma for this.
 
-If they get munlocked and put back on the LRU when there is no swap, then
-presumably the !swap condition handling will lazily take care of them.
+If the -rt tree cannot do them properly, then it just has to turn them
+into mutexes and take the hit itself.
 
+There is no benefit for the -rt tree to do this anyway, because you're
+just re-introducing the fundamental problem that it has with rwsems
+anyway (ie. poor priority inheritance).
 
-> > > Wrong. !PageLRU means that the page may be on some other list. Like the 
-> > > vmscan pagelist and the page migration list. You can only be sure that it
-> > > is not on those lists if a function took the page off the LRU. If you then 
-> > > mark it PageMlocked then you may be sure that the LRU field is free for 
-> > > use.
-> > 
-> > Bad wording: by "if we ensure !PageLRU" I meant "if we take the page off
-> > the LRU ourselves". Why do you have a bad feeling about this? As you
-> > say, vmscan and page migration do exactly the same thing and it is a
-> > fundamental way that the lru mechanism works.
-> 
-> Refcounts are generally there to be updated in a racy way and it seems 
-> here that the refcount variable itself can only exist under certain 
-> conditions. If you can handle that cleanly then we are okay.
-
-Well it's there in the code. I don't know if you consider my way of
-handling it clean or not... It isn't a racy refcount, just a conservative
-count of mlocked vmas, which is protected by PG_locked. PG_mlock is also
-protected by PG_locked, so it is easy to get the mlock_count when the page
-is locked.
-
-I did put a little bit of thought into this ;)
+In this case I guess you still need some sort of refcount in order to force
+the lookup into the slowpath, but please don't use it for locking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
