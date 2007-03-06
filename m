@@ -1,7 +1,7 @@
-Date: Tue, 6 Mar 2007 13:49:46 +0900
+Date: Tue, 6 Mar 2007 13:50:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC} memory unplug patchset prep [7/16] change caller's gfp_mask
-Message-Id: <20070306134946.bc3453a2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC} memory unplug patchset prep [8/16] counter for ZONE_MOVABLE
+Message-Id: <20070306135058.5ce2ab9d.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,202 +13,170 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Changes callers of GFP_HIGHUSER to use GFP_HIGH_MOVABLE if it can
-some of alloc_zeroed_user_highpage are changed to
-alloc_zeroed_user_high_movable.
+Show #of Movable pages and vmstat.
 
-I think I need more study in this area.
-
-Signed-Off-By: KAMEZAWA Hiruyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- fs/inode.c         |    6 +++++-
- fs/namei.c         |    1 +
- fs/ramfs/inode.c   |    1 +
- mm/filemap.c       |    2 +-
- mm/memory.c        |    8 ++++----
- mm/mempolicy.c     |    4 ++--
- mm/migrate.c       |    2 +-
- mm/shmem.c         |    5 ++++-
- mm/swap_prefetch.c |    2 +-
- mm/swap_state.c    |    2 +-
- 10 files changed, 21 insertions(+), 12 deletions(-)
+ fs/proc/proc_misc.c    |    8 ++++++++
+ include/linux/kernel.h |    2 ++
+ include/linux/vmstat.h |    8 +++++++-
+ mm/page_alloc.c        |   28 +++++++++++++++++++++++++++-
+ mm/vmstat.c            |    8 +++++++-
+ 5 files changed, 51 insertions(+), 3 deletions(-)
 
-Index: devel-tree-2.6.20-mm2/fs/inode.c
+Index: devel-tree-2.6.20-mm2/mm/page_alloc.c
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/fs/inode.c
-+++ devel-tree-2.6.20-mm2/fs/inode.c
-@@ -145,7 +145,7 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
--		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
-+		mapping_set_gfp_mask(mapping, GFP_HIGH_MOVABLE);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
+--- devel-tree-2.6.20-mm2.orig/mm/page_alloc.c
++++ devel-tree-2.6.20-mm2/mm/page_alloc.c
+@@ -58,6 +58,7 @@ unsigned long totalram_pages __read_most
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
+ int percpu_pagelist_fraction;
++unsigned long total_movable_pages __read_mostly;
  
-@@ -522,6 +522,10 @@ repeat:
-  *	@sb: superblock
-  *
-  *	Allocates a new inode for given superblock.
-+ *	Newly allocated inode's gfp_flag is set to GFP_HIGH_MOVABLE(default).
-+ *	If fs doesn't support page migration, is hould be overriden
-+ *	by GFP_HIGHUSER.
-+ *	mapping_set_gfp_mask() can be used for this purpose.
+ static void __free_pages_ok(struct page *page, unsigned int order);
+ 
+@@ -1571,6 +1572,20 @@ static unsigned int nr_free_zone_pages(i
+ 	return sum;
+ }
+ 
++unsigned int nr_free_movable_pages(void)
++{
++	unsigned long nr_pages = 0;
++	struct zone *zone;
++	int nid;
++	if (is_configured_zone(ZONE_MOVABLE)) {
++		/* we want to count *only* pages in movable zone */
++		for_each_online_node(nid) {
++			zone = &(NODE_DATA(nid)->node_zones[ZONE_MOVABLE]);
++			nr_pages += zone_page_state(zone, NR_FREE_PAGES);
++		}
++	}
++	return nr_pages;
++}
+ /*
+  * Amount of free RAM allocatable within ZONE_DMA and ZONE_NORMAL
   */
- struct inode *new_inode(struct super_block *sb)
+@@ -1584,7 +1599,7 @@ unsigned int nr_free_buffer_pages(void)
+  */
+ unsigned int nr_free_pagecache_pages(void)
  {
-Index: devel-tree-2.6.20-mm2/fs/ramfs/inode.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/fs/ramfs/inode.c
-+++ devel-tree-2.6.20-mm2/fs/ramfs/inode.c
-@@ -61,6 +61,7 @@ struct inode *ramfs_get_inode(struct sup
- 		inode->i_blocks = 0;
- 		inode->i_mapping->a_ops = &ramfs_aops;
- 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-+		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
- 		switch (mode & S_IFMT) {
- 		default:
-Index: devel-tree-2.6.20-mm2/mm/memory.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/memory.c
-+++ devel-tree-2.6.20-mm2/mm/memory.c
-@@ -1761,11 +1761,11 @@ gotten:
- 	if (unlikely(anon_vma_prepare(vma)))
- 		goto oom;
- 	if (old_page == ZERO_PAGE(address)) {
--		new_page = alloc_zeroed_user_highpage(vma, address);
-+		new_page = alloc_zeroed_user_highmovable(vma, address);
- 		if (!new_page)
- 			goto oom;
- 	} else {
--		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+		new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
- 		if (!new_page)
- 			goto oom;
- 		cow_user_page(new_page, old_page, address, vma);
-@@ -2283,7 +2283,7 @@ static int do_anonymous_page(struct mm_s
- 
- 		if (unlikely(anon_vma_prepare(vma)))
- 			goto oom;
--		page = alloc_zeroed_user_highpage(vma, address);
-+		page = alloc_zeroed_user_highmovable(vma, address);
- 		if (!page)
- 			goto oom;
- 
-@@ -2384,7 +2384,7 @@ retry:
- 
- 			if (unlikely(anon_vma_prepare(vma)))
- 				goto oom;
--			page = alloc_page_vma(GFP_HIGHUSER, vma, address);
-+			page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, address);
- 			if (!page)
- 				goto oom;
- 			copy_user_highpage(page, new_page, address, vma);
-Index: devel-tree-2.6.20-mm2/mm/mempolicy.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/mempolicy.c
-+++ devel-tree-2.6.20-mm2/mm/mempolicy.c
-@@ -603,7 +603,7 @@ static void migrate_page_add(struct page
- 
- static struct page *new_node_page(struct page *page, unsigned long node, int **x)
- {
--	return alloc_pages_node(node, GFP_HIGHUSER, 0);
-+	return alloc_pages_node(node, GFP_HIGH_MOVABLE, 0);
+-	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
++	return nr_free_zone_pages(gfp_zone(GFP_HIGH_MOVABLE));
  }
  
  /*
-@@ -719,7 +719,7 @@ static struct page *new_vma_page(struct 
- {
- 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
- 
--	return alloc_page_vma(GFP_HIGHUSER, vma, page_address_in_vma(page, vma));
-+	return alloc_page_vma(GFP_HIGH_MOVABLE, vma, page_address_in_vma(page, vma));
- }
- #else
- 
-Index: devel-tree-2.6.20-mm2/mm/migrate.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/migrate.c
-+++ devel-tree-2.6.20-mm2/mm/migrate.c
-@@ -755,7 +755,7 @@ static struct page *new_page_node(struct
- 
- 	*result = &pm->status;
- 
--	return alloc_pages_node(pm->node, GFP_HIGHUSER | GFP_THISNODE, 0);
-+	return alloc_pages_node(pm->node, GFP_HIGH_MOVABLE | GFP_THISNODE, 0);
+@@ -1633,6 +1648,8 @@ void si_meminfo(struct sysinfo *val)
+ 	val->totalhigh = totalhigh_pages;
+ 	val->freehigh = nr_free_highpages();
+ 	val->mem_unit = PAGE_SIZE;
++	val->movable = total_movable_pages;
++	val->free_movable = nr_free_movable_pages();
  }
  
- /*
-Index: devel-tree-2.6.20-mm2/mm/shmem.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/shmem.c
-+++ devel-tree-2.6.20-mm2/mm/shmem.c
-@@ -93,8 +93,11 @@ static inline struct page *shmem_dir_all
- 	 * The above definition of ENTRIES_PER_PAGE, and the use of
- 	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
- 	 * might be reconsidered if it ever diverges from PAGE_SIZE.
-+	 *
-+	 * shmem's dir is not movable page.
- 	 */
--	return alloc_pages(gfp_mask, PAGE_CACHE_SHIFT-PAGE_SHIFT);
-+	return alloc_pages(gfp_mask & ~__GFP_MOVABLE,
-+				PAGE_CACHE_SHIFT-PAGE_SHIFT);
+ EXPORT_SYMBOL(si_meminfo);
+@@ -1654,6 +1671,13 @@ void si_meminfo_node(struct sysinfo *val
+ 		val->totalhigh = 0;
+ 		val->freehigh = 0;
+ 	}
++	if (is_configured_zone(ZONE_MOVABLE)) {
++		val->movable +=
++			pgdat->node_zones[ZONE_MOVABLE].present_pages;
++		val->free_movable +=
++			zone_page_state(&pgdat->node_zones[ZONE_MOVABLE],
++				NR_FREE_PAGES);
++	}
+ 	val->mem_unit = PAGE_SIZE;
  }
+ #endif
+@@ -2779,6 +2803,8 @@ static void __meminit free_area_init_cor
  
- static inline void shmem_dir_free(struct page *page)
-Index: devel-tree-2.6.20-mm2/mm/swap_prefetch.c
+ 		zone->spanned_pages = size;
+ 		zone->present_pages = realsize;
++		if (j == ZONE_MOVABLE)
++			total_movable_pages += realsize;
+ #ifdef CONFIG_NUMA
+ 		zone->node = nid;
+ 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+Index: devel-tree-2.6.20-mm2/include/linux/kernel.h
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/swap_prefetch.c
-+++ devel-tree-2.6.20-mm2/mm/swap_prefetch.c
-@@ -204,7 +204,7 @@ static enum trickle_return trickle_swap_
- 	 * Get a new page to read from swap. We have already checked the
- 	 * watermarks so __alloc_pages will not call on reclaim.
- 	 */
--	page = alloc_pages_node(node, GFP_HIGHUSER & ~__GFP_WAIT, 0);
-+	page = alloc_pages_node(node, GFP_HIGH_MOVABLE & ~__GFP_WAIT, 0);
- 	if (unlikely(!page)) {
- 		ret = TRICKLE_DELAY;
- 		goto out;
-Index: devel-tree-2.6.20-mm2/mm/swap_state.c
+--- devel-tree-2.6.20-mm2.orig/include/linux/kernel.h
++++ devel-tree-2.6.20-mm2/include/linux/kernel.h
+@@ -329,6 +329,8 @@ struct sysinfo {
+ 	unsigned short pad;		/* explicit padding for m68k */
+ 	unsigned long totalhigh;	/* Total high memory size */
+ 	unsigned long freehigh;		/* Available high memory size */
++	unsigned long movable;		/* pages used only for data */
++	unsigned long free_movable;	/* Avaiable pages in movable */
+ 	unsigned int mem_unit;		/* Memory unit size in bytes */
+ 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
+ };
+Index: devel-tree-2.6.20-mm2/fs/proc/proc_misc.c
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/swap_state.c
-+++ devel-tree-2.6.20-mm2/mm/swap_state.c
-@@ -340,7 +340,7 @@ struct page *read_swap_cache_async(swp_e
- 		 * Get a new page to read into from swap.
- 		 */
- 		if (!new_page) {
--			new_page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+			new_page = alloc_page_vma(GFP_HIGH_MOVABLE, vma, addr);
- 			if (!new_page)
- 				break;		/* Out of memory */
- 		}
-Index: devel-tree-2.6.20-mm2/fs/namei.c
+--- devel-tree-2.6.20-mm2.orig/fs/proc/proc_misc.c
++++ devel-tree-2.6.20-mm2/fs/proc/proc_misc.c
+@@ -160,6 +160,10 @@ static int meminfo_read_proc(char *page,
+ 		"LowTotal:     %8lu kB\n"
+ 		"LowFree:      %8lu kB\n"
+ #endif
++#ifdef CONFIG_ZONE_MOVABLE
++		"MovableTotal: %8lu kB\n"
++		"MovableFree:  %8lu kB\n"
++#endif
+ 		"SwapTotal:    %8lu kB\n"
+ 		"SwapFree:     %8lu kB\n"
+ 		"Dirty:        %8lu kB\n"
+@@ -191,6 +195,10 @@ static int meminfo_read_proc(char *page,
+ 		K(i.totalram-i.totalhigh),
+ 		K(i.freeram-i.freehigh),
+ #endif
++#ifdef CONFIG_ZONE_MOVABLE
++		K(i.movable),
++		K(i.free_movable),
++#endif
+ 		K(i.totalswap),
+ 		K(i.freeswap),
+ 		K(global_page_state(NR_FILE_DIRTY)),
+Index: devel-tree-2.6.20-mm2/include/linux/vmstat.h
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/fs/namei.c
-+++ devel-tree-2.6.20-mm2/fs/namei.c
-@@ -2691,6 +2691,7 @@ int __page_symlink(struct inode *inode, 
- 	int err;
- 	char *kaddr;
+--- devel-tree-2.6.20-mm2.orig/include/linux/vmstat.h
++++ devel-tree-2.6.20-mm2/include/linux/vmstat.h
+@@ -25,7 +25,13 @@
+ #define HIGHMEM_ZONE(xx)
+ #endif
  
-+	gfp_mask &= ~(__GFP_MOVABLE);
- retry:
- 	err = -ENOMEM;
- 	page = find_or_create_page(mapping, 0, gfp_mask);
-Index: devel-tree-2.6.20-mm2/mm/filemap.c
-===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/filemap.c
-+++ devel-tree-2.6.20-mm2/mm/filemap.c
-@@ -423,7 +423,7 @@ int filemap_write_and_wait_range(struct 
- int add_to_page_cache(struct page *page, struct address_space *mapping,
- 		pgoff_t offset, gfp_t gfp_mask)
- {
--	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+	int error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_MOVABLE));
+-#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx)
++#ifdef CONFIG_ZONE_MOVABLE
++#define MOVABLE_ZONE(xx) , xx##_MOVABLE
++#else
++#define MOVABLE_ZONE(xx)
++#endif
++
++#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) MOVABLE_ZONE(xx)
  
- 	if (error == 0) {
- 		write_lock_irq(&mapping->tree_lock);
+ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		FOR_ALL_ZONES(PGALLOC),
+Index: devel-tree-2.6.20-mm2/mm/vmstat.c
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/mm/vmstat.c
++++ devel-tree-2.6.20-mm2/mm/vmstat.c
+@@ -426,8 +426,14 @@ const struct seq_operations fragmentatio
+ #define TEXT_FOR_HIGHMEM(xx)
+ #endif
+ 
++#ifdef CONFIG_ZONE_MOVABLE
++#define TEXT_FOR_MOVABLE(xx) xx "_movable",
++#else
++#define TXT_FOR_MOVABLE(xx)
++#endif
++
+ #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
+-					TEXT_FOR_HIGHMEM(xx)
++					TEXT_FOR_HIGHMEM(xx) TEXT_FOR_MOVABLE(xx)
+ 
+ static const char * const vmstat_text[] = {
+ 	/* Zoned VM counters */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
