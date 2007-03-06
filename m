@@ -1,34 +1,59 @@
-Date: Tue, 6 Mar 2007 10:26:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] [PATCH] Power Managed memory base enabling
-Message-Id: <20070306102628.4c32fc65.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070305181826.GA21515@linux.intel.com>
-References: <20070305181826.GA21515@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 5 Mar 2007 17:27:37 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
+In-Reply-To: <20070306010529.GB23845@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703051723240.16842@schroedinger.engr.sgi.com>
+References: <20070305161746.GD8128@wotan.suse.de>
+ <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com>
+ <20070306010529.GB23845@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mgross@linux.intel.com
-Cc: linux-mm@kvack.org, linux-pm@lists.osdl.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, mark.gross@intel.com, neelam.chandwani@intel.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Mar 2007 10:18:26 -0800
-Mark Gross <mgross@linux.intel.com> wrote:
+On Tue, 6 Mar 2007, Nick Piggin wrote:
 
-> It implements a convention on the 4 bytes of "Proximity Domain ID"
-> within the SRAT memory affinity structure as defined in ACPI3.0a.  If
-> bit 31 is set, then the memory range represented by that PXM is assumed
-> to be power managed.  We are working on defining a "standard" for
-> identifying such memory areas as power manageable and progress committee
-> based.  
+> > Which breaks page migration for mlocked pages.
 > 
+> Yeah, the simple way to fix migration is to just clear_page_mlock those
+> pages so they'll lazily be mlocked again. However we could probably do
+> something fancier like transferring the PG_mlock bit and the mlock_count.
 
-This usage of bit 31 surprized me ;)
-I think some vendor(sgi?) now using 4byte pxm...
-no problem ? and othre OSs will handle this ?
+That will also drop the page count.
 
--Kame
+> > I think there is still some thinking going on about also removing 
+> > anonymous pages off the LRU if we are out of swap or have no swap. In 
+> > that case we may need page->lru to track these pages so that they can be 
+> > fed back to the LRU when swap is added later.
+> 
+> That's OK: they won't get mlocked if they are not on the LRU (and won't
+> get taken off the LRU if they are mlocked).
+
+But we may want to keep them off the LRU.
+
+> > I was a bit hesitant to use an additional ref counter because we are here 
+> > overloading a refcounter on a LRU field? I have a bad feeling here. There 
+> 
+> If we ensure !PageLRU then we can use the lru field. I don't see
+> a problem.
+
+Wrong. !PageLRU means that the page may be on some other list. Like the 
+vmscan pagelist and the page migration list. You can only be sure that it
+is not on those lists if a function took the page off the LRU. If you then 
+mark it PageMlocked then you may be sure that the LRU field is free for 
+use.
+
+> > Ok you basically keep the first patch of my set. Maybe include that 
+> > explicitly ?
+> 
+> It is a bit different. I don't want to break out as soon as it hits
+> an mlocked vma, in order to be able to count up all mlocked vmas and
+> set the correct mlock_count.
+
+?? The first patch just adds a new exist code to try_to_unmap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
