@@ -1,72 +1,62 @@
-Date: Tue, 6 Mar 2007 07:55:54 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC} memory unplug patchset prep [3/16] define is_identity_mapped
-In-Reply-To: <20070306134438.4ba6c561.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0703060021320.21900@chino.kir.corp.google.com>
-References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
- <20070306134438.4ba6c561.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 6 Mar 2007 07:54:04 -0800
+From: Mark Gross <mgross@linux.intel.com>
+Subject: Re: [RFC] [PATCH] Power Managed memory base enabling
+Message-ID: <20070306155404.GA22725@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20070305181826.GA21515@linux.intel.com> <20070306102628.4c32fc65.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070306102628.4c32fc65.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-pm@lists.osdl.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, mark.gross@intel.com, neelam.chandwani@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2007, KAMEZAWA Hiroyuki wrote:
+On Tue, Mar 06, 2007 at 10:26:28AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 5 Mar 2007 10:18:26 -0800
+> Mark Gross <mgross@linux.intel.com> wrote:
+> 
+> > It implements a convention on the 4 bytes of "Proximity Domain ID"
+> > within the SRAT memory affinity structure as defined in ACPI3.0a.  If
+> > bit 31 is set, then the memory range represented by that PXM is assumed
+> > to be power managed.  We are working on defining a "standard" for
+> > identifying such memory areas as power manageable and progress committee
+> > based.  
+> > 
+> 
+> This usage of bit 31 surprized me ;)
+It was not my first choice but, adding a new flag bit takes the ACPI
+standards committee to rubber stamp the notion.  That is a work in
+progress.  The "architects" are pondering the nuances and implications
+of this subject as we speak.  I'm sure something wonderful is forth
+coming.
 
-> Index: devel-tree-2.6.20-mm2/include/linux/mmzone.h
-> ===================================================================
-> --- devel-tree-2.6.20-mm2.orig/include/linux/mmzone.h
-> +++ devel-tree-2.6.20-mm2/include/linux/mmzone.h
-> @@ -523,6 +523,13 @@ static inline int is_normal_idx(enum zon
->  	return (idx == ZONE_NORMAL);
->  }
->  
-> +static inline int is_identity_map_idx(enum zone_type idx)
-> +{
-> +	if (is_configured_zone(ZONE_HIGHMEM))
-> +		return (idx < ZONE_HIGHMEM);
-> +	else
-> +		return 1;
-> +}
->  /**
->   * is_highmem - helper function to quickly check if a struct zone is a 
->   *              highmem zone or not.  This is an attempt to keep references
-> @@ -549,6 +556,14 @@ static inline int is_dma(struct zone *zo
->  	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
->  }
->  
-> +static inline int is_identity_map(struct zone *zone)
-> +{
-> +	if (is_configured_zone(ZONE_HIGHMEM)
-> +		return zone_idx(zone) < ZONE_HIGHMEM;
-> +	else
-> +		return 1;
-> +}
-> +
+We are trying to get this code out there to enable OSV support for a
+product with a first generation of power managed memory coming out this
+summer in the ATCA form factor, the MPCBL0050.
 
-is_identity_map() isn't specific to any particular architecture nor is it 
-dependent on a configuration option.  Since there's a missing ) in its 
-conditional, I'm wondering how this entire patch was ever tested.
+Its my hope that this convention will not be disruptive or create too
+much legacy once the ACPI committee catches up with this technology.
+Its not expected to be a problem, as there is only one publicly
+available platform rolling out this year with it.
 
-> Index: devel-tree-2.6.20-mm2/include/linux/page-flags.h
-> ===================================================================
-> --- devel-tree-2.6.20-mm2.orig/include/linux/page-flags.h
-> +++ devel-tree-2.6.20-mm2/include/linux/page-flags.h
-> @@ -162,7 +162,7 @@ static inline void SetPageUptodate(struc
->  #define __ClearPageSlab(page)	__clear_bit(PG_slab, &(page)->flags)
->  
->  #ifdef CONFIG_HIGHMEM
-> -#define PageHighMem(page)	is_highmem(page_zone(page))
-> +#define PageHighMem(page)	(!is_identitiy_map(page_zone(page)))
->  #else
->  #define PageHighMem(page)	0 /* needed to optimize away at compile time */
->  #endif
+> I think some vendor(sgi?) now using 4byte pxm...
 
-I assume this should be defined to !is_identity_map(page_zone(page)).
+I don't know if SGI has any system that use all 4 bytes of PXM.  I did
+notice that until recently the ACPI code in Linux only used the first
+byte of that field calling the upper bytes as reserved.  This should be
+the first code in Linux to overload the meeting of this bit.
 
-		David
+
+> no problem ? and othre OSs will handle this ?
+>
+I hope there is no problem. I posted this RFC to find out ;)
+
+I don't know if any other OS's know about this type of memory.  
+
+--mgross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
