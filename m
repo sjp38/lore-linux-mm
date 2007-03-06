@@ -1,84 +1,68 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l26BaDuj026904
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 22:36:15 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.250.242])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l26BN7kx034286
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 22:23:10 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l26BJZCJ025294
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2007 22:19:35 +1100
-Message-ID: <45ED4E40.3010404@linux.vnet.ibm.com>
-Date: Tue, 06 Mar 2007 16:49:28 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3][RFC] Containers: Pagecache controller reclaim
-References: <45ED251C.2010400@linux.vnet.ibm.com> <45ED266E.7040107@linux.vnet.ibm.com> <5d4poyvfdq.fsf@Hurtta06k.keh.iki.fi>
-In-Reply-To: <5d4poyvfdq.fsf@Hurtta06k.keh.iki.fi>
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH 3/5] mm: RCUify vma lookup
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070306022319.GF23845@wotan.suse.de>
+References: <20070306013815.951032000@taijtu.programming.kicks-ass.net>
+	 <20070306014211.293824000@taijtu.programming.kicks-ass.net>
+	 <20070306022319.GF23845@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 06 Mar 2007 13:31:49 +0100
+Message-Id: <1173184309.6374.110.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kari Hurtta <hurtta+gmane@siilo.fmi.fi>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@engr.sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 2007-03-06 at 03:23 +0100, Nick Piggin wrote:
+> On Tue, Mar 06, 2007 at 02:38:18AM +0100, Peter Zijlstra wrote:
 
-Kari Hurtta wrote:
-> Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> writes
-> in gmane.linux.kernel,gmane.linux.kernel.mm:
+> > +static void lock_vma(struct vm_area_struct *vma)
+> > +{
+> > +	wait_event(vma->vm_mm->mm_wq, (atomic_cmpxchg(&vma->vm_count, 1, 0) == 1));
+> > +}
+> > +
+> > +static void unlock_vma(struct vm_area_struct *vma)
+> > +{
+> > +	BUG_ON(atomic_read(&vma->vm_count));
+> > +	atomic_set(&vma->vm_count, 1);
+> > +}
 > 
->> --- linux-2.6.20.orig/mm/pagecache_acct.c
->> +++ linux-2.6.20/mm/pagecache_acct.c
->> @@ -29,6 +29,7 @@
->>  #include <linux/uaccess.h>
->>  #include <asm/div64.h>
->>  #include <linux/pagecache_acct.h>
->> +#include <linux/memcontrol.h>
->>
->>  /*
->>   * Convert unit from pages to kilobytes
->> @@ -337,12 +338,20 @@ int pagecache_acct_cont_overlimit(struct
->>  		return 0;
->>  }
->>
->> -extern unsigned long shrink_all_pagecache_memory(unsigned long nr_pages);
->> +extern unsigned long shrink_container_memory(unsigned int memory_type,
->> +				unsigned long nr_pages, void *container);
->>
->>  int pagecache_acct_shrink_used(unsigned long nr_pages)
->>  {
->>  	unsigned long ret = 0;
->>  	atomic_inc(&reclaim_count);
->> +
->> +	/* Don't call reclaim for each page above limit */
->> +	if (nr_pages > NR_PAGES_RECLAIM_THRESHOLD) {
->> +		ret += shrink_container_memory(
->> +				RECLAIM_PAGECACHE_MEMORY, nr_pages, NULL);
->> +	}
->> +
->>  	return 0;
->>  }
->>
-> 
-> 'ret' is not used ?
+> This is a funny scheme you're trying to do in order to try to avoid
+> rwsems. Of course it is subject to writer starvation, so please just
+> use an rwsem per vma for this.
 
-I have been setting watch points and tracing the value of ret.
-Basically that is used while debugging.  I have not removed it since
-this is an RFC post and we would go through many cleanups cycles.
+[damn, he spotted it :-)]
 
-I will remember to remove it in the next version or verify that the
-compiler does remove 'ret' :)
+Yeah, I know :-(
 
---Vaidy
+> If the -rt tree cannot do them properly, then it just has to turn them
+> into mutexes and take the hit itself.
 
-> / Kari Hurtta
-> 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+That is, unfortunately, still not acceptable. Take futexes for example,
+many threads 1 vma.
+
+> There is no benefit for the -rt tree to do this anyway, because you're
+> just re-introducing the fundamental problem that it has with rwsems
+> anyway (ie. poor priority inheritance).
+
+The thing is, we cannot make the whole VM realtime, that is just plain
+impossible. What we do try to do is to carve a niche where RT operation
+is possible. Like a preallocated mlocked arena. So mmap and all the
+other vma modifiers would fall outside, but faults and futexes would
+need to be inside the RT scope.
+
+Ingo, any ideas? perhaps just introduce a raw rwlock in -rt and somehow
+warn whenever an rt_task does a write lock?
+
+Full vma RCUification is hindered by the serialisation requirements; one
+cannot have two inconsistent views of the mm.
+
+> In this case I guess you still need some sort of refcount in order to force
+> the lookup into the slowpath, but please don't use it for locking.
+
+down_read_trylock on the vma rw lock would work I guess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
