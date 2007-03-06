@@ -1,7 +1,8 @@
-Date: Tue, 6 Mar 2007 13:42:32 +0900
+Date: Tue, 6 Mar 2007 13:43:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC} memory unplug patchset prep [1/16] zone ids cleanup
-Message-Id: <20070306134232.bb024956.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC} memory unplug patchset prep [2/16] gathering
+ alloc_zeroed_user_highpage()
+Message-Id: <20070306134334.e01e41bf.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,198 +14,327 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-OThis patch defines ZONE_DMA,DMA32,HIGHMEM on *any* config.
-MAX_NR_ZONES is unchanged and not-configured zones's id is greater than it.
-Now, you can check zone is configured or not by (zone_id < MAX_NR_ZONES).
+Definitions of alloc_zeroed_user_highpage() is scattered.
+This patch gathers them to linux/highmem.h
 
-Good bye #ifdefs. Compiler will do enough work, I think.
+To do so, added CONFIG_ARCH_HAS_PREZERO_USERPAGE and
+CONFIG_ARCH_HAS_FLUSH_USERNEWZEROPAGE.
+
+If you know better config name, please tell me.
 
 Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- include/linux/mmzone.h |   33 ++++++++++++------------
- mm/page_alloc.c        |   65 ++++++++++++++++++++++++++-----------------------
- 2 files changed, 51 insertions(+), 47 deletions(-)
+ arch/alpha/Kconfig           |    3 +++
+ arch/cris/Kconfig            |    3 +++
+ arch/h8300/Kconfig           |    4 ++++
+ arch/i386/Kconfig            |    3 +++
+ arch/ia64/Kconfig            |    6 ++++++
+ arch/m32r/Kconfig            |    3 +++
+ arch/m68knommu/Kconfig       |    3 +++
+ arch/s390/Kconfig            |    3 +++
+ arch/x86_64/Kconfig          |    3 +++
+ include/asm-alpha/page.h     |    3 ---
+ include/asm-cris/page.h      |    3 ---
+ include/asm-h8300/page.h     |    3 ---
+ include/asm-i386/page.h      |    3 ---
+ include/asm-ia64/page.h      |   10 +---------
+ include/asm-m32r/page.h      |    3 ---
+ include/asm-m68knommu/page.h |    3 ---
+ include/asm-s390/page.h      |    2 --
+ include/asm-x86_64/page.h    |    2 --
+ include/linux/highmem.h      |   16 +++++++++++++++-
+ 19 files changed, 47 insertions(+), 32 deletions(-)
 
-Index: devel-tree-2.6.20-mm2/include/linux/mmzone.h
+Index: devel-tree-2.6.20-mm2/arch/alpha/Kconfig
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/include/linux/mmzone.h
-+++ devel-tree-2.6.20-mm2/include/linux/mmzone.h
-@@ -142,9 +142,24 @@ enum zone_type {
- 	 */
- 	ZONE_HIGHMEM,
- #endif
--	MAX_NR_ZONES
-+	MAX_NR_ZONES,
-+#ifndef CONFIG_ZONE_DMA
-+	ZONE_DMA,
-+#endif
-+#ifndef CONFIG_ZONE_DMA32
-+	ZONE_DMA32,
-+#endif
-+#ifndef CONFIG_HIGHMEM
-+	ZONE_HIGHMEM,
-+#endif
-+	MAX_POSSIBLE_ZONES
- };
+--- devel-tree-2.6.20-mm2.orig/arch/alpha/Kconfig
++++ devel-tree-2.6.20-mm2/arch/alpha/Kconfig
+@@ -551,6 +551,9 @@ config ARCH_DISCONTIGMEM_ENABLE
+ 	  or have huge holes in the physical address space for other reasons.
+ 	  See <file:Documentation/vm/numa> for more.
  
-+static inline int is_configured_zone(enum zone_type type)
-+{
-+	return (type < MAX_NR_ZONES);
-+}
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
 +
- /*
-  * When a memory allocation must conform to specific limitations (such
-  * as being suitable for DMA) the caller will pass in hints to the
-@@ -500,11 +515,7 @@ static inline int populated_zone(struct 
+ source "mm/Kconfig"
  
- static inline int is_highmem_idx(enum zone_type idx)
- {
--#ifdef CONFIG_HIGHMEM
- 	return (idx == ZONE_HIGHMEM);
--#else
--	return 0;
--#endif
- }
- 
- static inline int is_normal_idx(enum zone_type idx)
-@@ -520,11 +531,7 @@ static inline int is_normal_idx(enum zon
-  */
- static inline int is_highmem(struct zone *zone)
- {
--#ifdef CONFIG_HIGHMEM
- 	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
--#else
--	return 0;
--#endif
- }
- 
- static inline int is_normal(struct zone *zone)
-@@ -534,20 +541,12 @@ static inline int is_normal(struct zone 
- 
- static inline int is_dma32(struct zone *zone)
- {
--#ifdef CONFIG_ZONE_DMA32
- 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
--#else
--	return 0;
--#endif
- }
- 
- static inline int is_dma(struct zone *zone)
- {
--#ifdef CONFIG_ZONE_DMA
- 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
--#else
--	return 0;
--#endif
- }
- 
- /* These two functions are used to setup the per zone pages min values */
-Index: devel-tree-2.6.20-mm2/mm/page_alloc.c
+ config NUMA
+Index: devel-tree-2.6.20-mm2/include/asm-alpha/page.h
 ===================================================================
---- devel-tree-2.6.20-mm2.orig/mm/page_alloc.c
-+++ devel-tree-2.6.20-mm2/mm/page_alloc.c
-@@ -72,32 +72,34 @@ static void __free_pages_ok(struct page 
-  * TBD: should special case ZONE_DMA32 machines here - in those we normally
-  * don't need any ZONE_NORMAL reservation
-  */
--int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
--#ifdef CONFIG_ZONE_DMA
--	 256,
--#endif
--#ifdef CONFIG_ZONE_DMA32
--	 256,
--#endif
--#ifdef CONFIG_HIGHMEM
--	 32
--#endif
--};
-+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+--- devel-tree-2.6.20-mm2.orig/include/asm-alpha/page.h
++++ devel-tree-2.6.20-mm2/include/asm-alpha/page.h
+@@ -17,9 +17,6 @@
+ extern void clear_page(void *page);
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
  
- EXPORT_SYMBOL(totalram_pages);
- 
--static char * const zone_names[MAX_NR_ZONES] = {
--#ifdef CONFIG_ZONE_DMA
--	 "DMA",
--#endif
--#ifdef CONFIG_ZONE_DMA32
--	 "DMA32",
--#endif
--	 "Normal",
--#ifdef CONFIG_HIGHMEM
--	 "HighMem"
--#endif
--};
-+static char *zone_names[MAX_POSSIBLE_ZONES];
-+
-+static char name_dma[] = "DMA";
-+static char name_dma32[] = "DMA32";
-+static char name_normal[] = "Normal";
-+static char name_highmem[] = "Highmem";
-+
-+static inline void __meminit zone_variables_init(void)
-+{
-+	if (zone_names[0] != NULL)
-+		return;
-+	zone_names[ZONE_DMA] = name_dma;
-+	zone_names[ZONE_DMA32] = name_dma32;
-+	zone_names[ZONE_NORMAL] = name_normal;
-+	zone_names[ZONE_HIGHMEM] = name_highmem;
-+
-+	/* ZONE below NORAML has ratio 256 */
-+	if (is_configured_zone(ZONE_DMA))
-+		sysctl_lowmem_reserve_ratio[ZONE_DMA] = 256;
-+	if (is_configured_zone(ZONE_DMA32))
-+		sysctl_lowmem_reserve_ratio[ZONE_DMA32] = 256;
-+	if (is_configured_zone(ZONE_HIGHMEM))
-+		sysctl_lowmem_reserve_ratio[ZONE_HIGHMEM] = 32;
-+}
- 
- int min_free_kbytes = 1024;
- 
-@@ -1638,14 +1640,16 @@ void si_meminfo_node(struct sysinfo *val
- 
- 	val->totalram = pgdat->node_present_pages;
- 	val->freeram = node_page_state(nid, NR_FREE_PAGES);
--#ifdef CONFIG_HIGHMEM
--	val->totalhigh = pgdat->node_zones[ZONE_HIGHMEM].present_pages;
--	val->freehigh = zone_page_state(&pgdat->node_zones[ZONE_HIGHMEM],
-+	if (is_configured_zone(ZONE_HIGHMEM)) {
-+		val->totalhigh =
-+			pgdat->node_zones[ZONE_HIGHMEM].present_pages;
-+		val->freehigh =
-+			zone_page_state(&pgdat->node_zones[ZONE_HIGHMEM],
- 			NR_FREE_PAGES);
--#else
--	val->totalhigh = 0;
--	val->freehigh = 0;
--#endif
-+	} else {
-+		val->totalhigh = 0;
-+		val->freehigh = 0;
-+	}
- 	val->mem_unit = PAGE_SIZE;
- }
- #endif
-@@ -3048,7 +3052,8 @@ void __init free_area_init_nodes(unsigne
- {
- 	unsigned long nid;
- 	enum zone_type i;
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vmaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 -
-+	/* Parameter Setup */
-+	zone_variables_init();
- 	/* Sort early_node_map as initialisation assumes it is sorted */
- 	sort_node_map();
+ extern void copy_page(void * _to, void * _from);
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
  
-@@ -3119,6 +3124,7 @@ EXPORT_SYMBOL(contig_page_data);
+Index: devel-tree-2.6.20-mm2/arch/cris/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/cris/Kconfig
++++ devel-tree-2.6.20-mm2/arch/cris/Kconfig
+@@ -97,6 +97,9 @@ config PREEMPT
+ 	  Say Y here if you are building a kernel for a desktop, embedded
+ 	  or real-time system.  Say N if you are unsure.
  
- void __init free_area_init(unsigned long *zones_size)
- {
-+	zone_variables_init();
- 	free_area_init_node(0, NODE_DATA(0), zones_size,
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
+ source mm/Kconfig
+ 
+ endmenu
+Index: devel-tree-2.6.20-mm2/include/asm-cris/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-cris/page.h
++++ devel-tree-2.6.20-mm2/include/asm-cris/page.h
+@@ -20,9 +20,6 @@
+ #define clear_user_page(page, vaddr, pg)    clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg) copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+-
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/arch/h8300/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/h8300/Kconfig
++++ devel-tree-2.6.20-mm2/arch/h8300/Kconfig
+@@ -68,6 +68,10 @@ config PCI
+ 	bool
+ 	default n
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	bool
++	default y
++
+ source "init/Kconfig"
+ 
+ source "arch/h8300/Kconfig.cpu"
+Index: devel-tree-2.6.20-mm2/include/asm-h8300/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-h8300/page.h
++++ devel-tree-2.6.20-mm2/include/asm-h8300/page.h
+@@ -22,9 +22,6 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+-
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/arch/i386/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/i386/Kconfig
++++ devel-tree-2.6.20-mm2/arch/i386/Kconfig
+@@ -675,6 +675,9 @@ config ARCH_SELECT_MEMORY_MODEL
+ config ARCH_POPULATES_NODE_MAP
+ 	def_bool y
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
+ source "mm/Kconfig"
+ 
+ config HIGHPTE
+Index: devel-tree-2.6.20-mm2/include/asm-i386/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-i386/page.h
++++ devel-tree-2.6.20-mm2/include/asm-i386/page.h
+@@ -34,9 +34,6 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+-
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/arch/ia64/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/ia64/Kconfig
++++ devel-tree-2.6.20-mm2/arch/ia64/Kconfig
+@@ -329,6 +329,12 @@ config PREEMPT
+           Say Y here if you are building a kernel for a desktop, embedded
+           or real-time system.  Say N if you are unsure.
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
++config ARCH_HAS_FLUSH_USERNEWZEROPAGE
++	def_bool y
++
+ source "mm/Kconfig"
+ 
+ config ARCH_SELECT_MEMORY_MODEL
+Index: devel-tree-2.6.20-mm2/include/asm-ia64/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-ia64/page.h
++++ devel-tree-2.6.20-mm2/include/asm-ia64/page.h
+@@ -87,15 +87,7 @@ do {						\
+ } while (0)
+ 
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) \
+-({						\
+-	struct page *page = alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr); \
+-	if (page)				\
+- 		flush_dcache_page(page);	\
+-	page;					\
+-})
+-
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
++#define flush_user_newzeropage(page)	flush_dcache_page(page)
+ 
+ #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+ 
+Index: devel-tree-2.6.20-mm2/arch/m32r/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/m32r/Kconfig
++++ devel-tree-2.6.20-mm2/arch/m32r/Kconfig
+@@ -193,6 +193,9 @@ config ARCH_DISCONTIGMEM_ENABLE
+ 	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP || CHIP_M32104
+ 	default y
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool	y
++
+ source "mm/Kconfig"
+ 
+ config IRAM_START
+Index: devel-tree-2.6.20-mm2/include/asm-m32r/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-m32r/page.h
++++ devel-tree-2.6.20-mm2/include/asm-m32r/page.h
+@@ -15,9 +15,6 @@ extern void copy_page(void *to, void *fr
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+-
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/arch/m68knommu/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/m68knommu/Kconfig
++++ devel-tree-2.6.20-mm2/arch/m68knommu/Kconfig
+@@ -627,6 +627,9 @@ config ROMKERNEL
+ 
+ endchoice
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
+ source "mm/Kconfig"
+ 
+ endmenu
+Index: devel-tree-2.6.20-mm2/include/asm-m68knommu/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-m68knommu/page.h
++++ devel-tree-2.6.20-mm2/include/asm-m68knommu/page.h
+@@ -22,9 +22,6 @@
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+-
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/arch/s390/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/s390/Kconfig
++++ devel-tree-2.6.20-mm2/arch/s390/Kconfig
+@@ -272,6 +272,9 @@ config WARN_STACK_SIZE
+ config ARCH_POPULATES_NODE_MAP
+ 	def_bool y
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
+ source "mm/Kconfig"
+ 
+ config HOLES_IN_ZONE
+Index: devel-tree-2.6.20-mm2/include/asm-s390/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-s390/page.h
++++ devel-tree-2.6.20-mm2/include/asm-s390/page.h
+@@ -64,8 +64,6 @@ static inline void copy_page(void *to, v
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ /*
+  * These are used to make use of C type-checking..
+Index: devel-tree-2.6.20-mm2/arch/x86_64/Kconfig
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/arch/x86_64/Kconfig
++++ devel-tree-2.6.20-mm2/arch/x86_64/Kconfig
+@@ -400,6 +400,9 @@ config ARCH_FLATMEM_ENABLE
+ 	def_bool y
+ 	depends on !NUMA
+ 
++config ARCH_HAS_PREZERO_USERPAGE
++	def_bool y
++
+ source "mm/Kconfig"
+ 
+ config MEMORY_HOTPLUG_RESERVE
+Index: devel-tree-2.6.20-mm2/include/asm-x86_64/page.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/asm-x86_64/page.h
++++ devel-tree-2.6.20-mm2/include/asm-x86_64/page.h
+@@ -51,8 +51,6 @@ void copy_page(void *, void *);
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+ 
+-#define alloc_zeroed_user_highpage(vma, vaddr) alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr)
+-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ /*
+  * These are used to make use of C type-checking..
+  */
+Index: devel-tree-2.6.20-mm2/include/linux/highmem.h
+===================================================================
+--- devel-tree-2.6.20-mm2.orig/include/linux/highmem.h
++++ devel-tree-2.6.20-mm2/include/linux/highmem.h
+@@ -60,8 +60,22 @@ static inline void clear_user_highpage(s
+ 	/* Make sure this page is cleared on other CPU's too before using it */
+ 	smp_wmb();
  }
++#ifndef CONFIG_ARCH_HAS_FLUSH_USER_NEWZEROPAGE
++#define flush_user_newzeroapge(page)	do{}while(0);
++#endif
+ 
+-#ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
++#ifdef CONFIG_ARCH_HAS_PREZERO_USERPAGE
++static inline struct page *
++alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
++{
++	struct page *page;
++	page = alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO, vma, vaddr);
++	if (page)
++		flush_user_newzeropage(page);
++	return page;
++}
++
++#else
+ static inline struct page *
+ alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
