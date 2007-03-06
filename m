@@ -1,10 +1,11 @@
-Date: Tue, 6 Mar 2007 08:06:33 -0800 (PST)
+Date: Tue, 6 Mar 2007 08:06:48 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC} memory unplug patchset prep [4/16] ZONE_MOVABLE
-In-Reply-To: <20070306134549.174cc160.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0703060024440.21900@chino.kir.corp.google.com>
+Subject: Re: [RFC} memory unplug patchset prep [9/16] create movable zone at
+ boot
+In-Reply-To: <20070306135232.42a55807.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0703060139570.22477@chino.kir.corp.google.com>
 References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
- <20070306134549.174cc160.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070306135232.42a55807.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,143 +16,217 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 6 Mar 2007, KAMEZAWA Hiroyuki wrote:
 
-> Index: devel-tree-2.6.20-mm2/include/linux/mmzone.h
-> ===================================================================
-> --- devel-tree-2.6.20-mm2.orig/include/linux/mmzone.h
-> +++ devel-tree-2.6.20-mm2/include/linux/mmzone.h
-> @@ -142,6 +142,16 @@ enum zone_type {
->  	 */
->  	ZONE_HIGHMEM,
->  #endif
-> +#ifdef CONFIG_ZONE_MOVABLE
-> +	/*
-> +	 * This memory area is used only for migratable pages.
-> +	 * We have a chance to hot-remove memory in this zone.
-> +	 * Currently, anonymous memory and usual page cache etc. are included.
-> +	 * if HIGHMEM is configured, MOVABLE zone is treated as
-> +         * not-direct-mapped-memory for kernel;.
-> +	 */
-> +	ZONE_MOVABLE,
-> +#endif
->  	MAX_NR_ZONES,
->  #ifndef CONFIG_ZONE_DMA
->  	ZONE_DMA,
-> @@ -152,6 +162,9 @@ enum zone_type {
->  #ifndef CONFIG_HIGHMEM
->  	ZONE_HIGHMEM,
->  #endif
-> +#ifndef CONFIG_ZONE_MOVABLE
-> +	ZONE_MOVABLE,
-> +#endif
->  	MAX_POSSIBLE_ZONES
->  };
->  
-> @@ -172,13 +185,18 @@ static inline int is_configured_zone(enu
->   * Count the active zones.  Note that the use of defined(X) outside
->   * #if and family is not necessarily defined so ensure we cannot use
->   * it later.  Use __ZONE_COUNT to work out how many shift bits we need.
-> + *
-> + * Assumes ZONE_DMA32,ZONE_HIGHMEM, ZONE_MOVABLE can't be configured at
-> + * the same time.
->   */
->  #define __ZONE_COUNT (			\
->  	  defined(CONFIG_ZONE_DMA)	\
->  	+ defined(CONFIG_ZONE_DMA32)	\
->  	+ 1				\
->  	+ defined(CONFIG_HIGHMEM)	\
-> +	+ defined(CONFIG_ZONE_MOVABLE) \
->  )
-> +
->  #if __ZONE_COUNT < 2
->  #define ZONES_SHIFT 0
->  #elif __ZONE_COUNT <= 2
-> @@ -513,6 +531,11 @@ static inline int populated_zone(struct 
->  	return (!!zone->present_pages);
->  }
->  
-> +static inline int is_movable_dix(enum zone_type idx)
-> +{
-> +	return (idx == ZONE_MOVABLE);
-> +}
-> +
+> This patch adds codes for creating movable zones.
+> 
+> Add 2 kernel paramers.
+> - kernel_core_pages=XXX[KMG]
+> - kernel_core_ratio=xx
+> 
 
-Should be is_movable_idx() maybe?  I assume this function is here for 
-completeness since it's never referenced in the patchset.
+These would never be specified together, right?
 
 > Index: devel-tree-2.6.20-mm2/mm/page_alloc.c
 > ===================================================================
 > --- devel-tree-2.6.20-mm2.orig/mm/page_alloc.c
 > +++ devel-tree-2.6.20-mm2/mm/page_alloc.c
-> @@ -82,6 +82,7 @@ static char name_dma[] = "DMA";
->  static char name_dma32[] = "DMA32";
->  static char name_normal[] = "Normal";
->  static char name_highmem[] = "Highmem";
-> +static char name_movable[] = "Movable";
+> @@ -137,12 +137,16 @@ static unsigned long __initdata dma_rese
+>    int __initdata nr_nodemap_entries;
+>    unsigned long __initdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+>    unsigned long __initdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+> +  unsigned long __initdata lowest_movable_pfn[MAX_NUMNODES];
+> +  unsigned long kernel_core_ratio;
+> +  unsigned long kernel_core_pages;
+>  #ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
+>    unsigned long __initdata node_boundary_start_pfn[MAX_NUMNODES];
+>    unsigned long __initdata node_boundary_end_pfn[MAX_NUMNODES];
+>  #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
+>  #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 >  
->  static inline void __meminit zone_variables_init(void)
+> +
+>  #ifdef CONFIG_DEBUG_VM
+>  static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 >  {
-> @@ -91,6 +92,7 @@ static inline void __meminit zone_variab
->  	zone_names[ZONE_DMA32] = name_dma32;
->  	zone_names[ZONE_NORMAL] = name_normal;
->  	zone_names[ZONE_HIGHMEM] = name_highmem;
-> +	zone_names[ZONE_MOVABLE] = name_movable;
+
+You could probably get away with:
+
+	union {
+		unsigned long kernel_core_ratio;
+		unsigned long kernel_core_pages;
+	};
+
+> @@ -2604,6 +2608,8 @@ void __init get_pfn_range_for_nid(unsign
+>   */
+>  unsigned long __init zone_spanned_pages_in_node(int nid,
+>  					unsigned long zone_type,
+> +					unsigned long *start_pfn,
+> +					unsigned long *end_pfn,
+>  					unsigned long *ignored)
+>  {
+>  	unsigned long node_start_pfn, node_end_pfn;
+> @@ -2611,8 +2617,30 @@ unsigned long __init zone_spanned_pages_
 >  
->  	/* ZONE below NORAML has ratio 256 */
->  	if (is_configured_zone(ZONE_DMA))
-> @@ -99,6 +101,8 @@ static inline void __meminit zone_variab
->  		sysctl_lowmem_reserve_ratio[ZONE_DMA32] = 256;
->  	if (is_configured_zone(ZONE_HIGHMEM))
->  		sysctl_lowmem_reserve_ratio[ZONE_HIGHMEM] = 32;
-> +	if (is_configured_zone(ZONE_MOVABLE))
-> +		sysctl_lowmem_reserve_ratio[ZONE_MOVABLE] = 32;
->  }
->  
->  int min_free_kbytes = 1024;
-> @@ -3065,11 +3069,17 @@ void __init free_area_init_nodes(unsigne
->  	arch_zone_lowest_possible_pfn[0] = find_min_pfn_with_active_regions();
->  	arch_zone_highest_possible_pfn[0] = max_zone_pfn[0];
->  	for (i = 1; i < MAX_NR_ZONES; i++) {
-> +		if (i == ZONE_MOVABLE)
-> +			continue;
->  		arch_zone_lowest_possible_pfn[i] =
->  			arch_zone_highest_possible_pfn[i-1];
->  		arch_zone_highest_possible_pfn[i] =
->  			max(max_zone_pfn[i], arch_zone_lowest_possible_pfn[i]);
->  	}
-> +	if (is_configured_zone(ZONE_MOVABLE)) {
-> +		arch_zone_lowest_possible_pfn[ZONE_MOVABLE] = 0;
-> +		arch_zone_highest_possible_pfn[ZONE_MOVABLE] = 0;
+>  	/* Get the start and end of the node and zone */
+>  	get_pfn_range_for_nid(nid, &node_start_pfn, &node_end_pfn);
+> -	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+> -	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+> +	if (start_pfn)
+> +		*start_pfn = 0;
+> +	if (end_pfn)
+> +		*end_pfn = 0;
+> +	if (!is_configured_zone(ZONE_MOVABLE) ||
+> +		   lowest_movable_pfn[nid] == 0) {
+> +		/* we don't use ZONE_MOVABLE */
+> +		zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+> +		zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+> +	} else if (zone_type == ZONE_MOVABLE) {
+> +		zone_start_pfn = lowest_movable_pfn[nid];
+> +		zone_end_pfn = node_end_pfn;
+> +	} else {
+> +		/* adjust range to lowest_movable_pfn[] */
+> +		zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+> +		zone_start_pfn = max(zone_start_pfn, node_start_pfn);
+> +
+> +		if (zone_start_pfn >= lowest_movable_pfn[nid])
+> +			return 0;
+> +		zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+> +		zone_end_pfn = min(zone_end_pfn, node_end_pfn);
+> +		if (zone_end_pfn > lowest_movable_pfn[nid])
+> +			zone_end_pfn = lowest_movable_pfn[nid];
 > +	}
 >  
->  	/* Print out the page size for debugging meminit problems */
->  	printk(KERN_DEBUG "sizeof(struct page) = %zd\n", sizeof(struct page));
+>  	/* Check that this node has pages within the zone's required range */
+>  	if (zone_end_pfn < node_start_pfn || zone_start_pfn > node_end_pfn)
 
-Aren't the arch_zone_{lowest|highest}_possible_pfn's for ZONE_MOVABLE 
-already at 0?  If not, it should definitely be memset early on to avoid 
-any possible assignment mistakes amongst all these conditionals.
+These hacks of returning start_pfn and end_pfn depending on where it was 
+called from and testing for things like start_pfn == end_pfn doesn't make 
+much sense.  It'd probably be better to separate this logic out into a 
+helper function and then call it from zone_absent_pages_in_node() and 
+zone_spanned_pages_in_node(), respectively.
 
-> Index: devel-tree-2.6.20-mm2/mm/Kconfig
-> ===================================================================
-> --- devel-tree-2.6.20-mm2.orig/mm/Kconfig
-> +++ devel-tree-2.6.20-mm2/mm/Kconfig
-> @@ -163,6 +163,10 @@ config ZONE_DMA_FLAG
->  	default "0" if !ZONE_DMA
->  	default "1"
+> @@ -2733,20 +2781,115 @@ static void __init calculate_node_totalp
+>  	enum zone_type i;
 >  
-> +config ZONE_MOVABLE
-> +	bool "Create zones for MOVABLE pages"
-> +	depends on ARCH_POPULATES_NODE_MAP
-> +	depends on MIGRATION
->  #
->  # Adaptive file readahead
->  #
-> 
+>  	for (i = 0; i < MAX_NR_ZONES; i++)
+> -		totalpages += zone_spanned_pages_in_node(pgdat->node_id, i,
+> +		totalpages += zone_spanned_pages_in_node(pgdat->node_id, i, NULL, NULL,
+>  								zones_size);
+>  	pgdat->node_spanned_pages = totalpages;
+>  
+>  	realtotalpages = totalpages;
+>  	for (i = 0; i < MAX_NR_ZONES; i++)
+>  		realtotalpages -=
+> -			zone_absent_pages_in_node(pgdat->node_id, i,
+> +			zone_absent_pages_in_node(pgdat->node_id, i, 0, 0,
+>  								zholes_size);
+>  	pgdat->node_present_pages = realtotalpages;
+>  	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id,
+>  							realtotalpages);
+>  }
+>  
+> +#ifdef CONFIG_ZONE_MOVABLE
+> +
+> +unsigned long calc_zone_alignment(unsigned long pfn)
+> +{
+> +#ifdef CONFIG_SPARSEMEM
+> +	return (pfn + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK;
+> +#else
+> +	return (pfn + MAX_ORDER_NR_PAGES - 1) & ~(MAX_ORDER_NR_PAGES - 1)
+> +#endif
+> +}
+> +
 
-This patchset is heavily dependent on Mel Gorman's work with ZONE_MOVABLE 
-so perhaps it would be better to base it off of the latest -mm with his 
-patchset applied?  And if CONFIG_ZONE_MOVABLE wasn't documented in Kconfig 
-prior to this, it might be a good opportunity to do so if you're going to 
-get community adoption.
+Another missing semicolon.
+
+> +static void split_movable_pages(void)
+> +{
+> +	int i, nid;
+> +	unsigned long total_pages, nr_pages, start_pfn, end_pfn, pfn;
+> +	long core;
+> +	for_each_online_node(nid) {
+> +		lowest_movable_pfn[nid] = 0;
+> +		pfn = 0;
+> +		total_pages = 0;
+> +		for_each_active_range_index_in_nid(i, nid) {
+> +			start_pfn = early_node_map[i].start_pfn;
+> +			end_pfn = early_node_map[i].end_pfn;
+> +			total_pages += end_pfn - start_pfn;
+> +		}
+> +		core = total_pages * kernel_core_ratio/100;
+> +		for_each_active_range_index_in_nid(i, nid) {
+> +			start_pfn = early_node_map[i].start_pfn;
+> +			end_pfn = early_node_map[i].end_pfn;
+> +			nr_pages = end_pfn - start_pfn;
+> +			if (nr_pages > core) {
+> +				pfn = start_pfn + core;
+> +				pfn = calc_zone_alignment(pfn);
+> +				if (pfn < end_pfn) {
+> +					lowest_movable_pfn[nid] = pfn;
+> +					break;
+> +				} else {
+> +					core -= nr_pages;
+> +					if (core < 0)
+> +						core = 0;
+> +				}
+> +			} else {
+> +				core -= nr_pages;
+> +			}
+> +		}
+> +	}
+> +	return;
+> +}
+> +
+> +
+> +static void reserve_movable_pages(void)
+> +{
+> +	memset(lowest_movable_pfn, 0, MAX_NUMNODES);
+> +	if (kernel_core_pages) {
+> +		alloc_core_pages_from_low();
+> +	} else if (kernel_core_ratio) {
+> +		split_movable_pages();
+> +	}
+> +	return;
+> +}
+> +#else
+> +static void reserve_movable_pages(void)
+> +{
+> +	return;
+> +}
+> +#endif
+>  /*
+>   * Set up the zone data structures:
+>   *   - mark all pages reserved
+
+reserve_movable_pages() and it's two helper functions, 
+alloc_core_pages_from_low() and split_movable_pages(), can be __init?
+
+If so, then both kernel_core_pages and kernel_core_ratio should be 
+__initdata.
+
+> Index: devel-tree-2.6.20-mm2/Documentation/kernel-parameters.txt
+> ===================================================================
+> --- devel-tree-2.6.20-mm2.orig/Documentation/kernel-parameters.txt
+> +++ devel-tree-2.6.20-mm2/Documentation/kernel-parameters.txt
+> @@ -764,6 +764,17 @@ and is between 256 and 4096 characters. 
+>  
+>  	keepinitrd	[HW,ARM]
+>  
+> +	kernel_core_pages=nn[KMG] [KNL, BOOT] divide the whole memory into
+> +			not-movable and movable. movable memory can be
+> +			used only for page cache and user data. This option
+> +			specifies the amount of not-movable pages, called core
+> +			pages. core pages are allocated from the lower address.
+> +
+> +	kernel_core_ratio=nn [KND, BOOT] specifies the amount of the core
+> +			pages(see kernel_core_pages) by the ratio against
+> +			total memory. If NUMA, core pages are allocated for
+> +			each node by this ratio. "0" is not allowed.
+> +
+>  	kstack=N	[IA-32,X86-64] Print N words from the kernel stack
+>  			in oops dumps.
+>  
+
+This documentation doesn't specify that we can't use both parameters 
+together even though we can't.
 
 		David
 
