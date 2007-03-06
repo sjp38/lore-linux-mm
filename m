@@ -1,50 +1,70 @@
-Date: Tue, 6 Mar 2007 07:54:29 -0800 (PST)
+Date: Tue, 6 Mar 2007 07:55:54 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC} memory unplug patchset prep [2/16] gathering
- alloc_zeroed_user_highpage()
-In-Reply-To: <20070306134334.e01e41bf.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0703060017390.21900@chino.kir.corp.google.com>
+Subject: Re: [RFC} memory unplug patchset prep [3/16] define is_identity_mapped
+In-Reply-To: <20070306134438.4ba6c561.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0703060021320.21900@chino.kir.corp.google.com>
 References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
- <20070306134334.e01e41bf.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070306134438.4ba6c561.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 6 Mar 2007, KAMEZAWA Hiroyuki wrote:
 
-> Definitions of alloc_zeroed_user_highpage() is scattered.
-> This patch gathers them to linux/highmem.h
-> 
-> To do so, added CONFIG_ARCH_HAS_PREZERO_USERPAGE and
-> CONFIG_ARCH_HAS_FLUSH_USERNEWZEROPAGE.
-> 
-
-Previous to this patch, __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE was never 
-configurable by the user and was totally dependant on the architecture, 
-which seems appropriate.  Are there cases when a user would actually 
-prefer to disable the new CONFIG_ARCH_HAS_PREZERO_USERPAGE to avoid 
-__GFP_ZERO allocations?
-
-> Index: devel-tree-2.6.20-mm2/include/linux/highmem.h
+> Index: devel-tree-2.6.20-mm2/include/linux/mmzone.h
 > ===================================================================
-> --- devel-tree-2.6.20-mm2.orig/include/linux/highmem.h
-> +++ devel-tree-2.6.20-mm2/include/linux/highmem.h
-> @@ -60,8 +60,22 @@ static inline void clear_user_highpage(s
->  	/* Make sure this page is cleared on other CPU's too before using it */
->  	smp_wmb();
+> --- devel-tree-2.6.20-mm2.orig/include/linux/mmzone.h
+> +++ devel-tree-2.6.20-mm2/include/linux/mmzone.h
+> @@ -523,6 +523,13 @@ static inline int is_normal_idx(enum zon
+>  	return (idx == ZONE_NORMAL);
 >  }
-> +#ifndef CONFIG_ARCH_HAS_FLUSH_USER_NEWZEROPAGE
-> +#define flush_user_newzeroapge(page)	do{}while(0);
-> +#endif
 >  
+> +static inline int is_identity_map_idx(enum zone_type idx)
+> +{
+> +	if (is_configured_zone(ZONE_HIGHMEM))
+> +		return (idx < ZONE_HIGHMEM);
+> +	else
+> +		return 1;
+> +}
+>  /**
+>   * is_highmem - helper function to quickly check if a struct zone is a 
+>   *              highmem zone or not.  This is an attempt to keep references
+> @@ -549,6 +556,14 @@ static inline int is_dma(struct zone *zo
+>  	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
+>  }
+>  
+> +static inline int is_identity_map(struct zone *zone)
+> +{
+> +	if (is_configured_zone(ZONE_HIGHMEM)
+> +		return zone_idx(zone) < ZONE_HIGHMEM;
+> +	else
+> +		return 1;
+> +}
+> +
 
-Well, I guess this supports my point.  It doesn't appear as it was ever 
-tested in disabling __GFP_ZERO allocations because 
-flush_user_newzeropage() is misspelled above so it wouldn't even compile.
+is_identity_map() isn't specific to any particular architecture nor is it 
+dependent on a configuration option.  Since there's a missing ) in its 
+conditional, I'm wondering how this entire patch was ever tested.
+
+> Index: devel-tree-2.6.20-mm2/include/linux/page-flags.h
+> ===================================================================
+> --- devel-tree-2.6.20-mm2.orig/include/linux/page-flags.h
+> +++ devel-tree-2.6.20-mm2/include/linux/page-flags.h
+> @@ -162,7 +162,7 @@ static inline void SetPageUptodate(struc
+>  #define __ClearPageSlab(page)	__clear_bit(PG_slab, &(page)->flags)
+>  
+>  #ifdef CONFIG_HIGHMEM
+> -#define PageHighMem(page)	is_highmem(page_zone(page))
+> +#define PageHighMem(page)	(!is_identitiy_map(page_zone(page)))
+>  #else
+>  #define PageHighMem(page)	0 /* needed to optimize away at compile time */
+>  #endif
+
+I assume this should be defined to !is_identity_map(page_zone(page)).
 
 		David
 
