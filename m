@@ -1,51 +1,100 @@
-Date: Mon, 5 Mar 2007 17:55:57 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
-In-Reply-To: <20070306014403.GD23845@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
-References: <20070305161746.GD8128@wotan.suse.de>
- <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com>
- <20070306010529.GB23845@wotan.suse.de> <Pine.LNX.4.64.0703051723240.16842@schroedinger.engr.sgi.com>
- <20070306014403.GD23845@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070306014211.409657000@taijtu.programming.kicks-ass.net>
+References: <20070306013815.951032000@taijtu.programming.kicks-ass.net>
+Date: Tue, 06 Mar 2007 02:38:19 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [RFC][PATCH 4/5] i386: lockless fault handler
+Content-Disposition: inline; filename=fault-i386.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <clameter@engr.sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+To: linux-mm@kvack.org
+Cc: Christoph Lameter <clameter@engr.sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2007, Nick Piggin wrote:
+Use the new lockless vma lookup in the i386 fault handler.
+This avoids the exclusive cacheline access for the mmap_sem.
 
-> > > > I think there is still some thinking going on about also removing 
-> > > > anonymous pages off the LRU if we are out of swap or have no swap. In 
-> > > > that case we may need page->lru to track these pages so that they can be 
-> > > > fed back to the LRU when swap is added later.
-> > > 
-> > > That's OK: they won't get mlocked if they are not on the LRU (and won't
-> > > get taken off the LRU if they are mlocked).
-> > 
-> > But we may want to keep them off the LRU.
-> 
-> They will be. Either by mlock or by the !swap condition.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ arch/i386/mm/fault.c |   34 ++++++----------------------------
+ 1 file changed, 6 insertions(+), 28 deletions(-)
 
-The above is a bit contradictory. Assuming they are taken off the LRU:
-How will they be returned to the LRU?
+Index: linux-2.6/arch/i386/mm/fault.c
+===================================================================
+--- linux-2.6.orig/arch/i386/mm/fault.c
++++ linux-2.6/arch/i386/mm/fault.c
+@@ -381,29 +381,7 @@ fastcall void __kprobes do_page_fault(st
+ 	if (in_atomic() || !mm)
+ 		goto bad_area_nosemaphore;
+ 
+-	/* When running in the kernel we expect faults to occur only to
+-	 * addresses in user space.  All other faults represent errors in the
+-	 * kernel and should generate an OOPS.  Unfortunatly, in the case of an
+-	 * erroneous fault occurring in a code path which already holds mmap_sem
+-	 * we will deadlock attempting to validate the fault against the
+-	 * address space.  Luckily the kernel only validly references user
+-	 * space from well defined areas of code, which are listed in the
+-	 * exceptions table.
+-	 *
+-	 * As the vast majority of faults will be valid we will only perform
+-	 * the source reference check when there is a possibilty of a deadlock.
+-	 * Attempt to lock the address space, if we cannot we then validate the
+-	 * source.  If this is invalid we can skip the address space check,
+-	 * thus avoiding the deadlock.
+-	 */
+-	if (!down_read_trylock(&mm->mmap_sem)) {
+-		if ((error_code & 4) == 0 &&
+-		    !search_exception_tables(regs->eip))
+-			goto bad_area_nosemaphore;
+-		down_read(&mm->mmap_sem);
+-	}
+-
+-	vma = find_vma(mm, address);
++	vma = find_get_vma(mm, address);
+ 	if (!vma)
+ 		goto bad_area;
+ 	if (vma->vm_start <= address)
+@@ -473,7 +451,7 @@ good_area:
+ 		if (bit < 32)
+ 			tsk->thread.screen_bitmap |= 1 << bit;
+ 	}
+-	up_read(&mm->mmap_sem);
++	put_vma(vma);
+ 	return;
+ 
+ /*
+@@ -481,7 +459,7 @@ good_area:
+  * Fix it, but check if it's kernel or user first..
+  */
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	put_vma(vma);
+ 
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -588,10 +566,10 @@ no_context:
+  * us unable to handle the page fault gracefully.
+  */
+ out_of_memory:
+-	up_read(&mm->mmap_sem);
++	put_vma(vma);
+ 	if (is_init(tsk)) {
+ 		yield();
+-		down_read(&mm->mmap_sem);
++		vma = find_get_vma(mm, address);
+ 		goto survive;
+ 	}
+ 	printk("VM: killing process %s\n", tsk->comm);
+@@ -600,7 +578,7 @@ out_of_memory:
+ 	goto no_context;
+ 
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	put_vma(vma);
+ 
+ 	/* Kernel mode? Handle exceptions or die */
+ 	if (!(error_code & 4))
 
-> > Wrong. !PageLRU means that the page may be on some other list. Like the 
-> > vmscan pagelist and the page migration list. You can only be sure that it
-> > is not on those lists if a function took the page off the LRU. If you then 
-> > mark it PageMlocked then you may be sure that the LRU field is free for 
-> > use.
-> 
-> Bad wording: by "if we ensure !PageLRU" I meant "if we take the page off
-> the LRU ourselves". Why do you have a bad feeling about this? As you
-> say, vmscan and page migration do exactly the same thing and it is a
-> fundamental way that the lru mechanism works.
-
-Refcounts are generally there to be updated in a racy way and it seems 
-here that the refcount variable itself can only exist under certain 
-conditions. If you can handle that cleanly then we are okay.
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
