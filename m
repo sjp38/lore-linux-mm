@@ -1,43 +1,144 @@
-Date: Tue, 6 Mar 2007 09:33:50 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] [PATCH] Power Managed memory base enabling
-In-Reply-To: <20070306172039.GA26038@linux.intel.com>
-Message-ID: <Pine.LNX.4.64.0703060925550.27341@chino.kir.corp.google.com>
-References: <20070305181826.GA21515@linux.intel.com>
- <Pine.LNX.4.64.0703051941310.18703@chino.kir.corp.google.com>
- <20070306164722.GB22725@linux.intel.com> <Pine.LNX.4.64.0703060904380.27341@chino.kir.corp.google.com>
- <20070306172039.GA26038@linux.intel.com>
+Date: Tue, 6 Mar 2007 10:30:43 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
+In-Reply-To: <20070306143045.GA28629@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703061022270.24461@schroedinger.engr.sgi.com>
+References: <20070305161746.GD8128@wotan.suse.de>
+ <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com>
+ <20070306010529.GB23845@wotan.suse.de> <Pine.LNX.4.64.0703051723240.16842@schroedinger.engr.sgi.com>
+ <20070306014403.GD23845@wotan.suse.de> <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
+ <20070306021307.GE23845@wotan.suse.de> <Pine.LNX.4.64.0703051845050.17203@schroedinger.engr.sgi.com>
+ <20070306025016.GA1912@wotan.suse.de> <20070306143045.GA28629@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Gross <mgross@linux.intel.com>
-Cc: linux-mm@kvack.org, linux-pm@lists.osdl.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, mark.gross@intel.com, neelam.chandwani@intel.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2007, Mark Gross wrote:
+On Tue, 6 Mar 2007, Nick Piggin wrote:
 
-> > Is do_migrate_pages() currently unsatisfactory for this?
-> 
-> This looks like it should be good for this application!  How stable is
-> this?  The next phase of this work is to export the policy interfaces
-> and hook up the page migration.  I'm somewhat new to the mm code.
-> 
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	unsigned long addr = start;
+> +	struct page *pages[16]; /* 16 gives a reasonable batch */
 
-Since you've already used a NUMA approach to flagging PM-memory, you'd 
-probably want to use this interface through mempolicy in your migration.  
-There's currently work to do lockless VMA scanning that was posted just 
-yesterday to linux-mm and that's a bottleneck in this migration.
+Use a pagevec instead?
 
-Take a look at update_nodemask() in kernel/cpuset.c for how it migrates 
-pages from a source set of nodes to a destination set using 
-memory_migrate.  The cpuset specifics are explained in 
-Documentation/cpusets.txt, but the basics are that you'll want to use 
-memory_migrate to start the migration when you remove a node from your 
-nodemask (another reason why I suggested the use of a nodemask instead of 
-a simple array).
 
-		David
+> +		/*
+> +		 * get_user_pages makes pages present if we are
+> +		 * setting mlock.
+> +		 */
+> +		ret = get_user_pages(current, mm, addr,
+> +				min_t(int, nr_pages, ARRAY_SIZE(pages)),
+> +				write, 0, pages, NULL);
+> +		if (ret < 0)
+> +			break;
+> +		if (ret == 0) {
+> +			/*
+> +			 * We know the vma is there, so the only time
+> +			 * we cannot get a single page should be an
+> +			 * error (ret < 0) case.
+> +			 */
+> +			WARN_ON(1);
+> +			ret = -EFAULT;
+> +			break;
+> +		}
+
+... pages could be evicted here by reclaim?
+
+> +
+> +		for (i = 0; i < ret; i++) {
+> +			struct page *page = pages[i];
+> +			lock_page(page);
+> +			if (lock) {
+> +				/*
+> +				 * Anonymous pages may have already been
+> +				 * mlocked by get_user_pages->handle_mm_fault.
+> +				 * Be conservative and don't count these:
+
+
+> @@ -801,8 +815,21 @@ static int try_to_unmap_anon(struct page
+>  		ret = try_to_unmap_one(page, vma, migration);
+>  		if (ret == SWAP_FAIL || !page_mapped(page))
+>  			break;
+> +		if (ret == SWAP_MLOCK) {
+> +			if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> +				if (vma->vm_flags & VM_LOCKED) {
+> +					mlock_vma_page(page);
+> +					mlocked++;
+> +				}
+> +				up_read(&vma->vm_mm->mmap_sem);
+> +			}
+> +		}
+
+Taking mmap_sem in try_to_unmap_one? It may already have been taken by 
+page migration. Ok, trylock but still.
+
+>  			goto out;
+> +		if (ret == SWAP_MLOCK) {
+> +			if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> +				if (vma->vm_flags & VM_LOCKED) {
+> +					mlock_vma_page(page);
+> +					mlocked++;
+> +				}
+> +				up_read(&vma->vm_mm->mmap_sem);
+> +			}
+
+
+Well this piece of code seem to repeat itself. New function?
+
+> @@ -2148,7 +2196,10 @@ static int do_anonymous_page(struct mm_s
+>  		if (!pte_none(*page_table))
+>  			goto release;
+>  		inc_mm_counter(mm, anon_rss);
+> -		lru_cache_add_active(page);
+> +		if (!(vma->vm_flags & VM_LOCKED))
+> +			lru_cache_add_active(page);
+> +		else
+> +			mlock_new_vma_page(page);
+>  		page_add_new_anon_rmap(page, vma, address);
+>  	} else {
+>  		/* Map the ZERO_PAGE - vm_page_prot is readonly */
+> @@ -2291,7 +2342,10 @@ static int __do_fault(struct mm_struct *
+>  		set_pte_at(mm, address, page_table, entry);
+>  		if (anon) {
+>                          inc_mm_counter(mm, anon_rss);
+> -                        lru_cache_add_active(page);
+> +			if (!(vma->vm_flags & VM_LOCKED))
+> +				lru_cache_add_active(page);
+> +			else
+> +				mlock_new_vma_page(page);
+>                          page_add_new_anon_rmap(page, vma, address);
+>  		} else {
+
+Another repeating chunk of code?
+
+> Index: linux-2.6/drivers/base/node.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/base/node.c
+> +++ linux-2.6/drivers/base/node.c
+> @@ -60,6 +60,7 @@ static ssize_t node_read_meminfo(struct 
+>  		       "Node %d FilePages:    %8lu kB\n"
+>  		       "Node %d Mapped:       %8lu kB\n"
+>  		       "Node %d AnonPages:    %8lu kB\n"
+> +		       "Node %d MLock:        %8lu kB\n"
+
+Upper case L in MLock? Should it not be Mlock from mlock with first letter 
+capitalized?
+
+> Index: linux-2.6/include/linux/mmzone.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mmzone.h
+> +++ linux-2.6/include/linux/mmzone.h
+> @@ -54,6 +54,7 @@ enum zone_stat_item {
+>  	NR_ANON_PAGES,	/* Mapped anonymous pages */
+>  	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+>  			   only modified from process context */
+> +	NR_MLOCK,	/* MLocked pages (conservative guess) */
+
+Discovered mlocked pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
