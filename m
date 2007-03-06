@@ -1,88 +1,67 @@
-Message-Id: <20070306014211.523201000@taijtu.programming.kicks-ass.net>
-References: <20070306013815.951032000@taijtu.programming.kicks-ass.net>
-Date: Tue, 06 Mar 2007 02:38:20 +0100
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 5/5] x86_64: lockless fault handler
-Content-Disposition: inline; filename=fault-x86_64.patch
+Date: Tue, 6 Mar 2007 03:13:07 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
+Message-ID: <20070306021307.GE23845@wotan.suse.de>
+References: <20070305161746.GD8128@wotan.suse.de> <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com> <20070306010529.GB23845@wotan.suse.de> <Pine.LNX.4.64.0703051723240.16842@schroedinger.engr.sgi.com> <20070306014403.GD23845@wotan.suse.de> <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0703051753070.16964@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <clameter@engr.sgi.com>, "Paul E. McKenney" <paulmck@us.ibm.com>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Christoph Lameter <clameter@engr.sgi.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-avoid taking the rw-sem
+On Mon, Mar 05, 2007 at 05:55:57PM -0800, Christoph Lameter wrote:
+> On Tue, 6 Mar 2007, Nick Piggin wrote:
+> 
+> > > > > I think there is still some thinking going on about also removing 
+> > > > > anonymous pages off the LRU if we are out of swap or have no swap. In 
+> > > > > that case we may need page->lru to track these pages so that they can be 
+> > > > > fed back to the LRU when swap is added later.
+> > > > 
+> > > > That's OK: they won't get mlocked if they are not on the LRU (and won't
+> > > > get taken off the LRU if they are mlocked).
+> > > 
+> > > But we may want to keep them off the LRU.
+> > 
+> > They will be. Either by mlock or by the !swap condition.
+> 
+> The above is a bit contradictory. Assuming they are taken off the LRU:
+> How will they be returned to the LRU?
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- arch/x86_64/mm/fault.c |   17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+In what way is it contradictory? If they are mlocked, we put them on the
+LRU when they get munlocked. If they are off the LRU due to a !swap condition,
+then we put them back on the LRU by whatever mechanism that uses (eg. a
+3rd LRU list that we go through much more slowly...).
 
-Index: linux-2.6/arch/x86_64/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/x86_64/mm/fault.c
-+++ linux-2.6/arch/x86_64/mm/fault.c
-@@ -344,7 +344,6 @@ asmlinkage void __kprobes do_page_fault(
- 
- 	tsk = current;
- 	mm = tsk->mm;
--	prefetchw(&mm->mmap_sem);
- 
- 	/* get the address */
- 	__asm__("movq %%cr2,%0":"=r" (address));
-@@ -423,14 +422,8 @@ asmlinkage void __kprobes do_page_fault(
- 	 * source.  If this is invalid we can skip the address space check,
- 	 * thus avoiding the deadlock.
- 	 */
--	if (!down_read_trylock(&mm->mmap_sem)) {
--		if ((error_code & PF_USER) == 0 &&
--		    !search_exception_tables(regs->rip))
--			goto bad_area_nosemaphore;
--		down_read(&mm->mmap_sem);
--	}
- 
--	vma = find_vma(mm, address);
-+	vma = find_get_vma(mm, address);
- 	if (!vma)
- 		goto bad_area;
- 	if (likely(vma->vm_start <= address))
-@@ -486,7 +479,7 @@ good_area:
- 		goto out_of_memory;
- 	}
- 
--	up_read(&mm->mmap_sem);
-+	put_vma(vma);
- 	return;
- 
- /*
-@@ -494,7 +487,7 @@ good_area:
-  * Fix it, but check if it's kernel or user first..
-  */
- bad_area:
--	up_read(&mm->mmap_sem);
-+	put_vma(vma);
- 
- bad_area_nosemaphore:
- 	/* User mode accesses just cause a SIGSEGV */
-@@ -579,7 +572,7 @@ no_context:
-  * us unable to handle the page fault gracefully.
-  */
- out_of_memory:
--	up_read(&mm->mmap_sem);
-+	put_vma(vma);
- 	if (is_init(current)) {
- 		yield();
- 		goto again;
-@@ -590,7 +583,7 @@ out_of_memory:
- 	goto no_context;
- 
- do_sigbus:
--	up_read(&mm->mmap_sem);
-+	put_vma(vma);
- 
- 	/* Kernel mode? Handle exceptions or die */
- 	if (!(error_code & PF_USER))
+If they get munlocked and put back on the LRU when there is no swap, then
+presumably the !swap condition handling will lazily take care of them.
 
--- 
+
+> > > Wrong. !PageLRU means that the page may be on some other list. Like the 
+> > > vmscan pagelist and the page migration list. You can only be sure that it
+> > > is not on those lists if a function took the page off the LRU. If you then 
+> > > mark it PageMlocked then you may be sure that the LRU field is free for 
+> > > use.
+> > 
+> > Bad wording: by "if we ensure !PageLRU" I meant "if we take the page off
+> > the LRU ourselves". Why do you have a bad feeling about this? As you
+> > say, vmscan and page migration do exactly the same thing and it is a
+> > fundamental way that the lru mechanism works.
+> 
+> Refcounts are generally there to be updated in a racy way and it seems 
+> here that the refcount variable itself can only exist under certain 
+> conditions. If you can handle that cleanly then we are okay.
+
+Well it's there in the code. I don't know if you consider my way of
+handling it clean or not... It isn't a racy refcount, just a conservative
+count of mlocked vmas, which is protected by PG_locked. PG_mlock is also
+protected by PG_locked, so it is easy to get the mlock_count when the page
+is locked.
+
+I did put a little bit of thought into this ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
