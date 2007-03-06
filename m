@@ -1,99 +1,34 @@
-Date: Tue, 6 Mar 2007 02:05:30 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 2/2] mm: mlocked pages off LRU
-Message-ID: <20070306010529.GB23845@wotan.suse.de>
-References: <20070305161746.GD8128@wotan.suse.de> <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com>
+Date: Tue, 6 Mar 2007 10:26:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] [PATCH] Power Managed memory base enabling
+Message-Id: <20070306102628.4c32fc65.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070305181826.GA21515@linux.intel.com>
+References: <20070305181826.GA21515@linux.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0703050948040.6620@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@engr.sgi.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+To: mgross@linux.intel.com
+Cc: linux-mm@kvack.org, linux-pm@lists.osdl.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, mark.gross@intel.com, neelam.chandwani@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 05, 2007 at 10:14:58AM -0800, Christoph Lameter wrote:
-> On Mon, 5 Mar 2007, Nick Piggin wrote:
+On Mon, 5 Mar 2007 10:18:26 -0800
+Mark Gross <mgross@linux.intel.com> wrote:
+
+> It implements a convention on the 4 bytes of "Proximity Domain ID"
+> within the SRAT memory affinity structure as defined in ACPI3.0a.  If
+> bit 31 is set, then the memory range represented by that PXM is assumed
+> to be power managed.  We are working on defining a "standard" for
+> identifying such memory areas as power manageable and progress committee
+> based.  
 > 
-> > - PageMLock explicitly elevates the page's refcount, so PageMLock pages
-> >   don't ever get freed (thus requires less awareness in the rest of mm).
-> 
-> Which breaks page migration for mlocked pages.
 
-Yeah, the simple way to fix migration is to just clear_page_mlock those
-pages so they'll lazily be mlocked again. However we could probably do
-something fancier like transferring the PG_mlock bit and the mlock_count.
+This usage of bit 31 surprized me ;)
+I think some vendor(sgi?) now using 4byte pxm...
+no problem ? and othre OSs will handle this ?
 
-> I think there is still some thinking going on about also removing 
-> anonymous pages off the LRU if we are out of swap or have no swap. In 
-> that case we may need page->lru to track these pages so that they can be 
-> fed back to the LRU when swap is added later.
-
-That's OK: they won't get mlocked if they are not on the LRU (and won't
-get taken off the LRU if they are mlocked).
-
-> I was a bit hesitant to use an additional ref counter because we are here 
-> overloading a refcounter on a LRU field? I have a bad feeling here. There 
-
-If we ensure !PageLRU then we can use the lru field. I don't see
-a problem.
-
-> are possible race conditions and it seems that earlier approaches failed 
-> to address those.
-
-What are they?
-
-> 
-> > +static void inc_page_mlock(struct page *page)
-> > +{
-> > +	BUG_ON(!PageLocked(page));
-> > +
-> > +	if (!PageMLock(page)) {
-> > +		if (!isolate_lru_page(page)) {
-> > +			SetPageMLock(page);
-> > +			get_page(page);
-> > +			set_page_mlock_count(page, 1);
-> > +		}
-> > +	} else if (PageMLock(page)) {
-> 
-> You already checked for !PageMlock so PageMlock is true.
-
-Thanks.
-
-> > -	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
-> > -			(ptep_clear_flush_young(vma, address, pte)))) {
-> > -		ret = SWAP_FAIL;
-> > -		goto out_unmap;
-> > +	if (!migration) {
-> > +		if (vma->vm_flags & VM_LOCKED) {
-> > +			ret = SWAP_MLOCK;
-> > +			goto out_unmap;
-> > +		}
-> > +		if (ptep_clear_flush_young(vma, address, pte)) {
-> > +			ret = SWAP_FAIL;
-> > +			goto out_unmap;
-> > +		}
-> 
-> Ok you basically keep the first patch of my set. Maybe include that 
-> explicitly ?
-
-It is a bit different. I don't want to break out as soon as it hits
-an mlocked vma, in order to be able to count up all mlocked vmas and
-set the correct mlock_count.
-
-Actually there is a race here, because a subsequent munlock could
-cause the mlock state to be incorrect. I'll have to fix that.
-
-It looks like your patches suffer from the same race?
-
-> >  /*
-> > + * This routine is used to map in an anonymous page into an address space:
-> > + * needed by execve() for the initial stack and environment pages.
-> 
-> Could we have some common code that also covers do_anonymous page etc?
-
-That could be possible, yes. I'd like Hugh to ack that sort of thing.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
