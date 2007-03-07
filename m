@@ -1,63 +1,94 @@
-Date: Wed, 7 Mar 2007 21:13:59 +0000
-Subject: [PATCH] 2.6.21-rc2-mm2 Fix boot problem on IA64 with CONFIG_HOLE_IN_ZONES and CONFIG_PAGE_GROUP_BY_MOBILITY
-Message-ID: <20070307211359.GA6736@skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-From: mel@skynet.ie (Mel Gorman)
+Date: Wed, 7 Mar 2007 13:33:25 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch 8/6] mm: fix cpdfio vs fault race
+In-Reply-To: <20070307130214.56d4b03b.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0703071310180.5963@woody.linux-foundation.org>
+References: <20070307110429.GF5555@wotan.suse.de>
+ <20070307032038.f08333a8.akpm@linux-foundation.org> <20070307113121.GA18704@wotan.suse.de>
+ <20070307130214.56d4b03b.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@engr.sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, miklos@szeredi.hu, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Usually, a mem_map is aligned on MAX_ORDER_NR_PAGES boundaries and the
-struct pages are always valid. However, this is not always the case when
-CONFIG_HOLES_IN_ZONE is set.
 
-move_freepages_block() checks that pages within a MAX_ORDER_NR_PAGES block
-are in the same zone using page_zone(). However, if an invalid page is
-passed to page_zone(), it can result in breakage on machines requiring
-CONFIG_HOLES_IN_ZONE. This patch avoids the use of page_zone() and instead
-checks the PFNs against the PFN ranges of the zone.  This fixes a boot
-problem on IA64 using the config arch/ia64/configs/sn2_defconfig .
+On Wed, 7 Mar 2007, Andrew Morton wrote:
+> 
+> now that's scary - applying this on top of your
+> lock-the-page-in-the-fault-handler patches gives:
 
-Credit to Christoph Lameter for testing, reporting the bug and verifying
-this fixes the problem. Credit to Andy Whitcroft for giving the patch a
-quick review to ensure no functionality was changed.
+This is why you should never use plain "patch" with defaultl arguments in 
+a script (and probably not even from an interactive command line).
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+I've said this before, and I'll say it again: "'patch' is incredibly 
+unsafe by default".
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc2-mm2-clean/mm/page_alloc.c linux-2.6.21-rc2-mm2-ia64_movefreepages_fix/mm/page_alloc.c
---- linux-2.6.21-rc2-mm2-clean/mm/page_alloc.c	2007-03-07 09:36:31.000000000 +0000
-+++ linux-2.6.21-rc2-mm2-ia64_movefreepages_fix/mm/page_alloc.c	2007-03-07 14:17:43.000000000 +0000
-@@ -734,18 +734,19 @@ int move_freepages(struct zone *zone,
- 
- int move_freepages_block(struct zone *zone, struct page *page, int migratetype)
- {
--	unsigned long start_pfn;
-+	unsigned long start_pfn, end_pfn;
- 	struct page *start_page, *end_page;
- 
- 	start_pfn = page_to_pfn(page);
- 	start_pfn = start_pfn & ~(MAX_ORDER_NR_PAGES-1);
- 	start_page = pfn_to_page(start_pfn);
- 	end_page = start_page + MAX_ORDER_NR_PAGES;
-+	end_pfn = start_pfn + MAX_ORDER_NR_PAGES;
- 
- 	/* Do not cross zone boundaries */
--	if (page_zone(page) != page_zone(start_page))
-+	if (start_pfn < zone->zone_start_pfn)
- 		start_page = page;
--	if (page_zone(page) != page_zone(end_page))
-+	if (end_pfn >= zone->zone_start_pfn + zone->spanned_pages)
- 		return 0;
- 
- 	return move_freepages(zone, start_page, end_page, migratetype);
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Please use
+
+	patch -p1 --fuzz=0
+
+rather than the defaults (adding "-E -u -f" is also often a good idea, 
+depending on the source of the patches). And that's *especially* true in 
+scripts.
+
+Yeah, "--fuzz=0" means that patch will reject more patches, but the 
+patches it rejects tends to be patches it *should* reject, and you should 
+take a look at manually (and then you can decide to not use --fuzz=0 if 
+you think patch does the right thing by mistake).
+
+Also, *never* use "-l" or some of the other flags that make patch even 
+less reliable. It's already guessing enough. Again, "-l" can be useful if 
+you're going to check the result manually and fix up whatever bad stuff it 
+does, but if it's needed, I can almost guarantee that it *will* need 
+fixing up, which is why using those things in automated scripts is not a 
+good idea.
+
+If you have git installed, "git apply" has saner defaults than "patch" 
+does (with "git apply" you have to explicitly loosen any rules, and it 
+doesn't guess by default). "git apply" also checks the whole patch 
+"atomically" when applying, so that if there are rejects it won't apply 
+things partially and force you to clean up.
+
+The "git apply" behaviour is particularly useful, because since it by 
+default doesn't change anything at all on failure, you can start off with 
+the strict defaults, and then *if* something goes wrong you can try it 
+with less strict settings without having to undo some partial patch mess.
+
+Of course, you can do the same with GNU patch by starting off with a 
+dry-run application and seeing that was ok:
+
+	# is it clean
+	if patch --dry-run --fuzz=0 -p1 < ...
+	then
+		# all ok, just patch, no need to ask the user
+		patch -p1 < ....
+	else
+		# this may do bad things, but let's try, and 
+		# then tell the user to check the end result
+		patch < 
+		
+		.. generate diff, ask user to check it for sanity ! ..
+		.. But *require* manual checking! ..
+	fi
+
+My original patch applicator script had
+
+	patch -E -u --no-backup-if-mismatch -f -p1 --fuzz=0
+
+(where that "--no-backup-if-mismatch" is just because with an SCM backing 
+the setup up, there's just no point - but it depends on your setup, of 
+course). That was because I had (over painful errors) realized that 
+allowing fuzz is just a guaranteed way to silently get merge errors.
+
+You can get merge errors even with a zero fuzz (if it happens to find 
+another place to apply the patch - especially true in very structured 
+files that have lots of identical line snipptes), but it's a lot less 
+likely.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
