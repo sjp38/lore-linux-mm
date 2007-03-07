@@ -1,59 +1,54 @@
-Date: Wed, 7 Mar 2007 08:25:46 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 3/6] mm: fix fault vs invalidate race for linear mappings
-Message-ID: <20070307072545.GC15877@wotan.suse.de>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023724.6306.53097.sendpatchset@linux.site> <20070306223641.505db0e0.akpm@linux-foundation.org> <20070307065727.GA15877@wotan.suse.de> <20070306230841.69409ffc.akpm@linux-foundation.org>
+Date: Tue, 6 Mar 2007 23:26:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] swap prefetch: avoid repeating entry
+Message-Id: <20070306232620.1162457a.akpm@linux-foundation.org>
+In-Reply-To: <200703071814.04531.kernel@kolivas.org>
+References: <200703071814.04531.kernel@kolivas.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070306230841.69409ffc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Con Kolivas <kernel@kolivas.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 06, 2007 at 11:08:41PM -0800, Andrew Morton wrote:
-> On Wed, 7 Mar 2007 07:57:27 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > > 
-> > > Why was truncate_inode_pages_range() altered to unmap the page if it got
-> > > mapped again?
-> > > 
-> > > Oh.  Because the unmap_mapping_range() call got removed from vmtruncate(). 
-> > > Why?  (Please send suitable updates to the changelog).
-> > 
-> > We have to ensure it is unmapped, and be prepared to unmap it while under
-> > the page lock.
-> 
-> But vmtruncate() dropped i_size, so nobody will map this page into
-> pagetables from then on.
+On Wed, 7 Mar 2007 18:14:04 +1100 Con Kolivas <kernel@kolivas.org> wrote:
 
-But there could be a fault in progress... the only way to know is
-locking the page.
-
-> > > I guess truncate of a mmapped area isn't sufficiently common to worry about
-> > > the inefficiency of this change.
-> > 
-> > Yeah, and it should be more efficient for files that aren't mmapped,
-> > because we don't have to take i_mmap_lock for them.
-> > 
-> > > Lots of memory barriers got removed in memory.c, unchangeloggedly.
-> > 
-> > Yeah they were all for the lockless truncate_count checks. Now that
-> > we use the page lock, we don't need barriers.
-> > 
-> > > Gratuitous renaming of locals in do_no_page() makes the change hard to
-> > > review.  Should have been a separate patch.
-> > > 
-> > > In fact, the patch would have been heaps clearer if that renaming had been
-> > > a separate patch.
-> > 
-> > Shall I?
+> I've been unable for 4 months to find someone to test this Andrew. I'm going
+> to assume it fixes the problem on numa=64 (or something like that) so please
+> apply it.
 > 
-> If you don't have anything better to do, yes please ;)
+> ---
+> Avoid entering trickle_swap() when first initialising kprefetchd to prevent
+> endless loops.
+> 
+> Signed-off-by: Con Kolivas <kernel@kolivas.org>
+> 
+> ---
+>  mm/swap_prefetch.c |    4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> Index: linux-2.6.21-rc2-mm2/mm/swap_prefetch.c
+> ===================================================================
+> --- linux-2.6.21-rc2-mm2.orig/mm/swap_prefetch.c	2007-03-06 22:23:26.000000000 +1100
+> +++ linux-2.6.21-rc2-mm2/mm/swap_prefetch.c	2007-03-07 18:11:50.000000000 +1100
+> @@ -515,6 +515,10 @@ static int kprefetchd(void *__unused)
+>  	/* Set ioprio to lowest if supported by i/o scheduler */
+>  	sys_ioprio_set(IOPRIO_WHO_PROCESS, 0, IOPRIO_CLASS_IDLE);
+>  
+> +	/* kprefetchd has nothing to do until it is woken up the first time */
+> +	set_current_state(TASK_INTERRUPTIBLE);
+> +	schedule();
+> +
+>  	do {
+>  		try_to_freeze();
+>  
 
-OK.
+hm, yes, strange.
+
+You can do poor-man's NUMA by setting CONFIG_NUMA_EMU and booting with
+`numa=fake=16'  Requires x86_64 and perhaps the fake-numa fixes in -mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
