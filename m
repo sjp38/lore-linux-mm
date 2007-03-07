@@ -1,35 +1,52 @@
-Date: Wed, 7 Mar 2007 10:52:12 +0100
+Date: Wed, 7 Mar 2007 11:02:42 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307095212.GF8609@wotan.suse.de>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307085944.GA17433@wotan.suse.de> <20070307092252.GA6499@elte.hu>
+Message-ID: <20070307100242.GG8609@wotan.suse.de>
+References: <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307003520.08b1a082.akpm@linux-foundation.org> <20070307085323.GB27337@elte.hu> <20070307092821.GB8609@wotan.suse.de> <20070307094420.GL18774@holomorphy.com> <20070307094947.GE8609@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070307092252.GA6499@elte.hu>
+In-Reply-To: <20070307094947.GE8609@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 07, 2007 at 10:22:52AM +0100, Ingo Molnar wrote:
+On Wed, Mar 07, 2007 at 10:49:47AM +0100, Nick Piggin wrote:
+> On Wed, Mar 07, 2007 at 01:44:20AM -0800, Bill Irwin wrote:
+> > On Wed, Mar 07, 2007 at 10:28:21AM +0100, Nick Piggin wrote:
+> > > Depending on whether anyone wants it, and what features they want, we
+> > > could emulate the old syscall, and make a new restricted one which is
+> > > much less intrusive.
+> > > For example, if we can operate only on MAP_ANONYMOUS memory and specify
+> > > that nonlinear mappings effectively mlock the pages, then we can get
+> > > rid of all the objrmap and unmap_mapping_range handling, forget about
+> > > the writeout and msync problems...
+> > 
+> > Anonymous-only would make it a doorstop for Oracle, since its entire
+> > motive for using it is to window into objects larger than user virtual
 > 
-> * Nick Piggin <npiggin@suse.de> wrote:
+> Uh, duh yes I don't mean MAP_ANONYMOUS, I was just thinking of the shmem
+> inode that sits behind MAP_ANONYMOUS|MAP_SHARED. Of course if you don't
+> have a file descriptor to get a pgoff, then remap_file_pages is a doorstop
+> for everyone ;)
 > 
-> > After these patches, I don't think there is too much burden. The main 
-> > thing left really is just the objrmap stuff, but that is just handled 
-> > with a minimal 'dumb' algorithm that doesn't cost much.
+> > address spaces (this likely also applies to UML, though they should
+> > really chime in to confirm). Restrictions to tmpfs and/or ramfs would
+> > likely be liveable, though I suspect some things might want to do it to
+> > shm segments (I'll ask about that one). There's definitely no need for a
+> > persistent backing store for the object to be remapped in Oracle's case,
+> > in any event. It's largely the in-core destination and source of IO, not
+> > something saved on-disk itself.
 > 
-> ok. What do you think about the sys_remap_file_pages_prot() thing that 
-> Paolo has done in a nicely split up form - does that complicate things 
-> in any fundamental way? That is what is useful to UML.
+> Yeah, tmpfs/shm segs are what I was thinking about. If UML can live with
+> that as well, then I think it might be a good option.
 
-Last time I looked (a while ago), the only issue I had was that he was
-doing a weird special case rather than using another !present pte bit
-for his "nonlinear protection" ptes.
+Oh, hmm.... if you can truncate these things then you still need to
+force unmap so you still need i_mmap_nonlinear.
 
-I think he fixed that now and so it should be quite good now.
+But come to think of it, I still don't think nonlinear mappings are
+too bad as they are ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
