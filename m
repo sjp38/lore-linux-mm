@@ -1,16 +1,25 @@
-In-reply-to: <20070307133649.GF18704@wotan.suse.de> (message from Nick Piggin
-	on Wed, 7 Mar 2007 14:36:49 +0100)
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-References: <20070307102106.GB5555@wotan.suse.de> <1173263085.6374.132.camel@twins> <20070307103842.GD5555@wotan.suse.de> <1173264462.6374.140.camel@twins> <20070307110035.GE5555@wotan.suse.de> <1173268086.6374.157.camel@twins> <20070307121730.GC18704@wotan.suse.de> <1173271286.6374.166.camel@twins> <20070307130851.GE18704@wotan.suse.de> <1173273562.6374.175.camel@twins> <20070307133649.GF18704@wotan.suse.de>
-Message-Id: <E1HOwZn-0000TI-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 07 Mar 2007 14:53:07 +0100
+Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes
+	nonlinear)
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070307133649.GF18704@wotan.suse.de>
+References: <20070307102106.GB5555@wotan.suse.de>
+	 <1173263085.6374.132.camel@twins> <20070307103842.GD5555@wotan.suse.de>
+	 <1173264462.6374.140.camel@twins> <20070307110035.GE5555@wotan.suse.de>
+	 <1173268086.6374.157.camel@twins> <20070307121730.GC18704@wotan.suse.de>
+	 <1173271286.6374.166.camel@twins> <20070307130851.GE18704@wotan.suse.de>
+	 <1173273562.6374.175.camel@twins>  <20070307133649.GF18704@wotan.suse.de>
+Content-Type: text/plain
+Date: Wed, 07 Mar 2007 14:52:12 +0100
+Message-Id: <1173275532.6374.183.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: a.p.zijlstra@chello.nl, miklos@szeredi.hu, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, jdike@addtoit.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, Jeff Dike <jdike@addtoit.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2007-03-07 at 14:36 +0100, Nick Piggin wrote:
 > On Wed, Mar 07, 2007 at 02:19:22PM +0100, Peter Zijlstra wrote:
 > > On Wed, 2007-03-07 at 14:08 +0100, Nick Piggin wrote:
 > > 
@@ -42,23 +51,36 @@ List-ID: <linux-mm.kvack.org>
 > > of this feature around?)
 > 
 > Why? I think they all use tmpfs backings, don't they?
-> 
+
+Ooh, you only want to restrict remap_file_pages on mappings from bdi's
+without BDI_CAP_NO_WRITEBACK. Sure, I can live with that, and I suspect
+others can as well.
+
 > > msync() might never get called and then we're back with the old
 > > behaviour where we can surprise the VM with a ton of dirty pages.
 > 
 > But we're root. With your patch, root *can't* do nonlinear writeback
 > well. Ever. With msync, at least you give them enough rope.
 
-Restricting to root doesn't buy you much, nobody wants to be root.
-Restricting to mlock is similarly pointless.  UML _will_ want to get
-swapped out if there's no activity.
+True. We could even guesstimate the nonlinear dirty pages by subtracting
+the result of page_mkclean() from page_mapcount() and force an
+msync(MS_ASYNC) on said mapping (or all (nonlinear) mappings of the
+related file) when some threshold gets exceeded.
 
-Restricting to tmpfs makes sense, but it's probably not what UML
-wants.
+> > > > What is the DoS scenario wrt reclaim? We really ought to fix that if
+> > > > real, those UML farms run on nothing but nonlinear reclaim I'd think.
+> > > 
+> > > I guess you can just increase the computational complexity of
+> > > reclaim quite easily.
+> > 
+> > Right, on first glance it doesn't look to be too bad, but I should take
+> > a closer look.
+> 
+> Well I don't think UML uses nonlinear yet anyway, does it? Can they
+> make do with restricting nonlinear to mlocked vmas, I wonder? Probably
+> not.
 
-Conclusion: there's no good solution for UML in kernel-space.
-
-Miklos
+I think it does, but lets ask, Jeff?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
