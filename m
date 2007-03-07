@@ -1,39 +1,59 @@
-Date: Tue, 6 Mar 2007 23:19:09 -0800
-From: Bill Irwin <bill.irwin@oracle.com>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307071909.GI18774@holomorphy.com>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org>
-MIME-Version: 1.0
+Date: Wed, 7 Mar 2007 08:25:46 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 3/6] mm: fix fault vs invalidate race for linear mappings
+Message-ID: <20070307072545.GC15877@wotan.suse.de>
+References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023724.6306.53097.sendpatchset@linux.site> <20070306223641.505db0e0.akpm@linux-foundation.org> <20070307065727.GA15877@wotan.suse.de> <20070306230841.69409ffc.akpm@linux-foundation.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070306225101.f393632c.akpm@linux-foundation.org>
+In-Reply-To: <20070306230841.69409ffc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 06, 2007 at 10:51:01PM -0800, Andrew Morton wrote:
-> Does anybody really pass a NULL `type' arg into filemap_nopage()?
+On Tue, Mar 06, 2007 at 11:08:41PM -0800, Andrew Morton wrote:
+> On Wed, 7 Mar 2007 07:57:27 +0100 Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > > 
+> > > Why was truncate_inode_pages_range() altered to unmap the page if it got
+> > > mapped again?
+> > > 
+> > > Oh.  Because the unmap_mapping_range() call got removed from vmtruncate(). 
+> > > Why?  (Please send suitable updates to the changelog).
+> > 
+> > We have to ensure it is unmapped, and be prepared to unmap it while under
+> > the page lock.
+> 
+> But vmtruncate() dropped i_size, so nobody will map this page into
+> pagetables from then on.
 
-The major vs. minor fault accounting patch that introduced the argument
-didn't make non-NULL type arguments a requirement. It's essentially an
-optional second return value and the NULL pointer represents the caller
-choosing to ignore it. I'm not sure I actually liked that aspect of it,
-but that's how it ended up going in. I think it had something to do
-with driver churn clashing with the sweep at the time of the merge. I'd
-rather the argument be mandatory and defaulted to VM_FAULT_MINOR.
+But there could be a fault in progress... the only way to know is
+locking the page.
 
-It's something of a non-answer, though, since it only discusses a
-convention as opposed to reviewing specific callers of filemap_nopage().
-NULL type arguments to ->nopage() are rare at most, and could be easily
-eliminated, at least for in-tree drivers.
+> > > I guess truncate of a mmapped area isn't sufficiently common to worry about
+> > > the inefficiency of this change.
+> > 
+> > Yeah, and it should be more efficient for files that aren't mmapped,
+> > because we don't have to take i_mmap_lock for them.
+> > 
+> > > Lots of memory barriers got removed in memory.c, unchangeloggedly.
+> > 
+> > Yeah they were all for the lockless truncate_count checks. Now that
+> > we use the page lock, we don't need barriers.
+> > 
+> > > Gratuitous renaming of locals in do_no_page() makes the change hard to
+> > > review.  Should have been a separate patch.
+> > > 
+> > > In fact, the patch would have been heaps clearer if that renaming had been
+> > > a separate patch.
+> > 
+> > Shall I?
+> 
+> If you don't have anything better to do, yes please ;)
 
-egrep -nr 'nopage.*NULL' . 2>/dev/null | grep -v '^Bin' on a current
-git tree yields zero matches.
-
-
--- wli
+OK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
