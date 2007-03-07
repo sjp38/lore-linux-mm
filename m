@@ -1,29 +1,16 @@
-Date: Wed, 7 Mar 2007 00:35:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes
- nonlinear)
-Message-Id: <20070307003520.08b1a082.akpm@linux-foundation.org>
-In-Reply-To: <20070307082755.GA25733@elte.hu>
-References: <20070221023656.6306.246.sendpatchset@linux.site>
-	<20070221023735.6306.83373.sendpatchset@linux.site>
-	<20070306225101.f393632c.akpm@linux-foundation.org>
-	<20070307070853.GB15877@wotan.suse.de>
-	<20070307081948.GA9563@wotan.suse.de>
-	<20070307082755.GA25733@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-reply-to: <20070307082755.GA25733@elte.hu> (message from Ingo Molnar on
+	Wed, 7 Mar 2007 09:27:55 +0100)
+Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
+References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu>
+Message-Id: <E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 07 Mar 2007 09:38:34 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+To: mingo@elte.hu
+Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Mar 2007 09:27:55 +0100 Ingo Molnar <mingo@elte.hu> wrote:
-
-> 
-> * Nick Piggin <npiggin@suse.de> wrote:
-> 
 > > If it doesn't look very impressive, it could be because it leaves all 
 > > the old crud around for backwards compatibility (the worst offenders 
 > > are removed in patch 6/6).
@@ -50,12 +37,12 @@ On Wed, 7 Mar 2007 09:27:55 +0100 Ingo Molnar <mingo@elte.hu> wrote:
 > call to mremap() and essentially deprecate it, without breaking the ABI 
 > - and remove all the nonlinear code. (This would split fremap areas into 
 > separate vmas)
-> 
 
-I'm rather regretting having merged it - I don't think it has been used for
-much.
+That would make sense.  Dirty page accounting doesn't work either on
+non-linear mappings, and I can't see how that could be fixed in any
+other way.
 
-Paolo's UML speedup patches might use nonlinear though.
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
