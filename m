@@ -1,153 +1,63 @@
-Date: Wed, 7 Mar 2007 13:02:14 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 8/6] mm: fix cpdfio vs fault race
-Message-Id: <20070307130214.56d4b03b.akpm@linux-foundation.org>
-In-Reply-To: <20070307113121.GA18704@wotan.suse.de>
-References: <20070307110429.GF5555@wotan.suse.de>
-	<20070307032038.f08333a8.akpm@linux-foundation.org>
-	<20070307113121.GA18704@wotan.suse.de>
+Date: Wed, 7 Mar 2007 21:13:59 +0000
+Subject: [PATCH] 2.6.21-rc2-mm2 Fix boot problem on IA64 with CONFIG_HOLE_IN_ZONES and CONFIG_PAGE_GROUP_BY_MOBILITY
+Message-ID: <20070307211359.GA6736@skynet.ie>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+From: mel@skynet.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: miklos@szeredi.hu, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@engr.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Mar 2007 12:31:21 +0100
-Nick Piggin <npiggin@suse.de> wrote:
+Usually, a mem_map is aligned on MAX_ORDER_NR_PAGES boundaries and the
+struct pages are always valid. However, this is not always the case when
+CONFIG_HOLES_IN_ZONE is set.
 
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c
-> +++ linux-2.6/mm/memory.c
-> @@ -1664,6 +1664,15 @@ gotten:
->  unlock:
->  	pte_unmap_unlock(page_table, ptl);
->  	if (dirty_page) {
-> +		/*
-> +		 * Yes, Virginia, this is actually required to prevent a race
-> +		 * with clear_page_dirty_for_io() from clearing the page dirty
-> +		 * bit after it clear all dirty ptes, but before a racing
-> +		 * do_wp_page installs a dirty pte.
-> +		 *
-> +		 * do_no_page is protected similarly.
-> +		 */
-> +		wait_on_page_locked(dirty_page);
->  		set_page_dirty_balance(dirty_page);
->  		put_page(dirty_page);
->  	}
-> @@ -2316,6 +2325,7 @@ retry:
->  unlock:
->  	pte_unmap_unlock(page_table, ptl);
->  	if (dirty_page) {
-> +		wait_on_page_locked(dirty_page);
->  		set_page_dirty_balance(dirty_page);
->  		put_page(dirty_page);
->  	}
-> Index: linux-2.6/mm/page-writeback.c
+move_freepages_block() checks that pages within a MAX_ORDER_NR_PAGES block
+are in the same zone using page_zone(). However, if an invalid page is
+passed to page_zone(), it can result in breakage on machines requiring
+CONFIG_HOLES_IN_ZONE. This patch avoids the use of page_zone() and instead
+checks the PFNs against the PFN ranges of the zone.  This fixes a boot
+problem on IA64 using the config arch/ia64/configs/sn2_defconfig .
 
-now that's scary - applying this on top of your
-lock-the-page-in-the-fault-handler patches gives:
+Credit to Christoph Lameter for testing, reporting the bug and verifying
+this fixes the problem. Credit to Andy Whitcroft for giving the patch a
+quick review to ensure no functionality was changed.
 
-	if (dirty_page) {
-		/*
-		 * Yes, Virginia, this is actually required to prevent a race
-		 * with clear_page_dirty_for_io() from clearing the page dirty
-		 * bit after it clear all dirty ptes, but before a racing
-		 * do_wp_page installs a dirty pte.
-		 *
-		 * do_no_page is protected similarly.
-		 */
-		wait_on_page_locked(dirty_page);
-		wait_on_page_locked(dirty_page);
-		set_page_dirty_balance(dirty_page);
-		put_page(dirty_page);
-	}
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-One wonders how on earth patch(1) managed to do that.  If it has inserted
-the comment twice as well then it might be explicable..
-
-
-
-Oh well, let's try this:
-
-From: Nick Piggin <npiggin@suse.de>
-
-Fix msync data loss and (less importantly) dirty page accounting
-inaccuracies due to the race remaining in clear_page_dirty_for_io().
-
-The deleted comment explains what the race was, and the added comments
-explain how it is fixed.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>
-Signed-off-by: Andrew Morton <akpm@osdl.org>
----
-
- mm/memory.c         |    9 +++++++++
- mm/page-writeback.c |   17 ++++++++++++-----
- 2 files changed, 21 insertions(+), 5 deletions(-)
-
-diff -puN mm/memory.c~mm-fix-cpdfio-vs-fault-race mm/memory.c
---- a/mm/memory.c~mm-fix-cpdfio-vs-fault-race
-+++ a/mm/memory.c
-@@ -1669,6 +1669,15 @@ gotten:
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
- 	if (dirty_page) {
-+		/*
-+		 * Yes, Virginia, this is actually required to prevent a race
-+		 * with clear_page_dirty_for_io() from clearing the page dirty
-+		 * bit after it clear all dirty ptes, but before a racing
-+		 * do_wp_page installs a dirty pte.
-+		 *
-+		 * do_no_page is protected similarly.
-+		 */
-+		wait_on_page_locked(dirty_page);
- 		set_page_dirty_balance(dirty_page);
- 		put_page(dirty_page);
- 	}
-diff -puN mm/page-writeback.c~mm-fix-cpdfio-vs-fault-race mm/page-writeback.c
---- a/mm/page-writeback.c~mm-fix-cpdfio-vs-fault-race
-+++ a/mm/page-writeback.c
-@@ -903,6 +903,8 @@ int clear_page_dirty_for_io(struct page 
- {
- 	struct address_space *mapping = page_mapping(page);
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc2-mm2-clean/mm/page_alloc.c linux-2.6.21-rc2-mm2-ia64_movefreepages_fix/mm/page_alloc.c
+--- linux-2.6.21-rc2-mm2-clean/mm/page_alloc.c	2007-03-07 09:36:31.000000000 +0000
++++ linux-2.6.21-rc2-mm2-ia64_movefreepages_fix/mm/page_alloc.c	2007-03-07 14:17:43.000000000 +0000
+@@ -734,18 +734,19 @@ int move_freepages(struct zone *zone,
  
-+	BUG_ON(!PageLocked(page));
-+
- 	if (mapping && mapping_cap_account_dirty(mapping)) {
- 		/*
- 		 * Yes, Virginia, this is indeed insane.
-@@ -928,14 +930,19 @@ int clear_page_dirty_for_io(struct page 
- 		 * We basically use the page "master dirty bit"
- 		 * as a serialization point for all the different
- 		 * threads doing their things.
--		 *
--		 * FIXME! We still have a race here: if somebody
--		 * adds the page back to the page tables in
--		 * between the "page_mkclean()" and the "TestClearPageDirty()",
--		 * we might have it mapped without the dirty bit set.
- 		 */
- 		if (page_mkclean(page))
- 			set_page_dirty(page);
-+		/*
-+		 * We carefully synchronise fault handlers against
-+		 * installing a dirty pte and marking the page dirty
-+		 * at this point. We do this by having them hold the
-+		 * page lock at some point after installing their
-+		 * pte, but before marking the page dirty.
-+		 * Pages are always locked coming in here, so we get
-+		 * the desired exclusion. See mm/memory.c:do_wp_page()
-+		 * for more comments.
-+		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			return 1;
-_
+ int move_freepages_block(struct zone *zone, struct page *page, int migratetype)
+ {
+-	unsigned long start_pfn;
++	unsigned long start_pfn, end_pfn;
+ 	struct page *start_page, *end_page;
+ 
+ 	start_pfn = page_to_pfn(page);
+ 	start_pfn = start_pfn & ~(MAX_ORDER_NR_PAGES-1);
+ 	start_page = pfn_to_page(start_pfn);
+ 	end_page = start_page + MAX_ORDER_NR_PAGES;
++	end_pfn = start_pfn + MAX_ORDER_NR_PAGES;
+ 
+ 	/* Do not cross zone boundaries */
+-	if (page_zone(page) != page_zone(start_page))
++	if (start_pfn < zone->zone_start_pfn)
+ 		start_page = page;
+-	if (page_zone(page) != page_zone(end_page))
++	if (end_pfn >= zone->zone_start_pfn + zone->spanned_pages)
+ 		return 0;
+ 
+ 	return move_freepages(zone, start_page, end_page, migratetype);
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
