@@ -1,31 +1,32 @@
-Date: Wed, 7 Mar 2007 11:17:28 +0100
+Date: Wed, 7 Mar 2007 11:21:06 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307101728.GA5555@wotan.suse.de>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <1173261949.9349.37.camel@localhost.localdomain>
+Message-ID: <20070307102106.GB5555@wotan.suse.de>
+References: <20070307082755.GA25733@elte.hu> <E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu> <20070307004709.432ddf97.akpm@linux-foundation.org> <E1HOrsL-0008Dv-00@dorka.pomaz.szeredi.hu> <20070307010756.b31c8190.akpm@linux-foundation.org> <1173259942.6374.125.camel@twins> <20070307094503.GD8609@wotan.suse.de> <20070307100430.GA5080@wotan.suse.de> <1173262002.6374.128.camel@twins> <E1HOt96-0008V6-00@dorka.pomaz.szeredi.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1173261949.9349.37.camel@localhost.localdomain>
+In-Reply-To: <E1HOt96-0008V6-00@dorka.pomaz.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: a.p.zijlstra@chello.nl, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 07, 2007 at 11:05:48AM +0100, Benjamin Herrenschmidt wrote:
+On Wed, Mar 07, 2007 at 11:13:20AM +0100, Miklos Szeredi wrote:
+> > *sigh* yes was looking at all that code, thats gonna be darn slow
+> > though, but I'll whip up a patch.
 > 
-> > > NOPAGE_REFAULT is removed. This should be implemented with ->fault, and
-> > > no users have hit mainline yet.
-> > 
-> > Did benh agree with that?
-> 
-> I won't use NOPAGE_REFAULT, I use NOPFN_REFAULT and that has hit
-> mainline. I will switch to ->fault when I have time to adapt the code,
-> in the meantime, NOPFN_REFAULT should stay.
+> Well, if it's going to be darn slow, maybe it's better to go with
+> mingo's plan on emulating nonlinear vmas with linear ones.  That'll be
 
-I think I removed not only NOFPN_REFAULT, but also nopfn itself, *and*
-adapted the code for you ;) it is in patch 5/6, sent a while ago. 
+There are real users who want these fast, though.
+
+> darn slow as well, but at least it will be much less complicated.
+
+IMO, the best thing to do is just restore msync behaviour, and comment
+the fact that we ignore nonlinears. We need to restore msync behaviour
+to fix races in regular mappings anyway, at least for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
