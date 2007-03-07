@@ -1,52 +1,34 @@
-Date: Wed, 7 Mar 2007 11:44:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC} memory unplug patchset prep [0/16]
-Message-Id: <20070307114433.9cada140.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0703061828060.13164@chino.kir.corp.google.com>
-References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0703060145570.22477@chino.kir.corp.google.com>
-	<20070307112450.b7917dcc.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0703061828060.13164@chino.kir.corp.google.com>
+Date: Tue, 6 Mar 2007 20:40:44 -0600
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [SLUB 2/3] Large kmalloc pass through. Removal of large general slabs
+Message-ID: <20070307024043.GT23311@waste.org>
+References: <20070307023502.19658.39217.sendpatchset@schroedinger.engr.sgi.com> <20070307023513.19658.81228.sendpatchset@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070307023513.19658.81228.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org, mgross@linux.intel.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2007 18:31:35 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Wed, 7 Mar 2007, KAMEZAWA Hiroyuki wrote:
+On Tue, Mar 06, 2007 at 06:35:16PM -0800, Christoph Lameter wrote:
+> Unlimited kmalloc size and removal of general caches >=4.
 > 
-> > > Are you aiming to target both ia64 and x86_64 with this patchset or are 
-> > > you focusing on ia64 exclusively at the moment?
-> > > 
-> > Just because a machine, which I can use as much as I want, is ia64.
-> > I don't have x86_64 now. I'll add i386 in the next post.
-> > I think all arch which support MEMORY_HOTPLUG will support unplug at last.
-> > 
-> 
-> Ok, sounds good.  I can offer quite extensive x86_64 testing coverage.  I 
-> think it's going to be much better to base this patchset on 2.6.21-rc2-mm2 
-> so we don't have a couple different GFP_MOVABLE implementations floating 
-> around.
-> 
-Thank you and I'll rebase to -mm and write next patch set. 
-(But I sometimes stops by other works. please wait.)
+> We can directly use the page allocator for all allocations 4K and larger. This
+> means that no general slabs are necessary and the size of the allocation passed
+> to kmalloc() can be arbitrarily large. Remove the useless general caches over 4k.
 
+I've been meaning to do this in SLOB as well. Perhaps it warrants
+doing in stock kmalloc? I've got a grand total of 18 of these objects
+here.
 
-> I'll await your next patchset and then I'll play around with it for 
-> x86_64.  I'd like to eventually combine your memory unplug work with Mark 
-> Gross's PM-memory enabling node flags (cc'd).  We can wire it up through a 
-> sysfs interface for userspace manipulation and see it working in action.
-> 
-looks interesiting :)
+The downside is this makes them suddenly disappear off the slabinfo
+radar.
 
-Thanks,
--Kame
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
