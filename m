@@ -1,38 +1,42 @@
-Date: Wed, 7 Mar 2007 10:35:18 +0100
-From: Ingo Molnar <mingo@elte.hu>
+Date: Wed, 7 Mar 2007 10:38:48 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307093518.GB8424@elte.hu>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307085944.GA17433@wotan.suse.de> <20070307092252.GA6499@elte.hu> <20070307093208.GK18774@holomorphy.com>
+Message-ID: <20070307093848.GC8609@wotan.suse.de>
+References: <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu> <20070307004709.432ddf97.akpm@linux-foundation.org> <E1HOrsL-0008Dv-00@dorka.pomaz.szeredi.hu> <20070307010756.b31c8190.akpm@linux-foundation.org> <20070307091823.GA8609@wotan.suse.de> <20070307012638.793d9a9f.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070307093208.GK18774@holomorphy.com>
+In-Reply-To: <20070307012638.793d9a9f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Irwin <bill.irwin@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-* Bill Irwin <bill.irwin@oracle.com> wrote:
-
-> * Nick Piggin <npiggin@suse.de> wrote:
-> >> After these patches, I don't think there is too much burden. The main 
-> >> thing left really is just the objrmap stuff, but that is just handled 
-> >> with a minimal 'dumb' algorithm that doesn't cost much.
+On Wed, Mar 07, 2007 at 01:26:38AM -0800, Andrew Morton wrote:
+> On Wed, 7 Mar 2007 10:18:23 +0100 Nick Piggin <npiggin@suse.de> wrote:
 > 
-> On Wed, Mar 07, 2007 at 10:22:52AM +0100, Ingo Molnar wrote:
-> > ok. What do you think about the sys_remap_file_pages_prot() thing that 
-> > Paolo has done in a nicely split up form - does that complicate things 
-> > in any fundamental way? That is what is useful to UML.
+> > 
+> > msync breakage is bad, but otherwise I don't know that we care about
+> > dirty page writeout efficiency.
 > 
-> Oracle would love it. You don't want to know how far back I've been 
-> asked to backport that.
+> Well.  We made so many changes to support the synchronous
+> dirty-the-page-when-we-dirty-the-pte thing that I'm rather doubtful that
+> the old-style approach still works.  It might seem to, most of the time. 
+> But if it _is_ subtly broken, boy it's going to take a long time for us to
+> find out.
 
-ok, cool! Then the first step would be for you to talk to Paolo and to 
-pick up the patches, review them, nurse it in -mm, etc. Suffering in 
-silence is just a pointless act of masochism, not an efficient 
-upstream-merge tactic ;-)
+I can't think of anything that should have caused breakage (except for
+the msync thing). We're still careful about not dropping pte dirty bits.
 
-	Ingo
+> > But I think we discovered that those msync changes are bogus anyway
+> > becuase there is a small race window where pte could be dirtied without
+> > page being set dirty?
+> 
+> Dunno, I don't recall that.  We dirty the page before the pte...
+
+I don't think it isn't really that simple. There is a big comment in
+clear_page_dirty_for_io.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
