@@ -1,45 +1,90 @@
-Message-ID: <45EE42BC.6030209@debian.org>
-Date: Tue, 06 Mar 2007 23:42:36 -0500
-From: Andres Salomon <dilinger@debian.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: don't use ZONE_DMA unless CONFIG_ZONE_DMA is set
- in setup.c
-References: <45EDFEDB.3000507@debian.org> <20070306175246.b1253ec3.akpm@linux-foundation.org> <20070307040248.GA30278@redhat.com>
-In-Reply-To: <20070307040248.GA30278@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 6 Mar 2007 22:36:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 3/6] mm: fix fault vs invalidate race for linear
+ mappings
+Message-Id: <20070306223641.505db0e0.akpm@linux-foundation.org>
+In-Reply-To: <20070221023724.6306.53097.sendpatchset@linux.site>
+References: <20070221023656.6306.246.sendpatchset@linux.site>
+	<20070221023724.6306.53097.sendpatchset@linux.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andres Salomon <dilinger@debian.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Jones wrote:
-> On Tue, Mar 06, 2007 at 05:52:46PM -0800, Andrew Morton wrote:
->  > On Tue, 06 Mar 2007 18:52:59 -0500
->  > Andres Salomon <dilinger@debian.org> wrote:
->  > 
->  > > If CONFIG_ZONE_DMA is ever undefined, ZONE_DMA will also not be defined,
->  > > and setup.c won't compile.  This wraps it with an #ifdef.
->  > > 
->  > 
->  > I guess if anyone tries to disable ZONE_DMA on i386 they'll pretty quickly
->  > discover that.  But I don't think we need to "fix" it yet?
+On Wed, 21 Feb 2007 05:50:05 +0100 (CET) Nick Piggin <npiggin@suse.de> wrote:
 
-Oh, it's certainly not urgent.  I sent it simply for correctness reasons.
-
-It would've been nice to see the ZONE_DMA removal patches just #define
-ZONE_DMA regardless, and include less #ifdefs scattered about; but at
-this point, I'd just as soon prefer to see a proper way to allocate
-things based on address constraints (as discussed in
-http://www.gelato.unsw.edu.au/archives/linux-ia64/0609/19036.html).
-
-
+> Fix the race between invalidate_inode_pages and do_no_page.
 > 
-> CONFIG_ZONE_DMA isn't even optional on i386, so I'm curious how
-> you could hit this compile failure.
+> Andrea Arcangeli identified a subtle race between invalidation of
+> pages from pagecache with userspace mappings, and do_no_page.
+> 
+> The issue is that invalidation has to shoot down all mappings to the
+> page, before it can be discarded from the pagecache. Between shooting
+> down ptes to a particular page, and actually dropping the struct page
+> from the pagecache, do_no_page from any process might fault on that
+> page and establish a new mapping to the page just before it gets
+> discarded from the pagecache.
+> 
+> The most common case where such invalidation is used is in file
+> truncation. This case was catered for by doing a sort of open-coded
+> seqlock between the file's i_size, and its truncate_count.
+> 
+> Truncation will decrease i_size, then increment truncate_count before
+> unmapping userspace pages; do_no_page will read truncate_count, then
+> find the page if it is within i_size, and then check truncate_count
+> under the page table lock and back out and retry if it had
+> subsequently been changed (ptl will serialise against unmapping, and
+> ensure a potentially updated truncate_count is actually visible).
+> 
+> Complexity and documentation issues aside, the locking protocol fails
+> in the case where we would like to invalidate pagecache inside i_size.
+> do_no_page can come in anytime and filemap_nopage is not aware of the
+> invalidation in progress (as it is when it is outside i_size). The
+> end result is that dangling (->mapping == NULL) pages that appear to
+> be from a particular file may be mapped into userspace with nonsense
+> data. Valid mappings to the same place will see a different page.
+> 
+> Andrea implemented two working fixes, one using a real seqlock,
+> another using a page->flags bit. He also proposed using the page lock
+> in do_no_page, but that was initially considered too heavyweight.
+> However, it is not a global or per-file lock, and the page cacheline
+> is modified in do_no_page to increment _count and _mapcount anyway, so
+> a further modification should not be a large performance hit.
+> Scalability is not an issue.
+> 
+> This patch implements this latter approach. ->nopage implementations
+> return with the page locked if it is possible for their underlying
+> file to be invalidated (in that case, they must set a special vm_flags
+> bit to indicate so). do_no_page only unlocks the page after setting
+> up the mapping completely. invalidation is excluded because it holds
+> the page lock during invalidation of each page (and ensures that the
+> page is not mapped while holding the lock).
+> 
+> This also allows significant simplifications in do_no_page, because
+> we have the page locked in the right place in the pagecache from the
+> start.
 > 
 
-Why, with custom code of course ;)
+Why was truncate_inode_pages_range() altered to unmap the page if it got
+mapped again?
+
+Oh.  Because the unmap_mapping_range() call got removed from vmtruncate(). 
+Why?  (Please send suitable updates to the changelog).
+
+I guess truncate of a mmapped area isn't sufficiently common to worry about
+the inefficiency of this change.
+
+Lots of memory barriers got removed in memory.c, unchangeloggedly.
+
+Gratuitous renaming of locals in do_no_page() makes the change hard to
+review.  Should have been a separate patch.
+
+In fact, the patch would have been heaps clearer if that renaming had been
+a separate patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
