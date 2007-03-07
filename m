@@ -1,57 +1,40 @@
-Date: Wed, 7 Mar 2007 02:09:11 -0800
-From: Bill Irwin <bill.irwin@oracle.com>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307100911.GO18774@holomorphy.com>
-References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307003520.08b1a082.akpm@linux-foundation.org> <20070307092903.GJ18774@holomorphy.com> <20070307013942.5c0fadff.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070307013942.5c0fadff.akpm@linux-foundation.org>
+Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes
+	nonlinear)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20070306225101.f393632c.akpm@linux-foundation.org>
+References: <20070221023656.6306.246.sendpatchset@linux.site>
+	 <20070221023735.6306.83373.sendpatchset@linux.site>
+	 <20070306225101.f393632c.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 07 Mar 2007 11:05:48 +0100
+Message-Id: <1173261949.9349.37.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Mar 2007 01:29:03 -0800 Bill Irwin <bill.irwin@oracle.com> wrote:
->> Guess what major real-life application not only uses nonlinear daily
->> but would even be very happy to see it extended with non-vma-creating
->> protections and more?
+> > NOPAGE_REFAULT is removed. This should be implemented with ->fault, and
+> > no users have hit mainline yet.
+> 
+> Did benh agree with that?
 
-On Wed, Mar 07, 2007 at 01:39:42AM -0800, Andrew Morton wrote:
-> uh-oh.  SQL server?
+I won't use NOPAGE_REFAULT, I use NOPFN_REFAULT and that has hit
+mainline. I will switch to ->fault when I have time to adapt the code,
+in the meantime, NOPFN_REFAULT should stay.
 
-Close enough. ;)
+Note that one thing we really want with the new ->fault (though I
+haven't looked at the patches lately to see if it's available) is to be
+able to differenciate faults coming from userspace from faults coming
+from the kernel. The major difference is that the former can be
+re-executed to handle signals, the later can't. Thus waiting in the
+fault handler can be made interruptible in the former case, not in the
+later case.
 
+Ben.
 
-On Wed, 7 Mar 2007 01:29:03 -0800 Bill Irwin <bill.irwin@oracle.com> wrote:
->> It's not terribly typical for things to be
->> truncated while remap_file_pages() is doing its work, though it's been
->> proposed as a method of dynamism. It won't stress remap_file_pages() vs.
->> truncate() in any meaningful way, though, as userspace will be rather
->> diligent about clearing in-use data out of the file offset range to be
->> truncated away anyway, and all that via O_DIRECT.
-
-On Wed, Mar 07, 2007 at 01:39:42AM -0800, Andrew Morton wrote:
-> The problem here isn't related to truncate or direct-IO.  It's just
-> plain-old MAP_SHARED.  nonlinear VMAs are now using the old-style
-> dirty-memory management.  msync() is basically a no-op and the code is
-> wildly tricky and pretty much untested.  The chances that we broke it are
-> considerable.
-
-This would be of concern for swapping out tmpfs-backed nonlinearly-
-mapped files under extreme stress in Oracle's case, though it's rather
-typical for it all to be mlock()'d in-core and cases where that's
-necessary to be considered grossly underprovisioned. As far as I know,
-msync() is not used to manage the nonlinearly-mapped objects, which are
-most typically expected to be memory-backed, rendering writeback to
-disk of questionable value. Also quite happily, I'm not aware of any
-data integrity issues it would explain. Bug though it may be, it
-requires a usage model very rarely used by Oracle to trigger, so we've
-not run into it.
-
-
--- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
