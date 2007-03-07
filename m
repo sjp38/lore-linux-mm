@@ -1,52 +1,36 @@
-Date: Wed, 7 Mar 2007 11:02:42 +0100
+Date: Wed, 7 Mar 2007 11:04:30 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307100242.GG8609@wotan.suse.de>
-References: <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307003520.08b1a082.akpm@linux-foundation.org> <20070307085323.GB27337@elte.hu> <20070307092821.GB8609@wotan.suse.de> <20070307094420.GL18774@holomorphy.com> <20070307094947.GE8609@wotan.suse.de>
+Message-ID: <20070307100430.GA5080@wotan.suse.de>
+References: <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu> <20070307004709.432ddf97.akpm@linux-foundation.org> <E1HOrsL-0008Dv-00@dorka.pomaz.szeredi.hu> <20070307010756.b31c8190.akpm@linux-foundation.org> <1173259942.6374.125.camel@twins> <20070307094503.GD8609@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070307094947.GE8609@wotan.suse.de>
+In-Reply-To: <20070307094503.GD8609@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 07, 2007 at 10:49:47AM +0100, Nick Piggin wrote:
-> On Wed, Mar 07, 2007 at 01:44:20AM -0800, Bill Irwin wrote:
-> > On Wed, Mar 07, 2007 at 10:28:21AM +0100, Nick Piggin wrote:
-> > > Depending on whether anyone wants it, and what features they want, we
-> > > could emulate the old syscall, and make a new restricted one which is
-> > > much less intrusive.
-> > > For example, if we can operate only on MAP_ANONYMOUS memory and specify
-> > > that nonlinear mappings effectively mlock the pages, then we can get
-> > > rid of all the objrmap and unmap_mapping_range handling, forget about
-> > > the writeout and msync problems...
+On Wed, Mar 07, 2007 at 10:45:03AM +0100, Nick Piggin wrote:
+> On Wed, Mar 07, 2007 at 10:32:22AM +0100, Peter Zijlstra wrote:
 > > 
-> > Anonymous-only would make it a doorstop for Oracle, since its entire
-> > motive for using it is to window into objects larger than user virtual
+> > Can recollect as much, I modelled it after page_referenced() and can't
+> > find any VM_NONLINEAR specific code in there either.
+> > 
+> > Will have a hard look, but if its broken, then page_referenced if
+> > equally broken it seems, which would make page reclaim funny in the
+> > light of nonlinear mappings.
 > 
-> Uh, duh yes I don't mean MAP_ANONYMOUS, I was just thinking of the shmem
-> inode that sits behind MAP_ANONYMOUS|MAP_SHARED. Of course if you don't
-> have a file descriptor to get a pgoff, then remap_file_pages is a doorstop
-> for everyone ;)
+> page_referenced is just an heuristic, and it ignores nonlinear mappings
+> and the page which will get filtered down to try_to_unmap.
 > 
-> > address spaces (this likely also applies to UML, though they should
-> > really chime in to confirm). Restrictions to tmpfs and/or ramfs would
-> > likely be liveable, though I suspect some things might want to do it to
-> > shm segments (I'll ask about that one). There's definitely no need for a
-> > persistent backing store for the object to be remapped in Oracle's case,
-> > in any event. It's largely the in-core destination and source of IO, not
-> > something saved on-disk itself.
-> 
-> Yeah, tmpfs/shm segs are what I was thinking about. If UML can live with
-> that as well, then I think it might be a good option.
+> Page reclaim is already "funny" for nonlinear mappings, page_referenced
+> is the least of its worries ;) It works, though.
 
-Oh, hmm.... if you can truncate these things then you still need to
-force unmap so you still need i_mmap_nonlinear.
-
-But come to think of it, I still don't think nonlinear mappings are
-too bad as they are ;)
+Or, to be more helpful, unmap_mapping_range is what it should be
+modelled on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
