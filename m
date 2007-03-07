@@ -1,38 +1,41 @@
-In-reply-to: <20070307012638.793d9a9f.akpm@linux-foundation.org> (message from
-	Andrew Morton on Wed, 7 Mar 2007 01:26:38 -0800)
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes
- nonlinear)
-References: <20070221023656.6306.246.sendpatchset@linux.site>
-	<20070221023735.6306.83373.sendpatchset@linux.site>
-	<20070306225101.f393632c.akpm@linux-foundation.org>
-	<20070307070853.GB15877@wotan.suse.de>
-	<20070307081948.GA9563@wotan.suse.de>
-	<20070307082755.GA25733@elte.hu>
-	<E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu>
-	<20070307004709.432ddf97.akpm@linux-foundation.org>
-	<E1HOrsL-0008Dv-00@dorka.pomaz.szeredi.hu>
-	<20070307010756.b31c8190.akpm@linux-foundation.org>
-	<20070307091823.GA8609@wotan.suse.de> <20070307012638.793d9a9f.akpm@linux-foundation.org>
-Message-Id: <E1HOsS7-0008Ky-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 07 Mar 2007 10:28:55 +0100
+Date: Wed, 7 Mar 2007 01:29:03 -0800
+From: Bill Irwin <bill.irwin@oracle.com>
+Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
+Message-ID: <20070307092903.GJ18774@holomorphy.com>
+References: <20070221023656.6306.246.sendpatchset@linux.site> <20070221023735.6306.83373.sendpatchset@linux.site> <20070306225101.f393632c.akpm@linux-foundation.org> <20070307070853.GB15877@wotan.suse.de> <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu> <20070307003520.08b1a082.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070307003520.08b1a082.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: npiggin@suse.de, miklos@szeredi.hu, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, a.p.zijlstra@chello.nl
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
 List-ID: <linux-mm.kvack.org>
 
-> > But I think we discovered that those msync changes are bogus anyway
-> > becuase there is a small race window where pte could be dirtied without
-> > page being set dirty?
-> 
-> Dunno, I don't recall that.  We dirty the page before the pte...
+On Wed, 7 Mar 2007 09:27:55 +0100 Ingo Molnar <mingo@elte.hu> wrote:
+>> btw., if we decide that nonlinear isnt worth the continuing maintainance 
+>> pain, we could internally implement/emulate sys_remap_file_pages() via a 
+>> call to mremap() and essentially deprecate it, without breaking the ABI 
+>> - and remove all the nonlinear code. (This would split fremap areas into 
+>> separate vmas)
 
-That's the one I just submitted a fix for ;)
+On Wed, Mar 07, 2007 at 12:35:20AM -0800, Andrew Morton wrote:
+> I'm rather regretting having merged it - I don't think it has been used for
+> much.
+> Paolo's UML speedup patches might use nonlinear though.
 
-  http://lkml.org/lkml/2007/3/6/308
+Guess what major real-life application not only uses nonlinear daily
+but would even be very happy to see it extended with non-vma-creating
+protections and more? It's not terribly typical for things to be
+truncated while remap_file_pages() is doing its work, though it's been
+proposed as a method of dynamism. It won't stress remap_file_pages() vs.
+truncate() in any meaningful way, though, as userspace will be rather
+diligent about clearing in-use data out of the file offset range to be
+truncated away anyway, and all that via O_DIRECT.
 
-Miklos
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
