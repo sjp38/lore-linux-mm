@@ -1,11 +1,12 @@
-Date: Wed, 7 Mar 2007 10:21:46 +0900
+Date: Wed, 7 Mar 2007 10:46:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC} memory unplug patchset prep [1/16] zone ids cleanup
-Message-Id: <20070307102146.d22b524d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0703052320140.21484@chino.kir.corp.google.com>
+Subject: Re: [RFC} memory unplug patchset prep [2/16] gathering
+ alloc_zeroed_user_highpage()
+Message-Id: <20070307104634.640ef505.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0703060017390.21900@chino.kir.corp.google.com>
 References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070306134232.bb024956.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0703052320140.21484@chino.kir.corp.google.com>
+	<20070306134334.e01e41bf.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0703060017390.21900@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,109 +16,48 @@ To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2007 07:36:30 -0800 (PST)
+On Tue, 6 Mar 2007 07:54:29 -0800 (PST)
 David Rientjes <rientjes@google.com> wrote:
 
-> >  static inline int is_highmem_idx(enum zone_type idx)
-> >  {
-> > -#ifdef CONFIG_HIGHMEM
-> >  	return (idx == ZONE_HIGHMEM);
-> > -#else
-> > -	return 0;
-> > -#endif
-> >  }
-> >  
+> On Tue, 6 Mar 2007, KAMEZAWA Hiroyuki wrote:
 > 
-> Doesn't this need a check for is_configured_zone(idx) as well since this 
-> will return 1 if we pass in idx == ZONE_HIGHMEM even though it's above 
-> MAX_NR_ZONES?
-Hmm, I'll add
-==
-BUG_ON(idx >= MAX_NR_ZONES)
-==
-here.
-
+> > Definitions of alloc_zeroed_user_highpage() is scattered.
+> > This patch gathers them to linux/highmem.h
+> > 
+> > To do so, added CONFIG_ARCH_HAS_PREZERO_USERPAGE and
+> > CONFIG_ARCH_HAS_FLUSH_USERNEWZEROPAGE.
+> > 
 > 
-> >  static inline int is_normal_idx(enum zone_type idx)
-> > @@ -520,11 +531,7 @@ static inline int is_normal_idx(enum zon
-> >   */
-> >  static inline int is_highmem(struct zone *zone)
-> >  {
-> > -#ifdef CONFIG_HIGHMEM
-> >  	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
-> > -#else
-> > -	return 0;
-> > -#endif
-> >  }
-> >  
+> Previous to this patch, __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE was never 
+> configurable by the user and was totally dependant on the architecture, 
+> which seems appropriate.  Are there cases when a user would actually 
+> prefer to disable the new CONFIG_ARCH_HAS_PREZERO_USERPAGE to avoid 
+> __GFP_ZERO allocations?
 > 
-> The only call site for this after your patchset is applied is in i386 code 
-> which you can probably remove with the identity idx.
-Ok, look into.
+no case. I like CONFIG_ARCH_xx rather than #define in header file.
 
 
-> 
-> >  static inline int is_normal(struct zone *zone)
-> > @@ -534,20 +541,12 @@ static inline int is_normal(struct zone 
-> >  
-> >  static inline int is_dma32(struct zone *zone)
-> >  {
-> > -#ifdef CONFIG_ZONE_DMA32
-> >  	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
-> > -#else
-> > -	return 0;
-> > -#endif
-> >  }
-> >  
-> >  static inline int is_dma(struct zone *zone)
-> >  {
-> > -#ifdef CONFIG_ZONE_DMA
-> >  	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
-> > -#else
-> > -	return 0;
-> > -#endif
-> >  }
-> >  
-> 
-> Neither is_dma32() nor is_dma() are even used anymore.
 
-I see. maybe removing entire call patch should be applied before this.
-
-> 
-> >  /* These two functions are used to setup the per zone pages min values */
-> > Index: devel-tree-2.6.20-mm2/mm/page_alloc.c
+> > Index: devel-tree-2.6.20-mm2/include/linux/highmem.h
 > > ===================================================================
-> > --- devel-tree-2.6.20-mm2.orig/mm/page_alloc.c
-> > +++ devel-tree-2.6.20-mm2/mm/page_alloc.c
-> > @@ -72,32 +72,34 @@ static void __free_pages_ok(struct page 
-> >   * TBD: should special case ZONE_DMA32 machines here - in those we normally
-> >   * don't need any ZONE_NORMAL reservation
-> >   */
-> > -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
-> > -#ifdef CONFIG_ZONE_DMA
-> > -	 256,
-> > -#endif
-> > -#ifdef CONFIG_ZONE_DMA32
-> > -	 256,
-> > -#endif
-> > -#ifdef CONFIG_HIGHMEM
-> > -	 32
-> > -#endif
-> > -};
-> > +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+> > --- devel-tree-2.6.20-mm2.orig/include/linux/highmem.h
+> > +++ devel-tree-2.6.20-mm2/include/linux/highmem.h
+> > @@ -60,8 +60,22 @@ static inline void clear_user_highpage(s
+> >  	/* Make sure this page is cleared on other CPU's too before using it */
+> >  	smp_wmb();
+> >  }
+> > +#ifndef CONFIG_ARCH_HAS_FLUSH_USER_NEWZEROPAGE
+> > +#define flush_user_newzeroapge(page)	do{}while(0);
+> > +#endif
 > >  
 > 
-> Probably an easier way to initialize these instead of 
-> zone_variables_init() is like this:
+> Well, I guess this supports my point.  It doesn't appear as it was ever 
+> tested in disabling __GFP_ZERO allocations because 
+> flush_user_newzeropage() is misspelled above so it wouldn't even compile.
 > 
-> 	int sysctl_lowmem_reserve_ratio[MAX_POSSIBLE_ZONES-1] = {
-> 		[ZONE_DMA]	= 256,
-> 		[ZONE_DMA32]	= 256,
-> 		[ZONE_HIGHMEM]	= 32 };
-> 
+Ah, okay. I'll add i386 to my testset, at least. 
 
-AH, I didn't know this initialization method. thanks. will try.
-
+Thanks,
 -Kame
 
 --
