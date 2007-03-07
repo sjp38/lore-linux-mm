@@ -1,33 +1,49 @@
-In-reply-to: <1173262002.6374.128.camel@twins> (message from Peter Zijlstra on
-	Wed, 07 Mar 2007 11:06:42 +0100)
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes
-	nonlinear)
-References: <20070306225101.f393632c.akpm@linux-foundation.org>
-	 <20070307070853.GB15877@wotan.suse.de>
-	 <20070307081948.GA9563@wotan.suse.de> <20070307082755.GA25733@elte.hu>
-	 <E1HOrfO-0008AW-00@dorka.pomaz.szeredi.hu>
-	 <20070307004709.432ddf97.akpm@linux-foundation.org>
-	 <E1HOrsL-0008Dv-00@dorka.pomaz.szeredi.hu>
-	 <20070307010756.b31c8190.akpm@linux-foundation.org>
-	 <1173259942.6374.125.camel@twins> <20070307094503.GD8609@wotan.suse.de>
-	 <20070307100430.GA5080@wotan.suse.de> <1173262002.6374.128.camel@twins>
-Message-Id: <E1HOt96-0008V6-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 07 Mar 2007 11:13:20 +0100
+Date: Wed, 7 Mar 2007 02:15:18 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/8] fix race in clear_page_dirty_for_io()
+Message-Id: <20070307021518.3b1ff4a2.akpm@linux-foundation.org>
+In-Reply-To: <20070307082337.101759335@szeredi.hu>
+References: <20070307080949.290171170@szeredi.hu>
+	<20070307082337.101759335@szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: npiggin@suse.de, akpm@linux-foundation.org, miklos@szeredi.hu, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> *sigh* yes was looking at all that code, thats gonna be darn slow
-> though, but I'll whip up a patch.
+(cc's reinstated)
 
-Well, if it's going to be darn slow, maybe it's better to go with
-mingo's plan on emulating nonlinear vmas with linear ones.  That'll be
-darn slow as well, but at least it will be much less complicated.
+On Wed, 07 Mar 2007 09:09:50 +0100 Miklos Szeredi <miklos@szeredi.hu> wrote:
 
-Miklos
+> There's a race in clear_page_dirty_for_io() that allows a page to have
+> cleared PG_dirty, while being mapped read-write into the page table(s).
+
+I assume you refer to this:
+
+		 * FIXME! We still have a race here: if somebody
+		 * adds the page back to the page tables in
+		 * between the "page_mkclean()" and the "TestClearPageDirty()",
+		 * we might have it mapped without the dirty bit set.
+		 */
+		if (page_mkclean(page))
+			set_page_dirty(page);
+		if (TestClearPageDirty(page)) {
+			dec_zone_page_state(page, NR_FILE_DIRTY);
+			return 1;
+		}
+
+I guess the comment actually refers to a writefault after the
+set_page_dirty() and before the TestClearPageDirty().  The fault handler
+will run set_page_dirty() and will return to userspace to rerun the write. 
+The page then gets set pte-dirty but this thread of control will now make
+the page !PageDirty() and will write it out.
+
+With Nick's proposed lock-the-page-in-pagefaults patches, we have
+lock_page() synchronisation between pagefaults and
+clear_page_dirty_for_io() which I think will fix this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
