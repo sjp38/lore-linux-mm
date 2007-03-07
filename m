@@ -1,46 +1,91 @@
-Date: Wed, 7 Mar 2007 12:00:36 +0100
+Date: Wed, 7 Mar 2007 12:04:29 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070307110035.GE5555@wotan.suse.de>
-References: <20070307010756.b31c8190.akpm@linux-foundation.org> <1173259942.6374.125.camel@twins> <20070307094503.GD8609@wotan.suse.de> <20070307100430.GA5080@wotan.suse.de> <1173262002.6374.128.camel@twins> <E1HOt96-0008V6-00@dorka.pomaz.szeredi.hu> <20070307102106.GB5555@wotan.suse.de> <1173263085.6374.132.camel@twins> <20070307103842.GD5555@wotan.suse.de> <1173264462.6374.140.camel@twins>
+Subject: [patch 8/6] mm: fix cpdfio vs fault race
+Message-ID: <20070307110429.GF5555@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1173264462.6374.140.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Andrew Morton <akpm@linux-foundation.org>, miklos@szeredi.hu
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 07, 2007 at 11:47:42AM +0100, Peter Zijlstra wrote:
-> On Wed, 2007-03-07 at 11:38 +0100, Nick Piggin wrote:
-> 
-> > > > There are real users who want these fast, though.
-> > > 
-> > > Yeah, why don't we have a tree per nonlinear vma to find these pages?
-> > > 
-> > > wli mentions shadow page tables..
-> > 
-> > We could do something more efficient, but I thought that half the point
-> > was that they didn't carry any of this extra memory, and they could be
-> > really fast to set up at the expense of efficiency elsewhere.
-> 
-> I'm failing to understand this :-(
-> 
-> That extra memory, and apparently they don't want the inefficiency
-> either.
+OK, this is how we can plug that hole, leveraging my
+previous patches to lock page over do_no_page.
 
-Sorry, I didn't understand your misunderstandings ;)
+I'm pretty sure the PageLocked invariant is correct.
 
-> 
-> > I don't see it being a big deal. I doubt anybody is writing out huge
-> > amounts of data via nonlinear mappings.
-> 
-> Well, now they don't, but it could be done or even exploited as a DoS.
 
-But so could nonlinear page reclaim. I think we need to restrict nonlinear
-mappings to root if we're worried about that.
+--
+Fix msync data loss and (less importantly) dirty page accounting inaccuracies
+due to the race remaining in clear_page_dirty_for_io().
+
+The deleted comment explains what the race was, and the added comments
+explain how it is fixed.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -1676,6 +1676,17 @@ gotten:
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	if (dirty_page) {
++		/*
++		 * Yes, Virginia, this is actually required to prevent a race
++		 * with clear_page_dirty_for_io() from clearing the page dirty
++		 * bit after it clear all dirty ptes, but before a racing
++		 * do_wp_page installs a dirty pte.
++		 *
++		 * do_fault is protected similarly by holding the page lock
++		 * after the dirty pte is installed.
++		 */
++		lock_page(dirty_page);
++		unlock_page(dirty_page);
+ 		set_page_dirty_balance(dirty_page);
+ 		put_page(dirty_page);
+ 	}
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -903,6 +903,8 @@ int clear_page_dirty_for_io(struct page 
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 
++	BUG_ON(!PageLocked(page));
++
+ 	if (mapping && mapping_cap_account_dirty(mapping)) {
+ 		/*
+ 		 * Yes, Virginia, this is indeed insane.
+@@ -928,14 +930,19 @@ int clear_page_dirty_for_io(struct page 
+ 		 * We basically use the page "master dirty bit"
+ 		 * as a serialization point for all the different
+ 		 * threads doing their things.
+-		 *
+-		 * FIXME! We still have a race here: if somebody
+-		 * adds the page back to the page tables in
+-		 * between the "page_mkclean()" and the "TestClearPageDirty()",
+-		 * we might have it mapped without the dirty bit set.
+ 		 */
+ 		if (page_mkclean(page))
+ 			set_page_dirty(page);
++		/*
++		 * We carefully synchronise fault handlers against
++		 * installing a dirty pte and marking the page dirty
++		 * at this point. We do this by having them hold the
++		 * page lock at some point after installing their
++		 * pte, but before marking the page dirty.
++		 * Pages are always locked coming in here, so we get
++		 * the desired exclusion. See mm/memory.c:do_wp_page()
++		 * for more comments.
++		 */
+ 		if (TestClearPageDirty(page)) {
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
+ 			return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
