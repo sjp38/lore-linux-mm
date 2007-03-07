@@ -1,173 +1,70 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070307023513.19658.81228.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070307023521.19658.80916.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070307023502.19658.39217.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070307023502.19658.39217.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [SLUB 2/3] Large kmalloc pass through. Removal of large general slabs
-Date: Tue,  6 Mar 2007 18:35:16 -0800 (PST)
+Subject: [SLUB 3/3] Guarantee minimum number of objects in a slab
+Date: Tue,  6 Mar 2007 18:35:21 -0800 (PST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>, mpm@selenic.com, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-Unlimited kmalloc size and removal of general caches >=4.
+Guarantee a mininum number of objects per slab
 
-We can directly use the page allocator for all allocations 4K and larger. This
-means that no general slabs are necessary and the size of the allocation passed
-to kmalloc() can be arbitrarily large. Remove the useless general caches over 4k.
+The number of objects per slab is important for SLUB because it determines
+the number of allocations that can be performed without having to consult
+per node slab lists. Add another boot option "min_objects=xx" that
+allows the configuration of the objects per slab. This is similar
+to SLABS queue configurations.
+
+Set the default of objects to 4. This will increase the page order for
+certain slab objects.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.21-rc2-mm1/mm/slub.c
 ===================================================================
---- linux-2.6.21-rc2-mm1.orig/mm/slub.c	2007-03-06 17:56:50.000000000 -0800
-+++ linux-2.6.21-rc2-mm1/mm/slub.c	2007-03-06 17:57:11.000000000 -0800
-@@ -1101,6 +1101,13 @@ void kmem_cache_free(struct kmem_cache *
- 	if (unlikely(PageCompound(page)))
- 		page = page->first_page;
+--- linux-2.6.21-rc2-mm1.orig/mm/slub.c	2007-03-06 17:57:11.000000000 -0800
++++ linux-2.6.21-rc2-mm1/mm/slub.c	2007-03-06 17:57:15.000000000 -0800
+@@ -1201,6 +1201,12 @@ static __always_inline struct page *get_
+ static int slub_min_order = 0;
  
-+	if (unlikely(!PageSlab(page))) {
-+		if (x == page_address(page)) {
-+			put_page(page);
-+			return;
-+		}
-+	}
+ /*
++ * Minumum number of objects per slab. This is necessary in order to
++ * reduce locking overhead. Similar to the queue size in SLAB.
++ */
++static int slub_min_objects = 4;
 +
- 	if (!s)
- 		s = page->slab;
- 
-@@ -1678,7 +1685,8 @@ static struct kmem_cache *get_slab(size_
- 	/* SLAB allows allocations with zero size. So warn on those */
- 	WARN_ON(size == 0);
- 	/* Allocation too large? */
--	BUG_ON(index < 0);
-+	if (index < 0)
-+		return NULL;
- 
- #ifdef CONFIG_ZONE_DMA
- 	if ((flags & SLUB_DMA)) {
-@@ -1722,15 +1730,32 @@ static struct kmem_cache *get_slab(size_
- 
- void *__kmalloc(size_t size, gfp_t flags)
- {
--	return kmem_cache_alloc(get_slab(size, flags), flags);
-+	struct kmem_cache *s = get_slab(size, flags);
-+	struct page *page;
-+
-+	if (s)
-+		return kmem_cache_alloc(s, flags);
-+
-+	page = alloc_pages(flags, get_order(size));
-+	if (!page)
-+		return NULL;
-+	return page_address(page);
- }
- EXPORT_SYMBOL(__kmalloc);
- 
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
--	return kmem_cache_alloc_node(get_slab(size, flags),
--							flags, node);
-+	struct kmem_cache *s = get_slab(size, flags);
-+	struct page *page;
-+
-+	if (s)
-+		return kmem_cache_alloc_node(s, flags, node);
-+
-+	page = alloc_pages_node(node, flags, get_order(size));
-+	if (!page)
-+		return NULL;
-+	return page_address(page);
- }
- EXPORT_SYMBOL(__kmalloc_node);
- #endif
-Index: linux-2.6.21-rc2-mm1/include/linux/slub_def.h
-===================================================================
---- linux-2.6.21-rc2-mm1.orig/include/linux/slub_def.h	2007-03-06 17:56:14.000000000 -0800
-+++ linux-2.6.21-rc2-mm1/include/linux/slub_def.h	2007-03-06 17:57:11.000000000 -0800
-@@ -55,7 +55,7 @@ struct kmem_cache {
++/*
+  * Merge control. If this is set then no merging of slab caches will occur.
   */
- #define KMALLOC_SHIFT_LOW 3
+ static int slub_nomerge = 0;
+@@ -1232,7 +1238,7 @@ static int calculate_order(int size)
+ 			order < MAX_ORDER; order++) {
+ 		unsigned long slab_size = PAGE_SIZE << order;
  
--#define KMALLOC_SHIFT_HIGH 18
-+#define KMALLOC_SHIFT_HIGH 11
+-		if (slab_size < size)
++		if (slab_size < slub_min_objects * size)
+ 			continue;
  
- #if L1_CACHE_BYTES <= 64
- #define KMALLOC_EXTRAS 2
-@@ -93,13 +93,6 @@ static inline int kmalloc_index(int size
- 	if (size <=  512) return 9;
- 	if (size <= 1024) return 10;
- 	if (size <= 2048) return 11;
--	if (size <= 4096) return 12;
--	if (size <=   8 * 1024) return 13;
--	if (size <=  16 * 1024) return 14;
--	if (size <=  32 * 1024) return 15;
--	if (size <=  64 * 1024) return 16;
--	if (size <= 128 * 1024) return 17;
--	if (size <= 256 * 1024) return 18;
- 	return -1;
- }
+ 		rem = slab_size % size;
+@@ -1624,6 +1630,15 @@ static int __init setup_slub_min_order(c
  
-@@ -113,14 +106,8 @@ static inline struct kmem_cache *kmalloc
+ __setup("slub_min_order=", setup_slub_min_order);
+ 
++static int __init setup_slub_min_objects(char *str)
++{
++	get_option (&str, &slub_min_objects);
++
++	return 1;
++}
++
++__setup("slub_min_objects=", setup_slub_min_objects);
++
+ static int __init setup_slub_nomerge(char *str)
  {
- 	int index = kmalloc_index(size) - KMALLOC_SHIFT_LOW;
- 
--	if (index < 0) {
--		/*
--		 * Generate a link failure. Would be great if we could
--		 * do something to stop the compile here.
--		 */
--		extern void __kmalloc_size_too_large(void);
--		__kmalloc_size_too_large();
--	}
-+	if (index < 0)
-+		return NULL;
- 	return &kmalloc_caches[index];
- }
- 
-@@ -136,9 +123,10 @@ static inline void *kmalloc(size_t size,
- 	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
- 		struct kmem_cache *s = kmalloc_slab(size);
- 
--		return kmem_cache_alloc(s, flags);
--	} else
--		return __kmalloc(size, flags);
-+		if (s)
-+			return kmem_cache_alloc(s, flags);
-+	}
-+	return __kmalloc(size, flags);
- }
- 
- static inline void *kzalloc(size_t size, gfp_t flags)
-@@ -146,9 +134,10 @@ static inline void *kzalloc(size_t size,
- 	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
- 		struct kmem_cache *s = kmalloc_slab(size);
- 
--		return kmem_cache_zalloc(s, flags);
--	} else
--		return __kzalloc(size, flags);
-+		if (s)
-+			return kmem_cache_zalloc(s, flags);
-+	}
-+	return __kzalloc(size, flags);
- }
- 
- #ifdef CONFIG_NUMA
-@@ -159,9 +148,10 @@ static inline void *kmalloc_node(size_t 
- 	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
- 		struct kmem_cache *s = kmalloc_slab(size);
- 
--		return kmem_cache_alloc_node(s, flags, node);
--	} else
--		return __kmalloc_node(size, flags, node);
-+		if (s)
-+			return kmem_cache_alloc_node(s, flags, node);
-+	}
-+	return __kmalloc_node(size, flags, node);
- }
- #endif
- 
+ 	slub_nomerge = 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
