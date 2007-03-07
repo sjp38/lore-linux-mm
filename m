@@ -1,47 +1,45 @@
-Subject: Re: [RFC][PATCH] mm: fix page_mkclean() vs non-linear vmas
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1173291120.4718.40.camel@lappy>
-References: <1173264462.6374.140.camel@twins>
-	 <20070307110035.GE5555@wotan.suse.de> <1173268086.6374.157.camel@twins>
-	 <20070307121730.GC18704@wotan.suse.de> <1173271286.6374.166.camel@twins>
-	 <20070307130851.GE18704@wotan.suse.de> <1173273562.6374.175.camel@twins>
-	 <20070307133649.GF18704@wotan.suse.de> <1173275532.6374.183.camel@twins>
-	 <1173278067.6374.188.camel@twins>  <20070307150102.GH18704@wotan.suse.de>
-	 <1173286682.6374.191.camel@twins>
-	 <Pine.LNX.4.64.0703070959430.5963@woody.linux-foundation.org>
-	 <1173291120.4718.40.camel@lappy>
-Content-Type: text/plain
-Date: Wed, 07 Mar 2007 19:24:39 +0100
-Message-Id: <1173291879.14351.3.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 7 Mar 2007 11:44:35 -0800
+From: Mark Gross <mgross@linux.intel.com>
+Subject: Re: [RFC} memory unplug patchset prep [0/16]
+Message-ID: <20070307194435.GA5158@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20070306133223.5d610daf.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0703060145570.22477@chino.kir.corp.google.com> <20070307112450.b7917dcc.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0703061828060.13164@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0703061828060.13164@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, Jeff Dike <jdike@addtoit.com>, hugh <hugh@veritas.com>
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, mel@skynet.ie, clameter@engr.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-03-07 at 19:12 +0100, Peter Zijlstra wrote:
-> On Wed, 2007-03-07 at 10:00 -0800, Linus Torvalds wrote:
-> > 
-> > On Wed, 7 Mar 2007, Peter Zijlstra wrote:
-> > > 
-> > > I'm not at all happy with this, but plain disallowing remap_file_pages on bdis
-> > > without BDI_CAP_NO_WRITEBACK seems to offend some people, hence restrict it to
-> > > root only.
-> > 
-> > I don't think that's a viable approach. Nonlinear mappings would normally 
-> > be used by databases, and you don't want to limit databases to be run by 
-> > root only.
+On Tue, Mar 06, 2007 at 06:31:35PM -0800, David Rientjes wrote:
+> On Wed, 7 Mar 2007, KAMEZAWA Hiroyuki wrote:
 > 
-> It was claimed that they use it on tmpfs only, not on a 'real'
-> filesystem.
+> > > Are you aiming to target both ia64 and x86_64 with this patchset or are 
+> > > you focusing on ia64 exclusively at the moment?
+> > > 
+> > Just because a machine, which I can use as much as I want, is ia64.
+> > I don't have x86_64 now. I'll add i386 in the next post.
+> > I think all arch which support MEMORY_HOTPLUG will support unplug at last.
+> > 
+> 
+> Ok, sounds good.  I can offer quite extensive x86_64 testing coverage.  I 
+> think it's going to be much better to base this patchset on 2.6.21-rc2-mm2 
+> so we don't have a couple different GFP_MOVABLE implementations floating 
+> around.
+> 
+> I'll await your next patchset and then I'll play around with it for 
+> x86_64.  I'd like to eventually combine your memory unplug work with Mark 
+> Gross's PM-memory enabling node flags (cc'd).  We can wire it up through a 
+> sysfs interface for userspace manipulation and see it working in action.
+> 
+> Looking forward to the next series.
 
-More specifically, databases want to use direct IO (I know you hate it)
-and use the nonlinear vma as buffer area to feed this direct IO
+Me too!
 
-Mapped IO is unsuited for databases in its current form due to the way
-IO errors are handled.
+--mgross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
