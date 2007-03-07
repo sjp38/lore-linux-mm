@@ -1,39 +1,39 @@
-Subject: Re: [RFC][PATCH] mm: fix page_mkclean() vs non-linear vmas
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0703070959430.5963@woody.linux-foundation.org>
-References: <1173264462.6374.140.camel@twins>
-	 <20070307110035.GE5555@wotan.suse.de> <1173268086.6374.157.camel@twins>
-	 <20070307121730.GC18704@wotan.suse.de> <1173271286.6374.166.camel@twins>
-	 <20070307130851.GE18704@wotan.suse.de> <1173273562.6374.175.camel@twins>
-	 <20070307133649.GF18704@wotan.suse.de> <1173275532.6374.183.camel@twins>
-	 <1173278067.6374.188.camel@twins>  <20070307150102.GH18704@wotan.suse.de>
-	 <1173286682.6374.191.camel@twins>
-	 <Pine.LNX.4.64.0703070959430.5963@woody.linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 07 Mar 2007 19:12:00 +0100
-Message-Id: <1173291120.4718.40.camel@lappy>
+Date: Wed, 7 Mar 2007 12:03:59 -0600
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [SLUB 2/3] Large kmalloc pass through. Removal of large general slabs
+Message-ID: <20070307180359.GU23311@waste.org>
+References: <20070307023502.19658.39217.sendpatchset@schroedinger.engr.sgi.com> <20070307023513.19658.81228.sendpatchset@schroedinger.engr.sgi.com> <1173258077.6374.120.camel@twins> <Pine.LNX.4.64.0703070732130.9460@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0703070732130.9460@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, Jeff Dike <jdike@addtoit.com>, hugh <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, akpm@osdl.org, Marcelo Tosatti <marcelo@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-03-07 at 10:00 -0800, Linus Torvalds wrote:
-> 
+On Wed, Mar 07, 2007 at 07:34:38AM -0800, Christoph Lameter wrote:
 > On Wed, 7 Mar 2007, Peter Zijlstra wrote:
-> > 
-> > I'm not at all happy with this, but plain disallowing remap_file_pages on bdis
-> > without BDI_CAP_NO_WRITEBACK seems to offend some people, hence restrict it to
-> > root only.
 > 
-> I don't think that's a viable approach. Nonlinear mappings would normally 
-> be used by databases, and you don't want to limit databases to be run by 
-> root only.
+> > >  	return -1;
+> > >  }
+> > 
+> > Perhaps so something with PAGE_SIZE here, as you know there are
+> > platforms/configs where PAGE_SIZE != 4k :-)
+> 
+> Any allocation > 2k just uses a regular allocation which will waste space.
+> 
+> I have a patch here to make this dependent on page size using a loop. The 
+> problem is that it does not work with some versions of gcc. On the 
+> other hand we really need this since one arch can 
+> actually have an order 22 page size!
 
-It was claimed that they use it on tmpfs only, not on a 'real'
-filesystem.
+You don't need a loop, you need an if (s >= PAGE_SIZE) at the head of
+your static list.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
