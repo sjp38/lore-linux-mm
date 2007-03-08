@@ -1,35 +1,52 @@
-Date: Fri, 9 Mar 2007 00:15:12 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re: Remove page flags for software suspend)
-Message-ID: <20070308231512.GB1977@elf.ucw.cz>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703041450.02178.rjw@sisk.pl> <1173315625.3546.32.camel@johannes.berg> <200703082305.43513.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200703082305.43513.rjw@sisk.pl>
+Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re:
+	Remove page flags for software suspend)
+From: Johannes Berg <johannes@sipsolutions.net>
+In-Reply-To: <20070308231512.GB1977@elf.ucw.cz>
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
+	 <200703041450.02178.rjw@sisk.pl> <1173315625.3546.32.camel@johannes.berg>
+	 <200703082305.43513.rjw@sisk.pl>  <20070308231512.GB1977@elf.ucw.cz>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-0+7od6/IuhrtZwpZSSog"
+Date: Fri, 09 Mar 2007 00:21:34 +0100
+Message-Id: <1173396094.3831.42.camel@johannes.berg>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Johannes Berg <johannes@sipsolutions.net>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+--=-0+7od6/IuhrtZwpZSSog
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-> +		region = kzalloc(sizeof(struct nosave_region), GFP_ATOMIC);
-> +		if (!region) {
-> +			printk(KERN_WARNING "swsusp: Not enough memory "
-> +				"to register a nosave region!\n");
-> +			WARN_ON(1);
-> +			return;
-> +		}
+On Fri, 2007-03-09 at 00:15 +0100, Pavel Machek wrote:
 
-That's a no-no. ATOMIC alocations can fail, and no, WARN_ON is not
-enough. It is not a bug, they just fail.
-								Pavel
+> That's a no-no. ATOMIC alocations can fail, and no, WARN_ON is not
+> enough. It is not a bug, they just fail.
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+But like I said in my post, there's no way we can disable suspend to
+disk when they do, right now anyway. Also, this can't be called any
+later than a late initcall or such since it's __init, and thus there
+shouldn't be memory pressure yet that would cause this to fail.
+
+In any case, I'd be much happier with having a "disable suspend"
+variable so we could print a big warning and set that flag.
+
+johannes
+
+--=-0+7od6/IuhrtZwpZSSog
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Comment: Johannes Berg (powerbook)
+
+iD8DBQBF8Jp+/ETPhpq3jKURAqVJAJ4qbLd+yOSv8ZeEegAJXIzydjCNdwCgrTpL
+f5df6oWJNCS9ClQeJ5R+Zm4=
+=hmli
+-----END PGP SIGNATURE-----
+
+--=-0+7od6/IuhrtZwpZSSog--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
