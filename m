@@ -1,94 +1,156 @@
-Date: Wed, 7 Mar 2007 13:33:25 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 8 Mar 2007 06:50:04 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 8/6] mm: fix cpdfio vs fault race
+Message-ID: <20070308055004.GB24605@wotan.suse.de>
+References: <20070307110429.GF5555@wotan.suse.de> <20070307032038.f08333a8.akpm@linux-foundation.org> <20070307113121.GA18704@wotan.suse.de> <20070307130214.56d4b03b.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20070307130214.56d4b03b.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0703071310180.5963@woody.linux-foundation.org>
-References: <20070307110429.GF5555@wotan.suse.de>
- <20070307032038.f08333a8.akpm@linux-foundation.org> <20070307113121.GA18704@wotan.suse.de>
- <20070307130214.56d4b03b.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, miklos@szeredi.hu, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: miklos@szeredi.hu, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 7 Mar 2007, Andrew Morton wrote:
+On Wed, Mar 07, 2007 at 01:02:14PM -0800, Andrew Morton wrote:
+> On Wed, 7 Mar 2007 12:31:21 +0100
+> Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > Index: linux-2.6/mm/memory.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/memory.c
+> > +++ linux-2.6/mm/memory.c
+> > @@ -1664,6 +1664,15 @@ gotten:
+> >  unlock:
+> >  	pte_unmap_unlock(page_table, ptl);
+> >  	if (dirty_page) {
+> > +		/*
+> > +		 * Yes, Virginia, this is actually required to prevent a race
+> > +		 * with clear_page_dirty_for_io() from clearing the page dirty
+> > +		 * bit after it clear all dirty ptes, but before a racing
+> > +		 * do_wp_page installs a dirty pte.
+> > +		 *
+> > +		 * do_no_page is protected similarly.
+> > +		 */
+> > +		wait_on_page_locked(dirty_page);
+> >  		set_page_dirty_balance(dirty_page);
+> >  		put_page(dirty_page);
+> >  	}
+> > @@ -2316,6 +2325,7 @@ retry:
+> >  unlock:
+> >  	pte_unmap_unlock(page_table, ptl);
+> >  	if (dirty_page) {
+> > +		wait_on_page_locked(dirty_page);
+> >  		set_page_dirty_balance(dirty_page);
+> >  		put_page(dirty_page);
+> >  	}
+> > Index: linux-2.6/mm/page-writeback.c
 > 
 > now that's scary - applying this on top of your
 > lock-the-page-in-the-fault-handler patches gives:
+> 
+> 	if (dirty_page) {
+> 		/*
+> 		 * Yes, Virginia, this is actually required to prevent a race
+> 		 * with clear_page_dirty_for_io() from clearing the page dirty
+> 		 * bit after it clear all dirty ptes, but before a racing
+> 		 * do_wp_page installs a dirty pte.
+> 		 *
+> 		 * do_no_page is protected similarly.
+> 		 */
+> 		wait_on_page_locked(dirty_page);
+> 		wait_on_page_locked(dirty_page);
+> 		set_page_dirty_balance(dirty_page);
+> 		put_page(dirty_page);
+> 	}
+> 
+> One wonders how on earth patch(1) managed to do that.  If it has inserted
+> the comment twice as well then it might be explicable..
 
-This is why you should never use plain "patch" with defaultl arguments in 
-a script (and probably not even from an interactive command line).
+Ouch ;) Yeah that patch I sent was supposed to apply underneath
+the previous ones, sorry I wasn't clear.
 
-I've said this before, and I'll say it again: "'patch' is incredibly 
-unsafe by default".
+> Oh well, let's try this:
 
-Please use
+Yeah that looks like the correct one for applying on top. Thanks.
 
-	patch -p1 --fuzz=0
-
-rather than the defaults (adding "-E -u -f" is also often a good idea, 
-depending on the source of the patches). And that's *especially* true in 
-scripts.
-
-Yeah, "--fuzz=0" means that patch will reject more patches, but the 
-patches it rejects tends to be patches it *should* reject, and you should 
-take a look at manually (and then you can decide to not use --fuzz=0 if 
-you think patch does the right thing by mistake).
-
-Also, *never* use "-l" or some of the other flags that make patch even 
-less reliable. It's already guessing enough. Again, "-l" can be useful if 
-you're going to check the result manually and fix up whatever bad stuff it 
-does, but if it's needed, I can almost guarantee that it *will* need 
-fixing up, which is why using those things in automated scripts is not a 
-good idea.
-
-If you have git installed, "git apply" has saner defaults than "patch" 
-does (with "git apply" you have to explicitly loosen any rules, and it 
-doesn't guess by default). "git apply" also checks the whole patch 
-"atomically" when applying, so that if there are rejects it won't apply 
-things partially and force you to clean up.
-
-The "git apply" behaviour is particularly useful, because since it by 
-default doesn't change anything at all on failure, you can start off with 
-the strict defaults, and then *if* something goes wrong you can try it 
-with less strict settings without having to undo some partial patch mess.
-
-Of course, you can do the same with GNU patch by starting off with a 
-dry-run application and seeing that was ok:
-
-	# is it clean
-	if patch --dry-run --fuzz=0 -p1 < ...
-	then
-		# all ok, just patch, no need to ask the user
-		patch -p1 < ....
-	else
-		# this may do bad things, but let's try, and 
-		# then tell the user to check the end result
-		patch < 
-		
-		.. generate diff, ask user to check it for sanity ! ..
-		.. But *require* manual checking! ..
-	fi
-
-My original patch applicator script had
-
-	patch -E -u --no-backup-if-mismatch -f -p1 --fuzz=0
-
-(where that "--no-backup-if-mismatch" is just because with an SCM backing 
-the setup up, there's just no point - but it depends on your setup, of 
-course). That was because I had (over painful errors) realized that 
-allowing fuzz is just a guaranteed way to silently get merge errors.
-
-You can get merge errors even with a zero fuzz (if it happens to find 
-another place to apply the patch - especially true in very structured 
-files that have lots of identical line snipptes), but it's a lot less 
-likely.
-
-			Linus
+> 
+> From: Nick Piggin <npiggin@suse.de>
+> 
+> Fix msync data loss and (less importantly) dirty page accounting
+> inaccuracies due to the race remaining in clear_page_dirty_for_io().
+> 
+> The deleted comment explains what the race was, and the added comments
+> explain how it is fixed.
+> 
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Miklos Szeredi <miklos@szeredi.hu>
+> Signed-off-by: Andrew Morton <akpm@osdl.org>
+> ---
+> 
+>  mm/memory.c         |    9 +++++++++
+>  mm/page-writeback.c |   17 ++++++++++++-----
+>  2 files changed, 21 insertions(+), 5 deletions(-)
+> 
+> diff -puN mm/memory.c~mm-fix-cpdfio-vs-fault-race mm/memory.c
+> --- a/mm/memory.c~mm-fix-cpdfio-vs-fault-race
+> +++ a/mm/memory.c
+> @@ -1669,6 +1669,15 @@ gotten:
+>  unlock:
+>  	pte_unmap_unlock(page_table, ptl);
+>  	if (dirty_page) {
+> +		/*
+> +		 * Yes, Virginia, this is actually required to prevent a race
+> +		 * with clear_page_dirty_for_io() from clearing the page dirty
+> +		 * bit after it clear all dirty ptes, but before a racing
+> +		 * do_wp_page installs a dirty pte.
+> +		 *
+> +		 * do_no_page is protected similarly.
+> +		 */
+> +		wait_on_page_locked(dirty_page);
+>  		set_page_dirty_balance(dirty_page);
+>  		put_page(dirty_page);
+>  	}
+> diff -puN mm/page-writeback.c~mm-fix-cpdfio-vs-fault-race mm/page-writeback.c
+> --- a/mm/page-writeback.c~mm-fix-cpdfio-vs-fault-race
+> +++ a/mm/page-writeback.c
+> @@ -903,6 +903,8 @@ int clear_page_dirty_for_io(struct page 
+>  {
+>  	struct address_space *mapping = page_mapping(page);
+>  
+> +	BUG_ON(!PageLocked(page));
+> +
+>  	if (mapping && mapping_cap_account_dirty(mapping)) {
+>  		/*
+>  		 * Yes, Virginia, this is indeed insane.
+> @@ -928,14 +930,19 @@ int clear_page_dirty_for_io(struct page 
+>  		 * We basically use the page "master dirty bit"
+>  		 * as a serialization point for all the different
+>  		 * threads doing their things.
+> -		 *
+> -		 * FIXME! We still have a race here: if somebody
+> -		 * adds the page back to the page tables in
+> -		 * between the "page_mkclean()" and the "TestClearPageDirty()",
+> -		 * we might have it mapped without the dirty bit set.
+>  		 */
+>  		if (page_mkclean(page))
+>  			set_page_dirty(page);
+> +		/*
+> +		 * We carefully synchronise fault handlers against
+> +		 * installing a dirty pte and marking the page dirty
+> +		 * at this point. We do this by having them hold the
+> +		 * page lock at some point after installing their
+> +		 * pte, but before marking the page dirty.
+> +		 * Pages are always locked coming in here, so we get
+> +		 * the desired exclusion. See mm/memory.c:do_wp_page()
+> +		 * for more comments.
+> +		 */
+>  		if (TestClearPageDirty(page)) {
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+>  			return 1;
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
