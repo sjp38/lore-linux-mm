@@ -1,62 +1,76 @@
-Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re:
-	Remove page flags for software suspend)
-From: Johannes Berg <johannes@sipsolutions.net>
-In-Reply-To: <200703082310.15297.rjw@sisk.pl>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
-	 <200703041450.02178.rjw@sisk.pl> <1173366543.3248.1.camel@johannes.berg>
-	 <200703082310.15297.rjw@sisk.pl>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-H5VGwHT09kUgx4FcyzbV"
-Date: Thu, 08 Mar 2007 23:12:38 +0100
-Message-Id: <1173391958.3831.7.camel@johannes.berg>
-Mime-Version: 1.0
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re: Remove page flags for software suspend)
+Date: Thu, 8 Mar 2007 23:33:05 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703082305.43513.rjw@sisk.pl> <1173391817.3831.4.camel@johannes.berg>
+In-Reply-To: <1173391817.3831.4.camel@johannes.berg>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200703082333.06679.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Pavel Machek <pavel@ucw.cz>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Johannes Berg <johannes@sipsolutions.net>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Pavel Machek <pavel@ucw.cz>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
---=-H5VGwHT09kUgx4FcyzbV
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Thursday, 8 March 2007 23:10, Johannes Berg wrote:
+> On Thu, 2007-03-08 at 23:05 +0100, Rafael J. Wysocki wrote:
+> 
+> > > The easiest solution I came up with is below. Of course, the suspend
+> > > patches for powerpc64 are still very much work in progress and I might
+> > > end up changing the whole reservation scheme after some feedback... If
+> > > nobody else needs this then don't think about it now.
+> > 
+> > Well, it may be needed for other things too.
+> 
+> Yeah, but it's probably better to wait for them :)
 
-On Thu, 2007-03-08 at 23:10 +0100, Rafael J. Wysocki wrote:
+Agreed.
 
-> > Works on my powerbook as well. Never mind that usb is broken again with
-> > suspend to disk. And my own patches break both str and std right now.
->=20
-> Ouch.
+> > I think we should pass a mask.  BTW, can you please check if the appended patch
+> > is sufficient?
+> 
+> Unfortunately I won't be able to actually try this on hardware until the
+> 20th or so.
 
-Actually. Some fluke or mismanagement of patches, my own patches are
-fine (the suspend set I just gave you the link to). Probably screwed
-something up during testing earlier.
+OK, it's not an urgent thing. ;-)
 
-> > But these (on top of wireless-dev which is currently about 2.6.21-rc2)
-> > work fine as long as I assume they don't break usb ;)
->=20
-> Well, on my boxes they don't. ;-)
+> > > With this patch and appropriate changes to my suspend code, it works.
+> > 
+> > OK, thanks for testing!
+> 
+> Forgot to mention, patches are at
+> http://johannes.sipsolutions.net/patches/ look for the latest
+> powerpc-suspend-* patchset.
 
-Good :)
-I think usb suspend is broken on my machine with and without these
-patches but I haven't tested it. I may debug it more some time, or just
-leave it since it works with str and I hardly ever std. Then again,
-maybe it's fine in -rc3, I'm still at -rc2 (due to wireless-dev not
-being up to date)
+Thanks for the link.
+ 
+> > +	if (system_state == SYSTEM_BOOTING) {
+> > +		/* This allocation cannot fail */
+> > +		region = alloc_bootmem_low(sizeof(struct nosave_region));
+> > +	} else {
+> > +		region = kzalloc(sizeof(struct nosave_region), GFP_ATOMIC);
+> > +		if (!region) {
+> > +			printk(KERN_WARNING "swsusp: Not enough memory "
+> > +				"to register a nosave region!\n");
+> > +			WARN_ON(1);
+> > +			return;
+> > +		}
+> > +	}
+> 
+> I don't think that'll be sufficient, system_state = SYSTEM_BOOTING is
+> done only in init/main.c:init_post which is done after after calling the
+> initcalls (they are called in do_basic_setup)
 
-johannes
+Well, I don't think so.  If I understand the definition of system_state
+correctly, it is initially equal to SYSTEM_BOOTING.  Then, it's changed to
+SYSTEM_RUNNING in init/main.c after the bootmem has been freed.
 
---=-H5VGwHT09kUgx4FcyzbV
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+Anyway, the patch works on x86_64. :-)
 
------BEGIN PGP SIGNATURE-----
-Comment: Johannes Berg (powerbook)
-
-iD8DBQBF8IpW/ETPhpq3jKURAt5FAJ9JWSXRhO0tqQVythS20agm9rbBYwCeMjmj
-ZMNWzG2dytKO4e+s+XW9tV0=
-=7a/E
------END PGP SIGNATURE-----
-
---=-H5VGwHT09kUgx4FcyzbV--
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
