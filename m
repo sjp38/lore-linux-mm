@@ -1,20 +1,23 @@
-Date: Fri, 9 Mar 2007 00:23:49 +0100
-From: Pavel Machek <pavel@ucw.cz>
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
 Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re: Remove page flags for software suspend)
-Message-ID: <20070308232349.GD1977@elf.ucw.cz>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703041450.02178.rjw@sisk.pl> <1173315625.3546.32.camel@johannes.berg> <200703082305.43513.rjw@sisk.pl> <20070308231512.GB1977@elf.ucw.cz> <1173396094.3831.42.camel@johannes.berg>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Fri, 9 Mar 2007 00:34:57 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <20070308231512.GB1977@elf.ucw.cz> <1173396094.3831.42.camel@johannes.berg>
 In-Reply-To: <1173396094.3831.42.camel@johannes.berg>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200703090034.57978.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Johannes Berg <johannes@sipsolutions.net>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Pavel Machek <pavel@ucw.cz>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
+On Friday, 9 March 2007 00:21, Johannes Berg wrote:
+> On Fri, 2007-03-09 at 00:15 +0100, Pavel Machek wrote:
+> 
 > > That's a no-no. ATOMIC alocations can fail, and no, WARN_ON is not
 > > enough. It is not a bug, they just fail.
 > 
@@ -22,15 +25,19 @@ Hi!
 > disk when they do, right now anyway. Also, this can't be called any
 > later than a late initcall or such since it's __init, and thus there
 > shouldn't be memory pressure yet that would cause this to fail.
-> 
+
+Exactly.  If an atomic allocation fails at this stage, there is a bug IMHO
+(although not necessarily in our code).
+
+Still, the patch is not sufficient, so that's just a theoretical thing.
+
 > In any case, I'd be much happier with having a "disable suspend"
 > variable so we could print a big warning and set that flag.
 
-Patch would probably be accepted ;-).
-								Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Well, I think that if we can't get so little memory at this early stage, the
+kernel will have much more trouble anyway. ;-)
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
