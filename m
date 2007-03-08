@@ -1,50 +1,35 @@
-Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re:
-	Remove page flags for software suspend)
-From: Johannes Berg <johannes@sipsolutions.net>
-In-Reply-To: <200703082354.46001.rjw@sisk.pl>
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com>
-	 <200703082333.06679.rjw@sisk.pl> <1173393815.3831.29.camel@johannes.berg>
-	 <200703082354.46001.rjw@sisk.pl>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-tNuwlaBOX2/ObDPm8lFC"
-Date: Thu, 08 Mar 2007 23:54:51 +0100
-Message-Id: <1173394491.3831.38.camel@johannes.berg>
-Mime-Version: 1.0
+Date: Fri, 9 Mar 2007 00:15:12 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC][PATCH 0/3] swsusp: Do not use page flags (was: Re: Remove page flags for software suspend)
+Message-ID: <20070308231512.GB1977@elf.ucw.cz>
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703041450.02178.rjw@sisk.pl> <1173315625.3546.32.camel@johannes.berg> <200703082305.43513.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200703082305.43513.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Pavel Machek <pavel@ucw.cz>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Johannes Berg <johannes@sipsolutions.net>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
---=-tNuwlaBOX2/ObDPm8lFC
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Hi!
 
-On Thu, 2007-03-08 at 23:54 +0100, Rafael J. Wysocki wrote:
+> +		region = kzalloc(sizeof(struct nosave_region), GFP_ATOMIC);
+> +		if (!region) {
+> +			printk(KERN_WARNING "swsusp: Not enough memory "
+> +				"to register a nosave region!\n");
+> +			WARN_ON(1);
+> +			return;
+> +		}
 
-> In that case your patch seems to be the simplest one and I think it shoul=
-d go
-> along with some code that will actually use it.
+That's a no-no. ATOMIC alocations can fail, and no, WARN_ON is not
+enough. It is not a bug, they just fail.
+								Pavel
 
-Right. So if anyone else needs it feel free to pick up my patch, if not
-I'll submit it again as part of my "suspend on powermac G5" patchset
-when that is properly reviewed by the appropriate people. Assuming, of
-course, that this (yours) patchset is picked up.
-
-johannes
-
---=-tNuwlaBOX2/ObDPm8lFC
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Comment: Johannes Berg (powerbook)
-
-iD8DBQBF8JQ7/ETPhpq3jKURAkoQAKCaJVVg20dqWF+ddLHt0tSsbO7y/ACfSyya
-TXNhhznkb0ygzgV1oxwF/aU=
-=h+Kv
------END PGP SIGNATURE-----
-
---=-tNuwlaBOX2/ObDPm8lFC--
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
