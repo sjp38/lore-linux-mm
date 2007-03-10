@@ -1,55 +1,56 @@
-Date: Fri, 9 Mar 2007 13:26:28 -0800
-From: Mark Gross <mgross@linux.intel.com>
-Subject: Re: [RFC] [PATCH] Power Managed memory base enabling
-Message-ID: <20070309212628.GA18223@linux.intel.com>
-Reply-To: mgross@linux.intel.com
-References: <20070305181826.GA21515@linux.intel.com> <Pine.LNX.4.64.0703051941310.18703@chino.kir.corp.google.com> <20070306164722.GB22725@linux.intel.com> <Pine.LNX.4.64.0703061838390.13314@chino.kir.corp.google.com> <20070309205344.GA16777@linux.intel.com> <Pine.LNX.4.64.0703091326270.13252@chino.kir.corp.google.com>
-MIME-Version: 1.0
+Date: Sat, 10 Mar 2007 04:49:42 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: fix madvise infinine loop
+Message-ID: <20070310034942.GB13299@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0703091326270.13252@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-pm@lists.osdl.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, mark.gross@intel.com, neelam.chandwani@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 09, 2007 at 01:27:36PM -0800, David Rientjes wrote:
-> On Fri, 9 Mar 2007, Mark Gross wrote:
-> 
-> > +int __nearest_non_pm_node(int nid)
-> > +{
-> > +	int i, dist, closest, temp;
-> > +	
-> > +	if (!__power_managed_node(nid))
-> > +		return nid;
-> > +	dist = closest= 255;
-> > +	for_each_node(i) {
-> 
-> Shouldn't this be for_each_online_node(i) ?
+Hi,
 
-yes.
+This has been noticed when running a particular database server which I
+won't name. Please apply.
 
+--
+madvise(MADV_REMOVE) can go into an infinite loop or cause an oops if
+the call covers a region from the start of a vma, and extending past that
+vma.
 
-thanks, 
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 
---mgross
-
-> 
-> > +		if (__power_managed_node(i))
-> > +			continue;
-> > +
-> > +		if (i != nid) {
-> > +			temp = __node_distance(nid, i );
-> > +			if (temp < dist) {
-> > +				closest = i;
-> > +				dist = temp;
-> > +			}
-> > +		}
-> > +	}
-> > +	BUG_ON(closest == 255);
-> > +	return closest;
-> > +}
+Index: linux-2.6.16/mm/madvise.c
+===================================================================
+--- linux-2.6.16.orig/mm/madvise.c
++++ linux-2.6.16/mm/madvise.c
+@@ -155,11 +155,14 @@ static long madvise_dontneed(struct vm_a
+  * Other filesystems return -ENOSYS.
+  */
+ static long madvise_remove(struct vm_area_struct *vma,
++				struct vm_area_struct **prev,
+ 				unsigned long start, unsigned long end)
+ {
+ 	struct address_space *mapping;
+         loff_t offset, endoff;
+ 
++	*prev = vma;
++
+ 	if (vma->vm_flags & (VM_LOCKED|VM_NONLINEAR|VM_HUGETLB))
+ 		return -EINVAL;
+ 
+@@ -199,7 +202,7 @@ madvise_vma(struct vm_area_struct *vma, 
+ 		error = madvise_behavior(vma, prev, start, end, behavior);
+ 		break;
+ 	case MADV_REMOVE:
+-		error = madvise_remove(vma, start, end);
++		error = madvise_remove(vma, prev, start, end);
+ 		break;
+ 
+ 	case MADV_WILLNEED:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
