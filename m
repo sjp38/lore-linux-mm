@@ -1,98 +1,50 @@
-From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20070312042632.5536.82787.sendpatchset@linux.site>
-In-Reply-To: <20070312042553.5536.73828.sendpatchset@linux.site>
-References: <20070312042553.5536.73828.sendpatchset@linux.site>
-Subject: [patch 4/4] mm: account mlocked pages
-Date: Mon, 12 Mar 2007 07:39:14 +0100 (CET)
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/3] Lumpy Reclaim V5
+Message-ID: <exportbomb.1173723760@pinky>
+Date: Mon, 12 Mar 2007 18:22:45 +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Add NR_MLOCK zone page state, which provides a (conservative) count of
-mlocked pages (actually, the number of mlocked pages moved off the LRU).
+Following this email are three patches which represent the
+current state of the lumpy reclaim patches; collectively lumpy V5.
+This patch kit is against 2.6.21-rc3-mm2.  This stack is split out
+to show the incremental changes in this version.  This contains
+one fixup following on from Christoph Lameters feedback and one change
+affecting scan rates.  Andrew, please consider for -mm.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+Comparitive testing between lumpy-V4 and lump-V5 generally shows
+a small improvement, coming from the slight increase in scanning
+coming from second of the patches.
 
- drivers/base/node.c    |    2 ++
- fs/proc/proc_misc.c    |    2 ++
- include/linux/mmzone.h |    1 +
- mm/mlock.c             |    2 ++
- 4 files changed, 7 insertions(+)
+I have taken the lumpy-V3 patches and the last batch of changes
+and folded them back into a single patch (collectively lumpy-V4),
+updating attribution.  On top of this are are two patches the first
+the result of feedback from Christoph and the latter a change which
+I believe is a correctness issue for scanning rates:
 
-Index: linux-2.6/drivers/base/node.c
-===================================================================
---- linux-2.6.orig/drivers/base/node.c
-+++ linux-2.6/drivers/base/node.c
-@@ -60,6 +60,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d FilePages:    %8lu kB\n"
- 		       "Node %d Mapped:       %8lu kB\n"
- 		       "Node %d AnonPages:    %8lu kB\n"
-+		       "Node %d Locked:       %8lu kB\n"
- 		       "Node %d PageTables:   %8lu kB\n"
- 		       "Node %d NFS_Unstable: %8lu kB\n"
- 		       "Node %d Bounce:       %8lu kB\n"
-@@ -82,6 +83,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(nid, NR_MLOCK)),
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-Index: linux-2.6/fs/proc/proc_misc.c
-===================================================================
---- linux-2.6.orig/fs/proc/proc_misc.c
-+++ linux-2.6/fs/proc/proc_misc.c
-@@ -166,6 +166,7 @@ static int meminfo_read_proc(char *page,
- 		"Writeback:    %8lu kB\n"
- 		"AnonPages:    %8lu kB\n"
- 		"Mapped:       %8lu kB\n"
-+		"Locked:       %8lu kB\n"
- 		"Slab:         %8lu kB\n"
- 		"SReclaimable: %8lu kB\n"
- 		"SUnreclaim:   %8lu kB\n"
-@@ -196,6 +197,7 @@ static int meminfo_read_proc(char *page,
- 		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
-+		K(global_page_state(NR_MLOCK)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
-Index: linux-2.6/include/linux/mmzone.h
-===================================================================
---- linux-2.6.orig/include/linux/mmzone.h
-+++ linux-2.6/include/linux/mmzone.h
-@@ -73,6 +73,7 @@ enum zone_stat_item {
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
-+	NR_MLOCK,	/* mlock()ed pages found and moved off LRU */
- 	NR_FILE_PAGES,
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
-Index: linux-2.6/mm/mlock.c
-===================================================================
---- linux-2.6.orig/mm/mlock.c
-+++ linux-2.6/mm/mlock.c
-@@ -54,6 +54,7 @@ static void __set_page_mlock(struct page
- 
- 	SetPageMLock(page);
- 	get_page(page);
-+	inc_zone_page_state(page, NR_MLOCK);
- 	set_page_mlock_count(page, 1);
- }
- 
-@@ -63,6 +64,7 @@ static void __clear_page_mlock(struct pa
- 	BUG_ON(PageLRU(page));
- 	BUG_ON(page_mlock_count(page));
- 
-+	dec_zone_page_state(page, NR_MLOCK);
- 	ClearPageMLock(page);
- 	lru_cache_add_active(page);
- 	put_page(page);
+lumpy-reclaim-V4: folded back base, changes incorporated are listed
+  in the changelog which is included in the patch.
+
+lumpy-back-out-removal-of-active-check-in-isolate_lru_pages:
+  reinstating a BUG where the active state missmatched the lru we are
+  scanning.  As pointed out by Christoph Lameter, there should not
+  be a missmatch and testing confirms with this base there are none.
+
+lumpy-only-count-taken-pages-as-scanned: when scanning an area
+  around a target page taken from the LRU we will only take pages
+  which match the active state.  Previously we would count the
+  missmatching pages passed over as 'scanned'.  Prior to lumpy a
+  page was only counted as 'scanned' if we had removed it from the
+  LRU and reclaimed or rotated it back to the list.  This leads
+  to reduced reclaim scanning and affects reclaim performance.
+  Move to counting pages as scanned only when actually touched.
+
+Against: 2.6.21-rc3-mm2
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
