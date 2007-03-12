@@ -1,45 +1,54 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 3/3] lumpy: only count taken pages as scanned
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2CIaJXx009040
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2007 14:36:19 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2CIaIKM061696
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2007 12:36:18 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2CIaIJa024801
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2007 12:36:18 -0600
+Subject: Re: [PATCH 1/3] Lumpy Reclaim V4
+From: Dave Hansen <hansendc@us.ibm.com>
+In-Reply-To: <5239d2d31cd39bf4fc33426648f97be0@pinky>
 References: <exportbomb.1173723760@pinky>
-Message-ID: <f1e5ef335bb5a202c7b18faaa0e97b83@pinky>
-Date: Mon, 12 Mar 2007 18:24:18 +0000
+	 <5239d2d31cd39bf4fc33426648f97be0@pinky>
+Content-Type: text/plain
+Date: Mon, 12 Mar 2007 11:36:16 -0700
+Message-Id: <1173724576.11945.100.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-When scanning the order sized area around the tag page we pull all
-pages of the matching active state; the non-matching pages are not
-otherwise affected.  We currently count these as scanned increasing
-the apparent scan rates.  Previously we would only count a page
-scanned if it was actually removed from the LRU, either then being
-reclaimed or rotated back onto the head of the LRU.
+On Mon, 2007-03-12 at 18:23 +0000, Andy Whitcroft wrote:
+> 
+> +                       /* The target page is in the block, ignore it. */
+> +                       if (unlikely(pfn == page_pfn))
+> +                               continue;
+> +#ifdef CONFIG_HOLES_IN_ZONE
+> +                       /* Avoid holes within the zone. */
+> +                       if (unlikely(!pfn_valid(pfn)))
+> +                               break;
+> +#endif 
 
-The effect of this is to cause reclaim to terminate artificially
-early when the scan count is reached, reducing effectivness.  Move to
-counting only those pages we actually remove from the LRU as scanned.
+Would having something like:
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d7a0860..c3dc544 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -732,11 +732,11 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			/* Check that we have not crossed a zone boundary. */
- 			if (unlikely(page_zone_id(cursor_page) != zone_id))
- 				continue;
--			scan++;
- 			switch (__isolate_lru_page(cursor_page, active)) {
- 			case 0:
- 				list_move(&cursor_page->lru, dst);
- 				nr_taken++;
-+				scan++;
- 				break;
- 
- 			case -EBUSY:
+        static inline int pfn_in_zone_hole(unsigned long pfn)
+        {
+        #ifdef CONFIG_HOLES_IN_ZONE
+        	if (unlikely(!pfn_valid(pfn)))
+        		return 1;
+        #endif 
+        	return 0;
+        }
+        
+help us out?  page_is_buddy() and page_is_consistent() appear to do the
+exact same thing, with the same #ifdef.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
