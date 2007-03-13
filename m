@@ -1,67 +1,48 @@
-Date: Tue, 13 Mar 2007 02:19:04 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070313011904.GA2746@wotan.suse.de>
-References: <20070221023735.6306.83373.sendpatchset@linux.site> <20070307094947.GE8609@wotan.suse.de> <20070307100242.GG8609@wotan.suse.de> <200703130001.13467.blaisorblade@yahoo.it>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200703130001.13467.blaisorblade@yahoo.it>
+Message-ID: <45F61C34.4050700@yahoo.com.au>
+Date: Tue, 13 Mar 2007 14:36:20 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: Remove page flags for software suspend
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <20070228101403.GA8536@elf.ucw.cz> <Pine.LNX.4.64.0702280724540.16552@schroedinger.engr.sgi.com> <200702281813.04643.rjw@sisk.pl> <45E6EEC5.4060902@yahoo.com.au> <Pine.LNX.4.64.0703011744500.11812@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0703011744500.11812@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Christoph Lameter <clameter@engr.sgi.com>, Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 13, 2007 at 12:01:13AM +0100, Blaisorblade wrote:
-> On Wednesday 07 March 2007 11:02, Nick Piggin wrote:
-> > >
-> > > Yeah, tmpfs/shm segs are what I was thinking about. If UML can live with
-> > > that as well, then I think it might be a good option.
-> >
-> > Oh, hmm.... if you can truncate these things then you still need to
-> > force unmap so you still need i_mmap_nonlinear.
-> 
-> Well, we don't need truncate(), but MADV_REMOVE for memory hotunplug, which is 
-> way similar I guess.
-> 
-> About the restriction to tmpfs, I have just discovered 
-> '[PATCH] mm: tracking shared dirty pages' (commit 
-> d08b3851da41d0ee60851f2c75b118e1f7a5fc89), which already partially conflicts 
-> with remap_file_pages for file-based mmaps (and that's fully fine, for now).
-> 
-> Even if UML does not need it, till now if there is a VMA protection and a page 
-> hasn't been remapped with remap_file_pages, the VMA protection is used (just 
-> because it makes sense).
-> 
-> However, it is only used when the PTE is first created - we can never change 
-> protections on a VMA  - so it vma_wants_writenotify() is true (on all 
-> file-based and on no shmfs based mapping, right?), and we write-protect the 
-> VMA, it will always be write-protected.
+Sorry to take so long to reply. I was having issues with this account.
 
-Yes, I believe that is the case, however I wonder if that is going to be
-a problem for you to distinguish between write faults for clean writable
-ptes, and write faults for readonly ptes?
-
-> That's no problem for UML, but for any other user (I guess I'll have to 
-> prevent callers from trying such stuff - I started from a pretty generic 
-> patch).
+Hugh Dickins wrote:
+> On Thu, 1 Mar 2007, Nick Piggin wrote:
 > 
-> > But come to think of it, I still don't think nonlinear mappings are
-> > too bad as they are ;)
+>>Let's make sure that no more backdoor page flags get allocated without
+>>going through the linux-mm list to work out whether we really need it
+>>or can live without it...
 > 
-> Btw, I really like removing ->populate and merging the common code together. 
-> filemap_populate and shmem_populate are so obnoxiously different that I 
-> already wanted to do that (after merging remap_file_pages() core).
+> 
+> On Fri, 2 Mar 2007, Nick Piggin wrote:
+> 
+>>I need one bit for lockless pagecache ;)
+> 
+> 
+> Is that still your PageNoNewRefs thing?
 
-Yeah they are also frustratingly similar to filemap_nopage and shmem_nopage,
-and duplicate a lot of the same code ;)
+Yes.
 
-> Also, I'm curious. Since my patches are already changing remap_file_pages() 
-> code, should they be absolutely merged after yours?
+> What was wrong with my atomic_cmpxchg suggestion?
 
-Is there a big clash? I don't think I did a great deal to fremap.c (mainly
-just removing stuff)...
+It is a very good suggestion. I think I ran into an issue where I
+had wanted to set PG_nonewrefs for a page with an elevated refcount
+or some other issue like that. Can't remember exactly -- I think it
+is fixable by reworking some code, but I had wanted to do taht as a
+subsequent patch.
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
