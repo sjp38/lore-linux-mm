@@ -1,88 +1,45 @@
-Message-ID: <05dd01c76511$3bfe44b0$>
-Reply-To: "Sonjabk Yates" <letterheadcyi@archeryhistory.com>
-From: "Sonjabk Yates" <letterheadcyi@archeryhistory.com>
-Subject: A group
-Date: Tue, 13 Mar 2007 13:00:15 +0100
+Message-ID: <45F69287.8040509@yahoo.com.au>
+Date: Tue, 13 Mar 2007 23:01:11 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/related;
-	boundary="----=_NextPart_000_0003_"
-Return-Path: <letterheadcyi@archeryhistory.com>
-To: linux-mm-archive@kvack.org, linux-mm@kvack.org
+Subject: Re: [QUICKLIST 0/4] Arch independent quicklists V2
+References: <20070313071325.4920.82870.sendpatchset@schroedinger.engr.sgi.com>	<20070313005334.853559ca.akpm@linux-foundation.org>	<45F65ADA.9010501@yahoo.com.au>	<20070313035250.f908a50e.akpm@linux-foundation.org>	<45F685C6.8070806@yahoo.com.au>	<20070313041551.565891b5.akpm@linux-foundation.org>	<45F68B4B.9020200@yahoo.com.au> <20070313044756.b45649ac.akpm@linux-foundation.org>
+In-Reply-To: <20070313044756.b45649ac.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-------=_NextPart_000_0003_
-Content-Type: multipart/alternative;
-	boundary="----=_1OEBOUND;"
+Andrew Morton wrote:
+>>On Tue, 13 Mar 2007 22:30:19 +1100 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>>We don't actually have to zap_pte_range the entire page table in
+>>order to free it (IIRC we used to have to, before the 4lpt patches).
+> 
+> 
+> I'm trying to remember why we ever would have needed to zero out the pagetable
+> pages if we're taking down the whole mm?  Maybe it's because "oh, the
+> arch wants to put this page into a quicklist to recycle it", which is
+> all rather circular.
+> 
+> It would be interesting to look at a) leave the page full of random garbage
+> if we're releasing the whole mm and b) return it straight to the page allocator.
 
+Well we have the 'fullmm' case, which avoids all the locked pte operations
+(for those architectures where hardware pt walking requires atomicity).
 
-------=_1OEBOUND;
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+However we still have to visit those to-be-unmapped parts of the page table,
+to find the pages and free them. So we still at least need to bring it into
+cache for the read... at which point, the store probably isn't a big burden.
 
-because the case is continuing.Last week's fire was stoked by Santa Ana winds  Previewing his weekend at his Texas ranch, Bush said he planned to be with his wife,
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
-CEO AMERICA INC 
-Sym : CEOA
-Currently:.08 ( +800% since we started ) 
-We took it from .01 to .08
-and we've only just begun 
-
-Get in tomorrow and see what its like to have 1600% gains
-SymBOL : CEOA
-Current P :  0.08 ( Just Right)
-3 day Exp :  1.40 (+600%)
-
-GET IN TOMORROW and Ride the wave
-
-
-AN ALL AMERICAN COMPANY
-Get IN Before the rush TOMORROW
-
-ttempted a U-turn with only 1,300 feet of room for the turn. To make a successful turn,  in an update on the crash. Lidle and Stanger were making an aerial tour of Manhattan to pull out of what al Qaeda says is the central front in this war, ask them this  fixed-wing planes not to fly over the East River unless the pilot is in contact with
-
-------=_1OEBOUND;
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">=
-<HTML><HEAD>=
-<META http-equiv=Content-Type content="text/html; charset=iso-8859-1">=
-<META content="MSHTML 6.00.2900.2963" name=GENERATOR>=
-<STYLE></STYLE>=
-</HEAD>=
-<BODY bgColor=#ffffff>=
-<DIV><FONT face="Arial Black" size=2>=
-because the case is continuing.Last week's fire was stoked by Santa Ana winds  Previewing his weekend at his Texas ranch, Bush said he planned to be with his wife,=
-</FONT></DIV>=
-<DIV><FONT face="Arial Black" size=2 color=#ff0000>=
-CEO AMERICA INC  =
-<br> SymBo : CEOA=
-<br>Currently:$0.08 ( +800% since we started ) =
-<br>We took it from $0.01 to $0.08=
-<br>and we've only just begun =
-</FONT></DIV>=
-<DIV><FONT face="Arial Black" color=#ff0000 size=2>=
-<BR>Get in tomorrow and see what its like to have 1600% gains=
-<br>SymBO : CEOA=
-</FONT></DIV>=
-<DIV><FONT face="Arial Black" color=#ff0000 size=2>=
-Current P : $ 0.08 ( Just Right)=
-</FONT></DIV>=
-<DIV><FONT face="Arial Black" color=#ff0000 size=2>=
-3 day Exp : $ 1.40 (+600%)<br><br>=
-GET IN TOMORROW and Ride the wave=
-</FONT></DIV>=
-<BR></FONT></DIV>=
-<DIV><FONT face="Arial Black" color=#ff0000 size=2>=
-AN ALL AMERICAN COMPANY=
-</FONT></DIV>=
-<DIV><FONT face="Arial Black" color=#ff0000 size=2>=
-Get IN Before the rush TOMORROW</FONT></DIV>=
-<DIV><FONT face="Arial Black" size=2>=
-ttempted a U-turn with only 1,300 feet of room for the turn. To make a successful turn,  in an update on the crash. Lidle and Stanger were making an aerial tour of Manhattan to pull out of what al Qaeda says is the central front in this war, ask them this  fixed-wing planes not to fly over the East River unless the pilot is in contact with=
-</FONT></DIV></BODY></HTML>=
-------=_1OEBOUND;--
-
-------=_NextPart_000_0003_--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
