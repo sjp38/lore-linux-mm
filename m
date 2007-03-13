@@ -1,37 +1,79 @@
-Date: Tue, 13 Mar 2007 14:07:22 -0700 (PDT)
-Message-Id: <20070313.140722.72711732.davem@davemloft.net>
-Subject: Re: [QUICKLIST 0/4] Arch independent quicklists V2
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20070313202125.GO10394@waste.org>
-References: <20070313200313.GG10459@waste.org>
-	<45F706BC.7060407@goop.org>
-	<20070313202125.GO10394@waste.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH 2/3] swsusp: Do not use page flags
+Date: Tue, 13 Mar 2007 22:20:34 +0100
+References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703131117.43818.rjw@sisk.pl> <45F67D9A.8020202@yahoo.com.au>
+In-Reply-To: <45F67D9A.8020202@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200703132220.35534.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-From: Matt Mackall <mpm@selenic.com>
-Date: Tue, 13 Mar 2007 15:21:25 -0500
 Return-Path: <owner-linux-mm@kvack.org>
-To: mpm@selenic.com
-Cc: jeremy@goop.org, nickpiggin@yahoo.com.au, akpm@linux-foundation.org, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Pavel Machek <pavel@ucw.cz>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Johannes Berg <johannes@sipsolutions.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-> Because the fan-out is large, the bulk of the work is bringing the last
-> layer of the tree into cache to find all the pages in the address
-> space. And there's really no way around that.
+On Tuesday, 13 March 2007 11:31, Nick Piggin wrote:
+> Rafael J. Wysocki wrote:
+> > On Tuesday, 13 March 2007 10:23, Nick Piggin wrote:
+> > 
+> 
+> >>I wouldn't say that. You're creating an interface here that is going to be
+> >>used outside swsusp. Users of that interface may not need locking now, but
+> >>that could cause problems down the line.
+> > 
+> > 
+> > I think we can add the locking when it's necessary.  For now, IMHO, it could be
+> > confusing to someone who doesn't know the locking is not needed.
+> 
+> I don't know why it would confuse them. We just define the API to
+> guarantee the correct locking, and that means the locking _is_ needed.
 
-That's right.
+Even if there are no users that actually need the locking and probably never
+will be?
 
-And I will note that historically we used to be much worse
-in this area, as we used to walk the page table tree twice
-on address space teardown (once to hit the PTE entries, once
-to free the page tables).
+For now, register_nosave_region() is to be called by architecture
+initialization code _only_ and there's no reason whatsoever why any
+architecture would need to call it concurrently from many places.
 
-Happily it is a one-pass algorithm now.
+> You don't have to care what the callers are doing. That's the beauty
+> of a sane API.
 
-But, within active VMA ranges, we do have to walk all
-the bits at least one time.
+Well, I don't think adding unneded infrastructure is a good thing.
+
+> >>Sure you don't _need_ an rbtree, but our implementation makes it so simple
+> >>that there isn't much downside.
+> > 
+> > 
+> > Not much, but the code is more complicated.
+> 
+> But it's in its own file and has a contained API, so it is very easy
+> to review, test and verify.
+
+I'm still thinking that register_nosave_region() in its current form is simpler
+and easier to review than the code using rbtrees.  Still, of course this only
+is my personal opinion. :-)
+
+> >>>mark_nosave_pages() refers to a function that's invisible outside snapshot.c
+> >>>and I didn't think it was a good idea to separate mark_nosave_pages()
+> >>>from register_nosave_region().
+> >>
+> >>But that's because you even use mark_nosave_pages in your implementation.
+> >>Mine uses the nosave regions directly.
+> > 
+> > 
+> > Well, I think we need two bits per page anyway, to mark free pages and
+> > pages allocated by swsusp, so using the nosave regions directly won't save us
+> > much.
+> 
+> Well I think it is a cleaner though.
+
+This is a matter of opinion, too ...
+
+Greetings,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
