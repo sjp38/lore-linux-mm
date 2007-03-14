@@ -1,93 +1,165 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC][PATCH 2/3] swsusp: Do not use page flags
-Date: Wed, 14 Mar 2007 09:30:04 +0100
-References: <Pine.LNX.4.64.0702160212150.21862@schroedinger.engr.sgi.com> <200703132220.35534.rjw@sisk.pl> <45F7692D.3010709@yahoo.com.au>
-In-Reply-To: <45F7692D.3010709@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 14 Mar 2007 13:14:41 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/2] splice: dont steal
+Message-ID: <20070314121440.GA926@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200703140930.05359.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Pavel Machek <pavel@ucw.cz>, Christoph Lameter <clameter@engr.sgi.com>, linux-mm@kvack.org, pm list <linux-pm@lists.osdl.org>, Johannes Berg <johannes@sipsolutions.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, 14 March 2007 04:17, Nick Piggin wrote:
-> Rafael J. Wysocki wrote:
-> > On Tuesday, 13 March 2007 11:31, Nick Piggin wrote:
-> > 
-> >>Rafael J. Wysocki wrote:
-> >>
-> >>>On Tuesday, 13 March 2007 10:23, Nick Piggin wrote:
-> >>>
-> >>
-> >>>>I wouldn't say that. You're creating an interface here that is going to be
-> >>>>used outside swsusp. Users of that interface may not need locking now, but
-> >>>>that could cause problems down the line.
-> >>>
-> >>>
-> >>>I think we can add the locking when it's necessary.  For now, IMHO, it could be
-> >>>confusing to someone who doesn't know the locking is not needed.
-> >>
-> >>I don't know why it would confuse them. We just define the API to
-> >>guarantee the correct locking, and that means the locking _is_ needed.
-> > 
-> > 
-> > Even if there are no users that actually need the locking and probably never
-> > will be?
-> 
-> Probably is the keyword.
-> 
-> Why would you *not* make this a sane API? Surely performance isn't the
-> reason? Nor complexity.
-> 
-> > For now, register_nosave_region() is to be called by architecture
-> > initialization code _only_ and there's no reason whatsoever why any
-> > architecture would need to call it concurrently from many places.
-> > 
-> > 
-> >>You don't have to care what the callers are doing. That's the beauty
-> >>of a sane API.
-> > 
-> > 
-> > Well, I don't think adding unneded infrastructure is a good thing.
-> 
-> 
-> But defining good APIs is a very good thing. And with my good API, the
-> lock is not unneeded.
-> 
-> >>>>But that's because you even use mark_nosave_pages in your implementation.
-> >>>>Mine uses the nosave regions directly.
-> >>>
-> >>>
-> >>>Well, I think we need two bits per page anyway, to mark free pages and
-> >>>pages allocated by swsusp, so using the nosave regions directly won't save us
-> >>>much.
-> >>
-> >>Well I think it is a cleaner though.
-> > 
-> > 
-> > This is a matter of opinion, too ...
-> 
-> 
-> Well, as I'm not volunteering to maintain swsusp, if your opinion is that
-> your way is cleaner, I can't argue ;) So long as it stops wasting those page
-> flags then I'm happy.
-> 
-> However the register_nosave API really should use locking, I think. There
-> is absolutely no downside, AFAIKS.
+Here are a couple of splice patches I found when digging in the area.
+I could be wrong, so I'd appreciate confirmation.
 
-Hm, I can add the lock, but currently register_nosave_region() calls
-alloc_bootmem_low() directly, which means it won't even work outside the
-early initialization code which is single-threaded.  For this reason I think
-that the locking can be added later, when register_nosave_region() is
-extended so that it can be called from other contexts too.
+Untested other than compile, because I don't have a good splice test
+setup.
 
-Greetings,
-Rafael
+Considering these are data corruption / information leak issues, then
+we could do worse than to merge them in 2.6.21 and earlier stable
+trees.
+
+Does anyone really use splice stealing?
+
+--
+
+Stealing pages with splice is problematic because we cannot just insert
+an uptodate page into the pagecache and hope the filesystem can take care
+of it later.
+
+We also cannot just ClearPageUptodate, then hope prepare_write does not
+write anything into the page, because I don't think prepare_write gives
+that guarantee.
+
+Remove support for SPLICE_F_MOVE for now. If we really want to bring it
+back, we might be able to do so with a the new filesystem buffered write
+aops APIs I'm working on. If we really don't want to bring it back, then
+we should decide that sooner rather than later, and remove the flag and
+all the stealing infrastructure before anybody starts using it.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/fs/splice.c
+===================================================================
+--- linux-2.6.orig/fs/splice.c
++++ linux-2.6/fs/splice.c
+@@ -576,76 +576,51 @@ static int pipe_to_file(struct pipe_inod
+ 	if (this_len + offset > PAGE_CACHE_SIZE)
+ 		this_len = PAGE_CACHE_SIZE - offset;
+ 
+-	/*
+-	 * Reuse buf page, if SPLICE_F_MOVE is set and we are doing a full
+-	 * page.
+-	 */
+-	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
++find_page:
++	page = find_lock_page(mapping, index);
++	if (!page) {
++		ret = -ENOMEM;
++		page = page_cache_alloc_cold(mapping);
++		if (unlikely(!page))
++			goto out_ret;
++
+ 		/*
+-		 * If steal succeeds, buf->page is now pruned from the
+-		 * pagecache and we can reuse it. The page will also be
+-		 * locked on successful return.
++		 * This will also lock the page
+ 		 */
+-		if (buf->ops->steal(pipe, buf))
+-			goto find_page;
+-
+-		page = buf->page;
+-		if (add_to_page_cache(page, mapping, index, GFP_KERNEL)) {
+-			unlock_page(page);
+-			goto find_page;
+-		}
+-
+-		page_cache_get(page);
++		ret = add_to_page_cache_lru(page, mapping, index,
++					    GFP_KERNEL);
++		if (unlikely(ret))
++			goto out;
++	}
+ 
+-		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+-			lru_cache_add(page);
+-	} else {
+-find_page:
+-		page = find_lock_page(mapping, index);
+-		if (!page) {
+-			ret = -ENOMEM;
+-			page = page_cache_alloc_cold(mapping);
+-			if (unlikely(!page))
+-				goto out_ret;
+-
+-			/*
+-			 * This will also lock the page
+-			 */
+-			ret = add_to_page_cache_lru(page, mapping, index,
+-						    GFP_KERNEL);
++	/*
++	 * We get here with the page locked. If the page is also
++	 * uptodate, we don't need to do more. If it isn't, we
++	 * may need to bring it in if we are not going to overwrite
++	 * the full page.
++	 */
++	if (!PageUptodate(page)) {
++		if (this_len < PAGE_CACHE_SIZE) {
++			ret = mapping->a_ops->readpage(file, page);
+ 			if (unlikely(ret))
+ 				goto out;
+-		}
+ 
+-		/*
+-		 * We get here with the page locked. If the page is also
+-		 * uptodate, we don't need to do more. If it isn't, we
+-		 * may need to bring it in if we are not going to overwrite
+-		 * the full page.
+-		 */
+-		if (!PageUptodate(page)) {
+-			if (this_len < PAGE_CACHE_SIZE) {
+-				ret = mapping->a_ops->readpage(file, page);
+-				if (unlikely(ret))
+-					goto out;
+-
+-				lock_page(page);
+-
+-				if (!PageUptodate(page)) {
+-					/*
+-					 * Page got invalidated, repeat.
+-					 */
+-					if (!page->mapping) {
+-						unlock_page(page);
+-						page_cache_release(page);
+-						goto find_page;
+-					}
+-					ret = -EIO;
+-					goto out;
++			lock_page(page);
++
++			if (!PageUptodate(page)) {
++				/*
++				 * Page got invalidated, repeat.
++				 */
++				if (!page->mapping) {
++					unlock_page(page);
++					page_cache_release(page);
++					goto find_page;
+ 				}
+-			} else
+-				SetPageUptodate(page);
+-		}
++				ret = -EIO;
++				goto out;
++			}
++		} else
++			SetPageUptodate(page);
+ 	}
+ 
+ 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
