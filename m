@@ -1,78 +1,49 @@
-Date: Wed, 14 Mar 2007 15:58:43 -0400 (EDT)
-From: Ashif Harji <asharji@cs.uwaterloo.ca>
-Subject: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-In-Reply-To: <20070313185554.GA5105@duck.suse.cz>
-Message-ID: <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2EKtgl4000560
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2007 16:55:42 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2EKtgTD314990
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2007 16:55:42 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2EKtgPb032023
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2007 16:55:42 -0400
+Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+In-Reply-To: <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
 References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca>
- <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de>
- <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca>
- <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca>
- <20070313185554.GA5105@duck.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+	 <20070312142012.GH30777@atrey.karlin.mff.cuni.cz>
+	 <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca>
+	 <20070312173500.GF23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca>
+	 <20070313185554.GA5105@duck.suse.cz>
+	 <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
+Content-Type: text/plain
+Date: Wed, 14 Mar 2007 15:55:41 -0500
+Message-Id: <1173905741.8763.36.camel@kleikamp.austin.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Ashif Harji <asharji@cs.uwaterloo.ca>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-This patch unconditionally calls mark_page_accessed to prevent pages, 
-especially for small files, from being evicted from the page cache despite 
-frequent access.
+On Wed, 2007-03-14 at 15:58 -0400, Ashif Harji wrote:
+> This patch unconditionally calls mark_page_accessed to prevent pages, 
+> especially for small files, from being evicted from the page cache despite 
+> frequent access.
 
-Signed-off-by: Ashif Harji <asharji@beta.uwaterloo.ca>
+I guess the downside to this is if a reader is reading a large file, or
+several files, sequentially with a small read size (smaller than
+PAGE_SIZE), the pages will be marked active after just one read pass.
+My gut says the benefits of this patch outweigh the cost.  I would
+expect real-world backup apps, etc. to read at least PAGE_SIZE.
 
----
-
-If the same page of a file is repeatedly accessed (without accessing other 
-pages of that file) via the same file descriptor, mark_page_accessed is 
-never called after the first time the page is accessed.
-
-The implication of this code is that for files of size less than or equal 
-to a single page, the page associated with such a file is likely to get 
-evicted from the cache regardless of how frequently it is accessed. 
-However, this behaviour also occurs with files of any size if the same 
-page is repeatedly accessed.
-
-As a benchmark, I have an experimental web server that uses sendfile to 
-repeatedly transmit files.  The files are based on the static portion of 
-the SPECweb99 fileset and range in size to model a reasonable workload. 
-With this workload, a significant number of the requests are for files of 
-size 4 KB or less.
-
-By changing the kernel to always call mark_page_accessed, the server 
-throughput is increased by as much as 20%.  With one test, for example, 
-without the change I get throughput of around 868 Mbps.  After making the 
-change, performance increases to 1111 Mbps.
-
-Using a configuration that should be unaffected by the change, performance 
-was around 855 Mbps without the change and around 851 Mbps with the 
-change.  As expected the change had no appreciable effect.
-
-See thread http://lkml.org/lkml/2007/3/9/403 for additional discussion on 
-this change.
-
-This patch is for kernel version 2.6.20.1.
-
-Andrew, can you also put this change into the -mm kernels for testing?
-
-
---- linux-2.6.20.1/mm/filemap.c.orig	2007-03-14 10:31:58.000000000 -0500
-+++ linux-2.6.20.1/mm/filemap.c	2007-03-13 16:11:54.000000000 -0500
-@@ -943,12 +943,7 @@ page_ok:
-  		if (mapping_writably_mapped(mapping))
-  			flush_dcache_page(page);
-
--		/*
--		 * When (part of) the same page is read multiple times
--		 * in succession, only mark it as accessed the first time.
--		 */
--		if (prev_index != index)
--			mark_page_accessed(page);
-+		mark_page_accessed(page);
-  		prev_index = index;
-
-  		/*
+Shaggy
+-- 
+David Kleikamp
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
