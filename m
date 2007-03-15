@@ -1,28 +1,50 @@
-Message-ID: <45F95FA8.6060207@redhat.com>
-Date: Thu, 15 Mar 2007 11:00:56 -0400
+Message-ID: <45F960D9.1020609@redhat.com>
+Date: Thu, 15 Mar 2007 11:06:01 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca> <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173905741.8763.36.camel@kleikamp.austin.ibm.com> <20070314213317.GA22234@rhlx01.hs-esslingen.de>
-In-Reply-To: <20070314213317.GA22234@rhlx01.hs-esslingen.de>
+References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca> <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173955154.25356.28.camel@twins> <20070315123859.GC8321@wotan.suse.de>
+In-Reply-To: <20070315123859.GC8321@wotan.suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Ashif Harji <asharji@cs.uwaterloo.ca>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ashif Harji <asharji@cs.uwaterloo.ca>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Andreas Mohr wrote:
+Nick Piggin wrote:
+> On Thu, Mar 15, 2007 at 11:39:14AM +0100, Peter Zijlstra wrote:
+>> On Wed, 2007-03-14 at 15:58 -0400, Ashif Harji wrote:
+>>> This patch unconditionally calls mark_page_accessed to prevent pages, 
+>>> especially for small files, from being evicted from the page cache despite 
+>>> frequent access.
+>> Since we're hackling over the use-once stuff again...
+>>
+>> /me brings up: http://marc.info/?l=linux-mm&m=115316894804385&w=2 and
+>> ducks.
+> 
+> Join the club ;) 
+> 
+> http://groups.google.com.au/group/linux.kernel/msg/7b3237b8e715475b?hl=en&
+> 
+> I can't find the patch where I actually did combine it with a PG_usedonce
+> bit, but the end result is pretty similar to your patch.
 
-> I've been thinking hard how to avoid the mark_page_accessed() starvation in
-> case of a fixed, (almost) non-changing access state, but this seems hard since
-> it'd seem we need some kind of state management here to figure out good
-> intervals of when to call mark_page_accessed() *again* for this page. 
+Except for the bit where vmscan throws away page cache pages
+with PageReferenced set, unless they are mapped :)
 
-Like this? :)
+Also, pages that only got accessed once will have the referenced
+bit set too, so your patch gives no way to distinguish between
+pages that were accessed once and pages that were accessed multiple
+times.
 
-http://surriel.com/patches/clockpro/2.6.12/useonce-cleanup
+> And I think one
+> or two others have also independently invented the same thing.
+> 
+> So it *has* to be good, doesn't it? ;)
+
+No argument there :)
 
 -- 
 Politics is the struggle between those who want to make their country
