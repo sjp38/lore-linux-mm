@@ -1,36 +1,70 @@
-Date: Thu, 15 Mar 2007 21:31:59 +0100
-From: Andreas Mohr <andi@rhlx01.fht-esslingen.de>
-Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-Message-ID: <20070315203159.GA15463@rhlx01.hs-esslingen.de>
-References: <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <45F96CCB.4000709@redhat.com> <20070315162944.GI8321@wotan.suse.de> <Pine.GSO.4.64.0703151532530.29483@cpu102.cs.uwaterloo.ca> <20070315200739.GD19625@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070315200739.GD19625@wotan.suse.de>
+Date: Thu, 15 Mar 2007 19:49:24 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] mm: fix madvise infinine loop
+In-Reply-To: <20070310034942.GB13299@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0703151937350.7795@blonde.wat.veritas.com>
+References: <20070310034942.GB13299@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Ashif Harji <asharji@cs.uwaterloo.ca>, Chuck Ebbert <cebbert@redhat.com>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, 10 Mar 2007, Nick Piggin wrote:
+> 
+> This has been noticed when running a particular database server which I
+> won't name. Please apply.
+> 
+> --
+> madvise(MADV_REMOVE) can go into an infinite loop or cause an oops if
+> the call covers a region from the start of a vma, and extending past that
+> vma.
+> 
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-On Thu, Mar 15, 2007 at 09:07:39PM +0100, Nick Piggin wrote:
-> Well in general we like to help applications that help themselves. It
-> is actually a good heuristic, surprisingly. If an application randomly
-> accesses the same page (and there is no write activity going on), then
-> it would be better off to cache it in userspace, and if it doesn't care
-> to do that then it won't mind having to read it off disk now and again :)
+Good find,
+Acked-by: Hugh Dickins <hugh@veritas.com>
 
-Sounds like a good plan since this probably is a nice way to make stupid apps
-doing stupid things sit up and take notice, and maybe the authors will then go
-so far as fixing up a few more things that are hurting them once they actually
-recognize that something is weird due to overly bad performance.
+>From the patch itself, it looks odd that you've added a prev arg to
+madvise_remove, which could perfectly well be assigned by the caller.
+But you're doing the right thing, to follow the established convention
+there.  Or would we do better to preset *prev = vma in madvise_vma,
+to prevent a similar error next time?  (No need to delay this fix,
+just a question for the future, I'm uncertain.)
 
-Why go to great lengths to support stupid apps when there are still so many things
-which could be done to help well-behaving ones? ;)
+Hugh
 
-Andreas Mohr
+> 
+> Index: linux-2.6.16/mm/madvise.c
+> ===================================================================
+> --- linux-2.6.16.orig/mm/madvise.c
+> +++ linux-2.6.16/mm/madvise.c
+> @@ -155,11 +155,14 @@ static long madvise_dontneed(struct vm_a
+>   * Other filesystems return -ENOSYS.
+>   */
+>  static long madvise_remove(struct vm_area_struct *vma,
+> +				struct vm_area_struct **prev,
+>  				unsigned long start, unsigned long end)
+>  {
+>  	struct address_space *mapping;
+>          loff_t offset, endoff;
+>  
+> +	*prev = vma;
+> +
+>  	if (vma->vm_flags & (VM_LOCKED|VM_NONLINEAR|VM_HUGETLB))
+>  		return -EINVAL;
+>  
+> @@ -199,7 +202,7 @@ madvise_vma(struct vm_area_struct *vma, 
+>  		error = madvise_behavior(vma, prev, start, end, behavior);
+>  		break;
+>  	case MADV_REMOVE:
+> -		error = madvise_remove(vma, start, end);
+> +		error = madvise_remove(vma, prev, start, end);
+>  		break;
+>  
+>  	case MADV_WILLNEED:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
