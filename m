@@ -1,61 +1,34 @@
-Date: Thu, 15 Mar 2007 14:13:05 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/2] splice: dont steal
-Message-ID: <20070315131305.GF8321@wotan.suse.de>
-References: <20070314121440.GA926@wotan.suse.de> <20070315115237.GM15400@kernel.dk> <20070315122207.GA8321@wotan.suse.de> <20070315122723.GQ15400@kernel.dk> <20070315124531.GD8321@wotan.suse.de> <20070315125432.GT15400@kernel.dk>
+Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
+References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca>
+	 <20070312142012.GH30777@atrey.karlin.mff.cuni.cz>
+	 <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca>
+	 <20070312173500.GF23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca>
+	 <20070313185554.GA5105@duck.suse.cz>
+	 <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
+Content-Type: text/plain
+Date: Thu, 15 Mar 2007 11:39:14 +0100
+Message-Id: <1173955154.25356.28.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070315125432.GT15400@kernel.dk>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ashif Harji <asharji@cs.uwaterloo.ca>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 15, 2007 at 01:54:32PM +0100, Jens Axboe wrote:
-> On Thu, Mar 15 2007, Nick Piggin wrote:
-> > On Thu, Mar 15, 2007 at 01:27:23PM +0100, Jens Axboe wrote:
-> > > On Thu, Mar 15 2007, Nick Piggin wrote:
-> > > > 
-> > > > We should be able to allow for it with the new a_ops API I'm working
-> > > > on.
-> > > 
-> > > "Should be" and in progress stuff, is it guarenteed to get there?
-> > 
-> > Well considering that it is needed in order to solve 3 different deadlock
-> > scenarios in the core write(2) path without taking a big performance hit,
-> > I'd hope so ;)
-> > 
-> > It isn't guaranteed, but I have only had positive feedback so far. Would
-> > take a while to actually get merged, though.
-> 
-> It's not that I don't believe you, I'm just a little reluctant to rip
-> stuff out with a promise to fix it later when foo and bar are merged,
-> since things like that have a tendency not to get done because they are
-> forgotten :-)
+On Wed, 2007-03-14 at 15:58 -0400, Ashif Harji wrote:
+> This patch unconditionally calls mark_page_accessed to prevent pages, 
+> especially for small files, from being evicted from the page cache despite 
+> frequent access.
 
-Fair enough. The API side is trivial, all I need to do is set a single
-flag and make splice pass down the page, and set that flag when stealing.
-Filesystems might vary from trivial to impossible, but I think most should
-be OK. If the flag is there then they at least have the option.
+Since we're hackling over the use-once stuff again...
 
-
-> Do you have a test case for stealing failures? What I'm really asking is
-> how critical is this?
-
-I guess you could fill a filesystem completely, and have a sparse file
-in it. Then steal a page and splice it in. The prepare_write should fail,
-but the page will still be in pagecache, until it gets reclaimed, then
-it will go back to zeroes.
-
-(no I don't have a test case ;)).
-
-You could do something like remove the page if prepare_write fails, but
-there is still a window where a read can see it. Basically I can't see
-a way that it can possibly work within our current prepare_write API,
-and it is a data corruption bug, so in my opinion it is a candidate for
-2.6.21 + stable.
+/me brings up: http://marc.info/?l=linux-mm&m=115316894804385&w=2 and
+ducks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
