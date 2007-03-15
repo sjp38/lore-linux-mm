@@ -1,38 +1,52 @@
-Date: Thu, 15 Mar 2007 13:38:59 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-Message-ID: <20070315123859.GC8321@wotan.suse.de>
-References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca> <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173955154.25356.28.camel@twins>
-Mime-Version: 1.0
+Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l2FE6Kvj279696
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2007 01:06:20 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
+	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2FDqnsK144618
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2007 00:52:50 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2FDnJQP010444
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2007 00:49:19 +1100
+Date: Thu, 15 Mar 2007 19:19:21 +0530
+Subject: [PATCH] oom fix: prevent oom from killing a process with children/sibling unkillable
+Message-ID: <20070315134921.GD18033@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1173955154.25356.28.camel@twins>
+From: ankita@in.ibm.com (Ankita Garg)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ashif Harji <asharji@cs.uwaterloo.ca>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Linux Memory Management <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 15, 2007 at 11:39:14AM +0100, Peter Zijlstra wrote:
-> On Wed, 2007-03-14 at 15:58 -0400, Ashif Harji wrote:
-> > This patch unconditionally calls mark_page_accessed to prevent pages, 
-> > especially for small files, from being evicted from the page cache despite 
-> > frequent access.
-> 
-> Since we're hackling over the use-once stuff again...
-> 
-> /me brings up: http://marc.info/?l=linux-mm&m=115316894804385&w=2 and
-> ducks.
+Looking at oom_kill.c, found that the intention to not kill the selected
+process if any of its children/siblings has OOM_DISABLE set, is not being met.
 
-Join the club ;) 
 
-http://groups.google.com.au/group/linux.kernel/msg/7b3237b8e715475b?hl=en&
+Signed-off-by: Ankita Garg <ankita@in.ibm.com>
 
-I can't find the patch where I actually did combine it with a PG_usedonce
-bit, but the end result is pretty similar to your patch. And I think one
-or two others have also independently invented the same thing.
+Index: ankita/linux-2.6.20.1/mm/oom_kill.c
+===================================================================
+--- ankita.orig/linux-2.6.20.1/mm/oom_kill.c	2007-02-20 12:04:32.000000000 +0530
++++ ankita/linux-2.6.20.1/mm/oom_kill.c	2007-03-15 12:44:50.000000000 +0530
+@@ -320,7 +320,7 @@
+ 	 * Don't kill the process if any threads are set to OOM_DISABLE
+ 	 */
+ 	do_each_thread(g, q) {
+-		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
++		if (q->mm == mm && q->oomkilladj == OOM_DISABLE)
+ 			return 1;
+ 	} while_each_thread(g, q);
+ 
 
-So it *has* to be good, doesn't it? ;)
+Regards,
+-- 
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs, 
+Bangalore, India   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
