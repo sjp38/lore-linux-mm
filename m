@@ -1,53 +1,41 @@
-Date: Thu, 15 Mar 2007 13:22:07 +0100
+Date: Thu, 15 Mar 2007 13:27:36 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/2] splice: dont steal
-Message-ID: <20070315122207.GA8321@wotan.suse.de>
-References: <20070314121440.GA926@wotan.suse.de> <20070315115237.GM15400@kernel.dk>
+Subject: Re: [patch 2/2] splice: dont readpage
+Message-ID: <20070315122736.GB8321@wotan.suse.de>
+References: <20070314121440.GA926@wotan.suse.de> <20070314121543.GB926@wotan.suse.de> <20070315115454.GN15400@kernel.dk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070315115237.GM15400@kernel.dk>
+In-Reply-To: <20070315115454.GN15400@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jens Axboe <jens.axboe@oracle.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 15, 2007 at 12:52:37PM +0100, Jens Axboe wrote:
+On Thu, Mar 15, 2007 at 12:54:54PM +0100, Jens Axboe wrote:
 > On Wed, Mar 14 2007, Nick Piggin wrote:
-> > Here are a couple of splice patches I found when digging in the area.
-> > I could be wrong, so I'd appreciate confirmation.
 > > 
-> > Untested other than compile, because I don't have a good splice test
-> > setup.
-> > 
-> > Considering these are data corruption / information leak issues, then
-> > we could do worse than to merge them in 2.6.21 and earlier stable
-> > trees.
-> > 
-> > Does anyone really use splice stealing?
+> > Splice does not need to readpage to bring the page uptodate before writing
+> > to it, because prepare_write will take care of that for us.
 > 
-> That's a damn shame, I'd greatly prefer if we can try and fix it
-> instead. Splice isn't really all that used yet to my knowledge, but
-> stealing is one of the niftier features I think. Otherwise you're just
-> copying data again.
+> Ah great, always good to get rid of some code.
 
-We should be able to allow for it with the new a_ops API I'm working
-on.
+Yeah, it should especially make block (but not page) sized and aligned
+writes into uncached files work much better, AFAIKS (won't require the
+synchronous read).
 
-Basically we can pass the page down to the filesystem, and tell it to
-attempt to install that page in-place.
+> > Splice is also wrong to SetPageUptodate before the page is actually uptodate.
+> > This results in the old uninitialised memory leak. This gets fixed as a
+> > matter of course when removing the readpage logic.
+> 
+> Leak, how? The page should still be locked all through to the copy.
+> Anyway, doesn't matter since you've killed it anyway. I have applied
+> this patch.
 
-The problem is that we can't just put this page here hoping the fs can
-take it, becaue it might fail allocating blocks, for example.
+The read side doesn't need to lock the page if it is uptodate, and doesn't.
 
-Anyway, we can still copy files with 1 less copy than read/write ;)
-
-It is a nifty feature, but I think it is more of a niche than simply
-saving that 1 copy, because you have to know that the source isn't
-going to be used again.
-
-But I'll try to support it with begin_write.
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
