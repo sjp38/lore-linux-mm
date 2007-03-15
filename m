@@ -1,75 +1,53 @@
-Date: Thu, 15 Mar 2007 15:55:08 -0400 (EDT)
-From: Ashif Harji <asharji@cs.uwaterloo.ca>
+Date: Thu, 15 Mar 2007 21:01:59 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-In-Reply-To: <20070315162944.GI8321@wotan.suse.de>
-Message-ID: <Pine.GSO.4.64.0703151532530.29483@cpu102.cs.uwaterloo.ca>
-References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca>
- <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de>
- <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca>
- <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca>
- <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
- <45F96CCB.4000709@redhat.com> <20070315162944.GI8321@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Message-ID: <20070315200159.GC19625@wotan.suse.de>
+References: <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <45F96CCB.4000709@redhat.com> <20070315162944.GI8321@wotan.suse.de> <Pine.LNX.4.64.0703151719380.32335@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0703151719380.32335@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Chuck Ebbert <cebbert@redhat.com>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.orgAndrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Chuck Ebbert <cebbert@redhat.com>, Ashif Harji <asharji@cs.uwaterloo.ca>, Miquel van Smoorenburg <miquels@cistron.nl>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Mar 15, 2007 at 05:44:01PM +0000, Hugh Dickins wrote:
+> On Thu, 15 Mar 2007, Nick Piggin wrote:
+> > On Thu, Mar 15, 2007 at 11:56:59AM -0400, Chuck Ebbert wrote:
+> > > Ashif Harji wrote:
+> > > > 
+> > > > This patch unconditionally calls mark_page_accessed to prevent pages,
+> > > > especially for small files, from being evicted from the page cache
+> > > > despite frequent access.
+> > > > 
+> > > > Signed-off-by: Ashif Harji <asharji@beta.uwaterloo.ca>
+> 
+> Yeah, yeah, I'm not a real mman, I don't have my own patch and
+> website for this ;) but I'm old, let me mumble some history...
+> 
+> Ashif's patch would take us back to 2.4.10 when mark_page_accessed
+> was introduced: in 2.4.11 someone (probably Andrea) immediately
+> added a !offset || !filp->f_reada condition on it there, which
+> remains in 2.4 to this day.  That _probably_ means that Ashif's
+> patch is suboptimal, and that your !offset patch is good.
+> 
+> f_reada went away in 2.5.8, and the !offset condition remained
+> until 2.6.11, when Miquel (CC'ed) replaced it by today's prev_index
+> condition.  His changelog entry appended below.  Since it's Miquel
+> who removed the !offset condition, he should be consulted on its
+> reintroduction.
 
-On Thu, 15 Mar 2007, Nick Piggin wrote:
+Yeah I did go back and check up on that changelog, because I knew
+we had a !offset check there at one stage, which is immune to this
+problem (or at least can handle it a little better).
 
-> On Thu, Mar 15, 2007 at 11:56:59AM -0400, Chuck Ebbert wrote:
->> Ashif Harji wrote:
->>>
->>> This patch unconditionally calls mark_page_accessed to prevent pages,
->>> especially for small files, from being evicted from the page cache
->>> despite frequent access.
->>>
->>> Signed-off-by: Ashif Harji <asharji@beta.uwaterloo.ca>
->>>
->>
->> I like mine better -- it leaves the comment:
->
-> How about this? It also doesn't break the use-once heuristic.
->
-> --
-> A change to make database style random read() workloads perform better, by
-> calling mark_page_accessed for some non-page-aligned reads broke the case of
-> < PAGE_CACHE_SIZE files, which will not get their prev_index moved past the
-> first page.
->
-> Combine both heuristics for marking the page accessed.
->
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
->
-> Index: linux-2.6/mm/filemap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap.c
-> +++ linux-2.6/mm/filemap.c
-> @@ -929,7 +929,7 @@ page_ok:
-> 		 * When (part of) the same page is read multiple times
-> 		 * in succession, only mark it as accessed the first time.
-> 		 */
-> -		if (prev_index != index)
-> +		if (prev_index != index || !offset)
-> 			mark_page_accessed(page);
-> 		prev_index = index;
->
->
+I suspect that Miquel was probably more interested in _increasing_
+mark_page_accessed coverage with his new condition than restricting
+it from the !offset cases.
 
-It sounds like people are happy with the fix suggested by Nick.  That fix 
-is okay with me as it fixes the problem I am having.
-
-I suspect, however, that by not directly detecting the problematic access 
-pattern, where the file is accessed sequentially in small hunks, other 
-applications may experience performance problems related to caching. For 
-example, if an application frequently and non-sequentially reads from the 
-same page.  This is especially true for files of size < PAGE_CACHE_SIZE.
-But, I'm not sure if such an access pattern likely.
-
-ashif.
+Thanks for digging it up and posting here, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
