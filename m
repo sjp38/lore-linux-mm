@@ -1,27 +1,39 @@
-Date: Thu, 15 Mar 2007 23:59:29 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-Message-ID: <20070315225928.GF6687@v2.random>
-References: <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <45F96CCB.4000709@redhat.com> <20070315162944.GI8321@wotan.suse.de> <Pine.LNX.4.64.0703151719380.32335@blonde.wat.veritas.com>
+Date: Thu, 15 Mar 2007 16:12:54 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [QUICKLIST 0/4] Arch independent quicklists V2
+Message-ID: <20070315231254.GY2986@holomorphy.com>
+References: <20070313071325.4920.82870.sendpatchset@schroedinger.engr.sgi.com> <20070313005334.853559ca.akpm@linux-foundation.org> <45F65ADA.9010501@yahoo.com.au> <20070313035250.f908a50e.akpm@linux-foundation.org> <45F685C6.8070806@yahoo.com.au> <20070313041551.565891b5.akpm@linux-foundation.org> <45F68B4B.9020200@yahoo.com.au> <20070313044756.b45649ac.akpm@linux-foundation.org> <20070314011244.GM2986@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0703151719380.32335@blonde.wat.veritas.com>
+In-Reply-To: <20070314011244.GM2986@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, Chuck Ebbert <cebbert@redhat.com>, Ashif Harji <asharji@cs.uwaterloo.ca>, Miquel van Smoorenburg <miquels@cistron.nl>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 15, 2007 at 05:44:01PM +0000, Hugh Dickins wrote:
-> who removed the !offset condition, he should be consulted on its
-> reintroduction.
+On Tue, Mar 13, 2007 at 06:12:44PM -0700, William Lee Irwin III wrote:
+> There are furthermore distinctions to make between fork() and execve().
+> fork() stomps over the entire process address space copying pagetables
+> en masse. After execve() a process incrementally faults in PTE's one at
+> a time. It should be clear that if case analyses are of interest at
+> all, fork() will want cache-hot pages (cache-preloaded pages?) where
+> such are largely wasted on incremental faults after execve(). The copy
+> operations in fork() should probably also be examined in the context of
+> shared pagetables at some point.
 
-the !offset check looks a pretty broken heuristic indeed, it would
-break random I/O. The real fix is to add a ra.prev_offset along with
-ra.prev_page, and if who implements it wants to be stylish he can as
-well use a ra.last_contiguous_read structure that has a page and
-offset fields (and then of course remove ra.prev_page).
+To make this perfectly clear, we can deal with the varying usage cases
+with hot/cold flags to the pagetable allocator functions. Where bulk
+copies such as fork() are happening, it makes perfect sense to
+precharge the cache by eager zeroing. Where sparse single pte affairs
+such as incrementally faulting things in after execve() are involved,
+cache cold preconstructed pagetable pages are ideal. Address hints
+could furthermore be used to precharge single cachelines (e.g. via
+prefetch) in the sparse usage case.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
