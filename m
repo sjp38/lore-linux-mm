@@ -1,56 +1,59 @@
-Date: Fri, 16 Mar 2007 00:15:27 +0100
-From: Andrea Arcangeli <andrea@suse.de>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2FNFngV012977
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2007 19:15:49 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2FNFnp0062772
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2007 17:15:49 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2FNFmWY031936
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2007 17:15:48 -0600
 Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
-Message-ID: <20070315231527.GG6687@v2.random>
-References: <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173905741.8763.36.camel@kleikamp.austin.ibm.com> <20070314213317.GA22234@rhlx01.hs-esslingen.de> <1173910138.8763.45.camel@kleikamp.austin.ibm.com> <45F8A301.90301@cse.ohio-state.edu> <Pine.GSO.4.64.0703150045550.18191@cpu102.cs.uwaterloo.ca> <20070315110735.287c8a23.akpm@linux-foundation.org> <20070315214923.GE6687@v2.random> <20070315150601.682036cf.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070315150601.682036cf.akpm@linux-foundation.org>
+From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+In-Reply-To: <20070315225928.GF6687@v2.random>
+References: <20070312143900.GB6016@wotan.suse.de>
+	 <20070312151355.GB23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca>
+	 <20070312173500.GF23532@duck.suse.cz>
+	 <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca>
+	 <20070313185554.GA5105@duck.suse.cz>
+	 <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca>
+	 <45F96CCB.4000709@redhat.com> <20070315162944.GI8321@wotan.suse.de>
+	 <Pine.LNX.4.64.0703151719380.32335@blonde.wat.veritas.com>
+	 <20070315225928.GF6687@v2.random>
+Content-Type: text/plain
+Date: Thu, 15 Mar 2007 18:15:45 -0500
+Message-Id: <1174000545.14380.22.camel@kleikamp.austin.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ashif Harji <asharji@cs.uwaterloo.ca>, dingxn@cse.ohio-state.edu, shaggy@linux.vnet.ibm.com, andi@rhlx01.fht-esslingen.de, linux-mm@kvack.org, npiggin@suse.de, jack@suse.cz, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Chuck Ebbert <cebbert@redhat.com>, Ashif Harji <asharji@cs.uwaterloo.ca>, Miquel van Smoorenburg <miquels@cistron.nl>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 15, 2007 at 03:06:01PM -0700, Andrew Morton wrote:
-> On Thu, 15 Mar 2007 22:49:23 +0100
-> Andrea Arcangeli <andrea@suse.de> wrote:
+On Thu, 2007-03-15 at 23:59 +0100, Andrea Arcangeli wrote:
+> On Thu, Mar 15, 2007 at 05:44:01PM +0000, Hugh Dickins wrote:
+> > who removed the !offset condition, he should be consulted on its
+> > reintroduction.
 > 
-> > On Thu, Mar 15, 2007 at 11:07:35AM -0800, Andrew Morton wrote:
-> > > > On Thu, 15 Mar 2007 01:22:45 -0400 (EDT) Ashif Harji <asharji@cs.uwaterloo.ca> wrote:
-> > > > I still think the simple fix of removing the 
-> > > > condition is the best approach, but I'm certainly open to alternatives.
-> > > 
-> > > Yes, the problem of falsely activating pages when the file is read in small
-> > > hunks is worse than the problem which your patch fixes.
-> > 
-> > Really? I would have expected all performance sensitive apps to read
-> > in >=PAGE_SIZE chunks. And if they don't because they split their
-> > dataset in blocks (like some database), it may not be so wrong to
-> > activate those pages that have two "hot" blocks more aggressively than
-> > those pages with a single hot block.
-> 
-> But the problem which is being fixed here is really obscure: an application
-> repeatedly reading the first page and only the first page of a file, always
-> via the same fd.
->
-> I'd expect that the sub-page-size read scenarion happens heaps more often
-> than that, especially when dealing with larger PAGE_SIZEs.
+> the !offset check looks a pretty broken heuristic indeed, it would
+> break random I/O.
 
-Whatever that app is doing, clearly we have to keep those 4k in cache!
-Like obviously the specweb demonstrated that as long as you are
-_repeating_ the same read, it's correct to activate the page even if
-it was reading from the same page as before.
+I wouldn't call it broken.  At worst, I'd say it's imperfect.  But
+that's the nature of a heuristic.  It most likely works in a huge
+majority of cases.
 
-What is wrong is to activate the page more aggressively if it's
-_different_ parts of the page that are being read in a contiguous
-way. I thought that the whole point of the ra.prev_page was to detect
-_contiguous_ (not random) I/O made with a small buffer, anything else
-doesn't make much sense to me.
+> The real fix is to add a ra.prev_offset along with
+> ra.prev_page, and if who implements it wants to be stylish he can as
+> well use a ra.last_contiguous_read structure that has a page and
+> offset fields (and then of course remove ra.prev_page).
 
-In short I think taking a ra.prev_offset into account as suggested by
-Dave Kleikamp is the best, it may actually benefit the obscure app too ;)
+I suggested something along these lines, but I wonder if it's overkill.
+The !offset check is simple and appears to be a decent improvement over
+the current code.
+-- 
+David Kleikamp
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
