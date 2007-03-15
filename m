@@ -1,70 +1,35 @@
-Date: Thu, 15 Mar 2007 19:49:24 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix madvise infinine loop
-In-Reply-To: <20070310034942.GB13299@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0703151937350.7795@blonde.wat.veritas.com>
-References: <20070310034942.GB13299@wotan.suse.de>
+Date: Thu, 15 Mar 2007 22:49:23 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
+Message-ID: <20070315214923.GE6687@v2.random>
+References: <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173905741.8763.36.camel@kleikamp.austin.ibm.com> <20070314213317.GA22234@rhlx01.hs-esslingen.de> <1173910138.8763.45.camel@kleikamp.austin.ibm.com> <45F8A301.90301@cse.ohio-state.edu> <Pine.GSO.4.64.0703150045550.18191@cpu102.cs.uwaterloo.ca> <20070315110735.287c8a23.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070315110735.287c8a23.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ashif Harji <asharji@cs.uwaterloo.ca>, dingxn@cse.ohio-state.edu, shaggy@linux.vnet.ibm.com, andi@rhlx01.fht-esslingen.de, linux-mm@kvack.org, npiggin@suse.de, jack@suse.cz, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 10 Mar 2007, Nick Piggin wrote:
+On Thu, Mar 15, 2007 at 11:07:35AM -0800, Andrew Morton wrote:
+> > On Thu, 15 Mar 2007 01:22:45 -0400 (EDT) Ashif Harji <asharji@cs.uwaterloo.ca> wrote:
+> > I still think the simple fix of removing the 
+> > condition is the best approach, but I'm certainly open to alternatives.
 > 
-> This has been noticed when running a particular database server which I
-> won't name. Please apply.
-> 
-> --
-> madvise(MADV_REMOVE) can go into an infinite loop or cause an oops if
-> the call covers a region from the start of a vma, and extending past that
-> vma.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> Yes, the problem of falsely activating pages when the file is read in small
+> hunks is worse than the problem which your patch fixes.
 
-Good find,
-Acked-by: Hugh Dickins <hugh@veritas.com>
+Really? I would have expected all performance sensitive apps to read
+in >=PAGE_SIZE chunks. And if they don't because they split their
+dataset in blocks (like some database), it may not be so wrong to
+activate those pages that have two "hot" blocks more aggressively than
+those pages with a single hot block.
 
->From the patch itself, it looks odd that you've added a prev arg to
-madvise_remove, which could perfectly well be assigned by the caller.
-But you're doing the right thing, to follow the established convention
-there.  Or would we do better to preset *prev = vma in madvise_vma,
-to prevent a similar error next time?  (No need to delay this fix,
-just a question for the future, I'm uncertain.)
-
-Hugh
-
-> 
-> Index: linux-2.6.16/mm/madvise.c
-> ===================================================================
-> --- linux-2.6.16.orig/mm/madvise.c
-> +++ linux-2.6.16/mm/madvise.c
-> @@ -155,11 +155,14 @@ static long madvise_dontneed(struct vm_a
->   * Other filesystems return -ENOSYS.
->   */
->  static long madvise_remove(struct vm_area_struct *vma,
-> +				struct vm_area_struct **prev,
->  				unsigned long start, unsigned long end)
->  {
->  	struct address_space *mapping;
->          loff_t offset, endoff;
->  
-> +	*prev = vma;
-> +
->  	if (vma->vm_flags & (VM_LOCKED|VM_NONLINEAR|VM_HUGETLB))
->  		return -EINVAL;
->  
-> @@ -199,7 +202,7 @@ madvise_vma(struct vm_area_struct *vma, 
->  		error = madvise_behavior(vma, prev, start, end, behavior);
->  		break;
->  	case MADV_REMOVE:
-> -		error = madvise_remove(vma, start, end);
-> +		error = madvise_remove(vma, prev, start, end);
->  		break;
->  
->  	case MADV_WILLNEED:
+So I've an hard time to advocate to prefer the current behavior, but
+certainly this can be "fixed" by caching the last_offset like others
+pointed out ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
