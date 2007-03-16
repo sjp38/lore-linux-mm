@@ -1,28 +1,65 @@
-Date: Thu, 15 Mar 2007 19:20:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] Lumpy Reclaim V5
-Message-Id: <20070315192038.82933a2f.akpm@linux-foundation.org>
-In-Reply-To: <exportbomb.1173723760@pinky>
-References: <exportbomb.1173723760@pinky>
+Message-Id: <200703160351.l2G3p3GJ020217@turing-police.cc.vt.edu>
+Subject: Re: [PATCH] mm/filemap.c: unconditionally call mark_page_accessed
+In-Reply-To: Your message of "Thu, 15 Mar 2007 14:35:17 EDT."
+             <45F991E5.1060001@redhat.com>
+From: Valdis.Kletnieks@vt.edu
+References: <Pine.GSO.4.64.0703081612290.1080@cpu102.cs.uwaterloo.ca> <20070312142012.GH30777@atrey.karlin.mff.cuni.cz> <20070312143900.GB6016@wotan.suse.de> <20070312151355.GB23532@duck.suse.cz> <Pine.GSO.4.64.0703121247210.7679@cpu102.cs.uwaterloo.ca> <20070312173500.GF23532@duck.suse.cz> <Pine.GSO.4.64.0703131438580.8193@cpu102.cs.uwaterloo.ca> <20070313185554.GA5105@duck.suse.cz> <Pine.GSO.4.64.0703141218530.28958@cpu102.cs.uwaterloo.ca> <1173905741.8763.36.camel@kleikamp.austin.ibm.com> <20070314213317.GA22234@rhlx01.hs-esslingen.de> <200703151737.l2FHb81d001600@turing-police.cc.vt.edu>
+            <45F991E5.1060001@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; boundary="==_Exmh_1174017063_1561P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Mar 2007 23:51:03 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andreas Mohr <andi@rhlx01.fht-esslingen.de>, Dave Kleikamp <shaggy@linux.vnet.ibm.com>, Ashif Harji <asharji@cs.uwaterloo.ca>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Mar 2007 18:22:45 +0000 Andy Whitcroft <apw@shadowen.org> wrote:
+--==_Exmh_1174017063_1561P
+Content-Type: text/plain; charset=us-ascii
 
-> Following this email are three patches which represent the
-> current state of the lumpy reclaim patches; collectively lumpy V5.
+On Thu, 15 Mar 2007 14:35:17 EDT, Rik van Riel said:
+> Valdis.Kletnieks@vt.edu wrote:
+> > On Wed, 14 Mar 2007 22:33:17 BST, Andreas Mohr said:
+> > 
+> >> it'd seem we need some kind of state management here to figure out good
+> >> intervals of when to call mark_page_accessed() *again* for this page. E.g.
+> >> despite non-changing access patterns you could still call mark_page_accessed()
+> >> every 32 calls or so to avoid expiry, but this would need extra helper
+> >> variables.
+> > 
+> > What if you did something like
+> > 
+> > 	if (jiffies%32) {...
+> > 
+> > (Possibly scaling it so the low-order bits change).  No need to lock it, as
+> > "right most of the time" is close enough.
+> 
+> Bad idea.  That way you would only count page accesses if the
+> phase of the moon^Wjiffie is just right.
 
-So where do we stand with this now?    Does it make anything get better?
+On the other hand, Andreas suggested only marking it once every 32 calls,
+but that required a helper variable.  Statistically, jiffies%32 should
+end up about the same as a helper variable %32.
 
-I (continue to) think that if this is to be truly useful, we need some way
-of using it from kswapd to keep a certain minimum number of order-1,
-order-2, etc pages in the freelists.
+This of course, if just calling mark_page_accessed() is actually expensive
+enough that we don't want to do it unconditionally.
+
+
+--==_Exmh_1174017063_1561P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFF+hQncC3lWbTT17ARAgv6AKCXLpBf4us71IBVrMARlvAeBwOXLQCg66hV
+v+Hvy/9LDhPZFr9yT8zEcTw=
+=9M8W
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1174017063_1561P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
