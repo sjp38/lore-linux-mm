@@ -1,316 +1,88 @@
-Date: Sat, 17 Mar 2007 10:57:19 -0800
-From: "CHELSEA GARVIN" <pusuc@euromb.com>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2HJbTdT030917
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2007 15:37:30 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2HJbThT054920
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2007 13:37:29 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2HJbTsh010998
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2007 13:37:29 -0600
+Date: Sat, 17 Mar 2007 12:37:29 -0700
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: FADV_DONTNEED on hugetlbfs files broken
+Message-ID: <20070317193729.GA11449@us.ibm.com>
+References: <20070317051308.GA5522@us.ibm.com> <20070317061322.GI8915@holomorphy.com>
 MIME-Version: 1.0
-Subject: You'll have a great time checking this out!
-Message-id: <MAILSENDERNG3GKeD223915c0e6@66.96.29.28>
-Content-Type: multipart/related;
- boundary="------------MultiBound139208952674519761760875"
-Return-Path: <pusuc@euromb.com>
-To: linux-mm-archive@kvack.org, majordomo@kvack.org, kelda@kvack.org, linux-mm@kvack.org, kernel@kvack.org, linux-aio@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070317061322.GI8915@holomorphy.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: kenchen@google.com, linux-mm@kvack.org, agl@us.ibm.com, dwg@au1.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------MultiBound139208952674519761760875
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+On 16.03.2007 [23:13:22 -0700], William Lee Irwin III wrote:
+> On Fri, Mar 16, 2007 at 10:13:09PM -0700, Nishanth Aravamudan wrote:
+> > git commit 6649a3863232eb2e2f15ea6c622bd8ceacf96d76 "[PATCH] hugetlb:
+> > preserve hugetlb pte dirty state" fixed one bug and caused another (or,
+> > at least, a regression): FADV_DONTNEED no longer works on hugetlbfs
+> > files. git-bisect revealed this commit to be the cause. I'm still trying
+> > to figure out what the solution is (but it is also the start of the
+> > weekend :) Maybe it's not a bug, but it is a change in behavior, and I
+> > don't think it was clear from the commit message.
+> 
+> Well, setting the pages always dirty like that will prevent things
+> from dropping them because they think they still need to be written
+> back. It is, however, legitimate and/or permissible to ignore
+> fadvise() and/or madvise(); they are by definition only advisory. I
+> think this is more of a "please add back FADV_DONTNEED support"
+> affair.
 
-<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+Yes, that could be :) Sorry if my e-mail indicated I was asking
+otherwise. I don't want Ken's commit to be reverted, as that would make
+hugepages very nearly unusable on x86 and x86_64. But I had found a
+functional change and wanted it to be documented. If hugepages can no
+longer be dropped from the page cache, then we should make sure that is
+clear (and expected/desired).
 
-<head>
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=us-ascii">
-<meta name=Generator content="Microsoft Word 12 (filtered medium)">
-<!--[if !mso]>
-<style>
-v\:* {behavior:url(#default#VML);}
-o\:* {behavior:url(#default#VML);}
-w\:* {behavior:url(#default#VML);}
-shape {behavior:url(#default#VML);}
-</style>
-<![endif]-->
-<style>
-<!--
- /* Font Definitions */
- @font-face
-	{font-family:"Cambria Math";
-	panose-1:0 0 0 0 0 0 0 0 0 0;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
-@font-face
-	{font-family:Tahoma;
-	panose-1:2 11 6 4 3 5 4 4 2 4;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
-p.MsoAcetate, li.MsoAcetate, div.MsoAcetate
-	{mso-style-priority:99;
-	mso-style-link:"Balloon Text Char";
-	margin:0in;
-	margin-bottom:.0001pt;
-	font-size:8.0pt;
-	font-family:"Tahoma","sans-serif";}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-span.BalloonTextChar
-	{mso-style-name:"Balloon Text Char";
-	mso-style-priority:99;
-	mso-style-link:"Balloon Text";
-	font-family:"Tahoma","sans-serif";}
-MsoChpDefault
-	{mso-style-type:export-only;}
-@page Section1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-<!--[if gte mso 9]><xml>
- <o:shapedefaults v:ext="edit" spidmax="2050" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <o:shapelayout v:ext="edit">
-  <o:idmap v:ext="edit" data="1" />
- </o:shapelayout></xml><![endif]-->
-</head>
+Now, even if I call fsync() on the file descriptor, I still don't get
+the pages out of the page cache. It seems to me like fsync() would clear
+the dirty state -- although perhaps with Ken's patch, writable hugetlbfs
+pages will *always* be dirty? I'm still trying to figure out what ever
+clears that dirty state (in hugetlbfs or anywhere else). Seems like
+hugetlbfs truncates call cancel_dirty_page(), but the comment there
+indicates it's only for truncates.
 
-<body lang=EN-US link=blue vlink=purple>
+> Perhaps we should ask what ramfs, tmpfs, et al would do. Or, for that
+> matter, if they suffer from the same issue as Ken Chen identified for
+> hugetlbfs. Perhaps the issue is not hugetlb's dirty state, but
+> drop_pagecache_sb() failing to check the bdi for BDI_CAP_NO_WRITEBACK.
+> Or perhaps what safety guarantees drop_pagecache_sb() is supposed to
+> have or lack.
 
-<div class=Section1>
+A good point, and one I hadn't considered. I'm less concerned by the
+drop_pagecache_sb() path (which is /proc/sys/vm/drop_caches, yes?),
+although it appears that it and the FADV_DONTNEED code both end up
+calling into invalidate_mapping_pages(). I'm still pretty new to this
+part of the kernel code, and am trying to follow along as best I can.
 
-<p class=MsoNormal><a href="http://pointfeed.com"><span style='color:windowtext;
-text-decoration:none'><img border=0 id=mountain.8.gif
-src="cid:2.0.0.99.0.76700640655401.20048447@cook.brain.net.pk.8"></span></a><o:p></o:p></p>
+In any case, if the problem were in drop_pagecache_sb(), it seems like
+it wouldn't help the DONTNEED case, since that's a level above the call
+to invalidate_mapping_pages().
 
-<p class=MsoNormal>fruit in &nbsp;clock it's sad it's night
-or organisation see letter on tall or engine it's burst
-see discussion it's fly but hard not cat may early
-on acid in goat or ship some death but insect
-be false be seed not distance some rod and brain
-see different , church and <o:p></o:p></p>
+I'll keep looking through the code and thinking, and if anyone has any
+patches they'd like me to test, I'll be glad to.
 
-<p class=MsoNormal>group try &nbsp;digestion some pump the amount
-the early , ship , distance in branch ! different
-and thin may thread and material and ticket be quick
-a finger on monkey and camera and writing some special
-in weather see quick the range ! word , bath
-try comfort see group not <o:p></o:p></p>
+Thanks,
+Nish
 
-<p class=MsoNormal>table be &nbsp;bucket and wing , stamp
-and play in wing on machine in air some power
-see space some bite ! distribution ! automatic and sky
-! dirty may leather it late it end ! part
-be discussion see jewel or twist the strong be writing
-some boat or expert but <o:p></o:p></p>
-</div>
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
-</body>
-
-</html>
-
---------------MultiBound139208952674519761760875
-Content-Type: image/gif;
- name="mountain.8.gif"
-Content-Transfer-Encoding: base64
-Content-ID: <2.0.0.99.0.76700640655401.20048447@cook.brain.net.pk.8>
-Content-Disposition: inline;
- filename="mountain.8.gif"
-
-R0lGODlhjwGVAMQAAAtc/Zmeof///w5PepUUJ1xja8zS0zN8sgg9YBMWH10CC493/+bp6r+F
-jcHHyJKw3k0dZN7k5OPP0dm0ue3f4X2AhdTZ2+rq8fH089rf3/b2+Pbv8K+1t+3w7+Pj5DQ/
-RiH5BAAAAAAALAAAAACPAZUAAAX/oCCOZGmOTKqubLsaV+zOdA3XuHrufO//wKBwSCwaj8ik
-csk05Z6Wp9Q2rTWv2Kx2y+16v6Uq7SYuk8srsHrNbrvfanQrKq866mm4fs/v+8F4KnSBOWd1
-f4iJiouMGIQRGY+Fj42VlpeYSx2SnFSEGpmhoqOim52nLIN4oKStrq97MoGqkLW2t7i5uIZy
-rLC/wMFYsrrFt7zGkcrLzLt3n8LR0tNBjxYOBhba29zd3t/gz8njGMEOEAkJFYkVCRB/7e8C
-8dSxzeD4GQbY2f3+//gAenPAQd+9cbY66CmQrmEBB0bQBTjCsIAWen4wYmyCLkE9IAFD/uO3
-r6TJkyhT/6osmE+ktgsL04kogA7iEA/pbBap+JHERi0f3PX0obKowH0cSCpdyrQp06RHowpk
-ENOjAAsQIKwTwIFhuokCAqTjENRBuqwQPFxtl66CQhFivzrw6i6tibjqAnRoKyKoRQF+5wld
-2zCATbwVwPp0xwGdiK6F4X5FB4GDCI1ZRwTomDhswwQfFG9OVwAsQ3lDdxh1+pSg66SwY7+e
-LXs2Pw5QV49EGSGmPA9Z1zUusEmi5893slq+mtWCAJ6AE1jsUPo5hL8moAewyPCDgL2DjVfI
-vCEr2M7asY9g25Ar6OIJJsaVn07teHn3Lzefp/44RLF2OeCddailFgZrCJLEQf8AuDXo4IMQ
-RighbobpZuFCmTEHwUTm6ffOZhDoBFxl+m3VWFogqkUCTf2NwBcJIIaFljb75XcOiSQE10M8
-bwnQ4TyZpfidjvkB+Q5WOO7QIU0F6teigd/ZlqCUAVQ45ZVPWYnlbSRhiN91G4yIFlpc7SfC
-iMuNOaYDRa54nZJ1bagWkhaMt1mVbxo55JhgqamXCRuJqWaZdvmolZ56nuhcCdvxaWRwNo33
-pIEZTGgphAzSQYsH1jjA4KWgJuUlWg1QsKdiIyiKgnIzHVpCmyOwuIMH95Fp6GbEXWenhyLM
-NeY6tA76aoanmqCqoesU2UBmx8Z6HUQ/gjgjkJOmZkD/qKEW8EFQoG3r7bfghisuuJ9iiylu
-OrnB5Ak6rkeoinsuB6teMQ5b7XoZSjsRkxBMwCsJ5eWJb5OIitDuZe8WK6kIy1qEpL+r4vij
-ZlmlC6UJ15prqbYfFMCxtiCPK/K48WlsqS9trGtshxtUYNGJpp7JqoZbbcYpTTXLl9UGThQg
-r6sTTCvtCA1zVep3NOlVAMTjbeUTsYRO1PLLOwvQMM9FW53n1QKwGfA6N07UmYwQ8GzrxSNk
-bHKEejUjRkDYVFDB2hL2mDLUJBhQa2cwR7zcd9KWxvMG+kLU8rQoNDpxwPIEDUEDRL9pgeI+
-A14rqgOXwCZafAcXXMxZZx0W/5Nzd805qwuSGvPZaHdNN9u1SGUhPhgEMPfrD1LVemp9786H
-lOjWRtuDBchdvNzIJ6/88swrXzzuufs+VO/Sw7Hb7Ch17PH23Hfv/ffgf3B7hFKylkH1H1GP
-fhstIaQNWeDHL3/84rtGkkvd3LH+/vxfwSlCODDAZwZIwAIa0IAVmMpB3LaM/jnwgUX4XyDM
-csAKWrCAbQMgDiDIwQ7yQBIUvKAILZjBWXjwhCgkRi84kI6RuXBkAyyhKXqBwhpCcIaHIEvz
-dshD5B3PZdpyCw4dgQYbGrF/kuBAAi20peDhpjNDjKIUiYGyI1qxdZKw3RQ5sSAibtGLU4TB
-FceItv8vVkFwqGCBp8yowhnoj4xwHMo17EfHLaFRg3iM3figVyV4AaMCCrgXESigAAVgrhGA
-JJiPFOC0RRDSkKToivO2lzyPGe97ocGfJsGxLY59i3ud9CQmz6euQpqyckloACNFUEjIIeGR
-hwTDBAoJMRO0cj0KUCQEVtkIWJIiAC8M5raWuKVi7kOYI/PkolKWSxHMUgGuPEIAoMlKar7i
-mbUswS0v08w4HoFNtuuhOMUHPXPt0VwEcWIAelNK1KhSARCTQAFMGc1ENiaXEJsl5ExZSAKY
-YJcVeOc63kmcq2yzAQQoZAFcSQFAtjKbRDslxKapAFM90zD85OUIMupPQBL/YAIJ/ajBeNlQ
-ekL0OfxcGjcro1AK3BMCEmAYPzc0k4zC85GQw6lDnXZPRhYyZm/AYSTaKIgICDUKzysnqGxn
-vtkZ5DvdsJsW5unPESTUYYW0zDzxU8iYbvUE2/xnLsOkULJSE6dWUwABLPqODRw0mrFqpgRo
-GZafdq2QE8HmDsLqUa+qVQQJXYdbrdkAuGankDxzaEx3CVOUtuidEN0lVs9ayHXMlZqXhdw7
-geqFGWKDK1UKre3CKc7kkVOpoNLe/IBoyeYZ4CoQkioWqEqCkKK0qpf1l0dlWlFbWlOsWwls
-TScLOdqS4JmGzVtWa+rPzQoAuc+lK1h/q8qqOjeh/5CDLhD0utt5/DWtCpguXKvLM7SiVQCV
-vS1vOcuFOWIDN9SZn3y3p4501tG+Tiwfl+5nltaWdnmW7BhXcsOPLhgXsATwJ3bPdMvuOleb
-BEjuSINrzXkSF7wK9dcj+5lcioKukOC16C1nKVLxEi3BDEuwqRa8YbVKmALL4qe/qitT64KY
-YfOk5wieGVMBmHebC77qer/ggfzB4IeXbK0l5auOa2zSIO2LXbdCOV/vAXHA3qjiFQ4sgARD
-zssMpiaNraZiW0ZYSbwEc5f/SsgzkznBZZ5Ajl3MKLuCN8TRpSZIS+zbaCK0qntesZtB2k83
-o6Cleh3zn3kLWLX6a5sbWP/wmcBMATWDWchvZq8W8DHCEa4zjbIQYKcv+LL7vYQLB/7zjFF8
-lQSv2rplLoGkTSBpS6O40oZOMZ+/A+cS5FbXmX4umCXg6r1Sl9WB7nKuec1qzdh1z68G9pt9
-LGk6p7Wqkz4zrl0J5kUHuwsdAAcDRn1BGaYxhOQe4LbUwRVTawPV392zK4ktUm97O9kl4HJt
-rWlrf+LaX27+8wYKG9NIL1u99PZXwt8MOYNLWL3STjaYJ9CAgqt5x3RV9bQ3vmiHC/vMf+bs
-tqld4okXO+SdhTKUOyBMT4ORjTD3YgjXjcxQemsiuVF5OaZa6AhnUwJ/NvS9Y503OGPbqvx2
-c6///221oB8N6EY/qa6L7Uw4a/zjB6c3ioe+VmVDDupwlvo7oXlyVtsb2Va/tNFdPXKme73q
-Xib6Fg4CA269EDQtpPln/hTzMnQt3QcUcFIO4s3CD8HbXCjqMq5FSe4Zz2WslV98jnoKFmqv
-5iJD1z1ea/jO92Dk4C5yMyQpN9Iuz/TNAyYxV9JEpqg+MaUfbThRD+DHYyMXBPG87rNt9ZQz
-MLT/HafPQrug4ou2+Mh3kGiX36AKiC/4PSze7VVe5L/t/vqAcGNSls994PcQmKEpffBHm7zZ
-K287pSnt8hPD/dKLuyDYj3/oJShBAxiGbd3Pv2hjL3v2V8n/+heA/weA/wLIfBGyLTTQRfK3
-gFhAffTnMykxIQwSgHs0gajVIJ5yTujEFNqSCnqkZfwDUAzoB9lAf7awREZ2X0ulgcmnfHST
-gfhFPk3xDR24QAkkDWF1BCKIXr/FAxT1cCM4SOKQCwlEfdfTGum0ICx4ga7BVPdlFPlQgw7I
-AFWCgz24BDm4AxyQhUFoBNOnC0WYDEe4FFWyXzGYhPb1XmZIhqvnbuKmC1L4DV0BgkgwdipV
-V9BkSsvxg3qYKruUS2CBU/M0dv3kXfLgXABFUKuzShz1Tj3mUHkGhF0YBINng8hQDGPoKVrC
-RMZUhm+YR3E4EB9gfUrwVb9GURPhXKiIZ5tVHv+UxU/79FsOZleMFSY7KFw86EqD5UoiqF2T
-aAQMwBJTaAEP8Tb44ImbJDslyA19tEB5FAGh6A3F0wSXtRy05Vy7iGfZeFCIdV7V5GffdV28
-ZFzVRl0gdlkx9UhS94tAQBBGyA3FaIy50IzJqIwqR4/P6AI1WBTO1wQexmgPdksBCU3nBVne
-mIsRZWO9JWljVmuGhk1jpo7saAS40RLx+AgL4j5RxkARkJGcoC2rAUykKE129k549nYP5mUF
-SUsHeXH2Zldq5m22BlfYJWluN5FCEAFzIzsFsCl1AF+YuJH5QIUF8ZEfgBRqaD/wwwS/Nm0o
-53FPqXauJHCgh2B+Znb/ZRaTrDaTJBB0BMAzOIkESgSFBtCTXFSUx+A2RKV43kCUnQCSaIiG
-XfEBulOKf7VwySZwH2cqehlyHneTyoZtKIdyWllV/UYCuCZ0FxeWP+CEa7gPZpmPLpCR3NAC
-dPhyUaQMDPKWo3gpYhFLRuCV+RR3sSZvcAZUe0Z1gKl1sBZhhBlwW+lmrGlVVMdwjAkEFyB9
-coku2BCZkrl4X9h3mDmcm+Bky0h5U6At50IhCyJgXYBvxyV3l9Brt+mFPgMqxdiWGqkMVCSc
-xGlG7uWTT6AtBbgdCbBMWgCdOyadlTBXB1edQLAdSTghD8EbQ+VGJbiW3vmdMGc/3BlA2kCe
-/wWoQ12AciVgoJjwTmAJn0PQMaEyinVUmbbQD/fpd5fJn0IlRTknhpAZGuW5LQwahAJSLpYS
-Gg/ihiVhVDSEoSyqnyp6LSk6odqghgJagM4nWyGqex3gMvM5IR5aJbzZD5qnosYQcxfaolJg
-X7HzXg1SowG4IPGRo/KXm0sIIT8KpFBRfJdIpDmAMib4pTunAX2XlpCQMbdBPFeqf805IFJ6
-fSPqgmyTphSSKZLpCGJaprS3Q6RViS6KEJoYIU6qppBRl23aeTuaAOYiPuuHlhzJpSpKRPbn
-Q+CTZEtmZchzexm6C+CApU2aptyHfGLRSIVaeAygnMv5IB0zgYkxhP9qmRDFqYSRhzzEd6K7
-uX+Uyn6MSndyiKVz0ZlsY6VsOqqFRxYkeqqvJzes2qgqkIFWVhBpOFp1gqxKJDeTQ62Vkhuk
-VTzFQ6ex847hqaUMoTEMQUrCGkeHypxzyqkU8nzr9IkJwazdExu2Y0nYAKRL8T7X4onoV3pQ
-EU4/xK3hcBLFty20Sj5QKqrlekUMQLALwnwWSCH1tZEpoETds0TzejyZghTpOqD94K/bChuo
-V4kBqyCmeoYxiBsgmrBwZBZzA6SCaq2yg6exWq9AtJPpNICNl7Pe0zGyypsXu6rTKqso+hSl
-ITxJ6SDjmgSZ1ZU29RcbkGM9iUvrSAJdIVH/GGdTFPBMGcVeDmVK/jJnpiSqDhWIpgSWhFgB
-QAWJYZZchBhWCuVs8ERRTpNjJ9UAHxC2YPlIgvQGylmeq7qRXcE9n0JJDEIQPyup4TJlU+Yt
-8VO4SphUbNJaBBaBTei4sSEhqncELTZeN/YqNxVIDLa3DuUv2uWLzsSFvjW3nXsCgxVe4MVt
-CkCX4PWInXuQvDVj2/S2t4tSvfVMCIte02Fb36G7ieCgNrqJChS522MY+1ohFFup3lJB64Z3
-LaRulUqvBFGz2Su5RYEpxUqfwRpBOWiSvtVoiaUAPcYDvuhcphuJP5BezOUDP6i3Qxa/3uW6
-PsaFkJW//Aa6u0u//wmlAAvqExGFvtX0u3zwowTofch7FJHHvJYEG5LKMdT7GTWnuNQ7TI73
-XtvzRNzbGsr3vRHSDpwHjOPLT4Z2YwlFAXNVAYR2hTUlwGkzYlnYvtOluke3AwGcYzFTiAWs
-W7WrvxnXVY2GHfv7uqh7oNIFv8XbfrAXTpOrEtuhPf/nMffnsdPbECKDAFzMxR7TxVwsLt1i
-wapFr8+rqlZMYBKYGJ7JbpqbxO/kSioswAnlngMHwzkGMG+rtabkT3zsw32GdBkldZfltt91
-umIWxDDcthEWM8ILXhATaX0MBAEMlrOGCKXhxOE0JYGbxs4HgfPqMtxCxt4CxghQPAgwAP+q
-PABys8qqXAEH4MoIEL0Z3ELa+jzKmxSQx8Y9iilsXKLhexNJHJgyNQFtpk+zZBEkdlj4O7x6
-VsPDvFG/9cg98E5HB8juS778y7Z0ZXBfuWaCKV1Yp2kmEMdIJ4lwAICwJ7RkyVpF6DLbx1qj
-vLgfEMb17Mqo7MqtrM+urMoBEMsDEMZjrMWUVBDWSrH86pm/3IJPhKhvDMMnVlVP20+4NnBn
-tsz5hlgzrGeL6b4+EFbU/EHWhmBHt7+IZ7uQrGsA12yOWFvNxgPWvKCX/AcNO4DG08BK0ckQ
-aKbT6jHqJh31DMYdk8qrnM+qjAD7vMoV0M8DEACqfABQPQDagsH/oFHQ97MdCX0pC62uYrG3
-s5KD6kGdB3rRZJ3DHo1n8lYCNhzIJA0SI/1t4KxrYKlXSgxPuhZTiKegLm3Wdd11mFDTslca
-mai8z3N/T2Q8QWF3QT3UXKzURL3KAfDYSF0Bj83KTL3UAwDVUP0AUQ0uthzB9WoYu3wp2Xs7
-s4qyViG+PUgAUVtdUpdggwPbCCVhru3RaX1c0fyNtMnXTvDWgcmXRMxssMvX+5uYIkBvOTXT
-Yn0CFFVQKLDcNA3YtsMSRxi4Dup8CRS087wtpozU99zFTl3ZlL3Kk93PmL3KUZ3ZsXwAsKzZ
-sUzLoAFEEPwQgbvQBcsmLXt8UAqaIo3C/1MZwIEkdg/ZezuQmj63nsu21rjUxyvN22Ggv3BG
-kADjlQ9nzQR+3BROa4dsAn+sVv6GzdFd04kxECYBRKExF4Ltr9t9ykHdxS5jyi9O3gUQ0Ezt
-ygAN2QAN0Jzt3pt9ALRcqUlBnsq7hCQhN9INpV6tsv3TIP/XriRO2LjhMaXtSYkd1F/c2LNc
-AJL9xbJc416u1Dmuyjvu3raj2YktytqKtqpnfxFMq0VOgKh9pEq+5A07N97KeCBDscwrN4oN
-Gqas5QEN3oGeylje5ar8EE4t1V/+1Ovd3u495prtMXbXwSjuwUULG64H55855zZUfHa+eRZg
-3QnkMbrM5xas5f8wjupdPOPdXeMLcsoZQNk9ed41nuM8zt6Q3uOz7BAus07OJ9pWjCCy5yDS
-wek11OSgXilUPBfZbTwDxMXOZ8qh0d2FPuj9HOoBLTewTuu1fus9zuMBsOMDML3iUzyTUz/a
-yxpYCqTaYuwoFFovcQ+dHOUJFE7znABdLD7drerUbso0nu2R3dSA3hWLzui3/s887gA8Pu7r
-BkS9mUC2N4PgxJxiYTHu7kC2I576IOnNWe+mjnfdvR39PvL+bn+nzAH+TNkHgPIPwe027u23
-/gBOrdmrPL3aGuSIDnn3KqRb7ZwXD0Gfpgvz/uv4PdW23N2j2OIk3+8DUCmpTPC2w8r/Tj3r
-3Q7zMb/wA/AADH/mgs2joWwUSlQuDCHnP986uTqhDq+cRa/Fjc3vAf3FjL30hB7oPvP0Wv7q
-DzDjc+Pl6231jo71/5zZDF/VpaGTOW/u3TuBnuLQZe9AYzCvcynaLqPFLR7t+54YSu/vrR7Q
-toMAUa9EA0DwbFLr6g3zj3frUi/4qkxzlmT4bI74UlwuKdv4/IOJXTHFkt8d3WLKwCTURh7j
-cj/oJ4/UKA/6KE4BM873Vu/pBeDemZ3o/dwxbWHuHjM5VmycI8HLY0/7te8CnpJ+J/7xpfzn
-lO3FI941Lx78he4ArNwVSrTyEPjlVr/y63QV8xrVgd/P7G3z/9QPAoUTVEVgGamKcgHXJoEw
-07V947m+873/A4PCIbFoPAoYEeWyEwgUKoEPx1EpJRKfbQHh/SI+34IoqSGB02owySSNkgSB
-Ab1OP+DzehdH07mcJRzYEQ7MDWx9JJCdRFlAiaxIklRtIV1iZmpucnZ68jQxcZRIfZxcFWRt
-eX10rbFe+Wk8ur5+DYAVcMA9jRh0FBTW6e21/B13DQ4WHtJtZZU0VliRSUpK7SYwfHJ3e3+D
-h+eEdoxGcXxUWKAmrnqR2SI4yo6KxasNjJJcSUUYBAsjpsdBFVkMpuQRBoXQs3QmdgWwkg4F
-xYojYFQQp3Ejx44eazBRggqdujbt1P9EiWfC4JV7a1xgazGtgrABAgf2wbChg4MPNm0uq7Ow
-UCtFJV7oonaiYsUWDgp8+Ch1KtWqQ0KW0AX1UYmTa+y9SueABjWXtxBUMEfGxNOaQAUStMBS
-UFC3dqI0LEFrRAUqGaz9TVtBm9XChg9LbQLFVF+kffOaVdNPVsvIdazgQjCAYE1lAh8QNIgO
-qF1CJpwpSqeuBLVITC1EaIFOBuLatm9zWvK0mtisz2CBjZwu56y+lnGJaOHiX+e3ejKcMJis
-tB15NOs8I6PuISl/f2GDd0EGN/ny5n8oWbtLBDuvDiOPUWdmFHzNmqOUoA5XAnEPARbVVVoU
-DD0TzS4vHPX/HXgZ/EVCAnKdF6GE50FCwgcjkNFOcGht6NJKOnlQQn2ZeaEfXNHttMtPAbp1
-HYFbsKYXJN4xWGNgCWQ0oY47GrabCaaM8pg7I64xD3RQHEfdMM7lQYoBAoxCl5ICQrXIFRlE
-geFSNNY4RVQ8ghlmR11BYkB7RdWnUlqLpamZkjfpQYpxeExZkzxzFKjLLgZYuOASf1rxoJiD
-EtrNWheZpEgYItrX5hhrtVknk3BioYyk1Q1QWTtXqgCFOn+C+giOhZJaKiatVIEgVInE56ga
-HSb5JpzEBMOipCZ0gV1q/cBmjgOhAmqJqcMSC8RDEaGSRQJppOSqs/jIOqselxZC/5ObujpU
-RQqehgRqB4ONVay449qgiwuQ/LYhrM8SGa2001KLKVH4XSkFNb/ayGA5ox72wAMAAAywvzVY
-EDAAT+JwgcELAxCBLDX4u/DANBwQ8AE2GGDwAR3sUDHAF9vwb8A1MFyyLAWXDPACDzw8Q8oL
-t/xNmV2x+gqJ7D5r17sJ2Rovplmp5wJ0UXT7JwbCWpXxyw37oTTADhzTssIvQ3jy0kxr4DEA
-G+s0y8Lk4KA1110LIDLAUV999h9Ovzy2y2lHDc4UqmrRinE4433WtQFNKpDPhOyNXD2JXOHA
-LxJx4K0SGgzGcVVmv/yABzwZLPnkZCexNL5/QJ6y5WLbuP/w5oBocAPol5cOeY0dpH0wgw60
-brlOrYPnuDdbdZXFO4wit27eYNxMR4luLbPz36ZNgYspU2iWnb1/7HNM0TFUxTYAoBFkNmgZ
-QI69vjZ00P0Lhv/SOfYOaJ+C2ORrfT35sNlew/opXA75+xoT9IL+74v/Queb409/+3tf/D4B
-pL4oCwylQIs5fveKJ1wBF/yoAAPpIAISBOAALxiAv951POu0AS1PGd6mptGLvkCtaAJAmlQk
-lr8nZNB96Kvc+DJQQAZATgpP0JYLlfOEimFPbP6j4f7gVzr5WayG24Dc+Nh2ABhCcX+Qg2IM
-A6YtD2iMijBU4hG5caHcLYtZZGD/gHLu5sAvIAkSHPBCGwLgpt3cgQMP8ODxMtWLekAlcM7D
-EJ+IpsJUdNEjKPuYD6H4xCEGTIeG2wZIcniFHUJOg1rMIB/E9gSNFXKRmJuBJZczuSkuR2MT
-jGIVHMmP9i3HiaPc4hUD6QnBpEJ3YMnMBPRlgCD57lmoGIwJ2BiN5u3CRQcYwax+Qi3NKNJx
-SKpJdgqwDlXZkHSLc0ACiOMRUPJjknI02COrwEga4NBg2sEGNh+pRQ6IrQILK2MvjGiDdLbz
-AjncoSizycoZJnKC7cMG7Cy2yh1q0pWdoIYisnCzd2zgF13jSy1+R580PlKEJkCWFJ44BwM8
-oAI38dmd/1wgTQxYII97YwUXLlgSU4AoJCv80kdQuUoBIhJg3fxVIMMnTjhUwaX2hCk6XwbD
-mUbTdK2TKTbS5r1I4qd9B+imUQkoUE6YQxUizYULzFA6MqLCgatoxTtcYUGAkMEzdLzURFG0
-E5AGiVHvWAwXtkMQP3aLcQmYyj6z2cT84fNjj6RpI2/Kz7rOlHz6a18Wd+rOdw4VAEy92lFb
-hx8XNJV+m/TEYpTViqmGgS3biBp0rpDLNRw0TbgISDElhcxefLQDXJng7oIRBhjNBFnOlB7p
-qFm1jgA2lTVSQST3ijqy1DMiFsjtFRVkAMJy064KfSpyX7bYpTV2aUu1a2SD6v8NLMgys/D4
-QjoiUkCGwsduUSCDOTwVjZZk6grrgSAMRyA5f3XQBUuV1A4dRjYU7MNePhotItoKQVrkJK6t
-kApxjXgBJvT2eZtUpb0yUGAG0NbBSwNqAZEYMO3ssH04Xdg4AUq+zjFsgkX1qw6baN1uIFB3
-aegQHG7bNApyt6HMSodDWjGFvlhIJr7UykTNFZEAgOYADwDyMJ/iIuqgpQJx84BMFPmIWdqB
-cNtBSgFSihWWdsSU3twk5fzZ4AUH91da5is4O6DhhS3Vk0/l5E15oeERXxjDO9QWUgmrXA7L
-mQ8BvV1Bw6A34I1BaAbZQHAEAyvGyGOcaEELuijIVcb/BCOsNungHIWcwSY1gzrklQVf0tIl
-WOnKSlZYzWyLxgHCXLOeW54BaJoW5t/OgMHeTPCqy4YwDRcAzYJeswBw/dg3Q7bN5tQz5Nai
-1Jni+bEehvUnYqmF0NrCjimUA1jW1ILPEsk+ALkDnI4pvJWsNnH+YF4aAPfa4ewJCuIWsDU3
-wjpRrvpfCOunXr+MsVdjEd7LlXcSfL0wNevA1zoENgeSrUM9W6DYa0Fzgw1+z8N6URWOsrHh
-amEKnNbjd8oLkrQ+aIh9vM+Mw6uOdqHSj7SsJ8IOG49HbJpFMXtMofTemm/B7GVveqBzT4T5
-03Tia8IKt8IU82uGxQlngMnZ/8Tca3MB7MxDout5z94oaI3b5IZy7/IFSIIPP8pdoieYoJg9
-K819fBuYDpl7vKtaBHtkCz9vTSExIGYYvuYuuggsLehLvxq+fJ1rTC43bMn9a3KDfTX4ITWp
-/zYc7b73jQS2Fcb1QTt+oCYTbCd6EfIAtBsW2DdvPzbkaMdUGzKDCC2Yy4QiAJY/PvBNd3sA
-o9L9cNp+lfdF/sXuH2MfidWJP4gPPZ+prKvhl4Z4jSkbzVVoPIR5rYkEZqYV0HZU5QVwy62/
-grxHgQqk2BhM7jfd0nQyrU34Qb4RjN701zpLf7uLJQwpmfVlaDl+8SCx8+U1cjNnmCf/0gL7
-Vw7+5f9WFQVM0AkU8c1a4RVc7cFGgu1QACwe88UNN+jO9OHNALQYBSDIujCGQ3jKWjBCNFwW
-kKFPBtWJm4Rer4jcyLEg+41WIjgCNoxRviyBFCQGQeRXifEUDu5STGiLYO0DhhUXD+4UT2nd
-TkGQcjFbEuCXEipBp/ETEfLCXYEHEfpgEvpgk03hDwKfJ2TXGYnRNMxCC8jYFxhHX/RFQ2nH
-j3QBfDnA2JEcHWSTCmQcoK0ffwUPf8Ege5CaAbBeLLTcBbBAfmkTEP4THwhQEKbgbjXZwZGS
-1mEQIjYiwIFPg0QiTakWD3pYIw5bEaVAk6USDu7DnHGiI3KRN1RgC1qgo2D/oAkogXJgXrkx
-hht5AR48AZK5yRyigERAyyqa3mhx12XJhJmsHg2OwlQ8YSFR0V2V0bCRIiS+lB9OziBOUtSJ
-YiheIyWCROz50JatTTeeHyeSUjhGkTRe3z01ozOeYjfUTSzijHZAzUWUoYfsQ4nggUaRHQbq
-4i2toC/m4S1cFuGcgpZwyevkSGKwgDIqHTWeUxNBYjm+XTIqJBfmz0K+0DpuY0UGlEQOYTaO
-I0VUZHH5n2z84EMuo9RR4GWNFxjiQwaOAPaZBRx4VUIICD9c0S6kn838oulJgW/A4Gr0UZXR
-oBVUBRMIFkEQkFGG5ACd31I6lR8oJV4l5XdM5V+c/5/jVeIuSpZBaGVE7uIOTuUKBJVqaeX7
-fCJYbiUq5sJ2reI7Fo71wYRZSJAUmN74Ec8+4iRoRcp9rJgiVMM07AYNosBBOt83SM9rNJ+V
-vYZY7hZgTOBhMkViHqZk/kG+CN0MVObqdFFm/hZnAoa+QGZncqZgLmYXfsKytCVLWkc/yAa5
-RRsC7ENm0GQc0kuDPYU7yqUd9hfbjRox4ku+YNBoXmY3nFXRFKdiTmNyUqZyUuagHVhcHedz
-ko5zNmdNRedZUad0qhxzamd3Zmd3Fg3qTGdhIkEYqaJqgsFldVNc6uTF0SIC2KVpjNKv3OZe
-5ubwvJb2ORNrCCYvieQtvf+eEXjAAhBogRrogSJogirogjJogzrog0JohErohFJogXqAAfmZ
-m+gkfv7OGpYYTJ7FeMGYMRGCiHkXm+imAwmP8sAI2PkmYv6HnvzgU0TEJeheYuFojurojvJo
-j/pojrKMJ0AZh65oaj4LvZxLHZ4FBs3kXZioH4Jott1nX3bXKFCDuDEFNQmXNDbIIyHBgFZo
-mIrpmJJpmZpphV6okIaWkYIhfpwDDMnYF83ByJXffA5N3mjIqqBJiahkhnBBRFyQCSwmNdkT
-nIIduZBnoirqojJqozrqowaBeHVfehUqP3iVVolokprRhfTS8EyXTfrhLuBpAAgnqHAAciji
-a4n/mjNBwZZYxPJAkSNWGaLSqnmk5yqowy1pnQCRj+SdEZL6UBegSrOsJqje0jy6ChXwow6Z
-aBXM4x6xqqAuJpAA4QvNa00iq23MUonwiV35kE0iK87o43rygX/gSm2mkqg6kJKRAiSAoE36
-aqhlSXJI62tAxTlFxDFm704eRoau6Eu667sqR7jijZuuiRaNkrZEacHq6hqhxHmVmzOsqrPm
-qjXY1635mZLx68ZWxS0Iz4XUI0q8JMFeIJKiAhwYSK+QLLsE5BqgAhrQaRjwZlI4AmCgG0/B
-Bqly7M5+xF59Ggi850Dkyp9p3Hi1QcJuy8o6kNqthU0eWkn9YM1a7IUAz+EL2JDO8mzWakSf
-QsVmjCJP/dTQNor35YZMmlA08ImioKcddp6J2oOl4oWbiltgAkYWDOVSRIfW6u03qMYjdcHZ
-itiwiUiRXqDwwEISat6DpMLa9mFHxeobtNZaqCd475DUSoJYNOUt+WFa7G3nckPjMlrgCq7Y
-uoJ3jeluSeVTFa7yMTB2gt1SD94t0uBNCHDVmYwz0Mt2iiymf0DrAH4ZR65iMGSElSuiNi8jV4
-KQuja3uHOxYcpXOz4ZoWqwJyDzRiTsvWep1VlfabqWg9DH5eI67o2djUDl7HOmr0NB24WuTMG6
-qigrlJU5nK13rCDj3gfQghyywtbcW113GFni0A+DaMuHeO7uaoJPxGwvyoNMkK7hsqktVClA
-Ce2bwinrSm6RRCKgocabpkCW0K4KaEF48oEu8O72YkIIAAA7
-
---------------MultiBound139208952674519761760875--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
