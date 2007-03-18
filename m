@@ -1,59 +1,73 @@
-Date: Sun, 18 Mar 2007 03:50:10 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070318025010.GA1671@wotan.suse.de>
-References: <20070221023735.6306.83373.sendpatchset@linux.site> <200703130001.13467.blaisorblade@yahoo.it> <20070313011904.GA2746@wotan.suse.de> <200703171317.01074.blaisorblade@yahoo.it>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id l2I7h4S1030575
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2007 00:43:04 -0700
+Received: from an-out-0708.google.com (ancc31.prod.google.com [10.100.29.31])
+	by zps38.corp.google.com with ESMTP id l2I7h22x006436
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2007 00:43:02 -0700
+Received: by an-out-0708.google.com with SMTP id c31so897214anc
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2007 00:43:02 -0700 (PDT)
+Message-ID: <b040c32a0703180043t29c675bfr9a9554575a261f96@mail.gmail.com>
+Date: Sun, 18 Mar 2007 00:43:01 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: FADV_DONTNEED on hugetlbfs files broken
+In-Reply-To: <20070317193729.GA11449@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200703171317.01074.blaisorblade@yahoo.it>
+References: <20070317051308.GA5522@us.ibm.com>
+	 <20070317061322.GI8915@holomorphy.com>
+	 <20070317193729.GA11449@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Blaisorblade <blaisorblade@yahoo.it>
-Cc: Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, agl@us.ibm.com, dwg@au1.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 17, 2007 at 01:17:00PM +0100, Blaisorblade wrote:
-> On Tuesday 13 March 2007 02:19, Nick Piggin wrote:
-> > On Tue, Mar 13, 2007 at 12:01:13AM +0100, Blaisorblade wrote:
-> > > On Wednesday 07 March 2007 11:02, Nick Piggin wrote:
-> > > > > Yeah, tmpfs/shm segs are what I was thinking about. If UML can live
-> > > > > with that as well, then I think it might be a good option.
-> > > >
-> > > > Oh, hmm.... if you can truncate these things then you still need to
-> > > > force unmap so you still need i_mmap_nonlinear.
-> > >
-> > > Well, we don't need truncate(), but MADV_REMOVE for memory hotunplug,
-> > > which is way similar I guess.
-> > >
-> > > About the restriction to tmpfs, I have just discovered
-> > > '[PATCH] mm: tracking shared dirty pages' (commit
-> > > d08b3851da41d0ee60851f2c75b118e1f7a5fc89), which already partially
-> > > conflicts with remap_file_pages for file-based mmaps (and that's fully
-> > > fine, for now).
-> > >
-> > > Even if UML does not need it, till now if there is a VMA protection and a
-> > > page hasn't been remapped with remap_file_pages, the VMA protection is
-> > > used (just because it makes sense).
-> > >
-> > > However, it is only used when the PTE is first created - we can never
-> > > change protections on a VMA  - so it vma_wants_writenotify() is true (on
-> > > all file-based and on no shmfs based mapping, right?), and we
-> > > write-protect the VMA, it will always be write-protected.
-> >
-> > Yes, I believe that is the case, however I wonder if that is going to be
-> > a problem for you to distinguish between write faults for clean writable
-> > ptes, and write faults for readonly ptes?
-> I wouldn't be able to distinguish them, but am I going to get write faults for 
-> clean ptes when vma_wants_writenotify() is false (as seems to be for tmpfs)? 
-> I guess not.
-> 
-> For tmpfs pages, clean writable PTEs are mapped as writable so they won't give 
-> any problem, since vma_wants_writenotify() is false for tmpfs. Correct?
+On 3/17/07, Nishanth Aravamudan <nacc@us.ibm.com> wrote:
+> Yes, that could be :) Sorry if my e-mail indicated I was asking
+> otherwise. I don't want Ken's commit to be reverted, as that would make
+> hugepages very nearly unusable on x86 and x86_64. But I had found a
+> functional change and wanted it to be documented. If hugepages can no
+> longer be dropped from the page cache, then we should make sure that is
+> clear (and expected/desired).
 
-Yes, that should be the case. So would this mean that nonlinear protections
-don't work on regular files? I guess that's OK if Oracle and UML both use
-tmpfs/shm?
+Oh gosh, I think you are really abusing the buggy hugetlb behavior in
+the dark age of 2.6.19.  Hugetlb file does not have disk based backing
+store.  The in-core page that resides in the page cache is the only
+copy of the file.  For pages that are dirty, there are no place to
+sync them to and thus they have to stay in the page cache for the life
+of the file.
+
+And currently, there is no way to allocate hugetlb page in "clean"
+state because we can't mmap hugetlb page onto a disk file.  So pages
+for live file in hugetlbfs are always being written to initially and
+it is just not possible to drop them out of page cache, otherwise we
+suffer from data corruption.
+
+> Now, even if I call fsync() on the file descriptor, I still don't get
+> the pages out of the page cache. It seems to me like fsync() would clear
+> the dirty state -- although perhaps with Ken's patch, writable hugetlbfs
+> pages will *always* be dirty? I'm still trying to figure out what ever
+> clears that dirty state (in hugetlbfs or anywhere else). Seems like
+> hugetlbfs truncates call cancel_dirty_page(), but the comment there
+> indicates it's only for truncates.
+
+fsync can not drop dirty pages out of page cache because there are no
+backing store.  I believe truncate is the only way to remove hugetlb
+page out of page cache.
+
+> > Perhaps we should ask what ramfs, tmpfs, et al would do. Or, for that
+> > matter, if they suffer from the same issue as Ken Chen identified for
+> > hugetlbfs. Perhaps the issue is not hugetlb's dirty state, but
+> > drop_pagecache_sb() failing to check the bdi for BDI_CAP_NO_WRITEBACK.
+> > Or perhaps what safety guarantees drop_pagecache_sb() is supposed to
+> > have or lack.
+
+I looked, ramfs and tmpfs does the same thing.  fadvice(DONTNEED)
+doesn't do anything to live files.
+
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
