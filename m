@@ -1,59 +1,56 @@
-Message-ID: <45FE5E9F.7040705@yahoo.com.au>
-Date: Mon, 19 Mar 2007 20:57:51 +1100
+Message-ID: <45FE6040.4090809@yahoo.com.au>
+Date: Mon, 19 Mar 2007 21:04:48 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
-References: <20070318233008.GA32597093@melbourne.sgi.com> <45FE2F8F.6010603@yahoo.com.au> <20070319081258.GE32597093@melbourne.sgi.com>
-In-Reply-To: <20070319081258.GE32597093@melbourne.sgi.com>
+Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
+References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au> <45FE2CA0.3080204@yahoo.com.au> <45FE3092.3030202@yahoo.com.au>
+In-Reply-To: <45FE3092.3030202@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Chinner wrote:
-> On Mon, Mar 19, 2007 at 05:37:03PM +1100, Nick Piggin wrote:
+Nick Piggin wrote:
+> Nick Piggin wrote:
 > 
->>David Chinner wrote:
+>> Something like this roughly should get rid of ZERO_PAGE _count and 
+>> _mapcount
+>> manipulation for anonymous pages. (others still exist, XIP and 
+>> /dev/zero, but
+>> they should not be a large concern AFAIKS).
 >>
-
->>>+block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
->>>+		   get_block_t get_block)
->>>+{
->>>+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
->>>+	unsigned long end;
->>>+	loff_t size;
->>>+	int ret = -EINVAL;
->>>+
->>>+	lock_page(page);
->>>+	size = i_size_read(inode);
->>>+	if ((page->mapping != inode->i_mapping) ||
->>>+	    ((page->index << PAGE_CACHE_SHIFT) > size)) {
->>>+		/* page got truncated out from underneath us */
->>>+		goto out_unlock;
->>>+	}
+>> I haven't booted this, but it is a quick forward port + some fixes and
+>> simplifications.
 >>
->>I see your explanation above, but I still don't see why this can't
->>just follow the conventional if (!page->mapping) check for truncation.
->>If the test happens to be performed after truncate concurrently
->>decreases i_size, then the blocks are going to get truncated by the
->>truncate afterwards anyway.
+>>
+>> ------------------------------------------------------------------------
+>>
+>> Index: linux-2.6/mm/memory.c
+>> ===================================================================
+>> --- linux-2.6.orig/mm/memory.c
+>> +++ linux-2.6/mm/memory.c
+>> @@ -665,7 +665,8 @@ static unsigned long zap_pte_range(struc
+>>              ptent = ptep_get_and_clear_full(mm, addr, pte,
+>>                              tlb->fullmm);
+>>              tlb_remove_tlb_entry(tlb, pte, addr);
+>> -            if (unlikely(!page))
+>> +            if (unlikely(!page ||
+>> +                (!vma->vm_file && page == ZERO_PAGE(addr))))
+>>                  continue;
 > 
 > 
-> We have to read the inode size in the normal case so that we know if
-> the page is at EOF and is a partial page so we don't allocate past EOF in
-> block_prepare_write().  Hence it seems like a no-brainer to me to check
-> and error out on a page that we *know* is beyond EOF.
-> 
-> I can drop the check if you see no value in it - I just don't
-> like the idea of ignoring obvious boundary condition violations...
+> Hmm, well I suppose it would be cleaner if this check used the one in
+> handle_pte_fault instead of !vma->vm_file ie. (!vma->vm_ops ||
+> !vma->vm_ops->nopage)
 
-I would prefer it dropped, to be honest. I can see how the check does
-pick up that corner case, however truncate is difficult enough (at
-least, it has been an endless source of problems) that we want to keep
-everyone else simple and have all the non-trivial stuff in truncate.
+Bah, I also missed a reject for a similar hunk required in copy_one_pte.
+
+I don't think there is anything more required after that, though... I
+will actually test it tomorrow and send an updated patch with proper
+changelog.
 
 -- 
 SUSE Labs, Novell Inc.
