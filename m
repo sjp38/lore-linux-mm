@@ -1,31 +1,63 @@
-Date: Mon, 19 Mar 2007 09:22:22 +0000
-From: Christoph Hellwig <hch@infradead.org>
+Message-ID: <45FE5E9F.7040705@yahoo.com.au>
+Date: Mon, 19 Mar 2007 20:57:51 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
-Message-ID: <20070319092222.GA1720@infradead.org>
-References: <20070318233008.GA32597093@melbourne.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070318233008.GA32597093@melbourne.sgi.com>
+References: <20070318233008.GA32597093@melbourne.sgi.com> <45FE2F8F.6010603@yahoo.com.au> <20070319081258.GE32597093@melbourne.sgi.com>
+In-Reply-To: <20070319081258.GE32597093@melbourne.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Chinner <dgc@sgi.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, nickpiggin@yahoo.com.au
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 19, 2007 at 10:30:08AM +1100, David Chinner wrote:
+David Chinner wrote:
+> On Mon, Mar 19, 2007 at 05:37:03PM +1100, Nick Piggin wrote:
 > 
-> Generic page_mkwrite functionality.
+>>David Chinner wrote:
+>>
+
+>>>+block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+>>>+		   get_block_t get_block)
+>>>+{
+>>>+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+>>>+	unsigned long end;
+>>>+	loff_t size;
+>>>+	int ret = -EINVAL;
+>>>+
+>>>+	lock_page(page);
+>>>+	size = i_size_read(inode);
+>>>+	if ((page->mapping != inode->i_mapping) ||
+>>>+	    ((page->index << PAGE_CACHE_SHIFT) > size)) {
+>>>+		/* page got truncated out from underneath us */
+>>>+		goto out_unlock;
+>>>+	}
+>>
+>>I see your explanation above, but I still don't see why this can't
+>>just follow the conventional if (!page->mapping) check for truncation.
+>>If the test happens to be performed after truncate concurrently
+>>decreases i_size, then the blocks are going to get truncated by the
+>>truncate afterwards anyway.
 > 
-> Filesystems that make use of the VM ->page_mkwrite() callout will generally use
-> the same core code to implement it. There are several tricky truncate-related
-> issues that we need to deal with here as we cannot take the i_mutex as we
-> normally would for these paths.  These issues are not documented anywhere yet
-> so block_page_mkwrite() seems like the best place to start.
+> 
+> We have to read the inode size in the normal case so that we know if
+> the page is at EOF and is a partial page so we don't allocate past EOF in
+> block_prepare_write().  Hence it seems like a no-brainer to me to check
+> and error out on a page that we *know* is beyond EOF.
+> 
+> I can drop the check if you see no value in it - I just don't
+> like the idea of ignoring obvious boundary condition violations...
 
-This will need some updates when ->fault replaces ->page_mkwrite.
+I would prefer it dropped, to be honest. I can see how the check does
+pick up that corner case, however truncate is difficult enough (at
+least, it has been an endless source of problems) that we want to keep
+everyone else simple and have all the non-trivial stuff in truncate.
 
-Nich, what's the plan for merging ->fault?
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
