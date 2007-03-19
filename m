@@ -1,28 +1,69 @@
-Date: Mon, 19 Mar 2007 10:06:36 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
-In-Reply-To: <45FE2CA0.3080204@yahoo.com.au>
-Message-ID: <Pine.LNX.4.64.0703191005530.23929@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com>
- <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au>
- <45FE2CA0.3080204@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070319164320.127815453@programming.kicks-ass.net>
+References: <20070319155737.653325176@programming.kicks-ass.net>
+Date: Mon, 19 Mar 2007 16:57:40 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [RFC][PATCH 3/6] mm: count writeback pages per BDI
+Content-Disposition: inline; filename=bdi_stat_writeback.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Mar 2007, Nick Piggin wrote:
+Count per BDI writeback pages.
 
-> I haven't booted this, but it is a quick forward port + some fixes and
-> simplifications.
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ include/linux/backing-dev.h |    1 +
+ mm/page-writeback.c         |    8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-Eeek patch vanished.
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -912,10 +912,12 @@ int test_clear_page_writeback(struct pag
+ 
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestClearPageWriteback(page);
+-		if (ret)
++		if (ret) {
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			__dec_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
++		}
+ 		write_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+ 		ret = TestClearPageWriteback(page);
+@@ -933,10 +935,12 @@ int test_set_page_writeback(struct page 
+ 
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestSetPageWriteback(page);
+-		if (!ret)
++		if (!ret) {
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			__inc_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
++		}
+ 		if (!PageDirty(page))
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+Index: linux-2.6/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -24,6 +24,7 @@ enum bdi_state {
+ 
+ enum bdi_stat_item {
+ 	BDI_DIRTY,
++	BDI_WRITEBACK,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
 
-The comparison with ZERO_PAGE may fail if we have multiple zero pages. 
-Would it be possible to check for PageReserved?
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
