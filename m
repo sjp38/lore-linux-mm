@@ -1,29 +1,29 @@
-Date: Mon, 19 Mar 2007 05:04:21 -0700
-From: Bill Irwin <bill.irwin@oracle.com>
-Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
-Message-ID: <20070319120421.GZ18774@holomorphy.com>
-References: <20070221023735.6306.83373.sendpatchset@linux.site> <200703130001.13467.blaisorblade@yahoo.it> <20070313011904.GA2746@wotan.suse.de> <200703171317.01074.blaisorblade@yahoo.it> <20070318025010.GA1671@wotan.suse.de>
-MIME-Version: 1.0
+Date: Mon, 19 Mar 2007 12:22:53 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
+Message-ID: <20070319122252.GA12029@infradead.org>
+References: <20070318233008.GA32597093@melbourne.sgi.com> <20070319092222.GA1720@infradead.org> <45FE61D3.90105@yahoo.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070318025010.GA1671@wotan.suse.de>
+In-Reply-To: <45FE61D3.90105@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Blaisorblade <blaisorblade@yahoo.it>, Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Hellwig <hch@infradead.org>, David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 18, 2007 at 03:50:10AM +0100, Nick Piggin wrote:
-> Yes, that should be the case. So would this mean that nonlinear protections
-> don't work on regular files? I guess that's OK if Oracle and UML both use
-> tmpfs/shm?
+On Mon, Mar 19, 2007 at 09:11:31PM +1100, Nick Piggin wrote:
+> I've got the patches in -mm now. I hope they will get merged when the
+> the next window opens.
+> 
+> I didn't submit the ->page_mkwrite conversion yet, because I didn't
+> have any callers to look at. It is is slightly less trivial than for
+> nopage and nopfn, so having David's block_page_mkwrite is helpful.
 
-Sometimes ramfs is also used in the Oracle case. I presume that's even
-simpler than tmpfs. (Hugetlb, while also used in for the same general
-buffer pool, is never used in conjunction with remap_file_pages() etc.)
-
-
--- wli
+Yes.  I was just wondering whether it makes more sense to do this
+functionality directly ontop of ->fault instead of converting i over
+real soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
