@@ -1,31 +1,29 @@
-Date: Mon, 19 Mar 2007 07:03:47 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
-Message-ID: <20070319120347.GB6694@lnx-holt.americas.sgi.com>
-References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au>
-Mime-Version: 1.0
+Date: Mon, 19 Mar 2007 05:04:21 -0700
+From: Bill Irwin <bill.irwin@oracle.com>
+Subject: Re: [patch 4/6] mm: merge populate and nopage into fault (fixes nonlinear)
+Message-ID: <20070319120421.GZ18774@holomorphy.com>
+References: <20070221023735.6306.83373.sendpatchset@linux.site> <200703130001.13467.blaisorblade@yahoo.it> <20070313011904.GA2746@wotan.suse.de> <200703171317.01074.blaisorblade@yahoo.it> <20070318025010.GA1671@wotan.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <45FE261F.3030903@yahoo.com.au>
+In-Reply-To: <20070318025010.GA1671@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Blaisorblade <blaisorblade@yahoo.it>, Bill Irwin <bill.irwin@oracle.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 19, 2007 at 04:56:47PM +1100, Nick Piggin wrote:
-> Yes, I have the patch to do it quite easily. Per-node ZERO_PAGE could be
-> another option, but that's going to cost another page flag if we wish to
-> recognise the zero page in wp faults like we do now (hmm, for some reason
-> it is OK to special case it _there_).
+On Sun, Mar 18, 2007 at 03:50:10AM +0100, Nick Piggin wrote:
+> Yes, that should be the case. So would this mean that nonlinear protections
+> don't work on regular files? I guess that's OK if Oracle and UML both use
+> tmpfs/shm?
 
-Could we do a per-node ZERO_PAGE as a pointer from the node structure
-and then use a page_to_nid to get back to the node and compare the page
-to the node's zero page instead of using another page flag which would
-actually only be used on numa?
+Sometimes ramfs is also used in the Oracle case. I presume that's even
+simpler than tmpfs. (Hugetlb, while also used in for the same general
+buffer pool, is never used in conjunction with remap_file_pages() etc.)
 
-Thanks,
-Robin
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
