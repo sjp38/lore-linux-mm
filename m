@@ -1,72 +1,103 @@
-Message-ID: <45FE261F.3030903@yahoo.com.au>
-Date: Mon, 19 Mar 2007 16:56:47 +1100
+Message-ID: <45FE2F8F.6010603@yahoo.com.au>
+Date: Mon, 19 Mar 2007 17:37:03 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
-References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com>
-In-Reply-To: <20070317043545.GH8915@holomorphy.com>
+Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
+References: <20070318233008.GA32597093@melbourne.sgi.com>
+In-Reply-To: <20070318233008.GA32597093@melbourne.sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: David Chinner <dgc@sgi.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> On Fri, Mar 16, 2007 at 03:17:39PM -0700, Christoph Lameter wrote:
+David Chinner wrote:
+> Generic page_mkwrite functionality.
 > 
->>We have issues with ZERO_PAGE refcounting causing severe cacheline 
->>bouncing. ZERO_PAGES are mapped into multiple processes running on 
->>multiple nodes. Refcounter modifications therefore have to acquire a 
->>remote exclusive cacheline.
->>Could we somehow fix this? There are a couple of ways to do this:
->>1. No refcounting on reserved pages in the VM. ZERO_PAGEs are
->>   reserved and there is no point in refcounting them since they
->>   will not go away.
->>2. Having a percpu or pernode ZERO_PAGE?
->>   May be a simpler solution but then we still may have issues
->>   if the ZERO_PAGE gets "freed" from other processors/ nodes.
+> Filesystems that make use of the VM ->page_mkwrite() callout will generally use
+> the same core code to implement it. There are several tricky truncate-related
+> issues that we need to deal with here as we cannot take the i_mutex as we
+> normally would for these paths.  These issues are not documented anywhere yet
+> so block_page_mkwrite() seems like the best place to start.
+
+
+
 > 
+> Version 2:
 > 
-> It's dumb to refcount the zero page. Someone should've noticed this
-> when the PG_reserved patches went in.
+> - read inode size only once
+> - more comments explaining implementation restrictions
+> 
+> Signed-Off-By: Dave Chinner <dgc@sgi.com>
+> 
+> ---
+>  fs/buffer.c                 |   47 ++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/buffer_head.h |    2 +
+>  2 files changed, 49 insertions(+)
+> 
+> Index: 2.6.x-xfs-new/fs/buffer.c
+> ===================================================================
+> --- 2.6.x-xfs-new.orig/fs/buffer.c	2007-03-17 10:55:32.291414968 +1100
+> +++ 2.6.x-xfs-new/fs/buffer.c	2007-03-19 08:13:54.519909087 +1100
+> @@ -2194,6 +2194,52 @@ int generic_commit_write(struct file *fi
+>  	return 0;
+>  }
+>  
+> +/*
+> + * block_page_mkwrite() is not allowed to change the file size as it gets
+> + * called from a page fault handler when a page is first dirtied. Hence we must
+> + * be careful to check for EOF conditions here. We set the page up correctly
+> + * for a written page which means we get ENOSPC checking when writing into
+> + * holes and correct delalloc and unwritten extent mapping on filesystems that
+> + * support these features.
+> + *
+> + * We are not allowed to take the i_mutex here so we have to play games to
+> + * protect against truncate races as the page could now be beyond EOF.  Because
+> + * vmtruncate() writes the inode size before removing pages, once we have the
+> + * page lock we can determine safely if the page is beyond EOF. If it is not
+> + * beyond EOF, then the page is guaranteed safe against truncation until we
+> + * unlock the page.
+> + */
+> +int
+> +block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+> +		   get_block_t get_block)
+> +{
+> +	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+> +	unsigned long end;
+> +	loff_t size;
+> +	int ret = -EINVAL;
+> +
+> +	lock_page(page);
+> +	size = i_size_read(inode);
+> +	if ((page->mapping != inode->i_mapping) ||
+> +	    ((page->index << PAGE_CACHE_SHIFT) > size)) {
+> +		/* page got truncated out from underneath us */
+> +		goto out_unlock;
+> +	}
 
-The patch author did notice ;)
+I see your explanation above, but I still don't see why this can't
+just follow the conventional if (!page->mapping) check for truncation.
+If the test happens to be performed after truncate concurrently
+decreases i_size, then the blocks are going to get truncated by the
+truncate afterwards anyway.
 
-http://groups.google.com/group/fa.linux.kernel/msg/48108a5faa20a667?hl=en&
-
-But was subsequently told that special casing the ZERO_PAGE was stupid
-(as if it isn't a special object in the VM), and so it was removed (and
-a warning added to the changelog)
-
-http://lwn.net/Articles/155280/
-
-I also subsequently submitted a standalone patch to reintroduce it after
-the core patch was merged, but again was rejected (can't find the link for
-that one, off hand).
-
-
-> I can't think of an easy way
-> around this apart from a backout. OTOH it's a simple matter of
-> programming to arrange for it without a backout.
-
-Yes, I have the patch to do it quite easily. Per-node ZERO_PAGE could be
-another option, but that's going to cost another page flag if we wish to
-recognise the zero page in wp faults like we do now (hmm, for some reason
-it is OK to special case it _there_).
-
-
-> Provisions should be made for per-node zero pages in addition to this.
-> AFAICT the primary thing needed is to wrap checks for a page being a
-> zero page with some testing function instead of using a raw equality
-> check. This is above and beyond solving the mere zero page refcount
-> problem; I'm saying that both proposals should be done even though only
-> one is needed to resolve the bouncing issue.
-
-I've always thought the bouncing issue was a silly one and should be
-fixed, of course. Maybe the reason my fix was vetoed was lack of numbers.
-Christoph, would you oblige? I'll dig out the patch and repost.
+> +
+> +	/* page is wholly or partially inside EOF */
+> +	if (((page->index + 1) << PAGE_CACHE_SHIFT) > size)
+> +		end = size & ~PAGE_CACHE_MASK;
+> +	else
+> +		end = PAGE_CACHE_SIZE;
+> +
+> +	ret = block_prepare_write(page, 0, end, get_block);
+> +	if (!ret)
+> +		ret = block_commit_write(page, 0, end);
+> +
+> +out_unlock:
+> +	unlock_page(page);
+> +	return ret;
+> +}
 
 -- 
 SUSE Labs, Novell Inc.
