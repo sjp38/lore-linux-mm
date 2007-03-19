@@ -1,77 +1,31 @@
-Message-ID: <45FE65B0.7090105@yahoo.com.au>
-Date: Mon, 19 Mar 2007 21:28:00 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
-References: <20070318233008.GA32597093@melbourne.sgi.com> <45FE2F8F.6010603@yahoo.com.au> <20070319081258.GE32597093@melbourne.sgi.com> <45FE5E9F.7040705@yahoo.com.au>
-In-Reply-To: <45FE5E9F.7040705@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 19 Mar 2007 07:03:47 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
+Message-ID: <20070319120347.GB6694@lnx-holt.americas.sgi.com>
+References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <45FE261F.3030903@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> David Chinner wrote:
-> 
->> On Mon, Mar 19, 2007 at 05:37:03PM +1100, Nick Piggin wrote:
->>
->>> David Chinner wrote:
->>>
-> 
->>>> +block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
->>>> +           get_block_t get_block)
->>>> +{
->>>> +    struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
->>>> +    unsigned long end;
->>>> +    loff_t size;
->>>> +    int ret = -EINVAL;
->>>> +
->>>> +    lock_page(page);
->>>> +    size = i_size_read(inode);
->>>> +    if ((page->mapping != inode->i_mapping) ||
->>>> +        ((page->index << PAGE_CACHE_SHIFT) > size)) {
->>>> +        /* page got truncated out from underneath us */
->>>> +        goto out_unlock;
->>>> +    }
->>>
->>>
->>> I see your explanation above, but I still don't see why this can't
->>> just follow the conventional if (!page->mapping) check for truncation.
->>> If the test happens to be performed after truncate concurrently
->>> decreases i_size, then the blocks are going to get truncated by the
->>> truncate afterwards anyway.
->>
->>
->>
->> We have to read the inode size in the normal case so that we know if
->> the page is at EOF and is a partial page so we don't allocate past EOF in
->> block_prepare_write().  Hence it seems like a no-brainer to me to check
->> and error out on a page that we *know* is beyond EOF.
->>
->> I can drop the check if you see no value in it - I just don't
->> like the idea of ignoring obvious boundary condition violations...
-> 
-> 
-> I would prefer it dropped, to be honest. I can see how the check does
-> pick up that corner case, however truncate is difficult enough (at
-> least, it has been an endless source of problems) that we want to keep
-> everyone else simple and have all the non-trivial stuff in truncate.
-> 
+On Mon, Mar 19, 2007 at 04:56:47PM +1100, Nick Piggin wrote:
+> Yes, I have the patch to do it quite easily. Per-node ZERO_PAGE could be
+> another option, but that's going to cost another page flag if we wish to
+> recognise the zero page in wp faults like we do now (hmm, for some reason
+> it is OK to special case it _there_).
 
-Hmm, actually on second thoughts it probably is reasonable to recheck
-i_size under the page lock... we need to do similar in the nopage path
-to close the nopage vs invalidate race.
+Could we do a per-node ZERO_PAGE as a pointer from the node structure
+and then use a page_to_nid to get back to the node and compare the page
+to the node's zero page instead of using another page flag which would
+actually only be used on numa?
 
-However, the already-truncated test I think can just be !page->mapping:
-there should be no way for the page mapping to change to something
-other than NULL.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
