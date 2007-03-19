@@ -1,16 +1,18 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2JK55Lm016934
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 16:05:05 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2JK54au067142
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 14:05:04 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2JK54dX025383
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 14:05:04 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2JK5QtW006860
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 16:05:26 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2JK5QJ9031166
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 14:05:26 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2JK5PYT003729
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2007 14:05:26 -0600
 From: Adam Litke <agl@us.ibm.com>
-Subject: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API (V2)
-Date: Mon, 19 Mar 2007 13:05:02 -0700
-Message-Id: <20070319200502.17168.17175.stgit@localhost.localdomain>
+Subject: [PATCH 2/7] copy_vma for hugetlbfs
+Date: Mon, 19 Mar 2007 13:05:23 -0700
+Message-Id: <20070319200523.17168.99676.stgit@localhost.localdomain>
+In-Reply-To: <20070319200502.17168.17175.stgit@localhost.localdomain>
+References: <20070319200502.17168.17175.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8; format=fixed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -19,94 +21,59 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Adam Litke <agl@us.ibm.com>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew, given the favorable review of these patches the last time around, would
-you consider them for the -mm tree?  Does anyone else have any objections?
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+---
 
-The page tables for hugetlb mappings are handled differently than page tables
-for normal pages.  Rather than integrating multiple page size support into the
-core VM (which would tremendously complicate the code) some hooks were created.
-This allows hugetlb special cases to be handled "out of line" by a separate
-interface.
+ fs/hugetlbfs/inode.c |    6 ++++++
+ mm/memory.c          |    4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
 
-Hugetlbfs was the huge page interface chosen.  At the time, large database
-users were the only big users of huge pages and the hugetlbfs design meets
-their needs pretty well.  Over time, hugetlbfs has been expanded to enable new
-uses of huge page memory with varied results.  As features are added, the
-semantics become a permanent part of the Linux API.  This makes maintenance of
-hugetlbfs an increasingly difficult task and inhibits the addition of features
-and functionality in support of ever-changing hardware.
-
-To remedy the situation, I propose an API (currently called
-pagetable_operations).  All of the current hugetlbfs-specific hooks are moved
-into an operations struct that is attached to VMAs.  The end result is a more
-explicit and IMO a cleaner interface between hugetlbfs and the core VM.  We are
-then free to add other hugetlb interfaces (such as a /dev/zero-styled character
-device) that can operate either in concert with or independent of hugetlbfs.
-
-There should be no measurable performance impact for normal page users (we're
-checking if pagetable_ops != NULL instead of checking for vm_flags &
-VM_HUGETLB).  Of course we do increase the VMA size by one pointer.  For huge
-pages, there is an added indirection for pt_op() calls.  This patch series does
-not change the logic of the the hugetlbfs operations, just moves them into the
-pagetable_operations struct.
-
-I did some pretty basic benchmarking of these patches on ppc64, x86, and x86_64
-to get a feel for the fast-path performance impact.  The following tables show
-kernbench performance comparisons between a clean 2.6.20 kernel and one with my
-patches applied.  These numbers seem well within statistical noise to me.
-
-Changes since V1:
-	- Made hugetlbfs_pagetable_ops const (Thanks Arjan)
-
---
-
-KernBench Comparison (ppc64)
-----------------------------
-                       2.6.20-clean      2.6.20-pgtable_ops    pct. diff
-User   CPU time              708.82                 708.59      0.03
-System CPU time               62.50                  62.58     -0.13
-Total  CPU time              771.32                 771.17      0.02
-Elapsed    time              115.40                 115.35      0.04
-
-KernBench Comparison (x86)
---------------------------
-                       2.6.20-clean      2.6.20-pgtable_ops    pct. diff
-User   CPU time             1382.62                1381.88      0.05
-System CPU time              146.06                 146.86     -0.55
-Total  CPU time             1528.68                1528.74     -0.00
-Elapsed    time              394.92                 396.70     -0.45
-
-KernBench Comparison (x86_64)
------------------------------
-                       2.6.20-clean      2.6.20-pgtable_ops    pct. diff
-User   CPU time              559.39                 557.97      0.25
-System CPU time               65.10                  66.17     -1.64
-Total  CPU time              624.49                 624.14      0.06
-Elapsed    time              158.54                 158.59     -0.03
-
-The lack of a performance impact makes sense to me.  The following is a
-simplified instruction comparison for each case:
-
-2.6.20-clean                           2.6.20-pgtable_ops
--------------------                    --------------------
-/* Load vm_flags */                    /* Load pagetable_ops pointer */
-mov 	0x18(ecx),eax                  mov	0x48(ecx),eax
-/* Test for VM_HUGETLB */              /* Test if it's NULL */
-test 	$0x400000,eax                  test   eax,eax
-/* If set, jump to call stub */        /* If so, jump away to main code */
-jne 	c0148f04                       je	c0148ba1
-...                                    /* Lookup the operation's function pointer */
-/* copy_hugetlb_page_range call */     mov	0x4(eax),ebx
-c0148f04:                              /* Test if it's NULL */
-mov	0xffffff98(ebp),ecx            test   ebx,ebx
-mov	0xffffff9c(ebp),edx            /* If so, jump away to main code */
-mov	0xffffffa0(ebp),eax            je	c0148ba1
-call	c01536e0                       /* pagetable operation call */
-                                       mov	0xffffff9c(ebp),edx
-				       mov	0xffffffa0(ebp),eax
-				       call	*ebx
-
-For the common case (vma->pagetable_ops == NULL), we do almost the same thing as the current code: load and test.  The third instruction is different in that we jump for the common case instead of jumping in the hugetlb case.  I don't think this is a big deal though.  If it is, would an unlikely() macro fix it?
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 8c718a3..2452dde 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -36,6 +36,7 @@
+ static const struct super_operations hugetlbfs_ops;
+ static const struct address_space_operations hugetlbfs_aops;
+ const struct file_operations hugetlbfs_file_operations;
++static const struct pagetable_operations_struct hugetlbfs_pagetable_ops;
+ static const struct inode_operations hugetlbfs_dir_inode_operations;
+ static const struct inode_operations hugetlbfs_inode_operations;
+ 
+@@ -70,6 +71,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+ 	 */
+ 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+ 	vma->vm_ops = &hugetlb_vm_ops;
++	vma->pagetable_ops = &hugetlbfs_pagetable_ops;
+ 
+ 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+ 
+@@ -563,6 +565,10 @@ const struct file_operations hugetlbfs_file_operations = {
+ 	.get_unmapped_area	= hugetlb_get_unmapped_area,
+ };
+ 
++static const struct pagetable_operations_struct hugetlbfs_pagetable_ops = {
++	.copy_vma		= copy_hugetlb_page_range,
++};
++
+ static const struct inode_operations hugetlbfs_dir_inode_operations = {
+ 	.create		= hugetlbfs_create,
+ 	.lookup		= simple_lookup,
+diff --git a/mm/memory.c b/mm/memory.c
+index e7066e7..69bb0b3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -602,8 +602,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			return 0;
+ 	}
+ 
+-	if (is_vm_hugetlb_page(vma))
+-		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
++	if (has_pt_op(vma, copy_vma))
++		return pt_op(vma, copy_vma)(dst_mm, src_mm, vma);
+ 
+ 	dst_pgd = pgd_offset(dst_mm, addr);
+ 	src_pgd = pgd_offset(src_mm, addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
