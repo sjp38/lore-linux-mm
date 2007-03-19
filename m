@@ -1,56 +1,40 @@
-Message-ID: <45FE6040.4090809@yahoo.com.au>
-Date: Mon, 19 Mar 2007 21:04:48 +1100
+Message-ID: <45FE61D3.90105@yahoo.com.au>
+Date: Mon, 19 Mar 2007 21:11:31 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
-References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au> <45FE2CA0.3080204@yahoo.com.au> <45FE3092.3030202@yahoo.com.au>
-In-Reply-To: <45FE3092.3030202@yahoo.com.au>
+Subject: Re: [PATCH 1 of 2] block_page_mkwrite() Implementation V2
+References: <20070318233008.GA32597093@melbourne.sgi.com> <20070319092222.GA1720@infradead.org>
+In-Reply-To: <20070319092222.GA1720@infradead.org>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: David Chinner <dgc@sgi.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Nick Piggin wrote:
+Christoph Hellwig wrote:
+> On Mon, Mar 19, 2007 at 10:30:08AM +1100, David Chinner wrote:
 > 
->> Something like this roughly should get rid of ZERO_PAGE _count and 
->> _mapcount
->> manipulation for anonymous pages. (others still exist, XIP and 
->> /dev/zero, but
->> they should not be a large concern AFAIKS).
+>>Generic page_mkwrite functionality.
 >>
->> I haven't booted this, but it is a quick forward port + some fixes and
->> simplifications.
->>
->>
->> ------------------------------------------------------------------------
->>
->> Index: linux-2.6/mm/memory.c
->> ===================================================================
->> --- linux-2.6.orig/mm/memory.c
->> +++ linux-2.6/mm/memory.c
->> @@ -665,7 +665,8 @@ static unsigned long zap_pte_range(struc
->>              ptent = ptep_get_and_clear_full(mm, addr, pte,
->>                              tlb->fullmm);
->>              tlb_remove_tlb_entry(tlb, pte, addr);
->> -            if (unlikely(!page))
->> +            if (unlikely(!page ||
->> +                (!vma->vm_file && page == ZERO_PAGE(addr))))
->>                  continue;
+>>Filesystems that make use of the VM ->page_mkwrite() callout will generally use
+>>the same core code to implement it. There are several tricky truncate-related
+>>issues that we need to deal with here as we cannot take the i_mutex as we
+>>normally would for these paths.  These issues are not documented anywhere yet
+>>so block_page_mkwrite() seems like the best place to start.
 > 
 > 
-> Hmm, well I suppose it would be cleaner if this check used the one in
-> handle_pte_fault instead of !vma->vm_file ie. (!vma->vm_ops ||
-> !vma->vm_ops->nopage)
+> This will need some updates when ->fault replaces ->page_mkwrite.
+> 
+> Nich, what's the plan for merging ->fault?
 
-Bah, I also missed a reject for a similar hunk required in copy_one_pte.
+I've got the patches in -mm now. I hope they will get merged when the
+the next window opens.
 
-I don't think there is anything more required after that, though... I
-will actually test it tomorrow and send an updated patch with proper
-changelog.
+I didn't submit the ->page_mkwrite conversion yet, because I didn't
+have any callers to look at. It is is slightly less trivial than for
+nopage and nopfn, so having David's block_page_mkwrite is helpful.
 
 -- 
 SUSE Labs, Novell Inc.
