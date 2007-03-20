@@ -1,19 +1,19 @@
-Message-ID: <45FF481C.8070907@yahoo.com.au>
-Date: Tue, 20 Mar 2007 13:34:04 +1100
+Message-ID: <45FF488E.6060707@yahoo.com.au>
+Date: Tue, 20 Mar 2007 13:35:58 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: ZERO_PAGE refcounting causes cache line bouncing
-References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au> <20070319124630.GK8915@holomorphy.com>
-In-Reply-To: <20070319124630.GK8915@holomorphy.com>
+References: <Pine.LNX.4.64.0703161514170.7846@schroedinger.engr.sgi.com> <20070317043545.GH8915@holomorphy.com> <45FE261F.3030903@yahoo.com.au> <20070319120347.GB6694@lnx-holt.americas.sgi.com>
+In-Reply-To: <20070319120347.GB6694@lnx-holt.americas.sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
+Robin Holt wrote:
 > On Mon, Mar 19, 2007 at 04:56:47PM +1100, Nick Piggin wrote:
 > 
 >>Yes, I have the patch to do it quite easily. Per-node ZERO_PAGE could be
@@ -22,21 +22,12 @@ William Lee Irwin III wrote:
 >>it is OK to special case it _there_).
 > 
 > 
-> No need for a page flag. A per-node array of struct page * can be used
-> to check by merely indexing into it with the nid of the page's node. e.g.
-> 
-> struct page *get_zero_page(int nid, unsigned long addr)
-> {
-> 	return zero_pages[nid][(addr & SOME_ARCHDEP_MASK) >> PAGE_SHIFT];
-> }
-> 
-> /* any time we fish one out of a pte we have a uvaddr */
-> int is_zero_page_addr(struct page *page, unsigned long address)
-> {
-> 	return page == get_zero_page(page_to_nid(page), address);
-> }
+> Could we do a per-node ZERO_PAGE as a pointer from the node structure
+> and then use a page_to_nid to get back to the node and compare the page
+> to the node's zero page instead of using another page flag which would
+> actually only be used on numa?
 
-Ah, good point :)
+Yes, that's a nice way to do it.
 
 -- 
 SUSE Labs, Novell Inc.
