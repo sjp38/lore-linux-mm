@@ -1,63 +1,53 @@
-Subject: Re: [RFC][PATCH 0/6] per device dirty throttling
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070320093845.GQ32602149@melbourne.sgi.com>
-References: <20070319155737.653325176@programming.kicks-ass.net>
-	 <20070320074751.GP32602149@melbourne.sgi.com>
-	 <1174378104.16478.17.camel@twins>
-	 <20070320093845.GQ32602149@melbourne.sgi.com>
-Content-Type: text/plain
-Date: Tue, 20 Mar 2007 10:45:38 +0100
-Message-Id: <1174383938.16478.22.camel@twins>
-Mime-Version: 1.0
+Message-ID: <45FFD34F.10809@redhat.com>
+Date: Tue, 20 Mar 2007 08:27:59 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #2
+References: <45FF3052.0@redhat.com> <45FF7B3A.70709@yahoo.com.au>
+In-Reply-To: <45FF7B3A.70709@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, neilb@suse.de, tomoki.sekiyama.qu@hitachi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-03-20 at 20:38 +1100, David Chinner wrote:
-> On Tue, Mar 20, 2007 at 09:08:24AM +0100, Peter Zijlstra wrote:
-> > On Tue, 2007-03-20 at 18:47 +1100, David Chinner wrote:
-> > > So overall we've lost about 15-20% of the theoretical aggregate
-> > > perfomrance, but we haven't starved any of the devices over a
-> > > long period of time.
-> > > 
-> > > However, looking at vmstat for total throughput, there are periods
-> > > of time where it appears that the fastest disk goes idle. That is,
-> > > we drop from an aggregate of about 550MB/s to below 300MB/s for
-> > > several seconds at a time. You can sort of see this from the file
-> > > size output above - long term the ratios remain the same, but in the
-> > > short term we see quite a bit of variability.
-> > 
-> > I suspect you did not apply 7/6? There is some trouble with signed vs
-> > unsigned in the initial patch set that I tried to 'fix' by masking out
-> > the MSB, but that doesn't work and results in 'time' getting stuck for
-> > about half the time.
-> 
-> I applied the fixes patch as well, so i had all that you posted...
+Nick Piggin wrote:
+> Rik van Riel wrote:
 
-Humm, not that then.
+>> We apply pressure to each of sets of the pageout queues based on:
+>> - the size of each queue
+>> - the fraction of recently referenced pages in each queue,
+>>    not counting used-once file pages
+>> - swappiness (file IO is more efficient than swap IO)
 
-> > >  but it's almost
-> > > like it is throttling a device completely while it allows another
-> > > to finish writing it's quota (underestimating bandwidth?).
-> > 
-> > Yeah, there is some lumpy-ness in BIO submission or write completions it
-> > seems, and when that granularity (multiplied by the number of active
-> > devices) is larger than the 'time' period over with we average
-> > (indicated by vm_cycle_shift) very weird stuff can happen.
-> 
-> Sounds like the period is a bit too short atm if we can get into this
-> sort of problem with only 2 active devices....
+> This ignores whether a file page is mapped, doesn't it?
 
-Yeah, trouble is, I significantly extended this period in 7/6.
-Will have to ponder a bit on what is happening then.
+> Even so, it could be a good approach anyway.
 
-Anyway, thanks for the feedback.
+It does, but once it gets the file list down to the size
+where it finds that a fair number of the pages were
+referenced, it will back off the pressure automatically.
 
-I'll try and reproduce the umount problem, maybe that will give some
-hints.
+Also, we do not apply the used-once algorithm to mapped
+pages, meaning that mapped pages with the accessed bit
+set always get rotated back onto the active list, while
+unmapped pages do not.
+
+> There are a couple of little nice improvements you have there, such as
+> treating shmem pages in the same class as anon pages. We found that we
+> needed something similar, so some of those things should go upstream
+> on their own.
+
+It will be hard to merge that "on its own" without the
+split queues.  I can't really think of a good way to
+split this patch up into multiple functional bits...
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
