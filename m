@@ -1,123 +1,73 @@
-Subject: Re: [RFC][PATCH 0/6] per device dirty throttling
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1174383938.16478.22.camel@twins>
-References: <20070319155737.653325176@programming.kicks-ass.net>
-	 <20070320074751.GP32602149@melbourne.sgi.com>
-	 <1174378104.16478.17.camel@twins>
-	 <20070320093845.GQ32602149@melbourne.sgi.com>
-	 <1174383938.16478.22.camel@twins>
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #2
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <45FF3052.0@redhat.com>
+References: <45FF3052.0@redhat.com>
 Content-Type: text/plain
-Date: Tue, 20 Mar 2007 16:38:43 +0100
-Message-Id: <1174405123.16478.28.camel@twins>
+Date: Tue, 20 Mar 2007 12:24:57 -0400
+Message-Id: <1174407897.5664.38.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Chinner <dgc@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, neilb@suse.de, tomoki.sekiyama.qu@hitachi.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This seems to fix the worst of it, I'll run with it for a few days and
-respin the patches and repost when nothing weird happens.
+On Mon, 2007-03-19 at 20:52 -0400, Rik van Riel wrote:
+> Split the anonymous and file backed pages out onto their own pageout
+> queues.  This we do not unnecessarily churn through lots of anonymous
+> pages when we do not want to swap them out anyway.
+> 
+> This should (with additional tuning) be a great step forward in
+> scalability, allowing Linux to run well on very large systems where
+> scanning through the anonymous memory (on our way to the page cache
+> memory we do want to evict) is slowing systems down significantly.
+> 
+> This patch has been stress tested and seems to work, but has not
+> been fine tuned or benchmarked yet.  For now the swappiness parameter
+> can be used to tweak swap aggressiveness up and down as desired, but
+> in the long run we may want to simply measure IO cost of page cache
+> and anonymous memory and auto-adjust.
+> 
+> We apply pressure to each of sets of the pageout queues based on:
+> - the size of each queue
+> - the fraction of recently referenced pages in each queue,
+>     not counting used-once file pages
+> - swappiness (file IO is more efficient than swap IO)
+> 
+> Please take this patch for a spin and let me know what goes well
+> and what goes wrong.
 
----
-Found missing bdi_stat_init() sites for NFS and Fuse
+Rick:  Which tree is the patch against.  Diffs say 2.6.20.x86_64, but
+doesn't apply to 2.6.20 which doesn't use __inc_zone_state() for things
+like nr_active, nr_inactive, ...
 
-Optimize bdi_writeout_norm(), break out of the loop when we hit zero. This will
-allow 'new' BDIs to catch up without triggering NMI/softlockup msgs.
+Also, in the snippet:
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- fs/fuse/inode.c     |    1 +
- fs/nfs/client.c     |    1 +
- mm/page-writeback.c |   25 +++++++++++++++++++------
- 3 files changed, 21 insertions(+), 6 deletions(-)
+>--- linux-2.6.20.x86_64/mm/swap_state.c.vmsplit 2007-02-04
+>13:44:54.000000000 -0500
+>+++ linux-2.6.20.x86_64/mm/swap_state.c 2007-03-19 12:00:23.000000000
+-0400
+>@@ -354,7 +354,7 @@ struct page *read_swap_cache_async(swp_e
+>                        /*
+>                         * Initiate read into locked page and return.
+>                         */
+>-                       lru_cache_add_active(new_page);
+>+                       lru_cache_add_anon(new_page);
+>                        swap_readpage(NULL, new_page);
+>                        return new_page;
+>                }
 
-Index: linux-2.6/fs/nfs/client.c
-===================================================================
---- linux-2.6.orig/fs/nfs/client.c
-+++ linux-2.6/fs/nfs/client.c
-@@ -657,6 +657,7 @@ static void nfs_server_set_fsinfo(struct
- 		server->rsize = NFS_MAX_FILE_IO_SIZE;
- 	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
- 	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
-+	bdi_stat_init(&server->backing_dev_info);
- 
- 	if (server->wsize > max_rpc_payload)
- 		server->wsize = max_rpc_payload;
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -114,6 +114,13 @@ static void background_writeout(unsigned
-  *
-  * Furthermore, when we choose thresh to be 2^n it can be written in terms of
-  * binary operations and wraparound artifacts disappear.
-+ *
-+ * Also note that this yields a natural counter of the elapsed periods:
-+ *
-+ *   i / thresh
-+ *
-+ * Its monotonous increasing property can be applied to mitigate the wrap-
-+ * around issue.
-  */
- static int vm_cycle_shift __read_mostly;
- 
-@@ -125,19 +132,25 @@ static void bdi_writeout_norm(struct bac
- 	int bits = vm_cycle_shift;
- 	unsigned long cycle = 1UL << bits;
- 	unsigned long mask = ~(cycle - 1);
--	unsigned long total = __global_bdi_stat(BDI_WRITEOUT_TOTAL) << 1;
-+	unsigned long global_cycle =
-+		(__global_bdi_stat(BDI_WRITEOUT_TOTAL) << 1) & mask;
- 	unsigned long flags;
- 
--	if ((bdi->cycles & mask) == (total & mask))
-+	if ((bdi->cycles & mask) == global_cycle)
- 		return;
- 
- 	spin_lock_irqsave(&bdi->lock, flags);
--	while ((bdi->cycles & mask) != (total & mask)) {
--		unsigned long half = __bdi_stat(bdi, BDI_WRITEOUT) / 2;
-+	while ((bdi->cycles & mask) != global_cycle) {
-+		unsigned long val = __bdi_stat(bdi, BDI_WRITEOUT);
-+		unsigned long half = (val + 1) / 2;
-+
-+		if (!val)
-+			break;
- 
- 		mod_bdi_stat(bdi, BDI_WRITEOUT, -half);
- 		bdi->cycles += cycle;
- 	}
-+	bdi->cycles = global_cycle;
- 	spin_unlock_irqrestore(&bdi->lock, flags);
- }
- 
-@@ -146,10 +159,10 @@ static void bdi_writeout_inc(struct back
- 	if (!bdi_cap_writeback_dirty(bdi))
- 		return;
- 
-+	bdi_writeout_norm(bdi);
-+
- 	__inc_bdi_stat(bdi, BDI_WRITEOUT);
- 	__inc_bdi_stat(bdi, BDI_WRITEOUT_TOTAL);
--
--	bdi_writeout_norm(bdi);
- }
- 
- void get_writeout_scale(struct backing_dev_info *bdi, int *scale, int *div)
-Index: linux-2.6/fs/fuse/inode.c
-===================================================================
---- linux-2.6.orig/fs/fuse/inode.c
-+++ linux-2.6/fs/fuse/inode.c
-@@ -413,6 +413,7 @@ static struct fuse_conn *new_conn(void)
- 		atomic_set(&fc->num_waiting, 0);
- 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
- 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
-+		bdi_stat_init(&fc->bdi);
- 		fc->reqctr = 0;
- 		fc->blocked = 1;
- 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
+Should that be lru_cache_add_active_anon()? Or did you intend to add it
+to the inactive anon list?
+
+Finally, could you [should you?] skip scanning the anon lists--or at
+least the inactive anon list--when nr_swap_pages == 0?  The anon pages
+aren't going anywhere, right?  I think this would obviate Christoph L's
+patch to exclude anon pages from the LRU when there is no swap.  
+
+Lee
+
 
 
 --
