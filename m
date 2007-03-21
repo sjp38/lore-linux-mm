@@ -1,31 +1,65 @@
-Date: Wed, 21 Mar 2007 14:57:22 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <20070321145254.1c1011b9.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0703211454410.5130@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
- <46019F67.3010300@google.com> <Pine.LNX.4.64.0703211428430.4832@schroedinger.engr.sgi.com>
- <20070321145254.1c1011b9.akpm@linux-foundation.org>
+From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <17921.44824.669978.639090@gargle.gargle.HOWL>
+Date: Thu, 22 Mar 2007 01:18:00 +0300
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
+In-Reply-To: <4601586E.302@redhat.com>
+References: <46005B4A.6050307@redhat.com>
+	<17920.61568.770999.626623@gargle.gargle.HOWL>
+	<460115D9.7030806@redhat.com>
+	<17921.7074.900919.784218@gargle.gargle.HOWL>
+	<46011E8F.2000109@redhat.com>
+	<46011EF6.3040704@redhat.com>
+	<17921.20299.7899.527765@gargle.gargle.HOWL>
+	<4601586E.302@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ethan Solomita <solo@google.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Mar 2007, Andrew Morton wrote:
+Rik van Riel writes:
+ > Nikita Danilov wrote:
+ > 
+ > > Generally speaking, multi-queue replacement mechanisms were tried in the
+ > > past, and they all suffer from the common drawback: once scanning rate
+ > > is different for different queues, so is the notion of "hotness",
+ > > measured by scanner. As a result multi-queue scanner fails to capture
+ > > working set properly.
+ > 
+ > You realize that the current "single" queue in the 2.6 kernel
+ > has this problem in a much worse way: when swappiness is low
+ > and the kernel does not want to reclaim mapped pages, it will
+ > randomly rotate those pages around the list.
 
-> > The NFS patch went into Linus tree a couple of days ago
-> 
-> Did it fix the oom issues which you were observing?
+Agree. Some time ago I tried to solve this very problem with
+dont-rotate-active-list patch
+(http://linuxhacker.ru/~nikita/patches/2.6.12-rc6/2005.06.11/vm_03-dont-rotate-active-list.patch),
+but it had problems on its own.
 
-Yes it reduced the dirty ratios to reasonable numbers in a simple copy 
-operation that created large amounts of dirty pages before. The trouble is 
-now to check if cpuset writeback patch still works correctly.
+ > 
+ > In addition, the referenced bit on unmapped page cache pages
+ > was ignored completely, making it impossible for the VM to
+ > separate the page cache working set from transient pages due
+ > to streaming IO.
 
-Probably have to turn off block device congestion checks somehow.
+Yes, basically FIFO for clean file system pages and FIFO-second-chance
+for dirty file pages. Very bad.
+
+ > 
+ > I agree that we should put some more negative feedback in
+ > place if it turns out we need it.  I have refault code ready
+ > that can be plugged into this patch, but I don't want to add
+ > the overhead of such code if it turns out we do not actually
+ > need it.
+
+In my humble opinion VM already has too many mechanisms that are
+supposed to help in corner cases, but there is little to do with that,
+except for major rewrite.
+
+Nikita.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
