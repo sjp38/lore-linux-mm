@@ -1,66 +1,57 @@
-Date: Tue, 20 Mar 2007 18:17:57 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API (V2)
-Message-ID: <20070321011757.GD2986@holomorphy.com>
-References: <20070319200502.17168.17175.stgit@localhost.localdomain>
-MIME-Version: 1.0
+Date: Tue, 20 Mar 2007 20:07:19 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
+Message-ID: <20070321010719.GM10459@waste.org>
+References: <46005B4A.6050307@redhat.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070319200502.17168.17175.stgit@localhost.localdomain>
+In-Reply-To: <46005B4A.6050307@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 19, 2007 at 01:05:02PM -0700, Adam Litke wrote:
-> Andrew, given the favorable review of these patches the last time
-> around, would you consider them for the -mm tree?  Does anyone else
-> have any objections?
+On Tue, Mar 20, 2007 at 06:08:10PM -0400, Rik van Riel wrote:
+> -		"Active:       %8lu kB\n"
+> -		"Inactive:     %8lu kB\n"
+...
+> +		"Active(anon):   %8lu kB\n"
+> +		"Inactive(anon): %8lu kB\n"
+> +		"Active(file):   %8lu kB\n"
+> +		"Inactive(file): %8lu kB\n"
 
-We need a new round of commentary for how it should integrate with
-Nick Piggin's fault handling patches given that both introduce very
-similar ->fault() methods, albeit at different places and for different
-purposes.
+Potentially incompatible change. How about preserving the original
+fields (by totalling), then adding the other fields in a second patch.
 
-I think things weren't entirely wrapped up last time but there was
-general approval in concept and code-level issues had been gotten past.
-I've forgotten the conclusion of hch and arjan's commentary on making
-the pagetable operations mandatory. ISTR they were all cosmetic affairs
-like that or whether they should be part of ->vm_ops as opposed to
-fundamental issues.
+>  			if (!pagevec_add(&lru_pvec, page))
+> -				__pagevec_lru_add(&lru_pvec);
+> +				__pagevec_lru_add_file(&lru_pvec);
 
-The last thing I'd want to do is hold things back, so by no means
-delay merging etc. on account of this, but I am curious on several
-points. First, is there any demonstrable overhead to mandatory indirect
-calls for the pagetable operations? Second, can case analysis for e.g.
-file-backed vs. anon and/or COW vs. shared be avoided by the use of
-the indirect function call, or more specifically, to any beneficial
-effect? Well, I rearranged the code in such a manner ca. 2.6.6 so I
-know the rearrangement is possible, but not the performance impact vs.
-modern kernels, if any, never mind how the code ends up looking in
-modern kernels. Third, could you use lmbench or some such to get direct
-fork() and fault handling microbenchmarks? Kernel compiles are too
-close to macrobenchmarks to say anything concrete there apart from that
-other issues (e.g. SMP load balancing, NUMA, lock contention, etc.)
-dominate indirect calls. If you have the time or interest to explore
-any of these areas, I'd be very interested in hearing the results.
+Wouldn't lru_file_add or file_lru_add be a better name? If the object
+is a "file lru" then sticking "add" in the middle is a little ugly.
 
-One thing I would like to see for sure is dropping the has_pt_op()
-and pt_op() macros. The Linux-native convention is to open-code the
-function pointer fetches, and the non-native convention is to wrap
-things like defaulting (though they actually do something more involved)
-in the analogue of pt_op() for the purposes of things like extensible
-sets of operations bordering on OOP-ish method tables. So this ends up
-as some sort of hybrid convention without the functionality of the
-non-native call wrappers and without the clarity of open-coding. My
-personal preference is that the function pointer table be mandatory and
-the call to the the function pointer be unconditional and the type
-dispatch accomplished entirely through the function pointers, but I'm
-not particularly insistent about that.
+>  	spin_lock_irq(&zone->lru_lock);
+>  	if (PageLRU(page) && !PageActive(page)) {
+> -		del_page_from_inactive_list(zone, page);
+> +	if (page_anon(page)) {
+> +		del_page_from_inactive_anon_list(zone,page);
+>  		SetPageActive(page);
+> -		add_page_to_active_list(zone, page);
+> +		add_page_to_active_anon_list(zone, page);
+> +	} else {
+> +		del_page_from_inactive_file_list(zone, page);
+> +		SetPageActive(page);
+> +		add_page_to_active_file_list(zone, page);
+> +	}
+>  		__count_vm_event(PGACTIVATE);
+>  	}
 
+Missing a level of indentation.
 
--- wli
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
