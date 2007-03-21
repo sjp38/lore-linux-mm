@@ -1,75 +1,28 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Date: Wed, 21 Mar 2007 15:55:54 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API (V2)
+In-Reply-To: <20070319200502.17168.17175.stgit@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0703211549220.32077@blonde.wat.veritas.com>
+References: <20070319200502.17168.17175.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17921.20299.7899.527765@gargle.gargle.HOWL>
-Date: Wed, 21 Mar 2007 18:29:15 +0300
-Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
-In-Reply-To: <46011EF6.3040704@redhat.com>
-References: <46005B4A.6050307@redhat.com>
-	<17920.61568.770999.626623@gargle.gargle.HOWL>
-	<460115D9.7030806@redhat.com>
-	<17921.7074.900919.784218@gargle.gargle.HOWL>
-	<46011E8F.2000109@redhat.com>
-	<46011EF6.3040704@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel writes:
- > Rik van Riel wrote:
- > > Nikita Danilov wrote:
- > > 
- > >> Probably I am missing something, but I don't see how that can help. For
- > >> example, suppose (for simplicity) that we have swappiness of 100%, and
- > >> that fraction of referenced anon pages gets slightly less than of file
- > >> pages. get_scan_ratio() increases anon_percent, and shrink_zone() starts
- > >> scanning anon queue more aggressively. As a result, pages spend less
- > >> time there, and have less chance of ever being accessed, reducing
- > >> fraction of referenced anon pages further, and triggering further
- > >> increase in the amount of scanning, etc. Doesn't this introduce positive
- > >> feed-back loop?
- > > 
- > > It's a possibility, but I don't think it will be much of an
- > > issue in practice.
- > > 
- > > If it is, we can always use refaults as a correcting
- > > mechanism - which would have the added benefit of being
- > > able to do streaming IO without putting any pressure on
- > > the active list, essentially clock-pro replacement with
- > > just some tweaks to shrink_list()...
- > 
- > As an aside, due to the use-once algorithm file pages are at a
- > natural disadvantage already.  I believe it would be really
- > hard to construct a workload where anon pages suffer the positive
- > feedback loop you describe...
+On Mon, 19 Mar 2007, Adam Litke wrote:
+> Andrew, given the favorable review of these patches the last time around, would
+> you consider them for the -mm tree?  Does anyone else have any objections?
 
-That scenario works for file queues too. Of course, all this is but a
-theoretical speculation at this point, but I am concerned that
+I quite fail to understand the enthusiasm for these patches.  All they
+do is make the already ugly interfaces to hugetlb more obscure than at
+present, and open the door to even uglier stuff later.  Don't you need
+to wait for at least one other user of these interfaces to emerge,
+to get a better idea of whether they're appropriate?
 
- - that loop would tend to happen under various border conditions,
- making it hard to isolate, diagnose, and debug, and
-
- - long before it becomes explicitly visible (say, as an excessive cpu
- consumption by scanner), it would ruin global lru ordering, degrading
- overall performance.
-
-Generally speaking, multi-queue replacement mechanisms were tried in the
-past, and they all suffer from the common drawback: once scanning rate
-is different for different queues, so is the notion of "hotness",
-measured by scanner. As a result multi-queue scanner fails to capture
-working set properly.
-
-Nikita.
-
-
- > 
- > -- 
- > Politics is the struggle between those who want to make their country
- > the best in the world, and those who believe it already is.  Each group
- > calls the other unpatriotic.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
