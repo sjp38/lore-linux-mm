@@ -1,47 +1,66 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2KNoS4I029897
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2007 19:50:28 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2KNoS09069398
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2007 17:50:28 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2KNoRTj012971
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2007 17:50:28 -0600
+Date: Tue, 20 Mar 2007 18:17:57 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API (V2)
-From: Dave Hansen <hansendc@us.ibm.com>
-In-Reply-To: <20070319200502.17168.17175.stgit@localhost.localdomain>
+Message-ID: <20070321011757.GD2986@holomorphy.com>
 References: <20070319200502.17168.17175.stgit@localhost.localdomain>
-Content-Type: text/plain
-Date: Tue, 20 Mar 2007 16:50:13 -0700
-Message-Id: <1174434613.26166.182.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070319200502.17168.17175.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-03-19 at 13:05 -0700, Adam Litke wrote:
-> For the common case (vma->pagetable_ops == NULL), we do almost the
-> same thing as the current code: load and test.  The third instruction
-> is different in that we jump for the common case instead of jumping in
-> the hugetlb case.  I don't think this is a big deal though.  If it is,
-> would an unlikely() macro fix it? 
+On Mon, Mar 19, 2007 at 01:05:02PM -0700, Adam Litke wrote:
+> Andrew, given the favorable review of these patches the last time
+> around, would you consider them for the -mm tree?  Does anyone else
+> have any objections?
 
-I wouldn't worry about micro-optimizing it at that level.  The CPU does
-enough stuff under the covers that I wouldn't worry about it at all.
+We need a new round of commentary for how it should integrate with
+Nick Piggin's fault handling patches given that both introduce very
+similar ->fault() methods, albeit at different places and for different
+purposes.
 
-I wonder if the real differential impact (if any) is likely to come from
-the pagetable_ops cacheline being hot or cold, since it is in a
-different place in the structure than the flags.  But, from a quick
-glance I see a few vm_ops references preceding pagetable_ops references,
-so the pagetable_ops cacheline might already be hot most of the time.  
+I think things weren't entirely wrapped up last time but there was
+general approval in concept and code-level issues had been gotten past.
+I've forgotten the conclusion of hch and arjan's commentary on making
+the pagetable operations mandatory. ISTR they were all cosmetic affairs
+like that or whether they should be part of ->vm_ops as opposed to
+fundamental issues.
 
-BTW, are there any other possible users for these things other than
-large pages?
+The last thing I'd want to do is hold things back, so by no means
+delay merging etc. on account of this, but I am curious on several
+points. First, is there any demonstrable overhead to mandatory indirect
+calls for the pagetable operations? Second, can case analysis for e.g.
+file-backed vs. anon and/or COW vs. shared be avoided by the use of
+the indirect function call, or more specifically, to any beneficial
+effect? Well, I rearranged the code in such a manner ca. 2.6.6 so I
+know the rearrangement is possible, but not the performance impact vs.
+modern kernels, if any, never mind how the code ends up looking in
+modern kernels. Third, could you use lmbench or some such to get direct
+fork() and fault handling microbenchmarks? Kernel compiles are too
+close to macrobenchmarks to say anything concrete there apart from that
+other issues (e.g. SMP load balancing, NUMA, lock contention, etc.)
+dominate indirect calls. If you have the time or interest to explore
+any of these areas, I'd be very interested in hearing the results.
 
--- Dave
+One thing I would like to see for sure is dropping the has_pt_op()
+and pt_op() macros. The Linux-native convention is to open-code the
+function pointer fetches, and the non-native convention is to wrap
+things like defaulting (though they actually do something more involved)
+in the analogue of pt_op() for the purposes of things like extensible
+sets of operations bordering on OOP-ish method tables. So this ends up
+as some sort of hybrid convention without the functionality of the
+non-native call wrappers and without the clarity of open-coding. My
+personal preference is that the function pointer table be mandatory and
+the call to the the function pointer be unconditional and the type
+dispatch accomplished entirely through the function pointers, but I'm
+not particularly insistent about that.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
