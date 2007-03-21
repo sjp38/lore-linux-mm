@@ -1,39 +1,34 @@
-Message-ID: <4600E062.8020001@yahoo.com.au>
-Date: Wed, 21 Mar 2007 18:36:02 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated
- helper macros.
-References: <20070319200502.17168.17175.stgit@localhost.localdomain> <20070319200513.17168.52238.stgit@localhost.localdomain> <4600B216.3010505@yahoo.com.au> <20070321045214.GE2986@holomorphy.com> <4600BD9F.8030609@yahoo.com.au> <20070321054102.GF2986@holomorphy.com> <4600D5EB.90507@yahoo.com.au>
-In-Reply-To: <4600D5EB.90507@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <17920.61568.770999.626623@gargle.gargle.HOWL>
+Date: Wed, 21 Mar 2007 11:44:48 +0300
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
+In-Reply-To: <46005B4A.6050307@redhat.com>
+References: <46005B4A.6050307@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+Rik van Riel writes:
+ > [ OK, I suck.  I edited yesterday's email with the new info, but forgot
+ >    to change the attachment to today's patch.  Here is today's patch. ]
+ > 
+ > Split the anonymous and file backed pages out onto their own pageout
+ > queues.  This we do not unnecessarily churn through lots of anonymous
+ > pages when we do not want to swap them out anyway.
 
-> Yeah you could, but it looks back to front to me.
-> 
-> The VM tells the filesystem that the machine took a fault at virtual
-> address X, then the filesystem asks the VM what pgoff that is, then
-> tells the VM to install the corresponding page to vaddr X.
-> 
-> With my ->fault, the VM asks the filesystem to give the page that
-> corresponds to vaddr X, then installs it into that vaddr.
+Won't this re-introduce problems similar to ones due to split
+inactive_clean/inactive_dirty queues we had in the past?
 
-Err, sorry, that's what the current ->nopage does. It is then still
-up to the filesystem to do the vaddr to pgoff conversion.
+For example, by rotating anon queues faster than file queues, kernel
+would end up reclaiming anon pages that are hotter (in "absolute" LRU
+order) than some file pages.
 
-My fault patches of course just ask the filesystem for the page at
-a given pgoff.
-
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Nikita.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
