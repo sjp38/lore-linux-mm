@@ -1,52 +1,41 @@
-Message-ID: <4601598A.7060904@redhat.com>
-Date: Wed, 21 Mar 2007 12:12:58 -0400
-From: Chuck Ebbert <cebbert@redhat.com>
+Date: Wed, 21 Mar 2007 09:23:24 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH 0/7] [RFC] hugetlb: pagetable_operations API (V2)
+Message-ID: <20070321162324.GH2986@holomorphy.com>
+References: <20070319200502.17168.17175.stgit@localhost.localdomain> <Pine.LNX.4.64.0703211549220.32077@blonde.wat.veritas.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
-References: <46005B4A.6050307@redhat.com>	<17920.61568.770999.626623@gargle.gargle.HOWL>	<460115D9.7030806@redhat.com> <17921.7074.900919.784218@gargle.gargle.HOWL> <46011E8F.2000109@redhat.com>
-In-Reply-To: <46011E8F.2000109@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0703211549220.32077@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nikita Danilov <nikita@clusterfs.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Nikita Danilov wrote:
-> 
->> Probably I am missing something, but I don't see how that can help. For
->> example, suppose (for simplicity) that we have swappiness of 100%, and
->> that fraction of referenced anon pages gets slightly less than of file
->> pages. get_scan_ratio() increases anon_percent, and shrink_zone() starts
->> scanning anon queue more aggressively. As a result, pages spend less
->> time there, and have less chance of ever being accessed, reducing
->> fraction of referenced anon pages further, and triggering further
->> increase in the amount of scanning, etc. Doesn't this introduce positive
->> feed-back loop?
-> 
-> It's a possibility, but I don't think it will be much of an
-> issue in practice.
-> 
-> If it is, we can always use refaults as a correcting
-> mechanism - which would have the added benefit of being
-> able to do streaming IO without putting any pressure on
-> the active list, essentially clock-pro replacement with
-> just some tweaks to shrink_list()...
-> 
+On Mon, 19 Mar 2007, Adam Litke wrote:
+>> Andrew, given the favorable review of these patches the last time
+>> around, would you consider them for the -mm tree?  Does anyone else
+>> have any objections?
 
-I think you're going to have to use refault rates. AIX 3.5 had
-to add that. Something like:
+On Wed, Mar 21, 2007 at 03:55:54PM +0000, Hugh Dickins wrote:
+> I quite fail to understand the enthusiasm for these patches.  All they
+> do is make the already ugly interfaces to hugetlb more obscure than at
+> present, and open the door to even uglier stuff later.  Don't you need
+> to wait for at least one other user of these interfaces to emerge,
+> to get a better idea of whether they're appropriate?
 
-if refault_rate(anonymous/mmap) > refault_rate(pagecache)
-   drop a pagecache page
-else
-   drop either
+The lack of an interface of this sort has essentially blocked the
+development of some of them.
 
-You do have anonymous memory and mmapped executables in the same
-queue, right?
+What sort of uglier stuff are you concerned about this enabling? My
+wild guess is precisely the prospective users in my queue of features
+to implement that I've neglected on account of the lack of such an
+interface. It might be a good idea for me to take whatever distaste for
+them exists into account before belting out the code for them.
 
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
