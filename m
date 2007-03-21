@@ -1,52 +1,43 @@
-From: Nikita Danilov <nikita@clusterfs.com>
+Message-ID: <46011E8F.2000109@redhat.com>
+Date: Wed, 21 Mar 2007 08:01:19 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17921.7074.900919.784218@gargle.gargle.HOWL>
-Date: Wed, 21 Mar 2007 14:48:50 +0300
 Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
-In-Reply-To: <460115D9.7030806@redhat.com>
-References: <46005B4A.6050307@redhat.com>
-	<17920.61568.770999.626623@gargle.gargle.HOWL>
-	<460115D9.7030806@redhat.com>
+References: <46005B4A.6050307@redhat.com>	<17920.61568.770999.626623@gargle.gargle.HOWL>	<460115D9.7030806@redhat.com> <17921.7074.900919.784218@gargle.gargle.HOWL>
+In-Reply-To: <17921.7074.900919.784218@gargle.gargle.HOWL>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Nikita Danilov <nikita@clusterfs.com>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel writes:
- > Nikita Danilov wrote:
- > > Rik van Riel writes:
- > >  > [ OK, I suck.  I edited yesterday's email with the new info, but forgot
- > >  >    to change the attachment to today's patch.  Here is today's patch. ]
- > >  > 
- > >  > Split the anonymous and file backed pages out onto their own pageout
- > >  > queues.  This we do not unnecessarily churn through lots of anonymous
- > >  > pages when we do not want to swap them out anyway.
- > > 
- > > Won't this re-introduce problems similar to ones due to split
- > > inactive_clean/inactive_dirty queues we had in the past?
- > > 
- > > For example, by rotating anon queues faster than file queues, kernel
- > > would end up reclaiming anon pages that are hotter (in "absolute" LRU
- > > order) than some file pages.
- > 
- > That is why we check the fraction of referenced pages in each
- > queue.  Please look at the get_scan_ratio() and shrink_zone()
- > code in my patch.
+Nikita Danilov wrote:
 
-Probably I am missing something, but I don't see how that can help. For
-example, suppose (for simplicity) that we have swappiness of 100%, and
-that fraction of referenced anon pages gets slightly less than of file
-pages. get_scan_ratio() increases anon_percent, and shrink_zone() starts
-scanning anon queue more aggressively. As a result, pages spend less
-time there, and have less chance of ever being accessed, reducing
-fraction of referenced anon pages further, and triggering further
-increase in the amount of scanning, etc. Doesn't this introduce positive
-feed-back loop?
+> Probably I am missing something, but I don't see how that can help. For
+> example, suppose (for simplicity) that we have swappiness of 100%, and
+> that fraction of referenced anon pages gets slightly less than of file
+> pages. get_scan_ratio() increases anon_percent, and shrink_zone() starts
+> scanning anon queue more aggressively. As a result, pages spend less
+> time there, and have less chance of ever being accessed, reducing
+> fraction of referenced anon pages further, and triggering further
+> increase in the amount of scanning, etc. Doesn't this introduce positive
+> feed-back loop?
 
-Nikita.
+It's a possibility, but I don't think it will be much of an
+issue in practice.
+
+If it is, we can always use refaults as a correcting
+mechanism - which would have the added benefit of being
+able to do streaming IO without putting any pressure on
+the active list, essentially clock-pro replacement with
+just some tweaks to shrink_list()...
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
