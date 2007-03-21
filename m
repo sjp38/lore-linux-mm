@@ -1,44 +1,37 @@
-Message-ID: <4601B96F.2080707@yahoo.com.au>
-Date: Thu, 22 Mar 2007 10:02:07 +1100
+Message-ID: <4601B9DB.6040104@yahoo.com.au>
+Date: Thu, 22 Mar 2007 10:03:55 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated
  helper macros.
-References: <20070319200502.17168.17175.stgit@localhost.localdomain>	 <20070319200513.17168.52238.stgit@localhost.localdomain>	 <4600B216.3010505@yahoo.com.au> <1174490261.21684.13.camel@localhost.localdomain>
-In-Reply-To: <1174490261.21684.13.camel@localhost.localdomain>
+References: <20070319200502.17168.17175.stgit@localhost.localdomain> <20070319200513.17168.52238.stgit@localhost.localdomain> <4600B216.3010505@yahoo.com.au> <1174490261.21684.13.camel@localhost.localdomain> <20070321160051.GA5264@infradead.org>
+In-Reply-To: <20070321160051.GA5264@infradead.org>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
-> On Wed, 2007-03-21 at 15:18 +1100, Nick Piggin wrote:
+Christoph Hellwig wrote:
+> On Wed, Mar 21, 2007 at 10:17:40AM -0500, Adam Litke wrote:
 > 
->>Adam Litke wrote:
-
->>>diff --git a/include/linux/mm.h b/include/linux/mm.h
->>>index 60e0e4a..7089323 100644
->>>--- a/include/linux/mm.h
->>>+++ b/include/linux/mm.h
->>>@@ -98,6 +98,7 @@ struct vm_area_struct {
->>> 
->>> 	/* Function pointers to deal with this struct. */
->>> 	struct vm_operations_struct * vm_ops;
->>>+	const struct pagetable_operations_struct * pagetable_ops;
->>> 
->>> 	/* Information about our backing store: */
->>> 	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
+>>>Also, it is going to be hugepage-only, isn't it? So should the naming be
+>>>changed to reflect that? And #ifdef it...
 >>
->>Can you remind me why this isn't in vm_ops?
+>>They are doing some interesting things on Cell that could take advantage
+>>of this.
 > 
 > 
-> We didn't want to bloat the size of the vm_ops struct for all of its
-> users.
+> That would be new to me.  What we need on Cell is fixing up the
+> get_unmapped_area mess which Ben is working on now.
+> 
+> And let me once again repeat that I don't like this at all.  I'll
+> rather have a few ugly ifdefs in strategic places than a big object
+> oriented mess like this with just a single user.
 
-But vmas are surely far more numerous than vm_ops, aren't they?
+I think I agree that we'd need more than one user for this.
 
 -- 
 SUSE Labs, Novell Inc.
