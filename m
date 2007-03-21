@@ -1,48 +1,34 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2LKQtKW028071
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 16:26:55 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2LKQkg5070772
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 14:26:49 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2LKQkDm009063
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 14:26:46 -0600
-Subject: Re: pagetable_ops: Hugetlb character device example
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <200703211951.l2LJpVPS020364@turing-police.cc.vt.edu>
-References: <20070319200502.17168.17175.stgit@localhost.localdomain>
-	 <1174506228.21684.41.camel@localhost.localdomain>
-	 <200703211951.l2LJpVPS020364@turing-police.cc.vt.edu>
-Content-Type: text/plain
-Date: Wed, 21 Mar 2007 15:26:44 -0500
-Message-Id: <1174508804.21684.48.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <46019F67.3010300@google.com>
+Date: Wed, 21 Mar 2007 14:11:03 -0700
+From: Ethan Solomita <solo@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 0/8] Cpuset aware writeback
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-03-21 at 15:51 -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Wed, 21 Mar 2007 14:43:48 CDT, Adam Litke said:
-> > The main reason I am advocating a set of pagetable_operations is to
-> > enable the development of a new hugetlb interface.
+Christoph Lameter wrote:
+> On Thu, 1 Feb 2007, Ethan Solomita wrote:
 > 
-> Do you have an exit strategy for the *old* interface?
+>>    Hi Christoph -- has anything come of resolving the NFS / OOM concerns that
+>> Andrew Morton expressed concerning the patch? I'd be happy to see some
+>> progress on getting this patch (i.e. the one you posted on 1/23) through.
+> 
+> Peter Zilkstra addressed the NFS issue. I will submit the patch again as 
+> soon as the writeback code stabilizes a bit.
 
-Not really.  Hugetlbfs needs to be kept around for a number of reasons.
-It was designed to support MAP_SHARED mappings and IPC shm segments.  It
-is probably still the best interface for those jobs.  Of course
-hugetlbfs has lots of users so we must preserve the interface for them.
+	I'm pinging to see if this has gotten anywhere. Are you ready to 
+resubmit? Do we have the evidence to convince Andrew that the NFS issues 
+are resolved and so this patch won't obscure anything?
 
-But... once hugetlbfs is abstracted behind pagetable_operations, you
-would have the option of configuring it out of the kernel without losing
-access to huge pages by other means (such as the character device).
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+	Thanks,
+	-- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
