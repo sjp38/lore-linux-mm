@@ -1,87 +1,75 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2LFHhPS004247
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 11:17:43 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2LFHhlm037212
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 09:17:43 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2LFHgra001799
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2007 09:17:43 -0600
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated
-	helper macros.
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <4600B216.3010505@yahoo.com.au>
-References: <20070319200502.17168.17175.stgit@localhost.localdomain>
-	 <20070319200513.17168.52238.stgit@localhost.localdomain>
-	 <4600B216.3010505@yahoo.com.au>
-Content-Type: text/plain
-Date: Wed, 21 Mar 2007 10:17:40 -0500
-Message-Id: <1174490261.21684.13.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Nikita Danilov <nikita@clusterfs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <17921.20299.7899.527765@gargle.gargle.HOWL>
+Date: Wed, 21 Mar 2007 18:29:15 +0300
+Subject: Re: [RFC][PATCH] split file and anonymous page queues #3
+In-Reply-To: <46011EF6.3040704@redhat.com>
+References: <46005B4A.6050307@redhat.com>
+	<17920.61568.770999.626623@gargle.gargle.HOWL>
+	<460115D9.7030806@redhat.com>
+	<17921.7074.900919.784218@gargle.gargle.HOWL>
+	<46011E8F.2000109@redhat.com>
+	<46011EF6.3040704@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-03-21 at 15:18 +1100, Nick Piggin wrote:
-> Adam Litke wrote:
-> > Signed-off-by: Adam Litke <agl@us.ibm.com>
-> > ---
-> > 
-> >  include/linux/mm.h |   25 +++++++++++++++++++++++++
-> >  1 files changed, 25 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 60e0e4a..7089323 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -98,6 +98,7 @@ struct vm_area_struct {
-> >  
-> >  	/* Function pointers to deal with this struct. */
-> >  	struct vm_operations_struct * vm_ops;
-> > +	const struct pagetable_operations_struct * pagetable_ops;
-> >  
-> >  	/* Information about our backing store: */
-> >  	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-> 
-> Can you remind me why this isn't in vm_ops?
+Rik van Riel writes:
+ > Rik van Riel wrote:
+ > > Nikita Danilov wrote:
+ > > 
+ > >> Probably I am missing something, but I don't see how that can help. For
+ > >> example, suppose (for simplicity) that we have swappiness of 100%, and
+ > >> that fraction of referenced anon pages gets slightly less than of file
+ > >> pages. get_scan_ratio() increases anon_percent, and shrink_zone() starts
+ > >> scanning anon queue more aggressively. As a result, pages spend less
+ > >> time there, and have less chance of ever being accessed, reducing
+ > >> fraction of referenced anon pages further, and triggering further
+ > >> increase in the amount of scanning, etc. Doesn't this introduce positive
+ > >> feed-back loop?
+ > > 
+ > > It's a possibility, but I don't think it will be much of an
+ > > issue in practice.
+ > > 
+ > > If it is, we can always use refaults as a correcting
+ > > mechanism - which would have the added benefit of being
+ > > able to do streaming IO without putting any pressure on
+ > > the active list, essentially clock-pro replacement with
+ > > just some tweaks to shrink_list()...
+ > 
+ > As an aside, due to the use-once algorithm file pages are at a
+ > natural disadvantage already.  I believe it would be really
+ > hard to construct a workload where anon pages suffer the positive
+ > feedback loop you describe...
 
-We didn't want to bloat the size of the vm_ops struct for all of its
-users.
+That scenario works for file queues too. Of course, all this is but a
+theoretical speculation at this point, but I am concerned that
 
-> Also, it is going to be hugepage-only, isn't it? So should the naming be
-> changed to reflect that? And #ifdef it...
+ - that loop would tend to happen under various border conditions,
+ making it hard to isolate, diagnose, and debug, and
 
-They are doing some interesting things on Cell that could take advantage
-of this.
+ - long before it becomes explicitly visible (say, as an excessive cpu
+ consumption by scanner), it would ruin global lru ordering, degrading
+ overall performance.
 
-> > @@ -218,6 +219,30 @@ struct vm_operations_struct {
-> >  };
-> >  
-> >  struct mmu_gather;
-> > +
-> > +struct pagetable_operations_struct {
-> > +	int (*fault)(struct mm_struct *mm,
-> > +		struct vm_area_struct *vma,
-> > +		unsigned long address, int write_access);
-> 
-> I got dibs on fault ;)
-> 
-> My callback is a sanitised one that basically abstracts the details of the
-> virtual memory mapping away, so it is usable by drivers and filesystems.
-> 
-> You actually want to bypass the normal fault handling because it doesn't
-> know how to deal with your virtual memory mapping. Hmm, the best suggestion
-> I can come up with is handle_mm_fault... unless you can think of a better
-> name for me to use.
+Generally speaking, multi-queue replacement mechanisms were tried in the
+past, and they all suffer from the common drawback: once scanning rate
+is different for different queues, so is the notion of "hotness",
+measured by scanner. As a result multi-queue scanner fails to capture
+working set properly.
 
-How about I use handle_pte_fault?
+Nikita.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+
+ > 
+ > -- 
+ > Politics is the struggle between those who want to make their country
+ > the best in the world, and those who believe it already is.  Each group
+ > calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
