@@ -1,75 +1,81 @@
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2007 17:01:30 +1100
-Subject: [RFC/PATCH 14/15] get_unmapped_area handles MAP_FIXED in generic code 
+Message-ID: <46023055.1030004@yahoo.com.au>
+Date: Thu, 22 Mar 2007 18:29:25 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [RFC/PATCH 0/15] Pass MAP_FIXED down to get_unmapped_area
+References: <1174543217.531981.572863804039.qpush@grosgo>
 In-Reply-To: <1174543217.531981.572863804039.qpush@grosgo>
-Message-Id: <20070322060304.296A2DDF86@ozlabs.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
----
+Benjamin Herrenschmidt wrote:
+> !!! This is a first cut, and there are still cleanups to be done in various
+> areas touched by that code. I also haven't done descriptions yet for the
+> individual patches.
+> 
+> The current get_unmapped_area code calls the f_ops->get_unmapped_area or
+> the arch one (via the mm) only when MAP_FIXED is not passed. That makes
+> it impossible for archs to impose proper constraints on regions of the
+> virtual address space. To work around that, get_unmapped_area() then
+> calls some hugetlbfs specific hacks.
+> 
+> This cause several problems, among others:
+> 
+>  - It makes it impossible for a driver or filesystem to do the same thing
+> that hugetlbfs does (for example, to allow a driver to use larger page
+> sizes to map external hardware) if that requires applying a constraint
+> on the addresses (constraining that mapping in certain regions and other
+> mappings out of those regions).
+> 
+>  - Some archs like arm, mips, sparc, sparc64, sh and sh64 already want
+> MAP_FIXED to be passed down in order to deal with aliasing issues.
+> The code is there to handle it... but is never called.
+> 
+> This serie of patches moves the logic to handle MAP_FIXED down to the
+> various arch/driver get_unmapped_area() implementations, and then changes
+> the generic code to always call them. The hugetlbfs hacks then disappear
+> from the generic code.
+> 
+> Since I need to do some special 64K pages mappings for SPEs on cell, I need
+> to work around the first problem at least. I have further patches thus
+> implementing a "slices" layer that handles multiple page sizes through
+> slices of the address space for use by hugetlbfs, the SPE code, and possibly
+> others, but it requires that serie of patches first/
+> 
+> There is still a potential (but not practical) issue due to the fact that
+> filesystems/drivers implemeting g_u_a will effectively bypass all arch
+> checks. This is not an issue in practice as the only users of those are
+> actually doing so are doing it using arch hooks in the first place.
+> 
+> There is also a problem with mremap that will completely bypass all arch
+> checks. I'll try to address that separately mostly by making it not work
+> when the vma has a file whose f_ops has a get_unmapped_area callback,
+> and by making it use is_hugepage_only_range() before expanding into a
+> new area.
+> 
+> Also, I want to turn is_hugepage_only_range() into a more generic
+> is_normal_page_range() as that's really what it will end up meaning
+> when used in stack grow, brk grow and mremap.
 
- mm/mmap.c |   25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+Great, this is long overdue for a cleanup.
 
-Index: linux-cell/mm/mmap.c
-===================================================================
---- linux-cell.orig/mm/mmap.c	2007-03-22 16:29:22.000000000 +1100
-+++ linux-cell/mm/mmap.c	2007-03-22 16:30:06.000000000 +1100
-@@ -1199,6 +1199,9 @@ arch_get_unmapped_area(struct file *filp
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	if (flags & MAP_FIXED)
-+		return addr;
-+
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
-@@ -1272,6 +1275,9 @@ arch_get_unmapped_area_topdown(struct fi
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	if (flags & MAP_FIXED)
-+		return addr;
-+
- 	/* requesting a specific address */
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
-@@ -1360,22 +1366,21 @@ get_unmapped_area(struct file *file, uns
- 		unsigned long pgoff, unsigned long flags)
- {
- 	unsigned long ret;
-+	unsigned long (*get_area)(struct file *, unsigned long,
-+				  unsigned long, unsigned long, unsigned long);
- 
--	if (!(flags & MAP_FIXED)) {
--		unsigned long (*get_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
--
--		get_area = current->mm->get_unmapped_area;
--		if (file && file->f_op && file->f_op->get_unmapped_area)
--			get_area = file->f_op->get_unmapped_area;
--		addr = get_area(file, addr, len, pgoff, flags);
--		if (IS_ERR_VALUE(addr))
--			return addr;
--	}
-+	get_area = current->mm->get_unmapped_area;
-+	if (file && file->f_op && file->f_op->get_unmapped_area)
-+		get_area = file->f_op->get_unmapped_area;
-+	addr = get_area(file, addr, len, pgoff, flags);
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
- 
- 	if (addr > TASK_SIZE - len)
- 		return -ENOMEM;
- 	if (addr & ~PAGE_MASK)
- 		return -EINVAL;
-+
- 	if (file && is_file_hugepages(file))  {
- 		/*
- 		 * Check if the given range is hugepage aligned, and
+I haven't looked at all users of this, but does it make sense to switch
+to an API that takes an address range and modifies / filters it? Perhaps
+also filling in some other annotations (eg. alignment, topdown/bottom up).
+This way you could stack as many arch and driver callbacks as you need,
+while hopefully also having just a single generic allocator.
+
+OTOH, that might end up being too inefficient or simply over engineered.
+Did you have any other thoughts about how to do this more generically?
+
+-- 
+SUSE Labs, Novell Inc.
+Send instant messages to your online friends http://au.messenger.yahoo.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
