@@ -1,47 +1,67 @@
-Date: Thu, 22 Mar 2007 10:38:17 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: pagetable_ops: Hugetlb character device example
-Message-ID: <20070322103817.GA7348@infradead.org>
-References: <20070319200502.17168.17175.stgit@localhost.localdomain> <1174506228.21684.41.camel@localhost.localdomain>
+Subject: Re: [RFC/PATCH 0/15] Pass MAP_FIXED down to get_unmapped_area
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <46025A6E.60603@yahoo.com.au>
+References: <1174543217.531981.572863804039.qpush@grosgo>
+	 <46023055.1030004@yahoo.com.au>
+	 <1174558498.10836.30.camel@localhost.localdomain>
+	 <46025A6E.60603@yahoo.com.au>
+Content-Type: text/plain
+Date: Thu, 22 Mar 2007 21:38:57 +1100
+Message-Id: <1174559937.10836.36.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1174506228.21684.41.camel@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 21, 2007 at 02:43:48PM -0500, Adam Litke wrote:
-> The main reason I am advocating a set of pagetable_operations is to
-> enable the development of a new hugetlb interface.  During the hugetlb
-> BOFS at OLS last year, we talked about a character device that would
-> behave like /dev/zero.  Many of the people were talking about how they
-> just wanted to create MAP_PRIVATE hugetlb mappings without all the fuss
-> about the hugetlbfs filesystem.  /dev/zero is a familiar interface for
-> getting anonymous memory so bringing that model to huge pages would make
-> programming for anonymous huge pages easier.
+> Well if we use a set of valid ranges, then we can start with generic code
+> that will set up ranges allowed by the syscall semantics.
+> 
+> Then the arch code could be called with that set of ranges, and perform
+> its modifications to that set.
 
-That is a very laudable goal, but an utterly wrong way to get there.
-Despite Linus' veto a while ago what we really want is support for transparent
-super pages.  Adding random pointer indirections where we had the direct
-hugetlb calls before isn't helpful for that at all.  As a start you might
-want to make a clear destinction between core hugetlb code and the
-filesystem interface to it without all the useless indirections.  That
-should get you as far as your char dev interface.  But over the long
-term the core VM needs to deal with multiple (and probably not just two)
-page sizes.  Given that the code to deal with different sized pages is
-essentially the same just on different units on most architectures cries
-for a better method to implement this than adding random function indirection
-that point to mostly identical code.
+A bit complicated in practice... "set of ranges" can be big... depend on
+what hthe restrictions actually are.
 
+On powerpc, for example, the fs/driver don't even know. With my multiple
+page size thingy for example, the only thing I want to rely on is the
+page size of a given mapping. The arch code can open/close segments for
+different page sizes depending if they have already some VMAs in them or
+not. Thus providing ranges isn't a good idea.
 
-And your driver is the best example of why we utterly don't want
-a page_table operations interface.  The last thing we want is random
-driver taking over core VM functionality.  The right way would be to a
-filesystem/driver to tell (or maybe just give hints) which page size
-to use for this mapping.
+With my slices patch (you can find it on linuxppc-dev, at least an older
+version not base on that serie, I can post a newer one if you want), you
+can see that hugetlbfs g_u_a basically turns into a single slice request
+for a given page size and the arch code will automatically try to find a
+segment already converted for that page size if any, if not, will try to
+convert one that has no other VMAs in it.
+
+Another counter example to you proposal is cacheable vs. cache
+invalidate. A driver like /dev/mem or /proc/bus/pci only knows "cache
+invalidate" in most case (and currently has no way to tell that to the
+arch). It doesn't and shouldn't have to know what kind of rstrictions
+the arch might have on such a mapping. Thus it shouldn't have to pick up
+ranges. It doesn't care.
+ 
+> This would add some constraint onto the ordering of whether driver or
+> arch gets called first, but still wouldn't invalidate the above...
+
+Problem is as I said above, driver doesn't really know about "ranges".
+Driver really knows about constraints
+> 
+> > I'm still thinking about it. I think my first patch set is a good step
+> > to give some more flexibility to archs but is by no mean something to
+> > settle on.
+> 
+> Yeah definitely a nice start. And of course things should be done
+> incrementally rather than thinking about a complete rewrite first ;)
+
+Yeah...
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
