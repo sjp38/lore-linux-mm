@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2007 17:00:30 +1100
-Subject: [RFC/PATCH 3/15] get_unmapped_area handles MAP_FIXED on arm
+Date: Thu, 22 Mar 2007 17:00:37 +1100
+Subject: [RFC/PATCH 4/15] get_unmapped_area handles MAP_FIXED on frv 
 In-Reply-To: <1174543217.531981.572863804039.qpush@grosgo>
-Message-Id: <20070322060210.E0374DDF2F@ozlabs.org>
+Message-Id: <20070322060219.2907DDDF2F@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
@@ -11,23 +11,24 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/arm/mm/mmap.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/frv/mm/elf-fdpic.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-Index: linux-cell/arch/arm/mm/mmap.c
+Index: linux-cell/arch/frv/mm/elf-fdpic.c
 ===================================================================
---- linux-cell.orig/arch/arm/mm/mmap.c	2007-03-22 14:59:51.000000000 +1100
-+++ linux-cell/arch/arm/mm/mmap.c	2007-03-22 15:00:01.000000000 +1100
-@@ -49,8 +49,7 @@ arch_get_unmapped_area(struct file *filp
- #endif
+--- linux-cell.orig/arch/frv/mm/elf-fdpic.c	2007-03-22 15:00:50.000000000 +1100
++++ linux-cell/arch/frv/mm/elf-fdpic.c	2007-03-22 15:01:06.000000000 +1100
+@@ -64,6 +64,10 @@ unsigned long arch_get_unmapped_area(str
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
  
- 	/*
--	 * We should enforce the MAP_FIXED case.  However, currently
--	 * the generic kernel code doesn't allow us to handle this.
-+	 * We enforce the MAP_FIXED case.
- 	 */
- 	if (flags & MAP_FIXED) {
- 		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
++	/* handle MAP_FIXED */
++	if (flags & MAP_FIXED)
++		return addr;
++
+ 	/* only honour a hint if we're not going to clobber something doing so */
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
