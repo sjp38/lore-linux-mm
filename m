@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2007 17:01:26 +1100
-Subject: [RFC/PATCH 10/15] get_unmapped_area handles MAP_FIXED in hugetlbfs
+Date: Thu, 22 Mar 2007 17:01:24 +1100
+Subject: [RFC/PATCH 9/15] get_unmapped_area handles MAP_FIXED on x86_64
 In-Reply-To: <1174543217.531981.572863804039.qpush@grosgo>
-Message-Id: <20070322060300.BBB4ADE3EC@ozlabs.org>
+Message-Id: <20070322060259.DDB25DE3D7@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
@@ -11,26 +11,23 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- fs/hugetlbfs/inode.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/x86_64/kernel/sys_x86_64.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux-cell/fs/hugetlbfs/inode.c
+Index: linux-cell/arch/x86_64/kernel/sys_x86_64.c
 ===================================================================
---- linux-cell.orig/fs/hugetlbfs/inode.c	2007-03-22 16:12:56.000000000 +1100
-+++ linux-cell/fs/hugetlbfs/inode.c	2007-03-22 16:16:02.000000000 +1100
-@@ -115,6 +115,12 @@ hugetlb_get_unmapped_area(struct file *f
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
+--- linux-cell.orig/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:10:10.000000000 +1100
++++ linux-cell/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:11:06.000000000 +1100
+@@ -93,6 +93,9 @@ arch_get_unmapped_area(struct file *filp
+ 	unsigned long start_addr;
+ 	unsigned long begin, end;
+ 	
++	if (flags & MAP_FIXED)
 +		return addr;
-+	}
 +
- 	if (addr) {
- 		addr = ALIGN(addr, HPAGE_SIZE);
- 		vma = find_vma(mm, addr);
+ 	find_start_end(flags, &begin, &end); 
+ 
+ 	if (len > end)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
