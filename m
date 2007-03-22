@@ -1,41 +1,46 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2007 17:01:29 +1100
-Subject: [RFC/PATCH 13/15] get_unmapped_area handles MAP_FIXED in /dev/mem (nommu)
+Date: Thu, 22 Mar 2007 17:01:30 +1100
+Subject: [RFC/PATCH 15/15] get_unmapped_area doesn't need hugetlbfs hacks anymore 
 In-Reply-To: <1174543217.531981.572863804039.qpush@grosgo>
-Message-Id: <20070322060303.7561ADDFF9@ozlabs.org>
+Message-Id: <20070322060305.82158DDF53@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This also fixes a bug, I think, it used to return a pgoff (pfn)
-instead of an address. (To split ?)
-
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
 
- drivers/char/mem.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ mm/mmap.c |   16 ----------------
+ 1 file changed, 16 deletions(-)
 
-Index: linux-cell/drivers/char/mem.c
+Index: linux-cell/mm/mmap.c
 ===================================================================
---- linux-cell.orig/drivers/char/mem.c	2007-03-22 16:24:04.000000000 +1100
-+++ linux-cell/drivers/char/mem.c	2007-03-22 16:26:30.000000000 +1100
-@@ -246,9 +246,12 @@ static unsigned long get_unmapped_area_m
- 					   unsigned long pgoff,
- 					   unsigned long flags)
- {
-+	if (flags & MAP_FIXED)
-+		if ((addr >> PAGE_SHIFT) != pgoff)
-+			return (unsigned long) -EINVAL;
- 	if (!valid_mmap_phys_addr_range(pgoff, len))
- 		return (unsigned long) -EINVAL;
--	return pgoff;
-+	return pgoff << PAGE_SHIFT;
+--- linux-cell.orig/mm/mmap.c	2007-03-22 16:30:24.000000000 +1100
++++ linux-cell/mm/mmap.c	2007-03-22 16:30:48.000000000 +1100
+@@ -1381,22 +1381,6 @@ get_unmapped_area(struct file *file, uns
+ 	if (addr & ~PAGE_MASK)
+ 		return -EINVAL;
+ 
+-	if (file && is_file_hugepages(file))  {
+-		/*
+-		 * Check if the given range is hugepage aligned, and
+-		 * can be made suitable for hugepages.
+-		 */
+-		ret = prepare_hugepage_range(addr, len, pgoff);
+-	} else {
+-		/*
+-		 * Ensure that a normal request is not falling in a
+-		 * reserved hugepage range.  For some archs like IA-64,
+-		 * there is a separate region for hugepages.
+-		 */
+-		ret = is_hugepage_only_range(current->mm, addr, len);
+-	}
+-	if (ret)
+-		return -EINVAL;
+ 	return addr;
  }
  
- /* can't do an in-place private mapping if there's no MMU */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
