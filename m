@@ -1,35 +1,41 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2007 17:01:27 +1100
-Subject: [RFC/PATCH 11/15] get_unmapped_area handles MAP_FIXED on ramfs (nommu) 
+Date: Thu, 22 Mar 2007 17:01:29 +1100
+Subject: [RFC/PATCH 13/15] get_unmapped_area handles MAP_FIXED in /dev/mem (nommu)
 In-Reply-To: <1174543217.531981.572863804039.qpush@grosgo>
-Message-Id: <20070322060301.DD1A6DE411@ozlabs.org>
+Message-Id: <20070322060303.7561ADDFF9@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+This also fixes a bug, I think, it used to return a pgoff (pfn)
+instead of an address. (To split ?)
+
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
 
- fs/ramfs/file-nommu.c |    5 ++++-
+ drivers/char/mem.c |    5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
 
-Index: linux-cell/fs/ramfs/file-nommu.c
+Index: linux-cell/drivers/char/mem.c
 ===================================================================
---- linux-cell.orig/fs/ramfs/file-nommu.c	2007-03-22 16:18:27.000000000 +1100
-+++ linux-cell/fs/ramfs/file-nommu.c	2007-03-22 16:20:14.000000000 +1100
-@@ -238,7 +238,10 @@ unsigned long ramfs_nommu_get_unmapped_a
- 	struct page **pages = NULL, **ptr, *page;
- 	loff_t isize;
+--- linux-cell.orig/drivers/char/mem.c	2007-03-22 16:24:04.000000000 +1100
++++ linux-cell/drivers/char/mem.c	2007-03-22 16:26:30.000000000 +1100
+@@ -246,9 +246,12 @@ static unsigned long get_unmapped_area_m
+ 					   unsigned long pgoff,
+ 					   unsigned long flags)
+ {
++	if (flags & MAP_FIXED)
++		if ((addr >> PAGE_SHIFT) != pgoff)
++			return (unsigned long) -EINVAL;
+ 	if (!valid_mmap_phys_addr_range(pgoff, len))
+ 		return (unsigned long) -EINVAL;
+-	return pgoff;
++	return pgoff << PAGE_SHIFT;
+ }
  
--	if (!(flags & MAP_SHARED))
-+	/* Deal with MAP_FIXED differently ? Forbid it ? Need help from some nommu
-+	 * folks there... --BenH.
-+	 */
-+	if ((flags & MAP_FIXED) || !(flags & MAP_SHARED))
- 		return addr;
- 
- 	/* the mapping mustn't extend beyond the EOF */
+ /* can't do an in-place private mapping if there's no MMU */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
