@@ -1,31 +1,44 @@
-Date: Wed, 21 Mar 2007 16:32:27 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 1/7] Introduce the pagetable_operations and associated helper macros.
-Message-ID: <20070321233227.GK2986@holomorphy.com>
-References: <20070319200502.17168.17175.stgit@localhost.localdomain> <20070319200513.17168.52238.stgit@localhost.localdomain> <4600B216.3010505@yahoo.com.au> <1174490261.21684.13.camel@localhost.localdomain> <4601B96F.2080707@yahoo.com.au>
-MIME-Version: 1.0
+Date: Wed, 21 Mar 2007 19:31:56 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: pagetable_ops: Hugetlb character device example
+Message-ID: <20070322003156.GQ4892@waste.org>
+References: <20070319200502.17168.17175.stgit@localhost.localdomain> <1174506228.21684.41.camel@localhost.localdomain> <200703211951.l2LJpVPS020364@turing-police.cc.vt.edu> <20070321222659.GJ2986@holomorphy.com> <20070321225348.GO10459@waste.org> <20070321233528.GL2986@holomorphy.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4601B96F.2080707@yahoo.com.au>
+In-Reply-To: <20070321233528.GL2986@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Valdis.Kletnieks@vt.edu, Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Adam Litke wrote:
->> We didn't want to bloat the size of the vm_ops struct for all of its
->> users.
+On Wed, Mar 21, 2007 at 04:35:28PM -0700, William Lee Irwin III wrote:
+> On Wed, Mar 21, 2007 at 03:26:59PM -0700, William Lee Irwin III wrote:
+> >> My exit strategy was to make hugetlbfs an alias for ramfs when ramfs
+> >> acquired the necessary functionality until expand-on-mmap() was merged.
+> >> That would've allowed rm -rf fs/hugetlbfs/ outright. A compatibility
+> >> wrapper for expand-on-mmap() around ramfs once ramfs acquires the
+> >> necessary functionality is now the exit strategy.
+> 
+> On Wed, Mar 21, 2007 at 05:53:48PM -0500, Matt Mackall wrote:
+> > Can you describe what ramfs needs here in a bit more detail?
+> > If it's non-trivial, I'd rather see any new functionality go into
+> > shmfs/tmpfs, as ramfs has done a good job at staying a minimal fs thus
+> > far.
+> 
+> I was referring to fully-general multiple pagesize support. ramfs
+> would inherit the functionality by virtue of generic pagecache and TLB
+> handling in such an arrangement. It doesn't make sense to modify ramfs
+> as a special case; hugetlb is as it stands a ramfs special-cased for
+> such purposes.
 
-On Thu, Mar 22, 2007 at 10:02:07AM +1100, Nick Piggin wrote:
-> But vmas are surely far more numerous than vm_ops, aren't they?
+Ahh, I see.
 
-It should be clarified that the pointer to the operations structure
-in once-per-mmap() vmas is a bigger overhead than once-per-driver
-function pointers in the vm_ops structure.
+Good luck!
 
-
--- wli
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
