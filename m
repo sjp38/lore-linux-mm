@@ -1,10 +1,10 @@
-Message-ID: <4603504A.1000805@yahoo.com.au>
-Date: Fri, 23 Mar 2007 14:58:02 +1100
+Message-ID: <46035088.4060709@yahoo.com.au>
+Date: Fri, 23 Mar 2007 14:59:04 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: Subject: [PATCH RESEND 1/1] cpusets/sched_domain reconciliation
-References: <20070322231559.GA22656@sgi.com>	<46033311.1000101@yahoo.com.au> <20070322204720.cd3a51c9.pj@sgi.com>
-In-Reply-To: <20070322204720.cd3a51c9.pj@sgi.com>
+References: <20070322231559.GA22656@sgi.com>	<46033311.1000101@yahoo.com.au> <20070322205038.6009989f.pj@sgi.com>
+In-Reply-To: <20070322205038.6009989f.pj@sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,34 +14,25 @@ Cc: cpw@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Paul Jackson wrote:
-> Nick wrote:
+> Nick also wrote:
 > 
->>My suggestion was
->>something like that if cpus_exclusive is set, then no other sets
->>except descendants and ancestors could have overlapping cpus.
+>>The problem was that Paul didn't think it followed cpus_exclusive
+>>correctly, and I don't think we ever got to the point of giving it
+>>a rigourous definition.
 > 
 > 
-> That sure sounds right ... did I say different at some point?
+>>From Documentation/cpusets.txt:
 > 
+>  - A cpuset may be marked exclusive, which ensures that no other
+>    cpuset (except direct ancestors and descendents) may contain
+>    any overlapping CPUs or Memory Nodes.
+> 
+> This seems like the same definition to me as you gave, and I just
+> agreed to in my previous post a few minutes ago.  It seems rigourous
+> to me ;>.
 
-... I can't really remember, probably not. I just remember not
-quite understanding what was going on when this last came up ;)
-
-Ah, I think the issue was this: if cpus_exclusive is set in a
-child, then you still wanted correct balancing over all CPUs in
-the parent set. Thus we can never partition the system, because
-you always come back to the root set which covers everything, and
-that would be incompatible with any sched domains partitions.
-
-What I *didn't* understand, was why we have any sched-domains
-code in cpusets at all, if it is incorrect according to the above
-definition (I think you vetoed my subsequent patch to remove it).
-
-All that aside, I think we can probably do without cpus_exclusive
-entirely (for sched-domains), and automatically detect a correct
-set of partitions. I remember leaving that as an exercise for the
-reader ;) but I think I've got some renewed energy, so I might
-try tackling it.
+Yeah, see my earlier reply. Naturally I was confused as to the
+nature of my earlier confusion ;)
 
 -- 
 SUSE Labs, Novell Inc.
