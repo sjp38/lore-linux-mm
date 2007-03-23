@@ -1,55 +1,32 @@
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id l2NM4nYC026837
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:49 -0700
-Received: from an-out-0708.google.com (andd31.prod.google.com [10.100.30.31])
-	by zps78.corp.google.com with ESMTP id l2NM4Gww026563
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:33 -0700
-Received: by an-out-0708.google.com with SMTP id d31so976450and
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:33 -0700 (PDT)
-Message-ID: <b040c32a0703231504n1bc68dfblaebcd210b079f89b@mail.gmail.com>
-Date: Fri, 23 Mar 2007 15:04:33 -0700
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id l2NMeN4A028513
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:40:24 -0700
+Received: from an-out-0708.google.com (ancc5.prod.google.com [10.100.29.5])
+	by zps76.corp.google.com with ESMTP id l2NMdpqh018332
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:40:22 -0700
+Received: by an-out-0708.google.com with SMTP id c5so1312636anc
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:40:22 -0700 (PDT)
+Message-ID: <b040c32a0703231540i56da0877o3da11fcd5929b4e2@mail.gmail.com>
+Date: Fri, 23 Mar 2007 15:40:22 -0700
 From: "Ken Chen" <kenchen@google.com>
-Subject: Re: [patch] rfc: introduce /dev/hugetlb
-In-Reply-To: <20070323153006.GW2986@holomorphy.com>
+Subject: [patch 0/2] introduce /dev/hugetlb char device
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <b040c32a0703230144r635d7902g2c36ecd7f412be31@mail.gmail.com>
-	 <Pine.LNX.4.64.0703231457360.4133@skynet.skynet.ie>
-	 <20070323150924.GV2986@holomorphy.com>
-	 <Pine.LNX.4.64.0703231514370.4133@skynet.skynet.ie>
-	 <20070323153006.GW2986@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Adam Litke <agl@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/23/07, William Lee Irwin III <wli@holomorphy.com> wrote:
-> On Fri, 23 Mar 2007, William Lee Irwin III wrote:
-> >> Lack of compiletesting beyond x86-64 in all probability.
->
-> On Fri, Mar 23, 2007 at 03:15:55PM +0000, Mel Gorman wrote:
-> > Ok, this will go kablamo on Power then even if it compiles. I don't
-> > consider it a fundamental problem though. For the purposes of an RFC, it's
-> > grand and something that can be worked with.
->
-> He needs to un-#ifdef the prototype (which he already does), but he
-> needs to leave the definition under #ifdef while removing the static
-> qualifier. A relatively minor fixup.
+Introduce /dev/hugetlb device that behaves similar to /dev/zero for
+allocating anonymous hugetlb page.  It is especially beneficial that
+application developers can have an easy way to create MAP_PRIVATE
+hugetlb mappings without all the fuss about the hugetlbfs filesystem.
 
-Yes, sorry about that for lack of access to non-x86-64 machines.  I
-needed to move the function prototype to hugetlb.h and evidently
-removed the #ifdef by mistake.  I'm not going to touch this in my next
-clean up patch, instead I will just declare char specific
-file_operations struct in hugetlbfs and then have char device
-reference it.
+Two follow on patches has more detail description for each changeset.
 
-But nevertheless, hugetlb_get_unmapped_area function prototype  better
-be in a header file somewhere.
-
-- Ken
+Signed-off-by: Ken Chen <kenchen@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
