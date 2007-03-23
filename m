@@ -1,7 +1,7 @@
-Date: Fri, 23 Mar 2007 04:23:31 -0700
+Date: Fri, 23 Mar 2007 04:29:20 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
-Message-ID: <20070323112331.GQ2986@holomorphy.com>
+Message-ID: <20070323112920.GR2986@holomorphy.com>
 References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com> <20070322223927.bb4caf43.akpm@linux-foundation.org> <Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com> <20070322234848.100abb3d.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -24,6 +24,11 @@ On Thu, Mar 22, 2007 at 11:48:48PM -0800, Andrew Morton wrote:
 > makes me wonder if we have a use-after-free which is hidden by the presence
 > of the quicklist buffering or something.
 
+Sorry I flubbed the first message. Anyway this does mean something is
+seriously wrong and needs to be debugged. Looking into it now.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
