@@ -1,36 +1,46 @@
-Date: Fri, 23 Mar 2007 08:03:46 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch] rfc: introduce /dev/hugetlb
-Message-ID: <20070323150346.GU2986@holomorphy.com>
-References: <b040c32a0703230144r635d7902g2c36ecd7f412be31@mail.gmail.com>
+Date: Fri, 23 Mar 2007 08:08:42 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
+In-Reply-To: <20070322234848.100abb3d.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0703230804120.21857@schroedinger.engr.sgi.com>
+References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com>
+ <20070322223927.bb4caf43.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com>
+ <20070322234848.100abb3d.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b040c32a0703230144r635d7902g2c36ecd7f412be31@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 23, 2007 at 01:44:38AM -0700, Ken Chen wrote:
-> I think we have enough infrastructure currently in hugetlbfs to
-> implement what Adam wants for something like a /dev/hugetlb char
-> device (except we can't afford to have a zero hugetlb page since it
-> will be too costly on some arch).
-> I really like the idea of having something similar to /dev/zero for
-> hugetlb page.  So I coded it up on top of existing hugetlbfs.  The
-> core change is really small and half of the patch is really just
-> moving things around.  I think this at least can partially fulfill the
-> goal.
-> Signed-off-by: Ken Chen <kenchen@google.com>
+On Thu, 22 Mar 2007, Andrew Morton wrote:
 
-I like this patch a lot, though I'm not likely to get around to testing
-it today. If userspace testcode is available that would be great to see
-posted so I can just boot into things and run that.
+> > About 40% on fork+exit. See 
+> > 
+> > http://marc.info/?l=linux-ia64&m=110942798406005&w=2
+> > 
+> 
+> afacit that two-year-old, totally-different patch has nothing to do with my
+> repeatedly-asked question.  It appears to be consolidating three separate
+> quicklist allocators into one common implementation.
 
+Yes it shows the performance gains from the quicklist approach. This the 
+work Robin Holt did on the problem. The problem is how to validate the 
+patch because there should be no change at all on ia64 and on i386 we 
+basically measure the overhead of the slab allocations. One could 
+measure the impact x86_64 because this introduces quicklists to that 
+platform.
 
--- wli
+The earlier discussion focused on avoiding zeroing of pte as far as I can 
+recall.
+ 
+> but it crashes early in the page allocator (i386) and I don't see why.  It
+> makes me wonder if we have a use-after-free which is hidden by the presence
+> of the quicklist buffering or something.
+
+This was on i386? Could be hidden now by the slab use ther.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
