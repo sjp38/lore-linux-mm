@@ -1,7 +1,7 @@
-Date: Thu, 22 Mar 2007 20:47:20 -0700
+Date: Thu, 22 Mar 2007 20:50:38 -0700
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: Subject: [PATCH RESEND 1/1] cpusets/sched_domain reconciliation
-Message-Id: <20070322204720.cd3a51c9.pj@sgi.com>
+Message-Id: <20070322205038.6009989f.pj@sgi.com>
 In-Reply-To: <46033311.1000101@yahoo.com.au>
 References: <20070322231559.GA22656@sgi.com>
 	<46033311.1000101@yahoo.com.au>
@@ -14,12 +14,20 @@ To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: cpw@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick wrote:
-> My suggestion was
-> something like that if cpus_exclusive is set, then no other sets
-> except descendants and ancestors could have overlapping cpus.
+Nick also wrote:
+> The problem was that Paul didn't think it followed cpus_exclusive
+> correctly, and I don't think we ever got to the point of giving it
+> a rigourous definition.
 
-That sure sounds right ... did I say different at some point?
+>From Documentation/cpusets.txt:
+
+ - A cpuset may be marked exclusive, which ensures that no other
+   cpuset (except direct ancestors and descendents) may contain
+   any overlapping CPUs or Memory Nodes.
+
+This seems like the same definition to me as you gave, and I just
+agreed to in my previous post a few minutes ago.  It seems rigourous
+to me ;>.
 
 -- 
                   I won't rest till it's the best ...
