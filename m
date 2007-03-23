@@ -1,66 +1,55 @@
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id l2NLuDBJ021202
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 21:56:13 GMT
-Received: from an-out-0708.google.com (ancc35.prod.google.com [10.100.29.35])
-	by spaceape8.eur.corp.google.com with ESMTP id l2NLth7s030274
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 21:56:08 GMT
-Received: by an-out-0708.google.com with SMTP id c35so1433857anc
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 14:56:07 -0700 (PDT)
-Message-ID: <b040c32a0703231456u298186c6o1ec7199bfdbe7f65@mail.gmail.com>
-Date: Fri, 23 Mar 2007 14:56:07 -0700
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id l2NM4nYC026837
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:49 -0700
+Received: from an-out-0708.google.com (andd31.prod.google.com [10.100.30.31])
+	by zps78.corp.google.com with ESMTP id l2NM4Gww026563
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:33 -0700
+Received: by an-out-0708.google.com with SMTP id d31so976450and
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:04:33 -0700 (PDT)
+Message-ID: <b040c32a0703231504n1bc68dfblaebcd210b079f89b@mail.gmail.com>
+Date: Fri, 23 Mar 2007 15:04:33 -0700
 From: "Ken Chen" <kenchen@google.com>
 Subject: Re: [patch] rfc: introduce /dev/hugetlb
-In-Reply-To: <20070323150346.GU2986@holomorphy.com>
+In-Reply-To: <20070323153006.GW2986@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <b040c32a0703230144r635d7902g2c36ecd7f412be31@mail.gmail.com>
-	 <20070323150346.GU2986@holomorphy.com>
+	 <Pine.LNX.4.64.0703231457360.4133@skynet.skynet.ie>
+	 <20070323150924.GV2986@holomorphy.com>
+	 <Pine.LNX.4.64.0703231514370.4133@skynet.skynet.ie>
+	 <20070323153006.GW2986@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mel Gorman <mel@csn.ul.ie>, Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
 On 3/23/07, William Lee Irwin III <wli@holomorphy.com> wrote:
-> I like this patch a lot, though I'm not likely to get around to testing
-> it today. If userspace testcode is available that would be great to see
-> posted so I can just boot into things and run that.
+> On Fri, 23 Mar 2007, William Lee Irwin III wrote:
+> >> Lack of compiletesting beyond x86-64 in all probability.
+>
+> On Fri, Mar 23, 2007 at 03:15:55PM +0000, Mel Gorman wrote:
+> > Ok, this will go kablamo on Power then even if it compiles. I don't
+> > consider it a fundamental problem though. For the purposes of an RFC, it's
+> > grand and something that can be worked with.
+>
+> He needs to un-#ifdef the prototype (which he already does), but he
+> needs to leave the definition under #ifdef while removing the static
+> qualifier. A relatively minor fixup.
 
-Here is the test code that I used:
-(warning: x86 centric)
+Yes, sorry about that for lack of access to non-x86-64 machines.  I
+needed to move the function prototype to hugetlb.h and evidently
+removed the #ifdef by mistake.  I'm not going to touch this in my next
+clean up patch, instead I will just declare char specific
+file_operations struct in hugetlbfs and then have char device
+reference it.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/mman.h>
+But nevertheless, hugetlb_get_unmapped_area function prototype  better
+be in a header file somewhere.
 
-#define SIZE	(4*1024*1024UL)
-
-int main(void)
-{
-	int fd;
-	long i;
-	char *addr;
-
-	fd = open("/dev/hugetlb", O_RDWR);
-	if (fd == -1) {
-		perror("open failure");
-		exit(1);
-	}
-
-	addr = mmap(0, SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	if (addr == MAP_FAILED) {
-		perror("mmap failure");
-		exit(2);
-	}
-
-	for (i = 0; i < SIZE; i+=4096)
-		addr[i] = 1;
-
-	printf("success!\n");
-}
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
