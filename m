@@ -1,101 +1,89 @@
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id l2NMjsDI022065
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:45:54 -0700
-Received: from an-out-0708.google.com (ancc35.prod.google.com [10.100.29.35])
-	by zps78.corp.google.com with ESMTP id l2NMjFsk021998
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:45:48 -0700
-Received: by an-out-0708.google.com with SMTP id c35so1445727anc
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:45:48 -0700 (PDT)
-Message-ID: <b040c32a0703231545h79d45d0eof1edd225ef3d8ee9@mail.gmail.com>
-Date: Fri, 23 Mar 2007 15:45:47 -0700
-From: "Ken Chen" <kenchen@google.com>
-Subject: [patch 2/2] hugetlb: add /dev/hugetlb char device
+Received: by nf-out-0910.google.com with SMTP id b2so2024796nfe
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2007 15:48:06 -0700 (PDT)
+Message-ID: <29495f1d0703231548k377e3f8ds5f2ae529c34e4380@mail.gmail.com>
+Date: Fri, 23 Mar 2007 15:48:05 -0700
+From: "Nish Aravamudan" <nish.aravamudan@gmail.com>
+Subject: Re: [patch 1/2] hugetlb: add resv argument to hugetlb_file_setup
+In-Reply-To: <b040c32a0703231542r77030723o214255a5fa591dec@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+References: <b040c32a0703231542r77030723o214255a5fa591dec@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ken Chen <kenchen@google.com>
+Cc: Adam Litke <agl@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-add a char device /dev/hugetlb that behaves similar to /dev/zero,
-built on top of internal hugetlbfs mount.
+On 3/23/07, Ken Chen <kenchen@google.com> wrote:
+> rename hugetlb_zero_setup() to hugetlb_file_setup() to better match
+> function name convention like shmem implementation.  Also add an
+> argument to the function to indicate whether file setup should reserve
+> hugetlb page upfront or not.
+>
+> Signed-off-by: Ken Chen <kenchen@google.com>
+>
+>
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 8c718a3..981886f 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -734,7 +734,7 @@ static int can_do_hugetlb_shm(void)
+>                         can_do_mlock());
+>  }
+>
+> -struct file *hugetlb_zero_setup(size_t size)
+> +struct file *hugetlb_file_setup(size_t size, int resv)
+>  {
+>         int error = -ENOMEM;
+>         struct file *file;
+> @@ -771,7 +771,7 @@ struct file *hugetlb_zero_setup(size_t s
+>                 goto out_file;
+>
+>         error = -ENOMEM;
+> -       if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
+> +       if (resv && hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
+>                 goto out_inode;
+>
+>         d_instantiate(dentry, inode);
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 3f3e7a6..55cccd8 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -163,7 +163,7 @@ static inline struct hugetlbfs_sb_info *
+>
+>  extern const struct file_operations hugetlbfs_file_operations;
+>  extern struct vm_operations_struct hugetlb_vm_ops;
+> -struct file *hugetlb_zero_setup(size_t);
+> +struct file *hugetlb_file_setup(size_t, int);
+>  int hugetlb_get_quota(struct address_space *mapping);
+>  void hugetlb_put_quota(struct address_space *mapping);
+>
+> @@ -185,7 +185,7 @@ #else /* !CONFIG_HUGETLBFS */
+>
+>  #define is_file_hugepages(file)                0
+>  #define set_file_hugepages(file)       BUG()
+> -#define hugetlb_zero_setup(size)       ERR_PTR(-ENOSYS)
+> +#define hugetlb_file_setup(size, resv) ERR_PTR(-ENOSYS)
+>
+>  #endif /* !CONFIG_HUGETLBFS */
+>
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index 4fefbad..c64643f 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -366,7 +366,7 @@ static int newseg (struct ipc_namespace
+>
+>         if (shmflg & SHM_HUGETLB) {
+>                 /* hugetlb_zero_setup takes care of mlock user accounting */
+> -               file = hugetlb_zero_setup(size);
+> +               file = hugetlb_file_setup(size, 1);
 
-Signed-off-by: Ken Chen <kenchen@google.com>
+Comment needs updating too.
 
-
-diff -u b/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
---- b/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -795,6 +795,23 @@
- 	return ERR_PTR(error);
- }
-
-+int hugetlb_zero_setup(struct file *file, struct vm_area_struct *vma)
-+{
-+	file = hugetlb_file_setup(vma->vm_end - vma->vm_start, 0);
-+	if (IS_ERR(file))
-+		return PTR_ERR(file);
-+
-+	if (vma->vm_file)
-+		fput(vma->vm_file);
-+	vma->vm_file = file;
-+	return hugetlbfs_file_mmap(file, vma);
-+}
-+
-+const struct file_operations hugetlb_dev_fops = {
-+	.mmap			= hugetlb_zero_setup,
-+	.get_unmapped_area	= hugetlb_get_unmapped_area,
-+};
-+
- static int __init init_hugetlbfs_fs(void)
- {
- 	int error;
-diff -u b/include/linux/hugetlb.h b/include/linux/hugetlb.h
---- b/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -162,6 +162,7 @@
- }
-
- extern const struct file_operations hugetlbfs_file_operations;
-+extern const struct file_operations hugetlb_dev_fops;
- extern struct vm_operations_struct hugetlb_vm_ops;
- struct file *hugetlb_file_setup(size_t, int);
- int hugetlb_get_quota(struct address_space *mapping);
---- a/drivers/char/mem.c
-+++ b/drivers/char/mem.c
-@@ -27,6 +27,7 @@ #include <linux/backing-dev.h>
- #include <linux/bootmem.h>
- #include <linux/pipe_fs_i.h>
- #include <linux/pfn.h>
-+#include <linux/hugetlb.h>
-
- #include <asm/uaccess.h>
- #include <asm/io.h>
-@@ -939,6 +940,12 @@ #ifdef CONFIG_CRASH_DUMP
- 			filp->f_op = &oldmem_fops;
- 			break;
- #endif
-+#ifdef CONFIG_HUGETLBFS
-+		case 13:
-+			printk("open hugetlb dev device\n");
-+			filp->f_op = &hugetlb_dev_fops;
-+			break;
-+#endif
- 		default:
- 			return -ENXIO;
- 	}
-@@ -971,6 +978,9 @@ #endif
- #ifdef CONFIG_CRASH_DUMP
- 	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
- #endif
-+#ifdef CONFIG_HUGETLBFS
-+	{13, "hugetlb",S_IRUGO | S_IWUGO,	    &hugetlb_dev_fops},
-+#endif
- };
-
- static struct class *mem_class;
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
