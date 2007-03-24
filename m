@@ -1,48 +1,30 @@
-Date: Fri, 23 Mar 2007 22:21:33 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
-Message-Id: <20070323222133.f17090cf.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0703231026490.23132@schroedinger.engr.sgi.com>
-References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com>
-	<20070322223927.bb4caf43.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com>
-	<20070322234848.100abb3d.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0703230804120.21857@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.64.0703231026490.23132@schroedinger.engr.sgi.com>
+Date: Sat, 24 Mar 2007 07:57:52 +0100
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [patch] rfc: introduce /dev/hugetlb
+Message-ID: <20070324065752.GA13810@uranus.ravnborg.org>
+References: <b040c32a0703230144r635d7902g2c36ecd7f412be31@mail.gmail.com> <20070323205810.3860886d.akpm@linux-foundation.org> <29495f1d0703232232o3e436c62lddccc82c4dd17b51@mail.gmail.com> <20070323221225.bdadae16.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070323221225.bdadae16.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, Ken Chen <kenchen@google.com>, Adam Litke <agl@us.ibm.com>, Arjan van de Ven <arjan@infradead.org>, William Lee Irwin III <wli@holomorphy.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Mar 2007 10:54:12 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> But for non-programming reasons, we're just not there yet: people want to
+> program direct to the kernel interfaces simply because of the
+> distribution/coordination problems with libraries.  It would be nice to fix
+> that problem.
 
-> Here are the results of aim9 tests on x86_64. There are some minor performance 
-> improvements and some fluctuations.
+What is then needed to get a small subset of user-space in the kernel-development cycle?
+Maybe a topic worth to take up at LKS...
 
-There are a lot of numbers there - what do they tell us?
+The build system is anyway ready but that the smallest issue of all :-(
 
-> 2.6.21-rc4 bare
-> 2.6.21-rc4 x86_64 quicklist
-
-So what has changed here?  From a quick look it appears that x86_64 is
-using get_zeroed_page() for ptes, puds and pmds and is using a custom
-quicklist for pgds.
-
-After your patches, x86_64 is using a common quicklist allocator for puds,
-pmds and pgds and continues to use get_zeroed_page() for ptes.
-
-Or something totally different, dunno.  I tire.
-
-
-My question is pretty simple: how do we justify the retention of this
-custom allocator?
-
-Because simply removing it is the preferable way of fixing the SLUB
-problem.
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
