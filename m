@@ -1,44 +1,54 @@
-Date: Mon, 26 Mar 2007 16:10:09 -0500
-From: Matt Mackall <mpm@selenic.com>
+In-reply-to: <20070326140036.f3352f81.akpm@linux-foundation.org> (message from
+	Andrew Morton on Mon, 26 Mar 2007 14:00:36 -0700)
 Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-Message-ID: <20070326211008.GS10459@waste.org>
 References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu> <20070326140036.f3352f81.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070326140036.f3352f81.akpm@linux-foundation.org>
+Message-Id: <E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 26 Mar 2007 23:43:08 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 26, 2007 at 02:00:36PM -0700, Andrew Morton wrote:
-> On Sun, 25 Mar 2007 23:10:21 +0200
-> Miklos Szeredi <miklos@szeredi.hu> wrote:
-> 
 > > This patch makes writing to shared memory mappings update st_ctime and
 > > st_mtime as defined by SUSv3:
 > 
 > Boy this is complicated.
-> 
+
+You tell me?
+
 > Is there a simpler way of doing all this?  Say, we define a new page flag
 > PG_dirtiedbywrite and we do SetPageDirtiedByWrite() inside write() and
 > ClearPageDirtiedByWrite() whenever we propagate pte-dirtiness into
 > page-dirtiness.  Then, when performing writeback we look to see if any of
 > the dirty pages are !PageDirtiedByWrite() and, if so, we update [mc]time to
 > current-time.
-> 
-> Or something like that - I'm just thinking out loud and picking holes in
-> the above doesn't shut me up ;) We're adding complexity and some overhead
-> and we're losing our recent msync() simplifications and this all hurts.  Is
-> there some other way?  I think burning a page flag to avoid this additional
-> complexity would be worthwhile.  
 
-Aren't we basically out of those?
+I don't think a page flag gains anything over the address_space flag
+that this patch already has.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+The complexity is not about keeping track of the "data modified
+through mmap" state, but about msync() guarantees, that POSIX wants.
+
+And these requirements do in fact make some sense: msync() basically
+means:
+
+  "I want the data written through mmaps to be visible to the world"
+
+And that obviously includes updating the timestamps.
+
+So how do we know if the data was modified between two msync()
+invocations?  The only sane way I can think of is to walk the page
+tables in msync() and test/clear the pte dirty bit.
+
+Yes, this will make msync(MS_ASYNC) more heavyweight again.  But if an
+application doesn't want to update the timestamps, it should just omit
+this call, since it does nothing else.
+
+There shouldn't be any other side effect.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
