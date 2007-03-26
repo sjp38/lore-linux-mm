@@ -1,52 +1,68 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l2QEH7n4031703
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2007 10:17:07 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2QEH7Fi052308
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2007 08:17:07 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2QEH6Fn010139
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2007 08:17:07 -0600
-Subject: Re: [patch 1/2] hugetlb: add resv argument to hugetlb_file_setup
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <b040c32a0703231542r77030723o214255a5fa591dec@mail.gmail.com>
-References: <b040c32a0703231542r77030723o214255a5fa591dec@mail.gmail.com>
-Content-Type: text/plain
-Date: Mon, 26 Mar 2007 09:17:04 -0500
-Message-Id: <1174918625.21684.78.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 26 Mar 2007 09:52:17 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
+In-Reply-To: <20070323222133.f17090cf.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0703260938520.3297@schroedinger.engr.sgi.com>
+References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com>
+ <20070322223927.bb4caf43.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com>
+ <20070322234848.100abb3d.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0703230804120.21857@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0703231026490.23132@schroedinger.engr.sgi.com>
+ <20070323222133.f17090cf.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ken Chen <kenchen@google.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-03-23 at 15:42 -0700, Ken Chen wrote:
-> rename hugetlb_zero_setup() to hugetlb_file_setup() to better match
-> function name convention like shmem implementation.  Also add an
-> argument to the function to indicate whether file setup should reserve
-> hugetlb page upfront or not.
+On Fri, 23 Mar 2007, Andrew Morton wrote:
+
+> On Fri, 23 Mar 2007 10:54:12 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 > 
-> Signed-off-by: Ken Chen <kenchen@google.com>
+> > Here are the results of aim9 tests on x86_64. There are some minor performance 
+> > improvements and some fluctuations.
+> 
+> There are a lot of numbers there - what do they tell us?
 
-This patch doesn't really look bad at all, but...
+That there are performance improvements because of quicklists.
 
-I am worried that what might seem nice and clean right now will slowly
-get worse.  This implements an interface on top of another interface
-(char device on top of a filesystem).  What is the next hugetlbfs
-function that will need a boolean switch to handle a character device
-special case?
+> So what has changed here?  From a quick look it appears that x86_64 is
+> using get_zeroed_page() for ptes, puds and pmds and is using a custom
+> quicklist for pgds.
 
-Am I just worrying too much here?  Although my pagetable_operations
-patches aren't the most popular right now, they do have at least one
-advantage IMO: they enable side-by-side implementation of the interfaces
-as opposed to stacking them.  Keeping them separate removes the need for
-if ((vm_flags & VM_HUGETLB) && (is_hugetlbfs_chardev())) checking. 
+x86_64 is only using a list in order to track pgds. There is no 
+quicklist without this patchset.
+ 
+> After your patches, x86_64 is using a common quicklist allocator for puds,
+> pmds and pgds and continues to use get_zeroed_page() for ptes.
 
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+x86_64 should be using quicklists for all ptes after this patch. I did not 
+convert pte_free() since it is only used for freeing ptes during races 
+(see __pte_alloc). Since pte_free gets passed a page struct it would require 
+virt_to_page before being put onto the freelist. Not worth doing.
+
+Hmmm... Then how does x86_64 free the ptes? Seems that we do 
+free_page_and_swap_cache() in tlb_remove_pages. Yup so ptes are not 
+handled which limits the speed improvements that we see.
+
+> My question is pretty simple: how do we justify the retention of this
+> custom allocator?
+
+I would expect this functionality (never thought about it as an allocator) 
+to extract common code from many arches that use one or the other form of 
+preserving zeroed pages for page table pages. I saw lots of arches doing 
+the same with some getting into trouble with the page structs. Having a 
+common code base that does not have this issue would clean up the kernel 
+and deal with the slab issue.
+
+> Because simply removing it is the preferable way of fixing the SLUB
+> problem.
+
+That would reduce performance. I did not think that a common feature 
+that is used throughout many arches would need rejustification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
