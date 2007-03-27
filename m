@@ -1,48 +1,42 @@
-In-reply-to: <20070327200933.6321.qmail@science.horizon.com>
-	(linux@horizon.com)
+Date: Tue, 27 Mar 2007 13:47:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-References: <20070327200933.6321.qmail@science.horizon.com>
-Message-Id: <E1HWIKP-0004oj-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 27 Mar 2007 22:31:37 +0200
+Message-Id: <20070327134700.f17e8b61.akpm@linux-foundation.org>
+In-Reply-To: <20070327200933.6321.qmail@science.horizon.com>
+References: <20070327123422.d0bbc064.akpm@linux-foundation.org>
+	<20070327200933.6321.qmail@science.horizon.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux@horizon.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-> > Suggest you use msync(MS_ASYNC), then
-> > sync_file_range(SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE).
-> 
-> Thank you; I didn't know about that.  And I can handle -ENOSYS by falling
-> back to the old behavior.
-> 
-> > We can fix your application, and we'll break someone else's.
-> 
-> If you can point to an application that it'll break, I'd be a lot more
-> understanding.  Nobody did, last year.
-> 
-> > I don't think it's solveable, really - the range of applications is so
-> > broad, and the "standard" is so vague as to be useless.
-> 
-> I agree that standards are sometimes vague, but that one seemed about
-> as clear as it's possible to be without imposing unreasonably on
-> the file system and device driver layers.
-> 
+On 27 Mar 2007 16:09:33 -0400
+linux@horizon.com wrote:
+
 > What part of "The msync() function writes all modified data to
 > permanent storage locations [...] For mappings to files, the msync()
 > function ensures that all write operations are completed as defined
 > for synchronised I/O data integrity completion." suggests that it's not
 > supposed to do disk I/O?  How is that uselessly vague?
+> 
 
-Linux _will_ write all modified data to permanent storage locations.
-Since 2.6.17 it will do this regardless of msync().  Before 2.6.17 you
-do need msync() to enable data to be written back.
+Because for MS_ASYNC, "msync() shall return immediately once all the write
+operations are initiated or queued for servicing".
 
-But it will not start I/O immediately, which is not a requirement in
-the standard, or at least it's pretty vague about that.
+ie: the writes can complete one millisecond or one week later.  We chose 30
+seconds.
 
-Miklos
+And this is not completely fatuous - before 2.6.17, MAP_SHARED pages could
+float about in memory in a dirty state for arbitrarily long periods -
+potentially for the entire application lifetime.  It was quite reasonable
+for our MS_ASYNC implementation to do what it did: tell the VM about the
+dirtiness of these pages so they get written back soon.
+
+Post-2.6.17 we preserved that behaviour.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
