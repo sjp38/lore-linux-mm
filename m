@@ -1,44 +1,45 @@
-In-reply-to: <20070327001834.04dc375e.akpm@linux-foundation.org> (message from
-	Andrew Morton on Tue, 27 Mar 2007 00:18:34 -0800)
-Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
-	<20070326140036.f3352f81.akpm@linux-foundation.org>
-	<E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu>
-	<20070326153153.817b6a82.akpm@linux-foundation.org>
-	<E1HW5am-0003Mc-00@dorka.pomaz.szeredi.hu>
-	<20070326232214.ee92d8c4.akpm@linux-foundation.org>
-	<E1HW6Ec-0003Tv-00@dorka.pomaz.szeredi.hu>
-	<20070326234957.6b287dda.akpm@linux-foundation.org>
-	<E1HW6eb-0003WX-00@dorka.pomaz.szeredi.hu> <20070327001834.04dc375e.akpm@linux-foundation.org>
-Message-Id: <E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 27 Mar 2007 10:28:16 +0200
+Received: by ug-out-1314.google.com with SMTP id s2so1790532uge
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2007 01:41:34 -0700 (PDT)
+Message-ID: <6d6a94c50703270141u5e59f73dj8bef0de0cfed1924@mail.gmail.com>
+Date: Tue, 27 Mar 2007 16:41:33 +0800
+From: "Aubrey Li" <aubreylee@gmail.com>
+Subject: Re: [PATCH 3/3][RFC] Containers: Pagecache controller reclaim
+In-Reply-To: <4608C4F6.4020407@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <45ED251C.2010400@linux.vnet.ibm.com>
+	 <45ED266E.7040107@linux.vnet.ibm.com>
+	 <6d6a94c50703262044q22e94538i5e79a32a82f7c926@mail.gmail.com>
+	 <4608C4F6.4020407@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, ckrm-tech@lists.sourceforge.net, Balbir Singh <balbir@in.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>, devel@openvz.org, xemul@sw.ru, Paul Menage <menage@google.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > But Peter Staubach says a RH custumer has files written thorugh mmap,
-> > which are not being backed up.
-> 
-> Yes, I expect the backup problem is the major real-world hurt arising from
-> this bug.
-> 
-> But I expect we could adequately plug that problem at munmap()-time.  Or,
-> better, do_wp_page().  As I said - half-assed.
-> 
-> It's a question if whether the backup problem is the only thing which is hurting
-> in the real-world, or if people have other problems.
-> 
-> (In fact, what's wrong with doing it in do_wp_page()?
+On 3/27/07, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> wrote:
+> Correct, shrink_page_list() is called from shrink_inactive_list() but
+> the above code is patched in shrink_active_list().  The
+> 'force_reclaim_mapped' label is from function shrink_active_list() and
+> not in shrink_page_list() as it may seem in the patch file.
+>
+> While removing pages from active_list, we want to select only
+> pagecache pages and leave the remaining in the active_list.
+> page_mapped() pages are _not_ of interest to pagecache controller
+> (they will be taken care by rss controller) and hence we put it back.
+>  Also if the pagecache controller is below limit, no need to reclaim
+> so we put back all pages and come out.
 
-It's rather more expensive, than just toggling a bit.
+Oh, I just read the patch, not apply it to my local tree, I'm working
+on 2.6.19 now.
+So the question is, when vfs pagecache limit is hit, the current
+implementation just reclaim few pages, so it's quite possible the
+limit is hit again, and hence the reclaim code will be called again
+and again, that will impact application performance.
 
-Let me work on it a bit more.  I think I can make the current patch
-more palatable.
-
-Miklos
+-Aubrey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
