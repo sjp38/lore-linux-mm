@@ -1,36 +1,31 @@
-Date: Mon, 26 Mar 2007 18:22:30 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Mon, 26 Mar 2007 18:45:08 -0700 (PDT)
+Message-Id: <20070326.184508.85687849.davem@davemloft.net>
 Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
+From: David Miller <davem@davemloft.net>
 In-Reply-To: <20070327010624.GA2986@holomorphy.com>
-Message-ID: <Pine.LNX.4.64.0703261817160.14048@schroedinger.engr.sgi.com>
-References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com>
- <20070322223927.bb4caf43.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com>
- <20070322234848.100abb3d.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703230804120.21857@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0703231026490.23132@schroedinger.engr.sgi.com>
- <20070323222133.f17090cf.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0703260938520.3297@schroedinger.engr.sgi.com>
- <20070326102651.6d59207b.akpm@linux-foundation.org> <20070327010624.GA2986@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.LNX.4.64.0703260938520.3297@schroedinger.engr.sgi.com>
+	<20070326102651.6d59207b.akpm@linux-foundation.org>
+	<20070327010624.GA2986@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: William Lee Irwin III <wli@holomorphy.com>
+Date: Mon, 26 Mar 2007 18:06:24 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: wli@holomorphy.com
+Cc: akpm@linux-foundation.org, clameter@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 26 Mar 2007, William Lee Irwin III wrote:
+> On Mon, Mar 26, 2007 at 10:26:51AM -0800, Andrew Morton wrote:
+> > b) we understand why the below simple modification crashes i386.
+> 
+> Full eager zeroing patches not dependent on quicklist code don't crash,
+> so there is no latent use-after-free issue covered up by caching. I'll
+> help out more on the i386 front as-needed.
 
-> Not that clameter really needs my help, but I agree with his position
-> on several fronts, and advocate accordingly, so here is where I'm at.
-
-Yes thank you. I386 is not my field, I have no interest per se in 
-improving i386 performance and without your help I would have to drop this 
-and keep the special casing in SLUB for i386. Generic tlb.h changes may 
-also help to introduce quicklists to x86_64. The current quicklist patches 
-can only work on higher levels due to the freeing of ptes via 
-tlb_remove_page().
+I've looked into this a few times and I am quite mystified as
+to why that simple test patch crashes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
