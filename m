@@ -1,38 +1,44 @@
-Date: Mon, 26 Mar 2007 17:02:10 -0700
+Date: Mon, 26 Mar 2007 18:06:24 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch 2/3] only allow nonlinear vmas for ram backed filesystems
-Message-ID: <20070327000210.GZ2986@holomorphy.com>
-References: <E1HVEOB-0006fX-00@dorka.pomaz.szeredi.hu> <E1HVEQJ-0006gF-00@dorka.pomaz.szeredi.hu> <1174824752.5149.28.camel@lappy> <20070325155127.GR10459@waste.org>
+Subject: Re: [QUICKLIST 1/5] Quicklists for page table pages V4
+Message-ID: <20070327010624.GA2986@holomorphy.com>
+References: <20070323062843.19502.19827.sendpatchset@schroedinger.engr.sgi.com> <20070322223927.bb4caf43.akpm@linux-foundation.org> <Pine.LNX.4.64.0703222339560.19630@schroedinger.engr.sgi.com> <20070322234848.100abb3d.akpm@linux-foundation.org> <Pine.LNX.4.64.0703230804120.21857@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0703231026490.23132@schroedinger.engr.sgi.com> <20070323222133.f17090cf.akpm@linux-foundation.org> <Pine.LNX.4.64.0703260938520.3297@schroedinger.engr.sgi.com> <20070326102651.6d59207b.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070325155127.GR10459@waste.org>
+In-Reply-To: <20070326102651.6d59207b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-03-24 at 23:09 +0100, Miklos Szeredi wrote:
->>> Dirty page accounting/limiting doesn't work for nonlinear mappings, so
->>> for non-ram backed filesystems emulate with linear mappings.  This
->>> retains ABI compatibility with previous kernels at minimal code cost.
->>> All known users of nonlinear mappings actually use tmpfs, so this
->>> shouldn't have any negative effect.
+On Mon, Mar 26, 2007 at 10:26:51AM -0800, Andrew Morton wrote:
+> a) it has been demonstrated that this patch is superior to simply removing
+>    the quicklists and
 
-On Sun, Mar 25, 2007 at 02:12:32PM +0200, Peter Zijlstra wrote:
+Not that clameter really needs my help, but I agree with his position
+on several fronts, and advocate accordingly, so here is where I'm at.
 
-On Sun, Mar 25, 2007 at 10:51:27AM -0500, Matt Mackall wrote:
-> They do? I thought the whole point of nonlinear mappings was for
-> mapping files bigger than the address space (eg. databases). Is Oracle
-> instead using this to map >3G files on a tmpfs??
+>From prior experience, I believe I know how to extract positive results,
+and that's primarily by PTE caching because they're the most frequently
+zeroed pagetable nodes. The upper levels of pagetables will remain in
+the noise until the leaf level bottleneck is dealt with.
 
-It's used for > 3GB files on tmpfs and also ramfs, sometimes
-substantially larger than 3GB.
+PTE's need a custom tlb.h to deal with the TLB issues noted above; the
+asm-generic variant will not suffice. Results above the noise level
+need PTE caching. Sparse fault handling (esp. after execve() is done)
+is one place in particular where improvements should be most readily
+demonstrable, as only single cachelines on each allocated node should
+be touched. lmbench should have a fault handling latency test for this.
 
-It's not used for the database proper. It's used for the buffer pool,
-which is the in-core destination and source of direct I/O, the on-disk
-source and destination of the I/O being the database.
+
+On Mon, Mar 26, 2007 at 10:26:51AM -0800, Andrew Morton wrote:
+> b) we understand why the below simple modification crashes i386.
+
+Full eager zeroing patches not dependent on quicklist code don't crash,
+so there is no latent use-after-free issue covered up by caching. I'll
+help out more on the i386 front as-needed.
 
 
 -- wli
