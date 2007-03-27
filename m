@@ -1,95 +1,64 @@
-Received: by ug-out-1314.google.com with SMTP id s2so1752489uge
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2007 20:44:10 -0700 (PDT)
-Message-ID: <6d6a94c50703262044q22e94538i5e79a32a82f7c926@mail.gmail.com>
-Date: Tue, 27 Mar 2007 11:44:03 +0800
-From: "Aubrey Li" <aubreylee@gmail.com>
-Subject: Re: [PATCH 3/3][RFC] Containers: Pagecache controller reclaim
-In-Reply-To: <45ED266E.7040107@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <45ED251C.2010400@linux.vnet.ibm.com>
-	 <45ED266E.7040107@linux.vnet.ibm.com>
+In-reply-to: <20070326153153.817b6a82.akpm@linux-foundation.org> (message from
+	Andrew Morton on Mon, 26 Mar 2007 15:31:53 -0700)
+Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
+References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
+	<20070326140036.f3352f81.akpm@linux-foundation.org>
+	<E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu> <20070326153153.817b6a82.akpm@linux-foundation.org>
+Message-Id: <E1HW5am-0003Mc-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 27 Mar 2007 08:55:40 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, ckrm-tech@lists.sourceforge.net, Balbir Singh <balbir@in.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>, devel@openvz.org, xemul@sw.ru, Paul Menage <menage@google.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>
+To: akpm@linux-foundation.org
+Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/6/07, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> wrote:
->
-> The reclaim code is similar to RSS memory controller.  Scan control is
-> slightly different since we are targeting different type of pages.
->
-> Additionally no mapped pages are touched when scanning for pagecache pages.
->
-> RSS memory controller and pagecache controller share common code in reclaim
-> and hence pagecache controller patches are dependent on RSS memory controller
-> patch even though the features are independently configurable at compile time.
->
-> --- linux-2.6.20.orig/mm/vmscan.c
-> +++ linux-2.6.20/mm/vmscan.c
-> @@ -43,6 +43,7 @@
->
->  #include <linux/swapops.h>
->  #include <linux/memcontrol.h>
-> +#include <linux/pagecache_acct.h>
->
->  #include "internal.h"
->
-> @@ -70,6 +71,8 @@ struct scan_control {
->
->         struct container *container;    /* Used by containers for reclaiming */
->                                         /* pages when the limit is exceeded  */
-> +       int reclaim_pagecache_only;     /* Set when called from
-> +                                          pagecache controller */
->  };
->
->  /*
-> @@ -474,6 +477,15 @@ static unsigned long shrink_page_list(st
->                         goto keep;
->
->                 VM_BUG_ON(PageActive(page));
-> +               /* Take it easy if we are doing only pagecache pages */
-> +               if (sc->reclaim_pagecache_only) {
-> +                       /* Check if this is a pagecache page they are not mapped */
-> +                       if (page_mapped(page))
-> +                               goto keep_locked;
-> +                       /* Check if this container has exceeded pagecache limit */
-> +                       if (!pagecache_acct_page_overlimit(page))
-> +                               goto keep_locked;
-> +               }
->
->                 sc->nr_scanned++;
->
-> @@ -522,7 +534,8 @@ static unsigned long shrink_page_list(st
->                 }
->
->                 if (PageDirty(page)) {
-> -                       if (referenced)
-> +                       /* Reclaim even referenced pagecache pages if over limit */
-> +                       if (!pagecache_acct_page_overlimit(page) && referenced)
->                                 goto keep_locked;
->                         if (!may_enter_fs)
->                                 goto keep_locked;
-> @@ -869,6 +882,13 @@ force_reclaim_mapped:
->                 cond_resched();
->                 page = lru_to_page(&l_hold);
->                 list_del(&page->lru);
-> +               /* While reclaiming pagecache make it easy */
-> +               if (sc->reclaim_pagecache_only) {
-> +                       if (page_mapped(page) || !pagecache_acct_page_overlimit(page)) {
-> +                               list_add(&page->lru, &l_active);
-> +                               continue;
-> +                       }
-> +               }
+> > > > This patch makes writing to shared memory mappings update st_ctime and
+> > > > st_mtime as defined by SUSv3:
+> > > 
+> > > Boy this is complicated.
+> > 
+> > You tell me?
+> > 
+> > > Is there a simpler way of doing all this?  Say, we define a new page flag
+> > > PG_dirtiedbywrite and we do SetPageDirtiedByWrite() inside write() and
+> > > ClearPageDirtiedByWrite() whenever we propagate pte-dirtiness into
+> > > page-dirtiness.  Then, when performing writeback we look to see if any of
+> > > the dirty pages are !PageDirtiedByWrite() and, if so, we update [mc]time to
+> > > current-time.
+> > 
+> > I don't think a page flag gains anything over the address_space flag
+> > that this patch already has.
+> > 
+> > The complexity is not about keeping track of the "data modified
+> > through mmap" state, but about msync() guarantees, that POSIX wants.
+> > 
+> > And these requirements do in fact make some sense: msync() basically
+> > means:
+> > 
+> >   "I want the data written through mmaps to be visible to the world"
+> > 
+> > And that obviously includes updating the timestamps.
+> > 
+> > So how do we know if the data was modified between two msync()
+> > invocations?  The only sane way I can think of is to walk the page
+> > tables in msync() and test/clear the pte dirty bit.
+> 
+> clear_page_dirty_for_io() already does that.
+> 
+> So we should be able to test PageDirtiedByWrite() after running
+> clear_page_dirty_for_io() to discover whether this page was dirtied via
+> MAP_SHARED, and then update the inode times if so.
 
-Please correct me if I'm wrong.
-Here, if page type is mapped or not overlimit, why add it back to active list?
-Did  shrink_page_list() is called by shrink_inactive_list()?
+What do you need the page flag for?  The "modified through mmap" info
+is there in the ptes.  And from the ptes it can be transfered to a
+per-address_space flag.  Nobody is interested through which page was
+the file modified.
 
--Aubrey
+Anyway, that's just MS_SYNC.  MS_ASYNC doesn't walk the pages, yet it
+should update the timestamp.  That's the difficult one.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
