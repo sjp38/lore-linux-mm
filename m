@@ -1,138 +1,119 @@
-Date: Tue, 27 Mar 2007 18:07:53 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] [patch] mm: fix xip issue with /dev/zero
-In-Reply-To: <1175009868.8401.8.camel@cotte.boeblingen.de.ibm.com>
-Message-ID: <Pine.LNX.4.64.0703271748010.29398@blonde.wat.veritas.com>
-References: <1171628558.7328.16.camel@cotte.boeblingen.de.ibm.com>
- <Pine.LNX.4.64.0702181855230.16343@blonde.wat.veritas.com>
- <1172513050.5685.21.camel@cotte.boeblingen.de.ibm.com>
- <Pine.LNX.4.64.0703011808440.13472@blonde.wat.veritas.com>
- <1175009868.8401.8.camel@cotte.boeblingen.de.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 27 Mar 2007 09:52:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
+Message-Id: <20070327095220.4bc76cdc.akpm@linux-foundation.org>
+In-Reply-To: <E1HW7tS-0003em-00@dorka.pomaz.szeredi.hu>
+References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
+	<20070326140036.f3352f81.akpm@linux-foundation.org>
+	<E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu>
+	<20070326153153.817b6a82.akpm@linux-foundation.org>
+	<E1HW5am-0003Mc-00@dorka.pomaz.szeredi.hu>
+	<20070326232214.ee92d8c4.akpm@linux-foundation.org>
+	<E1HW6Ec-0003Tv-00@dorka.pomaz.szeredi.hu>
+	<20070326234957.6b287dda.akpm@linux-foundation.org>
+	<E1HW6eb-0003WX-00@dorka.pomaz.szeredi.hu>
+	<20070327001834.04dc375e.akpm@linux-foundation.org>
+	<E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu>
+	<20070327005150.9177ae02.akpm@linux-foundation.org>
+	<E1HW7tS-0003em-00@dorka.pomaz.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carsten Otte <cotte@de.ibm.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Mar 2007, Carsten Otte wrote:
-> Am Donnerstag, den 01.03.2007, 18:59 +0000 schrieb Hugh Dickins:
-> > Still not quite right, so I took your patch and reworked it below:
-> > if you agree with that version, please send it on to akpm.
-> Sorry for my late reply.
+On Tue, 27 Mar 2007 11:23:06 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
 
-I am the last person anyone should apologize to for lateness!
-
-> The patch does'nt apply on -mm anymore, because
-> filemap_xip now uses fault instead of nopage. I modified your patch
-> again to fit on current -mm. Did I miss something? If no, I will send it
-> to Andrew. I've done some basic testing on it, all seems to work well.
-
-Comparing against what I suggested, it looks just right to me:
-do go ahead and send Andrew.
-
-But that comparison does show one discrepancy, not in your patch
-below, but where Nick and I independently fixed up the "error
-reporting".  He interprets one failure of get_xip_page as
-VM_FAULT_OOM then the next as VM_FAULT_SIGBUS, where I thought
-them both NOPAGE_SIGBUS.
-
-I'm inclined to agree with me on that, though it's hard to tell
-without peering into the internals of ->get_xip_page()s.
-
-Hmm, and in looking into that, the whole file seems quite confused
-as to whether ->get_xip_page might return NULL page or not: some
-places allow for it (one treating it as -EIO, another as -ENOMEM),
-others don't allow for it at all.  Something to tidy up.
-
-Hugh
-
+> > > > > But Peter Staubach says a RH custumer has files written thorugh mmap,
+> > > > > which are not being backed up.
+> > > > 
+> > > > Yes, I expect the backup problem is the major real-world hurt arising from
+> > > > this bug.
+> > > > 
+> > > > But I expect we could adequately plug that problem at munmap()-time.  Or,
+> > > > better, do_wp_page().  As I said - half-assed.
+> > > > 
+> > > > It's a question if whether the backup problem is the only thing which is hurting
+> > > > in the real-world, or if people have other problems.
+> > > > 
+> > > > (In fact, what's wrong with doing it in do_wp_page()?
+> > > 
+> > > It's rather more expensive, than just toggling a bit.
+> > 
+> > It shouldn't be, especially for filesystems which have one-second timestamp
+> > granularity.
+> > 
+> > Filesystems which have s_time_gran=1 might hurt a bit, but no more than
+> > they will with write().
+> > 
+> > Actually, no - we'd only update the mctime once per page per writeback
+> > period (30 seconds by default) so the load will be small.
 > 
-> This patch fixes the bug, that reading into xip mapping from /dev/zero
-> fills the user page table with ZERO_PAGE() entries. Later on, xip cannot
-> tell which pages have been ZERO_PAGE() filled by access to a sparse
-> mapping, and which ones origin from /dev/zero. It will unmap ZERO_PAGE
-> from all mappings when filling the sparse hole with data.
-> xip does now use its own zeroed page for its sparse mappings.
+> Why?  For each faulted page the times will be updated, no?
+
+Yes, but only at pagefault-time.  And
+
+- the faults are already "slow": we need to pull the page contents in
+  from disk, or memset or cow the page
+
+- we need to take the trap
+
+compared to which, the cost of the timestamp update will (we hope) be
+relatively low.
+
+> Maybe it's acceptable, I don't really know the cost of
+> file_update_time().
 > 
-> Signed-off-by: Carsten Otte <cotte@de.ibm.com>
-> ---
+> Tried this patch, and it seems to work.  It will even randomly update
+> the time for tmpfs files (on initial fault, and on swapins).
 > 
-> --- linux-2.6.21-rc5-mm2/mm/filemap_xip.c	2007-03-27 12:51:22.000000000 +0200
-> +++ linux-2.6.21-rc5-mm2+patch/mm/filemap_xip.c	2007-03-27 15:37:44.000000000 +0200
-> @@ -17,6 +17,29 @@
->  #include "filemap.h"
->  
->  /*
-> + * We do use our own empty page to avoid interference with other users
-> + * of ZERO_PAGE(), such as /dev/zero
-> + */
-> +static struct page *__xip_sparse_page;
-> +
-> +static struct page *xip_sparse_page(void)
-> +{
-> +	if (!__xip_sparse_page) {
-> +		unsigned long zeroes = get_zeroed_page(GFP_HIGHUSER);
-> +		if (zeroes) {
-> +			static DEFINE_SPINLOCK(xip_alloc_lock);
-> +			spin_lock(&xip_alloc_lock);
-> +			if (!__xip_sparse_page)
-> +				__xip_sparse_page = virt_to_page(zeroes);
-> +			else
-> +				free_page(zeroes);
-> +			spin_unlock(&xip_alloc_lock);
-> +		}
-> +	}
-> +	return __xip_sparse_page;
-> +}
-> +
-> +/*
->   * This is a file read routine for execute in place files, and uses
->   * the mapping->a_ops->get_xip_page() function for the actual low-level
->   * stuff.
-> @@ -162,7 +185,7 @@
->   * xip_write
->   *
->   * This function walks all vmas of the address_space and unmaps the
-> - * ZERO_PAGE when found at pgoff. Should it go in rmap.c?
-> + * __xip_sparse_page when found at pgoff.
->   */
->  static void
->  __xip_unmap (struct address_space * mapping,
-> @@ -177,13 +200,16 @@
->  	spinlock_t *ptl;
->  	struct page *page;
->  
-> +	page = __xip_sparse_page;
-> +	if (!page)
-> +		return;
-> +
->  	spin_lock(&mapping->i_mmap_lock);
->  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
->  		mm = vma->vm_mm;
->  		address = vma->vm_start +
->  			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
->  		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-> -		page = ZERO_PAGE(0);
->  		pte = page_check_address(page, mm, address, &ptl);
->  		if (pte) {
->  			/* Nuke the page table entry. */
-> @@ -245,8 +271,12 @@
->  		/* unmap page at pgoff from all other vmas */
->  		__xip_unmap(mapping, fdata->pgoff);
->  	} else {
-> -		/* not shared and writable, use ZERO_PAGE() */
-> -		page = ZERO_PAGE(0);
-> +		/* not shared and writable, use xip_sparse_page() */
-> +		page = xip_sparse_page();
-> +		if (!page) {
-> +	                fdata->type = VM_FAULT_OOM;
-> +	                return NULL;
-> +		}
+> Miklos
+> 
+> Index: linux/mm/memory.c
+> ===================================================================
+> --- linux.orig/mm/memory.c	2007-03-27 11:04:40.000000000 +0200
+> +++ linux/mm/memory.c	2007-03-27 11:08:19.000000000 +0200
+> @@ -1664,6 +1664,8 @@ gotten:
+>  unlock:
+>  	pte_unmap_unlock(page_table, ptl);
+>  	if (dirty_page) {
+> +		if (vma->vm_file)
+> +			file_update_time(vma->vm_file);
+>  		set_page_dirty_balance(dirty_page);
+>  		put_page(dirty_page);
 >  	}
->  
->  out:
+> @@ -2316,6 +2318,8 @@ retry:
+>  unlock:
+>  	pte_unmap_unlock(page_table, ptl);
+>  	if (dirty_page) {
+> +		if (vma->vm_file)
+> +			file_update_time(vma->vm_file);
+>  		set_page_dirty_balance(dirty_page);
+>  		put_page(dirty_page);
+>  	}
+
+that's simpler ;) Is it correct enough though?  The place where it will
+become inaccurate is for repeated modification via an established map.  ie:
+
+	p = mmap(..., MAP_SHARED);
+	for ( ; ; )
+		*p = 1;
+
+in which case I think the timestamp will only get updated once per
+writeback interval (ie: 30 seconds).
+
+
+tmpfs files have an s_time_gran of 1, so benchmarking some workload on
+tmpfs with this patch will tell us the worst-case overhead of the change. 
+
+I guess we should arrange for multiple CPUs to perform write faults against
+multiple pages of the same file in parallel.  Of course, that'd be a pretty
+darn short benchmark because it'll run out of RAM.  Which reveals why we
+probably won't have a performance problem in there.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
