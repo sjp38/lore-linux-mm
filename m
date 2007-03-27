@@ -1,161 +1,50 @@
-In-reply-to: <20070327095220.4bc76cdc.akpm@linux-foundation.org> (message from
-	Andrew Morton on Tue, 27 Mar 2007 09:52:20 -0800)
+Date: 27 Mar 2007 16:09:33 -0400
+Message-ID: <20070327200933.6321.qmail@science.horizon.com>
+From: linux@horizon.com
 Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
-	<20070326140036.f3352f81.akpm@linux-foundation.org>
-	<E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu>
-	<20070326153153.817b6a82.akpm@linux-foundation.org>
-	<E1HW5am-0003Mc-00@dorka.pomaz.szeredi.hu>
-	<20070326232214.ee92d8c4.akpm@linux-foundation.org>
-	<E1HW6Ec-0003Tv-00@dorka.pomaz.szeredi.hu>
-	<20070326234957.6b287dda.akpm@linux-foundation.org>
-	<E1HW6eb-0003WX-00@dorka.pomaz.szeredi.hu>
-	<20070327001834.04dc375e.akpm@linux-foundation.org>
-	<E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu>
-	<20070327005150.9177ae02.akpm@linux-foundation.org>
-	<E1HW7tS-0003em-00@dorka.pomaz.szeredi.hu> <20070327095220.4bc76cdc.akpm@linux-foundation.org>
-Message-Id: <E1HWGQD-0004T8-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 27 Mar 2007 20:29:29 +0200
+In-Reply-To: <20070327123422.d0bbc064.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux@horizon.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-> that's simpler ;) Is it correct enough though?  The place where it will
-> become inaccurate is for repeated modification via an established map.  ie:
-> 
-> 	p = mmap(..., MAP_SHARED);
-> 	for ( ; ; )
-> 		*p = 1;
-> 
-> in which case I think the timestamp will only get updated once per
-> writeback interval (ie: 30 seconds).
+> Suggest you use msync(MS_ASYNC), then
+> sync_file_range(SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE).
 
-Which is perfectly OK, we really can't do any better in any sane way.
+Thank you; I didn't know about that.  And I can handle -ENOSYS by falling
+back to the old behavior.
 
-My concern is only about MS_ASYNC, it would be really nice to know
-what other OSs do.  I've checked on a Solaris 5.7 (not exactly a
-modern OS) and that is as good as current Linux.
+> We can fix your application, and we'll break someone else's.
 
-If someone has access to others pls. find my test program at the end.
+If you can point to an application that it'll break, I'd be a lot more
+understanding.  Nobody did, last year.
 
-The logical way to handle msync is IMO:
+> I don't think it's solveable, really - the range of applications is so
+> broad, and the "standard" is so vague as to be useless.
 
-   write to memory + msync(MS_ASYNC) == write()
-   write to memory + msync(MS_SYNC) == write() + fdatasync()
+I agree that standards are sometimes vague, but that one seemed about
+as clear as it's possible to be without imposing unreasonably on
+the file system and device driver layers.
 
-Yes, it would add some overhead for MS_ASYNC, but that's what the user
-wants isn't it?  If the user doesn't want correctly updated
-timestamps, it should not call msync().
+What part of "The msync() function writes all modified data to
+permanent storage locations [...] For mappings to files, the msync()
+function ensures that all write operations are completed as defined
+for synchronised I/O data integrity completion." suggests that it's not
+supposed to do disk I/O?  How is that uselessly vague?
 
-Miklos
+It says to me that msync's raison d'etre is to write data from RAM to
+stable storage.  If an application calls it too often, that's
+the application's fault just as if it called sync(2) too often.
 
-=== msync_time.c ==============================================
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
+> This is why we've
+> been extending these things with linux-specific goodies which permit
+> applications to actually tell the kernel what they want to be done in a
+> more finely-grained fashion.
 
-static const char *filename;
-
-static void print_times(const char *msg)
-{
-    struct stat stbuf;
-    stat(filename, &stbuf);
-    printf("%s\t%li\t%li\t%li\n", msg, stbuf.st_ctime, stbuf.st_mtime,
-           stbuf.st_atime);
-}
-
-static void usage(const char *progname)
-{
-    fprintf(stderr, "usage: %s filename [-s]\n", progname);
-    exit(1);
-}
-
-int main(int argc, char *argv[])
-{
-    int res;
-    char *addr;
-    int msync_flag = MS_ASYNC;
-    int fd;
-
-    if (argc < 2)
-        usage(argv[0]);
-
-    filename = argv[1];
-    if (argc > 2) {
-        if (argc > 3)
-            usage(argv[0]);
-        if (strcmp(argv[2], "-s") == 0)
-            msync_flag = MS_SYNC;
-        else
-            usage(argv[0]);
-    }
-
-    fd = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
-    if (fd == -1) {
-        perror(filename);
-        return 1;
-    }
-    print_times("begin");
-    sleep(1);
-    write(fd, "aaaa\n", 4);
-    print_times("write");
-    sleep(1);
-    addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (addr == (char *) -1) {
-        perror("mmap");
-        return 1;
-    }
-    print_times("mmap");
-    sleep(1);
-
-    addr[1] = 'b';
-    print_times("b");
-    sleep(1);
-    res = msync(addr, 4, msync_flag);
-    if (res == -1) {
-        perror("msync");
-        return 1;
-    }
-    print_times("msync b");
-    sleep(1);
-
-    addr[2] = 'c';
-    print_times("c");
-    sleep(1);
-    res = msync(addr, 4, msync_flag);
-    if (res == -1) {
-        perror("msync");
-        return 1;
-    }
-    print_times("msync c");
-    sleep(1);
-
-    addr[3] = 'd';
-    print_times("d");
-    sleep(1);
-    res = munmap(addr, 4);
-    if (res == -1) {
-        perror("munmap");
-        return 1;
-    }
-    print_times("munmap");
-    sleep(1);
-
-    res = close(fd);
-    if (res == -1) {
-        perror("close");
-        return 1;
-    }
-    print_times("end");
-    return 0;
-}
+Well, I still think the current Linux behavior is a bug, but there's a
+usable (and run-time compatible) workaround that doesn't unreasonably
+complicate the code, and that's good enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
