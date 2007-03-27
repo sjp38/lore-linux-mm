@@ -1,8 +1,6 @@
-Date: Tue, 27 Mar 2007 00:51:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+In-reply-to: <20070327005150.9177ae02.akpm@linux-foundation.org> (message from
+	Andrew Morton on Tue, 27 Mar 2007 00:51:50 -0800)
 Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-Message-Id: <20070327005150.9177ae02.akpm@linux-foundation.org>
-In-Reply-To: <E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu>
 References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
 	<20070326140036.f3352f81.akpm@linux-foundation.org>
 	<E1HVwy4-0002UD-00@dorka.pomaz.szeredi.hu>
@@ -13,47 +11,73 @@ References: <E1HVZyn-0008T8-00@dorka.pomaz.szeredi.hu>
 	<20070326234957.6b287dda.akpm@linux-foundation.org>
 	<E1HW6eb-0003WX-00@dorka.pomaz.szeredi.hu>
 	<20070327001834.04dc375e.akpm@linux-foundation.org>
-	<E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	<E1HW72O-0003ZB-00@dorka.pomaz.szeredi.hu> <20070327005150.9177ae02.akpm@linux-foundation.org>
+Message-Id: <E1HW7tS-0003em-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 27 Mar 2007 11:23:06 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
+To: akpm@linux-foundation.org
 Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Mar 2007 10:28:16 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
-
-> > > But Peter Staubach says a RH custumer has files written thorugh mmap,
-> > > which are not being backed up.
+> > > > But Peter Staubach says a RH custumer has files written thorugh mmap,
+> > > > which are not being backed up.
+> > > 
+> > > Yes, I expect the backup problem is the major real-world hurt arising from
+> > > this bug.
+> > > 
+> > > But I expect we could adequately plug that problem at munmap()-time.  Or,
+> > > better, do_wp_page().  As I said - half-assed.
+> > > 
+> > > It's a question if whether the backup problem is the only thing which is hurting
+> > > in the real-world, or if people have other problems.
+> > > 
+> > > (In fact, what's wrong with doing it in do_wp_page()?
 > > 
-> > Yes, I expect the backup problem is the major real-world hurt arising from
-> > this bug.
-> > 
-> > But I expect we could adequately plug that problem at munmap()-time.  Or,
-> > better, do_wp_page().  As I said - half-assed.
-> > 
-> > It's a question if whether the backup problem is the only thing which is hurting
-> > in the real-world, or if people have other problems.
-> > 
-> > (In fact, what's wrong with doing it in do_wp_page()?
+> > It's rather more expensive, than just toggling a bit.
 > 
-> It's rather more expensive, than just toggling a bit.
+> It shouldn't be, especially for filesystems which have one-second timestamp
+> granularity.
+> 
+> Filesystems which have s_time_gran=1 might hurt a bit, but no more than
+> they will with write().
+> 
+> Actually, no - we'd only update the mctime once per page per writeback
+> period (30 seconds by default) so the load will be small.
 
-It shouldn't be, especially for filesystems which have one-second timestamp
-granularity.
+Why?  For each faulted page the times will be updated, no?
 
-Filesystems which have s_time_gran=1 might hurt a bit, but no more than
-they will with write().
+Maybe it's acceptable, I don't really know the cost of
+file_update_time().
 
-Actually, no - we'd only update the mctime once per page per writeback
-period (30 seconds by default) so the load will be small.  It'll be more
-often if the user is doing a lot of pte-cleaning via msync() or fsync(),
-but then the m/ctime writes will be the least of their problems. 
+Tried this patch, and it seems to work.  It will even randomly update
+the time for tmpfs files (on initial fault, and on swapins).
 
-I'd have thought there were more substantial problems with something that
-crude?
+Miklos
+
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c	2007-03-27 11:04:40.000000000 +0200
++++ linux/mm/memory.c	2007-03-27 11:08:19.000000000 +0200
+@@ -1664,6 +1664,8 @@ gotten:
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	if (dirty_page) {
++		if (vma->vm_file)
++			file_update_time(vma->vm_file);
+ 		set_page_dirty_balance(dirty_page);
+ 		put_page(dirty_page);
+ 	}
+@@ -2316,6 +2318,8 @@ retry:
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+ 	if (dirty_page) {
++		if (vma->vm_file)
++			file_update_time(vma->vm_file);
+ 		set_page_dirty_balance(dirty_page);
+ 		put_page(dirty_page);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
