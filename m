@@ -1,98 +1,123 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id l2RCgmMZ256958
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 22:42:52 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.250.244])
-	by sd0208e0.au.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2RCSgkF144090
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 22:28:43 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2RCPAJL009958
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 22:25:11 +1000
-Message-ID: <46090D22.9020709@linux.vnet.ibm.com>
-Date: Tue, 27 Mar 2007 17:55:06 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3][RFC] Containers: Pagecache controller reclaim
-References: <45ED251C.2010400@linux.vnet.ibm.com> <45ED266E.7040107@linux.vnet.ibm.com> <6d6a94c50703262044q22e94538i5e79a32a82f7c926@mail.gmail.com> <4608C4F6.4020407@linux.vnet.ibm.com> <6d6a94c50703270141u5e59f73dj8bef0de0cfed1924@mail.gmail.com> <4608E799.2050801@linux.vnet.ibm.com> <6d6a94c50703270353w22c3c994t84dc4b964f221c4b@mail.gmail.com>
-In-Reply-To: <6d6a94c50703270353w22c3c994t84dc4b964f221c4b@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id l2RFbnNa299268
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 15:37:49 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l2RFbne91642672
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 17:37:49 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l2RFbnNd012407
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2007 17:37:49 +0200
+Subject: Re: [RFC] [patch] mm: fix xip issue with /dev/zero
+From: Carsten Otte <cotte@de.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0703011808440.13472@blonde.wat.veritas.com>
+References: <1171628558.7328.16.camel@cotte.boeblingen.de.ibm.com>
+	 <Pine.LNX.4.64.0702181855230.16343@blonde.wat.veritas.com>
+	 <1172513050.5685.21.camel@cotte.boeblingen.de.ibm.com>
+	 <Pine.LNX.4.64.0703011808440.13472@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Tue, 27 Mar 2007 17:37:48 +0200
+Message-Id: <1175009868.8401.8.camel@cotte.boeblingen.de.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Aubrey Li <aubreylee@gmail.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, ckrm-tech@lists.sourceforge.net, Balbir Singh <balbir@in.ibm.com>, Srivatsa Vaddagiri <vatsa@in.ibm.com>, devel@openvz.org, xemul@sw.ru, Paul Menage <menage@google.com>, Christoph Lameter <clameter@sgi.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Am Donnerstag, den 01.03.2007, 18:59 +0000 schrieb Hugh Dickins:
+> Still not quite right, so I took your patch and reworked it below:
+> if you agree with that version, please send it on to akpm.
+Sorry for my late reply. The patch does'nt apply on -mm anymore, because
+filemap_xip now uses fault instead of nopage. I modified your patch
+again to fit on current -mm. Did I miss something? If no, I will send it
+to Andrew. I've done some basic testing on it, all seems to work well.
 
-Aubrey Li wrote:
-> On 3/27/07, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> wrote:
->>
->> Aubrey Li wrote:
->>> On 3/27/07, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com> wrote:
->>>> Correct, shrink_page_list() is called from shrink_inactive_list() but
->>>> the above code is patched in shrink_active_list().  The
->>>> 'force_reclaim_mapped' label is from function shrink_active_list() and
->>>> not in shrink_page_list() as it may seem in the patch file.
->>>>
->>>> While removing pages from active_list, we want to select only
->>>> pagecache pages and leave the remaining in the active_list.
->>>> page_mapped() pages are _not_ of interest to pagecache controller
->>>> (they will be taken care by rss controller) and hence we put it back.
->>>>  Also if the pagecache controller is below limit, no need to reclaim
->>>> so we put back all pages and come out.
->>> Oh, I just read the patch, not apply it to my local tree, I'm working
->>> on 2.6.19 now.
->>> So the question is, when vfs pagecache limit is hit, the current
->>> implementation just reclaim few pages, so it's quite possible the
->>> limit is hit again, and hence the reclaim code will be called again
->>> and again, that will impact application performance.
->> Yes, you are correct.  So if we start reclaiming one page at a time,
->> then the cost of reclaim is very high and we would be calling the
->> reclaim code too often.  Hence we have a 'buffer zone' or 'reclaim
->> threshold' or 'push back' around the limit.  In the patch we have a 64
->> page (256KB) NR_PAGES_RECLAIM_THRESHOLD:
->>
->>  int pagecache_acct_shrink_used(unsigned long nr_pages)
->>  {
->>         unsigned long ret = 0;
->>         atomic_inc(&reclaim_count);
->> +
->> +       /* Don't call reclaim for each page above limit */
->> +       if (nr_pages > NR_PAGES_RECLAIM_THRESHOLD) {
->> +               ret += shrink_container_memory(
->> +                               RECLAIM_PAGECACHE_MEMORY, nr_pages, NULL);
->> +       }
->> +
->>         return 0;
->>  }
->>
->> Hence we do not call the reclaimer if the threshold is exceeded by
->> just 1 page... we wait for 64 pages or 256KB of pagecache memory to go
->>  overlimit and then call the reclaimer which will reclaim all 64 pages
->> in one shot.
->>
->> This prevents the reclaim code from being called too often and it also
->> keeps the cost of reclaim low.
->>
->> In future patches we are planing to have a percentage based reclaim
->> threshold so that it would scale well with the container size.
->>
-> Actually it's not a good idea IMHO. No matter how big the threshold
-> is, it's not suitable. If it's too small, application performance will
-> be impacted seriously after pagecache limit is hit. If it's too large,
-> Limiting pagecache is useless.
-> 
-> Why not reclaim pages as much as possible when the pagecache limit is hit?
-> 
+This patch fixes the bug, that reading into xip mapping from /dev/zero
+fills the user page table with ZERO_PAGE() entries. Later on, xip cannot
+tell which pages have been ZERO_PAGE() filled by access to a sparse
+mapping, and which ones origin from /dev/zero. It will unmap ZERO_PAGE
+from all mappings when filling the sparse hole with data.
+xip does now use its own zeroed page for its sparse mappings.
 
-Well, that seems to be a good suggestion.  We will try it out by
-asking the reclaimer to do as much as possible in minimum time/effort.
- However we have to figure out how hard we want to push the reclaimer.
- In fact we can push the shrink_active_list() and
-shrink_inactive_list() routines to reclaim the _all_ container pages.
- We do have reclaim priority to play with.  Let see if we can comeup
-with some automatic method to reclaim 'good' number of pages each time.
+Signed-off-by: Carsten Otte <cotte@de.ibm.com>
+---
 
---Vaidy
+--- linux-2.6.21-rc5-mm2/mm/filemap_xip.c	2007-03-27 12:51:22.000000000 +0200
++++ linux-2.6.21-rc5-mm2+patch/mm/filemap_xip.c	2007-03-27 15:37:44.000000000 +0200
+@@ -17,6 +17,29 @@
+ #include "filemap.h"
+ 
+ /*
++ * We do use our own empty page to avoid interference with other users
++ * of ZERO_PAGE(), such as /dev/zero
++ */
++static struct page *__xip_sparse_page;
++
++static struct page *xip_sparse_page(void)
++{
++	if (!__xip_sparse_page) {
++		unsigned long zeroes = get_zeroed_page(GFP_HIGHUSER);
++		if (zeroes) {
++			static DEFINE_SPINLOCK(xip_alloc_lock);
++			spin_lock(&xip_alloc_lock);
++			if (!__xip_sparse_page)
++				__xip_sparse_page = virt_to_page(zeroes);
++			else
++				free_page(zeroes);
++			spin_unlock(&xip_alloc_lock);
++		}
++	}
++	return __xip_sparse_page;
++}
++
++/*
+  * This is a file read routine for execute in place files, and uses
+  * the mapping->a_ops->get_xip_page() function for the actual low-level
+  * stuff.
+@@ -162,7 +185,7 @@
+  * xip_write
+  *
+  * This function walks all vmas of the address_space and unmaps the
+- * ZERO_PAGE when found at pgoff. Should it go in rmap.c?
++ * __xip_sparse_page when found at pgoff.
+  */
+ static void
+ __xip_unmap (struct address_space * mapping,
+@@ -177,13 +200,16 @@
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 
++	page = __xip_sparse_page;
++	if (!page)
++		return;
++
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		mm = vma->vm_mm;
+ 		address = vma->vm_start +
+ 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+ 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+-		page = ZERO_PAGE(0);
+ 		pte = page_check_address(page, mm, address, &ptl);
+ 		if (pte) {
+ 			/* Nuke the page table entry. */
+@@ -245,8 +271,12 @@
+ 		/* unmap page at pgoff from all other vmas */
+ 		__xip_unmap(mapping, fdata->pgoff);
+ 	} else {
+-		/* not shared and writable, use ZERO_PAGE() */
+-		page = ZERO_PAGE(0);
++		/* not shared and writable, use xip_sparse_page() */
++		page = xip_sparse_page();
++		if (!page) {
++	                fdata->type = VM_FAULT_OOM;
++	                return NULL;
++		}
+ 	}
+ 
+ out:
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
