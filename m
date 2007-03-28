@@ -1,82 +1,56 @@
-Date: Wed, 28 Mar 2007 18:17:57 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: kswapd freed a swap space?
-Message-ID: <Pine.LNX.4.64.0703281808410.20922@blonde.wat.veritas.com>
+Message-ID: <460AAB83.4080306@redhat.com>
+Date: Wed, 28 Mar 2007 13:53:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: kswapd freed a swap space?
+References: <Pine.LNX.4.64.0703281808410.20922@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0703281808410.20922@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Hugh Dickins wrote:
 
-Please drop your "kswapd freed a swap space"-spamming
-mm-only-free-swap-space-of-reactivated-pages-debug.patch
-from the -mm tree, and please also drop Rik's
-free-swap-space-of-reactivated-pages.patch
-upon which you placed it to inform.
+> (Whereas the simple vm_swap_full remove_exclusive_swap_page which
+> Rik added at activate_locked was an order of magnitude more
+> successful: not a major route, but still worth doing.)
 
-I wonder why nobody else got irritated by the spam?  Nobody else
-half-filling their swap, I suppose.  But it was a really cunning
-way of forcing me to look closer at Rik's patch, I couldn't fairly
-ask you to stop the spam without doing so.
+I'm guessing this depends on the workload, too.  With longer
+running jobs, we may have more pages staying on the active
+list after being swapped out once, while swap fills up with
+unrelated things.
 
-Rik's patch is plausible, I like the idea, as I hate the idea of
-marking anon pages "mlocked" once swap fills up.  But I found
-several amusing things once I tested how it works in practice.
+Not sure how to trigger that in a benchmark though - it seems
+more like a typical week old desktop that has some things
+lingering in the swap cache state for days on end...
 
-Firstly, the vast majority of the pages arriving at pagevec_swap_free
-were !PageActive, the very ones it wanted not to free the swap of.
-Perhaps "vast majority" was an artifact of the kbuild workload, and
-others would show a different balance: but because the pvec is first
-given l_inactive pages, then l_active pages added without intervening
-flush, there's certainly a tendency for !PageActive pages to get
-caught up with the PageActive ones it want to free the swap of.
-Easily fixed by adding a pagevec_release (though irritating to
-have to drop and reget the lru_lock around it), or by testing
-for PageActive in pagevec_swap_free.
+> Why did pagevec_swap_free end up freeing so little?  I guess
+> because the vm_swap_full remove_exclusive_swap_page in do_swap_page
+> was successfully freeing so much.  But also, because of another
+> (incomplete) patch I've had around for months, which I added in
+> to the instrumentation: when do_wp_page decides it can use the
+> swapcache page directly, isn't that a very good time to remove
+> from swapcache?  
 
-Secondly, I found that of all those "kswapd freed a swap space"
-pages, actually _none_ of them freed a swap space: the return value
-from remove_exclusive_swap_page tells that, and when you follow it
-up, you find that the page_count is too high for it to free them.
-Now those page_count checks in remove_exclusive_swap_page (and in
-free_swap_and_cache) are rather antique, from long before mapcount:
-both Andrea and Nick have in the past suggested we change them, and
-I've resisted for no better reasons than excessive caution and my
-mind on other matters.  Probably it is now time to change them:
-and to take the testing further I did so (though I'd want to spend
-a lot more time mulling over and testing the new versions before
-pushing them forward), so pagevec_swap_free could now free swap.
+That sounds like a good idea.  I wonder if it should be
+conditional on vm_swap_full()...
 
-Thirdly, I instrumented __delete_from_swap_cache and its various
-callpaths to count where swap was actually getting freed from.
-And the number freed via pagevec_swap_free was so tiny compared
-with the other routes, it doesn't seem worth adding the overhead.
-(Whereas the simple vm_swap_full remove_exclusive_swap_page which
-Rik added at activate_locked was an order of magnitude more
-successful: not a major route, but still worth doing.)
+> Perhaps Rik can offer some very different results to support
+> his patch; but if not, I think drop it (and your debug) from
+> mm for now.
 
-Why did pagevec_swap_free end up freeing so little?  I guess
-because the vm_swap_full remove_exclusive_swap_page in do_swap_page
-was successfully freeing so much.  But also, because of another
-(incomplete) patch I've had around for months, which I added in
-to the instrumentation: when do_wp_page decides it can use the
-swapcache page directly, isn't that a very good time to remove
-from swapcache?  The data on disk can no longer be useful,
-the only advantage to leaving in swapcache is to avoid the
-overhead of remove-and-perhaps-later-add-again: against that,
-if the page has to be written out to swap again, its old swap
-position is likely to be far away from where swap_writepage is
-now writing freshly allocated swap.
+Drop just the swap freeing from the active list rotation,
+or also the activate_locked: path (which was effective in
+your measurements) ?
 
-Perhaps Rik can offer some very different results to support
-his patch; but if not, I think drop it (and your debug) from
-mm for now.
-
-Hugh
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
