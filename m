@@ -1,76 +1,42 @@
-Message-ID: <460A201C.3070405@yahoo.com.au>
-Date: Wed, 28 Mar 2007 17:58:20 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: 28 Mar 2007 05:50:14 -0400
+Message-ID: <20070328095014.20945.qmail@science.horizon.com>
+From: linux@horizon.com
 Subject: Re: [patch resend v4] update ctime and mtime for mmaped write
-References: <20070328014816.4159.qmail@science.horizon.com>
-In-Reply-To: <20070328014816.4159.qmail@science.horizon.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <460A201C.3070405@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux@horizon.com
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: nickpiggin@yahoo.com.au
+Cc: akpm@linux-foundation.org, linux@horizon.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-linux@horizon.com wrote:
->>Linux _will_ write all modified data to permanent storage locations.
->>Since 2.6.17 it will do this regardless of msync().  Before 2.6.17 you
->>do need msync() to enable data to be written back.
->>
->>But it will not start I/O immediately, which is not a requirement in
->>the standard, or at least it's pretty vague about that.
-> 
-> 
-> As I've said before, I disagree, but I'm not going to start a major
-> flame war about it.
-> 
-> The most relevant paragraph is:
-> 
-> # When MS_ASYNC is specified, msync() returns immediately once all the
-> # write operations are initiated or queued for servicing; when MS_SYNC is
-> # specified, msync() will not return until all write operations are
-> # completed as defined for synchronised I/O data integrity completion.
-> # Either MS_ASYNC or MS_SYNC is specified, but not both.
-> 
-> Note two things:
-> 1) In the paragraphs before, what msync does is defined independently
->    of the MS_* flags.  Only the time of the return to user space varies.
->    Thus, whatever the delay between calling msync() and the data being
->    written, it should be the same whether MS_SYNC or MS_ASYNC is used.
-> 
->    The implementation intended is:
->    - Start all I/O
->    - If MS_SYNC, wait for I/O to complete
->    - Return to user space
+> But if you didn't notice until now, then the current implementation
+> must be pretty reasonable for you use as well.
 
-set_page_dirty queues pages for IO, and the writeout daemon will service
-that queue when it sees fit. IMO it is sufficient that you cannot say the
-implementation does not meet the standard.
+Oh, I definitely noticed.  As soon as I tried to port my application
+to 2.6, it broke - as evidenced by my complaints last year.  The
+current solution is simple - since it's running on dedicated boxes,
+leave them on 2.4.
 
+I've now got the hint on how to make it work on 2.6 (sync_file_range()),
+so I can try again.  But the pressure to upgrade is not strong, so it
+might be a while.
 
-> 2) "all the write operations are initiated or queued for servicing".
->    It is a common convention in English (and most languages, I expect)
->    that in the "or" is a preference for the first alternative.  The second
->    is a permitted alternative if the first is not possible.
-> 
->    And "queued for servicing", especially "initiated or queued for
->    servicing", to me imples queuing waiting for some resource.  To have
->    the resource being waited for be a timer expiry seems like rather a
->    cheat to me.  It's perhaps doesn't break the letter of the standard,
->    but definitely bends it.  It feels like a fiddle.
-> 
-> Still, the basic hint function of msync(MS_ASYNC) *is* being accomplished:
-> "I don't expect to write this page any more, so now would be a good time
-> to clean it."
-> It would just make my life easier if the kernel procrastinated less.
+You may recall, this subthread started when I responding to "the
+only reason to use msync(MS_ASYNC) is to update timestamps" with a
+counterexample.  I still think the purpose of the call is a hint to the
+kernel that writing to the specified page(s) is complete and now would be
+a good time to clean them.  Which has very little to do with timestamps.
 
-But if you didn't notice until now, then the current implementation
-must be pretty reasonable for you use as well.
+Now, my application, which leaves less than a second between the MS_ASYNC
+and a subsequent MS_SYNC to check whether it's done, broke, but I can
+imagine similar cases where MS_ASYNC would remain a useful hint to reduce
+the sort of memory hogging generally associated with "dd if=/dev/zero"
+type operations.
 
--- 
-SUSE Labs, Novell Inc.
-Send instant messages to your online friends http://au.messenger.yahoo.com 
+Reading between the lines of the standard, that seems (to me, at least)
+to obviously be the intended purpose of msync(MS_ASYNC).  I wonder if
+there's any historical documentation describing the original intent
+behind creating the call.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
