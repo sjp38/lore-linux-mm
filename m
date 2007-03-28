@@ -1,83 +1,82 @@
-Date: Wed, 28 Mar 2007 15:54:24 +0100 (BST)
+Date: Wed, 28 Mar 2007 18:17:57 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 4/4] holepunch: fix mmap_sem i_mutex deadlock
-In-Reply-To: <Pine.LNX.4.64.0703281543230.11119@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0703281552520.11726@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0703281543230.11119@blonde.wat.veritas.com>
+Subject: kswapd freed a swap space?
+Message-ID: <Pine.LNX.4.64.0703281808410.20922@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miklos Szeredi <mszeredi@suse.cz>, Badari Pulavarty <pbadari@us.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-sys_madvise has down_write of mmap_sem, then madvise_remove calls
-vmtruncate_range which takes i_mutex and i_alloc_sem: no, we can
-easily devise deadlocks from that ordering.
+Andrew,
 
-madvise_remove drop mmap_sem while calling vmtruncate_range: luckily,
-since madvise_remove doesn't split or merge vmas, it's easy to handle
-this case with a NULL prev, without restructuring sys_madvise.  (Though
-sad to retake mmap_sem when it's unlikely to be needed, and certainly
-down_read is sufficient for MADV_REMOVE, unlike the other madvices.)
+Please drop your "kswapd freed a swap space"-spamming
+mm-only-free-swap-space-of-reactivated-pages-debug.patch
+from the -mm tree, and please also drop Rik's
+free-swap-space-of-reactivated-pages.patch
+upon which you placed it to inform.
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
-Cc: Miklos Szeredi <mszeredi@suse.cz>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>
----
+I wonder why nobody else got irritated by the spam?  Nobody else
+half-filling their swap, I suppose.  But it was a really cunning
+way of forcing me to look closer at Rik's patch, I couldn't fairly
+ask you to stop the spam without doing so.
 
- mm/madvise.c |   19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
+Rik's patch is plausible, I like the idea, as I hate the idea of
+marking anon pages "mlocked" once swap fills up.  But I found
+several amusing things once I tested how it works in practice.
 
---- punch3/mm/madvise.c	2007-03-26 07:30:54.000000000 +0100
-+++ punch4/mm/madvise.c	2007-03-28 11:51:01.000000000 +0100
-@@ -159,9 +159,10 @@ static long madvise_remove(struct vm_are
- 				unsigned long start, unsigned long end)
- {
- 	struct address_space *mapping;
--        loff_t offset, endoff;
-+	loff_t offset, endoff;
-+	int error;
- 
--	*prev = vma;
-+	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
- 
- 	if (vma->vm_flags & (VM_LOCKED|VM_NONLINEAR|VM_HUGETLB))
- 		return -EINVAL;
-@@ -180,7 +181,12 @@ static long madvise_remove(struct vm_are
- 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
- 	endoff = (loff_t)(end - vma->vm_start - 1)
- 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
--	return  vmtruncate_range(mapping->host, offset, endoff);
-+
-+	/* vmtruncate_range needs to take i_mutex and i_alloc_sem */
-+	up_write(&current->mm->mmap_sem);
-+	error = vmtruncate_range(mapping->host, offset, endoff);
-+	down_write(&current->mm->mmap_sem);
-+	return error;
- }
- 
- static long
-@@ -315,12 +321,15 @@ asmlinkage long sys_madvise(unsigned lon
- 		if (error)
- 			goto out;
- 		start = tmp;
--		if (start < prev->vm_end)
-+		if (prev && start < prev->vm_end)
- 			start = prev->vm_end;
- 		error = unmapped_error;
- 		if (start >= end)
- 			goto out;
--		vma = prev->vm_next;
-+		if (prev)
-+			vma = prev->vm_next;
-+		else	/* madvise_remove dropped mmap_sem */
-+			vma = find_vma(current->mm, start);
- 	}
- out:
- 	up_write(&current->mm->mmap_sem);
+Firstly, the vast majority of the pages arriving at pagevec_swap_free
+were !PageActive, the very ones it wanted not to free the swap of.
+Perhaps "vast majority" was an artifact of the kbuild workload, and
+others would show a different balance: but because the pvec is first
+given l_inactive pages, then l_active pages added without intervening
+flush, there's certainly a tendency for !PageActive pages to get
+caught up with the PageActive ones it want to free the swap of.
+Easily fixed by adding a pagevec_release (though irritating to
+have to drop and reget the lru_lock around it), or by testing
+for PageActive in pagevec_swap_free.
+
+Secondly, I found that of all those "kswapd freed a swap space"
+pages, actually _none_ of them freed a swap space: the return value
+from remove_exclusive_swap_page tells that, and when you follow it
+up, you find that the page_count is too high for it to free them.
+Now those page_count checks in remove_exclusive_swap_page (and in
+free_swap_and_cache) are rather antique, from long before mapcount:
+both Andrea and Nick have in the past suggested we change them, and
+I've resisted for no better reasons than excessive caution and my
+mind on other matters.  Probably it is now time to change them:
+and to take the testing further I did so (though I'd want to spend
+a lot more time mulling over and testing the new versions before
+pushing them forward), so pagevec_swap_free could now free swap.
+
+Thirdly, I instrumented __delete_from_swap_cache and its various
+callpaths to count where swap was actually getting freed from.
+And the number freed via pagevec_swap_free was so tiny compared
+with the other routes, it doesn't seem worth adding the overhead.
+(Whereas the simple vm_swap_full remove_exclusive_swap_page which
+Rik added at activate_locked was an order of magnitude more
+successful: not a major route, but still worth doing.)
+
+Why did pagevec_swap_free end up freeing so little?  I guess
+because the vm_swap_full remove_exclusive_swap_page in do_swap_page
+was successfully freeing so much.  But also, because of another
+(incomplete) patch I've had around for months, which I added in
+to the instrumentation: when do_wp_page decides it can use the
+swapcache page directly, isn't that a very good time to remove
+from swapcache?  The data on disk can no longer be useful,
+the only advantage to leaving in swapcache is to avoid the
+overhead of remove-and-perhaps-later-add-again: against that,
+if the page has to be written out to swap again, its old swap
+position is likely to be far away from where swap_writepage is
+now writing freshly allocated swap.
+
+Perhaps Rik can offer some very different results to support
+his patch; but if not, I think drop it (and your debug) from
+mm for now.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
