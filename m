@@ -1,55 +1,63 @@
-Date: Thu, 29 Mar 2007 14:10:55 +0100 (BST)
+Date: Thu, 29 Mar 2007 14:39:29 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc][patch 1/2] mm: dont account ZERO_PAGE
-In-Reply-To: <20070329075805.GA6852@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
-References: <20070329075805.GA6852@wotan.suse.de>
+Subject: Re: [PATCH 1/4] holepunch: fix shmem_truncate_range punching too
+ far
+In-Reply-To: <E1HWtTi-00013Z-00@dorka.pomaz.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0703291412240.24494@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0703281543230.11119@blonde.wat.veritas.com>
+ <E1HWsJq-0000vz-00@dorka.pomaz.szeredi.hu> <Pine.LNX.4.64.0703291212080.19050@blonde.wat.veritas.com>
+ <E1HWtTi-00013Z-00@dorka.pomaz.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, mszeredi@suse.cz, pbadari@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Mar 2007, Nick Piggin wrote:
+On Thu, 29 Mar 2007, Miklos Szeredi wrote:
 > 
-> Special-case the ZERO_PAGE to prevent it from being accounted like a normal
-> mapped page. This is not illogical or unclean, because the ZERO_PAGE is
-> heavily special cased through the page fault path.
+> I think we should at least have a
+> 
+>   BUG_ON((end + 1) % PAGE_CACHE_SIZE);
+> 
+> or something, to remind us about this wart.
 
-Thou dost protest too much!  By "heavily special cased through the page
-fault path" you mean do_wp_page() uses a pre-zeroed page when it spots
-it, instead of copying its data.  That's rather a different case.
+truncate_inode_pages_range does indeed have
+	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
+but you're right that falls short of covering all the places we might
+make such a mistake.
 
-Look, I don't have any vehement objection to exempting the ZERO_PAGE
-from accounting: if you remember before, I just suggested it was of
-questionable value to exempt it, and the exemption should be made a
-separate patch.
+And in future I'd expect them to be extended to allow non-page-sized
+holes, zeroing the partial areas at each end of the hole: whereupon
+no such BUG_ON will be possible.
 
-But this patch is not complete, is it?  For example, fremap.c's
-zap_pte?  I haven't checked further.  I was going to suggest you
-should make ZERO_PAGEs fail vm_normal_page, but I guess do_wp_page
-wouldn't behave very well then ;)  Tucking the tests away in some
-vm_normal_page-like function might make them more acceptable.
+I'd much prefer to change the interface to vmtruncate_range,
+truncate_inode_pages_range, shmem_truncate_range,
+i_op->truncate_range, to take the expected end offset.
 
-> A test-case which took over 2 hours to complete on a 1024 core Altix
-> takes around 2 seconds afterward.
+There are other interface changes needed to eradicate
+(rather than paper over) the races we've mentioned in private mail.
+shmem_truncate_range, and I believe any other implementation of an
+i_op->truncate_range, needs to know when the holepunch is beginning
+(if the prior unmap_mapping_range and truncate_inode_pages_range
+aren't just to be a waste of time that has to be repeated).
+Easiest is just to move those calls into each i_op->truncate_range.
 
-Oh, it's easy to devise a test-case of that kind, but does it matter
-in real life?  I admit that what most people run on their 1024-core
-Altices will be significantly different from what I checked on my
-laptop back then, but in my case use of the ZERO_PAGE didn't look
-common enough to make special cases for.
+But are we free to make such interface changes now?
+Might third parties have observed MADV_REMOVE and ->truncate_range,
+and be implementing them in their own filesystems?
 
-You put forward a pagecache replication patch a few weeks ago.
-That's what I expected to happen to the ZERO_PAGE, once NUMA folks
-complained of the accounting.  Isn't that a better way to go?
+And another change I'd like to suggest: at present holepunching
+is using unmap_mapping_range(,,,1) which discards privately COWed
+pages from vmas.  It's certainly easier to implement unracily if
+we change it only to unmap the shared file pages: and I argue that
+it's more correct that way, that the madvise(,,MADV_REMOVE) caller
+should not be discarding private data from others' address spaces.
 
-Or is there some important app on the Altix which uses the
-ZERO_PAGE so very much, that its interesting data remains shared
-between nodes forever, and it's only its struct page cacheline
-bouncing dirtily from one to another that slows things down?
+That behaviour is mandated by standards for truncation, and probably
+necessary for consistent SIGBUS-beyond-EOF behaviour: but I question
+(a year late!) whether we should be extending it to holepunching.
 
 Hugh
 
