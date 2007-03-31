@@ -1,409 +1,235 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070331193107.1800.28259.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070331193112.1800.83399.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070331193056.1800.68058.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070331193056.1800.68058.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [SLUB 2/2] i386 arch page size slab fixes
-Date: Sat, 31 Mar 2007 11:31:07 -0800 (PST)
+Subject: [SLUB tool] slabinfo: Display slab statistics
+Date: Sat, 31 Mar 2007 11:31:12 -0800 (PST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>, mpm@selenic.com
+Cc: linux-mm@kvack.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Fixup i386 arch for SLUB support
+/*
+ * Slabinfo: Tool to get reports about slabs
+ *
+ * (C) 2007 sgi, Christoph Lameter <clameter@sgi.com>
+ *
+ * Compile by doing:
+ *
+ * gcc -o slabinfo slabinfo.c
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdarg.h>
 
-i386 arch code currently uses the page struct of slabs for various purposes.
-This interferes with slub and so SLUB has been disabled for i386 by setting
-ARCH_USES_SLAB_PAGE_STRUCT.
+char buffer[200];
 
-This patch removes the use of page sized slabs for maintaining pgds and pmds.
+int show_alias = 0;
+int show_slab = 1;
+int show_parameter = 0;
+int skip_zero = 1;
 
-Patch by William Irwin with only very minor modifications by me which are
+int page_size;
 
-1. Removal of HIGHMEM64G slab caches. It seems that virtualization hosts
-   require a a full pgd page.
+void fatal(const char *x, ...)
+{
+	va_list ap;
 
-2. Add missing virtualization hook. Seems that we need a new way
-   of serializing paravirt_alloc(). It may need to do its own serialization.
+	va_start(ap, x);
+	vfprintf(stderr, x, ap);
+	va_end(ap);
+	exit(1);
+}
 
-3. Remove ARCH_USES_SLAB_PAGE_STRUCT
+/*
+ * Get the contents of an attribute
+ */
+unsigned long get_obj(char *name)
+{
+	FILE *f = fopen(name, "r");
+	unsigned long result = 0;
 
-Note that this makes things work without debugging on.
-The arch still fails to boot properly if full SLUB debugging is on with
-a cryptic message:
+	if (!f) {
+		getcwd(buffer, sizeof(buffer));
+		fatal("Cannot open file '%s/%s'\n", buffer, name);
+	}
 
-CPU: AMD Athlon(tm) 64 Processor 3000+ stepping 00
-Checking 'hlt' instruction... OK.
-ACPI: Core revision 20070126
-ACPI: setting ELCR to 0200 (from 1ca0)
-BUG: at kernel/sched.c:3417 sub_preempt_count()
- [<c0342d43>] _spin_unlock_irq+0x13/0x30
- [<c01160e6>] schedule_tail+0x36/0xd0
- [<c0102df8>] __switch_to+0x28/0x180
- [<c0103f9a>] ret_from_fork+0x6/0x1c
- [<c012acf0>] kthread+0x0/0xe0
+	if (fgets(buffer,sizeof(buffer), f))
+		result = atol(buffer);
+	fclose(f);
+	return result;
+}
 
-This may have a coule of reasons:
+/*
+ * Put a size string together
+ */
+int store_size(char *buffer, unsigned long value)
+{
+	unsigned long divisor = 1;
+	char trailer = 0;
+	int n;
 
-1. SLUB breakage. kmalloc caches have been initialized but maybe debugging
-   uses a facility that is not available that early (can find nothing).
+	if (value > 1000000000UL) {
+		divisor = 100000000UL;
+		trailer = 'G';
+	} else if (value > 1000000UL) {
+		divisor = 100000UL;
+		trailer = 'M';
+	} else if (value > 1000UL) {
+		divisor = 100;
+		trailer = 'K';
+	}
 
-2. SLAB does not enable full debugging for page order slabs. SLUB does.
-   So we were so far unable to verify that the code is clean for these
-   slabs. There could be some unsolved slab issues. i386 fails to boot
-   if any of the debug options that require additional metadata at the
-   end of an object or poisoning is enabled. Boot will work with sanity
-   checks only.
+	value /= divisor;
+	n = sprintf(buffer, "%ld",value);
+	if (trailer) {
+		buffer[n] = trailer;
+		n++;
+		buffer[n] = 0;
+	}
+	if (divisor != 1) {
+		memmove(buffer + n - 2, buffer + n - 3, 4);
+		buffer[n-2] = '.';
+		n++;
+	}
+	return n;
+}
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-Signed-off-by: William Lee Irwin III <wli@holomorphy.com>
+void alias(const char *name)
+{
+	char *target;
 
-Index: linux-2.6.21-rc5-mm3/arch/i386/mm/init.c
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/arch/i386/mm/init.c	2007-03-30 18:26:11.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/arch/i386/mm/init.c	2007-03-30 18:28:04.000000000 -0700
-@@ -696,31 +696,6 @@ int remove_memory(u64 start, u64 size)
- EXPORT_SYMBOL_GPL(remove_memory);
- #endif
- 
--struct kmem_cache *pgd_cache;
--struct kmem_cache *pmd_cache;
--
--void __init pgtable_cache_init(void)
--{
--	if (PTRS_PER_PMD > 1) {
--		pmd_cache = kmem_cache_create("pmd",
--					PTRS_PER_PMD*sizeof(pmd_t),
--					PTRS_PER_PMD*sizeof(pmd_t),
--					0,
--					pmd_ctor,
--					NULL);
--		if (!pmd_cache)
--			panic("pgtable_cache_init(): cannot create pmd cache");
--	}
--	pgd_cache = kmem_cache_create("pgd",
--				PTRS_PER_PGD*sizeof(pgd_t),
--				PTRS_PER_PGD*sizeof(pgd_t),
--				0,
--				pgd_ctor,
--				PTRS_PER_PMD == 1 ? pgd_dtor : NULL);
--	if (!pgd_cache)
--		panic("pgtable_cache_init(): Cannot create pgd cache");
--}
--
- /*
-  * This function cannot be __init, since exceptions don't work in that
-  * section.  Put this after the callers, so that it cannot be inlined.
-Index: linux-2.6.21-rc5-mm3/arch/i386/mm/pageattr.c
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/arch/i386/mm/pageattr.c	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/arch/i386/mm/pageattr.c	2007-03-30 18:28:04.000000000 -0700
-@@ -87,24 +87,23 @@ static void flush_kernel_map(void *arg)
- 
- static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte) 
- { 
--	struct page *page;
--	unsigned long flags;
-+	struct mm_struct *mm;
- 
- 	set_pte_atomic(kpte, pte); 	/* change init_mm */
- 	if (PTRS_PER_PMD > 1)
- 		return;
- 
--	spin_lock_irqsave(&pgd_lock, flags);
--	for (page = pgd_list; page; page = (struct page *)page->index) {
--		pgd_t *pgd;
-+	spin_lock(&mmlist_lock);
-+	list_for_each_entry(mm, &init_mm.mmlist, mmlist) {
-+		pgd_t *pgd = mm->pgd;
- 		pud_t *pud;
- 		pmd_t *pmd;
--		pgd = (pgd_t *)page_address(page) + pgd_index(address);
-+
- 		pud = pud_offset(pgd, address);
- 		pmd = pmd_offset(pud, address);
- 		set_pte_atomic((pte_t *)pmd, pte);
- 	}
--	spin_unlock_irqrestore(&pgd_lock, flags);
-+	spin_unlock(&mmlist_lock);
- }
- 
- /* 
-Index: linux-2.6.21-rc5-mm3/arch/i386/mm/pgtable.c
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/arch/i386/mm/pgtable.c	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/arch/i386/mm/pgtable.c	2007-03-30 18:28:04.000000000 -0700
-@@ -181,109 +181,30 @@ void reserve_top_address(unsigned long r
- #endif
- }
- 
--pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
--{
--	return (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
--}
--
--struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
--{
--	struct page *pte;
--
--#ifdef CONFIG_HIGHPTE
--	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
--#else
--	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
--#endif
--	return pte;
--}
--
--void pmd_ctor(void *pmd, struct kmem_cache *cache, unsigned long flags)
--{
--	memset(pmd, 0, PTRS_PER_PMD*sizeof(pmd_t));
--}
--
--/*
-- * List of all pgd's needed for non-PAE so it can invalidate entries
-- * in both cached and uncached pgd's; not needed for PAE since the
-- * kernel pmd is shared. If PAE were not to share the pmd a similar
-- * tactic would be needed. This is essentially codepath-based locking
-- * against pageattr.c; it is the unique case in which a valid change
-- * of kernel pagetables can't be lazily synchronized by vmalloc faults.
-- * vmalloc faults work because attached pagetables are never freed.
-- * The locking scheme was chosen on the basis of manfred's
-- * recommendations and having no core impact whatsoever.
-- * -- wli
-- */
--DEFINE_SPINLOCK(pgd_lock);
--struct page *pgd_list;
--
--static inline void pgd_list_add(pgd_t *pgd)
--{
--	struct page *page = virt_to_page(pgd);
--	page->index = (unsigned long)pgd_list;
--	if (pgd_list)
--		set_page_private(pgd_list, (unsigned long)&page->index);
--	pgd_list = page;
--	set_page_private(page, (unsigned long)&pgd_list);
--}
--
--static inline void pgd_list_del(pgd_t *pgd)
--{
--	struct page *next, **pprev, *page = virt_to_page(pgd);
--	next = (struct page *)page->index;
--	pprev = (struct page **)page_private(page);
--	*pprev = next;
--	if (next)
--		set_page_private(next, (unsigned long)pprev);
--}
--
--void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
--{
--	unsigned long flags;
--
--	if (PTRS_PER_PMD == 1) {
--		memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
--		spin_lock_irqsave(&pgd_lock, flags);
--	}
--
--	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
--			swapper_pg_dir + USER_PTRS_PER_PGD,
--			KERNEL_PGD_PTRS);
--
--	if (PTRS_PER_PMD > 1)
--		return;
--
--	/* must happen under lock */
--	paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
--			__pa(swapper_pg_dir) >> PAGE_SHIFT,
--			USER_PTRS_PER_PGD, PTRS_PER_PGD - USER_PTRS_PER_PGD);
--
--	pgd_list_add(pgd);
--	spin_unlock_irqrestore(&pgd_lock, flags);
--}
--
--/* never called when PTRS_PER_PMD > 1 */
--void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
--{
--	unsigned long flags; /* can be called from interrupt context */
--
--	paravirt_release_pd(__pa(pgd) >> PAGE_SHIFT);
--	spin_lock_irqsave(&pgd_lock, flags);
--	pgd_list_del(pgd);
--	spin_unlock_irqrestore(&pgd_lock, flags);
--}
-+#define __pgd_alloc()	((pgd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT))
-+#define __pgd_free(pgd)	free_page((unsigned long)(pgd))
- 
- pgd_t *pgd_alloc(struct mm_struct *mm)
- {
- 	int i;
--	pgd_t *pgd = kmem_cache_alloc(pgd_cache, GFP_KERNEL);
-+	pgd_t *pgd = __pgd_alloc();
- 
--	if (PTRS_PER_PMD == 1 || !pgd)
-+	if (!pgd)
-+		return NULL;
-+	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
-+		swapper_pg_dir + USER_PTRS_PER_PGD, KERNEL_PGD_PTRS);
-+	if (PTRS_PER_PMD == 1)
- 		return pgd;
-+	/*
-+	 * Beware. We do not have the pgd_lock for serialization anymore.
-+	 * paravirt_alloc_pd_clone needs to have its own serialization?
-+	 */
-+	 paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
-+		__pa(swapper_pg_dir) >> PAGE_SHIFT,
-+		USER_PTRS_PER_PGD, PTRS_PER_PGD - USER_PTRS_PER_PGD);
- 
- 	for (i = 0; i < USER_PTRS_PER_PGD; ++i) {
--		pmd_t *pmd = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
-+		pmd_t *pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
- 		if (!pmd)
- 			goto out_oom;
- 		paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
-@@ -296,9 +217,9 @@ out_oom:
- 		pgd_t pgdent = pgd[i];
- 		void* pmd = (void *)__va(pgd_val(pgdent)-1);
- 		paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
--		kmem_cache_free(pmd_cache, pmd);
-+		free_page((unsigned long)pmd);
- 	}
--	kmem_cache_free(pgd_cache, pgd);
-+	__pgd_free(pgd);
- 	return NULL;
- }
- 
-@@ -312,8 +233,8 @@ void pgd_free(pgd_t *pgd)
- 			pgd_t pgdent = pgd[i];
- 			void* pmd = (void *)__va(pgd_val(pgdent)-1);
- 			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
--			kmem_cache_free(pmd_cache, pmd);
-+			free_page((unsigned long)pmd);
- 		}
- 	/* in the non-PAE case, free_pgtables() clears user pgd entries */
--	kmem_cache_free(pgd_cache, pgd);
-+	__pgd_free(pgd);
- }
-Index: linux-2.6.21-rc5-mm3/include/asm-i386/pgalloc.h
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/include/asm-i386/pgalloc.h	2007-03-30 18:26:15.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/include/asm-i386/pgalloc.h	2007-03-30 18:28:04.000000000 -0700
-@@ -35,8 +35,22 @@ do {								\
- extern pgd_t *pgd_alloc(struct mm_struct *);
- extern void pgd_free(pgd_t *pgd);
- 
--extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
--extern struct page *pte_alloc_one(struct mm_struct *, unsigned long);
-+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long uvaddr)
-+{
-+	return (pte_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
-+}
-+
-+#ifdef CONFIG_HIGHPTE
-+static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long uvaddr)
-+{
-+	return alloc_page(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO);
-+}
-+#else /* !CONFIG_HIGHPTE */
-+static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long uvaddr)
-+{
-+	return alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-+}
-+#endif /* !CONFIG_HIGHPTE */
- 
- static inline void pte_free_kernel(pte_t *pte)
- {
-Index: linux-2.6.21-rc5-mm3/include/asm-i386/pgtable.h
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/include/asm-i386/pgtable.h	2007-03-30 18:26:15.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/include/asm-i386/pgtable.h	2007-03-30 18:28:04.000000000 -0700
-@@ -35,15 +35,6 @@ struct vm_area_struct;
- #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
- extern unsigned long empty_zero_page[1024];
- extern pgd_t swapper_pg_dir[1024];
--extern struct kmem_cache *pgd_cache;
--extern struct kmem_cache *pmd_cache;
--extern spinlock_t pgd_lock;
--extern struct page *pgd_list;
--
--void pmd_ctor(void *, struct kmem_cache *, unsigned long);
--void pgd_ctor(void *, struct kmem_cache *, unsigned long);
--void pgd_dtor(void *, struct kmem_cache *, unsigned long);
--void pgtable_cache_init(void);
- void paging_init(void);
- 
- /*
-Index: linux-2.6.21-rc5-mm3/include/asm-i386/pgtable-2level.h
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/include/asm-i386/pgtable-2level.h	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/include/asm-i386/pgtable-2level.h	2007-03-30 18:28:04.000000000 -0700
-@@ -67,5 +67,6 @@ static inline int pte_exec_kernel(pte_t 
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
- 
- void vmalloc_sync_all(void);
-+#define pgtable_cache_init()		do { } while (0)
- 
- #endif /* _I386_PGTABLE_2LEVEL_H */
-Index: linux-2.6.21-rc5-mm3/include/asm-i386/pgtable-3level.h
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/include/asm-i386/pgtable-3level.h	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/include/asm-i386/pgtable-3level.h	2007-03-30 18:28:04.000000000 -0700
-@@ -188,5 +188,6 @@ static inline pmd_t pfn_pmd(unsigned lon
- #define __pmd_free_tlb(tlb, x)		do { } while (0)
- 
- #define vmalloc_sync_all() ((void)0)
-+void pgtable_cache_init(void);
- 
- #endif /* _I386_PGTABLE_3LEVEL_H */
-Index: linux-2.6.21-rc5-mm3/arch/i386/mm/fault.c
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/arch/i386/mm/fault.c	2007-03-30 18:26:11.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/arch/i386/mm/fault.c	2007-03-30 18:28:04.000000000 -0700
-@@ -618,19 +618,19 @@ void vmalloc_sync_all(void)
- 	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
- 	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
- 		if (!test_bit(pgd_index(address), insync)) {
--			unsigned long flags;
--			struct page *page;
-+			struct mm_struct *mm;
-+			int broken = 0;
- 
--			spin_lock_irqsave(&pgd_lock, flags);
--			for (page = pgd_list; page; page =
--					(struct page *)page->index)
--				if (!vmalloc_sync_one(page_address(page),
--								address)) {
--					BUG_ON(page != pgd_list);
--					break;
--				}
--			spin_unlock_irqrestore(&pgd_lock, flags);
--			if (!page)
-+			spin_lock(&mmlist_lock);
-+			list_for_each_entry(mm, &init_mm.mmlist, mmlist) {
-+				if (vmalloc_sync_one(mm->pgd, address))
-+					continue;
-+				BUG_ON(mm->mmlist.prev != &init_mm.mmlist);
-+				broken = 1;
-+				break;
-+			}
-+			spin_unlock(&mmlist_lock);
-+			if (!broken)
- 				set_bit(pgd_index(address), insync);
- 		}
- 		if (address == start && test_bit(pgd_index(address), insync))
-Index: linux-2.6.21-rc5-mm3/arch/i386/Kconfig
-===================================================================
---- linux-2.6.21-rc5-mm3.orig/arch/i386/Kconfig	2007-03-30 18:27:03.000000000 -0700
-+++ linux-2.6.21-rc5-mm3/arch/i386/Kconfig	2007-03-30 18:28:04.000000000 -0700
-@@ -79,10 +79,6 @@ config ARCH_MAY_HAVE_PC_FDC
- 	bool
- 	default y
- 
--config ARCH_USES_SLAB_PAGE_STRUCT
--	bool
--	default y
--
- config DMI
- 	bool
- 	default y
+	if (!show_alias)
+		return;
+	/* Read link target */
+	printf("%20s -> %s", name, target);
+}
+
+int line = 0;
+
+void first_line(void)
+{
+	printf("Name                Objects   Objsize    Space "
+		"Slabs/Part/Cpu O/S O %%Fr %%Ef Flg\n");
+}
+
+void slab(const char *name)
+{
+	unsigned long aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;
+	unsigned long hwcache_align, object_size, objects, objs_per_slab;
+	unsigned long order, partial, poison, reclaim_account, red_zone;
+	unsigned long sanity_checks, slab_size, slabs, store_user, trace;
+	char size_str[20];
+	char dist_str[40];
+	char flags[20];
+	char *p = flags;
+
+	if (!show_slab)
+		return;
+
+	if (chdir(name))
+		fatal("Unable to access slab %s\n", name);
+
+	aliases = get_obj("aliases");
+	align = get_obj("align");
+	cache_dma = get_obj("cache_dma");
+	cpu_slabs = get_obj("cpu_slabs");
+	destroy_by_rcu = get_obj("destroy_by_rcu");
+	hwcache_align = get_obj("hwcache_align");
+	object_size = get_obj("object_size");
+	objects = get_obj("objects");
+	objs_per_slab = get_obj("objs_per_slab");
+	order = get_obj("order");
+	partial = get_obj("partial");
+	poison = get_obj("poison");
+	reclaim_account = get_obj("reclaim_account");
+	red_zone = get_obj("red_zone");
+	sanity_checks = get_obj("sanity_checks");
+	slab_size = get_obj("slab_size");
+	slabs = get_obj("slabs");
+	store_user = get_obj("store_user");
+	trace = get_obj("trace");
+
+	if (skip_zero && !slabs)
+		goto out;
+
+	store_size(size_str, slabs * page_size);
+	sprintf(dist_str,"%lu/%lu/%lu", slabs, partial, cpu_slabs);
+
+	if (!line++)
+		first_line();
+
+	if (aliases)
+		*p++ = '*';
+	if (cache_dma)
+		*p++ = 'd';
+	if (hwcache_align)
+		*p++ = 'A';
+	if (poison)
+		*p++ = 'P';
+	if (reclaim_account)
+		*p++ = 'a';
+	if (red_zone)
+		*p++ = 'Z';
+	if (sanity_checks)
+		*p++ = 'F';
+	if (store_user)
+		*p++ = 'U';
+	if (trace)
+		*p++ = 'T';
+
+	*p = 0;
+	printf("%-20s %8ld %7d %8s %14s %3ld %1ld %3d %3d %s\n",
+			name, objects, object_size, size_str, dist_str,
+			objs_per_slab, order,
+			slabs ? (partial * 100) / slabs : 100,
+			slabs ? (objects * object_size * 100) / (slabs * (page_size << order)) : 100,
+			flags);
+out:
+	chdir("..");
+}
+
+void parameter(const char *name)
+{
+	if (!show_parameter)
+		return;
+}
+
+int main(int argc, char *argv[])
+{
+	DIR *dir;
+	struct dirent *de;
+
+	page_size = getpagesize();
+	if (chdir("/sys/slab"))
+		fatal("This kernel does not have SLUB support.\n");
+
+	dir = opendir(".");
+	while ((de = readdir(dir))) {
+		if (de->d_name[0] == '.')
+			continue;
+		switch (de->d_type) {
+		   case DT_LNK:
+			alias(de->d_name);
+			break;
+		   case DT_DIR:
+			slab(de->d_name);
+			break;
+		   case DT_REG:
+			parameter(de->d_name);
+			break;
+		   default :
+			fatal("Unknown file type %lx\n", de->d_type);
+		}
+	}
+	closedir(dir);
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
