@@ -1,33 +1,36 @@
-Message-ID: <4612BB44.3060100@redhat.com>
-Date: Tue, 03 Apr 2007 16:38:28 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Mon, 2 Apr 2007 22:42:02 +0200
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Subject: mbind and alignment
+Message-ID: <20070402204202.GC3316@interface.famille.thibault.fr>
 MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com>
-In-Reply-To: <20070403202937.GE355@devserv.devel.redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jakub Jelinek <jakub@redhat.com>
-Cc: Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jakub Jelinek wrote:
+Hi,
 
-> My guess is that all the page zeroing is pretty expensive as well and
-> takes significant time, but I haven't profiled it.
+mbind(start, len, ...) currently requires that "start" be page-aligned,
+but not "len" (which automatically gets page-rounded up).  This is a bit
+odd:
 
-I'm pretty sure that page freeing, reallocating and zeroing
-is more expensive than just letting the page sit there and
-only reclaim it lazily when we need the memory.
+- the userland type of start is void*, which people would expect to be a
+  pointer to some variable.
+- start needing to be page-aligned but len not needing to is not very
+  consistent.
+- none of this is documented in the manual page dated 2006-02-07
 
-I'll try to whip up a patch this week.
+So one of those should probably be done to free people from headaches:
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+- document "start" requirement in the manual page
+- require len to be aligned too, and document the requirements in the
+  manual page
+- drop the "start" requirement and just round down the page + adjust
+  size automatically.
+
+Samuel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
