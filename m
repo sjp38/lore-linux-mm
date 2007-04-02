@@ -1,44 +1,43 @@
-Date: Mon, 2 Apr 2007 16:00:51 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [SLUB 2/2] i386 arch page size slab fixes
-Message-ID: <20070402230051.GI2986@holomorphy.com>
-References: <20070331193056.1800.68058.sendpatchset@schroedinger.engr.sgi.com> <20070331193107.1800.28259.sendpatchset@schroedinger.engr.sgi.com>
+Message-ID: <46118A90.4050708@student.ltu.se>
+Date: Tue, 03 Apr 2007 00:58:24 +0200
+From: Richard Knutsson <ricknu-0@student.ltu.se>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070331193107.1800.28259.sendpatchset@schroedinger.engr.sgi.com>
+Subject: Re: [KJ] [PATCH] mm: spelling error in a comment
+References: <20070402210636.GA14216@tux> <20070402152719.e7b622ba.rdunlap@xenotime.net>
+In-Reply-To: <20070402152719.e7b622ba.rdunlap@xenotime.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mpm@selenic.com
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: =?ISO-8859-1?Q?Charles_Cl=E9ment?= <caratorn@gmail.com>, linux-mm@kvack.org, kernel-janitors@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 31, 2007 at 11:31:07AM -0800, Christoph Lameter wrote:
-> Patch by William Irwin with only very minor modifications by me which are
-> 1. Removal of HIGHMEM64G slab caches. It seems that virtualization hosts
->    require a a full pgd page.
+Randy Dunlap wrote:
+> On Mon, 2 Apr 2007 23:06:36 +0200 Charles Clement wrote:
+>
+>   
+>> Fix spelling in a comment in mm/slab.c.
+>>
+>> Signed-off-by: Charles Clement <caratorn@gmail.com>
+>>     
+>
+> Alexey can grab this if he wants to (or Adrian could),
+> but here's what Andrew Morton has to say about such patches:
+>
+> http://marc.info/?l=kernel-janitor-discuss&m=117360826232574&w=2
+>
+> "...I prefer not to do spello and grammaro
+> fixes, unless they're in something user-visible: a printk or documentation.
+> Simply because there would be no end to it."
+>
+>   
+Also, regardless if it is a comment or not, I think it may be a good 
+idea to put such uncommon mistakes in KJ's wiki under "Spelling 
+mistakes" and let it all be taken care of once in a while.
+(http://fsdev.net/wiki/index.php?title=Spelling_mistakes)
 
-The HIGHMEM64G slab allocations are meaningfully performant vs.
-page-sized allocations where virtualization is absent. I would
-personally rather whip Xen into shape enough to be able to handle the
-minimal pgd allocations than retain the oversized pgd allocations even
-in only the Xen case. Also, the entire unshared kernel pmd shenanigan
-in Xen is an artifact of its recursive pagetable affair, which can also
-be done away with a SMOP.
-
-
-On Sat, Mar 31, 2007 at 11:31:07AM -0800, Christoph Lameter wrote:
-> 2. Add missing virtualization hook. Seems that we need a new way
->    of serializing paravirt_alloc(). It may need to do its own serialization.
-> 3. Remove ARCH_USES_SLAB_PAGE_STRUCT
-
-This doesn't quite cover all bases. The changes to pageattr.c and
-fault.c are dubious and need verification at the very least. They were
-largely slapped together to get the files past the compiler for the
-performance comparisons that were never properly done.
-
-
--- wli
+Richard Knutsson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
