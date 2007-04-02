@@ -1,8 +1,8 @@
-Date: Mon, 2 Apr 2007 08:37:32 -0700 (PDT)
+Date: Mon, 2 Apr 2007 08:44:27 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 1/4] x86_64: Switch to SPARSE_VIRTUAL
 In-Reply-To: <200704011246.52238.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0704020832320.30394@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0704020840370.30394@schroedinger.engr.sgi.com>
 References: <20070401071024.23757.4113.sendpatchset@schroedinger.engr.sgi.com>
  <20070401071029.23757.78021.sendpatchset@schroedinger.engr.sgi.com>
  <200704011246.52238.ak@suse.de>
@@ -16,34 +16,31 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 1 Apr 2007, Andi Kleen wrote:
 
-> Hmm, this means there is at least 2MB worth of struct page on every node?
-> Or do you have overlaps with other memory (I think you have)
-> In that case you have to handle the overlap in change_page_attr()
+> And when you reserve virtual space somewhere you should 
+> update Documentation/x86_64/mm.txt. Also you didn't adjust 
+> the end of the vmalloc area so in theory vmalloc could run
+> into your vmemmap.
 
-Correct. 2MB worth of struct page is 128 mb of memory. Are there nodes 
-with smaller amounts of memory? Note also that the default sparsemem
-section size is (include/asm-x86_64/sparsemem.h)
+Ok. will add to the doc in the next release.
 
-#define SECTION_SIZE_BITS       27 /* matt - 128 is convenient right now */
+No need to adjust the end of the vmalloc area because
+the vmemmap starts at the end of it:
 
-128MB ....
+include/asm-x86_64/pgtable.h:
 
-So you currently cannot have smaller sections of memory anyways.
+#define VMALLOC_START    0xffffc20000000000UL
+#define VMALLOC_END      0xffffe1ffffffffffUL
 
-> Also your "generic" vmemmap code doesn't look very generic, but
-> rather x86 specific. I didn't think huge pages could be easily
-> set up this way in many other architectures.  
+Index: linux-2.6.21-rc5-mm2/include/asm-x86_64/page.h
 
-We do this pmd special casing in other parts of the core VM. I have also a 
-patch for IA64 that workks with this.
+#define vmemmap ((struct page *)0xffffe20000000000UL)
 
-> Do you have any benchmarks numbers to prove it? There seem to be a few
-> benchmarks where the discontig virt_to_page is a problem
-> (although I know ways to make it more efficient), and sparsemem
-> is normally slower. Still some numbers would be good.
+According to Documentation/x86_64/mm.txt this is an unused hole:
 
-You want a benchmark to prove that the removal of memory references and 
-code improves performance?
+ffffc20000000000 - ffffe1ffffffffff (=45 bits) vmalloc/ioremap space
+... unused hole ...
+ffffffff80000000 - ffffffff82800000 (=40 MB)   kernel text mapping, from phys 0
+... unused hole ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
