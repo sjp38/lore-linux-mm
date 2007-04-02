@@ -1,46 +1,49 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l32LuEog028404
-	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 17:56:14 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l32M5BsG007963
+	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 18:05:11 -0400
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l32LuE8Y044710
-	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 15:56:14 -0600
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l32M5ASC194628
+	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 16:05:10 -0600
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l32LuDQX021890
-	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 15:56:14 -0600
-Subject: Re: [PATCH 1/4] x86_64: Switch to SPARSE_VIRTUAL
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l32M5952000354
+	for <linux-mm@kvack.org>; Mon, 2 Apr 2007 16:05:10 -0600
+Subject: Re: [PATCH 1/2] Generic Virtual Memmap suport for SPARSEMEM
 From: Dave Hansen <hansendc@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.64.0704021422040.2272@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0704021449200.2272@schroedinger.engr.sgi.com>
 References: <20070401071024.23757.4113.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070401071029.23757.78021.sendpatchset@schroedinger.engr.sgi.com>
-	 <200704011246.52238.ak@suse.de>
-	 <Pine.LNX.4.64.0704020832320.30394@schroedinger.engr.sgi.com>
-	 <1175544797.22373.62.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0704021324480.31842@schroedinger.engr.sgi.com>
-	 <1175548086.22373.99.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0704021422040.2272@schroedinger.engr.sgi.com>
+	 <1175547000.22373.89.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0704021351590.1224@schroedinger.engr.sgi.com>
+	 <1175548924.22373.109.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0704021428340.2272@schroedinger.engr.sgi.com>
+	 <1175550151.22373.116.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0704021449200.2272@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Mon, 02 Apr 2007 14:56:08 -0700
-Message-Id: <1175550968.22373.122.camel@localhost.localdomain>
+Date: Mon, 02 Apr 2007 15:05:05 -0700
+Message-Id: <1175551505.22373.126.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Martin Bligh <mbligh@google.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Martin Bligh <mbligh@google.com>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-04-02 at 14:28 -0700, Christoph Lameter wrote:
-> I do not care what its called as long as it 
-> covers all the bases and is not a glaring performance regresssion (like 
-> SPARSEMEM so far). 
+On Mon, 2007-04-02 at 14:53 -0700, Christoph Lameter wrote:
+> > > Well think about how to handle the case that the allocatiopn of a page 
+> > > table page or a vmemmap block fails. Once we have that sorted out then we 
+> > > can cleanup the higher layers.
+> > 
+> > I think it is best to just completely replace
+> > sparse_early_mem_map_alloc() for the vmemmap case.  It really is a
+> > completely different beast.  You'd never, for instance, have
+> > alloc_remap() come into play.
+> 
+> What is the purpose of alloc_remap? Could not figure that one out.
 
-I honestly don't doubt that there are regressions, somewhere.  Could you
-elaborate, and perhaps actually show us some numbers on this?  Perhaps
-instead of adding a completely new model, we can adapt the existing ones
-somehow.
-
-But, without some cold, hard, data, we mere mortals without the 1024-way
-machines can only guess. ;)
+That's what we use on i386 to get some lowmem area for non-zero NUMA
+nodes.  Otherwise, all of ZONE_NORMAL is on node 0.  It's a bit hokey,
+and stuff like virt_to_phys() probably doesn't work on it, but it has
+worked pretty well for a long time.  
 
 -- Dave
 
