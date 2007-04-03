@@ -1,71 +1,80 @@
-Message-Id: <20070403144224.517828776@taijtu.programming.kicks-ass.net>
+Message-Id: <20070403144224.610538071@taijtu.programming.kicks-ass.net>
 References: <20070403144047.073283598@taijtu.programming.kicks-ass.net>
-Date: Tue, 03 Apr 2007 16:40:51 +0200
+Date: Tue, 03 Apr 2007 16:40:52 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 4/6] mm: count unstable pages per BDI
-Content-Disposition: inline; filename=bdi_stat_unstable.patch
+Subject: [PATCH 5/6] mm: expose BDI statistics in sysfs.
+Content-Disposition: inline; filename=bdi_stat_sysfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI unstable pages.
+Expose the per BDI stats in /sys/block/<dev>/queue/*
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/write.c              |    4 ++++
- include/linux/backing-dev.h |    1 +
- 2 files changed, 5 insertions(+)
+ block/ll_rw_blk.c   |   81 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c |    2 -
+ 2 files changed, 82 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/fs/nfs/write.c
+Index: linux-2.6/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -451,6 +451,7 @@ nfs_mark_request_commit(struct nfs_page 
- 	nfsi->ncommit++;
- 	spin_unlock(&nfsi->req_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+--- linux-2.6.orig/block/ll_rw_blk.c
++++ linux-2.6/block/ll_rw_blk.c
+@@ -3975,6 +3975,20 @@ static ssize_t queue_max_hw_sectors_show
+ 	return queue_var_show(max_hw_sectors_kb, (page));
  }
- #endif
-@@ -511,6 +512,7 @@ static void nfs_cancel_commit_list(struc
- 	while(!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
- 		nfs_list_remove_request(req);
- 		nfs_inode_remove_request(req);
- 		nfs_unlock_request(req);
-@@ -1236,6 +1238,7 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
- 		nfs_clear_page_writeback(req);
- 	}
- 	return -ENOMEM;
-@@ -1260,6 +1263,7 @@ static void nfs_commit_done(struct rpc_t
- 		req = nfs_list_entry(data->pages.next);
- 		nfs_list_remove_request(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-+		dec_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
  
- 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
- 			req->wb_context->dentry->d_inode->i_sb->s_id,
-Index: linux-2.6/include/linux/backing-dev.h
-===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h
-+++ linux-2.6/include/linux/backing-dev.h
-@@ -26,6 +26,7 @@ enum bdi_state {
- enum bdi_stat_item {
- 	BDI_DIRTY,
- 	BDI_WRITEBACK,
-+	BDI_UNSTABLE,
- 	NR_BDI_STAT_ITEMS
++static ssize_t queue_nr_dirty_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_DIRTY));
++}
++
++static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_WRITEBACK));
++}
++
++static ssize_t queue_nr_unstable_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_UNSTABLE));
++}
+ 
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+@@ -4005,6 +4019,21 @@ static struct queue_sysfs_entry queue_ma
+ 	.show = queue_max_hw_sectors_show,
  };
  
++static struct queue_sysfs_entry queue_dirty_entry = {
++	.attr = {.name = "dirty_pages", .mode = S_IRUGO },
++	.show = queue_nr_dirty_show,
++};
++
++static struct queue_sysfs_entry queue_writeback_entry = {
++	.attr = {.name = "writeback_pages", .mode = S_IRUGO },
++	.show = queue_nr_writeback_show,
++};
++
++static struct queue_sysfs_entry queue_unstable_entry = {
++	.attr = {.name = "unstable_pages", .mode = S_IRUGO },
++	.show = queue_nr_unstable_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4017,6 +4046,9 @@ static struct attribute *default_attrs[]
+ 	&queue_initial_ra_entry.attr,
+ 	&queue_max_hw_sectors_entry.attr,
+ 	&queue_max_sectors_entry.attr,
++	&queue_dirty_entry.attr,
++	&queue_writeback_entry.attr,
++	&queue_unstable_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
 
 -- 
 
