@@ -1,27 +1,45 @@
-Subject: Re: [PATCH] Cleanup and kernelify shrinker registration (rc5-mm2)
-References: <1175571885.12230.473.camel@localhost.localdomain>
-From: Andi Kleen <andi@firstfloor.org>
-Date: 03 Apr 2007 11:57:33 +0200
-In-Reply-To: <1175571885.12230.473.camel@localhost.localdomain>
-Message-ID: <p73lkh9zsoi.fsf@bingen.suse.de>
+Date: Tue, 3 Apr 2007 12:02:21 +0200
+From: Charles =?iso-8859-1?Q?Cl=E9ment?= <caratorn@gmail.com>
+Subject: Re: [KJ] [PATCH] mm: spelling error in a comment
+Message-ID: <20070403100221.GA17372@tux>
+References: <20070402210636.GA14216@tux> <20070402152719.e7b622ba.rdunlap@xenotime.net> <46118A90.4050708@student.ltu.se>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <46118A90.4050708@student.ltu.se>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, xfs-masters@oss.sgi.com, reiserfs-dev@namesys.com
+To: Richard Knutsson <ricknu-0@student.ltu.se>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Charles =?iso-8859-1?Q?Cl=E9ment?= <caratorn@gmail.com>, linux-mm@kvack.org, kernel-janitors@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Rusty Russell <rusty@rustcorp.com.au> writes:
-> 2) The wrapper code in xfs might no longer be needed.
-> 3) The placing in the x86-64 "hot function list" for seems a little
->    unlikely.  Clearly, Andi was testing if anyone was paying attention.
+On Tue, Apr 03, 2007 at 12:58:24AM +0200, Richard Knutsson wrote:
+> Randy Dunlap wrote:
+> >On Mon, 2 Apr 2007 23:06:36 +0200 Charles Clement wrote:
+> >>Fix spelling in a comment in mm/slab.c.
+> >>
+> >>Signed-off-by: Charles Clement <caratorn@gmail.com>
+> >>    
+> >"...I prefer not to do spello and grammaro
+> >fixes, unless they're in something user-visible: a printk or documentation.
+> >Simply because there would be no end to it."
 
-That came from Arjan. The list is likely quite out of date now
-because it hasn't been refreshed for some time. Perhaps should
-just remove it again -- was never sure it was worth it.
+Ok, I didn't know that, thank you.
 
--Andi
+> Also, regardless if it is a comment or not, I think it may be a good 
+> idea to put such uncommon mistakes in KJ's wiki under "Spelling 
+> mistakes" and let it all be taken care of once in a while.
+> (http://fsdev.net/wiki/index.php?title=Spelling_mistakes)
+> 
+> Richard Knutsson
+
+Yes, I agree with that but it then should be accessible, as with a
+patchset. Or maybe the solution to this is simply to send them to the trivial
+patch adress.
+
+-- 
+Charles Clement.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
