@@ -1,45 +1,44 @@
-Date: Tue, 3 Apr 2007 16:19:16 +1000
-From: David Chinner <dgc@sgi.com>
-Subject: Re: [xfs-masters] Re: [PATCH] Cleanup and kernelify shrinker registration (rc5-mm2)
-Message-ID: <20070403061916.GW32597093@melbourne.sgi.com>
-References: <1175571885.12230.473.camel@localhost.localdomain> <20070402205825.12190e52.akpm@linux-foundation.org> <1175575503.12230.484.camel@localhost.localdomain> <20070402215702.6e3782a9.akpm@linux-foundation.org> <20070403054419.GV32597093@melbourne.sgi.com> <20070402230158.4fcdd455.akpm@linux-foundation.org>
+Subject: Re: [PATCH] Cleanup and kernelify shrinker registration (rc5-mm2)
+From: Rusty Russell <rusty@rustcorp.com.au>
+In-Reply-To: <20070402230954.27840721.akpm@linux-foundation.org>
+References: <1175571885.12230.473.camel@localhost.localdomain>
+	 <20070402205825.12190e52.akpm@linux-foundation.org>
+	 <1175575503.12230.484.camel@localhost.localdomain>
+	 <20070402215702.6e3782a9.akpm@linux-foundation.org>
+	 <1175579225.12230.504.camel@localhost.localdomain>
+	 <20070402230954.27840721.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 03 Apr 2007 17:18:25 +1000
+Message-Id: <1175584705.12230.513.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070402230158.4fcdd455.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Chinner <dgc@sgi.com>, xfs-masters@oss.sgi.com, Rusty Russell <rusty@rustcorp.com.au>, lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, reiserfs-dev@namesys.com
+Cc: lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, xfs-masters@oss.sgi.com, reiserfs-dev@namesys.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 02, 2007 at 11:01:58PM -0700, Andrew Morton wrote:
-> On Tue, 3 Apr 2007 15:44:19 +1000 David Chinner <dgc@sgi.com> wrote:
-> 
-> > In XFS, one of the shrinkers cwthat gets registered calls causes all
-> > the xfsbufd's in the system to run and write back delayed write
-> > metadata - this can't be freed up until it is clean, and this is the
-> > only hook we have that can be used to trigger writeback on memory
-> > pressure. We need this because we can potentially have hundreds of
-> > megabytes of dirty metadata per XFS filesystem.
-> > 
-> 
-> <looks>
-> 
-> Gad, someone went mad in there.  Can we do this (please)?
+On Mon, 2007-04-02 at 23:09 -0700, Andrew Morton wrote:
+> hm, well, six-of-one, VI of the other.  We save maybe four kmallocs across
+> the entire uptime at the cost of exposing stuff kernel-side which doesn't
+> need to be exposed.
 
-Yup, added to my QA tree.
+This is not about efficiency.  When have I *ever* posted optimization
+patches?
 
-Rusty, can you redo you patch on top of this one? I'll
-add it to my QA tree as well...
+This is about clarity.  We have a standard convention for
+register/unregister.  And they can't fail.  Either of these would be
+sufficient to justify a change.
 
-Cheers,
+Too many people doing cool new things in the kernel, not enough
+polishing of the crap that's already there 8(
 
-Dave.
--- 
-Dave Chinner
-Principal Engineer
-SGI Australian Software Group
+> But I think we need to weed that crappiness out of XFS first.
+
+Sure, I'll apply on top of that patch.
+
+Thanks!
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
