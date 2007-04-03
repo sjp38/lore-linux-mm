@@ -1,73 +1,55 @@
-From: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
-Subject: [PATCH] rfp: move prot checking before any change, as needed
-Date: Sun, 01 Apr 2007 21:42:36 +0200
-Message-ID: <20070401194228.7625.10288.stgit@americanbeauty.home.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Date: Tue, 3 Apr 2007 10:36:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [xfs-masters] Re: [PATCH] Cleanup and kernelify shrinker
+ registration (rc5-mm2)
+Message-Id: <20070403103627.de831e3e.akpm@linux-foundation.org>
+In-Reply-To: <20070403123706.GX32597093@melbourne.sgi.com>
+References: <1175571885.12230.473.camel@localhost.localdomain>
+	<20070402205825.12190e52.akpm@linux-foundation.org>
+	<1175575503.12230.484.camel@localhost.localdomain>
+	<20070402215702.6e3782a9.akpm@linux-foundation.org>
+	<1175579225.12230.504.camel@localhost.localdomain>
+	<20070402230954.27840721.akpm@linux-foundation.org>
+	<1175584705.12230.513.camel@localhost.localdomain>
+	<20070403123706.GX32597093@melbourne.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: David Chinner <dgc@sgi.com>
+Cc: xfs-masters@oss.sgi.com, lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, reiserfs-dev@namesys.com
 List-ID: <linux-mm.kvack.org>
 
-This bug was introduced during the recent port over Nick Piggin's
-remap_file_pages rewrite.
+On Tue, 3 Apr 2007 22:37:06 +1000 David Chinner <dgc@sgi.com> wrote:
 
-Signed-off-by: Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
----
+> On Tue, Apr 03, 2007 at 05:18:25PM +1000, Rusty Russell wrote:
+> > On Mon, 2007-04-02 at 23:09 -0700, Andrew Morton wrote:
+> > This is not about efficiency.  When have I *ever* posted optimization
+> > patches?
+> > 
+> > This is about clarity.  We have a standard convention for
+> > register/unregister.  And they can't fail.  Either of these would be
+> > sufficient to justify a change.
+> > 
+> > Too many people doing cool new things in the kernel, not enough
+> > polishing of the crap that's already there 8(
+> > 
+> > > But I think we need to weed that crappiness out of XFS first.
+> 
+> Can anyone else see the contradiction in these statements?
+> 
+> XFS's "crappiness" is a register/unregister interface.  The only
+> reason it's being removed is because it's getting replaced with a
+> nearly identical register/unregister interface.
 
- mm/fremap.c |   28 ++++++++++++++--------------
- 1 files changed, 14 insertions(+), 14 deletions(-)
+Nope.  XFS is introducing two new typedefs, one of which is identical to
+one which we already have and it has wrapper functions which do little more
+than add new names for existing stuff.
 
-diff --git a/mm/fremap.c b/mm/fremap.c
-index 83aaa8c..9befb12 100644
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -170,6 +170,20 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
- 	if (end <= start || start < vma->vm_start || end > vma->vm_end)
- 		goto out;
- 
-+	if (flags & MAP_CHGPROT) {
-+		unsigned long vm_prots = calc_vm_prot_bits(prot);
-+
-+		/* vma->vm_flags >> 4 shifts VM_MAY% in place of VM_% */
-+		if ((vm_prots & ~(vma->vm_flags >> 4)) &
-+				(VM_READ | VM_WRITE | VM_EXEC)) {
-+			err = -EPERM;
-+			goto out;
-+		}
-+
-+		pgprot = protection_map[vm_prots | VM_SHARED];
-+	} else
-+		pgprot = vma->vm_page_prot;
-+
- 	/* Must set VM_NONLINEAR before any pages are populated. */
- 	if (!(vma->vm_flags & VM_NONLINEAR)) {
- 		/* Don't need a nonlinear mapping, exit success */
-@@ -208,20 +222,6 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
- 		}
- 	}
- 
--	if (flags & MAP_CHGPROT) {
--		unsigned long vm_prots = calc_vm_prot_bits(prot);
--
--		/* vma->vm_flags >> 4 shifts VM_MAY% in place of VM_% */
--		if ((vm_prots & ~(vma->vm_flags >> 4)) &
--				(VM_READ | VM_WRITE | VM_EXEC)) {
--			err = -EPERM;
--			goto out;
--		}
--
--		pgprot = protection_map[vm_prots | VM_SHARED];
--	} else
--		pgprot = vma->vm_page_prot;
--
- 	err = populate_range(mm, vma, start, size, pgoff, pgprot);
- 	if (!err && !(flags & MAP_NONBLOCK)) {
- 		if (unlikely(has_write_lock)) {
-
-
+What Rusty is doing is changing the API so that the caller registers a
+caller-owned struct rather than registering a caller-provided function. 
+For some reason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
