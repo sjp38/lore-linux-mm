@@ -1,45 +1,47 @@
-Date: Tue, 3 Apr 2007 12:02:21 +0200
-From: Charles =?iso-8859-1?Q?Cl=E9ment?= <caratorn@gmail.com>
-Subject: Re: [KJ] [PATCH] mm: spelling error in a comment
-Message-ID: <20070403100221.GA17372@tux>
-References: <20070402210636.GA14216@tux> <20070402152719.e7b622ba.rdunlap@xenotime.net> <46118A90.4050708@student.ltu.se>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Date: Tue, 3 Apr 2007 22:37:06 +1000
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [xfs-masters] Re: [PATCH] Cleanup and kernelify shrinker registration (rc5-mm2)
+Message-ID: <20070403123706.GX32597093@melbourne.sgi.com>
+References: <1175571885.12230.473.camel@localhost.localdomain> <20070402205825.12190e52.akpm@linux-foundation.org> <1175575503.12230.484.camel@localhost.localdomain> <20070402215702.6e3782a9.akpm@linux-foundation.org> <1175579225.12230.504.camel@localhost.localdomain> <20070402230954.27840721.akpm@linux-foundation.org> <1175584705.12230.513.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <46118A90.4050708@student.ltu.se>
+In-Reply-To: <1175584705.12230.513.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Richard Knutsson <ricknu-0@student.ltu.se>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Charles =?iso-8859-1?Q?Cl=E9ment?= <caratorn@gmail.com>, linux-mm@kvack.org, kernel-janitors@lists.linux-foundation.org
+To: xfs-masters@oss.sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, reiserfs-dev@namesys.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 03, 2007 at 12:58:24AM +0200, Richard Knutsson wrote:
-> Randy Dunlap wrote:
-> >On Mon, 2 Apr 2007 23:06:36 +0200 Charles Clement wrote:
-> >>Fix spelling in a comment in mm/slab.c.
-> >>
-> >>Signed-off-by: Charles Clement <caratorn@gmail.com>
-> >>    
-> >"...I prefer not to do spello and grammaro
-> >fixes, unless they're in something user-visible: a printk or documentation.
-> >Simply because there would be no end to it."
-
-Ok, I didn't know that, thank you.
-
-> Also, regardless if it is a comment or not, I think it may be a good 
-> idea to put such uncommon mistakes in KJ's wiki under "Spelling 
-> mistakes" and let it all be taken care of once in a while.
-> (http://fsdev.net/wiki/index.php?title=Spelling_mistakes)
+On Tue, Apr 03, 2007 at 05:18:25PM +1000, Rusty Russell wrote:
+> On Mon, 2007-04-02 at 23:09 -0700, Andrew Morton wrote:
+> This is not about efficiency.  When have I *ever* posted optimization
+> patches?
 > 
-> Richard Knutsson
+> This is about clarity.  We have a standard convention for
+> register/unregister.  And they can't fail.  Either of these would be
+> sufficient to justify a change.
+> 
+> Too many people doing cool new things in the kernel, not enough
+> polishing of the crap that's already there 8(
+> 
+> > But I think we need to weed that crappiness out of XFS first.
 
-Yes, I agree with that but it then should be accessible, as with a
-patchset. Or maybe the solution to this is simply to send them to the trivial
-patch adress.
+Can anyone else see the contradiction in these statements?
 
+XFS's "crappiness" is a register/unregister interface.  The only
+reason it's being removed is because it's getting replaced with a
+nearly identical register/unregister interface.
+
+Just thought I'd point that out.... ;)
+
+Cheers,
+
+Dave.
 -- 
-Charles Clement.
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
