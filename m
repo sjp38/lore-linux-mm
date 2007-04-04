@@ -1,77 +1,60 @@
-Message-ID: <461373C4.7050501@yahoo.com.au>
-Date: Wed, 04 Apr 2007 19:45:40 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 4 Apr 2007 10:45:39 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc] no ZERO_PAGE?
+In-Reply-To: <20070404033726.GE18507@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com>
+References: <20070329075805.GA6852@wotan.suse.de>
+ <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
+ <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<20070403144948.fe8eede6.akpm@linux-foundation.org>	<4612DCC6.7000504@cosmosbay.com>	<46130BC8.9050905@yahoo.com.au>	<1175675146.6483.26.camel@twins>	<461367F6.10705@yahoo.com.au> <20070404113447.17ccbefa.dada1@cosmosbay.com>
-In-Reply-To: <20070404113447.17ccbefa.dada1@cosmosbay.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet wrote:
-> On Wed, 04 Apr 2007 18:55:18 +1000
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
-> 
->>Peter Zijlstra wrote:
->>
->>>On Wed, 2007-04-04 at 12:22 +1000, Nick Piggin wrote:
->>>
->>>
->>>>Eric Dumazet wrote:
->>>
->>>
->>>>>I do think such workloads might benefit from a vma_cache not shared by 
->>>>>all threads but private to each thread. A sequence could invalidate the 
->>>>>cache(s).
->>>>>
->>>>>ie instead of a mm->mmap_cache, having a mm->sequence, and each thread 
->>>>>having a current->mmap_cache and current->mm_sequence
->>>>
->>>>I have a patchset to do exactly this, btw.
->>>
->>>
->>>/me too
->>>
->>>However, I decided against pushing it because when it does happen that a
->>>task is not involved with a vma lookup for longer than it takes the seq
->>>count to wrap we have a stale pointer...
->>>
->>>We could go and walk the tasks once in a while to reset the pointer, but
->>>it all got a tad involved.
->>
->>Well here is my core patch (against I think 2.6.16 + a set of vma cache
->>cleanups and abstractions). I didn't think the wrapping aspect was
->>terribly involved.
-> 
-> 
-> Well, I believe this one is too expensive. I was thinking of a light one :
-> 
-> I am not deleting mmap_sem, but adding a sequence number to mm_struct, that is incremented each time a vma is added/deleted, not each time mmap_sem is taken (read or write)
+On Wed, 4 Apr 2007, Nick Piggin wrote:
+> On Fri, Mar 30, 2007 at 04:40:48AM +0200, Nick Piggin wrote:
+> > 
+> > Well it would make life easier if we got rid of ZERO_PAGE completely,
+> > which I definitely wouldn't complain about ;)
 
-That's exactly what mine does (except IIRC it doesn't invalidate when
-you add a vma).
+Yes, I love this approach too.
 
-
-> Each thread has its own copy of the sequence, taken at the time find_vma() had to do a full lookup.
 > 
-> I believe some optimized paths could call check_vma_cache() without mmap_sem read lock taken, and if it fails, take the mmap_sem lock and do the slow path.
+> So, what bad things (apart from my bugs in untested code) happen
+> if we do this? We can actually go further, and probably remove the
+> ZERO_PAGE completely (just need an extra get_user_pages flag or
+> something for the core dumping issue).
 
-The mmap_sem for read does not only protect the mm_rb rbtree structure, but
-the vmas themselves as well as their page tables, so you can't do that.
+Some things will go faster (no longer needing a separate COW fault
+on the read-protected ZERO_PAGE), some things will go slower and use
+more memory.  The open question is whether anyone will notice those
+regressions: I'm hoping they won't, I'm afraid they will.  And though
+we'll see each as a program doing "something stupid", as in the Altix
+case Robin showed to drive us here, we cannot just ignore it.
 
-You could do it if you had a lock-per-vma to synchronise against write
-operations, and rcu-freed vmas or some such... but I don't think we should
-go down a road like that until we first remove mmap_sem from low hanging
-things (like private futexes!) and then see who's complaining.
+> 
+> Shall I do a more complete patchset and ask Andrew to give it a
+> run in -mm?
 
--- 
-SUSE Labs, Novell Inc.
+I'd like you to: I didn't study the fragment below, it's really all
+uses of the ZERO_PAGE that I'd like to see go, then we see who shouts.
+
+It's quite likely that the patch would have to be reverted: don't
+bother to remove the allocations of ZERO_PAGE in each architecture
+at this stage, too much nuisance going back and forth on those.
+
+Leave ZERO_PAGE as configurable, default off for testing, buried
+somewhere like under EMBEDDED?  It's much more attractive just to
+remove the old code, and reintroduce it if there's a demand; but
+leaving it under config would make it easy to restore, and if
+there's trouble with removing ZERO_PAGE, we might later choose
+to disable it at the high end but enable it at the low.  What
+would you prefer?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
