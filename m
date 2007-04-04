@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:20 +1000
-Subject: [PATCH 11/14] get_unmapped_area handles MAP_FIXED on ramfs (nommu) 
+Date: Wed, 04 Apr 2007 14:02:19 +1000
+Subject: [PATCH 9/14] get_unmapped_area handles MAP_FIXED on x86_64
 In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040231.A110CDDEB8@ozlabs.org>
+Message-Id: <20070404040230.93B50DDEA3@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,25 +11,23 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- fs/ramfs/file-nommu.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ arch/x86_64/kernel/sys_x86_64.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux-cell/fs/ramfs/file-nommu.c
+Index: linux-cell/arch/x86_64/kernel/sys_x86_64.c
 ===================================================================
---- linux-cell.orig/fs/ramfs/file-nommu.c	2007-03-22 16:18:27.000000000 +1100
-+++ linux-cell/fs/ramfs/file-nommu.c	2007-03-22 16:20:14.000000000 +1100
-@@ -238,7 +238,10 @@ unsigned long ramfs_nommu_get_unmapped_a
- 	struct page **pages = NULL, **ptr, *page;
- 	loff_t isize;
+--- linux-cell.orig/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:10:10.000000000 +1100
++++ linux-cell/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:11:06.000000000 +1100
+@@ -93,6 +93,9 @@ arch_get_unmapped_area(struct file *filp
+ 	unsigned long start_addr;
+ 	unsigned long begin, end;
+ 	
++	if (flags & MAP_FIXED)
++		return addr;
++
+ 	find_start_end(flags, &begin, &end); 
  
--	if (!(flags & MAP_SHARED))
-+	/* Deal with MAP_FIXED differently ? Forbid it ? Need help from some nommu
-+	 * folks there... --BenH.
-+	 */
-+	if ((flags & MAP_FIXED) || !(flags & MAP_SHARED))
- 		return addr;
- 
- 	/* the mapping mustn't extend beyond the EOF */
+ 	if (len > end)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
