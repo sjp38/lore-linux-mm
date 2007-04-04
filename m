@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:17 +1000
-Subject: [PATCH 6/14] get_unmapped_area handles MAP_FIXED on ia64
+Date: Wed, 04 Apr 2007 14:02:16 +1000
+Subject: [PATCH 3/14] get_unmapped_area handles MAP_FIXED on arm
 In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040228.ED7A7DDE47@ozlabs.org>
+Message-Id: <20070404040227.48AEDDDE3E@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,48 +11,23 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/ia64/kernel/sys_ia64.c |    7 +++++++
- arch/ia64/mm/hugetlbpage.c  |    8 ++++++++
- 2 files changed, 15 insertions(+)
+ arch/arm/mm/mmap.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-Index: linux-cell/arch/ia64/kernel/sys_ia64.c
+Index: linux-cell/arch/arm/mm/mmap.c
 ===================================================================
---- linux-cell.orig/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:45.000000000 +1100
-+++ linux-cell/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:47.000000000 +1100
-@@ -33,6 +33,13 @@ arch_get_unmapped_area (struct file *fil
- 	if (len > RGN_MAP_LIMIT)
- 		return -ENOMEM;
+--- linux-cell.orig/arch/arm/mm/mmap.c	2007-03-22 14:59:51.000000000 +1100
++++ linux-cell/arch/arm/mm/mmap.c	2007-03-22 15:00:01.000000000 +1100
+@@ -49,8 +49,7 @@ arch_get_unmapped_area(struct file *filp
+ #endif
  
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (REGION_NUMBER(addr) == RGN_HPAGE)
- 		addr = 0;
-Index: linux-cell/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-cell.orig/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:32.000000000 +1100
-+++ linux-cell/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:39.000000000 +1100
-@@ -148,6 +148,14 @@ unsigned long hugetlb_get_unmapped_area(
- 		return -ENOMEM;
- 	if (len & ~HPAGE_MASK)
- 		return -EINVAL;
-+
-+	/* Handle MAP_FIXED */
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	/* This code assumes that RGN_HPAGE != 0. */
- 	if ((REGION_NUMBER(addr) != RGN_HPAGE) || (addr & (HPAGE_SIZE - 1)))
- 		addr = HPAGE_REGION_BASE;
- 
+ 	/*
+-	 * We should enforce the MAP_FIXED case.  However, currently
+-	 * the generic kernel code doesn't allow us to handle this.
++	 * We enforce the MAP_FIXED case.
+ 	 */
+ 	if (flags & MAP_FIXED) {
+ 		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
