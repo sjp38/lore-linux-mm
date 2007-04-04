@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:16 +1000
-Subject: [PATCH 4/14] get_unmapped_area handles MAP_FIXED on frv 
+Date: Wed, 04 Apr 2007 14:02:18 +1000
+Subject: [PATCH 7/14] get_unmapped_area handles MAP_FIXED on parisc
 In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040227.CDBCFDDE44@ozlabs.org>
+Message-Id: <20070404040229.7E57BDDE9F@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,24 +11,25 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/frv/mm/elf-fdpic.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ arch/parisc/kernel/sys_parisc.c |    5 +++++
+ 1 file changed, 5 insertions(+)
 
-Index: linux-cell/arch/frv/mm/elf-fdpic.c
+Index: linux-cell/arch/parisc/kernel/sys_parisc.c
 ===================================================================
---- linux-cell.orig/arch/frv/mm/elf-fdpic.c	2007-03-22 15:00:50.000000000 +1100
-+++ linux-cell/arch/frv/mm/elf-fdpic.c	2007-03-22 15:01:06.000000000 +1100
-@@ -64,6 +64,10 @@ unsigned long arch_get_unmapped_area(str
+--- linux-cell.orig/arch/parisc/kernel/sys_parisc.c	2007-03-22 15:28:05.000000000 +1100
++++ linux-cell/arch/parisc/kernel/sys_parisc.c	2007-03-22 15:29:08.000000000 +1100
+@@ -106,6 +106,11 @@ unsigned long arch_get_unmapped_area(str
+ {
  	if (len > TASK_SIZE)
  		return -ENOMEM;
- 
-+	/* handle MAP_FIXED */
++	/* Might want to check for cache aliasing issues for MAP_FIXED case
++	 * like ARM or MIPS ??? --BenH.
++	 */
 +	if (flags & MAP_FIXED)
 +		return addr;
-+
- 	/* only honour a hint if we're not going to clobber something doing so */
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
+ 	if (!addr)
+ 		addr = TASK_UNMAPPED_BASE;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
