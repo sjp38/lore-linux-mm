@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:01:30 +1000
-Subject: [PATCH 8/14] get_unmapped_area handles MAP_FIXED on sparc64
+Date: Wed, 04 Apr 2007 14:01:31 +1000
+Subject: [PATCH 10/14] get_unmapped_area handles MAP_FIXED in hugetlbfs
 In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
-Message-Id: <20070404040141.55458DDE9E@ozlabs.org>
+Message-Id: <20070404040142.7A0FFDDE9F@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,15 +11,15 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/sparc64/mm/hugetlbpage.c |    6 ++++++
+ fs/hugetlbfs/inode.c |    6 ++++++
  1 file changed, 6 insertions(+)
 
-Index: linux-cell/arch/sparc64/mm/hugetlbpage.c
+Index: linux-cell/fs/hugetlbfs/inode.c
 ===================================================================
---- linux-cell.orig/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:12:57.000000000 +1100
-+++ linux-cell/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:15:33.000000000 +1100
-@@ -175,6 +175,12 @@ hugetlb_get_unmapped_area(struct file *f
- 	if (len > task_size)
+--- linux-cell.orig/fs/hugetlbfs/inode.c	2007-03-22 16:12:56.000000000 +1100
++++ linux-cell/fs/hugetlbfs/inode.c	2007-03-22 16:16:02.000000000 +1100
+@@ -115,6 +115,12 @@ hugetlb_get_unmapped_area(struct file *f
+ 	if (len > TASK_SIZE)
  		return -ENOMEM;
  
 +	if (flags & MAP_FIXED) {
