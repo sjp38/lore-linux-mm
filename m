@@ -1,34 +1,45 @@
-Message-ID: <4613BC5D.2070404@redhat.com>
-Date: Wed, 04 Apr 2007 10:55:25 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Wed, 4 Apr 2007 16:03:15 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc] no ZERO_PAGE?
+In-Reply-To: <20070404144421.GA13762@localdomain>
+Message-ID: <Pine.LNX.4.64.0704041553220.18202@blonde.wat.veritas.com>
+References: <20070329075805.GA6852@wotan.suse.de>
+ <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
+ <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de>
+ <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com>
+ <20070404102407.GA529@wotan.suse.de> <20070404122701.GB19587@v2.random>
+ <20070404135530.GA29026@localdomain> <20070404141457.GF19587@v2.random>
+ <20070404144421.GA13762@localdomain>
 MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org> <20070403160231.33aa862d.akpm@linux-foundation.org> <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Dan Aloni <da-x@monatomic.org>
+Cc: Andrea Arcangeli <andrea@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
+On Wed, 4 Apr 2007, Dan Aloni wrote:
+> 
+> To refine that example, you could replace the file with a large anonymous 
+> memory pool and a lot of swap space committed to it. In that case - with 
+> no ZERO_PAGE, would the kernel needlessly swap-out the zeroed pages? 
+> Perhaps it's an example too far-fetched to worth considering...
 
-> (I didn't understand how Rik would achieve his point 5, _no_ lock
-> contention while repeatedly re-marking these pages, but never mind.)
+Nice point, not far-fetched, though I don't know whether it's worth
+worrying about or not.  Yes, as things stand, the kernel will
+needlessly write them out to swap: because we're in the habit of
+marking a writable pte as dirty, partly to save the processor (how
+i386-centric am I being?) from having to do that work just after,
+partly because of some race too ancient for me to know anything
+about - do_no_page (though not the function in question here) says:
 
-The CPU marks them accessed&dirty when they are reused.
+	 * This silly early PAGE_DIRTY setting removes a race
+	 * due to the bad i386 page protection. But it's valid
+	 * for other architectures too.
 
-The VM only moves the reused pages back to the active list
-on memory pressure.  This means that when the system is
-not under memory pressure, the same page can simply stay
-PG_lazyfree for multiple malloc/free rounds.
+Maybe Nick will decide to not to mark the readfaults as dirty.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
