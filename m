@@ -1,63 +1,73 @@
-Date: Tue, 3 Apr 2007 16:44:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: missing madvise functionality
-Message-Id: <20070403164455.83ae7b36.akpm@linux-foundation.org>
-In-Reply-To: <20070403144948.fe8eede6.akpm@linux-foundation.org>
-References: <46128051.9000609@redhat.com>
-	<p73648dz5oa.fsf@bingen.suse.de>
-	<46128CC2.9090809@redhat.com>
-	<20070403172841.GB23689@one.firstfloor.org>
-	<20070403125903.3e8577f4.akpm@linux-foundation.org>
-	<4612B645.7030902@redhat.com>
-	<20070403202937.GE355@devserv.devel.redhat.com>
-	<20070403144948.fe8eede6.akpm@linux-foundation.org>
+Date: Wed, 4 Apr 2007 10:03:54 +1000
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [xfs-masters] Re: [PATCH] Cleanup and kernelify shrinker registration (rc5-mm2)
+Message-ID: <20070404000354.GA32597093@melbourne.sgi.com>
+References: <1175571885.12230.473.camel@localhost.localdomain> <20070402205825.12190e52.akpm@linux-foundation.org> <1175575503.12230.484.camel@localhost.localdomain> <20070402215702.6e3782a9.akpm@linux-foundation.org> <1175579225.12230.504.camel@localhost.localdomain> <20070402230954.27840721.akpm@linux-foundation.org> <1175584705.12230.513.camel@localhost.localdomain> <20070403123706.GX32597093@melbourne.sgi.com> <20070403103627.de831e3e.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070403103627.de831e3e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Chinner <dgc@sgi.com>, xfs-masters@oss.sgi.com, lkml - Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, reiserfs-dev@namesys.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Apr 2007 14:49:48 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> > int
-> > main (void)
-> > {
-> >   pthread_t th[32];
-> >   int i;
-> >   for (i = 0; i < 32; i++)
-> >     if (pthread_create (&th[i], NULL, tf, NULL))
-> >       exit (4);
-> >   for (i = 0; i < 32; i++)
-> >     pthread_join (th[i], NULL);
-> >   return 0;
-> > }
+On Tue, Apr 03, 2007 at 10:36:27AM -0700, Andrew Morton wrote:
+> On Tue, 3 Apr 2007 22:37:06 +1000 David Chinner <dgc@sgi.com> wrote:
+> 
+> > On Tue, Apr 03, 2007 at 05:18:25PM +1000, Rusty Russell wrote:
+> > > On Mon, 2007-04-02 at 23:09 -0700, Andrew Morton wrote:
+> > > This is not about efficiency.  When have I *ever* posted optimization
+> > > patches?
+> > > 
+> > > This is about clarity.  We have a standard convention for
+> > > register/unregister.  And they can't fail.  Either of these would be
+> > > sufficient to justify a change.
+> > > 
+> > > Too many people doing cool new things in the kernel, not enough
+> > > polishing of the crap that's already there 8(
+> > > 
+> > > > But I think we need to weed that crappiness out of XFS first.
 > > 
+> > Can anyone else see the contradiction in these statements?
+> > 
+> > XFS's "crappiness" is a register/unregister interface.  The only
+> > reason it's being removed is because it's getting replaced with a
+> > nearly identical register/unregister interface.
 > 
-> whee.  135,000 context switches/sec on a slow 2-way.  mmap_sem, most
-> likely.  That is ungood.
-> 
-> Did anyone monitor the context switch rate with the mysql test?
-> 
-> Interestingly, your test app (with s/100000/1000) runs to completion in 13
-> seocnd on the slow 2-way.  On a fast 8-way, it took 52 seconds and
-> sustained 40,000 context switches/sec.  That's a bit unexpected.
-> 
-> Both machines show ~8% idle time, too :(
+> Nope.  XFS is introducing two new typedefs, one of which is identical to
+> one which we already have and it has wrapper functions which do little more
+> than add new names for existing stuff.
 
-Rohit solved this puzzle.
+And the problem with that is? You haven't noticed this in the five
+years it's been there providing XFS with a consistent shrinker
+interface.....
 
-The 2-way is a single package, hyperthreaded.
+FWIW, digging back into history, Rusty's first patch basically
+brings use back to the same interface we had in 2.4. Here's
+the 2.4 version of that function:
 
-The 8-way is two-package, four cores in each.
+kmem_shaker_t
+kmem_shake_register(kmem_shake_func_t sfunc)
+{
+        kmem_shaker_t shaker = kmalloc(sizeof(*shaker), GFP_KERNEL);
 
-So on the 8-way, that lock is getting transferred between the two packages
-like crazy.  Running the benchmark on just cpus 0 and 1 (taskset -c 0,1)
-took the runtime down to eight seconds (from 52!) and the context switch
-rate went up to 200,000/sec (from 45,000).
+        if (!shaker)
+                return NULL;
+        memset(shaker, 0, sizeof(*shaker));
+        shaker->shrink = sfunc;
+        register_cache(shaker);
+        return shaker;
+}
 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
