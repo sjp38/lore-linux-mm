@@ -1,49 +1,55 @@
-Message-ID: <4613E9AF.3030802@redhat.com>
-Date: Wed, 04 Apr 2007 14:08:47 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Date: Wed, 4 Apr 2007 19:39:07 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<20070403144948.fe8eede6.akpm@linux-foundation.org>	<20070403160231.33aa862d.akpm@linux-foundation.org>	<Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com> <20070404110406.c79b850d.akpm@linux-foundation.org>
 In-Reply-To: <20070404110406.c79b850d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.64.0704041917280.14635@blonde.wat.veritas.com>
+References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de>
+ <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org>
+ <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com>
+ <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org>
+ <20070403160231.33aa862d.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
+ <20070404110406.c79b850d.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Wed, 4 Apr 2007, Andrew Morton wrote:
+> 
+> The treatment is identical to clean swapcache pages, with the sole
+> exception that they don't actually consume any swap space - hence the fake
+> swapcache entry thing.
 
-> There are other ways of doing it - I guess we could use a new page flag to
-> indicate that this is one-of-those-pages, and add new code to handle it in
-> all the right places.
+I see, sneaking through try_to_unmap's anon PageSwapCache assumptions
+as simply as possible - thanks.
 
-That's what I did.  I'm currently working on the
-zap_page_range() side of things.
+(Coincidentally, Andrea pointed to precisely the same issue in the
+no PAGE_ZERO thread, when we were toying with writable but clean.)
 
 > One thing which we haven't sorted out with all this stuff: once the
 > application has marked an address range (and some pages) as
-> whatever-were-going-call-this-feature, how does the application undo that
-> change? 
+> whatever-were-going-call-this-feature, how does the application undo
+> that change?
 
-It doesn't have to do anything.  Just access the page and the
-MMU will mark it dirty/accessed and the VM will not reclaim
-it.
+By re-referencing the pages.  (Hmm, so an incorrect app which accesses
+"free"d areas, will undo it: well, okay, nothing terrible about that.)
 
 > What effect will things like mremap, madvise and mlock have upon
 > these pages?
 
-Good point.  I had not thought about these.
+mlock will undo the state in its make_pages_present: I guess that
+should happen in or near follow_page's mark_page_accessed.
 
-Would you mind if I sent an initial proof of concept
-patch that does not take these into account, before
-we decide on what should happen in these cases? :)
+mremap?  Other madvises?  Nothing much at all: mremap can move
+them around, and the madvises do whatever they do - I don't notice
+any problem in that direction, but it'll be easier when we have an
+implementation to poke at.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
