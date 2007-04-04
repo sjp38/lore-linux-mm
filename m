@@ -1,47 +1,35 @@
-In-reply-to: <1175684461.6483.64.camel@twins> (message from Peter Zijlstra on
-	Wed, 04 Apr 2007 13:01:01 +0200)
-Subject: Re: [PATCH 6/6] mm: per device dirty threshold
-References: <20070403144047.073283598@taijtu.programming.kicks-ass.net>
-	 <20070403144224.709586192@taijtu.programming.kicks-ass.net>
-	 <E1HZ1so-0005q8-00@dorka.pomaz.szeredi.hu> <1175681794.6483.43.camel@twins>
-	 <E1HZ2kU-0005xx-00@dorka.pomaz.szeredi.hu> <1175684461.6483.64.camel@twins>
-Message-Id: <E1HZ3Q9-00062G-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 04 Apr 2007 13:12:57 +0200
+From: Andi Kleen <ak@suse.de>
+Subject: Re: mbind and alignment
+Date: Wed, 4 Apr 2007 13:52:04 +0200
+References: <20070402204202.GC3316@interface.famille.thibault.fr>
+In-Reply-To: <20070402204202.GC3316@interface.famille.thibault.fr>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200704041352.04525.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com
+To: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > so it could be that: scale / cycle > 1
-> > > by a very small amount; however:
-> > 
-> > No, I'm worried about the case when scale is too small.  If the
-> > per-bdi threshold becomes smaller than stat_threshold, then things
-> > won't work, because dirty+writeback will never go below the threshold,
-> > possibly resulting in the deadlock we are trying to avoid.
 > 
-> /me goes refresh the deadlock details..
+> So one of those should probably be done to free people from headaches:
 > 
-> A writes to B; A exceeds the dirty limit but writeout is blocked by B
-> because the dirty limit is exceeded, right?
-> 
-> This cannot happen when we decouple the BDI dirty thresholds, even when
-> a threshold is 0.
-> 
-> A write to B; A exceeds A's limit and writes to B, B has limit of 0, the
-> 1 dirty page gets written out (we gain ratio) and life goes on.
-> 
-> Right?
+> - document "start" requirement in the manual page
+> - require len to be aligned too, and document the requirements in the
+>   manual page
+> - drop the "start" requirement and just round down the page + adjust
+>   size automatically.
 
-If the limit is zero, then we need the per-bdi dirty+write to go to
-zero, otherwise balance_dirty_pages() loops.  But the per-bdi
-writeback counter is not necessarily updated after the writeback,
-because the per-bdi per-CPU counter may not trip the update of the
-per-bdi counter.
+This annoyed me in the past too. The kernel should have done that alignment
+by itself. But changing it now would be a bad idea because it would
+produce programs that run on newer kernels but break on olders.
+Documenting it is the only sane option left.
 
-Miklos
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
