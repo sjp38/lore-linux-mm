@@ -1,45 +1,72 @@
-Date: Wed, 4 Apr 2007 18:48:48 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Wed, 4 Apr 2007 10:02:36 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [rfc] no ZERO_PAGE?
-Message-ID: <20070404164848.GN19587@v2.random>
-References: <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com> <20070404102407.GA529@wotan.suse.de> <20070404122701.GB19587@v2.random> <20070404135530.GA29026@localdomain> <20070404141457.GF19587@v2.random> <20070404144421.GA13762@localdomain> <20070404152717.GG19587@v2.random> <20070404161515.GB24339@localdomain>
+In-Reply-To: <20070404183220.2455465b.dada1@cosmosbay.com>
+Message-ID: <Pine.LNX.4.64.0704040950570.6730@woody.linux-foundation.org>
+References: <20070329075805.GA6852@wotan.suse.de>
+ <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
+ <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de>
+ <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org>
+ <20070404183220.2455465b.dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070404161515.GB24339@localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dan Aloni <da-x@monatomic.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Dan,
 
-On Wed, Apr 04, 2007 at 07:15:15PM +0300, Dan Aloni wrote:
-> The main difference is that disk-backed swap can create I/O pressure which
-> would slow down the swap-outs that are not of zeroed pages (and other I/Os
-> on that disk for that matter). For purely-RAM virtual memory the latency 
-> incured from managing newly allocated and zeroed pages is neglegible 
-> compared to the latencies you get from reading/flushing those pages to 
-> disk if you add swap to the picture.
+On Wed, 4 Apr 2007, Eric Dumazet wrote:
+> 
+> But results on an Intel Pentium-M are interesting, in particular 2) & 3)
+> 
+> If a page is first allocated as page_zero then cow to a full rw page, this is more expensive.
+> (2660 cycles instead of 2300)
 
-Sorry but you're telling me the obvious... clearly you're right, swap
-is slower, ram is faster. As a corollary on a 64bit system you could
-always throw money at ram and _guarantee_ that those anon read page
-faults never hit swap. That's not the point.
+Yes, you have an extra TLB flush there at a minimum (if the page didn't 
+exist at all before, you don't have to flush).
 
-If 4G more of virtual memory are allocated in the address space of a
-task because of this kernel change, it's the same problem if those 4G
-are later allocated in swap or in ram depending on the runtime
-environment of the kernel. The problem is that 4G more will be
-allocated, it doesn't matter _where_. The user with a 8G system will
-not be slowed down much, the user with a 128M system will trash beyond
-repair, but it's the same problem for both. If the new ram will go
-into ram or swap is irrelevant because it's an unknown variable that
-depends on the amount of ram and swap and on what else is running
-(infact there will be a third guy with even less luck that will go out
-of memory and crash after hitting an oom killer bug ;), it's the same
-problem in all three cases.
+That said, the big cost tends to be the clearing of the page. Which is why 
+the "bring in zero page" is so much faster than anything else - it's the 
+only case that doesn't need to clear the page.
+
+So you should basically think of your numbers like this:
+ - roughly 900 cycles is the cost of the page fault and all the 
+   "basic software" side in the kernel
+ - roughly 1400 cycles to actually do the "memset" to clear the page (and 
+   no, that's *not* the cost of memory accesses per se - it's very likely 
+   already in the L2 cache or similar, we just need to clear it and if 
+   it wasn't marked exclusive need to do a bus cycle to invalidate it on 
+   any other CPU's).
+
+with small variation depending on what the state was before of the cache 
+in particular (for example, the TLB flush cost, but also: when you do
+
+> 4) memset 4096 bytes to 0x55:
+> Poke_full (addr=0x804f000, len=4096): 2719 cycles
+
+This only adds ~600 cycles to memset the same 4kB that cost ~1400 cycles 
+before, but that's *probably* largely because it was now already dirty in 
+the L2 and possibly the L1, so it's quite possible that this is really 
+just a cache effect, because now it's entirely exclusive in the caches so 
+you don't need to do any probing on the bus at all).
+
+Also note: in the end, page faults are usually fairly unusual. You do them 
+once, and then use the page a lot after that. That's not *always* true, of 
+course. Some malloc()/free() patterns of big areas that are not used for 
+long will easily cause constant mmap/munmap, and a lot of page faults.
+
+The worst effect of page faults tends to be for short-lived stuff. Notably 
+things like "system()" that executes a shell just to execute something 
+else. Almost *everything* in that path is basically "use once, then throw 
+away", and page fault latency is interesting.
+
+So this is one case where it might be interesting to look at what lmbench 
+reports for the "fork/exit", "fork/exec" and "shell exec" numbers before 
+and after. 
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
