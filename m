@@ -1,41 +1,33 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:01:32 +1000
-Subject: [PATCH 12/14] get_unmapped_area handles MAP_FIXED in /dev/mem (nommu)
+Date: Wed, 04 Apr 2007 14:01:27 +1000
+Subject: [PATCH 2/14] get_unmapped_area handles MAP_FIXED on alpha
 In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
-Message-Id: <20070404040143.A42A3DDEA3@ozlabs.org>
+Message-Id: <20070404040138.19B43DDE3D@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-arch@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This also fixes a bug, I think, it used to return a pgoff (pfn)
-instead of an address. (To split ?)
-
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
 
- drivers/char/mem.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ arch/alpha/kernel/osf_sys.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux-cell/drivers/char/mem.c
+Index: linux-cell/arch/alpha/kernel/osf_sys.c
 ===================================================================
---- linux-cell.orig/drivers/char/mem.c	2007-03-22 16:24:04.000000000 +1100
-+++ linux-cell/drivers/char/mem.c	2007-03-22 16:26:30.000000000 +1100
-@@ -246,9 +246,12 @@ static unsigned long get_unmapped_area_m
- 					   unsigned long pgoff,
- 					   unsigned long flags)
- {
-+	if (flags & MAP_FIXED)
-+		if ((addr >> PAGE_SHIFT) != pgoff)
-+			return (unsigned long) -EINVAL;
- 	if (!valid_mmap_phys_addr_range(pgoff, len))
- 		return (unsigned long) -EINVAL;
--	return pgoff;
-+	return pgoff << PAGE_SHIFT;
- }
+--- linux-cell.orig/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:33.000000000 +1100
++++ linux-cell/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:44.000000000 +1100
+@@ -1267,6 +1267,9 @@ arch_get_unmapped_area(struct file *filp
+ 	if (len > limit)
+ 		return -ENOMEM;
  
- /* can't do an in-place private mapping if there's no MMU */
++	if (flags & MAP_FIXED)
++		return addr;
++
+ 	/* First, see if the given suggestion fits.
+ 
+ 	   The OSF/1 loader (/sbin/loader) relies on us returning an
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
