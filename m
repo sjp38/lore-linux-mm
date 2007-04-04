@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:22 +1000
-Subject: [PATCH 14/14] get_unmapped_area doesn't need hugetlbfs hacks anymore 
+Date: Wed, 04 Apr 2007 14:02:17 +1000
+Subject: [PATCH 6/14] get_unmapped_area handles MAP_FIXED on ia64
 In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040233.35EC6DDE3F@ozlabs.org>
+Message-Id: <20070404040228.ED7A7DDE47@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,35 +11,47 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- mm/mmap.c |   16 ----------------
- 1 file changed, 16 deletions(-)
+ arch/ia64/kernel/sys_ia64.c |    7 +++++++
+ arch/ia64/mm/hugetlbpage.c  |    8 ++++++++
+ 2 files changed, 15 insertions(+)
 
-Index: linux-cell/mm/mmap.c
+Index: linux-cell/arch/ia64/kernel/sys_ia64.c
 ===================================================================
---- linux-cell.orig/mm/mmap.c	2007-03-22 16:30:24.000000000 +1100
-+++ linux-cell/mm/mmap.c	2007-03-22 16:30:48.000000000 +1100
-@@ -1381,22 +1381,6 @@ get_unmapped_area(struct file *file, uns
- 	if (addr & ~PAGE_MASK)
- 		return -EINVAL;
+--- linux-cell.orig/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:45.000000000 +1100
++++ linux-cell/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:47.000000000 +1100
+@@ -33,6 +33,13 @@ arch_get_unmapped_area (struct file *fil
+ 	if (len > RGN_MAP_LIMIT)
+ 		return -ENOMEM;
  
--	if (file && is_file_hugepages(file))  {
--		/*
--		 * Check if the given range is hugepage aligned, and
--		 * can be made suitable for hugepages.
--		 */
--		ret = prepare_hugepage_range(addr, len, pgoff);
--	} else {
--		/*
--		 * Ensure that a normal request is not falling in a
--		 * reserved hugepage range.  For some archs like IA-64,
--		 * there is a separate region for hugepages.
--		 */
--		ret = is_hugepage_only_range(current->mm, addr, len);
--	}
--	if (ret)
--		return -EINVAL;
- 	return addr;
- }
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
++		return addr;
++	}
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	if (REGION_NUMBER(addr) == RGN_HPAGE)
+ 		addr = 0;
+Index: linux-cell/arch/ia64/mm/hugetlbpage.c
+===================================================================
+--- linux-cell.orig/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:32.000000000 +1100
++++ linux-cell/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:39.000000000 +1100
+@@ -148,6 +148,14 @@ unsigned long hugetlb_get_unmapped_area(
+ 		return -ENOMEM;
+ 	if (len & ~HPAGE_MASK)
+ 		return -EINVAL;
++
++	/* Handle MAP_FIXED */
++	if (flags & MAP_FIXED) {
++		if (prepare_hugepage_range(addr, len, pgoff))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	/* This code assumes that RGN_HPAGE != 0. */
+ 	if ((REGION_NUMBER(addr) != RGN_HPAGE) || (addr & (HPAGE_SIZE - 1)))
+ 		addr = HPAGE_REGION_BASE;
  
 
 --
