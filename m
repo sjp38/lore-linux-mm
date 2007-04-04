@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:01:27 +1000
-Subject: [PATCH 2/14] get_unmapped_area handles MAP_FIXED on alpha
+Date: Wed, 04 Apr 2007 14:01:30 +1000
+Subject: [PATCH 8/14] get_unmapped_area handles MAP_FIXED on sparc64
 In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
-Message-Id: <20070404040138.19B43DDE3D@ozlabs.org>
+Message-Id: <20070404040141.55458DDE9E@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,23 +11,26 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/alpha/kernel/osf_sys.c |    3 +++
- 1 file changed, 3 insertions(+)
+ arch/sparc64/mm/hugetlbpage.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Index: linux-cell/arch/alpha/kernel/osf_sys.c
+Index: linux-cell/arch/sparc64/mm/hugetlbpage.c
 ===================================================================
---- linux-cell.orig/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:33.000000000 +1100
-+++ linux-cell/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:44.000000000 +1100
-@@ -1267,6 +1267,9 @@ arch_get_unmapped_area(struct file *filp
- 	if (len > limit)
+--- linux-cell.orig/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:12:57.000000000 +1100
++++ linux-cell/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:15:33.000000000 +1100
+@@ -175,6 +175,12 @@ hugetlb_get_unmapped_area(struct file *f
+ 	if (len > task_size)
  		return -ENOMEM;
  
-+	if (flags & MAP_FIXED)
++	if (flags & MAP_FIXED) {
++		if (prepare_hugepage_range(addr, len, pgoff))
++			return -EINVAL;
 +		return addr;
++	}
 +
- 	/* First, see if the given suggestion fits.
- 
- 	   The OSF/1 loader (/sbin/loader) relies on us returning an
+ 	if (addr) {
+ 		addr = ALIGN(addr, HPAGE_SIZE);
+ 		vma = find_vma(mm, addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
