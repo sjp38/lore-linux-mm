@@ -1,44 +1,33 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo> 
-References: <1175659331.690672.592289266160.qpush@grosgo> 
-Subject: Re: [PATCH 0/14] Pass MAP_FIXED down to get_unmapped_area 
-Date: Wed, 04 Apr 2007 11:31:55 +0100
-Message-ID: <23370.1175682715@redhat.com>
+Received: by ug-out-1314.google.com with SMTP id s2so612030uge
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2007 03:33:39 -0700 (PDT)
+Message-ID: <ac8af0be0704040333k25459a8cwec6729e8ad6a4db4@mail.gmail.com>
+Date: Wed, 4 Apr 2007 18:33:39 +0800
+From: "Zhao Forrest" <forrest.zhao@gmail.com>
+Subject: A question about page aging in page frame reclaimation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: riel@redhat.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
+Hi Riel,
 
-> This serie of patches moves the logic to handle MAP_FIXED down to the
-> various arch/driver get_unmapped_area() implementations, and then changes
-> the generic code to always call them. The hugetlbfs hacks then disappear
-> from the generic code.
+I'm studying the code of page frame reclaimation in 2.6 kernel. From
+my understanding, there should be kernel thread periodically scanning
+the active and inactive list and move the page frames between active
+and inactive list according to LRU rule.
 
-This sounds like get_unmapped_area() is now doing more than it says on the
-tin.  As I understand it, it's to be called to locate an unmapped area when
-one wasn't specified by MAP_FIXED, and so shouldn't be called if MAP_FIXED is
-set.
+But I can't find the related code.....would you please point me to the
+code piece that implement this "page aging" functionality?
+Sorry for the stupid question, but I think I don't have a very strong
+code-reading ability.
 
-Admittedly, on NOMMU, it's also used to find the location of quasi-memory
-devices such as framebuffers and ramfs files, but that's not a great deviation
-from the original intent.
-
-Perhaps a change of name is in order for the function?
-
-> Since I need to do some special 64K pages mappings for SPEs on cell, I need
-> to work around the first problem at least. I have further patches thus
-> implementing a "slices" layer that handles multiple page sizes through
-> slices of the address space for use by hugetlbfs, the SPE code, and possibly
-> others, but it requires that serie of patches first/
-
-That makes it sound like there should be an "unget" too for when an error
-occurs between ->get_unmapped_area() being called and ->mmap() returning
-successfully.
-
-David
+Thanks in advance,
+Forrest
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
