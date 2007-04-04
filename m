@@ -1,95 +1,84 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate8.uk.ibm.com (8.13.8/8.13.8) with ESMTP id l34HZGkZ112526
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 17:35:16 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l34HZGqY2367620
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 18:35:16 +0100
-Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l34HZGka013717
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 18:35:16 +0100
-Subject: Re: [S390] page_mkclean data corruption.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0704041003560.6730@woody.linux-foundation.org>
-References: <1175704624.31111.3.camel@localhost>
-	 <Pine.LNX.4.64.0704041003560.6730@woody.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Date: Wed, 04 Apr 2007 19:35:32 +0200
-Message-Id: <1175708132.31111.23.camel@localhost>
+Date: Wed, 4 Apr 2007 11:04:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: missing madvise functionality
+Message-Id: <20070404110406.c79b850d.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
+References: <46128051.9000609@redhat.com>
+	<p73648dz5oa.fsf@bingen.suse.de>
+	<46128CC2.9090809@redhat.com>
+	<20070403172841.GB23689@one.firstfloor.org>
+	<20070403125903.3e8577f4.akpm@linux-foundation.org>
+	<4612B645.7030902@redhat.com>
+	<20070403202937.GE355@devserv.devel.redhat.com>
+	<20070403144948.fe8eede6.akpm@linux-foundation.org>
+	<20070403160231.33aa862d.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: gregkh@suse.de, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-04-04 at 10:10 -0700, Linus Torvalds wrote:
-> Ok. I'm a bit worried about something like this, this late in the release 
-> cycle, but since I guess page_test_and_clear_dirty() is always 0 for any 
-> architecture but S390, I guess there are no possible downsides except for 
-> that architecture.
+On Wed, 4 Apr 2007 10:15:41 +0100 (BST) Hugh Dickins <hugh@veritas.com> wrote:
 
-Yes, the change can only affect s390 since for all other architectures
-page_test_and_clear_dirty is a nop.
-
-> So I'll apply it, but:
-> 
-> > The effect of the two changes is that for every call to
-> > clear_page_dirty_for_io a page_test_and_clear_dirty is done. If
-> > the per page dirty bit is set set_page_dirty is called. Strangly
-> > clear_page_dirty_for_io is called for not-uptodate pages, e.g.
-> > over this call-chain:
+> On Tue, 3 Apr 2007, Andrew Morton wrote:
 > > 
-> >  [<000000000007c0f2>] clear_page_dirty_for_io+0x12a/0x130
-> >  [<000000000007c494>] generic_writepages+0x258/0x3e0 
-> >  [<000000000007c692>] do_writepages+0x76/0x7c 
-> >  [<00000000000c7a26>] __writeback_single_inode+0xba/0x3e4
-> >  [<00000000000c831a>] sync_sb_inodes+0x23e/0x398 
-> >  [<00000000000c8802>] writeback_inodes+0x12e/0x140 
-> >  [<000000000007b9ee>] wb_kupdate+0xd2/0x178 
-> >  [<000000000007cca2>] pdflush+0x162/0x23c 
+> > All of which indicates that if we can remove the down_write(mmap_sem) from
+> > this glibc operation, things should get a lot better - there will be no
+> > additional context switches at all.
 > > 
-> > The bad news now is that page_test_and_clear_dirty might claim
-> > that a not-uptodate page is dirty since SetPageUptodate which
-> > resets the per page dirty bit has not yet been called. The page
-> > writeback that follows clobbers the data on disk.
+> > And we can surely do that if all we're doing is looking up pageframes,
+> > putting pages into fake-swapcache and moving them around on the page LRUs.
+> > 
+> > Hugh?  Sanity check?
 > 
-> Wouldn't it be best if S390 tried to avoid this by clearing the dirty bit 
-> whenever a new page is allocated? 
+> Setting aside the fake-swapcache part, yes, Rik should be able to do what
+> Ulrich wants (operating on ptes and pages) without down_write(mmap_sem):
+> just needing down_read(mmap_sem) to keep the whole vma/pagetable structure
+> stable, and page table lock (literal or per-page-table) for each contents.
+> 
+> (I didn't understand how Rik would achieve his point 5, _no_ lock
+> contention while repeatedly re-marking these pages, but never mind.)
+> 
+> (Some mails in this thread overlook that we also use down_write(mmap_sem)
+> to guard simple things like vma->vm_flags: of course that in itself could
+> be manipulated with atomics, or spinlock; but like many of the vma fields,
+> changing it goes hand in hand with the chance that we have to split vma,
+> which does require the heavy-handed down_write(mmap_sem).  I expect that
+> splitting those uses apart would be harder than first appears, and better
+> to go for a more radical redesign - I don't know what.)
+> 
+> But you lose me with the fake-swapcache part of it: that came, I think,
+> from your initial idea that it would be okay to refault on these ptes.
+> Don't we all agree now that we'd prefer not to refault on those ptes,
+> unless some memory pressure has actually decided to pull them out?
+> (Hmm, yet more list balancing...)
 
-We would love to but we cannot. The point is that I/O makes a page
-dirty. We could clear the dirty bit on allocation time but the page-in
-operation would make it dirty again and we'd have to make it clean AGAIN
-in SetPageUptodate. The iske + sske instructions are in the range of
-several 100 cycles, so they are quite expensive.
+The way in which we want to treat these pages is (I believe) to keep them
+if there's not a lot of memory pressure, but to reclaim them "easily" if
+there is some memory pressure.
 
-> Anyway, I'll apply the patch, since for 2.6.21 this is clearly the 
-> simplest solution, but 
->  (a) I think it might be ugly
-> and
->  (b) are you sure that it doesn't introduce a new bug on S390, where some 
->      page has been *removed* from the mappings, and should still trigger 
->      the "page_test_and_clear_dirty()" test, but now, because it's done 
->      inside the "if (page_mapped())" case, we miss it?
+A simple way to do that is to move them onto the inactive list.  But how do
+we handle these pages when the vm scanner encounters them?
 
-No, I'm very sure that this won't be the case. The per page dirty bit on
-s390 is used as a replacement for the per pte dirty bits. We check a
-single time after all the pte operations instead of doing it for every
-pte. As long as there is a page_test_and_clear_dirty after the last pte
-related to a page has been modified in page_mkclean or removed in
-page_remove_rmap we are fine.
+The treatment is identical to clean swapcache pages, with the sole
+exception that they don't actually consume any swap space - hence the fake
+swapcache entry thing.
 
--- 
-blue skies,              IBM Deutschland Entwicklung GmbH
-   Martin                Vorsitzender des Aufsichtsrats: Johann Weihen
-                         Geschaftsfuhrung: Herbert Kircher
-Martin Schwidefsky       Sitz der Gesellschaft: Boblingen
-Linux on zSeries         Registergericht: Amtsgericht Stuttgart,
-   Development           HRB 243294
+There are other ways of doing it - I guess we could use a new page flag to
+indicate that this is one-of-those-pages, and add new code to handle it in
+all the right places.
 
-"Reality continues to ruin my life." - Calvin.
 
+
+One thing which we haven't sorted out with all this stuff: once the
+application has marked an address range (and some pages) as
+whatever-were-going-call-this-feature, how does the application undo that
+change?  What effect will things like mremap, madvise and mlock have upon
+these pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
