@@ -1,47 +1,43 @@
-Subject: Re: [rfc] no ZERO_PAGE?
-In-Reply-To: Your message of "Wed, 04 Apr 2007 17:48:39 +0200."
-             <20070404154839.GI19587@v2.random>
-From: Valdis.Kletnieks@vt.edu
-References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org>
-            <20070404154839.GI19587@v2.random>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1175724468_4061P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 04 Apr 2007 18:07:48 -0400
-Message-ID: <6749.1175724468@turing-police.cc.vt.edu>
+Date: Wed, 4 Apr 2007 15:38:28 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/4] x86_64: Switch to SPARSE_VIRTUAL
+In-Reply-To: <20070404212736.GI10084@localhost>
+Message-ID: <Pine.LNX.4.64.0704041531290.8127@schroedinger.engr.sgi.com>
+References: <20070401071024.23757.4113.sendpatchset@schroedinger.engr.sgi.com>
+ <20070401071029.23757.78021.sendpatchset@schroedinger.engr.sgi.com>
+ <200704011246.52238.ak@suse.de> <Pine.LNX.4.64.0704020832320.30394@schroedinger.engr.sgi.com>
+ <1175544797.22373.62.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0704021324480.31842@schroedinger.engr.sgi.com>
+ <1175548086.22373.99.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0704021422040.2272@schroedinger.engr.sgi.com>
+ <20070404212736.GI10084@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Bob Picco <bob.picco@hp.com>
+Cc: Dave Hansen <hansendc@us.ibm.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Martin Bligh <mbligh@google.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1175724468_4061P
-Content-Type: text/plain; charset=us-ascii
+On Wed, 4 Apr 2007, Bob Picco wrote:
 
-On Wed, 04 Apr 2007 17:48:39 +0200, Andrea Arcangeli said:
+> Well you must have forgotten about these two postings in regards to
+> performance numbers:
+> http://marc.info/?l=linux-ia64&m=111990276501051&w=2
+> and
+> http://marc.info/?l=linux-kernel&m=116664638611634&w=2
 
-> Ok, those cases wanting the same zero page, could be fairly easily
-> converted to an mmap over /dev/zero (without having to run 4k large
-> mmap syscalls or nonlinear).
+I am well aware of those but those were done with a PAGE_SIZE vmemmap 
+which is particularly bad on IA64 given the TLB fault overhead. You 
+eliminated the TLB fault overhead. Virtual Memmaps need to be designed in 
+such a way that they do not create additional overhead. The x86_64 version 
+here has no such overhead that you could eliminate with lookup tables.
 
-"D'oh!" -- H. Simpson.
+The bad thing is that this benchmark then was used to justify 
+sparsemem on other platforms where such overhead does not exist.
 
-Ignore my previous note. :)
-
---==_Exmh_1175724468_4061P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFGFCG0cC3lWbTT17ARAjYxAKCpG4N9RGrtLhxK9kBzJ+tJ+nf28QCeJwSr
-1jNBedWn8Wv5qgILMADZETQ=
-=RFik
------END PGP SIGNATURE-----
-
---==_Exmh_1175724468_4061P--
+One needs to be careful with benchmarks..... Its better to review the 
+code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
