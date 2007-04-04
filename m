@@ -1,55 +1,24 @@
-Date: Wed, 4 Apr 2007 10:15:41 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: missing madvise functionality
-In-Reply-To: <20070403160231.33aa862d.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de>
- <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org>
- <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com>
- <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org>
- <20070403160231.33aa862d.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-reply-to: <20070403144224.227434440@taijtu.programming.kicks-ass.net>
+	(message from Peter Zijlstra on Tue, 03 Apr 2007 16:40:48 +0200)
+Subject: Re: [PATCH 1/6] mm: scalable bdi statistics counters.
+References: <20070403144047.073283598@taijtu.programming.kicks-ass.net> <20070403144224.227434440@taijtu.programming.kicks-ass.net>
+Message-Id: <E1HZ1fn-0005oT-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 04 Apr 2007 11:20:59 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: a.p.zijlstra@chello.nl
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Apr 2007, Andrew Morton wrote:
-> 
-> All of which indicates that if we can remove the down_write(mmap_sem) from
-> this glibc operation, things should get a lot better - there will be no
-> additional context switches at all.
-> 
-> And we can surely do that if all we're doing is looking up pageframes,
-> putting pages into fake-swapcache and moving them around on the page LRUs.
-> 
-> Hugh?  Sanity check?
+> Provide scalable per backing_dev_info statistics counters modeled on the ZVC
+> code.
 
-Setting aside the fake-swapcache part, yes, Rik should be able to do what
-Ulrich wants (operating on ptes and pages) without down_write(mmap_sem):
-just needing down_read(mmap_sem) to keep the whole vma/pagetable structure
-stable, and page table lock (literal or per-page-table) for each contents.
+Why do we need global_bdi_stat()?  It should give approximately the
+same numbers as global_page_state(), no?
 
-(I didn't understand how Rik would achieve his point 5, _no_ lock
-contention while repeatedly re-marking these pages, but never mind.)
-
-(Some mails in this thread overlook that we also use down_write(mmap_sem)
-to guard simple things like vma->vm_flags: of course that in itself could
-be manipulated with atomics, or spinlock; but like many of the vma fields,
-changing it goes hand in hand with the chance that we have to split vma,
-which does require the heavy-handed down_write(mmap_sem).  I expect that
-splitting those uses apart would be harder than first appears, and better
-to go for a more radical redesign - I don't know what.)
-
-But you lose me with the fake-swapcache part of it: that came, I think,
-from your initial idea that it would be okay to refault on these ptes.
-Don't we all agree now that we'd prefer not to refault on those ptes,
-unless some memory pressure has actually decided to pull them out?
-(Hmm, yet more list balancing...)
-
-Hugh
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
