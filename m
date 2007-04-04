@@ -1,55 +1,40 @@
-Date: Wed, 4 Apr 2007 19:39:07 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Wed, 4 Apr 2007 13:49:33 -0500
+From: Anton Blanchard <anton@samba.org>
 Subject: Re: missing madvise functionality
-In-Reply-To: <20070404110406.c79b850d.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704041917280.14635@blonde.wat.veritas.com>
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de>
- <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org>
- <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com>
- <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org>
- <20070403160231.33aa862d.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com>
- <20070404110406.c79b850d.akpm@linux-foundation.org>
+Message-ID: <20070404184933.GA29184@kryten>
+References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403135154.61e1b5f3.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070403135154.61e1b5f3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Apr 2007, Andrew Morton wrote:
+Hi,
+
+> Oh.  I was assuming that we'd want to unmap these pages from pagetables and
+> mark then super-easily-reclaimable.  So a later touch would incur a minor
+> fault.
 > 
-> The treatment is identical to clean swapcache pages, with the sole
-> exception that they don't actually consume any swap space - hence the fake
-> swapcache entry thing.
+> But you think that we should leave them mapped into pagetables so no such
+> fault occurs.
 
-I see, sneaking through try_to_unmap's anon PageSwapCache assumptions
-as simply as possible - thanks.
+That would be very nice. The issues are not limited to threaded apps,
+we have seen performance problems with single threaded HPC applications
+that do a lot of large malloc/frees. It turns out the continual set up
+and tear down of pagetables when malloc uses mmap/free is a problem. At
+the moment the workaround is:
 
-(Coincidentally, Andrea pointed to precisely the same issue in the
-no PAGE_ZERO thread, when we were toying with writable but clean.)
+export MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=-1
 
-> One thing which we haven't sorted out with all this stuff: once the
-> application has marked an address range (and some pages) as
-> whatever-were-going-call-this-feature, how does the application undo
-> that change?
+which forces glibc malloc to use brk instead of mmap/free. Of course brk
+is good for keeping pagetables around but bad for keeping memory usage
+down.
 
-By re-referencing the pages.  (Hmm, so an incorrect app which accesses
-"free"d areas, will undo it: well, okay, nothing terrible about that.)
-
-> What effect will things like mremap, madvise and mlock have upon
-> these pages?
-
-mlock will undo the state in its make_pages_present: I guess that
-should happen in or near follow_page's mark_page_accessed.
-
-mremap?  Other madvises?  Nothing much at all: mremap can move
-them around, and the madvises do whatever they do - I don't notice
-any problem in that direction, but it'll be easier when we have an
-implementation to poke at.
-
-Hugh
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
