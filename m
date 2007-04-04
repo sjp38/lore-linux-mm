@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:01:26 +1000
-Subject: [PATCH 1/14] get_unmapped_area handles MAP_FIXED on powerpc
+Date: Wed, 04 Apr 2007 14:01:30 +1000
+Subject: [PATCH 9/14] get_unmapped_area handles MAP_FIXED on x86_64
 In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
-Message-Id: <20070404040137.85313DDE3B@ozlabs.org>
+Message-Id: <20070404040141.E8A4BDDE46@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,55 +11,23 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/powerpc/mm/hugetlbpage.c |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ arch/x86_64/kernel/sys_x86_64.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux-cell/arch/powerpc/mm/hugetlbpage.c
+Index: linux-cell/arch/x86_64/kernel/sys_x86_64.c
 ===================================================================
---- linux-cell.orig/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:52:07.000000000 +1100
-+++ linux-cell/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:57:40.000000000 +1100
-@@ -572,6 +572,13 @@ unsigned long arch_get_unmapped_area(str
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
+--- linux-cell.orig/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:10:10.000000000 +1100
++++ linux-cell/arch/x86_64/kernel/sys_x86_64.c	2007-03-22 16:11:06.000000000 +1100
+@@ -93,6 +93,9 @@ arch_get_unmapped_area(struct file *filp
+ 	unsigned long start_addr;
+ 	unsigned long begin, end;
+ 	
++	if (flags & MAP_FIXED)
 +		return addr;
-+	}
 +
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
-@@ -647,6 +654,13 @@ arch_get_unmapped_area_topdown(struct fi
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
+ 	find_start_end(flags, &begin, &end); 
  
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	/* dont allow allocations above current base */
- 	if (mm->free_area_cache > base)
- 		mm->free_area_cache = base;
-@@ -829,6 +843,13 @@ unsigned long hugetlb_get_unmapped_area(
- 	/* Paranoia, caller should have dealt with this */
- 	BUG_ON((addr + len)  < addr);
- 
-+	/* Handle MAP_FIXED */
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	if (test_thread_flag(TIF_32BIT)) {
- 		curareas = current->mm->context.low_htlb_areas;
- 
+ 	if (len > end)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
