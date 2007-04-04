@@ -1,235 +1,97 @@
-Date: Wed, 4 Apr 2007 18:32:20 +0200
-From: Eric Dumazet <dada1@cosmosbay.com>
-Subject: Re: [rfc] no ZERO_PAGE?
-Message-Id: <20070404183220.2455465b.dada1@cosmosbay.com>
-In-Reply-To: <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org>
-References: <20070329075805.GA6852@wotan.suse.de>
-	<Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
-	<20070330024048.GG19407@wotan.suse.de>
-	<20070404033726.GE18507@wotan.suse.de>
-	<Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate1.uk.ibm.com (8.13.8/8.13.8) with ESMTP id l34Gan4Z099578
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 16:36:49 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l34GamHJ2297998
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 17:36:48 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l34Gamkd022328
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 17:36:48 +0100
+Subject: [S390] page_mkclean data corruption.
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+Content-Type: text/plain
+Date: Wed, 04 Apr 2007 18:37:04 +0200
+Message-Id: <1175704624.31111.3.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: torvalds@linux-foundation.org, gregkh@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Apr 2007 08:35:30 -0700 (PDT)
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+Linus, Greg,
+the attached patch fixes a data corruption problem that has been
+introduced with the page_mkclean/clear_page_dirty_for_io change
+(the "Yes, Virginia, this is indeed insane." problem :-/)
 
-> Anyway, I'm not against this, but I can see somebody actually *wanting* 
-> the ZERO page in some cases. I've used the fact for TLB testing, for 
-> example, by just doing a big malloc(), and knowing that the kernel will 
-> re-use the ZERO_PAGE so that I don't get any cache effects (well, at least 
-> not any *physical* cache effects. Virtually indexed cached will still show 
-> effects of it, of course, but I haven't cared).
-> 
-> That's an example of an app that actually cares about the page allocation 
-> (or, in this case, the lack there-of). Not an important one, but maybe 
-> there are important ones that care?
+In essence the fact that clear_page_dirty_for_io is called for
+not-uptodate pages causes data corruption for architectures that use
+page_test_and_clear_dirty (which is s390 only).
 
-I dont know if this small prog is of any interest :
+This should go into 2.6.21-rc and 2.6.20-stable.
+Please pull message from git390 will follow.
 
-But results on an Intel Pentium-M are interesting, in particular 2) & 3)
+blue skies,
+  Martin.
 
-If a page is first allocated as page_zero then cow to a full rw page, this is more expensive.
-(2660 cycles instead of 2300)
+--
+Subject: [S390] page_mkclean data corruption.
 
-Is there an app somewhere that depends on 2) being ultra-fast but then future write accesses *slow* ???
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-$ ./page_bench >RES; cat RES
-1) pagefault tp bring a rw page:
-Poke (addr=0x804c000): 2360 cycles
-1) pagefault to bring a rw page:
-Poke (addr=0x804d000): 2368 cycles
-1) pagefault to bring a rw page:
-Poke (addr=0x804e000): 2120 cycles
-2) pagefault to bring a zero page, readonly
-Peek(addr=0x804f000): ->0 891 cycles
-3) pagefault to make this page rw
-Poke (addr=0x804f000): 2660 cycles
-1) pagefault to bring a rw page:
-Poke (addr=0x8050000): 2099 cycles
-1) pagefault to bring a rw page:
-Poke (addr=0x8051000): 2062 cycles
-4) memset 4096 bytes to 0x55:
-Poke_full (addr=0x804f000, len=4096): 2719 cycles
-5) fill the whole table
-Poke_full (addr=0x804c000, len=4194304): 6563661 cycles
-6) fill again whole table (no more faults, but cpu cache too small)
-Poke_full (addr=0x804c000, len=4194304): 5188925 cycles
-7.1) faulting a mmap zone, read access
-Peek(addr=0xb7f8a000): ->0 40453 cycles
-8.1) faulting a mmap zone, write access
-Poke (addr=0xb7f89000): 10599 cycles
-7.2) faulting a mmap zone, read access
-Peek(addr=0xb7f88000): ->0 8167 cycles
-8.3) faulting a mmap zone, write access
-Poke (addr=0xb7f87000): 5701 cycles
+The git commit c2fda5fed81eea077363b285b66eafce20dfd45a which
+added the page_test_and_clear_dirty call to page_mkclean and the
+git commit 7658cc289288b8ae7dd2c2224549a048431222b3 which fixes
+the "nasty and subtle race in shared mmap'ed page writeback"
+problem in clear_page_dirty_for_io cause data corruption on s390.
 
+The effect of the two changes is that for every call to
+clear_page_dirty_for_io a page_test_and_clear_dirty is done. If
+the per page dirty bit is set set_page_dirty is called. Strangly
+clear_page_dirty_for_io is called for not-uptodate pages, e.g.
+over this call-chain:
 
-$ cat page_bench.c
+ [<000000000007c0f2>] clear_page_dirty_for_io+0x12a/0x130
+ [<000000000007c494>] generic_writepages+0x258/0x3e0 
+ [<000000000007c692>] do_writepages+0x76/0x7c 
+ [<00000000000c7a26>] __writeback_single_inode+0xba/0x3e4
+ [<00000000000c831a>] sync_sb_inodes+0x23e/0x398 
+ [<00000000000c8802>] writeback_inodes+0x12e/0x140 
+ [<000000000007b9ee>] wb_kupdate+0xd2/0x178 
+ [<000000000007cca2>] pdflush+0x162/0x23c 
 
-# include <errno.h>
-# include <stdlib.h>
-# include <unistd.h>
-# include <fcntl.h>
-# include <stdio.h>
-# include <sys/time.h>
-# include <time.h>
-# include <sys/mman.h>
-# include <string.h>
+The bad news now is that page_test_and_clear_dirty might claim
+that a not-uptodate page is dirty since SetPageUptodate which
+resets the per page dirty bit has not yet been called. The page
+writeback that follows clobbers the data on disk.
 
-#ifdef __x86_64
+The simplest solution to this problem is to move the call to
+page_test_and_clear_dirty under the "if (page_mapped(page))".
+If a file backed page is mapped it is uptodate.
 
-#define rdtscll(val) do { \
-     unsigned int __a,__d; \
-     asm volatile("rdtsc" : "=a" (__a), "=d" (__d)); \
-     (val) = ((unsigned long)__a) | (((unsigned long)__d)<<32); \
-} while(0)
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
 
-#elif  __i386
+ mm/rmap.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-#define rdtscll(val) \
-     __asm__ __volatile__("rdtsc" : "=A" (val))
-
-#endif
-
-int var;
-
-
-
-int *addr1, *addr2, *addr3, *addr4;
-
-void map_many_vmas(unsigned int nb)
-{
-size_t sz = getpagesize();
-int ui;
-for (ui = 0 ; ui < nb ; ui++) {
-	void *p = mmap(NULL, sz,
-			(ui == 0) ? PROT_READ : PROT_READ|PROT_WRITE,
-			(ui & 1) ? MAP_PRIVATE|MAP_ANONYMOUS : MAP_ANONYMOUS|MAP_SHARED, -1, 0);
-	if (p == (void *)-1) {
-		fprintf(stderr, "Only %u mappings could be set\n", ui);
-		break;
-		}
-	if (!addr1) addr1 = (int *)p;
-	else if (!addr2) addr2 = (int *)p;
-	else if (!addr3) addr3 = (int *)p;
-	else if (!addr4) addr4 = (int *)p;
-	}
-}
-
-void show_maps()
-{
-char buffer[4096];
-int fd, lu;
-
-fd = open("/proc/self/maps", 0);
-if (fd != -1) {
-	while ((lu = read(fd, buffer, sizeof(buffer))) > 0)
-		write(2, buffer, lu);
-	close(fd);
-	}
-}
-
-void poke_int(void *addr, int val)
-{
-unsigned long long start, end;
-long delta;
-	rdtscll(start);
-	*(int *)addr = val;
-	rdtscll(end);
-	delta = (end - start);
-	printf("Poke (addr=%p): %ld cycles\n", addr, delta);
-}
-
-void poke_full(void *addr, int val, int len)
-{
-unsigned long long start, end;
-long delta;
-	rdtscll(start);
-	memset(addr, val, len);
-	rdtscll(end);
-	delta = (end - start);
-	printf("Poke_full (addr=%p, len=%d): %ld cycles\n", addr, len, delta);
-}
-
-int  peek_int(void *addr)
-{
-unsigned long long start, end;
-long delta;
-int val;
-	rdtscll(start);
-	val = *(int *)addr;
-	rdtscll(end);
-	delta = (end - start);
-	printf("Peek(addr=%p): ->%d %ld cycles\n", addr, val, delta);
-	return val;
-}
-
-int big_table[1024*1024] __attribute__((aligned(4096)));
-
-void usage(int code)
-{
-fprintf(stderr, "Usage : page_bench [-m mappings]\n");
-exit(code);
-}
-
-int main(int argc, char *argv[])
-{
-	unsigned int nb_mappings = 200;
-	int c;
-
-	while ((c = getopt(argc, argv, "Vm:")) != EOF) {
-		if (c == 'm')
-			nb_mappings = atoi(optarg);
-		else if (c == 'V')
-			usage(0);
-	}
-	if (nb_mappings < 4)
-		nb_mappings = 4;
-	map_many_vmas(nb_mappings);
-//	show_maps();
-	printf("1) pagefault tp bring a rw page:\n") ;
-		poke_int(&big_table[0], 10);
-	printf("1) pagefault to bring a rw page:\n") ;
-		poke_int(&big_table[1024], 10);
-	printf("1) pagefault to bring a rw page:\n") ;
-		poke_int(&big_table[2048], 10);
-	printf("2) pagefault to bring a zero page, readonly\n");
-		peek_int(&big_table[3*1024]);
-	printf("3) pagefault to make this page rw\n");
-		poke_int(&big_table[3*1024], 10);
-
-	printf("1) pagefault to bring a rw page:\n") ;
-	poke_int(&big_table[4*1024], 10);
-	printf("1) pagefault to bring a rw page:\n") ;
-	poke_int(&big_table[5*1024], 10);
-
-	printf("4) memset 4096 bytes to 0x55:\n");
-	poke_full(&big_table[3*1024], 0x55, 4096);
-
-	printf("5) fill the whole table\n");
-	poke_full(big_table, 1, sizeof(big_table));
-	printf("6) fill again whole table (no more faults, but cpu cache too small)\n");
-	poke_full(big_table, 1, sizeof(big_table));
-
-	printf("7.1) faulting a mmap zone, read access\n");
-	peek_int(addr1);
-
-	printf("8.1) faulting a mmap zone, write access\n");
-	poke_int(addr2, 10);
-	printf("7.2) faulting a mmap zone, read access\n");
-	peek_int(addr3);
-	printf("8.3) faulting a mmap zone, write access\n");
-	poke_int(addr4, 10);
-
-	return 0;
-}
+diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
+--- linux-2.6/mm/rmap.c	2007-04-04 14:23:22.000000000 +0200
++++ linux-2.6-patched/mm/rmap.c	2007-04-04 14:23:35.000000000 +0200
+@@ -498,9 +498,9 @@ int page_mkclean(struct page *page)
+ 		struct address_space *mapping = page_mapping(page);
+ 		if (mapping)
+ 			ret = page_mkclean_file(mapping, page);
++		if (page_test_and_clear_dirty(page))
++			ret = 1;
+ 	}
+-	if (page_test_and_clear_dirty(page))
+-		ret = 1;
+ 
+ 	return ret;
+ }
 
 
 --
