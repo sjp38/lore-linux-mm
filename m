@@ -1,75 +1,92 @@
-Date: Wed, 4 Apr 2007 12:24:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] no ZERO_PAGE?
-Message-ID: <20070404102407.GA529@wotan.suse.de>
-References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com>
+In-reply-to: <1175681794.6483.43.camel@twins> (message from Peter Zijlstra on
+	Wed, 04 Apr 2007 12:16:34 +0200)
+Subject: Re: [PATCH 6/6] mm: per device dirty threshold
+References: <20070403144047.073283598@taijtu.programming.kicks-ass.net>
+	 <20070403144224.709586192@taijtu.programming.kicks-ass.net>
+	 <E1HZ1so-0005q8-00@dorka.pomaz.szeredi.hu> <1175681794.6483.43.camel@twins>
+Message-Id: <E1HZ2kU-0005xx-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 04 Apr 2007 12:29:54 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: a.p.zijlstra@chello.nl
+Cc: miklos@szeredi.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 04, 2007 at 10:45:39AM +0100, Hugh Dickins wrote:
-> On Wed, 4 Apr 2007, Nick Piggin wrote:
-> > On Fri, Mar 30, 2007 at 04:40:48AM +0200, Nick Piggin wrote:
-> > > 
-> > > Well it would make life easier if we got rid of ZERO_PAGE completely,
-> > > which I definitely wouldn't complain about ;)
-> 
-> Yes, I love this approach too.
-> 
+> > I'm worried about two things:
 > > 
-> > So, what bad things (apart from my bugs in untested code) happen
-> > if we do this? We can actually go further, and probably remove the
-> > ZERO_PAGE completely (just need an extra get_user_pages flag or
-> > something for the core dumping issue).
+> > 1) If the per-bdi threshold becomes smaller than the granularity of
+> >    the per-bdi stat (due to the per-CPU counters), then things will
+> >    break.  Shouldn't there be some sanity checking for the calculated
+> >    threshold?
 > 
-> Some things will go faster (no longer needing a separate COW fault
-> on the read-protected ZERO_PAGE), some things will go slower and use
-> more memory.  The open question is whether anyone will notice those
-> regressions: I'm hoping they won't, I'm afraid they will.  And though
-> we'll see each as a program doing "something stupid", as in the Altix
-> case Robin showed to drive us here, we cannot just ignore it.
-
-Sure. Agreed.
-
-> > Shall I do a more complete patchset and ask Andrew to give it a
-> > run in -mm?
+> I'm not sure what you're referring to.
 > 
-> I'd like you to: I didn't study the fragment below, it's really all
-> uses of the ZERO_PAGE that I'd like to see go, then we see who shouts.
+> void get_writeout_scale(struct backing_dev_info *bdi, int *scale, int *div)
+> {
+>         int bits = vm_cycle_shift - 1;
+>         unsigned long total = __global_bdi_stat(BDI_WRITEOUT_TOTAL);
+>         unsigned long cycle = 1UL << bits;
+>         unsigned long mask = cycle - 1;
+> 
+>         if (bdi_cap_writeback_dirty(bdi)) {
+>                 bdi_writeout_norm(bdi);
+>                 *scale = __bdi_stat(bdi, BDI_WRITEOUT);
+>         } else
+>                 *scale = 0;
+> 
+>         *div = cycle + (total & mask);
+> }
+> 
+> where cycle ~ vm_total_pages
+> scale can be a tad off due to overstep here:
+> 
+> void __inc_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item)
+> {
+>         struct bdi_per_cpu_data *pcd = &bdi->pcd[smp_processor_id()];
+>         s8 *p = pcd->bdi_stat_diff + item;
+> 
+>         (*p)++;
+> 
+>         if (unlikely(*p > pcd->stat_threshold)) {
+>                 int overstep = pcd->stat_threshold / 2;
+> 
+>                 bdi_stat_add(*p + overstep, bdi, item);
+>                 *p = -overstep;
+>         }
+> }
+> 
+> so it could be that: scale / cycle > 1
+> by a very small amount; however:
 
-Yeah, they are basically pretty trivial to remove. I'll do a more
-complete patch now that I know you like the approach.
+No, I'm worried about the case when scale is too small.  If the
+per-bdi threshold becomes smaller than stat_threshold, then things
+won't work, because dirty+writeback will never go below the threshold,
+possibly resulting in the deadlock we are trying to avoid.
 
-> It's quite likely that the patch would have to be reverted: don't
-> bother to remove the allocations of ZERO_PAGE in each architecture
-> at this stage, too much nuisance going back and forth on those.
+BTW, the second argument of get_dirty_limits() doesn't seem to get
+used by the caller, or does it?
 
-OK.
+> here we clip to 'reserve' which is the total amount of dirty threshold
+> not dirty by others.
+> 
+> > 2) The loop is sleeping in congestion_wait(WRITE), which seems wrong.
+> >    It may well be possible that none of the queues are congested, so
+> >    it will sleep the full .1 second.  But by that time the queue may
+> >    have become idle and is just sitting there doing nothing.  Maybe
+> >    there should be a per-bdi waitq, that is woken up, when the per-bdi
+> >    stats are updated.
+> 
+> Good point, .1 seconds is a lot of time.
+> 
+> I'll cook up something like that if nobody beats me to it :-)
 
-> Leave ZERO_PAGE as configurable, default off for testing, buried
-> somewhere like under EMBEDDED?  It's much more attractive just to
-> remove the old code, and reintroduce it if there's a demand; but
-> leaving it under config would make it easy to restore, and if
-> there's trouble with removing ZERO_PAGE, we might later choose
-> to disable it at the high end but enable it at the low.  What
-> would you prefer?
+I realized, that it's maybe worth storing last the threshold in the
+bdi as well, so that balance_dirty_pages() doesn't get woken up too
+many times unnecessarilty.  But I don't know...
 
-Ooh, the one with more '-' signs in the diff ;)
-
-No, you have a point, but if we have to ask people to recompile 
-with CONFIG_ZERO_PAGE, then it isn't much harder to ask them to
-apply a patch first.
-
-But for a potential mainline merge, maybe starting with a CONFIG
-option is a good idea -- defaulting to off, and we could start by
-turning it on just in -rc kernels for a few releases, to get a bit
-more confidence?
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
