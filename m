@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:01:28 +1000
-Subject: [PATCH 5/14] get_unmapped_area handles MAP_FIXED on i386
+Date: Wed, 04 Apr 2007 14:01:32 +1000
+Subject: [PATCH 11/14] get_unmapped_area handles MAP_FIXED on ramfs (nommu) 
 In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
-Message-Id: <20070404040139.B08C6DDE41@ozlabs.org>
+Message-Id: <20070404040143.1EDE6DDEA0@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,26 +11,25 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/i386/mm/hugetlbpage.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ fs/ramfs/file-nommu.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Index: linux-cell/arch/i386/mm/hugetlbpage.c
+Index: linux-cell/fs/ramfs/file-nommu.c
 ===================================================================
---- linux-cell.orig/arch/i386/mm/hugetlbpage.c	2007-03-22 16:08:12.000000000 +1100
-+++ linux-cell/arch/i386/mm/hugetlbpage.c	2007-03-22 16:14:19.000000000 +1100
-@@ -367,6 +367,12 @@ hugetlb_get_unmapped_area(struct file *f
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
+--- linux-cell.orig/fs/ramfs/file-nommu.c	2007-03-22 16:18:27.000000000 +1100
++++ linux-cell/fs/ramfs/file-nommu.c	2007-03-22 16:20:14.000000000 +1100
+@@ -238,7 +238,10 @@ unsigned long ramfs_nommu_get_unmapped_a
+ 	struct page **pages = NULL, **ptr, *page;
+ 	loff_t isize;
  
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	if (addr) {
- 		addr = ALIGN(addr, HPAGE_SIZE);
- 		vma = find_vma(mm, addr);
+-	if (!(flags & MAP_SHARED))
++	/* Deal with MAP_FIXED differently ? Forbid it ? Need help from some nommu
++	 * folks there... --BenH.
++	 */
++	if ((flags & MAP_FIXED) || !(flags & MAP_SHARED))
+ 		return addr;
+ 
+ 	/* the mapping mustn't extend beyond the EOF */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
