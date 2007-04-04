@@ -1,98 +1,45 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate1.uk.ibm.com (8.13.8/8.13.8) with ESMTP id l34Gan4Z099578
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 16:36:49 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l34GamHJ2297998
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 17:36:48 +0100
-Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l34Gamkd022328
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2007 17:36:48 +0100
-Subject: [S390] page_mkclean data corruption.
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-Content-Type: text/plain
-Date: Wed, 04 Apr 2007 18:37:04 +0200
-Message-Id: <1175704624.31111.3.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 4 Apr 2007 18:48:48 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [rfc] no ZERO_PAGE?
+Message-ID: <20070404164848.GN19587@v2.random>
+References: <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704041023040.17341@blonde.wat.veritas.com> <20070404102407.GA529@wotan.suse.de> <20070404122701.GB19587@v2.random> <20070404135530.GA29026@localdomain> <20070404141457.GF19587@v2.random> <20070404144421.GA13762@localdomain> <20070404152717.GG19587@v2.random> <20070404161515.GB24339@localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070404161515.GB24339@localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org, gregkh@suse.de
-Cc: linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
+To: Dan Aloni <da-x@monatomic.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus, Greg,
-the attached patch fixes a data corruption problem that has been
-introduced with the page_mkclean/clear_page_dirty_for_io change
-(the "Yes, Virginia, this is indeed insane." problem :-/)
+Hi Dan,
 
-In essence the fact that clear_page_dirty_for_io is called for
-not-uptodate pages causes data corruption for architectures that use
-page_test_and_clear_dirty (which is s390 only).
+On Wed, Apr 04, 2007 at 07:15:15PM +0300, Dan Aloni wrote:
+> The main difference is that disk-backed swap can create I/O pressure which
+> would slow down the swap-outs that are not of zeroed pages (and other I/Os
+> on that disk for that matter). For purely-RAM virtual memory the latency 
+> incured from managing newly allocated and zeroed pages is neglegible 
+> compared to the latencies you get from reading/flushing those pages to 
+> disk if you add swap to the picture.
 
-This should go into 2.6.21-rc and 2.6.20-stable.
-Please pull message from git390 will follow.
+Sorry but you're telling me the obvious... clearly you're right, swap
+is slower, ram is faster. As a corollary on a 64bit system you could
+always throw money at ram and _guarantee_ that those anon read page
+faults never hit swap. That's not the point.
 
-blue skies,
-  Martin.
-
---
-Subject: [S390] page_mkclean data corruption.
-
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-
-The git commit c2fda5fed81eea077363b285b66eafce20dfd45a which
-added the page_test_and_clear_dirty call to page_mkclean and the
-git commit 7658cc289288b8ae7dd2c2224549a048431222b3 which fixes
-the "nasty and subtle race in shared mmap'ed page writeback"
-problem in clear_page_dirty_for_io cause data corruption on s390.
-
-The effect of the two changes is that for every call to
-clear_page_dirty_for_io a page_test_and_clear_dirty is done. If
-the per page dirty bit is set set_page_dirty is called. Strangly
-clear_page_dirty_for_io is called for not-uptodate pages, e.g.
-over this call-chain:
-
- [<000000000007c0f2>] clear_page_dirty_for_io+0x12a/0x130
- [<000000000007c494>] generic_writepages+0x258/0x3e0 
- [<000000000007c692>] do_writepages+0x76/0x7c 
- [<00000000000c7a26>] __writeback_single_inode+0xba/0x3e4
- [<00000000000c831a>] sync_sb_inodes+0x23e/0x398 
- [<00000000000c8802>] writeback_inodes+0x12e/0x140 
- [<000000000007b9ee>] wb_kupdate+0xd2/0x178 
- [<000000000007cca2>] pdflush+0x162/0x23c 
-
-The bad news now is that page_test_and_clear_dirty might claim
-that a not-uptodate page is dirty since SetPageUptodate which
-resets the per page dirty bit has not yet been called. The page
-writeback that follows clobbers the data on disk.
-
-The simplest solution to this problem is to move the call to
-page_test_and_clear_dirty under the "if (page_mapped(page))".
-If a file backed page is mapped it is uptodate.
-
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
-
- mm/rmap.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff -urpN linux-2.6/mm/rmap.c linux-2.6-patched/mm/rmap.c
---- linux-2.6/mm/rmap.c	2007-04-04 14:23:22.000000000 +0200
-+++ linux-2.6-patched/mm/rmap.c	2007-04-04 14:23:35.000000000 +0200
-@@ -498,9 +498,9 @@ int page_mkclean(struct page *page)
- 		struct address_space *mapping = page_mapping(page);
- 		if (mapping)
- 			ret = page_mkclean_file(mapping, page);
-+		if (page_test_and_clear_dirty(page))
-+			ret = 1;
- 	}
--	if (page_test_and_clear_dirty(page))
--		ret = 1;
- 
- 	return ret;
- }
-
+If 4G more of virtual memory are allocated in the address space of a
+task because of this kernel change, it's the same problem if those 4G
+are later allocated in swap or in ram depending on the runtime
+environment of the kernel. The problem is that 4G more will be
+allocated, it doesn't matter _where_. The user with a 8G system will
+not be slowed down much, the user with a 128M system will trash beyond
+repair, but it's the same problem for both. If the new ram will go
+into ram or swap is irrelevant because it's an unknown variable that
+depends on the amount of ram and swap and on what else is running
+(infact there will be a third guy with even less luck that will go out
+of memory and crash after hitting an oom killer bug ;), it's the same
+problem in all three cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
