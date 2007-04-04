@@ -1,40 +1,43 @@
-Date: Wed, 4 Apr 2007 13:49:33 -0500
-From: Anton Blanchard <anton@samba.org>
+Date: Wed, 4 Apr 2007 11:51:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: missing madvise functionality
-Message-ID: <20070404184933.GA29184@kryten>
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403135154.61e1b5f3.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070403135154.61e1b5f3.akpm@linux-foundation.org>
+Message-Id: <20070404115105.ebaff52a.akpm@linux-foundation.org>
+In-Reply-To: <20070404130918.GK2986@holomorphy.com>
+References: <46128051.9000609@redhat.com>
+	<p73648dz5oa.fsf@bingen.suse.de>
+	<46128CC2.9090809@redhat.com>
+	<20070403172841.GB23689@one.firstfloor.org>
+	<20070403125903.3e8577f4.akpm@linux-foundation.org>
+	<4612B645.7030902@redhat.com>
+	<20070403202937.GE355@devserv.devel.redhat.com>
+	<20070404130918.GK2986@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 4 Apr 2007 06:09:18 -0700 William Lee Irwin III <wli@holomorphy.com> wrote:
 
-> Oh.  I was assuming that we'd want to unmap these pages from pagetables and
-> mark then super-easily-reclaimable.  So a later touch would incur a minor
-> fault.
 > 
-> But you think that we should leave them mapped into pagetables so no such
-> fault occurs.
+> On Tue, Apr 03, 2007 at 04:29:37PM -0400, Jakub Jelinek wrote:
+> > void *
+> > tf (void *arg)
+> > {
+> >   (void) arg;
+> >   size_t ps = sysconf (_SC_PAGE_SIZE);
+> >   void *p = mmap (NULL, 128 * ps, PROT_READ | PROT_WRITE,
+> >                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+> >   if (p == MAP_FAILED)
+> >     exit (1);
+> >   int i;
+> 
+> Oh dear.
 
-That would be very nice. The issues are not limited to threaded apps,
-we have seen performance problems with single threaded HPC applications
-that do a lot of large malloc/frees. It turns out the continual set up
-and tear down of pagetables when malloc uses mmap/free is a problem. At
-the moment the workaround is:
-
-export MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=-1
-
-which forces glibc malloc to use brk instead of mmap/free. Of course brk
-is good for keeping pagetables around but bad for keeping memory usage
-down.
-
-Anton
+what's all this about?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
