@@ -1,72 +1,82 @@
-Date: Wed, 4 Apr 2007 10:02:36 -0700 (PDT)
+Date: Wed, 4 Apr 2007 10:10:46 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [rfc] no ZERO_PAGE?
-In-Reply-To: <20070404183220.2455465b.dada1@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0704040950570.6730@woody.linux-foundation.org>
-References: <20070329075805.GA6852@wotan.suse.de>
- <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com>
- <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de>
- <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org>
- <20070404183220.2455465b.dada1@cosmosbay.com>
+Subject: Re: [S390] page_mkclean data corruption.
+In-Reply-To: <1175704624.31111.3.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0704041003560.6730@woody.linux-foundation.org>
+References: <1175704624.31111.3.camel@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: gregkh@suse.de, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 4 Apr 2007, Eric Dumazet wrote:
+On Wed, 4 Apr 2007, Martin Schwidefsky wrote:
+>
+> the attached patch fixes a data corruption problem that has been
+> introduced with the page_mkclean/clear_page_dirty_for_io change
+> (the "Yes, Virginia, this is indeed insane." problem :-/)
+
+Ok. I'm a bit worried about something like this, this late in the release 
+cycle, but since I guess page_test_and_clear_dirty() is always 0 for any 
+architecture but S390, I guess there are no possible downsides except for 
+that architecture.
+
+So I'll apply it, but:
+
+> The effect of the two changes is that for every call to
+> clear_page_dirty_for_io a page_test_and_clear_dirty is done. If
+> the per page dirty bit is set set_page_dirty is called. Strangly
+> clear_page_dirty_for_io is called for not-uptodate pages, e.g.
+> over this call-chain:
 > 
-> But results on an Intel Pentium-M are interesting, in particular 2) & 3)
+>  [<000000000007c0f2>] clear_page_dirty_for_io+0x12a/0x130
+>  [<000000000007c494>] generic_writepages+0x258/0x3e0 
+>  [<000000000007c692>] do_writepages+0x76/0x7c 
+>  [<00000000000c7a26>] __writeback_single_inode+0xba/0x3e4
+>  [<00000000000c831a>] sync_sb_inodes+0x23e/0x398 
+>  [<00000000000c8802>] writeback_inodes+0x12e/0x140 
+>  [<000000000007b9ee>] wb_kupdate+0xd2/0x178 
+>  [<000000000007cca2>] pdflush+0x162/0x23c 
 > 
-> If a page is first allocated as page_zero then cow to a full rw page, this is more expensive.
-> (2660 cycles instead of 2300)
+> The bad news now is that page_test_and_clear_dirty might claim
+> that a not-uptodate page is dirty since SetPageUptodate which
+> resets the per page dirty bit has not yet been called. The page
+> writeback that follows clobbers the data on disk.
 
-Yes, you have an extra TLB flush there at a minimum (if the page didn't 
-exist at all before, you don't have to flush).
+Wouldn't it be best if S390 tried to avoid this by clearing the dirty bit 
+whenever a new page is allocated? 
 
-That said, the big cost tends to be the clearing of the page. Which is why 
-the "bring in zero page" is so much faster than anything else - it's the 
-only case that doesn't need to clear the page.
+This is a very subtle and very surprising problem with the whole 
+"page_test_and_clear_dirty()" thing - where a new page can be marked dirty 
+for no obvious reason.
 
-So you should basically think of your numbers like this:
- - roughly 900 cycles is the cost of the page fault and all the 
-   "basic software" side in the kernel
- - roughly 1400 cycles to actually do the "memset" to clear the page (and 
-   no, that's *not* the cost of memory accesses per se - it's very likely 
-   already in the L2 cache or similar, we just need to clear it and if 
-   it wasn't marked exclusive need to do a bus cycle to invalidate it on 
-   any other CPU's).
+If S390 marked it clean at *allocation* time instead of at 
+SetPageUptodate() time, that would also mean that the whole strange 
+special case for S390 in SetPageUptodate() would go away.
 
-with small variation depending on what the state was before of the cache 
-in particular (for example, the TLB flush cost, but also: when you do
+Hmm? Or is marking things clean so expensive that you generally don't want 
+to do it in the allocation path?
 
-> 4) memset 4096 bytes to 0x55:
-> Poke_full (addr=0x804f000, len=4096): 2719 cycles
+Anyway, I'll apply the patch, since for 2.6.21 this is clearly the 
+simplest solution, but 
+ (a) I think it might be ugly
+and
+ (b) are you sure that it doesn't introduce a new bug on S390, where some 
+     page has been *removed* from the mappings, and should still trigger 
+     the "page_test_and_clear_dirty()" test, but now, because it's done 
+     inside the "if (page_mapped())" case, we miss it?
 
-This only adds ~600 cycles to memset the same 4kB that cost ~1400 cycles 
-before, but that's *probably* largely because it was now already dirty in 
-the L2 and possibly the L1, so it's quite possible that this is really 
-just a cache effect, because now it's entirely exclusive in the caches so 
-you don't need to do any probing on the bus at all).
+That said, in many ways, moving the whole "page_test_and_clear_dirty()" 
+thing inside the "page_mapped()" thing does seem to make conceptual sense 
+(since the only way it would become dirty in that way is if it's mapped), 
+so I don't mind the patch, I just worry about (b) a bit, and if we got rid 
+of the strange special code in S390 to SetPageUptodate() that would also 
+be nice.
 
-Also note: in the end, page faults are usually fairly unusual. You do them 
-once, and then use the page a lot after that. That's not *always* true, of 
-course. Some malloc()/free() patterns of big areas that are not used for 
-long will easily cause constant mmap/munmap, and a lot of page faults.
-
-The worst effect of page faults tends to be for short-lived stuff. Notably 
-things like "system()" that executes a shell just to execute something 
-else. Almost *everything* in that path is basically "use once, then throw 
-away", and page fault latency is interesting.
-
-So this is one case where it might be interesting to look at what lmbench 
-reports for the "fork/exit", "fork/exec" and "shell exec" numbers before 
-and after. 
-
-			Linus
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
