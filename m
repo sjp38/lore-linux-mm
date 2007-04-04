@@ -1,8 +1,8 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:16 +1000
-Subject: [PATCH 3/14] get_unmapped_area handles MAP_FIXED on arm
+Date: Wed, 04 Apr 2007 14:02:17 +1000
+Subject: [PATCH 5/14] get_unmapped_area handles MAP_FIXED on i386
 In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040227.48AEDDDE3E@ozlabs.org>
+Message-Id: <20070404040228.68D9DDDE46@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -11,23 +11,26 @@ List-ID: <linux-mm.kvack.org>
 
 ---
 
- arch/arm/mm/mmap.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/i386/mm/hugetlbpage.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Index: linux-cell/arch/arm/mm/mmap.c
+Index: linux-cell/arch/i386/mm/hugetlbpage.c
 ===================================================================
---- linux-cell.orig/arch/arm/mm/mmap.c	2007-03-22 14:59:51.000000000 +1100
-+++ linux-cell/arch/arm/mm/mmap.c	2007-03-22 15:00:01.000000000 +1100
-@@ -49,8 +49,7 @@ arch_get_unmapped_area(struct file *filp
- #endif
+--- linux-cell.orig/arch/i386/mm/hugetlbpage.c	2007-03-22 16:08:12.000000000 +1100
++++ linux-cell/arch/i386/mm/hugetlbpage.c	2007-03-22 16:14:19.000000000 +1100
+@@ -367,6 +367,12 @@ hugetlb_get_unmapped_area(struct file *f
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
  
- 	/*
--	 * We should enforce the MAP_FIXED case.  However, currently
--	 * the generic kernel code doesn't allow us to handle this.
-+	 * We enforce the MAP_FIXED case.
- 	 */
- 	if (flags & MAP_FIXED) {
- 		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
++	if (flags & MAP_FIXED) {
++		if (prepare_hugepage_range(addr, len, pgoff))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	if (addr) {
+ 		addr = ALIGN(addr, HPAGE_SIZE);
+ 		vma = find_vma(mm, addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
