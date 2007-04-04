@@ -1,12 +1,12 @@
-Subject: Re: [PATCH 11/14] get_unmapped_area handles MAP_FIXED on ramfs
+Subject: Re: [PATCH 12/14] get_unmapped_area handles MAP_FIXED in /dev/mem
 	(nommu)
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <23091.1175681818@redhat.com>
-References: <20070404040231.A110CDDEB8@ozlabs.org>
-	 <23091.1175681818@redhat.com>
+In-Reply-To: <23349.1175682669@redhat.com>
+References: <20070404040232.2FEF6DDEBA@ozlabs.org>
+	 <23349.1175682669@redhat.com>
 Content-Type: text/plain
-Date: Thu, 05 Apr 2007 09:13:52 +1000
-Message-Id: <1175728433.30879.79.camel@localhost.localdomain>
+Date: Thu, 05 Apr 2007 09:14:12 +1000
+Message-Id: <1175728452.30879.81.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,26 +15,23 @@ To: David Howells <dhowells@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-04-04 at 11:16 +0100, David Howells wrote:
+On Wed, 2007-04-04 at 11:31 +0100, David Howells wrote:
 > Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 > 
-> > -	if (!(flags & MAP_SHARED))
-> > +	/* Deal with MAP_FIXED differently ? Forbid it ? Need help from some nommu
-> > +	 * folks there... --BenH.
-> > +	 */
-> > +	if ((flags & MAP_FIXED) || !(flags & MAP_SHARED))
+> > +	if (flags & MAP_FIXED)
+> > +		if ((addr >> PAGE_SHIFT) != pgoff)
+> > +			return (unsigned long) -EINVAL;
 > 
-> MAP_FIXED on NOMMU?  Surely you jest...
-
-Heh, see the comment, I was actually wondering about it :-)
-
-> See the first if-statement in validate_mmap_request().
+> Again... in NOMMU-mode there is no MAP_FIXED - it's rejected before we get
+> this far.
 > 
-> If anything, you should be adding BUG_ON(flags & MAP_FIXED).
+> > -	return pgoff;
+> > +	return pgoff << PAGE_SHIFT;
+> 
+> That, however, does appear to be a genuine bugfix.
 
-Yeah, I missed that bit. That will simplify the problem.
+I'll separate it from the rest of the patches
 
-Thanks,
 Ben.
 
 
