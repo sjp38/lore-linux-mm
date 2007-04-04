@@ -1,36 +1,32 @@
+Subject: Re: [PATCH 0/14] Pass MAP_FIXED down to get_unmapped_area
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Apr 2007 14:02:19 +1000
-Subject: [PATCH 8/14] get_unmapped_area handles MAP_FIXED on sparc64
-In-Reply-To: <1175659331.690672.592289266160.qpush@grosgo>
-Message-Id: <20070404040230.14970DDEA0@ozlabs.org>
+In-Reply-To: <1175659285.929428.835270667964.qpush@grosgo>
+References: <1175659285.929428.835270667964.qpush@grosgo>
+Content-Type: text/plain
+Date: Wed, 04 Apr 2007 14:03:48 +1000
+Message-Id: <1175659428.30879.47.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-arch@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
----
+On Wed, 2007-04-04 at 14:01 +1000, Benjamin Herrenschmidt wrote:
+> This is a "first step" as there are still cleanups to be done in various
+> areas touched by that code but I think it's probably good to go as is and
+> at least enables me to implement what I need for PowerPC.
 
- arch/sparc64/mm/hugetlbpage.c |    6 ++++++
- 1 file changed, 6 insertions(+)
 
-Index: linux-cell/arch/sparc64/mm/hugetlbpage.c
-===================================================================
---- linux-cell.orig/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:12:57.000000000 +1100
-+++ linux-cell/arch/sparc64/mm/hugetlbpage.c	2007-03-22 16:15:33.000000000 +1100
-@@ -175,6 +175,12 @@ hugetlb_get_unmapped_area(struct file *f
- 	if (len > task_size)
- 		return -ENOMEM;
- 
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	if (addr) {
- 		addr = ALIGN(addr, HPAGE_SIZE);
- 		vma = find_vma(mm, addr);
+ .../...
+
+And sorry for the double-send of some of the patches, a script hickup on
+my side.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
