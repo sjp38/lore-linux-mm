@@ -1,66 +1,46 @@
-Message-ID: <46145476.8080504@yahoo.com.au>
-Date: Thu, 05 Apr 2007 11:44:22 +1000
+Message-ID: <4614585F.1050200@yahoo.com.au>
+Date: Thu, 05 Apr 2007 12:01:03 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org> <20070403160231.33aa862d.akpm@linux-foundation.org> <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com> <4613BC5D.2070404@redhat.com> <Pine.LNX.4.64.0704041610320.19450@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0704041610320.19450@blonde.wat.veritas.com>
+References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<20070403144948.fe8eede6.akpm@linux-foundation.org>	<4612DCC6.7000504@cosmosbay.com>	<46130BC8.9050905@yahoo.com.au>	<1175675146.6483.26.camel@twins>	<461367F6.10705@yahoo.com.au>	<20070404113447.17ccbefa.dada1@cosmosbay.com>	<46137882.6050708@yahoo.com.au> <20070404135458.4f1a7059.dada1@cosmosbay.com>
+In-Reply-To: <20070404135458.4f1a7059.dada1@cosmosbay.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Wed, 4 Apr 2007, Rik van Riel wrote:
+Eric Dumazet wrote:
+> On Wed, 04 Apr 2007 20:05:54 +1000
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
->>Hugh Dickins wrote:
+>>>@@ -1638,7 +1652,7 @@ find_extend_vma(struct mm_struct * mm, u
+>>> 	unsigned long start;
+>>> 
+>>> 	addr &= PAGE_MASK;
+>>>-	vma = find_vma(mm,addr);
+>>>+	vma = find_vma(mm,addr,&current->vmacache);
+>>> 	if (!vma)
+>>> 		return NULL;
+>>> 	if (vma->vm_start <= addr)
 >>
->>
->>>(I didn't understand how Rik would achieve his point 5, _no_ lock
->>>contention while repeatedly re-marking these pages, but never mind.)
->>
->>The CPU marks them accessed&dirty when they are reused.
->>
->>The VM only moves the reused pages back to the active list
->>on memory pressure.  This means that when the system is
->>not under memory pressure, the same page can simply stay
->>PG_lazyfree for multiple malloc/free rounds.
+>>So now you can have current calling find_extend_vma on someone else's mm
+>>but using their cache. So you're going to return current's vma, or current
+>>is going to get one of mm's vmas in its cache :P
 > 
 > 
-> Sure, there's no need for repetitious locking at the LRU end of it;
-> but you said "if the system has lots of free memory, pages can go
-> through multiple free/malloc cycles while sitting on the dontneed
-> list, very lazily with no lock contention".  I took that to mean,
-> with userspace repeatedly madvising on the ranges they fall in,
-> which will involve mmap_sem and ptl each time - just in order
-> to check that no LRU movement is required each time.
+> This was not a working patch, just to throw the idea, since the answers I got showed I was not understood.
 > 
-> (Of course, there's also the problem that we don't leave our
-> systems with lots of free memory: some LRU balancing decisions.)
+> In this case, find_extend_vma() should of course have one struct vm_area_cache * argument, like find_vma()
+> 
+> One single cache on one mm is not scalable. oprofile badly hits it on a dual cpu config.
 
-I don't agree this approach is the best one anyway. I'd rather
-just the simple MADV_DONTNEED/MADV_DONEED.
-
-Once you go through the trouble of protecting the memory and
-flushing TLBs, unprotecting them afterwards and taking a trap
-(even if it is a pure hardware trap), I doubt you've saved much.
-
-You may have saved the cost of zeroing out the page, but that
-has to be weighed against the fact that you have left a possibly
-cache hot page sitting there to get cold, and your accesses to
-initialise the malloced memory might have more cache misses.
-
-If you just free the page, it goes onto a nice LIFO cache hot
-list, and when you want to allocate another one, you'll probably
-get a cache hot one.
-
-The problem is down_write(mmap_sem) isn't it? We can and should
-easily fix that problem now. If we subsequently want to look at
-micro optimisations to avoid zeroing using MMU tricks, then we
-have a good base to compare with.
+Oh, what sort of workload are you using to show this? The only reason that I
+didn't submit my thread cache patches was that I didn't show a big enough
+improvement.
 
 -- 
 SUSE Labs, Novell Inc.
