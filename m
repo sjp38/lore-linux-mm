@@ -1,49 +1,59 @@
-Date: Thu, 5 Apr 2007 07:23:36 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Wed, 4 Apr 2007 22:37:29 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [rfc] no ZERO_PAGE?
-Message-ID: <20070405052336.GQ19587@v2.random>
-References: <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <20070404.131111.62667528.davem@davemloft.net>
+Message-ID: <20070405053729.GQ2986@holomorphy.com>
+References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <6701.1175724355@turing-police.cc.vt.edu> <Pine.LNX.4.64.0704041724280.6730@woody.linux-foundation.org> <20070405023026.GE11192@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070404.131111.62667528.davem@davemloft.net>
+In-Reply-To: <20070405023026.GE11192@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: torvalds@linux-foundation.org, npiggin@suse.de, hugh@veritas.com, akpm@linux-foundation.org, linux-mm@kvack.org, tee@sgi.com, holt@sgi.com, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Valdis.Kletnieks@vt.edu, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 04, 2007 at 01:11:11PM -0700, David S. Miller wrote:
-> If we're going to consider this seriously, there is a case I know of.
-> Look at flush_dcache_page()'s test for ZERO_PAGE() on sparc64, there
-> is an instructive comment:
-> 
-> 	/* Do not bother with the expensive D-cache flush if it
-> 	 * is merely the zero page.  The 'bigcore' testcase in GDB
-> 	 * causes this case to run millions of times.
-> 	 */
-> 	if (page == ZERO_PAGE(0))
-> 		return;
-> 
-> basically what the GDB test case does it mmap() an enormous anonymous
-> area, not touch it, then dump core.
-> 
-> As I understand the patch being considered to remove ZERO_PAGE(), this
-> kind of core dump will cause a lot of pages to be allocated, probably
-> eating up a lot of system time as well as memory.
+On Wed, Apr 04, 2007 at 05:27:31PM -0700, Linus Torvalds wrote:
+>> Good point. In fact, it doesn't need to be a malloc() - I remember people 
+>> doing this with Fortran programs and just having an absolutely incredibly 
+>> big BSS (with traditional Fortran, dymic memory allocations are just not 
+>> done).
 
-Well, if we leave the zero page in because there may be too many apps
-to optimize, we still have to fix the zero page handling. Current code
-is far from ideal. Currently the zero page scales worse than
-no-zero-page, at the very least all the page count/mapcount
-increase/decrease at every map-in/zap must be dropped from memory.c,
-otherwise two totally unrelated gdb running at the same time (or gdb
-at the same time of fortran, or two unrelated fortran apps) will badly
-trash over the zero page reference counting.
+On Thu, Apr 05, 2007 at 04:30:26AM +0200, Nick Piggin wrote:
+> Sparse matrices are one thing I worry about. I don't know enough about
+> HPC code to know whether they will be a problem. I know there exist
+> data structures to optimise sparse matrix storage...
 
-Besides the backwards compatibility argument with gdb or similar apps
-I doubt the zero page is a really worthwhile optimization and I guess
-we'd be better off if it never existed.
+\begin{admission-against-interest}
+
+Sparse matrix code goes to extreme lengths to avoid ever looking at
+substantial numbers of zero floating point matrix and vector entries.
+In extreme cases, hashing and various sorts of heavyweight data
+structures are used to represent highly irregular structures. At various
+times the matrix is not even explicitly formed. Most typical are cases
+like band diagonal matrices where storage is allocated only for the
+nonzero diagonals. The entire purpose of sparse algorithms is to avoid
+examining or even allocating zeros.
+
+The actual phenomenon of concern here is dense matrix code with sparse
+matrix inputs. The matrices will typically not be vast but may span 1MB
+or so of RAM (1024x1024 is 1M*sizeof(double), and various dense matrix
+algorithms target ca. 300x300). Most of the time this will arise from
+the use of dense matrix code as black box solvers called as a library
+by programs not terribly concerned about efficiency until something
+gets explosively inefficient (and maybe not even then), or otherwise
+numerically naive programs. This, however, is arguably the majority of
+the usage cases by end-user invocations, so beware, though not too much.
+
+I'd be more concerned about large hashtables sparsely used for the
+purposes of adjacency detection and other cases where large time vs.
+space tradeoffs are made for probabilistic reasons involving
+collisions.
+
+\end{admission-against-interest}
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
