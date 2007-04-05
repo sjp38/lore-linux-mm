@@ -1,89 +1,42 @@
-Date: Thu, 5 Apr 2007 11:58:52 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Free up page->private for compound pages
-In-Reply-To: <Pine.LNX.4.64.0704051919490.17494@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0704051152500.10694@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0704042016490.7885@schroedinger.engr.sgi.com>
- <20070405033648.GG11192@wotan.suse.de> <Pine.LNX.4.64.0704042037550.8745@schroedinger.engr.sgi.com>
- <20070405035741.GH11192@wotan.suse.de> <Pine.LNX.4.64.0704042102570.12297@schroedinger.engr.sgi.com>
- <20070405042502.GI11192@wotan.suse.de> <Pine.LNX.4.64.0704042132170.14005@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704051522510.24160@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0704051117110.9800@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704051919490.17494@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 5 Apr 2007 21:11:29 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: preemption and rwsems (was: Re: missing madvise functionality)
+Message-ID: <20070405191129.GC22092@elte.hu>
+References: <20070404160006.8d81a533.akpm@linux-foundation.org> <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <19526.1175777338@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <19526.1175777338@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, dgc@sgi.com
+To: David Howells <dhowells@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2007, Hugh Dickins wrote:
+* David Howells <dhowells@redhat.com> wrote:
 
-> > > off through its page->private (page->first_page comes from another
-> > > of your patches, not in -mm).  Looks like you need to add a test for
+> But short of recording the lock sequence, I don't think there's anyway 
+> to find out for sure.  printk probably won't cut it as a recording 
+> mechanism because its overheads are too great.
 
-Yes its in mm. See the slub patches.
+getting a good trace of it is easy: pick up the latest -rt kernel from:
 
-> > > PageCompound in compound_head (what a surprise!), unfortunately.
-> > 
-> > Hmmm... Thus we should really have separate page flag and not overload it?
-> 
-> Of course that would be more efficient, but is it really something
-> we'd want to be spending a page flag on?  And it's mainly a codesize
-> thing, the initial unlikely(PageCompound) tests should keep the main
-> paths as fast as before, shouldn't they?
+	http://redhat.com/~mingo/realtime-preempt/
 
-I am not so much worried about performance but more about the availability 
-of the page->private field of compound pages.
+enable EVENT_TRACING in that kernel, run the workload 
+and do:
 
-> But I did wonder whether you could do it differently, but not setting
-> PageCompound on the first struct page of the compound at all - that
-> one doesn't need the compound page adjustment, of course, which is
-> your whole point.
+	scripts/trace-it > to-ingo.txt
 
-Have not thought about it being a performance improvement. Good point 
-though.
- 
-> Then in those places which really need to know the first is compounded,
-> test something like PageCompound(page+1) instead.  "something like"
-> because that particular test won't work nicely for the very last
-> struct page in a ... node? (sorry, I don't know the right terminology:
-> the last struct page in a mem_map-like array).
+and send me the output. It will be large but interesting. That should 
+get us a whole lot closer to what happens. A (much!) more finegrained 
+result would be to also enable FUNCTION_TRACING and to do:
 
-The last page in a MAX_ORDER block may have issues. In particular if its 
-the last MAX_ORDER block in a zone. This going to make sparsemem go 
-ballistic.
+	echo 1 > /proc/sys/kernel/mcount_enabled
 
-> But if that ends up peppering the code with PageCompound(page) ||
-> PageCompound(page+1) expressions on fast paths, it'd be a whole lot
-> worse than the PageCompound(page) && PageTail(page) we're envisaging.
+before running trace-it.
 
-Not sure exactly what you are saying.
-
-The initial proposal was to have
-
-
-1. Headpage		PageCompound
-
-2. Tail page		PageCompound & PageTail
-
-The PageCompound on each page is necessary for various I/O paths that 
-check for compound pages and refuse to do certain things (like dirtying 
-etc).
-
-The tail marking is advantages because it exactly marks a page that is
-
-1. Compound
-
-2. Not the head of the compound page
-
-Thus is easy and fast to establish the need to lookup the head page of a 
-compound page.
-
-I think we cannot overload the page flag after all because of the page 
-count issue you pointed out. Guess I should be cleaning up my 
-initial patch and repost it?
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
