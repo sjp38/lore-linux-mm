@@ -1,80 +1,67 @@
-Message-Id: <20070405174319.022576925@programming.kicks-ass.net>
+Message-Id: <20070405174318.465278173@programming.kicks-ass.net>
 References: <20070405174209.498059336@programming.kicks-ass.net>
-Date: Thu, 05 Apr 2007 19:42:15 +0200
+Date: Thu, 05 Apr 2007 19:42:13 +0200
 From: root@programming.kicks-ass.net
-Subject: [PATCH 06/12] mm: expose BDI statistics in sysfs.
-Content-Disposition: inline; filename=bdi_stat_sysfs.patch
+Subject: [PATCH 04/12] mm: count writeback pages per BDI
+Content-Disposition: inline; filename=bdi_stat_writeback.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com
 List-ID: <linux-mm.kvack.org>
 
-Expose the per BDI stats in /sys/block/<dev>/queue/*
+Count per BDI writeback pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- block/ll_rw_blk.c   |   81 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page-writeback.c |    2 -
- 2 files changed, 82 insertions(+), 1 deletion(-)
+ include/linux/backing-dev.h |    1 +
+ mm/page-writeback.c         |    8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/block/ll_rw_blk.c
+Index: linux-2.6/mm/page-writeback.c
 ===================================================================
---- linux-2.6.orig/block/ll_rw_blk.c
-+++ linux-2.6/block/ll_rw_blk.c
-@@ -3975,6 +3975,20 @@ static ssize_t queue_max_hw_sectors_show
- 	return queue_var_show(max_hw_sectors_kb, (page));
- }
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -981,10 +981,12 @@ int test_clear_page_writeback(struct pag
  
-+static ssize_t queue_nr_dirty_show(struct request_queue *q, char *page)
-+{
-+	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_DIRTY));
-+}
-+
-+static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
-+{
-+	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_WRITEBACK));
-+}
-+
-+static ssize_t queue_nr_unstable_show(struct request_queue *q, char *page)
-+{
-+	return sprintf(page, "%lu\n", bdi_stat(&q->backing_dev_info, BDI_UNSTABLE));
-+}
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestClearPageWriteback(page);
+-		if (ret)
++		if (ret) {
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			__dec_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
++		}
+ 		write_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+ 		ret = TestClearPageWriteback(page);
+@@ -1004,10 +1006,12 @@ int test_set_page_writeback(struct page 
  
- static struct queue_sysfs_entry queue_requests_entry = {
- 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
-@@ -4005,6 +4019,21 @@ static struct queue_sysfs_entry queue_ma
- 	.show = queue_max_hw_sectors_show,
+ 		write_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestSetPageWriteback(page);
+-		if (!ret)
++		if (!ret) {
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
++			__inc_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
++		}
+ 		if (!PageDirty(page))
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+Index: linux-2.6/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6.orig/include/linux/backing-dev.h
++++ linux-2.6/include/linux/backing-dev.h
+@@ -25,6 +25,7 @@ enum bdi_state {
+ 
+ enum bdi_stat_item {
+ 	BDI_DIRTY,
++	BDI_WRITEBACK,
+ 	NR_BDI_STAT_ITEMS
  };
  
-+static struct queue_sysfs_entry queue_dirty_entry = {
-+	.attr = {.name = "dirty_pages", .mode = S_IRUGO },
-+	.show = queue_nr_dirty_show,
-+};
-+
-+static struct queue_sysfs_entry queue_writeback_entry = {
-+	.attr = {.name = "writeback_pages", .mode = S_IRUGO },
-+	.show = queue_nr_writeback_show,
-+};
-+
-+static struct queue_sysfs_entry queue_unstable_entry = {
-+	.attr = {.name = "unstable_pages", .mode = S_IRUGO },
-+	.show = queue_nr_unstable_show,
-+};
-+
- static struct queue_sysfs_entry queue_iosched_entry = {
- 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
- 	.show = elv_iosched_show,
-@@ -4017,6 +4046,9 @@ static struct attribute *default_attrs[]
- 	&queue_initial_ra_entry.attr,
- 	&queue_max_hw_sectors_entry.attr,
- 	&queue_max_sectors_entry.attr,
-+	&queue_dirty_entry.attr,
-+	&queue_writeback_entry.attr,
-+	&queue_unstable_entry.attr,
- 	&queue_iosched_entry.attr,
- 	NULL,
- };
 
 --
 
