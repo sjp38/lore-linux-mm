@@ -1,57 +1,63 @@
-Date: Thu, 5 Apr 2007 13:07:16 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC] Free up page->private for compound pages
-In-Reply-To: <Pine.LNX.4.64.0704052006320.21325@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0704051302080.11287@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0704042016490.7885@schroedinger.engr.sgi.com>
- <20070405033648.GG11192@wotan.suse.de> <Pine.LNX.4.64.0704042037550.8745@schroedinger.engr.sgi.com>
- <20070405035741.GH11192@wotan.suse.de> <Pine.LNX.4.64.0704042102570.12297@schroedinger.engr.sgi.com>
- <20070405042502.GI11192@wotan.suse.de> <Pine.LNX.4.64.0704042132170.14005@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704051522510.24160@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0704051117110.9800@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704051919490.17494@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0704051152500.10694@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704052006320.21325@blonde.wat.veritas.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 5 Apr 2007 13:37:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: preemption and rwsems (was: Re: missing madvise functionality)
+Message-Id: <20070405133742.88abc4f8.akpm@linux-foundation.org>
+In-Reply-To: <20070405191129.GC22092@elte.hu>
+References: <20070404160006.8d81a533.akpm@linux-foundation.org>
+	<46128051.9000609@redhat.com>
+	<p73648dz5oa.fsf@bingen.suse.de>
+	<46128CC2.9090809@redhat.com>
+	<20070403172841.GB23689@one.firstfloor.org>
+	<20070403125903.3e8577f4.akpm@linux-foundation.org>
+	<4612B645.7030902@redhat.com>
+	<20070403202937.GE355@devserv.devel.redhat.com>
+	<19526.1175777338@redhat.com>
+	<20070405191129.GC22092@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, dgc@sgi.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: David Howells <dhowells@redhat.com>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2007, Hugh Dickins wrote:
+On Thu, 5 Apr 2007 21:11:29 +0200
+Ingo Molnar <mingo@elte.hu> wrote:
 
-> > I am not so much worried about performance but more about the availability 
-> > of the page->private field of compound pages.
 > 
-> Yes, I realise that.  I meant
-> 	if (unlikely(PageCompound(page)) && PageTail(page))
-> shouldn't slow down the !PageCompound fast paths more than the existing
-> 	if (unlikely(PageCompound(page)))
-> or the
-> 	if (unlikely(PageTail(page)))
-> you had.
-
-Right.
-
-> > I think we cannot overload the page flag after all because of the page 
-> > count issue you pointed out. Guess I should be cleaning up my 
-> > initial patch and repost it?
+> * David Howells <dhowells@redhat.com> wrote:
 > 
-> I still think PageTail is not worth its own distinct page flag:
+> > But short of recording the lock sequence, I don't think there's anyway 
+> > to find out for sure.  printk probably won't cut it as a recording 
+> > mechanism because its overheads are too great.
+> 
+> getting a good trace of it is easy: pick up the latest -rt kernel from:
+> 
+> 	http://redhat.com/~mingo/realtime-preempt/
+> 
+> enable EVENT_TRACING in that kernel, run the workload 
+> and do:
+> 
+> 	scripts/trace-it > to-ingo.txt
+> 
+> and send me the output.
 
-Well I think we just killed 2 flags for software suspend. Did I not earn 
-at least one by being involved in that project? ;-)
+Did that - no output was generated.  config at
+http://userweb.kernel.org/~akpm/config-akpm2.txt
 
-> I can understand you drawing back from my page+1 suggestion,
-> but I don't understand why you're so reluctant to say
-> 	if (unlikely(PageCompound(page)) && PageTail(page))
+> It will be large but interesting. That should 
+> get us a whole lot closer to what happens. A (much!) more finegrained 
+> result would be to also enable FUNCTION_TRACING and to do:
+> 
+> 	echo 1 > /proc/sys/kernel/mcount_enabled
+> 
+> before running trace-it.
 
-Thats fine with me. Ahh.. This would solve the alias issue.... (Lights
-going on). Okay we can overload after all. Need to add some comments 
-though.
+Did that - still no output.
 
+I did get an interesting dmesg spew:
+http://userweb.kernel.org/~akpm/dmesg-akpm2.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
