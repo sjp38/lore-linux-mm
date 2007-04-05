@@ -1,66 +1,342 @@
-Subject: Re: [rfc] no ZERO_PAGE?
-In-Reply-To: Your message of "Wed, 04 Apr 2007 22:37:29 PDT."
-             <20070405053729.GQ2986@holomorphy.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <6701.1175724355@turing-police.cc.vt.edu> <Pine.LNX.4.64.0704041724280.6730@woody.linux-foundation.org> <20070405023026.GE11192@wotan.suse.de>
-            <20070405053729.GQ2986@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1175793784_3378P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 05 Apr 2007 13:23:04 -0400
-Message-ID: <8350.1175793784@turing-police.cc.vt.edu>
+Message-Id: <20070405174317.854739299@programming.kicks-ass.net>
+References: <20070405174209.498059336@programming.kicks-ass.net>
+Date: Thu, 05 Apr 2007 19:42:11 +0200
+From: root@programming.kicks-ass.net
+Subject: [PATCH 02/12] mm: scalable bdi statistics counters.
+Content-Disposition: inline; filename=bdi_stat.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1175793784_3378P
-Content-Type: text/plain; charset=us-ascii
+Provide scalable per backing_dev_info statistics counters modeled on the ZVC
+code.
 
-On Wed, 04 Apr 2007 22:37:29 PDT, William Lee Irwin III said:
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ block/ll_rw_blk.c           |    1 
+ drivers/block/rd.c          |    2 
+ drivers/char/mem.c          |    2 
+ fs/char_dev.c               |    1 
+ fs/fuse/inode.c             |    1 
+ fs/nfs/client.c             |    1 
+ include/linux/backing-dev.h |   98 +++++++++++++++++++++++++++++++++++++++++
+ mm/backing-dev.c            |  103 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 209 insertions(+)
 
-> The actual phenomenon of concern here is dense matrix code with sparse
-> matrix inputs. The matrices will typically not be vast but may span 1MB
-> or so of RAM (1024x1024 is 1M*sizeof(double), and various dense matrix
-> algorithms target ca. 300x300). Most of the time this will arise from
-> the use of dense matrix code as black box solvers called as a library
-> by programs not terribly concerned about efficiency until something
-> gets explosively inefficient (and maybe not even then), or otherwise
-> numerically naive programs. This, however, is arguably the majority of
-> the usage cases by end-user invocations, so beware, though not too much.
+Index: linux-2.6-mm/block/ll_rw_blk.c
+===================================================================
+--- linux-2.6-mm.orig/block/ll_rw_blk.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/block/ll_rw_blk.c	2007-04-05 16:40:45.000000000 +0200
+@@ -208,6 +208,7 @@ void blk_queue_make_request(request_queu
+ 	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
+ 	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
+ 	q->make_request_fn = mfn;
++	bdi_init(&q->backing_dev_info);
+ 	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
+ 	blk_queue_hardsect_size(q, 512);
+ 	blk_queue_dma_alignment(q, 511);
+Index: linux-2.6-mm/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6-mm.orig/include/linux/backing-dev.h	2007-04-05 16:40:41.000000000 +0200
++++ linux-2.6-mm/include/linux/backing-dev.h	2007-04-05 16:40:45.000000000 +0200
+@@ -8,6 +8,7 @@
+ #ifndef _LINUX_BACKING_DEV_H
+ #define _LINUX_BACKING_DEV_H
+ 
++#include <linux/spinlock.h>
+ #include <asm/atomic.h>
+ 
+ struct page;
+@@ -22,6 +23,17 @@ enum bdi_state {
+ 	BDI_unused,		/* Available bits start here */
+ };
+ 
++enum bdi_stat_item {
++	NR_BDI_STAT_ITEMS
++};
++
++#ifdef CONFIG_SMP
++struct bdi_per_cpu_data {
++	s8 stat_threshold;
++	s8 bdi_stat_diff[NR_BDI_STAT_ITEMS];
++} ____cacheline_aligned_in_smp;
++#endif
++
+ typedef int (congested_fn)(void *, int);
+ 
+ struct backing_dev_info {
+@@ -34,8 +46,94 @@ struct backing_dev_info {
+ 	void *congested_data;	/* Pointer to aux data for congested func */
+ 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
+ 	void *unplug_io_data;
++
++	atomic_long_t bdi_stats[NR_BDI_STAT_ITEMS];
++#ifdef CONFIG_SMP
++	struct bdi_per_cpu_data pcd[NR_CPUS];
++#endif
+ };
+ 
++extern atomic_long_t bdi_stats[NR_BDI_STAT_ITEMS];
++
++static inline void bdi_stat_add(long x, struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	atomic_long_add(x, &bdi->bdi_stats[item]);
++	atomic_long_add(x, &bdi_stats[item]);
++}
++
++static inline unsigned long __global_bdi_stat(enum bdi_stat_item item)
++{
++	return atomic_long_read(&bdi_stats[item]);
++}
++
++static inline unsigned long __bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	return atomic_long_read(&bdi->bdi_stats[item]);
++}
++
++/*
++ * cannot be unsigned long and clip on 0.
++ */
++static inline unsigned long global_bdi_stat(enum bdi_stat_item item)
++{
++	long x = atomic_long_read(&bdi_stats[item]);
++#ifdef CONFIG_SMP
++	if (x < 0)
++		x = 0;
++#endif
++	return x;
++}
++
++static inline unsigned long bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	long x = atomic_long_read(&bdi->bdi_stats[item]);
++#ifdef CONFIG_SMP
++	if (x < 0)
++		x = 0;
++#endif
++	return x;
++}
++
++#ifdef CONFIG_SMP
++void __mod_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item, int delta);
++void __inc_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item);
++void __dec_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item);
++
++void mod_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item, int delta);
++void inc_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item);
++void dec_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item);
++
++#else /* CONFIG_SMP */
++
++static inline void __mod_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, int delta)
++{
++	bdi_stat_add(delta, bdi, item);
++}
++
++static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	atomic_long_inc(&bdi->bdi_stats[item]);
++	atomic_long_inc(&bdi_stats[item]);
++}
++
++static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item)
++{
++	atomic_long_dec(&bdi->bdi_stats[item]);
++	atomic_long_dec(&bdi_stats[item]);
++}
++
++#define mod_bdi_stat __mod_bdi_stat
++#define inc_bdi_stat __inc_bdi_stat
++#define dec_bdi_stat __dec_bdi_stat
++#endif
++
++void bdi_init(struct backing_dev_info *bdi);
+ 
+ /*
+  * Flags in backing_dev_info::capability
+Index: linux-2.6-mm/mm/backing-dev.c
+===================================================================
+--- linux-2.6-mm.orig/mm/backing-dev.c	2007-04-05 16:40:41.000000000 +0200
++++ linux-2.6-mm/mm/backing-dev.c	2007-04-05 16:42:37.000000000 +0200
+@@ -70,3 +70,106 @@ long congestion_wait_interruptible(int r
+ 	return ret;
+ }
+ EXPORT_SYMBOL(congestion_wait_interruptible);
++
++atomic_long_t bdi_stats[NR_BDI_STAT_ITEMS];
++EXPORT_SYMBOL(bdi_stats);
++
++void bdi_init(struct backing_dev_info *bdi)
++{
++	int i;
++
++	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
++		atomic_long_set(&bdi->bdi_stats[i], 0);
++
++#ifdef CONFIG_SMP
++	for (i = 0; i < NR_CPUS; i++) {
++		int j;
++		for (j = 0; j < NR_BDI_STAT_ITEMS; j++)
++			bdi->pcd[i].bdi_stat_diff[j] = 0;
++		bdi->pcd[i].stat_threshold = 8 * ilog2(num_online_cpus());
++	}
++#endif
++}
++EXPORT_SYMBOL(bdi_init);
++
++#ifdef CONFIG_SMP
++void __mod_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, int delta)
++{
++	struct bdi_per_cpu_data *pcd = &bdi->pcd[smp_processor_id()];
++	s8 *p = pcd->bdi_stat_diff + item;
++	long x;
++
++	x = delta + *p;
++
++	if (unlikely(x > pcd->stat_threshold || x < -pcd->stat_threshold)) {
++		bdi_stat_add(x, bdi, item);
++		x = 0;
++	}
++	*p = x;
++}
++EXPORT_SYMBOL(__mod_bdi_stat);
++
++void mod_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, int delta)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__mod_bdi_stat(bdi, item, delta);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(mod_bdi_stat);
++
++void __inc_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item)
++{
++	struct bdi_per_cpu_data *pcd = &bdi->pcd[smp_processor_id()];
++	s8 *p = pcd->bdi_stat_diff + item;
++
++	(*p)++;
++
++	if (unlikely(*p > pcd->stat_threshold)) {
++		int overstep = pcd->stat_threshold / 2;
++
++		bdi_stat_add(*p + overstep, bdi, item);
++		*p = -overstep;
++	}
++}
++EXPORT_SYMBOL(__inc_bdi_stat);
++
++void inc_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__inc_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(inc_bdi_stat);
++
++void __dec_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item)
++{
++	struct bdi_per_cpu_data *pcd = &bdi->pcd[smp_processor_id()];
++	s8 *p = pcd->bdi_stat_diff + item;
++
++	(*p)--;
++
++	if (unlikely(*p < -pcd->stat_threshold)) {
++		int overstep = pcd->stat_threshold / 2;
++
++		bdi_stat_add(*p - overstep, bdi, item);
++		*p = overstep;
++	}
++}
++EXPORT_SYMBOL(__dec_bdi_stat);
++
++void dec_bdi_stat(struct backing_dev_info *bdi, enum bdi_stat_item item)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__dec_bdi_stat(bdi, item);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(dec_bdi_stat);
++#endif
+Index: linux-2.6-mm/drivers/block/rd.c
+===================================================================
+--- linux-2.6-mm.orig/drivers/block/rd.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/drivers/block/rd.c	2007-04-05 16:40:45.000000000 +0200
+@@ -421,6 +421,8 @@ static int __init rd_init(void)
+ 	int i;
+ 	int err = -ENOMEM;
+ 
++	bdi_init(&rd_file_backing_dev_info);
++
+ 	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
+ 			(rd_blocksize & (rd_blocksize-1))) {
+ 		printk("RAMDISK: wrong blocksize %d, reverting to defaults\n",
+Index: linux-2.6-mm/drivers/char/mem.c
+===================================================================
+--- linux-2.6-mm.orig/drivers/char/mem.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/drivers/char/mem.c	2007-04-05 16:40:45.000000000 +0200
+@@ -987,6 +987,8 @@ static int __init chr_dev_init(void)
+ 			      MKDEV(MEM_MAJOR, devlist[i].minor),
+ 			      devlist[i].name);
+ 
++	bdi_init(&zero_bdi);
++
+ 	return 0;
+ }
+ 
+Index: linux-2.6-mm/fs/char_dev.c
+===================================================================
+--- linux-2.6-mm.orig/fs/char_dev.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/fs/char_dev.c	2007-04-05 16:40:45.000000000 +0200
+@@ -548,6 +548,7 @@ static struct kobject *base_probe(dev_t 
+ void __init chrdev_init(void)
+ {
+ 	cdev_map = kobj_map_init(base_probe, &chrdevs_lock);
++	bdi_init(&directly_mappable_cdev_bdi);
+ }
+ 
+ 
+Index: linux-2.6-mm/fs/fuse/inode.c
+===================================================================
+--- linux-2.6-mm.orig/fs/fuse/inode.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/fs/fuse/inode.c	2007-04-05 16:40:45.000000000 +0200
+@@ -413,6 +413,7 @@ static struct fuse_conn *new_conn(void)
+ 		atomic_set(&fc->num_waiting, 0);
+ 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+ 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
++		bdi_init(&fc->bdi);
+ 		fc->reqctr = 0;
+ 		fc->blocked = 1;
+ 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
+Index: linux-2.6-mm/fs/nfs/client.c
+===================================================================
+--- linux-2.6-mm.orig/fs/nfs/client.c	2007-04-05 16:39:56.000000000 +0200
++++ linux-2.6-mm/fs/nfs/client.c	2007-04-05 16:40:45.000000000 +0200
+@@ -661,6 +661,7 @@ static void nfs_server_set_fsinfo(struct
+ 	server->backing_dev_info.ra_pages0 = min_t(unsigned, server->rpages,
+ 				VM_MIN_READAHEAD >> (PAGE_CACHE_SHIFT - 10));
+ 	server->backing_dev_info.ra_thrash_bytes = server->rsize * NFS_MAX_READAHEAD;
++	bdi_init(&server->backing_dev_info);
+ 
+ 	if (server->wsize > max_rpc_payload)
+ 		server->wsize = max_rpc_payload;
 
-Amen, brother! :)
-
-At least in my environment, the vast majority of matrix code is actually run by
-graduate students under the direction of whatever professor is the Principal
-Investigator on the grant. As a rule, you can expect the grad student to know
-about rounding errors and convergence issues and similar program *correctness*
-factors.  But it's the rare one that has much interest in program *efficiency*.
-If it takes 2 days to run, that's 2 days they can go get another few pages of
-thesis written while they wait. :)
-
-The code that gets on our SystemX (a top-50 supercomputer still) is usually
-well-tweaked for efficiency.  However, that's just one system - there's on the
-order of several hundred smaller compute clusters and boxen and SGI-en on
-campus where "protect the system from cargo-cult programming by grad students"
-is a valid kernel goal. ;)
-
-
---==_Exmh_1175793784_3378P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFGFTB4cC3lWbTT17ARAr4QAKCUI4s8HRIM5JThdIF9raNWVNBJYwCgsJaQ
-P4H7Ye4Ub7tMpNeaEfEZyTc=
-=QCOW
------END PGP SIGNATURE-----
-
---==_Exmh_1175793784_3378P--
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
