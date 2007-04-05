@@ -1,63 +1,92 @@
-Date: Thu, 5 Apr 2007 13:37:42 -0700
+Date: Thu, 5 Apr 2007 14:07:23 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: preemption and rwsems (was: Re: missing madvise functionality)
-Message-Id: <20070405133742.88abc4f8.akpm@linux-foundation.org>
-In-Reply-To: <20070405191129.GC22092@elte.hu>
-References: <20070404160006.8d81a533.akpm@linux-foundation.org>
-	<46128051.9000609@redhat.com>
-	<p73648dz5oa.fsf@bingen.suse.de>
-	<46128CC2.9090809@redhat.com>
-	<20070403172841.GB23689@one.firstfloor.org>
-	<20070403125903.3e8577f4.akpm@linux-foundation.org>
-	<4612B645.7030902@redhat.com>
-	<20070403202937.GE355@devserv.devel.redhat.com>
-	<19526.1175777338@redhat.com>
-	<20070405191129.GC22092@elte.hu>
+Subject: Re: missing madvise functionality
+Message-Id: <20070405140723.8477e314.akpm@linux-foundation.org>
+In-Reply-To: <46154226.6080300@redhat.com>
+References: <46128051.9000609@redhat.com>
+	<461357C4.4010403@yahoo.com.au>
+	<46154226.6080300@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: David Howells <dhowells@redhat.com>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2007 21:11:29 +0200
-Ingo Molnar <mingo@elte.hu> wrote:
+On Thu, 05 Apr 2007 14:38:30 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
+> Nick Piggin wrote:
 > 
-> * David Howells <dhowells@redhat.com> wrote:
+> > Oh, also: something like this patch would help out MADV_DONTNEED, as it
+> > means it can run concurrently with page faults. I think the locking will
+> > work (but needs forward porting).
 > 
-> > But short of recording the lock sequence, I don't think there's anyway 
-> > to find out for sure.  printk probably won't cut it as a recording 
-> > mechanism because its overheads are too great.
+> Ironically, your patch decreases throughput on my quad core
+> test system, with Jakub's test case.
 > 
-> getting a good trace of it is easy: pick up the latest -rt kernel from:
+> MADV_DONTNEED, my patch, 10000 loops  (14k context switches/second)
 > 
-> 	http://redhat.com/~mingo/realtime-preempt/
+> real    0m34.890s
+> user    0m17.256s
+> sys     0m29.797s
 > 
-> enable EVENT_TRACING in that kernel, run the workload 
-> and do:
 > 
-> 	scripts/trace-it > to-ingo.txt
+> MADV_DONTNEED, my patch & your patch, 10000 loops  (50 context 
+> switches/second)
 > 
-> and send me the output.
+> real    1m8.321s
+> user    0m20.840s
+> sys     1m55.677s
+> 
+> I suspect it's moving the contention onto the page table lock,
+> in zap_pte_range().  I guess that the thread private memory
+> areas must be living right next to each other, in the same
+> page table lock regions :)
 
-Did that - no output was generated.  config at
-http://userweb.kernel.org/~akpm/config-akpm2.txt
+Remember that we have two different ways of doing that locking:
 
-> It will be large but interesting. That should 
-> get us a whole lot closer to what happens. A (much!) more finegrained 
-> result would be to also enable FUNCTION_TRACING and to do:
+
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+/*
+ * We tuck a spinlock to guard each pagetable page into its struct page,
+ * at page->private, with BUILD_BUG_ON to make sure that this will not
+ * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
+ * When freeing, reset page->mapping so free_pages_check won't complain.
+ */
+#define __pte_lockptr(page)	&((page)->ptl)
+#define pte_lock_init(_page)	do {					\
+	spin_lock_init(__pte_lockptr(_page));				\
+} while (0)
+#define pte_lock_deinit(page)	((page)->mapping = NULL)
+#define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+#else
+/*
+ * We use mm->page_table_lock to guard all pagetable pages of the mm.
+ */
+#define pte_lock_init(page)	do {} while (0)
+#define pte_lock_deinit(page)	do {} while (0)
+#define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+
+
+I wonder which way you're using, and whether using the other way changes
+things.
+
+
+> For more real world workloads, like the MySQL sysbench one,
+> I still suspect that your patch would improve things.
 > 
-> 	echo 1 > /proc/sys/kernel/mcount_enabled
+> Time to move back to debugging other stuff, though.
 > 
-> before running trace-it.
+> Andrew, it would be nice if our patches could cook in -mm
+> for a while.  Want me to change anything before submitting?
 
-Did that - still no output.
-
-I did get an interesting dmesg spew:
-http://userweb.kernel.org/~akpm/dmesg-akpm2.txt
+umm.  I took a quick squint at a patch from you this morning and it looked
+OK to me.  Please send the finalish thing when it is fully baked and
+performance-tested in the various regions of operation, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
