@@ -1,59 +1,43 @@
-Date: Wed, 4 Apr 2007 22:37:29 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [rfc] no ZERO_PAGE?
-Message-ID: <20070405053729.GQ2986@holomorphy.com>
-References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <6701.1175724355@turing-police.cc.vt.edu> <Pine.LNX.4.64.0704041724280.6730@woody.linux-foundation.org> <20070405023026.GE11192@wotan.suse.de>
+Message-ID: <461492A5.1030905@cosmosbay.com>
+Date: Thu, 05 Apr 2007 08:09:41 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070405023026.GE11192@wotan.suse.de>
+Subject: Re: missing madvise functionality
+References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<20070403144948.fe8eede6.akpm@linux-foundation.org>	<4612DCC6.7000504@cosmosbay.com>	<46130BC8.9050905@yahoo.com.au>	<1175675146.6483.26.camel@twins>	<461367F6.10705@yahoo.com.au>	<20070404113447.17ccbefa.dada1@cosmosbay.com>	<46137882.6050708@yahoo.com.au> <20070404135458.4f1a7059.dada1@cosmosbay.com> <4614585F.1050200@yahoo.com.au>
+In-Reply-To: <4614585F.1050200@yahoo.com.au>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Valdis.Kletnieks@vt.edu, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 04, 2007 at 05:27:31PM -0700, Linus Torvalds wrote:
->> Good point. In fact, it doesn't need to be a malloc() - I remember people 
->> doing this with Fortran programs and just having an absolutely incredibly 
->> big BSS (with traditional Fortran, dymic memory allocations are just not 
->> done).
+Nick Piggin a ecrit :
+> Eric Dumazet wrote:
+> >> This was not a working patch, just to throw the idea, since the
+>> answers I got showed I was not understood.
+>>
+>> In this case, find_extend_vma() should of course have one struct 
+>> vm_area_cache * argument, like find_vma()
+>>
+>> One single cache on one mm is not scalable. oprofile badly hits it on 
+>> a dual cpu config.
+> 
+> Oh, what sort of workload are you using to show this? The only reason 
+> that I
+> didn't submit my thread cache patches was that I didn't show a big enough
+> improvement.
+> 
 
-On Thu, Apr 05, 2007 at 04:30:26AM +0200, Nick Piggin wrote:
-> Sparse matrices are one thing I worry about. I don't know enough about
-> HPC code to know whether they will be a problem. I know there exist
-> data structures to optimise sparse matrix storage...
+Database workload, where the user multi threaded app is constantly accessing 
+GBytes of data, so L2 cache hit is very small. If you want to oprofile it, 
+with say a CPU_CLK_UNHALTED:5000 event, then find_vma() is in the top 5.
 
-\begin{admission-against-interest}
-
-Sparse matrix code goes to extreme lengths to avoid ever looking at
-substantial numbers of zero floating point matrix and vector entries.
-In extreme cases, hashing and various sorts of heavyweight data
-structures are used to represent highly irregular structures. At various
-times the matrix is not even explicitly formed. Most typical are cases
-like band diagonal matrices where storage is allocated only for the
-nonzero diagonals. The entire purpose of sparse algorithms is to avoid
-examining or even allocating zeros.
-
-The actual phenomenon of concern here is dense matrix code with sparse
-matrix inputs. The matrices will typically not be vast but may span 1MB
-or so of RAM (1024x1024 is 1M*sizeof(double), and various dense matrix
-algorithms target ca. 300x300). Most of the time this will arise from
-the use of dense matrix code as black box solvers called as a library
-by programs not terribly concerned about efficiency until something
-gets explosively inefficient (and maybe not even then), or otherwise
-numerically naive programs. This, however, is arguably the majority of
-the usage cases by end-user invocations, so beware, though not too much.
-
-I'd be more concerned about large hashtables sparsely used for the
-purposes of adjacency detection and other cases where large time vs.
-space tradeoffs are made for probabilistic reasons involving
-collisions.
-
-\end{admission-against-interest}
-
-
--- wli
+Each time oprofile has an NMI, it calls find_vma(EIP/RIP) and blows out the 
+target process cache (usually plugged on the data vma containing user land 
+futexes). Event with private futexes, it will probably be plugged on the brk() 
+vma.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
