@@ -1,61 +1,34 @@
-Date: Thu, 5 Apr 2007 15:57:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 10/12] mm: page_alloc_wait
-Message-Id: <20070405155743.91380f00.akpm@linux-foundation.org>
-In-Reply-To: <20070405174320.129577639@programming.kicks-ass.net>
-References: <20070405174209.498059336@programming.kicks-ass.net>
-	<20070405174320.129577639@programming.kicks-ass.net>
+Date: Thu, 05 Apr 2007 16:10:27 -0700 (PDT)
+Message-Id: <20070405.161027.115909479.davem@davemloft.net>
+Subject: Re: [PATCH 4/4] IA64: SPARSE_VIRTUAL 16M page size support
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <617E1C2C70743745A92448908E030B2A0153594A@scsmsx411.amr.corp.intel.com>
+References: <20070404230635.20292.81141.sendpatchset@schroedinger.engr.sgi.com>
+	<617E1C2C70743745A92448908E030B2A0153594A@scsmsx411.amr.corp.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: "Luck, Tony" <tony.luck@intel.com>
+Date: Thu, 5 Apr 2007 15:50:02 -0700
 Return-Path: <owner-linux-mm@kvack.org>
-To: root@programming.kicks-ass.net
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com
+To: tony.luck@intel.com
+Cc: clameter@sgi.com, akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, mbligh@google.com, linux-mm@kvack.org, ak@suse.de, hansendc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Apr 2007 19:42:19 +0200
-root@programming.kicks-ass.net wrote:
+> Maybe a granule is not the right unit of allocation ... perhaps 4M
+> would work better (4M/56 ~= 75000 pages ~= 1.1G)?  But if this is
+> too small, then a hard-coded 16M would be better than a granule,
+> because 64M is (IMHO) too big.
 
-> Introduce a mechanism to wait on free memory.
-> 
-> Currently congestion_wait() is abused to do this.
+A 4MB chunk of page structs covers about 512MB of ram (I'm rounding up
+to 64-bytes in my calculations and using an 8K page size, sorry :-).
+So I think that is too small although on the sparc64 side that is the
+biggest I have available on most processor models.
 
-Such a very small explanation for such a terrifying change.
-
-> ...
->
-> --- linux-2.6-mm.orig/mm/vmscan.c	2007-04-05 16:29:46.000000000 +0200
-> +++ linux-2.6-mm/mm/vmscan.c	2007-04-05 16:29:49.000000000 +0200
-> @@ -1436,6 +1436,7 @@ static int kswapd(void *p)
->  		finish_wait(&pgdat->kswapd_wait, &wait);
->  
->  		balance_pgdat(pgdat, order);
-> +		page_alloc_ok();
->  	}
->  	return 0;
->  }
-
-For a start, we don't know that kswapd freed pages which are in a suitable
-zone.  And we don't know that kswapd freed pages which are in a suitable
-cpuset.
-
-congestion_wait() is similarly ignorant of the suitability of the pages,
-but the whole idea behind congestion_wait is that it will throttle page
-allocators to some speed which is proportional to the speed at which the IO
-systems can retire writes - view it as a variable-speed polling operation,
-in which the polling frequency goes up when the IO system gets faster. 
-This patch changes that philosophy fundamentally.  That's worth more than a
-2-line changelog.
-
-Also, there might be situations in which kswapd gets stuck in some dark
-corner.  Perhaps the process which is waiting in the page allocator holds
-filesystem locks which kswapd is blocked on.  Or kswapd might be blocked on
-a particular request queue, or a dead NFS server or something.  The timeout
-will save us, but things will be slow.
-
-There could be other problems too, dunno - this stuff is tricky.  Why are
-you changing it, what problems are being solved, etc?
+But I do agree that 64MB is way too big and 16MB is a good compromise
+chunk size for this stuff.  That covers about 2GB of ram with the
+above parameters, which should be about right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
