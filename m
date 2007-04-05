@@ -1,58 +1,33 @@
-Message-ID: <46156CA9.3060105@redhat.com>
-Date: Thu, 05 Apr 2007 17:39:53 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Thu, 5 Apr 2007 15:27:00 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 1/4] Generic Virtual Memmap suport for SPARSEMEM V3
+In-Reply-To: <20070405.142900.59466568.davem@davemloft.net>
+Message-ID: <Pine.LNX.4.64.0704051525350.15901@schroedinger.engr.sgi.com>
+References: <20070404230619.20292.4475.sendpatchset@schroedinger.engr.sgi.com>
+ <20070405.142900.59466568.davem@davemloft.net>
 MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com>	<461357C4.4010403@yahoo.com.au>	<46154226.6080300@redhat.com> <20070405140723.8477e314.akpm@linux-foundation.org>
-In-Reply-To: <20070405140723.8477e314.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>
+Cc: Andy Whitcroft <apw@shadowen.org>, akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, mbligh@google.com, linux-mm@kvack.org, ak@suse.de, hansendc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Thu, 5 Apr 2007, David Miller wrote:
 
-> #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+> Hey Christoph, here is sparc64 support for this stuff.
 
-> I wonder which way you're using, and whether using the other way changes
-> things.
+Great!
 
-I'm using the default Fedora config file, which has
-NR_CPUS defined to 64 and CONFIG_SPLIT_PTLOCK_CPUS
-to 4, so I am using the split locks.
-
-However, I suspect that each 512kB malloced area
-will share one page table lock with 4 others, so
-some contention is to be expected.
-
->> For more real world workloads, like the MySQL sysbench one,
->> I still suspect that your patch would improve things.
->>
->> Time to move back to debugging other stuff, though.
->>
->> Andrew, it would be nice if our patches could cook in -mm
->> for a while.  Want me to change anything before submitting?
+> After implementing this and seeing more and more how it works, I
+> really like it :-)
 > 
-> umm.  I took a quick squint at a patch from you this morning and it looked
-> OK to me.  Please send the finalish thing when it is fully baked and
-> performance-tested in the various regions of operation, thanks.
+> Thanks a lot for doing this work Christoph!
 
-Will do.
+Thanks for the appreciation. CCing Andy Whitcroft who will hopefully 
+merge this all of this together into sparsemem including the S/390 
+implementation.
 
-Ulrich has a test version of glibc available that
-uses MADV_DONTNEED for free(3), that should test
-this thing nicely.
-
-I'll run some tests with that when I get the
-time, hopefully next week.
-
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
