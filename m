@@ -1,55 +1,96 @@
-Subject: Re: [patch 2/2] only allow nonlinear vmas for ram backed
-	filesystems
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <E1HZORc-0000UZ-00@dorka.pomaz.szeredi.hu>
-References: <E1HZOHe-0000RL-00@dorka.pomaz.szeredi.hu>
-	 <E1HZOIr-0000Rv-00@dorka.pomaz.szeredi.hu> <1175765760.6483.93.camel@twins>
-	 <E1HZORc-0000UZ-00@dorka.pomaz.szeredi.hu>
-Content-Type: text/plain
-Date: Thu, 05 Apr 2007 11:50:00 +0200
-Message-Id: <1175766600.6483.100.camel@twins>
-Mime-Version: 1.0
+Date: Thu, 05 Apr 2007 15:57:00 +0400
+From: "Royal VIP Casino" <tess@mail15.com>
+Message-ID: <92073883.40507677@far.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <tess@mail15.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-04-05 at 11:39 +0200, Miklos Szeredi wrote:
-> > > +		/*
-> > > +		 * page_mkclean doesn't work on nonlinear vmas, so if dirty
-> > > +		 * pages need to be accounted, emulate with linear vmas.
-> > > +		 */
-> > > +		if (mapping_cap_account_dirty(mapping)) {
-> > 
-> > Perhaps this should read:
-> > 
-> > 		if (vma_wants_writenotify(vma)) {
-> > 
-> 
-> I looked at that, but IIRC vma_wants_writenotify() doesn't work after
-> mmap(), because of the updated protection bits.
+<html>
 
-Right, bother, that again. I fudged it in mprotect by setting the pgprot
-bits to what was expected although I had a parametrised version earlier.
-But that was disliked.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> > That way we would even allow read only non-linear mappings of 'real'
-> > filesystem files.
-> 
-> Well, we could do that, but is it really worth the hassle?  The real
-> question is whether anyone would want to use non-linear
-> shared-read-only mappings or not.
+<title>Nur vom nobelsten aller Casinos </title>
 
-Hmm, yeah, I thought that was the case with that code snippet Andrew
-pulled of the interweb, but on second inspection they do map it writable
-too. I was led astray by the fact that they map the same file twice.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Oh well, lets just keep the patch as is then.
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Nur vom nobelsten
+aller Casinos k&ouml;nnen Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.myroyalvip.com/lang-de/">
+http://www.myroyalvip.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
