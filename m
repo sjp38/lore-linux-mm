@@ -1,55 +1,93 @@
-Date: Thu, 5 Apr 2007 01:32:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: missing madvise functionality
-Message-Id: <20070405013225.4135b76d.akpm@linux-foundation.org>
-In-Reply-To: <4614A7B1.60808@redhat.com>
-References: <46128051.9000609@redhat.com>
-	<p73648dz5oa.fsf@bingen.suse.de>
-	<46128CC2.9090809@redhat.com>
-	<20070403172841.GB23689@one.firstfloor.org>
-	<20070403125903.3e8577f4.akpm@linux-foundation.org>
-	<4612B645.7030902@redhat.com>
-	<20070403202937.GE355@devserv.devel.redhat.com>
-	<4614A5CC.5080508@redhat.com>
-	<4614A7B1.60808@redhat.com>
+Received: from Relay1.suse.de (mail2.suse.de [195.135.221.8])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.suse.de (Postfix) with ESMTP id 785DE12240
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2007 11:01:54 +0200 (CEST)
+Date: Thu, 5 Apr 2007 11:01:54 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: madvise avoid mmap_sem write
+Message-ID: <20070405090154.GA11102@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Apr 2007 03:39:29 -0400 Rik van Riel <riel@redhat.com> wrote:
+Here is a newer version of the patch.
 
-> Rik van Riel wrote:
-> 
-> > MADV_DONTNEED, unpatched, 1000 loops
-> > 
-> > real    0m13.672s
-> > user    0m1.217s
-> > sys     0m45.712s
-> > 
-> > 
-> > MADV_DONTNEED, with patch, 1000 loops
-> > 
-> > real    0m4.169s
-> > user    0m2.033s
-> > sys     0m3.224s
-> 
-> I just noticed something fun with these numbers.
-> 
-> Without the patch, the system (a quad core CPU) is 10% idle.
-> 
-> With the patch, it is 66% idle - presumably I need Nick's
-> mmap_sem patch.
-> 
-> However, despite being 66% idle, the test still runs over
-> 3 times as fast!
+--
 
-Please quote the context switch rate when testing this stuff (I use vmstat 1).
-I've seen it vary by a factor of 10,000 depending upon what's happening.
+Avoid down_write of the mmap_sem in madvise when we can help it.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/mm/madvise.c
+===================================================================
+--- linux-2.6.orig/mm/madvise.c
++++ linux-2.6/mm/madvise.c
+@@ -12,6 +12,24 @@
+ #include <linux/hugetlb.h>
+ 
+ /*
++ * Any behaviour which results in changes to the vma->vm_flags needs to
++ * take mmap_sem for writing. Others, which simply traverse vmas, need
++ * to only take it for reading.
++ */
++static int madvise_need_mmap_write(int behavior)
++{
++	switch (behavior) {
++	case MADV_REMOVE:
++	case MADV_WILLNEED:
++	case MADV_DONTNEED:
++		return 0;
++	default:
++		/* be safe, default to 1. list exceptions explicitly */
++		return 1;
++	}
++}
++
++/*
+  * We can potentially split a vm area into separate
+  * areas, each area with its own behavior.
+  */
+@@ -183,9 +201,9 @@ static long madvise_remove(struct vm_are
+ 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+ 
+ 	/* vmtruncate_range needs to take i_mutex and i_alloc_sem */
+-	up_write(&current->mm->mmap_sem);
++	up_read(&current->mm->mmap_sem);
+ 	error = vmtruncate_range(mapping->host, offset, endoff);
+-	down_write(&current->mm->mmap_sem);
++	down_read(&current->mm->mmap_sem);
+ 	return error;
+ }
+ 
+@@ -270,7 +288,10 @@ asmlinkage long sys_madvise(unsigned lon
+ 	int error = -EINVAL;
+ 	size_t len;
+ 
+-	down_write(&current->mm->mmap_sem);
++	if (madvise_need_mmap_write(behavior))
++		down_write(&current->mm->mmap_sem);
++	else
++		down_read(&current->mm->mmap_sem);
+ 
+ 	if (start & ~PAGE_MASK)
+ 		goto out;
+@@ -332,6 +353,10 @@ asmlinkage long sys_madvise(unsigned lon
+ 			vma = find_vma(current->mm, start);
+ 	}
+ out:
+-	up_write(&current->mm->mmap_sem);
++	if (madvise_need_mmap_write(behavior))
++		up_write(&current->mm->mmap_sem);
++	else
++		up_read(&current->mm->mmap_sem);
++
+ 	return error;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
