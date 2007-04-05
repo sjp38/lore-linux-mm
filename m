@@ -1,63 +1,101 @@
-Date: Thu, 5 Apr 2007 11:06:01 +0200
-From: Eric Dumazet <dada1@cosmosbay.com>
-Subject: Re: missing madvise functionality
-Message-Id: <20070405110601.8ef4b601.dada1@cosmosbay.com>
-In-Reply-To: <4614B3FB.2090405@redhat.com>
-References: <46128051.9000609@redhat.com>
-	<p73648dz5oa.fsf@bingen.suse.de>
-	<46128CC2.9090809@redhat.com>
-	<20070403172841.GB23689@one.firstfloor.org>
-	<20070403125903.3e8577f4.akpm@linux-foundation.org>
-	<4612B645.7030902@redhat.com>
-	<20070403202937.GE355@devserv.devel.redhat.com>
-	<4614A5CC.5080508@redhat.com>
-	<20070405100848.db97d835.dada1@cosmosbay.com>
-	<4614B3FB.2090405@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: [patch 1/2] split mmap
+Message-Id: <E1HZOHe-0000RL-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 05 Apr 2007 11:29:34 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: akpm@linux-foundation.org
+Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Apr 2007 04:31:55 -0400
-Rik van Riel <riel@redhat.com> wrote:
+Resending this non-linear-fix mini-series, unchaged but with updated
+description.
 
-> Eric Dumazet wrote:
-> 
-> > Could you please add this patch and see if it helps on your machine ?
-> > 
-> > [PATCH] VM : mm_struct's mmap_cache should be close to mmap_sem
-> > 
-> > Avoids cache line dirtying
-> 
-> I could, but I already know it's not going to help much.
-> 
-> How do I know this?  I already have 66% idle time when running
-> with my patch (and without Nick Piggin's patch to take the
-> mmap_sem for reading only).  Interestingly, despite the idle
-> time increasing from 10% to 66%, throughput triples...
-> 
-> Saving some CPU time will probably only increase the idle time,
-> I see no reason your patch would reduce contention and increase
-> throughput.
-> 
-> I'm not saying your patch doesn't make sense - it probably does.
-> I just suspect it would have zero impact on this particular
-> scenario, because of the already huge idle time.
+----
+From: Miklos Szeredi <mszeredi@suse.cz>
 
-I know your cpus have idle time, that not the question.
+This is a straightforward split of do_mmap_pgoff() into two functions:
 
-But *when* your cpus are not idle, they might be slowed down because of cache line transferts between them. This patch doesnt reduce contention, just latencies (and overall performance)
+ - do_mmap_pgoff() checks the parameters, and calculates the vma
+   flags.  Then it calls
 
-I dont currently have SMP test machine, so I couldnt test it myself.
+ - mmap_region(), which does the actual mapping
 
-On x86_64, I am pretty sure the patch would help, because offsetof(mmap_sem) = 0x60
-On i386, offsetof(mmap_sem)=0x34, so this patch wont help.
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
 
-As you said, throughput can raise and idle time raise too.
+Index: linux/mm/mmap.c
+===================================================================
+--- linux.orig/mm/mmap.c	2007-04-04 19:34:36.000000000 +0200
++++ linux/mm/mmap.c	2007-04-05 10:51:01.000000000 +0200
+@@ -893,14 +893,11 @@ unsigned long do_mmap_pgoff(struct file 
+ 			unsigned long flags, unsigned long pgoff)
+ {
+ 	struct mm_struct * mm = current->mm;
+-	struct vm_area_struct * vma, * prev;
+ 	struct inode *inode;
+ 	unsigned int vm_flags;
+-	int correct_wcount = 0;
+ 	int error;
+-	struct rb_node ** rb_link, * rb_parent;
+ 	int accountable = 1;
+-	unsigned long charged = 0, reqprot = prot;
++	unsigned long reqprot = prot;
+ 
+ 	/*
+ 	 * Does the application expect PROT_READ to imply PROT_EXEC?
+@@ -1025,7 +1022,25 @@ unsigned long do_mmap_pgoff(struct file 
+ 	error = security_file_mmap(file, reqprot, prot, flags);
+ 	if (error)
+ 		return error;
+-		
++
++	return mmap_region(file, addr, len, flags, vm_flags, pgoff,
++			   accountable);
++}
++EXPORT_SYMBOL(do_mmap_pgoff);
++
++unsigned long mmap_region(struct file *file, unsigned long addr,
++			  unsigned long len, unsigned long flags,
++			  unsigned int vm_flags, unsigned long pgoff,
++			  int accountable)
++{
++	struct mm_struct *mm = current->mm;
++	struct vm_area_struct *vma, *prev;
++	int correct_wcount = 0;
++	int error;
++	struct rb_node **rb_link, *rb_parent;
++	unsigned long charged = 0;
++	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
++
+ 	/* Clear old maps */
+ 	error = -ENOMEM;
+ munmap_back:
+@@ -1174,8 +1189,6 @@ unacct_error:
+ 	return error;
+ }
+ 
+-EXPORT_SYMBOL(do_mmap_pgoff);
+-
+ /* Get an address range which is currently unmapped.
+  * For shmat() with addr=0.
+  *
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h	2007-04-04 19:34:35.000000000 +0200
++++ linux/include/linux/mm.h	2007-04-05 10:51:01.000000000 +0200
+@@ -1074,6 +1074,10 @@ extern unsigned long get_unmapped_area(s
+ extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long pgoff);
++extern unsigned long mmap_region(struct file *file, unsigned long addr,
++	unsigned long len, unsigned long flags,
++	unsigned int vm_flags, unsigned long pgoff,
++	int accountable);
+ 
+ static inline unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
