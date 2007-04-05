@@ -1,37 +1,38 @@
-Subject: Re: [PATCH 00/12] per device dirty throttling -v3
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070405174209.498059336@programming.kicks-ass.net>
-References: <20070405174209.498059336@programming.kicks-ass.net>
-Content-Type: text/plain
-Date: Thu, 05 Apr 2007 19:47:33 +0200
-Message-Id: <1175795253.6483.110.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 5 Apr 2007 11:17:33 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC] Free up page->private for compound pages
+In-Reply-To: <Pine.LNX.4.64.0704051522510.24160@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0704051117110.9800@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0704042016490.7885@schroedinger.engr.sgi.com>
+ <20070405033648.GG11192@wotan.suse.de> <Pine.LNX.4.64.0704042037550.8745@schroedinger.engr.sgi.com>
+ <20070405035741.GH11192@wotan.suse.de> <Pine.LNX.4.64.0704042102570.12297@schroedinger.engr.sgi.com>
+ <20070405042502.GI11192@wotan.suse.de> <Pine.LNX.4.64.0704042132170.14005@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704051522510.24160@blonde.wat.veritas.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, dgc@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Don't worry, it's me!
+On Thu, 5 Apr 2007, Hugh Dickins wrote:
 
-Seems I forgot to edit the From field :-(
+> >  static inline int page_count(struct page *page)
+> >  {
+> > -	if (unlikely(PageCompound(page)))
+> > -		page = (struct page *)page_private(page);
+> > -	return atomic_read(&page->_count);
+> > +	return atomic_read(&compound_head(page)->_count);
+> >  }
+> 
+> No, you don't want anyone looking at the page_count of a page
+> currently under reclaim, or doing a get_page on it, to go veering
+> off through its page->private (page->first_page comes from another
+> of your patches, not in -mm).  Looks like you need to add a test for
+> PageCompound in compound_head (what a surprise!), unfortunately.
 
-On Thu, 2007-04-05 at 19:42 +0200, root@programming.kicks-ass.net wrote:
-> Against 2.6.21-rc5-mm4 without:
->   per-backing_dev-dirty-and-writeback-page-accounting.patch
-> 
-> This series implements BDI independent dirty limits and congestion control.
-> 
-> This should solve several problems we currently have in this area:
-> 
->  - mutual interference starvation (for any number of BDIs), and
->  - deadlocks with stacked BDIs (loop and FUSE).
-> 
-> All the fancy new congestion code has been compile and boot tested, but
-> not much more. I'm posting to get feedback on the ideas.
-> 
-> 
+Hmmm... Thus we should really have separate page flag and not overload it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
