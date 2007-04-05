@@ -1,49 +1,57 @@
-Message-ID: <4614585F.1050200@yahoo.com.au>
-Date: Thu, 05 Apr 2007 12:01:03 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<20070403144948.fe8eede6.akpm@linux-foundation.org>	<4612DCC6.7000504@cosmosbay.com>	<46130BC8.9050905@yahoo.com.au>	<1175675146.6483.26.camel@twins>	<461367F6.10705@yahoo.com.au>	<20070404113447.17ccbefa.dada1@cosmosbay.com>	<46137882.6050708@yahoo.com.au> <20070404135458.4f1a7059.dada1@cosmosbay.com>
-In-Reply-To: <20070404135458.4f1a7059.dada1@cosmosbay.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 5 Apr 2007 04:03:47 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] no ZERO_PAGE?
+Message-ID: <20070405020347.GA11192@wotan.suse.de>
+References: <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <20070404.131111.62667528.davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070404.131111.62667528.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: David Miller <davem@davemloft.net>
+Cc: torvalds@linux-foundation.org, hugh@veritas.com, akpm@linux-foundation.org, linux-mm@kvack.org, tee@sgi.com, holt@sgi.com, andrea@suse.de, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet wrote:
-> On Wed, 04 Apr 2007 20:05:54 +1000
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+On Wed, Apr 04, 2007 at 01:11:11PM -0700, David Miller wrote:
+> From: Linus Torvalds <torvalds@linux-foundation.org>
+> Date: Wed, 4 Apr 2007 08:35:30 -0700 (PDT)
 > 
->>>@@ -1638,7 +1652,7 @@ find_extend_vma(struct mm_struct * mm, u
->>> 	unsigned long start;
->>> 
->>> 	addr &= PAGE_MASK;
->>>-	vma = find_vma(mm,addr);
->>>+	vma = find_vma(mm,addr,&current->vmacache);
->>> 	if (!vma)
->>> 		return NULL;
->>> 	if (vma->vm_start <= addr)
->>
->>So now you can have current calling find_extend_vma on someone else's mm
->>but using their cache. So you're going to return current's vma, or current
->>is going to get one of mm's vmas in its cache :P
+> > Anyway, I'm not against this, but I can see somebody actually *wanting* 
+> > the ZERO page in some cases. I've used the fact for TLB testing, for 
+> > example, by just doing a big malloc(), and knowing that the kernel will 
+> > re-use the ZERO_PAGE so that I don't get any cache effects (well, at least 
+> > not any *physical* cache effects. Virtually indexed cached will still show 
+> > effects of it, of course, but I haven't cared).
+> > 
+> > That's an example of an app that actually cares about the page allocation 
+> > (or, in this case, the lack there-of). Not an important one, but maybe 
+> > there are important ones that care?
 > 
+> If we're going to consider this seriously, there is a case I know of.
+> Look at flush_dcache_page()'s test for ZERO_PAGE() on sparc64, there
+> is an instructive comment:
 > 
-> This was not a working patch, just to throw the idea, since the answers I got showed I was not understood.
+> 	/* Do not bother with the expensive D-cache flush if it
+> 	 * is merely the zero page.  The 'bigcore' testcase in GDB
+> 	 * causes this case to run millions of times.
+> 	 */
+> 	if (page == ZERO_PAGE(0))
+> 		return;
 > 
-> In this case, find_extend_vma() should of course have one struct vm_area_cache * argument, like find_vma()
+> basically what the GDB test case does it mmap() an enormous anonymous
+> area, not touch it, then dump core.
 > 
-> One single cache on one mm is not scalable. oprofile badly hits it on a dual cpu config.
+> As I understand the patch being considered to remove ZERO_PAGE(), this
+> kind of core dump will cause a lot of pages to be allocated, probably
+> eating up a lot of system time as well as memory.
 
-Oh, what sort of workload are you using to show this? The only reason that I
-didn't submit my thread cache patches was that I didn't show a big enough
-improvement.
+Yeah. Well it is trivial to leave ZERO_PAGE in get_user_pages, however
+in the longer run it would be nice to get rid of ZERO_PAGE completely
+so we need an alternative.
 
--- 
-SUSE Labs, Novell Inc.
+I've been working on a patch for core dumping that can detect unfaulted
+anonymous memory and skip it without doing the ZERO_PAGE comparision.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
