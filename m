@@ -1,93 +1,63 @@
-Received: from Relay1.suse.de (mail2.suse.de [195.135.221.8])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.suse.de (Postfix) with ESMTP id 785DE12240
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2007 11:01:54 +0200 (CEST)
-Date: Thu, 5 Apr 2007 11:01:54 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: madvise avoid mmap_sem write
-Message-ID: <20070405090154.GA11102@wotan.suse.de>
+Date: Thu, 5 Apr 2007 11:06:01 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
+Subject: Re: missing madvise functionality
+Message-Id: <20070405110601.8ef4b601.dada1@cosmosbay.com>
+In-Reply-To: <4614B3FB.2090405@redhat.com>
+References: <46128051.9000609@redhat.com>
+	<p73648dz5oa.fsf@bingen.suse.de>
+	<46128CC2.9090809@redhat.com>
+	<20070403172841.GB23689@one.firstfloor.org>
+	<20070403125903.3e8577f4.akpm@linux-foundation.org>
+	<4612B645.7030902@redhat.com>
+	<20070403202937.GE355@devserv.devel.redhat.com>
+	<4614A5CC.5080508@redhat.com>
+	<20070405100848.db97d835.dada1@cosmosbay.com>
+	<4614B3FB.2090405@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Here is a newer version of the patch.
+On Thu, 05 Apr 2007 04:31:55 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
---
+> Eric Dumazet wrote:
+> 
+> > Could you please add this patch and see if it helps on your machine ?
+> > 
+> > [PATCH] VM : mm_struct's mmap_cache should be close to mmap_sem
+> > 
+> > Avoids cache line dirtying
+> 
+> I could, but I already know it's not going to help much.
+> 
+> How do I know this?  I already have 66% idle time when running
+> with my patch (and without Nick Piggin's patch to take the
+> mmap_sem for reading only).  Interestingly, despite the idle
+> time increasing from 10% to 66%, throughput triples...
+> 
+> Saving some CPU time will probably only increase the idle time,
+> I see no reason your patch would reduce contention and increase
+> throughput.
+> 
+> I'm not saying your patch doesn't make sense - it probably does.
+> I just suspect it would have zero impact on this particular
+> scenario, because of the already huge idle time.
 
-Avoid down_write of the mmap_sem in madvise when we can help it.
+I know your cpus have idle time, that not the question.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+But *when* your cpus are not idle, they might be slowed down because of cache line transferts between them. This patch doesnt reduce contention, just latencies (and overall performance)
 
-Index: linux-2.6/mm/madvise.c
-===================================================================
---- linux-2.6.orig/mm/madvise.c
-+++ linux-2.6/mm/madvise.c
-@@ -12,6 +12,24 @@
- #include <linux/hugetlb.h>
- 
- /*
-+ * Any behaviour which results in changes to the vma->vm_flags needs to
-+ * take mmap_sem for writing. Others, which simply traverse vmas, need
-+ * to only take it for reading.
-+ */
-+static int madvise_need_mmap_write(int behavior)
-+{
-+	switch (behavior) {
-+	case MADV_REMOVE:
-+	case MADV_WILLNEED:
-+	case MADV_DONTNEED:
-+		return 0;
-+	default:
-+		/* be safe, default to 1. list exceptions explicitly */
-+		return 1;
-+	}
-+}
-+
-+/*
-  * We can potentially split a vm area into separate
-  * areas, each area with its own behavior.
-  */
-@@ -183,9 +201,9 @@ static long madvise_remove(struct vm_are
- 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
- 
- 	/* vmtruncate_range needs to take i_mutex and i_alloc_sem */
--	up_write(&current->mm->mmap_sem);
-+	up_read(&current->mm->mmap_sem);
- 	error = vmtruncate_range(mapping->host, offset, endoff);
--	down_write(&current->mm->mmap_sem);
-+	down_read(&current->mm->mmap_sem);
- 	return error;
- }
- 
-@@ -270,7 +288,10 @@ asmlinkage long sys_madvise(unsigned lon
- 	int error = -EINVAL;
- 	size_t len;
- 
--	down_write(&current->mm->mmap_sem);
-+	if (madvise_need_mmap_write(behavior))
-+		down_write(&current->mm->mmap_sem);
-+	else
-+		down_read(&current->mm->mmap_sem);
- 
- 	if (start & ~PAGE_MASK)
- 		goto out;
-@@ -332,6 +353,10 @@ asmlinkage long sys_madvise(unsigned lon
- 			vma = find_vma(current->mm, start);
- 	}
- out:
--	up_write(&current->mm->mmap_sem);
-+	if (madvise_need_mmap_write(behavior))
-+		up_write(&current->mm->mmap_sem);
-+	else
-+		up_read(&current->mm->mmap_sem);
-+
- 	return error;
- }
+I dont currently have SMP test machine, so I couldnt test it myself.
+
+On x86_64, I am pretty sure the patch would help, because offsetof(mmap_sem) = 0x60
+On i386, offsetof(mmap_sem)=0x34, so this patch wont help.
+
+As you said, throughput can raise and idle time raise too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
