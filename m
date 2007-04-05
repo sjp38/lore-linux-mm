@@ -1,97 +1,47 @@
-Date: Thu, 5 Apr 2007 12:53:35 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: madvise avoid mmap_sem write
-In-Reply-To: <20070405090154.GA11102@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0704051251540.7264@blonde.wat.veritas.com>
-References: <20070405090154.GA11102@wotan.suse.de>
+Message-ID: <4614E67D.7000006@shadowen.org>
+Date: Thu, 05 Apr 2007 13:07:25 +0100
+From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/4] x86_64: Switch to SPARSE_VIRTUAL
+References: <20070401071024.23757.4113.sendpatchset@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0704021422040.2272@schroedinger.engr.sgi.com> <1175550968.22373.122.camel@localhost.localdomain> <200704030031.24898.ak@suse.de>
+In-Reply-To: <200704030031.24898.ak@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Dave Hansen <hansendc@us.ibm.com>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Martin Bligh <mbligh@google.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2007, Nick Piggin wrote:
-> Here is a newer version of the patch.
+Andi Kleen wrote:
+> On Monday 02 April 2007 23:56:08 Dave Hansen wrote:
+>> On Mon, 2007-04-02 at 14:28 -0700, Christoph Lameter wrote:
+>>> I do not care what its called as long as it 
+>>> covers all the bases and is not a glaring performance regresssion (like 
+>>> SPARSEMEM so far). 
+>> I honestly don't doubt that there are regressions, somewhere.  Could you
+>> elaborate, and perhaps actually show us some numbers on this?  Perhaps
+>> instead of adding a completely new model, we can adapt the existing ones
+>> somehow.
+> 
+> If it works I would be inclined to replaced old sparsemem with Christoph's
+> new one on x86-64. Perhaps that could cut down the bewildering sparsemem
+> ifdef jungle that is there currently.
+> 
+> But I presume it won't work on 32bit because of the limited address space?
 
-That's very nice: yes, better defaulted the safe way round.
+Right.  But we might be able to do switch SPARSEMEM_EXTREME users here
+if performance is better and no other regressions are detected.
+
+There seems to be a theme, we need to get some numbers.  I will try and
+get what I can with the hardware I have and see whats missing.
 
 > 
-> --
-> 
-> Avoid down_write of the mmap_sem in madvise when we can help it.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+>> But, without some cold, hard, data, we mere mortals without the 1024-way
+>> machines can only guess. ;)
 
-Acked-by: Hugh Dickins <hugh@veritas.com>
 
-> 
-> Index: linux-2.6/mm/madvise.c
-> ===================================================================
-> --- linux-2.6.orig/mm/madvise.c
-> +++ linux-2.6/mm/madvise.c
-> @@ -12,6 +12,24 @@
->  #include <linux/hugetlb.h>
->  
->  /*
-> + * Any behaviour which results in changes to the vma->vm_flags needs to
-> + * take mmap_sem for writing. Others, which simply traverse vmas, need
-> + * to only take it for reading.
-> + */
-> +static int madvise_need_mmap_write(int behavior)
-> +{
-> +	switch (behavior) {
-> +	case MADV_REMOVE:
-> +	case MADV_WILLNEED:
-> +	case MADV_DONTNEED:
-> +		return 0;
-> +	default:
-> +		/* be safe, default to 1. list exceptions explicitly */
-> +		return 1;
-> +	}
-> +}
-> +
-> +/*
->   * We can potentially split a vm area into separate
->   * areas, each area with its own behavior.
->   */
-> @@ -183,9 +201,9 @@ static long madvise_remove(struct vm_are
->  			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
->  
->  	/* vmtruncate_range needs to take i_mutex and i_alloc_sem */
-> -	up_write(&current->mm->mmap_sem);
-> +	up_read(&current->mm->mmap_sem);
->  	error = vmtruncate_range(mapping->host, offset, endoff);
-> -	down_write(&current->mm->mmap_sem);
-> +	down_read(&current->mm->mmap_sem);
->  	return error;
->  }
->  
-> @@ -270,7 +288,10 @@ asmlinkage long sys_madvise(unsigned lon
->  	int error = -EINVAL;
->  	size_t len;
->  
-> -	down_write(&current->mm->mmap_sem);
-> +	if (madvise_need_mmap_write(behavior))
-> +		down_write(&current->mm->mmap_sem);
-> +	else
-> +		down_read(&current->mm->mmap_sem);
->  
->  	if (start & ~PAGE_MASK)
->  		goto out;
-> @@ -332,6 +353,10 @@ asmlinkage long sys_madvise(unsigned lon
->  			vma = find_vma(current->mm, start);
->  	}
->  out:
-> -	up_write(&current->mm->mmap_sem);
-> +	if (madvise_need_mmap_write(behavior))
-> +		up_write(&current->mm->mmap_sem);
-> +	else
-> +		up_read(&current->mm->mmap_sem);
-> +
->  	return error;
->  }
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
