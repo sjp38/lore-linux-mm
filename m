@@ -1,59 +1,69 @@
-Subject: Re: [rfc] no ZERO_PAGE?
-In-Reply-To: Your message of "Wed, 04 Apr 2007 17:27:31 PDT."
-             <Pine.LNX.4.64.0704041724280.6730@woody.linux-foundation.org>
-From: Valdis.Kletnieks@vt.edu
-References: <20070329075805.GA6852@wotan.suse.de> <Pine.LNX.4.64.0703291324090.21577@blonde.wat.veritas.com> <20070330024048.GG19407@wotan.suse.de> <20070404033726.GE18507@wotan.suse.de> <Pine.LNX.4.64.0704040830500.6730@woody.linux-foundation.org> <6701.1175724355@turing-police.cc.vt.edu>
-            <Pine.LNX.4.64.0704041724280.6730@woody.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1175736312_5833P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Message-ID: <46145476.8080504@yahoo.com.au>
+Date: Thu, 05 Apr 2007 11:44:22 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: missing madvise functionality
+References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <20070403144948.fe8eede6.akpm@linux-foundation.org> <20070403160231.33aa862d.akpm@linux-foundation.org> <Pine.LNX.4.64.0704040949050.17341@blonde.wat.veritas.com> <4613BC5D.2070404@redhat.com> <Pine.LNX.4.64.0704041610320.19450@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0704041610320.19450@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Wed, 04 Apr 2007 21:25:12 -0400
-Message-ID: <5946.1175736312@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, tee@sgi.com, holt@sgi.com, Andrea Arcangeli <andrea@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1175736312_5833P
-Content-Type: text/plain; charset=us-ascii
+Hugh Dickins wrote:
+> On Wed, 4 Apr 2007, Rik van Riel wrote:
+> 
+>>Hugh Dickins wrote:
+>>
+>>
+>>>(I didn't understand how Rik would achieve his point 5, _no_ lock
+>>>contention while repeatedly re-marking these pages, but never mind.)
+>>
+>>The CPU marks them accessed&dirty when they are reused.
+>>
+>>The VM only moves the reused pages back to the active list
+>>on memory pressure.  This means that when the system is
+>>not under memory pressure, the same page can simply stay
+>>PG_lazyfree for multiple malloc/free rounds.
+> 
+> 
+> Sure, there's no need for repetitious locking at the LRU end of it;
+> but you said "if the system has lots of free memory, pages can go
+> through multiple free/malloc cycles while sitting on the dontneed
+> list, very lazily with no lock contention".  I took that to mean,
+> with userspace repeatedly madvising on the ranges they fall in,
+> which will involve mmap_sem and ptl each time - just in order
+> to check that no LRU movement is required each time.
+> 
+> (Of course, there's also the problem that we don't leave our
+> systems with lots of free memory: some LRU balancing decisions.)
 
-On Wed, 04 Apr 2007 17:27:31 PDT, Linus Torvalds said:
+I don't agree this approach is the best one anyway. I'd rather
+just the simple MADV_DONTNEED/MADV_DONEED.
 
-> Sure you do. If glibc used mmap() or brk(), it *knows* the new data is 
-> zero. So if you use calloc(), for example, it's entirely possible that 
-> a good libc wouldn't waste time zeroing it.
+Once you go through the trouble of protecting the memory and
+flushing TLBs, unprotecting them afterwards and taking a trap
+(even if it is a pure hardware trap), I doubt you've saved much.
 
-Right.  However, the *user* code usually has no idea about the previous
-history - so if it uses malloc(), it should be doing something like:
+You may have saved the cost of zeroing out the page, but that
+has to be weighed against the fact that you have left a possibly
+cache hot page sitting there to get cold, and your accesses to
+initialise the malloced memory might have more cache misses.
 
-	ptr = malloc(my_size*sizeof(whatever));
-	memset(ptr, my_size*sizeof(), 0);
+If you just free the page, it goes onto a nice LIFO cache hot
+list, and when you want to allocate another one, you'll probably
+get a cache hot one.
 
-So malloc does something clever to guarantee that it's zero, and then userspace
-undoes the cleverness because it has no easy way to *know* that cleverness
-happened.
+The problem is down_write(mmap_sem) isn't it? We can and should
+easily fix that problem now. If we subsequently want to look at
+micro optimisations to avoid zeroing using MMU tricks, then we
+have a good base to compare with.
 
-Admittedly, calloc() *can* get away with being clever.  I know we have some
-glibc experts lurking here - any of them want to comment on how smart calloc()
-actually is, or how smart it can become without needing major changes to the
-rest of the malloc() and friends?
-
-
---==_Exmh_1175736312_5833P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFGFE/4cC3lWbTT17ARAm55AKDw8yO8HMO7dx3xeKcFEUgA0yt9kQCgsxS9
-d1S1ea1UlHgGKfmocznM6Ek=
-=gfGW
------END PGP SIGNATURE-----
-
---==_Exmh_1175736312_5833P--
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
