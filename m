@@ -1,68 +1,69 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l35FGXX4001842
-	for <linux-mm@kvack.org>; Thu, 5 Apr 2007 11:16:33 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l35FGXQm285004
-	for <linux-mm@kvack.org>; Thu, 5 Apr 2007 11:16:33 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l35FGXb1020452
-	for <linux-mm@kvack.org>; Thu, 5 Apr 2007 11:16:33 -0400
-Subject: Re: [RFC] Free up page->private for compound pages
-From: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
-In-Reply-To: <Pine.LNX.4.64.0704042016490.7885@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0704042016490.7885@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Thu, 05 Apr 2007 10:13:52 -0500
-Message-Id: <1175786037.28125.8.camel@shaggy>
-Mime-Version: 1.0
+Message-ID: <46151A05.3050505@redhat.com>
+Date: Thu, 05 Apr 2007 11:47:17 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: missing madvise functionality
+References: <46128051.9000609@redhat.com>	<p73648dz5oa.fsf@bingen.suse.de>	<46128CC2.9090809@redhat.com>	<20070403172841.GB23689@one.firstfloor.org>	<20070403125903.3e8577f4.akpm@linux-foundation.org>	<4612B645.7030902@redhat.com>	<20070403202937.GE355@devserv.devel.redhat.com>	<4614A5CC.5080508@redhat.com>	<4614A7B1.60808@redhat.com> <20070405013225.4135b76d.akpm@linux-foundation.org>
+In-Reply-To: <20070405013225.4135b76d.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, dgc@sgi.com, npiggin@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-04-04 at 20:19 -0700, Christoph Lameter wrote:
-
-> Index: linux-2.6.21-rc5-mm4/include/linux/page-flags.h
-> ===================================================================
-> --- linux-2.6.21-rc5-mm4.orig/include/linux/page-flags.h	2007-04-03 23:48:34.000000000 -0700
-> +++ linux-2.6.21-rc5-mm4/include/linux/page-flags.h	2007-04-04 18:25:47.000000000 -0700
-> @@ -91,6 +91,7 @@
->  #define PG_booked		20	/* Has blocks reserved on-disk */
+Andrew Morton wrote:
+> On Thu, 05 Apr 2007 03:39:29 -0400 Rik van Riel <riel@redhat.com> wrote:
 > 
->  #define PG_readahead		21	/* Reminder to do read-ahead */
-> +#define PG_tail			22	/* Tail portion of a compound page */
+>> Rik van Riel wrote:
+>>
+>>> MADV_DONTNEED, unpatched, 1000 loops
+>>>
+>>> real    0m13.672s
+>>> user    0m1.217s
+>>> sys     0m45.712s
+>>>
+>>>
+>>> MADV_DONTNEED, with patch, 1000 loops
+>>>
+>>> real    0m4.169s
+>>> user    0m2.033s
+>>> sys     0m3.224s
+>> I just noticed something fun with these numbers.
+>>
+>> Without the patch, the system (a quad core CPU) is 10% idle.
+>>
+>> With the patch, it is 66% idle - presumably I need Nick's
+>> mmap_sem patch.
+>>
+>> However, despite being 66% idle, the test still runs over
+>> 3 times as fast!
 > 
->  /* PG_owner_priv_1 users should have descriptive aliases */
->  #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
-> @@ -214,6 +215,10 @@ static inline void SetPageUptodate(struc
->  #define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
->  #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
-> 
-> +#define PageTail(page)	test_bit(PG_tail, &(page)->flags)
-> +#define __SetPageTail(page)	__set_bit(PG_tail, &(page)->flags)
-> +#define __ClearPageTail(page)	__clear_bit(PG_tail, &(page)->flags)
-> +
->  #ifdef CONFIG_SWAP
->  #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)
->  #define SetPageSwapCache(page)	set_bit(PG_swapcache, &(page)->flags)
+> Please quote the context switch rate when testing this stuff (I use vmstat 1).
+> I've seen it vary by a factor of 10,000 depending upon what's happening.
 
-Wow, I was planning on adding that exact flag for the work I'm doing
-with Page Cache Tails:
-http://kernel.org/pub/linux/kernel/people/shaggy/OLS-2006/
+About context switches 14000 per second.
 
-I'm working on killing the page flag, but I am still using PageTail() to
-test for the special-case page.  No worry.  I'll rename it to something
-less ambiguous.
+I'll go compile in Nick's patch to see if that makes
+things go faster.  I expect it will.
 
-As far as the Page Cache Tail work, I'll try to get some patches out for
-review soon.
+procs -----------memory---------- ---swap-- -----io---- --system-- 
+-----cpu------
+  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy 
+id wa st
+  1  0      0 965232 250024 370848    0    0     0     0 1026 13914 13 
+21 67  0  0
+  1  0      0 965232 250024 370848    0    0     0     0 1018 14654 12 
+20 68  0  0
+  1  0      0 965232 250024 370848    0    0     0     0 1023 14006 12 
+21 67  0  0
 
-Shaggy
+
 -- 
-David Kleikamp
-IBM Linux Technology Center
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
