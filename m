@@ -1,101 +1,82 @@
-Subject: [patch 1/2] split mmap
-Message-Id: <E1HZOHe-0000RL-00@dorka.pomaz.szeredi.hu>
+In-reply-to: <E1HZOHe-0000RL-00@dorka.pomaz.szeredi.hu> (message from Miklos
+	Szeredi on Thu, 05 Apr 2007 11:29:34 +0200)
+Subject: [patch 2/2] only allow nonlinear vmas for ram backed filesystems
+References: <E1HZOHe-0000RL-00@dorka.pomaz.szeredi.hu>
+Message-Id: <E1HZOIr-0000Rv-00@dorka.pomaz.szeredi.hu>
 From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 05 Apr 2007 11:29:34 +0200
+Date: Thu, 05 Apr 2007 11:30:49 +0200
 Sender: owner-linux-mm@kvack.org
+From: Miklos Szeredi <mszeredi@suse.cz>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Resending this non-linear-fix mini-series, unchaged but with updated
-description.
+page_mkclean() doesn't re-protect ptes for non-linear mappings, so a
+later re-dirty through such a mapping will not generate a fault,
+PG_dirty will not reflect the dirty state and the dirty count will be
+skewed.  This implies that msync() is also currently broken for
+nonlinear mappings.
 
-----
-From: Miklos Szeredi <mszeredi@suse.cz>
+Peter Zijlstra writes:
+> In order to make page_mkclean() work for nonlinear vmas we need to do a
+> full pte scan for each invocation (we could perhaps only scan 1 in n
+> times to try and limit the damage) and that hurts. This will basically
+> render it useless.
+> 
+> The other solution is adding rmap information to nonlinear vmas but
+> doubling the memory overhead for nonlinear mappings was not deemed a
+> good idea.
 
-This is a straightforward split of do_mmap_pgoff() into two functions:
+The easiest solution is to emulate remap_file_pages on non-linear
+mappings with simple mmap() for non ram-backed filesystems.
+Applications continue to work (albeit slower), as long as the number
+of remappings remain below the maximum vma count.
 
- - do_mmap_pgoff() checks the parameters, and calculates the vma
-   flags.  Then it calls
+However all currently known real uses of non-linear mappings are for
+ram backed filesystems, which this patch doesn't affect.
 
- - mmap_region(), which does the actual mapping
+William Lee Irwin III writes:
+> It's used for > 3GB files on tmpfs and also ramfs, sometimes
+> substantially larger than 3GB.
+> 
+> It's not used for the database proper. It's used for the buffer pool,
+> which is the in-core destination and source of direct I/O, the on-disk
+> source and destination of the I/O being the database.
 
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
 
-Index: linux/mm/mmap.c
+Index: linux/mm/fremap.c
 ===================================================================
---- linux.orig/mm/mmap.c	2007-04-04 19:34:36.000000000 +0200
-+++ linux/mm/mmap.c	2007-04-05 10:51:01.000000000 +0200
-@@ -893,14 +893,11 @@ unsigned long do_mmap_pgoff(struct file 
- 			unsigned long flags, unsigned long pgoff)
- {
- 	struct mm_struct * mm = current->mm;
--	struct vm_area_struct * vma, * prev;
- 	struct inode *inode;
- 	unsigned int vm_flags;
--	int correct_wcount = 0;
- 	int error;
--	struct rb_node ** rb_link, * rb_parent;
- 	int accountable = 1;
--	unsigned long charged = 0, reqprot = prot;
-+	unsigned long reqprot = prot;
- 
- 	/*
- 	 * Does the application expect PROT_READ to imply PROT_EXEC?
-@@ -1025,7 +1022,25 @@ unsigned long do_mmap_pgoff(struct file 
- 	error = security_file_mmap(file, reqprot, prot, flags);
- 	if (error)
- 		return error;
--		
+--- linux.orig/mm/fremap.c	2007-04-05 11:18:21.000000000 +0200
++++ linux/mm/fremap.c	2007-04-05 11:18:25.000000000 +0200
+@@ -181,6 +181,24 @@ asmlinkage long sys_remap_file_pages(uns
+ 			goto retry;
+ 		}
+ 		mapping = vma->vm_file->f_mapping;
++		/*
++		 * page_mkclean doesn't work on nonlinear vmas, so if dirty
++		 * pages need to be accounted, emulate with linear vmas.
++		 */
++		if (mapping_cap_account_dirty(mapping)) {
++			unsigned long addr;
 +
-+	return mmap_region(file, addr, len, flags, vm_flags, pgoff,
-+			   accountable);
-+}
-+EXPORT_SYMBOL(do_mmap_pgoff);
-+
-+unsigned long mmap_region(struct file *file, unsigned long addr,
-+			  unsigned long len, unsigned long flags,
-+			  unsigned int vm_flags, unsigned long pgoff,
-+			  int accountable)
-+{
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma, *prev;
-+	int correct_wcount = 0;
-+	int error;
-+	struct rb_node **rb_link, *rb_parent;
-+	unsigned long charged = 0;
-+	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
-+
- 	/* Clear old maps */
- 	error = -ENOMEM;
- munmap_back:
-@@ -1174,8 +1189,6 @@ unacct_error:
- 	return error;
- }
- 
--EXPORT_SYMBOL(do_mmap_pgoff);
--
- /* Get an address range which is currently unmapped.
-  * For shmat() with addr=0.
-  *
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h	2007-04-04 19:34:35.000000000 +0200
-+++ linux/include/linux/mm.h	2007-04-05 10:51:01.000000000 +0200
-@@ -1074,6 +1074,10 @@ extern unsigned long get_unmapped_area(s
- extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot,
- 	unsigned long flag, unsigned long pgoff);
-+extern unsigned long mmap_region(struct file *file, unsigned long addr,
-+	unsigned long len, unsigned long flags,
-+	unsigned int vm_flags, unsigned long pgoff,
-+	int accountable);
- 
- static inline unsigned long do_mmap(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot,
++			flags &= MAP_NONBLOCK;
++			addr = mmap_region(vma->vm_file, start, size, flags,
++					   vma->vm_flags, pgoff, 1);
++			if (IS_ERR_VALUE(addr))
++				err = addr;
++			else {
++				BUG_ON(addr != start);
++				err = 0;
++			}
++			goto out;
++		}
+ 		spin_lock(&mapping->i_mmap_lock);
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma->vm_flags |= VM_NONLINEAR;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
