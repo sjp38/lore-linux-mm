@@ -1,60 +1,37 @@
-Date: Fri, 6 Apr 2007 12:30:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Fri, 6 Apr 2007 21:40:10 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: preemption and rwsems (was: Re: missing madvise functionality)
-Message-Id: <20070406123010.802c76b4.akpm@linux-foundation.org>
-In-Reply-To: <20070406090822.GA2425@elte.hu>
-References: <46128051.9000609@redhat.com>
-	<p73648dz5oa.fsf@bingen.suse.de>
-	<46128CC2.9090809@redhat.com>
-	<20070403172841.GB23689@one.firstfloor.org>
-	<20070403125903.3e8577f4.akpm@linux-foundation.org>
-	<4612B645.7030902@redhat.com>
-	<20070403202937.GE355@devserv.devel.redhat.com>
-	<19526.1175777338@redhat.com>
-	<20070405191129.GC22092@elte.hu>
-	<20070405133742.88abc4f8.akpm@linux-foundation.org>
-	<20070406090822.GA2425@elte.hu>
+Message-ID: <20070406194010.GA21322@elte.hu>
+References: <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <19526.1175777338@redhat.com> <20070405191129.GC22092@elte.hu> <20070405133742.88abc4f8.akpm@linux-foundation.org> <20070406090822.GA2425@elte.hu> <20070406123010.802c76b4.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070406123010.802c76b4.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Howells <dhowells@redhat.com>, Jakub Jelinek <jakub@redhat.com>, Ulrich Drepper <drepper@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2007 11:08:22 +0200
-Ingo Molnar <mingo@elte.hu> wrote:
+* Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> * Andrew Morton <akpm@linux-foundation.org> wrote:
+> > i've attached an updated version of trace-it.c, which will turn this 
+> > off itself, using a sysctl. I also made WAKEUP_TIMING default-off.
 > 
-> > > getting a good trace of it is easy: pick up the latest -rt kernel 
-> > > from:
-> > > 
-> > > 	http://redhat.com/~mingo/realtime-preempt/
-> > > 
-> > > enable EVENT_TRACING in that kernel, run the workload and do:
-> > > 
-> > > 	scripts/trace-it > to-ingo.txt
-> > > 
-> > > and send me the output.
-> > 
-> > Did that - no output was generated.  config at
-> > http://userweb.kernel.org/~akpm/config-akpm2.txt
+> ok.  http://userweb.kernel.org/~akpm/to-ingo.txt is the trace of
 > 
-> sorry, i forgot to mention that you should turn off 
-> CONFIG_WAKEUP_TIMING.
+> 	taskset -c 0 ./jakubs-test-app
 > 
-> i've attached an updated version of trace-it.c, which will turn this off 
-> itself, using a sysctl. I also made WAKEUP_TIMING default-off.
+> while the system was doing the 150,000 context switches/sec.
+> 
+> It isn't very interesting.
 
-ok.  http://userweb.kernel.org/~akpm/to-ingo.txt is the trace of
+this shows an idle CPU#7: you should taskset -c 0 trace-it too - it only 
+traces the current CPU by default. (there's the 
+/proc/sys/kernel/trace_all_cpus flag to trace all cpus, but in this case 
+we really want the trace of CPU#0)
 
-	taskset -c 0 ./jakubs-test-app
-
-while the system was doing the 150,000 context switches/sec.
-
-It isn't very interesting.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
