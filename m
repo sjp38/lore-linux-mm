@@ -1,56 +1,76 @@
-Message-ID: <4615B79E.9080407@yahoo.com.au>
-Date: Fri, 06 Apr 2007 12:59:42 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <4614A5CC.5080508@redhat.com> <46151F73.50602@redhat.com> <4615B043.8060001@yahoo.com.au> <4615B5D9.7060703@redhat.com>
-In-Reply-To: <4615B5D9.7060703@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 10/12] mm: page_alloc_wait
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070405155743.91380f00.akpm@linux-foundation.org>
+References: <20070405174209.498059336@programming.kicks-ass.net>
+	 <20070405174320.129577639@programming.kicks-ass.net>
+	 <20070405155743.91380f00.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 06 Apr 2007 08:37:28 +0200
+Message-Id: <1175841448.6483.117.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: root@programming.kicks-ass.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com
 List-ID: <linux-mm.kvack.org>
 
-Ulrich Drepper wrote:
-> Nick Piggin wrote:
+On Thu, 2007-04-05 at 15:57 -0700, Andrew Morton wrote:
+> On Thu, 05 Apr 2007 19:42:19 +0200
+> root@programming.kicks-ass.net wrote:
 > 
->>Cool. According to my thinking, madvise(MADV_DONTNEED) even in today's
->>kernels using down_write(mmap_sem) for MADV_DONTNEED is better than
->>mmap/mprotect, which have more fundamental locking requirements, more
->>overhead and no benefits (except debugging, I suppose).
+> > Introduce a mechanism to wait on free memory.
+> > 
+> > Currently congestion_wait() is abused to do this.
 > 
+> Such a very small explanation for such a terrifying change.
+
+Yes, I suck at writing changelogs, bad me. Normally I would take a day
+to write them, but I just wanted to get this code out there. Perhaps a
+bad decision.
+
+> > ...
+> >
+> > --- linux-2.6-mm.orig/mm/vmscan.c	2007-04-05 16:29:46.000000000 +0200
+> > +++ linux-2.6-mm/mm/vmscan.c	2007-04-05 16:29:49.000000000 +0200
+> > @@ -1436,6 +1436,7 @@ static int kswapd(void *p)
+> >  		finish_wait(&pgdat->kswapd_wait, &wait);
+> >  
+> >  		balance_pgdat(pgdat, order);
+> > +		page_alloc_ok();
+> >  	}
+> >  	return 0;
+> >  }
 > 
-> It's a tiny bit faster, see
+> For a start, we don't know that kswapd freed pages which are in a suitable
+> zone.  And we don't know that kswapd freed pages which are in a suitable
+> cpuset.
 > 
->   http://people.redhat.com/drepper/dontneed.png
+> congestion_wait() is similarly ignorant of the suitability of the pages,
+> but the whole idea behind congestion_wait is that it will throttle page
+> allocators to some speed which is proportional to the speed at which the IO
+> systems can retire writes - view it as a variable-speed polling operation,
+> in which the polling frequency goes up when the IO system gets faster. 
+> This patch changes that philosophy fundamentally.  That's worth more than a
+> 2-line changelog.
 > 
-> I just ran it once so the graph is not smooth.  This is on a UP dual
-> core machine.  Maybe tomorrow I'll turn on the big 4p machine.
-
-Hmm, I saw an improvement, but that was just on a raw syscall test
-with a single page chunk. Real-world use I guess will get progressively
-less dramatic as other overheads start being introduced.
-
-Multi-thread performance probably won't get a whole lot better (it does
-eliminate 1 down_write(mmap_sem), but one remains) until you use my
-madvise patch.
-
-
-> I would have to see dramatically different results on the big machine to
-> make me change the libc code.  The reason is that there is a big drawback.
+> Also, there might be situations in which kswapd gets stuck in some dark
+> corner.  Perhaps the process which is waiting in the page allocator holds
+> filesystem locks which kswapd is blocked on.  Or kswapd might be blocked on
+> a particular request queue, or a dead NFS server or something.  The timeout
+> will save us, but things will be slow.
 > 
-> So far, when we allocate a new arena, we allocate address space with
-> PROT_NONE and only when we need memory the protection is changed to
-> PROT_READ|PROT_WRITE.  This is the advantage of catching wild pointer
-> accesses.
+> There could be other problems too, dunno - this stuff is tricky.  Why are
+> you changing it, what problems are being solved, etc?
 
-Sure, yes. And I guess you'd always want to keep that options around as
-a debugging aid.
+Lets start with the why, because of 12/12; I wanted to introduce per BDI
+congestion feedback, and hence needed a BDI context for
+congestion_wait(). These specific callers weren't in the context of a
+BDI but of a more global idea.
 
--- 
-SUSE Labs, Novell Inc.
+Perhaps I could call page_alloc_ok() from bdi_congestion_end()
+irrespective of the actual BDI uncongested? That would more or less give
+the old semantics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
