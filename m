@@ -1,52 +1,66 @@
-Date: Thu, 5 Apr 2007 16:24:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 12/12] mm: per BDI congestion feedback
-Message-Id: <20070405162425.eb78c701.akpm@linux-foundation.org>
-In-Reply-To: <20070405174320.649550491@programming.kicks-ass.net>
-References: <20070405174209.498059336@programming.kicks-ass.net>
-	<20070405174320.649550491@programming.kicks-ass.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <4615A22A.7040909@yahoo.com.au>
+Date: Fri, 06 Apr 2007 11:28:10 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: missing madvise functionality
+References: <46128051.9000609@redhat.com> <461357C4.4010403@yahoo.com.au> <46154226.6080300@redhat.com>
+In-Reply-To: <46154226.6080300@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: root@programming.kicks-ass.net
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Apr 2007 19:42:21 +0200
-root@programming.kicks-ass.net wrote:
+Rik van Riel wrote:
+> Nick Piggin wrote:
+> 
+>> Oh, also: something like this patch would help out MADV_DONTNEED, as it
+>> means it can run concurrently with page faults. I think the locking will
+>> work (but needs forward porting).
+> 
+> 
+> Ironically, your patch decreases throughput on my quad core
+> test system, with Jakub's test case.
+> 
+> MADV_DONTNEED, my patch, 10000 loops  (14k context switches/second)
+> 
+> real    0m34.890s
+> user    0m17.256s
+> sys     0m29.797s
+> 
+> 
+> MADV_DONTNEED, my patch & your patch, 10000 loops  (50 context 
+> switches/second)
+> 
+> real    1m8.321s
+> user    0m20.840s
+> sys     1m55.677s
+> 
+> I suspect it's moving the contention onto the page table lock,
+> in zap_pte_range().  I guess that the thread private memory
+> areas must be living right next to each other, in the same
+> page table lock regions :)
+> 
+> For more real world workloads, like the MySQL sysbench one,
+> I still suspect that your patch would improve things.
 
-> Now that we have per BDI dirty throttling is makes sense to also have oer BDI
-> congestion feedback; why wait on another device if the current one is not
-> congested.
+I think it definitely would, because the app will be wanting to
+do other things with mmap_sem as well (like futexes *grumble*).
 
-Similar comments apply.  congestion_wait() should be called
-throttle_at_a_rate_proportional_to_the_speed_of_presently_uncongested_queues().
+Also, the test case is allocating and freeing 512K chunks, which
+I think would be on the high side of typical.
 
-If a process is throttled in the page allocator waiting for pages to become
-reclaimable, that process absolutely does not care whether those pages were
-previously dirty against /dev/sda or against /dev/sdb.  It wants to be woken
-up for writeout completion against any queue.
+You have 32 threads for 4 CPUs, so then it would actually make
+sense to context switch on mmap_sem write lock rather than spin
+on ptl. But the kernel doesn't know that.
 
+Testing with a small chunk size or thread == CPUs I think would
+show a swing toward my patch.
 
--		wbc.encountered_congestion = 0;
-+		wbc.encountered_congestion = NULL;
- 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
- 		wbc.pages_skipped = 0;
- 		writeback_inodes(&wbc);
- 		min_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
- 		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
-	 			/* Wrote less than expected */
--			congestion_wait(WRITE, HZ/10);
--			if (!wbc.encountered_congestion)
-+			if (wbc.encountered_congestion)
-+				congestion_wait(wbc.encountered_congestion,
-+						WRITE, HZ/10);
-+			else
-
-Well that confused me.  You'd be needing to rename
-wbc.encountered_congestion to congested_bdi or something.
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
