@@ -1,63 +1,42 @@
-Message-ID: <4615A22A.7040909@yahoo.com.au>
-Date: Fri, 06 Apr 2007 11:28:10 +1000
+Message-ID: <4615B043.8060001@yahoo.com.au>
+Date: Fri, 06 Apr 2007 12:28:19 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: missing madvise functionality
-References: <46128051.9000609@redhat.com> <461357C4.4010403@yahoo.com.au> <46154226.6080300@redhat.com>
-In-Reply-To: <46154226.6080300@redhat.com>
+References: <46128051.9000609@redhat.com> <p73648dz5oa.fsf@bingen.suse.de> <46128CC2.9090809@redhat.com> <20070403172841.GB23689@one.firstfloor.org> <20070403125903.3e8577f4.akpm@linux-foundation.org> <4612B645.7030902@redhat.com> <20070403202937.GE355@devserv.devel.redhat.com> <4614A5CC.5080508@redhat.com> <46151F73.50602@redhat.com>
+In-Reply-To: <46151F73.50602@redhat.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Jakub Jelinek <jakub@redhat.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Ulrich Drepper <drepper@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Nick Piggin wrote:
+Ulrich Drepper wrote:
+> In case somebody wants to play around with Rik patch or another
+> madvise-based patch, I have x86-64 glibc binaries which can use it:
 > 
->> Oh, also: something like this patch would help out MADV_DONTNEED, as it
->> means it can run concurrently with page faults. I think the locking will
->> work (but needs forward porting).
+>   http://people.redhat.com/drepper/rpms
 > 
+> These are based on the latest Fedora rawhide version.  They should work
+> on older systems, too, but you screw up your updates.  Use them only if
+> you know what you do.
 > 
-> Ironically, your patch decreases throughput on my quad core
-> test system, with Jakub's test case.
-> 
-> MADV_DONTNEED, my patch, 10000 loops  (14k context switches/second)
-> 
-> real    0m34.890s
-> user    0m17.256s
-> sys     0m29.797s
-> 
-> 
-> MADV_DONTNEED, my patch & your patch, 10000 loops  (50 context 
-> switches/second)
-> 
-> real    1m8.321s
-> user    0m20.840s
-> sys     1m55.677s
-> 
-> I suspect it's moving the contention onto the page table lock,
-> in zap_pte_range().  I guess that the thread private memory
-> areas must be living right next to each other, in the same
-> page table lock regions :)
-> 
-> For more real world workloads, like the MySQL sysbench one,
-> I still suspect that your patch would improve things.
+> By default madvise(MADV_DONTNEED) is used.  With the environment variable
 
-I think it definitely would, because the app will be wanting to
-do other things with mmap_sem as well (like futexes *grumble*).
+Cool. According to my thinking, madvise(MADV_DONTNEED) even in today's
+kernels using down_write(mmap_sem) for MADV_DONTNEED is better than
+mmap/mprotect, which have more fundamental locking requirements, more
+overhead and no benefits (except debugging, I suppose).
 
-Also, the test case is allocating and freeing 512K chunks, which
-I think would be on the high side of typical.
+MADV_DONTNEED is twice as fast in single threaded performance, and an
+order of magnitude faster for multiple threads, when MADV_DONTNEED only
+takes mmap_sem for read.
 
-You have 32 threads for 4 CPUs, so then it would actually make
-sense to context switch on mmap_sem write lock rather than spin
-on ptl. But the kernel doesn't know that.
-
-Testing with a small chunk size or thread == CPUs I think would
-show a swing toward my patch.
+Do you plan to include this change in general glibc releases? Maybe it
+will make google malloc obsolete? ;) (I don't suppose you'd be able to
+get any tests done, Andrew?)
 
 -- 
 SUSE Labs, Novell Inc.
