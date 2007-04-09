@@ -1,171 +1,63 @@
-From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070409182525.8559.53694.sendpatchset@schroedinger.engr.sgi.com>
-In-Reply-To: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
-References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [QUICKLIST 4/4] Quicklist support for sparc64
-Date: Mon,  9 Apr 2007 11:25:25 -0700 (PDT)
+Date: Mon, 9 Apr 2007 11:20:12 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH 1/4] x86_64: (SPARSE_VIRTUAL doubles sparsemem speed)
+Message-ID: <20070409182012.GW2986@holomorphy.com>
+References: <Pine.LNX.4.64.0704020832320.30394@schroedinger.engr.sgi.com> <1175544797.22373.62.camel@localhost.localdomain> <Pine.LNX.4.64.0704021324480.31842@schroedinger.engr.sgi.com> <461169CF.6060806@google.com> <Pine.LNX.4.64.0704021345110.1224@schroedinger.engr.sgi.com> <4614E293.3010908@shadowen.org> <Pine.LNX.4.64.0704051119400.9800@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0704071455060.31468@schroedinger.engr.sgi.com> <20070409164029.GT2986@holomorphy.com> <Pine.LNX.4.64.0704091014350.4878@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0704091014350.4878@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
-From: David Miller <davem@davemloft.net>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org, Christoph Lameter <clameter@sgi.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, Martin Bligh <mbligh@google.com>, Dave Hansen <hansendc@us.ibm.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-[QUICKLIST]: Add sparc64 quicklist support.
+On Mon, 9 Apr 2007, William Lee Irwin III wrote:
+>> Whatever's going on with the rest of this, I really like this
+>> instrumentation patch. It may be worthwhile to allow pc_start() to be
+>> overridden so things like performance counter MSR's are usable, but
+>> the framework looks very useful.
 
-I ported this to sparc64 as per the patch below, tested on
-UP SunBlade1500 and 24 cpu Niagara T1000.
+On Mon, Apr 09, 2007 at 10:16:06AM -0700, Christoph Lameter wrote:
+> Yeah. I also did some measurements on quicklists on x86_64 and it seems 
+> that caching page table pages is also useful:
+[...]
 
-Signed-off-by: David S. Miller <davem@davemloft.net>
+Sadly these timings will not address the arguments made on behalf of
+eager zeroing, which are essentially that "precharging the cache" will
+benefit fork(). I personally still find them meaningful.
 
-Index: linux-2.6.21-rc5-mm4/arch/sparc64/Kconfig
-===================================================================
---- linux-2.6.21-rc5-mm4.orig/arch/sparc64/Kconfig	2007-04-07 16:20:07.000000000 -0700
-+++ linux-2.6.21-rc5-mm4/arch/sparc64/Kconfig	2007-04-07 18:03:06.000000000 -0700
-@@ -26,6 +26,10 @@
- 	bool
- 	default y
- 
-+config QUICKLIST
-+	bool
-+	default y
-+
- config STACKTRACE_SUPPORT
- 	bool
- 	default y
-Index: linux-2.6.21-rc5-mm4/arch/sparc64/mm/init.c
-===================================================================
---- linux-2.6.21-rc5-mm4.orig/arch/sparc64/mm/init.c	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm4/arch/sparc64/mm/init.c	2007-04-07 18:03:06.000000000 -0700
-@@ -178,30 +178,6 @@
- 
- int bigkernel = 0;
- 
--struct kmem_cache *pgtable_cache __read_mostly;
--
--static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
--{
--	clear_page(addr);
--}
--
--extern void tsb_cache_init(void);
--
--void pgtable_cache_init(void)
--{
--	pgtable_cache = kmem_cache_create("pgtable_cache",
--					  PAGE_SIZE, PAGE_SIZE,
--					  SLAB_HWCACHE_ALIGN |
--					  SLAB_MUST_HWCACHE_ALIGN,
--					  zero_ctor,
--					  NULL);
--	if (!pgtable_cache) {
--		prom_printf("Could not create pgtable_cache\n");
--		prom_halt();
--	}
--	tsb_cache_init();
--}
--
- #ifdef CONFIG_DEBUG_DCFLUSH
- atomic_t dcpage_flushes = ATOMIC_INIT(0);
- #ifdef CONFIG_SMP
-Index: linux-2.6.21-rc5-mm4/arch/sparc64/mm/tsb.c
-===================================================================
---- linux-2.6.21-rc5-mm4.orig/arch/sparc64/mm/tsb.c	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm4/arch/sparc64/mm/tsb.c	2007-04-07 18:03:06.000000000 -0700
-@@ -252,7 +252,7 @@
- 	"tsb_1MB",
- };
- 
--void __init tsb_cache_init(void)
-+void __init pgtable_cache_init(void)
- {
- 	unsigned long i;
- 
-Index: linux-2.6.21-rc5-mm4/include/asm-sparc64/pgalloc.h
-===================================================================
---- linux-2.6.21-rc5-mm4.orig/include/asm-sparc64/pgalloc.h	2007-03-25 15:56:23.000000000 -0700
-+++ linux-2.6.21-rc5-mm4/include/asm-sparc64/pgalloc.h	2007-04-07 18:03:07.000000000 -0700
-@@ -6,6 +6,7 @@
- #include <linux/sched.h>
- #include <linux/mm.h>
- #include <linux/slab.h>
-+#include <linux/quicklist.h>
- 
- #include <asm/spitfire.h>
- #include <asm/cpudata.h>
-@@ -13,52 +14,50 @@
- #include <asm/page.h>
- 
- /* Page table allocation/freeing. */
--extern struct kmem_cache *pgtable_cache;
- 
- static inline pgd_t *pgd_alloc(struct mm_struct *mm)
- {
--	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL);
-+	return quicklist_alloc(0, GFP_KERNEL, NULL);
- }
- 
- static inline void pgd_free(pgd_t *pgd)
- {
--	kmem_cache_free(pgtable_cache, pgd);
-+	quicklist_free(0, NULL, pgd);
- }
- 
- #define pud_populate(MM, PUD, PMD)	pud_set(PUD, PMD)
- 
- static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
--	return kmem_cache_alloc(pgtable_cache,
--				GFP_KERNEL|__GFP_REPEAT);
-+	return quicklist_alloc(0, GFP_KERNEL, NULL);
- }
- 
- static inline void pmd_free(pmd_t *pmd)
- {
--	kmem_cache_free(pgtable_cache, pmd);
-+	quicklist_free(0, NULL, pmd);
- }
- 
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
- 					  unsigned long address)
- {
--	return kmem_cache_alloc(pgtable_cache,
--				GFP_KERNEL|__GFP_REPEAT);
-+	return quicklist_alloc(0, GFP_KERNEL, NULL);
- }
- 
- static inline struct page *pte_alloc_one(struct mm_struct *mm,
- 					 unsigned long address)
- {
--	return virt_to_page(pte_alloc_one_kernel(mm, address));
-+	void *pg = quicklist_alloc(0, GFP_KERNEL, NULL);
-+	return pg ? virt_to_page(pg) : NULL;
- }
- 		
- static inline void pte_free_kernel(pte_t *pte)
- {
--	kmem_cache_free(pgtable_cache, pte);
-+	quicklist_free(0, NULL, pte);
- }
- 
- static inline void pte_free(struct page *ptepage)
- {
--	pte_free_kernel(page_address(ptepage));
-+	quicklist_free_page(0, NULL, ptepage);
- }
- 
- 
-@@ -66,6 +65,9 @@
- #define pmd_populate(MM,PMD,PTE_PAGE)		\
- 	pmd_populate_kernel(MM,PMD,page_address(PTE_PAGE))
- 
--#define check_pgt_cache()	do { } while (0)
-+static inline void check_pgt_cache(void)
-+{
-+	quicklist_trim(0, NULL, 25, 16);
-+}
- 
- #endif /* _SPARC64_PGALLOC_H */
+I think a demonstration that will deal with more of others' concerns
+might be instrumenting fault latency after a fresh execve() and
+comparing fork() timings. This is clearly awkward given the scheduling
+opportunities in these areas, but a virtual time measurement may suffice
+to cope with those.
+
+The fault latency after a fresh execve() is particularly relevant
+because it's a scenario where incremental pagetable construction occurs
+in "real life." It's actually less common for processes to merely fork()
+than to fork() then execve() and then perform most of their work in the
+context set up in execve(). The pagetables set up for fork() are most
+commonly short-lived and the utility of caching them or even
+constructing them so questionable that pagetable sharing and other
+methods of avoiding the copy are quite plausible, though perhaps in
+need of some heuristics to avoid new faults for the purposes of merely
+copying pagetables where possible (AIUI such are considered or
+implemented in pagetable sharing patches; of course, Dave McCracken has
+far more detailed knowledge of the performance considerations there).
+
+I daresay it's highly dubious to consider pagetable construction for
+fork() in isolation when the common case is to almost immediately flush
+all those pagetables down the toilet via execve().
+
+Basically, if we can establish that (1) pagetable caching doesn't hurt
+fork() or maybe even speeds it up then (2) it speeds up post-execve()
+faults, then things look good. Raw timings on the pagetable allocation
+primitives are unfortunately too micro to adequately make our case.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
