@@ -1,28 +1,41 @@
-Date: Mon, 9 Apr 2007 14:41:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [QUICKLIST 1/4] Quicklists for page table pages V5
-Message-Id: <20070409144107.21287fb8.akpm@linux-foundation.org>
-In-Reply-To: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
+Date: Mon, 9 Apr 2007 15:01:20 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [QUICKLIST 3/4] Quicklist support for x86_64
+In-Reply-To: <20070409142852.40da5add.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0704091500060.2761@schroedinger.engr.sgi.com>
 References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20070409182520.8559.33529.sendpatchset@schroedinger.engr.sgi.com>
+ <20070409142852.40da5add.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, ak@suse.de, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  9 Apr 2007 11:25:09 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, 9 Apr 2007, Andrew Morton wrote:
 
-> Quicklists for page table pages V5
+> On Mon,  9 Apr 2007 11:25:20 -0700 (PDT)
+> Christoph Lameter <clameter@sgi.com> wrote:
+> 
+> > -static inline pgd_t *pgd_alloc(struct mm_struct *mm)
+> > +static inline void pgd_ctor(void *x)
+> > +static inline void pgd_dtor(void *x)
+> 
+> Seems dumb to inline these - they're only ever called indirectly, aren't
+> they?
 
-So... we skipped i386 this time?
+Yes.. In most cases they are not called at all because NULL is passed. 
+Then the function call can be removed by the compiler from the in line 
+functions.
 
-I'd have gone squeamish if it was included, due to the mystery crash when
-we (effectively) set the list size to zero.  Someone(tm) should look into 
-that - who knows, it might indicate a problem in generic code.
+> This means (I think) that the compiler will need to generate an out-of-line
+> copy of these within each compilation unit which passes the address of these
+> functions into some other function.
+
+The function is constant. Constant propagation will lead to the function 
+being included in the inline function.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
