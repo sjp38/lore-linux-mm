@@ -1,63 +1,57 @@
-Date: Mon, 9 Apr 2007 11:20:12 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 1/4] x86_64: (SPARSE_VIRTUAL doubles sparsemem speed)
-Message-ID: <20070409182012.GW2986@holomorphy.com>
-References: <Pine.LNX.4.64.0704020832320.30394@schroedinger.engr.sgi.com> <1175544797.22373.62.camel@localhost.localdomain> <Pine.LNX.4.64.0704021324480.31842@schroedinger.engr.sgi.com> <461169CF.6060806@google.com> <Pine.LNX.4.64.0704021345110.1224@schroedinger.engr.sgi.com> <4614E293.3010908@shadowen.org> <Pine.LNX.4.64.0704051119400.9800@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0704071455060.31468@schroedinger.engr.sgi.com> <20070409164029.GT2986@holomorphy.com> <Pine.LNX.4.64.0704091014350.4878@schroedinger.engr.sgi.com>
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [QUICKLIST 3/4] Quicklist support for x86_64
+Date: Mon, 9 Apr 2007 20:43:14 +0200
+References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com> <20070409182520.8559.33529.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20070409182520.8559.33529.sendpatchset@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704091014350.4878@schroedinger.engr.sgi.com>
+Message-Id: <200704092043.14335.ak@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Andy Whitcroft <apw@shadowen.org>, Martin Bligh <mbligh@google.com>, Dave Hansen <hansendc@us.ibm.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Apr 2007, William Lee Irwin III wrote:
->> Whatever's going on with the rest of this, I really like this
->> instrumentation patch. It may be worthwhile to allow pc_start() to be
->> overridden so things like performance counter MSR's are usable, but
->> the framework looks very useful.
+On Monday 09 April 2007 20:25:20 Christoph Lameter wrote:
 
-On Mon, Apr 09, 2007 at 10:16:06AM -0700, Christoph Lameter wrote:
-> Yeah. I also did some measurements on quicklists on x86_64 and it seems 
-> that caching page table pages is also useful:
-[...]
+>  #endif /* _X86_64_PGALLOC_H */
+> Index: linux-2.6.21-rc5-mm4/arch/x86_64/kernel/process.c
+> ===================================================================
+> --- linux-2.6.21-rc5-mm4.orig/arch/x86_64/kernel/process.c	2007-04-07 18:07:47.000000000 -0700
+> +++ linux-2.6.21-rc5-mm4/arch/x86_64/kernel/process.c	2007-04-07 18:09:30.000000000 -0700
+> @@ -207,6 +207,7 @@
+>  			if (__get_cpu_var(cpu_idle_state))
+>  				__get_cpu_var(cpu_idle_state) = 0;
+>  
+> +			check_pgt_cache();
 
-Sadly these timings will not address the arguments made on behalf of
-eager zeroing, which are essentially that "precharging the cache" will
-benefit fork(). I personally still find them meaningful.
+Wouldn't it be better to do that on memory pressure only (register
+it as a shrinker)?
 
-I think a demonstration that will deal with more of others' concerns
-might be instrumenting fault latency after a fresh execve() and
-comparing fork() timings. This is clearly awkward given the scheduling
-opportunities in these areas, but a virtual time measurement may suffice
-to cope with those.
+>  		rmb();
+>  			idle = pm_idle;
+>  			if (!idle)
+> Index: linux-2.6.21-rc5-mm4/arch/x86_64/kernel/smp.c
+> ===================================================================
+> --- linux-2.6.21-rc5-mm4.orig/arch/x86_64/kernel/smp.c	2007-04-07 18:07:47.000000000 -0700
+> +++ linux-2.6.21-rc5-mm4/arch/x86_64/kernel/smp.c	2007-04-07 18:09:30.000000000 -0700
+> @@ -241,7 +241,7 @@
+>  	}
+>  	if (!cpus_empty(cpu_mask))
+>  		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
+> -
+> +	check_pgt_cache();
 
-The fault latency after a fresh execve() is particularly relevant
-because it's a scenario where incremental pagetable construction occurs
-in "real life." It's actually less common for processes to merely fork()
-than to fork() then execve() and then perform most of their work in the
-context set up in execve(). The pagetables set up for fork() are most
-commonly short-lived and the utility of caching them or even
-constructing them so questionable that pagetable sharing and other
-methods of avoiding the copy are quite plausible, though perhaps in
-need of some heuristics to avoid new faults for the purposes of merely
-copying pagetables where possible (AIUI such are considered or
-implemented in pagetable sharing patches; of course, Dave McCracken has
-far more detailed knowledge of the performance considerations there).
+Why is that here?
 
-I daresay it's highly dubious to consider pagetable construction for
-fork() in isolation when the common case is to almost immediately flush
-all those pagetables down the toilet via execve().
-
-Basically, if we can establish that (1) pagetable caching doesn't hurt
-fork() or maybe even speeds it up then (2) it speeds up post-execve()
-faults, then things look good. Raw timings on the pagetable allocation
-primitives are unfortunately too micro to adequately make our case.
+>  	preempt_enable();
+>  }
 
 
--- wli
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
