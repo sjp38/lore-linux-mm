@@ -1,40 +1,46 @@
-Date: Mon, 9 Apr 2007 11:46:14 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [QUICKLIST 3/4] Quicklist support for x86_64
-In-Reply-To: <200704092043.14335.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0704091144270.8783@schroedinger.engr.sgi.com>
+Date: Mon, 9 Apr 2007 11:48:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [QUICKLIST 1/4] Quicklists for page table pages V5
+Message-Id: <20070409114827.d3cbf705.akpm@linux-foundation.org>
+In-Reply-To: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
- <20070409182520.8559.33529.sendpatchset@schroedinger.engr.sgi.com>
- <200704092043.14335.ak@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Apr 2007, Andi Kleen wrote:
+On Mon,  9 Apr 2007 11:25:09 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> On Monday 09 April 2007 20:25:20 Christoph Lameter wrote:
+> On x86_64 this cuts allocation overhead for page table pages down to
+> a fraction (kernel compile / editing load. TSC based measurement
+> of times spend in each function):
 > 
-> >  #endif /* _X86_64_PGALLOC_H */
-> > Index: linux-2.6.21-rc5-mm4/arch/x86_64/kernel/process.c
-> > ===================================================================
-> > --- linux-2.6.21-rc5-mm4.orig/arch/x86_64/kernel/process.c	2007-04-07 18:07:47.000000000 -0700
-> > +++ linux-2.6.21-rc5-mm4/arch/x86_64/kernel/process.c	2007-04-07 18:09:30.000000000 -0700
-> > @@ -207,6 +207,7 @@
-> >  			if (__get_cpu_var(cpu_idle_state))
-> >  				__get_cpu_var(cpu_idle_state) = 0;
-> >  
-> > +			check_pgt_cache();
+> no quicklist
 > 
-> Wouldn't it be better to do that on memory pressure only (register
-> it as a shrinker)?
+> pte_alloc               1569048 4.3s(401ns/2.7us/179.7us)
+> pmd_alloc                780988 2.1s(337ns/2.7us/86.1us)
+> pud_alloc                780072 2.2s(424ns/2.8us/300.6us)
+> pgd_alloc                260022 1s(920ns/4us/263.1us)
+> 
+> quicklist:
+> 
+> pte_alloc                452436 573.4ms(8ns/1.3us/121.1us)
+> pmd_alloc                196204 174.5ms(7ns/889ns/46.1us)
+> pud_alloc                195688 172.4ms(7ns/881ns/151.3us)
+> pgd_alloc                 65228 9.8ms(8ns/150ns/6.1us)
+> 
+> pgd allocations are the most complex and there we see the most dramatic
+> improvement (may be we can cut down the amount of pgds cached somewhat?).
+> But even the pte allocations still see a doubling of performance.
 
-It has to be done in sync with tlb flushing. Doing that on memory pressure 
-would complicate things significantly. Also idling means that the cache 
-grows cold.
+Was there any observeable change in overall runtime?
+
+What are the numbers in parentheses?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
