@@ -1,8 +1,8 @@
-Date: Tue, 10 Apr 2007 14:15:28 -0700 (PDT)
+Date: Tue, 10 Apr 2007 14:21:07 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [SLUB 3/5] Validation of slabs (metadata and guard zones)
 In-Reply-To: <20070410133137.e366a16b.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704101414340.9522@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0704101416020.9522@schroedinger.engr.sgi.com>
 References: <20070410191910.8011.76133.sendpatchset@schroedinger.engr.sgi.com>
  <20070410191921.8011.16929.sendpatchset@schroedinger.engr.sgi.com>
  <20070410133137.e366a16b.akpm@linux-foundation.org>
@@ -16,24 +16,30 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 10 Apr 2007, Andrew Morton wrote:
 
-> Why is kmem_cache_close() non-static and exported to modules? 
+> Where do I go to learn what "s->defrag_ratio = 100;" means?
 
-SLUB: kmem_cache_close is static and should not be exported.
+
+SLUB: add explanation for defrag_ratio = 100.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: linux-2.6.21-rc6/mm/slub.c
 ===================================================================
---- linux-2.6.21-rc6.orig/mm/slub.c	2007-04-10 14:06:50.000000000 -0700
-+++ linux-2.6.21-rc6/mm/slub.c	2007-04-10 14:07:02.000000000 -0700
-@@ -1700,7 +1700,6 @@ static int kmem_cache_close(struct kmem_
- 	free_kmem_cache_nodes(s);
- 	return 0;
- }
--EXPORT_SYMBOL(kmem_cache_close);
- 
- /*
-  * Close a cache and release the kmem_cache structure
+--- linux-2.6.21-rc6.orig/mm/slub.c	2007-04-10 14:16:33.000000000 -0700
++++ linux-2.6.21-rc6/mm/slub.c	2007-04-10 14:19:05.000000000 -0700
+@@ -961,6 +961,12 @@ static struct page *get_any_partial(stru
+ 	 *
+ 	 * A higher ratio means slabs may be taken from other nodes
+ 	 * thus reducing the number of partial slabs on those nodes.
++	 *
++	 * If /sys/slab/xx/defrag_ratio is set to 100 (which makes
++	 * defrag_ratio = 1000) then every (well almost) allocation
++	 * will first attempt to defrag slab caches on other nodes. This
++	 * means scanning over all nodes to look for partial slabs which
++	 * may be a bit expensive to do on every slab allocation.
+ 	 */
+ 	if (!s->defrag_ratio || get_cycles() % 1024 > s->defrag_ratio)
+ 		return NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
