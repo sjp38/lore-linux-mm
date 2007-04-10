@@ -1,38 +1,42 @@
-Message-ID: <461B6A5F.3020007@shadowen.org>
-Date: Tue, 10 Apr 2007 11:43:43 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] Generic Virtual Memmap suport for SPARSEMEM V3
-References: <20070404230619.20292.4475.sendpatchset@schroedinger.engr.sgi.com> <20070405.142900.59466568.davem@davemloft.net> <Pine.LNX.4.64.0704051525350.15901@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0704051525350.15901@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/4] Updates to groupings pages by mobility patches
+Date: Tue, 10 Apr 2007 17:02:44 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, mbligh@google.com, linux-mm@kvack.org, ak@suse.de, hansendc@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
+To: akpm@linux-foundation.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 5 Apr 2007, David Miller wrote:
-> 
->> Hey Christoph, here is sparc64 support for this stuff.
-> 
-> Great!
-> 
->> After implementing this and seeing more and more how it works, I
->> really like it :-)
->>
->> Thanks a lot for doing this work Christoph!
-> 
-> Thanks for the appreciation. CCing Andy Whitcroft who will hopefully 
-> merge this all of this together into sparsemem including the S/390 
-> implementation.
+Some concerns were raised about performance hotpoints related to
+grouping pages by mobility and the fact it was a configurable option. The
+following four patches aim to address some of those concerns. They show
+small performance benefits on kernbench but the important patch deals with
+disabling grouping pages by mobility when there is not enough memory for it
+to work.  With these set of patches against 2.6.21-rc6-mm1, it's reasonable
+to get rid of page grouping by mobility as a compile-time option.
 
-Yep grabbed this one and added it to the stack.  Now to find a sparc to
-test it with!
+Patch 1 is a minor correctness issue. A check is made for MIGRATE_RESERVE
+	during boot time before any block has been marked. The patch removes
+	the unnecessary check.
 
--apw
+Patch 2 checks when the system does not have enough memory overall to make
+	grouping pages by mobility useful. This patch disables page groupings
+	when the situation occurs. This is important for low-memory machines.
+
+Patch 3 is a performance improvement in the per-cpu allocator to do less work
+	when grouping pages by mobility
+
+Patch 4 is a performance improvement when looking up flags affecting a
+	MAX_ORDER_NR_PAGES area in the SPARSEMEM case. There is no need to
+	align the PFN to an area boundary.
+
+The net effect of these patches is a small performance increase and that
+I'd be happy to drop the configure option for grouping pages by mobility.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
