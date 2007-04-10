@@ -1,48 +1,61 @@
-Date: Tue, 10 Apr 2007 14:42:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [SLUB 3/5] Validation of slabs (metadata and guard zones)
-Message-Id: <20070410144249.b0e70a67.akpm@linux-foundation.org>
-In-Reply-To: <20070410204711.GB1283@redhat.com>
-References: <20070410191910.8011.76133.sendpatchset@schroedinger.engr.sgi.com>
-	<20070410191921.8011.16929.sendpatchset@schroedinger.engr.sgi.com>
-	<20070410133137.e366a16b.akpm@linux-foundation.org>
-	<20070410204711.GB1283@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 11 Apr 2007 00:05:16 +0200
+From: matze <matze@riseup.net>
+Subject: [PATCH] include KERN_* constant in printk() calls in mm/slab.c
+Message-ID: <20070410220516.GH24898@traven>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Apr 2007 16:47:11 -0400
-Dave Jones <davej@redhat.com> wrote:
+include KERN_* constant in printk() calls in mm/slab.c
 
-> On Tue, Apr 10, 2007 at 01:31:37PM -0700, Andrew Morton wrote:
->  
->  > > an object have not been compromised.
->  > > 
->  > > A single slabcache can be checked by writing a 1 to the "validate" file.
->  > > 
->  > > i.e.
->  > > 
->  > > echo 1 >/sys/slab/kmalloc-128/validate
->  > > 
->  > > or use the slabinfo tool to check all slabs
->  > > 
->  > > slabinfo -v
->  > > 
->  > > Error messages will show up in the syslog.
->  > 
->  > Neato.
-> 
-> I had a patch (I think originally from Manfred Spraul) that I carried
-> in Fedora for a while which this patch reminded me of.
-> Instead of a /sys file however, it ran off a timer every few
-> minutes to check redzones of unfreed objects.
+Signed-off-by: Matthias Kaehlcke <matthias.kaehlcke@gmail.com>
 
-yup.  Of course, that can be done with a cronjob with slub.
+---
+diff --git a/mm/slab.c b/mm/slab.c
+index 4cbac24..5a6e8c8 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2151,13 +2151,15 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 		 */
+ 		res = probe_kernel_address(pc->name, tmp);
+ 		if (res) {
+-			printk("SLAB: cache with size %d has lost its name\n",
++			printk(KERN_ERR
++			       "SLAB: cache with size %d has lost its name\n",
+ 			       pc->buffer_size);
+ 			continue;
+ 		}
+ 
+ 		if (!strcmp(pc->name, name)) {
+-			printk("kmem_cache_create: duplicate cache %s\n", name);
++			printk(KERN_ERR
++			       "kmem_cache_create: duplicate cache %s\n", name);
+ 			dump_stack();
+ 			goto oops;
+ 		}
+@@ -2294,7 +2296,8 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 	left_over = calculate_slab_order(cachep, size, align, flags);
+ 
+ 	if (!cachep->num) {
+-		printk("kmem_cache_create: couldn't create cache %s.\n", name);
++		printk(KERN_ERR
++		       "kmem_cache_create: couldn't create cache %s.\n", name);
+ 		kmem_cache_free(&cache_cache, cachep);
+ 		cachep = NULL;
+ 		goto oops;
+
+-- 
+      El trabajo es el refugio de los que no tienen nada que hacer
+                            (Oscar Wilde)
+                                                                 .''`.
+    using free software / Debian GNU/Linux | http://debian.org  : :'  :
+                                                                `. `'`
+gpg --keyserver keys.indymedia.org --recv-keys B9A88F6F           `-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
