@@ -1,42 +1,46 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 0/4] Updates to groupings pages by mobility patches
-Date: Tue, 10 Apr 2007 17:02:44 +0100 (IST)
+Message-Id: <20070410160304.10742.57011.sendpatchset@skynet.skynet.ie>
+In-Reply-To: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
+References: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 1/4] Remove unnecessary check for MIGRATE_RESERVE during boot
+Date: Tue, 10 Apr 2007 17:03:04 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Some concerns were raised about performance hotpoints related to
-grouping pages by mobility and the fact it was a configurable option. The
-following four patches aim to address some of those concerns. They show
-small performance benefits on kernbench but the important patch deals with
-disabling grouping pages by mobility when there is not enough memory for it
-to work.  With these set of patches against 2.6.21-rc6-mm1, it's reasonable
-to get rid of page grouping by mobility as a compile-time option.
+At boot time, a number of MAX_ORDER_NR_PAGES get marked MIGRATE_RESERVE and
+the remainder get marked MIGRATE_MOVABLE. The blocks are marked MOVABLE in
+memmap_init_zone() before any blocks are marked reserve. A check is made in
+memmap_init_zone() for (get_pageblock_migratetype(page) != MIGRATE_RESERVE)
+which is a waste of time because the reserve has not been set yet. This
+oversight was because an early version of the MIGRATE_RESERVE patch set
+blocks MIGRATE_RESERVE earlier. This patch gets rid of the redundant check.
 
-Patch 1 is a minor correctness issue. A check is made for MIGRATE_RESERVE
-	during boot time before any block has been marked. The patch removes
-	the unnecessary check.
+This should be considered a fix for
+bias-the-location-of-pages-freed-for-min_free_kbytes-in-the-same-max_order_nr_pages-blocks.patch
 
-Patch 2 checks when the system does not have enough memory overall to make
-	grouping pages by mobility useful. This patch disables page groupings
-	when the situation occurs. This is important for low-memory machines.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+---
 
-Patch 3 is a performance improvement in the per-cpu allocator to do less work
-	when grouping pages by mobility
+ page_alloc.c |    3 +--
+ 1 files changed, 1 insertion(+), 2 deletions(-)
 
-Patch 4 is a performance improvement when looking up flags affecting a
-	MAX_ORDER_NR_PAGES area in the SPARSEMEM case. There is no need to
-	align the PFN to an area boundary.
-
-The net effect of these patches is a small performance increase and that
-I'd be happy to drop the configure option for grouping pages by mobility.
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-clean/mm/page_alloc.c linux-2.6.21-rc6-mm1-001_remove_unnecessary_check/mm/page_alloc.c
+--- linux-2.6.21-rc6-mm1-clean/mm/page_alloc.c	2007-04-09 23:26:16.000000000 +0100
++++ linux-2.6.21-rc6-mm1-001_remove_unnecessary_check/mm/page_alloc.c	2007-04-09 23:27:58.000000000 +0100
+@@ -2468,8 +2468,7 @@ void __meminit memmap_init_zone(unsigned
+ 		 * the start are marked MIGRATE_RESERVE by
+ 		 * setup_zone_migrate_reserve()
+ 		 */
+-		if ((pfn & (MAX_ORDER_NR_PAGES-1)) == 0 &&
+-				get_pageblock_migratetype(page) != MIGRATE_RESERVE)
++		if ((pfn & (MAX_ORDER_NR_PAGES-1)))
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
