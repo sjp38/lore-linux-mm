@@ -1,94 +1,76 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070410160324.10742.52582.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070410160344.10742.67971.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
 References: <20070410160244.10742.42187.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/4] Do not group pages by mobility type on low memory systems
-Date: Tue, 10 Apr 2007 17:03:24 +0100 (IST)
+Subject: [PATCH 3/4] Reduce the amount of time spent in the per-cpu allocator
+Date: Tue, 10 Apr 2007 17:03:44 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Grouping pages by mobility can only successfully operate when there
-are more MAX_ORDER_NR_PAGES areas than mobility types.  When there are
-insufficient areas, fallbacks cannot be avoided.  This has noticeable
-performance impacts on machines with small amounts of memory in comparison
-to MAX_ORDER_NR_PAGES. For example, on IA64 with a configuration including
-huge pages spans 1GiB with MAX_ORDER_NR_PAGES so would need at least 4GiB
-of RAM before grouping pages by mobility would be useful. In comparison,
-an x86 would need 16MB.
+The per-cpu allocator is the most frequently entered path in the page
+allocator as the majority of allocations are order-0 allocations that use it.
+This patch is mainly a re-ordering to give the patch a cleaner flow and
+make it more human-readable.
 
-This patch checks the size of vm_total_pages in build_all_zonelists(). If
-there are not enough areas,  mobility is effectivly disabled by considering
-all allocations as the same type (UNMOVABLE).  This is achived via a
-__read_mostly flag.
-
-With this patch, performance is comparable to disabling grouping pages
-by mobility at compile-time on a test machine with insufficient memory.
-With this patch, it is reasonable to get rid of grouping pages by mobility
-a compile-time option.
+Performance wise, an unlikely() is added for a branch that is rarely executed
+which improves performance very slightly. A VM_BUG_ON() is removed because
+when the situation does occur, it means we are just really low on memory
+not that the VM is buggy.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 ---
 
- page_alloc.c |   27 +++++++++++++++++++++++++--
- 1 files changed, 25 insertions(+), 2 deletions(-)
+ page_alloc.c |   22 +++++++---------------
+ 1 files changed, 7 insertions(+), 15 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-001_remove_unnecessary_check/mm/page_alloc.c linux-2.6.21-rc6-mm1-002_disable_on_smallmem/mm/page_alloc.c
---- linux-2.6.21-rc6-mm1-001_remove_unnecessary_check/mm/page_alloc.c	2007-04-09 23:27:58.000000000 +0100
-+++ linux-2.6.21-rc6-mm1-002_disable_on_smallmem/mm/page_alloc.c	2007-04-10 11:28:01.000000000 +0100
-@@ -145,8 +145,13 @@ static unsigned long __meminitdata dma_r
- #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
- 
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-002_disable_on_smallmem/mm/page_alloc.c linux-2.6.21-rc6-mm1-003_streamline_percpu/mm/page_alloc.c
+--- linux-2.6.21-rc6-mm1-002_disable_on_smallmem/mm/page_alloc.c	2007-04-10 11:28:01.000000000 +0100
++++ linux-2.6.21-rc6-mm1-003_streamline_percpu/mm/page_alloc.c	2007-04-10 11:35:34.000000000 +0100
+@@ -1204,33 +1204,25 @@ again:
+ 			if (unlikely(!pcp->count))
+ 				goto failed;
+ 		}
++
  #ifdef CONFIG_PAGE_GROUP_BY_MOBILITY
-+int page_group_by_mobility_disabled __read_mostly;
-+
- static inline int get_pageblock_migratetype(struct page *page)
- {
-+	if (unlikely(page_group_by_mobility_disabled))
-+		return MIGRATE_UNMOVABLE;
-+
- 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
- }
+ 		/* Find a page of the appropriate migrate type */
+-		list_for_each_entry(page, &pcp->list, lru) {
+-			if (page_private(page) == migratetype) {
+-				list_del(&page->lru);
+-				pcp->count--;
++		list_for_each_entry(page, &pcp->list, lru)
++			if (page_private(page) == migratetype)
+ 				break;
+-			}
+-		}
  
-@@ -160,6 +165,9 @@ static inline int allocflags_to_migratet
- {
- 	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
- 
-+	if (unlikely(page_group_by_mobility_disabled))
-+		return MIGRATE_UNMOVABLE;
+-		/*
+-		 * Check if a page of the appropriate migrate type
+-		 * was found. If not, allocate more to the pcp list
+-		 */
+-		if (&page->lru == &pcp->list) {
++		/* Allocate more to the pcp list if necessary */
++		if (unlikely(&page->lru == &pcp->list)) {
+ 			pcp->count += rmqueue_bulk(zone, 0,
+ 					pcp->batch, &pcp->list, migratetype);
+ 			page = list_entry(pcp->list.next, struct page, lru);
+-			VM_BUG_ON(page_private(page) != migratetype);
+-			list_del(&page->lru);
+-			pcp->count--;
+ 		}
+ #else
+ 		page = list_entry(pcp->list.next, struct page, lru);
++#endif /* CONFIG_PAGE_GROUP_BY_MOBILITY */
 +
- 	/* Cluster high-order atomic allocations together */
- 	if (unlikely(order > 0) &&
- 			(!(gfp_flags & __GFP_WAIT) || in_interrupt()))
-@@ -2298,8 +2306,23 @@ void __meminit build_all_zonelists(void)
- 		/* cpuset refresh routine should be here */
- 	}
- 	vm_total_pages = nr_free_pagecache_pages();
--	printk("Built %i zonelists.  Total pages: %ld\n",
--			num_online_nodes(), vm_total_pages);
-+
-+	/*
-+	 * Disable grouping by mobility if the number of pages in the
-+	 * system is too low to allow the mechanism to work. It would be
-+	 * more accurate, but expensive to check per-zone. This check is
-+	 * made on memory-hotadd so a system can start with mobility
-+	 * disabled and enable it later
-+	 */
-+	if (vm_total_pages < (MAX_ORDER_NR_PAGES * MIGRATE_TYPES))
-+		page_group_by_mobility_disabled = 1;
-+	else
-+		page_group_by_mobility_disabled = 0;
-+
-+	printk("Built %i zonelists, mobility grouping %s.  Total pages: %ld\n",
-+			num_online_nodes(),
-+			page_group_by_mobility_disabled ? "off" : "on",
-+			vm_total_pages);
- }
- 
- /*
+ 		list_del(&page->lru);
+ 		pcp->count--;
+-#endif /* CONFIG_PAGE_GROUP_BY_MOBILITY */
+ 	} else {
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		page = __rmqueue(zone, order, migratetype);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
