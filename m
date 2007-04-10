@@ -1,34 +1,54 @@
-Subject: Re: remap_file_pages support - lost messages?
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070409104315.02653a7f.akpm@linux-foundation.org>
-References: <200704091612.57964.blaisorblade@yahoo.it>
-	 <20070409104315.02653a7f.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Tue, 10 Apr 2007 22:40:21 +0200
-Message-Id: <1176237622.18017.0.camel@lappy>
+Date: Tue, 10 Apr 2007 16:47:11 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [SLUB 3/5] Validation of slabs (metadata and guard zones)
+Message-ID: <20070410204711.GB1283@redhat.com>
+References: <20070410191910.8011.76133.sendpatchset@schroedinger.engr.sgi.com> <20070410191921.8011.16929.sendpatchset@schroedinger.engr.sgi.com> <20070410133137.e366a16b.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070410133137.e366a16b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Blaisorblade <blaisorblade@yahoo.it>, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2007-04-09 at 10:43 -0700, Andrew Morton wrote:
-> On Mon, 9 Apr 2007 16:12:57 +0200 Blaisorblade <blaisorblade@yahoo.it> wrote:
-> 
-> > Andrew, last week I sent to you the patchset for remap_file_pages protection 
-> > support, against 2.6.21-rc5-mm3. I got no response at all on that, even if I 
-> > thought it would be merged in -mm. What happened? Should I resend it?
-> 
-> I saw them, and hung onto them for a week in the hope that someone would
-> get in and review them, but nobody did.
-> 
-> So I suppose you should resend, please.  Try cc'ing lkml as well - there
-> seems to be plenty of surplus labour over there ;)
+On Tue, Apr 10, 2007 at 01:31:37PM -0700, Andrew Morton wrote:
+ 
+ > > an object have not been compromised.
+ > > 
+ > > A single slabcache can be checked by writing a 1 to the "validate" file.
+ > > 
+ > > i.e.
+ > > 
+ > > echo 1 >/sys/slab/kmalloc-128/validate
+ > > 
+ > > or use the slabinfo tool to check all slabs
+ > > 
+ > > slabinfo -v
+ > > 
+ > > Error messages will show up in the syslog.
+ > 
+ > Neato.
 
-I intended to go over it in detail, I just haven't found the time
-yet :-(
+I had a patch (I think originally from Manfred Spraul) that I carried
+in Fedora for a while which this patch reminded me of.
+Instead of a /sys file however, it ran off a timer every few
+minutes to check redzones of unfreed objects.  It picked up a few bugs,
+but eventually, I got bored rediffing it, it broke, and it fell by
+the wayside.  (It was against slab too, rather than one of its
+decendants).
+
+Whilst I nursed that along for a few months, I made a few not-so-agressive
+pushes to get it mainlined, but there seemed to be no real interest.
+(Yikes, something that'll show we have *more* bugs? Noooo!)
+
+Would be nice to have equal functionality across the different allocators.
+
+	Dave
+
+-- 
+http://www.codemonkey.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
