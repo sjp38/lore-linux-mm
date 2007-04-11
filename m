@@ -1,33 +1,30 @@
-Received: by ug-out-1314.google.com with SMTP id s2so50470uge
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2007 23:53:53 -0700 (PDT)
-Message-ID: <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
-Date: Wed, 11 Apr 2007 09:53:53 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
-In-Reply-To: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
+Message-ID: <ZOUCVXXJU.67582122672@szeb>
+Reply-To: "ACody MHooks" <jexxevw@gss98.freeserve.co.uk>
+From: "ACody MHooks" <jexxevw@gss98.freeserve.co.uk>
+Subject: At resolve
+Date: Wed, 11 Apr 2007 09:15:10 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Zhao Forrest <forrest.zhao@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/html
+Return-Path: <jexxevw@gss98.freeserve.co.uk>
+To: linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/11/07, Zhao Forrest <forrest.zhao@gmail.com> wrote:
-> We're using RHEL5 with kernel version 2.6.18-8.el5.
-> When doing a stress test on raw device for about 3-4 hours, we found
-> the soft lockup message in dmesg.
-> I know we're not reporting the bug on the latest kernel, but does any
-> expert know if this is the known issue in old kernel? Or why
-> kmem_cache_free occupy CPU for more than 10 seconds?
-
-Sounds like slab corruption. CONFIG_DEBUG_SLAB should tell you more.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<html>
+<head>
+</head>
+<body>
+<p align="center"><b><font face="Times New Roman"><font color="#FF0000">
+Here's your chance, the next soda giant </font><br>
+<font color="#006600">Fire Mountain Bev Company</font><font color="#00CC00"><br>
+</font>SYm-FB VG<br>
+Stron g B reccomended at 2 Cents<br>
+<font color="#FF0000">Watch it like a hawk, else you'll miss this one too</font><br>
+Add this to your radar, Dont miss this one like HANS and FIZ<br>Don't get left out again
+<br><br>
+Republicans are all calling for change, he's desperately clinging to his stay the <br>
+ told CBS's "The Early Show" on Friday, before her brother Jason McKay's funeral.<br>
+Board said the wind, coupled with the pilot's inability to turn sharply, forced the <br>
+and into a New York City high-rise on October 11.The National Transportation Safety <br>
+ in an update on the crash. Lidle and Stanger were making an aerial tour of Manhattan<br></font></b></p>
+</body>
+</html>
