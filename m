@@ -1,46 +1,64 @@
-Message-ID: <461C8DC0.1060509@yahoo.com.au>
-Date: Wed, 11 Apr 2007 17:26:56 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id s2so67514uge
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2007 02:14:46 -0700 (PDT)
+Message-ID: <ac8af0be0704110214qdca2ee9t3b44a17341e53730@mail.gmail.com>
+Date: Wed, 11 Apr 2007 17:14:46 +0800
+From: "Zhao Forrest" <forrest.zhao@gmail.com>
+Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
+In-Reply-To: <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: remap_file_pages support - lost messages?
-References: <200704091612.57964.blaisorblade@yahoo.it>	 <20070409104315.02653a7f.akpm@linux-foundation.org> <1176237622.18017.0.camel@lappy>
-In-Reply-To: <1176237622.18017.0.camel@lappy>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
+	 <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Blaisorblade <blaisorblade@yahoo.it>, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> On Mon, 2007-04-09 at 10:43 -0700, Andrew Morton wrote:
-> 
->>On Mon, 9 Apr 2007 16:12:57 +0200 Blaisorblade <blaisorblade@yahoo.it> wrote:
->>
->>
->>>Andrew, last week I sent to you the patchset for remap_file_pages protection 
->>>support, against 2.6.21-rc5-mm3. I got no response at all on that, even if I 
->>>thought it would be merged in -mm. What happened? Should I resend it?
->>
->>I saw them, and hung onto them for a week in the hope that someone would
->>get in and review them, but nobody did.
->>
->>So I suppose you should resend, please.  Try cc'ing lkml as well - there
->>seems to be plenty of surplus labour over there ;)
-> 
-> 
-> I intended to go over it in detail, I just haven't found the time
-> yet :-(
+I enable CONFIG_DEBUG_SLAB, but don't get any extra debug messages
+related to slab.
+Is there other switch that I need to turn on?
 
-Ditto. The fault handler / sigsegv code still seems a little bit unfortunate
-(if it can't be improved then maybe it can at least be ifdef'ed), however I
-hadn't seen the patchset since it had been using some weird pte encoding
-conventions. Now that it is using a more formal encoding and its own not
-present bit, that part of it looks much cleaner.
+Thanks,
+Forrest
 
--- 
-SUSE Labs, Novell Inc.
+BUG: soft lockup detected on CPU#6!
+
+Call Trace:
+ <IRQ>  [<ffffffff800b3834>] softlockup_tick+0xdb/0xed
+ [<ffffffff80093edf>] update_process_times+0x42/0x68
+ [<ffffffff80074897>] smp_local_timer_interrupt+0x23/0x47
+ [<ffffffff80074f59>] smp_apic_timer_interrupt+0x41/0x47
+ [<ffffffff8005c7c2>] apic_timer_interrupt+0x66/0x6c
+ <EOI>  [<ffffffff80043b09>] invalidate_mapping_pages+0xe1/0x15f
+ [<ffffffff80043afa>] invalidate_mapping_pages+0xd2/0x15f
+ [<ffffffff800d5bea>] kill_bdev+0xe/0x21
+ [<ffffffff800d6110>] __blkdev_put+0x4f/0x169
+ [<ffffffff80012785>] __fput+0xae/0x198
+ [<ffffffff80023ca6>] filp_close+0x5c/0x64
+ [<ffffffff80038e33>] put_files_struct+0x6c/0xc3
+ [<ffffffff8001543d>] do_exit+0x2d2/0x8b1
+ [<ffffffff80047932>] cpuset_exit+0x0/0x6c
+ [<ffffffff8002b30f>] get_signal_to_deliver+0x427/0x456
+ [<ffffffff80059b9e>] do_notify_resume+0x9c/0x7a9
+ [<ffffffff8008776d>] default_wake_function+0x0/0xe
+ [<ffffffff800b2b79>] audit_syscall_exit+0x2cd/0x2ec
+ [<ffffffff8005be62>] int_signal+0x12/0x17
+
+
+On 4/11/07, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> On 4/11/07, Zhao Forrest <forrest.zhao@gmail.com> wrote:
+> > We're using RHEL5 with kernel version 2.6.18-8.el5.
+> > When doing a stress test on raw device for about 3-4 hours, we found
+> > the soft lockup message in dmesg.
+> > I know we're not reporting the bug on the latest kernel, but does any
+> > expert know if this is the known issue in old kernel? Or why
+> > kmem_cache_free occupy CPU for more than 10 seconds?
+>
+> Sounds like slab corruption. CONFIG_DEBUG_SLAB should tell you more.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
