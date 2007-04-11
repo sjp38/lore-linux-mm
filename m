@@ -1,8 +1,8 @@
-Date: Tue, 10 Apr 2007 17:15:49 -0700 (PDT)
+Date: Tue, 10 Apr 2007 19:24:00 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [SLUB 3/5] Validation of slabs (metadata and guard zones)
 In-Reply-To: <20070410133137.e366a16b.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704101715050.3850@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0704101922280.17722@schroedinger.engr.sgi.com>
 References: <20070410191910.8011.76133.sendpatchset@schroedinger.engr.sgi.com>
  <20070410191921.8011.16929.sendpatchset@schroedinger.engr.sgi.com>
  <20070410133137.e366a16b.akpm@linux-foundation.org>
@@ -16,69 +16,50 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 10 Apr 2007, Andrew Morton wrote:
 
-> We should force -mm testers to use slub by default, while providing them a
-> way of going back to slab if they hit problems.  Can you please cook up a
-> -mm-only patch for that?
+> Could print_track() be simplified by using -mm's sprint_symbol()?
 
 
-SLUB: mm-only: Make SLUB the default slab allocator
+SLUB: Use __print_symbol instead of kallsyms_lookup
 
-Make SLUB the default slab allocator
-
-WARNING: This is a new allocator. No guarantees.
-
-Known areas of concern:
-
-A. i386 and FRV arches have been disabled by setting
-   ARCH_USES_SLAB_PAGE_STRUCT. SLUB cannot be enabled on those platforms.
-
-   The issue is that both arches use the page->index and page->private field
-   of memory allocated via the slab. SLUB uses these fields too. There are
-   a variety of patches out there (some by me, some by Bill Irwin) to address
-   this but without those you may be stuck until Bill Irwin comes up with a
-   definite solution.
-
-B. There may be undiscovered locations in arch code that are as badly
-   behaved as i386 and FRV which will likely cause the arch not to boot
-   and fail with mysterious error messages.
-
-C. Unlike SLAB, SLUB does not special case page sized allocations. SLAB
-   aligns kmallocs of page sized allocation on page boundaries.
-   SLUB also does that most of the time but does not guarantee alignment
-   beyond KMALLOC_ARCH_MINALIGN that is valid for other kmalloc slabs.
-   In particular enabling debugging will add some tracking information
-   to slabs which will usually cause page sized slabs to become no longer
-   aligned on page boundaries.
-
-   If there is arch code that relies on this behavior then we are likely
-   to see funky behavior. Code that uses page sized allocations via kmalloc
-   should either use the page allocator or explictly request page aligned
-   data from the slab by creating a custom slab with the needed alignment.
+SLUB contains a complicated section with #ifdef CONFIG_KALLSYSM and yadda
+dadda. Remove that and replace with __print_symbol.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.21-rc6/init/Kconfig
+Index: linux-2.6.21-rc6/mm/slub.c
 ===================================================================
---- linux-2.6.21-rc6.orig/init/Kconfig	2007-04-10 17:00:56.000000000 -0700
-+++ linux-2.6.21-rc6/init/Kconfig	2007-04-10 17:01:24.000000000 -0700
-@@ -521,7 +521,7 @@ config PROC_KPAGEMAP
+--- linux-2.6.21-rc6.orig/mm/slub.c	2007-04-10 19:21:29.000000000 -0700
++++ linux-2.6.21-rc6/mm/slub.c	2007-04-10 19:21:51.000000000 -0700
+@@ -290,27 +290,11 @@ static void init_tracking(struct kmem_ca
  
- choice
- 	prompt "Choose SLAB allocator"
--	default SLAB
-+	default SLUB
- 	help
- 	   This option allows to select a slab allocator.
+ static void print_track(const char *s, struct track *t)
+ {
+-#ifdef CONFIG_KALLSYMS
+-	char *modname;
+-	const char *name;
+-	unsigned long offset, size;
+-	char namebuf[KSYM_NAME_LEN + 1];
+-#endif
+-
+ 	if (!t->addr)
+ 		return;
  
-@@ -534,7 +534,7 @@ config SLAB
- 	  slab allocator.
+-#ifdef CONFIG_KALLSYMS
+-	name = kallsyms_lookup((unsigned long)t->addr, &size, &offset,
+-		&modname, namebuf);
+-
+-	if (name) {
+-		printk(KERN_ERR "%s: %s+%#lx/%#lx", s, name, offset, size);
+-		if (modname)
+-			printk(" [%s]", modname);
+-	} else
+-#endif
+-		printk(KERN_ERR "%s: 0x%p", s, t->addr);
++	printk(KERN_ERR "%s: ", s);
++	__print_symbol("%s", (unsigned long)t->addr);
+ 	printk(" jiffies_ago=%lu cpu=%u pid=%d\n", jiffies - t->when, t->cpu, t->pid);
+ }
  
- config SLUB
--	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
-+	depends on !ARCH_USES_SLAB_PAGE_STRUCT
- 	bool "SLUB (Unqueued Allocator)"
- 	help
- 	   SLUB is a slab allocator that minimizes cache line usage
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
