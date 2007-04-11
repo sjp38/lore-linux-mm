@@ -1,57 +1,372 @@
-Subject: Re: [QUICKLIST 1/4] Quicklists for page table pages V5
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0704102058420.18321@schroedinger.engr.sgi.com>
-References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
-	 <1176180337.8061.21.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0704102058420.18321@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 11 Apr 2007 14:18:41 +1000
-Message-Id: <1176265121.8061.66.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <461C6452.1000706@redhat.com>
+Date: Wed, 11 Apr 2007 00:30:10 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: [PATCH] make MADV_FREE lazily free memory
+Content-Type: multipart/mixed;
+ boundary="------------020708080407080005000506"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, Paul Mackerras <paulus@samba.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-04-10 at 21:04 -0700, Christoph Lameter wrote:
-> On Tue, 10 Apr 2007, Benjamin Herrenschmidt wrote:
-> 
-> > On Mon, 2007-04-09 at 11:25 -0700, Christoph Lameter wrote:
-> > 
-> > > Quicklists for page table pages V5
-> > 
-> > Looks interesting, but unfortunately not very useful at this point for
-> > powerpc unless you remove the assumption that quicklists contain
-> > pages...
-> 
-> Then quicklists wont be as simple anymore.
-> 
-> > On powerpc, we currently use kmem cache slabs (though that isn't
-> > terribly node friendly) whose sizes depend on the page size.
-> > 
-> > For a 4K page size kernel, we have 4 level page tables and use 2 caches,
-> > PTE and PGD pages are 4K (thus are PAGE_SIZE'd), and PMD & PUD are 1K.
-> 
-> PTE and PGD could be run via quicklists? With PTEs you cover the most 
-> common case. Quicklists using PGDs will allow to optimize using 
-> preconstructed pages.
-> 
-> Its probably best to keep the slabs for the 1K pages.
->  
-> > For a 64K page size kernel, we have 3 level page tables and we use 3
-> > caches: a PGD pages are 128 bytes (yeah, not big heh...), our pmd
-> > pages are 32K (half a page) and PTE pages are PAGE_SIZE (64K).
-> 
-> Ok so use quicklists for the PTEs and slab for the rest? A PGD of only 128 
-> bytes? Stuff one at the end of the mm_struct or the task struct? That way 
-> you can avoid allocation overhead.
+This is a multi-part message in MIME format.
+--------------020708080407080005000506
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Yeah, maybe... I need to think about it a bit more. I might be able to
-make the PMD a full page too.
+Make it possible for applications to have the kernel free memory
+lazily.  This reduces a repeated free/malloc cycle from freeing
+pages and allocating them, to just marking them freeable.  If the
+application wants to reuse them before the kernel needs the memory,
+not even a page fault will happen.
 
-Ben.
+This version has one bugfix over the last one: if a PG_lazyfree
+page was found dirty at fork time, we clear the flag in
+copy_one_pte().
+
+Ulrich Drepper has test glibc RPMS for this functionality at:
+
+	http://people.redhat.com/drepper/rpms
+
+Because MADV_FREE has not been defined as a fixed number yet,
+for the moment MADV_DONTNEED is defined to have the same
+functionality.
+
+Any test results of this patch in combination with Ulrich's
+test glibc are welcome.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
+
+--------------020708080407080005000506
+Content-Type: text/x-patch;
+ name="linux-2.6-madv_free.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="linux-2.6-madv_free.patch"
+
+--- linux-2.6.20.noarch/include/asm-alpha/mman.h.madvise	2007-04-04 16:44:50.000000000 -0400
++++ linux-2.6.20.noarch/include/asm-alpha/mman.h	2007-04-04 16:56:24.000000000 -0400
+@@ -42,6 +42,7 @@
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
+ #define MADV_DONTNEED	6		/* don't need these pages */
++#define MADV_FREE	7		/* don't need the pages or the data */
+ 
+ /* common/generic parameters */
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+--- linux-2.6.20.noarch/include/asm-generic/mman.h.madvise	2007-04-04 16:44:50.000000000 -0400
++++ linux-2.6.20.noarch/include/asm-generic/mman.h	2007-04-04 16:56:53.000000000 -0400
+@@ -29,6 +29,7 @@
+ #define MADV_SEQUENTIAL	2		/* expect sequential page references */
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
++#define MADV_FREE	5		/* don't need the pages or the data */
+ 
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+--- linux-2.6.20.noarch/include/asm-mips/mman.h.madvise	2007-04-04 16:44:50.000000000 -0400
++++ linux-2.6.20.noarch/include/asm-mips/mman.h	2007-04-04 16:58:02.000000000 -0400
+@@ -65,6 +65,7 @@
+ #define MADV_SEQUENTIAL	2		/* expect sequential page references */
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
++#define MADV_FREE	5		/* don't need the pages or the data */
+ 
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+--- linux-2.6.20.noarch/include/asm-parisc/mman.h.madvise	2007-04-04 16:44:50.000000000 -0400
++++ linux-2.6.20.noarch/include/asm-parisc/mman.h	2007-04-04 16:58:40.000000000 -0400
+@@ -38,6 +38,7 @@
+ #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
+ #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
+ #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
++#define MADV_FREE	8		/* don't need the pages or the data */
+ 
+ /* common/generic parameters */
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+--- linux-2.6.20.noarch/include/asm-xtensa/mman.h.madvise	2007-04-04 16:44:51.000000000 -0400
++++ linux-2.6.20.noarch/include/asm-xtensa/mman.h	2007-04-04 16:59:14.000000000 -0400
+@@ -72,6 +72,7 @@
+ #define MADV_SEQUENTIAL	2		/* expect sequential page references */
+ #define MADV_WILLNEED	3		/* will need these pages */
+ #define MADV_DONTNEED	4		/* don't need these pages */
++#define MADV_FREE	5		/* don't need the pages or the data */
+ 
+ /* common parameters: try to keep these consistent across architectures */
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+--- linux-2.6.20.noarch/include/linux/mm_inline.h.madvise	2007-04-03 22:53:25.000000000 -0400
++++ linux-2.6.20.noarch/include/linux/mm_inline.h	2007-04-04 22:19:24.000000000 -0400
+@@ -13,6 +13,13 @@ add_page_to_inactive_list(struct zone *z
+ }
+ 
+ static inline void
++add_page_to_inactive_list_tail(struct zone *zone, struct page *page)
++{
++	list_add_tail(&page->lru, &zone->inactive_list);
++	__inc_zone_state(zone, NR_INACTIVE);
++}
++
++static inline void
+ del_page_from_active_list(struct zone *zone, struct page *page)
+ {
+ 	list_del(&page->lru);
+--- linux-2.6.20.noarch/include/linux/mm.h.madvise	2007-04-03 22:53:25.000000000 -0400
++++ linux-2.6.20.noarch/include/linux/mm.h	2007-04-04 22:06:45.000000000 -0400
+@@ -716,6 +716,7 @@ struct zap_details {
+ 	pgoff_t last_index;			/* Highest page->index to unmap */
+ 	spinlock_t *i_mmap_lock;		/* For unmap_mapping_range: */
+ 	unsigned long truncate_count;		/* Compare vm_truncate_count */
++	short madv_free;			/* MADV_FREE anonymous memory */
+ };
+ 
+ struct page *vm_normal_page(struct vm_area_struct *, unsigned long, pte_t);
+--- linux-2.6.20.noarch/include/linux/page-flags.h.madvise	2007-04-03 22:54:58.000000000 -0400
++++ linux-2.6.20.noarch/include/linux/page-flags.h	2007-04-05 01:27:38.000000000 -0400
+@@ -91,6 +91,8 @@
+ #define PG_nosave_free		18	/* Used for system suspend/resume */
+ #define PG_buddy		19	/* Page is free, on buddy lists */
+ 
++#define PG_lazyfree		20	/* MADV_FREE potential throwaway */
++
+ /* PG_owner_priv_1 users should have descriptive aliases */
+ #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
+ 
+@@ -237,6 +239,11 @@ static inline void SetPageUptodate(struc
+ #define ClearPageReclaim(page)	clear_bit(PG_reclaim, &(page)->flags)
+ #define TestClearPageReclaim(page) test_and_clear_bit(PG_reclaim, &(page)->flags)
+ 
++#define PageLazyFree(page)	test_bit(PG_lazyfree, &(page)->flags)
++#define SetPageLazyFree(page)	set_bit(PG_lazyfree, &(page)->flags)
++#define ClearPageLazyFree(page)	clear_bit(PG_lazyfree, &(page)->flags)
++#define __ClearPageLazyFree(page) __clear_bit(PG_lazyfree, &(page)->flags)
++
+ #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
+ #define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
+ #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
+--- linux-2.6.20.noarch/include/linux/swap.h.madvise	2007-04-05 00:29:40.000000000 -0400
++++ linux-2.6.20.noarch/include/linux/swap.h	2007-04-06 17:19:20.000000000 -0400
+@@ -181,6 +181,7 @@ extern unsigned int nr_free_pagecache_pa
+ extern void FASTCALL(lru_cache_add(struct page *));
+ extern void FASTCALL(lru_cache_add_active(struct page *));
+ extern void FASTCALL(activate_page(struct page *));
++extern void FASTCALL(deactivate_tail_page(struct page *));
+ extern void FASTCALL(mark_page_accessed(struct page *));
+ extern void lru_add_drain(void);
+ extern int lru_add_drain_all(void);
+@@ -232,7 +233,6 @@ extern void delete_from_swap_cache(struc
+ extern int move_to_swap_cache(struct page *, swp_entry_t);
+ extern int move_from_swap_cache(struct page *, unsigned long,
+ 		struct address_space *);
+-extern void free_swap_cache(struct page *page);
+ extern void free_page_and_swap_cache(struct page *);
+ extern void free_pages_and_swap_cache(struct page **, int);
+ extern struct page * lookup_swap_cache(swp_entry_t);
+--- linux-2.6.20.noarch/mm/madvise.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/madvise.c	2007-04-04 23:48:34.000000000 -0400
+@@ -142,8 +142,12 @@ static long madvise_dontneed(struct vm_a
+ 			.last_index = ULONG_MAX,
+ 		};
+ 		zap_page_range(vma, start, end - start, &details);
+-	} else
+-		zap_page_range(vma, start, end - start, NULL);
++	} else {
++		struct zap_details details = {
++			.madv_free = 1,
++		};
++		zap_page_range(vma, start, end - start, &details);
++	}
+ 	return 0;
+ }
+ 
+@@ -209,7 +213,9 @@ madvise_vma(struct vm_area_struct *vma, 
+ 		error = madvise_willneed(vma, prev, start, end);
+ 		break;
+ 
++	/* FIXME: POSIX says that MADV_DONTNEED cannot throw away data. */
+ 	case MADV_DONTNEED:
++	case MADV_FREE:
+ 		error = madvise_dontneed(vma, prev, start, end);
+ 		break;
+ 
+--- linux-2.6.20.noarch/mm/memory.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/memory.c	2007-04-06 17:18:23.000000000 -0400
+@@ -432,6 +432,7 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	pte_t pte = *src_pte;
+ 	struct page *page;
++	int dirty = 0;
+ 
+ 	/* pte contains position in swap or file, so copy. */
+ 	if (unlikely(!pte_present(pte))) {
+@@ -466,6 +467,7 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 	 * in the parent and the child
+ 	 */
+ 	if (is_cow_mapping(vm_flags)) {
++		dirty = pte_dirty(pte);
+ 		ptep_set_wrprotect(src_mm, addr, src_pte);
+ 		pte = pte_wrprotect(pte);
+ 	}
+@@ -483,6 +485,8 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 		get_page(page);
+ 		page_dup_rmap(page);
+ 		rss[!!PageAnon(page)]++;
++		if (dirty && PageLazyFree(page))
++			ClearPageLazyFree(page);
+ 	}
+ 
+ out_set_pte:
+@@ -661,6 +665,26 @@ static unsigned long zap_pte_range(struc
+ 				    (page->index < details->first_index ||
+ 				     page->index > details->last_index))
+ 					continue;
++
++				/*
++				 * MADV_FREE is used to lazily recycle
++				 * anon memory.  The process no longer
++				 * needs the data and wants to avoid IO.
++				 */
++				if (details->madv_free && PageAnon(page)) {
++					if (unlikely(PageSwapCache(page)) &&
++					    !TestSetPageLocked(page)) {
++						remove_exclusive_swap_page(page);
++						unlock_page(page);
++					}
++					/* Optimize this... */
++					ptep_clear_flush_dirty(vma, addr, pte);
++					ptep_clear_flush_young(vma, addr, pte);
++					SetPageLazyFree(page);
++					if (PageActive(page))
++						deactivate_tail_page(page);
++					continue;
++				}
+ 			}
+ 			ptent = ptep_get_and_clear_full(mm, addr, pte,
+ 							tlb->fullmm);
+@@ -689,7 +713,8 @@ static unsigned long zap_pte_range(struc
+ 		 * If details->check_mapping, we leave swap entries;
+ 		 * if details->nonlinear_vma, we leave file entries.
+ 		 */
+-		if (unlikely(details))
++		if (unlikely(!details->check_mapping &&
++				!details->nonlinear_vma))
+ 			continue;
+ 		if (!pte_file(ptent))
+ 			free_swap_and_cache(pte_to_swp_entry(ptent));
+@@ -755,7 +780,8 @@ static unsigned long unmap_page_range(st
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 
+-	if (details && !details->check_mapping && !details->nonlinear_vma)
++	if (details && !details->check_mapping && !details->nonlinear_vma
++			&& !details->madv_free)
+ 		details = NULL;
+ 
+ 	BUG_ON(addr >= end);
+--- linux-2.6.20.noarch/mm/page_alloc.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/page_alloc.c	2007-04-05 01:27:55.000000000 -0400
+@@ -203,6 +203,7 @@ static void bad_page(struct page *page)
+ 			1 << PG_slab    |
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback |
++			1 << PG_lazyfree |
+ 			1 << PG_buddy );
+ 	set_page_count(page, 0);
+ 	reset_page_mapcount(page);
+@@ -442,6 +443,8 @@ static inline int free_pages_check(struc
+ 		bad_page(page);
+ 	if (PageDirty(page))
+ 		__ClearPageDirty(page);
++	if (PageLazyFree(page))
++		__ClearPageLazyFree(page);
+ 	/*
+ 	 * For now, we report if PG_reserved was found set, but do not
+ 	 * clear it, and do not free the page.  But we shall soon need
+@@ -588,6 +591,7 @@ static int prep_new_page(struct page *pa
+ 			1 << PG_swapcache |
+ 			1 << PG_writeback |
+ 			1 << PG_reserved |
++			1 << PG_lazyfree |
+ 			1 << PG_buddy ))))
+ 		bad_page(page);
+ 
+--- linux-2.6.20.noarch/mm/rmap.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/rmap.c	2007-04-04 23:53:29.000000000 -0400
+@@ -656,7 +656,17 @@ static int try_to_unmap_one(struct page 
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
+ 
+-	if (PageAnon(page)) {
++	/* MADV_FREE is used to lazily free memory from userspace. */
++	if (PageLazyFree(page) && !migration) {
++		/* There is new data in the page.  Reinstate it. */
++		if (unlikely(pte_dirty(pteval))) {
++			set_pte_at(mm, address, pte, pteval);
++			ret = SWAP_FAIL;
++			goto out_unmap;
++		}
++		/* Throw the page away. */
++		dec_mm_counter(mm, anon_rss);
++	} else if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page_private(page) };
+ 
+ 		if (PageSwapCache(page)) {
+--- linux-2.6.20.noarch/mm/swap.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/swap.c	2007-04-04 23:33:27.000000000 -0400
+@@ -151,6 +151,20 @@ void fastcall activate_page(struct page 
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
+ 
++void fastcall deactivate_tail_page(struct page *page)
++{
++	struct zone *zone = page_zone(page);
++
++	spin_lock_irq(&zone->lru_lock);
++	if (PageLRU(page) && PageActive(page)) {
++		del_page_from_active_list(zone, page);
++		ClearPageActive(page);
++		add_page_to_inactive_list_tail(zone, page);
++		__count_vm_event(PGDEACTIVATE);
++	}
++	spin_unlock_irq(&zone->lru_lock);
++}
++
+ /*
+  * Mark a page as having seen activity.
+  *
+--- linux-2.6.20.noarch/mm/vmscan.c.madvise	2007-04-03 21:53:47.000000000 -0400
++++ linux-2.6.20.noarch/mm/vmscan.c	2007-04-04 03:34:56.000000000 -0400
+@@ -473,6 +473,24 @@ static unsigned long shrink_page_list(st
+ 
+ 		sc->nr_scanned++;
+ 
++		/* 
++		 * MADV_DONTNEED pages get reclaimed lazily, unless the
++		 * process reuses it before we get to it.
++		 */
++		if (PageLazyFree(page)) {
++			switch (try_to_unmap(page, 0)) {
++			case SWAP_FAIL:
++				ClearPageLazyFree(page);
++				goto activate_locked;
++			case SWAP_AGAIN:
++				ClearPageLazyFree(page);
++				goto keep_locked;
++			case SWAP_SUCCESS:
++				ClearPageLazyFree(page);
++				goto free_it;
++			}
++		}
++
+ 		if (!sc->may_swap && page_mapped(page))
+ 			goto keep_locked;
+ 
+
+--------------020708080407080005000506--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
