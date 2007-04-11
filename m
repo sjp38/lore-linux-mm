@@ -1,66 +1,49 @@
-Date: Tue, 10 Apr 2007 20:08:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [SLUB 3/5] Validation of slabs (metadata and guard zones)
-Message-Id: <20070410200824.d116bbfd.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0704101922280.17722@schroedinger.engr.sgi.com>
-References: <20070410191910.8011.76133.sendpatchset@schroedinger.engr.sgi.com>
-	<20070410191921.8011.16929.sendpatchset@schroedinger.engr.sgi.com>
-	<20070410133137.e366a16b.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0704101922280.17722@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Apr 2007 21:04:47 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [QUICKLIST 1/4] Quicklists for page table pages V5
+In-Reply-To: <1176180337.8061.21.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0704102058420.18321@schroedinger.engr.sgi.com>
+References: <20070409182509.8559.33823.sendpatchset@schroedinger.engr.sgi.com>
+ <1176180337.8061.21.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@suse.de, Paul Mackerras <paulus@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Apr 2007 19:24:00 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 10 Apr 2007, Benjamin Herrenschmidt wrote:
 
-> SLUB contains a complicated section with #ifdef CONFIG_KALLSYSM and yadda
-> dadda. Remove that and replace with __print_symbol.
+> On Mon, 2007-04-09 at 11:25 -0700, Christoph Lameter wrote:
 > 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> > Quicklists for page table pages V5
 > 
-> Index: linux-2.6.21-rc6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.21-rc6.orig/mm/slub.c	2007-04-10 19:21:29.000000000 -0700
-> +++ linux-2.6.21-rc6/mm/slub.c	2007-04-10 19:21:51.000000000 -0700
-> @@ -290,27 +290,11 @@ static void init_tracking(struct kmem_ca
->  
->  static void print_track(const char *s, struct track *t)
->  {
-> -#ifdef CONFIG_KALLSYMS
-> -	char *modname;
-> -	const char *name;
-> -	unsigned long offset, size;
-> -	char namebuf[KSYM_NAME_LEN + 1];
-> -#endif
-> -
->  	if (!t->addr)
->  		return;
->  
-> -#ifdef CONFIG_KALLSYMS
-> -	name = kallsyms_lookup((unsigned long)t->addr, &size, &offset,
-> -		&modname, namebuf);
-> -
-> -	if (name) {
-> -		printk(KERN_ERR "%s: %s+%#lx/%#lx", s, name, offset, size);
-> -		if (modname)
-> -			printk(" [%s]", modname);
-> -	} else
-> -#endif
-> -		printk(KERN_ERR "%s: 0x%p", s, t->addr);
-> +	printk(KERN_ERR "%s: ", s);
-> +	__print_symbol("%s", (unsigned long)t->addr);
->  	printk(" jiffies_ago=%lu cpu=%u pid=%d\n", jiffies - t->when, t->cpu, t->pid);
->  }
+> Looks interesting, but unfortunately not very useful at this point for
+> powerpc unless you remove the assumption that quicklists contain
+> pages...
 
-hm, that was a nice outcome.
+Then quicklists wont be as simple anymore.
 
-We practically always have to cast the value when calling kallsyms functions.
-I guess that means we goofed the design, should have made it void*.
+> On powerpc, we currently use kmem cache slabs (though that isn't
+> terribly node friendly) whose sizes depend on the page size.
+> 
+> For a 4K page size kernel, we have 4 level page tables and use 2 caches,
+> PTE and PGD pages are 4K (thus are PAGE_SIZE'd), and PMD & PUD are 1K.
+
+PTE and PGD could be run via quicklists? With PTEs you cover the most 
+common case. Quicklists using PGDs will allow to optimize using 
+preconstructed pages.
+
+Its probably best to keep the slabs for the 1K pages.
+ 
+> For a 64K page size kernel, we have 3 level page tables and we use 3
+> caches: a PGD pages are 128 bytes (yeah, not big heh...), our pmd
+> pages are 32K (half a page) and PTE pages are PAGE_SIZE (64K).
+
+Ok so use quicklists for the PTEs and slab for the rest? A PGD of only 128 
+bytes? Stuff one at the end of the mm_struct or the task struct? That way 
+you can avoid allocation overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
