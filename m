@@ -1,54 +1,72 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3BGiP9Z027639
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 12:44:25 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3BGiNOJ151644
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 10:44:24 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3BGiN9E016722
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 10:44:23 -0600
+Date: Wed, 11 Apr 2007 15:30:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <ac8af0be0704110310n1f237e2el6f34365c4aaa5969@mail.gmail.com>
+Message-Id: <20070411153040.a7e6c3b8.akpm@linux-foundation.org>
+In-Reply-To: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
 References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
-	 <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
-	 <ac8af0be0704110214qdca2ee9t3b44a17341e53730@mail.gmail.com>
-	 <20070411025305.b9131062.pj@sgi.com> <1176285976.6893.27.camel@twins>
-	 <ac8af0be0704110310n1f237e2el6f34365c4aaa5969@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 11 Apr 2007 09:44:34 -0700
-Message-Id: <1176309874.24509.52.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Zhao Forrest <forrest.zhao@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Jackson <pj@sgi.com>, penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-04-11 at 18:10 +0800, Zhao Forrest wrote:
-> On 4/11/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > On Wed, 2007-04-11 at 02:53 -0700, Paul Jackson wrote:
-> > > I'm confused - which end of ths stack is up?
-> > >
-> > > cpuset_exit doesn't call do_exit, rather it's the other
-> > > way around.  But put_files_struct doesn't call do_exit,
-> > > rather do_exit calls __exit_files calls put_files_struct.
-> >
-> > I'm guessing its x86_64 which generates crap traces.
-> >
-> Yes, it's x86_64. Is there a reliable way to generate stack traces under x86_64?
-> Can enabling "[ ] Compile the kernel with frame pointers" help?
+On Wed, 11 Apr 2007 14:17:04 +0800
+"Zhao Forrest" <forrest.zhao@gmail.com> wrote:
 
-CONFIG_UNWIND_INFO=y
-CONFIG_STACK_UNWIND=y
+> We're using RHEL5 with kernel version 2.6.18-8.el5.
+> When doing a stress test on raw device for about 3-4 hours, we found
+> the soft lockup message in dmesg.
+> I know we're not reporting the bug on the latest kernel, but does any
+> expert know if this is the known issue in old kernel? Or why
+> kmem_cache_free occupy CPU for more than 10 seconds?
+> 
+> Please let me know if you need any information.
+> 
+> Thanks,
+> Forrest
+> --------------------------------------------------------------
+> BUG: soft lockup detected on CPU#1!
+> 
+> Call Trace:
+>  <IRQ>  [<ffffffff800b2c93>] softlockup_tick+0xdb/0xed
+>  [<ffffffff800933df>] update_process_times+0x42/0x68
+>  [<ffffffff80073d97>] smp_local_timer_interrupt+0x23/0x47
+>  [<ffffffff80074459>] smp_apic_timer_interrupt+0x41/0x47
+>  [<ffffffff8005bcc2>] apic_timer_interrupt+0x66/0x6c
+>  <EOI>  [<ffffffff80007660>] kmem_cache_free+0x1c0/0x1cb
+>  [<ffffffff800262ee>] free_buffer_head+0x2a/0x43
+>  [<ffffffff80027110>] try_to_free_buffers+0x89/0x9d
+>  [<ffffffff80043041>] invalidate_mapping_pages+0x90/0x15f
+>  [<ffffffff800d4a77>] kill_bdev+0xe/0x21
+>  [<ffffffff800d4f9d>] __blkdev_put+0x4f/0x169
+>  [<ffffffff80012281>] __fput+0xae/0x198
+>  [<ffffffff80023647>] filp_close+0x5c/0x64
+>  [<ffffffff800384f9>] put_files_struct+0x6c/0xc3
+>  [<ffffffff80014f01>] do_exit+0x2d2/0x8b1
+>  [<ffffffff80046eb6>] cpuset_exit+0x0/0x6c
+>  [<ffffffff8002abd7>] get_signal_to_deliver+0x427/0x456
+>  [<ffffffff80059122>] do_notify_resume+0x9c/0x7a9
+>  [<ffffffff80086c6d>] default_wake_function+0x0/0xe
+>  [<ffffffff800b1fd8>] audit_syscall_exit+0x2cd/0x2ec
+>  [<ffffffff8005b362>] int_signal+0x12/0x17
 
-should help.
+I think there's nothing unusual happening here - you closed the device and
+the kernel has to remove a tremendous number of pagecache pages, and that
+simply takes a long time.
 
-Thanks,
-Badari
+How much memory does the machine have?
 
+There used to be a cond_resched() in invalidate_mapping_pages() which would
+have prevented this, but I rudely removed it to support
+/proc/sys/vm/drop_caches (which needs to call invalidate_inode_pages()
+under spinlock).
 
+We could resurrect that cond_resched() by passing in some flag, I guess. 
+Or change the code to poke the softlockup detector.  The former would be
+better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
