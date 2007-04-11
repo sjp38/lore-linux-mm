@@ -1,61 +1,54 @@
-Received: from spaceape12.eur.corp.google.com (spaceape12.eur.corp.google.com [172.28.16.146])
-	by smtp-out.google.com with ESMTP id l3BGZiPd005993
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 17:35:44 +0100
-Received: from an-out-0708.google.com (ancc2.prod.google.com [10.100.29.2])
-	by spaceape12.eur.corp.google.com with ESMTP id l3BGY6pP021472
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 17:35:42 +0100
-Received: by an-out-0708.google.com with SMTP id c2so272374anc
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2007 09:35:41 -0700 (PDT)
-Message-ID: <b040c32a0704110935k1723c85ay4a862539bad56c05@mail.gmail.com>
-Date: Wed, 11 Apr 2007 09:35:39 -0700
-From: "Ken Chen" <kenchen@google.com>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3BGiP9Z027639
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 12:44:25 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3BGiNOJ151644
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 10:44:24 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3BGiN9E016722
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2007 10:44:23 -0600
 Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
-In-Reply-To: <1176287911.6893.47.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <ac8af0be0704110310n1f237e2el6f34365c4aaa5969@mail.gmail.com>
 References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
 	 <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
-	 <ac8af0be0704110253p74de6197p1df6a5b99585709c@mail.gmail.com>
-	 <1176287911.6893.47.camel@twins>
+	 <ac8af0be0704110214qdca2ee9t3b44a17341e53730@mail.gmail.com>
+	 <20070411025305.b9131062.pj@sgi.com> <1176285976.6893.27.camel@twins>
+	 <ac8af0be0704110310n1f237e2el6f34365c4aaa5969@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 11 Apr 2007 09:44:34 -0700
+Message-Id: <1176309874.24509.52.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Zhao Forrest <forrest.zhao@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zhao Forrest <forrest.zhao@gmail.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Jackson <pj@sgi.com>, penberg@cs.helsinki.fi, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 4/11/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> On Wed, 2007-04-11 at 17:53 +0800, Zhao Forrest wrote:
-> > I got some new information:
-> > Before soft lockup message is out, we have:
-> > [root@nsgsh-dhcp-149 home]# cat /proc/slabinfo |grep buffer_head
-> > buffer_head       10927942 10942560    120   32    1 : tunables   32
-> > 16    8 : slabdata 341955 341955      6 : globalstat 37602996 11589379
-> > 1174373    6                              0    1 6918 12166031 1013708
-> > : cpustat 35254590 2350698 13610965 907286
+On Wed, 2007-04-11 at 18:10 +0800, Zhao Forrest wrote:
+> On 4/11/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > On Wed, 2007-04-11 at 02:53 -0700, Paul Jackson wrote:
+> > > I'm confused - which end of ths stack is up?
+> > >
+> > > cpuset_exit doesn't call do_exit, rather it's the other
+> > > way around.  But put_files_struct doesn't call do_exit,
+> > > rather do_exit calls __exit_files calls put_files_struct.
 > >
-> > Then after buffer_head is freed, we have:
-> > [root@nsgsh-dhcp-149 home]# cat /proc/slabinfo |grep buffer_head
-> > buffer_head         9542  36384    120   32    1 : tunables   32   16
-> >   8 : slabdata   1137   1137    245 : globalstat 37602996 11589379
-> > 1174373    6                                  0    1 6983 20507478
-> > 1708818 : cpustat 35254625 2350704 16027174 1068367
+> > I'm guessing its x86_64 which generates crap traces.
 > >
-> > Does this huge number of buffer_head cause the soft lockup?
->
-> __blkdev_put() takes the BKL and bd_mutex
-> invalidate_mapping_pages() tries to take the PageLock
->
-> But no other looks seem held while free_buffer_head() is called
->
-> All these locks are preemptible (CONFIG_PREEMPT_BKL?=y) and should not
-> hog the cpu like that, what preemption mode have you got selected?
-> (CONFIG_PREEMPT_VOLUNTARY?=y)
+> Yes, it's x86_64. Is there a reliable way to generate stack traces under x86_64?
+> Can enabling "[ ] Compile the kernel with frame pointers" help?
 
-also, you can try this patch:
+CONFIG_UNWIND_INFO=y
+CONFIG_STACK_UNWIND=y
 
-http://groups.google.com/group/linux.kernel/browse_thread/thread/7086e4b9d5504dc9/c608bfea4614b07e?lnk=gst&q=+Big+kernel+lock+contention+in+do_open&rnum=1#c608bfea4614b07e
+should help.
+
+Thanks,
+Badari
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
