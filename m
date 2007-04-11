@@ -1,39 +1,30 @@
-Date: Wed, 11 Apr 2007 07:24:12 +0100 (BST)
-From: sameer sameer <sameerchakravarthy@yahoo.com>
-Subject: question on mmap
-In-Reply-To: <Pine.LNX.4.64.0704101715050.3850@schroedinger.engr.sgi.com>
+Received: by ug-out-1314.google.com with SMTP id s2so50470uge
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2007 23:53:53 -0700 (PDT)
+Message-ID: <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
+Date: Wed, 11 Apr 2007 09:53:53 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
+In-Reply-To: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7BIT
-Message-ID: <835465.82854.qm@web43140.mail.sp1.yahoo.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Zhao Forrest <forrest.zhao@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+On 4/11/07, Zhao Forrest <forrest.zhao@gmail.com> wrote:
+> We're using RHEL5 with kernel version 2.6.18-8.el5.
+> When doing a stress test on raw device for about 3-4 hours, we found
+> the soft lockup message in dmesg.
+> I know we're not reporting the bug on the latest kernel, but does any
+> expert know if this is the known issue in old kernel? Or why
+> kmem_cache_free occupy CPU for more than 10 seconds?
 
-I have a question regarding the implementation of
-mmap. I am trying to find out if we the kernel
-actually shares the memory across unrelated processes
-using MAP_SHARED flag for a read only file mapping. 
-
-When the file is mapped with PROT_READ arguement, then
-will there be any difference in memory usage by
-multiple processes if the mapping is done using
-MAP_SHARED instead of MAP_PRIVATE ?
-
-Are there any system commands which will let me know
-how to calcuate the memory savings (if there are any)
-?
-
-Please let me know. 
-
-Thanks,
-Sameer
-
-
-      Send a FREE SMS to your friend's mobile from Yahoo! Messenger. Get it now at http://in.messenger.yahoo.com/
+Sounds like slab corruption. CONFIG_DEBUG_SLAB should tell you more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
