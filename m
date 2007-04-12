@@ -1,55 +1,31 @@
 Subject: Re: [PATCH 0/12] Pass MAP_FIXED down to get_unmapped_area
-From: "Wu, Bryan" <bryan.wu@analog.com>
-Reply-To: bryan.wu@analog.com
-In-Reply-To: <1176344427.242579.337989891532.qpush@grosgo>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1176346589.29581.32.camel@roc-desktop>
 References: <1176344427.242579.337989891532.qpush@grosgo>
+	 <1176346589.29581.32.camel@roc-desktop>
 Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Thu, 12 Apr 2007 10:56:29 +0800
-Message-Id: <1176346589.29581.32.camel@roc-desktop>
+Date: Thu, 12 Apr 2007 12:56:19 +1000
+Message-Id: <1176346579.8061.119.camel@localhost.localdomain>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: bryan.wu@analog.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-04-12 at 12:20 +1000, Benjamin Herrenschmidt wrote:
-> This is a "first step" as there are still cleanups to be done in various
-> areas touched by that code but I think it's probably good to go as is and
-> at least enables me to implement what I need for PowerPC.
+> Is there any support consideration for nommu arch such as blackfin which
+> is in the -mm tree now?
 > 
-> (Andrew, this is also candidate for 2.6.22 since I haven't had any real
-> objection, mostly suggestion for improving further, which I'll try to
-> do later, and I have further powerpc patches that rely on this).
-> 
-> The current get_unmapped_area code calls the f_ops->get_unmapped_area or
-> the arch one (via the mm) only when MAP_FIXED is not passed. That makes
-> it impossible for archs to impose proper constraints on regions of the
-> virtual address space. To work around that, get_unmapped_area() then
-> calls some hugetlbfs specific hacks.
-> 
-> This cause several problems, among others:
-> 
->  - It makes it impossible for a driver or filesystem to do the same thing
-> that hugetlbfs does (for example, to allow a driver to use larger page
-> sizes to map external hardware) if that requires applying a constraint
-> on the addresses (constraining that mapping in certain regions and other
-> mappings out of those regions).
-> 
->  - Some archs like arm, mips, sparc, sparc64, sh and sh64 already want
-> MAP_FIXED to be passed down in order to deal with aliasing issues.
-> The code is there to handle it... but is never called.
-> 
+> It is very kind of you to point out some idea about MAP_FIXED for
+> Blackfin arch, I will do some help for this.
 
-Is there any support consideration for nommu arch such as blackfin which
-is in the -mm tree now?
+Right now, my understanding is that nommu archs just reject MAP_FIXED
+outright... we might be able to be smarter, especially if we bring a
+better infrastructure which I'm still thinking about.
 
-It is very kind of you to point out some idea about MAP_FIXED for
-Blackfin arch, I will do some help for this.
+Ben.
 
-Thanks 
--Bryan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
