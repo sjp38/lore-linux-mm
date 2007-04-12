@@ -1,339 +1,387 @@
 From: Nick Piggin <npiggin@suse.de>
-Message-Id: <20070412103254.5564.84494.sendpatchset@linux.site>
+Message-Id: <20070412103320.5564.17805.sendpatchset@linux.site>
 In-Reply-To: <20070412103151.5564.16127.sendpatchset@linux.site>
 References: <20070412103151.5564.16127.sendpatchset@linux.site>
-Subject: [patch 6/9] mm: speculative get page
-Date: Thu, 12 Apr 2007 14:45:45 +0200 (CEST)
+Subject: [patch 8/9] mm: spinlock tree_lock
+Date: Thu, 12 Apr 2007 14:46:10 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-If we can be sure that elevating the page_count on a pagecache
-page will pin it, we can speculatively run this operation, and
-subsequently check to see if we hit the right page rather than
-relying on holding a lock or otherwise pinning a reference to the
-page.
-
-This can be done if get_page/put_page behaves consistently
-throughout the whole tree (ie. if we "get" the page after it has
-been used for something else, we must be able to free it with a
-put_page).
-
-Actually, there is a period where the count behaves differently:
-when the page is free or if it is a constituent page of a compound
-page. We need an atomic_inc_not_zero operation to ensure we don't
-try to grab the page in either case.
-
-This patch introduces the core locking protocol to the pagecache
-(ie. adds page_cache_get_speculative, and tweaks some update-side
-code to make it work).
-
-
-[Hugh notices that PG_nonewrefs might be dispensed with entirely
- if current set_page_nonewrefs instead atomically save the page count
- and temporarily set it to zero. 
-
- This is a nice idea, and simplifies find_get_page very much, but
- cannot be applied to all current SetPageNoNewRefs sites. Need to
- verify that add_to_page_cache and add_to_swap_cache can cope
- without it or make do some other way. Also, migration pages with
- PagePrivate set means that the filesystem has a ref on the page,
- so it might muck with page count, which is a big problem.  ]
+mapping->tree_lock has no read lockers. convert the lock from an rwlock
+to a spinlock.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-Index: linux-2.6/include/linux/page-flags.h
+Index: linux-2.6/fs/buffer.c
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h
-+++ linux-2.6/include/linux/page-flags.h
-@@ -91,6 +91,9 @@
- #define PG_nosave_free		18	/* Used for system suspend/resume */
- #define PG_buddy		19	/* Page is free, on buddy lists */
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -729,7 +729,7 @@ int __set_page_dirty_buffers(struct page
+ 	if (TestSetPageDirty(page))
+ 		return 0;
  
-+#define PG_nonewrefs		20	/* Block concurrent pagecache lookups
-+					 * while testing refcount */
-+
- /* PG_owner_priv_1 users should have descriptive aliases */
- #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
- 
-@@ -253,6 +256,11 @@ static inline void SetPageUptodate(struc
- #define SetPageUncached(page)	set_bit(PG_uncached, &(page)->flags)
- #define ClearPageUncached(page)	clear_bit(PG_uncached, &(page)->flags)
- 
-+#define PageNoNewRefs(page)	test_bit(PG_nonewrefs, &(page)->flags)
-+#define SetPageNoNewRefs(page)	set_bit(PG_nonewrefs, &(page)->flags)
-+#define ClearPageNoNewRefs(page) clear_bit(PG_nonewrefs, &(page)->flags)
-+#define __ClearPageNoNewRefs(page) __clear_bit(PG_nonewrefs, &(page)->flags)
-+
- struct page;	/* forward declaration */
- 
- extern void cancel_dirty_page(struct page *page, unsigned int account_size);
-@@ -265,4 +273,25 @@ static inline void set_page_writeback(st
- 	test_set_page_writeback(page);
- }
- 
-+static inline void set_page_nonewrefs(struct page *page)
-+{
-+	preempt_disable();
-+	SetPageNoNewRefs(page);
-+	smp_wmb();
-+}
-+
-+static inline void __clear_page_nonewrefs(struct page *page)
-+{
-+	smp_wmb();
-+	__ClearPageNoNewRefs(page);
-+	preempt_enable();
-+}
-+
-+static inline void clear_page_nonewrefs(struct page *page)
-+{
-+	smp_wmb();
-+	ClearPageNoNewRefs(page);
-+	preempt_enable();
-+}
-+
- #endif	/* PAGE_FLAGS_H */
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -11,6 +11,8 @@
- #include <linux/compiler.h>
- #include <asm/uaccess.h>
- #include <linux/gfp.h>
-+#include <linux/page-flags.h>
-+#include <linux/hardirq.h> /* for in_interrupt() */
- 
- /*
-  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
-@@ -51,6 +53,109 @@ static inline void mapping_set_gfp_mask(
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
- 
-+/*
-+ * speculatively take a reference to a page.
-+ * If the page is free (_count == 0), then _count is untouched, and 0
-+ * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
-+ *
-+ * This function must be run in the same rcu_read_lock() section as has
-+ * been used to lookup the page in the pagecache radix-tree: this allows
-+ * allocators to use a synchronize_rcu() to stabilize _count.
-+ *
-+ * Unless an RCU grace period has passed, the count of all pages coming out
-+ * of the allocator must be considered unstable. page_count may return higher
-+ * than expected, and put_page must be able to do the right thing when the
-+ * page has been finished with (because put_page is what is used to drop an
-+ * invalid speculative reference).
-+ *
-+ * After incrementing the refcount, this function spins until PageNoNewRefs
-+ * is clear, then a read memory barrier is issued.
-+ *
-+ * This forms the core of the lockless pagecache locking protocol, where
-+ * the lookup-side (eg. find_get_page) has the following pattern:
-+ * 1. find page in radix tree
-+ * 2. conditionally increment refcount
-+ * 3. wait for PageNoNewRefs
-+ * 4. check the page is still in pagecache
-+ *
-+ * Remove-side (that cares about _count, eg. reclaim) has the following:
-+ * A. SetPageNoNewRefs
-+ * B. check refcount is correct
-+ * C. remove page
-+ * D. ClearPageNoNewRefs
-+ *
-+ * There are 2 critical interleavings that matter:
-+ * - 2 runs before B: in this case, B sees elevated refcount and bails out
-+ * - B runs before 2: in this case, 3 ensures 4 will not run until *after* C
-+ *   (after D, even). In which case, 4 will notice C and lookup side can retry
-+ *
-+ * It is possible that between 1 and 2, the page is removed then the exact same
-+ * page is inserted into the same position in pagecache. That's OK: the
-+ * old find_get_page using tree_lock could equally have run before or after
-+ * the write-side, depending on timing.
-+ *
-+ * Pagecache insertion isn't a big problem: either 1 will find the page or
-+ * it will not. Likewise, the old find_get_page could run either before the
-+ * insertion or afterwards, depending on timing.
-+ */
-+static inline int page_cache_get_speculative(struct page *page)
-+{
-+	VM_BUG_ON(in_interrupt());
-+
-+#ifndef CONFIG_SMP
-+# ifdef CONFIG_PREEMPT
-+	VM_BUG_ON(!in_atomic());
-+# endif
-+	/*
-+	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-+	 * this for us.
-+	 *
-+	 * Pagecache won't be truncated from interrupt context, so if we have
-+	 * found a page in the radix tree here, we have pinned its refcount by
-+	 * disabling preempt, and hence no need for the "speculative get" that
-+	 * SMP requires.
-+	 */
-+	VM_BUG_ON(page_count(page) == 0);
-+	atomic_inc(&page->_count);
-+
-+#else
-+	if (unlikely(!get_page_unless_zero(page)))
-+		return 0; /* page has been freed */
-+
-+	/*
-+	 * Note that get_page_unless_zero provides a memory barrier.
-+	 * This is needed to ensure PageNoNewRefs is evaluated after the
-+	 * page refcount has been raised. See below comment.
-+	 */
-+
-+	while (unlikely(PageNoNewRefs(page)))
-+		cpu_relax();
-+
-+	/*
-+	 * smp_rmb is to ensure the load of page->flags (for PageNoNewRefs())
-+	 * is performed before a future load used to ensure the page is
-+	 * the correct on (usually: page->mapping and page->index).
-+	 *
-+	 * Those places that set PageNoNewRefs have the following pattern:
-+	 * 	SetPageNoNewRefs(page)
-+	 * 	wmb();
-+	 * 	if (page_count(page) == X)
-+	 * 		remove page from pagecache
-+	 * 	wmb();
-+	 * 	ClearPageNoNewRefs(page)
-+	 *
-+	 * If the load was out of order, page->mapping might be loaded before
-+	 * the page is removed from pagecache but PageNoNewRefs evaluated
-+	 * after the ClearPageNoNewRefs().
-+	 */
-+	smp_rmb();
-+
-+#endif
-+	VM_BUG_ON(PageCompound(page) && (struct page *)page_private(page) != page);
-+
-+	return 1;
-+}
-+
- #ifdef CONFIG_NUMA
- extern struct page *__page_cache_alloc(gfp_t gfp);
- #else
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c
-+++ linux-2.6/mm/vmscan.c
-@@ -390,6 +390,7 @@ int remove_mapping(struct address_space 
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
- 
-+	set_page_nonewrefs(page);
- 	write_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * The non racy check for a busy page.
-@@ -427,17 +428,20 @@ int remove_mapping(struct address_space 
- 		__delete_from_swap_cache(page);
- 		write_unlock_irq(&mapping->tree_lock);
- 		swap_free(swap);
--		__put_page(page);	/* The pagecache ref */
--		return 1;
-+		goto free_it;
+-	write_lock_irq(&mapping->tree_lock);
++	spin_lock_irq(&mapping->tree_lock);
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		if (mapping_cap_account_dirty(mapping)) {
+ 			__inc_zone_page_state(page, NR_FILE_DIRTY);
+@@ -738,7 +738,7 @@ int __set_page_dirty_buffers(struct page
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
  	}
- 
- 	__remove_from_page_cache(page);
- 	write_unlock_irq(&mapping->tree_lock);
--	__put_page(page);
-+
-+free_it:
-+	__clear_page_nonewrefs(page);
-+	__put_page(page); /* The pagecache ref */
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
  	return 1;
- 
- cannot_free:
- 	write_unlock_irq(&mapping->tree_lock);
-+	clear_page_nonewrefs(page);
- 	return 0;
  }
- 
+Index: linux-2.6/fs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/inode.c
++++ linux-2.6/fs/inode.c
+@@ -193,7 +193,7 @@ void inode_init_once(struct inode *inode
+ 	mutex_init(&inode->i_mutex);
+ 	init_rwsem(&inode->i_alloc_sem);
+ 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
+-	rwlock_init(&inode->i_data.tree_lock);
++	spin_lock_init(&inode->i_data.tree_lock);
+ 	spin_lock_init(&inode->i_data.i_mmap_lock);
+ 	INIT_LIST_HEAD(&inode->i_data.private_list);
+ 	spin_lock_init(&inode->i_data.private_lock);
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -434,7 +434,7 @@ struct backing_dev_info;
+ struct address_space {
+ 	struct inode		*host;		/* owner: inode, block_device */
+ 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
+-	rwlock_t		tree_lock;	/* and rwlock protecting it */
++	spinlock_t		tree_lock;	/* and lock protecting it */
+ 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
+ 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
+ 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
 Index: linux-2.6/mm/filemap.c
 ===================================================================
 --- linux-2.6.orig/mm/filemap.c
 +++ linux-2.6/mm/filemap.c
-@@ -440,6 +440,7 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+@@ -110,7 +110,7 @@ generic_file_direct_IO(int rw, struct ki
+ /*
+  * Remove a page from the page cache and free it. Caller has to make
+  * sure the page is locked and that nobody else uses it - or that usage
+- * is safe.  The caller must hold a write_lock on the mapping's tree_lock.
++ * is safe.  The caller must hold the mapping's tree_lock.
+  */
+ void __remove_from_page_cache(struct page *page)
+ {
+@@ -128,9 +128,9 @@ void remove_from_page_cache(struct page 
+ 
+ 	BUG_ON(!PageLocked(page));
+ 
+-	write_lock_irq(&mapping->tree_lock);
++	spin_lock_irq(&mapping->tree_lock);
+ 	__remove_from_page_cache(page);
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ }
+ 
+ static int sync_page(void *word)
+@@ -441,7 +441,7 @@ int add_to_page_cache(struct page *page,
  
  	if (error == 0) {
-+		set_page_nonewrefs(page);
- 		write_lock_irq(&mapping->tree_lock);
+ 		set_page_nonewrefs(page);
+-		write_lock_irq(&mapping->tree_lock);
++		spin_lock_irq(&mapping->tree_lock);
  		error = radix_tree_insert(&mapping->page_tree, offset, page);
  		if (!error) {
-@@ -451,6 +452,7 @@ int add_to_page_cache(struct page *page,
+ 			page_cache_get(page);
+@@ -451,7 +451,7 @@ int add_to_page_cache(struct page *page,
+ 			mapping->nrpages++;
  			__inc_zone_page_state(page, NR_FILE_PAGES);
  		}
- 		write_unlock_irq(&mapping->tree_lock);
-+		clear_page_nonewrefs(page);
+-		write_unlock_irq(&mapping->tree_lock);
++		spin_unlock_irq(&mapping->tree_lock);
+ 		clear_page_nonewrefs(page);
  		radix_tree_preload_end();
  	}
- 	return error;
 Index: linux-2.6/mm/swap_state.c
 ===================================================================
 --- linux-2.6.orig/mm/swap_state.c
 +++ linux-2.6/mm/swap_state.c
-@@ -79,6 +79,7 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
+@@ -38,7 +38,7 @@ static struct backing_dev_info swap_back
+ 
+ struct address_space swapper_space = {
+ 	.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
+-	.tree_lock	= __RW_LOCK_UNLOCKED(swapper_space.tree_lock),
++	.tree_lock	= __SPIN_LOCK_UNLOCKED(swapper_space.tree_lock),
+ 	.a_ops		= &swap_aops,
+ 	.i_mmap_nonlinear = LIST_HEAD_INIT(swapper_space.i_mmap_nonlinear),
+ 	.backing_dev_info = &swap_backing_dev_info,
+@@ -80,7 +80,7 @@ static int __add_to_swap_cache(struct pa
  	error = radix_tree_preload(gfp_mask);
  	if (!error) {
-+		set_page_nonewrefs(page);
- 		write_lock_irq(&swapper_space.tree_lock);
+ 		set_page_nonewrefs(page);
+-		write_lock_irq(&swapper_space.tree_lock);
++		spin_lock_irq(&swapper_space.tree_lock);
  		error = radix_tree_insert(&swapper_space.page_tree,
  						entry.val, page);
-@@ -90,6 +91,7 @@ static int __add_to_swap_cache(struct pa
+ 		if (!error) {
+@@ -90,7 +90,7 @@ static int __add_to_swap_cache(struct pa
+ 			total_swapcache_pages++;
  			__inc_zone_page_state(page, NR_FILE_PAGES);
  		}
- 		write_unlock_irq(&swapper_space.tree_lock);
-+		clear_page_nonewrefs(page);
+-		write_unlock_irq(&swapper_space.tree_lock);
++		spin_unlock_irq(&swapper_space.tree_lock);
+ 		clear_page_nonewrefs(page);
  		radix_tree_preload_end();
  	}
- 	return error;
+@@ -202,9 +202,9 @@ void delete_from_swap_cache(struct page 
+ 
+ 	entry.val = page_private(page);
+ 
+-	write_lock_irq(&swapper_space.tree_lock);
++	spin_lock_irq(&swapper_space.tree_lock);
+ 	__delete_from_swap_cache(page);
+-	write_unlock_irq(&swapper_space.tree_lock);
++	spin_unlock_irq(&swapper_space.tree_lock);
+ 
+ 	swap_free(entry);
+ 	page_cache_release(page);
+Index: linux-2.6/mm/swapfile.c
+===================================================================
+--- linux-2.6.orig/mm/swapfile.c
++++ linux-2.6/mm/swapfile.c
+@@ -367,13 +367,13 @@ int remove_exclusive_swap_page(struct pa
+ 	retval = 0;
+ 	if (p->swap_map[swp_offset(entry)] == 1) {
+ 		/* Recheck the page count with the swapcache lock held.. */
+-		write_lock_irq(&swapper_space.tree_lock);
++		spin_lock_irq(&swapper_space.tree_lock);
+ 		if ((page_count(page) == 2) && !PageWriteback(page)) {
+ 			__delete_from_swap_cache(page);
+ 			SetPageDirty(page);
+ 			retval = 1;
+ 		}
+-		write_unlock_irq(&swapper_space.tree_lock);
++		spin_unlock_irq(&swapper_space.tree_lock);
+ 	}
+ 	spin_unlock(&swap_lock);
+ 
+Index: linux-2.6/mm/truncate.c
+===================================================================
+--- linux-2.6.orig/mm/truncate.c
++++ linux-2.6/mm/truncate.c
+@@ -328,18 +328,18 @@ invalidate_complete_page2(struct address
+ 	if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
+ 		return 0;
+ 
+-	write_lock_irq(&mapping->tree_lock);
++	spin_lock_irq(&mapping->tree_lock);
+ 	if (PageDirty(page))
+ 		goto failed;
+ 
+ 	BUG_ON(PagePrivate(page));
+ 	__remove_from_page_cache(page);
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ 	ClearPageUptodate(page);
+ 	page_cache_release(page);	/* pagecache ref */
+ 	return 1;
+ failed:
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ 	return 0;
+ }
+ 
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -391,7 +391,7 @@ int remove_mapping(struct address_space 
+ 	BUG_ON(mapping != page_mapping(page));
+ 
+ 	set_page_nonewrefs(page);
+-	write_lock_irq(&mapping->tree_lock);
++	spin_lock_irq(&mapping->tree_lock);
+ 	/*
+ 	 * The non racy check for a busy page.
+ 	 *
+@@ -426,13 +426,13 @@ int remove_mapping(struct address_space 
+ 	if (PageSwapCache(page)) {
+ 		swp_entry_t swap = { .val = page_private(page) };
+ 		__delete_from_swap_cache(page);
+-		write_unlock_irq(&mapping->tree_lock);
++		spin_unlock_irq(&mapping->tree_lock);
+ 		swap_free(swap);
+ 		goto free_it;
+ 	}
+ 
+ 	__remove_from_page_cache(page);
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ 
+ free_it:
+ 	__clear_page_nonewrefs(page);
+@@ -440,7 +440,7 @@ free_it:
+ 	return 1;
+ 
+ cannot_free:
+-	write_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ 	clear_page_nonewrefs(page);
+ 	return 0;
+ }
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -765,7 +765,7 @@ int __set_page_dirty_no_writeback(struct
+  * mapping is pinned by the vma's ->vm_file reference.
+  *
+  * We take care to handle the case where the page was truncated from the
+- * mapping by re-checking page_mapping() insode tree_lock.
++ * mapping by re-checking page_mapping() inside tree_lock.
+  */
+ int __set_page_dirty_nobuffers(struct page *page)
+ {
+@@ -776,7 +776,7 @@ int __set_page_dirty_nobuffers(struct pa
+ 		if (!mapping)
+ 			return 1;
+ 
+-		write_lock_irq(&mapping->tree_lock);
++		spin_lock_irq(&mapping->tree_lock);
+ 		mapping2 = page_mapping(page);
+ 		if (mapping2) { /* Race with truncate? */
+ 			BUG_ON(mapping2 != mapping);
+@@ -787,7 +787,7 @@ int __set_page_dirty_nobuffers(struct pa
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 		}
+-		write_unlock_irq(&mapping->tree_lock);
++		spin_unlock_irq(&mapping->tree_lock);
+ 		if (mapping->host) {
+ 			/* !PageAnon && !swapper_space */
+ 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+@@ -919,33 +919,32 @@ EXPORT_SYMBOL(clear_page_dirty_for_io);
+ int test_clear_page_writeback(struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+-	int ret;
+ 
+ 	if (mapping) {
+ 		unsigned long flags;
++		int ret;
+ 
+-		write_lock_irqsave(&mapping->tree_lock, flags);
++		spin_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestClearPageWriteback(page);
+ 		if (ret)
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_WRITEBACK);
+-		write_unlock_irqrestore(&mapping->tree_lock, flags);
+-	} else {
+-		ret = TestClearPageWriteback(page);
++		spin_unlock_irqrestore(&mapping->tree_lock, flags);
++		return ret;
+ 	}
+-	return ret;
++	return TestClearPageWriteback(page);
+ }
+ 
+ int test_set_page_writeback(struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+-	int ret;
+ 
+ 	if (mapping) {
+ 		unsigned long flags;
++		int ret;
+ 
+-		write_lock_irqsave(&mapping->tree_lock, flags);
++		spin_lock_irqsave(&mapping->tree_lock, flags);
+ 		ret = TestSetPageWriteback(page);
+ 		if (!ret)
+ 			radix_tree_tag_set(&mapping->page_tree,
+@@ -955,11 +954,10 @@ int test_set_page_writeback(struct page 
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_DIRTY);
+-		write_unlock_irqrestore(&mapping->tree_lock, flags);
+-	} else {
+-		ret = TestSetPageWriteback(page);
++		spin_unlock_irqrestore(&mapping->tree_lock, flags);
++		return ret;
+ 	}
+-	return ret;
++	return TestSetPageWriteback(page);
+ 
+ }
+ EXPORT_SYMBOL(test_set_page_writeback);
+Index: linux-2.6/include/asm-arm/cacheflush.h
+===================================================================
+--- linux-2.6.orig/include/asm-arm/cacheflush.h
++++ linux-2.6/include/asm-arm/cacheflush.h
+@@ -405,9 +405,9 @@ static inline void flush_anon_page(struc
+ }
+ 
+ #define flush_dcache_mmap_lock(mapping) \
+-	write_lock_irq(&(mapping)->tree_lock)
++	spin_lock_irq(&(mapping)->tree_lock)
+ #define flush_dcache_mmap_unlock(mapping) \
+-	write_unlock_irq(&(mapping)->tree_lock)
++	spin_unlock_irq(&(mapping)->tree_lock)
+ 
+ #define flush_icache_user_range(vma,page,addr,len) \
+ 	flush_dcache_page(page)
+Index: linux-2.6/include/asm-parisc/cacheflush.h
+===================================================================
+--- linux-2.6.orig/include/asm-parisc/cacheflush.h
++++ linux-2.6/include/asm-parisc/cacheflush.h
+@@ -45,9 +45,9 @@ void flush_cache_mm(struct mm_struct *mm
+ extern void flush_dcache_page(struct page *page);
+ 
+ #define flush_dcache_mmap_lock(mapping) \
+-	write_lock_irq(&(mapping)->tree_lock)
++	spin_lock_irq(&(mapping)->tree_lock)
+ #define flush_dcache_mmap_unlock(mapping) \
+-	write_unlock_irq(&(mapping)->tree_lock)
++	spin_unlock_irq(&(mapping)->tree_lock)
+ 
+ #define flush_icache_page(vma,page)	do { 		\
+ 	flush_kernel_dcache_page(page);			\
 Index: linux-2.6/mm/migrate.c
 ===================================================================
 --- linux-2.6.orig/mm/migrate.c
 +++ linux-2.6/mm/migrate.c
-@@ -303,6 +303,7 @@ static int migrate_page_move_mapping(str
- 		return 0;
+@@ -304,14 +304,14 @@ static int migrate_page_move_mapping(str
  	}
  
-+	set_page_nonewrefs(page);
- 	write_lock_irq(&mapping->tree_lock);
+ 	set_page_nonewrefs(page);
+-	write_lock_irq(&mapping->tree_lock);
++	spin_lock_irq(&mapping->tree_lock);
  
  	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-@@ -311,6 +312,7 @@ static int migrate_page_move_mapping(str
+  					page_index(page));
+ 
  	if (page_count(page) != 2 + !!PagePrivate(page) ||
  			(struct page *)radix_tree_deref_slot(pslot) != page) {
- 		write_unlock_irq(&mapping->tree_lock);
-+		clear_page_nonewrefs(page);
+-		write_unlock_irq(&mapping->tree_lock);
++		spin_unlock_irq(&mapping->tree_lock);
+ 		clear_page_nonewrefs(page);
  		return -EAGAIN;
  	}
- 
-@@ -326,6 +328,9 @@ static int migrate_page_move_mapping(str
- #endif
+@@ -329,7 +329,7 @@ static int migrate_page_move_mapping(str
  
  	radix_tree_replace_slot(pslot, newpage);
-+	page->mapping = NULL;
-+  	write_unlock_irq(&mapping->tree_lock);
-+	clear_page_nonewrefs(page);
+ 	page->mapping = NULL;
+-  	write_unlock_irq(&mapping->tree_lock);
++  	spin_unlock_irq(&mapping->tree_lock);
+ 	clear_page_nonewrefs(page);
  
  	/*
- 	 * Drop cache reference from old page.
-@@ -333,8 +338,6 @@ static int migrate_page_move_mapping(str
- 	 */
- 	__put_page(page);
- 
--	write_unlock_irq(&mapping->tree_lock);
--
- 	return 0;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
