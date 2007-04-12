@@ -1,86 +1,58 @@
-Received: by ug-out-1314.google.com with SMTP id s2so244953uge
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2007 23:17:42 -0700 (PDT)
-Message-ID: <ac8af0be0704112317o4779bbb5sb87a80f684160970@mail.gmail.com>
-Date: Thu, 12 Apr 2007 14:17:37 +0800
-From: "Zhao Forrest" <forrest.zhao@gmail.com>
-Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
-In-Reply-To: <1176287911.6893.47.camel@twins>
+Message-ID: <461DDE44.2040409@redhat.com>
+Date: Thu, 12 Apr 2007 03:22:44 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] make MADV_FREE lazily free memory
+References: <461C6452.1000706@redhat.com> <461D6413.6050605@cosmosbay.com> <461D67A9.5020509@redhat.com> <461DC75B.8040200@cosmosbay.com> <461DCCEB.70004@yahoo.com.au> <461DCDDA.2030502@yahoo.com.au>
+In-Reply-To: <461DCDDA.2030502@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
-	 <84144f020704102353r7dcc3538u2e34237d3496630e@mail.gmail.com>
-	 <ac8af0be0704110253p74de6197p1df6a5b99585709c@mail.gmail.com>
-	 <1176287911.6893.47.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Eric Dumazet <dada1@cosmosbay.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 4/11/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> On Wed, 2007-04-11 at 17:53 +0800, Zhao Forrest wrote:
-> > I got some new information:
-> > Before soft lockup message is out, we have:
-> > [root@nsgsh-dhcp-149 home]# cat /proc/slabinfo |grep buffer_head
-> > buffer_head       10927942 10942560    120   32    1 : tunables   32
-> > 16    8 : slabdata 341955 341955      6 : globalstat 37602996 11589379
-> > 1174373    6                              0    1 6918 12166031 1013708
-> > : cpustat 35254590 2350698 13610965 907286
-> >
-> > Then after buffer_head is freed, we have:
-> > [root@nsgsh-dhcp-149 home]# cat /proc/slabinfo |grep buffer_head
-> > buffer_head         9542  36384    120   32    1 : tunables   32   16
-> >   8 : slabdata   1137   1137    245 : globalstat 37602996 11589379
-> > 1174373    6                                  0    1 6983 20507478
-> > 1708818 : cpustat 35254625 2350704 16027174 1068367
-> >
-> > Does this huge number of buffer_head cause the soft lockup?
->
->
-> __blkdev_put() takes the BKL and bd_mutex
-> invalidate_mapping_pages() tries to take the PageLock
->
-> But no other looks seem held while free_buffer_head() is called
->
-> All these locks are preemptible (CONFIG_PREEMPT_BKL?=y) and should not
-> hog the cpu like that, what preemption mode have you got selected?
-> (CONFIG_PREEMPT_VOLUNTARY?=y)
-These 2 kernel options are turned on by default in my kernel. Here's
-snip from .config
-# CONFIG_PREEMPT_NONE is not set
-CONFIG_PREEMPT_VOLUNTARY=y
-# CONFIG_PREEMPT is not set
-CONFIG_PREEMPT_BKL=y
-CONFIG_NUMA=y
-CONFIG_K8_NUMA=y
+Nick Piggin wrote:
+> Nick Piggin wrote:
+>> Eric Dumazet wrote:
+>>
+> 
+>>>> Two things can happen here.
+>>>>
+>>>> If this program used the pages before the kernel needed
+>>>> them, the program will be reusing its old pages.
+>>>
+>>>
+>>>
+>>> ah ok, this is because accessed/dirty bits are set by hardware and 
+>>> not a page fault.
+>>
+>>
+>> No it isn't.
+> 
+> That is to say, it isn't required for correctness. But if the
+> question was about avoiding a fault, then yes ;)
 
->
-> Does this fix it?
->
-> --- fs/buffer.c~        2007-02-01 12:00:34.000000000 +0100
-> +++ fs/buffer.c 2007-04-11 12:35:48.000000000 +0200
-> @@ -3029,6 +3029,8 @@ out:
->                         struct buffer_head *next = bh->b_this_page;
->                         free_buffer_head(bh);
->                         bh = next;
-> +
-> +                       cond_resched();
->                 } while (bh != buffers_to_free);
->         }
->         return ret;
->
-So far I have run the test with patched kernel for 6 rounds, and
-didn't see the soft lockup. I think this patch should fix the problem.
-But what still confused me is that why do we need to invoke
-cond_resched() voluntarily since CONFIG_PREEMPT_VOLUNTARY and
-CONFIG_PREEMPT_BKL are both turned on? From my understanding these 2
-options should make schedule happen even if CPU is under heavy
-load......
+Making the pte clean also needs to clear the hardware writable
+bit on architectures where we do pte dirtying in software.
 
-Thanks,
-Forrest
+If we don't, we would have corruption problems all over the VM,
+for example in the code around pte_clean_one :)
+
+> But as Linus recently said, even hardware handled faults still
+> take expensive microarchitectural traps.
+
+Nowhere near as expensive as a full page fault, though...
+
+The lazy freeing is aimed at avoiding page faults on memory
+that is freed and later realloced, which is quite a common
+thing in many workloads.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
