@@ -1,68 +1,70 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Date: Thu, 12 Apr 2007 12:20:27 +1000
-Subject: [PATCH 1/12] get_unmapped_area handles MAP_FIXED on powerpc
-In-Reply-To: <1176344427.242579.337989891532.qpush@grosgo>
-Message-Id: <20070412022029.89DECDDF24@ozlabs.org>
+Subject: [PATCH 0/12] Pass MAP_FIXED down to get_unmapped_area
+Message-Id: <1176344427.242579.337989891532.qpush@grosgo>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Handle MAP_FIXED in powerpc's arch_get_unmapped_area() in all 3
-implementations of it.
+This is a "first step" as there are still cleanups to be done in various
+areas touched by that code but I think it's probably good to go as is and
+at least enables me to implement what I need for PowerPC.
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+(Andrew, this is also candidate for 2.6.22 since I haven't had any real
+objection, mostly suggestion for improving further, which I'll try to
+do later, and I have further powerpc patches that rely on this).
 
- arch/powerpc/mm/hugetlbpage.c |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+The current get_unmapped_area code calls the f_ops->get_unmapped_area or
+the arch one (via the mm) only when MAP_FIXED is not passed. That makes
+it impossible for archs to impose proper constraints on regions of the
+virtual address space. To work around that, get_unmapped_area() then
+calls some hugetlbfs specific hacks.
 
-Index: linux-cell/arch/powerpc/mm/hugetlbpage.c
-===================================================================
---- linux-cell.orig/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:52:07.000000000 +1100
-+++ linux-cell/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:57:40.000000000 +1100
-@@ -572,6 +572,13 @@ unsigned long arch_get_unmapped_area(str
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
-@@ -647,6 +654,13 @@ arch_get_unmapped_area_topdown(struct fi
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	/* dont allow allocations above current base */
- 	if (mm->free_area_cache > base)
- 		mm->free_area_cache = base;
-@@ -829,6 +843,13 @@ unsigned long hugetlb_get_unmapped_area(
- 	/* Paranoia, caller should have dealt with this */
- 	BUG_ON((addr + len)  < addr);
- 
-+	/* Handle MAP_FIXED */
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	if (test_thread_flag(TIF_32BIT)) {
- 		curareas = current->mm->context.low_htlb_areas;
- 
+This cause several problems, among others:
+
+ - It makes it impossible for a driver or filesystem to do the same thing
+that hugetlbfs does (for example, to allow a driver to use larger page
+sizes to map external hardware) if that requires applying a constraint
+on the addresses (constraining that mapping in certain regions and other
+mappings out of those regions).
+
+ - Some archs like arm, mips, sparc, sparc64, sh and sh64 already want
+MAP_FIXED to be passed down in order to deal with aliasing issues.
+The code is there to handle it... but is never called.
+
+This serie of patches moves the logic to handle MAP_FIXED down to the
+various arch/driver get_unmapped_area() implementations, and then changes
+the generic code to always call them. The hugetlbfs hacks then disappear
+from the generic code.
+
+Since I need to do some special 64K pages mappings for SPEs on cell, I need
+to work around the first problem at least. I have further patches thus
+implementing a "slices" layer that handles multiple page sizes through
+slices of the address space for use by hugetlbfs, the SPE code, and possibly
+others, but it requires that serie of patches first/
+
+There is still a potential (but not practical) issue due to the fact that
+filesystems/drivers implemeting g_u_a will effectively bypass all arch
+checks. This is not an issue in practice as the only filesystems/drivers
+using that hook are doing so for arch specific purposes in the first place.
+
+There is also a problem with mremap that will completely bypass all arch
+checks. I'll try to address that separately, I'm not 100% certain yet how,
+possibly by making it not work when the vma has a file whose f_ops has a
+get_unmapped_area callback, and by making it use is_hugepage_only_range()
+before expanding into a new area.
+
+Also, I want to turn is_hugepage_only_range() into a more generic
+is_normal_page_range() as that's really what it will end up meaning
+when used in stack grow, brk grow and mremap.
+
+None of the above "issues" however are introduced by this patch, they are
+already there, so I think the patch can go in.
+
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
