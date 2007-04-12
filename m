@@ -1,39 +1,37 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Date: Thu, 12 Apr 2007 12:20:29 +1000
-Subject: [PATCH 5/12] get_unmapped_area handles MAP_FIXED on i386
+Subject: [PATCH 4/12] get_unmapped_area handles MAP_FIXED on frv 
 In-Reply-To: <1176344427.242579.337989891532.qpush@grosgo>
-Message-Id: <20070412022031.A810EDDF2A@ozlabs.org>
+Message-Id: <20070412022031.21720DDF28@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Handle MAP_FIXED in i386 hugetlb_get_unmapped_area(), just call
-prepare_hugepage_range.
+Handle MAP_FIXED in arch_get_unmapped_area on frv. Trivial case, just
+return the address.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
- arch/i386/mm/hugetlbpage.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/frv/mm/elf-fdpic.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-Index: linux-cell/arch/i386/mm/hugetlbpage.c
+Index: linux-cell/arch/frv/mm/elf-fdpic.c
 ===================================================================
---- linux-cell.orig/arch/i386/mm/hugetlbpage.c	2007-03-22 16:08:12.000000000 +1100
-+++ linux-cell/arch/i386/mm/hugetlbpage.c	2007-03-22 16:14:19.000000000 +1100
-@@ -367,6 +367,12 @@ hugetlb_get_unmapped_area(struct file *f
+--- linux-cell.orig/arch/frv/mm/elf-fdpic.c	2007-03-22 15:00:50.000000000 +1100
++++ linux-cell/arch/frv/mm/elf-fdpic.c	2007-03-22 15:01:06.000000000 +1100
+@@ -64,6 +64,10 @@ unsigned long arch_get_unmapped_area(str
  	if (len > TASK_SIZE)
  		return -ENOMEM;
  
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
++	/* handle MAP_FIXED */
++	if (flags & MAP_FIXED)
 +		return addr;
-+	}
 +
+ 	/* only honour a hint if we're not going to clobber something doing so */
  	if (addr) {
- 		addr = ALIGN(addr, HPAGE_SIZE);
- 		vma = find_vma(mm, addr);
+ 		addr = PAGE_ALIGN(addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
