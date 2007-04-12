@@ -1,58 +1,60 @@
-Message-ID: <461DDE44.2040409@redhat.com>
-Date: Thu, 12 Apr 2007 03:22:44 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] make MADV_FREE lazily free memory
-References: <461C6452.1000706@redhat.com> <461D6413.6050605@cosmosbay.com> <461D67A9.5020509@redhat.com> <461DC75B.8040200@cosmosbay.com> <461DCCEB.70004@yahoo.com.au> <461DCDDA.2030502@yahoo.com.au>
-In-Reply-To: <461DCDDA.2030502@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: Why kmem_cache_free occupy CPU for more than 10 seconds?
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20070411153040.a7e6c3b8.akpm@linux-foundation.org>
+References: <ac8af0be0704102317q50fe72b1m9e4825a769a63963@mail.gmail.com>
+	 <20070411153040.a7e6c3b8.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 12 Apr 2007 09:39:25 +0200
+Message-Id: <1176363565.6893.73.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Eric Dumazet <dada1@cosmosbay.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Zhao Forrest <forrest.zhao@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Nick Piggin wrote:
->> Eric Dumazet wrote:
->>
+On Wed, 2007-04-11 at 15:30 -0700, Andrew Morton wrote:
+
+> There used to be a cond_resched() in invalidate_mapping_pages() which would
+> have prevented this, but I rudely removed it to support
+> /proc/sys/vm/drop_caches (which needs to call invalidate_inode_pages()
+> under spinlock).
 > 
->>>> Two things can happen here.
->>>>
->>>> If this program used the pages before the kernel needed
->>>> them, the program will be reusing its old pages.
->>>
->>>
->>>
->>> ah ok, this is because accessed/dirty bits are set by hardware and 
->>> not a page fault.
->>
->>
->> No it isn't.
-> 
-> That is to say, it isn't required for correctness. But if the
-> question was about avoiding a fault, then yes ;)
+> We could resurrect that cond_resched() by passing in some flag, I guess. 
+> Or change the code to poke the softlockup detector.  The former would be
+> better.
 
-Making the pte clean also needs to clear the hardware writable
-bit on architectures where we do pte dirtying in software.
+cond_resched() is conditional on __resched_legal(0), which should take
+care of being called under a spinlock.
 
-If we don't, we would have corruption problems all over the VM,
-for example in the code around pte_clean_one :)
+so I guess we can just reinstate the call in invalidate_mapping_pages()
 
-> But as Linus recently said, even hardware handled faults still
-> take expensive microarchitectural traps.
+(still waiting on the compile to finish...)
+---
+invalidate_mapping_pages() is called under locks (usually preemptable)
+but can do a _lot_ of work, stick in a voluntary preemption point to
+avoid excessive latencies (over 10 seconds was reported by softlockup).
 
-Nowhere near as expensive as a full page fault, though...
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ mm/truncate.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-The lazy freeing is aimed at avoiding page faults on memory
-that is freed and later realloced, which is quite a common
-thing in many workloads.
+Index: linux-2.6-mm/mm/truncate.c
+===================================================================
+--- linux-2.6-mm.orig/mm/truncate.c
++++ linux-2.6-mm/mm/truncate.c
+@@ -292,6 +292,8 @@ unsigned long invalidate_mapping_pages(s
+ 			pgoff_t index;
+ 			int lock_failed;
+ 
++			cond_resched();
++
+ 			lock_failed = TestSetPageLocked(page);
+ 
+ 			/*
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
