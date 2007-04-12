@@ -1,36 +1,68 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 12 Apr 2007 12:20:28 +1000
-Subject: [PATCH 2/12] get_unmapped_area handles MAP_FIXED on alpha
+Date: Thu, 12 Apr 2007 12:20:27 +1000
+Subject: [PATCH 1/12] get_unmapped_area handles MAP_FIXED on powerpc
 In-Reply-To: <1176344427.242579.337989891532.qpush@grosgo>
-Message-Id: <20070412022030.168E5DDF26@ozlabs.org>
+Message-Id: <20070412022029.89DECDDF24@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Handle MAP_FIXED in alpha's arch_get_unmapped_area(), simple case, just
-return the address as passed in
+Handle MAP_FIXED in powerpc's arch_get_unmapped_area() in all 3
+implementations of it.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
- arch/alpha/kernel/osf_sys.c |    3 +++
- 1 file changed, 3 insertions(+)
+ arch/powerpc/mm/hugetlbpage.c |   21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
-Index: linux-cell/arch/alpha/kernel/osf_sys.c
+Index: linux-cell/arch/powerpc/mm/hugetlbpage.c
 ===================================================================
---- linux-cell.orig/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:33.000000000 +1100
-+++ linux-cell/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:44.000000000 +1100
-@@ -1267,6 +1267,9 @@ arch_get_unmapped_area(struct file *filp
- 	if (len > limit)
+--- linux-cell.orig/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:52:07.000000000 +1100
++++ linux-cell/arch/powerpc/mm/hugetlbpage.c	2007-03-22 14:57:40.000000000 +1100
+@@ -572,6 +572,13 @@ unsigned long arch_get_unmapped_area(str
+ 	if (len > TASK_SIZE)
  		return -ENOMEM;
  
-+	if (flags & MAP_FIXED)
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
 +		return addr;
++	}
 +
- 	/* First, see if the given suggestion fits.
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+@@ -647,6 +654,13 @@ arch_get_unmapped_area_topdown(struct fi
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
  
- 	   The OSF/1 loader (/sbin/loader) relies on us returning an
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	/* dont allow allocations above current base */
+ 	if (mm->free_area_cache > base)
+ 		mm->free_area_cache = base;
+@@ -829,6 +843,13 @@ unsigned long hugetlb_get_unmapped_area(
+ 	/* Paranoia, caller should have dealt with this */
+ 	BUG_ON((addr + len)  < addr);
+ 
++	/* Handle MAP_FIXED */
++	if (flags & MAP_FIXED) {
++		if (prepare_hugepage_range(addr, len, pgoff))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	if (test_thread_flag(TIF_32BIT)) {
+ 		curareas = current->mm->context.low_htlb_areas;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
