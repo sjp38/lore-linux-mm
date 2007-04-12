@@ -1,41 +1,36 @@
-Subject: Re: [RFC/PATCH] powerpc: tlb flush batch use lazy MMU mode
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1176188977.8061.48.camel@localhost.localdomain>
-References: <1176188977.8061.48.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Thu, 12 Apr 2007 11:35:26 +1000
-Message-Id: <1176341727.8061.112.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 12 Apr 2007 12:20:28 +1000
+Subject: [PATCH 2/12] get_unmapped_area handles MAP_FIXED on alpha
+In-Reply-To: <1176344427.242579.337989891532.qpush@grosgo>
+Message-Id: <20070412022030.168E5DDF26@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: linuxppc-dev list <linuxppc-dev@ozlabs.org>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-04-10 at 17:09 +1000, Benjamin Herrenschmidt wrote:
-> The current tlb flush code on powerpc 64 bits has a subtle race since we
-> lost the page table lock due to the possible faulting in of new PTEs
-> after a previous one has been removed but before the corresponding hash
-> entry has been evicted, which can leads to all sort of fatal problems.
-> 
-> This patch reworks the batch code completely. It doesn't use the mmu_gather
-> stuff anymore. Instead, we use the lazy mmu hooks that were added by the
-> paravirt code. They have the nice property that the enter/leave lazy mmu
-> mode pair is always fully contained by the PTE lock for a given range
-> of PTEs. Thus we can guarantee that all batches are flushed on a given
-> CPU before it drops that lock.
+Handle MAP_FIXED in alpha's arch_get_unmapped_area(), simple case, just
+return the address as passed in
 
- .../...
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Ran for a little while on a P5 partition with a few sdet runs and it
-seems to be fine. You can apply :-)
+ arch/alpha/kernel/osf_sys.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Despite the bug being present in 2.6.21 (and earlier), I still think
-however that this is .22 material, at least for now.
-
-Ben.
-
+Index: linux-cell/arch/alpha/kernel/osf_sys.c
+===================================================================
+--- linux-cell.orig/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:33.000000000 +1100
++++ linux-cell/arch/alpha/kernel/osf_sys.c	2007-03-22 14:58:44.000000000 +1100
+@@ -1267,6 +1267,9 @@ arch_get_unmapped_area(struct file *filp
+ 	if (len > limit)
+ 		return -ENOMEM;
+ 
++	if (flags & MAP_FIXED)
++		return addr;
++
+ 	/* First, see if the given suggestion fits.
+ 
+ 	   The OSF/1 loader (/sbin/loader) relies on us returning an
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
