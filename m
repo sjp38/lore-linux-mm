@@ -1,29 +1,39 @@
-Date: Thu, 12 Apr 2007 15:32:01 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 12/12] get_unmapped_area doesn't need hugetlbfs hacks anymore
-Message-ID: <20070412223201.GM2986@holomorphy.com>
-References: <1176344427.242579.337989891532.qpush@grosgo> <20070412022035.4BD9CDDF32@ozlabs.org>
-MIME-Version: 1.0
+Date: Fri, 13 Apr 2007 01:27:10 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] rename page_count for lockless pagecache
+Message-ID: <20070412232710.GB23523@wotan.suse.de>
+References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103340.5564.23286.sendpatchset@linux.site> <1176397419.6893.126.camel@twins>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070412022035.4BD9CDDF32@ozlabs.org>
+In-Reply-To: <1176397419.6893.126.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 12, 2007 at 12:20:33PM +1000, Benjamin Herrenschmidt wrote:
-> Remove the hugetlbfs specific hacks in toplevel get_unmapped_area() now
-> that all archs and hugetlbfs itself do the right thing for both cases.
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->  mm/mmap.c |   16 ----------------
->  1 file changed, 16 deletions(-)
+On Thu, Apr 12, 2007 at 07:03:39PM +0200, Peter Zijlstra wrote:
+> On Thu, 2007-04-12 at 14:46 +0200, Nick Piggin wrote:
+> > In order to force an audit of page_count users (which I have already done
+> > for in-tree users), and to ensure people think about page_count correctly
+> > in future, I propose this (incomplete, RFC) patch to rename page_count.
+> > 
+> 
+> My compiler suggests you did a very terse job, but given that its an
+> RFC... :-)
 
-Acked-by: William Irwin <bill.irwin@oracle.com>
+Yeah, just mm/, to see how it looks.
 
+I have no problem converting the whole tree (there isn't much left),
+but the question is whether out of tree drivers use it.
 
--- wli
+I guess if they do use it, then they need to be checked anyway, so
+there isn't really a way we can provide interim compatibility.
+
+> 
+> Anyway, I like it, but I'll leave it out for now.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
