@@ -1,41 +1,53 @@
-Date: Fri, 13 Apr 2007 18:59:30 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: question on mmap
-In-Reply-To: <835465.82854.qm@web43140.mail.sp1.yahoo.com>
-Message-ID: <Pine.LNX.4.64.0704131856050.8823@blonde.wat.veritas.com>
-References: <835465.82854.qm@web43140.mail.sp1.yahoo.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 13 Apr 2007 11:57:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: madvise avoid exclusive mmap_sem
+Message-Id: <20070413115719.2bdf5705.akpm@linux-foundation.org>
+In-Reply-To: <20070412005638.GA25469@wotan.suse.de>
+References: <20070412005638.GA25469@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: sameer sameer <sameerchakravarthy@yahoo.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Apr 2007, sameer sameer wrote:
+On Thu, 12 Apr 2007 02:56:38 +0200
+Nick Piggin <npiggin@suse.de> wrote:
+
+> Avoid down_write of the mmap_sem in madvise when we can help it.
 > 
-> I have a question regarding the implementation of
-> mmap. I am trying to find out if we the kernel
-> actually shares the memory across unrelated processes
-> using MAP_SHARED flag for a read only file mapping. 
-
-Yes, it does.
-
+> Acked-by: Hugh Dickins <hugh@veritas.com>
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 > 
-> When the file is mapped with PROT_READ arguement, then
-> will there be any difference in memory usage by
-> multiple processes if the mapping is done using
-> MAP_SHARED instead of MAP_PRIVATE ?
+> Index: linux-2.6/mm/madvise.c
+> ===================================================================
+> --- linux-2.6.orig/mm/madvise.c
+> +++ linux-2.6/mm/madvise.c
+> @@ -12,6 +12,24 @@
+>  #include <linux/hugetlb.h>
+>  
+>  /*
+> + * Any behaviour which results in changes to the vma->vm_flags needs to
+> + * take mmap_sem for writing. Others, which simply traverse vmas, need
+> + * to only take it for reading.
+> + */
+> +static int madvise_need_mmap_write(int behavior)
+> +{
+> +	switch (behavior) {
+> +	case MADV_REMOVE:
+> +	case MADV_WILLNEED:
+> +	case MADV_DONTNEED:
+> +		return 0;
+> +	default:
+> +		/* be safe, default to 1. list exceptions explicitly */
+> +		return 1;
+> +	}
+> +}
 
-No, no difference.
-
-> 
-> Are there any system commands which will let me know
-> how to calcuate the memory savings (if there are any)
-
-No such savings.
-
-Hugh
+Are we sure that running zap_page_range() under down_read() is safe?
+For hugepage regions too?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
