@@ -1,35 +1,55 @@
-Date: Fri, 13 Apr 2007 21:08:15 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: madvise avoid exclusive mmap_sem
-In-Reply-To: <20070413115719.2bdf5705.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704132101300.14508@blonde.wat.veritas.com>
-References: <20070412005638.GA25469@wotan.suse.de>
- <20070413115719.2bdf5705.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 14 Apr 2007 01:31:45 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 9/9] mm: lockless test threads
+Message-ID: <20070413233145.GA18150@wotan.suse.de>
+References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103330.5564.31067.sendpatchset@linux.site> <Pine.LNX.4.64.0704131748270.5565@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0704131748270.5565@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Apr 2007, Andrew Morton wrote:
-> On Thu, 12 Apr 2007 02:56:38 +0200
-> Nick Piggin <npiggin@suse.de> wrote:
+On Fri, Apr 13, 2007 at 05:54:37PM +0100, Hugh Dickins wrote:
+> On Thu, 12 Apr 2007, Nick Piggin wrote:
 > 
-> > Avoid down_write of the mmap_sem in madvise when we can help it.
+> > Introduce a basic lockless pagecache test harness. I don't know what value
+> > this has, because it hasn't caught a bug yet, but it might help with testing.
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
 > 
-> Are we sure that running zap_page_range() under down_read() is safe?
-> For hugepage regions too?
+> A couple of fixes to fold in: the modular build needs two exports;
+> and I got divide-by-0 with mem=512M to a HIGHMEM kernel.
 
-madvise_dontneed just says -EINVAL on a VM_HUGETLB vma, so I didn't
-check the hugepage case further, it doesn't reach the zap_page_range.
+Thanks!
 
-We can indeed be sure that running zap_page_range on a normal vma
-is safe under down_read (as opposed to the down_write there before),
-because file truncation runs it without taking mmap_sem at all.
-
-Hugh
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> 
+> --- 2.6.21-rc6-np/mm/lpctest.c	2007-04-13 15:25:41.000000000 +0100
+> +++ linux/mm/lpctest.c	2007-04-13 17:36:22.000000000 +0100
+> @@ -122,6 +122,8 @@ static int lpc_random_thread(void *arg)
+>  			unsigned int times;
+>  			struct page *page;
+>  
+> +			if (!zone->spanned_pages)
+> +				continue;
+>  			pfn = zone->zone_start_pfn +
+>  				lpc_random(&rand) % zone->spanned_pages;
+>  			if (!pfn_valid(pfn))
+> --- 2.6.21-rc6-np/mm/mmzone.c	2007-02-04 18:44:54.000000000 +0000
+> +++ linux/mm/mmzone.c	2007-04-13 16:10:06.000000000 +0100
+> @@ -42,3 +42,7 @@ struct zone *next_zone(struct zone *zone
+>  	return zone;
+>  }
+>  
+> +#ifdef CONFIG_LPC_TEST_MODULE
+> +EXPORT_SYMBOL_GPL(first_online_pgdat);
+> +EXPORT_SYMBOL_GPL(next_zone);
+> +#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
