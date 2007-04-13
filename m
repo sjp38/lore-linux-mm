@@ -1,37 +1,29 @@
-Date: Fri, 13 Apr 2007 13:20:30 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] generic rwsems
-Message-ID: <20070413112029.GD27914@wotan.suse.de>
-References: <20070413100416.GC31487@wotan.suse.de> <200704131253.49301.ak@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200704131253.49301.ak@suse.de>
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20070413102518.GD31487@wotan.suse.de> 
+References: <20070413102518.GD31487@wotan.suse.de>  <20070413100416.GC31487@wotan.suse.de> 
+Subject: Re: [patch] generic rwsems 
+Date: Fri, 13 Apr 2007 12:44:50 +0100
+Message-ID: <25428.1176464690@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 13, 2007 at 12:53:49PM +0200, Andi Kleen wrote:
-> On Friday 13 April 2007 12:04:16 Nick Piggin wrote:
-> > OK, this patch is against 2.6.21-rc6 + Mathieu's atomic_long patches.
-> > 
-> > Last time this came up I was asked to get some numbers, so here are
-> > some in the changelog, captured with a simple kernel module tester.
-> > I got motivated again because of the MySQL/glibc/mmap_sem issue.
-> > 
-> > This patch converts all architectures to a generic rwsem implementation,
-> > which will compile down to the same code for i386, or powerpc, for
-> > example, and will allow some (eg. x86-64) to move away from spinlock
-> > based rwsems.
-> > 
-> > Comments?
-> 
-> Fine for me from the x86-64 side. Some more validation with a test suite
-> would be good though.
+Nick Piggin <npiggin@suse.de> wrote:
 
-David had a test suite somewhere, so I'll give that a run.
+> I think I should put wait_lock after wait_list, so as to get a better
+> packing on most 64-bit architectures.
+
+It makes no difference.  struct lockdep_map contains at least one pointer and
+so is going to be 8-byte aligned (assuming it's there at all).  struct
+rw_semaphore contains at least one pointer/long, so it will be padded out to
+8-byte size.
+
+If you want to make a difference, you'd need to add __attribute__((packed))
+but you would need to be very careful with that.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
