@@ -1,51 +1,41 @@
-Date: Fri, 13 Apr 2007 17:54:37 +0100 (BST)
+Date: Fri, 13 Apr 2007 18:59:30 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 9/9] mm: lockless test threads
-In-Reply-To: <20070412103330.5564.31067.sendpatchset@linux.site>
-Message-ID: <Pine.LNX.4.64.0704131748270.5565@blonde.wat.veritas.com>
-References: <20070412103151.5564.16127.sendpatchset@linux.site>
- <20070412103330.5564.31067.sendpatchset@linux.site>
+Subject: Re: question on mmap
+In-Reply-To: <835465.82854.qm@web43140.mail.sp1.yahoo.com>
+Message-ID: <Pine.LNX.4.64.0704131856050.8823@blonde.wat.veritas.com>
+References: <835465.82854.qm@web43140.mail.sp1.yahoo.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: sameer sameer <sameerchakravarthy@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Apr 2007, Nick Piggin wrote:
-
-> Introduce a basic lockless pagecache test harness. I don't know what value
-> this has, because it hasn't caught a bug yet, but it might help with testing.
+On Wed, 11 Apr 2007, sameer sameer wrote:
 > 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> I have a question regarding the implementation of
+> mmap. I am trying to find out if we the kernel
+> actually shares the memory across unrelated processes
+> using MAP_SHARED flag for a read only file mapping. 
 
-A couple of fixes to fold in: the modular build needs two exports;
-and I got divide-by-0 with mem=512M to a HIGHMEM kernel.
+Yes, it does.
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> 
+> When the file is mapped with PROT_READ arguement, then
+> will there be any difference in memory usage by
+> multiple processes if the mapping is done using
+> MAP_SHARED instead of MAP_PRIVATE ?
 
---- 2.6.21-rc6-np/mm/lpctest.c	2007-04-13 15:25:41.000000000 +0100
-+++ linux/mm/lpctest.c	2007-04-13 17:36:22.000000000 +0100
-@@ -122,6 +122,8 @@ static int lpc_random_thread(void *arg)
- 			unsigned int times;
- 			struct page *page;
- 
-+			if (!zone->spanned_pages)
-+				continue;
- 			pfn = zone->zone_start_pfn +
- 				lpc_random(&rand) % zone->spanned_pages;
- 			if (!pfn_valid(pfn))
---- 2.6.21-rc6-np/mm/mmzone.c	2007-02-04 18:44:54.000000000 +0000
-+++ linux/mm/mmzone.c	2007-04-13 16:10:06.000000000 +0100
-@@ -42,3 +42,7 @@ struct zone *next_zone(struct zone *zone
- 	return zone;
- }
- 
-+#ifdef CONFIG_LPC_TEST_MODULE
-+EXPORT_SYMBOL_GPL(first_online_pgdat);
-+EXPORT_SYMBOL_GPL(next_zone);
-+#endif
+No, no difference.
+
+> 
+> Are there any system commands which will let me know
+> how to calcuate the memory savings (if there are any)
+
+No such savings.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
