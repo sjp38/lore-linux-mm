@@ -1,56 +1,51 @@
-Message-ID: <461ED00E.1090808@yahoo.com.au>
-Date: Fri, 13 Apr 2007 10:34:22 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] make MADV_FREE lazily free memory
-References: <461C6452.1000706@redhat.com> <461D6413.6050605@cosmosbay.com> <461D67A9.5020509@redhat.com> <461DC75B.8040200@cosmosbay.com> <461DCCEB.70004@yahoo.com.au> <461DCDDA.2030502@yahoo.com.au> <461DDE44.2040409@redhat.com> <461E30A6.5030203@yahoo.com.au> <461E9D77.4080308@redhat.com>
-In-Reply-To: <461E9D77.4080308@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Christoph Lameter <clameter@sgi.com>
+Message-Id: <20070413013640.17093.37934.sendpatchset@schroedinger.engr.sgi.com>
+In-Reply-To: <20070413013633.17093.93334.sendpatchset@schroedinger.engr.sgi.com>
+References: <20070413013633.17093.93334.sendpatchset@schroedinger.engr.sgi.com>
+Subject: [SLUB 2/5] Add after object padding
+Date: Thu, 12 Apr 2007 18:36:40 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Eric Dumazet <dada1@cosmosbay.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Nick Piggin wrote:
-> 
->>> The lazy freeing is aimed at avoiding page faults on memory
->>> that is freed and later realloced, which is quite a common
->>> thing in many workloads.
->>
->>
->> I would be interested to see how it performs and what these
->> workloads look like, although we do need to fix the basic glibc and
->> madvise locking problems first.
-> 
-> 
-> The attached graph are results of running the MySQL sysbench
-> workload on my quad core system.  As you can see, performance
-> with #threads == #cpus (4) almost doubles from 1070 transactions
-> per second to 2014 transactions/second.
-> 
-> On the high end (16 threads on 4 cpus), performance increases
-> from 778 transactions/second on vanilla to 1310 transactions/second.
-> 
-> I have also benchmarked running Ulrich's changed glibc on a vanilla
-> kernel, which gives results somewhere in-between, but much closer to
-> just the vanilla kernel.
+Without padding there is the danger that we do not notice writing
+before the allocated object. So increase the slab size by another
+word in the debug case. That will force the creation of some fill
+space which SLUB will continue to check.
 
-Looks like the idle time issue is still biting for those guys.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Hmm, maybe MySQL is actually _touching_ the memory inside a more
-critical lock, so the faults get tangled up on mmap_sem there. I
-wonder if making malloc call memset right afterwards would hide
-that ;) Or the madvise exclusive mmap_sem avoidance.
-
-Seems like with perfect scaling we should get to the 2400 mark.
-It would be nice to be able to not degrade under load. Of course
-some of that will be MySQL scaling issues.
-
--- 
-SUSE Labs, Novell Inc.
+Index: linux-2.6.21-rc6/mm/slub.c
+===================================================================
+--- linux-2.6.21-rc6.orig/mm/slub.c	2007-04-12 16:44:13.000000000 -0700
++++ linux-2.6.21-rc6/mm/slub.c	2007-04-12 16:45:18.000000000 -0700
+@@ -484,7 +484,7 @@ static int check_object(struct kmem_cach
+ 	if (s->flags & SLAB_POISON) {
+ 		if (!active && (s->flags & __OBJECT_POISON) &&
+ 			(!check_bytes(p, POISON_FREE, s->objsize - 1) ||
+-				p[s->objsize -1] != POISON_END)) {
++				p[s->objsize - 1] != POISON_END)) {
+ 			object_err(s, page, p, "Poison check failed");
+ 			return 0;
+ 		}
+@@ -1623,6 +1623,15 @@ static int calculate_sizes(struct kmem_c
+ 		 */
+ 		size += 2 * sizeof(struct track);
+ 
++	if (flags & DEBUG_DEFAULT_FLAGS)
++		/*
++		 * Add some empty padding so that we can catch
++		 * overwrites from earlier objects rather than let
++		 * tracking information or the free pointer be
++		 * corrupted if an user writes before the start
++		 * of the object.
++		 */
++		size += sizeof(void *);
+ 	/*
+ 	 * Determine the alignment based on various parameters that the
+ 	 * user specified (this is unecessarily complex due to the attempt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
