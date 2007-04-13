@@ -1,71 +1,61 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20070413100416.GC31487@wotan.suse.de> 
-References: <20070413100416.GC31487@wotan.suse.de> 
-Subject: Re: [patch] generic rwsems 
-Date: Fri, 13 Apr 2007 13:09:42 +0100
-Message-ID: <25821.1176466182@redhat.com>
+Date: Fri, 13 Apr 2007 14:13:47 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc] rename page_count for lockless pagecache
+Message-ID: <20070413121347.GC966@wotan.suse.de>
+References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103340.5564.23286.sendpatchset@linux.site> <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> wrote:
+On Fri, Apr 13, 2007 at 12:53:05PM +0100, Hugh Dickins wrote:
+> On Thu, 12 Apr 2007, Nick Piggin wrote:
+> > In order to force an audit of page_count users (which I have already done
+> > for in-tree users), and to ensure people think about page_count correctly
+> > in future, I propose this (incomplete, RFC) patch to rename page_count.
+> 
+> I see your point, it's a concern worth raising; but it grieves me that
+> we first lost page->count, and now you propose we lose page_count().
+> 
+> I don't care for the patch (especially page_count_lessequal).
+> I rather think it will cause more noise and nuisance than anything
+> else.  All the arches would need to be updated too.  Out of tree
+> people, won't they just #define anew without comprehending?
 
-> This patch converts all architectures to a generic rwsem implementation,
-> which will compile down to the same code for i386, or powerpc, for
-> example,
+Yeah you may have a point. (lessequal is silly I agree, because it
+doesn't convey the fact that the count is still unstable even with
+nonewrefs).
 
-> and will allow some (eg. x86-64) to move away from spinlock based rwsems.
+On the other hand, I think it probably would get people to think a
+little bit more.
 
-Which are better on UP kernels because spinlocks degrade to nothing, and then
-you're left with a single disable/enable interrupt pair per operation, and no
-requirement for atomic ops at all.
 
-What you propose may wind up with several per op because if the CPU does not
-support atomic ops directly and cannot emulate them through other atomic ops,
-then these have to be emulated by:
+> Might it be more profitable for a DEBUG mode to inject random
+> variations into page_count?
 
-	atomic_op() {
-		spin_lock_irqsave
-		do op
-		spin_unlock_irqrestore
-	}
+I think that's a very fine idea, and much more suitable for an
+everyday kernel than my test threads. Doesn't help if they use the
+field somehow without the accessors, but we must discourage that.
+Thanks, I'll add such a debug mode.
 
-> Move to an architecture independent rwsem implementation, using the
-> better of the two rwsem implementations
 
-That's not necessarily the case, as I said above.
+> What did your audit show?  Was anything in the tree actually using
+> page_count() in a manner safe before but unsafe after your changes?
+> What you found outside of /mm should be a fair guide to what might
+> be there out of tree.
 
-Furthermore, the spinlock implementation struct is smaller on 64-bit machines,
-and is less prone to counter overrun on 32-bit machines.
+A couple of things... a network driver was using it as a non-atomic
+field IIRC (or at least in an unsafe manner), and x86-64 kernel tlb
+flushing was using it unsafely. I think that might have been all,
+but that was a while ago... So yeah, basically, not much wsa wrong.
 
-> Out-of-line the fastpaths, to bring rw-semaphores into line with
-> mutexes and spinlocks WRT our icache vs function call policy.
-
-That should depend on whether you optimise for space or for speed.  Function
-calls are relatively heavyweight.
-
-Please re-inline and fix Ingo's mess if you must clean up.  Take the i386
-version, for instance, I'd made it so that the compiler didn't know it was
-taking a function call when it went down the slow path, thus meaning the
-compiler didn't have to deal with that.  Furthermore, it only interpolated two
-or three instructions into the calling code in the fastpath.  It's a real shame
-that gcc inline asm doesn't allow you to use status flags as boolean returns,
-otherwise I could reduce that even further.
-
-> Spinlock based rwsems are inferior to atomic based ones one most
-> architectures that can do atomic ops without spinlocks:
-
-Note the "most" in your statement...
-
-Think about it.  This algorithm is only optimal where XADD is available.  If
-you don't have XADD, but you do have LL/SC or CMPXCHG, you can do better.
-
-If the only atomic op you have is XCHG, then this is a really poor choice;
-similarly if you are using a UP-compiled kernel.
-
-David
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
