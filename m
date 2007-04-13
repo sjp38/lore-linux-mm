@@ -1,61 +1,30 @@
-Date: Fri, 13 Apr 2007 14:13:47 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] rename page_count for lockless pagecache
-Message-ID: <20070413121347.GC966@wotan.suse.de>
-References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103340.5564.23286.sendpatchset@linux.site> <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com>
+Date: Fri, 13 Apr 2007 13:13:48 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch] generic rwsems
+Message-ID: <20070413121348.GA28335@infradead.org>
+References: <20070413102518.GD31487@wotan.suse.de> <20070413100416.GC31487@wotan.suse.de> <25428.1176464690@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com>
+In-Reply-To: <25428.1176464690@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: David Howells <dhowells@redhat.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 13, 2007 at 12:53:05PM +0100, Hugh Dickins wrote:
-> On Thu, 12 Apr 2007, Nick Piggin wrote:
-> > In order to force an audit of page_count users (which I have already done
-> > for in-tree users), and to ensure people think about page_count correctly
-> > in future, I propose this (incomplete, RFC) patch to rename page_count.
+On Fri, Apr 13, 2007 at 12:44:50PM +0100, David Howells wrote:
+> Nick Piggin <npiggin@suse.de> wrote:
 > 
-> I see your point, it's a concern worth raising; but it grieves me that
-> we first lost page->count, and now you propose we lose page_count().
+> > I think I should put wait_lock after wait_list, so as to get a better
+> > packing on most 64-bit architectures.
 > 
-> I don't care for the patch (especially page_count_lessequal).
-> I rather think it will cause more noise and nuisance than anything
-> else.  All the arches would need to be updated too.  Out of tree
-> people, won't they just #define anew without comprehending?
+> It makes no difference.  struct lockdep_map contains at least one pointer and
+> so is going to be 8-byte aligned (assuming it's there at all).  struct
+> rw_semaphore contains at least one pointer/long, so it will be padded out to
+> 8-byte size.
 
-Yeah you may have a point. (lessequal is silly I agree, because it
-doesn't convey the fact that the count is still unstable even with
-nonewrefs).
-
-On the other hand, I think it probably would get people to think a
-little bit more.
-
-
-> Might it be more profitable for a DEBUG mode to inject random
-> variations into page_count?
-
-I think that's a very fine idea, and much more suitable for an
-everyday kernel than my test threads. Doesn't help if they use the
-field somehow without the accessors, but we must discourage that.
-Thanks, I'll add such a debug mode.
-
-
-> What did your audit show?  Was anything in the tree actually using
-> page_count() in a manner safe before but unsafe after your changes?
-> What you found outside of /mm should be a fair guide to what might
-> be there out of tree.
-
-A couple of things... a network driver was using it as a non-atomic
-field IIRC (or at least in an unsafe manner), and x86-64 kernel tlb
-flushing was using it unsafely. I think that might have been all,
-but that was a while ago... So yeah, basically, not much wsa wrong.
-
-Thanks,
-Nick
+I hope people are not going to enabled lockdep on their production systems :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
