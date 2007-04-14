@@ -1,55 +1,86 @@
-Date: Sat, 14 Apr 2007 01:31:45 +0200
+Date: Sat, 14 Apr 2007 04:24:07 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 9/9] mm: lockless test threads
-Message-ID: <20070413233145.GA18150@wotan.suse.de>
-References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103330.5564.31067.sendpatchset@linux.site> <Pine.LNX.4.64.0704131748270.5565@blonde.wat.veritas.com>
+Subject: Re: [rfc] rename page_count for lockless pagecache
+Message-ID: <20070414022407.GC14544@wotan.suse.de>
+References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103340.5564.23286.sendpatchset@linux.site> <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com> <20070413121347.GC966@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704131748270.5565@blonde.wat.veritas.com>
+In-Reply-To: <20070413121347.GC966@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
 Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 13, 2007 at 05:54:37PM +0100, Hugh Dickins wrote:
-> On Thu, 12 Apr 2007, Nick Piggin wrote:
+On Fri, Apr 13, 2007 at 02:13:47PM +0200, Nick Piggin wrote:
+> On Fri, Apr 13, 2007 at 12:53:05PM +0100, Hugh Dickins wrote:
+> > Might it be more profitable for a DEBUG mode to inject random
+> > variations into page_count?
 > 
-> > Introduce a basic lockless pagecache test harness. I don't know what value
-> > this has, because it hasn't caught a bug yet, but it might help with testing.
-> > 
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> 
-> A couple of fixes to fold in: the modular build needs two exports;
-> and I got divide-by-0 with mem=512M to a HIGHMEM kernel.
+> I think that's a very fine idea, and much more suitable for an
+> everyday kernel than my test threads. Doesn't help if they use the
+> field somehow without the accessors, but we must discourage that.
+> Thanks, I'll add such a debug mode.
 
-Thanks!
+Something like this boots and survives some stress testing here.
 
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> 
-> --- 2.6.21-rc6-np/mm/lpctest.c	2007-04-13 15:25:41.000000000 +0100
-> +++ linux/mm/lpctest.c	2007-04-13 17:36:22.000000000 +0100
-> @@ -122,6 +122,8 @@ static int lpc_random_thread(void *arg)
->  			unsigned int times;
->  			struct page *page;
->  
-> +			if (!zone->spanned_pages)
-> +				continue;
->  			pfn = zone->zone_start_pfn +
->  				lpc_random(&rand) % zone->spanned_pages;
->  			if (!pfn_valid(pfn))
-> --- 2.6.21-rc6-np/mm/mmzone.c	2007-02-04 18:44:54.000000000 +0000
-> +++ linux/mm/mmzone.c	2007-04-13 16:10:06.000000000 +0100
-> @@ -42,3 +42,7 @@ struct zone *next_zone(struct zone *zone
->  	return zone;
->  }
->  
-> +#ifdef CONFIG_LPC_TEST_MODULE
-> +EXPORT_SYMBOL_GPL(first_online_pgdat);
-> +EXPORT_SYMBOL_GPL(next_zone);
-> +#endif
+I guess it should be under something other than CONFIG_DEBUG_VM,
+because it could harm performance and scalability significantly on
+bigger boxes... or maybe it should use per-cpu counters? ;)
+
+--
+Add some debugging for lockless pagecache as suggested by Hugh.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -267,10 +267,29 @@ static inline int get_page_unless_zero(s
+ 	return atomic_inc_not_zero(&page->_count);
+ }
+ 
++#ifdef CONFIG_DEBUG_VM
++extern int ll_counter;
++#endif
+ static inline int page_count(struct page *page)
+ {
+ 	if (unlikely(PageCompound(page)))
+ 		page = (struct page *)page_private(page);
++#ifdef CONFIG_DEBUG_VM
++	/*
++	 * debug testing for lockless pagecache. add a random value to
++	 * page_count every now and then, to simulate speculative references
++	 * to it.
++	 */
++	{
++		int count = atomic_read(&page->_count);
++		if (count) {
++			ll_counter++;
++			if (ll_counter % 5 == 0 || ll_counter % 7 == 0)
++				count += ll_counter % 11;
++		}
++		return count;
++	}
++#endif
+ 	return atomic_read(&page->_count);
+ }
+ 
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -137,6 +137,8 @@ static unsigned long __initdata dma_rese
+ #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+ 
+ #ifdef CONFIG_DEBUG_VM
++int ll_counter; /* used in include/linux/mm.h, for lockless pagecache */
++EXPORT_SYMBOL(ll_counter);
+ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+ {
+ 	int ret = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
