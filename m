@@ -1,101 +1,38 @@
-Date: Mon, 16 Apr 2007 19:28:33 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc] rename page_count for lockless pagecache
-In-Reply-To: <20070414022407.GC14544@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0704161913230.10887@blonde.wat.veritas.com>
-References: <20070412103151.5564.16127.sendpatchset@linux.site>
- <20070412103340.5564.23286.sendpatchset@linux.site>
- <Pine.LNX.4.64.0704131229510.19073@blonde.wat.veritas.com>
- <20070413121347.GC966@wotan.suse.de> <20070414022407.GC14544@wotan.suse.de>
+Date: Mon, 16 Apr 2007 13:39:45 -0500
+From: Anton Blanchard <anton@samba.org>
+Subject: Re: [PATCH] make MADV_FREE lazily free memory
+Message-ID: <20070416183945.GA10067@kryten>
+References: <461C6452.1000706@redhat.com> <461D6413.6050605@cosmosbay.com> <461D67A9.5020509@redhat.com> <461DC75B.8040200@cosmosbay.com> <461DCCEB.70004@yahoo.com.au> <461DCDDA.2030502@yahoo.com.au> <461DDE44.2040409@redhat.com> <20070416161039.GA979@kryten> <20070416163057.GH355@devserv.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070416163057.GH355@devserv.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Jakub Jelinek <jakub@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Eric Dumazet <dada1@cosmosbay.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ulrich Drepper <drepper@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 14 Apr 2007, Nick Piggin wrote:
-> On Fri, Apr 13, 2007 at 02:13:47PM +0200, Nick Piggin wrote:
-> > On Fri, Apr 13, 2007 at 12:53:05PM +0100, Hugh Dickins wrote:
-> > > Might it be more profitable for a DEBUG mode to inject random
-> > > variations into page_count?
-> > 
-> > I think that's a very fine idea, and much more suitable for an
-> > everyday kernel than my test threads. Doesn't help if they use the
-> > field somehow without the accessors, but we must discourage that.
-> > Thanks, I'll add such a debug mode.
-> 
-> Something like this boots and survives some stress testing here.
-> 
-> I guess it should be under something other than CONFIG_DEBUG_VM,
-> because it could harm performance and scalability significantly on
-> bigger boxes... or maybe it should use per-cpu counters? ;)
-> 
-> --
-> Add some debugging for lockless pagecache as suggested by Hugh.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+ 
+Hi Jakub,
 
-Hmm, maybe.  Would be rather cleaner if in this case page_count()
-were not inlined but EXPORTed, with the ll_count static within it.
+> That would mean an additional syscall.  Furthermore, if you allocate a big
+> chunk of memory, dirty it, then free (with madvise (MADV_FREE)) it and soon
+> allocate the same size of memory again, it is better to start that with
+> non-dirty memory, it might be that this time you e.g. don't modify a big
+> part of the chunk.  If all that memory was kept dirty all the time and
+> just marked/unmarked for lazy reuse with MADV_FREE/MADV_UNDO_FREE, all that
+> memory would need to be saved to disk when paging out as it was marked
+> dirty, while with current Rik's MADV_FREE that will happen only for pages
+> that were actually dirtied after the last malloc.
 
-But I'm not terribly proud of the idea, and wonder whether we just
-forget it?  How are we going to recognize it if this (or your
-lpctest) ever does cause a problem?  Seems like a good thing for
-you or I to try when developing, but whether it should go on into
-the tree I'm less sure.
+Yep this all makes sense. I was looking at it from the other angle where
+on some workloads we have to force malloc to use brk for best
+performance. Im sure the MADV_FREE changes will close that gap but it
+would be interesting to see if there is still a gap on the problem
+workloads. Maybe Im worrying about nothing.
 
-Hugh
-
-> 
-> Index: linux-2.6/include/linux/mm.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm.h
-> +++ linux-2.6/include/linux/mm.h
-> @@ -267,10 +267,29 @@ static inline int get_page_unless_zero(s
->  	return atomic_inc_not_zero(&page->_count);
->  }
->  
-> +#ifdef CONFIG_DEBUG_VM
-> +extern int ll_counter;
-> +#endif
->  static inline int page_count(struct page *page)
->  {
->  	if (unlikely(PageCompound(page)))
->  		page = (struct page *)page_private(page);
-> +#ifdef CONFIG_DEBUG_VM
-> +	/*
-> +	 * debug testing for lockless pagecache. add a random value to
-> +	 * page_count every now and then, to simulate speculative references
-> +	 * to it.
-> +	 */
-> +	{
-> +		int count = atomic_read(&page->_count);
-> +		if (count) {
-> +			ll_counter++;
-> +			if (ll_counter % 5 == 0 || ll_counter % 7 == 0)
-> +				count += ll_counter % 11;
-> +		}
-> +		return count;
-> +	}
-> +#endif
->  	return atomic_read(&page->_count);
->  }
->  
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -137,6 +137,8 @@ static unsigned long __initdata dma_rese
->  #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
->  
->  #ifdef CONFIG_DEBUG_VM
-> +int ll_counter; /* used in include/linux/mm.h, for lockless pagecache */
-> +EXPORT_SYMBOL(ll_counter);
->  static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
->  {
->  	int ret = 0;
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
