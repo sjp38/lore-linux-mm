@@ -1,81 +1,79 @@
-Message-Id: <20070417071703.452105009@chello.nl>
+Message-Id: <20070417071703.833648566@chello.nl>
 References: <20070417071046.318415445@chello.nl>
-Date: Tue, 17 Apr 2007 09:10:53 +0200
+Date: Tue, 17 Apr 2007 09:10:56 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 07/12] mm: count dirty pages per BDI
-Content-Disposition: inline; filename=bdi_stat_dirty.patch
+Subject: [PATCH 10/12] mm: expose BDI statistics in sysfs.
+Content-Disposition: inline; filename=bdi_stat_sysfs.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Count per BDI dirty pages.
+Expose the per BDI stats in /sys/block/<dev>/queue/*
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/buffer.c                 |    1 +
- include/linux/backing-dev.h |    1 +
- mm/page-writeback.c         |    2 ++
- mm/truncate.c               |    1 +
- 4 files changed, 5 insertions(+)
+ block/ll_rw_blk.c |   32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
 
-Index: linux-2.6-mm/fs/buffer.c
+Index: linux-2.6-mm/block/ll_rw_blk.c
 ===================================================================
---- linux-2.6-mm.orig/fs/buffer.c
-+++ linux-2.6-mm/fs/buffer.c
-@@ -740,6 +740,7 @@ int __set_page_dirty_buffers(struct page
- 	if (page->mapping) {	/* Race with truncate? */
- 		if (mapping_cap_account_dirty(mapping)) {
- 			__inc_zone_page_state(page, NR_FILE_DIRTY);
-+			__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
- 			task_io_account_write(PAGE_CACHE_SIZE);
- 		}
- 		radix_tree_tag_set(&mapping->page_tree,
-Index: linux-2.6-mm/mm/page-writeback.c
-===================================================================
---- linux-2.6-mm.orig/mm/page-writeback.c
-+++ linux-2.6-mm/mm/page-writeback.c
-@@ -828,6 +828,7 @@ int __set_page_dirty_nobuffers(struct pa
- 			BUG_ON(mapping2 != mapping);
- 			if (mapping_cap_account_dirty(mapping)) {
- 				__inc_zone_page_state(page, NR_FILE_DIRTY);
-+				__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
- 				task_io_account_write(PAGE_CACHE_SIZE);
- 			}
- 			radix_tree_tag_set(&mapping->page_tree,
-@@ -961,6 +962,7 @@ int clear_page_dirty_for_io(struct page 
- 		 */
- 		if (TestClearPageDirty(page)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
- 			return 1;
- 		}
- 		return 0;
-Index: linux-2.6-mm/mm/truncate.c
-===================================================================
---- linux-2.6-mm.orig/mm/truncate.c
-+++ linux-2.6-mm/mm/truncate.c
-@@ -71,6 +71,7 @@ void cancel_dirty_page(struct page *page
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
-+			dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
-Index: linux-2.6-mm/include/linux/backing-dev.h
-===================================================================
---- linux-2.6-mm.orig/include/linux/backing-dev.h
-+++ linux-2.6-mm/include/linux/backing-dev.h
-@@ -26,6 +26,7 @@ enum bdi_state {
- typedef int (congested_fn)(void *, int);
+--- linux-2.6-mm.orig/block/ll_rw_blk.c
++++ linux-2.6-mm/block/ll_rw_blk.c
+@@ -3976,6 +3976,20 @@ static ssize_t queue_max_hw_sectors_show
+ 	return queue_var_show(max_hw_sectors_kb, (page));
+ }
  
- enum bdi_stat_item {
-+	BDI_DIRTY,
- 	NR_BDI_STAT_ITEMS
++static ssize_t queue_nr_dirty_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lld\n", bdi_stat(&q->backing_dev_info, BDI_DIRTY));
++}
++
++static ssize_t queue_nr_writeback_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lld\n", bdi_stat(&q->backing_dev_info, BDI_WRITEBACK));
++}
++
++static ssize_t queue_nr_unstable_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%lld\n", bdi_stat(&q->backing_dev_info, BDI_UNSTABLE));
++}
+ 
+ static struct queue_sysfs_entry queue_requests_entry = {
+ 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+@@ -4006,6 +4020,21 @@ static struct queue_sysfs_entry queue_ma
+ 	.show = queue_max_hw_sectors_show,
  };
  
++static struct queue_sysfs_entry queue_dirty_entry = {
++	.attr = {.name = "dirty_pages", .mode = S_IRUGO },
++	.show = queue_nr_dirty_show,
++};
++
++static struct queue_sysfs_entry queue_writeback_entry = {
++	.attr = {.name = "writeback_pages", .mode = S_IRUGO },
++	.show = queue_nr_writeback_show,
++};
++
++static struct queue_sysfs_entry queue_unstable_entry = {
++	.attr = {.name = "unstable_pages", .mode = S_IRUGO },
++	.show = queue_nr_unstable_show,
++};
++
+ static struct queue_sysfs_entry queue_iosched_entry = {
+ 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+ 	.show = elv_iosched_show,
+@@ -4018,6 +4047,9 @@ static struct attribute *default_attrs[]
+ 	&queue_initial_ra_entry.attr,
+ 	&queue_max_hw_sectors_entry.attr,
+ 	&queue_max_sectors_entry.attr,
++	&queue_dirty_entry.attr,
++	&queue_writeback_entry.attr,
++	&queue_unstable_entry.attr,
+ 	&queue_iosched_entry.attr,
+ 	NULL,
+ };
 
 -- 
 
