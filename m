@@ -1,145 +1,73 @@
-Message-Id: <20070417071703.326557311@chello.nl>
+Message-Id: <20070417071702.818487046@chello.nl>
 References: <20070417071046.318415445@chello.nl>
-Date: Tue, 17 Apr 2007 09:10:52 +0200
+Date: Tue, 17 Apr 2007 09:10:48 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/12] mm: scalable bdi statistics counters.
-Content-Disposition: inline; filename=bdi_stat.patch
+Subject: [PATCH 02/12] nfs: remove congestion_end()
+Content-Disposition: inline; filename=nfs_congestion_fixup.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Provide scalable per backing_dev_info statistics counters.
+Its redundant, clear_bdi_congested() already wakes the waiters.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/backing-dev.h |   50 ++++++++++++++++++++++++++++++++++++++++++--
- mm/backing-dev.c            |   26 ++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 2 deletions(-)
+ fs/nfs/write.c              |    4 +---
+ include/linux/backing-dev.h |    1 -
+ mm/backing-dev.c            |   13 -------------
+ 3 files changed, 1 insertion(+), 17 deletions(-)
 
-Index: linux-2.6/include/linux/backing-dev.h
+Index: linux-2.6-mm/fs/nfs/write.c
 ===================================================================
---- linux-2.6.orig/include/linux/backing-dev.h	2007-04-12 13:27:13.000000000 +0200
-+++ linux-2.6/include/linux/backing-dev.h	2007-04-12 13:28:40.000000000 +0200
-@@ -8,6 +8,7 @@
- #ifndef _LINUX_BACKING_DEV_H
- #define _LINUX_BACKING_DEV_H
+--- linux-2.6-mm.orig/fs/nfs/write.c	2007-04-05 16:24:50.000000000 +0200
++++ linux-2.6-mm/fs/nfs/write.c	2007-04-05 16:25:04.000000000 +0200
+@@ -235,10 +235,8 @@ static void nfs_end_page_writeback(struc
+ 	struct nfs_server *nfss = NFS_SERVER(inode);
  
-+#include <linux/percpu_counter.h>
- #include <asm/atomic.h>
- 
- struct page;
-@@ -24,6 +25,10 @@ enum bdi_state {
- 
- typedef int (congested_fn)(void *, int);
- 
-+enum bdi_stat_item {
-+	NR_BDI_STAT_ITEMS
-+};
-+
- struct backing_dev_info {
- 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
- 	unsigned long ra_pages0; /* min readahead on start of file */
-@@ -34,14 +39,55 @@ struct backing_dev_info {
- 	void *congested_data;	/* Pointer to aux data for congested func */
- 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
- 	void *unplug_io_data;
-+
-+	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
- };
- 
--static inline void bdi_init(struct backing_dev_info *bdi)
-+void bdi_init(struct backing_dev_info *bdi);
-+void bdi_destroy(struct backing_dev_info *bdi);
-+
-+static inline void __mod_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item, s32 amount)
-+{
-+	percpu_counter_mod(&bdi->bdi_stat[item], amount);
-+}
-+
-+static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	__mod_bdi_stat(bdi, item, 1);
-+}
-+
-+static inline void inc_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__inc_bdi_stat(bdi, item);
-+	local_irq_restore(flags);
-+}
-+
-+static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
- {
-+	__mod_bdi_stat(bdi, item, -1);
-+}
-+
-+static inline void dec_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__dec_bdi_stat(bdi, item);
-+	local_irq_restore(flags);
- }
- 
--static inline void bdi_destroy(struct backing_dev_info *bdi)
-+static inline s64 bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item)
- {
-+	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
+ 	end_page_writeback(page);
+-	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH) {
++	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
+ 		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
+-		congestion_end(WRITE);
+-	}
  }
  
  /*
-Index: linux-2.6/mm/backing-dev.c
+Index: linux-2.6-mm/include/linux/backing-dev.h
 ===================================================================
---- linux-2.6.orig/mm/backing-dev.c	2007-04-12 13:27:10.000000000 +0200
-+++ linux-2.6/mm/backing-dev.c	2007-04-12 13:28:26.000000000 +0200
-@@ -5,6 +5,30 @@
- #include <linux/sched.h>
- #include <linux/module.h>
+--- linux-2.6-mm.orig/include/linux/backing-dev.h	2007-04-05 16:24:50.000000000 +0200
++++ linux-2.6-mm/include/linux/backing-dev.h	2007-04-05 16:25:08.000000000 +0200
+@@ -96,7 +96,6 @@ void clear_bdi_congested(struct backing_
+ void set_bdi_congested(struct backing_dev_info *bdi, int rw);
+ long congestion_wait(int rw, long timeout);
+ long congestion_wait_interruptible(int rw, long timeout);
+-void congestion_end(int rw);
  
-+void bdi_init(struct backing_dev_info *bdi)
-+{
-+	int i;
-+
-+	if (!(bdi_cap_writeback_dirty(bdi) || bdi_cap_account_dirty(bdi)))
-+		return;
-+
-+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
-+		percpu_counter_init(&bdi->bdi_stat[i], 0);
-+}
-+EXPORT_SYMBOL(bdi_init);
-+
-+void bdi_destroy(struct backing_dev_info *bdi)
-+{
-+	int i;
-+
-+	if (!(bdi_cap_writeback_dirty(bdi) || bdi_cap_account_dirty(bdi)))
-+		return;
-+
-+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
-+		percpu_counter_destroy(&bdi->bdi_stat[i]);
-+}
-+EXPORT_SYMBOL(bdi_destroy);
-+
- static wait_queue_head_t congestion_wqh[2] = {
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-@@ -70,3 +94,5 @@ long congestion_wait_interruptible(int r
+ #define bdi_cap_writeback_dirty(bdi) \
+ 	(!((bdi)->capabilities & BDI_CAP_NO_WRITEBACK))
+Index: linux-2.6-mm/mm/backing-dev.c
+===================================================================
+--- linux-2.6-mm.orig/mm/backing-dev.c	2007-04-05 16:24:50.000000000 +0200
++++ linux-2.6-mm/mm/backing-dev.c	2007-04-05 16:25:16.000000000 +0200
+@@ -70,16 +70,3 @@ long congestion_wait_interruptible(int r
  	return ret;
  }
  EXPORT_SYMBOL(congestion_wait_interruptible);
-+
-+
+-
+-/**
+- * congestion_end - wake up sleepers on a congested backing_dev_info
+- * @rw: READ or WRITE
+- */
+-void congestion_end(int rw)
+-{
+-	wait_queue_head_t *wqh = &congestion_wqh[rw];
+-
+-	if (waitqueue_active(wqh))
+-		wake_up(wqh);
+-}
+-EXPORT_SYMBOL(congestion_end);
 
 -- 
 
