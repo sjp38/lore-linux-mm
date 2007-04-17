@@ -1,42 +1,68 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.11.20060308/8.13.8) with ESMTP id l3HHZW61031092
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 13:35:32 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3HHcCCx166680
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 11:38:12 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3HHc5Qj028745
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 11:38:05 -0600
-Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
-From: Dave Hansen <hansendc@us.ibm.com>
-In-Reply-To: <4624E8F4.2090200@sw.ru>
-References: <4624E8F4.2090200@sw.ru>
-Content-Type: text/plain
-Date: Tue, 17 Apr 2007 10:37:53 -0700
-Message-Id: <1176831473.12599.30.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from int-mx1.corp.redhat.com (int-mx1.corp.redhat.com [172.16.52.254])
+	by mx1.redhat.com (8.13.1/8.13.1) with ESMTP id l3HIGhFf007654
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:55 -0400
+Received: from mail.boston.redhat.com (mail.boston.redhat.com [172.16.76.12])
+	by int-mx1.corp.redhat.com (8.13.1/8.13.1) with ESMTP id l3HIGgtC004106
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:42 -0400
+Received: from redhat.com (lwoodman.boston.redhat.com [172.16.80.79])
+	by mail.boston.redhat.com (8.12.11.20060308/8.12.11) with ESMTP id l3HIGfkN009638
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:41 -0400
+Message-ID: <46250EB1.9010707@redhat.com>
+Date: Tue, 17 Apr 2007 14:15:13 -0400
+From: Larry Woodman <lwoodman@redhat.com>
+MIME-Version: 1.0
+Subject: sysctl_panic_on_oom broken
+Content-Type: multipart/mixed;
+ boundary="------------000506040109070807070405"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelianov <xemul@sw.ru>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-04-17 at 19:34 +0400, Pavel Emelianov wrote:
-> +#define SHOW_TOP_SLABS 10 
+This is a multi-part message in MIME format.
+--------------000506040109070807070405
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Real minor nit on this one: SHOW_TOP_SLABS sounds like a bool.  "Should
-I show the top slabs?"
+out_of_memory() does not panic when sysctl_panic_on_oom is set
+if constrained_alloc() does not return CONSTRAINT_NONE.  Instead,
+out_of_memory() kills the current process whenever constrained_alloc()
+returns either CONSTRAINT_MEMORY_POLICY or CONSTRAINT_CPUSET.
+This patch fixes this problem:
 
-This might be a bit more clear:
 
-#define TOP_NR_SLABS_TO_SHOW 10 
 
-or
 
-#define NR_SLABS_TO_SHOW 10
+--------------000506040109070807070405
+Content-Type: text/plain;
+ name="panic_on_oom.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="panic_on_oom.patch"
 
--- Dave
+--- linux-2.6.18.noarch/mm/oom_kill.c.orig
++++ linux-2.6.18.noarch/mm/oom_kill.c
+@@ -431,6 +437,9 @@ void out_of_memory(struct zonelist *zone
+ 	cpuset_lock();
+ 	read_lock(&tasklist_lock);
+ 
++	/* check if we are going to panic before enything else... */
++	if (sysctl_panic_on_oom)
++		panic("out of memory. panic_on_oom is selected\n");
+ 	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+@@ -447,8 +456,6 @@ void out_of_memory(struct zonelist *zone
+ 		break;
+ 
+ 	case CONSTRAINT_NONE:
+-		if (sysctl_panic_on_oom)
+-			panic("out of memory. panic_on_oom is selected\n");
+ retry:
+ 		/*
+ 		 * Rambo mode: Shoot down a process and hope it solves whatever
+
+--------------000506040109070807070405--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
