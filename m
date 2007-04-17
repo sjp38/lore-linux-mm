@@ -1,71 +1,109 @@
-Received: from int-mx1.corp.redhat.com (int-mx1.corp.redhat.com [172.16.52.254])
-	by mx1.redhat.com (8.13.1/8.13.1) with ESMTP id l3HIGhFf007654
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:55 -0400
-Received: from mail.boston.redhat.com (mail.boston.redhat.com [172.16.76.12])
-	by int-mx1.corp.redhat.com (8.13.1/8.13.1) with ESMTP id l3HIGgtC004106
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:42 -0400
-Received: from redhat.com (lwoodman.boston.redhat.com [172.16.80.79])
-	by mail.boston.redhat.com (8.12.11.20060308/8.12.11) with ESMTP id l3HIGfkN009638
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2007 14:16:41 -0400
-Message-ID: <46250EB1.9010707@redhat.com>
-Date: Tue, 17 Apr 2007 14:15:13 -0400
-From: Larry Woodman <lwoodman@redhat.com>
+Date: Wed, 18 Apr 2007 01:36:11 +0600
+From: "VIP Casino" <costume@freeproblem.com>
+Message-ID: <52516494.00352222@californium.com>
+Subject: =?ISO-8859-1?Q?555=80?= - Willkommensbonus!
 MIME-Version: 1.0
-Subject: sysctl_panic_on_oom broken
-Content-Type: multipart/mixed;
- boundary="------------000506040109070807070405"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <costume@freeproblem.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------000506040109070807070405
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+<html>
 
-out_of_memory() does not panic when sysctl_panic_on_oom is set
-if constrained_alloc() does not return CONSTRAINT_NONE.  Instead,
-out_of_memory() kills the current process whenever constrained_alloc()
-returns either CONSTRAINT_MEMORY_POLICY or CONSTRAINT_CPUSET.
-This patch fixes this problem:
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
+<title>Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben</title>
 
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
+</head>
 
---------------000506040109070807070405
-Content-Type: text/plain;
- name="panic_on_oom.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="panic_on_oom.patch"
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
 
---- linux-2.6.18.noarch/mm/oom_kill.c.orig
-+++ linux-2.6.18.noarch/mm/oom_kill.c
-@@ -431,6 +437,9 @@ void out_of_memory(struct zonelist *zone
- 	cpuset_lock();
- 	read_lock(&tasklist_lock);
- 
-+	/* check if we are going to panic before enything else... */
-+	if (sysctl_panic_on_oom)
-+		panic("out of memory. panic_on_oom is selected\n");
- 	/*
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA) that may require different handling.
-@@ -447,8 +456,6 @@ void out_of_memory(struct zonelist *zone
- 		break;
- 
- 	case CONSTRAINT_NONE:
--		if (sysctl_panic_on_oom)
--			panic("out of memory. panic_on_oom is selected\n");
- retry:
- 		/*
- 		 * Rambo mode: Shoot down a process and hope it solves whatever
+<div class=Section1>
 
---------------000506040109070807070405--
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Spielen ist Unterhaltung und Unterhaltung is das Beste im Leben.
+<o:p></o:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Das echte Spielen findet nur an einem Ort statt... VEGAS!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Kommen und geniessen Sie Vegas VIP Casino.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Zus&auml;tzlich dazu ein exklusives Angebot nur f&uuml;r 
+Empf&auml;nger dieser E-Mail.<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein UNGLAUBLICHER Bonus!!!!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+200% Bonus auf Ihre erste Einzahlung! 100% auf je die zweite und 
+dritte Einzahlung! </span>Und als i-T&uuml;pfelchen 155% auf die 
+vierte Einzahlung!!!<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Verschwenden Sie keine Zeit und nutzen Sie diesen Bonus! &Uuml;ber 
+100 Casino Spiele, spektakul&auml;re Grafiken und eine erstklassige 
+Online Unterst&uuml;tzung!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<a href="http://www.vegasvip2007.com/lang-de/">
+http://www.vegasvip2007.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
