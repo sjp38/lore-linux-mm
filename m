@@ -1,89 +1,81 @@
-Message-Id: <20070417071703.072560305@chello.nl>
+Message-Id: <20070417071703.452105009@chello.nl>
 References: <20070417071046.318415445@chello.nl>
-Date: Tue, 17 Apr 2007 09:10:50 +0200
+Date: Tue, 17 Apr 2007 09:10:53 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 04/12] lib: percpu_counter_mod64
-Content-Disposition: inline; filename=percpu_counter_mod.patch
+Subject: [PATCH 07/12] mm: count dirty pages per BDI
+Content-Disposition: inline; filename=bdi_stat_dirty.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: miklos@szeredi.hu, akpm@linux-foundation.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, a.p.zijlstra@chello.nl, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Add percpu_counter_mod64() to allow large modifications.
+Count per BDI dirty pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/percpu_counter.h |    9 +++++++++
- lib/percpu_counter.c           |   28 ++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ fs/buffer.c                 |    1 +
+ include/linux/backing-dev.h |    1 +
+ mm/page-writeback.c         |    2 ++
+ mm/truncate.c               |    1 +
+ 4 files changed, 5 insertions(+)
 
-Index: linux-2.6/include/linux/percpu_counter.h
+Index: linux-2.6-mm/fs/buffer.c
 ===================================================================
---- linux-2.6.orig/include/linux/percpu_counter.h	2007-04-12 13:54:55.000000000 +0200
-+++ linux-2.6/include/linux/percpu_counter.h	2007-04-12 14:00:21.000000000 +0200
-@@ -36,6 +36,7 @@ static inline void percpu_counter_destro
- }
- 
- void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
-+void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount);
- s64 percpu_counter_sum(struct percpu_counter *fbc);
- 
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
-@@ -81,6 +82,14 @@ percpu_counter_mod(struct percpu_counter
- 	preempt_enable();
- }
- 
-+static inline void
-+percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
-+{
-+	preempt_disable();
-+	fbc->count += amount;
-+	preempt_enable();
-+}
-+
- static inline s64 percpu_counter_read(struct percpu_counter *fbc)
- {
- 	return fbc->count;
-Index: linux-2.6/lib/percpu_counter.c
+--- linux-2.6-mm.orig/fs/buffer.c
++++ linux-2.6-mm/fs/buffer.c
+@@ -740,6 +740,7 @@ int __set_page_dirty_buffers(struct page
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		if (mapping_cap_account_dirty(mapping)) {
+ 			__inc_zone_page_state(page, NR_FILE_DIRTY);
++			__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
+ 			task_io_account_write(PAGE_CACHE_SIZE);
+ 		}
+ 		radix_tree_tag_set(&mapping->page_tree,
+Index: linux-2.6-mm/mm/page-writeback.c
 ===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2006-07-31 13:07:38.000000000 +0200
-+++ linux-2.6/lib/percpu_counter.c	2007-04-12 14:17:12.000000000 +0200
-@@ -25,6 +25,34 @@ void percpu_counter_mod(struct percpu_co
- }
- EXPORT_SYMBOL(percpu_counter_mod);
+--- linux-2.6-mm.orig/mm/page-writeback.c
++++ linux-2.6-mm/mm/page-writeback.c
+@@ -828,6 +828,7 @@ int __set_page_dirty_nobuffers(struct pa
+ 			BUG_ON(mapping2 != mapping);
+ 			if (mapping_cap_account_dirty(mapping)) {
+ 				__inc_zone_page_state(page, NR_FILE_DIRTY);
++				__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
+ 				task_io_account_write(PAGE_CACHE_SIZE);
+ 			}
+ 			radix_tree_tag_set(&mapping->page_tree,
+@@ -961,6 +962,7 @@ int clear_page_dirty_for_io(struct page 
+ 		 */
+ 		if (TestClearPageDirty(page)) {
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
++			dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
+ 			return 1;
+ 		}
+ 		return 0;
+Index: linux-2.6-mm/mm/truncate.c
+===================================================================
+--- linux-2.6-mm.orig/mm/truncate.c
++++ linux-2.6-mm/mm/truncate.c
+@@ -71,6 +71,7 @@ void cancel_dirty_page(struct page *page
+ 		struct address_space *mapping = page->mapping;
+ 		if (mapping && mapping_cap_account_dirty(mapping)) {
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
++			dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
+ 			if (account_size)
+ 				task_io_account_cancelled_write(account_size);
+ 		}
+Index: linux-2.6-mm/include/linux/backing-dev.h
+===================================================================
+--- linux-2.6-mm.orig/include/linux/backing-dev.h
++++ linux-2.6-mm/include/linux/backing-dev.h
+@@ -26,6 +26,7 @@ enum bdi_state {
+ typedef int (congested_fn)(void *, int);
  
-+void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
-+{
-+	long count;
-+	s32 *pcount;
-+	int cpu;
-+
-+	if (amount >= FBC_BATCH || amount <= -FBC_BATCH) {
-+		spin_lock(&fbc->lock);
-+		fbc->count += amount;
-+		spin_unlock(&fbc->lock);
-+		return;
-+	}
-+
-+	cpu = get_cpu();
-+	pcount = per_cpu_ptr(fbc->counters, cpu);
-+	count = *pcount + amount;
-+	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
-+		spin_lock(&fbc->lock);
-+		fbc->count += count;
-+		*pcount = 0;
-+		spin_unlock(&fbc->lock);
-+	} else {
-+		*pcount = count;
-+	}
-+	put_cpu();
-+}
-+EXPORT_SYMBOL(percpu_counter_mod64);
-+
- /*
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
+ enum bdi_stat_item {
++	BDI_DIRTY,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
 
 -- 
 
