@@ -1,58 +1,34 @@
-Date: Tue, 17 Apr 2007 05:09:16 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 6/9] mm: speculative get page
-Message-ID: <20070417030916.GB25513@wotan.suse.de>
-References: <20070412103151.5564.16127.sendpatchset@linux.site> <20070412103254.5564.84494.sendpatchset@linux.site> <Pine.LNX.4.64.0704161939510.12254@blonde.wat.veritas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704161939510.12254@blonde.wat.veritas.com>
+Message-ID: <46243CC5.3090501@zachcarter.com>
+Date: Mon, 16 Apr 2007 20:19:33 -0700
+From: Zach Carter <linux@zachcarter.com>
+MIME-Version: 1.0
+Subject: Re: BUG:  Bad page state errors during kernel make (resolved)
+References: <4622EDD3.9080103@zachcarter.com> <20070416035603.GD21217@redhat.com> <46230A3A.8060907@zachcarter.com> <46240888.1040804@redhat.com>
+In-Reply-To: <46240888.1040804@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Chuck Ebbert <cebbert@redhat.com>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 16, 2007 at 07:54:03PM +0100, Hugh Dickins wrote:
-> > --- linux-2.6.orig/include/linux/pagemap.h
-> > +++ linux-2.6/include/linux/pagemap.h
-> > ...
-> > +static inline int page_cache_get_speculative(struct page *page)
-> > +{
-> > +	VM_BUG_ON(in_interrupt());
-> > +
-> > +#ifndef CONFIG_SMP
-> > +# ifdef CONFIG_PREEMPT
-> > +	VM_BUG_ON(!in_atomic());
-> > +# endif
-> > +	/*
-> > +	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-> > +	 * this for us.
-> > +	 *
-> > +	 * Pagecache won't be truncated from interrupt context, so if we have
-> > +	 * found a page in the radix tree here, we have pinned its refcount by
-> > +	 * disabling preempt, and hence no need for the "speculative get" that
-> > +	 * SMP requires.
-> > +	 */
-> > +	VM_BUG_ON(page_count(page) == 0);
-> > +	atomic_inc(&page->_count);
-> > +
-> > +#else
-> > +	if (unlikely(!get_page_unless_zero(page)))
-> > +		return 0; /* page has been freed */
+
+> Zach Carter wrote:
+>>
+>> Do you think there might be other bad hw, or another explanation?
 > 
-> Now you're using get_page_unless_zero() here, you need to remove its
-> 	VM_BUG_ON(PageCompound(page));
-> since hugetlb_nopage() uses find_lock_page() on huge compound pages
-> and so comes here (and you have a superior VM_BUG_ON further down).
 
-Ah yes, I forgot about that assertion in there. Thanks!
+Well, after updating the BIOS for the motherboard, I was able to rebuild the kernel 6 times in a row 
+with no page state errors.  I noticed that the recent BIOS update includes "Enhanced compatibility 
+with Linux":
 
-> You could move that VM_BUG_ON to its original caller isolate_lru_pages(),
-> or you could replace it by your superior check in get_page_unless_zero();
-> but I'd be inclined to do the easiest and just cut it out now.
+	http://www.abit-usa.com/products/mb/bios.php?categories=1&model=316
 
-OK I'll do that.
+In case anyone searching the ML archive has the same problem, the motherboard is an ABIT KN9 ULTRA 
+Socket AM2 NVIDIA nForce 570 Ultra MCP ATX
+
+-Zach
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
