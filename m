@@ -1,48 +1,36 @@
-Date: Tue, 17 Apr 2007 22:39:14 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: meminfo returns inaccurate NR_FILE_PAGES
-In-Reply-To: <4625AD3C.8010709@google.com>
-Message-ID: <Pine.LNX.4.64.0704172236140.4205@schroedinger.engr.sgi.com>
-References: <46255446.6060204@google.com> <Pine.LNX.4.64.0704171655390.9381@schroedinger.engr.sgi.com>
- <46259945.8040504@google.com> <Pine.LNX.4.64.0704172157470.3003@schroedinger.engr.sgi.com>
- <4625AD3C.8010709@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 18 Apr 2007 09:12:54 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
+In-Reply-To: <1176831473.12599.30.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0704180912130.11014@sbz-30.cs.Helsinki.FI>
+References: <4624E8F4.2090200@sw.ru> <1176831473.12599.30.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: linux-mm@kvack.org
+To: Dave Hansen <hansendc@us.ibm.com>
+Cc: Pavel Emelianov <xemul@sw.ru>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Apr 2007, Ethan Solomita wrote:
+On Tue, 2007-04-17 at 19:34 +0400, Pavel Emelianov wrote:
+> > +#define SHOW_TOP_SLABS 10 
 
->    Anonymous pages have a value in mapping, but it's not a struct
-> address_space, it's a struct vm_area_struct (+1). The NR_FILE_PAGES count is
+On Tue, 17 Apr 2007, Dave Hansen wrote:
+> Real minor nit on this one: SHOW_TOP_SLABS sounds like a bool.  "Should
+> I show the top slabs?"
+> 
+> This might be a bit more clear:
+> 
+> #define TOP_NR_SLABS_TO_SHOW 10 
+> 
+> or
+> 
+> #define NR_SLABS_TO_SHOW 10
 
-Wrong. Anonymous pages can be a part of swap space which is an 
-address_space.
+Yes. Looks much better.
 
-from include/linux/mm.h
-
-extern struct address_space swapper_space;
-static inline struct address_space *page_mapping(struct page *page)
-{
-        struct address_space *mapping = page->mapping;
-
-        if (unlikely(PageSwapCache(page)))
-                mapping = &swapper_space;
-        else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
-                mapping = NULL;
-        return mapping;
-}
-
-> of lines in migrate_page_move_mapping() after modifying *radix_pointer to call
-> __dec on the old page and __inc on the new. You can check the zones first if
-> you'd like to save effort, although I'm not sure it's a big deal since the
-> __dec and __inc functions are only modifying per-cpu accumulation variables.
-
-Ok. That is what the patch does. So please test the patch and get back 
-to me.
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
