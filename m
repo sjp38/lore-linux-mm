@@ -1,38 +1,31 @@
-Message-ID: <4625BDA9.7080106@sw.ru>
-Date: Wed, 18 Apr 2007 10:41:45 +0400
+Message-ID: <4625C2A9.6010306@sw.ru>
+Date: Wed, 18 Apr 2007 11:03:05 +0400
 From: Pavel Emelianov <xemul@sw.ru>
 MIME-Version: 1.0
 Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
-References: <4624E8F4.2090200@sw.ru> <1176831473.12599.30.camel@localhost.localdomain>
-In-Reply-To: <1176831473.12599.30.camel@localhost.localdomain>
+References: <4624E8F4.2090200@sw.ru> <84144f020704172324u725f6b22u4b1634203d65167c@mail.gmail.com>
+In-Reply-To: <84144f020704172324u725f6b22u4b1634203d65167c@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <hansendc@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Tue, 2007-04-17 at 19:34 +0400, Pavel Emelianov wrote:
->> +#define SHOW_TOP_SLABS 10 
+Pekka Enberg wrote:
+> On 4/17/07, Pavel Emelianov <xemul@sw.ru> wrote:
+>> The out_of_memory() function and SysRq-M handler call
+>> show_mem() to show the current memory usage state.
 > 
-> Real minor nit on this one: SHOW_TOP_SLABS sounds like a bool.  "Should
-> I show the top slabs?"
-> 
-> This might be a bit more clear:
-> 
-> #define TOP_NR_SLABS_TO_SHOW 10 
-> 
-> or
-> 
-> #define NR_SLABS_TO_SHOW 10
+> I am still somewhat unhappy about the spinlock, but I don't really
 
-Agree :) Will fix in a moment.
+What's wrong with the spinlock? It exists there without my
+patch, I just make ++/-- of unatomic variable under this lock :)
 
+> have a better suggestion either. Other than that, looks good to me.
 > 
-> -- Dave
-> 
+> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 > 
 
 --
