@@ -1,29 +1,39 @@
-Received: by ug-out-1314.google.com with SMTP id s2so291320uge
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2007 23:24:15 -0700 (PDT)
-Message-ID: <84144f020704172324u725f6b22u4b1634203d65167c@mail.gmail.com>
-Date: Wed, 18 Apr 2007 09:24:15 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
-In-Reply-To: <4624E8F4.2090200@sw.ru>
+Message-ID: <4625BDA9.7080106@sw.ru>
+Date: Wed, 18 Apr 2007 10:41:45 +0400
+From: Pavel Emelianov <xemul@sw.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
+References: <4624E8F4.2090200@sw.ru> <1176831473.12599.30.camel@localhost.localdomain>
+In-Reply-To: <1176831473.12599.30.camel@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <4624E8F4.2090200@sw.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelianov <xemul@sw.ru>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
+To: Dave Hansen <hansendc@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On 4/17/07, Pavel Emelianov <xemul@sw.ru> wrote:
-> The out_of_memory() function and SysRq-M handler call
-> show_mem() to show the current memory usage state.
+Dave Hansen wrote:
+> On Tue, 2007-04-17 at 19:34 +0400, Pavel Emelianov wrote:
+>> +#define SHOW_TOP_SLABS 10 
+> 
+> Real minor nit on this one: SHOW_TOP_SLABS sounds like a bool.  "Should
+> I show the top slabs?"
+> 
+> This might be a bit more clear:
+> 
+> #define TOP_NR_SLABS_TO_SHOW 10 
+> 
+> or
+> 
+> #define NR_SLABS_TO_SHOW 10
 
-I am still somewhat unhappy about the spinlock, but I don't really
-have a better suggestion either. Other than that, looks good to me.
+Agree :) Will fix in a moment.
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> 
+> -- Dave
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
