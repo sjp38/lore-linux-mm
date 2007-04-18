@@ -1,26 +1,29 @@
-Date: Wed, 18 Apr 2007 09:17:19 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M
-In-Reply-To: <20070417171213.e3cbc260.dada1@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0704180915520.11160@sbz-30.cs.Helsinki.FI>
-References: <4624C3C1.9040709@sw.ru> <84144f020704170622h2b16f0f6m47ffdbb3b5686758@mail.gmail.com>
- <20070417171213.e3cbc260.dada1@cosmosbay.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by ug-out-1314.google.com with SMTP id s2so291320uge
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2007 23:24:15 -0700 (PDT)
+Message-ID: <84144f020704172324u725f6b22u4b1634203d65167c@mail.gmail.com>
+Date: Wed, 18 Apr 2007 09:24:15 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH] Show slab memory usage on OOM and SysRq-M (v2)
+In-Reply-To: <4624E8F4.2090200@sw.ru>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <4624E8F4.2090200@sw.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Pavel Emelianov <xemul@sw.ru>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>, linux-mm@kvack.org
+To: Pavel Emelianov <xemul@sw.ru>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Eric Dumazet <dada1@cosmosbay.com>, Linux MM <linux-mm@kvack.org>, devel@openvz.org, Kirill Korotaev <dev@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Apr 2007, Eric Dumazet wrote:
-> This nr_pages should be in struct kmem_list3, not in struct kmem_cache, 
-> or else you defeat NUMA optimizations if touching a field in kmem_cache 
-> at kmem_getpages()/kmem_freepages() time.
+On 4/17/07, Pavel Emelianov <xemul@sw.ru> wrote:
+> The out_of_memory() function and SysRq-M handler call
+> show_mem() to show the current memory usage state.
 
-We already touch ->flags, ->gfpflags, and ->gfporder in kmem_getpages(). 
-Sorry for my ignorance, but how is this different?
+I am still somewhat unhappy about the spinlock, but I don't really
+have a better suggestion either. Other than that, looks good to me.
+
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
