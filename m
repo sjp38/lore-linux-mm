@@ -1,5 +1,5 @@
-Message-ID: <46259945.8040504@google.com>
-Date: Tue, 17 Apr 2007 21:06:29 -0700
+Message-ID: <4625A341.1090102@google.com>
+Date: Tue, 17 Apr 2007 21:49:05 -0700
 From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
 Subject: Re: meminfo returns inaccurate NR_FILE_PAGES
@@ -14,26 +14,13 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter wrote:
-> On Tue, 17 Apr 2007, Ethan Solomita wrote:
->
->   
->>      Note that File Pages is 62040kB when MemUsed is only 4824kB. We do
->> __(dec|inc)_zone_page_state(page, NR_FILE_PAGES) whenever doing a
->> radix_tree_(delete|insert) from/to mapping->page_tree. Except we missed one:
->>     
->
-> Right. Sigh. Does this fix it?
->
 > Fix NR_FILE_PAGES and NR_ANON_PAGES accounting.
 >   
 
-    I don't think that there's a problem with NR_ANON_PAGES. 
-unmap_and_move(), the caller of move_to_new_page(), calls try_to_unmap() 
-which calls try_to_unmap_anon() which calls try_to_unmap_one() which 
-calls page_remove_rmap() which in turn makes the call to 
-__dec_zone_page_state. i.e. the rmap() code is handling NR_ANON_PAGES 
-and NR_FILE_MAPPED pages correctly. It's just the NR_FILE_PAGES which 
-are tied to the mapping's page tree, where the problem lies.
+    One other thing -- I think you're confusing NR_FILE_PAGES with 
+NR_FILE_MAPPED. Either NR_FILE_MAPPED or NR_ANON_PAGES is set in rmap.c 
+depending upon the whether the page is anon. NR_FILE_PAGES is set in 
+filemap.c in the page cache functions.
     -- Ethan
 
 --
