@@ -1,57 +1,40 @@
-Date: Tue, 17 Apr 2007 16:56:51 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: meminfo returns inaccurate NR_FILE_PAGES
-In-Reply-To: <46255446.6060204@google.com>
-Message-ID: <Pine.LNX.4.64.0704171655390.9381@schroedinger.engr.sgi.com>
-References: <46255446.6060204@google.com>
+Message-ID: <46259945.8040504@google.com>
+Date: Tue, 17 Apr 2007 21:06:29 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: meminfo returns inaccurate NR_FILE_PAGES
+References: <46255446.6060204@google.com> <Pine.LNX.4.64.0704171655390.9381@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0704171655390.9381@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Apr 2007, Ethan Solomita wrote:
+Christoph Lameter wrote:
+> On Tue, 17 Apr 2007, Ethan Solomita wrote:
+>
+>   
+>>      Note that File Pages is 62040kB when MemUsed is only 4824kB. We do
+>> __(dec|inc)_zone_page_state(page, NR_FILE_PAGES) whenever doing a
+>> radix_tree_(delete|insert) from/to mapping->page_tree. Except we missed one:
+>>     
+>
+> Right. Sigh. Does this fix it?
+>
+> Fix NR_FILE_PAGES and NR_ANON_PAGES accounting.
+>   
 
->      Note that File Pages is 62040kB when MemUsed is only 4824kB. We do
-> __(dec|inc)_zone_page_state(page, NR_FILE_PAGES) whenever doing a
-> radix_tree_(delete|insert) from/to mapping->page_tree. Except we missed one:
-
-Right. Sigh. Does this fix it?
-
-Fix NR_FILE_PAGES and NR_ANON_PAGES accounting.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
-Index: linux-2.6.21-rc6/mm/migrate.c
-===================================================================
---- linux-2.6.21-rc6.orig/mm/migrate.c	2007-04-17 14:15:45.000000000 -0700
-+++ linux-2.6.21-rc6/mm/migrate.c	2007-04-17 14:34:09.000000000 -0700
-@@ -579,9 +579,21 @@ static int move_to_new_page(struct page 
- 	else
- 		rc = fallback_migrate_page(mapping, newpage, page);
- 
--	if (!rc)
-+	if (!rc) {
-+		/*
-+		 * If moved to a different zone then also account
-+		 * the page for that zone. Other VM counters will be
-+		 * taken care of when we establish references to the
-+		 * new page and drop references to the old page.
-+		 */
-+		if (page_zone(newpage) != page_zone(page)) {
-+			int counter = PageAnon(page) ? NR_ANON_PAGES : NR_FILE_PAGES;
-+
-+			dec_zone_page_state(page, counter);
-+			inc_zone_page_state(newpage, counter);
-+		}
- 		remove_migration_ptes(page, newpage);
--	else
-+	} else
- 		newpage->mapping = NULL;
- 
- 	unlock_page(newpage);
+    I don't think that there's a problem with NR_ANON_PAGES. 
+unmap_and_move(), the caller of move_to_new_page(), calls try_to_unmap() 
+which calls try_to_unmap_anon() which calls try_to_unmap_one() which 
+calls page_remove_rmap() which in turn makes the call to 
+__dec_zone_page_state. i.e. the rmap() code is handling NR_ANON_PAGES 
+and NR_FILE_MAPPED pages correctly. It's just the NR_FILE_PAGES which 
+are tied to the mapping's page tree, where the problem lies.
+    -- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
