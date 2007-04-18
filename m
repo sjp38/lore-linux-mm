@@ -1,152 +1,63 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070418135416.27180.1307.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070418135336.27180.32695.sendpatchset@skynet.skynet.ie>
-References: <20070418135336.27180.32695.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/2] Back out group-high-order-atomic-allocations
-Date: Wed, 18 Apr 2007 14:54:16 +0100 (IST)
+Date: Wed, 18 Apr 2007 12:36:38 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: meminfo returns inaccurate NR_FILE_PAGES
+In-Reply-To: <4625B711.8060400@google.com>
+Message-ID: <Pine.LNX.4.64.0704181235090.7234@schroedinger.engr.sgi.com>
+References: <46255446.6060204@google.com> <Pine.LNX.4.64.0704171655390.9381@schroedinger.engr.sgi.com>
+ <46259945.8040504@google.com> <Pine.LNX.4.64.0704172157470.3003@schroedinger.engr.sgi.com>
+ <4625AD3C.8010709@google.com> <Pine.LNX.4.64.0704172236140.4205@schroedinger.engr.sgi.com>
+ <4625B711.8060400@google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Ethan Solomita <solo@google.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Grouping high-order atomic allocations together was intended to allow
-bursty users of atomic allocations to work such as e1000 in situations
-where their preallocated buffers were depleted. This did not work in
-at least one case with a wireless network adapter needing order-1
-allocations frequently. To resolve that, the free pages used for
-min_free_kbytes were moved to separate contiguous blocks with the patch
-bias-the-location-of-pages-freed-for-min_free_kbytes-in-the-same-max_order_nr_pages-blocks.
+On Tue, 17 Apr 2007, Ethan Solomita wrote:
 
-It is felt that keeping the free pages in the same contiguous blocks should be
-sufficient for bursty short-lived high-order atomic allocations to succeed,
-maybe even with the e1000. Even if there is a failure, increasing the value
-of min_free_kbytes will free pages as contiguous bloks in contrast to the
-standard buddy allocator which makes no attempt to keep the minimum number
-of free pages contiguous.
+>    While you're busy correcting me, look in swap_state.c at
+> __add_to_swap_cache(). Note how, when it inserts a page into
+> swapper_space.page_tree, it then does an __inc_zone_page_state(NR_FILE_PAGES).
 
-This patch backs out grouping high order atomic allocations together to
-determine if it is really needed or not. If a new report comes in about
-high-order atomic allocations failing, the feature can be reintroduced to
-determine if it fixes the problem or not. As a side-effect, this patch
-reduces by 1 the number of bits required to track the mobility type of
-pages within a MAX_ORDER_NR_PAGES block.
+Correct. So a page is accounted for both as anonymous and a file pages. 
+That is surprising. So this patch should indeed work. Added some comments
+to clarify the situation.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Andy Whitcroft <apw@shadowen.org>
----
-
- include/linux/mmzone.h          |    5 ++---
- include/linux/pageblock-flags.h |    2 +-
- mm/page_alloc.c                 |   33 +++++----------------------------
- 3 files changed, 8 insertions(+), 32 deletions(-)
-
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-002_backout_configurable/include/linux/mmzone.h linux-2.6.21-rc6-mm1-003_backout_highatomic/include/linux/mmzone.h
---- linux-2.6.21-rc6-mm1-002_backout_configurable/include/linux/mmzone.h	2007-04-17 16:35:48.000000000 +0100
-+++ linux-2.6.21-rc6-mm1-003_backout_highatomic/include/linux/mmzone.h	2007-04-17 16:37:39.000000000 +0100
-@@ -28,9 +28,8 @@
- #define MIGRATE_UNMOVABLE     0
- #define MIGRATE_RECLAIMABLE   1
- #define MIGRATE_MOVABLE       2
--#define MIGRATE_HIGHATOMIC    3
--#define MIGRATE_RESERVE       4
--#define MIGRATE_TYPES         5
-+#define MIGRATE_RESERVE       3
-+#define MIGRATE_TYPES         4
+Index: linux-2.6.21-rc6/mm/migrate.c
+===================================================================
+--- linux-2.6.21-rc6.orig/mm/migrate.c	2007-04-17 22:10:33.000000000 -0700
++++ linux-2.6.21-rc6/mm/migrate.c	2007-04-18 12:34:19.000000000 -0700
+@@ -297,7 +297,7 @@ static int migrate_page_move_mapping(str
+ 	void **pslot;
  
- #define for_each_migratetype_order(order, type) \
- 	for (order = 0; order < MAX_ORDER; order++) \
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-002_backout_configurable/include/linux/pageblock-flags.h linux-2.6.21-rc6-mm1-003_backout_highatomic/include/linux/pageblock-flags.h
---- linux-2.6.21-rc6-mm1-002_backout_configurable/include/linux/pageblock-flags.h	2007-04-17 14:32:03.000000000 +0100
-+++ linux-2.6.21-rc6-mm1-003_backout_highatomic/include/linux/pageblock-flags.h	2007-04-17 16:37:39.000000000 +0100
-@@ -31,7 +31,7 @@
+ 	if (!mapping) {
+-		/* Anonymous page */
++		/* Anonymous page without mapping */
+ 		if (page_count(page) != 1)
+ 			return -EAGAIN;
+ 		return 0;
+@@ -333,6 +333,19 @@ static int migrate_page_move_mapping(str
+ 	 */
+ 	__put_page(page);
  
- /* Bit indices that affect a whole block of pages */
- enum pageblock_bits {
--	PB_range(PB_migrate, 3), /* 3 bits required for migrate types */
-+	PB_range(PB_migrate, 2), /* 2 bits required for migrate types */
- 	NR_PAGEBLOCK_BITS
- };
++	/*
++	 * If moved to a different zone then also account
++	 * the page for that zone. Other VM counters will be
++	 * taken care of when we establish references to the
++	 * new page and drop references to the old page.
++	 *
++	 * Note that anonymous pages are accounted for
++	 * via NR_FILE_PAGES and NR_ANON_PAGES if they
++	 * are mapped to swap space.
++	 */
++	__dec_zone_page_state(page, NR_FILE_PAGES);
++	__inc_zone_page_state(newpage, NR_FILE_PAGES);
++
+ 	write_unlock_irq(&mapping->tree_lock);
  
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-002_backout_configurable/mm/page_alloc.c linux-2.6.21-rc6-mm1-003_backout_highatomic/mm/page_alloc.c
---- linux-2.6.21-rc6-mm1-002_backout_configurable/mm/page_alloc.c	2007-04-17 16:35:48.000000000 +0100
-+++ linux-2.6.21-rc6-mm1-003_backout_highatomic/mm/page_alloc.c	2007-04-17 16:37:39.000000000 +0100
-@@ -167,11 +167,6 @@ static inline int allocflags_to_migratet
- 	if (unlikely(page_group_by_mobility_disabled))
- 		return MIGRATE_UNMOVABLE;
- 
--	/* Cluster high-order atomic allocations together */
--	if (unlikely(order > 0) &&
--			(!(gfp_flags & __GFP_WAIT) || in_interrupt()))
--		return MIGRATE_HIGHATOMIC;
--
- 	/* Cluster based on mobility */
- 	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
- 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-@@ -716,11 +711,10 @@ static struct page *__rmqueue_smallest(s
-  * the free lists for the desirable migrate type are depleted
-  */
- static int fallbacks[MIGRATE_TYPES][MIGRATE_TYPES-1] = {
--	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_HIGHATOMIC, MIGRATE_RESERVE },
--	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_HIGHATOMIC, MIGRATE_RESERVE },
--	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_HIGHATOMIC, MIGRATE_RESERVE },
--	[MIGRATE_HIGHATOMIC]  = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_MOVABLE,    MIGRATE_RESERVE },
--	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE,     MIGRATE_RESERVE,   MIGRATE_RESERVE,    MIGRATE_RESERVE }, /* Never used */
-+	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_RESERVE },
-+	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_RESERVE },
-+	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
-+	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE,     MIGRATE_RESERVE,   MIGRATE_RESERVE }, /* Never used */
- };
- 
- /*
-@@ -814,9 +808,7 @@ static struct page *__rmqueue_fallback(s
- 	int current_order;
- 	struct page *page;
- 	int migratetype, i;
--	int nonatomic_fallback_atomic = 0;
- 
--retry:
- 	/* Find the largest possible block of pages in the other list */
- 	for (current_order = MAX_ORDER-1; current_order >= order;
- 						--current_order) {
-@@ -826,14 +818,6 @@ retry:
- 			/* MIGRATE_RESERVE handled later if necessary */
- 			if (migratetype == MIGRATE_RESERVE)
- 				continue;
--			/*
--			 * Make it hard to fallback to blocks used for
--			 * high-order atomic allocations
--			 */
--			if (migratetype == MIGRATE_HIGHATOMIC &&
--				start_migratetype != MIGRATE_UNMOVABLE &&
--				!nonatomic_fallback_atomic)
--				continue;
- 
- 			area = &(zone->free_area[current_order]);
- 			if (list_empty(&area->free_list[migratetype]))
-@@ -859,8 +843,7 @@ retry:
- 								start_migratetype);
- 
- 				/* Claim the whole block if over half of it is free */
--				if ((pages << current_order) >= (1 << (MAX_ORDER-2)) &&
--						migratetype != MIGRATE_HIGHATOMIC)
-+				if ((pages << current_order) >= (1 << (MAX_ORDER-2)))
- 					set_pageblock_migratetype(page,
- 								start_migratetype);
- 
-@@ -882,12 +865,6 @@ retry:
- 		}
- 	}
- 
--	/* Allow fallback to high-order atomic blocks if memory is that low */
--	if (!nonatomic_fallback_atomic) {
--		nonatomic_fallback_atomic = 1;
--		goto retry;
--	}
--
- 	/* Use MIGRATE_RESERVE rather than fail an allocation */
- 	return __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
- }
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
