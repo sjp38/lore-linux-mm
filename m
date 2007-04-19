@@ -1,35 +1,36 @@
-Date: Thu, 19 Apr 2007 09:03:53 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <46271FB7.9030408@google.com>
-Message-ID: <Pine.LNX.4.64.0704190901250.11728@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
- <46019F67.3010300@google.com> <Pine.LNX.4.64.0703211428430.4832@schroedinger.engr.sgi.com>
- <4626CEDA.7050608@google.com> <Pine.LNX.4.64.0704181948260.8743@schroedinger.engr.sgi.com>
- <46271FB7.9030408@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 19 Apr 2007 09:42:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: dio_get_page() lockdep complaints
+Message-Id: <20070419094254.2b273d0c.akpm@linux-foundation.org>
+In-Reply-To: <200704191857.42001.vs@namesys.com>
+References: <20070419073828.GB20928@kernel.dk>
+	<20070419080157.GC20928@kernel.dk>
+	<20070419012540.bed394e2.akpm@linux-foundation.org>
+	<200704191857.42001.vs@namesys.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: "Vladimir V. Saveliev" <vs@namesys.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, linux-aio@kvack.org, reiserfs-dev@namesys.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Apr 2007, Ethan Solomita wrote:
+On Thu, 19 Apr 2007 18:57:41 +0400 "Vladimir V. Saveliev" <vs@namesys.com> wrote:
 
-> > Hmmmm.... Sorry. I got distracted and I have sent them to Kame-san who was
-> > interested in working on them. 
-> > I have placed the most recent version at
-> > http://ftp.kernel.org/pub/linux/kernel/people/christoph/cpuset_dirty
-> >   
+> > It's a bit odd that reiserfs is playing with file contents within
+> > file_operations.release(): there could be other files open against that
+> > inode.  One would expect this sort of thing to be happening in an
+> > inode_operation.  But it's been like that for a long time.
+> > 
 > 
->    Do you expect any conflicts with the per-bdi dirty throttling patches?
+> reiserfs needs to "pack" file tail when last process which opened a file closes it.
+> Can you see more suitable place where that could be performed?
 
-You would have to check that yourself. The need for cpuset aware writeback 
-is less due to writeback fixes to NFS. The per bdi dirty throttling is 
-further reducing the need. The role of the cpuset aware writeback is
-simply to implement measures to deal with the worst case scenarios.
+No, you're right - I got my ->release() and ->flush() mixed up.
+
+Possibly one could perform this operation on the final iput(), but I suspect the
+locking situation there would be even more complex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
