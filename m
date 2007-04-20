@@ -1,128 +1,81 @@
-Date: Sat, 21 Apr 2007 01:36:13 +0500
-From: "Magic Jackpot Casino" <emilio@epcri.com>
-Message-ID: <84620994.52501120@wolve.com>
-Subject: Bis 1000 Euro frei!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Fri, 20 Apr 2007 13:57:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+Message-Id: <20070420135715.f6e8e091.akpm@linux-foundation.org>
+In-Reply-To: <46247427.6000902@redhat.com>
+References: <46247427.6000902@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <emilio@epcri.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Tue, 17 Apr 2007 03:15:51 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> Make it possible for applications to have the kernel free memory
+> lazily.  This reduces a repeated free/malloc cycle from freeing
+> pages and allocating them, to just marking them freeable.  If the
+> application wants to reuse them before the kernel needs the memory,
+> not even a page fault will happen.
+> 
+> This patch, together with Ulrich's glibc change, increases
+> MySQL sysbench performance by a factor of 2 on my quad core
+> test system.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> 
+> ---
+> Ulrich Drepper has test glibc RPMS for this functionality at:
+> 
+>      http://people.redhat.com/drepper/rpms
+> 
+> Andrew, I have stress tested this patch for a few days now and
+> have not been able to find any more bugs.  I believe it is ready
+> to be merged in -mm, and upstream at the next merge window.
+> 
+> When the patch goes upstream, I will submit a small follow-up
+> patch to revert MADV_DONTNEED behaviour to what it did previously
+> and have the new behaviour trigger only on MADV_FREE: at that
+> point people will have to get new test RPMs of glibc.
+> 
+> 
 
-<title>Sind Sie auf der Suche nach einem neuen, 
-aufregenden Spielangebot </title>
+I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+- Nick's patch also will help this problem.  It could be that your patch
+  no longer offers a 2x speedup when combined with Nick's patch.
 
-</head>
+  It could well be that the combination of the two is even better, but it
+  would be nice to firm that up a bit.  Chewing a page flag is an expensive
+  thing to do.
 
-<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
+  I do go on about that.  But we're adding page flags at about one per
+  year, and when we run out we're screwed - we'll need to grow the
+  pageframe.
 
-<div class=Section1>
+- I need to update your patch for Nick's patch.  Please confirm that
+  down_read(mmap_sem) is sufficient for MADV_FREE.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
-</span><o:p></o:p></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
+Stylistic nit:
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Magic Jackpot ist momentan die warscheinlich aufregendste 
-Moglichkeit dazu ! </span><o:p></o:p></p>
+> +	if (PageLazyFree(page) && !migration) {
+> +		/* There is new data in the page.  Reinstate it. */
+> +		if (unlikely(pte_dirty(pteval))) {
+> +			set_pte_at(mm, address, pte, pteval);
+> +			ret = SWAP_FAIL;
+> +			goto out_unmap;
+> +		}
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
+The comment should be inside the second `if' statement.  As it is, It
+looks like we reinstate the page if (PageLazyFree(page) && !migration).
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
-bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
-hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
-gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
-als Willkommensgeschenk !</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
-wird umgehend mit einem 100% Bonus verdoppelt.
-</span></p>
-
-<p class=MsoNormal><span style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
-sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
-Genuess schneller Auszahlungen garantiert !</span>
-<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.mycasinomagic.com/lang-de/">
-http://www.mycasinomagic.com/lang-de/</a>
-<u3:p></u3:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
