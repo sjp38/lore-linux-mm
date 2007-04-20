@@ -1,68 +1,60 @@
-Date: Fri, 20 Apr 2007 15:06:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Message-ID: <4629524C.5040302@redhat.com>
+Date: Fri, 20 Apr 2007 19:52:44 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-Message-Id: <20070420150618.179d31a4.akpm@linux-foundation.org>
-In-Reply-To: <462932BE.4020005@redhat.com>
-References: <46247427.6000902@redhat.com>
-	<20070420135715.f6e8e091.akpm@linux-foundation.org>
-	<462932BE.4020005@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org>
+In-Reply-To: <20070420150618.179d31a4.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007 17:38:06 -0400
-Rik van Riel <riel@redhat.com> wrote:
-
-> Andrew Morton wrote:
+Andrew Morton wrote:
+> On Fri, 20 Apr 2007 17:38:06 -0400
+> Rik van Riel <riel@redhat.com> wrote:
 > 
-> > I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
-> > 
-> > - Nick's patch also will help this problem.  It could be that your patch
-> >   no longer offers a 2x speedup when combined with Nick's patch.
-> > 
-> >   It could well be that the combination of the two is even better, but it
-> >   would be nice to firm that up a bit.  
+>> Andrew Morton wrote:
+>>
+>>> I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
+>>>
+>>> - Nick's patch also will help this problem.  It could be that your patch
+>>>   no longer offers a 2x speedup when combined with Nick's patch.
+>>>
+>>>   It could well be that the combination of the two is even better, but it
+>>>   would be nice to firm that up a bit.  
+>> I'll test that.
 > 
-> I'll test that.
+> Thanks.
 
-Thanks.
+Well, good news.
 
-> >   I do go on about that.  But we're adding page flags at about one per
-> >   year, and when we run out we're screwed - we'll need to grow the
-> >   pageframe.
-> 
-> If you want, I can take a look at folding this into the
-> ->mapping pointer.  I can guarantee you it won't be
-> pretty, though :)
+It turns out that Nick's patch does not improve peak
+performance much, but it does prevent the decline when
+running with 16 threads on my quad core CPU!
 
-Well, let's see how fugly it ends up looking?
+We _definately_ want both patches, there's a huge benefit
+in having them both.
 
-> > - I need to update your patch for Nick's patch.  Please confirm that
-> >   down_read(mmap_sem) is sufficient for MADV_FREE.
-> 
-> It is.  MADV_FREE needs no more protection than MADV_DONTNEED.
-> 
-> > Stylistic nit:
-> > 
-> >> +	if (PageLazyFree(page) && !migration) {
-> >> +		/* There is new data in the page.  Reinstate it. */
-> >> +		if (unlikely(pte_dirty(pteval))) {
-> >> +			set_pte_at(mm, address, pte, pteval);
-> >> +			ret = SWAP_FAIL;
-> >> +			goto out_unmap;
-> >> +		}
-> > 
-> > The comment should be inside the second `if' statement.  As it is, It
-> > looks like we reinstate the page if (PageLazyFree(page) && !migration).
-> 
-> Want me to move it?
+Here are the transactions/seconds for each combination:
 
-I did that, thanks.
+    vanilla   new glibc  madv_free kernel   madv_free + mmap_sem
+threads
+
+1     610         609             596                545
+2    1032        1136            1196               1200
+4    1070        1128            2014               2024
+8    1000        1088            1665               2087
+16    779        1073            1310               1999
+
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
