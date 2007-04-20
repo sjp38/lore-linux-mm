@@ -1,39 +1,62 @@
-Received: by wr-out-0506.google.com with SMTP id 57so942464wri
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2007 14:24:55 -0700 (PDT)
-Message-ID: <a36005b50704201424q3c07d457m6b2c468ff8a826c7@mail.gmail.com>
-Date: Fri, 20 Apr 2007 14:24:55 -0700
-From: "Ulrich Drepper" <drepper@gmail.com>
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE 2/2
-In-Reply-To: <20070420140316.e0155e7d.akpm@linux-foundation.org>
+Message-ID: <462932BE.4020005@redhat.com>
+Date: Fri, 20 Apr 2007 17:38:06 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+References: <46247427.6000902@redhat.com> <20070420135715.f6e8e091.akpm@linux-foundation.org>
+In-Reply-To: <20070420135715.f6e8e091.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <46247427.6000902@redhat.com> <4627DBF0.1080303@redhat.com>
-	 <20070420140316.e0155e7d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 4/20/07, Andrew Morton <akpm@linux-foundation.org> wrote:
-> OK, we need to flesh this out a lot please.  People often get confused
-> about what our MADV_DONTNEED behaviour is.
+Andrew Morton wrote:
 
-Well, there's not really much to flesh out.  The current MADV_DONTNEED
-is useful in some situations.  The behavior cannot be changed, even
-glibc will rely on it for the case when MADV_FREE is not supported.
+> I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
+> 
+> - Nick's patch also will help this problem.  It could be that your patch
+>   no longer offers a 2x speedup when combined with Nick's patch.
+> 
+>   It could well be that the combination of the two is even better, but it
+>   would be nice to firm that up a bit.  
 
-What might be nice to have is to have a POSIX-compliant
-POSIX_MADV_DONTNEED implementation.  We currently do nothing which is
-OK since no test suite can detect that.  But some code might want to
-use the real behavior and we're missing an optimization possibility.
+I'll test that.
 
-Just for reference: the MADV_CURRENT behavior is to throw away data in
-the range.  The POSIX_MADV_DONTNEED behavior is to never lose data.
-I.e., file backed data is written back, anon data is at most swapped
-out.
+>   I do go on about that.  But we're adding page flags at about one per
+>   year, and when we run out we're screwed - we'll need to grow the
+>   pageframe.
+
+If you want, I can take a look at folding this into the
+->mapping pointer.  I can guarantee you it won't be
+pretty, though :)
+
+> - I need to update your patch for Nick's patch.  Please confirm that
+>   down_read(mmap_sem) is sufficient for MADV_FREE.
+
+It is.  MADV_FREE needs no more protection than MADV_DONTNEED.
+
+> Stylistic nit:
+> 
+>> +	if (PageLazyFree(page) && !migration) {
+>> +		/* There is new data in the page.  Reinstate it. */
+>> +		if (unlikely(pte_dirty(pteval))) {
+>> +			set_pte_at(mm, address, pte, pteval);
+>> +			ret = SWAP_FAIL;
+>> +			goto out_unmap;
+>> +		}
+> 
+> The comment should be inside the second `if' statement.  As it is, It
+> looks like we reinstate the page if (PageLazyFree(page) && !migration).
+
+Want me to move it?
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
