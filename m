@@ -1,38 +1,39 @@
-Date: Fri, 20 Apr 2007 14:03:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: by wr-out-0506.google.com with SMTP id 57so942464wri
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2007 14:24:55 -0700 (PDT)
+Message-ID: <a36005b50704201424q3c07d457m6b2c468ff8a826c7@mail.gmail.com>
+Date: Fri, 20 Apr 2007 14:24:55 -0700
+From: "Ulrich Drepper" <drepper@gmail.com>
 Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE 2/2
-Message-Id: <20070420140316.e0155e7d.akpm@linux-foundation.org>
-In-Reply-To: <4627DBF0.1080303@redhat.com>
-References: <46247427.6000902@redhat.com>
-	<4627DBF0.1080303@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20070420140316.e0155e7d.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <46247427.6000902@redhat.com> <4627DBF0.1080303@redhat.com>
+	 <20070420140316.e0155e7d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Jakub Jelinek <jakub@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Apr 2007 17:15:28 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On 4/20/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> OK, we need to flesh this out a lot please.  People often get confused
+> about what our MADV_DONTNEED behaviour is.
 
-> Restore MADV_DONTNEED to its original Linux behaviour.  This is still
-> not the same behaviour as POSIX, but applications may be depending on
-> the Linux behaviour already. Besides, glibc catches POSIX_MADV_DONTNEED
-> and makes sure nothing is done...
+Well, there's not really much to flesh out.  The current MADV_DONTNEED
+is useful in some situations.  The behavior cannot be changed, even
+glibc will rely on it for the case when MADV_FREE is not supported.
 
-OK, we need to flesh this out a lot please.  People often get confused
-about what our MADV_DONTNEED behaviour is.  I regularly forget, then look
-at the code, then get it wrong.  That's for mainline, let alone older
-kernels whose behaviour is gawd-knows-what.
+What might be nice to have is to have a POSIX-compliant
+POSIX_MADV_DONTNEED implementation.  We currently do nothing which is
+OK since no test suite can detect that.  But some code might want to
+use the real behavior and we're missing an optimization possibility.
 
-So...  For the changelog (and the manpage) could we please have a full
-description of the 2.6.21 behaviour and the 2.6.21-post-rik behaviour (and
-the 2.4 behaviour, if it differs at all)?  Also some code comments to
-demystify all of this once and for all?
-
-Thanks.
+Just for reference: the MADV_CURRENT behavior is to throw away data in
+the range.  The POSIX_MADV_DONTNEED behavior is to never lose data.
+I.e., file backed data is written back, anon data is at most swapped
+out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
