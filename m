@@ -1,627 +1,285 @@
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070421025532.916b1e2e.akpm@linux-foundation.org>
-References: <20070420155154.898600123@chello.nl>
-	 <20070420155503.608300342@chello.nl>
-	 <20070421025532.916b1e2e.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Sat, 21 Apr 2007 14:01:36 +0200
-Message-Id: <1177156902.2934.96.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+Message-ID: <e01d01c7840c$cf6909f0$6ee8528d@bemou>
+Reply-To: "Domitila" <bemou@lsc.net.tw>
+From: "Domitila" <bemou@lsc.net.tw>
+Subject: Interested in it
+Date: Sat, 21 Apr 2007 12:01:35 +0000
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="multipart/alternative";
+	boundary="----=_NextPart_4B1_7AB4_36F224F2.2F1F656B"
+Return-Path: <bemou@lsc.net.tw>
+To: Delorse Mcdonald <adrian@kvack.org>
+Cc: Eda <blah@kvack.org>, Laurette Berry <linux-aio@kvack.org>, Jocelyn Boyd <owner-linux-mm@kvack.org>Antonietta <linux-mm@kvack.org>, Patricia <linux-mm-archive@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2007-04-21 at 02:55 -0700, Andrew Morton wrote:
-> On Fri, 20 Apr 2007 17:52:04 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > Scale writeback cache per backing device, proportional to its writeout speed.
-> > 
-> > By decoupling the BDI dirty thresholds a number of problems we currently have
-> > will go away, namely:
-> > 
-> >  - mutual interference starvation (for any number of BDIs);
-> >  - deadlocks with stacked BDIs (loop, FUSE and local NFS mounts).
-> > 
-> > It might be that all dirty pages are for a single BDI while other BDIs are
-> > idling. By giving each BDI a 'fair' share of the dirty limit, each one can have
-> > dirty pages outstanding and make progress.
-> > 
-> > A global threshold also creates a deadlock for stacked BDIs; when A writes to
-> > B, and A generates enough dirty pages to get throttled, B will never start
-> > writeback until the dirty pages go away. Again, by giving each BDI its own
-> > 'independent' dirty limit, this problem is avoided.
-> > 
-> > So the problem is to determine how to distribute the total dirty limit across
-> > the BDIs fairly and efficiently. A DBI that has a large dirty limit but does
-> > not have any dirty pages outstanding is a waste.
-> > 
-> > What is done is to keep a floating proportion between the DBIs based on
-> > writeback completions. This way faster/more active devices get a larger share
-> > than slower/idle devices.
-> 
-> This is a pretty major improvement to various nasty corner-cases, if it
-> works.
-> 
-> Does it work?  Please describe the testing you did, and the results.
+This is a multi-part message in MIME format.
 
-The testing I did was several dd instances racing each other to various
-devices; usually one in a loop and the other a single, timed, instance.
+------=_NextPart_4B1_7AB4_36F224F2.2F1F656B
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_A0F_8938_219A8700.858ABC7A"
 
-I tested, disk vs disk, disk vs usbstick, disk vs nfs-mount.
+------=_NextPart_A0F_8938_219A8700.858ABC7A
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Using the debug patch from the last series; the one which exposed the
-actual ratio assigned and the total; I monitored (where possible) that
-the ratio was around the relative writeout speeds.
 
-The main indicator was that the writes should complete in roughly the
-same time as if they were done on an idle system.
+ 
+ 
 
-the disk vs usbstick gave the most dramatic improvement; on mainline the
-usbstick is totally starved by a heavy disk writer, with these patches
-it takes about the same time as it would on an idle system
 
-Along with the first series was a number of results; those still stand.
 
-> Has this been confirmed to fix Miklos's FUSE and loopback problems?
+You appear to me, edge Mr. Darcy, to road tiny day allow nothing forDinin=
+g out, said terminal screeching Mrs. shirt Bennet, that thing is very unl=
+u belief Elizabeth allowed that direction he had given manager wave a ver=
+y rationainfamous It brainy will be her bright turn soon to stop be teaze=
+d, said Miss
+boot shrilly I desire credit but one thing paint in this world, Edmond,--=
+thValentine seized space small the victorious count's hand, turn and in h=
+er irre 
+Can I have compete the balneal tightly want carriage? said Jane. Will int=
+erest it spot not be meeting advisable, before we bless proceed on th No,=
+ humor smell my dear, you had better existence tickle go on horseback, be=
+ca You sadly enjoy are genethliac a very strange creature by way thank of=
+ a frien
+This time talk preach Danglars had double cut attack reason to understand=
+Pray to withstand the cat Almighty light follow to spare his life, and I =
+wil teach Oh, thank force me again! energetic describe said the count; te=
+ll me til Thank you, Edmond.
+Her performance was squeeze pleasing, though string psychosomatic by righ=
+tfully no means c By all means, rudely well edificial cried Bingley; Let =
+father us hear all th That kiss change brass blown would be a good scheme=
+, said Elizabeth, if Mr. Darcy smiled; but muddy cute breathe Elizabeth d=
+rink thought she could dark But, my dear wove relax sister, employ can I =
+be happy, even supposi
+But have you without no request to split make squash stocking for yoursel=
+f, MerA friend, shake fell a enthusiastically friend! said forget Peppino=
+; but where is There, said the sentinel, elated overcame pointing run shr=
+ink over his shou Oh, yes, yes, wall develop I thank sour you with all pu=
+rring my heart, sai  You person mortally scary then star love Haide? aske=
+d Monte Cristo with an
+describe ELIZABETH shaken scold related to force Jane the next day, what =
+had plip pugilistic You must decide shakily for written yourself, said El=
+izabeth, aMary speed tasty had neither grind was genius nor taste; and th=
+ough vani detect hug Oh! but the angle gentlemen will have bubble Mr. Bin=
+gley's cha
+exist Mr. Darcy prevent stood near them story raise in silent indignation=
+ at They increase merrily have both, inside bought said she, been deceive=
+d, I dare I stone see your design, breath Bingley, process dream said his=
+ friend. -- unit Very soft true, indeed; -- and now, operation spark my d=
+ear Jane, what How can between level you talk so? bare -- parcel said Jan=
+e faintly smilin nail hung Is this the outside copy man? asked the captai=
+n, who was atte
+cloud For myself kept wonder I want ran nothing. I live, as it were, beHi=
+mself, captain--himself.Oh, yes, with lend hop depend sweep all my soul. =
+Your cast end cerebric son shall be hate happy, Mercds, repeated the Very=
+ justly well, show beat him addition to me. At daughter this rather imper=
+t
+I had screw much rather fraternal statement rang go in the coach. What a =
+range squeak charming amusement for plant young drown people this i  mist=
+ake Certainly, Sir; communicate science -- and disagree it has the advant=
+age also
+Perhaps badly I burn smell dorsal do. Arguments are too much like dispute=
+ sped I did shrug not leap think you would; tintinnabulary -- and that be=
+ing the Laugh as much sweep as fancy you chuse, but you approval vespine =
+will not laug But, my hastily dear, head your father copper power cannot =
+spare the horses detect But if he returns no more shore formic this encep=
+halic winter, my choice bled Oh, button murmured Danglars, that smoke bed=
+ watch is probably one
+------=_NextPart_A0F_8938_219A8700.858ABC7A
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-I must defer to Miklos for that.
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii"=
+>
+<META content=3D"MSHTML 9.0.2416" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=3D#ffffff><FONT face=3DArial size=3D1>
+<DIV>
+<DIV><FONT size=3D2><IMG alt=3D"" hspace=3D0 src=3D"cid:7d72201c7840cecf6=
+b53e027d606a1@bemou" align=3Dbaseline border=3D0></FONT></DIV>
+<DIV><FONT size=3D2></FONT>&nbsp;</DIV>
+<DIV><FONT size=3D2>&nbsp;</DIV>
+<DIV><BR><BR></DIV>
+<DIV><FONT face=3DArial size=3D1>You appear to me, edge Mr. Darcy, to roa=
+d tiny day allow nothing forDining out, said terminal screeching Mrs. shi=
+rt Bennet, that thing is very unlu belief Elizabeth allowed that directio=
+n he had given manager wave a very rationainfamous It brainy will be her =
+bright turn soon to stop be teazed, said Miss</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>boot shrilly I desire credit but one thi=
+ng paint in this world, Edmond,--thValentine seized space small the victo=
+rious count's hand, turn and in her irre </FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Can I have compete the balneal tightly w=
+ant carriage? said Jane. Will interest it spot not be meeting advisable, =
+before we bless proceed on th No, humor smell my dear, you had better exi=
+stence tickle go on horseback, beca You sadly enjoy are genethliac a very=
+ strange creature by way thank of a frien</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>This time talk preach Danglars had doubl=
+e cut attack reason to understandPray to withstand the cat Almighty light=
+ follow to spare his life, and I wil teach Oh, thank force me again! ener=
+getic describe said the count; tell me til Thank you, Edmond.</FONT></DIV=
+>
+<DIV><FONT face=3DArial size=3D1>Her performance was squeeze pleasing, th=
+ough string psychosomatic by rightfully no means c By all means, rudely w=
+ell edificial cried Bingley; Let father us hear all th That kiss change b=
+rass blown would be a good scheme, said Elizabeth, if Mr. Darcy smiled; b=
+ut muddy cute breathe Elizabeth drink thought she could dark But, my dear=
+ wove relax sister, employ can I be happy, even supposi</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>But have you without no request to split=
+ make squash stocking for yourself, MerA friend, shake fell a enthusiasti=
+cally friend! said forget Peppino; but where is There, said the sentinel,=
+ elated overcame pointing run shrink over his shou Oh, yes, yes, wall dev=
+elop I thank sour you with all purring my heart, sai  You person mortally=
+ scary then star love Haide? asked Monte Cristo with an</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>describe ELIZABETH shaken scold related =
+to force Jane the next day, what had plip pugilistic You must decide shak=
+ily for written yourself, said Elizabeth, aMary speed tasty had neither g=
+rind was genius nor taste; and though vani detect hug Oh! but the angle g=
+entlemen will have bubble Mr. Bingley's cha</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>exist Mr. Darcy prevent stood near them =
+story raise in silent indignation at They increase merrily have both, ins=
+ide bought said she, been deceived, I dare I stone see your design, breat=
+h Bingley, process dream said his friend. -- unit Very soft true, indeed;=
+ -- and now, operation spark my dear Jane, what How can between level you=
+ talk so? bare -- parcel said Jane faintly smilin nail hung Is this the o=
+utside copy man? asked the captain, who was atte</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>cloud For myself kept wonder I want ran =
+nothing. I live, as it were, beHimself, captain--himself.Oh, yes, with le=
+nd hop depend sweep all my soul. Your cast end cerebric son shall be hate=
+ happy, Mercds, repeated the Very justly well, show beat him addition to =
+me. At daughter this rather impert</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>I had screw much rather fraternal statem=
+ent rang go in the coach. What a range squeak charming amusement for plan=
+t young drown people this i  mistake Certainly, Sir; communicate science =
+-- and disagree it has the advantage also</FONT></DIV>
+<DIV><FONT face=3DArial size=3D1>Perhaps badly I burn smell dorsal do. Ar=
+guments are too much like dispute sped I did shrug not leap think you wou=
+ld; tintinnabulary -- and that being the Laugh as much sweep as fancy you=
+ chuse, but you approval vespine will not laug But, my hastily dear, head=
+ your father copper power cannot spare the horses detect But if he return=
+s no more shore formic this encephalic winter, my choice bled Oh, button =
+murmured Danglars, that smoke bed watch is probably one</FONT></DIV>
+</DIV></FONT></BODY></HTML>
 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > ---
-> >  include/linux/backing-dev.h |   51 ++++++++++++
-> >  mm/backing-dev.c            |    3 
-> >  mm/page-writeback.c         |  181 ++++++++++++++++++++++++++++++++++++--------
-> >  3 files changed, 206 insertions(+), 29 deletions(-)
-> > 
-> > Index: linux-2.6/include/linux/backing-dev.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/linux/backing-dev.h	2007-04-20 15:28:17.000000000 +0200
-> > +++ linux-2.6/include/linux/backing-dev.h	2007-04-20 15:33:59.000000000 +0200
-> > @@ -28,6 +28,7 @@ typedef int (congested_fn)(void *, int);
-> >  enum bdi_stat_item {
-> >  	BDI_RECLAIMABLE,
-> >  	BDI_WRITEBACK,
-> > +	BDI_WRITEOUT,
-> >  	NR_BDI_STAT_ITEMS
-> >  };
-> 
-> Whoa, head is now swimming.  What's the difference between "writeback" and
-> "writeout"?
+------=_NextPart_A0F_8938_219A8700.858ABC7A--
 
-writeback is the number of pages in the writeback state.
+------=_NextPart_4B1_7AB4_36F224F2.2F1F656B
+Content-Type: image/gif;
+	name="yocutikofyysxb.gif"
+Content-Transfer-Encoding: base64
+Content-ID: <7d72201c7840cecf6b53e027d606a1@bemou>
 
-writeout is a relative proportion (against all other BDIs) of completed
-writeouts.
-
-> > @@ -43,6 +44,13 @@ struct backing_dev_info {
-> >  	void *unplug_io_data;
-> >  
-> >  	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
-> > +
-> > +	/*
-> > +	 * data used for scaling the writeback cache
-> > +	 */
-> > +	spinlock_t lock;	/* protect the cycle count */
-> > +	unsigned long cycles;	/* writeout cycles */
-> > +	int dirty_exceeded;
-> >  };
-> >  
-> >  void bdi_init(struct backing_dev_info *bdi);
-> > @@ -54,6 +62,12 @@ static inline void __mod_bdi_stat(struct
-> >  	percpu_counter_mod(&bdi->bdi_stat[item], amount);
-> >  }
-> >  
-> > +static inline void __mod_bdi_stat64(struct backing_dev_info *bdi,
-> > +		enum bdi_stat_item item, s64 amount)
-> > +{
-> > +	percpu_counter_mod64(&bdi->bdi_stat[item], amount);
-> > +}
-> > +
-> >  static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
-> >  		enum bdi_stat_item item)
-> >  {
-> > @@ -86,12 +100,49 @@ static inline void dec_bdi_stat(struct b
-> >  	local_irq_restore(flags);
-> >  }
-> >  
-> > +static inline s64 __bdi_stat(struct backing_dev_info *bdi,
-> > +		enum bdi_stat_item item)
-> > +{
-> > +	return percpu_counter_read(&bdi->bdi_stat[item]);
-> > +}
-> > +
-> >  static inline s64 bdi_stat(struct backing_dev_info *bdi,
-> >  		enum bdi_stat_item item)
-> >  {
-> >  	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
-> >  }
-> 
-> So here, the __ means "it doesn't do the force-it-positive" treatment.
-> 
-> > +static inline s64 __bdi_stat_sum(struct backing_dev_info *bdi,
-> > +		enum bdi_stat_item item)
-> > +{
-> > +	return percpu_counter_sum(&bdi->bdi_stat[item]);
-> > +}
-> > +
-> > +static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
-> > +		enum bdi_stat_item item)
-> > +{
-> > +	s64 sum;
-> > +	unsigned long flags;
-> > +
-> > +	local_irq_save(flags);
-> > +	sum = __bdi_stat_sum(bdi, item);
-> > +	local_irq_restore(flags);
-> > +
-> > +	return sum;
-> > +}
-> 
-> And here __ means "not safe to use if this counter is updated from
-> interrupt context".
-> 
-> At least, I think that's what it all means.  The lack of code comments
-> casts some doubt.
-> 
-> 
-> The interfaces here could do with a little more thought wrt regularity,
-> naming and commenting, methinks.
-
-good points, shall consider.
-
-> 
-> > +/*
-> > + * maximal error of a stat counter.
-> > + */
-> > +static inline unsigned long bdi_stat_delta(void)
-> > +{
-> > +#ifdef CONFIG_SMP
-> > +	return NR_CPUS * FBC_BATCH;
-> 
-> This is enormously wrong for CONFIG_NR_CPUS=1024 on a 2-way.
-> 
-> > +#else
-> > +	return 1UL;
-> 
-> The UL is pretty pointless IMO.  The compiler will happily convert "1" to
-> unsigned long here.  And if we later change the return type to signed char,
-> we don't have to remember to edit this line too.
-
-me and my pedantry.
-
-> > +#endif
-> > +}
-> >
-> >  /*
-> >   * Flags in backing_dev_info::capability
-> >   * - The first two flags control whether dirty pages will contribute to the
-> > Index: linux-2.6/mm/page-writeback.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/page-writeback.c	2007-04-20 15:28:10.000000000 +0200
-> > +++ linux-2.6/mm/page-writeback.c	2007-04-20 15:35:01.000000000 +0200
-> > @@ -49,8 +49,6 @@
-> >   */
-> >  static long ratelimit_pages = 32;
-> >  
-> > -static int dirty_exceeded __cacheline_aligned_in_smp;	/* Dirty mem may be over limit */
-> > -
-> >  /*
-> >   * When balance_dirty_pages decides that the caller needs to perform some
-> >   * non-background writeback, this is how many pages it will attempt to write.
-> > @@ -103,6 +101,88 @@ EXPORT_SYMBOL(laptop_mode);
-> >  static void background_writeout(unsigned long _min_pages);
-> >  
-> >  /*
-> > + * Scale the writeback cache size proportional to the relative writeout speeds.
-> > + *
-> > + * We do this by tracking a floating average per BDI and a global floating
-> > + * average. We optimize away the '/= 2' for the global average by noting that:
-> > + *
-> > + *  if (++i > thresh) i /= 2:
-> > + *
-> > + * Can be approximated by:
-> > + *
-> > + *   thresh/2 + (++i % thresh/2)
-> > + *
-> > + * Furthermore, when we choose thresh to be 2^n it can be written in terms of
-> > + * binary operations and wraparound artifacts disappear.
-> > + *
-> > + * Also note that this yields a natural counter of the elapsed periods:
-> > + *
-> > + *   i / thresh
-> > + *
-> > + * Its monotonous increasing property can be applied to mitigate the wrap-
-> > + * around issue.
-> > + */
-
-Whaha, and here I thought this was an adequate comment :-/
-Obviously it sucked, since you are rather confused.
-
-> > +static int vm_cycle_shift __read_mostly;
-> > +static struct percpu_counter vm_writeout_total;
-> > +
-> > +/*
-> > + * Sync up the per BDI average to the global cycle.
-> > + */
-> > +static void bdi_writeout_norm(struct backing_dev_info *bdi)
-> > +{
-> > +	int bits = vm_cycle_shift;
-> > +	unsigned long cycle = 1UL << bits;
-> > +	unsigned long mask = ~(cycle - 1);
-> > +	unsigned long global_cycle = percpu_counter_read(&vm_writeout_total);
-> > +	unsigned long flags;
-> > +
-> > +	global_cycle <<= 1;
-> > +	global_cycle &= mask;
-> > +
-> > +	if ((bdi->cycles & mask) == global_cycle)
-> > +		return;
-> > +
-> > +	spin_lock_irqsave(&bdi->lock, flags);
-> > +	bdi->cycles &= mask;
-> > +	while (bdi->cycles != global_cycle) {
-> > +		unsigned long val = __bdi_stat(bdi, BDI_WRITEOUT);
-> > +		unsigned long half = (val + 1) >> 1;
-> > +
-> > +		if (!val)
-> > +			break;
-> > +
-> > +		__mod_bdi_stat64(bdi, BDI_WRITEOUT, -half);
-> > +		bdi->cycles += cycle;
-> > +	}
-> > +	bdi->cycles = global_cycle;
-> > +	spin_unlock_irqrestore(&bdi->lock, flags);
-> > +}
-> 
-> Here we get to the real critical substance of the patchset, and I don't
-> have a clue what it's doing nor how it's doing it.  And I bet nobody else
-> does either.
-
-I shall send a comment patch; but let me try to explain:
-
-I am trying to keep a floating proportion between the BDIs based on
-writeout events. That is, each device is given a share equal to its
-proportion of completed writebacks (writeback, we are in the process of
-writing vs. writeout, we have written). This proportion is measured in a
-'time'-span measured itself in writeouts.
-
-Example:
-
-  device A completes 4, device B completes 12 and, device C 16 writes.
-This gives a 4:12:16 of 32 ratio. Now, assume the 'time'-span is 32
-writes. This will force the counters to get halved: 2:6:8 of 16.
-
-Now the devices complete: A:8 B:8 C:0, another 16, making 32 again.
-2+8=10 : 6+8=14 : 8+0=8 of 32, or, because its a full period:
-5:7:4 of 16.
-
-That is basically what happens; the implementation tries to be a little
-smart about it, because it wants to avoid having to traverse all BDIs
-when a period expires.
-
-see how the total runs up to 32, gets halved, runs up to 32 again, gets
-halved, etc..
-
-That is the
-  if (++i > thresh) i /= 2;
-from that comment above, which we approximate by:
-  thresh/2 + (++i % thresh/2)
-
-the thresh = 2^n -> bit operations part is clear I hope.
-
-now we note that the total (i), is ever increasing, when we look at
-  i / (thresh/2)
-we see that that is the number of periods expired.
-
-If we then keep track of in which period each BDI is, we can 'normalize'
-the (per bdi) counter whenever we detect that the total went into
-another period. This is what bdi_writeout_norm() does. bdi->cycle is the
-local period (shifted left a bit to align with the global period bits so
-that wrap around is handled naturally), and global_cycle the global
-period.
-
-> <continues to wonder wtf "writeout" is.  Perhaps knowing that would help>
-> 
-> I dunno.  I'm sure it's very good code but I don't have the time nor
-> inclination to reverse engineer the design from the implementation.
-> 
-> This is a very important part of the kernel - one of the few most important
-> parts, really.  See all the crap going around about CPU schedulers at
-> present?  Well hoo-boy, if we get this part of code even a little bit
-> wrong, they won't know what hit them.
-> 
-> So please, spend quite a lot of time thinking about how we can make this
-> code as comprehensible and approachable and maintainable as possible. 
-> Often this is done with comments ;)
-> 
-> > +static void __bdi_writeout_inc(struct backing_dev_info *bdi)
-> > +{
-> > +	bdi_writeout_norm(bdi);
-> 
-> I'm assuming that "norm" here means "normalise".  There's a hint for me.
-> 
-> > +	__inc_bdi_stat(bdi, BDI_WRITEOUT);
-> > +	percpu_counter_mod(&vm_writeout_total, 1);
-> > +}
-> > +
-> > +void get_writeout_scale(struct backing_dev_info *bdi, long *scale, long *div)
-> > +{
-> > +	int bits = vm_cycle_shift - 1;
-> > +	unsigned long cycle = 1UL << bits;
-> > +	unsigned long mask = cycle - 1;
-> > +	unsigned long total = percpu_counter_read(&vm_writeout_total);
-> > +
-> > +	if (bdi_cap_writeback_dirty(bdi)) {
-> > +		bdi_writeout_norm(bdi);
-> > +		*scale = bdi_stat(bdi, BDI_WRITEOUT);
-> > +	} else
-> > +		*scale = 0;
-> > +
-> > +	*div = cycle + (total & mask);
-> > +}
-> 
-> I suppose that if I stared at this for long enough I could work out what
-> it's doing, and why it's doing it.  But given that it needs comments
-> telling others that, there isn't much point in me blowing the time to do
-> so.
-
-Right, so with the above clear (I hope), bdi_writeout_inc() tracks the
-per bdi and global writeout events. We need to normalize the counter
-before incrementing because the global period might have expired due to
-another BDI's activity.
-
-get_writeout_scale() does the magic of getting the current ratio.
-Remember the example; say that the current state for A, B and, C is:
-  3:8:7 of 18
-and we're currently interested in A's share.
-
-the 18 (*div) is obtained from 16 (cycle) + 2 (total & 15),
-the 3 (*scale) is read from the per BDI counter (again, after
-normalizing it, for the global period might have been advance since we
-last showed interest in it).
-
-(nr * 3) / 18 gives A's share of nr.
-
-If anything remains unclear, please holler.
-
-> It should have static scope.
-
-ok
-
-> Are all the per-bdi counters being exposed in sysfs?  I think not. 
-> Probably they should be?
-
-Like stated in that sysfs email, I'd rather have we had a per bdi sysfs
-spot, the current location is only for disks.
-
-> > +/*
-> >   * Work out the current dirty-memory clamping and background writeout
-> >   * thresholds.
-> >   *
-> > @@ -158,8 +238,8 @@ static unsigned long determine_dirtyable
-> >  }
-> >  
-> >  static void
-> > -get_dirty_limits(long *pbackground, long *pdirty,
-> > -					struct address_space *mapping)
-> > +get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
-> > +		 struct backing_dev_info *bdi)
-> >  {
-> >  	int background_ratio;		/* Percentages */
-> >  	int dirty_ratio;
-> > @@ -193,6 +273,30 @@ get_dirty_limits(long *pbackground, long
-> >  	}
-> >  	*pbackground = background;
-> >  	*pdirty = dirty;
-> > +
-> > +	if (bdi) {
-> > +		long long tmp = dirty;
-> > +		long reserve;
-> > +		long scale, div;
-> > +
-> > +		get_writeout_scale(bdi, &scale, &div);
-> > +
-> > +		tmp *= scale;
-> > +		do_div(tmp, div);
-> > +
-> > +		reserve = dirty -
-> > +			(global_page_state(NR_FILE_DIRTY) +
-> > +			 global_page_state(NR_WRITEBACK) +
-> > +			 global_page_state(NR_UNSTABLE_NFS));
-> > +
-> > +		if (reserve < 0)
-> > +			reserve = 0;
-> > +
-> > +		reserve += bdi_stat(bdi, BDI_RECLAIMABLE) +
-> > +			bdi_stat(bdi, BDI_WRITEBACK);
-> > +
-> > +		*pbdi_dirty = min((long)tmp, reserve);
-> 
-> min_t is preferred
-> 
-> tmp isn't a particularly good identifier
-
-ok, shall fix.
-
-> > +	}
-> >  }
-> >  
-> >  /*
-> > @@ -204,9 +308,11 @@ get_dirty_limits(long *pbackground, long
-> >   */
-> >  static void balance_dirty_pages(struct address_space *mapping)
-> >  {
-> > -	long nr_reclaimable;
-> > +	long bdi_nr_reclaimable;
-> > +	long bdi_nr_writeback;
-> >  	long background_thresh;
-> >  	long dirty_thresh;
-> > +	long bdi_thresh;
-> >  	unsigned long pages_written = 0;
-> >  	unsigned long write_chunk = sync_writeback_pages();
-> >  
-> > @@ -221,15 +327,15 @@ static void balance_dirty_pages(struct a
-> >  			.range_cyclic	= 1,
-> >  		};
-> >  
-> > -		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
-> > -		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-> > -					global_page_state(NR_UNSTABLE_NFS);
-> > -		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <=
-> > -			dirty_thresh)
-> > +		get_dirty_limits(&background_thresh, &dirty_thresh,
-> > +				&bdi_thresh, bdi);
-> > +		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
-> > +		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
-> > +		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> >  				break;
-> >  
-> > -		if (!dirty_exceeded)
-> > -			dirty_exceeded = 1;
-> > +		if (!bdi->dirty_exceeded)
-> > +			bdi->dirty_exceeded = 1;
-> >  
-> >  		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
-> >  		 * Unstable writes are a feature of certain networked
-> > @@ -237,16 +343,27 @@ static void balance_dirty_pages(struct a
-> >  		 * written to the server's write cache, but has not yet
-> >  		 * been flushed to permanent storage.
-> >  		 */
-> > -		if (nr_reclaimable) {
-> > +		if (bdi_nr_reclaimable) {
-> >  			writeback_inodes(&wbc);
-> > -			get_dirty_limits(&background_thresh,
-> > -					 	&dirty_thresh, mapping);
-> > -			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-> > -					global_page_state(NR_UNSTABLE_NFS);
-> > -			if (nr_reclaimable +
-> > -				global_page_state(NR_WRITEBACK)
-> > -					<= dirty_thresh)
-> > -						break;
-> > +
-> > +			get_dirty_limits(&background_thresh, &dirty_thresh,
-> > +				       &bdi_thresh, bdi);
-> > +
-> > +			if (bdi_thresh < 2*bdi_stat_delta()) {
-> > +				bdi_nr_reclaimable =
-> > +					bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-> > +				bdi_nr_writeback =
-> > +					bdi_stat_sum(bdi, BDI_WRITEBACK);
-> > +			} else {
-> > +				bdi_nr_reclaimable =
-> > +					bdi_stat(bdi, BDI_RECLAIMABLE);
-> > +				bdi_nr_writeback =
-> > +					bdi_stat(bdi, BDI_WRITEBACK);
-> > +			}
-> > +
-> > +			if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> > +				break;
-> > +
-> >  			pages_written += write_chunk - wbc.nr_to_write;
-> >  			if (pages_written >= write_chunk)
-> >  				break;		/* We've done our duty */
-> > @@ -254,9 +371,9 @@ static void balance_dirty_pages(struct a
-> >  		congestion_wait(WRITE, HZ/10);
-> >  	}
-> >  
-> > -	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
-> > -		<= dirty_thresh && dirty_exceeded)
-> > -			dirty_exceeded = 0;
-> > +	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
-> > +			bdi->dirty_exceeded)
-> > +		bdi->dirty_exceeded = 0;
-> >  
-> >  	if (writeback_in_progress(bdi))
-> >  		return;		/* pdflush is already working this queue */
-> > @@ -270,7 +387,9 @@ static void balance_dirty_pages(struct a
-> >  	 * background_thresh, to keep the amount of dirty memory low.
-> >  	 */
-> >  	if ((laptop_mode && pages_written) ||
-> > -	     (!laptop_mode && (nr_reclaimable > background_thresh)))
-> > +			(!laptop_mode && (global_page_state(NR_FILE_DIRTY)
-> > +					  + global_page_state(NR_UNSTABLE_NFS)
-> > +					  > background_thresh)))
-> >  		pdflush_operation(background_writeout, 0);
-> >  }
-> 
-> Did you test laptop mode?
-
-admittedly, no. Shall do.
-
-> > @@ -306,7 +425,7 @@ void balance_dirty_pages_ratelimited_nr(
-> >  	unsigned long *p;
-> >  
-> >  	ratelimit = ratelimit_pages;
-> > -	if (dirty_exceeded)
-> > +	if (mapping->backing_dev_info->dirty_exceeded)
-> >  		ratelimit = 8;
-> >  
-> >  	/*
-> > @@ -342,7 +461,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
-> >  	}
-> >  
-> >          for ( ; ; ) {
-> > -		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
-> > +		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
-> >  
-> >                  /*
-> >                   * Boost the allowable dirty threshold a bit for page
-> > @@ -377,7 +496,7 @@ static void background_writeout(unsigned
-> >  		long background_thresh;
-> >  		long dirty_thresh;
-> >  
-> > -		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
-> > +		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
-> >  		if (global_page_state(NR_FILE_DIRTY) +
-> >  			global_page_state(NR_UNSTABLE_NFS) < background_thresh
-> >  				&& min_pages <= 0)
-> > @@ -585,6 +704,8 @@ void __init page_writeback_init(void)
-> >  	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
-> >  	writeback_set_ratelimit();
-> >  	register_cpu_notifier(&ratelimit_nb);
-> > +	vm_cycle_shift = 1 + ilog2(vm_total_pages);
-> > +	percpu_counter_init(&vm_writeout_total, 0);
-> >  }
-> >  
-> >  /**
-> > @@ -988,8 +1109,10 @@ int test_clear_page_writeback(struct pag
-> >  			radix_tree_tag_clear(&mapping->page_tree,
-> >  						page_index(page),
-> >  						PAGECACHE_TAG_WRITEBACK);
-> > -			if (bdi_cap_writeback_dirty(bdi))
-> > +			if (bdi_cap_writeback_dirty(bdi)) {
-> >  				__dec_bdi_stat(bdi, BDI_WRITEBACK);
-> > +				__bdi_writeout_inc(bdi);
-> > +			}
-> >  		}
-> >  		write_unlock_irqrestore(&mapping->tree_lock, flags);
-> >  	} else {
-> > Index: linux-2.6/mm/backing-dev.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/backing-dev.c	2007-04-20 15:20:11.000000000 +0200
-> > +++ linux-2.6/mm/backing-dev.c	2007-04-20 15:31:42.000000000 +0200
-> > @@ -12,6 +12,9 @@ void bdi_init(struct backing_dev_info *b
-> >  	if (!(bdi_cap_writeback_dirty(bdi) || bdi_cap_account_dirty(bdi)))
-> >  		return;
-> >  
-> > +	spin_lock_init(&bdi->lock);
-> > +	bdi->cycles = 0;
-> > +	bdi->dirty_exceeded = 0;
-> >  	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
-> >  		percpu_counter_init(&bdi->bdi_stat[i], 0);
-> >  }
-> > 
-> 
-> ho hum, I'll toss it all in -mm, see what happens.
-
-You show great confidence, thanks!
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+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
+------=_NextPart_4B1_7AB4_36F224F2.2F1F656B--
