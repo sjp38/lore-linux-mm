@@ -1,99 +1,68 @@
-Date: Sat, 21 Apr 2007 16:06:27 -0400
-From: "Royal EURO Casino" <cutset@singapore.net>
-Message-ID: <34301771.13887561@irruption.com>
-Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Sat, 21 Apr 2007 12:21:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 04/10] lib: percpu_counter_mod64
+Message-Id: <20070421122139.f5259c82.akpm@linux-foundation.org>
+In-Reply-To: <1177153346.2934.36.camel@lappy>
+References: <20070420155154.898600123@chello.nl>
+	<20070420155502.787144532@chello.nl>
+	<20070421025517.d9f9bc14.akpm@linux-foundation.org>
+	<1177153346.2934.36.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <cutset@singapore.net>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Sat, 21 Apr 2007 13:02:26 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> > > +	cpu = get_cpu();
+> > > +	pcount = per_cpu_ptr(fbc->counters, cpu);
+> > > +	count = *pcount + amount;
+> > > +	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
+> > > +		spin_lock(&fbc->lock);
+> > > +		fbc->count += count;
+> > > +		*pcount = 0;
+> > > +		spin_unlock(&fbc->lock);
+> > > +	} else {
+> > > +		*pcount = count;
+> > > +	}
+> > > +	put_cpu();
+> > > +}
+> > > +EXPORT_SYMBOL(percpu_counter_mod64);
+> > 
+> > Bloaty.  Surely we won't be needing this on 32-bit kernels?  Even monster
+> > PAE has only 64,000,000 pages and won't be using deltas of more than 4
+> > gigapages?
+> > 
+> > <Does even 64-bit need to handle 4 gigapages in a single hit?  /me suspects
+> > another changelog bug>
+> 
+> Yeah, /me chastises himself for that...
+> 
+> This is because percpu_counter is s64 instead of the native long; I need
+> to halve the counter at some point (bdi_writeout_norm) and do that by
+> subtracting half the current value.
 
-<title>Nur vom nobelsten aller Casinos </title>
+ah, the mysterious bdi_writeout_norm().
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+I don't think it's possible to precisely halve a percpu_counter - there has
+to be some error involved.  I guess that's acceptable within the
+inscrutable bdi_writeout_norm().
 
-</head>
+otoh, there's a chance that the attempt to halve the counter will take the
+counter negative, due to races.  Does the elusive bdi_writeout_norm()
+handle that?  If not, it should.  If it does, then there should be comments
+around the places where this is being handled, because it is subtle, and unobvious,
+and others might break it by accident.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+> If percpu_counter_mod is limited to s32 this might not always work
+> (although in practice it might just fit).
 
-<div class=Section1>
-
-<p class=MsoNormal>
-<span lang=DE style='mso-ansi-language:DE'>Nur vom nobelsten
-aller Casinos k&ouml;nnen Sie ein so vornehmes Geschenk erwarten:
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-300% Bonus f&uuml;r Ihre erste Einzahlung!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 100&#8364;/$ ein und spielen Sie mit 400 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Oben drauf bekommen Sie bei uns einen k&ouml;niglichen Service!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Kommen und spielen Sie im Royal VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.royaleuroscasino.com/lang-de/">
-http://www.royaleuroscasino.com/lang-de/</a><o:p></o:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
