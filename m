@@ -1,35 +1,79 @@
-Date: Sat, 21 Apr 2007 08:37:03 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE 2/2
-In-Reply-To: <a36005b50704201424q3c07d457m6b2c468ff8a826c7@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0704210830310.26485@blonde.wat.veritas.com>
-References: <46247427.6000902@redhat.com> <4627DBF0.1080303@redhat.com>
- <20070420140316.e0155e7d.akpm@linux-foundation.org>
- <a36005b50704201424q3c07d457m6b2c468ff8a826c7@mail.gmail.com>
+Message-ID: <4629C81D.8050606@google.com>
+Date: Sat, 21 Apr 2007 01:15:25 -0700
+From: Ethan Solomita <solo@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 0/8] Cpuset aware writeback
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com> <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com> <46019F67.3010300@google.com> <Pine.LNX.4.64.0703211428430.4832@schroedinger.engr.sgi.com> <4626CEDA.7050608@google.com> <Pine.LNX.4.64.0704181948260.8743@schroedinger.engr.sgi.com> <46296ACD.3020402@google.com> <Pine.LNX.4.64.0704201840200.13607@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0704201840200.13607@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007, Ulrich Drepper wrote:
-> 
-> Just for reference: the MADV_CURRENT behavior is to throw away data in
-> the range.
+Christoph Lameter wrote:
+> On Fri, 20 Apr 2007, Ethan Solomita wrote:
+>
+>   
+>> cpuset_write_dirty_map.htm
+>>
+>>    In __set_page_dirty_nobuffers() you always call cpuset_update_dirty_nodes()
+>> but in __set_page_dirty_buffers() you call it only if page->mapping is still
+>> set after locking. Is there a reason for the difference? Also a question not
+>> about your patch: why do those functions call __mark_inode_dirty() even if the
+>> dirty page has been truncated and mapping == NULL?
+>>     
+>
+> If page->mapping has been cleared then the page was removed from the 
+> mapping. __mark_inode_dirty just dirties the inode. If a truncation occurs 
+> then the inode was modified.
+>   
 
-Not exactly.  The Linux MADV_DONTNEED never throws away data from a
-PROT_WRITE,MAP_SHARED mapping (or shm) - it propagates the dirty bit,
-the page will eventually get written out to file, and can be retrieved
-later by subsequent access.  But the Linux MADV_DONTNEED does throw away
-data from a PROT_WRITE,MAP_PRIVATE mapping (or brk or stack) - those
-changes are discarded, and a subsequent access will revert to zeroes
-or the underlying mapped file.  Been like that since before 2.4.0.
+    You didn't address the first half. Why do the buffers() and 
+nobuffers() act differently when calling cpuset_update_dirty_nodes()?
 
-> The POSIX_MADV_DONTNEED behavior is to never lose data.
-> I.e., file backed data is written back, anon data is at most swapped
-> out.
+>> cpuset_write_throttle.htm
+>>
+>>    I noticed that several lines have leading spaces. I didn't check if other
+>> patches have the problem too.
+>>     
+>
+> Maybe download the patches? How did those strange .htm endings get 
+> appended to the patches?
+>   
+
+    Something weird with Firefox, but instead of jumping on me did you 
+consider double checking your patches? I just went back, found the text 
+versions, and the spaces are still there.e.g.:
+
++  	unsigned long dirtyable_memory;
+
+
+>>    In get_dirty_limits(), when cpusets are configd you don't subtract highmen
+>> the same way that is done without cpusets. Is this intentional?
+>>     
+>
+> That is something in flux upstream. Linus changed it recently. Do it one 
+> way or the other.
+>   
+
+    Exactly -- your patch should be consistent and do it the same way as 
+whatever your patch is built against. Your patch is built against a 
+kernel that subtracts off highmem. "Do it..." are you handing off the 
+patch and are done with it?
+
+>>    It seems that dirty_exceeded is still a global punishment across cpusets.
+>> Should it be addressed?
+>>     
+>
+> Sure. It would be best if you could place that somehow in a cpuset.
+>   
+
+    Again it sounds like you're handing them off. I'm not objecting I 
+just hadn't understood that.
+    -- Ethan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
