@@ -1,10 +1,10 @@
-Date: Sat, 21 Apr 2007 02:55:28 -0700
+Date: Sat, 21 Apr 2007 02:55:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 09/10] mm: expose BDI statistics in sysfs.
-Message-Id: <20070421025528.03105b60.akpm@linux-foundation.org>
-In-Reply-To: <20070420155503.473053637@chello.nl>
+Subject: Re: [PATCH 08/10] mm: count writeback pages per BDI
+Message-Id: <20070421025525.042ed73a.akpm@linux-foundation.org>
+In-Reply-To: <20070420155503.334628394@chello.nl>
 References: <20070420155154.898600123@chello.nl>
-	<20070420155503.473053637@chello.nl>
+	<20070420155503.334628394@chello.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,37 +14,43 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007 17:52:03 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Fri, 20 Apr 2007 17:52:02 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> Expose the per BDI stats in /sys/block/<dev>/queue/*
+> Count per BDI writeback pages.
 > 
 > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > ---
->  block/ll_rw_blk.c |   32 ++++++++++++++++++++++++++++++++
->  1 file changed, 32 insertions(+)
+>  include/linux/backing-dev.h |    1 +
+>  mm/page-writeback.c         |   12 ++++++++++--
+>  2 files changed, 11 insertions(+), 2 deletions(-)
 > 
-> Index: linux-2.6-mm/block/ll_rw_blk.c
+> Index: linux-2.6/mm/page-writeback.c
 > ===================================================================
-> --- linux-2.6-mm.orig/block/ll_rw_blk.c
-> +++ linux-2.6-mm/block/ll_rw_blk.c
-> @@ -3976,6 +3976,15 @@ static ssize_t queue_max_hw_sectors_show
->  	return queue_var_show(max_hw_sectors_kb, (page));
->  }
+> --- linux-2.6.orig/mm/page-writeback.c	2007-04-20 15:27:28.000000000 +0200
+> +++ linux-2.6/mm/page-writeback.c	2007-04-20 15:28:10.000000000 +0200
+> @@ -979,14 +979,18 @@ int test_clear_page_writeback(struct pag
+>  	int ret;
 >  
-> +static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
-> +{
-> +	return sprintf(page, "%lld\n", bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE));
-> +}
+>  	if (mapping) {
+> +		struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  		unsigned long flags;
+>  
+>  		write_lock_irqsave(&mapping->tree_lock, flags);
+>  		ret = TestClearPageWriteback(page);
+> -		if (ret)
+> +		if (ret) {
+>  			radix_tree_tag_clear(&mapping->page_tree,
+>  						page_index(page),
+>  						PAGECACHE_TAG_WRITEBACK);
+> +			if (bdi_cap_writeback_dirty(bdi))
+> +				__dec_bdi_stat(bdi, BDI_WRITEBACK);
 
-We try to present memory statistics to userspace in bytes or kbytes rather
-than number-of-pages.  Because page-size varies between architectures and
-between .configs.  Displaying number-of-pages is just inviting people to write
-it-broke-when-i-moved-it-to-ia64 applications.
+Why do we test bdi_cap_writeback_dirty() here?
 
-Plus kbytes is a bit more user-friendly, particularly when the user will
-want to compare these numbers to /proc/meminfo, for example.
-
-Using %llu might be more appropriate than %lld.
+If we remove that test, we end up accumulating statistics for
+non-writebackable backing devs, but does that matter?  Probably the common
+case is writebackable backing-devs, so eliminating the test-n-branch might
+be a net microgain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
