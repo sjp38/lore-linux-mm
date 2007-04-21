@@ -1,47 +1,99 @@
-Message-ID: <462A52BF.7000801@redhat.com>
-Date: Sat, 21 Apr 2007 14:06:55 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Sat, 21 Apr 2007 16:06:27 -0400
+From: "Royal EURO Casino" <cutset@singapore.net>
+Message-ID: <34301771.13887561@irruption.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
 MIME-Version: 1.0
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-References: <46247427.6000902@redhat.com> <20070420135715.f6e8e091.akpm@linux-foundation.org> <462932BE.4020005@redhat.com> <Pine.LNX.4.64.0704210818580.25689@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0704210818580.25689@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Return-Path: <cutset@singapore.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Fri, 20 Apr 2007, Rik van Riel wrote:
->> Andrew Morton wrote:
->>
->>>   I do go on about that.  But we're adding page flags at about one per
->>>   year, and when we run out we're screwed - we'll need to grow the
->>>   pageframe.
->> If you want, I can take a look at folding this into the
->> ->mapping pointer.  I can guarantee you it won't be
->> pretty, though :)
-> 
-> Please don't.  If we're going to stuff another pageflag into there,
-> let it be PageSwapCache the natural partner of PageAnon, rather than
-> whatever our latest pageflag happens to be. 
+<html>
 
-I looked at doing what Andrew wanted, and it did indeed not
-look like the right thing to do.  The locking on page->mapping
-is the kind of locking we want to avoid during zap_page_range
-and in the pageout code.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-I like your suggestion better.
+<title>Nur vom nobelsten aller Casinos </title>
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Nur vom nobelsten
+aller Casinos k&ouml;nnen Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.royaleuroscasino.com/lang-de/">
+http://www.royaleuroscasino.com/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
