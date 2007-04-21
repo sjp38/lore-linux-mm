@@ -1,35 +1,44 @@
-Received: by nz-out-0506.google.com with SMTP id f1so998606nzc
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2007 09:32:15 -0700 (PDT)
-Message-ID: <a36005b50704210932h3fe775ebv392a407054675eef@mail.gmail.com>
-Date: Sat, 21 Apr 2007 09:32:15 -0700
-From: "Ulrich Drepper" <drepper@gmail.com>
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE 2/2
-In-Reply-To: <Pine.LNX.4.64.0704210830310.26485@blonde.wat.veritas.com>
+Message-ID: <462A52BF.7000801@redhat.com>
+Date: Sat, 21 Apr 2007 14:06:55 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+References: <46247427.6000902@redhat.com> <20070420135715.f6e8e091.akpm@linux-foundation.org> <462932BE.4020005@redhat.com> <Pine.LNX.4.64.0704210818580.25689@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0704210818580.25689@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <46247427.6000902@redhat.com> <4627DBF0.1080303@redhat.com>
-	 <20070420140316.e0155e7d.akpm@linux-foundation.org>
-	 <a36005b50704201424q3c07d457m6b2c468ff8a826c7@mail.gmail.com>
-	 <Pine.LNX.4.64.0704210830310.26485@blonde.wat.veritas.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jakub Jelinek <jakub@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 4/21/07, Hugh Dickins <hugh@veritas.com> wrote:
-> But the Linux MADV_DONTNEED does throw away
-> data from a PROT_WRITE,MAP_PRIVATE mapping (or brk or stack) - those
-> changes are discarded, and a subsequent access will revert to zeroes
-> or the underlying mapped file.  Been like that since before 2.4.0.
+Hugh Dickins wrote:
+> On Fri, 20 Apr 2007, Rik van Riel wrote:
+>> Andrew Morton wrote:
+>>
+>>>   I do go on about that.  But we're adding page flags at about one per
+>>>   year, and when we run out we're screwed - we'll need to grow the
+>>>   pageframe.
+>> If you want, I can take a look at folding this into the
+>> ->mapping pointer.  I can guarantee you it won't be
+>> pretty, though :)
+> 
+> Please don't.  If we're going to stuff another pageflag into there,
+> let it be PageSwapCache the natural partner of PageAnon, rather than
+> whatever our latest pageflag happens to be. 
 
-I didn't say it changed.  I just say that there is a hole in the
-current implementation as it does not allow to implement
-POSIX_MADV_DONTNEED with anything but a no-op.  The
-POSIX_MADV_DONTNEED behavior is useful and something IMO should be
-added to allow implementing it.
+I looked at doing what Andrew wanted, and it did indeed not
+look like the right thing to do.  The locking on page->mapping
+is the kind of locking we want to avoid during zap_page_range
+and in the pageout code.
+
+I like your suggestion better.
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
