@@ -1,53 +1,81 @@
-Date: Fri, 20 Apr 2007 18:48:47 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 0/8] Cpuset aware writeback
-In-Reply-To: <46296ACD.3020402@google.com>
-Message-ID: <Pine.LNX.4.64.0704201840200.13607@schroedinger.engr.sgi.com>
-References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
- <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
- <46019F67.3010300@google.com> <Pine.LNX.4.64.0703211428430.4832@schroedinger.engr.sgi.com>
- <4626CEDA.7050608@google.com> <Pine.LNX.4.64.0704181948260.8743@schroedinger.engr.sgi.com>
- <46296ACD.3020402@google.com>
+Message-ID: <46298BE8.8020900@redhat.com>
+Date: Fri, 20 Apr 2007 23:58:32 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <46295F59.8000506@cosmosbay.com>
+In-Reply-To: <46295F59.8000506@cosmosbay.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ethan Solomita <solo@google.com>
-Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007, Ethan Solomita wrote:
-
-> cpuset_write_dirty_map.htm
+Eric Dumazet wrote:
+> Rik van Riel a A(C)crit :
+>> Andrew Morton wrote:
+>>> On Fri, 20 Apr 2007 17:38:06 -0400
+>>> Rik van Riel <riel@redhat.com> wrote:
+>>>
+>>>> Andrew Morton wrote:
+>>>>
+>>>>> I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
+>>>>>
+>>>>> - Nick's patch also will help this problem.  It could be that your 
+>>>>> patch
+>>>>>   no longer offers a 2x speedup when combined with Nick's patch.
+>>>>>
+>>>>>   It could well be that the combination of the two is even better, 
+>>>>> but it
+>>>>>   would be nice to firm that up a bit.  
+>>>> I'll test that.
+>>>
+>>> Thanks.
+>>
+>> Well, good news.
+>>
+>> It turns out that Nick's patch does not improve peak
+>> performance much, but it does prevent the decline when
+>> running with 16 threads on my quad core CPU!
+>>
+>> We _definately_ want both patches, there's a huge benefit
+>> in having them both.
+>>
+>> Here are the transactions/seconds for each combination:
+>>
+>>    vanilla   new glibc  madv_free kernel   madv_free + mmap_sem
+>> threads
+>>
+>> 1     610         609             596                545
 > 
->    In __set_page_dirty_nobuffers() you always call cpuset_update_dirty_nodes()
-> but in __set_page_dirty_buffers() you call it only if page->mapping is still
-> set after locking. Is there a reason for the difference? Also a question not
-> about your patch: why do those functions call __mark_inode_dirty() even if the
-> dirty page has been truncated and mapping == NULL?
-
-If page->mapping has been cleared then the page was removed from the 
-mapping. __mark_inode_dirty just dirties the inode. If a truncation occurs 
-then the inode was modified.
-
-> cpuset_write_throttle.htm
+> 545 tps versus 610 tps for one thread ? It seems quite bad, no ?
 > 
->    I noticed that several lines have leading spaces. I didn't check if other
-> patches have the problem too.
+> Could you please find an explanation for this ?
 
-Maybe download the patches? How did those strange .htm endings get 
-appended to the patches?
+I have no idea why this happens.  Especially the last one,
+going from a write lock to a read lock on the mmap_sem
+should not make ANY difference whatsoever since we're
+running single threaded!
 
->    In get_dirty_limits(), when cpusets are configd you don't subtract highmen
-> the same way that is done without cpusets. Is this intentional?
+>> 2    1032        1136            1196               1200
+>> 4    1070        1128            2014               2024
+>> 8    1000        1088            1665               2087
+>> 16    779        1073            1310               1999
 
-That is something in flux upstream. Linus changed it recently. Do it one 
-way or the other.
+Performance with 2 database threads is way better though,
+and performance with 4 or more threads more than doubles...
 
->    It seems that dirty_exceeded is still a global punishment across cpusets.
-> Should it be addressed?
+If you have an explanation on why single threaded performance
+went down a little on my quad core system, please let me know.
 
-Sure. It would be best if you could place that somehow in a cpuset.
+Does performance suffer at all on a real UP system?
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
