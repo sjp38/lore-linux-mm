@@ -1,37 +1,32 @@
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1177156902.2934.96.camel@lappy>
-References: <20070420155154.898600123@chello.nl>
-	 <20070420155503.608300342@chello.nl>
-	 <20070421025532.916b1e2e.akpm@linux-foundation.org>
-	 <1177156902.2934.96.camel@lappy>
-Content-Type: text/plain
-Date: Sat, 21 Apr 2007 14:15:08 +0200
-Message-Id: <1177157708.2934.100.camel@lappy>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sat, 21 Apr 2007 08:40:40 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 0/8] Cpuset aware writeback
+In-Reply-To: <4629C81D.8050606@google.com>
+Message-ID: <Pine.LNX.4.64.0704210837150.17690@schroedinger.engr.sgi.com>
+References: <20070116054743.15358.77287.sendpatchset@schroedinger.engr.sgi.com>
+ <45C2960B.9070907@google.com> <Pine.LNX.4.64.0702011815240.9799@schroedinger.engr.sgi.com>
+ <46019F67.3010300@google.com> <Pine.LNX.4.64.0703211428430.4832@schroedinger.engr.sgi.com>
+ <4626CEDA.7050608@google.com> <Pine.LNX.4.64.0704181948260.8743@schroedinger.engr.sgi.com>
+ <46296ACD.3020402@google.com> <Pine.LNX.4.64.0704201840200.13607@schroedinger.engr.sgi.com>
+ <4629C81D.8050606@google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: Ethan Solomita <solo@google.com>
+Cc: akpm@osdl.org, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, Dave Chinner <dgc@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > +/*
-> > > + * maximal error of a stat counter.
-> > > + */
-> > > +static inline unsigned long bdi_stat_delta(void)
-> > > +{
-> > > +#ifdef CONFIG_SMP
-> > > +	return NR_CPUS * FBC_BATCH;
-> > 
-> > This is enormously wrong for CONFIG_NR_CPUS=1024 on a 2-way.
+On Sat, 21 Apr 2007, Ethan Solomita wrote:
 
-Right, I knew about that but, uhm.
+>    Exactly -- your patch should be consistent and do it the same way as
+> whatever your patch is built against. Your patch is built against a kernel
+> that subtracts off highmem. "Do it..." are you handing off the patch and are
+> done with it?
 
-I wanted to make that num_online_cpus(), and install a hotplug notifier
-to fold the percpu delta back into the total on cpu offline.
-
-But I have to look into doing that hotplug notifier stuff.
+Yes as said before the patch is not finished. As I told you I have other 
+things to do right now. It is not high on my agenda and some other 
+developers have shown an interest. Feel free to take over the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
