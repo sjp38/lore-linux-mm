@@ -1,10 +1,10 @@
-Date: Sat, 21 Apr 2007 02:55:17 -0700
+Date: Sat, 21 Apr 2007 02:55:28 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 04/10] lib: percpu_counter_mod64
-Message-Id: <20070421025517.d9f9bc14.akpm@linux-foundation.org>
-In-Reply-To: <20070420155502.787144532@chello.nl>
+Subject: Re: [PATCH 09/10] mm: expose BDI statistics in sysfs.
+Message-Id: <20070421025528.03105b60.akpm@linux-foundation.org>
+In-Reply-To: <20070420155503.473053637@chello.nl>
 References: <20070420155154.898600123@chello.nl>
-	<20070420155502.787144532@chello.nl>
+	<20070420155503.473053637@chello.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,93 +14,37 @@ To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007 17:51:58 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Fri, 20 Apr 2007 17:52:03 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> Add percpu_counter_mod64() to allow large modifications.
+> Expose the per BDI stats in /sys/block/<dev>/queue/*
 > 
 > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > ---
->  include/linux/percpu_counter.h |    9 +++++++++
->  lib/percpu_counter.c           |   28 ++++++++++++++++++++++++++++
->  2 files changed, 37 insertions(+)
+>  block/ll_rw_blk.c |   32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
 > 
-> Index: linux-2.6/include/linux/percpu_counter.h
+> Index: linux-2.6-mm/block/ll_rw_blk.c
 > ===================================================================
-> --- linux-2.6.orig/include/linux/percpu_counter.h	2007-04-12 13:54:55.000000000 +0200
-> +++ linux-2.6/include/linux/percpu_counter.h	2007-04-12 14:00:21.000000000 +0200
-> @@ -36,6 +36,7 @@ static inline void percpu_counter_destro
+> --- linux-2.6-mm.orig/block/ll_rw_blk.c
+> +++ linux-2.6-mm/block/ll_rw_blk.c
+> @@ -3976,6 +3976,15 @@ static ssize_t queue_max_hw_sectors_show
+>  	return queue_var_show(max_hw_sectors_kb, (page));
 >  }
 >  
->  void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
-> +void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount);
->  s64 percpu_counter_sum(struct percpu_counter *fbc);
->  
->  static inline s64 percpu_counter_read(struct percpu_counter *fbc)
-> @@ -81,6 +82,14 @@ percpu_counter_mod(struct percpu_counter
->  	preempt_enable();
->  }
->  
-> +static inline void
-> +percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
+> +static ssize_t queue_nr_reclaimable_show(struct request_queue *q, char *page)
 > +{
-> +	preempt_disable();
-> +	fbc->count += amount;
-> +	preempt_enable();
+> +	return sprintf(page, "%lld\n", bdi_stat(&q->backing_dev_info, BDI_RECLAIMABLE));
 > +}
-> +
->  static inline s64 percpu_counter_read(struct percpu_counter *fbc)
->  {
->  	return fbc->count;
-> Index: linux-2.6/lib/percpu_counter.c
-> ===================================================================
-> --- linux-2.6.orig/lib/percpu_counter.c	2006-07-31 13:07:38.000000000 +0200
-> +++ linux-2.6/lib/percpu_counter.c	2007-04-12 14:17:12.000000000 +0200
-> @@ -25,6 +25,34 @@ void percpu_counter_mod(struct percpu_co
->  }
->  EXPORT_SYMBOL(percpu_counter_mod);
->  
-> +void percpu_counter_mod64(struct percpu_counter *fbc, s64 amount)
-> +{
-> +	long count;
-> +	s32 *pcount;
-> +	int cpu;
-> +
-> +	if (amount >= FBC_BATCH || amount <= -FBC_BATCH) {
-> +		spin_lock(&fbc->lock);
-> +		fbc->count += amount;
-> +		spin_unlock(&fbc->lock);
-> +		return;
-> +	}
 
-This is wrong, a little.
+We try to present memory statistics to userspace in bytes or kbytes rather
+than number-of-pages.  Because page-size varies between architectures and
+between .configs.  Displaying number-of-pages is just inviting people to write
+it-broke-when-i-moved-it-to-ia64 applications.
 
-If the counter was at -FBC_BATCH/2 and the caller passed in FBC_BATCH, we
-could just set the cpu-local counter to FBC_BATCH/2 instead of going for
-the lock.
+Plus kbytes is a bit more user-friendly, particularly when the user will
+want to compare these numbers to /proc/meminfo, for example.
 
-Probably doesn't matter though.
-
-> +	cpu = get_cpu();
-> +	pcount = per_cpu_ptr(fbc->counters, cpu);
-> +	count = *pcount + amount;
-> +	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
-> +		spin_lock(&fbc->lock);
-> +		fbc->count += count;
-> +		*pcount = 0;
-> +		spin_unlock(&fbc->lock);
-> +	} else {
-> +		*pcount = count;
-> +	}
-> +	put_cpu();
-> +}
-> +EXPORT_SYMBOL(percpu_counter_mod64);
-
-Bloaty.  Surely we won't be needing this on 32-bit kernels?  Even monster
-PAE has only 64,000,000 pages and won't be using deltas of more than 4
-gigapages?
-
-<Does even 64-bit need to handle 4 gigapages in a single hit?  /me suspects
-another changelog bug>
+Using %llu might be more appropriate than %lld.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
