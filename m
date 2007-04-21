@@ -1,8 +1,8 @@
-Date: Fri, 20 Apr 2007 23:35:50 -0700 (PDT)
+Date: Fri, 20 Apr 2007 23:38:43 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: slab allocators: Remove multiple alignment specifications.
 In-Reply-To: <Pine.LNX.4.64.0704202330440.11938@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0704202335280.11938@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0704202338100.11938@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.64.0704202210060.17036@schroedinger.engr.sgi.com>
  <20070420223727.7b201984.akpm@linux-foundation.org>
  <Pine.LNX.4.64.0704202243480.25004@schroedinger.engr.sgi.com>
@@ -16,27 +16,30 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Apr 2007, Christoph Lameter wrote:
+Cannot get around the readahead problems:
 
-> Hmmmm... Revoke.c has another copy of these fs constructor flag checks 
-> that I fixed earlier.
-
-And another one
-
-Index: linux-2.6.21-rc7/fs/proc/inode.c
-===================================================================
---- linux-2.6.21-rc7.orig/fs/proc/inode.c	2007-04-20 23:35:07.000000000 -0700
-+++ linux-2.6.21-rc7/fs/proc/inode.c	2007-04-20 23:35:19.000000000 -0700
-@@ -109,8 +109,7 @@ static void init_once(void * foo, struct
- {
- 	struct proc_inode *ei = (struct proc_inode *) foo;
- 
--	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
--	    SLAB_CTOR_CONSTRUCTOR)
-+	if (flags & SLAB_CTOR_CONSTRUCTOR)
- 		inode_init_once(&ei->vfs_inode);
- }
-  
+ CC      mm/truncate.o
+mm/readahead.c: In function 'page_cache_readahead':
+mm/readahead.c:586: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c:587: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c: In function 'try_context_based_readahead':
+mm/readahead.c:1414: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c: In function 'try_backward_prefetching':
+mm/readahead.c:1534: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c: In function 'page_cache_readahead_adaptive':
+mm/readahead.c:1687: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c:1693: error: 'struct file_ra_state' has no member named 
+'prev_page'
+mm/readahead.c:1738: error: 'struct file_ra_state' has no member named 
+'prev_page'
+make[3]: *** [mm/readahead.o] Error 1
+make[3]: *** Waiting for unfinished jobs....
+make[2]: *** [mm] Error 2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
