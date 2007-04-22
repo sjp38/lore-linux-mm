@@ -1,105 +1,100 @@
-Message-ID: <462B0156.9020407@redhat.com>
-Date: Sun, 22 Apr 2007 02:31:50 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <462ACA40.8070407@yahoo.com.au>
-In-Reply-To: <462ACA40.8070407@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Sun, 22 Apr 2007 00:19:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 08/10] mm: count writeback pages per BDI
+Message-Id: <20070422001949.4d697fe5.akpm@linux-foundation.org>
+In-Reply-To: <1177153636.2934.43.camel@lappy>
+References: <20070420155154.898600123@chello.nl>
+	<20070420155503.334628394@chello.nl>
+	<20070421025525.042ed73a.akpm@linux-foundation.org>
+	<1177153636.2934.43.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Rik van Riel wrote:
->> Andrew Morton wrote:
->>
->>> On Fri, 20 Apr 2007 17:38:06 -0400
->>> Rik van Riel <riel@redhat.com> wrote:
->>>
->>>> Andrew Morton wrote:
->>>>
->>>>> I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
->>>>>
->>>>> - Nick's patch also will help this problem.  It could be that your 
->>>>> patch
->>>>>   no longer offers a 2x speedup when combined with Nick's patch.
->>>>>
->>>>>   It could well be that the combination of the two is even better, 
->>>>> but it
->>>>>   would be nice to firm that up a bit.  
->>>>
->>>> I'll test that.
->>>
->>>
->>> Thanks.
->>
->>
->> Well, good news.
->>
->> It turns out that Nick's patch does not improve peak
->> performance much, but it does prevent the decline when
->> running with 16 threads on my quad core CPU!
->>
->> We _definately_ want both patches, there's a huge benefit
->> in having them both.
->>
->> Here are the transactions/seconds for each combination:
->>
->>    vanilla   new glibc  madv_free kernel   madv_free + mmap_sem
->> threads
->>
->> 1     610         609             596                545
->> 2    1032        1136            1196               1200
->> 4    1070        1128            2014               2024
->> 8    1000        1088            1665               2087
->> 16    779        1073            1310               1999
+On Sat, 21 Apr 2007 13:07:16 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
+> On Sat, 2007-04-21 at 02:55 -0700, Andrew Morton wrote:
+> > On Fri, 20 Apr 2007 17:52:02 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > 
+> > > Count per BDI writeback pages.
+> > > 
+> > > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > > ---
+> > >  include/linux/backing-dev.h |    1 +
+> > >  mm/page-writeback.c         |   12 ++++++++++--
+> > >  2 files changed, 11 insertions(+), 2 deletions(-)
+> > > 
+> > > Index: linux-2.6/mm/page-writeback.c
+> > > ===================================================================
+> > > --- linux-2.6.orig/mm/page-writeback.c	2007-04-20 15:27:28.000000000 +0200
+> > > +++ linux-2.6/mm/page-writeback.c	2007-04-20 15:28:10.000000000 +0200
+> > > @@ -979,14 +979,18 @@ int test_clear_page_writeback(struct pag
+> > >  	int ret;
+> > >  
+> > >  	if (mapping) {
+> > > +		struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > >  		unsigned long flags;
+> > >  
+> > >  		write_lock_irqsave(&mapping->tree_lock, flags);
+> > >  		ret = TestClearPageWriteback(page);
+> > > -		if (ret)
+> > > +		if (ret) {
+> > >  			radix_tree_tag_clear(&mapping->page_tree,
+> > >  						page_index(page),
+> > >  						PAGECACHE_TAG_WRITEBACK);
+> > > +			if (bdi_cap_writeback_dirty(bdi))
+> > > +				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+> > 
+> > Why do we test bdi_cap_writeback_dirty() here?
+> > 
+> > If we remove that test, we end up accumulating statistics for
+> > non-writebackable backing devs, but does that matter? 
 > 
+> It would not, had I not cheated:
 > 
-> Is "new glibc" meaning MADV_DONTNEED + kernel with mmap_sem patch?
-
-No, that's just the glibc change, with a vanilla kernel.
-
-The third column is glibc change + mmap_sem patch.
-
-The fourth column has your patch in it, too.
-
-> The strange thing with your madv_free kernel is that it doesn't
-> help single-threaded performance at all. So that work to avoid
-> zeroing the new page is not a win at all there (maybe due to the
-> cache effects I was worried about?).
-
-Well, your patch causes the performance to drop from
-596 transactions/second to 545.  Your patch is the only
-difference between the third and the fourth column.
-
-> However MADV_FREE does improve scalability, which is interesting.
-> The most likely reason I can see why that may be the case is that
-> it avoids mmap_sem when faulting pages back in (I doubt it is due
-> to avoiding the page allocator, but maybe?).
+> +void bdi_init(struct backing_dev_info *bdi)
+> +{
+> +       int i;
+> +
+> +       if (!(bdi_cap_writeback_dirty(bdi) || bdi_cap_account_dirty(bdi)))
+> +               return;
+> +
+> +       for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+> +               percpu_counter_init(&bdi->bdi_stat[i], 0);
+> +}
+> +EXPORT_SYMBOL(bdi_init);
 > 
-> So where is the down_write coming from in this workload, I wonder?
-> Heap management? What syscalls?
+> >  Probably the common
+> > case is writebackable backing-devs, so eliminating the test-n-branch might
+> > be a net microgain.
+> 
+> Time vs space. Now we don't even have storage for those BDIs..
+> 
+> Don't particularly care on this point though, I just thought it might be
+> worthwhile to save on the percpu data.
 
-I wonder if the increased parallelism simply caused
-more cache line bouncing, with bounces happening in
-some inner loop instead of an outer loop.
+It could be that we never call test_clear_page_writeback() against
+!bdi_cap_writeback_dirty() pages anwyay.  I can't think why we would, but
+the relationships there aren't very clear.  Does "don't account for dirty
+memory" imply "doesn't ever do writeback"?  One would need to check, and
+it's perhaps a bit fragile.
 
-Btw, it is quite possible that the MySQL sysbench
-thing gives different results on your system.  It
-would be good to know what it does on a real SMP
-system, vs. a single quad-core chip :)
+It's worth checking though.  Boy we're doing a lot of stuff in there
+nowadays.
 
-Other architectures would be interesting to know,
-too.
+OT: it might be worth looking into batching this work up - the predominant
+caller should be mpage_end_io_write(), and he has a whole bunch of pages
+which are usually all from the same file, all contiguous.  It's pretty
+inefficient to be handling that data one-page-at-a-time, and some
+significant speedups may be available.
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Instead, everyone seems to think that variable pagecache page size is the
+only way of improving things.  Shudder.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
