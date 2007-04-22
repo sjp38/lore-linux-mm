@@ -1,61 +1,88 @@
-In-reply-to: <20070421035444.f7a42fad.akpm@linux-foundation.org> (message from
-	Andrew Morton on Sat, 21 Apr 2007 03:54:44 -0700)
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-References: <20070420155154.898600123@chello.nl>
-	<20070420155503.608300342@chello.nl>
-	<20070421025532.916b1e2e.akpm@linux-foundation.org>
-	<E1HfCzN-0002dZ-00@dorka.pomaz.szeredi.hu> <20070421035444.f7a42fad.akpm@linux-foundation.org>
-Message-Id: <E1HfM9K-0003OA-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Sat, 21 Apr 2007 22:25:38 +0200
+Message-ID: <462ACA40.8070407@yahoo.com.au>
+Date: Sun, 22 Apr 2007 12:36:48 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com>
+In-Reply-To: <4629524C.5040302@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: miklos@szeredi.hu, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > The other deadlock, in throttle_vm_writeout() is still to be solved.
+Rik van Riel wrote:
+> Andrew Morton wrote:
 > 
-> Let's go back to the original changelog:
-> 
-> Author: marcelo.tosatti <marcelo.tosatti>
-> Date:   Tue Mar 8 17:25:19 2005 +0000
-> 
->     [PATCH] vm: pageout throttling
->     
->     With silly pageout testcases it is possible to place huge amounts of memory
->     under I/O.  With a large request queue (CFQ uses 8192 requests) it is
->     possible to place _all_ memory under I/O at the same time.
->     
->     This means that all memory is pinned and unreclaimable and the VM gets
->     upset and goes oom.
->     
->     The patch limits the amount of memory which is under pageout writeout to be
->     a little more than the amount of memory at which balance_dirty_pages()
->     callers will synchronously throttle.
->     
->     This means that heavy pageout activity can starve heavy writeback activity
->     completely, but heavy writeback activity will not cause starvation of
->     pageout.  Because we don't want a simple `dd' to be causing excessive
->     latencies in page reclaim.
->     
->     Signed-off-by: Andrew Morton <akpm@osdl.org>
->     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
-> 
-> (A good one!  I wrote it ;))
+>> On Fri, 20 Apr 2007 17:38:06 -0400
+>> Rik van Riel <riel@redhat.com> wrote:
+>>
+>>> Andrew Morton wrote:
+>>>
+>>>> I've also merged Nick's "mm: madvise avoid exclusive mmap_sem".
+>>>>
+>>>> - Nick's patch also will help this problem.  It could be that your 
+>>>> patch
+>>>>   no longer offers a 2x speedup when combined with Nick's patch.
+>>>>
+>>>>   It could well be that the combination of the two is even better, 
+>>>> but it
+>>>>   would be nice to firm that up a bit.  
+>>>
+>>> I'll test that.
+>>
+>>
+>> Thanks.
 > 
 > 
-> I believe that the combination of dirty-page-tracking and its calls to
-> balance_dirty_pages() mean that we can now never get more than dirty_ratio
-> of memory into the dirty-or-writeback condition.
+> Well, good news.
 > 
-> The vm scanner can convert dirty pages into clean, under-writeback pages,
-> but it cannot increase the total of dirty+writeback.
+> It turns out that Nick's patch does not improve peak
+> performance much, but it does prevent the decline when
+> running with 16 threads on my quad core CPU!
+> 
+> We _definately_ want both patches, there's a huge benefit
+> in having them both.
+> 
+> Here are the transactions/seconds for each combination:
+> 
+>    vanilla   new glibc  madv_free kernel   madv_free + mmap_sem
+> threads
+> 
+> 1     610         609             596                545
+> 2    1032        1136            1196               1200
+> 4    1070        1128            2014               2024
+> 8    1000        1088            1665               2087
+> 16    779        1073            1310               1999
 
-What about swapout?  That can increase the number of writeback pages,
-without decreasing the number of dirty pages, no?
 
-Miklos
+Is "new glibc" meaning MADV_DONTNEED + kernel with mmap_sem patch?
+
+The strange thing with your madv_free kernel is that it doesn't
+help single-threaded performance at all. So that work to avoid
+zeroing the new page is not a win at all there (maybe due to the
+cache effects I was worried about?).
+
+However MADV_FREE does improve scalability, which is interesting.
+The most likely reason I can see why that may be the case is that
+it avoids mmap_sem when faulting pages back in (I doubt it is due
+to avoiding the page allocator, but maybe?).
+
+So where is the down_write coming from in this workload, I wonder?
+Heap management? What syscalls?
+
+x86_64's rwsems are crap under heavy parallelism (even read-only),
+as I fixed in my recent generic rwsems patch. I don't expect MySQL
+to be such a mmap_sem microbenchmark, but I wonder how much this
+would help?
+
+What if we ran the private futexes patch to further cut down
+mmap_sem contention?
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
