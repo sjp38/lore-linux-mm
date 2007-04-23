@@ -1,43 +1,37 @@
-Date: Mon, 23 Apr 2007 10:56:59 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: slab allocators: Remove multiple alignment specifications.
-Message-ID: <20070423155659.GB12733@lnx-holt.americas.sgi.com>
-References: <Pine.LNX.4.64.0704202210060.17036@schroedinger.engr.sgi.com> <20070420223727.7b201984.akpm@linux-foundation.org> <Pine.LNX.4.64.0704202243480.25004@schroedinger.engr.sgi.com> <20070420231129.9252ca67.akpm@linux-foundation.org> <Pine.LNX.4.64.0704202330440.11938@schroedinger.engr.sgi.com> <20070423154412.GA12733@lnx-holt.americas.sgi.com> <Pine.LNX.4.64.0704230849110.10624@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 10/10] mm: per device dirty threshold
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0704230847400.10624@schroedinger.engr.sgi.com>
+References: <20070420155154.898600123@chello.nl>
+	 <20070420155503.608300342@chello.nl>
+	 <20070421025532.916b1e2e.akpm@linux-foundation.org>
+	 <1177156902.2934.96.camel@lappy> <1177157708.2934.100.camel@lappy>
+	 <Pine.LNX.4.64.0704230847400.10624@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Mon, 23 Apr 2007 17:58:20 +0200
+Message-Id: <1177343900.26937.6.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0704230849110.10624@schroedinger.engr.sgi.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, dcn@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 23, 2007 at 08:53:09AM -0700, Christoph Lameter wrote:
-> On Mon, 23 Apr 2007, Robin Holt wrote:
+On Mon, 2007-04-23 at 08:48 -0700, Christoph Lameter wrote:
+> On Sat, 21 Apr 2007, Peter Zijlstra wrote:
 > 
-> > On Fri, Apr 20, 2007 at 11:32:48PM -0700, Christoph Lameter wrote:
-> > > Well xpmem is broke and readahead is failing all over the place. Some 
-> > > patches missing?
+> > > > This is enormously wrong for CONFIG_NR_CPUS=1024 on a 2-way.
 > > 
-> > Which xpmem are you compiling?  Did you let Dean Nelson know about this?
-> > Has anything been submitted to the community yet?
+> > Right, I knew about that but, uhm.
+> > 
+> > I wanted to make that num_online_cpus(), and install a hotplug notifier
+> > to fold the percpu delta back into the total on cpu offline.
 > 
-> I think this was just a an artifact of an inconsistent ia64 mix of 
-> patches in a temporary tree by Andrew.
-> 
-> Here is the hack that I used to compile more of the temp tree.
-> 
-> 
-> Index: linux-2.6.21-rc7/arch/ia64/sn/kernel/xpc_main.c
-> ===================================================================
-> --- linux-2.6.21-rc7.orig/arch/ia64/sn/kernel/xpc_main.c	2007-04-20 23:23:31.000000000 -0700
-> +++ linux-2.6.21-rc7/arch/ia64/sn/kernel/xpc_main.c	2007-04-20 23:25:32.000000000 -0700
+> Use nr_cpu_ids instead. Contains the maximum possible cpus on this 
+> hardware and allows to handle the hotplug case easily.
 
-Ah, xpc.  Much different from xpmem.  Now I understand...
-
-Thanks,
-Robin
+Ooh, thats handy... /me ditches the hotplug code again.
+That is, unless its very common to have half empty boxens.. ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
