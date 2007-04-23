@@ -1,98 +1,124 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070423064911.5458.40889.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070423064916.5458.62790.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 05/16] Variable Order Page Cache: Add functions to establish sizes
-Date: Sun, 22 Apr 2007 23:49:11 -0700 (PDT)
+Subject: [RFC 06/16] Variable Page Cache: Add VM_BUG_ONs to check for correct page order
+Date: Sun, 22 Apr 2007 23:49:16 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, David Chinner <dgc@sgi.com>, Badari Pulavarty <pbadari@gmail.com>, Adam Litke <aglitke@gmail.com>, Christoph Lameter <clameter@sgi.com>, Avi Kivity <avi@argo.co.il>, Mel Gorman <mel@skynet.ie>, Dave Hansen <hansendc@us.ibm.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Christoph Lameter <clameter@sgi.com>, Dave Hansen <hansendc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, Avi Kivity <avi@argo.co.il>
 List-ID: <linux-mm.kvack.org>
 
-Variable Order Page Cache: Add functions to establish sizes
+Variable Page Cache: Add VM_BUG_ONs to check for correct page order
 
-We use the macros PAGE_CACHE_SIZE PAGE_CACHE_SHIFT PAGE_CACHE_MASK
-and PAGE_CACHE_ALIGN in various places in the kernel. These are now
-the base page size but we do not have a means to calculating these
-values for higher order pages.
-
-Provide these functions. An address_space pointer must be passed
-to them. Also add a set of extended functions that will be used
-to consolidate the hand crafted shifts and adds in use right
-now for the page cache.
-
-New function			Related base page constant
----------------------------------------------------
-page_cache_shift(a)		PAGE_CACHE_SHIFT
-page_cache_size(a)		PAGE_CACHE_SIZE
-page_cache_mask(a)		PAGE_CACHE_MASK
-page_cache_index(a, pos)	Calculate page number from position
-page_cache_next(addr, pos)	Page number of next page
-page_cache_offset(a, pos)	Calculate offset into a page
-page_cache_pos(a, index, offset)
-				Form position based on page number
-				and an offset.
+Before we start changing the page order we better get some debugging
+in there that trips us up whenever a wrong order page shows up in a
+mapping. This will be helpful for converting new filesystems to
+utilize higher orders.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/pagemap.h |   42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ mm/filemap.c |   19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
 
-Index: linux-2.6.21-rc7/include/linux/pagemap.h
+Index: linux-2.6.21-rc7/mm/filemap.c
 ===================================================================
---- linux-2.6.21-rc7.orig/include/linux/pagemap.h	2007-04-22 17:30:50.000000000 -0700
-+++ linux-2.6.21-rc7/include/linux/pagemap.h	2007-04-22 19:44:12.000000000 -0700
-@@ -62,6 +62,48 @@ static inline void set_mapping_order(str
- #define PAGE_CACHE_MASK		PAGE_MASK
- #define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
+--- linux-2.6.21-rc7.orig/mm/filemap.c	2007-04-22 21:54:00.000000000 -0700
++++ linux-2.6.21-rc7/mm/filemap.c	2007-04-22 21:59:15.000000000 -0700
+@@ -127,6 +127,7 @@ void remove_from_page_cache(struct page 
+ 	struct address_space *mapping = page->mapping;
  
-+static inline int page_cache_shift(struct address_space *a)
-+{
-+	return a->order + PAGE_SHIFT;
-+}
-+
-+static inline unsigned int page_cache_size(struct address_space *a)
-+{
-+	return PAGE_SIZE << a->order;
-+}
-+
-+static inline loff_t page_cache_mask(struct address_space *a)
-+{
-+	return (loff_t)PAGE_MASK << a->order;
-+}
-+
-+static inline unsigned int page_cache_offset(struct address_space *a,
-+		loff_t pos)
-+{
-+	return pos & ~(PAGE_MASK << a->order);
-+}
-+
-+static inline pgoff_t page_cache_index(struct address_space *a,
-+		loff_t pos)
-+{
-+	return pos >> page_cache_shift(a);
-+}
-+
-+/*
-+ * Index of the page starting on or after the given position.
-+ */
-+static inline pgoff_t page_cache_next(struct address_space *a,
-+		loff_t pos)
-+{
-+	return page_cache_index(a, pos + page_cache_size(a) - 1);
-+}
-+
-+static inline loff_t page_cache_pos(struct address_space *a,
-+		pgoff_t index, unsigned long offset)
-+{
-+	return ((loff_t)index << page_cache_shift(a)) + offset;
-+}
-+
- #define page_cache_get(page)		get_page(page)
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
+ 	BUG_ON(!PageLocked(page));
++	VM_BUG_ON(mapping->order != compound_order(page));
+ 
+ 	write_lock_irq(&mapping->tree_lock);
+ 	__remove_from_page_cache(page);
+@@ -268,6 +269,7 @@ int wait_on_page_writeback_range(struct 
+ 			if (page->index > end)
+ 				continue;
+ 
++			VM_BUG_ON(mapping->order != compound_order(page));
+ 			wait_on_page_writeback(page);
+ 			if (PageError(page))
+ 				ret = -EIO;
+@@ -439,6 +441,7 @@ int add_to_page_cache(struct page *page,
+ {
+ 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+ 
++	VM_BUG_ON(mapping->order != compound_order(page));
+ 	if (error == 0) {
+ 		write_lock_irq(&mapping->tree_lock);
+ 		error = radix_tree_insert(&mapping->page_tree, offset, page);
+@@ -598,8 +601,10 @@ struct page * find_get_page(struct addre
+ 
+ 	read_lock_irq(&mapping->tree_lock);
+ 	page = radix_tree_lookup(&mapping->page_tree, offset);
+-	if (page)
++	if (page) {
++		VM_BUG_ON(mapping->order != compound_order(page));
+ 		page_cache_get(page);
++	}
+ 	read_unlock_irq(&mapping->tree_lock);
+ 	return page;
+ }
+@@ -624,6 +629,7 @@ struct page *find_lock_page(struct addre
+ repeat:
+ 	page = radix_tree_lookup(&mapping->page_tree, offset);
+ 	if (page) {
++		VM_BUG_ON(mapping->order != compound_order(page));
+ 		page_cache_get(page);
+ 		if (TestSetPageLocked(page)) {
+ 			read_unlock_irq(&mapping->tree_lock);
+@@ -683,6 +689,7 @@ repeat:
+ 		} else if (err == -EEXIST)
+ 			goto repeat;
+ 	}
++	VM_BUG_ON(mapping->order != compound_order(page));
+ 	if (cached_page)
+ 		page_cache_release(cached_page);
+ 	return page;
+@@ -714,8 +721,10 @@ unsigned find_get_pages(struct address_s
+ 	read_lock_irq(&mapping->tree_lock);
+ 	ret = radix_tree_gang_lookup(&mapping->page_tree,
+ 				(void **)pages, start, nr_pages);
+-	for (i = 0; i < ret; i++)
++	for (i = 0; i < ret; i++) {
++		VM_BUG_ON(mapping->order != compound_order(pages[i]));
+ 		page_cache_get(pages[i]);
++	}
+ 	read_unlock_irq(&mapping->tree_lock);
+ 	return ret;
+ }
+@@ -745,6 +754,7 @@ unsigned find_get_pages_contig(struct ad
+ 		if (pages[i]->mapping == NULL || pages[i]->index != index)
+ 			break;
+ 
++		VM_BUG_ON(mapping->order != compound_order(pages[i]));
+ 		page_cache_get(pages[i]);
+ 		index++;
+ 	}
+@@ -772,8 +782,10 @@ unsigned find_get_pages_tag(struct addre
+ 	read_lock_irq(&mapping->tree_lock);
+ 	ret = radix_tree_gang_lookup_tag(&mapping->page_tree,
+ 				(void **)pages, *index, nr_pages, tag);
+-	for (i = 0; i < ret; i++)
++	for (i = 0; i < ret; i++) {
++		VM_BUG_ON(mapping->order != compound_order(pages[i]));
+ 		page_cache_get(pages[i]);
++	}
+ 	if (ret)
+ 		*index = pages[ret - 1]->index + 1;
+ 	read_unlock_irq(&mapping->tree_lock);
+@@ -2454,6 +2466,7 @@ int try_to_release_page(struct page *pag
+ 	struct address_space * const mapping = page->mapping;
+ 
+ 	BUG_ON(!PageLocked(page));
++	VM_BUG_ON(mapping->order != compound_order(page));
+ 	if (PageWriteback(page))
+ 		return 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
