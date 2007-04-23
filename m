@@ -1,106 +1,65 @@
-Message-ID: <462C7A6F.9030905@redhat.com>
-Date: Mon, 23 Apr 2007 05:20:47 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <462ACA40.8070407@yahoo.com.au> <462B0156.9020407@redhat.com> <462BFAF3.4040509@yahoo.com.au> <462C2DC7.5070709@redhat.com> <462C2F33.8090508@redhat.com>
-In-Reply-To: <462C2F33.8090508@redhat.com>
-Content-Type: multipart/mixed;
- boundary="------------030208000505050407080100"
+Date: Mon, 23 Apr 2007 19:23:45 +1000
+From: David Chinner <dgc@sgi.com>
+Subject: Re: [RFC 00/16] Variable Order Page Cache Patchset V2
+Message-ID: <20070423092345.GH32602149@melbourne.sgi.com>
+References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>, jakub@redhat.com, drepper@redhat.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Dave Hansen <hansendc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, Avi Kivity <avi@argo.co.il>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------030208000505050407080100
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-
-Use TLB batching for MADV_FREE.  Adds another 10-15% extra performance
-to the MySQL sysbench results on my quad core system.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
-Rik van Riel wrote:
-
->> I've added a 5th column, with just your mmap_sem patch and
->> without my madv_free patch.  It is run with the glibc patch,
->> which should make it fall back to MADV_DONTNEED after the
->> first MADV_FREE call fails.
-
-With the attached patch to make MADV_FREE use tlb batching, not
-only do we gain an additional 10-15% performance but Nick's
-mmap_sem patch also shows the performance increase that we
-expected to see.
-
-It looks like the tlb flushes (and IPIs) from zap_pte_range()
-could have been the problem.  They're gone now.
-
-The second column from the right has Nick's patch and my own
-two patches.  Performance with 16 threads is almost triple what
-it used to be...
-
-vanilla   glibc  glibc      glibc        glibc      glibc      glibc
-                  madv_free  madv_free               madv_free 
-madv_free
-                             mmap_sem     mmap_sem   mmap_sem
-                                                     tlb batch  tlb_batch
-threads
-
-  1     610     609     596         545         534     547     537
-  2    1032    1136    1196        1200        1180    1293    1194
-  4    1070    1128    2014        2024        2027    2248    2040
-  8    1000    1088    1665        2087        2089    2314    1869
-  16    779    1073    1310        1999        2012    2214    1557
-
-
-> Now that I think about it - this is all with the rawhide kernel
-> configuration, which has an ungodly number of debug config
-> options enabled.
+On Sun, Apr 22, 2007 at 11:48:45PM -0700, Christoph Lameter wrote:
+> Sorry for the earlier mail. quilt and exim not cooperating.
 > 
-> I should try this with a more normal kernel, on various different
-> systems.
+> RFC V1->V2
+> - Some ext2 support
+> - Some block layer, fs layer support etc.
+> - Better page cache macros
+> - Use macros to clean up code.
 
-This is for another day. :)
+I have this running on x86_64 UML with XFS. I've tested 16k and 64k
+block size using fsx with mmap operations turned off. It survives
+at least 100,000 operations without problems now.
 
-First some ebizzy runs...
+You need to apply a fix to memclear_highpage_flush() otherwise
+it bugs out on the first partial page truncate. I've attached
+my hack below. Christoph, there's header file inclusion order
+problems with using your new wrappers here, which is why I
+open coded it. I'll leave it for you to solve ;)
 
+I'll attach the XFS patch in another email.....
+
+Cheers,
+
+Dave.
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Dave Chinner
+Principal Engineer
+SGI Australian Software Group
 
---------------030208000505050407080100
-Content-Type: text/x-patch;
- name="linux-2.6-madv_free-lazytlb.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="linux-2.6-madv_free-lazytlb.patch"
 
---- linux-2.6.20.x86_64/mm/memory.c.orig	2007-04-23 02:48:36.000000000 -0400
-+++ linux-2.6.20.x86_64/mm/memory.c	2007-04-23 02:54:42.000000000 -0400
-@@ -677,11 +677,15 @@ static unsigned long zap_pte_range(struc
- 						remove_exclusive_swap_page(page);
- 						unlock_page(page);
- 					}
--					ptep_clear_flush_dirty(vma, addr, pte);
--					ptep_clear_flush_young(vma, addr, pte);
- 					SetPageLazyFree(page);
- 					if (PageActive(page))
- 						deactivate_tail_page(page);
-+					ptent = *pte;
-+					set_pte_at(mm, addr, pte,
-+						pte_mkclean(pte_mkold(ptent)));
-+					/* tlb_remove_page frees it again */
-+					get_page(page);
-+					tlb_remove_page(tlb, page);
- 					continue;
- 				}
- 			}
+---
+ include/linux/highmem.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---------------030208000505050407080100--
+Index: linux-2.6.21-rc7/include/linux/highmem.h
+===================================================================
+--- linux-2.6.21-rc7.orig/include/linux/highmem.h	2007-04-23 18:46:20.917655632 +1000
++++ linux-2.6.21-rc7/include/linux/highmem.h	2007-04-23 18:48:20.047323146 +1000
+@@ -88,7 +88,7 @@ static inline void memclear_highpage_flu
+ {
+ 	void *kaddr;
+ 
+-	BUG_ON(offset + size > PAGE_SIZE);
++	BUG_ON(offset + size > (PAGE_SIZE << page->mapping->order));
+ 
+ 	kaddr = kmap_atomic(page, KM_USER0);
+ 	memset((char *)kaddr + offset, 0, size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
