@@ -1,91 +1,85 @@
-In-reply-to: <1177308889.26937.1.camel@twins> (message from Peter Zijlstra on
-	Mon, 23 Apr 2007 08:14:49 +0200)
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-References: <20070420155154.898600123@chello.nl>
-	 <20070420155503.608300342@chello.nl>
-	 <20070421025532.916b1e2e.akpm@linux-foundation.org>
-	 <E1HfCzN-0002dZ-00@dorka.pomaz.szeredi.hu>
-	 <20070421035444.f7a42fad.akpm@linux-foundation.org>
-	 <E1HfM9K-0003OA-00@dorka.pomaz.szeredi.hu> <1177308889.26937.1.camel@twins>
-Message-Id: <E1Hfs3j-0005sN-00@dorka.pomaz.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 23 Apr 2007 08:29:59 +0200
+Message-Id: <20070423062107.843307112@sgi.com>
+Date: Sun, 22 Apr 2007 23:21:07 -0700
+From: clameter@sgi.com
+Subject: [RFC 00/16] Variable Order Page Cache Patchset V2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Adam Litke <aglitke@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Avi Kivity <avi@argo.co.il>, Dave Hansen <hansendc@us.ibm.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > > The other deadlock, in throttle_vm_writeout() is still to be solved.
-> > > 
-> > > Let's go back to the original changelog:
-> > > 
-> > > Author: marcelo.tosatti <marcelo.tosatti>
-> > > Date:   Tue Mar 8 17:25:19 2005 +0000
-> > > 
-> > >     [PATCH] vm: pageout throttling
-> > >     
-> > >     With silly pageout testcases it is possible to place huge amounts of memory
-> > >     under I/O.  With a large request queue (CFQ uses 8192 requests) it is
-> > >     possible to place _all_ memory under I/O at the same time.
-> > >     
-> > >     This means that all memory is pinned and unreclaimable and the VM gets
-> > >     upset and goes oom.
-> > >     
-> > >     The patch limits the amount of memory which is under pageout writeout to be
-> > >     a little more than the amount of memory at which balance_dirty_pages()
-> > >     callers will synchronously throttle.
-> > >     
-> > >     This means that heavy pageout activity can starve heavy writeback activity
-> > >     completely, but heavy writeback activity will not cause starvation of
-> > >     pageout.  Because we don't want a simple `dd' to be causing excessive
-> > >     latencies in page reclaim.
-> > >     
-> > >     Signed-off-by: Andrew Morton <akpm@osdl.org>
-> > >     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
-> > > 
-> > > (A good one!  I wrote it ;))
-> > > 
-> > > 
-> > > I believe that the combination of dirty-page-tracking and its calls to
-> > > balance_dirty_pages() mean that we can now never get more than dirty_ratio
-> > > of memory into the dirty-or-writeback condition.
-> > > 
-> > > The vm scanner can convert dirty pages into clean, under-writeback pages,
-> > > but it cannot increase the total of dirty+writeback.
-> > 
-> > What about swapout?  That can increase the number of writeback pages,
-> > without decreasing the number of dirty pages, no?
-> 
-> Could we not solve that by enabling cap_account_writeback on
-> swapper_space, and thereby account swap writeback pages. Then the VM
-> knows it has outstanding IO and need not panic.
+RFC V1->V2
+- Some ext2 support
+- Some block layer, fs layer support etc.
+- Better page cache macros
+- Use macros to clean up code.
 
-Hmm, I'm not sure that would be right, because then those writeback
-pages would be accounted twice: once for swapper_space, and once for
-the real device.
+This patchset modifies the Linujx kernel so that higher order page cache
+pages become possible. The higher order page cache pages are compound pages
+and can be handled in the same way as regular pages.
 
-So there's a condition, when lots of anonymous pages are turned into
-swap-cache writeback pages, and we should somehow throttle this, because
+Rationales:
 
->>>     This means that all memory is pinned and unreclaimable and the VM gets
->>>     upset and goes oom.
+1. We have problems supporting devices with a higher blocksize than
+   page size. This is for example important to support CD and DVDs that
+   can only read and write 32k or 64k blocks. We currently have a shim
+   layer in there to deal with this situation which limits the speed
+   of I/O. The developers are currently looking for ways to completely
+   bypass the page cache because of this deficiency.
 
-although, it's not quite clear in my mind, how the VM gets upset about
-this.
+2. 32/64k blocksize is also used in flash devices. Same issues.
 
-One way to throttle just the swapout activity, is to do the per-bdi
-accounting on swapper_space, and limit the number of writeback pages
-to e.g. the global threshold + 10%, which is basically what
-throttle_vm_writeout() currently does, only now it does it
-indiscriminately, and not just on swap writeback pages.
+3. Future harddisks will support bigger block sizes
 
-Does this make any sense?
+4. Performace. If we look at IA64 vs. x86_64 then it seems that the
+   faster interrupt handling on x86_64 compensate for the speed loss due to
+   a smaller page size (4k vs 16k on IA64). Having higher page sizes on all
+   platform allows a significant reduction in I/O overhead and increases the
+   size of I/O that can be performed by hardware in a single request
+   since the number of scatter gather entries are typically limited for
+   one request. This is going to become increasingly important to support
+   the ever growing memory sizes since we may have to handle excessively
+   large amounts of 4k requests for data sizes that may become common
+   soon. For example to write a 1 terabyte file the kernel would have to
+   handle 256 million 4k chunks.
 
-Miklos
+5. Cross arch compatibility: It is currently not possible to mount
+   an 16k blocksize ext2 filesystem created on IA64 on an x86_64 system.
+
+The support here is currently only for buffered I/O and only for two
+filesystems ramfs and ext2.
+
+Note that the higher order pages are subject to reclaim. This works in general
+since we are always operating on a single page struct. Reclaim is fooled to
+think that it is touching page sized objects (there are likely issues to be
+fixed there if we want to go down this road).
+
+What is currently not supported:
+- Mmapping higher order pages
+- Direct I/O (there are some fundamental issues with direct I/O
+  putting compound pages that have to be treated as single pages
+  on the pagevecs and the variable order page cache putting higher
+  order compound pages that hjave to be treated as a single large page
+  onto pagevecs.
+
+Breakage:
+- Reclaim does not work for some reasons. Compound pages on the active
+  list get lost somehow.
+- Disk data is corrupted when writing ext2fs data. There is likely
+  still a lot of work to do in the block layer.
+- There is a lot of incomplete work. There are numerous places
+  where the kernel can no longer assume that the page cache consists
+  of PAGE_SIZE pages that have not been fixed yet.
+
+Future:
+- Expect several more RFCs
+- We hope for XFS support soon
+- There are filesystem layer and lower layer issues here that I am not
+  that familiar with. If you can then please enhance my patches.
+- Mmap support could be done in a way that makes the mmap page size
+  independent from the page cache order. There is no problem of mapping a
+  4k section of a larger page cache page. This should leave mmap as is.
+- Lets try to keep scope as small as possible.
+
 
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
