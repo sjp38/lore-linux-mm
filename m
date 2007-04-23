@@ -1,51 +1,68 @@
-Message-ID: <462C37B9.5090600@yahoo.com.au>
-Date: Mon, 23 Apr 2007 14:36:09 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-References: <46247427.6000902@redhat.com> <20070420135715.f6e8e091.akpm@linux-foundation.org> <462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <20070421071202.GA355@devserv.devel.redhat.com>
-In-Reply-To: <20070421071202.GA355@devserv.devel.redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 10/10] mm: per device dirty threshold
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <E1HfM9K-0003OA-00@dorka.pomaz.szeredi.hu>
+References: <20070420155154.898600123@chello.nl>
+	 <20070420155503.608300342@chello.nl>
+	 <20070421025532.916b1e2e.akpm@linux-foundation.org>
+	 <E1HfCzN-0002dZ-00@dorka.pomaz.szeredi.hu>
+	 <20070421035444.f7a42fad.akpm@linux-foundation.org>
+	 <E1HfM9K-0003OA-00@dorka.pomaz.szeredi.hu>
+Content-Type: text/plain
+Date: Mon, 23 Apr 2007 08:14:49 +0200
+Message-Id: <1177308889.26937.1.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jakub Jelinek <jakub@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Jakub Jelinek wrote:
-> On Fri, Apr 20, 2007 at 07:52:44PM -0400, Rik van Riel wrote:
+On Sat, 2007-04-21 at 22:25 +0200, Miklos Szeredi wrote: 
+> > > The other deadlock, in throttle_vm_writeout() is still to be solved.
+> > 
+> > Let's go back to the original changelog:
+> > 
+> > Author: marcelo.tosatti <marcelo.tosatti>
+> > Date:   Tue Mar 8 17:25:19 2005 +0000
+> > 
+> >     [PATCH] vm: pageout throttling
+> >     
+> >     With silly pageout testcases it is possible to place huge amounts of memory
+> >     under I/O.  With a large request queue (CFQ uses 8192 requests) it is
+> >     possible to place _all_ memory under I/O at the same time.
+> >     
+> >     This means that all memory is pinned and unreclaimable and the VM gets
+> >     upset and goes oom.
+> >     
+> >     The patch limits the amount of memory which is under pageout writeout to be
+> >     a little more than the amount of memory at which balance_dirty_pages()
+> >     callers will synchronously throttle.
+> >     
+> >     This means that heavy pageout activity can starve heavy writeback activity
+> >     completely, but heavy writeback activity will not cause starvation of
+> >     pageout.  Because we don't want a simple `dd' to be causing excessive
+> >     latencies in page reclaim.
+> >     
+> >     Signed-off-by: Andrew Morton <akpm@osdl.org>
+> >     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
+> > 
+> > (A good one!  I wrote it ;))
+> > 
+> > 
+> > I believe that the combination of dirty-page-tracking and its calls to
+> > balance_dirty_pages() mean that we can now never get more than dirty_ratio
+> > of memory into the dirty-or-writeback condition.
+> > 
+> > The vm scanner can convert dirty pages into clean, under-writeback pages,
+> > but it cannot increase the total of dirty+writeback.
 > 
->>It turns out that Nick's patch does not improve peak
->>performance much, but it does prevent the decline when
->>running with 16 threads on my quad core CPU!
->>
->>We _definately_ want both patches, there's a huge benefit
->>in having them both.
->>
->>Here are the transactions/seconds for each combination:
->>
->>   vanilla   new glibc  madv_free kernel   madv_free + mmap_sem
->>threads
->>
->>1     610         609             596                545
->>2    1032        1136            1196               1200
->>4    1070        1128            2014               2024
->>8    1000        1088            1665               2087
->>16    779        1073            1310               1999
-> 
-> 
-> FYI, I have uploaded a testing glibc that uses MADV_FREE and falls back
-> to MADV_DONTUSE if MADV_FREE is not available, to
-> http://people.redhat.com/jakub/glibc/2.5.90-21.1/
+> What about swapout?  That can increase the number of writeback pages,
+> without decreasing the number of dirty pages, no?
 
-Hmm, I wonder how glibc malloc stacks up to tcmalloc on this test
-(after the mmap_sem patch as well).
-
-I'll try running that as well!
-
--- 
-SUSE Labs, Novell Inc.
+Could we not solve that by enabling cap_account_writeback on
+swapper_space, and thereby account swap writeback pages. Then the VM
+knows it has outstanding IO and need not panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
