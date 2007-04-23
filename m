@@ -1,153 +1,98 @@
-Message-Id: <20070423062130.623658661@sgi.com>
+Message-Id: <20070423062130.785519484@sgi.com>
 References: <20070423062107.843307112@sgi.com>
-Date: Sun, 22 Apr 2007 23:21:17 -0700
+Date: Sun, 22 Apr 2007 23:21:18 -0700
 From: clameter@sgi.com
-Subject: [RFC 10/16] Variable Order Page Cache: Readahead fixups
-Content-Disposition: inline; filename=var_pc_readahead
+Subject: [RFC 11/16] Variable Page Cache Size: Fix up reclaim counters
+Content-Disposition: inline; filename=var_pc_reclaim
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Adam Litke <aglitke@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Avi Kivity <avi@argo.co.il>, Dave Hansen <hansendc@us.ibm.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Readahead is now dependent on the page size. For larger page sizes
-we want less readahead.
+We can now reclaim larger pages. Adjust the VM counters
+to deal with it.
 
-Add a parameter to max_sane_readahead specifying the page order
-and update the code in mm/readahead.c to be aware of variant
-page sizes.
-
-Mark the 2M readahead constant as a potential future problem.
+Note that this does currently not make things work.
+For some reason we keep loosing pages off the active lists
+and reclaim stalls at some point attempting to remove
+active pages from an empty active list.
+It seems that the removal from the active lists happens
+outside of reclaim ?!?
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm.h |    2 +-
- mm/fadvise.c       |    5 +++--
- mm/filemap.c       |    5 +++--
- mm/madvise.c       |    4 +++-
- mm/readahead.c     |   20 +++++++++++++-------
- 5 files changed, 23 insertions(+), 13 deletions(-)
+ mm/vmscan.c |   15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
-Index: linux-2.6.21-rc7/include/linux/mm.h
+Index: linux-2.6.21-rc7/mm/vmscan.c
 ===================================================================
---- linux-2.6.21-rc7.orig/include/linux/mm.h	2007-04-22 21:48:22.000000000 -0700
-+++ linux-2.6.21-rc7/include/linux/mm.h	2007-04-22 22:04:44.000000000 -0700
-@@ -1104,7 +1104,7 @@ unsigned long page_cache_readahead(struc
- 			  unsigned long size);
- void handle_ra_miss(struct address_space *mapping, 
- 		    struct file_ra_state *ra, pgoff_t offset);
--unsigned long max_sane_readahead(unsigned long nr);
-+unsigned long max_sane_readahead(unsigned long nr, int order);
+--- linux-2.6.21-rc7.orig/mm/vmscan.c	2007-04-22 06:50:03.000000000 -0700
++++ linux-2.6.21-rc7/mm/vmscan.c	2007-04-22 17:19:35.000000000 -0700
+@@ -471,14 +471,14 @@ static unsigned long shrink_page_list(st
  
- /* Do stack extension */
- extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
-Index: linux-2.6.21-rc7/mm/fadvise.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/fadvise.c	2007-04-22 21:47:41.000000000 -0700
-+++ linux-2.6.21-rc7/mm/fadvise.c	2007-04-22 22:04:44.000000000 -0700
-@@ -86,10 +86,11 @@ asmlinkage long sys_fadvise64_64(int fd,
- 		nrpages = end_index - start_index + 1;
- 		if (!nrpages)
- 			nrpages = ~0UL;
--		
-+
- 		ret = force_page_cache_readahead(mapping, file,
- 				start_index,
--				max_sane_readahead(nrpages));
-+				max_sane_readahead(nrpages,
-+					mapping->order));
- 		if (ret > 0)
- 			ret = 0;
- 		break;
-Index: linux-2.6.21-rc7/mm/filemap.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/filemap.c	2007-04-22 22:03:09.000000000 -0700
-+++ linux-2.6.21-rc7/mm/filemap.c	2007-04-22 22:04:44.000000000 -0700
-@@ -1256,7 +1256,7 @@ do_readahead(struct address_space *mappi
- 		return -EINVAL;
+ 		VM_BUG_ON(PageActive(page));
  
- 	force_page_cache_readahead(mapping, filp, index,
--					max_sane_readahead(nr));
-+				max_sane_readahead(nr, mapping->order));
- 	return 0;
- }
+-		sc->nr_scanned++;
++		sc->nr_scanned += base_pages(page);
  
-@@ -1391,7 +1391,8 @@ retry_find:
- 			count_vm_event(PGMAJFAULT);
- 		}
- 		did_readaround = 1;
--		ra_pages = max_sane_readahead(file->f_ra.ra_pages);
-+		ra_pages = max_sane_readahead(file->f_ra.ra_pages,
-+							mapping->order);
- 		if (ra_pages) {
- 			pgoff_t start = 0;
+ 		if (!sc->may_swap && page_mapped(page))
+ 			goto keep_locked;
  
-Index: linux-2.6.21-rc7/mm/madvise.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/madvise.c	2007-04-22 21:47:41.000000000 -0700
-+++ linux-2.6.21-rc7/mm/madvise.c	2007-04-22 22:04:44.000000000 -0700
-@@ -105,7 +105,9 @@ static long madvise_willneed(struct vm_a
- 	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 		/* Double the slab pressure for mapped and swapcache pages */
+ 		if (page_mapped(page) || PageSwapCache(page))
+-			sc->nr_scanned++;
++			sc->nr_scanned += base_pages(page);
  
- 	force_page_cache_readahead(file->f_mapping,
--			file, start, max_sane_readahead(end - start));
-+			file, start,
-+			max_sane_readahead(end - start,
-+				file->f_mapping->order));
- 	return 0;
- }
+ 		if (PageWriteback(page))
+ 			goto keep_locked;
+@@ -581,7 +581,7 @@ static unsigned long shrink_page_list(st
  
-Index: linux-2.6.21-rc7/mm/readahead.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/readahead.c	2007-04-22 21:47:41.000000000 -0700
-+++ linux-2.6.21-rc7/mm/readahead.c	2007-04-22 22:06:47.000000000 -0700
-@@ -152,7 +152,7 @@ int read_cache_pages(struct address_spac
- 			put_pages_list(pages);
- 			break;
- 		}
--		task_io_account_read(PAGE_CACHE_SIZE);
-+		task_io_account_read(page_cache_size(mapping));
+ free_it:
+ 		unlock_page(page);
+-		nr_reclaimed++;
++		nr_reclaimed += base_pages(page);
+ 		if (!pagevec_add(&freed_pvec, page))
+ 			__pagevec_release_nonlru(&freed_pvec);
+ 		continue;
+@@ -627,7 +627,7 @@ static unsigned long isolate_lru_pages(u
+ 	struct page *page;
+ 	unsigned long scan;
+ 
+-	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
++	for (scan = 0; scan < nr_to_scan && !list_empty(src); ) {
+ 		struct list_head *target;
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+@@ -644,10 +644,11 @@ static unsigned long isolate_lru_pages(u
+ 			 */
+ 			ClearPageLRU(page);
+ 			target = dst;
+-			nr_taken++;
++			nr_taken += base_pages(page);
+ 		} /* else it is being freed elsewhere */
+ 
+ 		list_add(&page->lru, target);
++		scan += base_pages(page);
  	}
- 	pagevec_lru_add(&lru_pvec);
- 	return ret;
-@@ -276,7 +276,7 @@ __do_page_cache_readahead(struct address
- 	if (isize == 0)
- 		goto out;
  
-- 	end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
-+ 	end_index = page_cache_index(mapping, isize - 1);
+ 	*scanned = scan;
+@@ -856,7 +857,7 @@ force_reclaim_mapped:
+ 		ClearPageActive(page);
  
- 	/*
- 	 * Preallocate as many pages as we will need.
-@@ -330,7 +330,11 @@ int force_page_cache_readahead(struct ad
- 	while (nr_to_read) {
- 		int err;
- 
--		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_CACHE_SIZE;
-+		/*
-+		 * FIXME: Note the 2M constant here that may prove to
-+		 * be a problem if page sizes become bigger than one megabyte.
-+		 */
-+		unsigned long this_chunk = page_cache_index(mapping, 2 * 1024 * 1024);
- 
- 		if (this_chunk > nr_to_read)
- 			this_chunk = nr_to_read;
-@@ -570,11 +574,13 @@ void handle_ra_miss(struct address_space
- }
- 
- /*
-- * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-+ * Given a desired number of page order readahead pages, return a
-  * sensible upper limit.
-  */
--unsigned long max_sane_readahead(unsigned long nr)
-+unsigned long max_sane_readahead(unsigned long nr, int order)
- {
--	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE)
--		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-+	unsigned long base_pages = node_page_state(numa_node_id(), NR_INACTIVE)
-+			+ node_page_state(numa_node_id(), NR_FREE_PAGES);
-+
-+	return min(nr, (base_pages / 2) >> order);
- }
+ 		list_move(&page->lru, &zone->inactive_list);
+-		pgmoved++;
++		pgmoved += base_pages(page);
+ 		if (!pagevec_add(&pvec, page)) {
+ 			__mod_zone_page_state(zone, NR_INACTIVE, pgmoved);
+ 			spin_unlock_irq(&zone->lru_lock);
+@@ -884,7 +885,7 @@ force_reclaim_mapped:
+ 		SetPageLRU(page);
+ 		VM_BUG_ON(!PageActive(page));
+ 		list_move(&page->lru, &zone->active_list);
+-		pgmoved++;
++		pgmoved += base_pages(page);
+ 		if (!pagevec_add(&pvec, page)) {
+ 			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
+ 			pgmoved = 0;
 
 --
