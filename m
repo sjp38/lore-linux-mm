@@ -1,30 +1,59 @@
-Date: Mon, 23 Apr 2007 08:48:23 -0700 (PDT)
+Date: Mon, 23 Apr 2007 08:53:09 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-In-Reply-To: <1177157708.2934.100.camel@lappy>
-Message-ID: <Pine.LNX.4.64.0704230847400.10624@schroedinger.engr.sgi.com>
-References: <20070420155154.898600123@chello.nl>  <20070420155503.608300342@chello.nl>
-  <20070421025532.916b1e2e.akpm@linux-foundation.org>  <1177156902.2934.96.camel@lappy>
- <1177157708.2934.100.camel@lappy>
+Subject: Re: slab allocators: Remove multiple alignment specifications.
+In-Reply-To: <20070423154412.GA12733@lnx-holt.americas.sgi.com>
+Message-ID: <Pine.LNX.4.64.0704230849110.10624@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0704202210060.17036@schroedinger.engr.sgi.com>
+ <20070420223727.7b201984.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0704202243480.25004@schroedinger.engr.sgi.com>
+ <20070420231129.9252ca67.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0704202330440.11938@schroedinger.engr.sgi.com>
+ <20070423154412.GA12733@lnx-holt.americas.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, neilb@suse.de, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: Robin Holt <holt@sgi.com>
+Cc: dcn@sgi.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 21 Apr 2007, Peter Zijlstra wrote:
+On Mon, 23 Apr 2007, Robin Holt wrote:
 
-> > > This is enormously wrong for CONFIG_NR_CPUS=1024 on a 2-way.
+> On Fri, Apr 20, 2007 at 11:32:48PM -0700, Christoph Lameter wrote:
+> > Well xpmem is broke and readahead is failing all over the place. Some 
+> > patches missing?
 > 
-> Right, I knew about that but, uhm.
-> 
-> I wanted to make that num_online_cpus(), and install a hotplug notifier
-> to fold the percpu delta back into the total on cpu offline.
+> Which xpmem are you compiling?  Did you let Dean Nelson know about this?
+> Has anything been submitted to the community yet?
 
-Use nr_cpu_ids instead. Contains the maximum possible cpus on this 
-hardware and allows to handle the hotplug case easily.
+I think this was just a an artifact of an inconsistent ia64 mix of 
+patches in a temporary tree by Andrew.
+
+Here is the hack that I used to compile more of the temp tree.
+
+
+Index: linux-2.6.21-rc7/arch/ia64/sn/kernel/xpc_main.c
+===================================================================
+--- linux-2.6.21-rc7.orig/arch/ia64/sn/kernel/xpc_main.c	2007-04-20 23:23:31.000000000 -0700
++++ linux-2.6.21-rc7/arch/ia64/sn/kernel/xpc_main.c	2007-04-20 23:25:32.000000000 -0700
+@@ -811,6 +811,8 @@ xpc_create_kthreads(struct xpc_channel *
+ 	pid_t pid;
+ 	u64 args = XPC_PACK_ARGS(ch->partid, ch->number);
+ 	struct xpc_partition *part = &xpc_partitions[ch->partid];
++	struct task_struct *task;
++
+ 
+ 
+ 	while (needed-- > 0) {
+@@ -839,7 +841,7 @@ xpc_create_kthreads(struct xpc_channel *
+ 		xpc_msgqueue_ref(ch);
+ 
+ 		task = kthread_run(xpc_daemonize_kthread, args,
+-				   "xpc%02dc%d", partid, ch_number);
++				   "xpc%02dc%d", ch->partid, ch->number);
+ 		if (IS_ERR(task)) {
+ 			/* the fork failed */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
