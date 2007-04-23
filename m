@@ -1,76 +1,109 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3NGTwBe032053
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 12:29:58 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3NGTwSd112492
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 10:29:58 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3NGTvjw012929
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 10:29:58 -0600
-Subject: Re: [RFC 15/16] ext2: Add variable page size support
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <20070423065003.5458.83524.sendpatchset@schroedinger.engr.sgi.com>
-References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
-	 <20070423065003.5458.83524.sendpatchset@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 23 Apr 2007 09:30:12 -0700
-Message-Id: <1177345812.19676.4.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+Date: Mon, 23 Apr 2007 15:49:17 -0200
+From: "Royal EURO Casino" <builtin@mailAccount.com>
+Message-ID: <13419740.24173155@snuffly.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, David Chinner <dgc@sgi.com>, Adam Litke <aglitke@gmail.com>, Avi Kivity <avi@argo.co.il>, Mel Gorman <mel@skynet.ie>, Dave Hansen <hansendc@us.ibm.com>
+Return-Path: <builtin@mailAccount.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2007-04-22 at 23:50 -0700, Christoph Lameter wrote:
-> ext2: Add variable page size support
-> 
-> This adds variable page size support. It is then possible to mount filesystems
-> that have a larger blocksize than the page size.
-> 
-> F.e. the following is possible on x86_64 and i386 that have only a 4k page
-> size.
-> 
-> mke2fs -b 16384 /dev/hdd2	<Ignore warning about too large block size>
-> 
-> mount /dev/hdd2 /media
-> ls -l /media
-> 
-> .... Do more things with the volume that uses a 16k page cache size on
-> a 4k page sized platform..
-> 
-> Note that there are issues with ext2 support:
-> 
-> 1. Data is not writtten back correctly (block layer?)
-> 2. Reclaim does not work right.
+<html>
 
-Here is the fix you need to get ext2 writeback working properly :)
-I am able to run fsx with this fix (without mapped IO).
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Thanks,
-Badari
+<title>Online </title>
 
- fs/buffer.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Index: linux-2.6.21-rc7/fs/buffer.c
-===================================================================
---- linux-2.6.21-rc7.orig/fs/buffer.c	2007-04-23 09:44:19.000000000 -0700
-+++ linux-2.6.21-rc7/fs/buffer.c	2007-04-23 10:28:45.000000000 -0700
-@@ -1619,7 +1619,7 @@ static int __block_write_full_page(struc
- 	 * handle that here by just cleaning them.
- 	 */
- 
--	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-+	block = (sector_t)page->index << (page_cache_shift(page->mapping) - inode->i_blkbits);
- 	head = page_buffers(page);
- 	bh = head;
- 
+</head>
 
+<body lang=RU link=blue vlink=purple style='tab-interval:35.4pt'>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<div class=Section1>
+
+<p class=MsoNormal>
+Online Casinos sind dafuer bekannt, ihren Spielern, 
+gro&#223;z&uuml;gige Ersteinzahlungsbonusse zu geben.
+<o:p></o:p></p>
+
+<p class=MsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Aber einen so grossen Bonus haben Sie noch nie erhalten!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+300% Bonus auf Ihre erste Einzahlung auf bis zu 
+300&#8364; Bonus!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Ein echt k&ouml;niglicher Bonus!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+Royal Euro Casino bietet Ihnen die neueste Generatin an 
+Software und eine elegante gaming Atmosph&auml;re. Mit einer Auswahl 
+an &uuml;ber 100 Casino Spielen und einer immer 
+verf&uuml;gbaren Kundenbetreuung kann man nicht mehr verlangen.
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><a href="http://www.e-royalcasino.com/lang-de/">
+http://www.e-royalcasino.com/lang-de/</a>
+<span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US style='mso-ansi-language:EN-US'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal>
+<span lang=EN-US style='mso-ansi-language:EN-US'>
+Kommen und Spielen Sie bei Royal Euro Casino!<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
