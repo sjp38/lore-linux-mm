@@ -1,42 +1,57 @@
-Message-ID: <462C8922.7070401@shadowen.org>
-Date: Mon, 23 Apr 2007 11:23:30 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Message-ID: <462C8B0A.8060801@redhat.com>
+Date: Mon, 23 Apr 2007 06:31:38 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] introduce HIGH_ORDER delineating easily reclaimable
- orders
-References: <exportbomb.1177081388@pinky>	<cc3c22ba296c3d75cd7bd66747fb08c0@pinky>	<20070421012843.f5a814eb.akpm@linux-foundation.org> <20070421013210.1bed9ceb.akpm@linux-foundation.org>
-In-Reply-To: <20070421013210.1bed9ceb.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
+References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <462ACA40.8070407@yahoo.com.au> <462B0156.9020407@redhat.com> <462BFAF3.4040509@yahoo.com.au> <462C2DC7.5070709@redhat.com> <462C2F33.8090508@redhat.com> <462C7A6F.9030905@redhat.com> <462C88B1.8080906@yahoo.com.au>
+In-Reply-To: <462C88B1.8080906@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>, jakub@redhat.com, drepper@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Sat, 21 Apr 2007 01:28:43 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
->> It would have been better to have patched page_alloc.c independently, then
->> to have used HIGH_ORDER in "lumpy: increase pressure at the end of the inactive
->> list".
-> 
-> Actually that doesn't matter, because I plan on lumping all the lumpy patches
-> together into one lump.
-> 
-> I was going to duck patches #2 and #3, such was my outrage.  But given that
-> it's all lined up to be a single patch, followup cleanup patches will fit in
-> OK.  Please.
+Nick Piggin wrote:
 
-Yes.  Its funny how you can get so close to a change that you can no
-longer see the obvious warts on it.
+>> It looks like the tlb flushes (and IPIs) from zap_pte_range()
+>> could have been the problem.  They're gone now.
+> 
+> I guess it is a good idea to batch these things. But can you
+> do that on all architectures? What happens if your tlb flush
+> happens after another thread already accesses it again, or
+> after it subsequently gets removed from the address space via
+> another CPU?
 
-I am actually travelling today, so it'll be tommorrow now.  But I'll
-roll the cleanups and get them to you.  I can also offer you a clean
-drop in lumpy stack with the HIGH_ORDER change pulled out to the top
-once you are happy.
+I have thought about this a lot tonight, and have come to the conclusion
+that they are ok.
 
--apw
+The reason is simple:
+
+1) we do the TLB flush before we return from the
+    madvise(MADV_FREE) syscall.
+
+2) anything that accessess the pages between the start
+    and end of the MADV_FREE procedure does not know in
+    which order we go through the pages, so it could hit
+    a page either before or after we get to processing
+    it
+
+3) because of this, we can treat any such accesses as
+    happening simultaneously with the MADV_FREE and
+    as illegal, aka undefined behaviour territory and
+    we do not need to worry about them
+
+4) because we flush the tlb before releasing the page
+    table lock, other CPUs cannot remove this page from
+    the address space - they will block on the page
+    table lock before looking at this pte
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
