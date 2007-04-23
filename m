@@ -1,54 +1,149 @@
-Message-Id: <20070423062129.504330506@sgi.com>
+Message-Id: <20070423062129.645837417@sgi.com>
 References: <20070423062107.843307112@sgi.com>
-Date: Sun, 22 Apr 2007 23:21:10 -0700
+Date: Sun, 22 Apr 2007 23:21:11 -0700
 From: clameter@sgi.com
-Subject: [RFC 03/16] Variable Order Page Cache: Add order field in mapping
-Content-Disposition: inline; filename=var_pc_order_field
+Subject: [RFC 04/16] Variable Order Page Cache: Add basic allocation functions
+Content-Disposition: inline; filename=var_pc_basic_alloc
 To: linux-mm@kvack.org
 Cc: Mel Gorman <mel@skynet.ie>, William Lee Irwin III <wli@holomorphy.com>, Adam Litke <aglitke@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Avi Kivity <avi@argo.co.il>, Dave Hansen <hansendc@us.ibm.com>, Badari Pulavarty <pbadari@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Add an "order" field in the address space structure that
-specifies the page order of pages in an address space.
+Extend __page_cache_alloc to take an order parameter and modify caller
+sites. Modify mapping_set_gfp_mask to set __GFP_COMP if the mapping
+requires higher order allocations.
 
-Set the field to zero by default so that filesystems not prepared to
-deal with higher pages can be left as is.
+put_page() is already capable of handling compound pages. So there are no
+changes needed to release higher order page cache pages.
 
-Putting page order in the address space structure means that the order of the
-pages in the page cache can be varied per file that a filesystem creates.
-This means we can keep small 4k pages for small files. Larger files can
-be configured by the file system to use a higher order.
+However, there is a call to "alloc_page" in mm/filemap.c that does not
+perform an allocation conformand with the parameters of the mapping.
+Fix that by introducing a new page_cache_alloc function that
+is capable of taking a gfp_t flag.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- fs/inode.c         |    1 +
- include/linux/fs.h |    1 +
- 2 files changed, 2 insertions(+)
+ include/linux/pagemap.h |   34 ++++++++++++++++++++++++++++------
+ mm/filemap.c            |   12 +++++++-----
+ 2 files changed, 35 insertions(+), 11 deletions(-)
 
-Index: linux-2.6.21-rc7/fs/inode.c
+Index: linux-2.6.21-rc7/include/linux/pagemap.h
 ===================================================================
---- linux-2.6.21-rc7.orig/fs/inode.c	2007-04-18 21:21:56.000000000 -0700
-+++ linux-2.6.21-rc7/fs/inode.c	2007-04-18 21:26:31.000000000 -0700
-@@ -145,6 +145,7 @@ static struct inode *alloc_inode(struct 
- 		mapping->a_ops = &empty_aops;
-  		mapping->host = inode;
- 		mapping->flags = 0;
-+		mapping->order = 0;
- 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
-Index: linux-2.6.21-rc7/include/linux/fs.h
+--- linux-2.6.21-rc7.orig/include/linux/pagemap.h	2007-04-22 21:47:47.000000000 -0700
++++ linux-2.6.21-rc7/include/linux/pagemap.h	2007-04-22 21:52:37.000000000 -0700
+@@ -3,6 +3,9 @@
+ 
+ /*
+  * Copyright 1995 Linus Torvalds
++ *
++ * (C) 2007 sgi, Christoph Lameter <clameter@sgi.com>
++ * 	Add variable order page cache support.
+  */
+ #include <linux/mm.h>
+ #include <linux/fs.h>
+@@ -32,6 +35,18 @@ static inline void mapping_set_gfp_mask(
+ {
+ 	m->flags = (m->flags & ~(__force unsigned long)__GFP_BITS_MASK) |
+ 				(__force unsigned long)mask;
++	if (m->order)
++		m->flags |= __GFP_COMP;
++}
++
++static inline void set_mapping_order(struct address_space *m, int order)
++{
++	m->order = order;
++
++	if (order)
++		m->flags |= __GFP_COMP;
++	else
++		m->flags &= ~__GFP_COMP;
+ }
+ 
+ /*
+@@ -40,7 +55,7 @@ static inline void mapping_set_gfp_mask(
+  * throughput (it can then be mapped into user
+  * space in smaller chunks for same flexibility).
+  *
+- * Or rather, it _will_ be done in larger chunks.
++ * This is the base page size
+  */
+ #define PAGE_CACHE_SHIFT	PAGE_SHIFT
+ #define PAGE_CACHE_SIZE		PAGE_SIZE
+@@ -52,22 +67,29 @@ static inline void mapping_set_gfp_mask(
+ void release_pages(struct page **pages, int nr, int cold);
+ 
+ #ifdef CONFIG_NUMA
+-extern struct page *__page_cache_alloc(gfp_t gfp);
++extern struct page *__page_cache_alloc(gfp_t gfp, int order);
+ #else
+-static inline struct page *__page_cache_alloc(gfp_t gfp)
++static inline struct page *__page_cache_alloc(gfp_t gfp, int order)
+ {
+-	return alloc_pages(gfp, 0);
++	return alloc_pages(gfp, order);
+ }
+ #endif
+ 
++static inline struct page *page_cache_alloc_mask(struct address_space *x,
++						gfp_t flags)
++{
++	return __page_cache_alloc(mapping_gfp_mask(x) | flags,
++		x->order);
++}
++
+ static inline struct page *page_cache_alloc(struct address_space *x)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x));
++	return page_cache_alloc_mask(x, 0);
+ }
+ 
+ static inline struct page *page_cache_alloc_cold(struct address_space *x)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
++	return page_cache_alloc_mask(x, __GFP_COLD);
+ }
+ 
+ typedef int filler_t(void *, struct page *);
+Index: linux-2.6.21-rc7/mm/filemap.c
 ===================================================================
---- linux-2.6.21-rc7.orig/include/linux/fs.h	2007-04-18 21:21:56.000000000 -0700
-+++ linux-2.6.21-rc7/include/linux/fs.h	2007-04-18 21:26:31.000000000 -0700
-@@ -435,6 +435,7 @@ struct address_space {
- 	struct inode		*host;		/* owner: inode, block_device */
- 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
- 	rwlock_t		tree_lock;	/* and rwlock protecting it */
-+	unsigned int		order;		/* Page order in this space */
- 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
- 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
- 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
+--- linux-2.6.21-rc7.orig/mm/filemap.c	2007-04-22 21:47:47.000000000 -0700
++++ linux-2.6.21-rc7/mm/filemap.c	2007-04-22 21:54:00.000000000 -0700
+@@ -467,13 +467,13 @@ int add_to_page_cache_lru(struct page *p
+ }
+ 
+ #ifdef CONFIG_NUMA
+-struct page *__page_cache_alloc(gfp_t gfp)
++struct page *__page_cache_alloc(gfp_t gfp, int order)
+ {
+ 	if (cpuset_do_page_mem_spread()) {
+ 		int n = cpuset_mem_spread_node();
+-		return alloc_pages_node(n, gfp, 0);
++		return alloc_pages_node(n, gfp, order);
+ 	}
+-	return alloc_pages(gfp, 0);
++	return alloc_pages(gfp, order);
+ }
+ EXPORT_SYMBOL(__page_cache_alloc);
+ #endif
+@@ -670,7 +670,8 @@ repeat:
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = alloc_page(gfp_mask);
++			cached_page =
++				page_cache_alloc_mask(mapping, gfp_mask);
+ 			if (!cached_page)
+ 				return NULL;
+ 		}
+@@ -803,7 +804,8 @@ grab_cache_page_nowait(struct address_sp
+ 		page_cache_release(page);
+ 		return NULL;
+ 	}
+-	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
++	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS,
++		mapping->order);
+ 	if (page && add_to_page_cache_lru(page, mapping, index, GFP_KERNEL)) {
+ 		page_cache_release(page);
+ 		page = NULL;
 
 --
