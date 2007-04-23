@@ -1,165 +1,127 @@
 From: Christoph Lameter <clameter@sgi.com>
-Message-Id: <20070423064947.5458.13559.sendpatchset@schroedinger.engr.sgi.com>
+Message-Id: <20070423064957.5458.86907.sendpatchset@schroedinger.engr.sgi.com>
 In-Reply-To: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
 References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
-Subject: [RFC 12/16] Variable Order Page Cache: Fix up the writeback logic
-Date: Sun, 22 Apr 2007 23:49:47 -0700 (PDT)
+Subject: [RFC 14/16] Variable Order Page Cache: Add support to ramfs
+Date: Sun, 22 Apr 2007 23:49:58 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Christoph Lameter <clameter@sgi.com>, Dave Hansen <hansendc@us.ibm.com>, Mel Gorman <mel@skynet.ie>, Avi Kivity <avi@argo.co.il>
 List-ID: <linux-mm.kvack.org>
 
-Variable Order Page Cache: Fix up the writeback logic
+Variable Order Page Cache: Add support to ramfs
 
-Nothing special here. Just the usual transformations.
+The simplest file system to use is ramfs. Add a mount parameter that
+specifies the page order of the pages that ramfs should use. If the
+order is greater than zero then disable mmap functionality.
+
+This could be removed if the VM would be changes to support faulting
+higher order pages but for now we are content with buffered I/O on higher
+order pages.
+
+Note that ramfs does not use the lower layers (buffer I/O etc) so its
+the safest to use right now.
+
+If you apply this patch and then you can f.e. try this:
+
+mount -tramfs -o10 none /media
+
+Mounts a ramfs filesystem with order 10 pages (4 MB)
+
+cp linux-2.6.21-rc7.tar.gz /media
+
+Populate the ramfs. Note that we allocate 14 pages of 4M each
+instead of 13508..
+
+umount /media
+
+Gets rid of the large pages again
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- fs/sync.c           |    8 ++++----
- mm/fadvise.c        |    8 ++++----
- mm/page-writeback.c |    4 ++--
- mm/truncate.c       |   23 ++++++++++++-----------
- 4 files changed, 22 insertions(+), 21 deletions(-)
+ fs/ramfs/file-mmu.c   |   11 +++++++++++
+ fs/ramfs/inode.c      |   15 ++++++++++++---
+ include/linux/ramfs.h |    1 +
+ 3 files changed, 24 insertions(+), 3 deletions(-)
 
-Index: linux-2.6.21-rc7/mm/page-writeback.c
+Index: linux-2.6.21-rc7/fs/ramfs/file-mmu.c
 ===================================================================
---- linux-2.6.21-rc7.orig/mm/page-writeback.c	2007-04-22 21:47:34.000000000 -0700
-+++ linux-2.6.21-rc7/mm/page-writeback.c	2007-04-22 22:08:35.000000000 -0700
-@@ -606,8 +606,8 @@ int generic_writepages(struct address_sp
- 		index = mapping->writeback_index; /* Start from prev offset */
- 		end = -1;
- 	} else {
--		index = wbc->range_start >> PAGE_CACHE_SHIFT;
--		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-+		index = page_cache_index(mapping, wbc->range_start);
-+		end = page_cache_index(mapping, wbc->range_end);
- 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
- 			range_whole = 1;
- 		scanned = 1;
-Index: linux-2.6.21-rc7/fs/sync.c
+--- linux-2.6.21-rc7.orig/fs/ramfs/file-mmu.c	2007-04-18 21:46:38.000000000 -0700
++++ linux-2.6.21-rc7/fs/ramfs/file-mmu.c	2007-04-18 22:02:03.000000000 -0700
+@@ -45,6 +45,17 @@ const struct file_operations ramfs_file_
+ 	.llseek		= generic_file_llseek,
+ };
+ 
++/* Higher order mappings do not support mmmap */
++const struct file_operations ramfs_file_higher_order_operations = {
++	.read		= do_sync_read,
++	.aio_read	= generic_file_aio_read,
++	.write		= do_sync_write,
++	.aio_write	= generic_file_aio_write,
++	.fsync		= simple_sync_file,
++	.sendfile	= generic_file_sendfile,
++	.llseek		= generic_file_llseek,
++};
++
+ const struct inode_operations ramfs_file_inode_operations = {
+ 	.getattr	= simple_getattr,
+ };
+Index: linux-2.6.21-rc7/fs/ramfs/inode.c
 ===================================================================
---- linux-2.6.21-rc7.orig/fs/sync.c	2007-04-22 21:47:34.000000000 -0700
-+++ linux-2.6.21-rc7/fs/sync.c	2007-04-22 22:08:35.000000000 -0700
-@@ -254,8 +254,8 @@ int do_sync_file_range(struct file *file
- 	ret = 0;
- 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
- 		ret = wait_on_page_writeback_range(mapping,
--					offset >> PAGE_CACHE_SHIFT,
--					endbyte >> PAGE_CACHE_SHIFT);
-+					page_cache_index(mapping, offset),
-+					page_cache_index(mapping, endbyte));
- 		if (ret < 0)
- 			goto out;
- 	}
-@@ -269,8 +269,8 @@ int do_sync_file_range(struct file *file
- 
- 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER) {
- 		ret = wait_on_page_writeback_range(mapping,
--					offset >> PAGE_CACHE_SHIFT,
--					endbyte >> PAGE_CACHE_SHIFT);
-+					page_cache_index(mapping, offset),
-+					page_cache_index(mapping, endbyte));
- 	}
- out:
- 	return ret;
-Index: linux-2.6.21-rc7/mm/fadvise.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/fadvise.c	2007-04-22 22:04:44.000000000 -0700
-+++ linux-2.6.21-rc7/mm/fadvise.c	2007-04-22 22:08:35.000000000 -0700
-@@ -79,8 +79,8 @@ asmlinkage long sys_fadvise64_64(int fd,
- 		}
- 
- 		/* First and last PARTIAL page! */
--		start_index = offset >> PAGE_CACHE_SHIFT;
--		end_index = endbyte >> PAGE_CACHE_SHIFT;
-+		start_index = page_cache_index(mapping, offset);
-+		end_index = page_cache_index(mapping, endbyte);
- 
- 		/* Careful about overflow on the "+1" */
- 		nrpages = end_index - start_index + 1;
-@@ -101,8 +101,8 @@ asmlinkage long sys_fadvise64_64(int fd,
- 			filemap_flush(mapping);
- 
- 		/* First and last FULL page! */
--		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
--		end_index = (endbyte >> PAGE_CACHE_SHIFT);
-+		start_index = page_cache_next(mapping, offset);
-+		end_index = page_cache_index(mapping, endbyte);
- 
- 		if (end_index >= start_index)
- 			invalidate_mapping_pages(mapping, start_index,
-Index: linux-2.6.21-rc7/mm/truncate.c
-===================================================================
---- linux-2.6.21-rc7.orig/mm/truncate.c	2007-04-22 21:47:34.000000000 -0700
-+++ linux-2.6.21-rc7/mm/truncate.c	2007-04-22 22:11:19.000000000 -0700
-@@ -46,7 +46,8 @@ void do_invalidatepage(struct page *page
- 
- static inline void truncate_partial_page(struct page *page, unsigned partial)
+--- linux-2.6.21-rc7.orig/fs/ramfs/inode.c	2007-04-18 21:46:38.000000000 -0700
++++ linux-2.6.21-rc7/fs/ramfs/inode.c	2007-04-18 22:02:03.000000000 -0700
+@@ -61,6 +61,7 @@ struct inode *ramfs_get_inode(struct sup
+ 		inode->i_blocks = 0;
+ 		inode->i_mapping->a_ops = &ramfs_aops;
+ 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
++		inode->i_mapping->order = sb->s_blocksize_bits - PAGE_CACHE_SHIFT;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		switch (mode & S_IFMT) {
+ 		default:
+@@ -68,7 +69,10 @@ struct inode *ramfs_get_inode(struct sup
+ 			break;
+ 		case S_IFREG:
+ 			inode->i_op = &ramfs_file_inode_operations;
+-			inode->i_fop = &ramfs_file_operations;
++			if (inode->i_mapping->order)
++				inode->i_fop = &ramfs_file_higher_order_operations;
++			else
++				inode->i_fop = &ramfs_file_operations;
+ 			break;
+ 		case S_IFDIR:
+ 			inode->i_op = &ramfs_dir_inode_operations;
+@@ -164,10 +168,15 @@ static int ramfs_fill_super(struct super
  {
--	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
-+	memclear_highpage_flush(page, partial,
-+		(PAGE_SIZE << compound_order(page)) - partial);
- 	if (PagePrivate(page))
- 		do_invalidatepage(page, partial);
- }
-@@ -94,7 +95,7 @@ truncate_complete_page(struct address_sp
- 	if (page->mapping != mapping)
- 		return;
+ 	struct inode * inode;
+ 	struct dentry * root;
++	int order = 0;
++	char *options = data;
++
++	if (options && *options)
++		order = simple_strtoul(options, NULL, 10);
  
--	cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+	cancel_dirty_page(page, page_cache_size(mapping));
+ 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+-	sb->s_blocksize = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize = PAGE_CACHE_SIZE << order;
++	sb->s_blocksize_bits = order + PAGE_CACHE_SHIFT;
+ 	sb->s_magic = RAMFS_MAGIC;
+ 	sb->s_op = &ramfs_ops;
+ 	sb->s_time_gran = 1;
+Index: linux-2.6.21-rc7/include/linux/ramfs.h
+===================================================================
+--- linux-2.6.21-rc7.orig/include/linux/ramfs.h	2007-04-18 21:46:38.000000000 -0700
++++ linux-2.6.21-rc7/include/linux/ramfs.h	2007-04-18 22:02:03.000000000 -0700
+@@ -16,6 +16,7 @@ extern int ramfs_nommu_mmap(struct file 
+ #endif
  
- 	if (PagePrivate(page))
- 		do_invalidatepage(page, 0);
-@@ -156,9 +157,9 @@ invalidate_complete_page(struct address_
- void truncate_inode_pages_range(struct address_space *mapping,
- 				loff_t lstart, loff_t lend)
- {
--	const pgoff_t start = (lstart + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
-+	const pgoff_t start = page_cache_next(mapping, lstart);
- 	pgoff_t end;
--	const unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
-+	const unsigned partial = page_cache_offset(mapping, lstart);
- 	struct pagevec pvec;
- 	pgoff_t next;
- 	int i;
-@@ -166,8 +167,9 @@ void truncate_inode_pages_range(struct a
- 	if (mapping->nrpages == 0)
- 		return;
+ extern const struct file_operations ramfs_file_operations;
++extern const struct file_operations ramfs_file_higher_order_operations;
+ extern struct vm_operations_struct generic_file_vm_ops;
+ extern int __init init_rootfs(void);
  
--	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
--	end = (lend >> PAGE_CACHE_SHIFT);
-+	BUG_ON(page_cache_offset(mapping, lend) !=
-+				page_cache_size(mapping) - 1);
-+	end = page_cache_index(mapping, lend);
- 
- 	pagevec_init(&pvec, 0);
- 	next = start;
-@@ -402,9 +404,8 @@ int invalidate_inode_pages2_range(struct
- 					 * Zap the rest of the file in one hit.
- 					 */
- 					unmap_mapping_range(mapping,
--					   (loff_t)page_index<<PAGE_CACHE_SHIFT,
--					   (loff_t)(end - page_index + 1)
--							<< PAGE_CACHE_SHIFT,
-+					   page_cache_pos(mapping, page_index, 0),
-+					   page_cache_pos(mapping, end - page_index + 1, 0),
- 					    0);
- 					did_range_unmap = 1;
- 				} else {
-@@ -412,8 +413,8 @@ int invalidate_inode_pages2_range(struct
- 					 * Just zap this page
- 					 */
- 					unmap_mapping_range(mapping,
--					  (loff_t)page_index<<PAGE_CACHE_SHIFT,
--					  PAGE_CACHE_SIZE, 0);
-+					  page_cache_pos(mapping, page_index, 0),
-+					  page_cache_size(mapping), 0);
- 				}
- 			}
- 			ret = do_launder_page(mapping, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
