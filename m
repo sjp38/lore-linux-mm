@@ -1,102 +1,36 @@
-Date: Tue, 24 Apr 2007 19:42:36 +0100
-From: "Willkommensbonus von 555$" <vitriol@bellsouth.com>
-Message-ID: <78091494.87790611@beater.com>
-Subject: Willkommensbonus von 555$!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <vitriol@bellsouth.com>
-To: linux-mm@kvack.org
+From: Mel Gorman <mel@csn.ul.ie>
+Message-Id: <20070424180032.22005.82088.sendpatchset@skynet.skynet.ie>
+Subject: [PATCH 0/2] Fix two boot problems related to ZONE_MOVABLE sizing
+Date: Tue, 24 Apr 2007 19:00:32 +0100 (IST)
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, y-goto@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Following this mail are two fixes related to a boot problem in relation
+to ZONE_MOVABLE. These are fixes for memory partitioning where kernelcore=
+is used and is unrelated to grouping pages by mobility.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+The first patch moves kernelcore= parsing to common code. This avoids an
+infinite loop that can occur when booting on IA64. As a side-effect,
+it extends support of kernelcore= to all architectures that use
+architecture-independent zone-sizing.
 
-<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
-bei Vegas VIP Casino</title>
+The second patch aligns ZONE_MOVABLE correctly. The bootmem allocator makes
+assumptions on the alignment of zones. This can cause pages to be placed
+on the freelists for the wrong zone resulting in a BUG() later. Aligning
+ZONE_MOVABLE avoids the problem.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+They have been successfully boot-tested with and without kernelcore=
+specified on x86_64, ppc64 and IA64 (where the bug was first triggered).
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung
-einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
- <o:p></o:p></span></p>
-
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften 
-Vegas VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.respect-casino.com/lang-de/">
-http://www.respect-casino.com/lang-de/</a></p>
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
