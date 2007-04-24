@@ -1,92 +1,71 @@
-Message-ID: <462D6866.8030207@yahoo.com.au>
-Date: Tue, 24 Apr 2007 12:16:06 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Mon, 23 Apr 2007 19:23:16 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 01/16] Free up page->private for compound pages
+In-Reply-To: <1177380741.17122.52.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0704231919270.4099@schroedinger.engr.sgi.com>
+References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
+  <20070423064850.5458.64307.sendpatchset@schroedinger.engr.sgi.com>
+ <1177380741.17122.52.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH] lazy freeing of memory through MADV_FREE
-References: <46247427.6000902@redhat.com>	<20070420135715.f6e8e091.akpm@linux-foundation.org>	<462932BE.4020005@redhat.com> <20070420150618.179d31a4.akpm@linux-foundation.org> <4629524C.5040302@redhat.com> <462ACA40.8070407@yahoo.com.au> <462B0156.9020407@redhat.com> <462BFAF3.4040509@yahoo.com.au> <462C2DC7.5070709@redhat.com> <462C2F33.8090508@redhat.com> <462C7A6F.9030905@redhat.com> <462C88B1.8080906@yahoo.com.au> <462C8B0A.8060801@redhat.com> <462C8BFF.2050405@yahoo.com.au> <462C8E1D.8000706@redhat.com> <462D5A2E.5060908@yahoo.com.au> <462D643C.5020709@redhat.com>
-In-Reply-To: <462D643C.5020709@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shak <dshaks@redhat.com>, jakub@redhat.com, drepper@redhat.com
+To: Dave Hansen <hansendc@us.ibm.com>
+Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Jens Axboe <jens.axboe@oracle.com>, David Chinner <dgc@sgi.com>, Badari Pulavarty <pbadari@gmail.com>, Adam Litke <aglitke@gmail.com>, Avi Kivity <avi@argo.co.il>, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> This should fix the MADV_FREE code for PPC's hashed tlb.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
-> 
-> Nick Piggin wrote:
-> 
->>> Nick Piggin wrote:
->>>
->>>>> 3) because of this, we can treat any such accesses as
->>>>>    happening simultaneously with the MADV_FREE and
->>>>>    as illegal, aka undefined behaviour territory and
->>>>>    we do not need to worry about them
->>>>
->>>>
->>>>
->>>> Yes, but I'm wondering if it is legal in all architectures.
->>>
->>>
->>>
->>> It's similar to trying to access memory during an munmap.
->>>
->>> You may be able to for a short time, but it'll come back to
->>> haunt you.
->>
->>
->> The question is whether the architecture specific tlb
->> flushing code will break or not.
-> 
-> 
-> I guess we'll need to call tlb_remove_tlb_entry() inside the
-> MADV_FREE code to keep powerpc happy.
-> 
-> Thanks for pointing this one out.
-> 
->>> Even then we do.  Each invocation of zap_pte_range() only touches
->>> one page table page, and it flushes the TLB before releasing the
->>> page table lock.
->>
->>
->> What kernel are you looking at? -rc7 and rc6-mm1 don't, AFAIKS.
-> 
-> 
-> Oh dear.  I see it now...
-> 
-> The tlb end things inside zap_pte_range() are actually
-> noops and the actual tlb flush only happens inside
-> zap_page_range().
-> 
-> I guess the fact that munmap gets the mmap_sem for
-> writing should save us, though...
+On Mon, 23 Apr 2007, Dave Hansen wrote:
 
-What about an unmap_mapping_range, or another MADV_FREE or
-MADV_DONTNEED?
+> OK, so the end result is that we're freeing up page->private for the
+> head page of compound pages, but not _all_ of them, right?  You might
+> want to make that a bit clearer in the patch description.
 
-> 
-> 
-> ------------------------------------------------------------------------
-> 
-> --- linux-2.6.20.x86_64/mm/memory.c.noppc	2007-04-23 21:50:09.000000000 -0400
-> +++ linux-2.6.20.x86_64/mm/memory.c	2007-04-23 21:48:59.000000000 -0400
-> @@ -679,6 +679,7 @@ static unsigned long zap_pte_range(struc
->  					}
->  					ptep_test_and_clear_dirty(vma, addr, pte);
->  					ptep_test_and_clear_young(vma, addr, pte);
-> +					tlb_remove_tlb_entry(tlb, pte, addr);
->  					SetPageLazyFree(page);
->  					if (PageActive(page))
->  						deactivate_tail_page(page);
+Correct.
+ 
+> Can we be more clever about this, and not have to eat yet another page
+> flag?
 
+Look at the recent compound changes in mm. That one does not eat a 
+page flag.
 
--- 
-SUSE Labs, Novell Inc.
+> > +static inline int base_pages(struct page *page)
+> > +{
+> > + 	return 1 << compound_order(page);
+> > +}
+> 
+> Perhaps base_pages_in_compound(), instead?  
+
+I renamed it to compound_page() for V3... But base_pages_in_compound is a 
+bit long.
+
+> >  static void free_compound_page(struct page *page)
+> >  {
+> > -	__free_pages_ok(page, (unsigned long)page[1].lru.prev);
+> > +	__free_pages_ok(page, compound_order(page));
+> >  }
+> 
+> These substitutions are great, even outside of this patch set.  Nice.
+
+They are already in mm.
+
+> > +	for (i = 1; i < nr_pages; i++) {
+> >  		struct page *p = page + i;
+> >  
+> > -		if (unlikely(!PageCompound(p) |
+> > -				(page_private(p) != (unsigned long)page)))
+> > +		if (unlikely(!PageCompound(p) | !PageTail(p) |
+> > +				((struct page *)p->private != page)))
+> 
+> Should there be a compound_page_head() function to get rid of these
+> open-coded references?
+
+There is in mm. This one is a fixup patch to get the patch to work against 
+upstream.
+
+> I guess it doesn't matter, but it might be nice to turn those binary |'s
+> into logical ||'s.
+
+That would generate more branches. But them mm is different again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
