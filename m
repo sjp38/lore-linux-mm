@@ -1,90 +1,69 @@
-Date: Tue, 24 Apr 2007 12:37:42 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 12/44] fs: introduce write_begin, write_end, and perform_write aops
-Message-ID: <20070424103742.GA32738@wotan.suse.de>
-References: <20070424012346.696840000@suse.de> <20070424013433.975224000@suse.de> <17965.43747.979798.715583@notabene.brown> <20070424072327.GC20640@wotan.suse.de> <17965.46748.634169.563467@notabene.brown>
+Date: Tue, 24 Apr 2007 03:40:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 10/10] mm: per device dirty threshold
+Message-Id: <20070424034024.f953f93f.akpm@linux-foundation.org>
+In-Reply-To: <1177409538.26937.75.camel@twins>
+References: <20070420155154.898600123@chello.nl>
+	<20070420155503.608300342@chello.nl>
+	<17965.29252.950216.971096@notabene.brown>
+	<1177398589.26937.40.camel@twins>
+	<E1HgGF4-00008p-00@dorka.pomaz.szeredi.hu>
+	<1177403494.26937.59.camel@twins>
+	<E1HgH69-0000Fl-00@dorka.pomaz.szeredi.hu>
+	<1177406817.26937.65.camel@twins>
+	<E1HgHcG-0000J5-00@dorka.pomaz.szeredi.hu>
+	<20070424030021.a091018d.akpm@linux-foundation.org>
+	<1177409538.26937.75.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <17965.46748.634169.563467@notabene.brown>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, neilb@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 24, 2007 at 05:49:48PM +1000, Neil Brown wrote:
-> On Tuesday April 24, npiggin@suse.de wrote:
+On Tue, 24 Apr 2007 12:12:18 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
+> On Tue, 2007-04-24 at 03:00 -0700, Andrew Morton wrote:
+> > On Tue, 24 Apr 2007 11:47:20 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
 > > 
-> > BTW. AOP_FLAG_UNINTERRUPTIBLE can be used by filesystems to avoid
-> > an initial read or other sequence they might be using to handle the
-> > case of a short write. ecryptfs uses it, others can too.
+> > > > Ahh, now I see; I had totally blocked out these few lines:
+> > > > 
+> > > > 			pages_written += write_chunk - wbc.nr_to_write;
+> > > > 			if (pages_written >= write_chunk)
+> > > > 				break;		/* We've done our duty */
+> > > > 
+> > > > yeah, those look dubious indeed... And reading back Neil's comments, I
+> > > > think he agrees.
+> > > > 
+> > > > Shall we just kill those?
+> > > 
+> > > I think we should.
+> > > 
+> > > Athough I'm a little afraid, that Akpm will tell me again, that I'm a
+> > > stupid git, and that those lines are in fact vitally important ;)
+> > > 
 > > 
-> > For buffered writes, this doesn't get passed in (unless they are
-> > coming from kernel space), so I was debating whether to have it at
-> > all.  However, in the previous API, _nobody_ had to worry about
-> > short writes, so this flag means I avoid making an API that is
-> > fundamentally less performant in some situations.
+> > It depends what they're replaced with.
+> > 
+> > That code is there, iirc, to prevent a process from getting stuck in
+> > balance_dirty_pages() forever due to the dirtying activity of other
+> > processes.
+> > 
+> > hm, we ask the process to write write_chunk pages each go around the loop.
+> > So if it wrote write-chunk/2 pages on the first pass it might end up writing
+> > write_chunk*1.5 pages total.  I guess that's rare and doesn't matter much
+> > if it does happen - the upper bound is write_chunk*2-1, I think.
 > 
-> Ahhh I think I get it now.
+> Right, but I think the problem is that its dirty -> writeback, not dirty
+> -> writeback completed.
 > 
->   In general, the address_space must cope with the possibility that
->   fewer than the expected number of bytes is copied.  This may leave
->   parts of the page with invalid data.  This can be handled by
->   pre-loading the page with valid data, however this may cause a
->   significant performance cost.
+> Ie. they don't guarantee progress, it could be that the total
+> nr_reclaimable + nr_writeback will steadily increase due to this break.
 
-Right. Bringing the page uptodate at write_begin-time is probably
-the simplest way to handle it. However, more sophisticated schemes
-are possible. For example, the generic block routines can recover
-at write_end-time, and probably can't make use of the flag to do
-things much better...
-
-
->   The write_begin/write_end interface provide two mechanism by which
->   this case can be handled more efficiently.
->   1/ The AOP_FLAG_UNINTERRUPTIBLE flag declares that the write will
->     not be partial (maybe a different name? AOP_FLAG_NO_PARTIAL).
->     If that is set, inefficient preparation can be avoided.  However the
->     most common write paths will never set this flag.
-
-Yes, loop, nfsd, and filesystem-specific pagecache modification
-(eg. ext2 directories) are probably the main things that use it.
-
-
->   2/ The return from write_end can declare that fewer bytes have been
->     accepted. e.g. part of the page may have been loaded from backing
->     store, overwriting some of the newly written bytes.  If this
->     return value is reduced, a new write_begin/write_end cycle
->     may be called to attempt to write the bytes again.
-
-Yeah, although you'd have to be careful not to overwrite things if
-the page is uptodate (because uptodate *really* means uptodate --
-ie.  it is the only thing we have to synchronise buffered reads from
-returning the data to userspace).
-
-
-> 
-> Also
-> +  write_end: After a successful write_begin, and data copy, write_end must
-> +        be called. len is the original len passed to write_begin, and copied
-> +        is the amount that was able to be copied (they must be equal if
-> +        write_begin was called with intr == 0).
-> +
-> 
-> That should be "... called without AOP_FLAG_UNINTERRUPTIBLE being
-> set".
-> And "that was able to be copied" is misleading, as the copy is not done in
-> write_end.  Maybe "that was accepted".
-
-Thanks, very good eyes and good suggestions.
-
-Actually I'm a bit worried about this copied vs accepted thing -- we've
-already copied some number of bytes into the pagecache by the time write_end
-is called. So if the filesystem accepts less and the pagecache page is marked
-uptodate, then the pagecache is now out of sync with the filesystem. There
-are a few places where it looks like we get this wrong... but that's for a
-future patch :P
+Don't think so.  We call balance_dirty_pages() once per ratelimit_pages
+dirtyings and when we get there, we write 1.5*ratelimit_pages pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
