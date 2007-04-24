@@ -1,40 +1,63 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 24 Apr 2007 15:33:39 +1000
-Subject: [PATCH 10/12] get_unmapped_area handles MAP_FIXED in hugetlbfs
+Date: Tue, 24 Apr 2007 15:33:36 +1000
+Subject: [PATCH 6/12] get_unmapped_area handles MAP_FIXED on ia64
 In-Reply-To: <1177392813.924664.32930750763.qpush@grosgo>
-Message-Id: <20070424053341.68E67DDF10@ozlabs.org>
+Message-Id: <20070424053339.5970DDDF0C@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Generic hugetlb_get_unmapped_area() now handles MAP_FIXED by just
-calling prepare_hugepage_range()
+Handle MAP_FIXED in ia64 arch_get_unmapped_area and
+hugetlb_get_unmapped_area(), just call prepare_hugepage_range
+in the later and is_hugepage_only_range() in the former.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Acked-by: William Irwin <bill.irwin@oracle.com>
 
- fs/hugetlbfs/inode.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/ia64/kernel/sys_ia64.c |    7 +++++++
+ arch/ia64/mm/hugetlbpage.c  |    8 ++++++++
+ 2 files changed, 15 insertions(+)
 
-Index: linux-cell/fs/hugetlbfs/inode.c
+Index: linux-cell/arch/ia64/kernel/sys_ia64.c
 ===================================================================
---- linux-cell.orig/fs/hugetlbfs/inode.c	2007-03-22 16:12:56.000000000 +1100
-+++ linux-cell/fs/hugetlbfs/inode.c	2007-03-22 16:16:02.000000000 +1100
-@@ -115,6 +115,12 @@ hugetlb_get_unmapped_area(struct file *f
- 	if (len > TASK_SIZE)
+--- linux-cell.orig/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:45.000000000 +1100
++++ linux-cell/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:47.000000000 +1100
+@@ -33,6 +33,13 @@ arch_get_unmapped_area (struct file *fil
+ 	if (len > RGN_MAP_LIMIT)
  		return -ENOMEM;
  
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
++		return addr;
++	}
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	if (REGION_NUMBER(addr) == RGN_HPAGE)
+ 		addr = 0;
+Index: linux-cell/arch/ia64/mm/hugetlbpage.c
+===================================================================
+--- linux-cell.orig/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:32.000000000 +1100
++++ linux-cell/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:39.000000000 +1100
+@@ -148,6 +148,14 @@ unsigned long hugetlb_get_unmapped_area(
+ 		return -ENOMEM;
+ 	if (len & ~HPAGE_MASK)
+ 		return -EINVAL;
++
++	/* Handle MAP_FIXED */
 +	if (flags & MAP_FIXED) {
 +		if (prepare_hugepage_range(addr, len, pgoff))
 +			return -EINVAL;
 +		return addr;
 +	}
 +
- 	if (addr) {
- 		addr = ALIGN(addr, HPAGE_SIZE);
- 		vma = find_vma(mm, addr);
+ 	/* This code assumes that RGN_HPAGE != 0. */
+ 	if ((REGION_NUMBER(addr) != RGN_HPAGE) || (addr & (HPAGE_SIZE - 1)))
+ 		addr = HPAGE_REGION_BASE;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
