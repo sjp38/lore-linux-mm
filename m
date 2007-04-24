@@ -1,53 +1,35 @@
-Date: Tue, 24 Apr 2007 14:04:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Handle kernelcore= boot parameter in common code to
- avoid boot problem on IA64
-Message-Id: <20070424140421.5c1e6457.akpm@linux-foundation.org>
-In-Reply-To: <20070424180052.22005.61762.sendpatchset@skynet.skynet.ie>
-References: <20070424180032.22005.82088.sendpatchset@skynet.skynet.ie>
-	<20070424180052.22005.61762.sendpatchset@skynet.skynet.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <462E72A1.2090309@shadowen.org>
+Date: Tue, 24 Apr 2007 22:12:01 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org> <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com> <20070424132740.e4bdf391.akpm@linux-foundation.org> <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com> <20070424134325.f71460af.akpm@linux-foundation.org> <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, y-goto@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007 19:00:52 +0100 (IST) Mel Gorman <mel@csn.ul.ie> wrote:
+Christoph Lameter wrote:
+> On Tue, 24 Apr 2007, Andrew Morton wrote:
+> 
+>> kexec requries 2MB alignment.  I think your old config would have just
+>> crashed.  Now you got told about it at compile time.
+> 
+> Old config worked great so far.
+> 
+> I compiled and booted 2.6.21-rc7-mm1 just fine. Nothing special apart from 
+> the usual problem with serial not accepting characters that we had for 
+> awhile now.
+> 
+> Could we get a .config?
 
-> 
-> When "kernelcore" boot option is specified, kernel can't boot up on ia64
-> because of an infinite loop.  In addition, the parsing code can be handled
-> in an architecture-independent manner.
-> 
-> This patch patches uses common code to handle the kernelcore= parameter.
-> It is only available to architectures that support arch-independent
-> zone-sizing (i.e. define CONFIG_ARCH_POPULATES_NODE_MAP). Other architectures
-> will ignore the boot parameter.
-> 
-> This effectively removes the following arch-specific patches;
-> 
-> ia64-specify-amount-of-kernel-memory-at-boot-time.patch
-> ppc-and-powerpc-specify-amount-of-kernel-memory-at-boot-time.patch
-> x86_64-specify-amount-of-kernel-memory-at-boot-time.patch
-> x86-specify-amount-of-kernel-memory-at-boot-time.patch
-> 
+http://test.kernel.org/abat/84767/build/dotconfig
 
-hm, OK.  That makes a bit of a mess of the patch series but we can live
-with that.
-
-> 
-> Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Andy Whitcroft <apw@shadowen.org>
-
-Patch protocol: Yasunori Gogo wrote the patch, so there should have been a
-From:him at the very top of the changelog.  And you were in the patch
-delivery path so you should have used Signed-off-by: rather than Acked-by:.
-I made those two changes.
-
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
