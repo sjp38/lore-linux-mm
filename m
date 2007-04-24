@@ -1,9 +1,9 @@
-Message-Id: <20070424013432.285287000@suse.de>
+Message-Id: <20070424013432.115048000@suse.de>
 References: <20070424012346.696840000@suse.de>
-Date: Tue, 24 Apr 2007 11:23:49 +1000
+Date: Tue, 24 Apr 2007 11:23:48 +1000
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 03/44] Revert 6527c2bdf1f833cc18e8f42bd97973d583e4aa83
-Content-Disposition: inline; filename=mm-revert-buffered-write-deadlock-fix.patch
+Subject: [patch 02/44] Revert 81b0c8713385ce1b1b9058e916edcf9561ad76d6
+Content-Disposition: inline; filename=mm-revert-buffered-write-zero-length-iov.patch
 Sender: owner-linux-mm@kvack.org
 From: Andrew Morton <akpm@osdl.org>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,85 +11,67 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch fixed the following bug:
-
-  When prefaulting in the pages in generic_file_buffered_write(), we only
-  faulted in the pages for the firts segment of the iovec.  If the second of
-  successive segment described a mmapping of the page into which we're
-  write()ing, and that page is not up-to-date, the fault handler tries to lock
-  the already-locked page (to bring it up to date) and deadlocks.
-
-  An exploit for this bug is in writev-deadlock-demo.c, in
-  http://www.zip.com.au/~akpm/linux/patches/stuff/ext3-tools.tar.gz.
-
-  (These demos assume blocksize < PAGE_CACHE_SIZE).
-
-The problem with this fix is that it takes the kernel back to doing a single
-prepare_write()/commit_write() per iovec segment.  So in the worst case we'll
-run prepare_write+commit_write 1024 times where we previously would have run
-it once. The other problem with the fix is that it fix all the locking problems.
-
-
-<insert numbers obtained via ext3-tools's writev-speed.c here>
-
-And apparently this change killed NFS overwrite performance, because, I
-suppose, it talks to the server for each prepare_write+commit_write.
-
-So just back that patch out - we'll be fixing the deadlock by other means.
+This was a bugfix against 6527c2bdf1f833cc18e8f42bd97973d583e4aa83, which we
+also revert.
 
 Cc: Linux Memory Management <linux-mm@kvack.org>
 Cc: Linux Filesystems <linux-fsdevel@vger.kernel.org>
 Signed-off-by: Andrew Morton <akpm@osdl.org>
-
-Nick says: also it only ever actually papered over the bug, because after
-faulting in the pages, they might be unmapped or reclaimed.
-
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 
- mm/filemap.c |   18 +++++++-----------
- 1 file changed, 7 insertions(+), 11 deletions(-)
+ mm/filemap.c |    9 +--------
+ mm/filemap.h |    4 ++--
+ 2 files changed, 3 insertions(+), 10 deletions(-)
 
 Index: linux-2.6/mm/filemap.c
 ===================================================================
 --- linux-2.6.orig/mm/filemap.c
 +++ linux-2.6/mm/filemap.c
-@@ -1971,21 +1971,14 @@ generic_file_buffered_write(struct kiocb
- 	do {
- 		unsigned long index;
- 		unsigned long offset;
-+		unsigned long maxlen;
- 		size_t copied;
+@@ -2001,12 +2001,6 @@ generic_file_buffered_write(struct kiocb
+ 			break;
+ 		}
  
- 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
- 		index = pos >> PAGE_CACHE_SHIFT;
- 		bytes = PAGE_CACHE_SIZE - offset;
+-		if (unlikely(bytes == 0)) {
+-			status = 0;
+-			copied = 0;
+-			goto zero_length_segment;
+-		}
 -
--		/* Limit the size of the copy to the caller's write size */
--		bytes = min(bytes, count);
--
--		/*
--		 * Limit the size of the copy to that of the current segment,
--		 * because fault_in_pages_readable() doesn't know how to walk
--		 * segments.
--		 */
--		bytes = min(bytes, cur_iov->iov_len - iov_base);
-+		if (bytes > count)
-+			bytes = count;
+ 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
+ 		if (unlikely(status)) {
+ 			loff_t isize = i_size_read(inode);
+@@ -2036,8 +2030,7 @@ generic_file_buffered_write(struct kiocb
+ 			page_cache_release(page);
+ 			continue;
+ 		}
+-zero_length_segment:
+-		if (likely(copied >= 0)) {
++		if (likely(copied > 0)) {
+ 			if (!status)
+ 				status = copied;
  
- 		/*
- 		 * Bring in the user page that we will copy from _first_.
-@@ -1993,7 +1986,10 @@ generic_file_buffered_write(struct kiocb
- 		 * same page as we're writing to, without it being marked
- 		 * up-to-date.
- 		 */
--		fault_in_pages_readable(buf, bytes);
-+		maxlen = cur_iov->iov_len - iov_base;
-+		if (maxlen > bytes)
-+			maxlen = bytes;
-+		fault_in_pages_readable(buf, maxlen);
+Index: linux-2.6/mm/filemap.h
+===================================================================
+--- linux-2.6.orig/mm/filemap.h
++++ linux-2.6/mm/filemap.h
+@@ -87,7 +87,7 @@ filemap_set_next_iovec(const struct iove
+ 	const struct iovec *iov = *iovp;
+ 	size_t base = *basep;
  
- 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
- 		if (!page) {
+-	do {
++	while (bytes) {
+ 		int copy = min(bytes, iov->iov_len - base);
+ 
+ 		bytes -= copy;
+@@ -96,7 +96,7 @@ filemap_set_next_iovec(const struct iove
+ 			iov++;
+ 			base = 0;
+ 		}
+-	} while (bytes);
++	}
+ 	*iovp = iov;
+ 	*basep = base;
+ }
 
 -- 
 
