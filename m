@@ -1,37 +1,69 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 24 Apr 2007 15:33:35 +1000
-Subject: [PATCH 3/12] get_unmapped_area handles MAP_FIXED on arm
+Date: Tue, 24 Apr 2007 15:33:34 +1000
+Subject: [PATCH 1/12] get_unmapped_area handles MAP_FIXED on powerpc
 In-Reply-To: <1177392813.924664.32930750763.qpush@grosgo>
-Message-Id: <20070424053337.C5FEBDDF09@ozlabs.org>
+Message-Id: <20070424053336.C23A6DDF06@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-ARM already had a case for MAP_FIXED in arch_get_unmapped_area() though
-it was not called before. Fix the comment to reflect that it will now
-be called.
+Handle MAP_FIXED in powerpc's arch_get_unmapped_area() in all 3
+implementations of it.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Acked-by: William Irwin <bill.irwin@oracle.com>
 
- arch/arm/mm/mmap.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/powerpc/mm/hugetlbpage.c |   21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
-Index: linux-cell/arch/arm/mm/mmap.c
+Index: linux-cell/arch/powerpc/mm/hugetlbpage.c
 ===================================================================
---- linux-cell.orig/arch/arm/mm/mmap.c	2007-03-22 14:59:51.000000000 +1100
-+++ linux-cell/arch/arm/mm/mmap.c	2007-03-22 15:00:01.000000000 +1100
-@@ -49,8 +49,7 @@ arch_get_unmapped_area(struct file *filp
- #endif
+--- linux-cell.orig/arch/powerpc/mm/hugetlbpage.c	2007-04-24 15:10:17.000000000 +1000
++++ linux-cell/arch/powerpc/mm/hugetlbpage.c	2007-04-24 15:28:11.000000000 +1000
+@@ -566,6 +566,13 @@ unsigned long arch_get_unmapped_area(str
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
  
- 	/*
--	 * We should enforce the MAP_FIXED case.  However, currently
--	 * the generic kernel code doesn't allow us to handle this.
-+	 * We enforce the MAP_FIXED case.
- 	 */
- 	if (flags & MAP_FIXED) {
- 		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+@@ -641,6 +648,13 @@ arch_get_unmapped_area_topdown(struct fi
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
+ 
++	/* handle fixed mapping: prevent overlap with huge pages */
++	if (flags & MAP_FIXED) {
++		if (is_hugepage_only_range(mm, addr, len))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	/* dont allow allocations above current base */
+ 	if (mm->free_area_cache > base)
+ 		mm->free_area_cache = base;
+@@ -823,6 +837,13 @@ unsigned long hugetlb_get_unmapped_area(
+ 	/* Paranoia, caller should have dealt with this */
+ 	BUG_ON((addr + len)  < addr);
+ 
++	/* Handle MAP_FIXED */
++	if (flags & MAP_FIXED) {
++		if (prepare_hugepage_range(addr, len, pgoff))
++			return -EINVAL;
++		return addr;
++	}
++
+ 	if (test_thread_flag(TIF_32BIT)) {
+ 		curareas = current->mm->context.low_htlb_areas;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
