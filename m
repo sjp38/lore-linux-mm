@@ -1,59 +1,33 @@
-Date: Tue, 24 Apr 2007 13:43:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Tue, 24 Apr 2007 13:52:44 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-Message-Id: <20070424134325.f71460af.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
+In-Reply-To: <20070424134325.f71460af.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
 References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
-	<20070424132740.e4bdf391.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
+ <20070424132740.e4bdf391.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
+ <20070424134325.f71460af.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007 13:32:32 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 24 Apr 2007, Andrew Morton wrote:
 
-> On Tue, 24 Apr 2007, Andrew Morton wrote:
-> 
-> > On Tue, 24 Apr 2007 13:21:25 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-> > 
-> > > On Tue, 24 Apr 2007, Andrew Morton wrote:
-> > > 
-> > > > Naturally, I can't reproduce it (no amd64 boxen).  A bisection search would
-> > > > be wonderful.
-> > > 
-> > > Cannot compile a UP x86_64 kernel
-> > > 
-> > >   LD      arch/x86_64/kernel/pcspeaker.o
-> > >   LD      arch/x86_64/kernel/built-in.o
-> > >   AS      arch/x86_64/kernel/head.o
-> > >   CC      arch/x86_64/kernel/head64.o
-> > > arch/x86_64/kernel/head64.c: In function 'x86_64_start_kernel':
-> > > arch/x86_64/kernel/head64.c:70: error: size of array 'type name' is 
-> > > negative
-> > 
-> > That's a BUILD_BUG_ON.  Check the source...
-> > 
-> > 
-> > 	/*
-> > 	 * Make sure kernel is aligned to 2MB address. Catching it at compile
-> > 	 * time is better. Change your config file and compile the kernel
-> > 	 * for a 2MB aligned address (CONFIG_PHYSICAL_START)
-> > 	 */
-> > 	BUILD_BUG_ON(CONFIG_PHYSICAL_START & (__KERNEL_ALIGN - 1));
-> > 
-> > You need to change your CONFIG_PHYSICAL_START so it is a multiple of 2MB.
-> 
-> ???? My old .config wont work anymore.
+> kexec requries 2MB alignment.  I think your old config would have just
+> crashed.  Now you got told about it at compile time.
 
-kexec requries 2MB alignment.  I think your old config would have just
-crashed.  Now you got told about it at compile time.
+Old config worked great so far.
 
+I compiled and booted 2.6.21-rc7-mm1 just fine. Nothing special apart from 
+the usual problem with serial not accepting characters that we had for 
+awhile now.
+
+Could we get a .config?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
