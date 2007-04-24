@@ -1,68 +1,53 @@
-From: Neil Brown <neilb@suse.de>
-Date: Tue, 24 Apr 2007 17:49:48 +1000
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <17965.46748.634169.563467@notabene.brown>
-Subject: Re: [patch 12/44] fs: introduce write_begin, write_end, and perform_write aops
-In-Reply-To: message from Nick Piggin on Tuesday April 24
-References: <20070424012346.696840000@suse.de>
-	<20070424013433.975224000@suse.de>
-	<17965.43747.979798.715583@notabene.brown>
-	<20070424072327.GC20640@wotan.suse.de>
+In-reply-to: <1177398589.26937.40.camel@twins> (message from Peter Zijlstra on
+	Tue, 24 Apr 2007 09:09:49 +0200)
+Subject: Re: [PATCH 10/10] mm: per device dirty threshold
+References: <20070420155154.898600123@chello.nl>
+	 <20070420155503.608300342@chello.nl>
+	 <17965.29252.950216.971096@notabene.brown> <1177398589.26937.40.camel@twins>
+Message-Id: <E1HgGF4-00008p-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 24 Apr 2007 10:19:18 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
+To: a.p.zijlstra@chello.nl
+Cc: neilb@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu, akpm@linux-foundation.org, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday April 24, npiggin@suse.de wrote:
+> > This is probably a
+> >  reasonable thing to do but it doesn't feel like the right place.  I
+> >  think get_dirty_limits should return the raw threshold, and
+> >  balance_dirty_pages should do both tests - the bdi-local test and the
+> >  system-wide test.
 > 
-> BTW. AOP_FLAG_UNINTERRUPTIBLE can be used by filesystems to avoid
-> an initial read or other sequence they might be using to handle the
-> case of a short write. ecryptfs uses it, others can too.
-> 
-> For buffered writes, this doesn't get passed in (unless they are
-> coming from kernel space), so I was debating whether to have it at
-> all.  However, in the previous API, _nobody_ had to worry about
-> short writes, so this flag means I avoid making an API that is
-> fundamentally less performant in some situations.
+> Ok, that makes sense I guess.
 
-Ahhh I think I get it now.
+Well, my narrow minded world view says it's not such a good idea,
+because it would again introduce the deadlock scenario, we're trying
+to avoid.
 
-  In general, the address_space must cope with the possibility that
-  fewer than the expected number of bytes is copied.  This may leave
-  parts of the page with invalid data.  This can be handled by
-  pre-loading the page with valid data, however this may cause a
-  significant performance cost.
-  The write_begin/write_end interface provide two mechanism by which
-  this case can be handled more efficiently.
-  1/ The AOP_FLAG_UNINTERRUPTIBLE flag declares that the write will
-    not be partial (maybe a different name? AOP_FLAG_NO_PARTIAL).
-    If that is set, inefficient preparation can be avoided.  However the
-    most common write paths will never set this flag.
-  2/ The return from write_end can declare that fewer bytes have been
-    accepted. e.g. part of the page may have been loaded from backing
-    store, overwriting some of the newly written bytes.  If this
-    return value is reduced, a new write_begin/write_end cycle
-    may be called to attempt to write the bytes again.
+In a sense allowing a queue to go over the global limit just a little
+bit is a good thing.  Actually the very original code does that: if
+writeback was started for "write_chunk" number of pages, then we allow
+"ratelimit" (8) _new_ pages to be dirtied, effectively ignoring the
+global limit.
 
-Also
-+  write_end: After a successful write_begin, and data copy, write_end must
-+        be called. len is the original len passed to write_begin, and copied
-+        is the amount that was able to be copied (they must be equal if
-+        write_begin was called with intr == 0).
-+
+That's why I've been saying, that the current code is so unfair: if
+there are lots of dirty pages to be written back to a particular
+device, then balance_dirty_pages() allows the dirty producer to make
+even more pages dirty, but if there are _no_ dirty pages for a device,
+and we are over the limit, then that dirty producer is allowed
+absolutely no new dirty pages until the global counts subside.
 
-That should be "... called without AOP_FLAG_UNINTERRUPTIBLE being
-set".
-And "that was able to be copied" is misleading, as the copy is not done in
-write_end.  Maybe "that was accepted".
+I'm still not quite sure what purpose the above "soft" limiting
+serves.  It seems to just give advantage to writers, which managed to
+accumulate lots of dirty pages, and then can convert that into even
+more dirtyings.
 
-It seems to make sense now.  I might try re-reviewing the patches based
-on this improved understanding.... only a public holiday looms :-)
+Would it make sense to remove this behavior, and ensure that
+balance_dirty_pages() doesn't return until the per-queue limits have
+been complied with?
 
-NeilBrown
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
