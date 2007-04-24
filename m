@@ -1,53 +1,58 @@
-Message-ID: <462E9382.90701@shadowen.org>
-Date: Wed, 25 Apr 2007 00:32:18 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3ONx5RG001895
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 19:59:05 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3ONx4F5127690
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 17:59:04 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3ONx48t018323
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 17:59:04 -0600
 Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>	<1177453661.1281.1.camel@dyn9047017100.beaverton.ibm.com> <20070424155151.644e88b7.akpm@linux-foundation.org>
-In-Reply-To: <20070424155151.644e88b7.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <20070424130601.4ab89d54.akpm@linux-foundation.org>
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 24 Apr 2007 16:59:29 -0700
+Message-Id: <1177459170.1281.5.camel@dyn9047017100.beaverton.ibm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Andy, I'm looking at the power4 build:
+On Tue, 2007-04-24 at 13:06 -0700, Andrew Morton wrote:
+> An amd64 machine is crashing badly.
 > 
-> http://test.kernel.org/abat/84751/debug/test.log.0
+> http://test.kernel.org/abat/84767/debug/console.log
 > 
-> which has
+> VFS: Mounted root (ext3 filesystem) readonly.
+> Freeing unused kernel memory: 308k freed
+> INIT: version 2.86 booting
+> Bad page state in process 'init'
+> page:ffff81007e492628 flags:0x0100000000000000 mapping:0000000000000000 mapcount:0 count:1
+> Trying to fix it up, but a reboot is needed
+> Backtrace:
 > 
->   LD      init/built-in.o
->   LD      .tmp_vmlinux1
-> init/built-in.o(.init.text+0x32e4): In function `.rd_load_image':
-> : undefined reference to `.__kmalloc_size_too_large'
-> fs/built-in.o(.text+0xa60f0): In function `.ext3_fill_super':
-> : undefined reference to `.__kmalloc_size_too_large'
-> fs/built-in.o(.text+0xbe934): In function `.ext2_fill_super':
-> : undefined reference to `.__kmalloc_size_too_large'
-> fs/built-in.o(.text+0xf3370): In function `.nfs4_proc_lookup':
+> Call Trace:
+>  [<ffffffff80250d3c>] bad_page+0x74/0x10d
+>  [<ffffffff80253090>] free_hot_cold_page+0x8d/0x172
+...
 > 
-> something has gone stupid with kmalloc there, and I cannot reproduce it
-> with my compiler and with your (very old) .config at
-> http://ftp.kernel.org/pub/linux/kernel/people/mbligh/config/abat/power4
+> So free_pgd_range() is freeing a refcount=1 page.  Can anyone see what
+> might be causing this?  The quicklist code impacts this area more than
+> anything else..
 > 
-> So I'm a bit stumped.  Does autotest just do `yes "" | make oldconfig' or
-> what?  When I do that, I get SLUB, but no compile errors.
 
-Yes, exactly that.
+Yep. quicklist patches are causing these.
 
-> 
-> And do you know what compiler version is being used there?
+making CONFIG_QUICKLIST=n didn't solve the problem. I had
+to back out all quicklist patches to make my machine boot.
 
-gcc version 3.4.4 20050314 (prerelease) (Debian 3.4.3-13sarge1)
+Thanks,
+Badari
 
-I am bisecting for the bad page bug right now, will let you know where
-it points.
-
--apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
