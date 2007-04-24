@@ -1,72 +1,128 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id l3NNZjhM010563
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 16:35:45 -0700
-Received: from smtp.corp.google.com (spacemonkey1.corp.google.com [192.168.120.115])
-	by zps35.corp.google.com with ESMTP id l3NNZWmt032559
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 16:35:32 -0700
-Received: from [10.253.168.165] (m682a36d0.tmodns.net [208.54.42.104])
-	(authenticated bits=0)
-	by smtp.corp.google.com (8.13.8/8.13.8) with ESMTP id l3NNZWW6023660
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2007 16:35:32 -0700
-Message-ID: <462D42C2.7000604@google.com>
-Date: Mon, 23 Apr 2007 16:35:30 -0700
-From: Ethan Solomita <solo@google.com>
+Date: Mon, 23 Apr 2007 18:45:22 -0700
+From: "Magic-Jackpot Casino" <result@sammimail.com>
+Message-ID: <62440260.07178874@fluency.com>
+Subject: Bis 1000 Euro frei!
 MIME-Version: 1.0
-Subject: [Corrected] [RFC 4/7] cpuset write vmscan
-References: <462D3F4C.2040007@google.com> <462D41EE.5020604@google.com>
-In-Reply-To: <462D41EE.5020604@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
+Return-Path: <result@sammimail.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Direct reclaim: cpuset aware writeout
+<html>
 
-During direct reclaim we traverse down a zonelist and are carefully
-checking each zone if its a member of the active cpuset. But then we call
-pdflush without enforcing the same restrictions. In a larger system this
-may have the effect of a massive amount of pages being dirtied and then either
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-A. No writeout occurs because global dirty limits have not been reached
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
-or
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-B. Writeout starts randomly for some dirty inode in the system. Pdflush
-   may just write out data for nodes in another cpuset and miss doing
-   proper dirty handling for the current cpuset.
+</head>
 
-In both cases dirty pages in the zones of interest may not be affected
-and writeout may not occur as necessary.
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
 
-Fix that by restricting pdflush to the active cpuset. Writeout will occur
-from direct reclaim the same way as without a cpuset.
+<div class=Section1>
 
-Originally by Christoph Lameter <clameter@sgi.com>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
+</span><o:p></o:p></p>
 
-Signed-off-by: Ethan Solomita <solo@google.com>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
----
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! </span><o:p></o:p></p>
 
-diff -uprN -X linux-2.6.21-rc4-mm1/Documentation/dontdiff 3/mm/vmscan.c 4/mm/vmscan.c
---- 3/mm/vmscan.c	2007-04-23 14:37:28.000000000 -0700
-+++ 4/mm/vmscan.c	2007-04-23 14:37:32.000000000 -0700
-@@ -1174,7 +1174,8 @@ unsigned long try_to_free_pages(struct z
- 		 */
- 		if (total_scanned > sc.swap_cluster_max +
- 					sc.swap_cluster_max / 2) {
--			wakeup_pdflush(laptop_mode ? 0 : total_scanned, NULL);
-+			wakeup_pdflush(laptop_mode ? 0 : total_scanned,
-+				&cpuset_current_mems_allowed);
- 			sc.may_writepage = 1;
- 		}
- 
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.magicmoneycasino.net/lang-de/">
+http://www.magicmoneycasino.net/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
