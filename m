@@ -1,50 +1,53 @@
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 24 Apr 2007 15:33:40 +1000
-Subject: [PATCH 12/12] get_unmapped_area doesn't need hugetlbfs hacks anymore 
-In-Reply-To: <1177392813.924664.32930750763.qpush@grosgo>
-Message-Id: <20070424053342.63371DDF07@ozlabs.org>
+From: Neil Brown <neilb@suse.de>
+Date: Tue, 24 Apr 2007 16:07:35 +1000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <17965.40615.454568.662916@notabene.brown>
+Subject: Re: [patch 06/44] mm: trim more holes
+In-Reply-To: message from Nick Piggin on Tuesday April 24
+References: <20070424012346.696840000@suse.de>
+	<20070424013432.826128000@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Remove the hugetlbfs specific hacks in toplevel get_unmapped_area() now
-that all archs and hugetlbfs itself do the right thing for both cases.
+On Tuesday April 24, npiggin@suse.de wrote:
+> 
+> If prepare_write fails with AOP_TRUNCATED_PAGE, or if commit_write fails, then
+> we may have failed the write operation despite prepare_write having
+> instantiated blocks past i_size. Fix this, and consolidate the trimming into
+> one place.
+> 
+..
+> @@ -2025,40 +2012,53 @@ generic_file_buffered_write(struct kiocb
+>  						cur_iov, iov_offset, bytes);
+>  		flush_dcache_page(page);
+>  		status = a_ops->commit_write(file, page, offset, offset+bytes);
+> -		if (status == AOP_TRUNCATED_PAGE) {
+> -			page_cache_release(page);
+> -			continue;
+> +		if (unlikely(status < 0))
+> +			goto fs_write_aop_error;
+> +		if (unlikely(copied != bytes)) {
+> +			status = -EFAULT;
+> +			goto fs_write_aop_error;
+>  		}
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Acked-by: William Irwin <bill.irwin@oracle.com>
+It isn't clear to me that you are handling the case
+       status == AOP_TRUNCATED_PAGE
+here.  AOP_TRUNCATED_PAGE is > 0 (0x80001 to be precise)
 
- mm/mmap.c |   16 ----------------
- 1 file changed, 16 deletions(-)
+Maybe ->commit_write cannot return AOP_TRUNCATED_PAGE.  If that is
+true, then a comment to that effect (i.e. that the old code was wrong)
+in the change log might easy review. 
 
-Index: linux-cell/mm/mmap.c
-===================================================================
---- linux-cell.orig/mm/mmap.c	2007-04-12 12:14:46.000000000 +1000
-+++ linux-cell/mm/mmap.c	2007-04-12 12:14:47.000000000 +1000
-@@ -1381,22 +1381,6 @@ get_unmapped_area(struct file *file, uns
- 	if (addr & ~PAGE_MASK)
- 		return -EINVAL;
- 
--	if (file && is_file_hugepages(file))  {
--		/*
--		 * Check if the given range is hugepage aligned, and
--		 * can be made suitable for hugepages.
--		 */
--		ret = prepare_hugepage_range(addr, len, pgoff);
--	} else {
--		/*
--		 * Ensure that a normal request is not falling in a
--		 * reserved hugepage range.  For some archs like IA-64,
--		 * there is a separate region for hugepages.
--		 */
--		ret = is_hugepage_only_range(current->mm, addr, len);
--	}
--	if (ret)
--		return -EINVAL;
- 	return addr;
- }
- 
+Or did I miss something?
+
+Thanks,
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
