@@ -1,6 +1,6 @@
+In-reply-to: <1177409538.26937.75.camel@twins> (message from Peter Zijlstra on
+	Tue, 24 Apr 2007 12:12:18 +0200)
 Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20070424030021.a091018d.akpm@linux-foundation.org>
 References: <20070420155154.898600123@chello.nl>
 	 <20070420155503.608300342@chello.nl>
 	 <17965.29252.950216.971096@notabene.brown>
@@ -10,59 +10,62 @@ References: <20070420155154.898600123@chello.nl>
 	 <E1HgH69-0000Fl-00@dorka.pomaz.szeredi.hu>
 	 <1177406817.26937.65.camel@twins>
 	 <E1HgHcG-0000J5-00@dorka.pomaz.szeredi.hu>
-	 <20070424030021.a091018d.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Tue, 24 Apr 2007 12:12:18 +0200
-Message-Id: <1177409538.26937.75.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	 <20070424030021.a091018d.akpm@linux-foundation.org> <1177409538.26937.75.camel@twins>
+Message-Id: <E1HgI6w-0000Qm-00@dorka.pomaz.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 24 Apr 2007 12:19:02 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, neilb@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: a.p.zijlstra@chello.nl
+Cc: akpm@linux-foundation.org, miklos@szeredi.hu, neilb@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-04-24 at 03:00 -0700, Andrew Morton wrote:
-> On Tue, 24 Apr 2007 11:47:20 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
-> 
-> > > Ahh, now I see; I had totally blocked out these few lines:
+> > > > Ahh, now I see; I had totally blocked out these few lines:
+> > > > 
+> > > > 			pages_written += write_chunk - wbc.nr_to_write;
+> > > > 			if (pages_written >= write_chunk)
+> > > > 				break;		/* We've done our duty */
+> > > > 
+> > > > yeah, those look dubious indeed... And reading back Neil's comments, I
+> > > > think he agrees.
+> > > > 
+> > > > Shall we just kill those?
 > > > 
-> > > 			pages_written += write_chunk - wbc.nr_to_write;
-> > > 			if (pages_written >= write_chunk)
-> > > 				break;		/* We've done our duty */
+> > > I think we should.
 > > > 
-> > > yeah, those look dubious indeed... And reading back Neil's comments, I
-> > > think he agrees.
+> > > Athough I'm a little afraid, that Akpm will tell me again, that I'm a
+> > > stupid git, and that those lines are in fact vitally important ;)
 > > > 
-> > > Shall we just kill those?
 > > 
-> > I think we should.
+> > It depends what they're replaced with.
 > > 
-> > Athough I'm a little afraid, that Akpm will tell me again, that I'm a
-> > stupid git, and that those lines are in fact vitally important ;)
+> > That code is there, iirc, to prevent a process from getting stuck in
+> > balance_dirty_pages() forever due to the dirtying activity of other
+> > processes.
 > > 
+> > hm, we ask the process to write write_chunk pages each go around the loop.
+> > So if it wrote write-chunk/2 pages on the first pass it might end up writing
+> > write_chunk*1.5 pages total.  I guess that's rare and doesn't matter much
+> > if it does happen - the upper bound is write_chunk*2-1, I think.
 > 
-> It depends what they're replaced with.
+> Right, but I think the problem is that its dirty -> writeback, not dirty
+> -> writeback completed.
 > 
-> That code is there, iirc, to prevent a process from getting stuck in
-> balance_dirty_pages() forever due to the dirtying activity of other
-> processes.
+> Ie. they don't guarantee progress, it could be that the total
+> nr_reclaimable + nr_writeback will steadily increase due to this break.
 > 
-> hm, we ask the process to write write_chunk pages each go around the loop.
-> So if it wrote write-chunk/2 pages on the first pass it might end up writing
-> write_chunk*1.5 pages total.  I guess that's rare and doesn't matter much
-> if it does happen - the upper bound is write_chunk*2-1, I think.
+> How about ensuring that vm_writeout_total increases least
+> 2*sync_writeback_pages() during our stay in balance_dirty_pages(). That
+> way we have the guarantee that more pages get written out than can be
+> dirtied.
 
-Right, but I think the problem is that its dirty -> writeback, not dirty
--> writeback completed.
+No, because that's a global counter, which many writers could be
+looking at.
 
-Ie. they don't guarantee progress, it could be that the total
-nr_reclaimable + nr_writeback will steadily increase due to this break.
+We'd need a per-task writeout counter, but when finishing the write we
+don't know anymore which task it was performed for.
 
-How about ensuring that vm_writeout_total increases least
-2*sync_writeback_pages() during our stay in balance_dirty_pages(). That
-way we have the guarantee that more pages get written out than can be
-dirtied.
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
