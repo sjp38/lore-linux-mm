@@ -1,63 +1,80 @@
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 24 Apr 2007 15:33:36 +1000
-Subject: [PATCH 6/12] get_unmapped_area handles MAP_FIXED on ia64
+Date: Tue, 24 Apr 2007 15:33:39 +1000
+Subject: [PATCH 11/12] get_unmapped_area handles MAP_FIXED in generic code
 In-Reply-To: <1177392813.924664.32930750763.qpush@grosgo>
-Message-Id: <20070424053339.5970DDDF0C@ozlabs.org>
+Message-Id: <20070424053341.E11BBDDF06@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Handle MAP_FIXED in ia64 arch_get_unmapped_area and
-hugetlb_get_unmapped_area(), just call prepare_hugepage_range
-in the later and is_hugepage_only_range() in the former.
+generic arch_get_unmapped_area() now handles MAP_FIXED. Now that
+all implementations have been fixed, change the toplevel
+get_unmapped_area() to call into arch or drivers for the MAP_FIXED
+case.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Acked-by: William Irwin <bill.irwin@oracle.com>
 
- arch/ia64/kernel/sys_ia64.c |    7 +++++++
- arch/ia64/mm/hugetlbpage.c  |    8 ++++++++
- 2 files changed, 15 insertions(+)
+ mm/mmap.c |   25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
 
-Index: linux-cell/arch/ia64/kernel/sys_ia64.c
+Index: linux-cell/mm/mmap.c
 ===================================================================
---- linux-cell.orig/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:45.000000000 +1100
-+++ linux-cell/arch/ia64/kernel/sys_ia64.c	2007-03-22 15:10:47.000000000 +1100
-@@ -33,6 +33,13 @@ arch_get_unmapped_area (struct file *fil
- 	if (len > RGN_MAP_LIMIT)
+--- linux-cell.orig/mm/mmap.c	2007-03-22 16:29:22.000000000 +1100
++++ linux-cell/mm/mmap.c	2007-03-22 16:30:06.000000000 +1100
+@@ -1199,6 +1199,9 @@ arch_get_unmapped_area(struct file *filp
+ 	if (len > TASK_SIZE)
  		return -ENOMEM;
  
-+	/* handle fixed mapping: prevent overlap with huge pages */
-+	if (flags & MAP_FIXED) {
-+		if (is_hugepage_only_range(mm, addr, len))
-+			return -EINVAL;
++	if (flags & MAP_FIXED)
 +		return addr;
-+	}
 +
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (REGION_NUMBER(addr) == RGN_HPAGE)
- 		addr = 0;
-Index: linux-cell/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-cell.orig/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:32.000000000 +1100
-+++ linux-cell/arch/ia64/mm/hugetlbpage.c	2007-03-22 15:12:39.000000000 +1100
-@@ -148,6 +148,14 @@ unsigned long hugetlb_get_unmapped_area(
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+@@ -1272,6 +1275,9 @@ arch_get_unmapped_area_topdown(struct fi
+ 	if (len > TASK_SIZE)
  		return -ENOMEM;
- 	if (len & ~HPAGE_MASK)
+ 
++	if (flags & MAP_FIXED)
++		return addr;
++
+ 	/* requesting a specific address */
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+@@ -1360,22 +1366,21 @@ get_unmapped_area(struct file *file, uns
+ 		unsigned long pgoff, unsigned long flags)
+ {
+ 	unsigned long ret;
++	unsigned long (*get_area)(struct file *, unsigned long,
++				  unsigned long, unsigned long, unsigned long);
+ 
+-	if (!(flags & MAP_FIXED)) {
+-		unsigned long (*get_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+-
+-		get_area = current->mm->get_unmapped_area;
+-		if (file && file->f_op && file->f_op->get_unmapped_area)
+-			get_area = file->f_op->get_unmapped_area;
+-		addr = get_area(file, addr, len, pgoff, flags);
+-		if (IS_ERR_VALUE(addr))
+-			return addr;
+-	}
++	get_area = current->mm->get_unmapped_area;
++	if (file && file->f_op && file->f_op->get_unmapped_area)
++		get_area = file->f_op->get_unmapped_area;
++	addr = get_area(file, addr, len, pgoff, flags);
++	if (IS_ERR_VALUE(addr))
++		return addr;
+ 
+ 	if (addr > TASK_SIZE - len)
+ 		return -ENOMEM;
+ 	if (addr & ~PAGE_MASK)
  		return -EINVAL;
 +
-+	/* Handle MAP_FIXED */
-+	if (flags & MAP_FIXED) {
-+		if (prepare_hugepage_range(addr, len, pgoff))
-+			return -EINVAL;
-+		return addr;
-+	}
-+
- 	/* This code assumes that RGN_HPAGE != 0. */
- 	if ((REGION_NUMBER(addr) != RGN_HPAGE) || (addr & (HPAGE_SIZE - 1)))
- 		addr = HPAGE_REGION_BASE;
- 
+ 	if (file && is_file_hugepages(file))  {
+ 		/*
+ 		 * Check if the given range is hugepage aligned, and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
