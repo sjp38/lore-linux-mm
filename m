@@ -1,69 +1,35 @@
-Date: Tue, 24 Apr 2007 03:40:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 10/10] mm: per device dirty threshold
-Message-Id: <20070424034024.f953f93f.akpm@linux-foundation.org>
-In-Reply-To: <1177409538.26937.75.camel@twins>
-References: <20070420155154.898600123@chello.nl>
-	<20070420155503.608300342@chello.nl>
-	<17965.29252.950216.971096@notabene.brown>
-	<1177398589.26937.40.camel@twins>
-	<E1HgGF4-00008p-00@dorka.pomaz.szeredi.hu>
-	<1177403494.26937.59.camel@twins>
-	<E1HgH69-0000Fl-00@dorka.pomaz.szeredi.hu>
-	<1177406817.26937.65.camel@twins>
-	<E1HgHcG-0000J5-00@dorka.pomaz.szeredi.hu>
-	<20070424030021.a091018d.akpm@linux-foundation.org>
-	<1177409538.26937.75.camel@twins>
+Date: Tue, 24 Apr 2007 11:43:18 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch 13/44] mm: restore KERNEL_DS optimisations
+Message-ID: <20070424104318.GA13268@infradead.org>
+References: <20070424012346.696840000@suse.de> <20070424013434.155713000@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070424013434.155713000@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, neilb@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dgc@sgi.com, tomoki.sekiyama.qu@hitachi.com, nikita@clusterfs.com, trond.myklebust@fys.uio.no, yingchao.zhou@gmail.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Filesystems <linux-fsdevel@vger.kernel.org>, Mark Fasheh <mark.fasheh@oracle.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007 12:12:18 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-
-> On Tue, 2007-04-24 at 03:00 -0700, Andrew Morton wrote:
-> > On Tue, 24 Apr 2007 11:47:20 +0200 Miklos Szeredi <miklos@szeredi.hu> wrote:
-> > 
-> > > > Ahh, now I see; I had totally blocked out these few lines:
-> > > > 
-> > > > 			pages_written += write_chunk - wbc.nr_to_write;
-> > > > 			if (pages_written >= write_chunk)
-> > > > 				break;		/* We've done our duty */
-> > > > 
-> > > > yeah, those look dubious indeed... And reading back Neil's comments, I
-> > > > think he agrees.
-> > > > 
-> > > > Shall we just kill those?
-> > > 
-> > > I think we should.
-> > > 
-> > > Athough I'm a little afraid, that Akpm will tell me again, that I'm a
-> > > stupid git, and that those lines are in fact vitally important ;)
-> > > 
-> > 
-> > It depends what they're replaced with.
-> > 
-> > That code is there, iirc, to prevent a process from getting stuck in
-> > balance_dirty_pages() forever due to the dirtying activity of other
-> > processes.
-> > 
-> > hm, we ask the process to write write_chunk pages each go around the loop.
-> > So if it wrote write-chunk/2 pages on the first pass it might end up writing
-> > write_chunk*1.5 pages total.  I guess that's rare and doesn't matter much
-> > if it does happen - the upper bound is write_chunk*2-1, I think.
+On Tue, Apr 24, 2007 at 11:23:59AM +1000, Nick Piggin wrote:
+> Restore the KERNEL_DS optimisation, especially helpful to the 2copy write
+> path.
 > 
-> Right, but I think the problem is that its dirty -> writeback, not dirty
-> -> writeback completed.
-> 
-> Ie. they don't guarantee progress, it could be that the total
-> nr_reclaimable + nr_writeback will steadily increase due to this break.
+> This may be a pretty questionable gain in most cases, especially after the
+> legacy 2copy write path is removed, but it doesn't cost much.
 
-Don't think so.  We call balance_dirty_pages() once per ratelimit_pages
-dirtyings and when we get there, we write 1.5*ratelimit_pages pages.
+Well, it gets removed later and sets a bad precedence.  Instead of
+adding hacks we should have proper methods for kernel-space read/writes.
+Especially as the latter are a lot simpler and most of the magic
+in this patch series is not needed.  I'll start this work once
+your patch series is in.
+
+In general there seems to be a lot of stuff in the earlier patches
+that just goes away later and doesn't make much sense in the series.
+Is there a good reason not to simply consolidate out those changes
+completely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
