@@ -1,54 +1,48 @@
-Message-ID: <462E9BC1.2060800@shadowen.org>
-Date: Wed, 25 Apr 2007 01:07:29 +0100
+Message-ID: <462E9DDC.40700@shadowen.org>
+Date: Wed, 25 Apr 2007 01:16:28 +0100
 From: Andy Whitcroft <apw@shadowen.org>
 MIME-Version: 1.0
 Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>	<1177453661.1281.1.camel@dyn9047017100.beaverton.ibm.com> <20070424155151.644e88b7.akpm@linux-foundation.org> <462E9382.90701@shadowen.org>
-In-Reply-To: <462E9382.90701@shadowen.org>
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org>	<Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>	<20070424132740.e4bdf391.akpm@linux-foundation.org>	<Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>	<20070424134325.f71460af.akpm@linux-foundation.org>	<Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>	<20070424141826.952d2d32.akpm@linux-foundation.org>	<Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com> <20070424143635.cdff71de.akpm@linux-foundation.org> <462E7AB6.8000502@shadowen.org>
+In-Reply-To: <462E7AB6.8000502@shadowen.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Andy Whitcroft wrote:
 > Andrew Morton wrote:
->> Andy, I'm looking at the power4 build:
+>> On Tue, 24 Apr 2007 14:30:16 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
 >>
->> http://test.kernel.org/abat/84751/debug/test.log.0
+>>> On Tue, 24 Apr 2007, Andrew Morton wrote:
+>>>
+>>>>> Could we get a .config?
+>>>> test.kernel.org configs are subtly hidden on the front page.  Go to
+>>>> test.kernel.org, click on the "amd64" or "numaq" links in the title row
+>>>> there.
+>>>>
+>>>> The offending machine is elm3b6.
+>>> My x86_64 box boots fine with the indicated .config.
+>> So do both of mine.
 >>
->> which has
->>
->>   LD      init/built-in.o
->>   LD      .tmp_vmlinux1
->> init/built-in.o(.init.text+0x32e4): In function `.rd_load_image':
->> : undefined reference to `.__kmalloc_size_too_large'
->> fs/built-in.o(.text+0xa60f0): In function `.ext3_fill_super':
->> : undefined reference to `.__kmalloc_size_too_large'
->> fs/built-in.o(.text+0xbe934): In function `.ext2_fill_super':
->> : undefined reference to `.__kmalloc_size_too_large'
->> fs/built-in.o(.text+0xf3370): In function `.nfs4_proc_lookup':
->>
->> something has gone stupid with kmalloc there, and I cannot reproduce it
->> with my compiler and with your (very old) .config at
->> http://ftp.kernel.org/pub/linux/kernel/people/mbligh/config/abat/power4
->>
->> So I'm a bit stumped.  Does autotest just do `yes "" | make oldconfig' or
->> what?  When I do that, I get SLUB, but no compile errors.
+>>> Hardware related?
+>> Well it's AMD64, presumably real NUMA.  Maybe try numa=fake=4?
 > 
-> Yes, exactly that.
+> Yep real NUMA box.  Will try and get hold of the box to test.
 > 
->> And do you know what compiler version is being used there?
-> 
-> gcc version 3.4.4 20050314 (prerelease) (Debian 3.4.3-13sarge1)
+> -apw
 
-Sorry I misslead, that is the x84_64, the below is the correct version:
+git bisect points to:
 
-gcc version 3.3.3 (SuSE Linux)
+    quicklist-support-for-x86_64
+
+Reverting just this patch sorts this problem on the x86_64.
 
 -apw
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
