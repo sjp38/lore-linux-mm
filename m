@@ -1,54 +1,103 @@
-Date: Tue, 24 Apr 2007 23:58:38 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-In-Reply-To: <20070424182212.bbe76894.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704242351300.21398@schroedinger.engr.sgi.com>
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
- <1177453661.1281.1.camel@dyn9047017100.beaverton.ibm.com>
- <20070424155151.644e88b7.akpm@linux-foundation.org>
- <1177462288.1281.11.camel@dyn9047017100.beaverton.ibm.com>
- <20070424182212.bbe76894.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 25 Apr 2007 00:42:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
+Message-Id: <20070425004214.e21da2d8.akpm@linux-foundation.org>
+In-Reply-To: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007, Andrew Morton wrote:
+On Wed, 25 Apr 2007 12:19:46 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> > gcc version 3.3.3 -- generates those link failures
-> > gcc version 4.1.0 -- doesn't generate this error
+> Make zonelist policy selectable from sysctl.
 > 
-> My power box is 3.4.4 and it doesn't do that either.  I guess it's just a
-> gcc buglet.
+> Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
 > 
-> Poor Christoph ;)
+> In this case, default (node0's) zonelist order is
 > 
-> I wonder why slab doesn't hit that problem.
+> Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
 > 
-> I wonder whether slub should use kmalloc-sizes.h.
+> This means Node(0)'s DMA is used before Node(1)'s NORMAL.
+> 
+> In some server, some application uses large memory allcation.
+> This exhaust memory in the above order.
+> Then....sometimes OOM_KILL will occur when 32bit device requires memory.
+> 
+> This patch adds sysctl for rebuilding zonelist after boot and doesn't change
+> default zonelist order.
 
-Builds fine here with gcc 3.3 on x86_64. Maybe a problem with the arch 
-specific backend? Maybe it does not inline by default?
+hm.  Why don't we use that ordering all the time?  Does the present ordering have
+any advantage?
 
-Does forcing inlining fix the problem?
+> command:
+> %echo 0 > /proc/sys/vm/better_locality
 
-Index: linux-2.6.21-rc7/include/linux/slub_def.h
-===================================================================
---- linux-2.6.21-rc7.orig/include/linux/slub_def.h	2007-04-24 23:50:27.000000000 -0700
-+++ linux-2.6.21-rc7/include/linux/slub_def.h	2007-04-24 23:51:08.000000000 -0700
-@@ -84,7 +84,7 @@ extern struct kmem_cache kmalloc_caches[
-  * Sorry that the following has to be that ugly but some versions of GCC
-  * have trouble with constant propagation and loops.
-  */
--static inline int kmalloc_index(int size)
-+static __always_inline int kmalloc_index(int size)
- {
- 	if (size == 0)
- 		return 0;
- 
+Who could resist having better locality? ;)
+
+> Will rebuild zonelist in following order.
+> 
+> Node(0)'s NORMAL -> Node(1)'s NORMAL -> Node(0)'s DMA.
+> 
+> if set better_locality == 1 (default), zonelist is
+> Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)'s NORMAL.
+> 
+> Maybe useful in some users with heavy memory pressure and mlocks.
+> 
+> ...
+>
+>  extern int percpu_pagelist_fraction;
+>  extern int compat_log;
+> +#ifdef CONFIG_NUMA
+> +extern int sysctl_better_locality;
+> +#endif
+
+The ifdef isn't needed here.  If something went wrong, we'll find out at
+link-time.
+  
+>  /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+>  static int maxolduid = 65535;
+> @@ -845,6 +848,15 @@ static ctl_table vm_table[] = {
+>  		.extra1		= &zero,
+>  		.extra2		= &one_hundred,
+>  	},
+> +	{
+> +		.ctl_name	= VM_BETTER_LOCALITY,
+
+Please don't add new sysctls: use CTL_UNNUMBERED here.
+
+> +		.procname	= "better_locality",
+> +		.data		= &sysctl_better_locality,
+> +		.maxlen		= sizeof(sysctl_better_locality),
+> +		.mode		= 0644,
+> +		.proc_handler	= &sysctl_better_locality_handler,
+> +		.strategy	= &sysctl_intvec,
+> +	},
+>
+> ..
+>
+> +static void build_zonelists(pg_data_t *pgdat)
+> +{
+> +	if (sysctl_better_locality) {
+> +		build_zonelists_locality_aware(pgdat);
+> +	} else {
+> +		build_zonelists_zone_aware(pgdat);
+> +	}
+
+Remove all the braces please.
+
+> @@ -207,6 +207,7 @@ enum
+>  	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
+>  	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
+>  	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
+> +	VM_BETTER_LOCALITY=36,	 /* create locality-preference zonelist */
+
+This can go away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
