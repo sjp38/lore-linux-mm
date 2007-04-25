@@ -1,55 +1,46 @@
-Date: Wed, 25 Apr 2007 09:27:11 +0100
-From: Russell King <rmk+lkml@arm.linux.org.uk>
-Subject: Re: [PATCH 3/12] get_unmapped_area handles MAP_FIXED on arm
-Message-ID: <20070425082711.GA26988@flint.arm.linux.org.uk>
-References: <1177392813.924664.32930750763.qpush@grosgo> <20070424053337.C5FEBDDF09@ozlabs.org>
+Date: Wed, 25 Apr 2007 01:40:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
+Message-Id: <20070425014015.c9dd06e9.akpm@linux-foundation.org>
+In-Reply-To: <462F0F90.3070600@shadowen.org>
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
+	<20070424132740.e4bdf391.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
+	<20070424134325.f71460af.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
+	<20070424141826.952d2d32.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>
+	<20070424143635.cdff71de.akpm@linux-foundation.org>
+	<462E7AB6.8000502@shadowen.org>
+	<462E9DDC.40700@shadowen.org>
+	<1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
+	<Pine.LNX.4.64.0704242329060.21213@schroedinger.engr.sgi.com>
+	<462F0F90.3070600@shadowen.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070424053337.C5FEBDDF09@ozlabs.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Christoph Lameter <clameter@sgi.com>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 24, 2007 at 03:33:35PM +1000, Benjamin Herrenschmidt wrote:
-> ARM already had a case for MAP_FIXED in arch_get_unmapped_area() though
-> it was not called before. Fix the comment to reflect that it will now
-> be called.
-> 
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+On Wed, 25 Apr 2007 09:21:36 +0100 Andy Whitcroft <apw@shadowen.org> wrote:
 
-Acked-by: Russell King <rmk+kernel@arm.linux.org.uk>
-
+> >  	if (unlikely(nid != numa_node_id())) {
+> >  		if (dtor)
+> >  			dtor(p);
+> > -		free_hot_page(page);
+> > +		__free_page(page);
+> >  		return;
+> >  	}
 > 
->  arch/arm/mm/mmap.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> Index: linux-cell/arch/arm/mm/mmap.c
-> ===================================================================
-> --- linux-cell.orig/arch/arm/mm/mmap.c	2007-03-22 14:59:51.000000000 +1100
-> +++ linux-cell/arch/arm/mm/mmap.c	2007-03-22 15:00:01.000000000 +1100
-> @@ -49,8 +49,7 @@ arch_get_unmapped_area(struct file *filp
->  #endif
->  
->  	/*
-> -	 * We should enforce the MAP_FIXED case.  However, currently
-> -	 * the generic kernel code doesn't allow us to handle this.
-> +	 * We enforce the MAP_FIXED case.
->  	 */
->  	if (flags & MAP_FIXED) {
->  		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Confirmed, this fixes the machine.
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:
+OK, thanks guys - another one for the hot-fixes directory.
+
+Do we know where the extra refcount on that page is coming from?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
