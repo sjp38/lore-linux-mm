@@ -1,35 +1,28 @@
-Date: Wed, 25 Apr 2007 08:56:12 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 10/16] Variable Order Page Cache: Readahead fixups
-In-Reply-To: <20070425113613.GF19942@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0704250854420.24530@schroedinger.engr.sgi.com>
-References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
- <20070423064937.5458.59638.sendpatchset@schroedinger.engr.sgi.com>
- <20070425113613.GF19942@skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 0/2] Lumpy Reclaim V6 cleanups
+Message-ID: <exportbomb.1177520981@pinky>
+Date: Wed, 25 Apr 2007 18:09:41 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Dave Hansen <hansendc@us.ibm.com>, Avi Kivity <avi@argo.co.il>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Whitcroft <apw@shadowen.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Apr 2007, Mel Gorman wrote:
+Following this email are two cleanup patches against lumpy V6
+(as contained in v2.6.21-rc7-mm1).  These address the review feedback
+from Andrew Morton, thanks for reviewing.
 
-> > +		/*
-> > +		 * FIXME: Note the 2M constant here that may prove to
-> > +		 * be a problem if page sizes become bigger than one megabyte.
-> > +		 */
-> > +		unsigned long this_chunk = page_cache_index(mapping, 2 * 1024 * 1024);
-> >
-> 
-> Should readahead just be disabled when the compound page size is as
-> large or larger than what readahead normally reads?
+introduce-HIGH_ORDER-delineating-easily-reclaimable-orders-fix:
+  changes the name of the constant to PAGE_ALLOC_COSTLY_ORDER and
+  updates the commentary to better describe it.
 
-I am not sure how to solve that one yet. With the above fix we stay at the 
-2M sized readahead. As the compound order increases so the number of pages
-is reduced. We could keep the number of pages constant but then very high
-orders may cause a excessive use of memory for readahead.
+lumpy-increase-pressure-at-the-end-of-the-inactive-list-cleanups:
+  a large number of cleanups including fully expressing the
+  isolations modes symbolically.
+
+Andrew please apply.
+
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
