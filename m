@@ -1,52 +1,69 @@
-Date: Tue, 24 Apr 2007 18:26:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-Message-Id: <20070424182609.16f32f50.akpm@linux-foundation.org>
-In-Reply-To: <1177459170.1281.5.camel@dyn9047017100.beaverton.ibm.com>
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
-	<1177459170.1281.5.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Wed, 25 Apr 2007 11:00:58 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] Align ZONE_MOVABLE to a MAX_ORDER_NR_PAGES boundary
+In-Reply-To: <20070424180112.22005.34624.sendpatchset@skynet.skynet.ie>
+References: <20070424180032.22005.82088.sendpatchset@skynet.skynet.ie> <20070424180112.22005.34624.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070425105604.FBB4.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <clameter@sgi.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007 16:59:29 -0700 Badari Pulavarty <pbadari@gmail.com> wrote:
+Looks good. :-)
+Thanks.
 
-> On Tue, 2007-04-24 at 13:06 -0700, Andrew Morton wrote:
-> > An amd64 machine is crashing badly.
-> > 
-> > http://test.kernel.org/abat/84767/debug/console.log
-> > 
-> > VFS: Mounted root (ext3 filesystem) readonly.
-> > Freeing unused kernel memory: 308k freed
-> > INIT: version 2.86 booting
-> > Bad page state in process 'init'
-> > page:ffff81007e492628 flags:0x0100000000000000 mapping:0000000000000000 mapcount:0 count:1
-> > Trying to fix it up, but a reboot is needed
-> > Backtrace:
-> > 
-> > Call Trace:
-> >  [<ffffffff80250d3c>] bad_page+0x74/0x10d
-> >  [<ffffffff80253090>] free_hot_cold_page+0x8d/0x172
-> ...
-> > 
-> > So free_pgd_range() is freeing a refcount=1 page.  Can anyone see what
-> > might be causing this?  The quicklist code impacts this area more than
-> > anything else..
-> > 
-> 
-> Yep. quicklist patches are causing these.
-> 
-> making CONFIG_QUICKLIST=n didn't solve the problem. I had
-> to back out all quicklist patches to make my machine boot.
-> 
+Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-Great, thanks for working that out.  If people start reporting this I'll
-drop 'em and do an -rc2, but things are awful quiet out there.
+
+> 
+> The boot memory allocator makes assumptions on the alignment of zone
+> boundaries even though the buddy allocator has no requirements on the
+> alignment of zones. This may cause boot problems in situations where
+> ZONE_MOVABLE is populated because the bootmem allocator assumes zones are
+> at least order-log2(BITS_PER_LONG) aligned. As the two potential users
+> (huge pages and memory hot-remove) of ZONE_MOVABLE would prefer a higher
+> alignment, this patch aligns the start of the zone instead of fixing the
+> different assumptions made by the bootmem allocator.
+> 
+> This patch rounds the start of ZONE_MOVABLE in each node to a
+> MAX_ORDER_NR_PAGES boundary. If the rounding pushes the start of ZONE_MOVABLE
+> above the end of the node then the zone will contain no memory and will not
+> be used at runtime. The value is rounded up instead of down as it is
+> better to have the kernel-portion of memory larger than requested instead
+> of smaller. The impact is that the kernel-usable portion of memory because a
+> minimum guarantee instead of the exact size requested by the user.
+> 
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Andy Whitcroft <apw@shadowen.org>
+> ---
+> 
+>  page_alloc.c |    5 +++++
+>  1 files changed, 5 insertions(+)
+> 
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-rc6-mm1-002_commonparse/mm/page_alloc.c linux-2.6.21-rc6-mm1-003_alignmovable/mm/page_alloc.c
+> --- linux-2.6.21-rc6-mm1-002_commonparse/mm/page_alloc.c	2007-04-24 09:38:30.000000000 +0100
+> +++ linux-2.6.21-rc6-mm1-003_alignmovable/mm/page_alloc.c	2007-04-24 11:15:40.000000000 +0100
+> @@ -3642,6 +3642,11 @@ restart:
+>  	usable_nodes--;
+>  	if (usable_nodes && required_kernelcore > usable_nodes)
+>  		goto restart;
+> +	
+> +	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+> +	for (nid = 0; nid < MAX_NUMNODES; nid++)
+> +		zone_movable_pfn[nid] =
+> +			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+>  }
+>  
+>  /**
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
