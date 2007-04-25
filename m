@@ -1,75 +1,57 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3P0XkQO008799
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 20:33:46 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3P0Xjom165246
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 18:33:46 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3P0XjkW009143
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 18:33:45 -0600
+Message-ID: <462EA46E.8000307@shadowen.org>
+Date: Wed, 25 Apr 2007 01:44:30 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
 Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <462E9DDC.40700@shadowen.org>
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
-	 <20070424132740.e4bdf391.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
-	 <20070424134325.f71460af.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
-	 <20070424141826.952d2d32.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>
-	 <20070424143635.cdff71de.akpm@linux-foundation.org>
-	 <462E7AB6.8000502@shadowen.org>  <462E9DDC.40700@shadowen.org>
-Content-Type: text/plain
-Date: Tue, 24 Apr 2007 17:34:10 -0700
-Message-Id: <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org>	 <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>	 <20070424132740.e4bdf391.akpm@linux-foundation.org>	 <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>	 <20070424134325.f71460af.akpm@linux-foundation.org>	 <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>	 <20070424141826.952d2d32.akpm@linux-foundation.org>	 <Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>	 <20070424143635.cdff71de.akpm@linux-foundation.org>	 <462E7AB6.8000502@shadowen.org>  <462E9DDC.40700@shadowen.org> <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
+In-Reply-To: <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
+To: Badari Pulavarty <pbadari@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-04-25 at 01:16 +0100, Andy Whitcroft wrote:
-> Andy Whitcroft wrote:
-> > Andrew Morton wrote:
-> >> On Tue, 24 Apr 2007 14:30:16 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-> >>
-> >>> On Tue, 24 Apr 2007, Andrew Morton wrote:
-> >>>
-> >>>>> Could we get a .config?
-> >>>> test.kernel.org configs are subtly hidden on the front page.  Go to
-> >>>> test.kernel.org, click on the "amd64" or "numaq" links in the title row
-> >>>> there.
-> >>>>
-> >>>> The offending machine is elm3b6.
-> >>> My x86_64 box boots fine with the indicated .config.
-> >> So do both of mine.
-> >>
-> >>> Hardware related?
-> >> Well it's AMD64, presumably real NUMA.  Maybe try numa=fake=4?
-> > 
-> > Yep real NUMA box.  Will try and get hold of the box to test.
-> > 
-> > -apw
+Badari Pulavarty wrote:
+> On Wed, 2007-04-25 at 01:16 +0100, Andy Whitcroft wrote:
+>> Andy Whitcroft wrote:
+>>> Andrew Morton wrote:
+>>>> On Tue, 24 Apr 2007 14:30:16 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+>>>>
+>>>>> On Tue, 24 Apr 2007, Andrew Morton wrote:
+>>>>>
+>>>>>>> Could we get a .config?
+>>>>>> test.kernel.org configs are subtly hidden on the front page.  Go to
+>>>>>> test.kernel.org, click on the "amd64" or "numaq" links in the title row
+>>>>>> there.
+>>>>>>
+>>>>>> The offending machine is elm3b6.
+>>>>> My x86_64 box boots fine with the indicated .config.
+>>>> So do both of mine.
+>>>>
+>>>>> Hardware related?
+>>>> Well it's AMD64, presumably real NUMA.  Maybe try numa=fake=4?
+>>> Yep real NUMA box.  Will try and get hold of the box to test.
+>>>
+>>> -apw
+>> git bisect points to:
+>>
+>>     quicklist-support-for-x86_64
+>>
+>> Reverting just this patch sorts this problem on the x86_64.
 > 
-> git bisect points to:
+> Hmm.. I narrowed it further down to ..
 > 
->     quicklist-support-for-x86_64
+> quicklists-for-page-table-pages-avoid-useless-virt_to_page-
+> conversion.patch
 > 
-> Reverting just this patch sorts this problem on the x86_64.
+> Andy, can you try backing out only this and enable QUICK_LIST
+> on your machine ?
 
-Hmm.. I narrowed it further down to ..
+Yep confirmed that reverting that one is enough to fix this machine.
 
-quicklists-for-page-table-pages-avoid-useless-virt_to_page-
-conversion.patch
-
-Andy, can you try backing out only this and enable QUICK_LIST
-on your machine ?
-
-Thanks,
-Badari
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
