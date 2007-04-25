@@ -1,46 +1,42 @@
-Received: from localhost ([127.0.0.1])
-	by mailapp.tensilica.com with esmtp (Exim 4.34)
-	id 1Hgl5Z-0003Ev-Ls
-	for linux-mm@kvack.org; Wed, 25 Apr 2007 10:15:33 -0700
-Received: from mailapp.tensilica.com ([127.0.0.1])
-	by localhost (mailapp [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 11950-06 for <linux-mm@kvack.org>;
-	Wed, 25 Apr 2007 10:15:33 -0700 (PDT)
-Received: from tux.hq.tensilica.com ([192.168.11.71])
-	by mailapp.tensilica.com with esmtp (Exim 4.34)
-	id 1Hgl5Z-0003Eq-2T
-	for linux-mm@kvack.org; Wed, 25 Apr 2007 10:15:33 -0700
-Message-ID: <462F8CB4.4070907@tensilica.com>
-Date: Wed, 25 Apr 2007 10:15:32 -0700
-From: Chris Zankel <zankel@tensilica.com>
+Date: Wed, 25 Apr 2007 12:17:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
+In-Reply-To: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
+References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: SMP and cache-aliasing.
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 25 Apr 2007, KAMEZAWA Hiroyuki wrote:
 
-Sorry for the intrusion, but maybe someone with more insight in linux 
-memory-management can give me a brief hint about the following:
+> Make zonelist policy selectable from sysctl.
+> 
+> Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
+> 
+> In this case, default (node0's) zonelist order is
+> 
+> Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
+> 
+> This means Node(0)'s DMA is used before Node(1)'s NORMAL.
 
-In an SMP system with cache-aliasing, is it possible that the same 
-physical page is mapped to two or more virtual addresses of different 
-'color'?
+So a IA64 platform with i386 sicknesses? And pretty bad case of it since I 
+assume that the memory sizes per node are equal. Your solution of taking 
+4G off node 0 and then going to node 1 first must hurt some 
+processes running on node 0. But there is no easy solution since 
+the hardware is badly screwed up with 32 bit I/O. Whatever you do the 
+memory balance between the two nodes is making the system behave in
+an unsymmetric way.
 
-On a single processor system this doesn't happen. Shared pages are 
-always allocated in a way to avoid cache-aliasing and non-shared pages 
-are only mapped once in user-space.
+> In some server, some application uses large memory allcation.
+> This exhaust memory in the above order.
 
-I guess that leaves kernel space. Is it possible that the kernel running 
-on the two different processors maps the same physical address to pages 
-of different 'color' in kernel space?
-
-Thank you for any input,
--Chris
+Could we add a boot time option instead that changes the zonelist build 
+behavior? Maybe an arch hook that can deal with it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
