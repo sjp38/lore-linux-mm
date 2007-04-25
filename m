@@ -1,33 +1,39 @@
-Date: Wed, 25 Apr 2007 08:15:04 -0700 (PDT)
+Date: Wed, 25 Apr 2007 08:43:02 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-In-Reply-To: <20070425014015.c9dd06e9.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704250814400.24338@schroedinger.engr.sgi.com>
-References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
- <20070424132740.e4bdf391.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
- <20070424134325.f71460af.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
- <20070424141826.952d2d32.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>
- <20070424143635.cdff71de.akpm@linux-foundation.org> <462E7AB6.8000502@shadowen.org>
- <462E9DDC.40700@shadowen.org> <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
- <Pine.LNX.4.64.0704242329060.21213@schroedinger.engr.sgi.com>
- <462F0F90.3070600@shadowen.org> <20070425014015.c9dd06e9.akpm@linux-foundation.org>
+Subject: Re: [RFC 02/16] vmstat.c: Support accounting for compound pages
+In-Reply-To: <20070425105946.GB19942@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0704250840240.24530@schroedinger.engr.sgi.com>
+References: <20070423064845.5458.2190.sendpatchset@schroedinger.engr.sgi.com>
+ <20070423064855.5458.73630.sendpatchset@schroedinger.engr.sgi.com>
+ <20070425105946.GB19942@skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@shadowen.org>, Badari Pulavarty <pbadari@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, Badari Pulavarty <pbadari@gmail.com>, David Chinner <dgc@sgi.com>, Jens Axboe <jens.axboe@oracle.com>, Adam Litke <aglitke@gmail.com>, Dave Hansen <hansendc@us.ibm.com>, Avi Kivity <avi@argo.co.il>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Apr 2007, Andrew Morton wrote:
+On Wed, 25 Apr 2007, Mel Gorman wrote:
 
-> Do we know where the extra refcount on that page is coming from?
+> > This will avoid numerous changes in the VM to fix up page accounting
+> > as we add more support for  compound pages.
+> > 
+> > Also fix up the accounting for active / inactive pages.
+> Should this patch be split in two then? The active/inactive looks like
+> it's worth doing anyway
 
->From the allocation of the page via quicklist_alloc.
+We could split it but both pieces are only necessary for higher order 
+compound pages on the LRU.
+
+> >  EXPORT_SYMBOL(inc_zone_page_state);
+> 
+> Everything after here looks like a standalone cleanup.
+
+Its not sorry. __inc_zone_page_state has a bit more overhead than 
+__inc_zone_state. Needs to determine the zone again. Maybe we need to 
+create a __inc_zone_compound_state or so that does not repeat the zone 
+determination.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
