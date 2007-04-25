@@ -1,43 +1,75 @@
-Date: Tue, 24 Apr 2007 15:51:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id l3P0XkQO008799
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 20:33:46 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v8.3) with ESMTP id l3P0Xjom165246
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 18:33:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l3P0XjkW009143
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2007 18:33:45 -0600
 Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
-Message-Id: <20070424155151.644e88b7.akpm@linux-foundation.org>
-In-Reply-To: <1177453661.1281.1.camel@dyn9047017100.beaverton.ibm.com>
+From: Badari Pulavarty <pbadari@gmail.com>
+In-Reply-To: <462E9DDC.40700@shadowen.org>
 References: <20070424130601.4ab89d54.akpm@linux-foundation.org>
-	<1177453661.1281.1.camel@dyn9047017100.beaverton.ibm.com>
+	 <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>
+	 <20070424132740.e4bdf391.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>
+	 <20070424134325.f71460af.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>
+	 <20070424141826.952d2d32.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>
+	 <20070424143635.cdff71de.akpm@linux-foundation.org>
+	 <462E7AB6.8000502@shadowen.org>  <462E9DDC.40700@shadowen.org>
+Content-Type: text/plain
+Date: Tue, 24 Apr 2007 17:34:10 -0700
+Message-Id: <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <clameter@sgi.com>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andy, I'm looking at the power4 build:
+On Wed, 2007-04-25 at 01:16 +0100, Andy Whitcroft wrote:
+> Andy Whitcroft wrote:
+> > Andrew Morton wrote:
+> >> On Tue, 24 Apr 2007 14:30:16 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> >>
+> >>> On Tue, 24 Apr 2007, Andrew Morton wrote:
+> >>>
+> >>>>> Could we get a .config?
+> >>>> test.kernel.org configs are subtly hidden on the front page.  Go to
+> >>>> test.kernel.org, click on the "amd64" or "numaq" links in the title row
+> >>>> there.
+> >>>>
+> >>>> The offending machine is elm3b6.
+> >>> My x86_64 box boots fine with the indicated .config.
+> >> So do both of mine.
+> >>
+> >>> Hardware related?
+> >> Well it's AMD64, presumably real NUMA.  Maybe try numa=fake=4?
+> > 
+> > Yep real NUMA box.  Will try and get hold of the box to test.
+> > 
+> > -apw
+> 
+> git bisect points to:
+> 
+>     quicklist-support-for-x86_64
+> 
+> Reverting just this patch sorts this problem on the x86_64.
 
-http://test.kernel.org/abat/84751/debug/test.log.0
+Hmm.. I narrowed it further down to ..
 
-which has
+quicklists-for-page-table-pages-avoid-useless-virt_to_page-
+conversion.patch
 
-  LD      init/built-in.o
-  LD      .tmp_vmlinux1
-init/built-in.o(.init.text+0x32e4): In function `.rd_load_image':
-: undefined reference to `.__kmalloc_size_too_large'
-fs/built-in.o(.text+0xa60f0): In function `.ext3_fill_super':
-: undefined reference to `.__kmalloc_size_too_large'
-fs/built-in.o(.text+0xbe934): In function `.ext2_fill_super':
-: undefined reference to `.__kmalloc_size_too_large'
-fs/built-in.o(.text+0xf3370): In function `.nfs4_proc_lookup':
+Andy, can you try backing out only this and enable QUICK_LIST
+on your machine ?
 
-something has gone stupid with kmalloc there, and I cannot reproduce it
-with my compiler and with your (very old) .config at
-http://ftp.kernel.org/pub/linux/kernel/people/mbligh/config/abat/power4
-
-So I'm a bit stumped.  Does autotest just do `yes "" | make oldconfig' or
-what?  When I do that, I get SLUB, but no compile errors.
-
-And do you know what compiler version is being used there?
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
