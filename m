@@ -1,117 +1,53 @@
-Date: Wed, 25 Apr 2007 16:55:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
-Message-Id: <20070425165545.2d614ccd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070425004214.e21da2d8.akpm@linux-foundation.org>
-References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070425004214.e21da2d8.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <462F0F90.3070600@shadowen.org>
+Date: Wed, 25 Apr 2007 09:21:36 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: 2.6.21-rc7-mm1 on test.kernel.org
+References: <20070424130601.4ab89d54.akpm@linux-foundation.org>  <Pine.LNX.4.64.0704241320540.13005@schroedinger.engr.sgi.com>  <20070424132740.e4bdf391.akpm@linux-foundation.org>  <Pine.LNX.4.64.0704241332090.13005@schroedinger.engr.sgi.com>  <20070424134325.f71460af.akpm@linux-foundation.org>  <Pine.LNX.4.64.0704241351400.13382@schroedinger.engr.sgi.com>  <20070424141826.952d2d32.akpm@linux-foundation.org>  <Pine.LNX.4.64.0704241429240.13904@schroedinger.engr.sgi.com>  <20070424143635.cdff71de.akpm@linux-foundation.org>  <462E7AB6.8000502@shadowen.org>  <462E9DDC.40700@shadowen.org> <1177461251.1281.7.camel@dyn9047017100.beaverton.ibm.com> <Pine.LNX.4.64.0704242329060.21213@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.64.0704242329060.21213@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, y-goto@jp.fujitsu.com
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Badari Pulavarty <pbadari@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Apr 2007 00:42:14 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed, 25 Apr 2007 12:19:46 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Christoph Lameter wrote:
+> On Tue, 24 Apr 2007, Badari Pulavarty wrote:
 > 
-> > Make zonelist policy selectable from sysctl.
-> > 
-> > Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
-> > 
-> > In this case, default (node0's) zonelist order is
-> > 
-> > Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
-> > 
-> > This means Node(0)'s DMA is used before Node(1)'s NORMAL.
-> > 
-> > In some server, some application uses large memory allcation.
-> > This exhaust memory in the above order.
-> > Then....sometimes OOM_KILL will occur when 32bit device requires memory.
-> > 
-> > This patch adds sysctl for rebuilding zonelist after boot and doesn't change
-> > default zonelist order.
+>> quicklists-for-page-table-pages-avoid-useless-virt_to_page-
+>> conversion.patch
+>>
+>> Andy, can you try backing out only this and enable QUICK_LIST
+>> on your machine ?
 > 
-> hm.  Why don't we use that ordering all the time?  Does the present ordering have
-> any advantage?
+> Ahh. Right..... The free that we switched to there to avoid the 
+> virt_to_page conversion does not decrement the refcount and thus
+> is not equivalent.
 > 
-I don't know ;) maybe some high-end NUMA hardware has IOMMU and
-zoning by memory address has no meaning.
-
-> > command:
-> > %echo 0 > /proc/sys/vm/better_locality
+> Does this patch fix it?
 > 
-> Who could resist having better locality? ;)
+> ---
+>  include/linux/quicklist.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
+> Index: linux-2.6.21-rc7-mm1/include/linux/quicklist.h
+> ===================================================================
+> --- linux-2.6.21-rc7-mm1.orig/include/linux/quicklist.h	2007-04-24 23:35:11.000000000 -0700
+> +++ linux-2.6.21-rc7-mm1/include/linux/quicklist.h	2007-04-24 23:35:59.000000000 -0700
+> @@ -61,7 +61,7 @@ static inline void __quicklist_free(int 
+>  	if (unlikely(nid != numa_node_id())) {
+>  		if (dtor)
+>  			dtor(p);
+> -		free_hot_page(page);
+> +		__free_page(page);
+>  		return;
+>  	}
 
-how about changing this name to strict_zone_order and
+Confirmed, this fixes the machine.
 
-if strict_zone_order = 1
-	Node(0)'NORMAL -> Node(1)'Normal -> Node(0)'DMA
-if strict_zone_order = 0
-	Node(0)'NORMAL -> Node(0)'DMA -> Node(1)'NORMAL
-
-If someone thinks of better name, please teach me.
-
-
-
-> >  extern int percpu_pagelist_fraction;
-> >  extern int compat_log;
-> > +#ifdef CONFIG_NUMA
-> > +extern int sysctl_better_locality;
-> > +#endif
-> 
-> The ifdef isn't needed here.  If something went wrong, we'll find out at
-> link-time.
->   
-Okay.
-
-> >  /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
-> >  static int maxolduid = 65535;
-> > @@ -845,6 +848,15 @@ static ctl_table vm_table[] = {
-> >  		.extra1		= &zero,
-> >  		.extra2		= &one_hundred,
-> >  	},
-> > +	{
-> > +		.ctl_name	= VM_BETTER_LOCALITY,
-> 
-> Please don't add new sysctls: use CTL_UNNUMBERED here.
-> 
-Oh, I didn't know about CTL_UNNUMBERED. looks useful. I'll try.
-
-
-> > +static void build_zonelists(pg_data_t *pgdat)
-> > +{
-> > +	if (sysctl_better_locality) {
-> > +		build_zonelists_locality_aware(pgdat);
-> > +	} else {
-> > +		build_zonelists_zone_aware(pgdat);
-> > +	}
-> 
-> Remove all the braces please.
-
-Okay.
-
-> 
-> > @@ -207,6 +207,7 @@ enum
-> >  	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
-> >  	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
-> >  	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
-> > +	VM_BETTER_LOCALITY=36,	 /* create locality-preference zonelist */
-> 
-> This can go away.
-> 
-Okay.
-
-I'll wait for other replies and post updated one tomorrow.
-
-Thank you,
-
--Kame
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
