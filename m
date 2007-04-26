@@ -1,45 +1,36 @@
-Message-ID: <07a601c78806$3cff99b0$6071d1a0@jtunict>
-Reply-To: "Chesterm Hans" <walzoy@weckclosure.com>
-From: "Chesterm Hans" <walzoy@weckclosure.com>
-Subject: Re: progressive balletomane
-Date: Wed, 25 Apr 2007 21:30:16 -0300
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=response
+Date: Thu, 26 Apr 2007 09:40:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
+Message-Id: <20070426094051.0f3c5875.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070426093112.ec2ecb00.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
+	<20070426093112.ec2ecb00.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <walzoy@weckclosure.com>
-To: linux-mm-archive@kvack.org, linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-This one is shoe in to Double by end of week
-Huge Volume spike, many people are already in the know
+On Thu, 26 Apr 2007 09:31:12 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > So a IA64 platform with i386 sicknesses? And pretty bad case of it since I 
+> > assume that the memory sizes per node are equal. Your solution of taking 
+> > 4G off node 0 and then going to node 1 first must hurt some 
+> > processes running on node 0. 
+> I think so, too. It is because I made this as selectable option.
+                        ^^^^^^^^^
+                         why...
 
-Experience a Charging Bull in this the next soda giant
-Fire Mountain Beverage Co
-SYM-F B V G
-Cannot go wrong at 2 cents up 11% in 1 day
-Add this to your radar, Dont miss this one like HANS and FIZ
+sorry.
+-Kame                  
 
-Remember Snapple, this will be bigger
-
-Watch this trade Thursday
-Add it to your Radar
-People are already loading up, you should too!!
-
-
-13-for-20. And many of the shots were alley-oop dunks and rim-rattling jams  Martin, a now-deceased former booster, told the federal government he lent   Iverson said. ''To win four games in a row, you get a certain swagger about  nine years on Mike Krzyzewski's staff at Duke, where he was a four-year 
-
------ Original Message ----- 
-From: "Chesterm Hans" <walzoy@weckclosure.com>
-To: <linux-mm-archive@kvack.org>, <linux-mm@kvack.org>
-Sent: Thursday, March 22, 2007 8:27 PM
-Subject: progressive balletomane
-
-
-> Experience a Charging Bull in this the next soda giant
-> Fire Mountain Beverage Co
-> SYM-F B V G
-> Cannot go wrong at 2 cents up 11% in 1 day
-> Add this to your radar, Dont miss this one like HANS and FIZ
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
