@@ -1,45 +1,128 @@
-Date: Wed, 25 Apr 2007 12:17:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
-In-Reply-To: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
-References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 26 Apr 2007 01:19:14 +0100
+From: "Magic-Jackpot Casino" <krakow@caller.com>
+Message-ID: <05086322.75150667@beset.com>
+Subject: Bis 1000 Euro frei!
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, GOTO <y-goto@jp.fujitsu.com>
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <krakow@caller.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Apr 2007, KAMEZAWA Hiroyuki wrote:
+<html>
 
-> Make zonelist policy selectable from sysctl.
-> 
-> Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
-> 
-> In this case, default (node0's) zonelist order is
-> 
-> Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
-> 
-> This means Node(0)'s DMA is used before Node(1)'s NORMAL.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-So a IA64 platform with i386 sicknesses? And pretty bad case of it since I 
-assume that the memory sizes per node are equal. Your solution of taking 
-4G off node 0 and then going to node 1 first must hurt some 
-processes running on node 0. But there is no easy solution since 
-the hardware is badly screwed up with 32 bit I/O. Whatever you do the 
-memory balance between the two nodes is making the system behave in
-an unsymmetric way.
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
-> In some server, some application uses large memory allcation.
-> This exhaust memory in the above order.
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-Could we add a boot time option instead that changes the zonelist build 
-behavior? Maybe an arch hook that can deal with it?
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! </span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.arrierocasino.com/lang-de/">
+http://www.arrierocasino.com/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
