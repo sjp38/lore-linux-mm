@@ -1,196 +1,27 @@
+Date: Thu, 26 Apr 2007 09:06:17 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] change global zonelist order on NUMA v3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070426195348.6a4e5652.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1177603203.5705.36.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0704260904190.1655@schroedinger.engr.sgi.com>
 References: <20070426183417.058f6f9e.kamezawa.hiroyu@jp.fujitsu.com>
-	 <200704261147.44413.ak@suse.de>
-	 <20070426191043.df96c114.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070426195348.6a4e5652.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Thu, 26 Apr 2007 12:00:03 -0400
-Message-Id: <1177603203.5705.36.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <200704261147.44413.ak@suse.de>  <20070426191043.df96c114.kamezawa.hiroyu@jp.fujitsu.com>
+  <20070426195348.6a4e5652.kamezawa.hiroyu@jp.fujitsu.com>
+ <1177603203.5705.36.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, Eric Whitney <eric.whitney@hp.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-04-26 at 19:53 +0900, KAMEZAWA Hiroyuki wrote:
-> Changelog V2 -> V3
-> 
-> - removed zone ordering selection knobs...
-> 
-> much simpler one. just changing zonelist ordering.
-> tested on ia64 NUMA works well as expected.
-> 
-> -Kame
-> 
-> 
-> change zonelist order on NUMA v3.
-> 
-> [Description]
-> Assume 2 node NUMA, only node(0) has ZONE_DMA.
-> (ia64's ZONE_DMA is below 4GB...x86_64's ZONE_DMA32)
-> 
-> In this case, current default (node0's) zonelist order is
-> 
-> Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
-> 
-> This means Node(0)'s DMA will be used before Node(1)'s NORMAL.
-> This will cause OOM on ZONE_DMA easily.
+Hmmmm... One additional easy way to fix this would be to create a DMA 
+node and place it very distant to other nodes. This would make it a 
+precious system resource that is only used for
 
-We have a similar situation on HP Intergrity [ia64-based] platforms.
-The platform supports cache-line interleaved memory or cell local
-memory--a firmware configuration option.  Even configured for "100% Cell
-Local Memory [CLM]", we have a small amount of interleaved memory at
-physical address zero.  [I think the DIG spec may require this?  CLM
-shows up at some ridiculously high physical address.]  Here, "small
-amount" means ~512MB for a 4 node system and ~1G for a 16node system.
-This shows up as the only DMA memory [below 4G] on the system. 
+1. GFP_DMA allocations
 
-The interleaved memory shows up as a pseudo-node "N" in an N-node
-platform.  I.e., nodes 0-N-1 represent the real physical nodes and node
-N is the pseudo-node containing only interleaved memory [no cpus nor
-IO].  The firmware tells us, via the SLIT, that the interleaved
-pseudo-node is closer to all physical nodes than any other real
-node--apparently based on the theory that the average latency is less
-because it contains some local memory.  This means that with the current
-zone ordering, the DMA zone ends up as the second zone in each node's
-Normal zonelist.  Thus, we are subject to the same DMA zone exhaustion
-that this patch addresses.
-
-I have tested the patch on our platforms and it appears to work as
-advertised.
-
-Thanks, Kame!
-
-Question:  why remove the comments below?  Especially the ones that
-attempt to explain the rationale for the logic?
-
-Lee
-
-> 
-> This patch changes *default* zone order to
-> 
-> Node(0)'s NORMAL -> Node(1)'s NORMAL -> Node(0)'s DMA.
-> 
-> tested ia64 2-Node NUMA. works well.
-> 
-> Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Index: linux-2.6.21-rc7-mm2/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/mm/page_alloc.c
-> +++ linux-2.6.21-rc7-mm2/mm/page_alloc.c
-> @@ -2023,6 +2023,7 @@ void show_free_areas(void)
->   *
->   * Add all populated zones of a node to the zonelist.
->   */
-> +#ifndef CONFIG_NUMA
->  static int __meminit build_zonelists_node(pg_data_t *pgdat,
->  			struct zonelist *zonelist, int nr_zones, enum zone_type zone_type)
->  {
-> @@ -2042,6 +2043,7 @@ static int __meminit build_zonelists_nod
->  	} while (zone_type);
->  	return nr_zones;
->  }
-> +#endif
->  
->  #ifdef CONFIG_NUMA
->  #define MAX_NODE_LOAD (num_online_nodes())
-> @@ -2106,52 +2108,51 @@ static int __meminit find_next_best_node
->  	return best_node;
->  }
->  
-> +/*
-> + * Build zonelist based on zone priority.
-> + */
-> +static int __meminitdata node_order[MAX_NUMNODES];
->  static void __meminit build_zonelists(pg_data_t *pgdat)
->  {
-> -	int j, node, local_node;
-> -	enum zone_type i;
-> -	int prev_node, load;
-> -	struct zonelist *zonelist;
-> +	int i, j, pos, zone_type, node, load;
->  	nodemask_t used_mask;
-> +	int local_node, prev_node;
-> +	struct zone *z;
-> +	struct zonelist *zonelist;
->  
-> -	/* initialize zonelists */
->  	for (i = 0; i < MAX_NR_ZONES; i++) {
->  		zonelist = pgdat->node_zonelists + i;
->  		zonelist->zones[0] = NULL;
->  	}
-> -
-> -	/* NUMA-aware ordering of nodes */
-> +	memset(node_order, 0, sizeof(node_order));
->  	local_node = pgdat->node_id;
->  	load = num_online_nodes();
->  	prev_node = local_node;
->  	nodes_clear(used_mask);
-> +	j = 0;
->  	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
->  		int distance = node_distance(local_node, node);
-> -
-> -		/*
-> -		 * If another node is sufficiently far away then it is better
-> -		 * to reclaim pages in a zone before going off node.
-> -		 */
->  		if (distance > RECLAIM_DISTANCE)
->  			zone_reclaim_mode = 1;
-> -
-> -		/*
-> -		 * We don't want to pressure a particular node.
-> -		 * So adding penalty to the first node in same
-> -		 * distance group to make it round-robin.
-> -		 */
-> -
->  		if (distance != node_distance(local_node, prev_node))
-> -			node_load[node] += load;
-> +			node_load[node] = load;
-> +		node_order[j++] = node;
->  		prev_node = node;
->  		load--;
-> -		for (i = 0; i < MAX_NR_ZONES; i++) {
-> -			zonelist = pgdat->node_zonelists + i;
-> -			for (j = 0; zonelist->zones[j] != NULL; j++);
-> -
-> -	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
-> -			zonelist->zones[j] = NULL;
-> +	}
-> +	/* calculate node order */
-> +	for (i = 0; i < MAX_NR_ZONES; i++) {
-> +		zonelist = pgdat->node_zonelists + i;
-> +		pos = 0;
-> +		for (zone_type = i; zone_type >= 0; zone_type--) {
-> +			for (j = 0; j < num_online_nodes(); j++) {
-> +				node = node_order[j];
-> +				z = &NODE_DATA(node)->node_zones[zone_type];
-> +				if (populated_zone(z))
-> +					zonelist->zones[pos++] = z;
-> +			}
->  		}
-> +		zonelist->zones[pos] = NULL;
->  	}
->  }
->  
-> @@ -2239,6 +2240,7 @@ void __meminit build_all_zonelists(void)
->  		__build_all_zonelists(NULL);
->  		cpuset_init_current_mems_allowed();
->  	} else {
-> +		memset(node_load, 0, sizeof(node_load));
->  		/* we have to stop all cpus to guaranntee there is no user
->  		   of zonelist */
->  		stop_machine_run(__build_all_zonelists, NULL, NR_CPUS);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+2. If the memory on the other nodes is exhausted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
