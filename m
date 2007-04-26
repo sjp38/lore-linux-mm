@@ -1,128 +1,57 @@
-Date: Thu, 26 Apr 2007 01:19:14 +0100
-From: "Magic-Jackpot Casino" <krakow@caller.com>
-Message-ID: <05086322.75150667@beset.com>
-Subject: Bis 1000 Euro frei!
-MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Date: Thu, 26 Apr 2007 09:31:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
+Message-Id: <20070426093112.ec2ecb00.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
+References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-Path: <krakow@caller.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Wed, 25 Apr 2007 12:17:15 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> On Wed, 25 Apr 2007, KAMEZAWA Hiroyuki wrote:
+> 
+> > Make zonelist policy selectable from sysctl.
+> > 
+> > Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
+> > 
+> > In this case, default (node0's) zonelist order is
+> > 
+> > Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
+> > 
+> > This means Node(0)'s DMA is used before Node(1)'s NORMAL.
+> 
+> So a IA64 platform with i386 sicknesses? And pretty bad case of it since I 
+> assume that the memory sizes per node are equal. Your solution of taking 
+> 4G off node 0 and then going to node 1 first must hurt some 
+> processes running on node 0. 
+I think so, too. It is because I made this as selectable option.
 
-<title>Sind Sie auf der Suche nach einem neuen, 
-aufregenden Spielangebot </title>
+> Whatever you do the  memory balance between the two nodes is making
+> the system behave in an unsymmetric way.
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
 
-</head>
+> > In some server, some application uses large memory allcation.
+> > This exhaust memory in the above order.
+> 
+> Could we add a boot time option instead that changes the zonelist build 
+> behavior? Maybe an arch hook that can deal with it?
+> 
+Yes, it' in my plan. I'll add boot option support.
 
-<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
+Thanks,
+-Kame
 
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Magic Jackpot ist momentan die warscheinlich aufregendste 
-Moglichkeit dazu ! </span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
-bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
-</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
-hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
-gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
-als Willkommensgeschenk !</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
-wird umgehend mit einem 100% Bonus verdoppelt.
-</span></p>
-
-<p class=MsoNormal><span style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
-sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
-Genuess schneller Auszahlungen garantiert !</span>
-<o:p></o:p></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<u3:p>&nbsp;</u3:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<a href="http://www.arrierocasino.com/lang-de/">
-http://www.arrierocasino.com/lang-de/</a>
-<u3:p></u3:p></span></p>
-
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
