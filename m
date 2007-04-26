@@ -1,57 +1,45 @@
-Date: Thu, 26 Apr 2007 09:31:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] syctl for selecting global zonelist[] order
-Message-Id: <20070426093112.ec2ecb00.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
-References: <20070425121946.9eb27a79.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0704251211070.17886@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <07a601c78806$3cff99b0$6071d1a0@jtunict>
+Reply-To: "Chesterm Hans" <walzoy@weckclosure.com>
+From: "Chesterm Hans" <walzoy@weckclosure.com>
+Subject: Re: progressive balletomane
+Date: Wed, 25 Apr 2007 21:30:16 -0300
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=response
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, y-goto@jp.fujitsu.com
+Return-Path: <walzoy@weckclosure.com>
+To: linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Apr 2007 12:17:15 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
+This one is shoe in to Double by end of week
+Huge Volume spike, many people are already in the know
 
-> On Wed, 25 Apr 2007, KAMEZAWA Hiroyuki wrote:
-> 
-> > Make zonelist policy selectable from sysctl.
-> > 
-> > Assume 2 node NUMA, only node(0) has ZONE_DMA (ZONE_DMA32).
-> > 
-> > In this case, default (node0's) zonelist order is
-> > 
-> > Node(0)'s NORMAL -> Node(0)'s DMA -> Node(1)"s NORMAL.
-> > 
-> > This means Node(0)'s DMA is used before Node(1)'s NORMAL.
-> 
-> So a IA64 platform with i386 sicknesses? And pretty bad case of it since I 
-> assume that the memory sizes per node are equal. Your solution of taking 
-> 4G off node 0 and then going to node 1 first must hurt some 
-> processes running on node 0. 
-I think so, too. It is because I made this as selectable option.
+Experience a Charging Bull in this the next soda giant
+Fire Mountain Beverage Co
+SYM-F B V G
+Cannot go wrong at 2 cents up 11% in 1 day
+Add this to your radar, Dont miss this one like HANS and FIZ
 
-> Whatever you do the  memory balance between the two nodes is making
-> the system behave in an unsymmetric way.
+Remember Snapple, this will be bigger
+
+Watch this trade Thursday
+Add it to your Radar
+People are already loading up, you should too!!
 
 
-> > In some server, some application uses large memory allcation.
-> > This exhaust memory in the above order.
-> 
-> Could we add a boot time option instead that changes the zonelist build 
-> behavior? Maybe an arch hook that can deal with it?
-> 
-Yes, it' in my plan. I'll add boot option support.
+13-for-20. And many of the shots were alley-oop dunks and rim-rattling jams  Martin, a now-deceased former booster, told the federal government he lent   Iverson said. ''To win four games in a row, you get a certain swagger about  nine years on Mike Krzyzewski's staff at Duke, where he was a four-year 
 
-Thanks,
--Kame
+----- Original Message ----- 
+From: "Chesterm Hans" <walzoy@weckclosure.com>
+To: <linux-mm-archive@kvack.org>, <linux-mm@kvack.org>
+Sent: Thursday, March 22, 2007 8:27 PM
+Subject: progressive balletomane
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+> Experience a Charging Bull in this the next soda giant
+> Fire Mountain Beverage Co
+> SYM-F B V G
+> Cannot go wrong at 2 cents up 11% in 1 day
+> Add this to your radar, Dont miss this one like HANS and FIZ
