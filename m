@@ -1,44 +1,30 @@
-Date: Thu, 26 Apr 2007 08:46:35 -0700 (PDT)
+Date: Thu, 26 Apr 2007 08:48:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] change global zonelist order on NUMA v2
-In-Reply-To: <200704261147.44413.ak@suse.de>
-Message-ID: <Pine.LNX.4.64.0704260845160.1382@schroedinger.engr.sgi.com>
+In-Reply-To: <20070426191043.df96c114.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0704260846590.1382@schroedinger.engr.sgi.com>
 References: <20070426183417.058f6f9e.kamezawa.hiroyu@jp.fujitsu.com>
- <200704261147.44413.ak@suse.de>
+ <200704261147.44413.ak@suse.de> <20070426191043.df96c114.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, AKPM <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Apr 2007, Andi Kleen wrote:
+On Thu, 26 Apr 2007, KAMEZAWA Hiroyuki wrote:
 
-> On Thursday 26 April 2007 11:34:17 KAMEZAWA Hiroyuki wrote:
-> > 
-> > Changelog from V1 -> V2
-> > - sysctl name is changed to be relaxed_zone_order
-> > - NORMAL->NORMAL->....->DMA->DMA->DMA order (new ordering) is now default.
-> >   NORMAL->DMA->NORMAL->DMA order (old ordering) is optional.
-> > - addes boot opttion to set relaxed_zone_order. ia64 is supported now.
-> > - Added documentation
-> > 
-> > patch is against 2.6.21-rc7-mm2. tested on ia64 NUMA box. works well.
-> 
-> IMHO the change should be default (without any options) unless someone
-> can come up with a good reason why not. On x86-64 it should be definitely
-> default.
+> (1)Use new zonelist ordering always and move init_task's tied cpu to a
+>   cpu on the best node. 
+>   Child processes will start in good nodes even if Node 0 has small memory.
 
-It is not a good idea if node 0 has both DMA and NORMAL memory and normal 
-memory is a small fraction of node memory. In that case lots of 
-allocations get redirected to node 1.
- 
-> If there is a good reason on some architecture or machine a user option is also not a 
-> good idea, but instead it should be set automatically by that architecture or machine
-> on boot.
+How about renumbering the nodes? Node 0 is the one with no DMA memory and 
+node 1 may be the one with the DMA? That would take care of things even 
+without core modifications. We can start on node 0 (which hardware 1) and 
+consume the required memory for boot there not impacting the node with the 
+DMA memory.
 
-Right. That was my thinking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
