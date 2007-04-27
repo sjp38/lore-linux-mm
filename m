@@ -1,53 +1,39 @@
-Date: Thu, 26 Apr 2007 23:32:07 -0700
+Date: Thu, 26 Apr 2007 23:32:21 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase
- allocation order
-Message-Id: <20070426233207.a86faf0a.akpm@linux-foundation.org>
-In-Reply-To: <20070427042909.415420974@sgi.com>
+Subject: Re: [patch 03/10] SLUB: debug printk cleanup
+Message-Id: <20070426233221.d22049bc.akpm@linux-foundation.org>
+In-Reply-To: <20070427042907.998009077@sgi.com>
 References: <20070427042655.019305162@sgi.com>
-	<20070427042909.415420974@sgi.com>
+	<20070427042907.998009077@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Apr 2007 21:27:04 -0700 clameter@sgi.com wrote:
+On Thu, 26 Apr 2007 21:26:58 -0700 clameter@sgi.com wrote:
 
-> If there is page mobility then we can defragment memory. So its possible to
-> use higher order of pages for slab allocations.
+> Set up a new function slab_err in order to report errors consistently.
 > 
-> If the defaults were not overridden set the max order to 4 and guarantee 16
-> objects per slab. This will put some stress on Mel's antifrag approaches.
-> If these defaults are too large then they should be later reduced.
+> Consistently report corrective actions taken by SLUB by a printk starting
+> with @@@.
 > 
-> Cc: Mel Gorman <mel@skynet.ie>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.21-rc7-mm2/include/linux/mmzone.h
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/include/linux/mmzone.h	2007-04-26 20:57:58.000000000 -0700
-> +++ linux-2.6.21-rc7-mm2/include/linux/mmzone.h	2007-04-26 21:05:48.000000000 -0700
-> @@ -25,6 +25,8 @@
->  #endif
->  #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
->  
-> +extern int page_group_by_mobility_disabled;
-> +
+> Fix locations where there is no 0x in front of %p.
 
-This creates unfortunate linkage between your stuff and Mel's stuff.
+This patch splatters itself all over preceding patches so our patch
+presentation gets screwed up.  
 
-And afaik nobody has done a detailed review of Mel's stuff in a year or
-three.  I will do so, but you know how it is.  (that kernelcore= thing
-smells like highmem to me).  I'm a bit wobbly about merging it all at this
-stage.
+We already have one damned great impermeable barrier right in the middle of
+all the slub patches, namely
+make-page-private-usable-in-compound-pages-v1.patch.
 
-So I'll queue this patch up somewhere from where it can be easily dropped
-again, but it makes further patches a bit trickier.  Please keep them as
-fine-grained as poss.
+I had a go at splitting this patch up into useful sections but I made a
+mess of it.  I'll drop it.
+
+Please, prepare finely-grained patches at this stage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
