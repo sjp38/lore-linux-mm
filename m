@@ -1,34 +1,46 @@
-Message-Id: <20070427042907.523406996@sgi.com>
-References: <20070427042655.019305162@sgi.com>
-Date: Thu, 26 Apr 2007 21:26:56 -0700
-From: clameter@sgi.com
-Subject: [patch 01/10] SLUB: Remove duplicate VM_BUG_ON
-Content-Disposition: inline; filename=slub_duplicate
+Date: Fri, 27 Apr 2007 14:45:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] change global zonelist order v4 [0/2]
+Message-Id: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, AKPM <akpm@linux-foundation.org>, Christoph Lameter <clameter@sgi.com>, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Somehow this artifact got in during merge with mm.
+Hi, this is version 4. including Lee Schermerhon's good rework.
+and automatic configuration at boot time.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+(This patch is reworked from V2, so skip V3 changelog.)
 
-Index: linux-2.6.21-rc7-mm1/mm/slub.c
-===================================================================
---- linux-2.6.21-rc7-mm1.orig/mm/slub.c	2007-04-25 09:48:40.000000000 -0700
-+++ linux-2.6.21-rc7-mm1/mm/slub.c	2007-04-25 09:48:47.000000000 -0700
-@@ -633,8 +633,6 @@ static void add_full(struct kmem_cache *
- 
- 	VM_BUG_ON(!irqs_disabled());
- 
--	VM_BUG_ON(!irqs_disabled());
--
- 	if (!(s->flags & SLAB_STORE_USER))
- 		return;
- 
+ChangeLog V2 -> V4
+- automatic configuration is added.
+- automatic configuration is now default.
+- relaxed_zone_order is renamed to be numa_zonelist_order
+  you can specify value "default" , "zone" , "numa"
+- clean-up from Lee Schermerhorn
+- patch is speareted to "base" and "autoconfiguration algorithm"
 
---
+Changelog from V1 -> V2
+- sysctl name is changed to be relaxed_zone_order
+- NORMAL->NORMAL->....->DMA->DMA->DMA order (new ordering) is now default.
+  NORMAL->DMA->NORMAL->DMA order (old ordering) is optional.
+- addes boot opttion to set relaxed_zone_order. ia64 is supported now.
+- Added documentation
+
+
+Please don't hesitate to rework this if you have good plan.
+I'll be offlined in the next week because my office will be closed.
+Lee-san, please Ack or Sign-Off if patches seems O.K.
+
+I think my autoconfiguration logic is reasonable to some extent. But we may
+have some discussion. It can be rewritable by additional patch easily.
+
+Thanks.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
