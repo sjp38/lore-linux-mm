@@ -1,163 +1,53 @@
-Date: Thu, 26 Apr 2007 23:31:38 -0700
+Date: Thu, 26 Apr 2007 23:32:07 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 02/10] SLUB: Fix sysfs directory handling
-Message-Id: <20070426233138.5c6707b7.akpm@linux-foundation.org>
-In-Reply-To: <20070427042907.759384015@sgi.com>
+Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase
+ allocation order
+Message-Id: <20070426233207.a86faf0a.akpm@linux-foundation.org>
+In-Reply-To: <20070427042909.415420974@sgi.com>
 References: <20070427042655.019305162@sgi.com>
-	<20070427042907.759384015@sgi.com>
+	<20070427042909.415420974@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: clameter@sgi.com
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Apr 2007 21:26:57 -0700 clameter@sgi.com wrote:
+On Thu, 26 Apr 2007 21:27:04 -0700 clameter@sgi.com wrote:
 
-> This fixes the problem that SLUB does not track the names of aliased
-> slabs by changing the way that SLUB manages the files in /sys/slab.
+> If there is page mobility then we can defragment memory. So its possible to
+> use higher order of pages for slab allocations.
 > 
-> If the slab that is being operated on is not mergeable (usually the
-> case if we are debugging) then do not create any aliases. If an alias
-> exists that we conflict with then remove it before creating the
-> directory for the unmergeable slab. If there is a true slab cache there
-> and not an alias then we fail since there is a true duplication of
-> slab cache names. So debugging allows the detection of slab name
-> duplication as usual.
+> If the defaults were not overridden set the max order to 4 and guarantee 16
+> objects per slab. This will put some stress on Mel's antifrag approaches.
+> If these defaults are too large then they should be later reduced.
 > 
-> If the slab is mergeable then we create a directory with a unique name
-> created from the slab size, slab options and the pointer to the kmem_cache
-> structure (disambiguation). All names referring to the slabs will
-> then be created as symlinks to that unique name. These symlinks are
-> not going to be removed on kmem_cache_destroy() since we only carry
-> a counter for the number of aliases. If a new symlink is created
-> then it may just replace an existing one. This means that one can create
-> a gazillion slabs with the same name (if they all refer to mergeable
-> caches). It will only increase the alias count. So we have the potential
-> of not detecting duplicate slab names (there is actually no harm
-> done by doing that....). We will detect the duplications as
-> as soon as debugging is enabled because we will then no longer
-> generate symlinks and special unique names.
-> 
+> Cc: Mel Gorman <mel@skynet.ie>
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
 > 
-> Index: linux-2.6.21-rc7-mm2/mm/slub.c
+> Index: linux-2.6.21-rc7-mm2/include/linux/mmzone.h
 > ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/mm/slub.c	2007-04-26 11:40:52.000000000 -0700
-> +++ linux-2.6.21-rc7-mm2/mm/slub.c	2007-04-26 11:40:59.000000000 -0700
-> @@ -3298,16 +3298,68 @@ static struct kset_uevent_ops slab_ueven
+> --- linux-2.6.21-rc7-mm2.orig/include/linux/mmzone.h	2007-04-26 20:57:58.000000000 -0700
+> +++ linux-2.6.21-rc7-mm2/include/linux/mmzone.h	2007-04-26 21:05:48.000000000 -0700
+> @@ -25,6 +25,8 @@
+>  #endif
+>  #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
 >  
->  decl_subsys(slab, &slab_ktype, &slab_uevent_ops);
->  
-> +#define ID_STR_LENGTH 64
-> +
-> +/* Create a unique string id for a slab cache:
-> + * format
-> + * :[flags-]size:[memory address of kmemcache]
-> + */
-
-Exposing kernel addresses to unprivileged userspace is considered poor
-form.
-
-And it'd be (a bit) nice to have something which is consistent across
-boots, I guess.
-
-> +static char *create_unique_id(struct kmem_cache *s)
-> +{
-> +	char *name = kmalloc(ID_STR_LENGTH, GFP_KERNEL);
-> +	char *p = name;
-> +
-> +	BUG_ON(!name);
-> +
-> +	*p++ = ':';
-> +	/*
-> +	 * First flags affecting slabcache operations */
-> +	if (s->flags & SLAB_CACHE_DMA)
-> +		*p++ = 'd';
-> +	if (s->flags & SLAB_RECLAIM_ACCOUNT)
-> +		*p++ = 'a';
-> +	if (s->flags & SLAB_DESTROY_BY_RCU)
-> +		*p++ = 'r';\
-> +	/* Debug flags */
-> +	if (s->flags & SLAB_RED_ZONE)
-> +		*p++ = 'Z';
-> +	if (s->flags & SLAB_POISON)
-> +		*p++ = 'P';
-> +	if (s->flags & SLAB_STORE_USER)
-> +		*p++ = 'U';
-> +	if (p != name + 1)
-> +		*p++ = '-';
-> +	p += sprintf(p,"%07d:0x%p" ,s->size, s);
-
-whitespace
-
-> +	BUG_ON(p > name + ID_STR_LENGTH - 1);
-> +	return name;
-> +}
-> +
->  static int sysfs_slab_add(struct kmem_cache *s)
->  {
->  	int err;
-> +	const char *name;
->  
->  	if (slab_state < SYSFS)
->  		/* Defer until later */
->  		return 0;
->  
-> +	if (s->flags & SLUB_NEVER_MERGE) {
-> +		/*
-> +		 * Slabcache can never be merged so we can use the name proper.
-> +		 * This is typically the case for debug situations. In that
-> +		 * case we can catch duplicate names easily.
-> +		 */
-> +		sysfs_remove_link(&slab_subsys.kset.kobj, s->name);
-> +		name = s->name;
-> +	} else
-> +		/*
-> +		 * Create a unique name for the slab as a target
-> +		 * for the symlinks.
-> +		 */
-> +		name = create_unique_id(s);
+> +extern int page_group_by_mobility_disabled;
 > +
 
-Please use braces around the second leg here.  It just looks weird.
+This creates unfortunate linkage between your stuff and Mel's stuff.
 
->  	kobj_set_kset_s(s, slab_subsys);
-> -	kobject_set_name(&s->kobj, s->name);
-> +	kobject_set_name(&s->kobj, name);
->  	kobject_init(&s->kobj);
->  	err = kobject_add(&s->kobj);
->  	if (err)
-> @@ -3317,6 +3369,10 @@ static int sysfs_slab_add(struct kmem_ca
->  	if (err)
->  		return err;
->  	kobject_uevent(&s->kobj, KOBJ_ADD);
-> +	if (!(s->flags & SLUB_NEVER_MERGE)) {
-> +		sysfs_slab_alias(s, s->name);
-> +		kfree(name);
-> +	}
->  	return 0;
->  }
->  
-> @@ -3342,9 +3398,14 @@ static int sysfs_slab_alias(struct kmem_
->  {
->  	struct saved_alias *al;
->  
-> -	if (slab_state == SYSFS)
-> +	if (slab_state == SYSFS) {
-> +		/*
-> +		 * If we have a leftover link then remove it.
-> +		 */
-> +		sysfs_remove_link(&slab_subsys.kset.kobj, name);
->  		return sysfs_create_link(&slab_subsys.kset.kobj,
->  						&s->kobj, name);
-> +	}
->  
->  	al = kmalloc(sizeof(struct saved_alias), GFP_KERNEL);
->  	if (!al)
-> 
+And afaik nobody has done a detailed review of Mel's stuff in a year or
+three.  I will do so, but you know how it is.  (that kernelcore= thing
+smells like highmem to me).  I'm a bit wobbly about merging it all at this
+stage.
+
+So I'll queue this patch up somewhere from where it can be easily dropped
+again, but it makes further patches a bit trickier.  Please keep them as
+fine-grained as poss.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
