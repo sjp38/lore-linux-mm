@@ -1,95 +1,163 @@
-Date: Fri, 27 Apr 2007 15:17:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] change global zonelist order v4 [2/2] auto configuration
-Message-Id: <20070427151722.dfd142b1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 26 Apr 2007 23:31:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 02/10] SLUB: Fix sysfs directory handling
+Message-Id: <20070426233138.5c6707b7.akpm@linux-foundation.org>
+In-Reply-To: <20070427042907.759384015@sgi.com>
+References: <20070427042655.019305162@sgi.com>
+	<20070427042907.759384015@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com, Lee.Schermerhorn@hp.com
+To: clameter@sgi.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add auto zone ordering configuration.
+On Thu, 26 Apr 2007 21:26:57 -0700 clameter@sgi.com wrote:
 
-This function will select ZONE_ORDER_NODE when
+> This fixes the problem that SLUB does not track the names of aliased
+> slabs by changing the way that SLUB manages the files in /sys/slab.
+> 
+> If the slab that is being operated on is not mergeable (usually the
+> case if we are debugging) then do not create any aliases. If an alias
+> exists that we conflict with then remove it before creating the
+> directory for the unmergeable slab. If there is a true slab cache there
+> and not an alias then we fail since there is a true duplication of
+> slab cache names. So debugging allows the detection of slab name
+> duplication as usual.
+> 
+> If the slab is mergeable then we create a directory with a unique name
+> created from the slab size, slab options and the pointer to the kmem_cache
+> structure (disambiguation). All names referring to the slabs will
+> then be created as symlinks to that unique name. These symlinks are
+> not going to be removed on kmem_cache_destroy() since we only carry
+> a counter for the number of aliases. If a new symlink is created
+> then it may just replace an existing one. This means that one can create
+> a gazillion slabs with the same name (if they all refer to mergeable
+> caches). It will only increase the alias count. So we have the potential
+> of not detecting duplicate slab names (there is actually no harm
+> done by doing that....). We will detect the duplications as
+> as soon as debugging is enabled because we will then no longer
+> generate symlinks and special unique names.
+> 
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> 
+> Index: linux-2.6.21-rc7-mm2/mm/slub.c
+> ===================================================================
+> --- linux-2.6.21-rc7-mm2.orig/mm/slub.c	2007-04-26 11:40:52.000000000 -0700
+> +++ linux-2.6.21-rc7-mm2/mm/slub.c	2007-04-26 11:40:59.000000000 -0700
+> @@ -3298,16 +3298,68 @@ static struct kset_uevent_ops slab_ueven
+>  
+>  decl_subsys(slab, &slab_ktype, &slab_uevent_ops);
+>  
+> +#define ID_STR_LENGTH 64
+> +
+> +/* Create a unique string id for a slab cache:
+> + * format
+> + * :[flags-]size:[memory address of kmemcache]
+> + */
 
-- There are only ZONE_DMA or ZONE_DMA32.
-(or) size of (ZONE_DMA/DMA32) > (System Total Memory)/2
-(or) Assume Node(A)
-	* Node (A)'s total memory > System Total Memory/num_of_node+1
-	(and) Node (A)'s ZONE_DMA/DMA32 occupies 60% of Node(A)'s memory.
+Exposing kernel addresses to unprivileged userspace is considered poor
+form.
 
-otherwise, ZONE_ORDER_ZONE is selected.
+And it'd be (a bit) nice to have something which is consistent across
+boots, I guess.
 
-Note: a user can specifiy this ordering from boot option.
+> +static char *create_unique_id(struct kmem_cache *s)
+> +{
+> +	char *name = kmalloc(ID_STR_LENGTH, GFP_KERNEL);
+> +	char *p = name;
+> +
+> +	BUG_ON(!name);
+> +
+> +	*p++ = ':';
+> +	/*
+> +	 * First flags affecting slabcache operations */
+> +	if (s->flags & SLAB_CACHE_DMA)
+> +		*p++ = 'd';
+> +	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+> +		*p++ = 'a';
+> +	if (s->flags & SLAB_DESTROY_BY_RCU)
+> +		*p++ = 'r';\
+> +	/* Debug flags */
+> +	if (s->flags & SLAB_RED_ZONE)
+> +		*p++ = 'Z';
+> +	if (s->flags & SLAB_POISON)
+> +		*p++ = 'P';
+> +	if (s->flags & SLAB_STORE_USER)
+> +		*p++ = 'U';
+> +	if (p != name + 1)
+> +		*p++ = '-';
+> +	p += sprintf(p,"%07d:0x%p" ,s->size, s);
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+whitespace
 
----
- mm/page_alloc.c |   44 +++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 43 insertions(+), 1 deletion(-)
+> +	BUG_ON(p > name + ID_STR_LENGTH - 1);
+> +	return name;
+> +}
+> +
+>  static int sysfs_slab_add(struct kmem_cache *s)
+>  {
+>  	int err;
+> +	const char *name;
+>  
+>  	if (slab_state < SYSFS)
+>  		/* Defer until later */
+>  		return 0;
+>  
+> +	if (s->flags & SLUB_NEVER_MERGE) {
+> +		/*
+> +		 * Slabcache can never be merged so we can use the name proper.
+> +		 * This is typically the case for debug situations. In that
+> +		 * case we can catch duplicate names easily.
+> +		 */
+> +		sysfs_remove_link(&slab_subsys.kset.kobj, s->name);
+> +		name = s->name;
+> +	} else
+> +		/*
+> +		 * Create a unique name for the slab as a target
+> +		 * for the symlinks.
+> +		 */
+> +		name = create_unique_id(s);
+> +
 
-Index: linux-2.6.21-rc7-mm2/mm/page_alloc.c
-===================================================================
---- linux-2.6.21-rc7-mm2.orig/mm/page_alloc.c	2007-04-27 15:39:49.000000000 +0900
-+++ linux-2.6.21-rc7-mm2/mm/page_alloc.c	2007-04-27 15:55:51.000000000 +0900
-@@ -2211,8 +2211,50 @@
- 
- static int estimate_zonelist_order(void)
- {
--	/* dummy, just select node order. */
--	return ZONELIST_ORDER_NODE;
-+	int nid, zone_type;
-+	unsigned long low_kmem_size,total_size;
-+	struct zone *z;
-+	int average_size;
-+	/* ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
-+	   If they are really small and used heavily,
-+	   the system can fall into OOM very easily.
-+	   This function detect ZONE_DMA/DMA32 size and confgigure
-+	   zone ordering */
-+	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
-+	low_kmem_size = 0;
-+	total_size = 0;
-+	for_each_online_node(nid) {
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+	}
-+	if (!low_kmem_size ||  /* there is no DMA area. */
-+	    !low_kmem_size > total_size/2) /* DMA/DMA32 is big. */
-+		return ZONELIST_ORDER_NODE;
-+	/* look into each node's config. where all processes starts... */
-+	/* average size..a bit smaller than real average size */
-+	average_size = total_size / (num_online_nodes() + 1);
-+	for_each_online_node(nid) {
-+		low_kmem_size = 0;
-+		total_size = 0;
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+		if (total_size > average_size && /* ignore unbalanced node */
-+		    low_kmem_size > total_size * 60/100)
-+			return ZONELIST_ORDER_NODE;
-+	}
-+	return ZONELIST_ORDER_ZONE;
- }
- 
- 
+Please use braces around the second leg here.  It just looks weird.
+
+>  	kobj_set_kset_s(s, slab_subsys);
+> -	kobject_set_name(&s->kobj, s->name);
+> +	kobject_set_name(&s->kobj, name);
+>  	kobject_init(&s->kobj);
+>  	err = kobject_add(&s->kobj);
+>  	if (err)
+> @@ -3317,6 +3369,10 @@ static int sysfs_slab_add(struct kmem_ca
+>  	if (err)
+>  		return err;
+>  	kobject_uevent(&s->kobj, KOBJ_ADD);
+> +	if (!(s->flags & SLUB_NEVER_MERGE)) {
+> +		sysfs_slab_alias(s, s->name);
+> +		kfree(name);
+> +	}
+>  	return 0;
+>  }
+>  
+> @@ -3342,9 +3398,14 @@ static int sysfs_slab_alias(struct kmem_
+>  {
+>  	struct saved_alias *al;
+>  
+> -	if (slab_state == SYSFS)
+> +	if (slab_state == SYSFS) {
+> +		/*
+> +		 * If we have a leftover link then remove it.
+> +		 */
+> +		sysfs_remove_link(&slab_subsys.kset.kobj, name);
+>  		return sysfs_create_link(&slab_subsys.kset.kobj,
+>  						&s->kobj, name);
+> +	}
+>  
+>  	al = kmalloc(sizeof(struct saved_alias), GFP_KERNEL);
+>  	if (!al)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
