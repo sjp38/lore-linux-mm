@@ -1,57 +1,85 @@
-Date: Fri, 27 Apr 2007 10:15:41 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase allocation
- order
-In-Reply-To: <20070427111431.GF3645@skynet.ie>
-Message-ID: <Pine.LNX.4.64.0704271008390.1873@schroedinger.engr.sgi.com>
-References: <20070427042655.019305162@sgi.com> <20070427042909.415420974@sgi.com>
- <20070427111431.GF3645@skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20070427202859.886953367@sgi.com>
+References: <20070427202137.613097336@sgi.com>
+Date: Fri, 27 Apr 2007 13:21:39 -0700
+From: clameter@sgi.com
+Subject: [patch 2/8] SLUB: Fixes to kmem_cache_shrink()
+Content-Disposition: inline; filename=slub_shrink_race_fix
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Apr 2007, Mel Gorman wrote:
+1. Reclaim all empty slabs even if we are below MIN_PARTIAL partial slabs.
+   The point here is to recover all possible memory.
 
-> On (26/04/07 21:27), clameter@sgi.com didst pronounce:
-> > If there is page mobility then we can defragment memory. So its possible to
-> > use higher order of pages for slab allocations.
-> > 
-> > If the defaults were not overridden set the max order to 4 and guarantee 16
-> > objects per slab. This will put some stress on Mel's antifrag approaches.
-> > If these defaults are too large then they should be later reduced.
-> > 
-> 
-> I see this went through mm-commits. When the next -mm kernel comes out,
-> I'll grind them through the external fragmentation tests and see how it
-> works out. Not all slabs are reclaimable so it might have side-effects
-> if there are large amounts of slab allocations that are not allocated
-> __GFP_RECLAIMABLE. Testing will tell.
+2. Fix race condition vs. slab_free. If we want to free a slab then
+   we need to acquire the slab lock since slab_free may have freed
+   an object and is waiting to acquire the lock to remove the slab.
+   We do a trylock. If its unsuccessful then we are racing with
+   slab_free. Simply keep the empty slab on the partial lists.
+   slab_free will remove the slab as soon as we drop the list_lock.
 
-Well you have not seen the whole story then. I have a draft here of a 
-patch to implement slab callbacks to free objects. I think the first 
-victim will be the dentry cache. I will use that functionality first to
-defrag the slab cache by
+3. #2 may have the result that we end up with empty slabs on the
+   slabs_by_inuse array. So make sure that we also splice in the
+   zeroeth element.
 
-1. Sort the slabs on the partial list by the number of objects inuse
-   (already in mm).
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-2. Start from the back of the list with the smallest number of objects
-   and use the callback to either free or reallocate the object. That
-   will allocate new objects from the slabs with the most objects.
-   Meaning the partial list will shrink on both head and tail.
+---
+ mm/slub.c |   19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
 
-3. With that I could provide you with a function to attempt to free
-   up a slab page which could be used in some form for defragmentation
-   from the page allocator.
-   Would be great if we could work out a protocol on how to do this.
-   This will initially be done with the dentry cache.
+Index: slub/mm/slub.c
+===================================================================
+--- slub.orig/mm/slub.c	2007-04-27 13:05:17.000000000 -0700
++++ slub/mm/slub.c	2007-04-27 13:05:24.000000000 -0700
+@@ -2220,7 +2220,7 @@ int kmem_cache_shrink(struct kmem_cache 
+ 	for_each_online_node(node) {
+ 		n = get_node(s, node);
+ 
+-		if (n->nr_partial <= MIN_PARTIAL)
++		if (!n->nr_partial)
+ 			continue;
+ 
+ 		for (i = 0; i < s->objects; i++)
+@@ -2237,14 +2237,21 @@ int kmem_cache_shrink(struct kmem_cache 
+ 		 * the upper limit.
+ 		 */
+ 		list_for_each_entry_safe(page, t, &n->partial, lru) {
+-			if (!page->inuse) {
++			if (!page->inuse && slab_trylock(page)) {
++				/*
++				 * Must hold slab lock here because slab_free
++				 * may have freed the last object and be
++				 * waiting to release the slab.
++				 */
+ 				list_del(&page->lru);
+ 				n->nr_partial--;
++				slab_unlock(page);
+ 				discard_slab(s, page);
+-			} else
+-			if (n->nr_partial > MAX_PARTIAL)
+-				list_move(&page->lru,
++			} else {
++				if (n->nr_partial > MAX_PARTIAL)
++					list_move(&page->lru,
+ 					slabs_by_inuse + page->inuse);
++			}
+ 		}
+ 
+ 		if (n->nr_partial <= MAX_PARTIAL)
+@@ -2254,7 +2261,7 @@ int kmem_cache_shrink(struct kmem_cache 
+ 		 * Rebuild the partial list with the slabs filled up
+ 		 * most first and the least used slabs at the end.
+ 		 */
+-		for (i = s->objects - 1; i > 0; i--)
++		for (i = s->objects - 1; i >= 0; i--)
+ 			list_splice(slabs_by_inuse + i, n->partial.prev);
+ 
+ 	out:
 
-This advanced SLUB reclaim material is not suitable for 2.6.22 and I will 
-keep it out of mm for awhile.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
