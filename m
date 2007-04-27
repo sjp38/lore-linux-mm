@@ -1,39 +1,33 @@
-Date: Thu, 26 Apr 2007 23:32:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 03/10] SLUB: debug printk cleanup
-Message-Id: <20070426233221.d22049bc.akpm@linux-foundation.org>
-In-Reply-To: <20070427042907.998009077@sgi.com>
-References: <20070427042655.019305162@sgi.com>
-	<20070427042907.998009077@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Apr 2007 00:02:36 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 02/10] SLUB: Fix sysfs directory handling
+In-Reply-To: <20070426233138.5c6707b7.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0704270001230.5388@schroedinger.engr.sgi.com>
+References: <20070427042655.019305162@sgi.com> <20070427042907.759384015@sgi.com>
+ <20070426233138.5c6707b7.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Apr 2007 21:26:58 -0700 clameter@sgi.com wrote:
+On Thu, 26 Apr 2007, Andrew Morton wrote:
 
-> Set up a new function slab_err in order to report errors consistently.
+> > + * :[flags-]size:[memory address of kmemcache]
+> > + */
 > 
-> Consistently report corrective actions taken by SLUB by a printk starting
-> with @@@.
-> 
-> Fix locations where there is no 0x in front of %p.
+> Exposing kernel addresses to unprivileged userspace is considered poor
+> form.
 
-This patch splatters itself all over preceding patches so our patch
-presentation gets screwed up.  
+Hmmmm... We could drop the address if I can make sure that all the other
+unifying bits are in the string.
+ 
+> And it'd be (a bit) nice to have something which is consistent across
+> boots, I guess.
 
-We already have one damned great impermeable barrier right in the middle of
-all the slub patches, namely
-make-page-private-usable-in-compound-pages-v1.patch.
-
-I had a go at splitting this patch up into useful sections but I made a
-mess of it.  I'll drop it.
-
-Please, prepare finely-grained patches at this stage.
+That'd do it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
