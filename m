@@ -1,133 +1,102 @@
-Date: Fri, 27 Apr 2007 12:14:31 +0100
-Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase allocation order
-Message-ID: <20070427111431.GF3645@skynet.ie>
-References: <20070427042655.019305162@sgi.com> <20070427042909.415420974@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070427042909.415420974@sgi.com>
-From: mel@skynet.ie (Mel Gorman)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+Date: Fri, 27 Apr 2007 10:46:05 -0400
+From: "Willkommensbonus von 555$" <ave@fleetlease.com>
+Message-ID: <76524136.56524962@mandrill.com>
+Subject: Willkommensbonus von 555$!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Return-Path: <ave@fleetlease.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (26/04/07 21:27), clameter@sgi.com didst pronounce:
-> If there is page mobility then we can defragment memory. So its possible to
-> use higher order of pages for slab allocations.
-> 
-> If the defaults were not overridden set the max order to 4 and guarantee 16
-> objects per slab. This will put some stress on Mel's antifrag approaches.
-> If these defaults are too large then they should be later reduced.
-> 
+<html>
 
-I see this went through mm-commits. When the next -mm kernel comes out,
-I'll grind them through the external fragmentation tests and see how it
-works out. Not all slabs are reclaimable so it might have side-effects
-if there are large amounts of slab allocations that are not allocated
-__GFP_RECLAIMABLE. Testing will tell.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-> Cc: Mel Gorman <mel@skynet.ie>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
-> Index: linux-2.6.21-rc7-mm2/include/linux/mmzone.h
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/include/linux/mmzone.h	2007-04-26 20:57:58.000000000 -0700
-> +++ linux-2.6.21-rc7-mm2/include/linux/mmzone.h	2007-04-26 21:05:48.000000000 -0700
-> @@ -25,6 +25,8 @@
->  #endif
->  #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
->  
-> +extern int page_group_by_mobility_disabled;
-> +
->  /*
->   * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
->   * costly to service.  That is between allocation orders which should
-> Index: linux-2.6.21-rc7-mm2/mm/slub.c
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/mm/slub.c	2007-04-26 21:02:01.000000000 -0700
-> +++ linux-2.6.21-rc7-mm2/mm/slub.c	2007-04-26 21:10:40.000000000 -0700
-> @@ -129,6 +129,13 @@
->  #endif
->  
->  /*
-> + * If antifragmentation methods are in effect then increase the
-> + * slab sizes to increase performance
-> + */
-> +#define DEFAULT_ANTIFRAG_MAX_ORDER 4
-> +#define DEFAULT_ANTIFRAG_MIN_OBJECTS 16
-> +
-> +/*
->   * Mininum number of partial slabs. These will be left on the partial
->   * lists even if they are empty. kmem_cache_shrink may reclaim them.
->   */
-> @@ -1450,6 +1457,11 @@ static struct page *get_object_page(cons
->   */
->  
->  /*
-> + * Set if the user has overridden any of the order related defaults.
-> + */
-> +static int user_override;
-> +
-> +/*
->   * Mininum / Maximum order of slab pages. This influences locking overhead
->   * and slab fragmentation. A higher order reduces the number of partial slabs
->   * and increases the number of allocations possible without having to
-> @@ -1985,7 +1997,7 @@ static struct kmem_cache *kmalloc_caches
->  static int __init setup_slub_min_order(char *str)
->  {
->  	get_option (&str, &slub_min_order);
-> -
-> +	user_override = 1;
->  	return 1;
->  }
->  
-> @@ -1994,7 +2006,7 @@ __setup("slub_min_order=", setup_slub_mi
->  static int __init setup_slub_max_order(char *str)
->  {
->  	get_option (&str, &slub_max_order);
-> -
-> +	user_override = 1;
->  	return 1;
->  }
->  
-> @@ -2003,7 +2015,7 @@ __setup("slub_max_order=", setup_slub_ma
->  static int __init setup_slub_min_objects(char *str)
->  {
->  	get_option (&str, &slub_min_objects);
-> -
-> +	user_override = 1;
->  	return 1;
->  }
->  
-> @@ -2319,6 +2331,15 @@ void __init kmem_cache_init(void)
->  {
->  	int i;
->  
-> +	if (!page_group_by_mobility_disabled && !user_override) {
-> +		/*
-> +		 * Antifrag support available. Increase usable
-> +		 * page order and generate slabs with more objects.
-> +	 	 */
-> +		slub_max_order = DEFAULT_ANTIFRAG_MAX_ORDER;
-> +		slub_min_objects = DEFAULT_ANTIFRAG_MIN_OBJECTS;
-> +	}
-> +
->  #ifdef CONFIG_NUMA
->  	/*
->  	 * Must first have the slab cache available for the allocations of the
-> 
-> --
+<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
+bei Vegas VIP Casino</title>
 
--- 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung
+einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
+ <o:p></o:p></span></p>
+
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften 
+Vegas VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
+
+<p><a href="http://www.homevegascasino.net/lang-de/">
+http://www.homevegascasino.net/lang-de/</a></p>
+</div>
+
+</body>
+
+</html>
