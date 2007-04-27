@@ -1,102 +1,60 @@
-Date: Fri, 27 Apr 2007 10:46:05 -0400
-From: "Willkommensbonus von 555$" <ave@fleetlease.com>
-Message-ID: <76524136.56524962@mandrill.com>
-Subject: Willkommensbonus von 555$!
+Date: Fri, 27 Apr 2007 10:15:41 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase allocation
+ order
+In-Reply-To: <20070427111431.GF3645@skynet.ie>
+Message-ID: <Pine.LNX.4.64.0704271008390.1873@schroedinger.engr.sgi.com>
+References: <20070427042655.019305162@sgi.com> <20070427042909.415420974@sgi.com>
+ <20070427111431.GF3645@skynet.ie>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <ave@fleetlease.com>
-To: linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Mel Gorman <mel@skynet.ie>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+On Fri, 27 Apr 2007, Mel Gorman wrote:
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+> On (26/04/07 21:27), clameter@sgi.com didst pronounce:
+> > If there is page mobility then we can defragment memory. So its possible to
+> > use higher order of pages for slab allocations.
+> > 
+> > If the defaults were not overridden set the max order to 4 and guarantee 16
+> > objects per slab. This will put some stress on Mel's antifrag approaches.
+> > If these defaults are too large then they should be later reduced.
+> > 
+> 
+> I see this went through mm-commits. When the next -mm kernel comes out,
+> I'll grind them through the external fragmentation tests and see how it
+> works out. Not all slabs are reclaimable so it might have side-effects
+> if there are large amounts of slab allocations that are not allocated
+> __GFP_RECLAIMABLE. Testing will tell.
 
-<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
-bei Vegas VIP Casino</title>
+Well you have not seen the whole story then. I have a draft here of a 
+patch to implement slab callbacks to free objects. I think the first 
+victim will be the dentry cache. I will use that functionality first to
+defrag the slab cache by
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+1. Sort the slabs on the partial list by the number of objects inuse
+   (already in mm).
 
-</head>
+2. Start from the back of the list with the smallest number of objects
+   and use the callback to either free or reallocate the object. That
+   will allocate new objects from the slabs with the most objects.
+   Meaning the partial list will shrink on both head and tail.
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+3. With that I could provide you with a function to attempt to free
+   up a slab page which could be used in some form for defragmentation
+   from the page allocator.
+   Would be great if we could work out a protocol on how to do this.
+   This will initially be done with the dentry cache.
 
-<div class=Section1>
+This advanced SLUB reclaim material is not suitable for 2.6.22 and I will 
+keep it out of mm for awhile.
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung
-einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
- <o:p></o:p></span></p>
-
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften 
-Vegas VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.homevegascasino.net/lang-de/">
-http://www.homevegascasino.net/lang-de/</a></p>
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
