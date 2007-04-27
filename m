@@ -1,33 +1,61 @@
-Date: Fri, 27 Apr 2007 00:02:36 -0700 (PDT)
+Date: Fri, 27 Apr 2007 00:04:40 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [patch 02/10] SLUB: Fix sysfs directory handling
-In-Reply-To: <20070426233138.5c6707b7.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0704270001230.5388@schroedinger.engr.sgi.com>
-References: <20070427042655.019305162@sgi.com> <20070427042907.759384015@sgi.com>
- <20070426233138.5c6707b7.akpm@linux-foundation.org>
+Subject: Re: [patch 09/10] SLUB: Exploit page mobility to increase allocation
+ order
+In-Reply-To: <20070426233207.a86faf0a.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0704270002560.5388@schroedinger.engr.sgi.com>
+References: <20070427042655.019305162@sgi.com> <20070427042909.415420974@sgi.com>
+ <20070426233207.a86faf0a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 26 Apr 2007, Andrew Morton wrote:
 
-> > + * :[flags-]size:[memory address of kmemcache]
-> > + */
+> On Thu, 26 Apr 2007 21:27:04 -0700 clameter@sgi.com wrote:
 > 
-> Exposing kernel addresses to unprivileged userspace is considered poor
-> form.
+> > If there is page mobility then we can defragment memory. So its possible to
+> > use higher order of pages for slab allocations.
+> > 
+> > If the defaults were not overridden set the max order to 4 and guarantee 16
+> > objects per slab. This will put some stress on Mel's antifrag approaches.
+> > If these defaults are too large then they should be later reduced.
+> > 
+> > Cc: Mel Gorman <mel@skynet.ie>
+> > Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> > 
+> > Index: linux-2.6.21-rc7-mm2/include/linux/mmzone.h
+> > ===================================================================
+> > --- linux-2.6.21-rc7-mm2.orig/include/linux/mmzone.h	2007-04-26 20:57:58.000000000 -0700
+> > +++ linux-2.6.21-rc7-mm2/include/linux/mmzone.h	2007-04-26 21:05:48.000000000 -0700
+> > @@ -25,6 +25,8 @@
+> >  #endif
+> >  #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
+> >  
+> > +extern int page_group_by_mobility_disabled;
+> > +
+> 
+> This creates unfortunate linkage between your stuff and Mel's stuff.
 
-Hmmmm... We could drop the address if I can make sure that all the other
-unifying bits are in the string.
- 
-> And it'd be (a bit) nice to have something which is consistent across
-> boots, I guess.
+Yes, I split it out for that purpose so that you can handle it separately.
 
-That'd do it.
+> And afaik nobody has done a detailed review of Mel's stuff in a year or
+> three.  I will do so, but you know how it is.  (that kernelcore= thing
+> smells like highmem to me).  I'm a bit wobbly about merging it all at this
+> stage.
+
+Thats why I separated in out.
+
+> So I'll queue this patch up somewhere from where it can be easily dropped
+> again, but it makes further patches a bit trickier.  Please keep them as
+> fine-grained as poss.
+
+Ok.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
