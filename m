@@ -1,48 +1,69 @@
-Message-Id: <20070427202900.610748959@sgi.com>
+Message-Id: <20070427202901.324657488@sgi.com>
 References: <20070427202137.613097336@sgi.com>
-Date: Fri, 27 Apr 2007 13:21:42 -0700
+Date: Fri, 27 Apr 2007 13:21:45 -0700
 From: clameter@sgi.com
-Subject: [patch 5/8] SLUB printk cleanup: add slab_err
-Content-Disposition: inline; filename=slub_printk_add_slab_err
+Subject: [patch 8/8] SLUB printk cleanup: Slab validation printks
+Content-Disposition: inline; filename=slub_printk_validate_slab
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add a function to report on an error condition in a slab. This is similar
-to object_err which reports on an error condition in an object.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
 ---
- mm/slub.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ mm/slub.c |   19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-04-27 10:33:06.000000000 -0700
-+++ slub/mm/slub.c	2007-04-27 10:39:01.000000000 -0700
-@@ -367,6 +367,19 @@ static void object_err(struct kmem_cache
- 	dump_stack();
+--- slub.orig/mm/slub.c	2007-04-27 10:37:42.000000000 -0700
++++ slub/mm/slub.c	2007-04-27 10:38:47.000000000 -0700
+@@ -2729,17 +2729,17 @@ static void validate_slab_slab(struct km
+ 		validate_slab(s, page);
+ 		slab_unlock(page);
+ 	} else
+-		printk(KERN_INFO "SLUB: %s Skipped busy slab %p\n",
++		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
+ 			s->name, page);
+ 
+ 	if (s->flags & DEBUG_DEFAULT_FLAGS) {
+ 		if (!PageError(page))
+-			printk(KERN_ERR "SLUB: %s PageError not set "
+-				"on slab %p\n", s->name, page);
++			printk(KERN_ERR "SLUB %s: PageError not set "
++				"on slab 0x%p\n", s->name, page);
+ 	} else {
+ 		if (PageError(page))
+-			printk(KERN_ERR "SLUB: %s PageError set on "
+-				"slab %p\n", s->name, page);
++			printk(KERN_ERR "SLUB %s: PageError set on "
++				"slab 0x%p\n", s->name, page);
+ 	}
  }
  
-+static void slab_err(struct kmem_cache *s, struct page *page, char *reason, ...)
-+{
-+	va_list args;
-+	char buf[100];
-+
-+	va_start(args, reason);
-+	vsnprintf(buf, sizeof(buf), reason, args);
-+	va_end(args);
-+	printk(KERN_ERR "*** SLUB %s: %s in slab @0x%p\n", s->name, buf,
-+		page);
-+	dump_stack();
-+}
-+
- static void init_object(struct kmem_cache *s, void *object, int active)
- {
- 	u8 *p = object;
+@@ -2756,8 +2756,8 @@ static int validate_slab_node(struct kme
+ 		count++;
+ 	}
+ 	if (count != n->nr_partial)
+-		printk("SLUB: %s %ld partial slabs counted but counter=%ld\n",
+-			s->name, count, n->nr_partial);
++		printk(KERN_ERR "SLUB %s: %ld partial slabs counted but "
++			"counter=%ld\n", s->name, count, n->nr_partial);
+ 
+ 	if (!(s->flags & SLAB_STORE_USER))
+ 		goto out;
+@@ -2767,8 +2767,9 @@ static int validate_slab_node(struct kme
+ 		count++;
+ 	}
+ 	if (count != atomic_long_read(&n->nr_slabs))
+-		printk("SLUB: %s %ld slabs counted but counter=%ld\n",
+-		s->name, count, atomic_long_read(&n->nr_slabs));
++		printk(KERN_ERR "SLUB: %s %ld slabs counted but "
++			"counter=%ld\n", s->name, count,
++			atomic_long_read(&n->nr_slabs));
+ 
+ out:
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
 
 --
 
