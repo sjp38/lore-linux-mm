@@ -1,35 +1,44 @@
-Date: Thu, 26 Apr 2007 15:07:11 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 27 Apr 2007 09:27:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] change global zonelist order on NUMA v2
-In-Reply-To: <1177624660.5705.72.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0704261504090.19704@schroedinger.engr.sgi.com>
+Message-Id: <20070427092736.d0626a30.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0704260846590.1382@schroedinger.engr.sgi.com>
 References: <20070426183417.058f6f9e.kamezawa.hiroyu@jp.fujitsu.com>
- <1177624660.5705.72.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<200704261147.44413.ak@suse.de>
+	<20070426191043.df96c114.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0704260846590.1382@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, AKPM <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: ak@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Apr 2007, Lee Schermerhorn wrote:
+On Thu, 26 Apr 2007 08:48:19 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-> Against 2.6.21-rc7 atop KAMEZAWA Hiroyuki's "change global zonelist
-> order on NUMA v2" patch.
+> On Thu, 26 Apr 2007, KAMEZAWA Hiroyuki wrote:
+> 
+> > (1)Use new zonelist ordering always and move init_task's tied cpu to a
+> >   cpu on the best node. 
+> >   Child processes will start in good nodes even if Node 0 has small memory.
+> 
+> How about renumbering the nodes? Node 0 is the one with no DMA memory and 
+> node 1 may be the one with the DMA? That would take care of things even 
+> without core modifications. We can start on node 0 (which hardware 1) and 
+> consume the required memory for boot there not impacting the node with the 
+> DMA memory.
+> 
+It seems a bit complicated. If we do so, following can occur,
 
-Hmmm.. hmmm... serious hackery here. Isnt there some way to simplify the 
-core impact and make the arch select a strategy? A boot option would be
-less impact (I am a bit concerned about switching zonelist mid stream).
+Node1: cpu0,1,2,3
+Node0: cpu4,5,6,7
 
-The arch should be able to specify a default zone order. So the best thing 
-would be to make the zone orders configurable in the page allocator and 
-then have the arch code determine a default order depending on the 
-hardware that we are running on.
+the system layout will be not imaginable look, maybe.
 
-Make sure that the !CONFIG_ZONE_DMA case works.
-
-What about ZONE_DMA32 support?
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
