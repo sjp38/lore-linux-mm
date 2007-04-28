@@ -1,87 +1,164 @@
-Date: Sat, 28 Apr 2007 14:10:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
- (-1)
-Message-Id: <20070428141024.887342bd.akpm@linux-foundation.org>
-In-Reply-To: <46338AEB.2070109@imap.cc>
-References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>
-	<46338AEB.2070109@imap.cc>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 28 Apr 2007 14:44:29 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Antifrag patchset comments
+In-Reply-To: <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tilman Schmidt <tilman@imap.cc>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
+To: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Apr 2007 19:56:59 +0200 Tilman Schmidt <tilman@imap.cc> wrote:
+On Sat, 28 Apr 2007, Mel Gorman wrote:
 
-> With kernel 2.6.21-rc7-mm2, my Dell Optiplex GX110 (P3/933) regularly
-> crashes during the SuSE 10.1 startup sequence. When booting to RL5,
-> it panicblinks shortly after the graphical login screen appears.
-> Booting to RL3, it hangs after the startup message:
+> Because I wanted to build memory compaction on top of this when movable memory
+> is not just memory that can go to swap but includes mlocked pages as well
+
+Ahh. Ok.
+
+> > MIGRATE_RESERVE
+> The standard allocator keeps high-order pages free until memory pressure
+> forces them to be split. In practice, this means that pages for
+> min_free_kbytes are kept as contiguous pages for quite a long time but once
+> split never become contiguous again. This lets short-lived high-order atomic
+> allocations to work for quite a while which is why setting min_free_kbytes to
+> 16384 seems to let jumbo frames work for a long time. Grouping by mobility is
+> more concerned with the type of page so it breaks up the min_free_kbytes pages
+> early removing a desirable property of the standard allocator for high-order
+> atomic allocations. MIGRATE_RESERVE brings that desirable property back.
+
+Hmmmm... A special pool for atomic allocs...
+ 
+> > Trouble ahead. Why do we need it? To crash when the
+> > kernel does too many unmovable allocs?
+> It's needed for a few reasons but the two main ones are;
 > 
-> Starting Firewall Initialization (phase 2 of 2)
+> a) grouping pages by mobility does not give guaranteed bounds on how much
+>    contiguous memory will be movable. While it could, it would be very
+>    complex and would replicate the behavior of zones to the extent I'll
+>    get a slap in the head for even trying. Partitioning memory gives hard
+>    guarantees on memory availability
+
+And crashes the kernel if the availability is no longer guaranteed?
+ 
+> b) Early feedback was that grouping pages by mobility should be
+>    done only with zones but that is very restrictive. Different people
+>    liked each approach for different reasons so it constantly went in
+>    circles. That is why both can sit side-by-side now
 > 
-> (the last message before "runlevel 3 has been reached") logging this:
+> The zone is also of interest to the memory hot-remove people.
+
+Indeed that is a good thing.... It would be good if a movable area
+would be a dynamic split of a zone and not be a separate zone that has to 
+be configured on the kernel command line.
+
+> Granted, if kernelcore= is given too small a value, it'll cause problems.
+
+That is what I thought.
+
+> > 1. alloc_zeroed_user_highpage is no longer used
+> > 	Its noted in the patches but it was not removed nor marked
+> > 	as depreciated.
+> Indeed. Rather than marking it deprecated I was going to wait until it was
+> unused for one cycle and then mark it deprecated and see who complains.
+
+I'd say remove it immediately. This is confusing.
+
+> > 2. submit_bh allocates bios using __GFP_MOVABLE
+> > 
+> > 	How can a bio be moved? Or does that indicate that the
+> > 	bio can be reclaimed?
+> > 
 > 
-> [   57.138955] Eeek! page_mapcount(page) went negative! (-1)
-> [   57.139040]   page pfn = 0
-> [   57.139053]   page->flags = 400
-> [   57.139066]   page->count = 1
-> [   57.139079]   page->mapping = 00000000
-> [   57.139111]   vma->vm_ops = generic_file_vm_ops+0x0/0x18
-> [   57.139147]   vma->vm_ops->nopage = 0x0
-> [   57.139181]   vma->vm_file->f_op->mmap = reiserfs_file_mmap+0x0/0x47
-> [   57.139220] ------------[ cut here ]------------
-> [   57.139236] kernel BUG at mm/rmap.c:648!
-> [   57.139251] invalid opcode: 0000 [#1]
-> [   57.139264] PREEMPT
-> [   57.139278] Modules linked in: usbserial snd_rtctimer snd_seq_dummy snd_pcm_oss snd_mixer_oss snd_seq snd_seq_device thermal processor fan button battery ac af_packet usb_gigaset ser_gigaset bas_gigaset gigaset isdn slhc crc_ccitt ip6t_REJECT xt_tcpudp ipt_REJECT xt_state iptable_mangle iptable_nat nf_nat iptable_filter ip6table_mangle nf_conntrack_ipv4 nf_conntrack nfnetlink ip_tables ip6table_filter ip6_tables x_tables ehci_hcd snd_intel8x0 snd_ac97_codec ac97_bus snd_pcm snd_timer snd soundcore snd_page_alloc i2c_i801 uhci_hcd parport_pc lp parport ipv6 nls_iso8859_1 nls_cp437 vfat fat nls_utf8 ntfs dm_mod
-> [   57.139447] CPU:    0
-> [   57.139450] EIP:    0060:[<c015dfc0>]    Not tainted VLI
-> [   57.139453] EFLAGS: 00010282   (2.6.21-rc7-mm2-noinitrd #1)
-> [   57.139506] EIP is at page_remove_rmap+0xd7/0x106
-> [   57.139522] eax: 0000004b   ebx: c1000000   ecx: 00000001   edx: 00000002
-> [   57.139541] esi: c309fde0   edi: b7f24000   ebp: c373ec90   esp: c373ec78
-> [   57.139559] ds: 007b   es: 007b   fs: 0000  gs: 0000  ss: 0068
-> [   57.139577] Process getcfg-interfac (pid: 4343, ti=c373e000 task=c18734d0 task.ti=c373e000)
-> [   57.139586] Stack: c042abb5 00000000 c373ec90 c13f91c0 c1000000 c373dc90 c373ecf0 c0158df4
-> [   57.139618]        c04f2ac4 00000001 00000000 c309fde0 c373ed10 00005ff1 00000000 00000001
-> [   57.139647]        b7f62000 c374cb7c c374cb7c c374cb7c c373b344 fffffffe 00000000 c0569c2c
-> [   57.139677] Call Trace:
-> [   57.139721]  [<c0158df4>] unmap_vmas+0x2d7/0x4c9
-> [   57.139748]  [<c015b7dd>] exit_mmap+0x68/0xeb
-> [   57.139772]  [<c01191b0>] mmput+0x52/0xcb
-> [   57.139805]  [<c011c368>] exit_mm+0xbb/0xc3
-> [   57.139832]  [<c011d188>] do_exit+0x1ea/0x73e
-> [   57.139857]  [<c011d74d>] sys_exit_group+0x0/0x13
-> [   57.139880]  [<c012524e>] get_signal_to_deliver+0x6cd/0x6f8
-> [   57.139917]  [<c01036cf>] do_notify_resume+0x91/0x692
-> [   57.139944]  [<c0103f15>] work_notifysig+0x13/0x1a
-> [   57.139970]  [<b7f6b7a8>] 0xb7f6b7a8
-> [   57.139988]  =======================
-> [   57.140002] INFO: lockdep is turned off.
-> [   57.140015] Code: c0 74 0d 8b 50 0c b8 e5 ab 42 c0 e8 d7 fa fd ff 8b 46 48 85 c0 74 14 8b 40 10 85 c0 74 0d 8b 50 2c b8 04 ac 42 c0 e8 bc fa fd ff <0f> 0b eb fe 8b 53 10 8b 03 83 e2 01 f7 da c1 e8 1e 83 c2 04 69
+> I consider the pages allocated for the buffer to be movable because the
+> buffers can be cleaned and discarded by standard reclaim. When/if page
+> migration is used, this will have to be revisisted but for the moment I
+> believe it's correct.
 
-I don't know which patch might have caused that.  Is it always
-getcfg-interface which dies?  Seems to be a suse-only thing, and I
-unfortunately don't have any test boxes which have it.
+This would make it __GFP_RECLAIMABLE. The same is true for the caches that
+can be reclaimed. They are not marked __GFP_MOVABLE.
 
-It seems wildly screwed up that we have a PageReserved() page with a pfn of
-zero (!) which claims to be in a reiserfs mapping, only it isn't attached to a
-reiserfs file.  How the heck did that happen?
+> If the RECLAIMABLE areas could be properly targeted, it would make sense to
+> mark these pages RECLAIMABLE instead but that is not the situation today.
 
-Nick, I think that printk needs updating for changed vm_operations methods,
-btw (->fault?)
+What is the problem with targeting?
 
-This puts a dark cloud over about 200 patches at present.  It would be
-great if you could perform a bisection search as per
-http://www.zip.com.au/~akpm/linux/patches/stuff/bisecting-mm-trees.txt. 
-I'd start out at fix-slab-corruption-running-ip6sic.patch then try
-mm-fix-handling-of-panic_on_oom-when-cpusets-are-in-use.patch.  It should
-take six or seven hops.
+> > 	That is because they are large order allocs and do not
+> > 	cause fragmentation if all other allocs are smaller. But that
+> > 	assumption may turn out to be problematic. Huge pages allocs
+> > 	as movable may make higher order allocation problematic if
+> > 	MAX_ORDER becomes much larger than the huge page order. In
+> > 	particular on IA64 the huge page order is dynamically settable
+> > 	on bootup. They can be quite small and thus cause fragmentation
+> > 	in the movable blocks.
+> You're right here. I have always considered huge page allocations to be the
+> highest order anything in the system will ever care about. I was not aware of
+> any situation except at boot-time where that is different. What sort of
+> situation do you forsee where the huge page size is not the largest high-order
+> allocation used by the system? Even the large blocksize stuff doesn't seem to
+> apply here.
+
+Boot an IA64 box with the parameter hugepagesz=64k for example. That will
+give you a huge page size of 64k on a system with MAX_ORDER = 1G. The 
+default for the huge page size is 256k which is a quarter of max order. 
+But some people boot with 1G huge pages.
+
+> > 6. First in bdget() we set the mapping for a block device up using
+> > 	GFP_MOVABLE. However, then in grow_dev_page for an actual
+> > 	allocation we will use__GFP_RECLAIMABLE for the block device.
+> > 	We should use one type I would think and its GFP_MOVABLE as
+> > 	far as I can tell.
+> > 
+> 
+> I'll revisit this one. I think it should be __GFP_RECLAIMABLE in both cases
+> because I have a vague memory that pages due to grow_dev_page caused problems
+> fragmentation wise because they could not be reclaimed. That might simply have
+> been an unrelated bug at the time.
+
+It depends on who allocates these pages. If they are mapped by the user 
+then they are movable. If a filesystem gets them for metadata then they 
+are reclaimable.
+
+> This will simplify one of the patches. Are all slabs with SLAB_RECLAIM_ACCOUNT
+> guaranteed to have a shrinker available either directly or indirectly?
+
+I have not checked that recently but historically yes. There is no point 
+in accounting slabs for reclaim if you cannot reclaim them.
+
+> > 8. Same occurs for inodes. The reclaim flag should not be specified
+> > 	for individual allocations since reclaim is a slab wide
+> > 	activity. It also has no effect if the objects is taken off
+> > 	a queue.
+> > 
+> 
+> If SLAB_RECLAIM_ACCOUNT always uses __GFP_RECLAIMABLE, this will be caught
+> too, right?
+
+Correct.
+ 
+> > 10. Radix tree as reclaimable? radix_tree_node_alloc()
+> > 
+> > 	Ummm... Its reclaimable in a sense if all the pages are removed
+> > 	but I'd say not in general.
+> > 
+> 
+> I considered them to be indirectly reclaimable. Maybe it wasn't the best
+> choice.
+
+Maybe we need to ask Nick about this one.
+
+> > 11. shmem_alloc_page() shmem pages are only __GFP_RECLAIMABLE? They can be
+> >        swapped out and moved by page migration, so GFP_MOVABLE?
+> > 
+> 
+> Because they might be ramfs pages which are not movable -
+> http://lkml.org/lkml/2006/11/24/150
+
+URL does not provide any useful information regarding the issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
