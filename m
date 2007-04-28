@@ -1,164 +1,30 @@
-Date: Sat, 28 Apr 2007 14:44:29 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Antifrag patchset comments
-In-Reply-To: <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
+Date: Sat, 28 Apr 2007 23:06:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
+ (-1)
+In-Reply-To: <20070428141024.887342bd.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0704282300080.2223@blonde.wat.veritas.com>
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>
+ <46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tilman Schmidt <tilman@imap.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Apr 2007, Mel Gorman wrote:
-
-> Because I wanted to build memory compaction on top of this when movable memory
-> is not just memory that can go to swap but includes mlocked pages as well
-
-Ahh. Ok.
-
-> > MIGRATE_RESERVE
-> The standard allocator keeps high-order pages free until memory pressure
-> forces them to be split. In practice, this means that pages for
-> min_free_kbytes are kept as contiguous pages for quite a long time but once
-> split never become contiguous again. This lets short-lived high-order atomic
-> allocations to work for quite a while which is why setting min_free_kbytes to
-> 16384 seems to let jumbo frames work for a long time. Grouping by mobility is
-> more concerned with the type of page so it breaks up the min_free_kbytes pages
-> early removing a desirable property of the standard allocator for high-order
-> atomic allocations. MIGRATE_RESERVE brings that desirable property back.
-
-Hmmmm... A special pool for atomic allocs...
- 
-> > Trouble ahead. Why do we need it? To crash when the
-> > kernel does too many unmovable allocs?
-> It's needed for a few reasons but the two main ones are;
+On Sat, 28 Apr 2007, Andrew Morton wrote:
 > 
-> a) grouping pages by mobility does not give guaranteed bounds on how much
->    contiguous memory will be movable. While it could, it would be very
->    complex and would replicate the behavior of zones to the extent I'll
->    get a slap in the head for even trying. Partitioning memory gives hard
->    guarantees on memory availability
+> It seems wildly screwed up that we have a PageReserved() page with a pfn of
+> zero (!) which claims to be in a reiserfs mapping, only it isn't attached
+> to a reiserfs file.  How the heck did that happen?
 
-And crashes the kernel if the availability is no longer guaranteed?
- 
-> b) Early feedback was that grouping pages by mobility should be
->    done only with zones but that is very restrictive. Different people
->    liked each approach for different reasons so it constantly went in
->    circles. That is why both can sit side-by-side now
-> 
-> The zone is also of interest to the memory hot-remove people.
+It's "simply" that it somehow got a spurious page table entry 00000001.
+Great that it's so reproducible, I take that to mean this one is not
+bad RAM.  Your request for a bisection is just what we want, thanks.
 
-Indeed that is a good thing.... It would be good if a movable area
-would be a dynamic split of a zone and not be a separate zone that has to 
-be configured on the kernel command line.
-
-> Granted, if kernelcore= is given too small a value, it'll cause problems.
-
-That is what I thought.
-
-> > 1. alloc_zeroed_user_highpage is no longer used
-> > 	Its noted in the patches but it was not removed nor marked
-> > 	as depreciated.
-> Indeed. Rather than marking it deprecated I was going to wait until it was
-> unused for one cycle and then mark it deprecated and see who complains.
-
-I'd say remove it immediately. This is confusing.
-
-> > 2. submit_bh allocates bios using __GFP_MOVABLE
-> > 
-> > 	How can a bio be moved? Or does that indicate that the
-> > 	bio can be reclaimed?
-> > 
-> 
-> I consider the pages allocated for the buffer to be movable because the
-> buffers can be cleaned and discarded by standard reclaim. When/if page
-> migration is used, this will have to be revisisted but for the moment I
-> believe it's correct.
-
-This would make it __GFP_RECLAIMABLE. The same is true for the caches that
-can be reclaimed. They are not marked __GFP_MOVABLE.
-
-> If the RECLAIMABLE areas could be properly targeted, it would make sense to
-> mark these pages RECLAIMABLE instead but that is not the situation today.
-
-What is the problem with targeting?
-
-> > 	That is because they are large order allocs and do not
-> > 	cause fragmentation if all other allocs are smaller. But that
-> > 	assumption may turn out to be problematic. Huge pages allocs
-> > 	as movable may make higher order allocation problematic if
-> > 	MAX_ORDER becomes much larger than the huge page order. In
-> > 	particular on IA64 the huge page order is dynamically settable
-> > 	on bootup. They can be quite small and thus cause fragmentation
-> > 	in the movable blocks.
-> You're right here. I have always considered huge page allocations to be the
-> highest order anything in the system will ever care about. I was not aware of
-> any situation except at boot-time where that is different. What sort of
-> situation do you forsee where the huge page size is not the largest high-order
-> allocation used by the system? Even the large blocksize stuff doesn't seem to
-> apply here.
-
-Boot an IA64 box with the parameter hugepagesz=64k for example. That will
-give you a huge page size of 64k on a system with MAX_ORDER = 1G. The 
-default for the huge page size is 256k which is a quarter of max order. 
-But some people boot with 1G huge pages.
-
-> > 6. First in bdget() we set the mapping for a block device up using
-> > 	GFP_MOVABLE. However, then in grow_dev_page for an actual
-> > 	allocation we will use__GFP_RECLAIMABLE for the block device.
-> > 	We should use one type I would think and its GFP_MOVABLE as
-> > 	far as I can tell.
-> > 
-> 
-> I'll revisit this one. I think it should be __GFP_RECLAIMABLE in both cases
-> because I have a vague memory that pages due to grow_dev_page caused problems
-> fragmentation wise because they could not be reclaimed. That might simply have
-> been an unrelated bug at the time.
-
-It depends on who allocates these pages. If they are mapped by the user 
-then they are movable. If a filesystem gets them for metadata then they 
-are reclaimable.
-
-> This will simplify one of the patches. Are all slabs with SLAB_RECLAIM_ACCOUNT
-> guaranteed to have a shrinker available either directly or indirectly?
-
-I have not checked that recently but historically yes. There is no point 
-in accounting slabs for reclaim if you cannot reclaim them.
-
-> > 8. Same occurs for inodes. The reclaim flag should not be specified
-> > 	for individual allocations since reclaim is a slab wide
-> > 	activity. It also has no effect if the objects is taken off
-> > 	a queue.
-> > 
-> 
-> If SLAB_RECLAIM_ACCOUNT always uses __GFP_RECLAIMABLE, this will be caught
-> too, right?
-
-Correct.
- 
-> > 10. Radix tree as reclaimable? radix_tree_node_alloc()
-> > 
-> > 	Ummm... Its reclaimable in a sense if all the pages are removed
-> > 	but I'd say not in general.
-> > 
-> 
-> I considered them to be indirectly reclaimable. Maybe it wasn't the best
-> choice.
-
-Maybe we need to ask Nick about this one.
-
-> > 11. shmem_alloc_page() shmem pages are only __GFP_RECLAIMABLE? They can be
-> >        swapped out and moved by page migration, so GFP_MOVABLE?
-> > 
-> 
-> Because they might be ramfs pages which are not movable -
-> http://lkml.org/lkml/2006/11/24/150
-
-URL does not provide any useful information regarding the issue.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
