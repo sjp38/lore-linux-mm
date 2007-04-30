@@ -1,58 +1,70 @@
-Date: Mon, 30 Apr 2007 21:33:56 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] Add __GFP_TEMPORARY to identify allocations that
- are short-lived
-In-Reply-To: <Pine.LNX.4.64.0704301312470.8679@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0704302132220.9296@skynet.skynet.ie>
-References: <20070430185524.7142.56162.sendpatchset@skynet.skynet.ie>
- <20070430185644.7142.89206.sendpatchset@skynet.skynet.ie>
- <Pine.LNX.4.64.0704301202490.7258@schroedinger.engr.sgi.com>
- <20070430194427.GA8205@skynet.ie> <Pine.LNX.4.64.0704301250580.8361@schroedinger.engr.sgi.com>
- <20070430201147.GB8205@skynet.ie> <Pine.LNX.4.64.0704301312470.8679@schroedinger.engr.sgi.com>
+Message-ID: <46366082.2090701@imap.cc>
+Date: Mon, 30 Apr 2007 23:32:50 +0200
+From: Tilman Schmidt <tilman@imap.cc>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
+ (-1)
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>	<46338AEB.2070109@imap.cc>	<20070428141024.887342bd.akpm@linux-foundation.org>	<4636248E.7030309@imap.cc>	<20070430112130.b64321d3.akpm@linux-foundation.org>	<46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org>
+In-Reply-To: <20070430124638.10611058.akpm@linux-foundation.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigEACE2589D3800D1B7F99AAC8"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Christoph Lameter wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigEACE2589D3800D1B7F99AAC8
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> On Mon, 30 Apr 2007, Mel Gorman wrote:
->
->>>>>>  #ifdef CONFIG_JBD_DEBUG
->>>>>>  	atomic_inc(&nr_journal_heads);
->>>>>>  #endif
->>>>>> -	ret = kmem_cache_alloc(journal_head_cache,
->>>>>> -			set_migrateflags(GFP_NOFS, __GFP_RECLAIMABLE));
->>>>>> +	ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);
->>>>>>  	if (ret == 0) {
->>>>>
->>>>> This chunk belongs into the earlier patch.
->>>>>
->>>>
->>>> Why? kmem_cache_create() is changed here in this patch to use SLAB_TEMPORARY
->>>> which is not defined until this patch.
->>>
->>> I do not see a SLAB_TEMPORARY here.
->>
->> Here are the relevant portions of the fourth patch.
->
-> Ahh. Ok.
->
+Am 30.04.2007 21:46 schrieb Andrew Morton:
 
-I'll assume that means they are currently located in the right patch. I've 
-queued up more tests with the revised patchset. Assuming they pass, I'll 
-push them towards Andrew and start on the 
-grouping-at-orders-other-than-MAX_ORDER patch.
+>> 2.6.21-final is fine.
+>=20
+> Sure, but what about 2.6.21-git3 (or, better, current -git)?
 
-Thanks.
+OIC. Sorry for being dense. Will check.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>>>  If that's OK then we need to pick through the difference between
+>>> 2.6.21-rc7-mm2's driver tree and the patches which went into mainline=
+=2E  And
+>>> that's a pretty small set.
+>> I'm not quite sure how to determine that difference. Can you just prov=
+ide
+>> me with a list of patches you'd like me to test?
+>=20
+> Not really - everything's tangled up.  A bisection search on the
+> 2.6.21-rc7-mm2 driver tree would be the best bet.
+
+Ok. No prob. It'll just take a bit of time. (Compiling a kernel on
+that machine takes about 4 hours.)
+
+I'll be back. :-)
+
+--=20
+Tilman Schmidt                          E-Mail: tilman@imap.cc
+Bonn, Germany
+- Undetected errors are handled as if no error occurred. (IBM) -
+
+
+--------------enigEACE2589D3800D1B7F99AAC8
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.3rc1 (MingW32)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+
+iD8DBQFGNmCOMdB4Whm86/kRAhK/AJ4sbnHVvKJ8vjEzkq49VuvE041C0ACfbKNw
+7HwTCKZPYg2HoZqndUrLpJs=
+=RASc
+-----END PGP SIGNATURE-----
+
+--------------enigEACE2589D3800D1B7F99AAC8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
