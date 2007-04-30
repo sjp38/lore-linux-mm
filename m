@@ -1,70 +1,52 @@
-Message-ID: <4636248E.7030309@imap.cc>
-Date: Mon, 30 Apr 2007 19:17:02 +0200
-From: Tilman Schmidt <tilman@imap.cc>
+Date: Mon, 30 Apr 2007 10:30:01 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Antifrag patchset comments
+In-Reply-To: <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0704301026460.6343@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
+ <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
 MIME-Version: 1.0
-Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
- (-1)
-References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>	<46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org>
-In-Reply-To: <20070428141024.887342bd.akpm@linux-foundation.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enig55AD27A617EA337FCF304DA9"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enig55AD27A617EA337FCF304DA9
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Mon, 30 Apr 2007, Mel Gorman wrote:
 
->> With kernel 2.6.21-rc7-mm2, my Dell Optiplex GX110 (P3/933) regularly
->> crashes during the SuSE 10.1 startup sequence. When booting to RL5,
->> it panicblinks shortly after the graphical login screen appears.
->> Booting to RL3, it hangs after the startup message:
+> > Indeed that is a good thing.... It would be good if a movable area
+> > would be a dynamic split of a zone and not be a separate zone that has to
+> > be configured on the kernel command line.
+> There are problems with doing that. In particular, the zone can only be sized
+> on one direction and can only be sized at the zone boundary because zones do
+> not currently overlap and I believe there will be assumptions made about them
+> not overlapping within a node. It's worth looking into in the future but I'm
+> putting it at the bottom of the TODO list.
 
-I have now bisected this down to the section in the series file between
-#GREGKH-DRIVER-START and #GREGKH-DRIVER-END, and therefore added GregKH
-to the CC list. I'll try bisecting further inside that section (unless
-you tell me not to), but it may take some time.
+Its is better to have a dynamic limit rather than OOMing.
+ 
+> > > If the RECLAIMABLE areas could be properly targeted, it would make sense
+> > > to
+> > > mark these pages RECLAIMABLE instead but that is not the situation today.
+> > What is the problem with targeting?
+> It's currently not possible to target effectively.
 
-The exact point during the startup sequence when the crash occurred and
-the amount of BUG messages produced varied somewhat during these tests.
-The common denominator, and my criterion for the good/bad decisions
-during the bisect, was the crash (panic blink) just before completion
-of the system startup.
-Sometimes there weren't any BUG messages in the log (or perhaps they
-just didn't make it to the disk.) Sometimes I just had a couple of the
-"sleeping function called from invalid context at mm/slab.c:3054"
-ones but no "Eeek! page_mapcount(page) went negative!" one before them.
-However, whenever the "Eeek!" did appear it announced "getcfg-interfac"
-as the current process and was followed by a few of the "mm/slab.c:3054"
-ones.
+Could you be more specific?
+ 
+> > > Because they might be ramfs pages which are not movable -
+> > > http://lkml.org/lkml/2006/11/24/150
+> > 
+> > URL does not provide any useful information regarding the issue.
+> > 
+> 
+> Not all pages allocated via shmem_alloc_page() are movable because they may
+> pages for ramfs.
 
-HTH
-Tilman
-
---=20
-In the long run, we'll all be dead.
-
-
---------------enig55AD27A617EA337FCF304DA9
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.3rc1 (MingW32)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
-
-iD8DBQFGNiSWMdB4Whm86/kRAjSwAJ0bMeAS1XKx+b6XlnYjVDRu/HXZTACfe2Ni
-Z4ocLxKggGO0OLjEPBCfxEo=
-=ySAb
------END PGP SIGNATURE-----
-
---------------enig55AD27A617EA337FCF304DA9--
+Not familiar with ramfs. There would have to be work on ramfs to make them 
+movable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
