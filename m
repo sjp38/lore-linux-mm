@@ -1,105 +1,70 @@
-Subject: Re: [PATCH] change global zonelist order v4 [2/2] auto
-	configuration
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070427151722.dfd142b1.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070427151722.dfd142b1.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 30 Apr 2007 12:26:57 -0400
-Message-Id: <1177950417.5623.44.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <4636248E.7030309@imap.cc>
+Date: Mon, 30 Apr 2007 19:17:02 +0200
+From: Tilman Schmidt <tilman@imap.cc>
+MIME-Version: 1.0
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
+ (-1)
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>	<46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org>
+In-Reply-To: <20070428141024.887342bd.akpm@linux-foundation.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enig55AD27A617EA337FCF304DA9"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, clameter@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-04-27 at 15:17 +0900, KAMEZAWA Hiroyuki wrote:
-> Add auto zone ordering configuration.
-> 
-> This function will select ZONE_ORDER_NODE when
-> 
-> - There are only ZONE_DMA or ZONE_DMA32.
-> (or) size of (ZONE_DMA/DMA32) > (System Total Memory)/2
-> (or) Assume Node(A)
-> 	* Node (A)'s total memory > System Total Memory/num_of_node+1
-> 	(and) Node (A)'s ZONE_DMA/DMA32 occupies 60% of Node(A)'s memory.
-> 
-> otherwise, ZONE_ORDER_ZONE is selected.
-> 
-> Note: a user can specifiy this ordering from boot option.
-                   specify
-> 
-> Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig55AD27A617EA337FCF304DA9
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Minor editorial [spelling, ...] comments.
+>> With kernel 2.6.21-rc7-mm2, my Dell Optiplex GX110 (P3/933) regularly
+>> crashes during the SuSE 10.1 startup sequence. When booting to RL5,
+>> it panicblinks shortly after the graphical login screen appears.
+>> Booting to RL3, it hangs after the startup message:
 
-Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
-> ---
->  mm/page_alloc.c |   44 +++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 43 insertions(+), 1 deletion(-)
-> 
-> Index: linux-2.6.21-rc7-mm2/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/mm/page_alloc.c	2007-04-27 15:39:49.000000000 +0900
-> +++ linux-2.6.21-rc7-mm2/mm/page_alloc.c	2007-04-27 15:55:51.000000000 +0900
-> @@ -2211,8 +2211,50 @@
->  
->  static int estimate_zonelist_order(void)
->  {
-> -	/* dummy, just select node order. */
-> -	return ZONELIST_ORDER_NODE;
-> +	int nid, zone_type;
-> +	unsigned long low_kmem_size,total_size;
-> +	struct zone *z;
-> +	int average_size;
-> +	/* ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
-> +	   If they are really small and used heavily,
-> +	   the system can fall into OOM very easily.
-> +	   This function detect ZONE_DMA/DMA32 size and confgigure
-                           detects                        configures
-> +	   zone ordering */
-> +	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
-> +	low_kmem_size = 0;
-> +	total_size = 0;
-> +	for_each_online_node(nid) {
-> +		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-> +			z = &NODE_DATA(nid)->node_zones[zone_type];
-> +			if (populated_zone(z)) {
-> +				if (zone_type < ZONE_NORMAL)
-> +					low_kmem_size += z->present_pages;
-> +				total_size += z->present_pages;
-> +			}
-> +		}
-> +	}
-> +	if (!low_kmem_size ||  /* there is no DMA area. */
-> +	    !low_kmem_size > total_size/2) /* DMA/DMA32 is big. */
-> +		return ZONELIST_ORDER_NODE;
-> +	/* look into each node's config. where all processes starts... */
-> +	/* average size..a bit smaller than real average size */
-> +	average_size = total_size / (num_online_nodes() + 1);
-> +	for_each_online_node(nid) {
-> +		low_kmem_size = 0;
-> +		total_size = 0;
-> +		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-> +			z = &NODE_DATA(nid)->node_zones[zone_type];
-> +			if (populated_zone(z)) {
-> +				if (zone_type < ZONE_NORMAL)
-> +					low_kmem_size += z->present_pages;
-> +				total_size += z->present_pages;
-> +			}
-> +		}
-> +		if (total_size > average_size && /* ignore unbalanced node */
-> +		    low_kmem_size > total_size * 60/100)
-> +			return ZONELIST_ORDER_NODE;
-> +	}
-> +	return ZONELIST_ORDER_ZONE;
->  }
->  
-> 
-> 
+I have now bisected this down to the section in the series file between
+#GREGKH-DRIVER-START and #GREGKH-DRIVER-END, and therefore added GregKH
+to the CC list. I'll try bisecting further inside that section (unless
+you tell me not to), but it may take some time.
+
+The exact point during the startup sequence when the crash occurred and
+the amount of BUG messages produced varied somewhat during these tests.
+The common denominator, and my criterion for the good/bad decisions
+during the bisect, was the crash (panic blink) just before completion
+of the system startup.
+Sometimes there weren't any BUG messages in the log (or perhaps they
+just didn't make it to the disk.) Sometimes I just had a couple of the
+"sleeping function called from invalid context at mm/slab.c:3054"
+ones but no "Eeek! page_mapcount(page) went negative!" one before them.
+However, whenever the "Eeek!" did appear it announced "getcfg-interfac"
+as the current process and was followed by a few of the "mm/slab.c:3054"
+ones.
+
+HTH
+Tilman
+
+--=20
+In the long run, we'll all be dead.
+
+
+--------------enig55AD27A617EA337FCF304DA9
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.3rc1 (MingW32)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+
+iD8DBQFGNiSWMdB4Whm86/kRAjSwAJ0bMeAS1XKx+b6XlnYjVDRu/HXZTACfe2Ni
+Z4ocLxKggGO0OLjEPBCfxEo=
+=ySAb
+-----END PGP SIGNATURE-----
+
+--------------enig55AD27A617EA337FCF304DA9--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
