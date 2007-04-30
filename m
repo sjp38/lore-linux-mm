@@ -1,70 +1,50 @@
-Message-ID: <46366082.2090701@imap.cc>
-Date: Mon, 30 Apr 2007 23:32:50 +0200
-From: Tilman Schmidt <tilman@imap.cc>
-MIME-Version: 1.0
-Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
- (-1)
-References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>	<46338AEB.2070109@imap.cc>	<20070428141024.887342bd.akpm@linux-foundation.org>	<4636248E.7030309@imap.cc>	<20070430112130.b64321d3.akpm@linux-foundation.org>	<46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org>
-In-Reply-To: <20070430124638.10611058.akpm@linux-foundation.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enigEACE2589D3800D1B7F99AAC8"
+Date: Mon, 30 Apr 2007 14:54:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
+Message-Id: <20070430145414.88fda272.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.61.0704302159140.3178@mtfhpc.demon.co.uk>
+References: <Pine.LNX.4.61.0704291345480.690@mtfhpc.demon.co.uk>
+	<1177852457.4390.26.camel@localhost.localdomain>
+	<Pine.LNX.4.61.0704302159140.3178@mtfhpc.demon.co.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: Andrea Arcangeli <andrea@suse.de>, wli@holomorphy.com, sparclinux@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enigEACE2589D3800D1B7F99AAC8
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Mon, 30 Apr 2007 22:36:27 +0100 (BST)
+Mark Fortescue <mark@mtfhpc.demon.co.uk> wrote:
 
-Am 30.04.2007 21:46 schrieb Andrew Morton:
+> Hi all,
+> 
+> I have tracked down a failure to successfully load/run the init task on my 
+> Sparcstation 1 clone (SS1) and Sparcstation 2 (SS2), sparc32 sun4c 
+> systems, to a patch:
+> 
+>    commit 1a44e149084d772a1bcf4cdbdde8a013a8a1cfde.
+>    [PATCH] .text page fault SMP scalability optimization
+> 
+> Removing this patch fixes the issue and allows me to use kernels later 
+> than v2.5.14. (tested using linux-2.6.20.9).
+> 
+> Given the comment provided by the git bisect, backing out this patch will 
+> probably have undesirable conseqnences for other platforms (especially 
+> powerpc64) so, if an architecture independent solution is not available, 
+> some/all of the code in handle_pte_fault() in mm/memory.c will need be to 
+> made architecture dependent.
+> 
+> I am not sufficiently familear with the how the SS1/SS2 mmu works and how 
+> the linux memory management system works to understand why this patch 
+> prevents my sun4c SS1/SS2 systems from working.
+> 
+> Advice and help on the approch to take and any code changes regarding this 
+> issue would be most welcome.
+> 
 
->> 2.6.21-final is fine.
->=20
-> Sure, but what about 2.6.21-git3 (or, better, current -git)?
-
-OIC. Sorry for being dense. Will check.
-
->>>  If that's OK then we need to pick through the difference between
->>> 2.6.21-rc7-mm2's driver tree and the patches which went into mainline=
-=2E  And
->>> that's a pretty small set.
->> I'm not quite sure how to determine that difference. Can you just prov=
-ide
->> me with a list of patches you'd like me to test?
->=20
-> Not really - everything's tangled up.  A bisection search on the
-> 2.6.21-rc7-mm2 driver tree would be the best bet.
-
-Ok. No prob. It'll just take a bit of time. (Compiling a kernel on
-that machine takes about 4 hours.)
-
-I'll be back. :-)
-
---=20
-Tilman Schmidt                          E-Mail: tilman@imap.cc
-Bonn, Germany
-- Undetected errors are handled as if no error occurred. (IBM) -
-
-
---------------enigEACE2589D3800D1B7F99AAC8
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.3rc1 (MingW32)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
-
-iD8DBQFGNmCOMdB4Whm86/kRAhK/AJ4sbnHVvKJ8vjEzkq49VuvE041C0ACfbKNw
-7HwTCKZPYg2HoZqndUrLpJs=
-=RASc
------END PGP SIGNATURE-----
-
---------------enigEACE2589D3800D1B7F99AAC8--
+Interesting - thanks for working that out.  Let's keep linux-mm on cc please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
