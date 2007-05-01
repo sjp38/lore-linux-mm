@@ -1,180 +1,104 @@
-Date: Tue, 1 May 2007 11:16:51 +0100
-Subject: fragmentation avoidance Re: 2.6.22 -mm merge plans
-Message-ID: <20070501101651.GA29957@skynet.ie>
+Date: Tue, 1 May 2007 06:16:35 -0400 (EDT)
+From: "Robert P. J. Day" <rpjday@mindspring.com>
+Subject: Re: pcmcia ioctl removal
+In-Reply-To: <20070501094400.GX943@1wt.eu>
+Message-ID: <Pine.LNX.4.64.0705010600140.9375@localhost.localdomain>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
-From: mel@skynet.ie (Mel Gorman)
+ <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>
+ <20070501094400.GX943@1wt.eu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, clameter@sgi.com, y-goto@jp.fujitsu.com
+To: Willy Tarreau <w@1wt.eu>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On (30/04/07 16:20), Andrew Morton didst pronounce:
->  add-apply_to_page_range-which-applies-a-function-to-a-pte-range.patch
->  add-apply_to_page_range-which-applies-a-function-to-a-pte-range-fix.patch
->  safer-nr_node_ids-and-nr_node_ids-determination-and-initial.patch
->  use-zvc-counters-to-establish-exact-size-of-dirtyable-pages.patch
->  proper-prototype-for-hugetlb_get_unmapped_area.patch
->  mm-remove-gcc-workaround.patch
->  slab-ensure-cache_alloc_refill-terminates.patch
->  mm-more-rmap-checking.patch
->  mm-make-read_cache_page-synchronous.patch
->  fs-buffer-dont-pageuptodate-without-page-locked.patch
->  allow-oom_adj-of-saintly-processes.patch
->  introduce-config_has_dma.patch
->  mm-slabc-proper-prototypes.patch
->  mm-detach_vmas_to_be_unmapped-fix.patch
-> 
-> Misc MM things.  Will merge.
+On Tue, 1 May 2007, Willy Tarreau wrote:
 
-After Andy's mail, I am guessing that the patch below is also going here
-in the stack as a cleanup.
+> On Tue, May 01, 2007 at 05:16:13AM -0400, Robert P. J. Day wrote:
+... snip ...
+> > in other words, the PCMCIA ioctl feature *has* been listed as
+> > obsolete for quite some time, and is already a *year and a half*
+> > overdue for removal.
+> >
+> > in short, it's annoying to take the position that stuff can't be
+> > deleted without warning, then turn around and be reluctant to remove
+> > stuff for which *more than ample warning* has already been given.
+> > doing that just makes a joke of the features removal file, and makes
+> > you wonder what its purpose is in the first place.
+> >
+> > a little consistency would be nice here, don't you think?
+>
+> No, it just shows how useless this file is.
 
-add-pfn_valid_within-helper-for-sub-max_order-hole-detection.patch
+agreed.  it's mildly entertaining to have watched this raging
+discussion over the last few days regarding bugs and emails and
+bugzilla and adrian's regressions, while the one feature that's meant
+to track aging and removable kernel features is essentially valueless,
+and no one seems to care.
 
->  add-a-bitmap-that-is-used-to-track-flags-affecting-a-block-of-pages.patch
->  add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated.patch
->  split-the-free-lists-for-movable-and-unmovable-allocations.patch
->  choose-pages-from-the-per-cpu-list-based-on-migration-type.patch
->  add-a-configure-option-to-group-pages-by-mobility.patch
->  drain-per-cpu-lists-when-high-order-allocations-fail.patch
->  move-free-pages-between-lists-on-steal.patch
->  group-short-lived-and-reclaimable-kernel-allocations.patch
->  group-high-order-atomic-allocations.patch
->  do-not-group-pages-by-mobility-type-on-low-memory-systems.patch
->  bias-the-placement-of-kernel-pages-at-lower-pfns.patch
->  be-more-agressive-about-stealing-when-migrate_reclaimable-allocations-fallback.patch
->  fix-corruption-of-memmap-on-ia64-sparsemem-when-mem_section-is-not-a-power-of-2.patch
+> What is needed is a big warning during usage, not a file that nobody
+> reads.
 
-Plus the patch below from Andy's pfn_valid_within() series would be here:
+agreed there as well.  but short of that, it would still be nice if
+people took a minute, perused the feature removal file, and at least
+brought it up-to-date.  if it's going to have any value, then:
 
-   anti-fragmentation-switch-over-to-pfn_valid_within.patch
+1) all proposed removal dates should be reviewed to make sure they're
+still meaningful,
 
-These patches are the grouping pages by mobility patches. They get tested
-every time someone boots the machine from the perspective that they affect
-the page allocator. It is working to keep fragmentation problems to a
-minimum and being exercised.  We have beaten it heavily here on tests
-with a variety of machines using the system that drives test.kernel.org
-for both functionality and performance testing. That covers x86, x86_64,
-ppc64 and occasionally IA64. Granted, there are corner-case machines out
-there or we'd never receive bug reports at all.
+2) stuff that's overdue for removal should be either removed, or have
+its expiry date brought forward, and
 
-They are currently being reviewed by Christoph Lameter. His feedback in
-the linux-mm thread "Antifrag patchset comments" has given me a TODO list
-which I'm currently working through. So far, there has been no fundamental
-mistake in my opinion and the additional work is logical extensions.
+3) stuff in the kernel tree that is understood to be obsolete or
+nearly so should have an entry added to that file, so that the clock
+can at least *start* ticking for that stuff, and you can at least say
+you *tried* to warn current users.
 
-The closest thing to a fundamental mistake was grouping pages by
-MAX_ORDER_NR_PAGES instead of an arbitrary order. What I did was fine for
-x86_64, i386 and ppc64 but not as useful for IA64 with 1GB worth of memory
-in MAX_ORDER_NR_PAGES. I also missed some temporary allocations as picked
-up in Christophs review.
+as a start, i posted last month the results of running the simple
+command:
 
->  create-the-zone_movable-zone.patch
->  allow-huge-page-allocations-to-use-gfp_high_movable.patch
->  x86-specify-amount-of-kernel-memory-at-boot-time.patch
->  ppc-and-powerpc-specify-amount-of-kernel-memory-at-boot-time.patch
->  x86_64-specify-amount-of-kernel-memory-at-boot-time.patch
->  ia64-specify-amount-of-kernel-memory-at-boot-time.patch
->  add-documentation-for-additional-boot-parameter-and-sysctl.patch
->  handle-kernelcore=-boot-parameter-in-common-code-to-avoid-boot-problem-on-ia64.patch
-> 
-> Mel's moveable-zone work.
+  $ grep -iw obsolete $(find . -name Kconfig\*)
 
-These patches are what creates ZONE_MOVABLE. The last 6 patches should be
-collapsed into a single patch:
+and some of what was printed is clearly misleading.  (don't worry,
+tilman -- we're not going to reopen that whole isdn4linux thing. :-)
 
-	handle-kernelcore=-generic
+i mean, what of the following is actually obsolete:
 
-I believe Yasunori Goto is looking at these from the perspective of memory
-hot-remove and has caught a few bugs in the past. Goto-san may be able to
-comment on whether they have been reviewed recently.
+  * traffic policing
+  * IP6 Userspace queueing via NETLINK
+  * IP Userspace queueing via NETLINK
+  * ebt: ulog support
+  * Traffic Shaper
 
-The main complexity is in one function in patch one which determines where
-the PFN is in each node for ZONE_MOVABLE. Getting that right so that the
-requested amount of kernel memory spread as evenly as possible is just
-not straight-forward.
+and so on (and there's that legacy PM thing as well).
 
-> I don't believe that this has had sufficient review and I'm sure that it
-> hasn't had sufficient third-party testing.  Most of the approbations thus far
-> have consisted of people liking the overall idea, based on the changelogs and
-> multi-year-old discussions.
-> 
-> For such a large and core change I'd have expected more detailed reviewing
-> effort and more third-party testing.  And I STILL haven't made time to review
-> the code in detail myself.
-> 
-> So I'm a bit uncomfortable with moving ahead with these changes.
-> 
+> I'm sorry for your patch which may get delayed a lot.
 
-Ok. It is getting reviewed by Christoph and I'm going through the TODO items
-it yielded. Andy has also been regularly reviewing them which is probably
-why they have had less public errors than you might expect from something
-like this. Christoph may like to comment more here.
+obviously, leaving stuff like that in the kernel doesn't actually
+*hurt* anything but, yeah, it's a tad annoying to invest a few minutes
+to do some janitor work based on what should be killable, submit the
+patch, then have people freak out about how that is still an essential
+feature.
 
-> <snip>
-> 
->  lumpy-reclaim-v4.patch
+bottom line:  if you want janitor folks to help out with cleanup, make
+sure they know what can legitimately be cleaned, and stop wasting
+peoples' time.
 
-And I guess this patch also moves here
+rday
 
-lumpy-move-to-using-pfn_valid_within.patch
-
-> 
-> This is in a similar situation to the moveable-zone work.  Sounds great on
-> paper, but it needs considerable third-party testing and review.  It is a
-> major change to core MM and, we hope, a significant advance.  On paper.
-
-Andy will probably comment more here. Like the fragmentation stuff, we have
-beaten this heavily in tests.
-
-I'm not sure of it's review situation.
-
-> More Mel things, and linkage between Mel-things and lumpy reclaim.  It's here
-> where the patch ordering gets into a mess and things won't improve if
-> moveable-zones and lumpy-reclaim get deferred.  Such a deferral would limit my
-> ability to queue more MM changes for 2.6.23.
-> 
-
-This is where the three patches were originally. From the other thread,
-I am assuming these are sorted out.
-
-> <snip>
-> 
->  bias-the-location-of-pages-freed-for-min_free_kbytes-in-the-same-max_order_nr_pages-blocks.patch
->  remove-page_group_by_mobility.patch
->  dont-group-high-order-atomic-allocations.patch
-> 
-> More moveable-zone work.
-> 
-
-This is the MIGRATE_RESERVE patch and two patches that back out parts of the
-grouping pages by mobility stack. If possible, these patches should move to
-the end of that stack. To fix the ordering, would it be helpful to provide
-a fresh stack based on 2.6.21? That would delete 4 patches in all. The two
-that introduce configuration items and highorder atomic groupings and these
-two patches that subsequently remove them.
-
-> <SNIP>
-> 
->  slub-exploit-page-mobility-to-increase-allocation-order.patch
-> 
-> Slub entanglement with moveable-zones.  Will merge if moveable-zones is merged.
-> 
-
-Well, grouping pages by mobility is what it really depends on. The
-ZONE_MOVABLE is not required for SLUB. However, I get the point and agree
-with it. If the rest of SLUB gets merged, this patch could be moved to the
-end of the grouping by mobility stack.
+p.s.  now if there were only a way to, say, tag various kernel
+features as "obsolete" or "deprecated" ...  :-)
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+========================================================================
+Robert P. J. Day
+Linux Consulting, Training and Annoying Kernel Pedantry
+Waterloo, Ontario, CANADA
+
+http://fsdev.net/wiki/index.php?title=Main_Page
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
