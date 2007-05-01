@@ -1,43 +1,58 @@
-Subject: Re: nfsd/md patches Re: 2.6.22 -mm merge plans
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20070501101502.GA27868@infradead.org>
+Date: Tue, 1 May 2007 15:31:02 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.22 -mm merge plans: mm-more-rmap-checking
+In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0705011458060.16979@blonde.wat.veritas.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	 <17974.34116.479061.912980@notabene.brown>
-	 <20070501090843.GB17949@infradead.org>
-	 <17975.3531.838077.563475@notabene.brown>
-	 <20070501101502.GA27868@infradead.org>
-Content-Type: text/plain
-Date: Tue, 01 May 2007 07:34:14 -0700
-Message-Id: <1178030054.5444.5.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-01 at 11:15 +0100, Christoph Hellwig wrote:
-> On Tue, May 01, 2007 at 07:52:11PM +1000, Neil Brown wrote:
-> > On Tuesday May 1, hch@infradead.org wrote:
-> > > apropos nfsd patches, what's the merge plans for my two export ops
-> > > patch series?
-> > 
-> > Still sitting in my tree - I've had my mind on other things
-> > (nfs-utils, portmap....) and let them slip - sorry.
-> > 
-> > I think also there was an unanswered question about the second series
-> > (there first I am completely happy with).
+On Mon, 30 Apr 2007, Andrew Morton wrote:
+>... 
+>  mm-more-rmap-checking.patch
+>...
 > 
-> A sorry, this mail got somewhere lost.  I'll reply on the nfs list
-> because we have a little more context there. (and due to the subscribers
-> only policy I can't crosspost unfortunately)
+> Misc MM things.  Will merge.
 
-I though we lifted the subscribers only policy quite a while back. There
-should be nothing preventing you from cross-posting.
+Would Nick mind very much if I ask you to drop this one?
+You did CC me ages ago, but I've only just run across it.
+It's a small matter, but I'd prefer it dropped for now.
 
-Cheers
-  Trond
+>> Re-introduce rmap verification patches that Hugh removed when he removed
+>> PG_map_lock. PG_map_lock actually isn't needed to synchronise access to
+>> anonymous pages, because PG_locked and PTL together already do.
+>> 
+>> These checks were important in discovering and fixing a rare rmap corruption
+>> in SLES9.
+
+It introduces some silly checks which were never in mainline,
+nor so far as I can tell in SLES9: I'm thinking of those
++	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+There are few callsites for these rmap functions, I don't think
+they need to be checking their arguments in that way.
+
+It also changes the inline page_dup_rmap (a single atomic increment)
+into a bugchecking out-of-line function: do we really want to slow
+down fork in that way, for 2.6.22 to fix a rare corruption in SLES9?
+
+What I really like about the patch is Nick's observation that my
+	/* else checking page index and mapping is racy */
+is no longer true: a change we made to the do_swap_page sequence
+some while ago has indeed cured that raciness, and I'm happy to
+reintroduce the check on mapping and index in page_add_anon_rmap,
+and his BUG_ON(!PageLocked(page)) there (despite BUG_ONs falling
+out of fashion very recently).
+
+That becomes more important when I send the patches to free up
+PG_swapcache, using a PAGE_MAPPING_SWAP bit instead: so I was
+planning to include that part of Nick's patch in that series.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
