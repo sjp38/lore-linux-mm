@@ -1,96 +1,76 @@
-Message-ID: <463723DE.9030507@yahoo.com.au>
-Date: Tue, 01 May 2007 21:26:22 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <46372D5D.1090702@muenning.com>
+Date: Tue, 01 May 2007 14:06:53 +0200
+From: =?ISO-8859-1?Q?Konstantin_M=FCnning?= <konstantin@muenning.com>
 MIME-Version: 1.0
-Subject: Re: Antifrag patchset comments
-References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com> <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie> <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: pcmcia ioctl removal
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>	<20070501084623.GB14364@infradead.org>	<Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>	<Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr> <20070501110023.GY943@1wt.eu>
+In-Reply-To: <20070501110023.GY943@1wt.eu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Willy Tarreau <w@1wt.eu>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, linux-pcmcia@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Robert P. J. Day" <rpjday@mindspring.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Sat, 28 Apr 2007, Mel Gorman wrote:
-
->>>10. Radix tree as reclaimable? radix_tree_node_alloc()
+Willy Tarreau wrote:
+> On Tue, May 01, 2007 at 12:12:36PM +0200, Jan Engelhardt wrote:
+>> On May 1 2007 05:16, Robert P. J. Day wrote:
+>>> on the other hand, the features removal file contains the following:
 >>>
->>>	Ummm... Its reclaimable in a sense if all the pages are removed
->>>	but I'd say not in general.
+>>> ...
+>>> What:   PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
+>>> When:   November 2005
+>>> ...
 >>>
+>>> in other words, the PCMCIA ioctl feature *has* been listed as obsolete
+>>> for quite some time, and is already a *year and a half* overdue for
+>>> removal.
+>>>
+>>> in short, it's annoying to take the position that stuff can't be
+>>> deleted without warning, then turn around and be reluctant to remove
+>>> stuff for which *more than ample warning* has already been given.
+>>> doing that just makes a joke of the features removal file, and makes
+>>> you wonder what its purpose is in the first place.
+>>>
+>>> a little consistency would be nice here, don't you think?
+>> I think this could raise their attention...
 >>
->>I considered them to be indirectly reclaimable. Maybe it wasn't the best
->>choice.
+>> init/Makefile
+>> obj-y += obsolete.o
+>>
+>> init/obsolete.c:
+>> static __init int obsolete_init(void)
+>> {
+>> 	printk("\e[1;31m""
+>>
+>> The following stuff is gonna get removed \e[5;37m SOON: \e[0m
+>> 	- cardmgr
+>> 	- foobar
+>> 	- bweebol
+>>
+>> ");
+>> 	schedule_timeout(3 * HZ);
+>> 	return;
+>> }
+>>
+>> static __exit void obsolete_exit(void) {}
 > 
+> There's something I like here : the fact that all features are centralized
+> and not hidden in the noise. Clearly we need some standard inside the kernel
+> to manage obsolete code as well as we currently do by hand.
 > 
-> Maybe we need to ask Nick about this one.
+> Willy
 
-I guess they are as reclaimable as the pagecache they hold is. Of
-course, they are yet another type of object that makes higher order
-reclaim inefficient, regardless of lumpy reclaim etc.
+What about something like the tainted flag which status can be displayed
+ easily? And even better when a list of the used obsolete features can
+be displayed as well on request? This way you don't need to search the
+logs. A standardized obsolete function like the one above could do all
+the job.
 
-... and also there are things besides pagecache that use radix trees....
-
-I guess you are faced with conflicting problems here. If you do not
-mark things like radix tree nodes and dcache as reclaimable, then your
-unreclaimable category gets expanded and fragmented more quickly.
-
-On the other hand, if you do mark them (not just radix-trees, but also
-bios, dcache, various other things) as reclaimable, then they make it
-more difficult to reclaim from the reclaimable memory, and they also
-make the reclaimable memory less robust, because you could have pinned
-dentry, or some other radix tree user in there that cannot be reclaimed.
-
-I guess making radix tree nodes reclaimable is probably the best of the
-two options at this stage.
-
-But now that I'm asked, I repeat my dislike for the antifrag patches,
-because of the above -- ie. they're just a heuristic that slows down
-the fragmentation of memory rather than avoids it.
-
-I really oppose any code that _depends_ on higher order allocations.
-Even if only used for performance reasons, I think it is sad because
-a system that eventually gets fragmented will end up with worse
-performance over time, which is just lame.
-
-For those systems that really want a big chunk of memory set aside (for
-hugepages or memory unplugging), I think reservations are reasonable
-because they work and are robust. If we ever _really_ needed arbitrary
-contiguous physical memory for some reason, then I think virtual kernel
-mapping and true defragmentation would be the logical step.
-
-AFAIK, nobody has tried to do this yet it seems like the (conceptually)
-simplest and most logical way to go if you absolutely need contig
-memory.
-
-But firstly, I think we should fight against needing to do that step.
-I don't care what people say, we are in some position to influence
-hardware vendors, and it isn't the end of the world if we don't run
-optimally on some hardware today. I say we try to avoid higher order
-allocations. It will be hard to ever remove this large amount of
-machinery once the code is in.
-
-So to answer Andrew's request for review, I have looked through the
-patches at times, and they don't seem to be technically wrong (I would
-have prefered that it use resizable zones rather than new sub-zone
-zones, but hey...). However I am against the whole direction they go
-in, so I haven't really looked at them lately.
-
-I think the direction we should take is firstly ask whether we can do
-a reasonable job with PAGE_SIZE pages, secondly ask whether we can do
-an acceptable special-case (eg. reserve memory), lastly, _actually_
-do defragmentation of kernel memory. Anti-frag would come somewhere
-after that last step, as a possible optimisation.
-
-So I haven't been following where we're at WRT the requirements. Why
-can we not do with PAGE_SIZE pages or memory reserves? If it is a
-matter of efficiency, then how much does it matter, and to whom?
-
+Just my 2 cents.
 -- 
-SUSE Labs, Novell Inc.
+Konstantin Munning
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
