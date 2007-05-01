@@ -1,54 +1,29 @@
-Message-ID: <463696A9.8020909@redhat.com>
-Date: Mon, 30 Apr 2007 21:23:53 -0400
-From: Rik van Riel <riel@redhat.com>
+Message-ID: <46369A48.4020506@s5r6.in-berlin.de>
+Date: Tue, 01 May 2007 03:39:20 +0200
+From: Stefan Richter <stefanr@s5r6.in-berlin.de>
 MIME-Version: 1.0
-Subject: Re: MADV_FREE functionality
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>	<46368FAA.3080104@redhat.com> <20070430181839.c548c4da.akpm@linux-foundation.org>
-In-Reply-To: <20070430181839.c548c4da.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: 2.6.22 -mm merge plans
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk-manpages@gmx.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Andrew Morton wrote:
-
->> If you need any additional information, please let me know.
+>  sbp2-include-fixes.patch
+>  ieee1394-iso-needs-schedh.patch
 > 
-> The patch doesn't update the various comments in madvise.c at all, which is
-> a surprise.  Could you please check that they are all accurate and complete?
+> For Stephan
 
-I'll take a look.
-
-> Also, where did we end up with the Solaris compatibility?
-> 
-> The patch I have at present retains MADV_FREE=0x05 for sparc and sparc64
-> which should be good.
-> 
-> Did we decide that the Solaris and Linux implementations of MADV_FREE are
-> compatible?
-
-Yes, the Linux, Solaris and FreeBSD implementations of MADV_FREE
-appear to have equivalent semantics.
-
-> What about the Solaris and Linux MADV_DONTNEED implementations?
-
-This was never, and is still not, the same.  Linux will throw
-away the data in anonymous pages while POSIX says we should
-simply move the data to swap.  I assume Solaris and FreeBSD
-will move the data to swap instead of throwing it away.
-
-For file backed pages I suspect they all behave the same.
-
-This is the reason that inside glibc, POSIX_MADV_DONTNEED is
-a noop.
-
+They were merged some hours ago.
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Stefan Richter
+-=====-=-=== -=-= ----=
+http://arcgraph.de/sr/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
