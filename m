@@ -1,31 +1,42 @@
-Date: Tue, 1 May 2007 12:00:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.22 -mm merge plans -- lumpy reclaim
-Message-Id: <20070501120028.a4b62d6e.akpm@linux-foundation.org>
-In-Reply-To: <46373A71.4030200@shadowen.org>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	<20070501101651.GA29957@skynet.ie>
-	<46373A71.4030200@shadowen.org>
+Date: Tue, 1 May 2007 20:10:56 +0100
+From: Russell King <rmk+lkml@arm.linux.org.uk>
+Subject: Re: pcmcia ioctl removal
+Message-ID: <20070501191056.GC19872@flint.arm.linux.org.uk>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain> <Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Mel Gorman <mel@skynet.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@sgi.com, y-goto@jp.fujitsu.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Cc: "Robert P. J. Day" <rpjday@mindspring.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 01 May 2007 14:02:41 +0100 Andy Whitcroft <apw@shadowen.org> wrote:
+On Tue, May 01, 2007 at 12:12:36PM +0200, Jan Engelhardt wrote:
+> init/obsolete.c:
+> static __init int obsolete_init(void)
+> {
+> 	printk("\e[1;31m""
+> 
+> The following stuff is gonna get removed \e[5;37m SOON: \e[0m
+> 	- cardmgr
+> 	- foobar
+> 	- bweebol
+> 
+> ");
+> 	schedule_timeout(3 * HZ);
+> 	return;
+> }
 
-> I have some primitive stats patches which we have used performance
-> testing.  Perhaps those could be brought up to date to provide better
-> visibility into lumpy's operation.  Again this would be a separate patch.
+The kernel console isn't VT102 compatible.  It doesn't understand any
+escape codes, at all.  Neither does sysklogd.  So the above will just
+end up as rubbish on your console.
 
-Feel free to add new counters in /proc/vmstat - perhaps per-order
-success and fail rates?  Monitoring the ratio between those would show
-how effective lumpiness is being, perhaps.
-
-It's always nice to see what's going on in there.
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
