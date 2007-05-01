@@ -1,41 +1,32 @@
-Date: Tue, 1 May 2007 10:21:45 +0100
+Date: Tue, 1 May 2007 10:24:48 +0100
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: nfsd/md patches Re: 2.6.22 -mm merge plans
-Message-ID: <20070501092145.GA21015@infradead.org>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <17974.34116.479061.912980@notabene.brown> <20070501090843.GB17949@infradead.org> <20070501021525.beef1e78.akpm@linux-foundation.org>
+Subject: Re: 2.6.22 -mm merge plans
+Message-ID: <20070501092448.GA21263@infradead.org>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <84144f020705010217j738e461ey6b09fd738574fb70@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070501021525.beef1e78.akpm@linux-foundation.org>
+In-Reply-To: <84144f020705010217j738e461ey6b09fd738574fb70@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Neil Brown <neilb@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hch@lst.de, npiggin@suse.de, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 01, 2007 at 02:15:25AM -0700, Andrew Morton wrote:
-> On Tue, 1 May 2007 10:08:43 +0100 Christoph Hellwig <hch@infradead.org> wrote:
+On Tue, May 01, 2007 at 12:17:28PM +0300, Pekka Enberg wrote:
+> On 5/1/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > revoke-special-mmap-handling.patch
 > 
-> > apropos nfsd patches, what's the merge plans for my two export ops
-> > patch series?
-
-This question was directed to Neil, sorry.  
-
-> box:/usr/src/25/patches> grep -l '^From:.*hch' $(cat-series ../series )
-> dvb_en_50221-convert-to-kthread-api.patch
-> simplify-the-stacktrace-code.patch
-> vfs-remove-superflous-sb-==-null-checks.patch
-> nameic-remove-utterly-outdated-comment.patch
-> move-die-notifier-handling-to-common-code.patch
-> merge-compat_ioctlh-into-compat_ioctlc.patch
-> cleanup-compat-ioctl-handling.patch
-> kprobes-use-hlist_for_each_entry.patch
-> kprobes-codingstyle-cleanups.patch
-> kprobes-kretprobes-simplifcations.patch
+> [snip]
 > 
-> I give up.  Where are they hiding?
+> >Hold.  This is tricky stuff and I don't think we've seen sufficient
+> >reviewing, testing and acking yet?
+> 
+> Agreed. While Peter and Nick have done some review of the patches, I
+> would really like VFS maintainers to review them before merge.
+> Christoph, have you had the chance to take a look at it?
 
-Good question :)  I sent them to the nfs list.
+Not so far, but it's on my long list of highly useful things I want to review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
