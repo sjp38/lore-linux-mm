@@ -1,36 +1,36 @@
-Date: Tue, 1 May 2007 14:09:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 2.6.22 -mm merge plans: slub
-Message-Id: <20070501140911.1606a918.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0705011345360.26494@schroedinger.engr.sgi.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
-	<20070501125559.9ab42896.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
-	<20070501133618.93793687.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0705011345360.26494@schroedinger.engr.sgi.com>
+Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
+References: <20070430145414.88fda272.akpm@linux-foundation.org>
+	 <20070430.150407.07642146.davem@davemloft.net>
+	 <1177977619.24962.6.camel@localhost.localdomain>
+	 <20070430.173806.112621225.davem@davemloft.net>
+	 <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
+	 <1177985136.24962.8.camel@localhost.localdomain>
+	 <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
+Content-Type: text/plain
+Date: Wed, 02 May 2007 07:31:50 +1000
+Message-Id: <1178055110.13263.2.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 May 2007 13:46:26 -0700 (PDT)
-Christoph Lameter <clameter@sgi.com> wrote:
-
-> On Tue, 1 May 2007, Andrew Morton wrote:
+> I have attached a patch (so pine does not mangle it) for linux-2.6.20.9.
+> Is this what you had in mind?
 > 
-> > otoh I could do some frantic patch mangling and make it easier to carry
-> > slub out-of-tree, but do we gain much from that?
-> 
-> Then we may loose all the slab API cleanups? Yuck. I really do not want 
-> redo those....
+> For linux-2.6.21, more work will be needed as it has more code calling 
+> ptep_set_access_flags.
 
-No, I meant that I'd look at splitting those patches up into
-one-against-mainline and one-against-slub.
+I'm not 100% sure we need the 'update' argument... we can remove the
+whole old_entry, pte_same, etc... and just have pte_set_access_flags()
+read the old PTE and decide wether something needs to be changed or not.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
