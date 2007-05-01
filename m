@@ -1,104 +1,117 @@
-Date: Tue, 1 May 2007 06:16:35 -0400 (EDT)
-From: "Robert P. J. Day" <rpjday@mindspring.com>
-Subject: Re: pcmcia ioctl removal
-In-Reply-To: <20070501094400.GX943@1wt.eu>
-Message-ID: <Pine.LNX.4.64.0705010600140.9375@localhost.localdomain>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>
- <20070501094400.GX943@1wt.eu>
+Received: by ug-out-1314.google.com with SMTP id s2so24594uge
+        for <linux-mm@kvack.org>; Tue, 01 May 2007 03:28:35 -0700 (PDT)
+Message-ID: <463715E8.1060903@googlemail.com>
+Date: Tue, 01 May 2007 12:26:48 +0200
+From: Gabriel C <nix.or.die@googlemail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: pcmcia ioctl removal
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain> <20070501094400.GX943@1wt.eu>
+In-Reply-To: <20070501094400.GX943@1wt.eu>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Willy Tarreau <w@1wt.eu>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
+Cc: "Robert P. J. Day" <rpjday@mindspring.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 May 2007, Willy Tarreau wrote:
-
+Willy Tarreau wrote:
 > On Tue, May 01, 2007 at 05:16:13AM -0400, Robert P. J. Day wrote:
-... snip ...
-> > in other words, the PCMCIA ioctl feature *has* been listed as
-> > obsolete for quite some time, and is already a *year and a half*
-> > overdue for removal.
-> >
-> > in short, it's annoying to take the position that stuff can't be
-> > deleted without warning, then turn around and be reluctant to remove
-> > stuff for which *more than ample warning* has already been given.
-> > doing that just makes a joke of the features removal file, and makes
-> > you wonder what its purpose is in the first place.
-> >
-> > a little consistency would be nice here, don't you think?
+>   
+>> On Tue, 1 May 2007, Christoph Hellwig wrote:
+>>
+>>     
+>>>>  pcmcia-delete-obsolete-pcmcia_ioctl-feature.patch
+>>>>         
+>>> ...
+>>>
+>>>       
+>>>> Dominik is busy.  Will probably re-review and send these direct to Linus.
+>>>>         
+>>> The patch above is the removal of cardmgr support.  While I'd love
+>>> to see this cruft gone it definitively needs maintainer judgement on
+>>> whether they time has come that no one relies on cardmgr anymore.
+>>>       
+>> since i was the one who submitted the original patch to remove that
+>> stuff, let me make an observation.
+>>
+>> when i submitted a patch to remove, for instance, the traffic shaper
+>> since it's clearly obsolete, i was told -- in no uncertain terms --
+>> that that couldn't be done since there had been no warning about its
+>> impending removal.
+>>
+>> fair enough, i can accept that.
+>>
+>> on the other hand, the features removal file contains the following:
+>>
+>> ...
+>> What:   PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
+>> When:   November 2005
+>> ...
+>>
+>> in other words, the PCMCIA ioctl feature *has* been listed as obsolete
+>> for quite some time, and is already a *year and a half* overdue for
+>> removal.
+>>
+>> in short, it's annoying to take the position that stuff can't be
+>> deleted without warning, then turn around and be reluctant to remove
+>> stuff for which *more than ample warning* has already been given.
+>> doing that just makes a joke of the features removal file, and makes
+>> you wonder what its purpose is in the first place.
+>>
+>> a little consistency would be nice here, don't you think?
+>>     
 >
-> No, it just shows how useless this file is.
+> No, it just shows how useless this file is. What is needed is a big
+> warning during usage, not a file that nobody reads. Facts are :
+>
+>   - 90% of people here do not even know that this file exists
+>   - 80% of the people who know about it do not consult it on a regular basis
+>   - 80% of those who consult it on a regular basis are not concerned
+>   - 75% of statistics are invented
+>
+> => only 20% of 20% of 10% of those who read LKML know that one feature
+>    they are concerned about will soon be removed = 0.4% of LKML readers.
+>
+> If you put a warning in kernel messages (as I've seen for a long time
+> about tcpdump using obsolete AF_PACKET), close to 100% of the users
+> of the obsolete code who are likely to change their kernels will notice
+> it.
+>
+>   
 
-agreed.  it's mildly entertaining to have watched this raging
-discussion over the last few days regarding bugs and emails and
-bugzilla and adrian's regressions, while the one feature that's meant
-to track aging and removable kernel features is essentially valueless,
-and no one seems to care.
+Hmm ? There is already a fat warning in dmesg for a long time now.
 
-> What is needed is a big warning during usage, not a file that nobody
-> reads.
 
-agreed there as well.  but short of that, it would still be nice if
-people took a minute, perused the feature removal file, and at least
-brought it up-to-date.  if it's going to have any value, then:
+snip
 
-1) all proposed removal dates should be reviewed to make sure they're
-still meaningful,
+...
 
-2) stuff that's overdue for removal should be either removed, or have
-its expiry date brought forward, and
+pcmcia: Detected deprecated PCMCIA ioctl usage from process: discover.
+pcmcia: This interface will soon be removed from the kernel; please 
+expect breakage unless you upgrade to new tools.
+pcmcia: see 
+http://www.kernel.org/pub/linux/utils/kernel/pcmcia/pcmcia.html for details.
 
-3) stuff in the kernel tree that is understood to be obsolete or
-nearly so should have an entry added to that file, so that the clock
-can at least *start* ticking for that stuff, and you can at least say
-you *tried* to warn current users.
+...
 
-as a start, i posted last month the results of running the simple
-command:
 
-  $ grep -iw obsolete $(find . -name Kconfig\*)
+> I'm sorry for your patch which may get delayed a lot. You would spend
+> fewer time stuffing warnings in areas affected by scheduled removal.
+>
+> BTW, I'm not even against the end of cardmgr support, it's just that
+> I don't know what the alternative is, and I suspect that many users
+> do not either. A big warning would have brought them to google who
+> would have provided them with suggestions for alternatives.
+>
+> Willy
+>
+>
+>   
 
-and some of what was printed is clearly misleading.  (don't worry,
-tilman -- we're not going to reopen that whole isdn4linux thing. :-)
+Regards,
 
-i mean, what of the following is actually obsolete:
-
-  * traffic policing
-  * IP6 Userspace queueing via NETLINK
-  * IP Userspace queueing via NETLINK
-  * ebt: ulog support
-  * Traffic Shaper
-
-and so on (and there's that legacy PM thing as well).
-
-> I'm sorry for your patch which may get delayed a lot.
-
-obviously, leaving stuff like that in the kernel doesn't actually
-*hurt* anything but, yeah, it's a tad annoying to invest a few minutes
-to do some janitor work based on what should be killable, submit the
-patch, then have people freak out about how that is still an essential
-feature.
-
-bottom line:  if you want janitor folks to help out with cleanup, make
-sure they know what can legitimately be cleaned, and stop wasting
-peoples' time.
-
-rday
-
-p.s.  now if there were only a way to, say, tag various kernel
-features as "obsolete" or "deprecated" ...  :-)
-
--- 
-========================================================================
-Robert P. J. Day
-Linux Consulting, Training and Annoying Kernel Pedantry
-Waterloo, Ontario, CANADA
-
-http://fsdev.net/wiki/index.php?title=Main_Page
-========================================================================
+Gabriel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
