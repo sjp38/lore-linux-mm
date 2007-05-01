@@ -1,33 +1,55 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
-References: <20070430145414.88fda272.akpm@linux-foundation.org>
-	 <20070430.150407.07642146.davem@davemloft.net>
-	 <1177977619.24962.6.camel@localhost.localdomain>
-	 <20070430.173806.112621225.davem@davemloft.net>
-	 <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
-Content-Type: text/plain
-Date: Tue, 01 May 2007 12:05:36 +1000
-Message-Id: <1177985136.24962.8.camel@localhost.localdomain>
-Mime-Version: 1.0
+From: Dmitry Torokhov <dtor@insightbb.com>
+Subject: Re: 2.6.22 -mm merge plans (RE: input)
+Date: Mon, 30 Apr 2007 22:30:49 -0400
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200704302230.50507.dtor@insightbb.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?q?=C9ric_Piel?= <Eric.Piel@tremplin-utc.net>, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> At present, update_mmu_cache() and lazy_mmu_prot_update() are always 
-> called when ptep_set_access_flags() is called so why not move them into 
-> ptep_set_access_flags() and change ptep_set_access_flags() to have an 
-> additional boolean parameter (__update) that would when set, cause 
-> update_mmu_cache() and lazy_mmu_prot_update() to be called.
+On Monday 30 April 2007 19:20, Andrew Morton wrote:
+> 
+>  input-convert-from-class-devices-to-standard-devices.patch
+>  input-evdev-implement-proper-locking.patch
+>  mousedev-fix.patch
+>  mousedev-fix-2.patch
+> 
+> Dmitry will merge these once Greg has merged the preparatory work.  Except these
+> patches make the Vaio-of-doom crash in obscure circumstances, and we weren't
+> able to fix that?
+> 
 
-Well, ptep_set_access_flags() is a low level arch hook, I'd rather not
-start hiding update_mmu_cache() calls in it ...
+Would like to keep cooking in your tree till we get your Vaio going,
+if you don't mind.
 
-Ben.
+>  wistron_btns-add-led-support.patch
 
+Will review once again and apply.
+
+>  input-ff-add-ff_raw-effect.patch
+>  input-phantom-add-a-new-driver.patch
+>
+
+It looks like Phanotom will not be using input layer...
+
+>  input-rfkill-add-support-for-input-key-to-control-wireless-radio.patch
+> 
+> Will resend to davem once the preparatory bits are merged by Greg.
+>
+
+You mean me, right? I need to do some locking changes that DaveM
+pointed out.
+ 
+-- 
+Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
