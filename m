@@ -1,46 +1,78 @@
-Date: Tue, 1 May 2007 14:31:49 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Antifrag patchset comments
-In-Reply-To: <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705011416220.12797@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
- <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
+Message-ID: <46374724.7050907@dawes.za.net>
+Date: Tue, 01 May 2007 15:56:52 +0200
+From: Rogan Dawes <discard@dawes.za.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: pcmcia ioctl removal
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>	<20070501084623.GB14364@infradead.org>	<Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>	<Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr> <20070501110023.GY943@1wt.eu>
+In-Reply-To: <20070501110023.GY943@1wt.eu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>
+To: Willy Tarreau <w@1wt.eu>
+Cc: Jan Engelhardt <jengelh@linux01.gwdg.de>, linux-pcmcia@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Robert P. J. Day" <rpjday@mindspring.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Mel Gorman wrote:
-> On Sat, 28 Apr 2007, Christoph Lameter wrote:
+Willy Tarreau wrote:
+> On Tue, May 01, 2007 at 12:12:36PM +0200, Jan Engelhardt wrote:
+>> On May 1 2007 05:16, Robert P. J. Day wrote:
+>>> on the other hand, the features removal file contains the following:
+>>>
+>>> ...
+>>> What:   PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
+>>> When:   November 2005
+>>> ...
+>>>
+>>> in other words, the PCMCIA ioctl feature *has* been listed as obsolete
+>>> for quite some time, and is already a *year and a half* overdue for
+>>> removal.
+>>>
+>>> in short, it's annoying to take the position that stuff can't be
+>>> deleted without warning, then turn around and be reluctant to remove
+>>> stuff for which *more than ample warning* has already been given.
+>>> doing that just makes a joke of the features removal file, and makes
+>>> you wonder what its purpose is in the first place.
+>>>
+>>> a little consistency would be nice here, don't you think?
+>> I think this could raise their attention...
+>>
+>> init/Makefile
+>> obj-y += obsolete.o
+>>
+>> init/obsolete.c:
+>> static __init int obsolete_init(void)
+>> {
+>> 	printk("\e[1;31m""
+>>
+>> The following stuff is gonna get removed \e[5;37m SOON: \e[0m
+>> 	- cardmgr
+>> 	- foobar
+>> 	- bweebol
+>>
+>> ");
+>> 	schedule_timeout(3 * HZ);
+>> 	return;
+>> }
+>>
+>> static __exit void obsolete_exit(void) {}
 > 
-> > > > 11. shmem_alloc_page() shmem pages are only __GFP_RECLAIMABLE?
-> > > > They can be swapped out and moved by page migration, so GFP_MOVABLE?
-> > >
-> > > Because they might be ramfs pages which are not movable -
-> > > http://lkml.org/lkml/2006/11/24/150
-> >
-> > URL does not provide any useful information regarding the issue.
+> There's something I like here : the fact that all features are centralized
+> and not hidden in the noise. Clearly we need some standard inside the kernel
+> to manage obsolete code as well as we currently do by hand.
 > 
-> Not all pages allocated via shmem_alloc_page() are movable because they may
-> pages for ramfs.
+> Willy
 
-We seem to have a miscommunication here.
+The difference between this function and the PCAP/TCPDUMP warning is 
+that the warning only showed up when the obsolete functionality was 
+actually used.
 
-shmem_alloc_page() is static to mm/shmem.c, is used for all shm/tmpfs
-data pages (unless CONFIG_TINY_SHMEM), and all those data pages may be
-swapped out (while not locked in use).
+Maybe a mechanism to automatically increase the severity of reporting as 
+the removal date approaches would be an idea? i.e. for each new kernel 
+that you build leading up the the removal date, a severity is calculated 
+based on the time until official removal, and then, depending on the 
+severity, the message can be logged in various ways.
 
-ramfs pages cannot be swapped out; but shmem_alloc_page() is not used
-to allocate them.  CONFIG_TINY_SHMEM uses mm/tiny-shmem.c instead of
-mm/shmem.c, redirecting all shm/tmpfs requests to the simpler but
-unswappable ramfs.
-
-Hugh
+Rogan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
