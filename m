@@ -1,53 +1,34 @@
-Date: Tue, 1 May 2007 22:41:15 +0200 (MEST)
-From: Jan Engelhardt <jengelh@linux01.gwdg.de>
-Subject: Re: pcmcia ioctl removal
-In-Reply-To: <20070501191056.GC19872@flint.arm.linux.org.uk>
-Message-ID: <Pine.LNX.4.61.0705012239050.18504@yvahk01.tjqt.qr>
+Date: Tue, 1 May 2007 14:08:50 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: 2.6.22 -mm merge plans: slub
+In-Reply-To: <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
+Message-ID: <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>
- <Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr>
- <20070501191056.GC19872@flint.arm.linux.org.uk>
+ <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
+ <20070501125559.9ab42896.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: "Robert P. J. Day" <rpjday@mindspring.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On May 1 2007 20:10, Russell King wrote:
->On Tue, May 01, 2007 at 12:12:36PM +0200, Jan Engelhardt wrote:
->> init/obsolete.c:
->> static __init int obsolete_init(void)
->> {
->> 	printk("\e[1;31m""
->> 
->> The following stuff is gonna get removed \e[5;37m SOON: \e[0m
->> 	- cardmgr
->> 	- foobar
->> 	- bweebol
->> 
->> ");
->> 	schedule_timeout(3 * HZ);
->> 	return;
->> }
->
->The kernel console isn't VT102 compatible.  It doesn't understand any
->escape codes, at all.  Neither does sysklogd.  So the above will just
->end up as rubbish on your console.
+On Tue, 1 May 2007, Hugh Dickins wrote:
 
-It will (should) at least show up as nicely as in the C source code.
-With escape codes, but largely readable.
-If someone knows how to directly spew it to tty0 (the current active console -
-most likely tty1), the better.
-Anyway, I just wanted to point out how to really highlight it for the user to
-see. Although then there would be the distros who obscure it with funky
-bootsplash screens. But hopefully, their users would not need to care too much
-for old stuff (gets updated through the distro's update mechanism)
+> Yes, to me it does.  If it could be defaulted to on throughout the
+> -rcs, on every architecture, then I'd say that's "finishing work";
+> and we'd be safe knowing we could go back to slab in a hurry if
+> needed.  But it hasn't reached that stage yet, I think.
 
+Why would we need to go back to SLAB if we have not switched to SLUB? SLUB 
+is marked experimental and not the default.
 
-Jan
--- 
+The only problems that I am aware of is(or was) the issue with arches 
+modifying page struct fields of slab pages that SLUB needs for its own 
+operations. And I thought it was all fixed since the powerpc guys were 
+quiet and the patch was in for i386.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
