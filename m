@@ -1,79 +1,75 @@
-Message-ID: <46373A71.4030200@shadowen.org>
-Date: Tue, 01 May 2007 14:02:41 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Date: Tue, 1 May 2007 14:07:11 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: page migration: Only migrate pages if allocation in the highest
+ zone is possible
+In-Reply-To: <Pine.LNX.4.64.0704301210580.7691@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705011405440.12797@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0704292316040.3036@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704301228580.26531@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0704301210580.7691@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: 2.6.22 -mm merge plans -- lumpy reclaim
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501101651.GA29957@skynet.ie>
-In-Reply-To: <20070501101651.GA29957@skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@sgi.com, y-goto@jp.fujitsu.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-
-<snip>
-
->>  lumpy-reclaim-v4.patch
+On Mon, 30 Apr 2007, Christoph Lameter wrote:
 > 
-> And I guess this patch also moves here
+> page migration: Only migrate pages if allocation in the highest zone is possible
 > 
-> lumpy-move-to-using-pfn_valid_within.patch
+> Address spaces contain an allocation flag that specifies restriction on
+> the zone for pages placed in the mapping. I.e. some device may require pages
+> to be allocated from a DMA zone. Block devices may not be able to use pages
+> from HIGHMEM.
 > 
->> This is in a similar situation to the moveable-zone work.  Sounds great on
->> paper, but it needs considerable third-party testing and review.  It is a
->> major change to core MM and, we hope, a significant advance.  On paper.
+> Memory policies and the common use of page migration works only on the
+> highest zone. If the address space does not allow allocation from the
+> highest zone then the pages in the address space are not migratable simply
+> because we can only allocate memory for a specified node if we allow
+> allocation for the highest zone on each node.
 > 
-> Andy will probably comment more here. Like the fragmentation stuff, we have
-> beaten this heavily in tests.
+> Cc: Hugh Dickins <hugh@veritas.com>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-With this stack the basic functionality for Lumpy reclaim is complete.
-Better integration with kswapd is desirable, but IMO that should be a
-separate change.
+Thanks, Christoph:
+Acked-by: Hugh Dickins <hugh@veritas.com>
 
-In testing it has produced significant improvements the likelyhood of
-reclaiming a page (reclaim effectiveness) at very high orders (where the
-likelyhood of success is least), and effectiveness at lower orders
-should be better again.  In general -mm testing lumpy is triggered for
-any stalled allocation above order-0; it is common to see stack
-allocations triggering lumpy under higher load.  kswapd also now
-utilises lumpy when required.
-
-As Mel has indicated a lot of automated testing has been done on these
-patches.  As reclaim is only entered when low on memory, our testing
-focuses on triggering pushing the system to a heavily fragmented state
-where reclaim is used heavily.  This testing has not shown any
-regressions and shows improved effectiveness particularly under load.
-
-Effectiveness for regular reclaim is based on random distributions, as
-such it is only likely to successfully reclaim pages at lower orders.
-Lumpy reclaim improves on this by actively targeting reclaim on areas at
-the orders required and so succeeds at significantly higher order.  Very
-high order allocations require better layout, from the mobility patches.
-
-I have some primitive stats patches which we have used performance
-testing.  Perhaps those could be brought up to date to provide better
-visibility into lumpy's operation.  Again this would be a separate patch.
-
-> I'm not sure of it's review situation.
-
-As lumpy reclaim and grouping-by-mobility are complementary patch sets
-(in that they both assist at the highest order) we work pretty closely
-and I generally pass all my patches past Mel before general release.
-Early versions were based on patches from Peter Zijlstra who also
-reviewed earlier versions if memory serves.  The changes since then have
-been reviewed by Mel and Andrew Morton only to my knowledge.
-
-Perhaps Peter would have some time to take a look over the latest stack
-as it appears in -mm when that releases; ping me for a patch kit if you
-want it before then :).
-
-<snip>
-
--apw
+> 
+> ---
+>  include/linux/migrate.h |   11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> Index: linux-2.6.21-rc7-mm2/include/linux/migrate.h
+> ===================================================================
+> --- linux-2.6.21-rc7-mm2.orig/include/linux/migrate.h	2007-04-29 23:58:47.000000000 -0700
+> +++ linux-2.6.21-rc7-mm2/include/linux/migrate.h	2007-04-30 12:18:41.000000000 -0700
+> @@ -2,6 +2,8 @@
+>  #define _LINUX_MIGRATE_H
+>  
+>  #include <linux/mm.h>
+> +#include <linux/mempolicy.h>
+> +#include <linux/pagemap.h>
+>  
+>  typedef struct page *new_page_t(struct page *, unsigned long private, int **);
+>  
+> @@ -10,6 +12,15 @@ static inline int vma_migratable(struct 
+>  {
+>  	if (vma->vm_flags & (VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
+>  		return 0;
+> +	/*
+> +	 * Migration allocates pages in the highest zone. If we cannot
+> +	 * do so then migration (at least from node to node) is not
+> +	 * possible.
+> +	 */
+> +	if (vma->vm_file &&
+> +		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
+> +								< policy_zone)
+> +			return 0;
+>  	return 1;
+>  }
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
