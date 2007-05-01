@@ -1,114 +1,124 @@
-Date: Tue, 1 May 2007 18:06:20 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.22 -mm merge plans: mm-detach_vmas_to_be_unmapped-fix
-In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705011715070.1619@blonde.wat.veritas.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+Date: Tue, 1 May 2007 10:24:42 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: [PATCH] Make vm statistics update interval configurable
+Message-ID: <Pine.LNX.4.64.0705011022430.24428@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: akuster@mvista.com, Ken Chen <kenchen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Andrew Morton wrote:
-> ...
->  mm-detach_vmas_to_be_unmapped-fix.patch
-> ...
-> Misc MM things.  Will merge.
+Make it configurable. Code in mm makes the vm statistics intervals 
+independent from the cache reaper use that opportunity to make
+it configurable.
 
-No, I think that one is just drifting like flotsam towards mainline,
-because nobody at all has yet found time to look at it.  And Mr Akuster
-appears not to have signed off on it yet.  I've given it a quick look
-now, and it seems to be based on misdescription and misconception.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-> From: <akuster@mvista.com>
-> 
-> Wolfgang Wander submitted a fix to address a mmap fragmentation issue.  The
-> git patch ( 1363c3cd8603a913a27e2995dccbd70d5312d8e6 ) is somewhat different
-> and yields different results when running Wolfgang's test case leakme.c.
+---
+ Documentation/sysctl/vm.txt |   19 +++++++++++++++++++
+ include/linux/sysctl.h      |    1 +
+ kernel/sysctl.c             |   13 ++++++++++++-
+ mm/vmstat.c                 |    4 +++-
+ 4 files changed, 35 insertions(+), 2 deletions(-)
 
-Ken did a lot of the work on that I believe: I certainly wouldn't
-want to see this patch go in without his Ack.  (I've never done
-any work on unmapped area heuristics, but detach_vmas_to_be_unmapped
-always catches my eye.)
-
-> 
-> IMHO, the vm start and end address are swapped in arch_unmap_area and
-> arch_unmap_area_topdown functions.
-
-I disagree.
-
-> 
-> Prior to this patch arch_unmap_area() used area->vm_start and
-> arch_unmap_area_topdown used area->vm_end
-
-Yes (where area is the vma being unmapped).
-
-> in the git patch the following change showed up.
-> 
-> if (mm->unmap_area == arch_unmap_area)
->      addr = prev ? prev->vm_start : mm->mmap_base;
-> else
->      addr = vma ?  vma->vm_end : mm->mmap_base;
-
-No, that's not what showed up in the git patch: that's what the
-patch below is trying to change it to.  The git patch said
-	addr = prev ? prev->vm_end : mm->mmap_base
-for the bottomup case i.e. setting the unmapped area to the
-end of the vma below; and
-	addr = vma ? vma->vm_start: mm->mmap_base;
-for the topdown case i.e. setting the unmapped area to the
-beginning of the vma above.
-
-That seems to me consistent with what was done before, but pushing
-the bounds out across any hole, for presumably better behaviour.
-
-> 
-> Using Wolfgang Wander's leakme.c test, I get the same results seen with his
-> original "Avoiding mmap fragmentation" patch as I do after swapping the start
-> & end address in the above code segment.  The patch I submitted addresses this
-> typo issue.
-
-I'm pretty sure it is not a typo.  I did a very hasty test with two
-aLLocator .c progs Wolfgang posted (one unnamed, one named leakme4.c),
-on x86_64, and got apparently the same successful result with and
-without the patch below.  In my case, it's probably just slightly
-slowing down the algorithm, by demanding an additional find_vma()
-because it mispositions mm->free_area_cache to an occupied area.
-I don't see how it could ever be an improvement, but I've not
-spent long enough checking out that code.
-
-I bet there's improvements that could be made there, but
-this patch looks wrong - please don't rush it into 2.6.22
-(personally I'd say drop it, but I'd rather Ken takes a look).
-
-Hugh
-
-> 
-> 
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/mmap.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/mmap.c~mm-detach_vmas_to_be_unmapped-fix mm/mmap.c
-> --- a/mm/mmap.c~mm-detach_vmas_to_be_unmapped-fix
-> +++ a/mm/mmap.c
-> @@ -1723,9 +1723,9 @@ detach_vmas_to_be_unmapped(struct mm_str
->  	*insertion_point = vma;
->  	tail_vma->vm_next = NULL;
->  	if (mm->unmap_area == arch_unmap_area)
-> -		addr = prev ? prev->vm_end : mm->mmap_base;
-> +		addr = prev ? prev->vm_start : mm->mmap_base;
->  	else
-> -		addr = vma ?  vma->vm_start : mm->mmap_base;
-> +		addr = vma ?  vma->vm_end : mm->mmap_base;
->  	mm->unmap_area(mm, addr);
->  	mm->mmap_cache = NULL;		/* Kill the cache. */
->  }
+Index: slub/Documentation/sysctl/vm.txt
+===================================================================
+--- slub.orig/Documentation/sysctl/vm.txt	2007-04-30 20:20:19.000000000 -0700
++++ slub/Documentation/sysctl/vm.txt	2007-04-30 20:56:18.000000000 -0700
+@@ -34,6 +34,7 @@ Currently, these files are in /proc/sys/
+ - swap_prefetch
+ - readahead_ratio
+ - readahead_hit_rate
++- stat_interval
+ 
+ ==============================================================
+ 
+@@ -275,3 +276,21 @@ Possible values can be:
+ The larger value, the more capabilities, with more possible overheads.
+ 
+ The default value is 1.
++
++================================================================
++
++stat_interval
++
++The period (seconds) in which the vm statistics are consolidated if the
++kernel supports SMP. Differentials to VM statistics are kept in per cpu
++fields and are only consolidated with per zone and global counters if the
++differentials cross certain limits. This limits the frequency of global
++updates and results in good scaling of the VM counters. However, if those
++counters are below the limits then the global and per zone counters are
++off by that value.  So we should consolidate the counters at some point.
++So the kernel runs a statistics update at regular intervals to consolidate
++the per cpu differentials that are below the update limits. The interval
++determines the frequency of these consolidations.
++
++The default value is 1 second.
++
+Index: slub/include/linux/sysctl.h
+===================================================================
+--- slub.orig/include/linux/sysctl.h	2007-04-30 20:03:21.000000000 -0700
++++ slub/include/linux/sysctl.h	2007-04-30 20:31:13.000000000 -0700
+@@ -208,6 +208,7 @@ enum
+ 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
+ 	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
+ 	VM_HUGETLB_TREAT_MOVABLE=36, /* Allocate hugepages from ZONE_MOVABLE */
++	VM_STAT_INTERVAL=37,	/* Statistics timer */
+ 
+ 	/* s390 vm cmm sysctls */
+ 	VM_CMM_PAGES=1111,
+Index: slub/kernel/sysctl.c
+===================================================================
+--- slub.orig/kernel/sysctl.c	2007-04-30 20:04:55.000000000 -0700
++++ slub/kernel/sysctl.c	2007-04-30 20:50:03.000000000 -0700
+@@ -80,7 +80,7 @@ extern int sysctl_drop_caches;
+ extern int percpu_pagelist_fraction;
+ extern int compat_log;
+ extern int maps_protect;
+-
++extern int sysctl_stat_interval;
+ #if defined(CONFIG_ADAPTIVE_READAHEAD)
+ extern int readahead_ratio;
+ extern int readahead_hit_rate;
+@@ -894,6 +894,17 @@ static ctl_table vm_table[] = {
+ 		.extra2		= &one_hundred,
+ 	},
+ #endif
++#ifdef CONFIG_SMP
++	{
++		.ctl_name	= VM_STAT_INTERVAL,
++		.procname	= "stat_interval",
++		.data		= &sysctl_stat_interval,
++		.maxlen		= sizeof(sysctl_stat_interval),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec_jiffies,
++		.strategy	= &sysctl_jiffies,
++	},
++#endif
+ #if defined(CONFIG_X86_32) || \
+    (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
+ 	{
+Index: slub/mm/vmstat.c
+===================================================================
+--- slub.orig/mm/vmstat.c	2007-04-30 20:16:18.000000000 -0700
++++ slub/mm/vmstat.c	2007-04-30 20:51:06.000000000 -0700
+@@ -685,11 +685,13 @@ const struct seq_operations vmstat_op = 
+ 
+ #ifdef CONFIG_SMP
+ static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
++int sysctl_stat_interval __read_mostly = HZ;
+ 
+ static void vmstat_update(struct work_struct *w)
+ {
+ 	refresh_cpu_vm_stats(smp_processor_id());
+-	schedule_delayed_work(&__get_cpu_var(vmstat_work), HZ);
++	schedule_delayed_work(&__get_cpu_var(vmstat_work),
++		sysctl_stat_interval);
+ }
+ 
+ static void __devinit start_cpu_timer(int cpu)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
