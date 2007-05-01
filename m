@@ -1,32 +1,65 @@
-Date: Tue, 1 May 2007 11:15:02 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: nfsd/md patches Re: 2.6.22 -mm merge plans
-Message-ID: <20070501101502.GA27868@infradead.org>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <17974.34116.479061.912980@notabene.brown> <20070501090843.GB17949@infradead.org> <17975.3531.838077.563475@notabene.brown>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <17975.3531.838077.563475@notabene.brown>
+Date: Tue, 1 May 2007 12:12:36 +0200 (MEST)
+From: Jan Engelhardt <jengelh@linux01.gwdg.de>
+Subject: Re: pcmcia ioctl removal
+In-Reply-To: <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>
+Message-ID: <Pine.LNX.4.61.0705011202510.18504@yvahk01.tjqt.qr>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+ <20070501084623.GB14364@infradead.org> <Pine.LNX.4.64.0705010514300.9162@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Robert P. J. Day" <rpjday@mindspring.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 01, 2007 at 07:52:11PM +1000, Neil Brown wrote:
-> On Tuesday May 1, hch@infradead.org wrote:
-> > apropos nfsd patches, what's the merge plans for my two export ops
-> > patch series?
-> 
-> Still sitting in my tree - I've had my mind on other things
-> (nfs-utils, portmap....) and let them slip - sorry.
-> 
-> I think also there was an unanswered question about the second series
-> (there first I am completely happy with).
+On May 1 2007 05:16, Robert P. J. Day wrote:
+>
+>on the other hand, the features removal file contains the following:
+>
+>...
+>What:   PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
+>When:   November 2005
+>...
+>
+>in other words, the PCMCIA ioctl feature *has* been listed as obsolete
+>for quite some time, and is already a *year and a half* overdue for
+>removal.
+>
+>in short, it's annoying to take the position that stuff can't be
+>deleted without warning, then turn around and be reluctant to remove
+>stuff for which *more than ample warning* has already been given.
+>doing that just makes a joke of the features removal file, and makes
+>you wonder what its purpose is in the first place.
+>
+>a little consistency would be nice here, don't you think?
 
-A sorry, this mail got somewhere lost.  I'll reply on the nfs list
-because we have a little more context there. (and due to the subscribers
-only policy I can't crosspost unfortunately)
+I think this could raise their attention...
+
+init/Makefile
+obj-y += obsolete.o
+
+init/obsolete.c:
+static __init int obsolete_init(void)
+{
+	printk("\e[1;31m""
+
+The following stuff is gonna get removed \e[5;37m SOON: \e[0m
+	- cardmgr
+	- foobar
+	- bweebol
+
+");
+	schedule_timeout(3 * HZ);
+	return;
+}
+
+static __exit void obsolete_exit(void) {}
+
+
+
+Jan
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
