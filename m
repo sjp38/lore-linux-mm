@@ -1,58 +1,109 @@
-Date: Tue, 1 May 2007 15:31:02 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.22 -mm merge plans: mm-more-rmap-checking
-In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705011458060.16979@blonde.wat.veritas.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+Date: Tue, 1 May 2007 16:46:51 +0200
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: pcmcia ioctl removal
+Message-ID: <20070501144650.GB3531@stusta.de>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501084623.GB14364@infradead.org> <20070501085710.GA13488@1wt.eu> <20070501020820.05f0c037.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20070501020820.05f0c037.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Willy Tarreau <w@1wt.eu>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pcmcia@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Andrew Morton wrote:
->... 
->  mm-more-rmap-checking.patch
->...
+On Tue, May 01, 2007 at 02:08:20AM -0700, Andrew Morton wrote:
+> On Tue, 1 May 2007 10:57:10 +0200 Willy Tarreau <w@1wt.eu> wrote:
 > 
-> Misc MM things.  Will merge.
+> > Hi Christoph,
+> > 
+> > On Tue, May 01, 2007 at 09:46:23AM +0100, Christoph Hellwig wrote:
+> > > >  pcmcia-delete-obsolete-pcmcia_ioctl-feature.patch
+> > > 
+> > > ...
+> > > 
+> > > > Dominik is busy.  Will probably re-review and send these direct to Linus.
+> > > 
+> > > The patch above is the removal of cardmgr support.  While I'd love to
+> > > see this cruft gone it definitively needs maintainer judgement on whether
+> > > they time has come that no one relies on cardmgr anymore.
+> > 
+> > Well, I've not followed evolutions in this area for a long time. Here's
+> > what I get on my notebook :
+> > 
+> > willy@wtap:~$ uname -r
+> > 2.6.20-wt3-wtap
+> > willy@wtap:~$ ps auxw|grep card   
+> > root      1216  0.0  0.0     0    0 ?        S<   Apr28   0:00 [pccardd]
+> > root      1221  0.0  0.0     0    0 ?        S<   Apr28   0:00 [pccardd]
+> > root      1244  0.0  0.0     0    0 ?        S<   Apr28   0:00 [pccardd]
+> > root      1251  0.0  0.0     0    0 ?        Ss   Apr28   0:00 /sbin/cardmgr
+> > 
+> 
+> Yes, that seems premature.  feature-removal.txt is pretty useless for
+> getting poeple off old tools.  If we're ever to make this migration we'll
+> need loud and scary printks coming out of the kernel.  Probably it'll take
+> another year or two to get there *once* we've done that.
 
-Would Nick mind very much if I ask you to drop this one?
-You did CC me ages ago, but I've only just run across it.
-It's a small matter, but I'd prefer it dropped for now.
 
->> Re-introduce rmap verification patches that Hugh removed when he removed
->> PG_map_lock. PG_map_lock actually isn't needed to synchronise access to
->> anonymous pages, because PG_locked and PTL together already do.
->> 
->> These checks were important in discovering and fixing a rare rmap corruption
->> in SLES9.
+You already said the same two years ago, and you forwarded a patch 
+implementing exactly this nearly two years ago:
 
-It introduces some silly checks which were never in mainline,
-nor so far as I can tell in SLES9: I'm thinking of those
-+	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-There are few callsites for these rmap functions, I don't think
-they need to be checking their arguments in that way.
 
-It also changes the inline page_dup_rmap (a single atomic increment)
-into a bugchecking out-of-line function: do we really want to slow
-down fork in that way, for 2.6.22 to fix a rare corruption in SLES9?
+commit c352ec8ab87b065cd2edda171811f49ac7d0d5cd
+Author: Dominik Brodowski <linux@dominikbrodowski.net>
+Date:   Tue Sep 13 01:25:03 2005 -0700
 
-What I really like about the patch is Nick's observation that my
-	/* else checking page index and mapping is racy */
-is no longer true: a change we made to the do_swap_page sequence
-some while ago has indeed cured that raciness, and I'm happy to
-reintroduce the check on mapping and index in page_add_anon_rmap,
-and his BUG_ON(!PageLocked(page)) there (despite BUG_ONs falling
-out of fashion very recently).
+    [PATCH] pcmcia: warn on IOCTL usage
+    
+    More visible user information of scheduled feature removal.
+    
+    Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
+    Signed-off-by: Andrew Morton <akpm@osdl.org>
+    Signed-off-by: Linus Torvalds <torvalds@osdl.org>
 
-That becomes more important when I send the patches to free up
-PG_swapcache, using a PAGE_MAPPING_SWAP bit instead: so I was
-planning to include that part of Nick's patch in that series.
+diff --git a/drivers/pcmcia/pcmcia_ioctl.c b/drivers/pcmcia/pcmcia_ioctl.c
+index 39ba640..80969f7 100644
+--- a/drivers/pcmcia/pcmcia_ioctl.c
++++ b/drivers/pcmcia/pcmcia_ioctl.c
+@@ -376,6 +376,7 @@ static int ds_open(struct inode *inode, struct file *file)
+     socket_t i = iminor(inode);
+     struct pcmcia_socket *s;
+     user_info_t *user;
++    static int warning_printed = 0;
+ 
+     ds_dbg(0, "ds_open(socket %d)\n", i);
+ 
+@@ -407,6 +408,17 @@ static int ds_open(struct inode *inode, struct file *file)
+     s->user = user;
+     file->private_data = user;
+ 
++    if (!warning_printed) {
++	    printk(KERN_INFO "pcmcia: Detected deprecated PCMCIA ioctl "
++			"usage.\n");
++	    printk(KERN_INFO "pcmcia: This interface will soon be removed from "
++			"the kernel; please expect breakage unless you upgrade "
++			"to new tools.\n");
++	    printk(KERN_INFO "pcmcia: see http://www.kernel.org/pub/linux/"
++			"utils/kernel/pcmcia/pcmcia.html for details.\n");
++	    warning_printed = 1;
++    }
++
+     if (s->pcmcia_state.present)
+ 	queue_event(user, CS_EVENT_CARD_INSERTION);
+     return 0;
 
-Hugh
+
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
