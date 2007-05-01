@@ -1,64 +1,35 @@
-Date: Tue, 1 May 2007 19:10:29 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <20070430162007.ad46e153.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
+Date: Tue, 1 May 2007 11:57:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: fragmentation avoidance Re: 2.6.22 -mm merge plans
+Message-Id: <20070501115757.bed2c834.akpm@linux-foundation.org>
+In-Reply-To: <20070501101651.GA29957@skynet.ie>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<20070501101651.GA29957@skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, clameter@sgi.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Andrew Morton wrote:
+On Tue, 1 May 2007 11:16:51 +0100 mel@skynet.ie (Mel Gorman) wrote:
+
 > 
->  i386-use-page-allocator-to-allocate-thread_info-structure.patch
->  slub-core.patch
-> 
-> slub.  Or part thereof.  This is another patch series which got messed up by
-> poor patch sequencing.
-> 
->  make-page-private-usable-in-compound-pages-v1.patch
->  optimize-compound_head-by-avoiding-a-shared-page.patch
->  add-virt_to_head_page-and-consolidate-code-in-slab-and-slub.patch
->  slub-fix-object-tracking.patch
->  slub-enable-tracking-of-full-slabs.patch
->  slub-validation-of-slabs-metadata-and-guard-zones.patch
->  slub-add-min_partial.patch
->  slub-add-ability-to-list-alloc--free-callers-per-slab.patch
->  slub-free-slabs-and-sort-partial-slab-lists-in-kmem_cache_shrink.patch
->  slub-remove-object-activities-out-of-checking-functions.patch
->  slub-user-documentation.patch
->  slub-add-slabinfo-tool.patch
-> 
-> Most of the rest of slub.  Will merge it all.
 
-Merging slub already?  I'm surprised.  That's a very key piece of
-infrastructure, and I doubt it's had the exposure it needs yet.
+OK, I did all the reorganisation which you recommended.
 
-Just what has it been widely tested on so far?  x86_64.  Not many
-of us have ia64, but I guess SGI people will have been trying it
-on that.  Not i386, that's excluded.
+> Ok. It is getting reviewed by Christoph and I'm going through the TODO items
+> it yielded. Andy has also been regularly reviewing them which is probably
+> why they have had less public errors than you might expect from something
+> like this.
 
-Not powerpc - hmm, I thought that was known, but looking I see no
-ARCH_USES_SLAB_PAGE_STRUCT there: just built and tried to run it up,
-crashes in slab_free from pgtable_free_tlb frpm free_pte_range from
-free_pgd_range from free_pgtables from unmap_region form do_munmap.
-That's 2.6.21-rc7-mm2.
+Great.  I'm a bit behind on my linux-mm reading.
 
-slob has a justified place at the low end, but do we want some
-people running with slab and some with slub?  I'd expected slub
-to stay in 2.6.22-mm, and have all the architectures cut over to
-it in that time, before advancing to mainline.
+> Christoph may like to comment more here.
 
-I've nothing against slub in itself, though I'm wary of its
-cache merging (more scope for one corrupting another) (and
-sometimes I think Christoph spent one life uglifying slab for
-NUMA, then another life ripping that all out to make slub ;)
-
-Hugh
+That would be helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
