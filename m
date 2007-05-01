@@ -1,75 +1,46 @@
-Date: Tue, 1 May 2007 14:07:11 +0100 (BST)
+Date: Tue, 1 May 2007 14:31:49 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: page migration: Only migrate pages if allocation in the highest
- zone is possible
-In-Reply-To: <Pine.LNX.4.64.0704301210580.7691@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705011405440.12797@blonde.wat.veritas.com>
-References: <Pine.LNX.4.64.0704292316040.3036@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0704301228580.26531@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0704301210580.7691@schroedinger.engr.sgi.com>
+Subject: Re: Antifrag patchset comments
+In-Reply-To: <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705011416220.12797@blonde.wat.veritas.com>
+References: <Pine.LNX.4.64.0704271854480.6208@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704281229040.20054@skynet.skynet.ie>
+ <Pine.LNX.4.64.0704281425550.12304@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0704301016180.32439@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Apr 2007, Christoph Lameter wrote:
+On Mon, 30 Apr 2007, Mel Gorman wrote:
+> On Sat, 28 Apr 2007, Christoph Lameter wrote:
 > 
-> page migration: Only migrate pages if allocation in the highest zone is possible
+> > > > 11. shmem_alloc_page() shmem pages are only __GFP_RECLAIMABLE?
+> > > > They can be swapped out and moved by page migration, so GFP_MOVABLE?
+> > >
+> > > Because they might be ramfs pages which are not movable -
+> > > http://lkml.org/lkml/2006/11/24/150
+> >
+> > URL does not provide any useful information regarding the issue.
 > 
-> Address spaces contain an allocation flag that specifies restriction on
-> the zone for pages placed in the mapping. I.e. some device may require pages
-> to be allocated from a DMA zone. Block devices may not be able to use pages
-> from HIGHMEM.
-> 
-> Memory policies and the common use of page migration works only on the
-> highest zone. If the address space does not allow allocation from the
-> highest zone then the pages in the address space are not migratable simply
-> because we can only allocate memory for a specified node if we allow
-> allocation for the highest zone on each node.
-> 
-> Cc: Hugh Dickins <hugh@veritas.com>
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> Not all pages allocated via shmem_alloc_page() are movable because they may
+> pages for ramfs.
 
-Thanks, Christoph:
-Acked-by: Hugh Dickins <hugh@veritas.com>
+We seem to have a miscommunication here.
 
-> 
-> ---
->  include/linux/migrate.h |   11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> Index: linux-2.6.21-rc7-mm2/include/linux/migrate.h
-> ===================================================================
-> --- linux-2.6.21-rc7-mm2.orig/include/linux/migrate.h	2007-04-29 23:58:47.000000000 -0700
-> +++ linux-2.6.21-rc7-mm2/include/linux/migrate.h	2007-04-30 12:18:41.000000000 -0700
-> @@ -2,6 +2,8 @@
->  #define _LINUX_MIGRATE_H
->  
->  #include <linux/mm.h>
-> +#include <linux/mempolicy.h>
-> +#include <linux/pagemap.h>
->  
->  typedef struct page *new_page_t(struct page *, unsigned long private, int **);
->  
-> @@ -10,6 +12,15 @@ static inline int vma_migratable(struct 
->  {
->  	if (vma->vm_flags & (VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
->  		return 0;
-> +	/*
-> +	 * Migration allocates pages in the highest zone. If we cannot
-> +	 * do so then migration (at least from node to node) is not
-> +	 * possible.
-> +	 */
-> +	if (vma->vm_file &&
-> +		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
-> +								< policy_zone)
-> +			return 0;
->  	return 1;
->  }
->  
+shmem_alloc_page() is static to mm/shmem.c, is used for all shm/tmpfs
+data pages (unless CONFIG_TINY_SHMEM), and all those data pages may be
+swapped out (while not locked in use).
+
+ramfs pages cannot be swapped out; but shmem_alloc_page() is not used
+to allocate them.  CONFIG_TINY_SHMEM uses mm/tiny-shmem.c instead of
+mm/shmem.c, redirecting all shm/tmpfs requests to the simpler but
+unswappable ramfs.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
