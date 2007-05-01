@@ -1,39 +1,128 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
-References: <20070430145414.88fda272.akpm@linux-foundation.org>
-	 <20070430.150407.07642146.davem@davemloft.net>
-	 <1177977619.24962.6.camel@localhost.localdomain>
-	 <20070430.173806.112621225.davem@davemloft.net>
-	 <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
-	 <1177985136.24962.8.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
-Content-Type: text/plain
-Date: Wed, 02 May 2007 07:31:50 +1000
-Message-Id: <1178055110.13263.2.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Wed, 02 May 2007 02:53:05 +0300
+From: "Magic-Jackpot Casino" <morass@walla.com>
+Message-ID: <89401904.90104528@ordinance.com>
+Subject: Bis 1000 Euro frei!
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+Return-Path: <morass@walla.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I have attached a patch (so pine does not mangle it) for linux-2.6.20.9.
-> Is this what you had in mind?
-> 
-> For linux-2.6.21, more work will be needed as it has more code calling 
-> ptep_set_access_flags.
+<html>
 
-I'm not 100% sure we need the 'update' argument... we can remove the
-whole old_entry, pte_same, etc... and just have pte_set_access_flags()
-read the old PTE and decide wether something needs to be changed or not.
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Ben.
+<title>Sind Sie auf der Suche nach einem neuen, 
+aufregenden Spielangebot </title>
 
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</head>
+
+<body lang=EN-US link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Sind Sie auf der Suche nach einem neuen, aufregenden Spielangebot? 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Magic Jackpot ist momentan die warscheinlich aufregendste 
+Moglichkeit dazu ! </span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn BlackJack oder Roulette zu Ihren Lieblingsspielen gehoren, 
+bieten Magic Jackpot's Live-Dealer das Gefuhl eines echten Casinos. 
+</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Wenn Slot-Machinen zu Ihren Favoriten gehoren, konnen Sie den 
+hochsten Preis aller Zeiten beim Video-Slot Millionaire's Lane 
+gewinnen, insgesamt $5 000 000 !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Fur den Anfing bietet Magic Jackpots einen magischen Bonus 
+als Willkommensgeschenk !</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie Heute noch bei Magic Jackpot ein und Ihr Kontostand 
+wird umgehend mit einem 100% Bonus verdoppelt.
+</span></p>
+
+<p class=MsoNormal><span style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 20$ ein, spielen Sie mit 40$</span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 250$ ein, spielen Sie mit 500$</span><o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Der Live-Kundendienst steht bei eventuellen Ruckfragen oder 
+sonstigen Anliegen, 24 Stunden am Tag zur Verfugung, was den 
+Genuess schneller Auszahlungen garantiert !</span>
+<o:p></o:p></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<u3:p>&nbsp;</u3:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.magicdaycasino.com/lang-de/">
+http://www.magicdaycasino.com/lang-de/</a>
+<u3:p></u3:p></span></p>
+
+</div>
+
+</body>
+
+</html>
