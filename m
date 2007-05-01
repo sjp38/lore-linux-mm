@@ -1,65 +1,121 @@
-Date: Tue, 1 May 2007 12:25:54 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0705011215180.25494@schroedinger.engr.sgi.com>
+Date: Tue, 1 May 2007 20:31:41 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+In-Reply-To: <4636FDD7.9080401@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
+ <4636FDD7.9080401@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 May 2007, Hugh Dickins wrote:
-
-> > Most of the rest of slub.  Will merge it all.
+On Tue, 1 May 2007, Nick Piggin wrote:
+> Andrew Morton wrote:
 > 
-> Merging slub already?  I'm surprised.  That's a very key piece of
-> infrastructure, and I doubt it's had the exposure it needs yet.
+> >  mm-simplify-filemap_nopage.patch
+> >  mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
+> >  mm-merge-populate-and-nopage-into-fault-fixes-nonlinear.patch
+> >  mm-merge-nopfn-into-fault.patch
+> >  convert-hugetlbfs-to-use-vm_ops-fault.patch
+> >  mm-remove-legacy-cruft.patch
+> >  mm-debug-check-for-the-fault-vs-invalidate-race.patch
+> 
+> > mm-fix-clear_page_dirty_for_io-vs-fault-race.patch
+> 
+> > Miscish MM changes.  Will merge, dependent upon what still applies and works
+> > if the moveable-zone patches get stalled.
+> 
+> These fix some bugs in the core vm, at least the former one we have
+> seen numerous people hitting in production...
+...
+> 
+> So, do you or anyone else have any problems with these patches going in
+> 2.6.22? I haven't had much feedback for a while, but I was under the
+> impression that people are more-or-less happy with them?
+> 
+> mm-fix-fault-vs-invalidate-race-for-linear-mappings.patch
+> 
+> This patch fixes the core filemap_nopage vs invalidate_inode_pages2
+> race by having filemap_nopage return a locked page to do_no_page,
+> and removes the fairly complex (and inadequate) truncate_count
+> synchronisation logic.
+> 
+> There were concerns that we could do this more cheaply, but I think it
+> is important to start with a base that is simple and more likely to
+> be correct and build on that. My testing didn't show any obvious
+> problems with performance.
 
-Its not the default. Its just an alternative like SLOB. It will take some 
-time to test with various loads in order to see if it can really replace
-SLAB in all scenarios.
- 
-> Just what has it been widely tested on so far?  x86_64.  Not many
-> of us have ia64, but I guess SGI people will have been trying it
-> on that.  Not i386, that's excluded.
+I don't see _problems_ with performance, but I do consistently see the
+same kind of ~5% degradation in lmbench fork, exec, sh, mmap latency
+and page fault tests on SMP, several machines, just as I did last year.
 
-There is an i386 patch pending and I have used it on i386 for a while.
- 
-> Not powerpc - hmm, I thought that was known, but looking I see no
-> ARCH_USES_SLAB_PAGE_STRUCT there: just built and tried to run it up,
-> crashes in slab_free from pgtable_free_tlb frpm free_pte_range from
-> free_pgd_range from free_pgtables from unmap_region form do_munmap.
-> That's 2.6.21-rc7-mm2.
+I'm assuming this patch is the one responsible: at 2.6.20-rc4 time
+you posted a set of 10 and a set of 7 patches I tried in versus out;
+at 2.6.21-rc3-mm2 time you had a group of patches in -mm I tried in
+versus out; with similar results.
 
-Hmmm... True I have not spend any time with that platform. We can set 
-ARCH_USES_SLAB_PAGE_STRUCT there to switch it off. SLUB is the default for 
-mm so I am a bit surprised that this did not surface earlier.
+I did check the graphs on test.kernel.org, I couldn't see any bad
+behaviour there that correlated with this work; though each -mm
+has such a variety of new work in it, it's very hard to attribute.
+And nobody else has reported any regression from your patches.
 
-> I've nothing against slub in itself, though I'm wary of its
-> cache merging (more scope for one corrupting another) (and
+I'm inclined to write it off as poorer performance in some micro-
+benchmarks, against which we offset the improved understandabilty
+of holding the page lock over the file fault.
 
-Yes but then SLUB has more diagnostics etc etc than SLAB to prevent any 
-issues. In debug mode all slabs are separate. The merge feature is very 
-stable these days and significantly reduces cache overhead problems 
-that plague SLAB and require it to have a complex object expiration 
-technique. As a result I was able to rip out all timers. SLUB has no cache 
-reaper nor any timer. Its silent if not in use.
+But I was quite disappointed when 
+mm-fix-fault-vs-invalidate-race-for-linear-mappings-fix.patch
+appeared, putting double unmap_mapping_range calls in.  Certainly
+you were wrong to take the one out, but a pity to end up with two.
 
-> sometimes I think Christoph spent one life uglifying slab for
-> NUMA, then another life ripping that all out to make slub ;)
+Your comment says/said:
+The nopage vs invalidate race fix patch did not take care of truncating
+private COW pages. Mind you, I'm pretty sure this was previously racy
+even for regular truncate, not to mention vmtruncate_range.
 
-SLAB has a certain paradigm of doing things (queues) and I had to work 
-within that framework. It was a group effort. SLUB is an answer to those 
-complaints and a result of the lessons learned through years of some 
-painful slab debugging. SLUB makes debugging extremely easy (and also the 
-design is very simple and comprehensible). No rebuilding of the kernel. 
-Just pop in a debug option on the command line which can even be targeted 
-to a slab cache if we know that things break there.
+vmtruncate_range (holepunch) was deficient I agree, and though we
+can now take out your second unmap_mapping_range there, that's only
+because I've slipped one into shmem_truncate_range.  In due course it
+needs to be properly handled by noting the range in shmem inode info.
+
+(I think you couldn't take that approach, noting invalid range in
+->mapping while invalidating, because NFS has/had some cases of
+invalidate_whatever without i_mutex?)
+
+But I'm pretty sure (to use your words!) regular truncate was not racy
+before: I believe Andrea's sequence count was handling that case fine,
+without a second unmap_mapping_range.
+
+Well, I guess I've come to accept that, expensive as unmap_mapping_range
+may be, truncating files while they're mmap'ed is perverse behaviour:
+perhaps even deserving such punishment.
+
+But it is a shame, and leaves me wondering what you gained with the
+page lock there.
+
+One thing gained is ease of understanding, and if your later patches
+build an edifice upon the knowledge of holding that page lock while
+faulting, I've no wish to undermine that foundation.
+
+> 
+> mm-merge-populate-and-nopage-into-fault-fixes-nonlinear.patch
+> mm-merge-nopfn-into-fault.patch
+> etc.
+> 
+> These move ->nopage, ->populate, ->nopfn (and soon, ->page_mkwrite)
+> into a single, unified interface. Although this strictly closes some
+> similar holes in nonlinear faults as well, they are very uncommon, so
+> I wouldn't be so upset if these aren't merged in 2.6.22 (I don't see
+> any reason not to, but at least they don't fix major bugs).
+
+I don't have an opinion on these, but I think BenH and others
+were strongly in favour, with various people waiting upon them.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
