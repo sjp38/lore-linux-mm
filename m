@@ -1,53 +1,53 @@
-Date: Wed, 2 May 2007 13:54:53 +0100 (BST)
+Date: Wed, 2 May 2007 14:17:45 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <20070501133618.93793687.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705021346170.16517@blonde.wat.veritas.com>
+Subject: Re: 2.6.22 -mm merge plans: mm-more-rmap-checking
+In-Reply-To: <4637EC95.2010501@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0705021355390.16517@blonde.wat.veritas.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
- <20070501125559.9ab42896.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <20070501133618.93793687.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705011458060.16979@blonde.wat.veritas.com>
+ <4637EC95.2010501@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 May 2007, Andrew Morton wrote:
+On Wed, 2 May 2007, Nick Piggin wrote:
 > 
-> Given the current state and the current rate of development I'd expect slub
-> to have reached the level of completion which you're describing around -rc2
-> or -rc3.  I think we'd be pretty safe making that assumption.
+> Yes, but IIRC I put that in because there was another check in
+> SLES9 that I actually couldn't put in, but used this one instead
+> because it also caught the bug we saw.
+>... 
+> This was actually a rare corruption that is also in 2.6.21, and
+> as few rmap callsites as we have, it was never noticed until the
+> SLES9 bug check was triggered.
 
-Its developer does show signs of being active!
+You are being very mysterious.  Please describe this bug (privately
+if you think it's exploitable), and let's work on the patch to fix it,
+rather than this "debug" patch.
 
-> 
-> This is a bit unusual but there is of course some self-interest here: the
-> patch dependencies are getting awful and having this hanging around
-> out-of-tree will make 2.6.23 development harder for everyone.
+> Hmm, I didn't notice the do_swap_page change, rather just derived
+> its safety by looking at the current state of the code (which I
+> guess must have been post-do_swap_page change)...
 
-That is a very strong argument: a somewhat worrisome argument,
-but a very strong one.  Maintaining your sanity is important.
+Your addition of page_add_new_anon_rmap clarified the situation too.
 
-> 
-> So on balance, given that we _do_ expect slub to have a future, I'm
-> inclined to crash ahead with it.  The worst that can happen will be a later
-> rm mm/slub.c which would be pretty simple to do.
+> Do you have a pointer to the patch, for my interest?
 
-Okay.  And there's been no chorus to echo my concern.
+The patch which changed do_swap_page?
 
-But if Linus' tree is to be better than a warehouse to avoid
-awkward merges, I still think we want it to default to on for
-all the architectures, and for most if not all -rcs.
+commit c475a8ab625d567eacf5e30ec35d6d8704558062
+Author: Hugh Dickins <hugh@veritas.com>
+Date:   Tue Jun 21 17:15:12 2005 -0700
+[PATCH] can_share_swap_page: use page_mapcount
 
-> 
-> otoh I could do some frantic patch mangling and make it easier to carry
-> slub out-of-tree, but do we gain much from that?
-
-No, keep away from that.
+Or my intended PG_swapcache to PAGE_MAPPING_SWAP patch,
+which does assume PageLocked in page_add_anon_rmap?
+Yes, I can send you its current unsplit state if you like
+(but have higher priorities before splitting and commenting
+it for posting).
 
 Hugh
 
