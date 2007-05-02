@@ -1,8 +1,8 @@
-Date: Wed, 2 May 2007 00:28:36 -0700
+Date: Wed, 2 May 2007 00:43:05 -0700
 From: Greg KH <gregkh@suse.de>
 Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
 	(-1)
-Message-ID: <20070502072836.GA7513@suse.de>
+Message-ID: <20070502074305.GA7761@suse.de>
 References: <20070425225716.8e9b28ca.akpm@linux-foundation.org> <46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org> <4636248E.7030309@imap.cc> <20070430112130.b64321d3.akpm@linux-foundation.org> <46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org> <46383742.9050503@imap.cc> <20070502001000.8460fb31.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -40,14 +40,14 @@ On Wed, May 02, 2007 at 12:10:00AM -0700, Andrew Morton wrote:
 > 
 > That won't work too well with 4k stacks.
 
-Oh crap.  Yeah, that's not nice.
+Wait, even though this isn't good, it shouldn't have been hit by anyone,
+that file used to not be readable, so I doubt userspace would have been
+trying to read it...
 
-> Who's reviewing this stuff?  The patch headers indicate that no mailing list was
-> cc'ed?
+Tilman, what version of HAL and udev do you have on your machine?
 
-Kay and I did this, sorry, it should have been cc:ed to lkml.
-
-I'll go fix it up now...
+Kay, did you get the 'read the uevent file' code already into udev
+and/or HAL?
 
 thanks,
 
