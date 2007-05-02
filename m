@@ -1,60 +1,35 @@
-Date: Wed, 2 May 2007 12:42:54 -0700 (PDT)
+Date: Wed, 2 May 2007 12:43:29 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <20070502121105.de3433d5.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705021234470.1543@schroedinger.engr.sgi.com>
+In-Reply-To: <84144f020705021218v7ab2461ala215bbb034475e07@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0705021243060.1543@schroedinger.engr.sgi.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
  <20070501125559.9ab42896.akpm@linux-foundation.org>
  <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <20070501133618.93793687.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705021346170.16517@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705021002040.32271@schroedinger.engr.sgi.com>
- <20070502121105.de3433d5.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0705021924200.24456@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0705021137210.1027@schroedinger.engr.sgi.com>
+ <20070502115725.683ac702.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705021158150.1220@schroedinger.engr.sgi.com>
+ <84144f020705021218v7ab2461ala215bbb034475e07@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, haveblue@ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 May 2007, Andrew Morton wrote:
+On Wed, 2 May 2007, Pekka Enberg wrote:
 
-> > At some point I dream that SLUB could become the default but I thought 
-> > this would take at least 6 month or so. If want to force this now then I 
-> > will certainly have some busy weeks ahead.
-> 
-> s/dream/promise/ ;)
-> 
-> Six months sounds reasonable - I was kind of hoping for less.  Make it
-> default-to-on in 2.6.23-rc1, see how it goes.
+> And then there's patches such as kmemleak which would need to target
+> all three. Plus it doesn't really make sense for users to select
+> between three competiting implementations. Please don't take away our
+> high hopes of getting rid of mm/slab.c Christoph =)
 
-Here is how I think the future could develop
-
-Cycle	SLAB		SLUB		SLOB		SLxB
-
-2.6.22	API fixes	Stabilization	API fixes
-
-Major event: SLUB availability as experimental
-
-2.6.23	API upgrades	Perf. Valid.	EOL
-
-Major events: SLUB performance validation. Switch off
-	experimental (could even be the default) 
-	Slab allocators support targeted reclaim for at
-	least one slab cache (dentry?)
-	(vacate/move all objects in a slab)
-
-2.6.24	Earliest EOL	Stable		- 		Experiments
-
-Major events: SLUB stable. Stable targeted reclaim
-		for all major reclaimable slabs.
-		Maybe experiments with another new allocator?
-
-2.6.25	EOL		default		-		?
-
-Death of SLAB. SLUB default. Hopefully new ideas on the horizon.
+You too, Brutus ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
