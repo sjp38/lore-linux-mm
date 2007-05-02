@@ -1,55 +1,53 @@
-Date: Wed, 2 May 2007 13:45:33 +0100 (BST)
+Date: Wed, 2 May 2007 13:54:53 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
+In-Reply-To: <20070501133618.93793687.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0705021346170.16517@blonde.wat.veritas.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
  <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
  <20070501125559.9ab42896.akpm@linux-foundation.org>
  <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
+ <20070501133618.93793687.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 May 2007, Christoph Lameter wrote:
-> On Tue, 1 May 2007, Hugh Dickins wrote:
+On Tue, 1 May 2007, Andrew Morton wrote:
 > 
-> > Yes, to me it does.  If it could be defaulted to on throughout the
-> > -rcs, on every architecture, then I'd say that's "finishing work";
-> > and we'd be safe knowing we could go back to slab in a hurry if
-> > needed.  But it hasn't reached that stage yet, I think.
+> Given the current state and the current rate of development I'd expect slub
+> to have reached the level of completion which you're describing around -rc2
+> or -rc3.  I think we'd be pretty safe making that assumption.
+
+Its developer does show signs of being active!
+
 > 
-> Why would we need to go back to SLAB if we have not switched to SLUB? SLUB 
-> is marked experimental and not the default.
+> This is a bit unusual but there is of course some self-interest here: the
+> patch dependencies are getting awful and having this hanging around
+> out-of-tree will make 2.6.23 development harder for everyone.
 
-I said above that I thought SLUB ought to be defaulted to on throughout
-the -rcs: if we don't do that, we're not going to learn much from having
-it in Linus' tree.
+That is a very strong argument: a somewhat worrisome argument,
+but a very strong one.  Maintaining your sanity is important.
 
-And perhaps that line which appends "PREEMPT " to an oops report ought
-to append "SLUB " too, for so long as there's a choice.
+> 
+> So on balance, given that we _do_ expect slub to have a future, I'm
+> inclined to crash ahead with it.  The worst that can happen will be a later
+> rm mm/slub.c which would be pretty simple to do.
 
-> The only problems that I am aware of is(or was) the issue with arches 
-> modifying page struct fields of slab pages that SLUB needs for its own 
-> operations. And I thought it was all fixed since the powerpc guys were 
-> quiet and the patch was in for i386.
+Okay.  And there's been no chorus to echo my concern.
 
-You're forgetting your unions in struct page: in the SPLIT_PTLOCK
-case (NR_CPUS >= 4) the pagetable code is using spinlock_t ptl,
-which overlays SLUB's first_page and slab pointers.
+But if Linus' tree is to be better than a warehouse to avoid
+awkward merges, I still think we want it to default to on for
+all the architectures, and for most if not all -rcs.
 
-I just tried rebuilding powerpc with the SPLIT_PTLOCK cutover
-edited to 8 cpus instead, and then no crash.
+> 
+> otoh I could do some frantic patch mangling and make it easier to carry
+> slub out-of-tree, but do we gain much from that?
 
-I presume the answer is just to extend your quicklist work to
-powerpc's lowest level of pagetables.  The only other architecture
-which is using kmem_cache for them is arm26, which has
-"#error SMP is not supported", so won't be giving this problem.
+No, keep away from that.
 
 Hugh
 
