@@ -1,85 +1,74 @@
-Date: Wed, 2 May 2007 00:52:38 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
-	(-1)
-Message-ID: <20070502075238.GA9083@suse.de>
-References: <20070425225716.8e9b28ca.akpm@linux-foundation.org> <46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org> <4636248E.7030309@imap.cc> <20070430112130.b64321d3.akpm@linux-foundation.org> <46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org> <46383742.9050503@imap.cc> <20070502001000.8460fb31.akpm@linux-foundation.org>
+Message-ID: <46385699.4090201@yahoo.com.au>
+Date: Wed, 02 May 2007 19:15:05 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070502001000.8460fb31.akpm@linux-foundation.org>
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au>
+In-Reply-To: <4638009E.3070408@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tilman Schmidt <tilman@imap.cc>
-Cc: Kay Sievers <kay.sievers@vrfy.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 02, 2007 at 12:10:00AM -0700, Andrew Morton wrote:
-> On Wed, 02 May 2007 09:01:22 +0200 Tilman Schmidt <tilman@imap.cc> wrote:
+Nick Piggin wrote:
+> Hugh Dickins wrote:
 > 
-> > Am 30.04.2007 21:46 schrieb Andrew Morton:
-> > > Not really - everything's tangled up.  A bisection search on the
-> > > 2.6.21-rc7-mm2 driver tree would be the best bet.
-> > 
-> > And the winner is:
-> > 
-> > gregkh-driver-driver-core-make-uevent-environment-available-in-uevent-file.patch
-> > 
-> > Reverting only that from 2.6.21-rc7-mm2 gives me a working kernel
-> > again.
+>> On Tue, 1 May 2007, Nick Piggin wrote:
 > 
-> cripes.
 > 
-> +static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
-> +                          char *buf)
-> +{
-> +       struct kobject *top_kobj;
-> +       struct kset *kset;
-> +       char *envp[32];
-> +       char data[PAGE_SIZE];
+>>> There were concerns that we could do this more cheaply, but I think it
+>>> is important to start with a base that is simple and more likely to
+>>> be correct and build on that. My testing didn't show any obvious
+>>> problems with performance.
+>>
+>>
+>>
+>> I don't see _problems_ with performance, but I do consistently see the
+>> same kind of ~5% degradation in lmbench fork, exec, sh, mmap latency
+>> and page fault tests on SMP, several machines, just as I did last year.
 > 
-> That won't work too well with 4k stacks.
+> 
+> OK. I did run some tests at one stage which didn't show a regression
+> on my P4, however I don't know that they were statistically significant.
+> I'll try a couple more runs and post numbers.
 
-Tilman, here's a patch, can you try this on top of your tree that dies?
+I didn't have enough time tonight to get means/stddev, etc, but the runs
+are pretty stable.
 
-thanks,
+Patch tested was just the lock page one.
 
-greg k-h
+SMP kernel, tasks bound to 1 CPU:
 
----
- drivers/base/core.c |    7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+P4 Xeon
+          pagefault   fork          exec
+2.6.21   1.67-1.69   140.7-142.0   449.5-460.8
++patch   1.75-1.77   144.0-145.5   456.2-463.0
 
---- a/drivers/base/core.c
-+++ b/drivers/base/core.c
-@@ -252,7 +252,7 @@ static ssize_t show_uevent(struct device
- 	struct kobject *top_kobj;
- 	struct kset *kset;
- 	char *envp[32];
--	char data[PAGE_SIZE];
-+	char *data = NULL;
- 	char *pos;
- 	int i;
- 	size_t count = 0;
-@@ -276,6 +276,10 @@ static ssize_t show_uevent(struct device
- 		if (!kset->uevent_ops->filter(kset, &dev->kobj))
- 			goto out;
- 
-+	data = (char *)get_zeroed_page(GFP_KERNEL);
-+	if (!data)
-+		return -ENOMEM;
-+
- 	/* let the kset specific function add its keys */
- 	pos = data;
- 	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
-@@ -290,6 +294,7 @@ static ssize_t show_uevent(struct device
- 		count += sprintf(pos, "%s\n", envp[i]);
- 	}
- out:
-+	free_page((unsigned long)data);
- 	return count;
- }
- 
+So it's taken on nearly 5% on pagefault, but looks like less than 2% on
+fork, so not as bad as your numbers (phew).
+
+G5
+          pagefault   fork          exec
+2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
++patch   1.71-1.73   175.2-180.8   780.5-794.2
+
+Bigger hit there.
+
+Page faults can be improved a tiny bit by not using a test and clear op
+in unlock_page (less barriers for the G5).
+
+I don't think that's really a blocker problem for a merge, but I wonder
+what we can do to improve it. Lockless pagecache shaves quite a bit of
+straight line find_get_page performance there.
+
+Going to a non-sleeping lock might be one way to go in the long term, but
+it would require quite a lot of restructuring.
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
