@@ -1,70 +1,98 @@
-Date: Wed, 2 May 2007 10:25:47 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
-Message-ID: <Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
- <20070501125559.9ab42896.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
+Message-ID: <4638CC03.7030903@imap.cc>
+Date: Wed, 02 May 2007 19:36:03 +0200
+From: Tilman Schmidt <tilman@imap.cc>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
+ (-1)
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org> <46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org> <4636248E.7030309@imap.cc> <20070430112130.b64321d3.akpm@linux-foundation.org> <46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org> <46383742.9050503@imap.cc> <20070502001000.8460fb31.akpm@linux-foundation.org> <20070502075238.GA9083@suse.de>
+In-Reply-To: <20070502075238.GA9083@suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigA4BD98C283333DFF8A258ED5"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, haveblue@ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg KH <gregkh@suse.de>
+Cc: Kay Sievers <kay.sievers@vrfy.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 May 2007, Hugh Dickins wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigA4BD98C283333DFF8A258ED5
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> I presume the answer is just to extend your quicklist work to
-> powerpc's lowest level of pagetables.  The only other architecture
-> which is using kmem_cache for them is arm26, which has
-> "#error SMP is not supported", so won't be giving this problem.
-
-In the meantime we would need something like this to disable SLUB in this 
-particular configuration. Note that I have not tested this and the <= for
-the comparision with SPLIT_PTLOCK_CPUS may not work (Never seen such a
-construct in a Kconfig file but it is needed here).
+Am 02.05.2007 09:52 schrieb Greg KH:
+> Tilman, here's a patch, can you try this on top of your tree that dies?=
 
 
+2.6.21-git3 plus that patch comes up fine.
 
-PowerPC: Disable SLUB for configurations in which slab page structs are modified
+(Except for a UDP problem I seem to remember I already saw reported
+on lkml and which I'll ignore for now in order not to blur the
+picture.)
 
-PowerPC uses the slab allocator to manage the lowest level of the page table.
-In high cpu configurations we also use the page struct to split the page
-table lock. Disallow the selection of SLUB for that case.
+Started to git-bisect mainline now, but that will take some time.
+It's more than 800 patches to check and I don't get more than 2-3
+iterations per day out of that machine.
 
-[Not tested: I am not familiar with powerpc build procedures etc]
+HTH
+T.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+> ---
+>  drivers/base/core.c |    7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+>=20
+> --- a/drivers/base/core.c
+> +++ b/drivers/base/core.c
+> @@ -252,7 +252,7 @@ static ssize_t show_uevent(struct device
+>  	struct kobject *top_kobj;
+>  	struct kset *kset;
+>  	char *envp[32];
+> -	char data[PAGE_SIZE];
+> +	char *data =3D NULL;
+>  	char *pos;
+>  	int i;
+>  	size_t count =3D 0;
+> @@ -276,6 +276,10 @@ static ssize_t show_uevent(struct device
+>  		if (!kset->uevent_ops->filter(kset, &dev->kobj))
+>  			goto out;
+> =20
+> +	data =3D (char *)get_zeroed_page(GFP_KERNEL);
+> +	if (!data)
+> +		return -ENOMEM;
+> +
+>  	/* let the kset specific function add its keys */
+>  	pos =3D data;
+>  	retval =3D kset->uevent_ops->uevent(kset, &dev->kobj,
+> @@ -290,6 +294,7 @@ static ssize_t show_uevent(struct device
+>  		count +=3D sprintf(pos, "%s\n", envp[i]);
+>  	}
+>  out:
+> +	free_page((unsigned long)data);
+>  	return count;
+>  }
+> =20
 
-Index: linux-2.6.21-rc7-mm2/arch/powerpc/Kconfig
-===================================================================
---- linux-2.6.21-rc7-mm2.orig/arch/powerpc/Kconfig	2007-05-02 10:07:34.000000000 -0700
-+++ linux-2.6.21-rc7-mm2/arch/powerpc/Kconfig	2007-05-02 10:13:37.000000000 -0700
-@@ -117,6 +117,19 @@ config GENERIC_BUG
- 	default y
- 	depends on BUG
- 
-+#
-+# Powerpc uses the slab allocator to manage its ptes and the
-+# page structs of ptes are used for splitting the page table
-+# lock for configurations supporting more than SPLIT_PTLOCK_CPUS.
-+#
-+# In that special configuration the page structs of slabs are modified.
-+# This setting disables the selection of SLUB as a slab allocator.
-+#
-+config ARCH_USES_SLAB_PAGE_STRUCT
-+	bool
-+	default y
-+	depends on SPLIT_PTLOCK_CPUS <= NR_CPUS
-+
- config DEFAULT_UIMAGE
- 	bool
- 	help
+--=20
+Tilman Schmidt                          E-Mail: tilman@imap.cc
+Bonn, Germany
+- Undetected errors are handled as if no error occurred. (IBM) -
+
+
+--------------enigA4BD98C283333DFF8A258ED5
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.3rc1 (MingW32)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+
+iD8DBQFGOMwKMdB4Whm86/kRAiQ5AJ0YnCp4w0gB4G398+BDi3kP+i/WWgCeLR8F
+JeXtj4ToA9XapC68cSmc9Mg=
+=ojyH
+-----END PGP SIGNATURE-----
+
+--------------enigA4BD98C283333DFF8A258ED5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
