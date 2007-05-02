@@ -1,56 +1,50 @@
-Date: Wed, 2 May 2007 21:54:12 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: 2.6.22 -mm merge plans: slub
-Message-ID: <20070502195412.GC9044@uranus.ravnborg.org>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com> <20070501125559.9ab42896.akpm@linux-foundation.org> <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com> <20070501133618.93793687.akpm@linux-foundation.org> <Pine.LNX.4.64.0705021346170.16517@blonde.wat.veritas.com> <Pine.LNX.4.64.0705021002040.32271@schroedinger.engr.sgi.com> <20070502121105.de3433d5.akpm@linux-foundation.org> <Pine.LNX.4.64.0705021234470.1543@schroedinger.engr.sgi.com>
+Date: Wed, 2 May 2007 13:07:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
+ (-1)
+Message-Id: <20070502130746.265bba0f.akpm@linux-foundation.org>
+In-Reply-To: <4638CC03.7030903@imap.cc>
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>
+	<46338AEB.2070109@imap.cc>
+	<20070428141024.887342bd.akpm@linux-foundation.org>
+	<4636248E.7030309@imap.cc>
+	<20070430112130.b64321d3.akpm@linux-foundation.org>
+	<46364346.6030407@imap.cc>
+	<20070430124638.10611058.akpm@linux-foundation.org>
+	<46383742.9050503@imap.cc>
+	<20070502001000.8460fb31.akpm@linux-foundation.org>
+	<20070502075238.GA9083@suse.de>
+	<4638CC03.7030903@imap.cc>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705021234470.1543@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tilman Schmidt <tilman@imap.cc>
+Cc: Greg KH <gregkh@suse.de>, Kay Sievers <kay.sievers@vrfy.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 02, 2007 at 12:42:54PM -0700, Christoph Lameter wrote:
-> On Wed, 2 May 2007, Andrew Morton wrote:
-> 
-> > > At some point I dream that SLUB could become the default but I thought 
-> > > this would take at least 6 month or so. If want to force this now then I 
-> > > will certainly have some busy weeks ahead.
-> > 
-> > s/dream/promise/ ;)
-> > 
-> > Six months sounds reasonable - I was kind of hoping for less.  Make it
-> > default-to-on in 2.6.23-rc1, see how it goes.
-> 
-> Here is how I think the future could develop
-> 
-> Cycle	SLAB		SLUB		SLOB		SLxB
-> 
-> 2.6.22	API fixes	Stabilization	API fixes
-> 
-> Major event: SLUB availability as experimental
-> 
-> 2.6.23	API upgrades	Perf. Valid.	EOL
-> 
-> Major events: SLUB performance validation. Switch off
-> 	experimental (could even be the default) 
-> 	Slab allocators support targeted reclaim for at
-> 	least one slab cache (dentry?)
-> 	(vacate/move all objects in a slab)
+On Wed, 02 May 2007 19:36:03 +0200
+Tilman Schmidt <tilman@imap.cc> wrote:
 
-To facilitate this do NOT introduce CONFIG_SLAB until we decide
-that SLUB are default. In this way we can make CONFIG_SLUB be default
-and people will not continue with CONFIG_SLAB because they had it in their
-.config already.
-Or just rename CONFIG_SLAB to CONFIG_SLAB_DEPRECATED or something.
+> Am 02.05.2007 09:52 schrieb Greg KH:
+> > Tilman, here's a patch, can you try this on top of your tree that dies?
+> 
+> 2.6.21-git3 plus that patch comes up fine.
+> 
+> (Except for a UDP problem I seem to remember I already saw reported
+> on lkml and which I'll ignore for now in order not to blur the
+> picture.)
 
-The point is make sure that LSUB becomes default for people that does
-an make oldconfig (explicit or implicit).
+Thanks.
 
-	Sam
+> Started to git-bisect mainline now, but that will take some time.
+> It's more than 800 patches to check and I don't get more than 2-3
+> iterations per day out of that machine.
+
+I don't think there's much point in you doing that.  We know what the bug is.
+
+Switching to 8k stacks will probably fix things up too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
