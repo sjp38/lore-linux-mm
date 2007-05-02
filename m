@@ -1,74 +1,56 @@
-Message-ID: <46385699.4090201@yahoo.com.au>
-Date: Wed, 02 May 2007 19:15:05 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au>
-In-Reply-To: <4638009E.3070408@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <1178098882.28231.1187661107@webmail.messagingengine.com>
+From: "Tilman Schmidt" <tilman@imap.cc>
+Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="ISO-8859-1"
+MIME-Version: 1.0
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>
+   <46338AEB.2070109@imap.cc>
+   <20070428141024.887342bd.akpm@linux-foundation.org>
+   <4636248E.7030309@imap.cc>
+   <20070430112130.b64321d3.akpm@linux-foundation.org>
+   <46364346.6030407@imap.cc>
+   <20070430124638.10611058.akpm@linux-foundation.org>
+   <46383742.9050503@imap.cc>
+   <20070502001000.8460fb31.akpm@linux-foundation.org>
+   <20070502074305.GA7761@suse.de>
+Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!     
+   (-1)
+In-Reply-To: <20070502074305.GA7761@suse.de>
+Date: Wed, 02 May 2007 11:41:22 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
+To: Greg KH <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Kay Sievers <kay.sievers@vrfy.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Hugh Dickins wrote:
+On Wed, 2 May 2007 00:43:05 -0700, "Greg KH" <gregkh@suse.de> said:
+
+> > > And the winner is:
+> > > 
+> > > gregkh-driver-driver-core-make-uevent-environment-available-in-uevent-file.patch
+> > > 
+> > > Reverting only that from 2.6.21-rc7-mm2 gives me a working kernel
+> > > again.
 > 
->> On Tue, 1 May 2007, Nick Piggin wrote:
+> Wait, even though this isn't good, it shouldn't have been hit by anyone,
+> that file used to not be readable, so I doubt userspace would have been
+> trying to read it...
 > 
-> 
->>> There were concerns that we could do this more cheaply, but I think it
->>> is important to start with a base that is simple and more likely to
->>> be correct and build on that. My testing didn't show any obvious
->>> problems with performance.
->>
->>
->>
->> I don't see _problems_ with performance, but I do consistently see the
->> same kind of ~5% degradation in lmbench fork, exec, sh, mmap latency
->> and page fault tests on SMP, several machines, just as I did last year.
-> 
-> 
-> OK. I did run some tests at one stage which didn't show a regression
-> on my P4, however I don't know that they were statistically significant.
-> I'll try a couple more runs and post numbers.
+> Tilman, what version of HAL and udev do you have on your machine?
 
-I didn't have enough time tonight to get means/stddev, etc, but the runs
-are pretty stable.
+The ones that came with SuSE 10.0:
 
-Patch tested was just the lock page one.
+hal-0.5.4-6.4
+udev-068git20050831-9
 
-SMP kernel, tasks bound to 1 CPU:
+HTH
+Tilman
 
-P4 Xeon
-          pagefault   fork          exec
-2.6.21   1.67-1.69   140.7-142.0   449.5-460.8
-+patch   1.75-1.77   144.0-145.5   456.2-463.0
-
-So it's taken on nearly 5% on pagefault, but looks like less than 2% on
-fork, so not as bad as your numbers (phew).
-
-G5
-          pagefault   fork          exec
-2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
-+patch   1.71-1.73   175.2-180.8   780.5-794.2
-
-Bigger hit there.
-
-Page faults can be improved a tiny bit by not using a test and clear op
-in unlock_page (less barriers for the G5).
-
-I don't think that's really a blocker problem for a merge, but I wonder
-what we can do to improve it. Lockless pagecache shaves quite a bit of
-straight line find_get_page performance there.
-
-Going to a non-sleeping lock might be one way to go in the long term, but
-it would require quite a lot of restructuring.
-
+PS: I'll test your patch and git-bisect when I'm back at the machine.
 -- 
-SUSE Labs, Novell Inc.
+  Tilman Schmidt
+  tilman@imap.cc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
