@@ -1,43 +1,57 @@
-Message-ID: <4638394F.60609@yahoo.com.au>
-Date: Wed, 02 May 2007 17:10:07 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Wed, 2 May 2007 00:28:36 -0700
+From: Greg KH <gregkh@suse.de>
 Subject: Re: 2.6.21-rc7-mm2 crash: Eeek! page_mapcount(page) went negative!
- (-1)
-References: <20070425225716.8e9b28ca.akpm@linux-foundation.org>	<46338AEB.2070109@imap.cc>	<20070428141024.887342bd.akpm@linux-foundation.org>	<4636248E.7030309@imap.cc>	<20070430112130.b64321d3.akpm@linux-foundation.org>	<46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org> <46383742.9050503@imap.cc>
-In-Reply-To: <46383742.9050503@imap.cc>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+	(-1)
+Message-ID: <20070502072836.GA7513@suse.de>
+References: <20070425225716.8e9b28ca.akpm@linux-foundation.org> <46338AEB.2070109@imap.cc> <20070428141024.887342bd.akpm@linux-foundation.org> <4636248E.7030309@imap.cc> <20070430112130.b64321d3.akpm@linux-foundation.org> <46364346.6030407@imap.cc> <20070430124638.10611058.akpm@linux-foundation.org> <46383742.9050503@imap.cc> <20070502001000.8460fb31.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070502001000.8460fb31.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tilman Schmidt <tilman@imap.cc>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tilman Schmidt <tilman@imap.cc>, Kay Sievers <kay.sievers@vrfy.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Tilman Schmidt wrote:
-> Am 30.04.2007 21:46 schrieb Andrew Morton:
+On Wed, May 02, 2007 at 12:10:00AM -0700, Andrew Morton wrote:
+> On Wed, 02 May 2007 09:01:22 +0200 Tilman Schmidt <tilman@imap.cc> wrote:
 > 
->>Not really - everything's tangled up.  A bisection search on the
->>2.6.21-rc7-mm2 driver tree would be the best bet.
+> > Am 30.04.2007 21:46 schrieb Andrew Morton:
+> > > Not really - everything's tangled up.  A bisection search on the
+> > > 2.6.21-rc7-mm2 driver tree would be the best bet.
+> > 
+> > And the winner is:
+> > 
+> > gregkh-driver-driver-core-make-uevent-environment-available-in-uevent-file.patch
+> > 
+> > Reverting only that from 2.6.21-rc7-mm2 gives me a working kernel
+> > again.
 > 
+> cripes.
 > 
-> And the winner is:
+> +static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
+> +                          char *buf)
+> +{
+> +       struct kobject *top_kobj;
+> +       struct kset *kset;
+> +       char *envp[32];
+> +       char data[PAGE_SIZE];
 > 
-> gregkh-driver-driver-core-make-uevent-environment-available-in-uevent-file.patch
+> That won't work too well with 4k stacks.
 
-+	struct kobject *top_kobj;
-+	struct kset *kset;
-+	char *envp[32];
-+	char data[PAGE_SIZE];
-+	char *pos;
-+	int i;
-+	size_t count = 0;
-+	int retval;
+Oh crap.  Yeah, that's not nice.
 
-... that seems like a lot of stack to be using.
+> Who's reviewing this stuff?  The patch headers indicate that no mailing list was
+> cc'ed?
 
--- 
-SUSE Labs, Novell Inc.
+Kay and I did this, sorry, it should have been cc:ed to lkml.
+
+I'll go fix it up now...
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
