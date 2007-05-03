@@ -1,37 +1,42 @@
-Date: Thu, 3 May 2007 09:45:42 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <20070503015729.7496edff.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705030937290.8532@schroedinger.engr.sgi.com>
+Date: Thu, 3 May 2007 09:52:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+Message-Id: <20070503095224.77e89dbf.akpm@linux-foundation.org>
+In-Reply-To: <46393BA7.6030106@yahoo.com.au>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
- <20070501125559.9ab42896.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
- <20070503011515.0d89082b.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705030936120.5165@blonde.wat.veritas.com>
- <20070503015729.7496edff.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<4636FDD7.9080401@yahoo.com.au>
+	<Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
+	<4638009E.3070408@yahoo.com.au>
+	<Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>
+	<46393BA7.6030106@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hmmmm...There are a gazillion configs to choose from. It works fine with
-cell_defconfig. If I switch to 2 processors I can enable SLUB if I switch 
-to 4 I cannot.
+On Thu, 03 May 2007 11:32:23 +1000 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-I saw some other config weirdness like being unable to set SMP if SLOB is 
-enabled with some configs. This should not work and does not work but 
-the menus are then vanishing and one can still configure lots of 
-processors while not having enabled SMP.
+>  void fastcall unlock_page(struct page *page)
+>  {
+> +	VM_BUG_ON(!PageLocked(page));
+>  	smp_mb__before_clear_bit();
+> -	if (!TestClearPageLocked(page))
+> -		BUG();
+> -	smp_mb__after_clear_bit(); 
+> -	wake_up_page(page, PG_locked);
+> +	ClearPageLocked(page);
+> +	if (unlikely(test_bit(PG_waiters, &page->flags))) {
+> +		clear_bit(PG_waiters, &page->flags);
+> +		wake_up_page(page, PG_locked);
+> +	}
+>  }
 
-It works as far as I can tell... The rest is arch weirdness.
-
+Why is that significantly faster than plain old wake_up_page(), which
+tests waitqueue_active()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
