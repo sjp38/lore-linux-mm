@@ -1,38 +1,79 @@
-Message-ID: <4639A21A.6080806@shadowen.org>
-Date: Thu, 03 May 2007 09:49:30 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: The performance and behaviour of the anti-fragmentation related
- patches
-References: <20070301101249.GA29351@skynet.ie> <20070301160915.6da876c5.akpm@linux-foundation.org> <Pine.LNX.4.64.0703011642190.12485@woody.linux-foundation.org> <45E8594B.6020904@austin.ibm.com> <20070305032116.GA29678@wotan.suse.de> <45EC352A.7060802@austin.ibm.com>
-In-Reply-To: <45EC352A.7060802@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 3 May 2007 01:57:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.22 -mm merge plans: slub
+Message-Id: <20070503015729.7496edff.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0705030936120.5165@blonde.wat.veritas.com>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
+	<20070501125559.9ab42896.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
+	<Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
+	<20070503011515.0d89082b.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705030936120.5165@blonde.wat.veritas.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joel Schopp <jschopp@austin.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@skynet.ie>, clameter@engr.sgi.com, mingo@elte.hu, arjan@infradead.org, mbligh@mbligh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Joel Schopp wrote:
->> But if you don't require a lot of higher order allocations anyway, then
->> guest fragmentation caused by ballooning doesn't seem like much problem.
+On Thu, 3 May 2007 09:46:32 +0100 (BST) Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Thu, 3 May 2007, Andrew Morton wrote:
+> > On Wed, 2 May 2007 10:25:47 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
+> > 
+> > > +config ARCH_USES_SLAB_PAGE_STRUCT
+> > > +	bool
+> > > +	default y
+> > > +	depends on SPLIT_PTLOCK_CPUS <= NR_CPUS
+> > > +
+> > 
+> > That all seems to work as intended.
+> > 
+> > However with NR_CPUS=8 SPLIT_PTLOCK_CPUS=4, enabling SLUB=y crashes the
+> > machine early in boot.  
 > 
-> If you only need to allocate 1 page size and smaller allocations then no
-> it's not a problem.  As soon as you go above that it will be.  You don't
-> need to go all the way up to MAX_ORDER size to see an impact, it's just
-> increasingly more severe as you get away from 1 page and towards MAX_ORDER.
+> I thought that if that worked as intended, you wouldn't even
+> get the chance to choose SLUB=y?  That was how it was working
+> for me (but I realize I didn't try more than make oldconfig).
 
-Yep, the allocator thinks of things less than order-4 as "easy to
-obtain" in that it is willing to wait indefinatly for one to to appear,
-above that they are not expected to appear.  With random placement the
-chances of finding a page tend to 0 pretty quickly as order increases.
-That was the motivation for the linear reclaim/lumpy reclaim patch
-series which do make it significantly more possible to get higher
-orders.  However very high orders such as we see with huge pages are
-still almost impossible to obtain without placement controls in place.
+Right.  This can be tested on x86 without a cross-compiler:
 
--apw
+ARCH=powerpc make mrproper
+ARCH=powerpc make fooconfig
+
+> > 
+> > Too early for netconsole, no serial console.  Wedges up uselessly with
+> > CONFIG_XMON=n, does mysterious repeated uncontrollable exceptions with
+> > CONFIG_XMON=y.  This is all fairly typical for a powerpc/G5 crash :(
+> > 
+> > However I was able to glimpse some stuff as it flew past.  Crash started in
+> > flush_old_exec and ended in pgtable_free_tlb -> kmem_cache_free.  I don't know
+> > how to do better than that I'm afraid, unless I'm to hunt down a PCIE serial
+> > card, perhaps.
+> 
+> That sounds like what happens when SLUB's pagestruct use meets
+> SPLIT_PTLOCK's pagestruct use.  Does your .config really show
+> CONFIG_SLUB=y together with CONFIG_ARCH_USES_SLAB_PAGE_STRUCT=y?
+> 
+
+Nope.
+
+g5:/usr/src/25> grep SLUB .config
+CONFIG_SLUB=y
+g5:/usr/src/25> grep SLAB .config
+# CONFIG_SLAB is not set
+g5:/usr/src/25> grep CPUS .config
+CONFIG_NR_CPUS=8
+# CONFIG_CPUSETS is not set
+# CONFIG_IRQ_ALL_CPUS is not set
+CONFIG_SPLIT_PTLOCK_CPUS=4
+
+It's in http://userweb.kernel.org/~akpm/config-g5.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
