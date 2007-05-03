@@ -1,83 +1,102 @@
-Message-ID: <46392A3C.30606@yahoo.com.au>
-Date: Thu, 03 May 2007 10:18:04 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Wed, 02 May 2007 22:01:35 -0400
+From: "VegasCasino" <account@lanck.net>
+Message-ID: <61152081.26996630@aviary.com>
+Subject: Willkommensbonus von 555$!
 MIME-Version: 1.0
-Subject: Re: 2.6.22 -mm merge plans: mm-more-rmap-checking
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <Pine.LNX.4.64.0705011458060.16979@blonde.wat.veritas.com> <4637EC95.2010501@yahoo.com.au> <Pine.LNX.4.64.0705021355390.16517@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0705021355390.16517@blonde.wat.veritas.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <account@lanck.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Wed, 2 May 2007, Nick Piggin wrote:
-> 
->>Yes, but IIRC I put that in because there was another check in
->>SLES9 that I actually couldn't put in, but used this one instead
->>because it also caught the bug we saw.
->>... 
->>This was actually a rare corruption that is also in 2.6.21, and
->>as few rmap callsites as we have, it was never noticed until the
->>SLES9 bug check was triggered.
-> 
-> 
-> You are being very mysterious.  Please describe this bug (privately
-> if you think it's exploitable), and let's work on the patch to fix it,
-> rather than this "debug" patch.
+<html>
 
-It is exec-fix-remove_arg_zero.patch in Andrew's tree, it's exploitable
-in that it leaks memory, but it could also release corrupted pagetables
-into quicklists on those architectures that have them...
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
-Anyway, it quite likely would have gone unfixed for several more years
-if we didn't have the bug triggers in. Now you could argue that my
-patch obviously fixes all bugs in there (but I wouldn't :)), and being
-most complex of the few callsites, _now_ we can avoid the bug checks.
-However I'd prefer to keep them at least under CONFIG_DEBUG_VM.
+<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
+bei Vegas VIP Casino</title>
+
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:windowtext;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	color:black;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Die besten Spieler sind in Vegas und die besten Bonusse 
+finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
+und dritte Einzahlung und als Kr&ouml;nung
+einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
+ <o:p></o:p></span></p>
 
 
->>Hmm, I didn't notice the do_swap_page change, rather just derived
->>its safety by looking at the current state of the code (which I
->>guess must have been post-do_swap_page change)...
-> 
-> 
-> Your addition of page_add_new_anon_rmap clarified the situation too.
-> 
-> 
->>Do you have a pointer to the patch, for my interest?
-> 
-> 
-> The patch which changed do_swap_page?
-> 
-> commit c475a8ab625d567eacf5e30ec35d6d8704558062
-> Author: Hugh Dickins <hugh@veritas.com>
-> Date:   Tue Jun 21 17:15:12 2005 -0700
-> [PATCH] can_share_swap_page: use page_mapcount
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
 
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
+<o:p></o:p></span></p>
 
-Yeah, this one, thanks. I'm just interested.
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
 
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Dieses und vieles mehr erwartet Sie im fabelhaften 
+Vegas VIP Casino, der beste Platz zum spielen!
+<o:p></o:p></span></p>
 
-> Or my intended PG_swapcache to PAGE_MAPPING_SWAP patch,
-> which does assume PageLocked in page_add_anon_rmap?
-> Yes, I can send you its current unsplit state if you like
-> (but have higher priorities before splitting and commenting
-> it for posting).
+<p><a href="http://www.thevegasclub.net/lang-de/">
+http://www.thevegasclub.net/lang-de/</a></p>
+</div>
 
-I would like to see that too, but when you are ready :)
+</body>
 
-Thanks,
-Nick
-
--- 
-SUSE Labs, Novell Inc.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+</html>
