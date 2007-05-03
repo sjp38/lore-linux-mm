@@ -1,32 +1,29 @@
-Date: Thu, 3 May 2007 01:07:44 -0500
-From: Anton Blanchard <anton@samba.org>
+Date: Wed, 2 May 2007 23:37:46 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes
-Message-ID: <20070503060744.GA13015@kryten>
+In-Reply-To: <20070503060744.GA13015@kryten>
+Message-ID: <Pine.LNX.4.64.0705022333280.5237@schroedinger.engr.sgi.com>
 References: <20070503022107.GA13592@kryten> <Pine.LNX.4.64.0705021959100.4259@schroedinger.engr.sgi.com>
+ <20070503060744.GA13015@kryten>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0705021959100.4259@schroedinger.engr.sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Anton Blanchard <anton@samba.org>
 Cc: linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
- 
-Hi,
+On Thu, 3 May 2007, Anton Blanchard wrote:
 
-> > Im guessing registering empty remote zones might make the SGI guys a bit
-> > unhappy, maybe we should just force the registration of empty local
-> > zones? Does anyone care?
+> > Why would that make us unhappy?
 > 
-> Why would that make us unhappy?
+> Since SGI boxes can have lots of NUMA nodes I was worried the patch
+> might negatively affect you. It sounds like thats not so much of an
+> issue.
 
-Since SGI boxes can have lots of NUMA nodes I was worried the patch
-might negatively affect you. It sounds like thats not so much of an
-issue.
+SGI Altix systems only have a single zone on each node. Thus the zone 
+fallback crap does not happen. And they are symmetric.
 
-Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
