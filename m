@@ -1,34 +1,71 @@
-Date: Thu, 3 May 2007 11:37:56 +0100
-From: Christoph Hellwig <hch@infradead.org>
+Date: Thu, 3 May 2007 13:24:23 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-Message-ID: <20070503103756.GA19958@infradead.org>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <46393BA7.6030106@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <46393BA7.6030106@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0705031306300.24945@blonde.wat.veritas.com>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+ <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
+ <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>
+ <46393BA7.6030106@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 03, 2007 at 11:32:23AM +1000, Nick Piggin wrote:
+On Thu, 3 May 2007, Nick Piggin wrote:
+> 
+> The problem is that lock/unlock_page is expensive on powerpc, and
+> if we improve that, we improve more than just the fault handler...
+> 
 > The attached patch gets performance up a bit by avoiding some
 > barriers and some cachelines:
-> 
-> G5
->          pagefault   fork          exec
-> 2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
-> +patch   1.71-1.73   175.2-180.8   780.5-794.2
-> +patch2  1.61-1.63   169.8-175.0   748.6-757.0
-> 
-> So that brings the fork/exec hits down to much less than 5%, and
-> would likely speed up other things that lock the page, like write
-> or page reclaim.
 
-Is that every fork/exec or just under certain cicumstances?
-A 5% regression on every fork/exec is not acceptable.
+There's a strong whiff of raciness about this...
+but I could very easily be wrong.
+
+> Index: linux-2.6/mm/filemap.c
+> ===================================================================
+> --- linux-2.6.orig/mm/filemap.c	2007-05-02 15:00:26.000000000 +1000
+> +++ linux-2.6/mm/filemap.c	2007-05-03 08:34:32.000000000 +1000
+> @@ -532,11 +532,13 @@
+>   */
+>  void fastcall unlock_page(struct page *page)
+>  {
+> +	VM_BUG_ON(!PageLocked(page));
+>  	smp_mb__before_clear_bit();
+> -	if (!TestClearPageLocked(page))
+> -		BUG();
+> -	smp_mb__after_clear_bit(); 
+> -	wake_up_page(page, PG_locked);
+> +	ClearPageLocked(page);
+> +	if (unlikely(test_bit(PG_waiters, &page->flags))) {
+> +		clear_bit(PG_waiters, &page->flags);
+> +		wake_up_page(page, PG_locked);
+> +	}
+>  }
+>  EXPORT_SYMBOL(unlock_page);
+>  
+> @@ -568,6 +570,11 @@ __lock_page (diff -p would tell us!)
+>  {
+>  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+>  
+> +	set_bit(PG_waiters, &page->flags);
+> +	if (unlikely(!TestSetPageLocked(page))) {
+
+What happens if another cpu is coming through __lock_page at the
+same time, did its set_bit, now finds PageLocked, and so proceeds
+to the __wait_on_bit_lock?  But this cpu now clears PG_waiters,
+so this task's unlock_page won't wake the other?
+
+> +		clear_bit(PG_waiters, &page->flags);
+> +		return;
+> +	}
+>  	__wait_on_bit_lock(page_waitqueue(page), &wait, sync_page,
+>  							TASK_UNINTERRUPTIBLE);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
