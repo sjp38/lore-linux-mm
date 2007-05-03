@@ -1,102 +1,66 @@
-Date: Wed, 02 May 2007 22:01:35 -0400
-From: "VegasCasino" <account@lanck.net>
-Message-ID: <61152081.26996630@aviary.com>
-Subject: Willkommensbonus von 555$!
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id l431TbAC021245
+	for <linux-mm@kvack.org>; Thu, 3 May 2007 02:29:37 +0100
+Received: from an-out-0708.google.com (anab36.prod.google.com [10.100.53.36])
+	by spaceape13.eur.corp.google.com with ESMTP id l431TFVs018102
+	for <linux-mm@kvack.org>; Thu, 3 May 2007 02:29:31 +0100
+Received: by an-out-0708.google.com with SMTP id b36so347865ana
+        for <linux-mm@kvack.org>; Wed, 02 May 2007 18:29:30 -0700 (PDT)
+Message-ID: <b040c32a0705021829o3139497eyd76f97f59827389b@mail.gmail.com>
+Date: Wed, 2 May 2007 18:29:30 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: [patch] fix leaky resv_huge_pages when cpuset is in use
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <account@lanck.net>
-To: linux-mm@kvack.org
+Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+The internal hugetlb resv_huge_pages variable can permanently leak
+nonzero value in the error path of hugetlb page fault handler when
+hugetlb page is used in combination of cpuset.  The leaked count can
+permanently trap N number of hugetlb pages in unusable "reserved"
+state.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+Steps to reproduce the bug:
 
-<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
-bei Vegas VIP Casino</title>
+  (1) create two cpuset, user1 and user2
+  (2) reserve 50 htlb pages in cpuset user1
+  (3) attempt to shmget/shmat 50 htlb page inside cpuset user2
+  (4) kernel oom the user process in step 3
+  (5) ipcrm the shm segment
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+At this point resv_huge_pages will have a count of 49, even though
+there are no active hugetlbfs file nor hugetlb shared memory segment
+in the system.  The leak is permanent and there is no recovery method
+other than system reboot. The leaked count will hold up all future use
+of that many htlb pages in all cpusets.
 
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung
-einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
- <o:p></o:p></span></p>
+The culprit is that the error path of alloc_huge_page() did not
+properly undo the change it made to resv_huge_page, causing
+inconsistent state.
 
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+Signed-off-by: Ken Chen <kenchen@google.com>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+--- ./mm/hugetlb.c.orig	2007-05-02 18:12:36.000000000 -0700
++++ ./mm/hugetlb.c	2007-05-02 18:15:45.000000000 -0700
+@@ -140,6 +140,8 @@ static struct page *alloc_huge_page(stru
+ 	return page;
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften 
-Vegas VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
+ fail:
++	if (vma->vm_flags & VM_MAYSHARE)
++		resv_huge_pages++;
+ 	spin_unlock(&hugetlb_lock);
+ 	return NULL;
+ }
 
-<p><a href="http://www.thevegasclub.net/lang-de/">
-http://www.thevegasclub.net/lang-de/</a></p>
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
