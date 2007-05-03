@@ -1,70 +1,34 @@
-Date: Thu, 3 May 2007 10:15:55 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: 2.6.22 -mm merge plans: slub
-In-Reply-To: <20070503015729.7496edff.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705031011020.9826@blonde.wat.veritas.com>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
- <20070501125559.9ab42896.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
- <Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
- <20070503011515.0d89082b.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705030936120.5165@blonde.wat.veritas.com>
- <20070503015729.7496edff.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 3 May 2007 11:37:56 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+Message-ID: <20070503103756.GA19958@infradead.org>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <46393BA7.6030106@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <46393BA7.6030106@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 May 2007, Andrew Morton wrote:
-> On Thu, 3 May 2007 09:46:32 +0100 (BST) Hugh Dickins <hugh@veritas.com> wrote:
-> > On Thu, 3 May 2007, Andrew Morton wrote:
-> > > On Wed, 2 May 2007 10:25:47 -0700 (PDT) Christoph Lameter <clameter@sgi.com> wrote:
-> > > 
-> > > > +config ARCH_USES_SLAB_PAGE_STRUCT
-> > > > +	bool
-> > > > +	default y
-> > > > +	depends on SPLIT_PTLOCK_CPUS <= NR_CPUS
-> > > > +
-> > > 
-> > > That all seems to work as intended.
-> > > 
-> > > However with NR_CPUS=8 SPLIT_PTLOCK_CPUS=4, enabling SLUB=y crashes the
-> > > machine early in boot.  
-> > 
-> > I thought that if that worked as intended, you wouldn't even
-> > get the chance to choose SLUB=y?  That was how it was working
-> > for me (but I realize I didn't try more than make oldconfig).
-> > 
-> > That sounds like what happens when SLUB's pagestruct use meets
-> > SPLIT_PTLOCK's pagestruct use.  Does your .config really show
-> > CONFIG_SLUB=y together with CONFIG_ARCH_USES_SLAB_PAGE_STRUCT=y?
+On Thu, May 03, 2007 at 11:32:23AM +1000, Nick Piggin wrote:
+> The attached patch gets performance up a bit by avoiding some
+> barriers and some cachelines:
 > 
-> Nope.
+> G5
+>          pagefault   fork          exec
+> 2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
+> +patch   1.71-1.73   175.2-180.8   780.5-794.2
+> +patch2  1.61-1.63   169.8-175.0   748.6-757.0
 > 
-> g5:/usr/src/25> grep SLUB .config
-> CONFIG_SLUB=y
-> g5:/usr/src/25> grep SLAB .config
-> # CONFIG_SLAB is not set
-> g5:/usr/src/25> grep CPUS .config
-> CONFIG_NR_CPUS=8
-> # CONFIG_CPUSETS is not set
-> # CONFIG_IRQ_ALL_CPUS is not set
-> CONFIG_SPLIT_PTLOCK_CPUS=4
-> 
-> It's in http://userweb.kernel.org/~akpm/config-g5.txt
+> So that brings the fork/exec hits down to much less than 5%, and
+> would likely speed up other things that lock the page, like write
+> or page reclaim.
 
-Seems we're all wrong in thinking Christoph's Kconfiggery worked
-as intended: maybe it just works some of the time.  I'm not going
-to hazard a guess as to how to fix it up, will resume looking at
-the powerpc's quicklist potential later.
-
-Hugh
+Is that every fork/exec or just under certain cicumstances?
+A 5% regression on every fork/exec is not acceptable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
