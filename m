@@ -1,29 +1,30 @@
-Date: Wed, 2 May 2007 23:37:46 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070503060744.GA13015@kryten>
-Message-ID: <Pine.LNX.4.64.0705022333280.5237@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten> <Pine.LNX.4.64.0705021959100.4259@schroedinger.engr.sgi.com>
- <20070503060744.GA13015@kryten>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 3 May 2007 08:55:43 +0100
+From: Russell King <rmk+lkml@arm.linux.org.uk>
+Subject: Re: incoming
+Message-ID: <20070503075543.GA12018@flint.arm.linux.org.uk>
+References: <20070502150252.7ddf67ac.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070502150252.7ddf67ac.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@engr.sgi.com>, "David S. Miller" <davem@davemloft.net>, Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 May 2007, Anton Blanchard wrote:
+On Wed, May 02, 2007 at 03:02:52PM -0700, Andrew Morton wrote:
+> So this is what I have lined up for the first mm->2.6.22 batch.  I won't be
+> sending it off for another 12-24 hours yet.  To give people time for final
+> comment and to give me time to see if it actually works.
 
-> > Why would that make us unhappy?
-> 
-> Since SGI boxes can have lots of NUMA nodes I was worried the patch
-> might negatively affect you. It sounds like thats not so much of an
-> issue.
+I assume you're going to update this list with my comments I sent
+yesterday?
 
-SGI Altix systems only have a single zone on each node. Thus the zone 
-fallback crap does not happen. And they are symmetric.
-
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
