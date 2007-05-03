@@ -1,69 +1,33 @@
-Received: by nz-out-0506.google.com with SMTP id f1so582648nzc
-        for <linux-mm@kvack.org>; Thu, 03 May 2007 09:23:09 -0700 (PDT)
-Message-ID: <6bffcb0e0705030923v737bf18fi35b8299874ad565b@mail.gmail.com>
-Date: Thu, 3 May 2007 18:23:08 +0200
-From: "Michal Piotrowski" <michal.k.k.piotrowski@gmail.com>
-Subject: Re: swap-prefetch: 2.6.22 -mm merge plans
-In-Reply-To: <6bffcb0e0705030915r7c169f1cnd3b21413255a5c1f@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Thu, 3 May 2007 09:30:59 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: 2.6.22 -mm merge plans: slub
+In-Reply-To: <20070503082716.GE19966@holomorphy.com>
+Message-ID: <Pine.LNX.4.64.0705030928560.8386@schroedinger.engr.sgi.com>
 References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	 <20070503155407.GA7536@elte.hu>
-	 <6bffcb0e0705030915r7c169f1cnd3b21413255a5c1f@mail.gmail.com>
+ <Pine.LNX.4.64.0705011846590.10660@blonde.wat.veritas.com>
+ <20070501125559.9ab42896.akpm@linux-foundation.org>
+ <Pine.LNX.4.64.0705012101410.26170@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0705011403470.26819@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.64.0705021330001.16517@blonde.wat.veritas.com>
+ <Pine.LNX.4.64.0705021017270.32635@schroedinger.engr.sgi.com>
+ <20070503011515.0d89082b.akpm@linux-foundation.org> <20070503082716.GE19966@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Con Kolivas <kernel@kolivas.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, haveblue@ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/05/07, Michal Piotrowski <michal.k.k.piotrowski@gmail.com> wrote:
-> Hi,
->
-> On 03/05/07, Ingo Molnar <mingo@elte.hu> wrote:
-> >
-> > * Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > > - If replying, please be sure to cc the appropriate individuals.
-> > >   Please also consider rewriting the Subject: to something
-> > >   appropriate.
-> >
-> > i'm wondering about swap-prefetch:
-> >
-> >   mm-implement-swap-prefetching.patch
-> >   swap-prefetch-avoid-repeating-entry.patch
-> >   add-__gfp_movable-for-callers-to-flag-allocations-from-high-memory-that-may-be-migrated-swap-prefetch.patch
-> >
-> > The swap-prefetch feature is relatively compact:
-> >
-> >    10 files changed, 745 insertions(+), 1 deletion(-)
-> >
-> > it is contained mostly to itself:
-> >
-> >    mm/swap_prefetch.c            |  581 ++++++++++++++++++++++++++++++++
-> >
-> > i've reviewed it once again and in the !CONFIG_SWAP_PREFETCH case it's a
-> > clear NOP, while in the CONFIG_SWAP_PREFETCH=y case all the feedback
-> > i've seen so far was positive. Time to have this upstream and time for a
-> > desktop-oriented distro to pick it up.
-> >
-> > I think this has been held back way too long. It's .config selectable
-> > and it is as ready for integration as it ever is going to be. So it's a
-> > win/win scenario.
->
-> I'm using SWAP_PREFETCH since 2.6.17-mm1 (I don't have earlier configs)
+On Thu, 3 May 2007, William Lee Irwin III wrote:
 
-since 2.6.14-mm2 :)
-http://lkml.org/lkml/2005/11/11/260
+> I've seen this crash in flush_old_exec() before. ISTR it being due to
+> slub vs. pagetable alignment or something on that order.
 
-Regards,
-Michal
-
--- 
-Michal K. K. Piotrowski
-Kernel Monkeys
-(http://kernel.wikidot.com/start)
+>From from other discussion regarding SLAB: It may be necessary for 
+powerpc to set the default alignment to 8 bytes on 32 bit powerpc 
+because it requires that alignemnt for 64 bit value. SLUB will *not* 
+disable debugging like SLAB if you do that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
