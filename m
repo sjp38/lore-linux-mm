@@ -1,56 +1,54 @@
-Message-ID: <4639DBEC.2020401@yahoo.com.au>
-Date: Thu, 03 May 2007 22:56:12 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Thu, 3 May 2007 13:58:52 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <46393BA7.6030106@yahoo.com.au> <20070503103756.GA19958@infradead.org>
-In-Reply-To: <20070503103756.GA19958@infradead.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4639D8E8.2090608@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0705031351180.29450@blonde.wat.veritas.com>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+ <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
+ <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>
+ <46393BA7.6030106@yahoo.com.au> <Pine.LNX.4.64.0705031306300.24945@blonde.wat.veritas.com>
+ <4639D8E8.2090608@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
-> On Thu, May 03, 2007 at 11:32:23AM +1000, Nick Piggin wrote:
+On Thu, 3 May 2007, Nick Piggin wrote:
+> >>@@ -568,6 +570,11 @@ __lock_page (diff -p would tell us!)
+> > > {
+> > >  DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+> > >
+> > >+	set_bit(PG_waiters, &page->flags);
+> > >+	if (unlikely(!TestSetPageLocked(page))) {
+> > 
+> > What happens if another cpu is coming through __lock_page at the
+> > same time, did its set_bit, now finds PageLocked, and so proceeds
+> > to the __wait_on_bit_lock?  But this cpu now clears PG_waiters,
+> > so this task's unlock_page won't wake the other?
 > 
->>The attached patch gets performance up a bit by avoiding some
->>barriers and some cachelines:
->>
->>G5
->>         pagefault   fork          exec
->>2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
->>+patch   1.71-1.73   175.2-180.8   780.5-794.2
->>+patch2  1.61-1.63   169.8-175.0   748.6-757.0
->>
->>So that brings the fork/exec hits down to much less than 5%, and
->>would likely speed up other things that lock the page, like write
->>or page reclaim.
+> You're right, we can't clear the bit here. Doubt it mattered much anyway?
+
+Ah yes, that's a good easy answer.  In fact, just remove this whole
+test and block (we already tried TestSetPageLocked outside just a
+short while ago, so this repeat won't often save anything).
+
 > 
-> 
-> Is that every fork/exec or just under certain cicumstances?
-> A 5% regression on every fork/exec is not acceptable.
+> BTW. I also forgot an smp_mb__after_clear_bit() before the wake_up_page
+> above... that barrier is in the slow path as well though, so it shouldn't
+> matter either.
 
-Well after patch2, G5 fork is 3% and exec is 1%, I'd say the P4
-numbers will be improved as well with that patch. Then if we have
-specific lock/unlock bitops, I hope it should reduce that further.
+I vaguely wondered how such barriers had managed to dissolve away,
+but cranking my brain up to think about barriers takes far too long.
 
-The overhead that is there should just be coming from the extra
-overhead in the file backed fault handler. For noop fork/execs,
-I think that tends to be more pronounced, it is hard to see any
-difference on any non-micro benchmark.
-
-The other thing is that I think there could be some cache effects
-happening -- for example the exec numbers on the 2nd line are
-disproportionately large.
-
-It definitely isn't a good thing to drop performance anywhere
-though, so I'll keep looking for improvements.
-
--- 
-SUSE Labs, Novell Inc.
+> > >+		clear_bit(PG_waiters, &page->flags);
+> > >+		return;
+> > >+	}
+> > >  __wait_on_bit_lock(page_waitqueue(page), &wait, sync_page,
+> > >        TASK_UNINTERRUPTIBLE);
+> >> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
