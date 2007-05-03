@@ -1,15 +1,15 @@
-Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
-	by smtp-out.google.com with ESMTP id l43HuEKS017726
-	for <linux-mm@kvack.org>; Thu, 3 May 2007 18:56:14 +0100
-Received: from an-out-0708.google.com (anac28.prod.google.com [10.100.54.28])
-	by spaceape13.eur.corp.google.com with ESMTP id l43Hu7Vf026915
-	for <linux-mm@kvack.org>; Thu, 3 May 2007 18:56:08 +0100
-Received: by an-out-0708.google.com with SMTP id c28so610987ana
-        for <linux-mm@kvack.org>; Thu, 03 May 2007 10:56:00 -0700 (PDT)
-Message-ID: <b040c32a0705031055n6a819551j908e9c644816ab1f@mail.gmail.com>
-Date: Thu, 3 May 2007 10:55:33 -0700
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id l43IkUYL017043
+	for <linux-mm@kvack.org>; Thu, 3 May 2007 11:46:31 -0700
+Received: from an-out-0708.google.com (andd14.prod.google.com [10.100.30.14])
+	by zps38.corp.google.com with ESMTP id l43IkIhO020082
+	for <linux-mm@kvack.org>; Thu, 3 May 2007 11:46:25 -0700
+Received: by an-out-0708.google.com with SMTP id d14so622942and
+        for <linux-mm@kvack.org>; Thu, 03 May 2007 11:46:25 -0700 (PDT)
+Message-ID: <b040c32a0705031146x7089d834k258943d4abcbb471@mail.gmail.com>
+Date: Thu, 3 May 2007 11:46:24 -0700
 From: "Ken Chen" <kenchen@google.com>
-Subject: [patch] pretending cpuset has some form of hugetlb page reservation
+Subject: [patch] per-cpuset hugetlb accounting and administration
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
@@ -19,73 +19,92 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-When cpuset is configured, it breaks the strict hugetlb page
-reservation as the accounting is done on a global variable. Such
-reservation is completely rubbish in the presence of cpuset because
-the reservation is not checked against page availability for the
-current cpuset. Application can still potentially OOM'ed by kernel
-with lack of free htlb page in cpuset that the task is in.
-Attempt to enforce strict accounting with cpuset is almost
-impossible (or too ugly) because cpuset is too fluid that
-task or memory node can be dynamically moved between cpusets.
+Existing application heavily depends on accurate free hugetlb page
+pool presented in /proc/meminfo.  Enterprise applications typically
+query HugePages_Free field to know how much hugetlb pages are
+available for it to use and intelligently segment its memory demand
+into several memory segments, one to use the full extent of hugetlb
+page and have the rest to fall back to normal page segment.
 
-The change of semantics for shared hugetlb mapping with cpuset is
-undesirable. However, in order to preserve some of the semantics,
-we fall back to check against current free page availability as
-a best attempt and hopefully to minimize the impact of changing
-semantics that cpuset has on hugetlb.
+The reporting data with cpuset configured breaks that information, as
+it presents global stats.  This will cause hiccup in application when
+run inside cpuset that application will be mislead by the kernel and
+mis-configure its hugetlb segment.
 
+The following patch attempts to fix this deficiency when hugetlb is
+used with cpuset to preserve the user space visible interface.  This
+is required for compatibility and to allow existing application in the
+field to operate normally regardless whether it is run with or without
+cpuset configured.
 
 Signed-off-by: Ken Chen <kenchen@google.com>
 
 
---- ./mm/hugetlb.c.orig	2007-05-02 18:12:36.000000000 -0700
-+++ ./mm/hugetlb.c	2007-05-03 10:50:24.000000000 -0700
-@@ -172,6 +172,17 @@ static int __init hugetlb_setup(char *s)
- }
- __setup("hugepages=", hugetlb_setup);
+--- ./mm/hugetlb.c.orig	2007-05-03 11:02:07.000000000 -0700
++++ ./mm/hugetlb.c	2007-05-03 11:12:42.000000000 -0700
+@@ -213,7 +213,7 @@ static void try_to_free_low(unsigned lon
+ 			update_and_free_page(page);
+ 			free_huge_pages--;
+ 			free_huge_pages_node[page_to_nid(page)]--;
+-			if (count >= nr_huge_pages)
++			if (count >= cpuset_mems_nr(nr_huge_pages_node))
+ 				return;
+ 		}
+ 	}
+@@ -226,24 +226,30 @@ static inline void try_to_free_low(unsig
 
-+static unsigned int cpuset_mems_nr(unsigned int *array)
-+{
-+	int node;
-+	unsigned int nr = 0;
-+
-+	for_each_node_mask(node, cpuset_current_mems_allowed)
-+		nr += array[node];
-+
-+	return nr;
-+}
-+
- #ifdef CONFIG_SYSCTL
- static void update_and_free_page(struct page *page)
+ static unsigned long set_max_huge_pages(unsigned long count)
  {
-@@ -817,6 +828,26 @@ int hugetlb_reserve_pages(struct inode *
- 	chg = region_chg(&inode->i_mapping->private_list, from, to);
- 	if (chg < 0)
- 		return chg;
-+	/*
-+	 * When cpuset is configured, it breaks the strict hugetlb page
-+	 * reservation as the accounting is done on a global variable. Such
-+	 * reservation is completely rubbish in the presence of cpuset because
-+	 * the reservation is not checked against page availability for the
-+	 * current cpuset. Application can still potentially OOM'ed by kernel
-+	 * with lack of free htlb page in cpuset that the task is in.
-+	 * Attempt to enforce strict accounting with cpuset is almost
-+	 * impossible (or too ugly) because cpuset is too fluid that
-+	 * task or memory node can be dynamically moved between cpusets.
-+	 *
-+	 * The change of semantics for shared hugetlb mapping with cpuset is
-+	 * undesirable. However, in order to preserve some of the semantics,
-+	 * we fall back to check against current free page availability as
-+	 * a best attempt and hopefully to minimize the impact of changing
-+	 * semantics that cpuset has.
-+	 */
-+	if (chg > cpuset_mems_nr(free_huge_pages_node))
-+		return -ENOMEM;
+-	while (count > nr_huge_pages) {
++	unsigned int cpuset_nr_huge_pages = cpuset_mems_nr(nr_huge_pages_node);
 +
- 	ret = hugetlb_acct_memory(chg);
- 	if (ret < 0)
- 		return ret;
++	while (count > cpuset_nr_huge_pages) {
+ 		if (!alloc_fresh_huge_page())
+-			return nr_huge_pages;
++			return cpuset_nr_huge_pages;
++		cpuset_nr_huge_pages++;
+ 	}
+-	if (count >= nr_huge_pages)
+-		return nr_huge_pages;
++	if (count >= cpuset_nr_huge_pages)
++		return cpuset_nr_huge_pages;
+
+ 	spin_lock(&hugetlb_lock);
+ 	count = max(count, resv_huge_pages);
+ 	try_to_free_low(count);
+-	while (count < nr_huge_pages) {
++
++	cpuset_nr_huge_pages = cpuset_mems_nr(nr_huge_pages_node);
++	while (count < cpuset_nr_huge_pages) {
+ 		struct page *page = dequeue_huge_page(NULL, 0);
+ 		if (!page)
+ 			break;
+ 		update_and_free_page(page);
++		cpuset_nr_huge_pages--;
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+-	return nr_huge_pages;
++	return cpuset_nr_huge_pages;
+ }
+
+ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
+@@ -259,12 +265,12 @@ int hugetlb_sysctl_handler(struct ctl_ta
+ int hugetlb_report_meminfo(char *buf)
+ {
+ 	return sprintf(buf,
+-			"HugePages_Total: %5lu\n"
+-			"HugePages_Free:  %5lu\n"
++			"HugePages_Total: %5u\n"
++			"HugePages_Free:  %5u\n"
+ 			"HugePages_Rsvd:  %5lu\n"
+ 			"Hugepagesize:    %5lu kB\n",
+-			nr_huge_pages,
+-			free_huge_pages,
++			cpuset_mems_nr(nr_huge_pages_node),
++			cpuset_mems_nr(free_huge_pages_node),
+ 			resv_huge_pages,
+ 			HPAGE_SIZE/1024);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
