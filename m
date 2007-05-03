@@ -1,49 +1,36 @@
-Date: Wed, 2 May 2007 20:02:47 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes
-In-Reply-To: <20070503022107.GA13592@kryten>
-Message-ID: <Pine.LNX.4.64.0705021959100.4259@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten>
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id l433mEMj030454
+	for <linux-mm@kvack.org>; Wed, 2 May 2007 20:48:14 -0700
+Received: from an-out-0708.google.com (andd14.prod.google.com [10.100.30.14])
+	by zps78.corp.google.com with ESMTP id l433m9DX027624
+	for <linux-mm@kvack.org>; Wed, 2 May 2007 20:48:09 -0700
+Received: by an-out-0708.google.com with SMTP id d14so380127and
+        for <linux-mm@kvack.org>; Wed, 02 May 2007 20:48:08 -0700 (PDT)
+Message-ID: <b040c32a0705022048p6c08fd41wcca7ac628d4229bc@mail.gmail.com>
+Date: Wed, 2 May 2007 20:48:08 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: Re: cache-pipe-buf-page-address-for-non-highmem-arch.patch
+In-Reply-To: <20070501020441.10b6a003.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>
+	 <20070501085431.GD14364@infradead.org>
+	 <20070501020441.10b6a003.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 May 2007, Anton Blanchard wrote:
+On 5/1/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> Fair enough, it is a bit of an ugly thing.  And I see no measurements there
+> on what the overall speedup was for any workload.
+>
+> Ken, which memory model was in use?  sparsemem?
 
-> It didnt take long to realise that alloc_fresh_huge_page is allocating
-> from node 7 without GFP_THISNODE set, so we fallback to its next
-> preferred node (ie 1). This means we end up with a 1/3 2/3 imbalance.
-
-Yup.
- 
-> After fixing this it still didnt work, and after some more poking I see
-> why. When building our fallback zonelist in build_zonelists_node we
-> skip empty zones. This means zone 7 never registers node 7's empty
-> zonelists and instead registers node 1's. Therefore when we ask for a
-> page from node 7, using the GFP_THISNODE flag we end up with node 1
-> memory.
-> 
-> By removing the populated_zone() check in build_zonelists_node we fix
-> the problem:
-
-Looks good. I guess that is possible now that memory policy
-zonelist building skips empty zonelists. Andi?
-
-> Im guessing registering empty remote zones might make the SGI guys a bit
-> unhappy, maybe we should just force the registration of empty local
-> zones? Does anyone care?
-
-Why would that make us unhappy?
-
-Note that this is a direct result of allowing node without memorys. We 
-only recently allowed such things while being aware that there will be 
-some breakage. This is one. If the empty node would not have been marked 
-online then we would not have attempted an allocation there.
-
+discontigmem with config_numa on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
