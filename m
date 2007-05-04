@@ -1,81 +1,170 @@
-Message-Id: <20070504103159.616506817@chello.nl>
+Message-Id: <20070504103201.289858346@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:09 +0200
+Date: Fri, 04 May 2007 12:27:16 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 18/40] netvm: prevent a TCP specific deadlock
-Content-Disposition: inline; filename=netvm-tcp-deadlock.patch
+Subject: [PATCH 25/40] nfs: remove mempools
+Content-Disposition: inline; filename=nfs-no-mempool.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-It could happen that all !SOCK_VMIO sockets have buffered so much data
-that we're over the global rmem limit. This will prevent SOCK_VMIO buffers
-from receiving data, which will prevent userspace from running, which is needed
-to reduce the buffered data.
+With the introduction of the shared dirty page accounting in .19, NFS should
+not be able to surpise the VM with all dirty pages. Thus it should always be
+able to free some memory. Hence no more need for mempools.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/net/sock.h  |    7 ++++---
- net/core/stream.c   |    5 +++--
- net/ipv4/tcp_ipv4.c |    8 ++++++++
- net/ipv6/tcp_ipv6.c |    8 ++++++++
- 4 files changed, 23 insertions(+), 5 deletions(-)
+ fs/nfs/read.c  |   15 +++------------
+ fs/nfs/write.c |   27 +++++----------------------
+ 2 files changed, 8 insertions(+), 34 deletions(-)
 
-Index: linux-2.6-git/include/net/sock.h
+Index: linux-2.6-git/fs/nfs/read.c
 ===================================================================
---- linux-2.6-git.orig/include/net/sock.h	2007-02-14 12:09:05.000000000 +0100
-+++ linux-2.6-git/include/net/sock.h	2007-02-14 12:09:21.000000000 +0100
-@@ -730,7 +730,8 @@ static inline struct inode *SOCK_INODE(s
- }
+--- linux-2.6-git.orig/fs/nfs/read.c
++++ linux-2.6-git/fs/nfs/read.c
+@@ -33,13 +33,10 @@ static const struct rpc_call_ops nfs_rea
+ static const struct rpc_call_ops nfs_read_full_ops;
  
- extern void __sk_stream_mem_reclaim(struct sock *sk);
--extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
-+extern int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb,
-+		int size, int kind);
+ static struct kmem_cache *nfs_rdata_cachep;
+-static mempool_t *nfs_rdata_mempool;
+-
+-#define MIN_POOL_READ	(32)
  
- #define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
- 
-@@ -757,13 +758,13 @@ static inline void sk_stream_writequeue_
- static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
+ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
  {
- 	return (int)skb->truesize <= sk->sk_forward_alloc ||
--		sk_stream_mem_schedule(sk, skb->truesize, 1);
-+		sk_stream_mem_schedule(sk, skb, skb->truesize, 1);
+-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
++	struct nfs_read_data *p = kmem_cache_alloc(nfs_rdata_cachep, GFP_NOFS);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -50,7 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc
+ 		else {
+ 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+ 			if (!p->pagevec) {
+-				mempool_free(p, nfs_rdata_mempool);
++				kmem_cache_free(nfs_rdata_cachep, p);
+ 				p = NULL;
+ 			}
+ 		}
+@@ -63,7 +60,7 @@ static void nfs_readdata_rcu_free(struct
+ 	struct nfs_read_data *p = container_of(head, struct nfs_read_data, task.u.tk_rcu);
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_rdata_mempool);
++	kmem_cache_free(nfs_rdata_cachep, p);
  }
  
- static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
+ static void nfs_readdata_free(struct nfs_read_data *rdata)
+@@ -590,16 +587,10 @@ int __init nfs_init_readpagecache(void)
+ 	if (nfs_rdata_cachep == NULL)
+ 		return -ENOMEM;
+ 
+-	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
+-						     nfs_rdata_cachep);
+-	if (nfs_rdata_mempool == NULL)
+-		return -ENOMEM;
+-
+ 	return 0;
+ }
+ 
+ void nfs_destroy_readpagecache(void)
  {
- 	return size <= sk->sk_forward_alloc ||
--	       sk_stream_mem_schedule(sk, size, 0);
-+	       sk_stream_mem_schedule(sk, NULL, size, 0);
+-	mempool_destroy(nfs_rdata_mempool);
+ 	kmem_cache_destroy(nfs_rdata_cachep);
  }
- 
- /* Used by processes to "lock" a socket state, so that
-Index: linux-2.6-git/net/core/stream.c
+Index: linux-2.6-git/fs/nfs/write.c
 ===================================================================
---- linux-2.6-git.orig/net/core/stream.c	2007-02-14 12:09:05.000000000 +0100
-+++ linux-2.6-git/net/core/stream.c	2007-02-14 12:09:21.000000000 +0100
-@@ -207,7 +207,7 @@ void __sk_stream_mem_reclaim(struct sock
+--- linux-2.6-git.orig/fs/nfs/write.c
++++ linux-2.6-git/fs/nfs/write.c
+@@ -29,9 +29,6 @@
  
- EXPORT_SYMBOL(__sk_stream_mem_reclaim);
+ #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
  
--int sk_stream_mem_schedule(struct sock *sk, int size, int kind)
-+int sk_stream_mem_schedule(struct sock *sk, struct sk_buff *skb, int size, int kind)
+-#define MIN_POOL_WRITE		(32)
+-#define MIN_POOL_COMMIT		(4)
+-
+ /*
+  * Local function declarations
+  */
+@@ -45,12 +42,10 @@ static const struct rpc_call_ops nfs_wri
+ static const struct rpc_call_ops nfs_commit_ops;
+ 
+ static struct kmem_cache *nfs_wdata_cachep;
+-static mempool_t *nfs_wdata_mempool;
+-static mempool_t *nfs_commit_mempool;
+ 
+ struct nfs_write_data *nfs_commit_alloc(void)
  {
- 	int amt = sk_stream_pages(size);
+-	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
  
-@@ -224,7 +224,8 @@ int sk_stream_mem_schedule(struct sock *
- 	/* Over hard limit. */
- 	if (atomic_read(sk->sk_prot->memory_allocated) > sk->sk_prot->sysctl_mem[2]) {
- 		sk->sk_prot->enter_memory_pressure();
--		goto suppress_allocation;
-+		if (!skb || (skb && !skb_emergency(skb)))
-+			goto suppress_allocation;
- 	}
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -64,7 +59,7 @@ void nfs_commit_rcu_free(struct rcu_head
+ 	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_commit_mempool);
++	kmem_cache_free(nfs_wdata_cachep, p);
+ }
  
- 	/* Under pressure. */
+ void nfs_commit_free(struct nfs_write_data *wdata)
+@@ -74,7 +69,7 @@ void nfs_commit_free(struct nfs_write_da
+ 
+ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+ {
+-	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
+ 
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -85,7 +80,7 @@ struct nfs_write_data *nfs_writedata_all
+ 		else {
+ 			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+ 			if (!p->pagevec) {
+-				mempool_free(p, nfs_wdata_mempool);
++				kmem_cache_free(nfs_wdata_cachep, p);
+ 				p = NULL;
+ 			}
+ 		}
+@@ -98,7 +93,7 @@ static void nfs_writedata_rcu_free(struc
+ 	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
+ 	if (p && (p->pagevec != &p->page_array[0]))
+ 		kfree(p->pagevec);
+-	mempool_free(p, nfs_wdata_mempool);
++	kmem_cache_free(nfs_wdata_cachep, p);
+ }
+ 
+ static void nfs_writedata_free(struct nfs_write_data *wdata)
+@@ -1465,16 +1460,6 @@ int __init nfs_init_writepagecache(void)
+ 	if (nfs_wdata_cachep == NULL)
+ 		return -ENOMEM;
+ 
+-	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
+-						     nfs_wdata_cachep);
+-	if (nfs_wdata_mempool == NULL)
+-		return -ENOMEM;
+-
+-	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
+-						      nfs_wdata_cachep);
+-	if (nfs_commit_mempool == NULL)
+-		return -ENOMEM;
+-
+ 	/*
+ 	 * NFS congestion size, scale with available memory.
+ 	 *
+@@ -1500,8 +1485,6 @@ int __init nfs_init_writepagecache(void)
+ 
+ void nfs_destroy_writepagecache(void)
+ {
+-	mempool_destroy(nfs_commit_mempool);
+-	mempool_destroy(nfs_wdata_mempool);
+ 	kmem_cache_destroy(nfs_wdata_cachep);
+ }
+ 
 
 --
 
