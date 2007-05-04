@@ -1,75 +1,93 @@
-Message-Id: <20070504103156.764086133@chello.nl>
+Message-Id: <20070504103202.950175722@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:26:57 +0200
+Date: Fri, 04 May 2007 12:27:23 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 06/40] mm: __GFP_EMERGENCY
-Content-Disposition: inline; filename=mm-page_alloc-GFP_EMERGENCY.patch
+Subject: [PATCH 32/40] block: add a swapdev callback to the request_queue
+Content-Disposition: inline; filename=blk_queue_swapdev.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-__GFP_EMERGENCY will allow the allocation to disregard the watermarks, 
-much like PF_MEMALLOC.
+Networked storage devices need a swap-on/off callback in order to setup
+some state and reserve memory. Place the block device callback in the
+request_queue as suggested by James Bottomley.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jens Axboe <jens.axboe@oracle.com>
+Cc: James Bottomley <James.Bottomley@SteelEye.com>
 ---
- include/linux/gfp.h |    7 ++++++-
- mm/internal.h       |   10 +++++++---
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ include/linux/blkdev.h |   19 +++++++++++++++++++
+ mm/swapfile.c          |    4 ++++
+ 2 files changed, 23 insertions(+)
 
-Index: linux-2.6-git/include/linux/gfp.h
+Index: linux-2.6-git/include/linux/blkdev.h
 ===================================================================
---- linux-2.6-git.orig/include/linux/gfp.h	2006-12-14 10:02:18.000000000 +0100
-+++ linux-2.6-git/include/linux/gfp.h	2006-12-14 10:02:52.000000000 +0100
-@@ -35,17 +35,21 @@ struct vm_area_struct;
- #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
- #define __GFP_IO	((__force gfp_t)0x40u)	/* Can start physical IO? */
- #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
-+
- #define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
- #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
- #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
- #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
-+
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
- #define __GFP_NO_GROW	((__force gfp_t)0x2000u)/* Slab internal usage */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
-+
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_EMERGENCY  ((__force gfp_t)0x80000u) /* Use emergency reserves */
+--- linux-2.6-git.orig/include/linux/blkdev.h	2007-01-08 11:53:13.000000000 +0100
++++ linux-2.6-git/include/linux/blkdev.h	2007-01-16 14:14:50.000000000 +0100
+@@ -341,6 +341,7 @@ typedef int (merge_bvec_fn) (request_que
+ typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
+ typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
+ typedef void (softirq_done_fn)(struct request *);
++typedef int (swapdev_fn)(void*, int);
  
- #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -54,7 +58,8 @@ struct vm_area_struct;
- #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
- 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
- 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
--			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
-+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
-+			__GFP_EMERGENCY)
+ enum blk_queue_state {
+ 	Queue_down,
+@@ -379,6 +380,8 @@ struct request_queue
+ 	issue_flush_fn		*issue_flush_fn;
+ 	prepare_flush_fn	*prepare_flush_fn;
+ 	softirq_done_fn		*softirq_done_fn;
++	swapdev_fn		*swapdev_fn;
++	void			*swapdev_obj;
  
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-Index: linux-2.6-git/mm/internal.h
+ 	/*
+ 	 * Dispatch queue sorting
+@@ -766,6 +769,22 @@ request_queue_t *blk_alloc_queue(gfp_t);
+ request_queue_t *blk_alloc_queue_node(gfp_t, int);
+ extern void blk_put_queue(request_queue_t *);
+ 
++static inline
++void blk_queue_swapdev(struct request_queue *rq,
++		       swapdev_fn *swapdev_fn, void *swapdev_obj)
++{
++	rq->swapdev_fn = swapdev_fn;
++	rq->swapdev_obj = swapdev_obj;
++}
++
++static inline
++int blk_queue_swapdev_fn(struct request_queue *rq, int enable)
++{
++	if (rq->swapdev_fn)
++		return rq->swapdev_fn(rq->swapdev_obj, enable);
++	return 0;
++}
++
+ /*
+  * tag stuff
+  */
+Index: linux-2.6-git/mm/swapfile.c
 ===================================================================
---- linux-2.6-git.orig/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
-+++ linux-2.6-git/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
-@@ -75,7 +75,9 @@ static int inline gfp_to_alloc_flags(gfp
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+		if (gfp_mask & __GFP_EMERGENCY)
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_irq() && (p->flags & PF_MEMALLOC))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 		else if (!in_interrupt() &&
- 				unlikely(test_thread_flag(TIF_MEMDIE)))
+--- linux-2.6-git.orig/mm/swapfile.c	2007-01-15 09:59:02.000000000 +0100
++++ linux-2.6-git/mm/swapfile.c	2007-01-16 14:14:50.000000000 +0100
+@@ -1305,6 +1305,7 @@ asmlinkage long sys_swapoff(const char _
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
++		blk_queue_swapdev_fn(bdev->bd_disk->queue, 0);
+ 		set_blocksize(bdev, p->old_block_size);
+ 		bd_release(bdev);
+ 	} else {
+@@ -1524,6 +1525,9 @@ asmlinkage long sys_swapon(const char __
+ 		error = set_blocksize(bdev, PAGE_SIZE);
+ 		if (error < 0)
+ 			goto bad_swap;
++		error = blk_queue_swapdev_fn(bdev->bd_disk->queue, 1);
++		if (error < 0)
++			goto bad_swap;
+ 		p->bdev = bdev;
+ 	} else if (S_ISREG(inode->i_mode)) {
+ 		p->bdev = inode->i_sb->s_bdev;
 
 --
 
