@@ -1,244 +1,103 @@
-Message-Id: <20070504103155.582370247@chello.nl>
-References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:26:52 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 01/40] mm: page allocation rank
-Content-Disposition: inline; filename=mm-page_alloc-rank.patch
+Message-ID: <463B108C.10602@yahoo.com.au>
+Date: Fri, 04 May 2007 20:53:00 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com>
+In-Reply-To: <4632D0EF.9050701@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ulrich Drepper <drepper@redhat.com>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Introduce page allocation rank.
+Rik van Riel wrote:
+> With lazy freeing of anonymous pages through MADV_FREE, performance of
+> the MySQL sysbench workload more than doubles on my quad-core system.
 
-This allocation rank is an measure of the 'hardness' of the page allocation.
-Where hardness refers to how deep we have to reach (and thereby if reclaim 
-was activated) to obtain the page.
+OK, I've run some tests on a 16 core Opteron system, both sysbench with
+MySQL 5.33 (set up as described in the freebsd vs linux page), and with
+ebizzy.
 
-It basically is a mapping from the ALLOC_/gfp flags into a scalar quantity,
-which allows for comparisons of the kind: 
-  'would this allocation have succeeded using these gfp flags'.
+What I found is that, on this system, MADV_FREE performance improvement
+was in the noise when you look at it on top of the MADV_DONTNEED glibc
+and down_read(mmap_sem) patch in sysbench.
 
-For the gfp -> alloc_flags mapping we use the 'hardest' possible, those
-used by __alloc_pages() right before going into direct reclaim.
+In ebizzy it was slightly up at low loads and slightly down at high loads,
+though I wouldn't put as much stock in ebizzy as the real workload,
+because the numbers are going to be highly dependand on access patterns.
 
-The alloc_flags -> rank mapping is given by: 2*2^wmark - harder - 2*high
-where wmark = { min = 1, low, high } and harder, high are booleans.
-This gives:
-  0 is the hardest possible allocation - ALLOC_NO_WATERMARK,
-  1 is ALLOC_WMARK_MIN|ALLOC_HARDER|ALLOC_HIGH,
-  ...
-  15 is ALLOC_WMARK_HIGH|ALLOC_HARDER,
-  16 is the softest allocation - ALLOC_WMARK_HIGH.
+Now these numbers are collected under best-case conditions for MADV_FREE,
+ie. no page reclaim going on. If you consider page reclaim, then you would
+think there might be room for regressions.
 
-Rank <= 4 will have woke up kswapd and when also > 0 might have ran into
-direct reclaim.
+So far, I'm not convinced this is a good use of a page flag or the added
+complexity. There are lots of ways we can improve performance using a page
+flag (my recent PG_waiters, PG_mlock, PG_replicated, etc.) to improve
+performance, so I think we need some more numbers.
 
-Rank > 8 rarely happens and means lots of memory free (due to parallel oom kill).
+(I'll be away for the weekend...)
 
-The allocation rank is stored in page->index for successful allocations.
 
-'offline' testing of the rank is made impossible by direct reclaim and
-fragmentation issues. That is, it is impossible to tell if a given allocation
-will succeed without actually doing it.
+LHS is # threads, numbers are +/- 99.9% confidence.
 
-The purpose of this measure is to introduce some fairness into the slab
-allocator.
+sysbench transactions per sec (higher is better)
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/internal.h   |   70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c |   58 +++++++++++++---------------------------------
- 2 files changed, 87 insertions(+), 41 deletions(-)
+2.6.21
+1,   453.092000 +/-  7.089284
+2,   831.722000 +/- 13.138541
+4,  1468.590000 +/- 40.160654
+8,  2139.822000 +/- 62.223220
+16, 2118.802000 +/- 83.247076
+32, 1051.596000 +/- 62.455236
+64,  917.078000 +/- 21.086954
 
-Index: linux-2.6-git/mm/internal.h
-===================================================================
---- linux-2.6-git.orig/mm/internal.h	2007-02-22 13:56:00.000000000 +0100
-+++ linux-2.6-git/mm/internal.h	2007-02-22 14:08:41.000000000 +0100
-@@ -12,6 +12,7 @@
- #define __MM_INTERNAL_H
- 
- #include <linux/mm.h>
-+#include <linux/hardirq.h>
- 
- static inline void set_page_count(struct page *page, int v)
- {
-@@ -37,4 +38,73 @@ static inline void __put_page(struct pag
- extern void fastcall __init __free_pages_bootmem(struct page *page,
- 						unsigned int order);
- 
-+#define ALLOC_HARDER		0x01 /* try to alloc harder */
-+#define ALLOC_HIGH		0x02 /* __GFP_HIGH set */
-+#define ALLOC_WMARK_MIN		0x04 /* use pages_min watermark */
-+#define ALLOC_WMARK_LOW		0x08 /* use pages_low watermark */
-+#define ALLOC_WMARK_HIGH	0x10 /* use pages_high watermark */
-+#define ALLOC_NO_WATERMARKS	0x20 /* don't check watermarks at all */
-+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-+
-+/*
-+ * get the deepest reaching allocation flags for the given gfp_mask
-+ */
-+static int inline gfp_to_alloc_flags(gfp_t gfp_mask)
-+{
-+	struct task_struct *p = current;
-+	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-+	const gfp_t wait = gfp_mask & __GFP_WAIT;
-+
-+	/*
-+	 * The caller may dip into page reserves a bit more if the caller
-+	 * cannot run direct reclaim, or if the caller has realtime scheduling
-+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-+	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-+	 */
-+	if (gfp_mask & __GFP_HIGH)
-+		alloc_flags |= ALLOC_HIGH;
-+
-+	if (!wait) {
-+		alloc_flags |= ALLOC_HARDER;
-+		/*
-+		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-+		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-+		 */
-+		alloc_flags &= ~ALLOC_CPUSET;
-+	} else if (unlikely(rt_task(p)) && !in_interrupt())
-+		alloc_flags |= ALLOC_HARDER;
-+
-+	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-+		if (!in_interrupt() &&
-+		    ((p->flags & PF_MEMALLOC) ||
-+		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+	}
-+
-+	return alloc_flags;
-+}
-+
-+#define MAX_ALLOC_RANK	16
-+
-+/*
-+ * classify the allocation: 0 is hardest, 16 is easiest.
-+ */
-+static inline int alloc_flags_to_rank(int alloc_flags)
-+{
-+	int rank;
-+
-+	if (alloc_flags & ALLOC_NO_WATERMARKS)
-+		return 0;
-+
-+	rank = alloc_flags & (ALLOC_WMARK_MIN|ALLOC_WMARK_LOW|ALLOC_WMARK_HIGH);
-+	rank -= alloc_flags & (ALLOC_HARDER|ALLOC_HIGH);
-+
-+	return rank;
-+}
-+
-+static inline int gfp_to_rank(gfp_t gfp_mask)
-+{
-+	return alloc_flags_to_rank(gfp_to_alloc_flags(gfp_mask));
-+}
-+
- #endif
-Index: linux-2.6-git/mm/page_alloc.c
-===================================================================
---- linux-2.6-git.orig/mm/page_alloc.c	2007-02-22 13:56:00.000000000 +0100
-+++ linux-2.6-git/mm/page_alloc.c	2007-02-22 14:08:41.000000000 +0100
-@@ -892,14 +892,6 @@ failed:
- 	return NULL;
- }
- 
--#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
--#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
--#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
--#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
--#define ALLOC_HARDER		0x10 /* try to alloc harder */
--#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
--#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
--
- #ifdef CONFIG_FAIL_PAGE_ALLOC
- 
- static struct fail_page_alloc_attr {
-@@ -1190,6 +1182,7 @@ zonelist_scan:
- 
- 		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
- 		if (page)
-+			page->index = alloc_flags_to_rank(alloc_flags);
- 			break;
- this_zone_full:
- 		if (NUMA_BUILD)
-@@ -1263,48 +1256,27 @@ restart:
- 	 * OK, we're below the kswapd watermark and have kicked background
- 	 * reclaim. Now things get more complex, so set up alloc_flags according
- 	 * to how we want to proceed.
--	 *
--	 * The caller may dip into page reserves a bit more if the caller
--	 * cannot run direct reclaim, or if the caller has realtime scheduling
--	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
--	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
- 	 */
--	alloc_flags = ALLOC_WMARK_MIN;
--	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
--		alloc_flags |= ALLOC_HARDER;
--	if (gfp_mask & __GFP_HIGH)
--		alloc_flags |= ALLOC_HIGH;
--	if (wait)
--		alloc_flags |= ALLOC_CPUSET;
-+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
--	/*
--	 * Go through the zonelist again. Let __GFP_HIGH and allocations
--	 * coming from realtime tasks go deeper into reserves.
--	 *
--	 * This is the last chance, in general, before the goto nopage.
--	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
--	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
--	 */
--	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
-+	/* This is the last chance, in general, before the goto nopage. */
-+	page = get_page_from_freelist(gfp_mask, order, zonelist,
-+			alloc_flags & ~ALLOC_NO_WATERMARKS);
- 	if (page)
- 		goto got_pg;
- 
- 	/* This allocation should allow future memory freeing. */
--
- rebalance:
--	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
--			&& !in_interrupt()) {
--		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- nofail_alloc:
--			/* go through the zonelist yet again, ignoring mins */
--			page = get_page_from_freelist(gfp_mask, order,
-+		/* go through the zonelist yet again, ignoring mins */
-+		page = get_page_from_freelist(gfp_mask, order,
- 				zonelist, ALLOC_NO_WATERMARKS);
--			if (page)
--				goto got_pg;
--			if (gfp_mask & __GFP_NOFAIL) {
--				congestion_wait(WRITE, HZ/50);
--				goto nofail_alloc;
--			}
-+		if (page)
-+			goto got_pg;
-+		if (wait && (gfp_mask & __GFP_NOFAIL)) {
-+			congestion_wait(WRITE, HZ/50);
-+			goto nofail_alloc;
- 		}
- 		goto nopage;
- 	}
-@@ -1313,6 +1285,10 @@ nofail_alloc:
- 	if (!wait)
- 		goto nopage;
- 
-+	/* Avoid recursion of direct reclaim */
-+	if (p->flags & PF_MEMALLOC)
-+		goto nopage;
-+
- 	cond_resched();
- 
- 	/* We now go into synchronous reclaim */
+new glibc
+1,   466.376000 +/-   9.018054
+2,   867.020000 +/-  26.163901
+4,  1535.880000 +/-  25.784081
+8,  2261.856000 +/-  53.350146
+16, 2249.020000 +/- 120.361138
+32, 1521.858000 +/- 110.236781
+64, 1405.262000 +/-  85.260624
 
---
+mmap_sem
+1,   476.144000 +/- 15.865284
+2,   871.778000 +/- 12.736486
+4,  1529.348000 +/- 21.400517
+8,  2235.590000 +/- 54.192125
+16, 2177.422000 +/- 27.416498
+32, 2120.986000 +/- 58.499708
+64, 1949.362000 +/- 51.177977
+
+madv_free
+1,   475.056000 +/-  6.943168
+2,   861.438000 +/- 22.101826
+4,  1564.782000 +/- 55.190110
+8,  2211.792000 +/- 59.843995
+16, 2163.232000 +/- 46.031627
+32, 2100.544000 +/- 86.744497
+64, 1947.058000 +/- 62.392049
+
+
+ebizzy elapsed time (lower is better)
+
+mmap_sem
+1,   45.544000 +/-  3.538529
+4,   78.492000 +/-  8.881464
+16, 224.538000 +/-  7.762784
+64, 913.466000 +/- 53.506338
+
+madv_free
+1,   43.350000 +/-  0.778292
+4,   68.190000 +/-  8.623731
+16, 225.568000 +/- 14.940109
+64, 899.136000 +/- 56.153209
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
