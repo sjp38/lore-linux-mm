@@ -1,187 +1,94 @@
-Message-Id: <20070504103200.579029249@chello.nl>
+Message-Id: <20070504103201.055800212@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:13 +0200
+Date: Fri, 04 May 2007 12:27:15 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 22/40] mm: prepare swap entry methods for use in page methods
-Content-Disposition: inline; filename=mm-swap_entry_methods.patch
+Subject: [PATCH 24/40] mm: methods for teaching filesystems about PG_swapcache pages
+Content-Disposition: inline; filename=mm-page_file_methods.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Move around the swap entry methods in preparation for use from
-page methods.
+In order to teach filesystems to handle swap cache pages, two new page
+functions are introduced:
 
-Also provide a function to obtain the swap_info_struct backing
-a swap cache page.
+  pgoff_t page_file_index(struct page *);
+  struct address_space *page_file_mapping(struct page *);
+
+page_file_index - gives the offset of this page in the file in PAGE_CACHE_SIZE
+blocks. Like page->index is for mapped pages, this function also gives the
+correct index for PG_swapcache pages.
+
+page_file_mapping - gives the mapping backing the actual page; that is for
+swap cache pages it will give swap_file->f_mapping.
+
+page_offset() is modified to use page_file_index(), so that it will give the
+expected result, even for PG_swapcache pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- include/linux/mm.h      |    8 ++++++++
- include/linux/swap.h    |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/swapops.h |   44 --------------------------------------------
- mm/swapfile.c           |    1 +
- 4 files changed, 57 insertions(+), 44 deletions(-)
+ include/linux/mm.h      |   25 +++++++++++++++++++++++++
+ include/linux/pagemap.h |    2 +-
+ 2 files changed, 26 insertions(+), 1 deletion(-)
 
 Index: linux-2.6-git/include/linux/mm.h
 ===================================================================
---- linux-2.6-git.orig/include/linux/mm.h	2007-02-21 12:15:00.000000000 +0100
-+++ linux-2.6-git/include/linux/mm.h	2007-02-21 12:15:01.000000000 +0100
-@@ -17,6 +17,7 @@
- #include <linux/debug_locks.h>
- #include <linux/backing-dev.h>
- #include <linux/mm_types.h>
-+#include <linux/swap.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -586,6 +587,13 @@ static inline struct address_space *page
- 	return mapping;
+--- linux-2.6-git.orig/include/linux/mm.h	2007-02-21 12:15:01.000000000 +0100
++++ linux-2.6-git/include/linux/mm.h	2007-02-21 12:15:07.000000000 +0100
+@@ -594,6 +594,16 @@ static inline struct swap_info_struct *p
+ 	return get_swap_info_struct(swp_type(swap));
  }
  
-+static inline struct swap_info_struct *page_swap_info(struct page *page)
++static inline
++struct address_space *page_file_mapping(struct page *page)
 +{
-+	swp_entry_t swap = { .val = page_private(page) };
-+	BUG_ON(!PageSwapCache(page));
-+	return get_swap_info_struct(swp_type(swap));
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page)))
++		return page_swap_info(page)->swap_file->f_mapping;
++#endif
++	return page->mapping;
 +}
 +
  static inline int PageAnon(struct page *page)
  {
  	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-Index: linux-2.6-git/include/linux/swap.h
-===================================================================
---- linux-2.6-git.orig/include/linux/swap.h	2007-02-21 12:15:00.000000000 +0100
-+++ linux-2.6-git/include/linux/swap.h	2007-02-21 12:15:01.000000000 +0100
-@@ -79,6 +79,50 @@ typedef struct {
- } swp_entry_t;
- 
- /*
-+ * swapcache pages are stored in the swapper_space radix tree.  We want to
-+ * get good packing density in that tree, so the index should be dense in
-+ * the low-order bits.
-+ *
-+ * We arrange the `type' and `offset' fields so that `type' is at the five
-+ * high-order bits of the swp_entry_t and `offset' is right-aligned in the
-+ * remaining bits.
-+ *
-+ * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
-+ */
-+#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
-+#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
-+
-+/*
-+ * Store a type+offset into a swp_entry_t in an arch-independent format
-+ */
-+static inline swp_entry_t swp_entry(unsigned long type, pgoff_t offset)
-+{
-+	swp_entry_t ret;
-+
-+	ret.val = (type << SWP_TYPE_SHIFT(ret)) |
-+			(offset & SWP_OFFSET_MASK(ret));
-+	return ret;
-+}
-+
-+/*
-+ * Extract the `type' field from a swp_entry_t.  The swp_entry_t is in
-+ * arch-independent format
-+ */
-+static inline unsigned swp_type(swp_entry_t entry)
-+{
-+	return (entry.val >> SWP_TYPE_SHIFT(entry));
-+}
-+
-+/*
-+ * Extract the `offset' field from a swp_entry_t.  The swp_entry_t is in
-+ * arch-independent format
-+ */
-+static inline pgoff_t swp_offset(swp_entry_t entry)
-+{
-+	return entry.val & SWP_OFFSET_MASK(entry);
-+}
-+
-+/*
-  * current->reclaim_state points to one of these when a task is running
-  * memory reclaim
-  */
-@@ -326,6 +370,10 @@ static inline int valid_swaphandles(swp_
- 	return 0;
+@@ -611,6 +621,21 @@ static inline pgoff_t page_index(struct 
  }
  
-+static inline struct swap_info_struct *get_swap_info_struct(unsigned type)
-+{
-+	return NULL;
-+}
- #define can_share_swap_page(p)			(page_mapcount(p) == 1)
- 
- static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
-Index: linux-2.6-git/include/linux/swapops.h
-===================================================================
---- linux-2.6-git.orig/include/linux/swapops.h	2007-02-21 12:15:00.000000000 +0100
-+++ linux-2.6-git/include/linux/swapops.h	2007-02-21 12:15:01.000000000 +0100
-@@ -1,48 +1,4 @@
  /*
-- * swapcache pages are stored in the swapper_space radix tree.  We want to
-- * get good packing density in that tree, so the index should be dense in
-- * the low-order bits.
-- *
-- * We arrange the `type' and `offset' fields so that `type' is at the five
-- * high-order bits of the swp_entry_t and `offset' is right-aligned in the
-- * remaining bits.
-- *
-- * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
-- */
--#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
--#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
--
--/*
-- * Store a type+offset into a swp_entry_t in an arch-independent format
-- */
--static inline swp_entry_t swp_entry(unsigned long type, pgoff_t offset)
--{
--	swp_entry_t ret;
--
--	ret.val = (type << SWP_TYPE_SHIFT(ret)) |
--			(offset & SWP_OFFSET_MASK(ret));
--	return ret;
--}
--
--/*
-- * Extract the `type' field from a swp_entry_t.  The swp_entry_t is in
-- * arch-independent format
-- */
--static inline unsigned swp_type(swp_entry_t entry)
--{
--	return (entry.val >> SWP_TYPE_SHIFT(entry));
--}
--
--/*
-- * Extract the `offset' field from a swp_entry_t.  The swp_entry_t is in
-- * arch-independent format
-- */
--static inline pgoff_t swp_offset(swp_entry_t entry)
--{
--	return entry.val & SWP_OFFSET_MASK(entry);
--}
--
--/*
-  * Convert the arch-dependent pte representation of a swp_entry_t into an
-  * arch-independent swp_entry_t.
-  */
-Index: linux-2.6-git/mm/swapfile.c
++ * Return the file index of the page. Regular pagecache pages use ->index
++ * whereas swapcache pages use swp_offset(->private)
++ */
++static inline pgoff_t page_file_index(struct page *page)
++{
++#ifdef CONFIG_SWAP_FILE
++	if (unlikely(PageSwapCache(page))) {
++		swp_entry_t swap = { .val = page_private(page) };
++		return swp_offset(swap);
++	}
++#endif
++	return page->index;
++}
++
++/*
+  * The atomic page->_mapcount, like _count, starts from -1:
+  * so that transitions both from it and to it can be tracked,
+  * using atomic_inc_and_test and atomic_add_negative(-1).
+Index: linux-2.6-git/include/linux/pagemap.h
 ===================================================================
---- linux-2.6-git.orig/mm/swapfile.c	2007-02-21 12:15:00.000000000 +0100
-+++ linux-2.6-git/mm/swapfile.c	2007-02-21 12:15:01.000000000 +0100
-@@ -1764,6 +1764,7 @@ get_swap_info_struct(unsigned type)
+--- linux-2.6-git.orig/include/linux/pagemap.h	2007-02-21 12:14:54.000000000 +0100
++++ linux-2.6-git/include/linux/pagemap.h	2007-02-21 12:15:07.000000000 +0100
+@@ -120,7 +120,7 @@ extern void __remove_from_page_cache(str
+  */
+ static inline loff_t page_offset(struct page *page)
  {
- 	return &swap_info[type];
+-	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
++	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
  }
-+EXPORT_SYMBOL_GPL(get_swap_info_struct);
  
- /*
-  * swap_lock prevents swap_map being freed. Don't grab an extra
+ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 
 --
 
