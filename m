@@ -1,50 +1,81 @@
-Date: Thu, 3 May 2007 19:42:03 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 3 May 2007 20:28:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] MM: use DIV_ROUND_UP() in mm/memory.c
+Message-Id: <20070503202808.4f835c8a.akpm@linux-foundation.org>
+In-Reply-To: <200704241610.23342.eike-kernel@sf-tec.de>
+References: <200704241610.23342.eike-kernel@sf-tec.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Chen, Tim C" <tim.c.chen@intel.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hmmmm... I do not see a regression (up to date slub with all outstanding 
-patches applied). This is without any options enabled (but antifrag 
-patches are present so slub_max_order=4 slub_min_objects=16) Could you 
-post a .config? Missing patches against 2.6.21-rc7-mm2 can be found at 
-http://ftp.kernel.org/pub/linux/kernel/peopl/christoph/slub-patches
+On Tue, 24 Apr 2007 16:10:22 +0200 Rolf Eike Beer <eike-kernel@sf-tec.de> wrote:
 
-slab
+> This should make no difference in behaviour.
+> 
+> Signed-off-by: Rolf Eike Beer <eike-kernel@sf-tec.de>
+> 
+> ---
+> commit 64aa7c3136258d3abc76354b5f83b9a9575169c0
+> tree 8037adc04b57cd6150456399b7caccf99489385a
+> parent bf0bd376f79cadb4f8cd454db1723eb9be0aabc1
+> author Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 24 Apr 2007 16:05:40 +0200
+> committer Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 24 Apr 2007 16:05:40 
+> +0200
+> 
+>  mm/memory.c |    7 +++----
+>  1 files changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e7066e7..45bba1f 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1838,12 +1838,11 @@ void unmap_mapping_range(struct address_space 
+> *mapping,
+>  {
+>  	struct zap_details details;
+>  	pgoff_t hba = holebegin >> PAGE_SHIFT;
+> -	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +	pgoff_t hlen = DIV_ROUND_UP(holelen, PAGE_SIZE);
+>  
+>  	/* Check for overflow. */
+>  	if (sizeof(holelen) > sizeof(hlen)) {
+> -		long long holeend =
+> -			(holebegin + holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +		long long holeend = DIV_ROUND_UP(holebegin + holelen, PAGE_SIZE);
+>  		if (holeend & ~(long long)ULONG_MAX)
+>  			hlen = ULONG_MAX - hba + 1;
+>  	}
+> @@ -2592,7 +2591,7 @@ int make_pages_present(unsigned long addr, unsigned long 
+> end)
+>  	write = (vma->vm_flags & VM_WRITE) != 0;
+>  	BUG_ON(addr >= end);
+>  	BUG_ON(end > vma->vm_end);
+> -	len = (end+PAGE_SIZE-1)/PAGE_SIZE-addr/PAGE_SIZE;
+> +	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
+>  	ret = get_user_pages(current, current->mm, addr,
+>  			len, write, 0, NULL, NULL);
+>  	if (ret < 0)
 
-TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to localhost 
-(127.0.0.1) port 0 AF_INET
-Recv   Send    Send
-Socket Socket  Message  Elapsed
-Size   Size    Size     Time     Throughput
-bytes  bytes   bytes    secs.    10^6bits/sec
+The patch is wordwrapped.  Please fix your MUA.
 
- 87380  16384  16384    10.01    6068.61
- 87380  16384  16384    10.01    5877.91
- 87380  16384  16384    10.01    5835.68
- 87380  16384  16384    10.01    5840.58
+More seriously, on i386:
 
-slub
+   text    data     bss     dec     hex filename
+  15509      27      28   15564    3ccc mm/memory.o	(before)
+  15561      27      28   15616    3d00 mm/memory.o	(after)
 
-TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to localhost (127.0.0.1) port 0 AF_INET
-Recv   Send    Send
-Socket Socket  Message  Elapsed
-Size   Size    Size     Time     Throughput
-bytes  bytes   bytes    secs.    10^6bits/sec
+I'm not sure why - some of the quantities which we're dividing by there are
+64-bit and perhaps the compiler has decided not to do shifting.
 
- 87380  16384  16384    10.53    5646.53
- 87380  16384  16384    10.01    6073.09
- 87380  16384  16384    10.01    6094.68
- 87380  16384  16384    10.01    6088.50
+Please always check the before-and-after .text size from now on?
 
+Now I'm worried about all the other DIV_ROUND_UP() conversions we did.  We
+should get in there and work out why it went bad.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
