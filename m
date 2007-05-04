@@ -1,116 +1,67 @@
-Message-Id: <20070504103203.181287020@chello.nl>
+Message-Id: <20070504103202.226987847@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:24 +0200
+Date: Fri, 04 May 2007 12:27:20 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 33/40] uml: enable scsi and add iscsi config
-Content-Disposition: inline; filename=uml_iscsi.patch
+Subject: [PATCH 29/40] nfs: fix various memory recursions possible with swap over NFS.
+Content-Disposition: inline; filename=nfs-alloc-recursions.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Jeff Dike <jdike@addtoit.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Enable (i)SCSI on UML, dunno why SCSI was deemed broken, it works like a charm.
+GFP_NOFS is not enough, since swap traffic is IO, hence fall back to GFP_NOIO.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: Jeff Dike <jdike@addtoit.com>
-Cc: James Bottomley <James.Bottomley@SteelEye.com>
-Cc: Mike Christie <michaelc@cs.wisc.edu>
 ---
- arch/um/Kconfig      |   16 --------------
- arch/um/Kconfig.scsi |   58 ---------------------------------------------------
- 2 files changed, 1 insertion(+), 73 deletions(-)
+ fs/nfs/pagelist.c |    2 +-
+ fs/nfs/write.c    |    6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-Index: linux-2.6-git/arch/um/Kconfig
+Index: linux-2.6-git/fs/nfs/write.c
 ===================================================================
---- linux-2.6-git.orig/arch/um/Kconfig	2006-12-11 14:39:09.000000000 +0100
-+++ linux-2.6-git/arch/um/Kconfig	2007-01-16 14:14:45.000000000 +0100
-@@ -317,21 +317,7 @@ source "crypto/Kconfig"
+--- linux-2.6-git.orig/fs/nfs/write.c
++++ linux-2.6-git/fs/nfs/write.c
+@@ -45,7 +45,7 @@ static struct kmem_cache *nfs_wdata_cach
  
- source "lib/Kconfig"
+ struct nfs_write_data *nfs_commit_alloc(void)
+ {
+-	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
  
--menu "SCSI support"
--depends on BROKEN
--
--config SCSI
--	tristate "SCSI support"
--
--# This gives us free_dma, which scsi.c wants.
--config GENERIC_ISA_DMA
--	bool
--	depends on SCSI
--	default y
--
--source "arch/um/Kconfig.scsi"
--
--endmenu
-+source "drivers/scsi/Kconfig"
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -69,7 +69,7 @@ void nfs_commit_free(struct nfs_write_da
  
- source "drivers/md/Kconfig"
+ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+ {
+-	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOFS);
++	struct nfs_write_data *p = kmem_cache_alloc(nfs_wdata_cachep, GFP_NOIO);
  
-Index: linux-2.6-git/arch/um/Kconfig.scsi
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+@@ -78,7 +78,7 @@ struct nfs_write_data *nfs_writedata_all
+ 		if (pagecount <= ARRAY_SIZE(p->page_array))
+ 			p->pagevec = p->page_array;
+ 		else {
+-			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
++			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOIO);
+ 			if (!p->pagevec) {
+ 				kmem_cache_free(nfs_wdata_cachep, p);
+ 				p = NULL;
+Index: linux-2.6-git/fs/nfs/pagelist.c
 ===================================================================
---- linux-2.6-git.orig/arch/um/Kconfig.scsi	2006-09-05 15:30:39.000000000 +0200
-+++ /dev/null	1970-01-01 00:00:00.000000000 +0000
-@@ -1,58 +0,0 @@
--comment "SCSI support type (disk, tape, CD-ROM)"
--	depends on SCSI
--
--config BLK_DEV_SD
--	tristate "SCSI disk support"
--	depends on SCSI
--
--config SD_EXTRA_DEVS
--	int "Maximum number of SCSI disks that can be loaded as modules"
--	depends on BLK_DEV_SD
--	default "40"
--
--config CHR_DEV_ST
--	tristate "SCSI tape support"
--	depends on SCSI
--
--config BLK_DEV_SR
--	tristate "SCSI CD-ROM support"
--	depends on SCSI
--
--config BLK_DEV_SR_VENDOR
--	bool "Enable vendor-specific extensions (for SCSI CDROM)"
--	depends on BLK_DEV_SR
--
--config SR_EXTRA_DEVS
--	int "Maximum number of CDROM devices that can be loaded as modules"
--	depends on BLK_DEV_SR
--	default "2"
--
--config CHR_DEV_SG
--	tristate "SCSI generic support"
--	depends on SCSI
--
--comment "Some SCSI devices (e.g. CD jukebox) support multiple LUNs"
--	depends on SCSI
--
--#if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
--config SCSI_DEBUG_QUEUES
--	bool "Enable extra checks in new queueing code"
--	depends on SCSI
--
--#fi
--config SCSI_MULTI_LUN
--	bool "Probe all LUNs on each SCSI device"
--	depends on SCSI
--
--config SCSI_CONSTANTS
--	bool "Verbose SCSI error reporting (kernel size +=12K)"
--	depends on SCSI
--
--config SCSI_LOGGING
--	bool "SCSI logging facility"
--	depends on SCSI
--
--config SCSI_DEBUG
--	tristate "SCSI debugging host simulator (EXPERIMENTAL)"
--	depends on SCSI
--
+--- linux-2.6-git.orig/fs/nfs/pagelist.c
++++ linux-2.6-git/fs/nfs/pagelist.c
+@@ -28,7 +28,7 @@ static inline struct nfs_page *
+ nfs_page_alloc(void)
+ {
+ 	struct nfs_page	*p;
+-	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
++	p = kmem_cache_alloc(nfs_page_cachep, GFP_NOIO);
+ 	if (p) {
+ 		memset(p, 0, sizeof(*p));
+ 		INIT_LIST_HEAD(&p->wb_list);
 
 --
 
