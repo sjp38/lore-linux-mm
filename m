@@ -1,39 +1,35 @@
-Date: Fri, 4 May 2007 11:27:54 -0700 (PDT)
+Date: Fri, 4 May 2007 11:30:05 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <1178298897.23795.195.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0705041118490.24283@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-  <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
- <1178298897.23795.195.camel@localhost.localdomain>
+Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
+In-Reply-To: <1178302904.2767.6.camel@lappy>
+Message-ID: <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl>  <20070504103157.215424767@chello.nl>
+  <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
+ <1178301545.24217.56.camel@twins>  <Pine.LNX.4.64.0705041104110.23539@schroedinger.engr.sgi.com>
+ <1178302904.2767.6.camel@lappy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-If I optimize now for the case that we do not share the cpu cache between 
-different cpus then performance way drop for the case in which we share 
-the cache (hyperthreading).
+On Fri, 4 May 2007, Peter Zijlstra wrote:
 
-If we do not share the cache then processors essentially needs to have 
-their own lists of partial caches in which they keep cache hot objects. 
-(something mini NUMA like). Any writes to shared objects will cause
-cacheline eviction on the other which is not good.
+> > Ok so you really need the number of objects per page? If you know the 
+> > number of objects then you can calculate the pages needed which would be 
+> > the maximum memory needed?
+> 
+> Yes, that would work.
 
-If they do share the cpu cache then they need to have a shared list of 
-partial slabs.
+Hmmm... Maybe lets have
 
-Not sure where to go here. Increasing the per cpu slab size may hold off 
-the issue up to a certain cpu cache size. For that we would need to 
-identify which slabs create the performance issue.
+unsigned kmem_estimate_pages(struct kmem_cache *slab_cache, int objects)
 
-One easy way to check that this is indeed the case: Enable fake NUMA. You 
-will then have separate queues for each processor since they are on 
-different "nodes". Create two fake nodes. Run one thread in each node and 
-see if this fixes it.
+which would calculate the worst case memory scenario for allocation the 
+number of indicated objects?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
