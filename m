@@ -1,39 +1,75 @@
-Message-Id: <20070504103202.468420061@chello.nl>
+Message-Id: <20070504103156.764086133@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:21 +0200
+Date: Fri, 04 May 2007 12:26:57 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 30/40] nfs: fixup missing error code
-Content-Disposition: inline; filename=nfs_fix.patch
+Subject: [PATCH 06/40] mm: __GFP_EMERGENCY
+Content-Disposition: inline; filename=mm-page_alloc-GFP_EMERGENCY.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Commit 0b67130149b006628389ff3e8f46be9957af98aa lost the setting of tk_status
-to -EIO when there was no progress with short reads.
+__GFP_EMERGENCY will allow the allocation to disregard the watermarks, 
+much like PF_MEMALLOC.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/read.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ include/linux/gfp.h |    7 ++++++-
+ mm/internal.h       |   10 +++++++---
+ 2 files changed, 13 insertions(+), 4 deletions(-)
 
-Index: linux-2.6-git/fs/nfs/read.c
+Index: linux-2.6-git/include/linux/gfp.h
 ===================================================================
---- linux-2.6-git.orig/fs/nfs/read.c	2007-03-13 14:35:53.000000000 +0100
-+++ linux-2.6-git/fs/nfs/read.c	2007-03-13 14:36:05.000000000 +0100
-@@ -384,8 +384,10 @@ static int nfs_readpage_retry(struct rpc
- 	/* This is a short read! */
- 	nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
- 	/* Has the server at least made some progress? */
--	if (resp->count == 0)
-+	if (resp->count == 0) {
-+		task->tk_status = -EIO;
- 		return 0;
-+	}
+--- linux-2.6-git.orig/include/linux/gfp.h	2006-12-14 10:02:18.000000000 +0100
++++ linux-2.6-git/include/linux/gfp.h	2006-12-14 10:02:52.000000000 +0100
+@@ -35,17 +35,21 @@ struct vm_area_struct;
+ #define __GFP_HIGH	((__force gfp_t)0x20u)	/* Should access emergency pools? */
+ #define __GFP_IO	((__force gfp_t)0x40u)	/* Can start physical IO? */
+ #define __GFP_FS	((__force gfp_t)0x80u)	/* Can call down to low-level FS? */
++
+ #define __GFP_COLD	((__force gfp_t)0x100u)	/* Cache-cold page required */
+ #define __GFP_NOWARN	((__force gfp_t)0x200u)	/* Suppress page allocation failure warning */
+ #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* Retry the allocation.  Might fail */
+ #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* Retry for ever.  Cannot fail */
++
+ #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* Do not retry.  Might fail */
+ #define __GFP_NO_GROW	((__force gfp_t)0x2000u)/* Slab internal usage */
+ #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
+ #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
++
+ #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
+ #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+ #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
++#define __GFP_EMERGENCY  ((__force gfp_t)0x80000u) /* Use emergency reserves */
  
- 	/* Yes, so retry the read at the end of the data */
- 	argp->offset += resp->count;
+ #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+@@ -54,7 +58,8 @@ struct vm_area_struct;
+ #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
+ 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
+ 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
+-			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
++			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE| \
++			__GFP_EMERGENCY)
+ 
+ /* This equals 0, but use constants in case they ever change */
+ #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
+Index: linux-2.6-git/mm/internal.h
+===================================================================
+--- linux-2.6-git.orig/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
++++ linux-2.6-git/mm/internal.h	2006-12-14 10:02:52.000000000 +0100
+@@ -75,7 +75,9 @@ static int inline gfp_to_alloc_flags(gfp
+ 		alloc_flags |= ALLOC_HARDER;
+ 
+ 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+-		if (!in_irq() && (p->flags & PF_MEMALLOC))
++		if (gfp_mask & __GFP_EMERGENCY)
++			alloc_flags |= ALLOC_NO_WATERMARKS;
++		else if (!in_irq() && (p->flags & PF_MEMALLOC))
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
+ 		else if (!in_interrupt() &&
+ 				unlikely(test_thread_flag(TIF_MEMDIE)))
 
 --
 
