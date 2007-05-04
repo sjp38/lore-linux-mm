@@ -1,38 +1,36 @@
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: [PATCH] change global zonelist order v4 [0/2]
-Date: Fri, 4 May 2007 10:36:01 -0700
-References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com> <1178299460.5236.35.camel@localhost> <Pine.LNX.4.64.0705041027030.22643@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0705041027030.22643@schroedinger.engr.sgi.com>
+Date: Fri, 4 May 2007 10:02:46 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: incoming
+Message-ID: <20070504170246.GA23069@kroah.com>
+References: <20070502150252.7ddf67ac.akpm@linux-foundation.org> <20070504133728.GA19460@kroah.com> <20070504091434.106ad04d.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200705041036.01904.jbarnes@virtuousgeek.org>
+In-Reply-To: <20070504091434.106ad04d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@engr.sgi.com>, "David S. Miller" <davem@davemloft.net>, Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Roland McGrath <roland@redhat.com>, Stephen Smalley <sds@tycho.nsa.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Friday, May 04, 2007, Christoph Lameter wrote:
-> On Fri, 4 May 2007, Lee Schermerhorn wrote:
-> > Hmmm...  "serious hackery", indeed!  ;-)
->
-> Maybe on the arch level but minimal changes to core code.
-> And it is a step towards avoiding zones in NUMA.
+On Fri, May 04, 2007 at 09:14:34AM -0700, Andrew Morton wrote:
+> On Fri, 4 May 2007 06:37:28 -0700 Greg KH <greg@kroah.com> wrote:
+> 
+> > On Wed, May 02, 2007 at 03:02:52PM -0700, Andrew Morton wrote:
+> > > - One little security patch
+> > 
+> > Care to cc: linux-stable with it so we can do a new 2.6.21 release with
+> > it if needed?
+> > 
+> 
+> Ah.  The patch affects security code, but it doesn't actually address any
+> insecurity.  I didn't think it was needed for -stable?
 
-You mentioned that if node 0 has a small ZONE_NORMAL and the ZONE_DMA for 
-the system, defaulting to using ZONE_NORMAL on all nodes first would be a 
-bad idea.  Is that really true?  Maybe for ZONE_DMA32 it is since that 
-first node could have a few gigs of memory, but for regular ZONE_DMA it's 
-probably the right thing to do...
+Ah, ok, I read "security" as fixing a insecure problem, my mistake :)
 
-So aside from the comment issues Lee already pointed out, I think 
-Kamezawa-san's patch from 
-http://marc.info/?l=linux-mm&m=117758484122663&w=4 seems reasonable.
+thanks,
 
-Jesse
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
