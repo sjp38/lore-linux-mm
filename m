@@ -1,103 +1,71 @@
-Message-ID: <463B108C.10602@yahoo.com.au>
-Date: Fri, 04 May 2007 20:53:00 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: by ug-out-1314.google.com with SMTP id s2so535001uge
+        for <linux-mm@kvack.org>; Fri, 04 May 2007 03:54:32 -0700 (PDT)
+Message-ID: <84144f020705040354r5cb74c5fj6cb8698f93ffcb83@mail.gmail.com>
+Date: Fri, 4 May 2007 13:54:32 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
+In-Reply-To: <20070504103157.215424767@chello.nl>
 MIME-Version: 1.0
-Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-References: <4632D0EF.9050701@redhat.com>
-In-Reply-To: <4632D0EF.9050701@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20070504102651.923946304@chello.nl>
+	 <20070504103157.215424767@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ulrich Drepper <drepper@redhat.com>, Jakub Jelinek <jakub@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@steeleye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> With lazy freeing of anonymous pages through MADV_FREE, performance of
-> the MySQL sysbench workload more than doubles on my quad-core system.
+On 5/4/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> Expost buffer_size in order to allow fair estimates on the actual space
+> used/needed.
 
-OK, I've run some tests on a 16 core Opteron system, both sysbench with
-MySQL 5.33 (set up as described in the freebsd vs linux page), and with
-ebizzy.
+[snip]
 
-What I found is that, on this system, MADV_FREE performance improvement
-was in the noise when you look at it on top of the MADV_DONTNEED glibc
-and down_read(mmap_sem) patch in sysbench.
+>  #ifdef CONFIG_SLAB_FAIR
+> -static inline int slab_alloc_rank(gfp_t flags)
+> +static __always_inline int slab_alloc_rank(gfp_t flags)
+>  {
+>         return gfp_to_rank(flags);
+>  }
+>  #else
+> -static inline int slab_alloc_rank(gfp_t flags)
+> +static __always_inline int slab_alloc_rank(gfp_t flags)
+>  {
+>         return 0;
+>  }
 
-In ebizzy it was slightly up at low loads and slightly down at high loads,
-though I wouldn't put as much stock in ebizzy as the real workload,
-because the numbers are going to be highly dependand on access patterns.
+Me thinks this hunk doesn't belong in this patch.
 
-Now these numbers are collected under best-case conditions for MADV_FREE,
-ie. no page reclaim going on. If you consider page reclaim, then you would
-think there might be room for regressions.
+> @@ -3815,6 +3815,12 @@ unsigned int kmem_cache_size(struct kmem
+>  }
+>  EXPORT_SYMBOL(kmem_cache_size);
+>
+> +unsigned int kmem_cache_objsize(struct kmem_cache *cachep)
+> +{
+> +       return cachep->buffer_size;
+> +}
+> +EXPORT_SYMBOL_GPL(kmem_cache_objsize);
+> +
+>  const char *kmem_cache_name(struct kmem_cache *cachep)
+>  {
+>         return cachep->name;
+> @@ -4512,3 +4518,9 @@ unsigned int ksize(const void *objp)
+>
+>         return obj_size(virt_to_cache(objp));
+>  }
+> +
+> +unsigned int kobjsize(size_t size)
+> +{
+> +       return kmem_cache_objsize(kmem_find_general_cachep(size, 0));
+> +}
+> +EXPORT_SYMBOL_GPL(kobjsize);
 
-So far, I'm not convinced this is a good use of a page flag or the added
-complexity. There are lots of ways we can improve performance using a page
-flag (my recent PG_waiters, PG_mlock, PG_replicated, etc.) to improve
-performance, so I think we need some more numbers.
+Looks good to me. Unfortunately, you need to do SLUB as well. Aah, the
+wonders of three kernel memory allocators... ;-)
 
-(I'll be away for the weekend...)
-
-
-LHS is # threads, numbers are +/- 99.9% confidence.
-
-sysbench transactions per sec (higher is better)
-
-2.6.21
-1,   453.092000 +/-  7.089284
-2,   831.722000 +/- 13.138541
-4,  1468.590000 +/- 40.160654
-8,  2139.822000 +/- 62.223220
-16, 2118.802000 +/- 83.247076
-32, 1051.596000 +/- 62.455236
-64,  917.078000 +/- 21.086954
-
-new glibc
-1,   466.376000 +/-   9.018054
-2,   867.020000 +/-  26.163901
-4,  1535.880000 +/-  25.784081
-8,  2261.856000 +/-  53.350146
-16, 2249.020000 +/- 120.361138
-32, 1521.858000 +/- 110.236781
-64, 1405.262000 +/-  85.260624
-
-mmap_sem
-1,   476.144000 +/- 15.865284
-2,   871.778000 +/- 12.736486
-4,  1529.348000 +/- 21.400517
-8,  2235.590000 +/- 54.192125
-16, 2177.422000 +/- 27.416498
-32, 2120.986000 +/- 58.499708
-64, 1949.362000 +/- 51.177977
-
-madv_free
-1,   475.056000 +/-  6.943168
-2,   861.438000 +/- 22.101826
-4,  1564.782000 +/- 55.190110
-8,  2211.792000 +/- 59.843995
-16, 2163.232000 +/- 46.031627
-32, 2100.544000 +/- 86.744497
-64, 1947.058000 +/- 62.392049
-
-
-ebizzy elapsed time (lower is better)
-
-mmap_sem
-1,   45.544000 +/-  3.538529
-4,   78.492000 +/-  8.881464
-16, 224.538000 +/-  7.762784
-64, 913.466000 +/- 53.506338
-
-madv_free
-1,   43.350000 +/-  0.778292
-4,   68.190000 +/-  8.623731
-16, 225.568000 +/- 14.940109
-64, 899.136000 +/- 56.153209
-
--- 
-SUSE Labs, Novell Inc.
+                                     Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
