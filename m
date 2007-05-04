@@ -1,81 +1,46 @@
-Date: Thu, 3 May 2007 20:28:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MM: use DIV_ROUND_UP() in mm/memory.c
-Message-Id: <20070503202808.4f835c8a.akpm@linux-foundation.org>
-In-Reply-To: <200704241610.23342.eike-kernel@sf-tec.de>
-References: <200704241610.23342.eike-kernel@sf-tec.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <463AB381.2030909@yahoo.com.au>
+Date: Fri, 04 May 2007 14:16:01 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+References: <20070430162007.ad46e153.akpm@linux-foundation.org>	<4636FDD7.9080401@yahoo.com.au>	<Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>	<4638009E.3070408@yahoo.com.au>	<Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>	<46393BA7.6030106@yahoo.com.au> <20070503095224.77e89dbf.akpm@linux-foundation.org>
+In-Reply-To: <20070503095224.77e89dbf.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rolf Eike Beer <eike-kernel@sf-tec.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Apr 2007 16:10:22 +0200 Rolf Eike Beer <eike-kernel@sf-tec.de> wrote:
-
-> This should make no difference in behaviour.
+Andrew Morton wrote:
+> On Thu, 03 May 2007 11:32:23 +1000 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> Signed-off-by: Rolf Eike Beer <eike-kernel@sf-tec.de>
 > 
-> ---
-> commit 64aa7c3136258d3abc76354b5f83b9a9575169c0
-> tree 8037adc04b57cd6150456399b7caccf99489385a
-> parent bf0bd376f79cadb4f8cd454db1723eb9be0aabc1
-> author Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 24 Apr 2007 16:05:40 +0200
-> committer Rolf Eike Beer <eike-kernel@sf-tec.de> Tue, 24 Apr 2007 16:05:40 
-> +0200
+>> void fastcall unlock_page(struct page *page)
+>> {
+>>+	VM_BUG_ON(!PageLocked(page));
+>> 	smp_mb__before_clear_bit();
+>>-	if (!TestClearPageLocked(page))
+>>-		BUG();
+>>-	smp_mb__after_clear_bit(); 
+>>-	wake_up_page(page, PG_locked);
+>>+	ClearPageLocked(page);
+>>+	if (unlikely(test_bit(PG_waiters, &page->flags))) {
+>>+		clear_bit(PG_waiters, &page->flags);
+>>+		wake_up_page(page, PG_locked);
+>>+	}
+>> }
 > 
->  mm/memory.c |    7 +++----
->  1 files changed, 3 insertions(+), 4 deletions(-)
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e7066e7..45bba1f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1838,12 +1838,11 @@ void unmap_mapping_range(struct address_space 
-> *mapping,
->  {
->  	struct zap_details details;
->  	pgoff_t hba = holebegin >> PAGE_SHIFT;
-> -	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> +	pgoff_t hlen = DIV_ROUND_UP(holelen, PAGE_SIZE);
->  
->  	/* Check for overflow. */
->  	if (sizeof(holelen) > sizeof(hlen)) {
-> -		long long holeend =
-> -			(holebegin + holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> +		long long holeend = DIV_ROUND_UP(holebegin + holelen, PAGE_SIZE);
->  		if (holeend & ~(long long)ULONG_MAX)
->  			hlen = ULONG_MAX - hba + 1;
->  	}
-> @@ -2592,7 +2591,7 @@ int make_pages_present(unsigned long addr, unsigned long 
-> end)
->  	write = (vma->vm_flags & VM_WRITE) != 0;
->  	BUG_ON(addr >= end);
->  	BUG_ON(end > vma->vm_end);
-> -	len = (end+PAGE_SIZE-1)/PAGE_SIZE-addr/PAGE_SIZE;
-> +	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
->  	ret = get_user_pages(current, current->mm, addr,
->  			len, write, 0, NULL, NULL);
->  	if (ret < 0)
+> Why is that significantly faster than plain old wake_up_page(), which
+> tests waitqueue_active()?
 
-The patch is wordwrapped.  Please fix your MUA.
+Because it needs fewer barriers and doesn't touch random a random hash
+cacheline in the fastpath.
 
-More seriously, on i386:
-
-   text    data     bss     dec     hex filename
-  15509      27      28   15564    3ccc mm/memory.o	(before)
-  15561      27      28   15616    3d00 mm/memory.o	(after)
-
-I'm not sure why - some of the quantities which we're dividing by there are
-64-bit and perhaps the compiler has decided not to do shifting.
-
-Please always check the before-and-after .text size from now on?
-
-Now I'm worried about all the other DIV_ROUND_UP() conversions we did.  We
-should get in there and work out why it went bad.
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
