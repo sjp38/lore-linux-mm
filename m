@@ -1,213 +1,265 @@
-Message-Id: <20070504103158.907994448@chello.nl>
+Message-Id: <20070504103201.987245048@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:06 +0200
+Date: Fri, 04 May 2007 12:27:19 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 15/40] netvm: INET reserves.
-Content-Disposition: inline; filename=netvm-reserve-inet.patch
+Subject: [PATCH 28/40] nfs: enable swap on NFS
+Content-Disposition: inline; filename=nfs-swapfile.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Add reserves for INET.
+Provide an a_ops->swapfile() implementation for NFS. This will set the
+NFS socket to SOCK_VMIO and run socket reconnect under PF_MEMALLOC as well
+as reset SOCK_VMIO before engaging the protocol ->connect() method.
 
-The two big users seem to be the route cache and ip-fragment cache.
+PF_MEMALLOC should allow the allocation of struct socket and related objects
+and the early (re)setting of SOCK_VMIO should allow us to receive the packets
+required for the TCP connection buildup.
 
-Account the route cache to the auxillary reserve.
-Account the fragments to the skb reserve so that one can at least
-overflow the fragment cache (avoids fragment deadlocks).
+(swapping continues over a server reset during heavy network traffic)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- net/ipv4/ip_fragment.c     |    1 +
- net/ipv4/route.c           |   19 ++++++++++++++++++-
- net/ipv4/sysctl_net_ipv4.c |   14 +++++++++++++-
- net/ipv6/reassembly.c      |    1 +
- net/ipv6/route.c           |   19 ++++++++++++++++++-
- net/ipv6/sysctl_net_ipv6.c |   13 ++++++++++++-
- 6 files changed, 63 insertions(+), 4 deletions(-)
+ fs/Kconfig                  |   19 +++++++++++++++
+ fs/nfs/file.c               |   10 ++++++++
+ include/linux/sunrpc/xprt.h |    5 +++-
+ net/sunrpc/sched.c          |    7 ++++-
+ net/sunrpc/xprtsock.c       |   54 ++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 92 insertions(+), 3 deletions(-)
 
-Index: linux-2.6-git/net/ipv4/sysctl_net_ipv4.c
+Index: linux-2.6-git/fs/nfs/file.c
 ===================================================================
---- linux-2.6-git.orig/net/ipv4/sysctl_net_ipv4.c	2007-03-26 12:01:01.000000000 +0200
-+++ linux-2.6-git/net/ipv4/sysctl_net_ipv4.c	2007-03-26 12:37:19.000000000 +0200
-@@ -18,6 +18,7 @@
- #include <net/route.h>
- #include <net/tcp.h>
- #include <net/cipso_ipv4.h>
-+#include <net/sock.h>
- 
- /* From af_inet.c */
- extern int sysctl_ip_nonlocal_bind;
-@@ -186,6 +187,17 @@ static int strategy_allowed_congestion_c
- 
+--- linux-2.6-git.orig/fs/nfs/file.c
++++ linux-2.6-git/fs/nfs/file.c
+@@ -324,6 +324,13 @@ static int nfs_launder_page(struct page 
+ 	return nfs_wb_page(page_file_mapping(page)->host, page);
  }
  
-+static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
++#ifdef CONFIG_NFS_SWAP
++static int nfs_swapfile(struct address_space *mapping, int enable)
 +{
-+	int ret;
-+	int old_thresh = *(int *)table->data;
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	if (write)
-+		skb_reserve_memory(*(int *)table->data - old_thresh);
-+	return ret;
++	return xs_swapper(NFS_CLIENT(mapping->host)->cl_xprt, enable);
 +}
++#endif
 +
- ctl_table ipv4_table[] = {
- 	{
- 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
-@@ -291,7 +303,7 @@ ctl_table ipv4_table[] = {
- 		.data		= &sysctl_ipfrag_high_thresh,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment
- 	},
- 	{
- 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
-Index: linux-2.6-git/net/ipv6/sysctl_net_ipv6.c
+ const struct address_space_operations nfs_file_aops = {
+ 	.readpage = nfs_readpage,
+ 	.readpages = nfs_readpages,
+@@ -338,6 +345,9 @@ const struct address_space_operations nf
+ 	.direct_IO = nfs_direct_IO,
+ #endif
+ 	.launder_page = nfs_launder_page,
++#ifdef CONFIG_NFS_SWAP
++	.swapfile = nfs_swapfile,
++#endif
+ };
+ 
+ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
+Index: linux-2.6-git/include/linux/sunrpc/xprt.h
 ===================================================================
---- linux-2.6-git.orig/net/ipv6/sysctl_net_ipv6.c	2007-03-26 12:01:01.000000000 +0200
-+++ linux-2.6-git/net/ipv6/sysctl_net_ipv6.c	2007-03-26 12:37:52.000000000 +0200
-@@ -15,6 +15,17 @@
+--- linux-2.6-git.orig/include/linux/sunrpc/xprt.h
++++ linux-2.6-git/include/linux/sunrpc/xprt.h
+@@ -151,7 +151,9 @@ struct rpc_xprt {
+ 	unsigned int		max_reqs;	/* total slots */
+ 	unsigned long		state;		/* transport state */
+ 	unsigned char		shutdown   : 1,	/* being shut down */
+-				resvport   : 1; /* use a reserved port */
++				resvport   : 1, /* use a reserved port */
++				swapper    : 1; /* we're swapping over this
++						   transport */
+ 	unsigned int		bind_index;	/* bind function index */
  
- #ifdef CONFIG_SYSCTL
+ 	/*
+@@ -244,6 +246,7 @@ void			xprt_disconnect(struct rpc_xprt *
+  */
+ struct rpc_xprt *	xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
+ struct rpc_xprt *	xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
++int			xs_swapper(struct rpc_xprt *xprt, int enable);
  
-+static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
-+{
-+	int ret;
-+	int old_thresh = *(int *)table->data;
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	if (write)
-+		skb_reserve_memory(*(int *)table->data - old_thresh);
-+	return ret;
-+}
+ /*
+  * Reserved bit positions in xprt->state
+Index: linux-2.6-git/net/sunrpc/sched.c
+===================================================================
+--- linux-2.6-git.orig/net/sunrpc/sched.c
++++ linux-2.6-git/net/sunrpc/sched.c
+@@ -755,7 +755,10 @@ static void rpc_async_schedule(struct wo
+ void *rpc_malloc(struct rpc_task *task, size_t size)
+ {
+ 	size_t *buf;
+-	gfp_t gfp = RPC_IS_SWAPPER(task) ? GFP_ATOMIC : GFP_NOWAIT;
++	gfp_t gfp = GFP_NOWAIT;
 +
- static ctl_table ipv6_table[] = {
- 	{
- 		.ctl_name	= NET_IPV6_ROUTE,
-@@ -44,7 +55,7 @@ static ctl_table ipv6_table[] = {
- 		.data		= &sysctl_ip6frag_high_thresh,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec
-+		.proc_handler	= &proc_dointvec_fragment
- 	},
- 	{
- 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
-Index: linux-2.6-git/net/ipv4/ip_fragment.c
-===================================================================
---- linux-2.6-git.orig/net/ipv4/ip_fragment.c	2007-03-26 12:01:01.000000000 +0200
-+++ linux-2.6-git/net/ipv4/ip_fragment.c	2007-03-26 12:03:07.000000000 +0200
-@@ -743,6 +743,7 @@ void ipfrag_init(void)
- 	ipfrag_secret_timer.function = ipfrag_secret_rebuild;
- 	ipfrag_secret_timer.expires = jiffies + sysctl_ipfrag_secret_interval;
- 	add_timer(&ipfrag_secret_timer);
-+	skb_reserve_memory(sysctl_ipfrag_high_thresh);
++	if (RPC_IS_SWAPPER(task))
++		gfp |= __GFP_EMERGENCY;
+ 
+ 	size += sizeof(size_t);
+ 	if (size <= RPC_BUFFER_MAXSIZE)
+@@ -837,7 +840,7 @@ void rpc_init_task(struct rpc_task *task
+ static struct rpc_task *
+ rpc_alloc_task(void)
+ {
+-	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
++	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOIO);
  }
  
- EXPORT_SYMBOL(ip_defrag);
-Index: linux-2.6-git/net/ipv6/reassembly.c
+ static void rpc_free_task(struct rcu_head *rcu)
+Index: linux-2.6-git/net/sunrpc/xprtsock.c
 ===================================================================
---- linux-2.6-git.orig/net/ipv6/reassembly.c	2007-03-26 12:01:01.000000000 +0200
-+++ linux-2.6-git/net/ipv6/reassembly.c	2007-03-26 12:03:07.000000000 +0200
-@@ -772,4 +772,5 @@ void __init ipv6_frag_init(void)
- 	ip6_frag_secret_timer.function = ip6_frag_secret_rebuild;
- 	ip6_frag_secret_timer.expires = jiffies + sysctl_ip6frag_secret_interval;
- 	add_timer(&ip6_frag_secret_timer);
-+	skb_reserve_memory(sysctl_ip6frag_high_thresh);
+--- linux-2.6-git.orig/net/sunrpc/xprtsock.c
++++ linux-2.6-git/net/sunrpc/xprtsock.c
+@@ -1215,11 +1215,15 @@ static void xs_udp_connect_worker(struct
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	/* Start by resetting any existing state */
+ 	xs_close(xprt);
+ 
+@@ -1257,6 +1261,9 @@ static void xs_udp_connect_worker(struct
+ 		transport->sock = sock;
+ 		transport->inet = sk;
+ 
++		if (xprt->swapper)
++			sk_set_vmio(sk);
++
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 	xs_udp_do_set_buffer_size(xprt);
+@@ -1264,6 +1271,7 @@ static void xs_udp_connect_worker(struct
+ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
  }
-Index: linux-2.6-git/net/ipv4/route.c
-===================================================================
---- linux-2.6-git.orig/net/ipv4/route.c	2007-03-26 12:01:01.000000000 +0200
-+++ linux-2.6-git/net/ipv4/route.c	2007-03-26 12:31:43.000000000 +0200
-@@ -2884,6 +2884,21 @@ static int ipv4_sysctl_rtcache_flush_str
+ 
+ /*
+@@ -1302,11 +1310,15 @@ static void xs_tcp_connect_worker(struct
+ 		container_of(work, struct sock_xprt, connect_worker.work);
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	struct socket *sock = transport->sock;
++	unsigned long pflags = current->flags;
+ 	int err, status = -EIO;
+ 
+ 	if (xprt->shutdown || !xprt_bound(xprt))
+ 		goto out;
+ 
++	if (xprt->swapper)
++		current->flags |= PF_MEMALLOC;
++
+ 	if (!sock) {
+ 		/* start from scratch */
+ 		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+@@ -1356,6 +1368,10 @@ static void xs_tcp_connect_worker(struct
+ 		write_unlock_bh(&sk->sk_callback_lock);
+ 	}
+ 
++
++	if (xprt->swapper)
++		sk_set_vmio(transport->inet);
++
+ 	/* Tell the socket layer to start connecting... */
+ 	xprt->stat.connect_count++;
+ 	xprt->stat.connect_start = jiffies;
+@@ -1383,6 +1399,7 @@ out:
+ 	xprt_wake_pending_tasks(xprt, status);
+ out_clear:
+ 	xprt_clear_connecting(xprt);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ }
+ 
+ /**
+@@ -1642,6 +1659,43 @@ int init_socket_xprt(void)
  	return 0;
  }
  
-+static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
-+{
-+	int ret;
-+	int new_pages;
-+	int old_pages = guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	new_pages = guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	if (write && (new_pages - old_pages))
-+		aux_reserve_memory(new_pages - old_pages);
-+	return ret;
-+}
++#ifdef CONFIG_SUNRPC_SWAP
++#define RPC_BUF_RESERVE_PAGES	\
++	DIV_ROUND_UP((RPC_MAX_SLOT_TABLE * \
++				kobjsize(sizeof(struct rpc_rqst))), \
++			PAGE_SIZE)
++#define RPC_RESERVE_PAGES	(RPC_BUF_RESERVE_PAGES + TX_RESERVE_PAGES)
 +
- ctl_table ipv4_route_table[] = {
- 	{
- 		.ctl_name 	= NET_IPV4_ROUTE_FLUSH,
-@@ -2926,7 +2941,7 @@ ctl_table ipv4_route_table[] = {
- 		.data		= &ip_rt_max_size,
- 		.maxlen		= sizeof(int),
- 		.mode		= 0644,
--		.proc_handler	= &proc_dointvec,
-+		.proc_handler	= &proc_dointvec_rt_size,
- 	},
- 	{
- 		/*  Deprecated. Use gc_min_interval_ms */
-@@ -3153,6 +3168,8 @@ int __init ip_rt_init(void)
- 
- 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
- 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
-+	aux_reserve_memory(guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
-+				ip_rt_max_size));
- 
- 	devinet_init();
- 	ip_fib_init();
-Index: linux-2.6-git/net/ipv6/route.c
++/**
++ * xs_swapper - Tag this transport as being used for swap.
++ * @xprt: transport to tag
++ * @enable: enable/disable
++ *
++ */
++int xs_swapper(struct rpc_xprt *xprt, int enable)
++{
++	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
++	int err = 0;
++
++	if (enable) {
++		/*
++		 * keep one extra sock reference so the reserve won't dip
++		 * when the socket gets reconnected.
++		 */
++		sk_adjust_memalloc(1, RPC_RESERVE_PAGES);
++		sk_set_vmio(transport->inet);
++		xprt->swapper = 1;
++	} else if (xprt->swapper) {
++		xprt->swapper = 0;
++		sk_clear_vmio(transport->inet);
++		sk_adjust_memalloc(-1, -RPC_RESERVE_PAGES);
++	}
++
++	return err;
++}
++EXPORT_SYMBOL_GPL(xs_swapper);
++#endif
++
+ /**
+  * cleanup_socket_xprt - remove xprtsock's sysctls
+  *
+Index: linux-2.6-git/fs/Kconfig
 ===================================================================
---- linux-2.6-git.orig/net/ipv6/route.c	2007-03-26 12:02:29.000000000 +0200
-+++ linux-2.6-git/net/ipv6/route.c	2007-03-26 12:37:43.000000000 +0200
-@@ -2370,6 +2370,21 @@ int ipv6_sysctl_rtcache_flush(ctl_table 
- 		return -EINVAL;
- }
+--- linux-2.6-git.orig/fs/Kconfig
++++ linux-2.6-git/fs/Kconfig
+@@ -1621,6 +1621,18 @@ config NFS_DIRECTIO
+ 	  causes open() to return EINVAL if a file residing in NFS is
+ 	  opened with the O_DIRECT flag.
  
-+static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
-+		     void __user *buffer, size_t *lenp, loff_t *ppos)
-+{
-+	int ret;
-+	int new_pages;
-+	int old_pages = guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
-+	new_pages = guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
-+			*(int *)table->data);
-+	if (write && (new_pages - old_pages))
-+		aux_reserve_memory(new_pages - old_pages);
-+	return ret;
-+}
++config NFS_SWAP
++	bool "Provide swap over NFS support"
++	default n
++	depends on NFS_FS
++	select SUNRPC_SWAP
++	help
++	  This option enables swapon to work on files located on NFS mounts.
 +
- ctl_table ipv6_route_table[] = {
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_FLUSH,
-@@ -2393,7 +2408,7 @@ ctl_table ipv6_route_table[] = {
- 		.data		=	&ip6_rt_max_size,
- 		.maxlen		=	sizeof(int),
- 		.mode		=	0644,
--		.proc_handler	=	&proc_dointvec,
-+         	.proc_handler	=	&proc_dointvec_rt_size,
- 	},
- 	{
- 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
-@@ -2478,6 +2493,8 @@ void __init ip6_route_init(void)
++	  For more details, see Documentation/vm_deadlock.txt
++
++	  If unsure, say N.
++
+ config NFSD
+ 	tristate "NFS server support"
+ 	depends on INET
+@@ -1746,6 +1758,13 @@ config SUNRPC_BIND34
+ 	  If unsure, say N to get traditional behavior (version 2 rpcbind
+ 	  requests only).
  
- 	proc_net_fops_create("rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
- #endif
-+	aux_reserve_memory(guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
-+				ip6_rt_max_size));
- #ifdef CONFIG_XFRM
- 	xfrm6_init();
- #endif
++config SUNRPC_SWAP
++	def_bool n
++	depends on SUNRPC
++	select SLAB_FAIR
++	select NETVM
++	select SWAP_FILE
++
+ config RPCSEC_GSS_KRB5
+ 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
+ 	depends on SUNRPC && EXPERIMENTAL
 
 --
 
