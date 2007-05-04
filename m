@@ -1,36 +1,44 @@
-Date: Fri, 4 May 2007 10:02:46 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: incoming
-Message-ID: <20070504170246.GA23069@kroah.com>
-References: <20070502150252.7ddf67ac.akpm@linux-foundation.org> <20070504133728.GA19460@kroah.com> <20070504091434.106ad04d.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070504091434.106ad04d.akpm@linux-foundation.org>
+Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl>
+	 <20070504103157.215424767@chello.nl>
+	 <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Fri, 04 May 2007 19:59:05 +0200
+Message-Id: <1178301545.24217.56.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@engr.sgi.com>, "David S. Miller" <davem@davemloft.net>, Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Roland McGrath <roland@redhat.com>, Stephen Smalley <sds@tycho.nsa.gov>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 04, 2007 at 09:14:34AM -0700, Andrew Morton wrote:
-> On Fri, 4 May 2007 06:37:28 -0700 Greg KH <greg@kroah.com> wrote:
+On Fri, 2007-05-04 at 09:36 -0700, Christoph Lameter wrote:
+> On Fri, 4 May 2007, Peter Zijlstra wrote:
 > 
-> > On Wed, May 02, 2007 at 03:02:52PM -0700, Andrew Morton wrote:
-> > > - One little security patch
-> > 
-> > Care to cc: linux-stable with it so we can do a new 2.6.21 release with
-> > it if needed?
-> > 
+> > Expost buffer_size in order to allow fair estimates on the actual space 
+> > used/needed.
 > 
-> Ah.  The patch affects security code, but it doesn't actually address any
-> insecurity.  I didn't think it was needed for -stable?
+> If its just an estimate that you are after then I think ksize is 
+> sufficient.
+> 
+> The buffer size does not include the other per slab overhead that SLAB 
+> needs nor the alignment overhead or the padding. For SLUB you'd be more 
+> lucky but there it does not include the per slab padding that exist.
+> 
+> Need to check how this is going to be used. It is difficult to estimate 
+> slab use because this depends on the availability of object slots in 
+> partial slabs.
+> 
+> I could add a function that tells you how many object you could allocate 
+> from a slab without the page allocator becoming involved? It would count 
+> the object slots available on the partial slabs.
 
-Ah, ok, I read "security" as fixing a insecure problem, my mistake :)
-
-thanks,
-
-greg k-h
+I need to know how many pages to reserve to allocate a given number of
+items from a given slab; assuming the partial slabs are empty. That is,
+I need a worst case upper bound.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
