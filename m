@@ -1,282 +1,485 @@
-Message-Id: <20070504103201.534543650@chello.nl>
+Message-Id: <20070504103159.150015136@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:17 +0200
+Date: Fri, 04 May 2007 12:27:07 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 26/40] nfs: teach the NFS client how to treat PG_swapcache pages
-Content-Disposition: inline; filename=nfs-swapcache.patch
+Subject: [PATCH 16/40] netvm: hook skb allocation to reserves
+Content-Disposition: inline; filename=netvm-skbuff-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Replace all relevant occurences of page->index and page->mapping in the NFS
-client with the new page_file_index() and page_file_mapping() functions.
+Change the skb allocation api to indicate RX usage and use this to fall back to
+the reserve when needed. Skbs allocated from the reserve are tagged in
+skb->emergency.
+
+Teach all other skb ops about emergency skbs and the reserve accounting.
+
+Use the (new) packet split API to allocate and track fragment pages from the
+emergency reserve. Do this using an atomic counter in page->index. This is
+needed because the fragments have a different sharing semantic than that
+indicated by skb_shinfo()->dataref. 
+
+(NOTE the extra atomic overhead is only for those pages allocated from the
+reserves - it does not affect the normal fast path.)
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
 ---
- fs/nfs/file.c     |    4 ++--
- fs/nfs/internal.h |    7 ++++---
- fs/nfs/pagelist.c |    6 +++---
- fs/nfs/read.c     |    6 +++---
- fs/nfs/write.c    |   36 ++++++++++++++++++------------------
- 5 files changed, 30 insertions(+), 29 deletions(-)
+ include/linux/skbuff.h |   22 +++++-
+ net/core/skbuff.c      |  161 ++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 157 insertions(+), 26 deletions(-)
 
-Index: linux-2.6-git/fs/nfs/file.c
+Index: linux-2.6-git/include/linux/skbuff.h
 ===================================================================
---- linux-2.6-git.orig/fs/nfs/file.c
-+++ linux-2.6-git/fs/nfs/file.c
-@@ -310,7 +310,7 @@ static void nfs_invalidate_page(struct p
- 	if (offset != 0)
- 		return;
- 	/* Cancel any unstarted writes on this page */
--	nfs_wb_page_priority(page->mapping->host, page, FLUSH_INVALIDATE);
-+	nfs_wb_page_priority(page_file_mapping(page)->host, page, FLUSH_INVALIDATE);
+--- linux-2.6-git.orig/include/linux/skbuff.h
++++ linux-2.6-git/include/linux/skbuff.h
+@@ -277,7 +277,8 @@ struct sk_buff {
+ 				nfctinfo:3;
+ 	__u8			pkt_type:3,
+ 				fclone:2,
+-				ipvs_property:1;
++				ipvs_property:1,
++				emergency:1;
+ 	__be16			protocol;
+ 
+ 	void			(*destructor)(struct sk_buff *skb);
+@@ -323,10 +324,19 @@ struct sk_buff {
+ 
+ #include <asm/system.h>
+ 
++#define SKB_ALLOC_FCLONE	0x01
++#define SKB_ALLOC_RX		0x02
++
++#ifdef CONFIG_NETVM
++#define skb_emergency(skb)	unlikely((skb)->emergency)
++#else
++#define skb_emergency(skb)	false
++#endif
++
+ extern void kfree_skb(struct sk_buff *skb);
+ extern void	       __kfree_skb(struct sk_buff *skb);
+ extern struct sk_buff *__alloc_skb(unsigned int size,
+-				   gfp_t priority, int fclone, int node);
++				   gfp_t priority, int flags, int node);
+ static inline struct sk_buff *alloc_skb(unsigned int size,
+ 					gfp_t priority)
+ {
+@@ -336,7 +346,7 @@ static inline struct sk_buff *alloc_skb(
+ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
+ 					       gfp_t priority)
+ {
+-	return __alloc_skb(size, priority, 1, -1);
++	return __alloc_skb(size, priority, SKB_ALLOC_FCLONE, -1);
  }
  
- static int nfs_release_page(struct page *page, gfp_t gfp)
-@@ -321,7 +321,7 @@ static int nfs_release_page(struct page 
- 
- static int nfs_launder_page(struct page *page)
+ extern void	       kfree_skbmem(struct sk_buff *skb);
+@@ -1279,7 +1289,8 @@ static inline void __skb_queue_purge(str
+ static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
+ 					      gfp_t gfp_mask)
  {
--	return nfs_wb_page(page->mapping->host, page);
-+	return nfs_wb_page(page_file_mapping(page)->host, page);
+-	struct sk_buff *skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
++	struct sk_buff *skb =
++		__alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, -1);
+ 	if (likely(skb))
+ 		skb_reserve(skb, NET_SKB_PAD);
+ 	return skb;
+@@ -1325,6 +1336,7 @@ static inline struct sk_buff *netdev_all
  }
  
- const struct address_space_operations nfs_file_aops = {
-Index: linux-2.6-git/fs/nfs/pagelist.c
-===================================================================
---- linux-2.6-git.orig/fs/nfs/pagelist.c
-+++ linux-2.6-git/fs/nfs/pagelist.c
-@@ -78,11 +78,11 @@ nfs_create_request(struct nfs_open_conte
- 	 * update_nfs_request below if the region is not locked. */
- 	req->wb_page    = page;
- 	atomic_set(&req->wb_complete, 0);
--	req->wb_index	= page->index;
-+	req->wb_index	= page_file_index(page);
- 	page_cache_get(page);
- 	BUG_ON(PagePrivate(page));
- 	BUG_ON(!PageLocked(page));
--	BUG_ON(page->mapping->host != inode);
-+	BUG_ON(page_file_mapping(page)->host != inode);
- 	req->wb_offset  = offset;
- 	req->wb_pgbase	= offset;
- 	req->wb_bytes   = count;
-@@ -367,7 +367,7 @@ void nfs_pageio_complete(struct nfs_page
-  * @nfsi: NFS inode
-  * @head: One of the NFS inode request lists
-  * @dst: Destination list
-- * @idx_start: lower bound of page->index to scan
-+ * @idx_start: lower bound of page_file_index(page) to scan
-  * @npages: idx_start + npages sets the upper bound to scan.
-  *
-  * Moves elements from one of the inode request lists.
-Index: linux-2.6-git/fs/nfs/read.c
-===================================================================
---- linux-2.6-git.orig/fs/nfs/read.c
-+++ linux-2.6-git/fs/nfs/read.c
-@@ -463,11 +463,11 @@ static const struct rpc_call_ops nfs_rea
- int nfs_readpage(struct file *file, struct page *page)
- {
- 	struct nfs_open_context *ctx;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	int		error;
+ extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
++extern void __netdev_free_page(struct net_device *dev, struct page *page);
  
- 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
--		page, PAGE_CACHE_SIZE, page->index);
-+		page, PAGE_CACHE_SIZE, page_file_index(page));
- 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
- 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+ /**
+  *	netdev_alloc_page - allocate a page for ps-rx on a specific device
+@@ -1341,7 +1353,7 @@ static inline struct page *netdev_alloc_
  
-@@ -514,7 +514,7 @@ static int
- readpage_async_filler(void *data, struct page *page)
+ static inline void netdev_free_page(struct net_device *dev, struct page *page)
  {
- 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *new;
- 	unsigned int len;
- 
-Index: linux-2.6-git/fs/nfs/write.c
-===================================================================
---- linux-2.6-git.orig/fs/nfs/write.c
-+++ linux-2.6-git/fs/nfs/write.c
-@@ -121,7 +121,7 @@ static struct nfs_page *nfs_page_find_re
- static struct nfs_page *nfs_page_find_request(struct page *page)
- {
- 	struct nfs_page *req = NULL;
--	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
-+	spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
- 
- 	spin_lock(req_lock);
- 	req = nfs_page_find_request_locked(page);
-@@ -132,13 +132,13 @@ static struct nfs_page *nfs_page_find_re
- /* Adjust the file length if we're writing beyond the end */
- static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	loff_t end, i_size = i_size_read(inode);
- 	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
- 
--	if (i_size > 0 && page->index < end_index)
-+	if (i_size > 0 && page_file_index(page) < end_index)
- 		return;
--	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
-+	end = page_offset(page) + ((loff_t)offset+count);
- 	if (i_size >= end)
- 		return;
- 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
-@@ -149,7 +149,7 @@ static void nfs_grow_file(struct page *p
- static void nfs_set_pageerror(struct page *page)
- {
- 	SetPageError(page);
--	nfs_zap_mapping(page->mapping->host, page->mapping);
-+	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
+-	__free_page(page);
++	__netdev_free_page(dev, page);
  }
  
- /* We can set the PG_uptodate flag if we see that a write request
-@@ -181,7 +181,7 @@ static int nfs_writepage_setup(struct nf
- 		ret = PTR_ERR(req);
- 		if (ret != -EBUSY)
- 			return ret;
--		ret = nfs_wb_page(page->mapping->host, page);
-+		ret = nfs_wb_page(page_file_mapping(page)->host, page);
- 		if (ret != 0)
- 			return ret;
+ /**
+Index: linux-2.6-git/net/core/skbuff.c
+===================================================================
+--- linux-2.6-git.orig/net/core/skbuff.c
++++ linux-2.6-git/net/core/skbuff.c
+@@ -144,21 +144,28 @@ EXPORT_SYMBOL(skb_truesize_bug);
+  *	%GFP_ATOMIC.
+  */
+ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+-			    int fclone, int node)
++			    int flags, int node)
+ {
+ 	struct kmem_cache *cache;
+ 	struct skb_shared_info *shinfo;
+ 	struct sk_buff *skb;
+ 	u8 *data;
++	int emergency = 0;
+ 
+-	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
++	size = SKB_DATA_ALIGN(size);
++	cache = (flags & SKB_ALLOC_FCLONE)
++		? skbuff_fclone_cache : skbuff_head_cache;
++#ifdef CONFIG_NETVM
++	if (flags & SKB_ALLOC_RX)
++		gfp_mask |= __GFP_NOMEMALLOC|__GFP_NOWARN;
++#endif
+ 
++retry_alloc:
+ 	/* Get the HEAD */
+ 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
+ 	if (!skb)
+-		goto out;
++		goto noskb;
+ 
+-	size = SKB_DATA_ALIGN(size);
+ 	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
+ 			gfp_mask, node);
+ 	if (!data)
+@@ -168,6 +175,7 @@ struct sk_buff *__alloc_skb(unsigned int
+ 	 * See comment in sk_buff definition, just before the 'tail' member
+ 	 */
+ 	memset(skb, 0, offsetof(struct sk_buff, tail));
++	skb->emergency = emergency;
+ 	skb->truesize = size + sizeof(struct sk_buff);
+ 	atomic_set(&skb->users, 1);
+ 	skb->head = data;
+@@ -184,7 +192,7 @@ struct sk_buff *__alloc_skb(unsigned int
+ 	shinfo->ip6_frag_id = 0;
+ 	shinfo->frag_list = NULL;
+ 
+-	if (fclone) {
++	if (flags & SKB_ALLOC_FCLONE) {
+ 		struct sk_buff *child = skb + 1;
+ 		atomic_t *fclone_ref = (atomic_t *) (child + 1);
+ 
+@@ -192,12 +200,31 @@ struct sk_buff *__alloc_skb(unsigned int
+ 		atomic_set(fclone_ref, 1);
+ 
+ 		child->fclone = SKB_FCLONE_UNAVAILABLE;
++		child->emergency = skb->emergency;
  	}
-@@ -217,7 +217,7 @@ static int nfs_set_page_writeback(struct
- 	int ret = test_set_page_writeback(page);
- 
- 	if (!ret) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 		struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 		if (atomic_inc_return(&nfss->writeback) >
-@@ -229,7 +229,7 @@ static int nfs_set_page_writeback(struct
- 
- static void nfs_end_page_writeback(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 	end_page_writeback(page);
-@@ -250,7 +250,7 @@ static int nfs_page_async_flush(struct n
- 				struct page *page)
- {
- 	struct nfs_page *req;
--	struct nfs_inode *nfsi = NFS_I(page->mapping->host);
-+	struct nfs_inode *nfsi = NFS_I(page_file_mapping(page)->host);
- 	spinlock_t *req_lock = &nfsi->req_lock;
- 	int ret;
- 
-@@ -303,7 +303,7 @@ static int nfs_writepage_locked(struct p
- {
- 	struct nfs_pageio_descriptor mypgio, *pgio;
- 	struct nfs_open_context *ctx;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	unsigned offset;
- 	int err;
- 
-@@ -558,7 +558,7 @@ static void nfs_cancel_commit_list(struc
-  * nfs_scan_commit - Scan an inode for commit requests
-  * @inode: NFS inode to scan
-  * @dst: destination list
-- * @idx_start: lower bound of page->index to scan.
-+ * @idx_start: lower bound of page_file_index(page) to scan.
-  * @npages: idx_start + npages sets the upper bound to scan.
-  *
-  * Moves requests from the inode's 'commit' request list.
-@@ -595,7 +595,7 @@ static inline int nfs_scan_commit(struct
- static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
- 		struct page *page, unsigned int offset, unsigned int bytes)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_file_mapping(page);
- 	struct inode *inode = mapping->host;
- 	struct nfs_inode *nfsi = NFS_I(inode);
- 	struct nfs_page		*req, *new = NULL;
-@@ -698,7 +698,7 @@ int nfs_flush_incompatible(struct file *
- 		nfs_release_request(req);
- 		if (!do_flush)
- 			return 0;
--		status = nfs_wb_page(page->mapping->host, page);
-+		status = nfs_wb_page(page_file_mapping(page)->host, page);
- 	} while (status == 0);
- 	return status;
- }
-@@ -713,7 +713,7 @@ int nfs_updatepage(struct file *file, st
- 		unsigned int offset, unsigned int count)
- {
- 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
--	struct inode	*inode = page->mapping->host;
-+	struct inode	*inode = page_file_mapping(page)->host;
- 	int		status = 0;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
-@@ -964,7 +964,7 @@ static void nfs_writeback_done_partial(s
- 	}
- 
- 	if (nfs_write_need_commit(data)) {
--		spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
-+		spinlock_t *req_lock = &NFS_I(page_file_mapping(page)->host)->req_lock;
- 
- 		spin_lock(req_lock);
- 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
-@@ -1388,7 +1388,7 @@ int nfs_wb_page_priority(struct inode *i
- 	loff_t range_start = page_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1404,7 +1404,7 @@ int nfs_wb_page_priority(struct inode *i
- 	}
- 	if (!PagePrivate(page))
- 		return 0;
--	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
-+	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
- 	if (ret >= 0)
- 		return 0;
  out:
-@@ -1422,7 +1422,7 @@ int nfs_wb_page(struct inode *inode, str
+ 	return skb;
++
+ nodata:
+ 	kmem_cache_free(cache, skb);
+ 	skb = NULL;
++noskb:
++#ifdef CONFIG_NETVM
++	/* Attempt emergency allocation when RX skb. */
++	if (likely(!(flags & SKB_ALLOC_RX) || !sk_vmio_socks()))
++		goto out;
++
++	if (!emergency) {
++		if (rx_emergency_get(size)) {
++			gfp_mask &= ~(__GFP_NOMEMALLOC|__GFP_NOWARN);
++			gfp_mask |= __GFP_EMERGENCY;
++			emergency = 1;
++			goto retry_alloc;
++		}
++	} else
++		rx_emergency_put(size);
++#endif
++
+ 	goto out;
+ }
  
- int nfs_set_page_dirty(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_file_mapping(page);
- 	struct inode *inode;
- 	spinlock_t *req_lock;
- 	struct nfs_page *req;
-Index: linux-2.6-git/fs/nfs/internal.h
-===================================================================
---- linux-2.6-git.orig/fs/nfs/internal.h
-+++ linux-2.6-git/fs/nfs/internal.h
-@@ -220,13 +220,14 @@ void nfs_super_set_maxbytes(struct super
- static inline
- unsigned int nfs_page_length(struct page *page)
- {
--	loff_t i_size = i_size_read(page->mapping->host);
-+	loff_t i_size = i_size_read(page_file_mapping(page)->host);
+@@ -220,7 +247,7 @@ struct sk_buff *__netdev_alloc_skb(struc
+ 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
+ 	struct sk_buff *skb;
  
- 	if (i_size > 0) {
-+		pgoff_t page_index = page_file_index(page);
- 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
--		if (page->index < end_index)
-+		if (page_index < end_index)
- 			return PAGE_CACHE_SIZE;
--		if (page->index == end_index)
-+		if (page_index == end_index)
- 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+-	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
++ 	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, SKB_ALLOC_RX, node);
+ 	if (likely(skb)) {
+ 		skb_reserve(skb, NET_SKB_PAD);
+ 		skb->dev = dev;
+@@ -233,10 +260,34 @@ struct page *__netdev_alloc_page(struct 
+ 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
+ 	struct page *page;
+ 
++#ifdef CONFIG_NETVM
++	gfp_mask |= __GFP_NOMEMALLOC | __GFP_NOWARN;
++#endif
++
+ 	page = alloc_pages_node(node, gfp_mask, 0);
++
++#ifdef CONFIG_NETVM
++	if (!page && rx_emergency_get(PAGE_SIZE)) {
++		gfp_mask &= ~(__GFP_NOMEMALLOC | __GFP_NOWARN);
++		gfp_mask |= __GFP_EMERGENCY;
++		page = alloc_pages_node(node, gfp_mask, 0);
++		if (!page)
++			rx_emergency_put(PAGE_SIZE);
++	}
++#endif
++
+ 	return page;
+ }
+ 
++void __netdev_free_page(struct net_device *dev, struct page *page)
++{
++#ifdef CONFIG_NETVM
++	if (unlikely(page->index == 0))
++		rx_emergency_put(PAGE_SIZE);
++#endif
++	__free_page(page);
++}
++
+ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
+ 		int size)
+ {
+@@ -244,6 +295,33 @@ void skb_add_rx_frag(struct sk_buff *skb
+ 	skb->len += size;
+ 	skb->data_len += size;
+ 	skb->truesize += size;
++
++#ifdef CONFIG_NETVM
++	/*
++	 * Fix-up the emergency accounting; make sure all pages match
++	 * skb->emergency.
++	 *
++	 * This relies on the page rank (page->index) to be preserved between
++	 * the call to __netdev_alloc_page() and this call.
++	 */
++	if (skb_emergency(skb)) {
++		/*
++		 * If the page rank wasn't 0 (ALLOC_NO_WATERMARK) we can use
++		 * overcommit accounting, since we already have the memory.
++		 */
++		if (page->index != 0)
++			rx_emergency_get_overcommit(PAGE_SIZE);
++		atomic_set((atomic_t *)&page->index, 1);
++	} else if (unlikely(page->index == 0)) {
++		/*
++		 * Rare case; the skb wasn't allocated under pressure but
++		 * the page was. We need to return the page. This can offset
++		 * the accounting a little, but its a constant shift, it does
++		 * not accumulate.
++		 */
++		rx_emergency_put(PAGE_SIZE);
++	}
++#endif
+ }
+ 
+ static void skb_drop_list(struct sk_buff **listp)
+@@ -272,21 +350,40 @@ static void skb_clone_fraglist(struct sk
+ 		skb_get(list);
+ }
+ 
++static inline void skb_get_page(struct sk_buff *skb, struct page *page)
++{
++	get_page(page);
++	if (skb_emergency(skb))
++		atomic_inc((atomic_t *)&page->index);
++}
++
++static inline void skb_put_page(struct sk_buff *skb, struct page *page)
++{
++	if (skb_emergency(skb) &&
++			atomic_dec_and_test((atomic_t *)&page->index))
++		rx_emergency_put(PAGE_SIZE);
++	put_page(page);
++}
++
+ static void skb_release_data(struct sk_buff *skb)
+ {
+ 	if (!skb->cloned ||
+ 	    !atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
+ 			       &skb_shinfo(skb)->dataref)) {
++		int size = skb->end - skb->head;
++
+ 		if (skb_shinfo(skb)->nr_frags) {
+ 			int i;
+ 			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+-				put_page(skb_shinfo(skb)->frags[i].page);
++				skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
+ 		}
+ 
+ 		if (skb_shinfo(skb)->frag_list)
+ 			skb_drop_fraglist(skb);
+ 
+ 		kfree(skb->head);
++		if (skb_emergency(skb))
++			rx_emergency_put(size);
  	}
- 	return 0;
+ }
+ 
+@@ -405,6 +502,9 @@ struct sk_buff *skb_clone(struct sk_buff
+ 		n->fclone = SKB_FCLONE_CLONE;
+ 		atomic_inc(fclone_ref);
+ 	} else {
++		if (skb_emergency(skb))
++			gfp_mask |= __GFP_EMERGENCY;
++
+ 		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+ 		if (!n)
+ 			return NULL;
+@@ -440,6 +540,7 @@ struct sk_buff *skb_clone(struct sk_buff
+ #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+ 	C(ipvs_property);
+ #endif
++	C(emergency);
+ 	C(protocol);
+ 	n->destructor = NULL;
+ 	C(mark);
+@@ -516,6 +617,8 @@ static void copy_skb_header(struct sk_bu
+ 	skb_shinfo(new)->gso_type = skb_shinfo(old)->gso_type;
+ }
+ 
++#define skb_alloc_rx(skb) (skb_emergency(skb) ? SKB_ALLOC_RX : 0)
++
+ /**
+  *	skb_copy	-	create private copy of an sk_buff
+  *	@skb: buffer to copy
+@@ -536,15 +639,17 @@ static void copy_skb_header(struct sk_bu
+ struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
+ {
+ 	int headerlen = skb->data - skb->head;
++	int size;
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
+ 	struct sk_buff *n;
+ #ifdef NET_SKBUFF_DATA_USES_OFFSET
+-	n = alloc_skb(skb->end + skb->data_len, gfp_mask);
++	size = skb->end + skb->data_len;
+ #else
+-	n = alloc_skb(skb->end - skb->head + skb->data_len, gfp_mask);
++	size = skb->end - skb->head + skb->data_len;
+ #endif
++	n = __alloc_skb(size, gfp_mask, skb_alloc_rx(skb), -1);
+ 	if (!n)
+ 		return NULL;
+ 
+@@ -581,12 +686,14 @@ struct sk_buff *pskb_copy(struct sk_buff
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
++	int size;
+ 	struct sk_buff *n;
+ #ifdef NET_SKBUFF_DATA_USES_OFFSET
+-	n = alloc_skb(skb->end, gfp_mask);
++	size = skb->end;
+ #else
+-	n = alloc_skb(skb->end - skb->head, gfp_mask);
++	size = skb->end - skb->head;
+ #endif
++	n = __alloc_skb(size, gfp_mask, skb_alloc_rx(skb), -1);
+ 	if (!n)
+ 		goto out;
+ 
+@@ -607,8 +714,9 @@ struct sk_buff *pskb_copy(struct sk_buff
+ 		int i;
+ 
+ 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+-			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
+-			get_page(skb_shinfo(n)->frags[i].page);
++			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
++			skb_shinfo(n)->frags[i] = *frag;
++			skb_get_page(n, frag->page);
+ 		}
+ 		skb_shinfo(n)->nr_frags = i;
+ 	}
+@@ -656,6 +764,14 @@ int pskb_expand_head(struct sk_buff *skb
+ 
+ 	size = SKB_DATA_ALIGN(size);
+ 
++	if (skb_emergency(skb)) {
++		if (rx_emergency_get(size))
++			gfp_mask |= __GFP_EMERGENCY;
++		else
++			goto nodata;
++	} else
++		gfp_mask |= __GFP_NOMEMALLOC;
++
+ 	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
+ 	if (!data)
+ 		goto nodata;
+@@ -672,7 +788,7 @@ int pskb_expand_head(struct sk_buff *skb
+ 	       sizeof(struct skb_shared_info));
+ 
+ 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+-		get_page(skb_shinfo(skb)->frags[i].page);
++		skb_get_page(skb, skb_shinfo(skb)->frags[i].page);
+ 
+ 	if (skb_shinfo(skb)->frag_list)
+ 		skb_clone_fraglist(skb);
+@@ -752,8 +868,8 @@ struct sk_buff *skb_copy_expand(const st
+ 	/*
+ 	 *	Allocate the copy buffer
+ 	 */
+-	struct sk_buff *n = alloc_skb(newheadroom + skb->len + newtailroom,
+-				      gfp_mask);
++	struct sk_buff *n = __alloc_skb(newheadroom + skb->len + newtailroom,
++				        gfp_mask, skb_alloc_rx(skb), -1);
+ 	int oldheadroom = skb_headroom(skb);
+ 	int head_copy_len, head_copy_off;
+ 	int off = 0;
+@@ -869,7 +985,7 @@ drop_pages:
+ 		skb_shinfo(skb)->nr_frags = i;
+ 
+ 		for (; i < nfrags; i++)
+-			put_page(skb_shinfo(skb)->frags[i].page);
++			skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
+ 
+ 		if (skb_shinfo(skb)->frag_list)
+ 			skb_drop_fraglist(skb);
+@@ -1038,7 +1154,7 @@ pull_pages:
+ 	k = 0;
+ 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+ 		if (skb_shinfo(skb)->frags[i].size <= eat) {
+-			put_page(skb_shinfo(skb)->frags[i].page);
++			skb_put_page(skb, skb_shinfo(skb)->frags[i].page);
+ 			eat -= skb_shinfo(skb)->frags[i].size;
+ 		} else {
+ 			skb_shinfo(skb)->frags[k] = skb_shinfo(skb)->frags[i];
+@@ -1599,6 +1715,7 @@ static inline void skb_split_no_header(s
+ 			skb_shinfo(skb1)->frags[k] = skb_shinfo(skb)->frags[i];
+ 
+ 			if (pos < len) {
++				struct page *page = skb_shinfo(skb)->frags[i].page;
+ 				/* Split frag.
+ 				 * We have two variants in this case:
+ 				 * 1. Move all the frag to the second
+@@ -1607,7 +1724,7 @@ static inline void skb_split_no_header(s
+ 				 *    where splitting is expensive.
+ 				 * 2. Split is accurately. We make this.
+ 				 */
+-				get_page(skb_shinfo(skb)->frags[i].page);
++				skb_get_page(skb1, page);
+ 				skb_shinfo(skb1)->frags[0].page_offset += len - pos;
+ 				skb_shinfo(skb1)->frags[0].size -= len - pos;
+ 				skb_shinfo(skb)->frags[i].size	= len - pos;
+@@ -1933,7 +2050,8 @@ struct sk_buff *skb_segment(struct sk_bu
+ 		if (hsize > len || !sg)
+ 			hsize = len;
+ 
+-		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
++		nskb = __alloc_skb(hsize + doffset + headroom, GFP_ATOMIC,
++				   skb_alloc_rx(skb), -1);
+ 		if (unlikely(!nskb))
+ 			goto err;
+ 
+@@ -1977,7 +2095,7 @@ struct sk_buff *skb_segment(struct sk_bu
+ 			BUG_ON(i >= nfrags);
+ 
+ 			*frag = skb_shinfo(skb)->frags[i];
+-			get_page(frag->page);
++			skb_get_page(nskb, frag->page);
+ 			size = frag->size;
+ 
+ 			if (pos < offset) {
+@@ -2222,6 +2340,7 @@ EXPORT_SYMBOL(__pskb_pull_tail);
+ EXPORT_SYMBOL(__alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_page);
++EXPORT_SYMBOL(__netdev_free_page);
+ EXPORT_SYMBOL(skb_add_rx_frag);
+ EXPORT_SYMBOL(pskb_copy);
+ EXPORT_SYMBOL(pskb_expand_head);
 
 --
 
