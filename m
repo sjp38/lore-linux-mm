@@ -1,43 +1,49 @@
-Message-ID: <463B7F63.8070508@cs.helsinki.fi>
-Date: Fri, 04 May 2007 21:45:55 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
+Date: Fri, 4 May 2007 11:46:54 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
-References: <20070504102651.923946304@chello.nl>	 <20070504103157.215424767@chello.nl>	 <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>	 <1178301545.24217.56.camel@twins>	 <Pine.LNX.4.64.0705041104110.23539@schroedinger.engr.sgi.com>	 <1178302904.2767.6.camel@lappy>	 <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com> <1178303538.2767.9.camel@lappy>
-In-Reply-To: <1178303538.2767.9.camel@lappy>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <463B7E5C.8030201@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0705041142350.24625@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl>  <20070504103157.215424767@chello.nl>
+  <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
+ <1178301545.24217.56.camel@twins>  <Pine.LNX.4.64.0705041104110.23539@schroedinger.engr.sgi.com>
+ <1178302904.2767.6.camel@lappy> <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com>
+ <463B7E5C.8030201@cs.helsinki.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-04 at 11:30 -0700, Christoph Lameter wrote:
-> > Hmmm... Maybe lets have
-> >
-> > unsigned kmem_estimate_pages(struct kmem_cache *slab_cache, int objects)
-> >
-> > which would calculate the worst case memory scenario for allocation the 
+On Fri, 4 May 2007, Pekka Enberg wrote:
+
+> > which would calculate the worst case memory scenario for allocation the
 > > number of indicated objects?
+> 
+> IIRC this looks more or less what Peter had initially. I don't like the API
+> because there's no way for slab (perhaps this is different for slub) how many
+> pages you really need due to per-node and per-cpu caches, etc.
 
-On Fri, 4 May 2007, Peter Zijlstra wrote:
-> Perfectly fine with me, Pekka, any objections?
+SLAB can calculate exactly how many pages are needed. The per 
+cpu and per node stuff is setup at boot and does not change. We are 
+talking about the worst case scenario here. True in case of an off slab
+we have additional overhead that would also have to go into worst case 
+scenario.
 
-Again, slab has no way of actually estimating how many pages you need 
-for a given number of objects. So we end up calculating some upper bound 
-which doesn't belong in mm/slab.c. I am perfectly okay with:
+> It's better that the slab tells you what it actually knows and lets the
+> callers figure out what a worst-case upper bound is.
 
-   (1) kmem_nr_bytes_per_object which is what Peter has now
+They do not have the data. For that they would need to know how to deal 
+with alignments, (in case of SLAB) the location of the struct slab, the 
+distinction between the differrent sizes, padding etc. I think this has to 
+be done by the allocator. If we ever have another allocator with another 
+structure then this will nicely isolate that functionality. Otherwise we 
+may have to change the callers depending on how the slab organizes its 
+data.
 
-or alternatively,
-
-   (2) kmem_nr_objects_per_page which I think Christoph suggested
-
-Both of them, the slab knows the answer, and doesn't need to guess. It's 
-up to the caller to figure out what the acceptable upper bound is.
-
-			Pekka
+SLUB organizes its data more effectively so SLUB will return a lower 
+number than SLAB f.e.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
