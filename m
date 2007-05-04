@@ -1,54 +1,42 @@
-Message-ID: <463B004D.6060402@yahoo.com.au>
-Date: Fri, 04 May 2007 19:43:41 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <46393BA7.6030106@yahoo.com.au> <20070503103756.GA19958@infradead.org> <4639DBEC.2020401@yahoo.com.au> <463AFB8C.2000909@yahoo.com.au>
-In-Reply-To: <463AFB8C.2000909@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 00/40] Swap over Networked storage -v12
+From: Daniel Walker <dwalker@mvista.com>
+In-Reply-To: <20070504102651.923946304@chello.nl>
+References: <20070504102651.923946304@chello.nl>
+Content-Type: text/plain
+Date: Fri, 04 May 2007 08:22:59 -0700
+Message-Id: <1178292179.7997.12.camel@imap.mvista.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Nick Piggin wrote:
-> 
->> Christoph Hellwig wrote:
-> 
-> 
->>> Is that every fork/exec or just under certain cicumstances?
->>> A 5% regression on every fork/exec is not acceptable.
->>
->>
->>
->> Well after patch2, G5 fork is 3% and exec is 1%, I'd say the P4
->> numbers will be improved as well with that patch. Then if we have
->> specific lock/unlock bitops, I hope it should reduce that further.
-> 
-> 
-> OK, with the races and missing barriers fixed from the previous patch,
-> plus the attached one added (+patch3), numbers are better again (I'm not
-> sure if I have the ppc barriers correct though).
-> 
-> These ops could also be put to use in bit spinlocks, buffer lock, and
-> probably a few other places too.
-> 
-> 2.6.21   1.49-1.51   164.6-170.8   741.8-760.3
-> +patch   1.71-1.73   175.2-180.8   780.5-794.2
-> +patch2  1.61-1.63   169.8-175.0   748.6-757.0
-> +patch3  1.54-1.57   165.6-170.9   748.5-757.5
-> 
-> So fault performance goes to under 5%, fork is in the noise, exec is
-> still up 1%, but maybe that's noise or cache effects again.
+On Fri, 2007-05-04 at 12:26 +0200, Peter Zijlstra wrote:
 
-OK, with my new lock/unlock_page, dd if=large (bigger than RAM) sparse
-file of=/dev/null with an experimentally optimal block size (32K) goes
-from 626MB/s to 683MB/s on 2 CPU G5 booted with maxcpus=1.
+> 1) introduce the memory reserve and make the SLAB allocator play nice with it.
+>    patches 01-10
+> 
+> 2) add some needed infrastructure to the network code
+>    patches 11-13
+> 
+> 3) implement the idea outlined above
+>    patches 14-20
+> 
+> 4) teach the swap machinery to use generic address_spaces
+>    patches 21-24
+> 
+> 5) implement swap over NFS using all the new stuff
+>    patches 25-31
+> 
+> 6) implement swap over iSCSI
+>    patches 32-40
 
--- 
-SUSE Labs, Novell Inc.
+This is kind of a lot of patches all at once .. Have you release any of
+these patch sets prior to this release ? 
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
