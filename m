@@ -1,60 +1,46 @@
-Message-ID: <463BC686.70901@yahoo.com.au>
-Date: Sat, 05 May 2007 09:49:26 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Fri, 4 May 2007 16:59:15 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: RE: Regression with SLUB on Netperf and Volanomark
+In-Reply-To: <1178318609.23795.214.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.64.0705041658350.28260@schroedinger.engr.sgi.com>
+References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
+  <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
+ <1178298897.23795.195.camel@localhost.localdomain>
+ <Pine.LNX.4.64.0705041118490.24283@schroedinger.engr.sgi.com>
+ <1178318609.23795.214.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B1FF6.1030904@redhat.com>
-In-Reply-To: <463B1FF6.1030904@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ulrich Drepper <drepper@redhat.com>, Jakub Jelinek <jakub@redhat.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Nick Piggin wrote:
-> 
->> Rik van Riel wrote:
->>
->>> With lazy freeing of anonymous pages through MADV_FREE, performance of
->>> the MySQL sysbench workload more than doubles on my quad-core system.
->>
->>
->> OK, I've run some tests on a 16 core Opteron system, both sysbench with
->> MySQL 5.33 (set up as described in the freebsd vs linux page), and with
->> ebizzy.
->>
->> What I found is that, on this system, MADV_FREE performance improvement
->> was in the noise when you look at it on top of the MADV_DONTNEED glibc
->> and down_read(mmap_sem) patch in sysbench.
-> 
-> 
-> Interesting, very different results from my system.
-> 
-> First, did you run with the properly TLB batched version of
-> the MADV_FREE patch?  And did you make sure that MADV_FREE
-> takes the mmap_sem for reading?   Without that, I did see
-> a similar thing to what you saw...
+On Fri, 4 May 2007, Tim Chen wrote:
 
-Yes and yes (I initially forgot to add MADV_FREE to the down_read
-case and saw horrible performance!)
-
-
-> Secondly, I'll have to try some test runs one of the larger
-> systems in the lab.
+> On Fri, 2007-05-04 at 11:27 -0700, Christoph Lameter wrote:
 > 
-> Maybe the results from my quad core Intel system are not
-> typical; maybe the results from your 16 core Opteron are
-> not typical.  Either way, I want to find out :)
+> > 
+> > Not sure where to go here. Increasing the per cpu slab size may hold off 
+> > the issue up to a certain cpu cache size. For that we would need to 
+> > identify which slabs create the performance issue.
+> > 
+> > One easy way to check that this is indeed the case: Enable fake NUMA. You 
+> > will then have separate queues for each processor since they are on 
+> > different "nodes". Create two fake nodes. Run one thread in each node and 
+> > see if this fixes it.
+> 
+> I tried with fake NUMA (boot with numa=fake=2) and use
+> 
+> numactl --physcpubind=1 --membind=0 ./netserver
+> numactl --physcpubind=2 --membind=1 ./netperf -t TCP_STREAM -l 60 -H
+> 127.0.0.1 -i 5,5 -I 99,5 -- -s 57344 -S 57344 -m 4096
+> 
+> to run the tests.  The results are about the same as the non-NUMA case,
+> with slab about 5% better than slub.  
 
-Yep. We might have something like that here, and I'll try with
-some other architectures as well next week, if I can get glibc
-built.
-
--- 
-SUSE Labs, Novell Inc.
+Hmmmm... both tests were run in the same context? NUMA has additional 
+overhead in other areas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
