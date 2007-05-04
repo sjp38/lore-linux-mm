@@ -1,93 +1,185 @@
-Message-Id: <20070504103202.950175722@chello.nl>
+Message-Id: <20070504103158.188458962@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:23 +0200
+Date: Fri, 04 May 2007 12:27:03 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 32/40] block: add a swapdev callback to the request_queue
-Content-Disposition: inline; filename=blk_queue_swapdev.patch
+Subject: [PATCH 12/40] net: packet split receive api
+Content-Disposition: inline; filename=net-ps_rx.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Jens Axboe <jens.axboe@oracle.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Networked storage devices need a swap-on/off callback in order to setup
-some state and reserve memory. Place the block device callback in the
-request_queue as suggested by James Bottomley.
+Add some packet-split receive hooks.
+
+For one this allows to do NUMA node affine page allocs.  Later on these hooks
+will be extended to do emergency reserve allocations for fragments.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Cc: James Bottomley <James.Bottomley@SteelEye.com>
 ---
- include/linux/blkdev.h |   19 +++++++++++++++++++
- mm/swapfile.c          |    4 ++++
- 2 files changed, 23 insertions(+)
+ drivers/net/e1000/e1000_main.c |    8 ++------
+ drivers/net/sky2.c             |   16 ++++++----------
+ include/linux/skbuff.h         |   23 +++++++++++++++++++++++
+ net/core/skbuff.c              |   20 ++++++++++++++++++++
+ 4 files changed, 51 insertions(+), 16 deletions(-)
 
-Index: linux-2.6-git/include/linux/blkdev.h
+Index: linux-2.6-git/drivers/net/e1000/e1000_main.c
 ===================================================================
---- linux-2.6-git.orig/include/linux/blkdev.h	2007-01-08 11:53:13.000000000 +0100
-+++ linux-2.6-git/include/linux/blkdev.h	2007-01-16 14:14:50.000000000 +0100
-@@ -341,6 +341,7 @@ typedef int (merge_bvec_fn) (request_que
- typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
- typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
- typedef void (softirq_done_fn)(struct request *);
-+typedef int (swapdev_fn)(void*, int);
+--- linux-2.6-git.orig/drivers/net/e1000/e1000_main.c	2007-02-14 08:31:12.000000000 +0100
++++ linux-2.6-git/drivers/net/e1000/e1000_main.c	2007-02-14 11:42:07.000000000 +0100
+@@ -4412,12 +4412,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapt
+ 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
+ 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
+ 			ps_page_dma->ps_page_dma[j] = 0;
+-			skb_fill_page_desc(skb, j, ps_page->ps_page[j], 0,
+-			                   length);
++			skb_add_rx_frag(skb, j, ps_page->ps_page[j], 0, length);
+ 			ps_page->ps_page[j] = NULL;
+-			skb->len += length;
+-			skb->data_len += length;
+-			skb->truesize += length;
+ 		}
  
- enum blk_queue_state {
- 	Queue_down,
-@@ -379,6 +380,8 @@ struct request_queue
- 	issue_flush_fn		*issue_flush_fn;
- 	prepare_flush_fn	*prepare_flush_fn;
- 	softirq_done_fn		*softirq_done_fn;
-+	swapdev_fn		*swapdev_fn;
-+	void			*swapdev_obj;
+ 		/* strip the ethernet crc, problem is we're using pages now so
+@@ -4623,7 +4619,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_a
+ 			if (j < adapter->rx_ps_pages) {
+ 				if (likely(!ps_page->ps_page[j])) {
+ 					ps_page->ps_page[j] =
+-						alloc_page(GFP_ATOMIC);
++						netdev_alloc_page(netdev);
+ 					if (unlikely(!ps_page->ps_page[j])) {
+ 						adapter->alloc_rx_buff_failed++;
+ 						goto no_buffers;
+Index: linux-2.6-git/include/linux/skbuff.h
+===================================================================
+--- linux-2.6-git.orig/include/linux/skbuff.h	2007-02-14 11:29:54.000000000 +0100
++++ linux-2.6-git/include/linux/skbuff.h	2007-02-14 11:59:04.000000000 +0100
+@@ -813,6 +813,9 @@ static inline void skb_fill_page_desc(st
+ 	skb_shinfo(skb)->nr_frags = i + 1;
+ }
  
- 	/*
- 	 * Dispatch queue sorting
-@@ -766,6 +769,22 @@ request_queue_t *blk_alloc_queue(gfp_t);
- request_queue_t *blk_alloc_queue_node(gfp_t, int);
- extern void blk_put_queue(request_queue_t *);
++extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
++			    int off, int size);
++
+ #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
+ #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
+ #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
+@@ -1148,6 +1151,26 @@ static inline struct sk_buff *netdev_all
+ 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
+ }
  
-+static inline
-+void blk_queue_swapdev(struct request_queue *rq,
-+		       swapdev_fn *swapdev_fn, void *swapdev_obj)
++extern struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask);
++
++/**
++ *	netdev_alloc_page - allocate a page for ps-rx on a specific device
++ *	@dev: network device to receive on
++ *
++ * 	Allocate a new page node local to the specified device.
++ *
++ * 	%NULL is returned if there is no free memory.
++ */
++static inline struct page *netdev_alloc_page(struct net_device *dev)
 +{
-+	rq->swapdev_fn = swapdev_fn;
-+	rq->swapdev_obj = swapdev_obj;
++	return __netdev_alloc_page(dev, GFP_ATOMIC);
 +}
 +
-+static inline
-+int blk_queue_swapdev_fn(struct request_queue *rq, int enable)
++static inline void netdev_free_page(struct net_device *dev, struct page *page)
 +{
-+	if (rq->swapdev_fn)
-+		return rq->swapdev_fn(rq->swapdev_obj, enable);
-+	return 0;
++	__free_page(page);
 +}
 +
- /*
-  * tag stuff
-  */
-Index: linux-2.6-git/mm/swapfile.c
+ /**
+  *	skb_cow - copy header of skb when it is required
+  *	@skb: buffer to cow
+Index: linux-2.6-git/net/core/skbuff.c
 ===================================================================
---- linux-2.6-git.orig/mm/swapfile.c	2007-01-15 09:59:02.000000000 +0100
-+++ linux-2.6-git/mm/swapfile.c	2007-01-16 14:14:50.000000000 +0100
-@@ -1305,6 +1305,7 @@ asmlinkage long sys_swapoff(const char _
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
-+		blk_queue_swapdev_fn(bdev->bd_disk->queue, 0);
- 		set_blocksize(bdev, p->old_block_size);
- 		bd_release(bdev);
- 	} else {
-@@ -1524,6 +1525,9 @@ asmlinkage long sys_swapon(const char __
- 		error = set_blocksize(bdev, PAGE_SIZE);
- 		if (error < 0)
- 			goto bad_swap;
-+		error = blk_queue_swapdev_fn(bdev->bd_disk->queue, 1);
-+		if (error < 0)
-+			goto bad_swap;
- 		p->bdev = bdev;
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
+--- linux-2.6-git.orig/net/core/skbuff.c	2007-02-14 11:29:54.000000000 +0100
++++ linux-2.6-git/net/core/skbuff.c	2007-02-14 12:01:40.000000000 +0100
+@@ -279,6 +279,24 @@ struct sk_buff *__netdev_alloc_skb(struc
+ 	return skb;
+ }
+ 
++struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
++{
++	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
++	struct page *page;
++
++	page = alloc_pages_node(node, gfp_mask, 0);
++	return page;
++}
++
++void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
++		int size)
++{
++	skb_fill_page_desc(skb, i, page, off, size);
++	skb->len += size;
++	skb->data_len += size;
++	skb->truesize += size;
++}
++
+ static void skb_drop_list(struct sk_buff **listp)
+ {
+ 	struct sk_buff *list = *listp;
+@@ -2066,6 +2084,8 @@ EXPORT_SYMBOL(kfree_skb);
+ EXPORT_SYMBOL(__pskb_pull_tail);
+ EXPORT_SYMBOL(__alloc_skb);
+ EXPORT_SYMBOL(__netdev_alloc_skb);
++EXPORT_SYMBOL(__netdev_alloc_page);
++EXPORT_SYMBOL(skb_add_rx_frag);
+ EXPORT_SYMBOL(pskb_copy);
+ EXPORT_SYMBOL(pskb_expand_head);
+ EXPORT_SYMBOL(skb_checksum);
+Index: linux-2.6-git/drivers/net/sky2.c
+===================================================================
+--- linux-2.6-git.orig/drivers/net/sky2.c	2007-02-14 08:31:12.000000000 +0100
++++ linux-2.6-git/drivers/net/sky2.c	2007-02-14 12:00:22.000000000 +0100
+@@ -1083,7 +1083,7 @@ static struct sk_buff *sky2_rx_alloc(str
+ 	skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
+ 
+ 	for (i = 0; i < sky2->rx_nfrags; i++) {
+-		struct page *page = alloc_page(GFP_ATOMIC);
++		struct page *page = netdev_alloc_page(sky2->netdev);
+ 
+ 		if (!page)
+ 			goto free_partial;
+@@ -1972,8 +1972,8 @@ static struct sk_buff *receive_copy(stru
+ }
+ 
+ /* Adjust length of skb with fragments to match received data */
+-static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
+-			  unsigned int length)
++static void skb_put_frags(struct sky2_port *sky2, struct sk_buff *skb,
++			  unsigned int hdr_space, unsigned int length)
+ {
+ 	int i, num_frags;
+ 	unsigned int size;
+@@ -1990,15 +1990,11 @@ static void skb_put_frags(struct sk_buff
+ 
+ 		if (length == 0) {
+ 			/* don't need this page */
+-			__free_page(frag->page);
++			netdev_free_page(sky2->netdev, frag->page);
+ 			--skb_shinfo(skb)->nr_frags;
+ 		} else {
+ 			size = min(length, (unsigned) PAGE_SIZE);
+-
+-			frag->size = size;
+-			skb->data_len += size;
+-			skb->truesize += size;
+-			skb->len += size;
++			skb_add_rx_frag(skb, i, frag->page, 0, size);
+ 			length -= size;
+ 		}
+ 	}
+@@ -2027,7 +2023,7 @@ static struct sk_buff *receive_new(struc
+ 	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
+ 
+ 	if (skb_shinfo(skb)->nr_frags)
+-		skb_put_frags(skb, hdr_space, length);
++		skb_put_frags(sky2, skb, hdr_space, length);
+ 	else
+ 		skb_put(skb, length);
+ 	return skb;
 
 --
 
