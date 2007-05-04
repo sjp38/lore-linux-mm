@@ -1,30 +1,26 @@
-Message-ID: <463B815E.8010806@cs.helsinki.fi>
-Date: Fri, 04 May 2007 21:54:22 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
-References: <20070504102651.923946304@chello.nl>  <20070504103157.215424767@chello.nl>  <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>  <1178301545.24217.56.camel@twins>  <Pine.LNX.4.64.0705041104110.23539@schroedinger.engr.sgi.com>  <1178302904.2767.6.camel@lappy>  <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com> <1178303538.2767.9.camel@lappy> <463B7F63.8070508@cs.helsinki.fi> <Pine.LNX.4.64.0705041147000.24625@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.64.0705041147000.24625@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+From: Roland McGrath <roland@redhat.com>
+Subject: Re: incoming
+In-Reply-To: Andrew Morton's message of  Friday, 4 May 2007 09:14:34 -0700 <20070504091434.106ad04d.akpm@linux-foundation.org>
+Message-Id: <20070504185721.3CB7C1800A0@magilla.sf.frob.com>
+Date: Fri,  4 May 2007 11:57:21 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg KH <greg@kroah.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@engr.sgi.com>, "David S. Miller" <davem@davemloft.net>, Andi Kleen <ak@suse.de>, "Luck, Tony" <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Smalley <sds@tycho.nsa.gov>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 4 May 2007, Pekka Enberg wrote:
-> 
->> Again, slab has no way of actually estimating how many pages you need for a
->> given number of objects. So we end up calculating some upper bound which
->> doesn't belong in mm/slab.c. I am perfectly okay with:
-> 
-> It can give a worst case number and that is what he wants.
+> Ah.  The patch affects security code, but it doesn't actually address any
+> insecurity.  I didn't think it was needed for -stable?
 
-Sure. But he can calculate that elsewhere instead of bringing it in 
-mm/slab.c where it's no use for anyone else...
+I would not recommend it for -stable.  
+It is an ABI change for the case of a security refusal.
 
+
+Thanks,
+Roland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
