@@ -1,58 +1,50 @@
-Date: Fri, 4 May 2007 09:18:59 -0700 (PDT)
+Date: Fri, 4 May 2007 09:23:04 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] change global zonelist order v4 [0/2]
-In-Reply-To: <200705040826.23687.jbarnes@virtuousgeek.org>
-Message-ID: <Pine.LNX.4.64.0705040913340.21436@schroedinger.engr.sgi.com>
-References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
- <20070503224730.3bc6f8a8.akpm@linux-foundation.org>
- <200705040826.23687.jbarnes@virtuousgeek.org>
+Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
+In-Reply-To: <1178295355.24217.49.camel@twins>
+Message-ID: <Pine.LNX.4.64.0705040919560.21436@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl>  <20070504103157.215424767@chello.nl>
+  <84144f020705040354r5cb74c5fj6cb8698f93ffcb83@mail.gmail.com>
+ <Pine.LNX.4.64.0705040908480.21436@schroedinger.engr.sgi.com>
+ <1178295355.24217.49.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jesse Barnes <jbarnes@virtuousgeek.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Lee.Schermerhorn@hp.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@steeleye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 May 2007, Jesse Barnes wrote:
+On Fri, 4 May 2007, Peter Zijlstra wrote:
 
-> I think the idea is to avoid exhausting ZONE_DMA on some NUMA boxes by 
-> ordering the fallback list first by zone, then by node distance (e.g. 
-> ZONE_NORMAL of local node, then ZONE_NORMAL of next nearest node etc., 
-> followed by ZONE_DMA of local node, ZONE_DMA of next nearest node, etc.).
+> On Fri, 2007-05-04 at 09:09 -0700, Christoph Lameter wrote:
+> > On Fri, 4 May 2007, Pekka Enberg wrote:
+> > 
+> > > On 5/4/07, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > > Expost buffer_size in order to allow fair estimates on the actual space
+> > > > used/needed.
+> > 
+> > We already have ksize?
+> 
+> ksize gives the internal size, whereas these give the external size.
+> 
+> I need to know how much space I need to reserve, hence I need the
+> external size; whereas normally you want to know how much space you have
+> available, which is what ksize gives.
+> 
+> Didn't we have this discussion last time?
 
-Maybe it would be cleaner to setup a DMA and DMA32 "node" up and define 
-them at a certain distance to the rest of the nodes that only contain 
-ZONE_NORMAL (or the zone that is replicated on all nodes). Then we would 
-have that effect without reworking zone list generation. Plus in the long 
-run we may then be able to get to 1 zone per node avoiding the 
-difficulties coming zone fallback altogether.
+I was cced on that as far as I can tell.
 
-> Another option would be to make this behavior automatic if both ZONE_DMA 
-> and ZONE_NORMAL had pages.  I initially wrote this stuff with the idea 
-> that machines that really needed it would have all their memory in 
-> ZONE_DMA, but obviously that's not the case, so some more smarts are 
-> needed.
+The name objsize suggests the size of the object not the slab size.
+If you want this then maybe call it kmem_cache_slab_size. SLUB 
+distinguishes between obj_size which is the size of the struct that is 
+used and slab_size which is the size of the object after alignment, adding 
+debug information etc etc. See also slabinfo.c for a way to calculate 
+theses sizes from user space.
 
-I think what would work is to first setup nodes that use the highest zone. 
-Then add virtual nodes for the lower zones that may only exist on a single 
-node.
-
-I.e. a 4 node x86_64 box may have
-
-Node
-0	ZONE_NORMAL
-1	ZONE_NORMAL
-2	ZONE_NORMAL
-3	ZONE_NORMAL
-4	ZONE_DMA32
-5	[additional ZONE_DMA32 if zone DMA32 is split over multiple nodes]
-6	ZONE_DMA
-
-The SLIT information can be used to control how the nodes fallback to the 
-DMA32 nodes on 4 and 5. Node 6 would be given a very high SLIT distance so 
-that it would be used only if an actual __GFP_DMA occurs or the system 
-really runs into memory difficulties.
+If we really drop SLAB then we wont need this. SLUBs data structures are 
+not opaque.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
