@@ -1,44 +1,55 @@
-Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
-References: <20070504102651.923946304@chello.nl>
-	 <20070504103157.215424767@chello.nl>
-	 <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 04 May 2007 19:59:05 +0200
-Message-Id: <1178301545.24217.56.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 4 May 2007 11:03:52 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] change global zonelist order v4 [0/2]
+In-Reply-To: <200705041036.01904.jbarnes@virtuousgeek.org>
+Message-ID: <Pine.LNX.4.64.0705041055370.23539@schroedinger.engr.sgi.com>
+References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
+ <1178299460.5236.35.camel@localhost> <Pine.LNX.4.64.0705041027030.22643@schroedinger.engr.sgi.com>
+ <200705041036.01904.jbarnes@virtuousgeek.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Jesse Barnes <jbarnes@virtuousgeek.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-04 at 09:36 -0700, Christoph Lameter wrote:
-> On Fri, 4 May 2007, Peter Zijlstra wrote:
-> 
-> > Expost buffer_size in order to allow fair estimates on the actual space 
-> > used/needed.
-> 
-> If its just an estimate that you are after then I think ksize is 
-> sufficient.
-> 
-> The buffer size does not include the other per slab overhead that SLAB 
-> needs nor the alignment overhead or the padding. For SLUB you'd be more 
-> lucky but there it does not include the per slab padding that exist.
-> 
-> Need to check how this is going to be used. It is difficult to estimate 
-> slab use because this depends on the availability of object slots in 
-> partial slabs.
-> 
-> I could add a function that tells you how many object you could allocate 
-> from a slab without the page allocator becoming involved? It would count 
-> the object slots available on the partial slabs.
+On Fri, 4 May 2007, Jesse Barnes wrote:
 
-I need to know how many pages to reserve to allocate a given number of
-items from a given slab; assuming the partial slabs are empty. That is,
-I need a worst case upper bound.
+> You mentioned that if node 0 has a small ZONE_NORMAL and the ZONE_DMA for 
+> the system, defaulting to using ZONE_NORMAL on all nodes first would be a 
+> bad idea.  Is that really true?  Maybe for ZONE_DMA32 it is since that 
+> first node could have a few gigs of memory, but for regular ZONE_DMA it's 
+> probably the right thing to do...
+
+If the fallback sequence is f.e. Node 0 NORMAL (500m) Node 1 NORMAL(4G) 
+node 2 Normal (4G) ... many more ... Node 0 DMA32 (~4G) Node 0 DMA then 
+memory is frequently going to be not optimally placed for allocations from 
+processes running on node 0 because node 0 is memory starved. 
+Allocations will be made from node 1 which may create a shortage there 
+which fall again. Could be a cascade effect because the symmetry in 
+memory is no longer there.
+
+The proposal to create an additional node may solve that to some extend by placing the 
+DMA node nearer to node 0.
+
+Maybe the best approach is to leave things as is and just be careful with 
+I/O to 32 bits? I do not think there is an easy solution. A 64 bit NUMA 
+platforms should have I/O that is 64 bit capable and not restricted to DMA 
+zones.
+
+> > So aside from the comment issues Lee already pointed out, I think 
+> Kamezawa-san's patch from 
+> http://marc.info/?l=linux-mm&m=117758484122663&w=4 seems reasonable.
+
+If we are going to do this then the patch needs to be fine tuned first and 
+the impact on core code needs to be minimized. I want to make really sure 
+that platforms without DMA zones work right, if zones are empty it should 
+work right and weird x86_64 combinations of NORMAL, DMA and DMA32 
+distributed over various nodes would need to be covered and tested first.
+
+How will this affect NUMAQ (32 bit NUMA) where we have HIGHMEM on the 
+(most) nodes and NORMAL/DMA on node 0?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
