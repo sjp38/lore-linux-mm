@@ -1,124 +1,85 @@
-Message-Id: <20070504103157.215424767@chello.nl>
-References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:26:59 +0200
+Message-Id: <20070504102651.923946304@chello.nl>
+Date: Fri, 04 May 2007 12:26:51 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/40] mm: kmem_cache_objsize
-Content-Disposition: inline; filename=mm-kmem_objsize.patch
+Subject: [PATCH 00/40] Swap over Networked storage -v12
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Expost buffer_size in order to allow fair estimates on the actual space 
-used/needed.
+There is a fundamental deadlock associated with paging; when writing out a page
+to free memory requires free memory to complete. The usually solution is to
+keep a small amount of memory available at all times so we can overcome this
+problem. This however assumes the amount of memory needed for writeout is
+(constant and) smaller than the provided reserve.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
----
- include/linux/slab.h |    2 ++
- mm/slab.c            |   16 ++++++++++++++--
- mm/slob.c            |   18 ++++++++++++++++++
- 3 files changed, 34 insertions(+), 2 deletions(-)
+It is this latter assumption that breaks when doing writeout over network.
+Network can take up an unspecified amount of memory while waiting for a reply
+to our write request. This re-introduces the deadlock; we might never complete
+the writeout, for we might not have enough memory to receive the completion
+message.
 
-Index: linux-2.6-git/include/linux/slab.h
-===================================================================
---- linux-2.6-git.orig/include/linux/slab.h	2007-03-26 14:18:59.000000000 +0200
-+++ linux-2.6-git/include/linux/slab.h	2007-03-26 18:33:58.000000000 +0200
-@@ -54,6 +54,7 @@ void *kmem_cache_alloc(struct kmem_cache
- void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
- void kmem_cache_free(struct kmem_cache *, void *);
- unsigned int kmem_cache_size(struct kmem_cache *);
-+unsigned int kmem_cache_objsize(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
- int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
- 
-@@ -74,6 +75,7 @@ void *__kmalloc(size_t, gfp_t);
- void *__kzalloc(size_t, gfp_t);
- void kfree(const void *);
- unsigned int ksize(const void *);
-+unsigned int kobjsize(size_t);
- 
- /**
-  * kcalloc - allocate memory for an array. The memory is set to zero.
-Index: linux-2.6-git/mm/slab.c
-===================================================================
---- linux-2.6-git.orig/mm/slab.c	2007-03-26 15:44:34.000000000 +0200
-+++ linux-2.6-git/mm/slab.c	2007-03-28 10:10:36.000000000 +0200
-@@ -3205,12 +3205,12 @@ static inline void *____cache_alloc(stru
- }
- 
- #ifdef CONFIG_SLAB_FAIR
--static inline int slab_alloc_rank(gfp_t flags)
-+static __always_inline int slab_alloc_rank(gfp_t flags)
- {
- 	return gfp_to_rank(flags);
- }
- #else
--static inline int slab_alloc_rank(gfp_t flags)
-+static __always_inline int slab_alloc_rank(gfp_t flags)
- {
- 	return 0;
- }
-@@ -3815,6 +3815,12 @@ unsigned int kmem_cache_size(struct kmem
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
-+unsigned int kmem_cache_objsize(struct kmem_cache *cachep)
-+{
-+	return cachep->buffer_size;
-+}
-+EXPORT_SYMBOL_GPL(kmem_cache_objsize);
-+
- const char *kmem_cache_name(struct kmem_cache *cachep)
- {
- 	return cachep->name;
-@@ -4512,3 +4518,9 @@ unsigned int ksize(const void *objp)
- 
- 	return obj_size(virt_to_cache(objp));
- }
-+
-+unsigned int kobjsize(size_t size)
-+{
-+	return kmem_cache_objsize(kmem_find_general_cachep(size, 0));
-+}
-+EXPORT_SYMBOL_GPL(kobjsize);
-Index: linux-2.6-git/mm/slob.c
-===================================================================
---- linux-2.6-git.orig/mm/slob.c	2007-03-26 14:18:59.000000000 +0200
-+++ linux-2.6-git/mm/slob.c	2007-03-26 18:33:58.000000000 +0200
-@@ -240,6 +240,15 @@ unsigned int ksize(const void *block)
- 	return ((slob_t *)block - 1)->units * SLOB_UNIT;
- }
- 
-+unsigned int kobjsize(size_t size)
-+{
-+	if (size < PAGE_SIZE)
-+		return size;
-+
-+	return PAGE_SIZE << find_order(size);
-+}
-+EXPORT_SYMBOL_GPL(kobjsize);
-+
- struct kmem_cache {
- 	unsigned int size, align;
- 	const char *name;
-@@ -321,6 +330,15 @@ unsigned int kmem_cache_size(struct kmem
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
-+unsigned int kmem_cache_objsize(struct kmem_cache *c)
-+{
-+	if (c->size < PAGE_SIZE)
-+		return c->size + c->align;
-+
-+	return PAGE_SIZE << find_order(c->size);
-+}
-+EXPORT_SYMBOL_GPL(kmem_cache_objsize);
-+
- const char *kmem_cache_name(struct kmem_cache *c)
- {
- 	return c->name;
+The proposed solution is simple, only allow traffic servicing the VM to make
+use of the reserves.
+
+This however implies you know what packets are for whom, which generally
+speaking you don't. Hence we need to receive all packets but discard them as
+soon as we encounter a non VM bound packet allocated from the reserves.
+
+Also knowing it is headed towards the VM needs a little help, hence we
+introduce the socket flag SOCK_VMIO to mark sockets with.
+
+Of course, since we are paging all this has to happen in kernel-space, since
+user-space might just not be there.
+
+Since packet processing might also require memory, this all also implies that
+those auxiliary allocations may use the reserves when an emergency packet is
+processed. This is accomplished by using PF_MEMALLOC.
+
+How much memory is to be reserved is also an issue, enough memory to saturate
+both the route cache and IP fragment reassembly, along with various constants.
+
+This patch-set comes in 6 parts:
+
+1) introduce the memory reserve and make the SLAB allocator play nice with it.
+   patches 01-10
+
+2) add some needed infrastructure to the network code
+   patches 11-13
+
+3) implement the idea outlined above
+   patches 14-20
+
+4) teach the swap machinery to use generic address_spaces
+   patches 21-24
+
+5) implement swap over NFS using all the new stuff
+   patches 25-31
+
+6) implement swap over iSCSI
+   patches 32-40
+
+Patches can also be found here:
+  http://programming.kicks-ass.net/kernel-patches/vm_deadlock/v12/
+
+If I receive no feedback, I will assume the various maintainers do not object
+and I will respin the series against -mm and submit for inclusion.
+
+There is interest in this feature from the stateless linux world; that is both
+the virtualization world, and the cluster world.
+
+I have been contacted by various groups, some have just expressed their
+interest, others have been testing this work in their environments.
+
+Various hardware vendors have also expressed interest, and, of course, my
+employer finds it important enough to have me work on it.
+
+Also, while it doesn't present a full-fledged reserve-based allocator API yet,
+it does lay most of the groundwork for it. There is a GFP_NOFAIL elimination
+project wanting to use this as a foundation. Elimination of GFP_NOFAIL will
+greatly improve the basic soundness and stability of the code that currently
+uses that construct - most disk based filesystems.
 
 --
 
