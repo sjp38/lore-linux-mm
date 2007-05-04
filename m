@@ -1,37 +1,213 @@
-Message-Id: <20070504103159.389910222@chello.nl>
+Message-Id: <20070504103158.907994448@chello.nl>
 References: <20070504102651.923946304@chello.nl>
-Date: Fri, 04 May 2007 12:27:08 +0200
+Date: Fri, 04 May 2007 12:27:06 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 17/40] netvm: filter emergency skbs.
-Content-Disposition: inline; filename=netvm-sk_filter.patch
+Subject: [PATCH 15/40] netvm: INET reserves.
+Content-Disposition: inline; filename=netvm-reserve-inet.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Toss all emergency packets not for a SOCK_VMIO socket. This ensures our
-precious memory reserve doesn't get stuck waiting for user-space.
+Add reserves for INET.
+
+The two big users seem to be the route cache and ip-fragment cache.
+
+Account the route cache to the auxillary reserve.
+Account the fragments to the skb reserve so that one can at least
+overflow the fragment cache (avoids fragment deadlocks).
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/net/sock.h |    3 +++
- 1 file changed, 3 insertions(+)
+ net/ipv4/ip_fragment.c     |    1 +
+ net/ipv4/route.c           |   19 ++++++++++++++++++-
+ net/ipv4/sysctl_net_ipv4.c |   14 +++++++++++++-
+ net/ipv6/reassembly.c      |    1 +
+ net/ipv6/route.c           |   19 ++++++++++++++++++-
+ net/ipv6/sysctl_net_ipv6.c |   13 ++++++++++++-
+ 6 files changed, 63 insertions(+), 4 deletions(-)
 
-Index: linux-2.6-git/include/net/sock.h
+Index: linux-2.6-git/net/ipv4/sysctl_net_ipv4.c
 ===================================================================
---- linux-2.6-git.orig/include/net/sock.h	2007-02-14 16:15:49.000000000 +0100
-+++ linux-2.6-git/include/net/sock.h	2007-02-14 16:16:27.000000000 +0100
-@@ -926,6 +926,9 @@ static inline int sk_filter(struct sock 
- {
- 	int err;
- 	struct sk_filter *filter;
+--- linux-2.6-git.orig/net/ipv4/sysctl_net_ipv4.c	2007-03-26 12:01:01.000000000 +0200
++++ linux-2.6-git/net/ipv4/sysctl_net_ipv4.c	2007-03-26 12:37:19.000000000 +0200
+@@ -18,6 +18,7 @@
+ #include <net/route.h>
+ #include <net/tcp.h>
+ #include <net/cipso_ipv4.h>
++#include <net/sock.h>
+ 
+ /* From af_inet.c */
+ extern int sysctl_ip_nonlocal_bind;
+@@ -186,6 +187,17 @@ static int strategy_allowed_congestion_c
+ 
+ }
+ 
++static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int old_thresh = *(int *)table->data;
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	if (write)
++		skb_reserve_memory(*(int *)table->data - old_thresh);
++	return ret;
++}
 +
-+	if (skb_emergency(skb) && !sk_has_vmio(sk))
-+		return -EPERM;
- 	
- 	err = security_sock_rcv_skb(sk, skb);
- 	if (err)
+ ctl_table ipv4_table[] = {
+ 	{
+ 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
+@@ -291,7 +303,7 @@ ctl_table ipv4_table[] = {
+ 		.data		= &sysctl_ipfrag_high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
+Index: linux-2.6-git/net/ipv6/sysctl_net_ipv6.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv6/sysctl_net_ipv6.c	2007-03-26 12:01:01.000000000 +0200
++++ linux-2.6-git/net/ipv6/sysctl_net_ipv6.c	2007-03-26 12:37:52.000000000 +0200
+@@ -15,6 +15,17 @@
+ 
+ #ifdef CONFIG_SYSCTL
+ 
++static int proc_dointvec_fragment(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int old_thresh = *(int *)table->data;
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	if (write)
++		skb_reserve_memory(*(int *)table->data - old_thresh);
++	return ret;
++}
++
+ static ctl_table ipv6_table[] = {
+ 	{
+ 		.ctl_name	= NET_IPV6_ROUTE,
+@@ -44,7 +55,7 @@ static ctl_table ipv6_table[] = {
+ 		.data		= &sysctl_ip6frag_high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
+Index: linux-2.6-git/net/ipv4/ip_fragment.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv4/ip_fragment.c	2007-03-26 12:01:01.000000000 +0200
++++ linux-2.6-git/net/ipv4/ip_fragment.c	2007-03-26 12:03:07.000000000 +0200
+@@ -743,6 +743,7 @@ void ipfrag_init(void)
+ 	ipfrag_secret_timer.function = ipfrag_secret_rebuild;
+ 	ipfrag_secret_timer.expires = jiffies + sysctl_ipfrag_secret_interval;
+ 	add_timer(&ipfrag_secret_timer);
++	skb_reserve_memory(sysctl_ipfrag_high_thresh);
+ }
+ 
+ EXPORT_SYMBOL(ip_defrag);
+Index: linux-2.6-git/net/ipv6/reassembly.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv6/reassembly.c	2007-03-26 12:01:01.000000000 +0200
++++ linux-2.6-git/net/ipv6/reassembly.c	2007-03-26 12:03:07.000000000 +0200
+@@ -772,4 +772,5 @@ void __init ipv6_frag_init(void)
+ 	ip6_frag_secret_timer.function = ip6_frag_secret_rebuild;
+ 	ip6_frag_secret_timer.expires = jiffies + sysctl_ip6frag_secret_interval;
+ 	add_timer(&ip6_frag_secret_timer);
++	skb_reserve_memory(sysctl_ip6frag_high_thresh);
+ }
+Index: linux-2.6-git/net/ipv4/route.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv4/route.c	2007-03-26 12:01:01.000000000 +0200
++++ linux-2.6-git/net/ipv4/route.c	2007-03-26 12:31:43.000000000 +0200
+@@ -2884,6 +2884,21 @@ static int ipv4_sysctl_rtcache_flush_str
+ 	return 0;
+ }
+ 
++static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int new_pages;
++	int old_pages = guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	new_pages = guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	if (write && (new_pages - old_pages))
++		aux_reserve_memory(new_pages - old_pages);
++	return ret;
++}
++
+ ctl_table ipv4_route_table[] = {
+ 	{
+ 		.ctl_name 	= NET_IPV4_ROUTE_FLUSH,
+@@ -2926,7 +2941,7 @@ ctl_table ipv4_route_table[] = {
+ 		.data		= &ip_rt_max_size,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec,
++		.proc_handler	= &proc_dointvec_rt_size,
+ 	},
+ 	{
+ 		/*  Deprecated. Use gc_min_interval_ms */
+@@ -3153,6 +3168,8 @@ int __init ip_rt_init(void)
+ 
+ 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
+ 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
++	aux_reserve_memory(guess_kmem_cache_pages(ipv4_dst_ops.kmem_cachep,
++				ip_rt_max_size));
+ 
+ 	devinet_init();
+ 	ip_fib_init();
+Index: linux-2.6-git/net/ipv6/route.c
+===================================================================
+--- linux-2.6-git.orig/net/ipv6/route.c	2007-03-26 12:02:29.000000000 +0200
++++ linux-2.6-git/net/ipv6/route.c	2007-03-26 12:37:43.000000000 +0200
+@@ -2370,6 +2370,21 @@ int ipv6_sysctl_rtcache_flush(ctl_table 
+ 		return -EINVAL;
+ }
+ 
++static int proc_dointvec_rt_size(ctl_table *table, int write, struct file *filp,
++		     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int ret;
++	int new_pages;
++	int old_pages = guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	ret = proc_dointvec(table,write,filp,buffer,lenp,ppos);
++	new_pages = guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
++			*(int *)table->data);
++	if (write && (new_pages - old_pages))
++		aux_reserve_memory(new_pages - old_pages);
++	return ret;
++}
++
+ ctl_table ipv6_route_table[] = {
+ 	{
+ 		.ctl_name	=	NET_IPV6_ROUTE_FLUSH,
+@@ -2393,7 +2408,7 @@ ctl_table ipv6_route_table[] = {
+ 		.data		=	&ip6_rt_max_size,
+ 		.maxlen		=	sizeof(int),
+ 		.mode		=	0644,
+-		.proc_handler	=	&proc_dointvec,
++         	.proc_handler	=	&proc_dointvec_rt_size,
+ 	},
+ 	{
+ 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
+@@ -2478,6 +2493,8 @@ void __init ip6_route_init(void)
+ 
+ 	proc_net_fops_create("rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
+ #endif
++	aux_reserve_memory(guess_kmem_cache_pages(ip6_dst_ops.kmem_cachep,
++				ip6_rt_max_size));
+ #ifdef CONFIG_XFRM
+ 	xfrm6_init();
+ #endif
 
 --
 
