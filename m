@@ -1,101 +1,63 @@
 Subject: Re: [PATCH] change global zonelist order v4 [0/2]
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20070503224730.3bc6f8a8.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0705040913340.21436@schroedinger.engr.sgi.com>
 References: <20070427144530.ae42ee25.kamezawa.hiroyu@jp.fujitsu.com>
 	 <20070503224730.3bc6f8a8.akpm@linux-foundation.org>
+	 <200705040826.23687.jbarnes@virtuousgeek.org>
+	 <Pine.LNX.4.64.0705040913340.21436@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 04 May 2007 13:12:08 -0400
-Message-Id: <1178298729.5236.33.camel@localhost>
+Date: Fri, 04 May 2007 13:24:19 -0400
+Message-Id: <1178299460.5236.35.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Christoph Lameter <clameter@sgi.com>, Eric Whitney <eric.whitney@hp.com>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Jesse Barnes <jbarnes@virtuousgeek.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2007-05-03 at 22:47 -0700, Andrew Morton wrote:
-> On Fri, 27 Apr 2007 14:45:30 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Fri, 2007-05-04 at 09:18 -0700, Christoph Lameter wrote:
+> On Fri, 4 May 2007, Jesse Barnes wrote:
 > 
-> > Hi, this is version 4. including Lee Schermerhon's good rework.
-> > and automatic configuration at boot time.
+> > I think the idea is to avoid exhausting ZONE_DMA on some NUMA boxes by 
+> > ordering the fallback list first by zone, then by node distance (e.g. 
+> > ZONE_NORMAL of local node, then ZONE_NORMAL of next nearest node etc., 
+> > followed by ZONE_DMA of local node, ZONE_DMA of next nearest node, etc.).
 > 
-> hm, this adds rather a lot of code.  Have we established that it's worth
-> it?
-
-See below.  Something is needed here on some platforms.  The current
-zonelist ordering results in some unfortunate behavior on some
-platforms.
-
-
+> Maybe it would be cleaner to setup a DMA and DMA32 "node" up and define 
+> them at a certain distance to the rest of the nodes that only contain 
+> ZONE_NORMAL (or the zone that is replicated on all nodes). Then we would 
+> have that effect without reworking zone list generation. Plus in the long 
+> run we may then be able to get to 1 zone per node avoiding the 
+> difficulties coming zone fallback altogether.
 > 
-> And it's complex - how do poor users know what to do with this new control?
+> > Another option would be to make this behavior automatic if both ZONE_DMA 
+> > and ZONE_NORMAL had pages.  I initially wrote this stuff with the idea 
+> > that machines that really needed it would have all their memory in 
+> > ZONE_DMA, but obviously that's not the case, so some more smarts are 
+> > needed.
 > 
-Kame's autoconfig seems to be doing the right thing for our platform.
-Might not be the case for other platforms, or some workloads on them.  I
-suppose the documentation in sysctl.txt could be expanded to describe
-when you might want to select a non-default setting, should we decide to
-provide that capability.
-
+> I think what would work is to first setup nodes that use the highest zone. 
+> Then add virtual nodes for the lower zones that may only exist on a single 
+> node.
 > 
-> This:
+> I.e. a 4 node x86_64 box may have
 > 
-> + *	= "[dD]efault | "0"	- default, automatic configuration.
-> + *	= "[nN]ode"|"1" 	- order by node locality,
-> + *         			  then zone within node.
-> + *	= "[zZ]one"|"2" - order by zone, then by locality within zone
+> Node
+> 0	ZONE_NORMAL
+> 1	ZONE_NORMAL
+> 2	ZONE_NORMAL
+> 3	ZONE_NORMAL
+> 4	ZONE_DMA32
+> 5	[additional ZONE_DMA32 if zone DMA32 is split over multiple nodes]
+> 6	ZONE_DMA
 > 
-> seems a bit excessive.  I think just the 0/1/2 plus documentation would
-> suffice?
+> The SLIT information can be used to control how the nodes fallback to the 
+> DMA32 nodes on 4 and 5. Node 6 would be given a very high SLIT distance so 
+> that it would be used only if an actual __GFP_DMA occurs or the system 
+> really runs into memory difficulties.
 
-I agree, but I was considering dropping the "0/1/2" in favor of the more
-descriptive [IMO] values ;-).
-
-> 
-> 
-> I haven't followed this discussion very closely I'm afraid.  If we came up
-> with a good reason why Linux needs this feature then could someone please
-> (re)describe it?
-
-Kame originally described the need for it in:
-
-	http://marc.info/?l=linux-mm&m=117747120307559&w=4
-
-I chimed in with support as we have a similar need for our cell-based
-ia64 platforms:
-
-	http://marc.info/?l=linux-mm&m=117760331328012&w=4
-
-I can easily consume all of DMA on our platforms [configured as 100%
-"cell local memory" -- always leaves some "cache-line interleaved" at
-phys addr zero => ZONE_DMA] by allocating, e.g., a shared memory segment
-of size > 1 node's memory + size of ZONE_DMA.  This occurs because the
-node containing zone DMA is always 2nd in a zone's ZONE_NORMAL zonelist
-[after the zone itself, assuming it has memory].  Then, any driver that
-requests memory from ZONE_DMA will be denied, resulting in IO errors,
-death of hald [maybe that's a feature? ;-)], ...
-
-I guess I would be happy with Kame's V3 patch that unconditionally
-changes the order to be zone first--i.e., ZONE_NORMAL for all nodes
-before ZONE_DMA*:
-
-	http://marc.info/?l=linux-mm&m=117758484122663&w=4
-
-However, this patch apparently crossed in the mail with Christoph's
-observation that making the new order [zone order] the default w/o any
-option wouldn't be appropriate for some configurations:
-
-	http://marc.info/?l=linux-mm&m=117760245022005&w=4
-
-Meanwhile, I was factoring out common code in Kame's V1/V2 patch and
-adding the "excessive" user interface to the boot parameter/sysctl.
-After some additional rework, Kame posted this a V4--the one you're
-questioning.
-
-If we decide to proceed with this, I have another "cleanup" patch that
-eliminates some redundant "estimating of zone order" [autoconfig] and
-reports what order was chosen in the "Build %d zonelists..." message.
-
+Hmmm...  "serious hackery", indeed!  ;-)
 
 Lee
 
