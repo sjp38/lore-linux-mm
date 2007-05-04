@@ -1,46 +1,41 @@
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Reply-To: tim.c.chen@linux.intel.com
-In-Reply-To: <Pine.LNX.4.64.0705041107290.23684@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-	 <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
-	 <1178298897.23795.195.camel@localhost.localdomain>
-	 <Pine.LNX.4.64.0705041107290.23684@schroedinger.engr.sgi.com>
+Subject: Re: [PATCH 08/40] mm: kmem_cache_objsize
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com>
+References: <20070504102651.923946304@chello.nl>
+	 <20070504103157.215424767@chello.nl>
+	 <Pine.LNX.4.64.0705040932200.22033@schroedinger.engr.sgi.com>
+	 <1178301545.24217.56.camel@twins>
+	 <Pine.LNX.4.64.0705041104110.23539@schroedinger.engr.sgi.com>
+	 <1178302904.2767.6.camel@lappy>
+	 <Pine.LNX.4.64.0705041128270.24283@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Fri, 04 May 2007 10:39:11 -0700
-Message-Id: <1178300352.23795.202.camel@localhost.localdomain>
+Date: Fri, 04 May 2007 20:32:18 +0200
+Message-Id: <1178303538.2767.9.camel@lappy>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Thomas Graf <tgraf@suug.ch>, David Miller <davem@davemloft.net>, James Bottomley <James.Bottomley@SteelEye.com>, Mike Christie <michaelc@cs.wisc.edu>, Andrew Morton <akpm@linux-foundation.org>, Daniel Phillips <phillips@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-04 at 11:10 -0700, Christoph Lameter wrote:
-> On Fri, 4 May 2007, Tim Chen wrote:
+On Fri, 2007-05-04 at 11:30 -0700, Christoph Lameter wrote:
+> On Fri, 4 May 2007, Peter Zijlstra wrote:
 > 
-> > A side note is that for my tests, I bound the netserver and client to
-> > separate cpu core on different sockets in my tests, to make sure that
-> > the server and client do not share the same cache.  
+> > > Ok so you really need the number of objects per page? If you know the 
+> > > number of objects then you can calculate the pages needed which would be 
+> > > the maximum memory needed?
+> > 
+> > Yes, that would work.
 > 
-> Ahhh... You have some scripts that you run. Care to share?
-
-I do
-
-taskset -c 1 netserver
-
-and
-
-taskset -c 2 netperf  -t TCP_STREAM -l 60 -H 127.0.0.1 -- -s 57344 -S
-57344 -m 4096
-
+> Hmmm... Maybe lets have
 > 
-> This is no NUMA syste? Two processors in an SMP system?
+> unsigned kmem_estimate_pages(struct kmem_cache *slab_cache, int objects)
+> 
+> which would calculate the worst case memory scenario for allocation the 
+> number of indicated objects?
 
-Yes, it is a SMP system with 2 socket.  Each socket has 4 cores.
-
-Tim
+Perfectly fine with me, Pekka, any objections?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
