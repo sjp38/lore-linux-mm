@@ -1,53 +1,51 @@
-Date: Fri, 4 May 2007 22:19:23 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Dquot slab cache: Fix competing alignments
-Message-ID: <Pine.LNX.4.64.0705042218140.21707@schroedinger.engr.sgi.com>
+Date: Fri, 4 May 2007 22:32:11 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list defragmentation
+Message-ID: <20070505053211.GZ19966@holomorphy.com>
+References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070504221708.596112123@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-There is a competing specification of an alignment and hardware
-cache alignment in the kmem_cache_create call. Remove the cache 
-alignments. Convert call to use a macro and specify cache line alignment 
-on the struct.
+On Fri, May 04, 2007 at 03:15:57PM -0700, clameter@sgi.com wrote:
+> 2. kick_object(void *)
+> After SLUB has established references to the remaining objects in a slab it
+> will drop all locks and then use kick_object on each of the objects for which
+> we obtained a reference. The existence of the objects is guaranteed by
+> virtue of the earlier obtained reference. The callback may perform any
+> slab operation since no locks are held at the time of call.
+> The callback should remove the object from the slab in some way. This may
+> be accomplished by reclaiming the object and then running kmem_cache_free()
+> or reallocating it and then running kmem_cache_free(). Reallocation
+> is advantageous at this point because it will then allocate from the partial
+> slabs with the most objects because we have just finished slab shrinking.
+> NOTE: This patch is for conceptual review. I'd appreciate any feedback
+> especially on the locking approach taken here. It will be critical to
+> resolve the locking issue for this approach to become feasable.
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+kick_object() doesn't return an indicator of success, which might be
+helpful for determining whether an object was successfully removed. The
+later-added kick_dentry_object(), for instance, can't remove dentries
+where reference counts are still held.
 
-Index: slub/fs/dquot.c
-===================================================================
---- slub.orig/fs/dquot.c	2007-05-04 21:56:20.000000000 -0700
-+++ slub/fs/dquot.c	2007-05-04 22:17:50.000000000 -0700
-@@ -1848,11 +1848,8 @@ static int __init dquot_init(void)
- 
- 	register_sysctl_table(sys_table);
- 
--	dquot_cachep = kmem_cache_create("dquot", 
--			sizeof(struct dquot), sizeof(unsigned long) * 4,
--			(SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
--				SLAB_MEM_SPREAD|SLAB_PANIC),
--			NULL, NULL);
-+	dquot_cachep = KMEM_CACHE(dquot,
-+			SLAB_MEM_SPREAD|SLAB_RECLAIM_ACCOUNT|SLAB_PANIC);
- 
- 	order = 0;
- 	dquot_hash = (struct hlist_head *)__get_free_pages(GFP_ATOMIC, order);
-Index: slub/include/linux/quota.h
-===================================================================
---- slub.orig/include/linux/quota.h	2007-05-04 22:06:09.000000000 -0700
-+++ slub/include/linux/quota.h	2007-05-04 22:06:54.000000000 -0700
-@@ -225,7 +225,7 @@ struct dquot {
- 	unsigned long dq_flags;		/* See DQ_* */
- 	short dq_type;			/* Type of quota */
- 	struct mem_dqblk dq_dqb;	/* Diskquota usage */
--};
-+} ____cacheline_aligned;
- 
- #define NODQUOT (struct dquot *)NULL
- 
+I suppose one could check to see if the ->inuse counter decreased, too.
+
+In either event, it would probably be helpful to abort the operation if
+there was a reclamation failure for an object within the slab.
+
+This is a relatively minor optimization concern. I think this patch
+series is great and a significant foray into the problem of slab
+reclaim vs. fragmentation.
+
+
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
