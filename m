@@ -1,33 +1,25 @@
-Date: Sat, 5 May 2007 08:42:50 -0700 (PDT)
+Date: Sat, 5 May 2007 08:43:31 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list
- defragmentation
-In-Reply-To: <p738xc3wo66.fsf@bingen.suse.de>
-Message-ID: <Pine.LNX.4.64.0705050840570.26574@schroedinger.engr.sgi.com>
-References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
- <p738xc3wo66.fsf@bingen.suse.de>
+Subject: Re: [RFC 1/3] SLUB: slab_ops instead of constructors / destructors
+In-Reply-To: <84144f020705050314s36510c98j70d1ca8e3770f00e@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0705050843230.26574@schroedinger.engr.sgi.com>
+References: <20070504221555.642061626@sgi.com>  <20070504221708.363027097@sgi.com>
+ <84144f020705050314s36510c98j70d1ca8e3770f00e@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 5 May 2007, Andi Kleen wrote:
+On Sat, 5 May 2007, Pekka Enberg wrote:
 
-> clameter@sgi.com writes:
-> > 
-> > NOTE: This patch is for conceptual review. I'd appreciate any feedback
-> > especially on the locking approach taken here. It will be critical to
-> > resolve the locking issue for this approach to become feasable.
-> 
-> Do you have any numbers on how this improves dcache reclaim under memory pressure?
+> For consistency with other operations structures, can we make this
+> struct kmem_cache_operations or kmem_cache_ops, please?
 
-How does one measure something like that?
-
-I wanted to first make sure that the thing is sane. If there is a gaping 
-race here then I may have to add more code to cover that.
+Ok.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
