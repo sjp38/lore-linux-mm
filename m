@@ -1,38 +1,44 @@
-Received: by ug-out-1314.google.com with SMTP id s2so679397uge
-        for <linux-mm@kvack.org>; Sat, 05 May 2007 03:14:07 -0700 (PDT)
-Message-ID: <84144f020705050314s36510c98j70d1ca8e3770f00e@mail.gmail.com>
-Date: Sat, 5 May 2007 13:14:07 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [RFC 1/3] SLUB: slab_ops instead of constructors / destructors
-In-Reply-To: <20070504221708.363027097@sgi.com>
+Date: Sat, 5 May 2007 08:35:38 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list
+ defragmentation
+In-Reply-To: <20070505053211.GZ19966@holomorphy.com>
+Message-ID: <Pine.LNX.4.64.0705050833310.26574@schroedinger.engr.sgi.com>
+References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
+ <20070505053211.GZ19966@holomorphy.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070504221555.642061626@sgi.com>
-	 <20070504221708.363027097@sgi.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "clameter@sgi.com" <clameter@sgi.com>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On 5/5/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> This patch gets rid constructors and destructors and replaces them
-> with a slab operations structure that is passed into SLUB.
+On Fri, 4 May 2007, William Lee Irwin III wrote:
 
-Looks good to me.
+> kick_object() doesn't return an indicator of success, which might be
+> helpful for determining whether an object was successfully removed. The
+> later-added kick_dentry_object(), for instance, can't remove dentries
+> where reference counts are still held.
+> 
+> I suppose one could check to see if the ->inuse counter decreased, too.
 
-On 5/5/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> +struct slab_ops {
-> +       /* FIXME: ctor should only take the object as an argument. */
-> +       void (*ctor)(void *, struct kmem_cache *, unsigned long);
-> +       /* FIXME: Remove all destructors ? */
-> +       void (*dtor)(void *, struct kmem_cache *, unsigned long);
-> +};
+Yes that is exactly what is done. The issue is that concurrent frees may 
+occur. So we just kick them all and see if all objects are gone at the 
+end.
+ 
+> In either event, it would probably be helpful to abort the operation if
+> there was a reclamation failure for an object within the slab.
 
-For consistency with other operations structures, can we make this
-struct kmem_cache_operations or kmem_cache_ops, please?
+Hmmm... The failure may be because another process is attempting 
+a kmem_cache_free on an object. But we are holding the lock. The free
+will succeed when we drop it.
+
+> This is a relatively minor optimization concern. I think this patch
+> series is great and a significant foray into the problem of slab
+> reclaim vs. fragmentation.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
