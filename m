@@ -1,43 +1,38 @@
-Date: Sat, 5 May 2007 02:55:10 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH 00/40] Swap over Networked storage -v12
-Message-ID: <20070505095510.GA19966@holomorphy.com>
-References: <20070504102651.923946304@chello.nl> <20070504.122716.31641374.davem@davemloft.net> <20070505094300.GA9592@infradead.org>
+Received: by ug-out-1314.google.com with SMTP id s2so679397uge
+        for <linux-mm@kvack.org>; Sat, 05 May 2007 03:14:07 -0700 (PDT)
+Message-ID: <84144f020705050314s36510c98j70d1ca8e3770f00e@mail.gmail.com>
+Date: Sat, 5 May 2007 13:14:07 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [RFC 1/3] SLUB: slab_ops instead of constructors / destructors
+In-Reply-To: <20070504221708.363027097@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20070505094300.GA9592@infradead.org>
+References: <20070504221555.642061626@sgi.com>
+	 <20070504221708.363027097@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: David Miller <davem@davemloft.net>, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, tgraf@suug.ch, James.Bottomley@SteelEye.com, michaelc@cs.wisc.edu, akpm@linux-foundation.org, phillips@google.com
+To: "clameter@sgi.com" <clameter@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 May 2007 12:26:51 +0200, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->>> There is a fundamental deadlock associated with paging;
+On 5/5/07, clameter@sgi.com <clameter@sgi.com> wrote:
+> This patch gets rid constructors and destructors and replaces them
+> with a slab operations structure that is passed into SLUB.
 
-On Fri, May 04, 2007 at 12:27:16PM -0700, David Miller wrote:
->> I know you'd really like people like myself to review this work, but a
->> set of 40 patches is just too much to try and digest at once
->> especially when I have other things going on.  When I have lots of
->> other things already on my plate, when I see a huge patch set like
->> this I have to just say "delete" because I don't kid myself since
->> I know I'll never get to it.
->> Sorry there's now way I can review this with my current workload.
+Looks good to me.
 
-On Sat, May 05, 2007 at 10:43:00AM +0100, Christoph Hellwig wrote:
-> There also quite alot of only semi-related thing in there.  It would
-> be much better to only do the network stack and iscsi parts first
-> and leave nfs out for a while.  Especially as the former are definitively
-> useful while I strongly doubt that for swap over nfs.
+On 5/5/07, clameter@sgi.com <clameter@sgi.com> wrote:
+> +struct slab_ops {
+> +       /* FIXME: ctor should only take the object as an argument. */
+> +       void (*ctor)(void *, struct kmem_cache *, unsigned long);
+> +       /* FIXME: Remove all destructors ? */
+> +       void (*dtor)(void *, struct kmem_cache *, unsigned long);
+> +};
 
-This is backward. As much as we hate it, the common case is swap over
-nfs, essentially because that is/was how things were commonly set up
-for other operating systems. I'm not a Solaris administrator, though,
-so various disclaimers apply.
-
-
--- wli
+For consistency with other operations structures, can we make this
+struct kmem_cache_operations or kmem_cache_ops, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
