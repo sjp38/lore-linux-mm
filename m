@@ -1,31 +1,28 @@
-Date: Fri, 4 May 2007 18:02:32 -0700 (PDT)
+Date: Fri, 4 May 2007 18:07:54 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <1178322083.23795.217.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0705041800070.28492@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-  <Pine.LNX.4.64.0705031839480.16296@schroedinger.engr.sgi.com>
- <1178322083.23795.217.camel@localhost.localdomain>
+Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list
+ defragmentation
+In-Reply-To: <20070504180401.5d5fc6dd.randy.dunlap@oracle.com>
+Message-ID: <Pine.LNX.4.64.0705041807210.28556@schroedinger.engr.sgi.com>
+References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
+ <Pine.LNX.4.64.0705041603150.27790@schroedinger.engr.sgi.com>
+ <20070504180401.5d5fc6dd.randy.dunlap@oracle.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 May 2007, Tim Chen wrote:
+On Fri, 4 May 2007, Randy Dunlap wrote:
 
-> On Thu, 2007-05-03 at 18:45 -0700, Christoph Lameter wrote:
-> > Hmmmm.. One potential issues are the complicated way the slab is 
-> > handled. Could you try this patch and see what impact it has?
-> > 
-> The patch boost the throughput of TCP_STREAM test by 5%, for both slab
-> and slub.  But slab is still 5% better in my tests.
+> >  	/* Perform the KICK callbacks to remove the objects */
+> >  	for(p = addr; p < addr + s->objects * s->size; p += s->size)
+> 
+> missed a space after "for".
 
-Really? buffer head handling improves TCP performance? I think you have 
-run to run variances. I need to look at this myself.
-
+Thanks but I was more hoping for a higher level of review. Locking????
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
