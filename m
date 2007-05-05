@@ -1,53 +1,50 @@
-Date: Fri, 4 May 2007 19:05:01 -0700 (PDT)
+Date: Fri, 4 May 2007 20:28:41 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <1178322176.23795.219.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0705041903020.28757@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-  <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
- <1178298897.23795.195.camel@localhost.localdomain>
- <Pine.LNX.4.64.0705041118490.24283@schroedinger.engr.sgi.com>
- <1178318609.23795.214.camel@localhost.localdomain>
- <Pine.LNX.4.64.0705041658350.28260@schroedinger.engr.sgi.com>
- <1178322176.23795.219.camel@localhost.localdomain>
+Subject: Support concurrent local and remote frees and allocs on a slab.
+Message-ID: <Pine.LNX.4.64.0705042025520.29006@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Got something.... If I remove the atomics from both alloc and free then I 
-get a performance jump. But maybe also a runtime variation????
+About 5-10% performance gain on netperf.
 
-Avoid the use of atomics in slab_alloc
+[Maybe put this patch at the end of the merge queue? Works fine here but
+this is a significant change that may impact stability]
 
-About 5-7% performance gain. Or am I also seeing runtime variations?
+What we do is use the last free field in the page struct (the private
+field that was freed up through the compound page flag rework) to setup a
+separate per cpu freelist. From that one we can allocate without taking the
+slab lock because we checkout the complete list of free objects when we
+first touch the slab and then mark the slab as completely allocated.
+If we have a cpu_freelist then we can also free to that list if we run on
+that processor without taking the slab lock.
 
-What we do is add the last free field in the page struct to setup
-a separate per cpu freelist. From that one we can allocate without
-taking the slab lock because we checkout the complete list of free
-objects when we first touch the slab. If we have an active list
-then we can also free to that list if we run on that processor
-without taking the slab lock.
+This allows even concurrent allocations and frees on the same slab using
+two mutually exclusive freelists. Allocs and frees from the processor
+owning the per cpu slab will bypass the slab lock using the cpu_freelist.
+Remove frees will use the slab lock to synchronize and use the freelist
+for marking items as free. So local allocs and frees may run concurrently
+with remote frees without synchronization.
 
-This allows even concurrent allocations and frees from the same slab using
-two mutually exclusive freelists. If the allocator is running out of
-its per cpu freelist then it will consult the per slab freelist and reload
-if objects were freed in it.
+If the allocator is running out of its per cpu freelist then it will consult
+the per slab freelist (which requires the slab lock) and reload the
+cpu_freelist if there are objects that were remotely freed.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- include/linux/mm_types.h |    5 +++-
- mm/slub.c                |   54 +++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 49 insertions(+), 10 deletions(-)
+ include/linux/mm_types.h |    5 ++-
+ mm/slub.c                |   67 ++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 59 insertions(+), 13 deletions(-)
 
 Index: slub/include/linux/mm_types.h
 ===================================================================
---- slub.orig/include/linux/mm_types.h	2007-05-04 18:58:06.000000000 -0700
-+++ slub/include/linux/mm_types.h	2007-05-04 18:59:42.000000000 -0700
+--- slub.orig/include/linux/mm_types.h	2007-05-04 20:09:26.000000000 -0700
++++ slub/include/linux/mm_types.h	2007-05-04 20:09:33.000000000 -0700
 @@ -50,9 +50,12 @@ struct page {
  	    spinlock_t ptl;
  #endif
@@ -64,17 +61,32 @@ Index: slub/include/linux/mm_types.h
  		pgoff_t index;		/* Our offset within mapping. */
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-05-04 18:58:06.000000000 -0700
-+++ slub/mm/slub.c	2007-05-04 19:02:33.000000000 -0700
-@@ -845,6 +845,7 @@ static struct page *new_slab(struct kmem
- 	page->offset = s->offset / sizeof(void *);
- 	page->slab = s;
- 	page->inuse = 0;
-+	page->cpu_freelist = NULL;
- 	start = page_address(page);
- 	end = start + s->objects * s->size;
+--- slub.orig/mm/slub.c	2007-05-04 20:09:26.000000000 -0700
++++ slub/mm/slub.c	2007-05-04 20:14:04.000000000 -0700
+@@ -81,10 +81,13 @@
+  * PageActive 		The slab is used as a cpu cache. Allocations
+  * 			may be performed from the slab. The slab is not
+  * 			on any slab list and cannot be moved onto one.
++ * 			The cpu slab may have a cpu_freelist in order
++ * 			to optimize allocations and frees on a particular
++ * 			cpu.
+  *
+  * PageError		Slab requires special handling due to debug
+  * 			options set. This moves	slab handling out of
+- * 			the fast path.
++ * 			the fast path and disables cpu_freelists.
+  */
  
-@@ -1137,6 +1138,23 @@ static void putback_slab(struct kmem_cac
+ /*
+@@ -857,6 +860,7 @@ static struct page *new_slab(struct kmem
+ 	set_freepointer(s, last, NULL);
+ 
+ 	page->freelist = start;
++	page->cpu_freelist = NULL;
+ 	page->inuse = 0;
+ out:
+ 	if (flags & __GFP_WAIT)
+@@ -1121,6 +1125,23 @@ static void putback_slab(struct kmem_cac
   */
  static void deactivate_slab(struct kmem_cache *s, struct page *page, int cpu)
  {
@@ -98,7 +110,7 @@ Index: slub/mm/slub.c
  	s->cpu_slab[cpu] = NULL;
  	ClearPageActive(page);
  
-@@ -1206,25 +1224,32 @@ static void *slab_alloc(struct kmem_cach
+@@ -1190,22 +1211,33 @@ static void *slab_alloc(struct kmem_cach
  	local_irq_save(flags);
  	cpu = smp_processor_id();
  	page = s->cpu_slab[cpu];
@@ -106,40 +118,51 @@ Index: slub/mm/slub.c
 +	if (unlikely(!page))
  		goto new_slab;
  
+-	slab_lock(page);
+-	if (unlikely(node != -1 && page_to_nid(page) != node))
++	if (unlikely(node != -1 && page_to_nid(page) != node)) {
++		slab_lock(page);
+ 		goto another_slab;
++	}
++
 +	if (likely(page->cpu_freelist)) {
-+fast_object:
 +		object = page->cpu_freelist;
 +		page->cpu_freelist = object[page->offset];
 +		local_irq_restore(flags);
 +		return object;
 +	}
 +
- 	slab_lock(page);
- 	if (unlikely(node != -1 && page_to_nid(page) != node))
- 		goto another_slab;
++	slab_lock(page);
  redo:
 -	object = page->freelist;
 -	if (unlikely(!object))
-+	if (unlikely(!page->freelist))
++	if (!page->freelist)
  		goto another_slab;
- 	if (unlikely(PageError(page)))
+-	if (unlikely(PageError(page)))
++	if (PageError(page))
  		goto debug;
  
 -have_object:
 -	page->inuse++;
 -	page->freelist = object[page->offset];
-+	/* Reload the cpu freelist */
-+	page->cpu_freelist = page->freelist;
++	/* Reload the cpu freelist while allocating the next object */
++	object = page->freelist;
++	page->cpu_freelist = object[page->offset];
 +	page->freelist = NULL;
 +	page->inuse = s->objects;
  	slab_unlock(page);
--	local_irq_restore(flags);
--	return object;
-+	goto fast_object;
+ 	local_irq_restore(flags);
+ 	return object;
+@@ -1215,7 +1247,7 @@ another_slab:
  
- another_slab:
- 	deactivate_slab(s, page, cpu);
-@@ -1267,6 +1292,7 @@ have_slab:
+ new_slab:
+ 	page = get_partial(s, gfpflags, node);
+-	if (likely(page)) {
++	if (page) {
+ have_slab:
+ 		s->cpu_slab[cpu] = page;
+ 		SetPageActive(page);
+@@ -1251,6 +1283,7 @@ have_slab:
  	local_irq_restore(flags);
  	return NULL;
  debug:
@@ -147,24 +170,25 @@ Index: slub/mm/slub.c
  	if (!alloc_object_checks(s, page, object))
  		goto another_slab;
  	if (s->flags & SLAB_STORE_USER)
-@@ -1278,7 +1304,11 @@ debug:
+@@ -1261,8 +1294,12 @@ debug:
+ 			page->freelist);
  		dump_stack();
  	}
- 	init_object(s, object, 1);
--	goto have_object;
 +	page->freelist = object[page->offset];
 +	page->inuse++;
+ 	init_object(s, object, 1);
+-	goto have_object;
 +	slab_unlock(page);
 +	local_irq_restore(flags);
 +	return object;
  }
  
  void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
-@@ -1309,6 +1339,12 @@ static void slab_free(struct kmem_cache 
+@@ -1293,6 +1330,12 @@ static void slab_free(struct kmem_cache 
  	unsigned long flags;
  
  	local_irq_save(flags);
-+	if (!PageError(page) && page == s->cpu_slab[smp_processor_id()]) {
++	if (page == s->cpu_slab[smp_processor_id()] && !PageError(page)) {
 +		object[page->offset] = page->cpu_freelist;
 +		page->cpu_freelist = object;
 +		local_irq_restore(flags);
