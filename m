@@ -1,44 +1,37 @@
-Date: Sat, 5 May 2007 08:35:38 -0700 (PDT)
+Date: Sat, 5 May 2007 08:39:19 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list
- defragmentation
-In-Reply-To: <20070505053211.GZ19966@holomorphy.com>
-Message-ID: <Pine.LNX.4.64.0705050833310.26574@schroedinger.engr.sgi.com>
-References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
- <20070505053211.GZ19966@holomorphy.com>
+Subject: Re: [RFC 0/3] Slab Defrag / Slab Targeted Reclaim and general Slab
+ API changes
+In-Reply-To: <463C1900.7060409@cosmosbay.com>
+Message-ID: <Pine.LNX.4.64.0705050835480.26574@schroedinger.engr.sgi.com>
+References: <20070504221555.642061626@sgi.com> <463C10F8.4040803@cosmosbay.com>
+ <Pine.LNX.4.64.0705042209050.14211@schroedinger.engr.sgi.com>
+ <463C1900.7060409@cosmosbay.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
+To: Eric Dumazet <dada1@cosmosbay.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 May 2007, William Lee Irwin III wrote:
+On Sat, 5 May 2007, Eric Dumazet wrote:
 
-> kick_object() doesn't return an indicator of success, which might be
-> helpful for determining whether an object was successfully removed. The
-> later-added kick_dentry_object(), for instance, can't remove dentries
-> where reference counts are still held.
+> > Then add ___cacheline_aligned_in_smp or specify the alignment in the various
+> > other ways that exist. Practice is that most slabs specify
+> > SLAB_HWCACHE_ALIGN. So most slabs are cache aligned today.
 > 
-> I suppose one could check to see if the ->inuse counter decreased, too.
+> Yes but this alignement is dynamic, not at compile time.
+> 
+> include/asm-i386/processor.h:739:#define cache_line_size()
+> (boot_cpu_data.x86_cache_alignment)
 
-Yes that is exactly what is done. The issue is that concurrent frees may 
-occur. So we just kick them all and see if all objects are gone at the 
-end.
- 
-> In either event, it would probably be helpful to abort the operation if
-> there was a reclamation failure for an object within the slab.
+Ahh.. I did not see that before.
 
-Hmmm... The failure may be because another process is attempting 
-a kmem_cache_free on an object. But we are holding the lock. The free
-will succeed when we drop it.
+> So adding ____cacheline_aligned  to 'struct file' for example would be a
+> regression for people with PII or PIII
 
-> This is a relatively minor optimization concern. I think this patch
-> series is great and a significant foray into the problem of slab
-> reclaim vs. fragmentation.
-
-Thanks.
+Yuck.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
