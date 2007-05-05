@@ -1,46 +1,52 @@
-Date: Fri, 4 May 2007 16:59:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <1178318609.23795.214.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0705041658350.28260@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-  <Pine.LNX.4.64.0705031937560.16542@schroedinger.engr.sgi.com>
- <1178298897.23795.195.camel@localhost.localdomain>
- <Pine.LNX.4.64.0705041118490.24283@schroedinger.engr.sgi.com>
- <1178318609.23795.214.camel@localhost.localdomain>
+Message-ID: <463BCB87.2050404@redhat.com>
+Date: Fri, 04 May 2007 17:10:47 -0700
+From: Ulrich Drepper <drepper@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au>
+In-Reply-To: <463BC62C.3060605@yahoo.com.au>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigCE80FF6F95FE0756724D65ED"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 May 2007, Tim Chen wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigCE80FF6F95FE0756724D65ED
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-> On Fri, 2007-05-04 at 11:27 -0700, Christoph Lameter wrote:
-> 
-> > 
-> > Not sure where to go here. Increasing the per cpu slab size may hold off 
-> > the issue up to a certain cpu cache size. For that we would need to 
-> > identify which slabs create the performance issue.
-> > 
-> > One easy way to check that this is indeed the case: Enable fake NUMA. You 
-> > will then have separate queues for each processor since they are on 
-> > different "nodes". Create two fake nodes. Run one thread in each node and 
-> > see if this fixes it.
-> 
-> I tried with fake NUMA (boot with numa=fake=2) and use
-> 
-> numactl --physcpubind=1 --membind=0 ./netserver
-> numactl --physcpubind=2 --membind=1 ./netperf -t TCP_STREAM -l 60 -H
-> 127.0.0.1 -i 5,5 -I 99,5 -- -s 57344 -S 57344 -m 4096
-> 
-> to run the tests.  The results are about the same as the non-NUMA case,
-> with slab about 5% better than slub.  
+Nick Piggin wrote:
+> I literally have about 4 or 5 new page flags I'd like to add today :) I=
 
-Hmmmm... both tests were run in the same context? NUMA has additional 
-overhead in other areas.
+> can't of course, because we have very few spare ones left.
+
+I remember Rik saying that if need be he can (try to?) think of a method
+to implement it without a page flag.
+
+--=20
+=E2=9E=A7 Ulrich Drepper =E2=9E=A7 Red Hat, Inc. =E2=9E=A7 444 Castro St =
+=E2=9E=A7 Mountain View, CA =E2=9D=96
+
+
+--------------enigCE80FF6F95FE0756724D65ED
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (GNU/Linux)
+Comment: Using GnuPG with Fedora - http://enigmail.mozdev.org
+
+iD8DBQFGO8uH2ijCOnn/RHQRAmrtAJ48l3JioFC+xab1rmDGu+v4qCBLGwCfYzci
+LXUeJBoZ/U2kPmsD6lsgzJ4=
+=zZvy
+-----END PGP SIGNATURE-----
+
+--------------enigCE80FF6F95FE0756724D65ED--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
