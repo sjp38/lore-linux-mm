@@ -1,37 +1,99 @@
-Received: by an-out-0708.google.com with SMTP id c10so51202ana
-        for <linux-mm@kvack.org>; Sun, 06 May 2007 03:13:33 -0700 (PDT)
-Message-ID: <5486cca80705060313o65bff1a8v3fd9532361b2a90b@mail.gmail.com>
-Date: Sun, 6 May 2007 12:13:33 +0200
-From: "Antonino Ingargiola" <tritemio@gmail.com>
-Subject: Re: [ck] Re: swap-prefetch: 2.6.22 -mm merge plans
-In-Reply-To: <200705051842.32328.kernel@kolivas.org>
+Date: Sun, 06 May 2007 08:20:19 -0600
+From: "Royal VIP Casino" <emmett@fannclub.com>
+Message-ID: <59396539.91212104@collage.com>
+Subject: =?iso-8859-1?Q?300%_Bonus_f=FCr_Ihre_erste_Einzahlung!?=
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/html; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	 <20070504085201.GA24666@elte.hu>
-	 <200705042210.15953.kernel@kolivas.org>
-	 <200705051842.32328.kernel@kolivas.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Ingo Molnar <mingo@elte.hu>, ck list <ck@vds.kolivas.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <emmett@fannclub.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2007/5/5, Con Kolivas <kernel@kolivas.org>:
-[cut]
-> Here's a better swap prefetch tester. Instructions in file.
+<html>
 
-The system should be leaved totally inactive for the test duration (10m) right?
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
 
+<title>Nur vom nobelsten aller Casinos </title>
 
-Regards,
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
 
-  ~ Antonio
+</head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+
+<div class=Section1>
+
+<p class=MsoNormal>
+<span lang=DE style='mso-ansi-language:DE'>Nur vom nobelsten
+aller Casinos k&ouml;nnen Sie ein so vornehmes Geschenk erwarten:
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+300% Bonus f&uuml;r Ihre erste Einzahlung!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Zahlen Sie 100&#8364;/$ ein und spielen Sie mit 400 &#8364;/$!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Oben drauf bekommen Sie bei uns einen k&ouml;niglichen Service!
+<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+Kommen und spielen Sie im Royal VIP Casino!<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
+<a href="http://www.royal777casino.org/lang-de/">
+http://www.royal777casino.org/lang-de/</a><o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
