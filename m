@@ -1,86 +1,30 @@
-Received: by wx-out-0506.google.com with SMTP id t16so1251444wxc
-        for <linux-mm@kvack.org>; Sun, 06 May 2007 11:23:43 -0700 (PDT)
-Message-ID: <463E1CE3.6010908@gmail.com>
-Date: Sun, 06 May 2007 13:22:27 -0500
-From: "Jory A. Pratt" <geekypenguin@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [ck] Re: swap-prefetch: 2.6.22 -mm merge plans
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>	<20070504085201.GA24666@elte.hu>	<200705042210.15953.kernel@kolivas.org> <200705051842.32328.kernel@kolivas.org>
-In-Reply-To: <200705051842.32328.kernel@kolivas.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Sun, 06 May 2007 21:19:19 +0200
+From: Bert Wesarg <wesarg@informatik.uni-halle.de>
+Subject: Re: [RFC 1/3] SLUB: slab_ops instead of constructors / destructors
+In-reply-to: <20070504221708.363027097@sgi.com>
+Message-id: <463E2A37.2030400@informatik.uni-halle.de>
+MIME-version: 1.0
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7BIT
+References: <20070504221555.642061626@sgi.com>
+ <20070504221708.363027097@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Ingo Molnar <mingo@elte.hu>, ck list <ck@vds.kolivas.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Con Kolivas wrote:
-> Here's a better swap prefetch tester. Instructions in file.
->
-> Machine with 2GB ram and 2GB swapfile
->
-> Prefetch disabled:
-> ./sp_tester
-> Ram 2060352000  Swap 1973420000
-> Total ram to be malloced: 3047062000 bytes
-> Starting first malloc of 1523531000 bytes
-> Starting 1st read of first malloc
-> Touching this much ram takes 809 milliseconds
-> Starting second malloc of 1523531000 bytes
-> Completed second malloc and free
-> Sleeping for 600 seconds
-> Important part - starting reread of first malloc
-> Completed read of first malloc
-> Timed portion 53397 milliseconds
->
-> Enabled:
-> ./sp_tester
-> Ram 2060352000  Swap 1973420000
-> Total ram to be malloced: 3047062000 bytes
-> Starting first malloc of 1523531000 bytes
-> Starting 1st read of first malloc
-> Touching this much ram takes 676 milliseconds
-> Starting second malloc of 1523531000 bytes
-> Completed second malloc and free
-> Sleeping for 600 seconds
-> Important part - starting reread of first malloc
-> Completed read of first malloc
-> Timed portion 26351 milliseconds
->   
-echo 1 > /proc/sys/vm/overcommit_memory
-swapoff -a
-swapon -a
-./sp_tester
+clameter@sgi.com wrote:
+> +	if (ctor || dtor) {
+> +		so = kzalloc(sizeof(struct slab_ops), GFP_KERNEL);
+> +		so->ctor = ctor;
+> +		so->dtor = dtor;
+> +	}
+> +	return  __kmem_cache_create(s, size, align, flags, so);
+Is this a memory leak?
 
-Ram 1153644000  Swap 1004052000
-Total ram to be malloced: 1655670000 bytes
-Starting first malloc of 827835000 bytes
-Starting 1st read of first malloc
-Touching this much ram takes 937 milliseconds
-Starting second malloc of 827835000 bytes
-Completed second malloc and free
-Sleeping for 600 seconds
-Important part - starting reread of first malloc
-Completed read of first malloc
-Timed portion 15011 milliseconds
-
-echo 0 > /proc/sys/vm/overcommit_memory
-swapoff -a
-swapon -a
-./sp_tester
-
-Ram 1153644000  Swap 1004052000
-Total ram to be malloced: 1655670000 bytes
-Starting first malloc of 827835000 bytes
-Starting 1st read of first malloc
-Touching this much ram takes 1125 milliseconds
-Starting second malloc of 827835000 bytes
-Completed second malloc and free
-Sleeping for 600 seconds
-Important part - starting reread of first malloc
-Completed read of first malloc
-Timed portion 14611 milliseconds
+Regards
+Bert Wesarg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
