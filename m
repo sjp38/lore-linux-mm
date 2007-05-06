@@ -1,48 +1,46 @@
-Received: by wr-out-0506.google.com with SMTP id 57so1234763wri
-        for <linux-mm@kvack.org>; Sun, 06 May 2007 12:46:43 -0700 (PDT)
-Message-ID: <a781481a0705061246y10568c25h8d82233dbc43ce5c@mail.gmail.com>
-Date: Mon, 7 May 2007 01:16:42 +0530
-From: "Satyam Sharma" <satyam.sharma@gmail.com>
-Subject: Re: [RFC 1/3] SLUB: slab_ops instead of constructors / destructors
-In-Reply-To: <463E2A37.2030400@informatik.uni-halle.de>
+Message-ID: <463E5A00.6070708@redhat.com>
+Date: Sun, 06 May 2007 18:43:12 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au>
+In-Reply-To: <463BC62C.3060605@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20070504221555.642061626@sgi.com>
-	 <20070504221708.363027097@sgi.com>
-	 <463E2A37.2030400@informatik.uni-halle.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bert Wesarg <wesarg@informatik.uni-halle.de>
-Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 5/7/07, Bert Wesarg <wesarg@informatik.uni-halle.de> wrote:
-> clameter@sgi.com wrote:
-> > +     if (ctor || dtor) {
-> > +             so = kzalloc(sizeof(struct slab_ops), GFP_KERNEL);
-> > +             so->ctor = ctor;
-> > +             so->dtor = dtor;
-> > +     }
-> > +     return  __kmem_cache_create(s, size, align, flags, so);
-> Is this a memory leak?
+Nick Piggin wrote:
 
-Yes, but see:
+> OK, sure. I think we need more numbers though.
 
-On 5/5/07, clameter@sgi.com <clameter@sgi.com> wrote:
-> If constructor or destructor are specified then we will allocate a slab_ops
-> structure and populate it with the values specified. Note that this will
-> cause a memory leak if the slab is disposed of later. If you need disposable
-> slabs then the new API must be used.
+Thinking about the issue some more, I think I know just the
+number we might want to know.
 
-BTW:
+It is pretty obvious that the kernel needs to do less work
+with the MADV_FREE code present.  However, it is possible
+that userspace needs to do more work, by accessing pages
+that are not in the CPU cache, or in another CPU's cache.
 
-> > +     if (ctor || dtor) {
-> > +             so = kzalloc(sizeof(struct slab_ops), GFP_KERNEL);
-> > +             so->ctor = ctor;
+In the test cases where you see similar performance on the
+workload with and without the MADV_FREE code, are you by any
+chance seeing lower system time and higher user time?
 
-It's also a potential oops, actually. kzalloc's return must be checked.
+I think that maybe for 2.6.22 we should just alias MADV_FREE
+to run with the MADV_DONTNEED functionality, so that the glibc
+people can make the change on their side while we figure out
+what will be the best thing to do on the kernel side.
+
+I'll send in a patch that does that once Linus has committed
+your most recent flood of patches.  What do you think?
+
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
