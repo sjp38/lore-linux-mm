@@ -1,141 +1,163 @@
-Message-Id: <20070507212410.145577580@sgi.com>
+Message-Id: <20070507212409.659872065@sgi.com>
 References: <20070507212240.254911542@sgi.com>
-Date: Mon, 07 May 2007 14:22:52 -0700
+Date: Mon, 07 May 2007 14:22:50 -0700
 From: clameter@sgi.com
-Subject: [patch 12/17] SLUB: Introduce DebugSlab(page)
-Content-Disposition: inline; filename=define_debugslab
+Subject: [patch 10/17] SLUB: Add macros for scanning objects in a slab
+Content-Disposition: inline; filename=for_each_object
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This replaces the PageError() checking. DebugSlab is clearer and
-allows for future changes to the page bit used. We also need
-it to support CONFIG_SLUB_DEBUG.
+Scanning of objects happens in a number of functions. Consolidate that code.
+DECLARE_BITMAP instead of coding the declaration for bitmaps.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |   40 ++++++++++++++++++++++++++++------------
- 1 file changed, 28 insertions(+), 12 deletions(-)
+ mm/slub.c |   75 ++++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 31 deletions(-)
 
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-05-07 13:54:35.000000000 -0700
-+++ slub/mm/slub.c	2007-05-07 13:56:25.000000000 -0700
-@@ -87,6 +87,21 @@
-  * 			the fast path.
-  */
+--- slub.orig/mm/slub.c	2007-05-07 13:54:26.000000000 -0700
++++ slub/mm/slub.c	2007-05-07 13:54:31.000000000 -0700
+@@ -211,6 +211,38 @@ static inline struct kmem_cache_node *ge
+ }
  
-+static inline int SlabDebug(struct page *page)
-+{
-+	return PageError(page);
-+}
-+
-+static inline void SetSlabDebug(struct page *page)
-+{
-+	SetPageError(page);
-+}
-+
-+static inline void ClearSlabDebug(struct page *page)
-+{
-+	ClearPageError(page);
-+}
-+
  /*
-  * Issues still to be resolved:
-  *
-@@ -825,7 +840,7 @@ static struct page *allocate_slab(struct
- static void setup_object(struct kmem_cache *s, struct page *page,
- 				void *object)
- {
--	if (PageError(page)) {
-+	if (SlabDebug(page)) {
- 		init_object(s, object, 0);
- 		init_tracking(s, object);
- 	}
-@@ -860,7 +875,7 @@ static struct page *new_slab(struct kmem
- 	page->flags |= 1 << PG_slab;
- 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
- 			SLAB_STORE_USER | SLAB_TRACE))
--		page->flags |= 1 << PG_error;
-+		SetSlabDebug(page);
++ * Slow version of get and set free pointer.
++ *
++ * This version requires touching the cache lines of kmem_cache which
++ * we avoid to do in the fast alloc free paths. There we obtain the offset
++ * from the page struct.
++ */
++static inline void *get_freepointer(struct kmem_cache *s, void *object)
++{
++	return *(void **)(object + s->offset);
++}
++
++static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
++{
++	*(void **)(object + s->offset) = fp;
++}
++
++/* Loop over all objects in a slab */
++#define for_each_object(__p, __s, __addr) \
++	for (__p = (__addr); __p < (__addr) + (__s)->objects * (__s)->size;\
++			__p += (__s)->size)
++
++/* Scan freelist */
++#define for_each_free_object(__p, __s, __free) \
++	for (__p = (__free); __p; __p = get_freepointer((__s), __p))
++
++/* Determine object index from a given position */
++static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
++{
++	return (p - addr) / s->size;
++}
++
++/*
+  * Object debugging
+  */
+ static void print_section(char *text, u8 *addr, unsigned int length)
+@@ -246,23 +278,6 @@ static void print_section(char *text, u8
+ }
  
- 	start = page_address(page);
- 	end = start + s->objects * s->size;
-@@ -889,7 +904,7 @@ static void __free_slab(struct kmem_cach
- {
+ /*
+- * Slow version of get and set free pointer.
+- *
+- * This version requires touching the cache lines of kmem_cache which
+- * we avoid to do in the fast alloc free paths. There we obtain the offset
+- * from the page struct.
+- */
+-static void *get_freepointer(struct kmem_cache *s, void *object)
+-{
+-	return *(void **)(object + s->offset);
+-}
+-
+-static void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+-{
+-	*(void **)(object + s->offset) = fp;
+-}
+-
+-/*
+  * Tracking user of a slab.
+  */
+ struct track {
+@@ -854,7 +869,7 @@ static struct page *new_slab(struct kmem
+ 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
+ 
+ 	last = start;
+-	for (p = start + s->size; p < end; p += s->size) {
++	for_each_object(p, s, start) {
+ 		setup_object(s, page, last);
+ 		set_freepointer(s, last, p);
+ 		last = p;
+@@ -875,12 +890,10 @@ static void __free_slab(struct kmem_cach
  	int pages = 1 << s->order;
  
--	if (unlikely(PageError(page) || s->dtor)) {
-+	if (unlikely(SlabDebug(page) || s->dtor)) {
+ 	if (unlikely(PageError(page) || s->dtor)) {
+-		void *start = page_address(page);
+-		void *end = start + (pages << PAGE_SHIFT);
  		void *p;
  
  		slab_pad_check(s, page);
-@@ -936,7 +951,8 @@ static void discard_slab(struct kmem_cac
+-		for (p = start; p <= end - s->size; p += s->size) {
++		for_each_object(p, s, page_address(page)) {
+ 			if (s->dtor)
+ 				s->dtor(p, s, 0);
+ 			check_object(s, page, p, 0);
+@@ -2516,7 +2529,7 @@ static int validate_slab(struct kmem_cac
+ {
+ 	void *p;
+ 	void *addr = page_address(page);
+-	unsigned long map[BITS_TO_LONGS(s->objects)];
++	DECLARE_BITMAP(map, s->objects);
  
- 	atomic_long_dec(&n->nr_slabs);
- 	reset_page_mapcount(page);
--	page->flags &= ~(1 << PG_slab | 1 << PG_error);
-+	ClearSlabDebug(page);
-+	__ClearPageSlab(page);
- 	free_slab(s, page);
- }
+ 	if (!check_slab(s, page) ||
+ 			!on_freelist(s, page, NULL))
+@@ -2525,14 +2538,14 @@ static int validate_slab(struct kmem_cac
+ 	/* Now we know that a valid freelist exists */
+ 	bitmap_zero(map, s->objects);
  
-@@ -1111,7 +1127,7 @@ static void putback_slab(struct kmem_cac
- 
- 		if (page->freelist)
- 			add_partial(n, page);
--		else if (PageError(page) && (s->flags & SLAB_STORE_USER))
-+		else if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
- 			add_full(n, page);
- 		slab_unlock(page);
- 
-@@ -1195,7 +1211,7 @@ static void flush_all(struct kmem_cache 
-  * per cpu array in the kmem_cache struct.
-  *
-  * Fastpath is not possible if we need to get a new slab or have
-- * debugging enabled (which means all slabs are marked with PageError)
-+ * debugging enabled (which means all slabs are marked with SlabDebug)
-  */
- static void *slab_alloc(struct kmem_cache *s,
- 				gfp_t gfpflags, int node, void *addr)
-@@ -1218,7 +1234,7 @@ redo:
- 	object = page->freelist;
- 	if (unlikely(!object))
- 		goto another_slab;
--	if (unlikely(PageError(page)))
-+	if (unlikely(SlabDebug(page)))
- 		goto debug;
- 
- have_object:
-@@ -1316,7 +1332,7 @@ static void slab_free(struct kmem_cache 
- 	local_irq_save(flags);
- 	slab_lock(page);
- 
--	if (unlikely(PageError(page)))
-+	if (unlikely(SlabDebug(page)))
- 		goto debug;
- checks_ok:
- 	prior = object[page->offset] = page->freelist;
-@@ -2504,12 +2520,12 @@ static void validate_slab_slab(struct km
- 			s->name, page);
- 
- 	if (s->flags & DEBUG_DEFAULT_FLAGS) {
--		if (!PageError(page))
--			printk(KERN_ERR "SLUB %s: PageError not set "
-+		if (!SlabDebug(page))
-+			printk(KERN_ERR "SLUB %s: SlabDebug not set "
- 				"on slab 0x%p\n", s->name, page);
- 	} else {
--		if (PageError(page))
--			printk(KERN_ERR "SLUB %s: PageError set on "
-+		if (SlabDebug(page))
-+			printk(KERN_ERR "SLUB %s: SlabDebug set on "
- 				"slab 0x%p\n", s->name, page);
+-	for(p = page->freelist; p; p = get_freepointer(s, p)) {
+-		set_bit((p - addr) / s->size, map);
++	for_each_free_object(p, s, page->freelist) {
++		set_bit(slab_index(p, s, addr), map);
+ 		if (!check_object(s, page, p, 0))
+ 			return 0;
  	}
- }
+ 
+-	for(p = addr; p < addr + s->objects * s->size; p += s->size)
+-		if (!test_bit((p - addr) / s->size, map))
++	for_each_object(p, s, addr)
++		if (!test_bit(slab_index(p, s, addr), map))
+ 			if (!check_object(s, page, p, 1))
+ 				return 0;
+ 	return 1;
+@@ -2704,15 +2717,15 @@ static void process_slab(struct loc_trac
+ 		struct page *page, enum track_item alloc)
+ {
+ 	void *addr = page_address(page);
+-	unsigned long map[BITS_TO_LONGS(s->objects)];
++	DECLARE_BITMAP(map, s->objects);
+ 	void *p;
+ 
+ 	bitmap_zero(map, s->objects);
+-	for (p = page->freelist; p; p = get_freepointer(s, p))
+-		set_bit((p - addr) / s->size, map);
++	for_each_free_object(p, s, page->freelist)
++		set_bit(slab_index(p, s, addr), map);
+ 
+-	for (p = addr; p < addr + s->objects * s->size; p += s->size)
+-		if (!test_bit((p - addr) / s->size, map)) {
++	for_each_object(p, s, addr)
++		if (!test_bit(slab_index(p, s, addr), map)) {
+ 			void *addr = get_track(s, p, alloc)->addr;
+ 
+ 			add_location(t, s, addr);
 
 -- 
 
