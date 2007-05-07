@@ -1,36 +1,38 @@
-Date: Mon, 7 May 2007 21:23:22 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [RFC][PATCH] VM: per-user overcommit policy
-Message-ID: <20070507212322.6d60210b@the-village.bc.nu>
-In-Reply-To: <463F764E.5050009@users.sourceforge.net>
-References: <463F764E.5050009@users.sourceforge.net>
+Date: Mon, 7 May 2007 13:32:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Support concurrent local and remote frees and allocs on a slab.
+Message-Id: <20070507133232.d5701090.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0705071156570.6080@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.64.0705042025520.29006@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0705052152060.29770@schroedinger.engr.sgi.com>
+	<Pine.LNX.4.64.0705052243490.29846@schroedinger.engr.sgi.com>
+	<20070506122447.0d5b83e1.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705071137290.5793@schroedinger.engr.sgi.com>
+	<20070507115438.a271580a.akpm@linux-foundation.org>
+	<Pine.LNX.4.64.0705071156570.6080@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: righiandr@users.sourceforge.net
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> - allow uid=1001 and uid=1002 (common users) to allocate memory only if the
->   total committed space is below the 50% of the physical RAM + the size of
->   swap:
-> root@host # echo 1001:2:50 > /proc/overcommit_uid
-> root@host # echo 1002:2:50 > /proc/overcommit_uid
+On Mon, 7 May 2007 11:58:34 -0700 (PDT)
+Christoph Lameter <clameter@sgi.com> wrote:
 
-There are some fundamental problems with this model - the moment you mix
-strict overcommit with anything else it ceases to be a strict overcommit
-and you might as well use existing overcommit rules for most stuff
+> > > What is the problem with 21-mm1 btw? slab performance for both allocators 
+> > > dropped from ~6M/sec to ~4.5M/sec
+> > 
+> > That's news to me.  You're the slab guy ;)
+> > 
+> > Are you sure the slowdown is due to slab, or did networking break?
+> 
+> Both slab allocators are affected. I poked around but nothing sprang to 
+> my mind. Seems its networking.
 
-The other thing you are sort of faking is per user resource management -
-which is a subset of per group of users resource management which is
-useful - eg "students can't hog the machine"
-
-I don't see that this is the right approach compared with the container
-work and openvz work that is currently active and far more flexible.
-
-Alan
+Please, send a report to netdev@vger.kernel.org.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
