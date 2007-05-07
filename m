@@ -1,58 +1,46 @@
-Message-ID: <463FACF9.2080301@users.sourceforge.net>
-From: Andrea Righi <righiandr@users.sourceforge.net>
-Reply-To: righiandr@users.sourceforge.net
+Date: Mon, 7 May 2007 16:10:43 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [patch 01/17] SLUB: Add support for dynamic cacheline size
+ determination
+In-Reply-To: <20070507212407.513642739@sgi.com>
+Message-ID: <Pine.LNX.4.64.0705071607330.20619@schroedinger.engr.sgi.com>
+References: <20070507212240.254911542@sgi.com> <20070507212407.513642739@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] VM: per-user overcommit policy
-References: <463F764E.5050009@users.sourceforge.net> <20070507212322.6d60210b@the-village.bc.nu>
-In-Reply-To: <20070507212322.6d60210b@the-village.bc.nu>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Date: Tue,  8 May 2007 00:49:57 +0200 (MEST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
->> - allow uid=1001 and uid=1002 (common users) to allocate memory only if the
->>   total committed space is below the 50% of the physical RAM + the size of
->>   swap:
->> root@host # echo 1001:2:50 > /proc/overcommit_uid
->> root@host # echo 1002:2:50 > /proc/overcommit_uid
-> 
-> There are some fundamental problems with this model - the moment you mix
-> strict overcommit with anything else it ceases to be a strict overcommit
-> and you might as well use existing overcommit rules for most stuff
-> 
-> The other thing you are sort of faking is per user resource management -
-> which is a subset of per group of users resource management which is
-> useful - eg "students can't hog the machine"
-> 
-> I don't see that this is the right approach compared with the container
-> work and openvz work that is currently active and far more flexible.
-> 
+cache_line_size is not available on all arches. So we need the following 
+fix in addition to this patch:
 
-Obviously I was not proposing a nice theoretical model, my work is more similar
-to a quick and dirty hack that could resolve some problems (at least in my case)
-like the crash of critical services due to OOM-killing (or due to the failure of
-a malloc() when OOM-killer is disabled).
 
-When $VERY_CRITICAL_DAEMON dies *all* the users blame the sysadmin [me]. If a
-user application dies because a malloc() returns NULL, the sysadmin [I] can
-blame the user saying: "hey! _you_ tried to hog the machine and _your_
-application is not able to handle the NULL result of the malloc()s!"... :-)
+SLUB: Fix *86ism: cache_line_size is not defined on all arches.
 
-A solution could be to define the critical processes unkillable via
-/proc/<pid>/oom_adj, but the per-process approach doesn't resolve all the
-possible cases and it's quite difficult to manage in big environments, like HPC
-clusters.
+Define cache_line_size if it is not provided by the arch.
 
-Anyway, it seems that I need to deepen my knowledge about the recent development
-of process containers and openvz...
+This should be done more elegantly someday.
 
-Thanks,
--Andrea
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.21-mm1/mm/slub.c
+===================================================================
+--- linux-2.6.21-mm1.orig/mm/slub.c	2007-05-07 16:04:28.000000000 -0700
++++ linux-2.6.21-mm1/mm/slub.c	2007-05-07 16:05:02.000000000 -0700
+@@ -1709,6 +1709,11 @@ static inline int calculate_order(int si
+ 	return -ENOSYS;
+ }
+ 
++/* Not all arches define cache_line_size */
++#ifndef cache_line_size
++#define cache_line_size()	L1_CACHE_BYTES
++#endif
++
+ /*
+  * Figure out what the alignment of the objects will be.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
