@@ -1,17 +1,20 @@
-Message-Id: <20070507212407.987572324@sgi.com>
+Message-Id: <20070507212407.755258367@sgi.com>
 References: <20070507212240.254911542@sgi.com>
-Date: Mon, 07 May 2007 14:22:43 -0700
+Date: Mon, 07 May 2007 14:22:42 -0700
 From: clameter@sgi.com
-Subject: [patch 03/17] SLUB: After object padding only needed for Redzoning
-Content-Disposition: inline; filename=better_padding
+Subject: [patch 02/17] SLUB: Reduce antifrag max order
+Content-Disposition: inline; filename=reduce_order
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If no redzoning is selected then we do not need padding before the
-next object.
+My test systems fails to obtain order 4 allocs after prolonged use.
+So the Antifragmentation patches are unable to guarantee order 4
+blocks after a while (straight compile, edit load).
+
+Reduce the the max order if antifrag measures are detected to 3.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
@@ -21,17 +24,17 @@ Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-05-07 13:51:50.000000000 -0700
-+++ slub/mm/slub.c	2007-05-07 13:52:44.000000000 -0700
-@@ -1668,7 +1668,7 @@ static int calculate_sizes(struct kmem_c
- 		 */
- 		size += 2 * sizeof(struct track);
+--- slub.orig/mm/slub.c	2007-05-07 14:00:23.000000000 -0700
++++ slub/mm/slub.c	2007-05-07 14:00:27.000000000 -0700
+@@ -126,7 +126,7 @@
+  * If antifragmentation methods are in effect then increase the
+  * slab sizes to increase performance
+  */
+-#define DEFAULT_ANTIFRAG_MAX_ORDER 4
++#define DEFAULT_ANTIFRAG_MAX_ORDER 3
+ #define DEFAULT_ANTIFRAG_MIN_OBJECTS 16
  
--	if (flags & DEBUG_DEFAULT_FLAGS)
-+	if (flags & SLAB_RED_ZONE)
- 		/*
- 		 * Add some empty padding so that we can catch
- 		 * overwrites from earlier objects rather than let
+ /*
 
 -- 
 
