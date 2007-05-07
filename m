@@ -1,64 +1,114 @@
-Message-Id: <20070507212408.951409595@sgi.com>
+Message-Id: <20070507212410.623072827@sgi.com>
 References: <20070507212240.254911542@sgi.com>
-Date: Mon, 07 May 2007 14:22:47 -0700
+Date: Mon, 07 May 2007 14:22:54 -0700
 From: clameter@sgi.com
-Subject: [patch 07/17] SLUB: Clean up krealloc
-Content-Disposition: inline; filename=better_krealloc
+Subject: [patch 14/17] SLUB: Move tracking definitions and check_valid_pointer() away from debug code
+Content-Disposition: inline; filename=move_tracking
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We really do not need all this gaga there.
-
-ksize gives us all the information we need to figure out
-if the object can cope with the new size.
+Move the tracking definitions and the check_valid_pointer() function away
+from the debugging related functions.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |   15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ mm/slub.c |   58 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)
 
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-05-07 13:52:47.000000000 -0700
-+++ slub/mm/slub.c	2007-05-07 13:52:51.000000000 -0700
-@@ -2206,9 +2206,8 @@ EXPORT_SYMBOL(kmem_cache_shrink);
-  */
- void *krealloc(const void *p, size_t new_size, gfp_t flags)
+--- slub.orig/mm/slub.c	2007-05-07 13:57:04.000000000 -0700
++++ slub/mm/slub.c	2007-05-07 13:57:30.000000000 -0700
+@@ -197,6 +197,18 @@ static enum {
+ static DECLARE_RWSEM(slub_lock);
+ LIST_HEAD(slab_caches);
+ 
++/*
++ * Tracking user of a slab.
++ */
++struct track {
++	void *addr;		/* Called from address */
++	int cpu;		/* Was running on cpu */
++	int pid;		/* Pid context */
++	unsigned long when;	/* When did the operation occur */
++};
++
++enum track_item { TRACK_ALLOC, TRACK_FREE };
++
+ #ifdef CONFIG_SYSFS
+ static int sysfs_slab_add(struct kmem_cache *);
+ static int sysfs_slab_alias(struct kmem_cache *, const char *);
+@@ -225,6 +237,23 @@ static inline struct kmem_cache_node *ge
+ #endif
+ }
+ 
++static inline int check_valid_pointer(struct kmem_cache *s,
++				struct page *page, const void *object)
++{
++	void *base;
++
++	if (!object)
++		return 1;
++
++	base = page_address(page);
++	if (object < base || object >= base + s->objects * s->size ||
++		(object - base) % s->size) {
++		return 0;
++	}
++
++	return 1;
++}
++
+ /*
+  * Slow version of get and set free pointer.
+  *
+@@ -292,18 +321,6 @@ static void print_section(char *text, u8
+ 	}
+ }
+ 
+-/*
+- * Tracking user of a slab.
+- */
+-struct track {
+-	void *addr;		/* Called from address */
+-	int cpu;		/* Was running on cpu */
+-	int pid;		/* Pid context */
+-	unsigned long when;	/* When did the operation occur */
+-};
+-
+-enum track_item { TRACK_ALLOC, TRACK_FREE };
+-
+ static struct track *get_track(struct kmem_cache *s, void *object,
+ 	enum track_item alloc)
  {
--	struct kmem_cache *new_cache;
- 	void *ret;
--	struct page *page;
-+	unsigned long ks;
+@@ -438,23 +455,6 @@ static int check_bytes(u8 *start, unsign
+ 	return 1;
+ }
  
- 	if (unlikely(!p))
- 		return kmalloc(new_size, flags);
-@@ -2218,19 +2217,13 @@ void *krealloc(const void *p, size_t new
- 		return NULL;
- 	}
- 
--	page = virt_to_head_page(p);
+-static inline int check_valid_pointer(struct kmem_cache *s,
+-				struct page *page, const void *object)
+-{
+-	void *base;
 -
--	new_cache = get_slab(new_size, flags);
+-	if (!object)
+-		return 1;
 -
--	/*
-- 	 * If new size fits in the current cache, bail out.
-- 	 */
--	if (likely(page->slab == new_cache))
-+	ks = ksize(p);
-+	if (ks >= new_size)
- 		return (void *)p;
- 
- 	ret = kmalloc(new_size, flags);
- 	if (ret) {
--		memcpy(ret, p, min(new_size, ksize(p)));
-+		memcpy(ret, p, min(new_size, ks));
- 		kfree(p);
- 	}
- 	return ret;
+-	base = page_address(page);
+-	if (object < base || object >= base + s->objects * s->size ||
+-		(object - base) % s->size) {
+-		return 0;
+-	}
+-
+-	return 1;
+-}
+-
+ /*
+  * Object layout:
+  *
 
 -- 
 
