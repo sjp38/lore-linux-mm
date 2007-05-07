@@ -1,102 +1,42 @@
-Date: Mon, 07 May 2007 12:53:03 -0400
-From: "Willkommensbonus von 555$" <townsend@address.com>
-Message-ID: <08380626.00796284@hattie.com>
-Subject: Willkommensbonus von 555$!
+Message-ID: <463F5926.6020401@redhat.com>
+Date: Mon, 07 May 2007 12:51:50 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au> <463E5A00.6070708@redhat.com> <463E921D.3070407@redhat.com> <463EB169.8030701@redhat.com> <463EB0C4.6060901@redhat.com>
+In-Reply-To: <463EB0C4.6060901@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-Path: <townsend@address.com>
-To: linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Ulrich Drepper <drepper@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-<html>
+Ulrich Drepper wrote:
+> Rik van Riel wrote:
+>> It's trivial to merge the MADV_FREE #defines into the kernel
+>> though, and aliasing MADV_FREE to MADV_DONTNEED for the time
+>> being is a one-liner - just an extra constant into the big
+>> switch statement in sys_madvise().
+> 
+> Until the semantics of the implementation is cut into stone by having it 
+> in the kernel I'll not start using it.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+The current MADV_DONTNEED implementation conforms to the
+semantics of MADV_FREE :)
 
-<title>Die besten Spieler sind in Vegas und die besten Bonusse finden Sie nur
-bei Vegas VIP Casino</title>
+With MADV_FREE you can get back either your old data, or
+a freshly zeroed out new page.  Always getting back the
+second alternative is conformant :)
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
-</head>
-
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
-
-<div class=Section1>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas VIP Casino!<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung
-einen 155% Bonus f&uuml;r Ihre vierte Einzahlung!
- <o:p></o:p></span></p>
-
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften 
-Vegas VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.vegas-cazino.org/lang-de/">
-http://www.vegas-cazino.org/lang-de/</a></p>
-</div>
-
-</body>
-
-</html>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
