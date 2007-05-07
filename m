@@ -1,46 +1,29 @@
-Message-ID: <463E5A00.6070708@redhat.com>
-Date: Sun, 06 May 2007 18:43:12 -0400
-From: Rik van Riel <riel@redhat.com>
+Message-ID: <463E921D.3070407@redhat.com>
+Date: Sun, 06 May 2007 19:42:37 -0700
+From: Ulrich Drepper <drepper@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au>
-In-Reply-To: <463BC62C.3060605@yahoo.com.au>
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au> <463E5A00.6070708@redhat.com>
+In-Reply-To: <463E5A00.6070708@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+Rik van Riel wrote:
+> I think that maybe for 2.6.22 we should just alias MADV_FREE
+> to run with the MADV_DONTNEED functionality, so that the glibc
+> people can make the change on their side while we figure out
+> what will be the best thing to do on the kernel side.
 
-> OK, sure. I think we need more numbers though.
-
-Thinking about the issue some more, I think I know just the
-number we might want to know.
-
-It is pretty obvious that the kernel needs to do less work
-with the MADV_FREE code present.  However, it is possible
-that userspace needs to do more work, by accessing pages
-that are not in the CPU cache, or in another CPU's cache.
-
-In the test cases where you see similar performance on the
-workload with and without the MADV_FREE code, are you by any
-chance seeing lower system time and higher user time?
-
-I think that maybe for 2.6.22 we should just alias MADV_FREE
-to run with the MADV_DONTNEED functionality, so that the glibc
-people can make the change on their side while we figure out
-what will be the best thing to do on the kernel side.
-
-I'll send in a patch that does that once Linus has committed
-your most recent flood of patches.  What do you think?
+No need for that.  We can later extend glibc to use MADV_FREE and fall 
+back on MADV_DONTNEED.
 
 -- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+a?? Ulrich Drepper a?? Red Hat, Inc. a?? 444 Castro St a?? Mountain View, CA a??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
