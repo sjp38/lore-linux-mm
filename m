@@ -1,64 +1,73 @@
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten>
-	 <1178310543.5236.43.camel@localhost>
-	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Mon, 07 May 2007 09:40:33 -0400
-Message-Id: <1178545233.5079.10.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <463F353B.1040405@tmr.com>
+Date: Mon, 07 May 2007 10:18:35 -0400
+From: Bill Davidsen <davidsen@tmr.com>
+MIME-Version: 1.0
+Subject: Re: swap-prefetch: 2.6.22 -mm merge plans
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070503155407.GA7536@elte.hu> <463AE1EB.1020909@yahoo.com.au> <20070504085201.GA24666@elte.hu>
+In-Reply-To: <20070504085201.GA24666@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Con Kolivas <kernel@kolivas.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-04 at 14:27 -0700, Christoph Lameter wrote:
-> On Fri, 4 May 2007, Lee Schermerhorn wrote:
+Ingo Molnar wrote:
+> * Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> > On Wed, 2007-05-02 at 21:21 -0500, Anton Blanchard wrote:
-> > > An interesting bug was pointed out to me where we failed to allocate
-> > > hugepages evenly. In the example below node 7 has no memory (it only has
-> > > CPUs). Node 0 and 1 have plenty of free memory. After doing:
-> > 
-> > Here's my attempt to fix the problem [I see it on HP platforms as well],
-> > without removing the population check in build_zonelists_node().  Seems
-> > to work.
+>>> i'm wondering about swap-prefetch:
 > 
-> I think we need something like for_each_online_node for each node with
-> memory otherwise we are going to replicate this all over the place for 
-> memoryless nodes. Add a nodemap for populated nodes?
+>> Being able to config all these core heuristics changes is really not 
+>> that much of a positive. The fact that we might _need_ to config 
+>> something out, and double the configuration range isn't too pleasing.
 > 
-> I.e.
+> Well, to the desktop user this is a speculative performance feature that 
+> he is willing to potentially waste CPU and IO capacity, in expectation 
+> of better performance.
 > 
-> for_each_mem_node?
+> On the conceptual level it is _precisely the same thing as regular file 
+> readahead_. (with the difference that to me swapahead seems to be quite 
+> a bit more intelligent than our current file readahead logic.)
 > 
-> Then you do not have to check the zone flags all the time. May avoid a lot 
-> of mess?
+> This feature has no API or ABI impact at all, it's a pure performance 
+> feature. (besides the trivial sysctl to turn it runtime on/off).
+> 
+>> Here were some of my concerns, and where our discussion got up to.
 
->From a performance point of view, I don't think using the zone flags to
-figure out which zone to be looking at should cause any noticable
-overhead.  I hope no one is increasing [or decreasing] nr_hugepages all
-that often.  I would expect it to happen at boot time, or soon
-thereafter.  Much later and you run the risk of not being able to
-allocate hugepages because of fragmentation [Hi, Mel!].
+	[...snip...]
 
-We'll still need to iterate over such a mask multiple times until the
-requested number of hugepages has been allocated.  Of course, this as
-well as the current method, assumes that all nodes have approximately
-the same amount of memory.  I've considered precalculating the number of
-hugepages per node based on the amount of memory in each node, but this
-would require that hugetlb.c have even more knowledge of the zones...
+> i see no real problem here. We've had heuristics for a _long_ time in 
+> various areas of the code. Sometimes they work, sometimes they suck.
+> 
+> the flow of this is really easy: distro looking for a feature edge turns 
+> it on and announces it, if the feature does not work out for users then 
+> user turns it off and complains to distro, if enough users complain then 
+> distro turns it off for next release, upstream forgets about this 
+> performance feature and eventually removes it once someone notices that 
+> it wouldnt even compile in the past 2 main releases. I see no problem 
+> here, we did that in the past too with performance features. The 
+> networking stack has literally dozens of such small tunable things which 
+> get experimented with, and whose defaults do get tuned carefully. Some 
+> of the knobs help bandwidth, some help latency.
+> 
+I haven't looked at this code since it first came out and didn't impress 
+me, but I think it would be good to get the current version in. However, 
+when you say "user turns it off" I hope you mean "in /proc/sys with a 
+switch or knob" and not by expecting people to recompile and install a 
+kernel. Then it might take a little memory but wouldn't do something 
+undesirable.
 
-Anyway, I hit the problem [imbalance in # of hugepages per node with
-memory due to memoryless nodes] about the time that Anton posted his
-fix.  I thought that adding 3 [non-commentary/non-whitespace] lines in a
-non-performance path in order to avoid empty zones in the zonelists was
-a good tradeoff.  Silly me ;-)!
+Note: I had no bad effect from the code, it just didn't feel faster. On 
+a low memory machine it might help. Of course I have wanted to have a 
+hard limit on memory used for i/o buffers, just to avoid swapping 
+programs to make room for i/o, so to some extent I feel as if this is a 
+fix for a problem we shouldn't have.
 
-Lee
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
