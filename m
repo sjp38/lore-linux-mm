@@ -1,52 +1,36 @@
-Date: Mon, 7 May 2007 11:58:34 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Support concurrent local and remote frees and allocs on a slab.
-In-Reply-To: <20070507115438.a271580a.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0705071156570.6080@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705042025520.29006@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705052152060.29770@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705052243490.29846@schroedinger.engr.sgi.com>
- <20070506122447.0d5b83e1.akpm@linux-foundation.org>
- <Pine.LNX.4.64.0705071137290.5793@schroedinger.engr.sgi.com>
- <20070507115438.a271580a.akpm@linux-foundation.org>
+Date: Mon, 7 May 2007 12:01:07 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [patch] removes MAX_ARG_PAGES
+Message-ID: <20070507190107.GF19966@holomorphy.com>
+References: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com> <617E1C2C70743745A92448908E030B2A01719390@scsmsx411.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <617E1C2C70743745A92448908E030B2A01719390@scsmsx411.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Ollie Wild <aaw@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 May 2007, Andrew Morton wrote:
+At some point in the past, Ollie Wild wrote:
+>> We've tested the following architectures: i386, x86_64, um/i386,
+>> parisc, and frv.  These are representative of the various scenarios
+>> which this patch addresses, but other architecture teams should try it
+>> out to make sure there aren't any unexpected gotchas.
 
-> > I think the major performance improvement was to remove the overhead of 
-> > kfree. Half of the effort is gone thus performance goes through the roof. 
-> > Also this insures that SLUB always gets no partial slabs which increases 
-> > performance further.
-> 
-> Well sure.  But there should have been a performance *decrease* because
-> every piece of memory we get from slab is now cache-cold.  If slab was
-> recycling objects, one would expect that to not happen.
+On Mon, May 07, 2007 at 10:46:49AM -0700, Luck, Tony wrote:
+> Doesn't build on ia64: complaints from arch/ia64/ia32/binfmt_elf.c
+> (which #includes ../../../fs/binfmt_elf.c) ...
+[...]
+> Turning off CONFIG_IA32-SUPPORT, the kernel built, but oops'd during boot.
+> My serial connection to my test machine is currently broken, so I didn't
+> get a capture of the stack trace, sorry.
 
-No the memory that slub returns is designed to be in increasing memory 
-order. The prefetch logic on most modern chips will eliminate the cache 
-cold effect.
+It needs to sweep 32-bit emulation code more generally.
 
-> So I'm assuming that you have producer and consumer running on separate
-> CPUs and we don't get any decent cache reuse anyway.
 
-This was on UP.
-
-> > What is the problem with 21-mm1 btw? slab performance for both allocators 
-> > dropped from ~6M/sec to ~4.5M/sec
-> 
-> That's news to me.  You're the slab guy ;)
-> 
-> Are you sure the slowdown is due to slab, or did networking break?
-
-Both slab allocators are affected. I poked around but nothing sprang to 
-my mind. Seems its networking.
- 
+-- wli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
