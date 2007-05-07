@@ -1,48 +1,51 @@
-Date: Mon, 7 May 2007 13:20:52 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: What is the right way to prefault and pin pages for perfmon?
-Message-ID: <20070507122052.GA1670@infradead.org>
-References: <20070507114838.GD14010@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070507114838.GD14010@lnx-holt.americas.sgi.com>
+Date: Mon, 07 May 2007 22:07:36 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: fragmentation avoidance Re: 2.6.22 -mm merge plans
+In-Reply-To: <20070501101651.GA29957@skynet.ie>
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <20070501101651.GA29957@skynet.ie>
+Message-Id: <20070507211327.3129.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-mm@kvack.org, Stephane Eranian <eranian@hpl.hp.com>
+To: Mel Gorman <mel@skynet.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 07, 2007 at 06:48:38AM -0500, Robin Holt wrote:
-> perfmon has a need to get memory allocated and prefaulted for a shared
-> buffer between user and kernel.  The memory is read-only to the user.
-> The hardware performance counter values are inserted into those pages.
-> Pages can not be faulted during sampling as we only have nano to micro
-> seconds to capture the values with accuracy.  What is the right way to
-> accomplish this?
+Sorry for late response. I went on a vacation in last week.
+And I'm in the mountain of a ton of unread mail now....
 
-Allocate the pages using alloc_page and then insert it using vm_insert_page.
-In case you need a contiguous mapping use vmap to establish it, but it
-would be better if we could avoid that part to not eat up too much
-vmalloc space.
-
-Note that all this should happen from a ->mmap method and not from
-other magic calls.  Nothing but calls to mmap (or related syscalls)
-should change the user address space.
-
-> Currently, the user is calling the kernel with a number of sample entries
-> for a single cpu's buffers.  The kernel turns this into a buffer size
-> and calls vmalloc to get a kernel virtually contiguous address range.
-> It then sets PG_RESERVED on all those pages and calls remap_pfn_range()
-> to insert page table entries into the users address space.  Additionally,
-> it is updating locked_vm on the tasks mm.
+> > Mel's moveable-zone work.
 > 
-> I think this should really become do_mmap(), followed by get_user_pages().
+> These patches are what creates ZONE_MOVABLE. The last 6 patches should be
+> collapsed into a single patch:
+> 
+> 	handle-kernelcore=-generic
+> 
+> I believe Yasunori Goto is looking at these from the perspective of memory
+> hot-remove and has caught a few bugs in the past. Goto-san may be able to
+> comment on whether they have been reviewed recently.
 
-Not at all.  do_mmap is not something anyone but the various mmap
-implementation should call.  Having this function exported at all
-is a tragic historic coincidence  involving a few graphics hackers
-and lots of illegal drugs.
+Hmm, I don't think my review is enough.
+To be precise, I'm just one user/tester of ZONE_MOVABLE.
+I have tried to make memory remove patches with Mel-san's
+ZONE_MOVABLE patch. And the bugs are things that I found in its work.
+(I'll post these patches in a few days.)
+
+> The main complexity is in one function in patch one which determines where
+> the PFN is in each node for ZONE_MOVABLE. Getting that right so that the
+> requested amount of kernel memory spread as evenly as possible is just
+> not straight-forward.
+
+>From memory-hotplug view, ZONE_MOVABLE should be aligned by section
+size. But MAX_ORDER alignment is enough for others...
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
