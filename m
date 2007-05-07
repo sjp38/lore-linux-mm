@@ -1,39 +1,39 @@
-Message-ID: <463F5926.6020401@redhat.com>
-Date: Mon, 07 May 2007 12:51:50 -0400
-From: Rik van Riel <riel@redhat.com>
+Content-Class: urn:content-classes:message
 MIME-Version: 1.0
-Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
-References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au> <463E5A00.6070708@redhat.com> <463E921D.3070407@redhat.com> <463EB169.8030701@redhat.com> <463EB0C4.6060901@redhat.com>
-In-Reply-To: <463EB0C4.6060901@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [patch] removes MAX_ARG_PAGES
+Date: Mon, 7 May 2007 10:46:49 -0700
+Message-ID: <617E1C2C70743745A92448908E030B2A01719390@scsmsx411.amr.corp.intel.com>
+In-Reply-To: <65dd6fd50705060151m78bb9b4fpcb941b16a8c4709e@mail.gmail.com>
+From: "Luck, Tony" <tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
+To: Ollie Wild <aaw@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, parisc-linux@lists.parisc-linux.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Ulrich Drepper wrote:
-> Rik van Riel wrote:
->> It's trivial to merge the MADV_FREE #defines into the kernel
->> though, and aliasing MADV_FREE to MADV_DONTNEED for the time
->> being is a one-liner - just an extra constant into the big
->> switch statement in sys_madvise().
-> 
-> Until the semantics of the implementation is cut into stone by having it 
-> in the kernel I'll not start using it.
+> We've tested the following architectures: i386, x86_64, um/i386,
+> parisc, and frv.  These are representative of the various scenarios
+> which this patch addresses, but other architecture teams should try it
+> out to make sure there aren't any unexpected gotchas.
 
-The current MADV_DONTNEED implementation conforms to the
-semantics of MADV_FREE :)
+Doesn't build on ia64: complaints from arch/ia64/ia32/binfmt_elf.c
+(which #includes ../../../fs/binfmt_elf.c) ...
 
-With MADV_FREE you can get back either your old data, or
-a freshly zeroed out new page.  Always getting back the
-second alternative is conformant :)
+arch/ia64/ia32/binfmt_elf32.c: In function `ia32_setup_arg_pages':
+arch/ia64/ia32/binfmt_elf32.c:206: error: `MAX_ARG_PAGES' undeclared (first use in this function)
+arch/ia64/ia32/binfmt_elf32.c:206: error: (Each undeclared identifier is reported only once
+arch/ia64/ia32/binfmt_elf32.c:206: error: for each function it appears in.)
+arch/ia64/ia32/binfmt_elf32.c:240: error: structure has no member named `page'
+arch/ia64/ia32/binfmt_elf32.c:242: error: structure has no member named `page'
+arch/ia64/ia32/binfmt_elf32.c:243: warning: implicit declaration of function `install_arg_page'
+make[1]: *** [arch/ia64/ia32/binfmt_elf32.o] Error 1
 
--- 
-Politics is the struggle between those who want to make their country
-the best in the world, and those who believe it already is.  Each group
-calls the other unpatriotic.
+Turning off CONFIG_IA32-SUPPORT, the kernel built, but oops'd during boot.
+My serial connection to my test machine is currently broken, so I didn't
+get a capture of the stack trace, sorry.
+
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
