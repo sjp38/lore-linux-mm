@@ -1,120 +1,154 @@
-Message-Id: <20070507212411.329013996@sgi.com>
+Message-Id: <20070507212409.900835105@sgi.com>
 References: <20070507212240.254911542@sgi.com>
-Date: Mon, 07 May 2007 14:22:57 -0700
+Date: Mon, 07 May 2007 14:22:51 -0700
 From: clameter@sgi.com
-Subject: [patch 17/17] SLUB: Rework slab order determination
-Content-Disposition: inline; filename=fixordercalc
+Subject: [patch 11/17] SLUB: Move resiliency check into SYSFS section
+Content-Disposition: inline; filename=move_resiliency_check
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In some cases SLUB is creating uselessly slabs that are larger than
-slub_max_order. Also the layout of some of the slabs was not satisfactory.
-
-Go to an iterarive approach.
+Move the resiliency check into the SYSFS section after validate_slab that
+is used by the resiliency check. This will avoid a forward declaration.
 
 Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
 ---
- mm/slub.c |   66 ++++++++++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 52 insertions(+), 14 deletions(-)
+ mm/slub.c |  112 ++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 55 insertions(+), 57 deletions(-)
 
 Index: slub/mm/slub.c
 ===================================================================
---- slub.orig/mm/slub.c	2007-05-07 13:57:42.000000000 -0700
-+++ slub/mm/slub.c	2007-05-07 13:57:45.000000000 -0700
-@@ -1584,37 +1584,75 @@ static int slub_nomerge;
-  * requested a higher mininum order then we start with that one instead of
-  * the smallest order which will fit the object.
-  */
--static int calculate_order(int size)
-+static inline int slab_order(int size, int min_objects,
-+				int max_order, int fract_leftover)
- {
- 	int order;
- 	int rem;
+--- slub.orig/mm/slub.c	2007-05-07 13:54:31.000000000 -0700
++++ slub/mm/slub.c	2007-05-07 13:54:35.000000000 -0700
+@@ -2445,63 +2445,6 @@ static struct notifier_block __cpuinitda
  
--	for (order = max(slub_min_order, fls(size - 1) - PAGE_SHIFT);
--			order < MAX_ORDER; order++) {
--		unsigned long slab_size = PAGE_SIZE << order;
-+	for (order = max(slub_min_order,
-+				fls(min_objects * size - 1) - PAGE_SHIFT);
-+			order <= max_order; order++) {
+ #endif
  
--		if (order < slub_max_order &&
--				slab_size < slub_min_objects * size)
--			continue;
-+		unsigned long slab_size = PAGE_SIZE << order;
- 
--		if (slab_size < size)
-+		if (slab_size < min_objects * size)
- 			continue;
- 
--		if (order >= slub_max_order)
--			break;
+-#ifdef SLUB_RESILIENCY_TEST
+-static unsigned long validate_slab_cache(struct kmem_cache *s);
 -
- 		rem = slab_size % size;
- 
--		if (rem <= slab_size / 8)
-+		if (rem <= slab_size / fract_leftover)
- 			break;
- 
- 	}
--	if (order >= MAX_ORDER)
--		return -E2BIG;
- 
- 	return order;
+-static void resiliency_test(void)
+-{
+-	u8 *p;
+-
+-	printk(KERN_ERR "SLUB resiliency testing\n");
+-	printk(KERN_ERR "-----------------------\n");
+-	printk(KERN_ERR "A. Corruption after allocation\n");
+-
+-	p = kzalloc(16, GFP_KERNEL);
+-	p[16] = 0x12;
+-	printk(KERN_ERR "\n1. kmalloc-16: Clobber Redzone/next pointer"
+-			" 0x12->0x%p\n\n", p + 16);
+-
+-	validate_slab_cache(kmalloc_caches + 4);
+-
+-	/* Hmmm... The next two are dangerous */
+-	p = kzalloc(32, GFP_KERNEL);
+-	p[32 + sizeof(void *)] = 0x34;
+-	printk(KERN_ERR "\n2. kmalloc-32: Clobber next pointer/next slab"
+-		 	" 0x34 -> -0x%p\n", p);
+-	printk(KERN_ERR "If allocated object is overwritten then not detectable\n\n");
+-
+-	validate_slab_cache(kmalloc_caches + 5);
+-	p = kzalloc(64, GFP_KERNEL);
+-	p += 64 + (get_cycles() & 0xff) * sizeof(void *);
+-	*p = 0x56;
+-	printk(KERN_ERR "\n3. kmalloc-64: corrupting random byte 0x56->0x%p\n",
+-									p);
+-	printk(KERN_ERR "If allocated object is overwritten then not detectable\n\n");
+-	validate_slab_cache(kmalloc_caches + 6);
+-
+-	printk(KERN_ERR "\nB. Corruption after free\n");
+-	p = kzalloc(128, GFP_KERNEL);
+-	kfree(p);
+-	*p = 0x78;
+-	printk(KERN_ERR "1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
+-	validate_slab_cache(kmalloc_caches + 7);
+-
+-	p = kzalloc(256, GFP_KERNEL);
+-	kfree(p);
+-	p[50] = 0x9a;
+-	printk(KERN_ERR "\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n", p);
+-	validate_slab_cache(kmalloc_caches + 8);
+-
+-	p = kzalloc(512, GFP_KERNEL);
+-	kfree(p);
+-	p[512] = 0xab;
+-	printk(KERN_ERR "\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
+-	validate_slab_cache(kmalloc_caches + 9);
+-}
+-#else
+-static void resiliency_test(void) {};
+-#endif
+-
+ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
+ {
+ 	struct kmem_cache *s = get_slab(size, gfpflags);
+@@ -2618,6 +2561,61 @@ static unsigned long validate_slab_cache
+ 	return count;
  }
  
-+static inline int calculate_order(int size)
++#ifdef SLUB_RESILIENCY_TEST
++static void resiliency_test(void)
 +{
-+	int order;
-+	int min_objects;
-+	int fraction;
++	u8 *p;
 +
-+	/*
-+	 * Attempt to find best configuration for a slab. This
-+	 * works by first attempting to generate a layout with
-+	 * the best configuration and backing off gradually.
-+	 *
-+	 * First we reduce the acceptable waste in a slab. Then
-+	 * we reduce the minimum objects required in a slab.
-+	 */
-+	min_objects = slub_min_objects;
-+	while (min_objects > 1) {
-+		fraction = 8;
-+		while (fraction >= 4) {
-+			order = slab_order(size, min_objects,
-+						slub_max_order, fraction);
-+			if (order <= slub_max_order)
-+				return order;
-+			fraction /= 2;
-+		}
-+		min_objects /= 2;
-+	}
++	printk(KERN_ERR "SLUB resiliency testing\n");
++	printk(KERN_ERR "-----------------------\n");
++	printk(KERN_ERR "A. Corruption after allocation\n");
 +
-+	/*
-+	 * We were unable to place multiple objects in a slab. Now
-+	 * lets see if we can place a single object there.
-+	 */
-+	order = slab_order(size, 1, slub_max_order, 1);
-+	if (order <= slub_max_order)
-+		return order;
++	p = kzalloc(16, GFP_KERNEL);
++	p[16] = 0x12;
++	printk(KERN_ERR "\n1. kmalloc-16: Clobber Redzone/next pointer"
++			" 0x12->0x%p\n\n", p + 16);
 +
-+	/*
-+	 * Doh this slab cannot be placed using slub_max_order.
-+	 */
-+	order = slab_order(size, 1, MAX_ORDER, 1);
-+	if (order <= MAX_ORDER)
-+		return order;
-+	return -ENOSYS;
++	validate_slab_cache(kmalloc_caches + 4);
++
++	/* Hmmm... The next two are dangerous */
++	p = kzalloc(32, GFP_KERNEL);
++	p[32 + sizeof(void *)] = 0x34;
++	printk(KERN_ERR "\n2. kmalloc-32: Clobber next pointer/next slab"
++		 	" 0x34 -> -0x%p\n", p);
++	printk(KERN_ERR "If allocated object is overwritten then not detectable\n\n");
++
++	validate_slab_cache(kmalloc_caches + 5);
++	p = kzalloc(64, GFP_KERNEL);
++	p += 64 + (get_cycles() & 0xff) * sizeof(void *);
++	*p = 0x56;
++	printk(KERN_ERR "\n3. kmalloc-64: corrupting random byte 0x56->0x%p\n",
++									p);
++	printk(KERN_ERR "If allocated object is overwritten then not detectable\n\n");
++	validate_slab_cache(kmalloc_caches + 6);
++
++	printk(KERN_ERR "\nB. Corruption after free\n");
++	p = kzalloc(128, GFP_KERNEL);
++	kfree(p);
++	*p = 0x78;
++	printk(KERN_ERR "1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
++	validate_slab_cache(kmalloc_caches + 7);
++
++	p = kzalloc(256, GFP_KERNEL);
++	kfree(p);
++	p[50] = 0x9a;
++	printk(KERN_ERR "\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n", p);
++	validate_slab_cache(kmalloc_caches + 8);
++
++	p = kzalloc(512, GFP_KERNEL);
++	kfree(p);
++	p[512] = 0xab;
++	printk(KERN_ERR "\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
++	validate_slab_cache(kmalloc_caches + 9);
 +}
++#else
++static void resiliency_test(void) {};
++#endif
 +
  /*
-  * Figure out what the alignment of the objects will be.
-  */
+  * Generate lists of code addresses where slabcache objects are allocated
+  * and freed.
 
 -- 
 
