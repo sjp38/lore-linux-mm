@@ -1,53 +1,38 @@
-Message-ID: <46407DD4.7080101@shadowen.org>
-Date: Tue, 08 May 2007 14:40:36 +0100
-From: Andy Whitcroft <apw@shadowen.org>
+Message-ID: <4640906B.2020301@redhat.com>
+Date: Tue, 08 May 2007 10:59:55 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: SLUB: Reduce antifrag max order (fwd)
-References: <Pine.LNX.4.64.0705081416140.20563@skynet.skynet.ie>
-In-Reply-To: <Pine.LNX.4.64.0705081416140.20563@skynet.skynet.ie>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au> <463E5A00.6070708@redhat.com> <464014B0.7060308@yahoo.com.au>
+In-Reply-To: <464014B0.7060308@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com
-Cc: akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> Sorry for resend, I didn't add Andy to the cc as intended.
-> 
-> On Sat, 5 May 2007, Christoph Lameter wrote:
-> 
->> My test systems fails to obtain order 4 allocs after prolonged use.
->> So the Antifragmentation patches are unable to guarantee order 4
->> blocks after a while (straight compile, edit load).
->>
-> 
-> Anti-frag still depends on reclaim to take place and I imagine you have
-> not altered min_free_kbytes to keep pages free. Also, I don't think
-> kswapd is currently making any effort to keep blocks free at a known
-> desired order although I'm cc'ing Andy Whitcroft to confirm. As the
-> kernel gives up easily when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you
-> should be using PAGE_ALLOC_COSTLY_ORDER instead of
-> DEFAULT_ANTIFRAG_MAX_ORDER for SLUB.
+Nick Piggin wrote:
 
-kswapd only reactively uses orders above 0.  If allocations are pushing
-below the high water marks those will trigger kswapd to reclaim at their
-highest order.  No attempt overall is made to keep "some" higher order
-pages free.  That is anticipated, but not yet tested.
+> We have percpu and cache affine page allocators, so when
+> userspace just frees a page, it is likely to be cache hot, so
+> we want to free it up so it can be reused by this CPU ASAP.
+> Likewise, when we newly allocate a page, we want it to be one
+> that is cache hot on this CPU.
 
->> Reduce the the max order if antifrag measures are detected to 3.
+Actually, isn't the clear page function capable of doing
+some magic, when it writes all zeroes into the page, that
+causes the zeroes to just live in CPU cache without the old
+data ever being loaded from RAM?
 
-As Mel indicates you are probally best staying at or below
-PAGE_ALLOC_COSTLY_ORDER and indeed that is probabally what the 3
-represents below; the "highest easily allocatable order".  If so it very
-likely should be:
+That would sure be faster than touching RAM.  Not sure if
+we use/trigger that kind of magic, though :)
 
-#define DEFAULT_ANTIFRAG_MAX_ORDER PAGE_ALLOC_COSTLY_ORDER
-
-<snip>
-
--apw
+-- 
+Politics is the struggle between those who want to make their country
+the best in the world, and those who believe it already is.  Each group
+calls the other unpatriotic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
