@@ -1,43 +1,64 @@
-Date: Mon, 7 May 2007 21:57:32 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: RE: Regression with SLUB on Netperf and Volanomark
-In-Reply-To: <1178584834.15701.18.camel@localhost.localdomain>
-Message-ID: <Pine.LNX.4.64.0705072150490.4939@schroedinger.engr.sgi.com>
-References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
-  <Pine.LNX.4.64.0705031839480.16296@schroedinger.engr.sgi.com>
- <1178322083.23795.217.camel@localhost.localdomain>
- <Pine.LNX.4.64.0705041800070.28492@schroedinger.engr.sgi.com>
- <1178584834.15701.18.camel@localhost.localdomain>
+Message-ID: <464014B0.7060308@yahoo.com.au>
+Date: Tue, 08 May 2007 16:12:00 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] MM: implement MADV_FREE lazy freeing of anonymous memory
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au> <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au> <463E5A00.6070708@redhat.com>
+In-Reply-To: <463E5A00.6070708@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jakub Jelinek <jakub@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 May 2007, Tim Chen wrote:
+Rik van Riel wrote:
+> Nick Piggin wrote:
+> 
+>> OK, sure. I think we need more numbers though.
+> 
+> 
+> Thinking about the issue some more, I think I know just the
+> number we might want to know.
+> 
+> It is pretty obvious that the kernel needs to do less work
+> with the MADV_FREE code present.  However, it is possible
+> that userspace needs to do more work, by accessing pages
+> that are not in the CPU cache, or in another CPU's cache.
+> 
+> In the test cases where you see similar performance on the
+> workload with and without the MADV_FREE code, are you by any
+> chance seeing lower system time and higher user time?
 
-> However, the output from TCP_STREAM is quite stable.  
-> I am still seeing a 4% difference between the SLAB and SLUB kernel.
-> Looking at the L2 cache miss rate with emon, I saw 6% more cache miss on
-> the client side with SLUB.  The server side has the same amount of cache
-> miss.  This is test under SMP mode with client and server bound to
-> different core on separate package.
+I didn't actually check system and user times for the mysql
+benchmark, but that's exactly what I had in mind when I
+mentioned the poor cache behaviour this patch could cause. I
+definitely did see user times go up in benchmarks where I
+measured.
 
-If this is cache miss related then a larger page order may take are 
-of this. Boot with (assume you got 2.6.21-mm1 at least...)
+We have percpu and cache affine page allocators, so when
+userspace just frees a page, it is likely to be cache hot, so
+we want to free it up so it can be reused by this CPU ASAP.
+Likewise, when we newly allocate a page, we want it to be one
+that is cache hot on this CPU.
 
-slub_min_order=6 slub_max_order=7
 
-which will give you an allocation unit of 256k. Just tried it. It 
-actually works but has no effect here whatsoever on UP netperf 
-performance. netperf performance dropped from 6MB(slab)/6.2MB(slub) on 
-2.6.21-rc7-mm1 to 4.5MB (both) on 2.6.21-mm1. So I guess there is 
-something also going on with the networking layer.
+> I think that maybe for 2.6.22 we should just alias MADV_FREE
+> to run with the MADV_DONTNEED functionality, so that the glibc
+> people can make the change on their side while we figure out
+> what will be the best thing to do on the kernel side.
+> 
+> I'll send in a patch that does that once Linus has committed
+> your most recent flood of patches.  What do you think?
 
-Still have not found a machine here where I could repeat your 
-results.
+I'll let you and Ulrich decide on that. Keep in mind that older
+kernels (without the mmap_sem patch for MADV_DONTNEED) still
+seem to get a pretty decent improvement from using MADV_DONTNEED,
+so it is possible glibc will want to start using that anyway.
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
