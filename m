@@ -1,104 +1,54 @@
-Date: Tue, 8 May 2007 20:18:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] change zonelist order v5 [2/3] automatic configuration
-Message-Id: <20070508201819.99f499df.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <46405C92.1080003@shadowen.org>
+Date: Tue, 08 May 2007 12:18:42 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [KJ PATCH] Replacing memset(<addr>,0,PAGE_SIZE) with clear_page()
+ in mm/memory.c
+References: <1178621156.3598.10.camel@shani-win>
+In-Reply-To: <1178621156.3598.10.camel@shani-win>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Shani Moideen <shani.moideen@wipro.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Add auto zone ordering configuration.
+Shani Moideen wrote:
+> Hi,
+> 
+> Replacing memset(<addr>,0,PAGE_SIZE) with clear_page() in mm/memory.c.
+> 
+> Signed-off-by: Shani Moideen <shani.moideen@wipro.com>
+> ----
+> 
+> thanks.
+> 
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e7066e7..2780d07 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1505,7 +1505,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+>                  * zeroes.
+>                  */
+>                 if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
+> -                       memset(kaddr, 0, PAGE_SIZE);
+> +                       clear_page(kaddr);
+>                 kunmap_atomic(kaddr, KM_USER0);
+>                 flush_dcache_page(dst);
+>                 return;
+> 
+> 
 
-This function will select ZONE_ORDER_NODE when
+This looks to be whitespace dammaged?
 
-There are only ZONE_DMA or ZONE_DMA32.
-|| size of (ZONE_DMA/DMA32) > (System Total Memory)/2
-|| Assume Node(A)
-	Node (A) is enough big &&
-	Node (A)'s ZONE_DMA/DMA32 occupies 60% of Node(A)'s memory.
-	(In this case, ZONE_ORDER_ZONE may not offer enough locality...)
+-apw
 
-otherwise, ZONE_ORDER_ZONE is selected.
-
-Maybe there is no best and simple way to configure zone order. I wrote this base on
-my experience and discussion on the list.
-
-Anyway, a user can specifiy zone order from boot option/sysctl.
-
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/page_alloc.c |   51 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 49 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.21-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.21-mm1.orig/mm/page_alloc.c
-+++ linux-2.6.21-mm1/mm/page_alloc.c
-@@ -2248,8 +2248,55 @@ static void build_zonelists_in_zone_orde
- 
- static int default_zonelist_order(void)
- {
--	/* dummy, just select node order. */
--	return ZONELIST_ORDER_NODE;
-+	int nid, zone_type;
-+	unsigned long low_kmem_size,total_size;
-+	struct zone *z;
-+	int average_size;
-+	/*
-+         * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
-+	 * If they are really small and used heavily, the system can fall
-+	 * into OOM very easily.
-+	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
-+	 */
-+	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
-+	low_kmem_size = 0;
-+	total_size = 0;
-+	for_each_online_node(nid) {
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+	}
-+	if (!low_kmem_size ||  /* there are no DMA area. */
-+	    low_kmem_size > total_size/2) /* DMA/DMA32 is big. */
-+		return ZONELIST_ORDER_NODE;
-+	/*
-+	 * look into each node's config.
-+  	 * If there is a node whose DMA/DMA32 memory is very big area on
-+ 	 * local memory, NODE_ORDER may be suitable.
-+         */
-+	average_size = total_size / (num_online_nodes() + 1);
-+	for_each_online_node(nid) {
-+		low_kmem_size = 0;
-+		total_size = 0;
-+		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-+			z = &NODE_DATA(nid)->node_zones[zone_type];
-+			if (populated_zone(z)) {
-+				if (zone_type < ZONE_NORMAL)
-+					low_kmem_size += z->present_pages;
-+				total_size += z->present_pages;
-+			}
-+		}
-+		if (low_kmem_size &&
-+		    total_size > average_size && /* ignore small node */
-+		    low_kmem_size > total_size * 70/100)
-+			return ZONELIST_ORDER_NODE;
-+	}
-+	return ZONELIST_ORDER_ZONE;
- }
- 
- 
+use tabs not spaces
+PATCH: -:64:
+FILE: b/mm/memory.c:1508:
++                       clear_page(kaddr);$
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
