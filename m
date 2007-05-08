@@ -1,16 +1,16 @@
-Date: Tue, 8 May 2007 14:15:42 +0100 (IST)
+Date: Tue, 8 May 2007 14:17:00 +0100 (IST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: SLUB: Reduce antifrag max order
-In-Reply-To: <Pine.LNX.4.64.0705050925350.27136@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.64.0705081411440.20563@skynet.skynet.ie>
-References: <Pine.LNX.4.64.0705050925350.27136@schroedinger.engr.sgi.com>
+Subject: Re: SLUB: Reduce antifrag max order (fwd)
+Message-ID: <Pine.LNX.4.64.0705081416140.20563@skynet.skynet.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: clameter@sgi.com
+Cc: akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
+
+Sorry for resend, I didn't add Andy to the cc as intended.
 
 On Sat, 5 May 2007, Christoph Lameter wrote:
 
@@ -19,22 +19,21 @@ On Sat, 5 May 2007, Christoph Lameter wrote:
 > blocks after a while (straight compile, edit load).
 >
 
-Anti-frag still depends on reclaim to take place and I imagine you have 
-not altered min_free_kbytes to keep pages free. Also, I don't think kswapd 
-is currently making any effort to keep blocks free at a known desired 
-order although I'm cc'ing Andy Whitcroft to confirm. As the kernel gives 
-up easily when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you should be 
-using PAGE_ALLOC_COSTLY_ORDER instead of DEFAULT_ANTIFRAG_MAX_ORDER for 
-SLUB.
+Anti-frag still depends on reclaim to take place and I imagine you have not 
+altered min_free_kbytes to keep pages free. Also, I don't think kswapd is 
+currently making any effort to keep blocks free at a known desired order 
+although I'm cc'ing Andy Whitcroft to confirm. As the kernel gives up easily 
+when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you should be using 
+PAGE_ALLOC_COSTLY_ORDER instead of DEFAULT_ANTIFRAG_MAX_ORDER for SLUB.
 
 > Reduce the the max order if antifrag measures are detected to 3.
->
+> 
 > Signed-off-by: Christoph Lameter <clameter@sgi.com>
->
+> 
 > ---
 > mm/slub.c |    2 +-
 > 1 file changed, 1 insertion(+), 1 deletion(-)
->
+> 
 > Index: slub/mm/slub.c
 > ===================================================================
 > --- slub.orig/mm/slub.c	2007-05-05 09:19:32.000000000 -0700
@@ -46,7 +45,7 @@ SLUB.
 > -#define DEFAULT_ANTIFRAG_MAX_ORDER 4
 > +#define DEFAULT_ANTIFRAG_MAX_ORDER 3
 > #define DEFAULT_ANTIFRAG_MIN_OBJECTS 16
->
+> 
 > /*
 >
 
