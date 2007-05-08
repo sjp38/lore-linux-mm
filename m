@@ -1,43 +1,35 @@
-Date: Tue, 8 May 2007 12:54:11 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [RFC][PATCH] VM: per-user overcommit policy
-Message-ID: <20070508125411.07de2340@the-village.bc.nu>
-In-Reply-To: <463FACF9.2080301@users.sourceforge.net>
-References: <463F764E.5050009@users.sourceforge.net>
-	<20070507212322.6d60210b@the-village.bc.nu>
-	<463FACF9.2080301@users.sourceforge.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 May 2007 20:59:33 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: Get FRV to be able to run SLUB
+Message-ID: <20070508115933.GA15074@linux-sh.org>
+References: <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7950.1178620309@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: righiandr@users.sourceforge.net
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> When $VERY_CRITICAL_DAEMON dies *all* the users blame the sysadmin [me]. If a
-> user application dies because a malloc() returns NULL, the sysadmin [I] can
-> blame the user saying: "hey! _you_ tried to hog the machine and _your_
-> application is not able to handle the NULL result of the malloc()s!"... :-)
+On Tue, May 08, 2007 at 11:31:49AM +0100, David Howells wrote:
+> Christoph Lameter <clameter@sgi.com> wrote:
+> Missing header file inclusion.
+> 
+> > +	pgd = quicklist_free(0, NULL, pgd_dtor);
+> 
+> That function is void, and is should be passed pgd or something, but I'm not
+> sure what.  No other arch seems to use this.
+> 
+sparc64 uses it now, and others are moving over to it gradually (I just
+converted SH earlier). pgd_free() should be:
 
-If you allow overcommit by the daemons and not user space then some of
-the time you will still get out of memory kills which may well hit your
-daemon process.
+	quicklist_free(0, pgd_dtor, pgd);
 
-> A solution could be to define the critical processes unkillable via
-> /proc/<pid>/oom_adj, but the per-process approach doesn't resolve all the
-> possible cases and it's quite difficult to manage in big environments, like HPC
-> clusters.
+in this case.
 
-If you are running no overcommit you should never get an out of memory
-kill.
-
-> Anyway, it seems that I need to deepen my knowledge about the recent development
-> of process containers and openvz...
-
-I think that does what you need - you'd create containers for critical
-services and for the users and split resources to protect one from the
-other.
+include/linux/quicklist.h isn't exactly lacking for documentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
