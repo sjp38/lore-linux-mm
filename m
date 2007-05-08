@@ -1,48 +1,18 @@
-Date: Tue, 8 May 2007 09:12:58 -0700 (PDT)
+Date: Tue, 8 May 2007 09:14:46 -0700 (PDT)
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: SLUB: Reduce antifrag max order
-In-Reply-To: <Pine.LNX.4.64.0705081411440.20563@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705080912080.8801@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.64.0705050925350.27136@schroedinger.engr.sgi.com>
- <Pine.LNX.4.64.0705081411440.20563@skynet.skynet.ie>
+Subject: Re: [PATCH] change zonelist order v5 [0/3]
+In-Reply-To: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0705080914320.8801@schroedinger.engr.sgi.com>
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Lee.Schermerhorn@hp.com, AKPM <akpm@linux-foundation.org>, Andi Kleen <ak@suse.de>, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 May 2007, Mel Gorman wrote:
-
-> Anti-frag still depends on reclaim to take place and I imagine you have not
-> altered min_free_kbytes to keep pages free. Also, I don't think kswapd is
-> currently making any effort to keep blocks free at a known desired order
-> although I'm cc'ing Andy Whitcroft to confirm. As the kernel gives up easily
-> when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you should be using
-> PAGE_ALLOC_COSTLY_ORDER instead of DEFAULT_ANTIFRAG_MAX_ORDER for SLUB.
-
-Ok. So we need this one.
-
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
-
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: slub/mm/slub.c
-===================================================================
---- slub.orig/mm/slub.c	2007-05-08 09:10:54.000000000 -0700
-+++ slub/mm/slub.c	2007-05-08 09:11:15.000000000 -0700
-@@ -153,7 +153,7 @@ static inline void ClearSlabDebug(struct
-  * If antifragmentation methods are in effect then increase the
-  * slab sizes to increase performance
-  */
--#define DEFAULT_ANTIFRAG_MAX_ORDER 3
-+#define DEFAULT_ANTIFRAG_MAX_ORDER PAGE_ALLOC_COSTLY_ORDER
- #define DEFAULT_ANTIFRAG_MIN_OBJECTS 16
- 
- /*
+Good explanation. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
