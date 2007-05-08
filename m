@@ -1,87 +1,49 @@
-Date: Tue, 8 May 2007 14:04:21 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: The last slab destructor .....
-Message-ID: <Pine.LNX.4.64.0705081358560.14107@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc] optimise unlock_page
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20070508114003.GB19294@wotan.suse.de>
+References: <20070508113709.GA19294@wotan.suse.de>
+	 <20070508114003.GB19294@wotan.suse.de>
+Content-Type: text/plain
+Date: Wed, 09 May 2007 07:30:27 +1000
+Message-Id: <1178659827.14928.85.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-As far as I can tell: We will soon have only a single slab destructor 
-still in use in the kernel (after the quicklist migrations have finished 
-upstream). I wonder how difficult it would be to remove it? If we have no 
-destructors anymore then maybe we could remove destructor support from the 
-slab allocators? Or are there valid reason to keep them around? It seems 
-they were mainly used for list management which required them to take a 
-spinlock. Taking a spinlock in a destructor is a bit risky since the slab 
-allocators may run the destructors anytime they decide a slab is no longer 
-needed.
+On Tue, 2007-05-08 at 13:40 +0200, Nick Piggin wrote:
+> This patch trades a page flag for a significant improvement in the unlock_page
+> fastpath. Various problems in the previous version were spotted by Hugh and
+> Ben (and fixed in this one).
+> 
+> Comments?
+> 
+> --
+> 
+> Speed up unlock_page by introducing a new page flag to signal that there are
+> page waitqueue waiters for PG_locked. This means a memory barrier and a random
+> waitqueue hash cacheline load can be avoided in the fastpath when there is no
+> contention.
 
-The last one is in
+I'm not 100% familiar with the exclusive vs. non exclusive wait thingy
+but wake_up_page() does __wake_up_bit() which calls __wake_up() with
+nr_exclusive set to 1. Doesn't that mean that only one waiter will be
+woken up ?
 
-arch/mm/pmb.c:
+If that's the case, then we lose because we'll have clear PG_waiters but
+only wake up one of them.
 
-static void pmb_cache_ctor(void *pmb, struct kmem_cache *cachep, unsigned 
-long flags)
-{
-        struct pmb_entry *pmbe = pmb;
+Waking them all would fix it but at the risk of causing other
+problems... Maybe PG_waiters need to actually be a counter but if that
+is the case, then it complicates things even more.
 
-        memset(pmb, 0, sizeof(struct pmb_entry));
+Any smart idea ?
 
-        spin_lock_irq(&pmb_list_lock);
+Ben.
 
-        pmbe->entry = PMB_NO_ENTRY;
-        pmb_list_add(pmbe);
-
-        spin_unlock_irq(&pmb_list_lock);
-}
-
-static void pmb_cache_dtor(void *pmb, struct kmem_cache *cachep, unsigned 
-long flags)
-{
-        spin_lock_irq(&pmb_list_lock);
-        pmb_list_del(pmb);
-        spin_unlock_irq(&pmb_list_lock);
-}
-
-static int __init pmb_init(void)
-{
-        unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
-        unsigned int entry;
-
-        BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
-
-        pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
-                                      SLAB_PANIC, pmb_cache_ctor,
-                                      pmb_cache_dtor);
-
-        jump_to_P2();
-
-        /*
-         * Ordering is important, P2 must be mapped in the PMB before we
-         * can set PMB.SE, and P1 must be mapped before we jump back to
-         * P1 space.
-         */
-        for (entry = 0; entry < nr_entries; entry++) {
-                struct pmb_entry *pmbe = pmb_init_map + entry;
-
-                __set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, 
-&entry);
-        }
-
-        ctrl_outl(0, PMB_IRMCR);
-
-        /* PMB.SE and UB[7] */
-        ctrl_outl((1 << 31) | (1 << 7), PMB_PASCR);
-
-        back_to_P1();
-
-        return 0;
-}
-arch_initcall(pmb_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
