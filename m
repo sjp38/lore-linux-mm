@@ -1,75 +1,87 @@
-Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
-	order selection
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1178643985.5203.27.camel@localhost>
-	 <Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
-	 <1178645622.5203.53.camel@localhost>
-	 <Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Tue, 08 May 2007 16:37:06 -0400
-Message-Id: <1178656627.5203.84.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 May 2007 14:04:21 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: The last slab destructor .....
+Message-ID: <Pine.LNX.4.64.0705081358560.14107@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-08 at 11:05 -0700, Christoph Lameter wrote:
-> On Tue, 8 May 2007, Lee Schermerhorn wrote:
-> 
-> > > So far testing is IA64 only?
-> > Yes, so far.  I will test on an Opteron platform this pm.  
-> > Assume that no news is good news.
-> 
-> A better assumption: no news -> no testing. 
+As far as I can tell: We will soon have only a single slab destructor 
+still in use in the kernel (after the quicklist migrations have finished 
+upstream). I wonder how difficult it would be to remove it? If we have no 
+destructors anymore then maybe we could remove destructor support from the 
+slab allocators? Or are there valid reason to keep them around? It seems 
+they were mainly used for list management which required them to take a 
+spinlock. Taking a spinlock in a destructor is a bit risky since the slab 
+allocators may run the destructors anytime they decide a slab is no longer 
+needed.
 
-Before you asked, yes.  I meant after the last message, if you didn't
-hear from me, everything worked fine.  And it does, sort of...
+The last one is in
 
+arch/mm/pmb.c:
 
-> You probably need a 
-> configuration with a couple of nodes. Maybesomething less symmetric than 
-> Kame? I.e. have 4GB nodes and then DMA32 takes out a sizeable chunk of it?
-> 
+static void pmb_cache_ctor(void *pmb, struct kmem_cache *cachep, unsigned 
+long flags)
+{
+        struct pmb_entry *pmbe = pmb;
 
-I tested on a 2 socket, 4GB Opteron blade.  All memory is either DMA32
-or DMA.  I added some ad hoc instrumentation to the build_zonelist_*
-functions to see what's happening.  I have verified that the patches
-appear to build the zonelists correctly:
+        memset(pmb, 0, sizeof(struct pmb_entry));
 
-default -> node order, because "low_kmem" [DMA+DMA32] > total_mem/2.
-Zone lists:
-DMA:  DMA-0
-DMA32: DMA32-0, DMA-0, DMA32-1
-Normal:  same as DMA32 [no normal memory]
-Movable:  same as DMA32 & Normal
+        spin_lock_irq(&pmb_list_lock);
 
-explicit zone order also builds as expected:
-DMA:  DMA-0
-DMA32:  DMA32-1, DMA32-0, DMA-0
-and same for normal and movable
+        pmbe->entry = PMB_NO_ENTRY;
+        pmb_list_add(pmbe);
 
-However, a curious thing happens:  in either order, allocations seem to
-overflow to the remote DMA32 before dipping into the DMA!!!?  I'm using
-memtoy to create a large [3+GB] anon segment and locking it down.
+        spin_unlock_irq(&pmb_list_lock);
+}
 
-I need to check a non-patched kernel to see if it behaves the same way,
-and examine the code to see why...  For one thing, the kernel seems to
-do a bit better at reclaiming memory before overflowing.  Eventually, it
-will dip into DMA and finally get killed--OOM.
+static void pmb_cache_dtor(void *pmb, struct kmem_cache *cachep, unsigned 
+long flags)
+{
+        spin_lock_irq(&pmb_list_lock);
+        pmb_list_del(pmb);
+        spin_unlock_irq(&pmb_list_lock);
+}
 
-I'll be off-line most of the rest of the week, so I probably won't get
-to investigate much further nor test on a larger socket count/memory
-system until next week.  
+static int __init pmb_init(void)
+{
+        unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
+        unsigned int entry;
 
-Lee
+        BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
 
+        pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
+                                      SLAB_PANIC, pmb_cache_ctor,
+                                      pmb_cache_dtor);
 
+        jump_to_P2();
+
+        /*
+         * Ordering is important, P2 must be mapped in the PMB before we
+         * can set PMB.SE, and P1 must be mapped before we jump back to
+         * P1 space.
+         */
+        for (entry = 0; entry < nr_entries; entry++) {
+                struct pmb_entry *pmbe = pmb_init_map + entry;
+
+                __set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, 
+&entry);
+        }
+
+        ctrl_outl(0, PMB_IRMCR);
+
+        /* PMB.SE and UB[7] */
+        ctrl_outl((1 << 31) | (1 << 7), PMB_PASCR);
+
+        back_to_P1();
+
+        return 0;
+}
+arch_initcall(pmb_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
