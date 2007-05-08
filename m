@@ -1,49 +1,62 @@
-Subject: Re: [rfc] optimise unlock_page
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20070508114003.GB19294@wotan.suse.de>
-References: <20070508113709.GA19294@wotan.suse.de>
-	 <20070508114003.GB19294@wotan.suse.de>
+Subject: RE: Regression with SLUB on Netperf and Volanomark
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Reply-To: tim.c.chen@linux.intel.com
+In-Reply-To: <Pine.LNX.4.64.0705071848300.1378@schroedinger.engr.sgi.com>
+References: <9D2C22909C6E774EBFB8B5583AE5291C02786032@fmsmsx414.amr.corp.intel.com>
+	 <Pine.LNX.4.64.0705031839480.16296@schroedinger.engr.sgi.com>
+	 <1178322083.23795.217.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0705041800070.28492@schroedinger.engr.sgi.com>
+	 <1178584834.15701.18.camel@localhost.localdomain>
+	 <Pine.LNX.4.64.0705071848300.1378@schroedinger.engr.sgi.com>
 Content-Type: text/plain
-Date: Wed, 09 May 2007 07:30:27 +1000
-Message-Id: <1178659827.14928.85.camel@localhost.localdomain>
+Date: Tue, 08 May 2007 14:02:04 -0700
+Message-Id: <1178658124.15701.35.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Siddha, Suresh B" <suresh.b.siddha@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "Wang, Peter Xihong" <peter.xihong.wang@intel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-05-08 at 13:40 +0200, Nick Piggin wrote:
-> This patch trades a page flag for a significant improvement in the unlock_page
-> fastpath. Various problems in the previous version were spotted by Hugh and
-> Ben (and fixed in this one).
+On Mon, 2007-05-07 at 18:49 -0700, Christoph Lameter wrote:
+> On Mon, 7 May 2007, Tim Chen wrote:
 > 
-> Comments?
+> > However, the output from TCP_STREAM is quite stable.  
+> > I am still seeing a 4% difference between the SLAB and SLUB kernel.
+> > Looking at the L2 cache miss rate with emon, I saw 6% more cache miss on
+> > the client side with SLUB.  The server side has the same amount of cache
+> > miss.  This is test under SMP mode with client and server bound to
+> > different core on separate package.
 > 
-> --
+> Could you try the following patch on top of 2.6.21-mm1 with the patches
+> from http://ftp.kernel.org/pub/linux/kernel/people/christoph/slub-patches?
 > 
-> Speed up unlock_page by introducing a new page flag to signal that there are
-> page waitqueue waiters for PG_locked. This means a memory barrier and a random
-> waitqueue hash cacheline load can be avoided in the fastpath when there is no
-> contention.
+> I sent it to you before. This is one is an updated version
+> 
+> 
+> 
+> Avoid atomic overhead in slab_alloc and slab_free
+> 
 
-I'm not 100% familiar with the exclusive vs. non exclusive wait thingy
-but wake_up_page() does __wake_up_bit() which calls __wake_up() with
-nr_exclusive set to 1. Doesn't that mean that only one waiter will be
-woken up ?
+I tried the slub-patches and the avoid atomic overhead patch against
+2.6.21-mm1.  It brings the TCP_STREAM performance for SLUB to the SLAB
+level.  The patches not mentioned in the "series" file did not apply
+cleanly to 2.6.21-mm1 and I skipped most of those.  
 
-If that's the case, then we lose because we'll have clear PG_waiters but
-only wake up one of them.
+Patches applied are: 
+http://ftp.kernel.org/pub/linux/kernel/people/christoph/slub-
+patches/series + dentry_target_reclaimed + kmem_cache_ops + slub_stats +
+skip_atomic_overhead
 
-Waking them all would fix it but at the risk of causing other
-problems... Maybe PG_waiters need to actually be a counter but if that
-is the case, then it complicates things even more.
+Without skip atomic overhead patch, the throughput drops by 1 to 1.5%.
 
-Any smart idea ?
+The change from slub_min_order=0 slub_max_order=4 
+to slub_min_order=6 slub_max_order=7 did not make much difference in
+my tests.
 
-Ben.
 
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
