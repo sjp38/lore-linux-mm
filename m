@@ -1,25 +1,49 @@
 From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20070508115933.GA15074@linux-sh.org> 
-References: <20070508115933.GA15074@linux-sh.org>  <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com> 
-Subject: Re: Get FRV to be able to run SLUB 
-Date: Tue, 08 May 2007 13:04:13 +0100
-Message-ID: <9777.1178625853@redhat.com>
+In-Reply-To: <20070508114003.GB19294@wotan.suse.de> 
+References: <20070508114003.GB19294@wotan.suse.de>  <20070508113709.GA19294@wotan.suse.de> 
+Subject: Re: [rfc] optimise unlock_page 
+Date: Tue, 08 May 2007 13:13:35 +0100
+Message-ID: <9948.1178626415@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-arch@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Mundt <lethal@linux-sh.org> wrote:
+Nick Piggin <npiggin@suse.de> wrote:
 
-> > That function is void, and is should be passed pgd or something, but I'm not
-> > sure what.  No other arch seems to use this.
-> > 
-> sparc64 uses it now, and others are moving over to it gradually (I just
-> converted SH earlier).
+> This patch trades a page flag for a significant improvement in the unlock_page
+> fastpath. Various problems in the previous version were spotted by Hugh and
+> Ben (and fixed in this one).
 
-Yeah...  I found that after I'd sent the message.  The usage is in the header
-files not the arch/ dir.
+It looks reasonable at first glance, though it does consume yet another page
+flag:-/  However, I think that's probably a worthy trade.
+
+>  }
+> -	
+> +
+> +static inline void unlock_page(struct page *page)
+> +{
+> +	VM_BUG_ON(!PageLocked(page));
+> +	ClearPageLocked_Unlock(page);
+> +	if (unlikely(PageWaiters(page)))
+> +		__unlock_page(page);
+> +}
+> +
+
+Please don't simply discard the documentation, we have little enough as it is:
+
+> -/**
+> - * unlock_page - unlock a locked page
+> - * @page: the page
+> - *
+> - * Unlocks the page and wakes up sleepers in ___wait_on_page_locked().
+> - * Also wakes sleepers in wait_on_page_writeback() because the wakeup
+> - * mechananism between PageLocked pages and PageWriteback pages is shared.
+> - * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
+> - *
+> - * The mb is necessary to enforce ordering between the clear_bit and the read
+> - * of the waitqueue (to avoid SMP races with a parallel wait_on_page_locked()).
 
 David
 
