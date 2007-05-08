@@ -1,187 +1,44 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> 
-References: <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> 
-Subject: Re: Get FRV to be able to run SLUB 
-Date: Tue, 08 May 2007 11:31:49 +0100
-Message-ID: <7950.1178620309@redhat.com>
+Subject: [KJ PATCH] Replacing memset(<addr>,0,PAGE_SIZE) with clear_page()
+	in mm/memory.c
+From: Shani Moideen <shani.moideen@wipro.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Tue, 08 May 2007 16:15:56 +0530
+Message-Id: <1178621156.3598.10.camel@shani-win>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel-janitors@lists.osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
+Hi,
 
-> Is FRV still alive? I see myself there as one of the last people who 
-> changes something.
+Replacing memset(<addr>,0,PAGE_SIZE) with clear_page() in mm/memory.c.
 
-Yes.  That's because most of the patches I make and test on FRV are actually
-not in the arch/ directory, but rather the mm/ directory.
+Signed-off-by: Shani Moideen <shani.moideen@wipro.com>
+----
 
-> +			check_pgt_cache();
-> +
+thanks.
 
-But you didn't include the header file.
 
-> +extern void check_pgt_cache();
+diff --git a/mm/memory.c b/mm/memory.c
+index e7066e7..2780d07 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1505,7 +1505,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+                 * zeroes.
+                 */
+                if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
+-                       memset(kaddr, 0, PAGE_SIZE);
++                       clear_page(kaddr);
+                kunmap_atomic(kaddr, KM_USER0);
+                flush_dcache_page(dst);
+                return;
 
-Firstly, that should be ANSI, secondly that now breaks in NOMMU mode.
 
-> +	pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
-
-Missing header file inclusion.
-
-> +	pgd = quicklist_free(0, NULL, pgd_dtor);
-
-That function is void, and is should be passed pgd or something, but I'm not
-sure what.  No other arch seems to use this.
-
-I further note that you've added a new interface and failed to document it.
-There are no kdoc comments, and grep turns up nothing in the Documentation
-directory.  Please fix this if you haven't already.
-
-I've added a mostly revised patch, but it still doesn't compile:
-
-David
-
-diff --git a/arch/frv/Kconfig b/arch/frv/Kconfig
-index eed6943..114738a 100644
---- a/arch/frv/Kconfig
-+++ b/arch/frv/Kconfig
-@@ -45,15 +45,15 @@ config TIME_LOW_RES
- 	bool
- 	default y
- 
--config ARCH_HAS_ILOG2_U32
-+config QUICKLIST
- 	bool
- 	default y
- 
--config ARCH_HAS_ILOG2_U64
-+config ARCH_HAS_ILOG2_U32
- 	bool
- 	default y
- 
--config ARCH_USES_SLAB_PAGE_STRUCT
-+config ARCH_HAS_ILOG2_U64
- 	bool
- 	default y
- 
-diff --git a/arch/frv/kernel/process.c b/arch/frv/kernel/process.c
-index 515a5ce..9583a33 100644
---- a/arch/frv/kernel/process.c
-+++ b/arch/frv/kernel/process.c
-@@ -25,12 +25,14 @@
- #include <linux/elf.h>
- #include <linux/reboot.h>
- #include <linux/interrupt.h>
-+#include <linux/pagemap.h>
- 
- #include <asm/asm-offsets.h>
- #include <asm/uaccess.h>
- #include <asm/system.h>
- #include <asm/setup.h>
- #include <asm/pgtable.h>
-+#include <asm/tlb.h>
- #include <asm/gdb-stub.h>
- #include <asm/mb-regs.h>
- 
-@@ -88,6 +90,8 @@ void cpu_idle(void)
- 		while (!need_resched()) {
- 			irq_stat[cpu].idle_timestamp = jiffies;
- 
-+			check_pgt_cache();
-+
- 			if (!frv_dma_inprogress && idle)
- 				idle();
- 		}
-diff --git a/arch/frv/mm/pgalloc.c b/arch/frv/mm/pgalloc.c
-index 19b13be..6027761 100644
---- a/arch/frv/mm/pgalloc.c
-+++ b/arch/frv/mm/pgalloc.c
-@@ -13,12 +13,12 @@
- #include <linux/slab.h>
- #include <linux/mm.h>
- #include <linux/highmem.h>
-+#include <linux/quicklist.h>
- #include <asm/pgalloc.h>
- #include <asm/page.h>
- #include <asm/cacheflush.h>
- 
- pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
--struct kmem_cache *pgd_cache;
- 
- pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- {
-@@ -100,7 +100,7 @@ static inline void pgd_list_del(pgd_t *pgd)
- 		set_page_private(next, (unsigned long) pprev);
- }
- 
--void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
-+void pgd_ctor(void *pgd)
- {
- 	unsigned long flags;
- 
-@@ -120,7 +120,7 @@ void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
- }
- 
- /* never called when PTRS_PER_PMD > 1 */
--void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
-+void pgd_dtor(void *pgd)
- {
- 	unsigned long flags; /* can be called from interrupt context */
- 
-@@ -133,7 +133,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- {
- 	pgd_t *pgd;
- 
--	pgd = kmem_cache_alloc(pgd_cache, GFP_KERNEL);
-+	pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
- 	if (!pgd)
- 		return pgd;
- 
-@@ -142,18 +142,15 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 
- void pgd_free(pgd_t *pgd)
- {
--	/* in the non-PAE case, clear_page_tables() clears user pgd entries */
--	kmem_cache_free(pgd_cache, pgd);
-+  	/* in the non-PAE case, clear_page_tables() clears user pgd entries */
-+	pgd = quicklist_free(0, NULL, pgd_dtor);
- }
- 
- void __init pgtable_cache_init(void)
- {
--	pgd_cache = kmem_cache_create("pgd",
--				      PTRS_PER_PGD * sizeof(pgd_t),
--				      PTRS_PER_PGD * sizeof(pgd_t),
--				      0,
--				      pgd_ctor,
--				      pgd_dtor);
--	if (!pgd_cache)
--		panic("pgtable_cache_init(): Cannot create pgd cache");
-+}
-+
-+void check_pgt_cache(void)
-+{
-+	quicklist_trim(0, pgd_dtor, 25, 16);
- }
-diff --git a/include/asm-frv/tlb.h b/include/asm-frv/tlb.h
-index f94fe5c..cd458eb 100644
---- a/include/asm-frv/tlb.h
-+++ b/include/asm-frv/tlb.h
-@@ -3,7 +3,11 @@
- 
- #include <asm/tlbflush.h>
- 
-+#ifdef CONFIG_MMU
-+extern void check_pgt_cache(void);
-+#else
- #define check_pgt_cache() do {} while(0)
-+#endif
- 
- /*
-  * we don't need any special per-pte or per-vma handling...
+-- 
+Shani 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
