@@ -1,35 +1,27 @@
-Date: Tue, 8 May 2007 20:59:33 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: Get FRV to be able to run SLUB
-Message-ID: <20070508115933.GA15074@linux-sh.org>
-References: <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7950.1178620309@redhat.com>
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20070508115933.GA15074@linux-sh.org> 
+References: <20070508115933.GA15074@linux-sh.org>  <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com> 
+Subject: Re: Get FRV to be able to run SLUB 
+Date: Tue, 08 May 2007 13:04:13 +0100
+Message-ID: <9777.1178625853@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
+To: Paul Mundt <lethal@linux-sh.org>
 Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 08, 2007 at 11:31:49AM +0100, David Howells wrote:
-> Christoph Lameter <clameter@sgi.com> wrote:
-> Missing header file inclusion.
-> 
-> > +	pgd = quicklist_free(0, NULL, pgd_dtor);
-> 
-> That function is void, and is should be passed pgd or something, but I'm not
-> sure what.  No other arch seems to use this.
-> 
-sparc64 uses it now, and others are moving over to it gradually (I just
-converted SH earlier). pgd_free() should be:
+Paul Mundt <lethal@linux-sh.org> wrote:
 
-	quicklist_free(0, pgd_dtor, pgd);
+> > That function is void, and is should be passed pgd or something, but I'm not
+> > sure what.  No other arch seems to use this.
+> > 
+> sparc64 uses it now, and others are moving over to it gradually (I just
+> converted SH earlier).
 
-in this case.
+Yeah...  I found that after I'd sent the message.  The usage is in the header
+files not the arch/ dir.
 
-include/linux/quicklist.h isn't exactly lacking for documentation.
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
