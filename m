@@ -1,46 +1,59 @@
-Date: Tue, 8 May 2007 21:04:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] change zonelist order v5 [4/3] compile fix.....
-Message-Id: <20070508210408.50cafc47.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 8 May 2007 14:15:42 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: SLUB: Reduce antifrag max order
+In-Reply-To: <Pine.LNX.4.64.0705050925350.27136@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.64.0705081411440.20563@skynet.skynet.ie>
+References: <Pine.LNX.4.64.0705050925350.27136@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm very sorry for missing this fix for non-NUMA arch...
-I'll repost the whole set if necessary....
--Kame
+On Sat, 5 May 2007, Christoph Lameter wrote:
 
-Compile-fix...
+> My test systems fails to obtain order 4 allocs after prolonged use.
+> So the Antifragmentation patches are unable to guarantee order 4
+> blocks after a while (straight compile, edit load).
+>
 
-Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Anti-frag still depends on reclaim to take place and I imagine you have 
+not altered min_free_kbytes to keep pages free. Also, I don't think kswapd 
+is currently making any effort to keep blocks free at a known desired 
+order although I'm cc'ing Andy Whitcroft to confirm. As the kernel gives 
+up easily when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you should be 
+using PAGE_ALLOC_COSTLY_ORDER instead of DEFAULT_ANTIFRAG_MAX_ORDER for 
+SLUB.
 
-Index: linux-2.6.21-mm1/mm/page_alloc.c
-===================================================================
---- linux-2.6.21-mm1.orig/mm/page_alloc.c
-+++ linux-2.6.21-mm1/mm/page_alloc.c
-@@ -2321,6 +2321,7 @@ static void build_zonelists(pg_data_t *p
- 	prev_node = local_node;
- 	nodes_clear(used_mask);
- 
-+	memset(node_load, 0, sizeof(node_load));
- 	memset(node_order, 0, sizeof(node_order));
- 	j = 0;
- 
-@@ -2455,7 +2456,6 @@ void build_all_zonelists(void)
- 		__build_all_zonelists(&order);
- 		cpuset_init_current_mems_allowed();
- 	} else {
--		memset(node_load, 0, sizeof(node_load));
- 		/* we have to stop all cpus to guaranntee there is no user
- 		   of zonelist */
- 		stop_machine_run(__build_all_zonelists, &order, NR_CPUS);
+> Reduce the the max order if antifrag measures are detected to 3.
+>
+> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+>
+> ---
+> mm/slub.c |    2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> Index: slub/mm/slub.c
+> ===================================================================
+> --- slub.orig/mm/slub.c	2007-05-05 09:19:32.000000000 -0700
+> +++ slub/mm/slub.c	2007-05-05 09:22:00.000000000 -0700
+> @@ -129,7 +129,7 @@
+>  * If antifragmentation methods are in effect then increase the
+>  * slab sizes to increase performance
+>  */
+> -#define DEFAULT_ANTIFRAG_MAX_ORDER 4
+> +#define DEFAULT_ANTIFRAG_MAX_ORDER 3
+> #define DEFAULT_ANTIFRAG_MIN_OBJECTS 16
+>
+> /*
+>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
