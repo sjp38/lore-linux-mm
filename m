@@ -1,51 +1,46 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20070508114003.GB19294@wotan.suse.de> 
-References: <20070508114003.GB19294@wotan.suse.de>  <20070508113709.GA19294@wotan.suse.de> 
-Subject: Re: [rfc] optimise unlock_page 
-Date: Tue, 08 May 2007 13:13:35 +0100
-Message-ID: <9948.1178626415@redhat.com>
+Date: Tue, 8 May 2007 21:04:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] change zonelist order v5 [4/3] compile fix.....
+Message-Id: <20070508210408.50cafc47.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-arch@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> wrote:
+I'm very sorry for missing this fix for non-NUMA arch...
+I'll repost the whole set if necessary....
+-Kame
 
-> This patch trades a page flag for a significant improvement in the unlock_page
-> fastpath. Various problems in the previous version were spotted by Hugh and
-> Ben (and fixed in this one).
+Compile-fix...
 
-It looks reasonable at first glance, though it does consume yet another page
-flag:-/  However, I think that's probably a worthy trade.
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
->  }
-> -	
-> +
-> +static inline void unlock_page(struct page *page)
-> +{
-> +	VM_BUG_ON(!PageLocked(page));
-> +	ClearPageLocked_Unlock(page);
-> +	if (unlikely(PageWaiters(page)))
-> +		__unlock_page(page);
-> +}
-> +
-
-Please don't simply discard the documentation, we have little enough as it is:
-
-> -/**
-> - * unlock_page - unlock a locked page
-> - * @page: the page
-> - *
-> - * Unlocks the page and wakes up sleepers in ___wait_on_page_locked().
-> - * Also wakes sleepers in wait_on_page_writeback() because the wakeup
-> - * mechananism between PageLocked pages and PageWriteback pages is shared.
-> - * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
-> - *
-> - * The mb is necessary to enforce ordering between the clear_bit and the read
-> - * of the waitqueue (to avoid SMP races with a parallel wait_on_page_locked()).
-
-David
+Index: linux-2.6.21-mm1/mm/page_alloc.c
+===================================================================
+--- linux-2.6.21-mm1.orig/mm/page_alloc.c
++++ linux-2.6.21-mm1/mm/page_alloc.c
+@@ -2321,6 +2321,7 @@ static void build_zonelists(pg_data_t *p
+ 	prev_node = local_node;
+ 	nodes_clear(used_mask);
+ 
++	memset(node_load, 0, sizeof(node_load));
+ 	memset(node_order, 0, sizeof(node_order));
+ 	j = 0;
+ 
+@@ -2455,7 +2456,6 @@ void build_all_zonelists(void)
+ 		__build_all_zonelists(&order);
+ 		cpuset_init_current_mems_allowed();
+ 	} else {
+-		memset(node_load, 0, sizeof(node_load));
+ 		/* we have to stop all cpus to guaranntee there is no user
+ 		   of zonelist */
+ 		stop_machine_run(__build_all_zonelists, &order, NR_CPUS);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
