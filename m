@@ -1,57 +1,141 @@
-Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <463AFB8C.2000909@yahoo.com.au>
-References: <20070430162007.ad46e153.akpm@linux-foundation.org>
-	 <4636FDD7.9080401@yahoo.com.au>
-	 <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com>
-	 <4638009E.3070408@yahoo.com.au>
-	 <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com>
-	 <46393BA7.6030106@yahoo.com.au> <20070503103756.GA19958@infradead.org>
-	 <4639DBEC.2020401@yahoo.com.au>  <463AFB8C.2000909@yahoo.com.au>
-Content-Type: text/plain
-Date: Tue, 08 May 2007 13:03:28 +1000
-Message-Id: <1178593408.14928.58.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 May 2007 20:41:05 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Get FRV to be able to run SLUB
+Message-ID: <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>
+To: David Howells <dhowells@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2007-05-04 at 19:23 +1000, Nick Piggin wrote:
+Is FRV still alive? I see myself there as one of the last people who 
+changes something. FRV seems to be not able to run SLUB because it 
+modifies the page struct of page sized SLABS that it allocates. Its the 
+last architecture that has trouble with SLUB I guess.
 
-> These ops could also be put to use in bit spinlocks, buffer lock, and
-> probably a few other places too.
+I fixed up the i386 patch for FRV. Could you or someone familiar with FRV 
+give this a spin?
 
-Ok, the performance hit seems to be under control (especially with the
-bigger benchmark showing actual improvements).
 
-There's a little bogon with the PG_waiters bit that you already know
-about but appart from that it should be ok.
+Subject: [FRV] Band-Aid: Minimal patch to enable SLUB
 
-I must say I absolutely _LOVE_ the bitops with explicit _lock/_unlock
-semantics. That should allow us to remove a whole bunch of dodgy
-barriers and smp_mb__before_whatever_magic_crap() things we have all
-over the place by providing precisely the expected semantics for bit
-locks.
+This patch switches the pgd handling to use a quicklist. That way
+both are disentangled and SLUB works.
 
-There are quite a few people who've been trying to do bit locks and I've
-always been very worried by how easy it is to get the barriers wrong (or
-too much barriers in the fast path) with these.
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-There are a couple of things we might want to think about regarding the
-actual API to bit locks... the API you propose is simple, but it might
-not fit some of the most exotic usage requirements, which typically are
-related to manipulating other bits along with the lock bit.
-
-We might just ignore them though. In the case of the page lock, it's
-only hitting the slow path, and I would expect other usage scenarii to
-be similar.
-
-Cheers,
-Ben.
-
+Index: linux-2.6.21-mm1/arch/frv/Kconfig
+===================================================================
+--- linux-2.6.21-mm1.orig/arch/frv/Kconfig	2007-05-07 20:22:50.000000000 -0700
++++ linux-2.6.21-mm1/arch/frv/Kconfig	2007-05-07 20:29:02.000000000 -0700
+@@ -45,15 +45,15 @@ config TIME_LOW_RES
+ 	bool
+ 	default y
+ 
+-config ARCH_HAS_ILOG2_U32
++config QUICKLIST
+ 	bool
+ 	default y
+ 
+-config ARCH_HAS_ILOG2_U64
++config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default y
+ 
+-config ARCH_USES_SLAB_PAGE_STRUCT
++config ARCH_HAS_ILOG2_U64
+ 	bool
+ 	default y
+ 
+Index: linux-2.6.21-mm1/arch/frv/kernel/process.c
+===================================================================
+--- linux-2.6.21-mm1.orig/arch/frv/kernel/process.c	2007-05-07 20:22:50.000000000 -0700
++++ linux-2.6.21-mm1/arch/frv/kernel/process.c	2007-05-07 20:29:34.000000000 -0700
+@@ -88,6 +88,8 @@ void cpu_idle(void)
+ 		while (!need_resched()) {
+ 			irq_stat[cpu].idle_timestamp = jiffies;
+ 
++			check_pgt_cache();
++
+ 			if (!frv_dma_inprogress && idle)
+ 				idle();
+ 		}
+Index: linux-2.6.21-mm1/arch/frv/mm/pgalloc.c
+===================================================================
+--- linux-2.6.21-mm1.orig/arch/frv/mm/pgalloc.c	2007-05-07 20:24:47.000000000 -0700
++++ linux-2.6.21-mm1/arch/frv/mm/pgalloc.c	2007-05-07 20:34:58.000000000 -0700
+@@ -18,7 +18,6 @@
+ #include <asm/cacheflush.h>
+ 
+ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
+-struct kmem_cache *pgd_cache;
+ 
+ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+@@ -100,7 +99,7 @@ static inline void pgd_list_del(pgd_t *p
+ 		set_page_private(next, (unsigned long) pprev);
+ }
+ 
+-void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
++void pgd_ctor(void *pgd)
+ {
+ 	unsigned long flags;
+ 
+@@ -120,7 +119,7 @@ void pgd_ctor(void *pgd, struct kmem_cac
+ }
+ 
+ /* never called when PTRS_PER_PMD > 1 */
+-void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
++void pgd_dtor(void *pgd)
+ {
+ 	unsigned long flags; /* can be called from interrupt context */
+ 
+@@ -133,7 +132,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd;
+ 
+-	pgd = kmem_cache_alloc(pgd_cache, GFP_KERNEL);
++	pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
+ 	if (!pgd)
+ 		return pgd;
+ 
+@@ -143,15 +142,14 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+ void pgd_free(pgd_t *pgd)
+ {
+ 	/* in the non-PAE case, clear_page_tables() clears user pgd entries */
+-	kmem_cache_free(pgd_cache, pgd);
++	pgd = quicklist_free(0, NULL, pgd_dtor);
+ }
+ 
+ void __init pgtable_cache_init(void)
+ {
+-	pgd_cache = kmem_cache_create("pgd",
+-				      PTRS_PER_PGD * sizeof(pgd_t),
+-				      PTRS_PER_PGD * sizeof(pgd_t),
+-				      SLAB_PANIC,
+-				      pgd_ctor,
+-				      pgd_dtor);
++}
++
++void check_pgt_cache(void)
++{
++	quicklist_trim(0, pgd_dtor, 25, 16);
+ }
+Index: linux-2.6.21-mm1/include/asm-frv/tlb.h
+===================================================================
+--- linux-2.6.21-mm1.orig/include/asm-frv/tlb.h	2007-05-07 20:30:26.000000000 -0700
++++ linux-2.6.21-mm1/include/asm-frv/tlb.h	2007-05-07 20:30:48.000000000 -0700
+@@ -3,7 +3,7 @@
+ 
+ #include <asm/tlbflush.h>
+ 
+-#define check_pgt_cache() do {} while(0)
++extern void check_pgt_cache();
+ 
+ /*
+  * we don't need any special per-pte or per-vma handling...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
