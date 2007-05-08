@@ -1,24 +1,30 @@
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <Pine.LNX.4.64.0705080905020.8722@schroedinger.engr.sgi.com> 
-References: <Pine.LNX.4.64.0705080905020.8722@schroedinger.engr.sgi.com>  <Pine.LNX.4.64.0705072037030.4661@schroedinger.engr.sgi.com> <7950.1178620309@redhat.com> 
-Subject: Re: Get FRV to be able to run SLUB 
-Date: Tue, 08 May 2007 19:02:34 +0100
-Message-ID: <11856.1178647354@redhat.com>
+Date: Tue, 8 May 2007 11:05:41 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist order
+ selection
+In-Reply-To: <1178645622.5203.53.camel@localhost>
+Message-ID: <Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+ <20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
+ <1178643985.5203.27.camel@localhost>  <Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
+ <1178645622.5203.53.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
+On Tue, 8 May 2007, Lee Schermerhorn wrote:
 
-> > I've added a mostly revised patch, but it still doesn't compile:
-> 
-> How does it fail?
+> > So far testing is IA64 only?
+> Yes, so far.  I will test on an Opteron platform this pm.  
+> Assume that no news is good news.
 
-pgd_free() is still wrong.
-
-David
+A better assumption: no news -> no testing. You probably need a 
+configuration with a couple of nodes. Maybesomething less symmetric than 
+Kame? I.e. have 4GB nodes and then DMA32 takes out a sizeable chunk of it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
