@@ -1,287 +1,258 @@
-Date: Wed, 9 May 2007 09:34:40 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [RFC 2/3] SLUB: Implement targeted reclaim and partial list
- defragmentation
-In-Reply-To: <Pine.LNX.4.64.0705091404560.13411@skynet.skynet.ie>
-Message-ID: <Pine.LNX.4.64.0705090915220.28045@schroedinger.engr.sgi.com>
-References: <20070504221555.642061626@sgi.com> <20070504221708.596112123@sgi.com>
- <Pine.LNX.4.64.0705091404560.13411@skynet.skynet.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+References: <20070503022107.GA13592@kryten>
+	 <1178310543.5236.43.camel@localhost>
+	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 09 May 2007 12:37:40 -0400
+Message-Id: <1178728661.5047.64.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, dgc@sgi.com, Eric Dumazet <dada1@cosmosbay.com>
+To: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>
+Cc: linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2007, Mel Gorman wrote:
-
-> > Must obtain a reference to the object if it has not been freed yet. It is up
-> > to the slabcache to resolve the race.
+On Fri, 2007-05-04 at 14:27 -0700, Christoph Lameter wrote:
+> On Fri, 4 May 2007, Lee Schermerhorn wrote:
 > 
-> Is there also a race here between the object being searched for and the
-> reference being taken? Would it be appropriate to call this
-> find_get_slub_object() to mirror what find_get_page() does except instead of
-> offset, it receives some key meaningful to the cache? It might help set a
-> developers expectation of what the function is required to do when creating
-> such a cache and simplify locking.
-> 
-> (written much later) Looking through, it's not super-clear if get_reference()
-> is only for use by SLUB to get an exclusive reference to an object or
-> something that is generally called to reference count it. It looks like only
-> one reference is ever taken.
-
-Rights. Its only for SLUB to get a reference to be able to free the 
-object. I am not sure what you mean by the object being searched for? In 
-the partial lists of SLUB? That has its own locking scheme.
-
-> > SLUB guarantees that the objects is
-> > still allocated. However, another thread may be blocked in slab_free
-> > attempting to free the same object. It may succeed as soon as
-> > get_reference() returns to the slab allocator.
-> Fun. If it was find_get_slub_object() instead of get_reference(), the caller
-> could block if the object is currently being freed until slab_free completed.
-> It would take a hit because the object has to be recreated but maybe it would
-> be an easier race to deal with?
-
-It is much easier to let the competing thread succeed. If we find that 
-there refcount == 0 then a free is in progress and caller is blocked. SLUB 
-will drop all locks after references have been established. At that point 
-the concurrent free will succeed. Thus no need to wait.
- 
-> > get_reference() processing must recognize this situation (i.e. check
-> > refcount
-> > for zero) and fail in such a sitation (no problem since the object will
-> > be freed as soon we drop the slab lock before doing kick calls).
+> > On Wed, 2007-05-02 at 21:21 -0500, Anton Blanchard wrote:
+> > > An interesting bug was pointed out to me where we failed to allocate
+> > > hugepages evenly. In the example below node 7 has no memory (it only has
+> > > CPUs). Node 0 and 1 have plenty of free memory. After doing:
 > > 
+> > Here's my attempt to fix the problem [I see it on HP platforms as well],
+> > without removing the population check in build_zonelists_node().  Seems
+> > to work.
 > 
-> Block or fail?
-
-Fail. The competing free must succeed.
-
-> > The callback should remove the object from the slab in some way. This may
-> > be accomplished by reclaiming the object and then running kmem_cache_free()
-> > or reallocating it and then running kmem_cache_free(). Reallocation
-> > is advantageous at this point because it will then allocate from the partial
-> > slabs with the most objects because we have just finished slab shrinking.
-> > 
+> I think we need something like for_each_online_node for each node with
+> memory otherwise we are going to replicate this all over the place for 
+> memoryless nodes. Add a nodemap for populated nodes?
 > 
-> > From the comments alone, it sounds like the page cache API should be 
-> copied in name at least like slub_object_get(), slub_object_release() and
-> maybe even something like slub_object_get_unless_vacating() if the caller must
-> not sleep. It seems the page cache shares similar problems to what SLUB is
-> doing here.
-
-We already have such an API. See include/linux/mm.h
-
-/*
- * Try to grab a ref unless the page has a refcount of zero, return false 
-if
- * that is the case.
- */
-static inline int get_page_unless_zero(struct page *page)
-{
-        VM_BUG_ON(PageCompound(page));
-        return atomic_inc_not_zero(&page->_count);
-}
-
-
-> Take everything I say here with a grain of salt. My understanding of SLUB is
-> non-existent at the moment and it makes reviewing this a bit tricky.
-
-Thanks for looking at it. This could greatly increase the useful of 
-defragmentation. If all reclaimable slabs would support the hooks then we 
-may even get rid of the reclaimable section?
-
-> > Index: slub/mm/slub.c
-> > ===================================================================
-> > --- slub.orig/mm/slub.c	2007-05-04 13:32:34.000000000 -0700
-> > +++ slub/mm/slub.c	2007-05-04 13:56:25.000000000 -0700
-> > @@ -173,7 +173,7 @@ static struct notifier_block slab_notifi
-> > static enum {
-> > 	DOWN,		/* No slab functionality available */
-> > 	PARTIAL,	/* kmem_cache_open() works but kmalloc does not */
-> > -	UP,		/* Everything works */
-> > +	UP,		/* Everything works but does not show up in sysfs */
+> I.e.
 > 
-> Should this be here?
+> for_each_mem_node?
+> 
+> Then you do not have to check the zone flags all the time. May avoid a lot 
+> of mess?
 
-No that slipped in here somehow.
+OK, here's a rework that exports a node_populated_map and associated
+access functions from page_alloc.c where we already check for populated
+zones.  Maybe this should be "node_hugepages_map" ?  
+
+Also, we might consider exporting this to user space for applications
+that want to "interleave across all nodes with hugepages"--not that
+hugetlbfs mappings currently obey "vma policy".  Could still be used
+with the "set task policy before allocating region" method [not that I
+advocate this method ;-)].
+
+I don't think that a 'for_each_*_node()' macro is appropriate for this
+usage, as allocate_fresh_huge_page() is an "incremental allocator" that
+returns a page from the "next eligible node" on each call.
+
+By the way:  does anything protect the "static int nid" in
+allocate_fresh_huge_page() from racing attempts to set nr_hugepages?
+Can this happen?  Do we care?
+
+Again, I chose to rework Anton's original patch, maintaining his
+rationale/discussion, rather create a separate patch.  Note the "Rework"
+comments therein--especially regarding NORMAL zone.  I expect we'll need
+a few more rounds of "discussion" on this issue.  And, it'll require
+rework to merge with the "change zonelist order" series that hits the
+same area.
+
+Lee
+
+[PATCH] Fix hugetlb pool allocation with empty nodes - V3
+
+Date:	Wed, 2 May 2007 21:21:07 -0500
+From: Anton Blanchard <anton@samba.org>
+To: linux-mm@kvack.org, clameter@SGI.com, ak@suse.de
+Cc: nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org
+Subject: [PATCH] Fix hugetlb pool allocation with empty nodes
+
+An interesting bug was pointed out to me where we failed to allocate
+hugepages evenly. In the example below node 7 has no memory (it only has
+CPUs). Node 0 and 1 have plenty of free memory. After doing:
+
+# echo 16 > /proc/sys/vm/nr_hugepages
+
+We see the imbalance:
+
+# cat /sys/devices/system/node/node*/meminfo|grep HugePages_Total
+Node 0 HugePages_Total:     6
+Node 1 HugePages_Total:     10
+Node 7 HugePages_Total:     0
+
+It didn't take long to realise that alloc_fresh_huge_page is allocating
+from node 7 without GFP_THISNODE set, so we fallback to its next
+preferred node (ie 1). This means we end up with a 1/3 2/3 imbalance.
+
+After fixing this it still didnt work, and after some more poking I see
+why. When building our fallback zonelist in build_zonelists_node we
+skip empty zones. This means zone 7 never registers node 7's empty
+zonelists and instead registers node 1's. Therefore when we ask for a
+page from node 7, using the GFP_THISNODE flag we end up with node 1
+memory.
+
+By removing the populated_zone() check in build_zonelists_node we fix
+the problem:
+
+# cat /sys/devices/system/node/node*/meminfo|grep HugePages_Total
+Node 0 HugePages_Total:     8
+Node 1 HugePages_Total:     8
+Node 7 HugePages_Total:     0
+
+Im guessing registering empty remote zones might make the SGI guys a bit
+unhappy, maybe we should just force the registration of empty local
+zones? Does anyone care?
+
+Rework:
+
+Create node_populated_map and access functions [nodemask.h] to describe
+nodes with populated gfp_zone(GFP_HIGHUSER).  Note that on x86, this
+excludes nodes with only DMA* or NORMAL memory--i.e., no hugepages below
+4G.  
+
+Populate the map while building zonelists, where we already check for
+populated zones.  This is early enough for boot time allocation of
+huge pages.
+
+Attempt to allocate "fresh" huge pages only from nodes in the populated
+map.
+
+Tested on ia64 numa platform with both boot time and run time allocation
+of huge pages.
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Anton Blanchard <anton@samba.org>
+ include/linux/nodemask.h |    9 +++++++++
+ mm/hugetlb.c             |   20 +++++++++++++++-----
+ mm/page_alloc.c          |   13 +++++++++++--
+ 3 files changed, 35 insertions(+), 7 deletions(-)
+
+Index: Linux/mm/hugetlb.c
+===================================================================
+--- Linux.orig/mm/hugetlb.c	2007-05-08 10:27:15.000000000 -0400
++++ Linux/mm/hugetlb.c	2007-05-09 11:17:30.000000000 -0400
+@@ -107,11 +107,21 @@ static int alloc_fresh_huge_page(void)
+ {
+ 	static int nid = 0;
+ 	struct page *page;
+-	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
+-					HUGETLB_PAGE_ORDER);
+-	nid = next_node(nid, node_online_map);
+-	if (nid == MAX_NUMNODES)
+-		nid = first_node(node_online_map);
++	int start_nid = nid;
++
++	do {
++		/*
++		 * accept only nodes with populated "HIGHUSER" zone
++		 */
++		if (node_populated(nid))
++			page = alloc_pages_node(nid,
++					GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
++  					HUGETLB_PAGE_ORDER);
++
++		nid = next_node(nid, node_online_map);
++		if (nid == MAX_NUMNODES)
++			nid = first_node(node_online_map);
++	} while (!page && nid != start_nid);
+ 	if (page) {
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		spin_lock(&hugetlb_lock);
+Index: Linux/include/linux/nodemask.h
+===================================================================
+--- Linux.orig/include/linux/nodemask.h	2007-04-25 23:08:32.000000000 -0400
++++ Linux/include/linux/nodemask.h	2007-05-09 10:58:04.000000000 -0400
+@@ -64,12 +64,16 @@
+  *
+  * int node_online(node)		Is some node online?
+  * int node_possible(node)		Is some node possible?
++ * int node_populated(node)		Is some node populated [at 'HIGHUSER]
+  *
+  * int any_online_node(mask)		First online node in mask
+  *
+  * node_set_online(node)		set bit 'node' in node_online_map
+  * node_set_offline(node)		clear bit 'node' in node_online_map
+  *
++ * node_set_poplated(node)		set bit 'node' in node_populated_map
++ * node_not_poplated(node)		clear bit 'node' in node_populated_map
++ *
+  * for_each_node(node)			for-loop node over node_possible_map
+  * for_each_online_node(node)		for-loop node over node_online_map
+  *
+@@ -344,12 +348,14 @@ static inline void __nodes_remap(nodemas
  
-
-> > -	page->flags |= 1 << PG_slab;
-> > -	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
-> > -			SLAB_STORE_USER | SLAB_TRACE))
-> > -		page->flags |= 1 << PG_error;
-> > -
-> > +	page->inuse = 0;
-> 
-> You probably have explained this a million times already and in the main SLUB
-> patches, but why is _count not used?
-
-_count is used by kmem_cache_vacate to insure that the page does not go 
-away. page->inuse is used to make sure that we do not vacate objects in a 
-slab that is just being setup for slab or being torn down and freed.
-_count effect the page allocator. page->inuse the slab processing.
-
-> > /*
-> > + * Vacate all objects in the given slab. Slab must be locked.
-> > + *
-> > + * Will drop and regain and drop the slab lock.
-> > + * Slab must be marked PageActive() to avoid concurrent slab_free from
-> 
-> I just noticed this PageActive() overloading of the page->flags. Is it worth
-> defining SlabPerCPU() as an alias or something?
-
-I have done this already for PageError. Maybe someday.
-
-> > +	/*
-> > +	 * Get a refcount for all used objects. If that fails then
-> > +	 * no KICK callback can be performed.
-> > +	 */
-> > +	for(p = addr; p < addr + s->objects * s->size; p += s->size)
-> > +		if (!test_bit((p - addr) / s->size, map))
-> > +			if (!s->slab_ops->get_reference(p))
-> > +				set_bit((p - addr) / s->size, map);
-> > +
-> 
-> The comment and code implies that only one caller can hold a reference at a
-> time and the count is either 1 or 0.
-
-Multiple callers can hold a reference. If the reference is not gone by the 
-time we do the kick calls then the object will not be freed.
-
-> 
-> (later)
-> 
-> It looks like get_reference() is only intended for use by SLUB. I don't
-> currently see how an implementer of a cache could determine if an object is
-> being actively referenced or not when deciding whether to return 1 for
-> get_reference() unless the cache interally implemented a referencing count
-> API. That might lead to many, similar but subtly different implementations of
-> reference counting.
-
-Right the reclaimable caches in general implement such a scheme. The hook 
-is there so that the different implementations of reference counting can 
-be handled.
-
-> 
-> > +	/* Got all the references we need. Now we can drop the slab lock */
-> > +	slab_unlock(page);
-> > +
-> 
-> Where did we check we got all the references? It looks more like we got all
-> the references we could.
-
-Right. We only reclaim on those where we did get references. The others 
-may fail or succeed (concurrent free) independently.
-
-> > +
-> > +/*
-> > + * Attempt to free objects in a page. Return 1 when succesful.
-> > + */
-> 
-> when or if? Looks more like if
-
-Right. Sorry in German if = when
-
-> > +	if (!PageSlab(page) || PageActive(page) || !page->inuse) {
-> > +		slab_unlock(page);
-> > +		goto out;
-> > +	}
-> > +
-> 
-> The PageActive() part is going to confuse someone eventually because they'll
-> interpret it to mean that slab pages are on the LRU now.
-
-Ok one more argument to have a different name there.
-
-> > +	/*
-> > +	 * We are holding a lock on a slab page that is not in the
-> > +	 * process of being allocated or freed.
-> > +	 */
-> > +	s = page->slab;
-> > +	remove_from_lists(s, page);
-> > +	SetPageActive(page);
-> > +	rc = __kmem_cache_vacate(s, page) == 0;
-> 
-> The name rc is misleading here. I am reading it as reference count, but it's
-> not a reference count at all.
-
-Its the result yes. Need to rename it.
-
-> > +out:
-> > +	put_page(page);
-> > +	return rc;
-> > +}
-> 
-> Where do partially freed slab pages get put back on the lists? Do they just
-> remain off the lists until they are totally freed as a type of lazy free? If
-> so, a wait_on_slab_page_free() call may be needed later.
-
-No putback_slab puts them back. The refcount for the page is separate. 
-This means that a page may be "freed" by SLUB while kmem_cache_vacate 
-is running but it will not really be freed because the refcount is > 0.
-Only if kmem_cache_vacate terminates will the page be returned to the free 
-page pool. Otherwise the page could vanish under us and be used for some 
-other purpose.
-
-> > +/*
-> >  *  kmem_cache_shrink removes empty slabs from the partial lists
-> >  *  and then sorts the partially allocated slabs by the number
-> >  *  of items in use. The slabs with the most items in use
-> > @@ -2137,11 +2251,12 @@ int kmem_cache_shrink(struct kmem_cache
-> > 	int node;
-> > 	int i;
-> > 	struct kmem_cache_node *n;
-> > -	struct page *page;
-> > +	struct page *page, *page2;
-> 
-> page2, is a pretty bad name.
-
-Its a throwaway variable for list operations.
-
+ extern nodemask_t node_online_map;
+ extern nodemask_t node_possible_map;
++extern nodemask_t node_populated_map;
  
-> > +			if (page->inuse > s->objects / 4)
-> > +				break;
-> > +
-> 
-> I get the idea of the check but it may have unexpected consequences if all of
-> the slabs in use happen to be half full.
+ #if MAX_NUMNODES > 1
+ #define num_online_nodes()	nodes_weight(node_online_map)
+ #define num_possible_nodes()	nodes_weight(node_possible_map)
+ #define node_online(node)	node_isset((node), node_online_map)
+ #define node_possible(node)	node_isset((node), node_possible_map)
++#define node_populated(node)	node_isset((node), node_populated_map)
+ #define first_online_node	first_node(node_online_map)
+ #define next_online_node(nid)	next_node((nid), node_online_map)
+ extern int nr_node_ids;
+@@ -375,6 +381,9 @@ extern int nr_node_ids;
+ #define node_set_online(node)	   set_bit((node), node_online_map.bits)
+ #define node_set_offline(node)	   clear_bit((node), node_online_map.bits)
+ 
++#define node_set_populated(node)   set_bit((node), node_populated_map.bits)
++#define node_not_populated(node)   clear_bit((node), node_populated_map.bits)
++
+ #define for_each_node(node)	   for_each_node_mask((node), node_possible_map)
+ #define for_each_online_node(node) for_each_node_mask((node), node_online_map)
+ 
+Index: Linux/mm/page_alloc.c
+===================================================================
+--- Linux.orig/mm/page_alloc.c	2007-05-08 11:47:45.000000000 -0400
++++ Linux/mm/page_alloc.c	2007-05-09 11:16:27.000000000 -0400
+@@ -54,6 +54,9 @@ nodemask_t node_online_map __read_mostly
+ EXPORT_SYMBOL(node_online_map);
+ nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
+ EXPORT_SYMBOL(node_possible_map);
++nodemask_t node_populated_map __read_mostly = NODE_MASK_NONE;
++EXPORT_SYMBOL(node_populated_map);
++
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
+@@ -2021,11 +2024,14 @@ void show_free_areas(void)
+  * Builds allocation fallback zone lists.
+  *
+  * Add all populated zones of a node to the zonelist.
++ * Record nodes with populated gfp_zone(GFP_HIGHUSER) for huge page allocation.
+  */
+ static int __meminit build_zonelists_node(pg_data_t *pgdat,
+-			struct zonelist *zonelist, int nr_zones, enum zone_type zone_type)
++			struct zonelist *zonelist, int nr_zones,
++			enum zone_type zone_type)
+ {
+ 	struct zone *zone;
++	enum zone_type zone_highuser = gfp_zone(GFP_HIGHUSER);
+ 
+ 	BUG_ON(zone_type >= MAX_NR_ZONES);
+ 	zone_type++;
+@@ -2036,7 +2042,10 @@ static int __meminit build_zonelists_nod
+ 		if (populated_zone(zone)) {
+ 			zonelist->zones[nr_zones++] = zone;
+ 			check_highest_zone(zone_type);
+-		}
++			if (zone_type == zone_highuser)
++				node_set_populated(pgdat->node_id);
++		} else if (zone_type == zone_highuser)
++			node_not_populated(pgdat->node_id);
+ 
+ 	} while (zone_type);
+ 	return nr_zones;
 
-I am open for other proposals. I do not want the slabs to be too dense. 
-Having them half full means that SLUB does not have to do any list 
-operations on any kfree operations for awhile.
-
-> 
-> > +			list_move(&page->lru, &zaplist);
-> > +			n->nr_partial--;
-> > +			SetPageActive(page);
-> > +			slab_unlock(page);
-> > +		}
-> 
-> Ok, not sure if this is a problem or not. I don't get why SetPageActive() is
-> being called and it's because I don't understand SLUB yet.
-
-SetPageActive disables all list operations on a slab. If all objects are 
-freed in a slab then the slab is usually freed. If PageActive is set then 
-the slab is left alone.
-
-> > 		spin_unlock_irqrestore(&n->list_lock, flags);
-> > +
-> > +		/* Now we can free objects in the slabs on the zaplist */
-> > +		list_for_each_entry_safe(page, page2, &zaplist, lru) {
-> > +			slab_lock(page);
-> > +			__kmem_cache_vacate(s, page);
-> > +		}
-> 
-> No checking the return value here which is why I think that slab pages once
-> vacated are expected to be off the lists and totally freed. If that is the
-> case, it might have consequences if the cache is badly behaving and never
-> freeing objects.
-
-__kmem_cache_vacate puts the slab back into the lists or frees them. Thus 
-no need to check return codes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
