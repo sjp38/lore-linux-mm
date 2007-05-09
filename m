@@ -1,94 +1,174 @@
-Date: Wed, 09 May 2007 11:59:38 +0900
+Date: Wed, 09 May 2007 12:10:27 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [RFC] memory hotremove patch take 2 [00/10]
-Message-Id: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
+Subject: [RFC] memory hotremove patch take 2 [01/10] (counter of removable page)
+In-Reply-To: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
+References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20070509120132.B906.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+Show #of Movable pages and vmstat.
 
-I rebased and debugged Kame-san's memory hot-remove patches.
-This work is not finished yet. (Some pages keep un-removable status)
-But, I would like to show current progress of it, because it has
-been a long time since previous post, and some bugs are fixed.
+Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
-If you have concern, please check this. Any comments are welcome.
+ arch/ia64/mm/init.c    |    2 ++
+ drivers/base/node.c    |    4 ++++
+ fs/proc/proc_misc.c    |    4 ++++
+ include/linux/kernel.h |    2 ++
+ include/linux/swap.h   |    1 +
+ mm/page_alloc.c        |   22 ++++++++++++++++++++++
+ 6 files changed, 35 insertions(+)
 
-Thanks.
-
----
-
-These patches are for memory hot-remove.
-
-How to use
-  - kernelcore=xx[GMK] must be specified at boottime option to create
-    ZONE_MOVABLE area.
-  - After bootup, execute following.
-     # echo "offline" > /sys/devices/system/memory/memoryX/status
-    
-
-
-Change log from previous version.
-  - Rebase to 2.6.21-mm1.
-  - Old original ZONE_MOVABLE code is removed. Mel-san's ZONE_REMOVABLE
-    for anti-fragmentation is used.
-  - Fix wrong return code check of isolate_lru_page()
-  - Page is isolated ASAP, which was source of page migration when
-    memory-hotremove. In old code, it uses just put_page(),
-    and we expected that migrated source page is catched in
-    __free_one_page() as isolated page. But, it is spooled in
-    per_cpu_page and used soon for next destination page of migration.
-    This was cause of eternal loop in offline_pages().
-  - There is a page which is not mapped but added to swapcache in
-    swap-in code. It was cause of panic in try_to_unmap(). fixed it.
-  - end_pfn is rounded up at memmap_init. If there is a small hole on
-    end of section. These page is not initialized.
-
-TODO:
-  - There are some pages which are un-removable page on memory stress
-    condition. (These pages are set PG_swapcache or PG_mappedtodisk
-    without connecting to lru.)
-  - Should make i386/x86-64/powerpc interface code. But not yet 
-    (really sorry :-( ).
-  - If bootmem parameter or efi's memory map is stored by efi, memory
-    can't be removed even if it is in removable zone.
-  - node hotplug support. (this may needs some amount of patches.)
-  - test under heavy work load and more careful race check.
-  - Fix where we should allocate migration target page from.
-  - Hmmmm.... And so on.
-
-[1] counters patch -- per-zone counter for ZONE_MOVABLE
-
-==page isolation==
-[2] page isolation patch ..... basic defintions of page isolation.
-[3] drain_all_zone_pages patch ..... drain all cpus' pcp pages.
-[4] isolate freed page patch ..... isolate pages in free_area[]
-
-==memory unplug==
-offline a section of pages. isolate specified section and migrate
-content of used pages to out of section. (Because free pages in a
-section is isolated, it never be returned by alloc_pages())
-This patch doesn't care where we should allocate migration new pages from.
-[5] memory unplug core patch --- maybe need more work.
-[6] interface patch          --- "offline" interface support 
-
-==migration nocontext==
-Fix race condition of page migration without process context
-(not taking mm->sem). This patch delayes kmem_cache_free() of
-anon_vma until migration ends.
-[7] migration nocontext patch --- support page migration without
-    acquiring mm->sem. need careful debug...
-
-==other fixes==
-[8] round up end_pfn at memmap_init
-[9] page isolation ASAP when memory-hotremove case.
-[10] fix swapping-in page panic.
+Index: current_test/mm/page_alloc.c
+===================================================================
+--- current_test.orig/mm/page_alloc.c	2007-05-08 15:06:50.000000000 +0900
++++ current_test/mm/page_alloc.c	2007-05-08 15:08:36.000000000 +0900
+@@ -58,6 +58,7 @@ unsigned long totalram_pages __read_most
+ unsigned long totalreserve_pages __read_mostly;
+ long nr_swap_pages;
+ int percpu_pagelist_fraction;
++unsigned long total_movable_pages __read_mostly;
+ 
+ static void __free_pages_ok(struct page *page, unsigned int order);
+ 
+@@ -1827,6 +1828,18 @@ static unsigned int nr_free_zone_pages(i
+ 	return sum;
+ }
+ 
++unsigned int nr_free_movable_pages(void)
++{
++	unsigned long nr_pages = 0;
++	struct zone *zone;
++	int nid;
++
++	for_each_online_node(nid) {
++		zone = &(NODE_DATA(nid)->node_zones[ZONE_MOVABLE]);
++		nr_pages += zone_page_state(zone, NR_FREE_PAGES);
++	}
++	return nr_pages;
++}
+ /*
+  * Amount of free RAM allocatable within ZONE_DMA and ZONE_NORMAL
+  */
+@@ -1889,6 +1902,8 @@ void si_meminfo(struct sysinfo *val)
+ 	val->totalhigh = totalhigh_pages;
+ 	val->freehigh = nr_free_highpages();
+ 	val->mem_unit = PAGE_SIZE;
++	val->movable = total_movable_pages;
++	val->free_movable = nr_free_movable_pages();
+ }
+ 
+ EXPORT_SYMBOL(si_meminfo);
+@@ -1908,6 +1923,11 @@ void si_meminfo_node(struct sysinfo *val
+ 	val->totalhigh = 0;
+ 	val->freehigh = 0;
+ #endif
++
++	val->movable = pgdat->node_zones[ZONE_MOVABLE].present_pages;
++	val->free_movable = zone_page_state(&pgdat->node_zones[ZONE_MOVABLE],
++				NR_FREE_PAGES);
++
+ 	val->mem_unit = PAGE_SIZE;
+ }
+ #endif
+@@ -3216,6 +3236,8 @@ static void __meminit free_area_init_cor
+ 
+ 		zone->spanned_pages = size;
+ 		zone->present_pages = realsize;
++		if (j == ZONE_MOVABLE)
++			total_movable_pages += realsize;
+ #ifdef CONFIG_NUMA
+ 		zone->node = nid;
+ 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+Index: current_test/include/linux/kernel.h
+===================================================================
+--- current_test.orig/include/linux/kernel.h	2007-05-08 15:06:49.000000000 +0900
++++ current_test/include/linux/kernel.h	2007-05-08 15:07:20.000000000 +0900
+@@ -352,6 +352,8 @@ struct sysinfo {
+ 	unsigned short pad;		/* explicit padding for m68k */
+ 	unsigned long totalhigh;	/* Total high memory size */
+ 	unsigned long freehigh;		/* Available high memory size */
++	unsigned long movable;		/* pages used only for data */
++	unsigned long free_movable;	/* Avaiable pages in movable */
+ 	unsigned int mem_unit;		/* Memory unit size in bytes */
+ 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
+ };
+Index: current_test/fs/proc/proc_misc.c
+===================================================================
+--- current_test.orig/fs/proc/proc_misc.c	2007-05-08 15:06:48.000000000 +0900
++++ current_test/fs/proc/proc_misc.c	2007-05-08 15:07:20.000000000 +0900
+@@ -161,6 +161,8 @@ static int meminfo_read_proc(char *page,
+ 		"LowTotal:     %8lu kB\n"
+ 		"LowFree:      %8lu kB\n"
+ #endif
++		"MovableTotal: %8lu kB\n"
++		"MovableFree:  %8lu kB\n"
+ 		"SwapTotal:    %8lu kB\n"
+ 		"SwapFree:     %8lu kB\n"
+ 		"Dirty:        %8lu kB\n"
+@@ -191,6 +193,8 @@ static int meminfo_read_proc(char *page,
+ 		K(i.totalram-i.totalhigh),
+ 		K(i.freeram-i.freehigh),
+ #endif
++		K(i.movable),
++		K(i.free_movable),
+ 		K(i.totalswap),
+ 		K(i.freeswap),
+ 		K(global_page_state(NR_FILE_DIRTY)),
+Index: current_test/drivers/base/node.c
+===================================================================
+--- current_test.orig/drivers/base/node.c	2007-05-08 15:06:10.000000000 +0900
++++ current_test/drivers/base/node.c	2007-05-08 15:07:20.000000000 +0900
+@@ -55,6 +55,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d LowTotal:     %8lu kB\n"
+ 		       "Node %d LowFree:      %8lu kB\n"
+ #endif
++		       "Node %d MovableTotal: %8lu kB\n"
++		       "Node %d MovableFree:  %8lu kB\n"
+ 		       "Node %d Dirty:        %8lu kB\n"
+ 		       "Node %d Writeback:    %8lu kB\n"
+ 		       "Node %d FilePages:    %8lu kB\n"
+@@ -77,6 +79,8 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.totalram - i.totalhigh),
+ 		       nid, K(i.freeram - i.freehigh),
+ #endif
++		       nid, K(i.movable),
++		       nid, K(i.free_movable),
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+ 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+ 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+Index: current_test/arch/ia64/mm/init.c
+===================================================================
+--- current_test.orig/arch/ia64/mm/init.c	2007-05-08 15:06:38.000000000 +0900
++++ current_test/arch/ia64/mm/init.c	2007-05-08 15:08:29.000000000 +0900
+@@ -700,6 +700,8 @@ void online_page(struct page *page)
+ 	__free_page(page);
+ 	totalram_pages++;
+ 	num_physpages++;
++	if (page_zonenum(page) == ZONE_MOVABLE)
++		total_movable_pages++;
+ }
+ 
+ int arch_add_memory(int nid, u64 start, u64 size)
+Index: current_test/include/linux/swap.h
+===================================================================
+--- current_test.orig/include/linux/swap.h	2007-05-08 15:06:49.000000000 +0900
++++ current_test/include/linux/swap.h	2007-05-08 15:07:20.000000000 +0900
+@@ -169,6 +169,7 @@ extern void swapin_readahead(swp_entry_t
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
++extern unsigned long total_movable_pages;
+ extern long nr_swap_pages;
+ extern unsigned int nr_free_buffer_pages(void);
+ extern unsigned int nr_free_pagecache_pages(void);
 
 -- 
 Yasunori Goto 
