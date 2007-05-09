@@ -1,61 +1,98 @@
-Date: Wed, 9 May 2007 10:20:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
- order selection
-Message-Id: <20070509102018.8aaf21ed.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070508175855.b126caf7.akpm@linux-foundation.org>
-References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
-	<1178643985.5203.27.camel@localhost>
-	<Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
-	<1178645622.5203.53.camel@localhost>
-	<Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
-	<1178656627.5203.84.camel@localhost>
-	<20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070508175855.b126caf7.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Wed, 09 May 2007 11:59:38 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [RFC] memory hotremove patch take 2 [00/10]
+Message-Id: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee.Schermerhorn@hp.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, jbarnes@virtuousgeek.org
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 May 2007 17:58:55 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+Hello.
 
-> On Wed, 9 May 2007 09:29:12 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Tue, 08 May 2007 16:37:06 -0400
-> > Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> > 
-> > > > You probably need a 
-> > > > configuration with a couple of nodes. Maybesomething less symmetric than 
-> > > > Kame? I.e. have 4GB nodes and then DMA32 takes out a sizeable chunk of it?
-> > > > 
-> > > 
-> > > I tested on a 2 socket, 4GB Opteron blade.  All memory is either DMA32
-> > > or DMA.  I added some ad hoc instrumentation to the build_zonelist_*
-> > > functions to see what's happening.  I have verified that the patches
-> > > appear to build the zonelists correctly:
-> > > 
-> > Thank you. good news.
-> > 
-> 
-> I'm still cowering in fear of these patches, btw.
-> 
-Hmm, the patches looks unclear ? 
+I rebased and debugged Kame-san's memory hot-remove patches.
+This work is not finished yet. (Some pages keep un-removable status)
+But, I would like to show current progress of it, because it has
+been a long time since previous post, and some bugs are fixed.
 
-> Please keep testing and sending them ;)
-> 
-Okay. but it seems I need other testers...
+If you have concern, please check this. Any comments are welcome.
 
-I wonder I should drop sysctl of this patch and just support boot option
-in next version.
+Thanks.
 
--Kame
+---
+
+These patches are for memory hot-remove.
+
+How to use
+  - kernelcore=xx[GMK] must be specified at boottime option to create
+    ZONE_MOVABLE area.
+  - After bootup, execute following.
+     # echo "offline" > /sys/devices/system/memory/memoryX/status
+    
+
+
+Change log from previous version.
+  - Rebase to 2.6.21-mm1.
+  - Old original ZONE_MOVABLE code is removed. Mel-san's ZONE_REMOVABLE
+    for anti-fragmentation is used.
+  - Fix wrong return code check of isolate_lru_page()
+  - Page is isolated ASAP, which was source of page migration when
+    memory-hotremove. In old code, it uses just put_page(),
+    and we expected that migrated source page is catched in
+    __free_one_page() as isolated page. But, it is spooled in
+    per_cpu_page and used soon for next destination page of migration.
+    This was cause of eternal loop in offline_pages().
+  - There is a page which is not mapped but added to swapcache in
+    swap-in code. It was cause of panic in try_to_unmap(). fixed it.
+  - end_pfn is rounded up at memmap_init. If there is a small hole on
+    end of section. These page is not initialized.
+
+TODO:
+  - There are some pages which are un-removable page on memory stress
+    condition. (These pages are set PG_swapcache or PG_mappedtodisk
+    without connecting to lru.)
+  - Should make i386/x86-64/powerpc interface code. But not yet 
+    (really sorry :-( ).
+  - If bootmem parameter or efi's memory map is stored by efi, memory
+    can't be removed even if it is in removable zone.
+  - node hotplug support. (this may needs some amount of patches.)
+  - test under heavy work load and more careful race check.
+  - Fix where we should allocate migration target page from.
+  - Hmmmm.... And so on.
+
+[1] counters patch -- per-zone counter for ZONE_MOVABLE
+
+==page isolation==
+[2] page isolation patch ..... basic defintions of page isolation.
+[3] drain_all_zone_pages patch ..... drain all cpus' pcp pages.
+[4] isolate freed page patch ..... isolate pages in free_area[]
+
+==memory unplug==
+offline a section of pages. isolate specified section and migrate
+content of used pages to out of section. (Because free pages in a
+section is isolated, it never be returned by alloc_pages())
+This patch doesn't care where we should allocate migration new pages from.
+[5] memory unplug core patch --- maybe need more work.
+[6] interface patch          --- "offline" interface support 
+
+==migration nocontext==
+Fix race condition of page migration without process context
+(not taking mm->sem). This patch delayes kmem_cache_free() of
+anon_vma until migration ends.
+[7] migration nocontext patch --- support page migration without
+    acquiring mm->sem. need careful debug...
+
+==other fixes==
+[8] round up end_pfn at memmap_init
+[9] page isolation ASAP when memory-hotremove case.
+[10] fix swapping-in page panic.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
