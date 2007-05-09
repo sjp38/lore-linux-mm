@@ -1,35 +1,41 @@
-Date: Wed, 9 May 2007 09:23:07 +0900
+Date: Wed, 9 May 2007 09:29:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] change zonelist order v5 [3/3] documentation
-Message-Id: <20070509092307.294cf95f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1178644135.5203.31.camel@localhost>
+Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
+ order selection
+Message-Id: <20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1178656627.5203.84.camel@localhost>
 References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
-	<20070508201904.0ee47ca2.kamezawa.hiroyu@jp.fujitsu.com>
-	<1178644135.5203.31.camel@localhost>
+	<20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
+	<1178643985.5203.27.camel@localhost>
+	<Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
+	<1178645622.5203.53.camel@localhost>
+	<Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
+	<1178656627.5203.84.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
+Cc: clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 08 May 2007 13:08:55 -0400
+On Tue, 08 May 2007 16:37:06 -0400
 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-> On Tue, 2007-05-08 at 20:19 +0900, KAMEZAWA Hiroyuki wrote:
-> > Patch for documentation.
-> > 
-> > Signed-Off-By: KAMEZAWA hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > You probably need a 
+> > configuration with a couple of nodes. Maybesomething less symmetric than 
+> > Kame? I.e. have 4GB nodes and then DMA32 takes out a sizeable chunk of it?
 > > 
 > 
-> Will send followup patch with minor editorial changes.
-> Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> I tested on a 2 socket, 4GB Opteron blade.  All memory is either DMA32
+> or DMA.  I added some ad hoc instrumentation to the build_zonelist_*
+> functions to see what's happening.  I have verified that the patches
+> appear to build the zonelists correctly:
 > 
-Thank you. it's helpful.
+Thank you. good news.
 
--kame
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
