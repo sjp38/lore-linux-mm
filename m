@@ -1,43 +1,69 @@
-Subject: Re: [rfc] optimise unlock_page
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
-References: <20070508113709.GA19294@wotan.suse.de>
-	 <20070508114003.GB19294@wotan.suse.de>
-	 <1178659827.14928.85.camel@localhost.localdomain>
-	 <20070508224124.GD20174@wotan.suse.de>
-	 <20070508225012.GF20174@wotan.suse.de>
-	 <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
-Content-Type: text/plain
-Date: Thu, 10 May 2007 07:21:30 +1000
-Message-Id: <1178745690.14928.167.camel@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <46424A27.2030103@yahoo.com.au>
+Date: Thu, 10 May 2007 08:24:39 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: 2.6.22 -mm merge plans -- vm bugfixes
+References: <20070430162007.ad46e153.akpm@linux-foundation.org> <4636FDD7.9080401@yahoo.com.au> <Pine.LNX.4.64.0705011931520.16502@blonde.wat.veritas.com> <4638009E.3070408@yahoo.com.au> <Pine.LNX.4.64.0705021418030.16517@blonde.wat.veritas.com> <4641BFCE.6090200@yahoo.com.au> <Pine.LNX.4.64.0705091522110.15345@blonde.wat.veritas.com> <4641DE7D.6000902@yahoo.com.au> <Pine.LNX.4.64.0705091612100.18822@blonde.wat.veritas.com>
+In-Reply-To: <Pine.LNX.4.64.0705091612100.18822@blonde.wat.veritas.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-> Not good enough, I'm afraid.  It looks like Ben's right and you need
-> a count - and counts in the page struct are a lot harder to add than
-> page flags.
+Hugh Dickins wrote:
+> On Thu, 10 May 2007, Nick Piggin wrote:
 > 
-> I've now played around with the hangs on my three 4CPU machines
-> (all of them in io_schedule below __lock_page, waiting on pages
-> which were neither PG_locked nor PG_waiters when I looked).
+>>>The filesystem (or page cache) allows pages beyond i_size to come
+>>>in there?  That wasn't a problem before, was it?  But now it is?
+>>
+>>The filesystem still doesn't, but if i_size is updated after the page
+>>is returned, we can have a problem that was previously taken care of
+>>with the truncate_count but now isn't.
 > 
-> Seeing Ben's mail, I thought the answer would be just to remove
-> the "_exclusive" from your three prepare_to_wait_exclusive()s.
-> That helped, but it didn't eliminate the hangs.
+> 
+> But... I thought the page lock was now taking care of that in your
+> scheme?  truncate_inode_pages has to wait for the page lock, then
+> it finds the page is mapped and... ahh, it finds the copiee page
+> is not mapped, so doesn't do its own little unmap_mapping_range,
+> and the copied page squeaks through.  Drat.
+> 
+> I really think the truncate_count solution worked better, for
+> truncation anyway.  There may be persuasive reasons you need the
+> page lock for invalidation: I gave up on trying to understand the
+> required behaviour(s) for invalidation.
+> 
+> So, bring back (the original use of, not my tree marker use of)
+> truncate_count?  Hmm, you probably don't want to do that, because
+> there was some pleasure in removing the strange barriers associated
+> with it.
+> 
+> A second unmap_mapping_range is just one line of code - but it sure
+> feels like a defeat to me, calling the whole exercise into question.
+> (But then, you'd be right to say my perfectionism made it impossible
+> for me to come up with any solution to the invalidation issues.)
 
-There might be a way ... by having the flags manipulation always
-atomically deal with PG_locked and PG_waiters together. This is possible
-but we would need even more weirdo bitops abstractions from the arch I'm
-afraid... unless we start using atomic_* rather that bitops in order to
-manipulate multiple bits at a time.
+Well we could bring back the truncate_count, but I think that sucks
+because that's moving work into the page fault handler in order to
+avoid a bit of work when truncating mapped files.
 
-Ben.
 
+>>>But that's a change we could have made at
+>>>any time if we'd bothered, it's not really the issue here.
+>>
+>>I don't see how you could, because you need to increment truncate_count.
+> 
+> 
+> Though indeed we did so, I don't see that we needed to increment
+> truncate_count in that case (nobody could be coming through
+> do_no_page on that file, when there are no mappings of it).
+
+Of course :P
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
