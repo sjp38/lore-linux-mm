@@ -1,54 +1,35 @@
-Message-ID: <46410DFB.2080507@yahoo.com.au>
-Date: Wed, 09 May 2007 09:55:39 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: SLUB: Reduce antifrag max order (fwd)
-References: <Pine.LNX.4.64.0705081416140.20563@skynet.skynet.ie> <46407DD4.7080101@shadowen.org>
-In-Reply-To: <46407DD4.7080101@shadowen.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Wed, 9 May 2007 09:23:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] change zonelist order v5 [3/3] documentation
+Message-Id: <20070509092307.294cf95f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1178644135.5203.31.camel@localhost>
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070508201904.0ee47ca2.kamezawa.hiroyu@jp.fujitsu.com>
+	<1178644135.5203.31.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, akpm@linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clameter@sgi.com, akpm@linux-foundation.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft wrote:
-> Mel Gorman wrote:
-> 
->>Sorry for resend, I didn't add Andy to the cc as intended.
->>
->>On Sat, 5 May 2007, Christoph Lameter wrote:
->>
->>
->>>My test systems fails to obtain order 4 allocs after prolonged use.
->>>So the Antifragmentation patches are unable to guarantee order 4
->>>blocks after a while (straight compile, edit load).
->>>
->>
->>Anti-frag still depends on reclaim to take place and I imagine you have
->>not altered min_free_kbytes to keep pages free. Also, I don't think
->>kswapd is currently making any effort to keep blocks free at a known
->>desired order although I'm cc'ing Andy Whitcroft to confirm. As the
->>kernel gives up easily when order > PAGE_ALLOC_COSTLY_ORDER, prehaps you
->>should be using PAGE_ALLOC_COSTLY_ORDER instead of
->>DEFAULT_ANTIFRAG_MAX_ORDER for SLUB.
-> 
-> 
-> kswapd only reactively uses orders above 0.  If allocations are pushing
-> below the high water marks those will trigger kswapd to reclaim at their
-> highest order.  No attempt overall is made to keep "some" higher order
-> pages free.
+On Tue, 08 May 2007 13:08:55 -0400
+Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
 
-It does try, if you have a look at zone_watermark_ok. But it doesn't
-check for pages of a higher order than are being allocated (ie. so
-an order-0 alloc could split the last free order-3 page).
+> On Tue, 2007-05-08 at 20:19 +0900, KAMEZAWA Hiroyuki wrote:
+> > Patch for documentation.
+> > 
+> > Signed-Off-By: KAMEZAWA hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> 
+> Will send followup patch with minor editorial changes.
+> Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+> 
+Thank you. it's helpful.
 
-This is intentional, because if your workload isn't doing any higher
-order allocations, it should not be trying to keep any free.
-
--- 
-SUSE Labs, Novell Inc.
+-kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
