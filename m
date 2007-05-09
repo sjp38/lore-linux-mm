@@ -1,36 +1,43 @@
-Date: Wed, 9 May 2007 13:54:15 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
-In-Reply-To: <1178743039.5047.85.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0705091353390.30265@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten>  <1178310543.5236.43.camel@localhost>
-  <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
- <1178728661.5047.64.camel@localhost>  <29495f1d0705091259t2532358ana4defb7c4e2a7560@mail.gmail.com>
- <1178743039.5047.85.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc] optimise unlock_page
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
+References: <20070508113709.GA19294@wotan.suse.de>
+	 <20070508114003.GB19294@wotan.suse.de>
+	 <1178659827.14928.85.camel@localhost.localdomain>
+	 <20070508224124.GD20174@wotan.suse.de>
+	 <20070508225012.GF20174@wotan.suse.de>
+	 <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
+Content-Type: text/plain
+Date: Thu, 10 May 2007 07:21:30 +1000
+Message-Id: <1178745690.14928.167.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Nish Aravamudan <nish.aravamudan@gmail.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>, William Lee Irwin III <wli@holomorphy.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2007, Lee Schermerhorn wrote:
-
-> > 
-> > > +                       page = alloc_pages_node(nid,
-> > > +                                       GFP_HIGHUSER|__GFP_COMP|GFP_THISNODE,
-> > > +                                       HUGETLB_PAGE_ORDER);
-> > 
-> > Are we taking out the GFP_NOWARN for a reason? I noticed this in
-> > Anton's patch, but forgot to ask.
+> Not good enough, I'm afraid.  It looks like Ben's right and you need
+> a count - and counts in the page struct are a lot harder to add than
+> page flags.
 > 
-> Actually, I hadn't noticed, but a quick look shows that GFP_THISNODE
-> contains the __GFP_NOWARN flag, as well as '_NORETRY which I think is
-> OK/desirable.
+> I've now played around with the hangs on my three 4CPU machines
+> (all of them in io_schedule below __lock_page, waiting on pages
+> which were neither PG_locked nor PG_waiters when I looked).
+> 
+> Seeing Ben's mail, I thought the answer would be just to remove
+> the "_exclusive" from your three prepare_to_wait_exclusive()s.
+> That helped, but it didn't eliminate the hangs.
 
-It is required because GFP_THISNODE needs to fail if it cannot get memory 
-from the right node.
+There might be a way ... by having the flags manipulation always
+atomically deal with PG_locked and PG_waiters together. This is possible
+but we would need even more weirdo bitops abstractions from the arch I'm
+afraid... unless we start using atomic_* rather that bitops in order to
+manipulate multiple bits at a time.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
