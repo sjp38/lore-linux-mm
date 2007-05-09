@@ -1,124 +1,86 @@
-Date: Wed, 9 May 2007 20:33:15 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [rfc] optimise unlock_page
-In-Reply-To: <20070508225012.GF20174@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0705091950080.2909@blonde.wat.veritas.com>
-References: <20070508113709.GA19294@wotan.suse.de> <20070508114003.GB19294@wotan.suse.de>
- <1178659827.14928.85.camel@localhost.localdomain> <20070508224124.GD20174@wotan.suse.de>
- <20070508225012.GF20174@wotan.suse.de>
+Date: Wed, 9 May 2007 20:44:31 +0100 (BST)
+From: Mark Fortescue <mark@mtfhpc.demon.co.uk>
+Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
+In-Reply-To: <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
+Message-ID: <Pine.LNX.4.61.0705092005060.29444@mtfhpc.demon.co.uk>
+References: <20070430145414.88fda272.akpm@linux-foundation.org>
+ <20070430.150407.07642146.davem@davemloft.net>  <1177977619.24962.6.camel@localhost.localdomain>
+  <20070430.173806.112621225.davem@davemloft.net>
+ <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
+ <1177985136.24962.8.camel@localhost.localdomain>
+ <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
+ <1178055110.13263.2.camel@localhost.localdomain>
+ <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2007, Nick Piggin wrote:
-> On Wed, May 09, 2007 at 12:41:24AM +0200, Nick Piggin wrote:
-> > On Wed, May 09, 2007 at 07:30:27AM +1000, Benjamin Herrenschmidt wrote:
-> > > 
-> > > Waking them all would fix it but at the risk of causing other
-> > > problems... Maybe PG_waiters need to actually be a counter but if that
-> > > is the case, then it complicates things even more.
-> > 
-> > It will wake up 1 exclusive waiter, but no limit on non exclusive waiters.
-> > Hmm, but it won't wake up waiters behind the exclusive guy... maybe the
-> > wake up code can check whether the waitqueue is still active after the
-> > wakeup, and set PG_waiters again in that case?
-> 
-> Hm, I don't know if we can do that without a race either...
-> 
-> OTOH, waking all non exclusive waiters may not be a really bad idea.
+Hi Ben,
 
-Not good enough, I'm afraid.  It looks like Ben's right and you need
-a count - and counts in the page struct are a lot harder to add than
-page flags.
+Is it worth formally sending in either of my patches or does more work 
+need to be done first?
 
-I've now played around with the hangs on my three 4CPU machines
-(all of them in io_schedule below __lock_page, waiting on pages
-which were neither PG_locked nor PG_waiters when I looked).
+If you would like me to test any changes, it takes me app. 2 hours to 
+cross-compile a sparc kernel for my sun4c. I use my sparc system as a 
+diskless client with a very minimal setup to alow me to test cross 
+compiled GCC and any small platform independent code I may be working on.
 
-Seeing Ben's mail, I thought the answer would be just to remove
-the "_exclusive" from your three prepare_to_wait_exclusive()s.
-That helped, but it didn't eliminate the hangs.
+I have not yet tried to get linux-2.6.21 or later working but for the test 
+setup I have been using, it should not take too long if that is the kernel 
+needed for testing.
 
-After fiddling around with different ideas for some while, I came
-to realize that the ClearPageWaiters (in very misleadingly named
-__unlock_page) is hopeless.  It's just so easy for it to clear the
-PG_waiters that a third task relies upon for wakeup (and which
-cannot loop around to set it again, because it simply won't be
-woken by unlock_page/__unlock_page without it already being set).
+I may also be able to do the same testing on an embedded PowerPC (32bit) 
+(it will need some work to get my cross compilation system working again 
+as some kernel changes in the ppc/powerpc architechture have proven to be 
+incompatible with my build scripts) and on x86_64/ix86. Once I have fixed 
+the build scripts, it will take app. 4 to 6 hours to get the initial NFS 
+root minimal system built for these additional architectures and then app. 
+2 hours for each test kernel build.
 
-Below is the patch I've applied to see some tests actually running
-with your patches, but it's just a joke: absurdly racy and
-presumptuous in itself (the "3" stands for us and the cache and one
-waiter; I deleted the neighbouring mb and comment, not because I
-disagree, but because it's ridiculous to pay so much attention to
-such unlikely races when there's much worse nearby).  Though I've
-not checked: if I've got the counting wrong, then maybe all my
-pages are left marked PG_waiters by now.
+If a simple ADA build is not considered a suficiently harsh test, then I 
+could cross compile a specialist test application, if one is available, or 
+compile a more extensive application (maybe gcc) on the test system. The 
+problem of compiling a more extensive application on the sparc system is 
+that it is a slow system running as a diskless client with its NFS root on 
+an aging i486 over a 10MBit Ethernet. The result is it will take days to 
+compile somthing like gcc.
 
-(I did imagine we could go back to prepare_to_wait_exclusive
-once I'd put in the page_count test before ClearPageWaiters;
-but apparently not, that still hung.)
+Regards
+ 	Mark Fortescue
 
-My intention had been to apply the patches to what I tested before
-with lmbench, to get comparative numbers; but I don't think this
-is worth the time, it's too far from being a real solution.
+On Wed, 2 May 2007, Mark Fortescue wrote:
 
-I was puzzled as to how you came up with any performance numbers
-yourself, when I could hardly boot.  I see you mentioned 2CPU G5,
-I guess you need a CPU or two more; or maybe it's that you didn't
-watch what happened as it booted, often those hangs recover later.
-
-Hugh
-
---- a/mm/filemap.c	2007-05-08 20:17:31.000000000 +0100
-+++ b/mm/filemap.c	2007-05-09 19:14:03.000000000 +0100
-@@ -517,13 +517,8 @@ EXPORT_SYMBOL(wait_on_page_bit);
-  */
- void fastcall __unlock_page(struct page *page)
- {
--	ClearPageWaiters(page);
-- 	/*
--	 * The mb is necessary to enforce ordering between the clear_bit and
--	 * the read of the waitqueue (to avoid SMP races with a parallel
--	 * wait_on_page_locked()
--	 */
--	smp_mb__after_clear_bit();
-+	if (page_count(page) <= 3 + page_has_buffers(page)+page_mapcount(page))
-+		ClearPageWaiters(page);
- 	wake_up_page(page, PG_locked);
- }
- EXPORT_SYMBOL(__unlock_page);
-@@ -558,7 +553,7 @@ void fastcall __lock_page(struct page *p
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
- 	do {
--		prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
-+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
- 		SetPageWaiters(page);
- 		if (likely(PageLocked(page)))
- 			sync_page(page);
-@@ -577,7 +572,7 @@ void fastcall __lock_page_nosync(struct 
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
- 	do {
--		prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
-+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
- 		SetPageWaiters(page);
- 		if (likely(PageLocked(page)))
- 			io_schedule();
-@@ -591,7 +586,7 @@ void fastcall __wait_on_page_locked(stru
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
- 	do {
--		prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
-+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
- 		SetPageWaiters(page);
- 		if (likely(PageLocked(page)))
- 			sync_page(page);
+>
+>
+> On Wed, 2 May 2007, Benjamin Herrenschmidt wrote:
+>
+>> 
+>>> I have attached a patch (so pine does not mangle it) for linux-2.6.20.9.
+>>> Is this what you had in mind?
+>>> 
+>>> For linux-2.6.21, more work will be needed as it has more code calling
+>>> ptep_set_access_flags.
+>> 
+>> I'm not 100% sure we need the 'update' argument... we can remove the
+>> whole old_entry, pte_same, etc... and just have pte_set_access_flags()
+>> read the old PTE and decide wether something needs to be changed or not.
+>> 
+>> Ben.
+>> 
+>> 
+>
+> The attached patch works on sun4c (with my simple ADA compile test) but the 
+> change in functionality may break things other platforms.
+>
+> The advantage of the previous patch is that the functionality is only changed 
+> for sparc sun4c so less testing would be required.
+>
+> Regards
+> 	Mark Fortescue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
