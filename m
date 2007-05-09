@@ -1,174 +1,343 @@
-Date: Wed, 09 May 2007 12:10:27 +0900
+Date: Wed, 09 May 2007 12:10:38 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: [RFC] memory hotremove patch take 2 [01/10] (counter of removable page)
+Subject: [RFC] memory hotremove patch take 2 [02/10] (make page unused)
 In-Reply-To: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
 References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
-Message-Id: <20070509120132.B906.Y-GOTO@jp.fujitsu.com>
+Message-Id: <20070509120248.B908.Y-GOTO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@osdl.org>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Show #of Movable pages and vmstat.
+This patch is for supporting making page unused.
+
+Isolate pages by capturing freed pages before inserting free_area[],
+buddy allocator.
+If you have an idea for avoiding spin_lock(), please advise me.
+
+Isolating pages in free_area[] is implemented in other patch.
 
 Signed-Off-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
- arch/ia64/mm/init.c    |    2 ++
- drivers/base/node.c    |    4 ++++
- fs/proc/proc_misc.c    |    4 ++++
- include/linux/kernel.h |    2 ++
- include/linux/swap.h   |    1 +
- mm/page_alloc.c        |   22 ++++++++++++++++++++++
- 6 files changed, 35 insertions(+)
 
+ include/linux/mmzone.h         |    8 +
+ include/linux/page_isolation.h |   52 +++++++++++
+ mm/Kconfig                     |    7 +
+ mm/page_alloc.c                |  187 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 254 insertions(+)
+
+Index: current_test/include/linux/mmzone.h
+===================================================================
+--- current_test.orig/include/linux/mmzone.h	2007-05-08 15:06:49.000000000 +0900
++++ current_test/include/linux/mmzone.h	2007-05-08 15:08:03.000000000 +0900
+@@ -314,6 +314,14 @@ struct zone {
+ 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
+ 	unsigned long		zone_start_pfn;
+ 
++#ifdef CONFIG_PAGE_ISOLATION
++	/*
++	 *  For pages which are not used but not free.
++	 *  See include/linux/page_isolation.h
++	 */
++	spinlock_t		isolation_lock;
++	struct list_head	isolation_list;
++#endif
+ 	/*
+ 	 * zone_start_pfn, spanned_pages and present_pages are all
+ 	 * protected by span_seqlock.  It is a seqlock because it has
 Index: current_test/mm/page_alloc.c
 ===================================================================
---- current_test.orig/mm/page_alloc.c	2007-05-08 15:06:50.000000000 +0900
-+++ current_test/mm/page_alloc.c	2007-05-08 15:08:36.000000000 +0900
-@@ -58,6 +58,7 @@ unsigned long totalram_pages __read_most
- unsigned long totalreserve_pages __read_mostly;
- long nr_swap_pages;
- int percpu_pagelist_fraction;
-+unsigned long total_movable_pages __read_mostly;
+--- current_test.orig/mm/page_alloc.c	2007-05-08 15:07:20.000000000 +0900
++++ current_test/mm/page_alloc.c	2007-05-08 15:08:34.000000000 +0900
+@@ -41,6 +41,7 @@
+ #include <linux/pfn.h>
+ #include <linux/backing-dev.h>
+ #include <linux/fault-inject.h>
++#include <linux/page_isolation.h>
  
- static void __free_pages_ok(struct page *page, unsigned int order);
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -448,6 +449,9 @@ static inline void __free_one_page(struc
+ 	if (unlikely(PageCompound(page)))
+ 		destroy_compound_page(page, order);
  
-@@ -1827,6 +1828,18 @@ static unsigned int nr_free_zone_pages(i
- 	return sum;
++	if (page_under_isolation(zone, page, order))
++		return;
++
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+ 
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+@@ -3259,6 +3263,10 @@ static void __meminit free_area_init_cor
+ 		zone->nr_scan_inactive = 0;
+ 		zap_zone_vm_stats(zone);
+ 		atomic_set(&zone->reclaim_in_progress, 0);
++#ifdef CONFIG_PAGE_ISOLATION
++		spin_lock_init(&zone->isolation_lock);
++		INIT_LIST_HEAD(&zone->isolation_list);
++#endif
+ 		if (!size)
+ 			continue;
+ 
+@@ -4214,3 +4222,182 @@ void set_pageblock_flags_group(struct pa
+ 		else
+ 			__clear_bit(bitidx + start_bitidx, bitmap);
  }
- 
-+unsigned int nr_free_movable_pages(void)
++
++#ifdef CONFIG_PAGE_ISOLATION
++/*
++ * Page Isolation.
++ *
++ * If a page is removed from usual free_list and will never be used,
++ * It is linked to "struct isolation_info" and set Reserved, Private
++ * bit. page->mapping points to isolation_info in it.
++ * and page_count(page) is 0.
++ *
++ * This can be used for creating a chunk of contiguous *unused* memory.
++ *
++ * current user is Memory-Hot-Remove.
++ * maybe move to some other file is better.
++ */
++static void
++isolate_page_nolock(struct isolation_info *info, struct page *page, int order)
 +{
-+	unsigned long nr_pages = 0;
-+	struct zone *zone;
-+	int nid;
-+
-+	for_each_online_node(nid) {
-+		zone = &(NODE_DATA(nid)->node_zones[ZONE_MOVABLE]);
-+		nr_pages += zone_page_state(zone, NR_FREE_PAGES);
++	int pagenum;
++	pagenum = 1 << order;
++	while (pagenum > 0) {
++		SetPageReserved(page);
++		SetPagePrivate(page);
++		page->private = (unsigned long)info;
++		list_add(&page->lru, &info->pages);
++		page++;
++		pagenum--;
 +	}
-+	return nr_pages;
 +}
- /*
-  * Amount of free RAM allocatable within ZONE_DMA and ZONE_NORMAL
-  */
-@@ -1889,6 +1902,8 @@ void si_meminfo(struct sysinfo *val)
- 	val->totalhigh = totalhigh_pages;
- 	val->freehigh = nr_free_highpages();
- 	val->mem_unit = PAGE_SIZE;
-+	val->movable = total_movable_pages;
-+	val->free_movable = nr_free_movable_pages();
- }
- 
- EXPORT_SYMBOL(si_meminfo);
-@@ -1908,6 +1923,11 @@ void si_meminfo_node(struct sysinfo *val
- 	val->totalhigh = 0;
- 	val->freehigh = 0;
- #endif
 +
-+	val->movable = pgdat->node_zones[ZONE_MOVABLE].present_pages;
-+	val->free_movable = zone_page_state(&pgdat->node_zones[ZONE_MOVABLE],
-+				NR_FREE_PAGES);
++/*
++ * This function is called from page_under_isolation()l
++ */
 +
- 	val->mem_unit = PAGE_SIZE;
- }
- #endif
-@@ -3216,6 +3236,8 @@ static void __meminit free_area_init_cor
++int __page_under_isolation(struct zone *zone, struct page *page, int order)
++{
++	struct isolation_info *info;
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long flags;
++	int found = 0;
++
++	spin_lock_irqsave(&zone->isolation_lock,flags);
++	list_for_each_entry(info, &zone->isolation_list, list) {
++		if (info->start_pfn <= pfn && pfn < info->end_pfn) {
++			found = 1;
++			break;
++		}
++	}
++	if (found) {
++		isolate_page_nolock(info, page, order);
++	}
++	spin_unlock_irqrestore(&zone->isolation_lock, flags);
++	return found;
++}
++
++/*
++ * start and end must be in the same zone.
++ *
++ */
++struct isolation_info  *
++register_isolation(unsigned long start, unsigned long end)
++{
++	struct zone *zone;
++	struct isolation_info *info = NULL, *tmp;
++	unsigned long flags;
++	unsigned long last_pfn = end - 1;
++
++	if (!pfn_valid(start) || !pfn_valid(last_pfn) || (start >= end))
++		return ERR_PTR(-EINVAL);
++	/* check start and end is in the same zone */
++	zone = page_zone(pfn_to_page(start));
++
++	if (zone != page_zone(pfn_to_page(last_pfn)))
++		return ERR_PTR(-EINVAL);
++	/* target range has to match MAX_ORDER alignmet */
++	if ((start & (MAX_ORDER_NR_PAGES - 1)) ||
++		(end & (MAX_ORDER_NR_PAGES - 1)))
++		return ERR_PTR(-EINVAL);
++	info = kmalloc(sizeof(*info), GFP_KERNEL);
++	if (!info)
++		return ERR_PTR(-ENOMEM);
++	spin_lock_irqsave(&zone->isolation_lock, flags);
++	/* we don't allow overlap among isolation areas */
++	if (!list_empty(&zone->isolation_list)) {
++		list_for_each_entry(tmp, &zone->isolation_list, list) {
++			if (start < tmp->end_pfn && end > tmp->start_pfn) {
++				goto out_free;
++			}
++		}
++	}
++	info->start_pfn = start;
++	info->end_pfn = end;
++	info->zone = zone;
++	INIT_LIST_HEAD(&info->list);
++	INIT_LIST_HEAD(&info->pages);
++	list_add(&info->list, &zone->isolation_list);
++out_unlock:
++	spin_unlock_irqrestore(&zone->isolation_lock, flags);
++	return info;
++out_free:
++	kfree(info);
++	info = ERR_PTR(-EBUSY);
++	goto out_unlock;
++}
++/*
++ * Remove IsolationInfo from zone.
++ * After this, we can unuse memory in info or
++ * free back to freelist.
++ */
++
++void
++detach_isolation_info_zone(struct isolation_info *info)
++{
++	unsigned long flags;
++	struct zone *zone = info->zone;
++	spin_lock_irqsave(&zone->isolation_lock,flags);
++	list_del(&info->list);
++	info->zone = NULL;
++	spin_unlock_irqrestore(&zone->isolation_lock,flags);
++}
++
++/*
++ * All pages in info->pages should be remvoed before calling this.
++ * And info should be detached from zone.
++ */
++void
++free_isolation_info(struct isolation_info *info)
++{
++	BUG_ON(!list_empty(&info->pages));
++	BUG_ON(info->zone);
++	kfree(info);
++	return;
++}
++
++/*
++ * Mark All pages in the isolation_info to be Reserved.
++ * When onlining these pages again, a user must check
++ * which page is usable by IORESOURCE_RAM
++ * please see memory_hotplug.c/online_pages() if unclear.
++ *
++ * info should be detached from zone before calling this.
++ */
++void
++unuse_all_isolated_pages(struct isolation_info *info)
++{
++	struct page *page, *n;
++	BUG_ON(info->zone);
++	list_for_each_entry_safe(page, n, &info->pages, lru) {
++		SetPageReserved(page);
++		page->private = 0;
++		ClearPagePrivate(page);
++		list_del(&page->lru);
++	}
++}
++
++/*
++ * Free all pages connected in isolation list.
++ * pages are moved back to free_list.
++ */
++void
++free_all_isolated_pages(struct isolation_info *info)
++{
++	struct page *page, *n;
++	BUG_ON(info->zone);
++	list_for_each_entry_safe(page, n ,&info->pages, lru) {
++		ClearPagePrivate(page);
++		ClearPageReserved(page);
++		page->private = 0;
++		list_del(&page->lru);
++		set_page_count(page, 0);
++		set_page_refcounted(page);
++		/* This is sage because info is detached from zone */
++		__free_page(page);
++	}
++}
++
++#endif /* CONFIG_PAGE_ISOLATION */
++
++
+Index: current_test/mm/Kconfig
+===================================================================
+--- current_test.orig/mm/Kconfig	2007-05-08 15:06:50.000000000 +0900
++++ current_test/mm/Kconfig	2007-05-08 15:08:31.000000000 +0900
+@@ -225,3 +225,10 @@ config DEBUG_READAHEAD
  
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
-+		if (j == ZONE_MOVABLE)
-+			total_movable_pages += realsize;
- #ifdef CONFIG_NUMA
- 		zone->node = nid;
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
-Index: current_test/include/linux/kernel.h
-===================================================================
---- current_test.orig/include/linux/kernel.h	2007-05-08 15:06:49.000000000 +0900
-+++ current_test/include/linux/kernel.h	2007-05-08 15:07:20.000000000 +0900
-@@ -352,6 +352,8 @@ struct sysinfo {
- 	unsigned short pad;		/* explicit padding for m68k */
- 	unsigned long totalhigh;	/* Total high memory size */
- 	unsigned long freehigh;		/* Available high memory size */
-+	unsigned long movable;		/* pages used only for data */
-+	unsigned long free_movable;	/* Avaiable pages in movable */
- 	unsigned int mem_unit;		/* Memory unit size in bytes */
- 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
- };
-Index: current_test/fs/proc/proc_misc.c
-===================================================================
---- current_test.orig/fs/proc/proc_misc.c	2007-05-08 15:06:48.000000000 +0900
-+++ current_test/fs/proc/proc_misc.c	2007-05-08 15:07:20.000000000 +0900
-@@ -161,6 +161,8 @@ static int meminfo_read_proc(char *page,
- 		"LowTotal:     %8lu kB\n"
- 		"LowFree:      %8lu kB\n"
- #endif
-+		"MovableTotal: %8lu kB\n"
-+		"MovableFree:  %8lu kB\n"
- 		"SwapTotal:    %8lu kB\n"
- 		"SwapFree:     %8lu kB\n"
- 		"Dirty:        %8lu kB\n"
-@@ -191,6 +193,8 @@ static int meminfo_read_proc(char *page,
- 		K(i.totalram-i.totalhigh),
- 		K(i.freeram-i.freehigh),
- #endif
-+		K(i.movable),
-+		K(i.free_movable),
- 		K(i.totalswap),
- 		K(i.freeswap),
- 		K(global_page_state(NR_FILE_DIRTY)),
-Index: current_test/drivers/base/node.c
-===================================================================
---- current_test.orig/drivers/base/node.c	2007-05-08 15:06:10.000000000 +0900
-+++ current_test/drivers/base/node.c	2007-05-08 15:07:20.000000000 +0900
-@@ -55,6 +55,8 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d LowTotal:     %8lu kB\n"
- 		       "Node %d LowFree:      %8lu kB\n"
- #endif
-+		       "Node %d MovableTotal: %8lu kB\n"
-+		       "Node %d MovableFree:  %8lu kB\n"
- 		       "Node %d Dirty:        %8lu kB\n"
- 		       "Node %d Writeback:    %8lu kB\n"
- 		       "Node %d FilePages:    %8lu kB\n"
-@@ -77,6 +79,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(i.totalram - i.totalhigh),
- 		       nid, K(i.freeram - i.freehigh),
- #endif
-+		       nid, K(i.movable),
-+		       nid, K(i.free_movable),
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
- 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
-Index: current_test/arch/ia64/mm/init.c
-===================================================================
---- current_test.orig/arch/ia64/mm/init.c	2007-05-08 15:06:38.000000000 +0900
-+++ current_test/arch/ia64/mm/init.c	2007-05-08 15:08:29.000000000 +0900
-@@ -700,6 +700,8 @@ void online_page(struct page *page)
- 	__free_page(page);
- 	totalram_pages++;
- 	num_physpages++;
-+	if (page_zonenum(page) == ZONE_MOVABLE)
-+		total_movable_pages++;
- }
+ 	  Say N for production servers.
  
- int arch_add_memory(int nid, u64 start, u64 size)
-Index: current_test/include/linux/swap.h
++config PAGE_ISOLATION
++	bool	"Page Isolation Framework"
++	help
++	  This option adds page isolation framework to mm.
++	  This is used for isolate amount of contiguous pages from linux
++	  memory management.
++	  Say N if unsure.
+Index: current_test/include/linux/page_isolation.h
 ===================================================================
---- current_test.orig/include/linux/swap.h	2007-05-08 15:06:49.000000000 +0900
-+++ current_test/include/linux/swap.h	2007-05-08 15:07:20.000000000 +0900
-@@ -169,6 +169,7 @@ extern void swapin_readahead(swp_entry_t
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
-+extern unsigned long total_movable_pages;
- extern long nr_swap_pages;
- extern unsigned int nr_free_buffer_pages(void);
- extern unsigned int nr_free_pagecache_pages(void);
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ current_test/include/linux/page_isolation.h	2007-05-08 15:08:34.000000000 +0900
+@@ -0,0 +1,52 @@
++#ifndef __LINIX_PAGE_ISOLATION_H
++#define __LINUX_PAGE_ISOLATION_H
++
++#ifdef CONFIG_PAGE_ISOLATION
++
++struct isolation_info {
++	struct list_head	list;
++	unsigned long	start_pfn;
++	unsigned long	end_pfn;
++	struct zone		*zone;
++	struct list_head	pages;
++};
++
++extern int
++__page_under_isolation(struct zone *zone, struct page *page, int order);
++
++static inline int
++page_under_isolation(struct zone *zone, struct page *page, int order)
++{
++	if (likely(list_empty(&zone->isolation_list)))
++		return 0;
++	return __page_under_isolation(zone, page, order);
++}
++
++static inline int
++is_page_isolated(struct isolation_info *info, struct page *page)
++{
++	if (PageReserved(page) && PagePrivate(page) &&
++	    page_count(page) == 0 &&
++	    page->private == (unsigned long)info)
++		return 1;
++	return 0;
++}
++
++extern struct isolation_info *
++register_isolation(unsigned long start, unsigned long end);
++
++extern void detach_isolation_info_zone(struct isolation_info *info);
++extern void free_isolation_info(struct isolation_info *info);
++extern void unuse_all_isolated_pages(struct isolation_info *info);
++extern void free_all_isolated_pages(struct isolation_info *info);
++
++#else
++
++static inline int
++page_under_isolation(struct zone *zone, struct page *page, int order)
++{
++	return 0;
++}
++
++#endif
++#endif
 
 -- 
 Yasunori Goto 
