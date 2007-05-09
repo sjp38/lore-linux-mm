@@ -1,50 +1,47 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070509082828.19219.39124.sendpatchset@skynet.skynet.ie>
+Message-Id: <20070509082848.19219.90950.sendpatchset@skynet.skynet.ie>
 In-Reply-To: <20070509082748.19219.48015.sendpatchset@skynet.skynet.ie>
 References: <20070509082748.19219.48015.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 2/4] Remove alloc_zeroed_user_highpage()
-Date: Wed,  9 May 2007 09:28:28 +0100 (IST)
+Subject: [PATCH 3/4] Remove unused parameter to allocflags_to_migratetype()
+Date: Wed,  9 May 2007 09:28:48 +0100 (IST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, apw@shadowen.org, clameter@sgi.com, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, clameter@sgi.com, Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-alloc_zeroed_user_highpage() has no in-tree users and it is not exported.
-As it is not exported, it can simply be removed.
+The patch dont-group-high-order-atomic-allocations.patch should have removed
+the order parameter to allocflags_to_migratetype() but did not. This patch
+addresses the problem.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Andy Whitcroft <apw@shadowen.org>
 ---
 
- highmem.h |   15 ---------------
- 1 file changed, 15 deletions(-)
+ page_alloc.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-002_allocflagsorder/include/linux/highmem.h linux-2.6.21-mm1-003_deprecate/include/linux/highmem.h
---- linux-2.6.21-mm1-002_allocflagsorder/include/linux/highmem.h	2007-05-08 09:24:39.000000000 +0100
-+++ linux-2.6.21-mm1-003_deprecate/include/linux/highmem.h	2007-05-08 09:31:48.000000000 +0100
-@@ -98,21 +98,6 @@ __alloc_zeroed_user_highpage(gfp_t movab
- #endif
+diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-001_m68knommu/mm/page_alloc.c linux-2.6.21-mm1-002_allocflagsorder/mm/page_alloc.c
+--- linux-2.6.21-mm1-001_m68knommu/mm/page_alloc.c	2007-05-08 09:24:40.000000000 +0100
++++ linux-2.6.21-mm1-002_allocflagsorder/mm/page_alloc.c	2007-05-08 09:29:42.000000000 +0100
+@@ -160,7 +160,7 @@ static void set_pageblock_migratetype(st
+ 					PB_migrate, PB_migrate_end);
+ }
  
- /**
-- * alloc_zeroed_user_highpage - Allocate a zeroed HIGHMEM page for a VMA
-- * @vma: The VMA the page is to be allocated for
-- * @vaddr: The virtual address the page will be inserted into
-- *
-- * This function will allocate a page for a VMA that the caller knows will
-- * not be able to move in the future using move_pages() or reclaim. If it
-- * is known that the page can move, use alloc_zeroed_user_highpage_movable
-- */
--static inline struct page *
--alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
--{
--	return __alloc_zeroed_user_highpage(0, vma, vaddr);
--}
--
--/**
-  * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
-  * @vma: The VMA the page is to be allocated for
-  * @vaddr: The virtual address the page will be inserted into
+-static inline int allocflags_to_migratetype(gfp_t gfp_flags, int order)
++static inline int allocflags_to_migratetype(gfp_t gfp_flags)
+ {
+ 	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+ 
+@@ -1138,7 +1138,7 @@ static struct page *buffered_rmqueue(str
+ 	struct page *page;
+ 	int cold = !!(gfp_flags & __GFP_COLD);
+ 	int cpu;
+-	int migratetype = allocflags_to_migratetype(gfp_flags, order);
++	int migratetype = allocflags_to_migratetype(gfp_flags);
+ 
+ again:
+ 	cpu  = get_cpu();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
