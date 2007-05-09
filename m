@@ -1,142 +1,33 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Message-Id: <20070509082908.19219.63588.sendpatchset@skynet.skynet.ie>
-In-Reply-To: <20070509082748.19219.48015.sendpatchset@skynet.skynet.ie>
-References: <20070509082748.19219.48015.sendpatchset@skynet.skynet.ie>
-Subject: [PATCH 4/4] Use SLAB_ACCOUNT_RECLAIM to determine when __GFP_RECLAIMABLE should be used
-Date: Wed,  9 May 2007 09:29:08 +0100 (IST)
+Message-ID: <46418C0E.7060002@shadowen.org>
+Date: Wed, 09 May 2007 09:53:34 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist order
+ selection
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>	<20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>	<1178643985.5203.27.camel@localhost>	<Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>	<1178645622.5203.53.camel@localhost>	<Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>	<1178656627.5203.84.camel@localhost>	<20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>	<20070508175855.b126caf7.akpm@linux-foundation.org> <20070509131238.598e5c3d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070509131238.598e5c3d.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, apw@shadowen.org, clameter@sgi.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee.Schermerhorn@hp.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-A number of slab caches are reclaimable and some of their allocation
-callsites were updated to use the __GFP_RECLAIMABLE flag. However, slabs
-that are reclaimable specify the SLAB_ACCOUNT_RECLAIM flag at creation time
-and this information is available at the time of page allocation.
+KAMEZAWA Hiroyuki wrote:
+> On Tue, 8 May 2007 17:58:55 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+>> I'm still cowering in fear of these patches, btw.
+>>
+>> Please keep testing and sending them ;)
+>>
+> I'll repost "Request-Fot-Test" version "6" against next -mm and
+> add x86 as my test target at least. (I don't have other hardware.)
 
-This patch uses the SLAB_ACCOUNT_RECLAIM flag in the SLAB and SLUB
-allocators to determine if __GFP_RECLAIMABLE should be used when
-allocating pages. The SLOB allocator is not updated as it is unlikely to
-be used on a system where grouping pages by mobility is worthwhile and
-now SLUB is recommended over SLOB for smaller systems. The callsites
-for reclaimable cache allocations no longer specify __GFP_RECLAIMABLE
-as the information is redundant. This can be considered as fix to
-group-short-lived-and-reclaimable-kernel-allocations.patch.
+Copy me on the email and I'll shove the patches through TKO.
 
-Credit goes to Christoph Lameter for identifying this problem during review
-and suggesting this fix.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Christoph Lameter <clameter@sgi.com>
----
-
- fs/dcache.c         |    2 +-
- fs/ext2/super.c     |    3 +--
- fs/ext3/super.c     |    2 +-
- fs/ntfs/inode.c     |    4 ++--
- fs/reiserfs/super.c |    3 +--
- mm/slab.c           |    2 ++
- mm/slub.c           |    3 +++
- 7 files changed, 11 insertions(+), 8 deletions(-)
-
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/fs/dcache.c linux-2.6.21-mm1-004_account_reclaimable/fs/dcache.c
---- linux-2.6.21-mm1-003_deprecate/fs/dcache.c	2007-05-08 09:24:38.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/fs/dcache.c	2007-05-08 09:33:49.000000000 +0100
-@@ -904,7 +904,7 @@ struct dentry *d_alloc(struct dentry * p
- 	struct dentry *dentry;
- 	char *dname;
- 
--	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL|__GFP_RECLAIMABLE);
-+	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
- 	if (!dentry)
- 		return NULL;
- 
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/fs/ext2/super.c linux-2.6.21-mm1-004_account_reclaimable/fs/ext2/super.c
---- linux-2.6.21-mm1-003_deprecate/fs/ext2/super.c	2007-05-08 09:24:38.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/fs/ext2/super.c	2007-05-08 09:33:49.000000000 +0100
-@@ -140,8 +140,7 @@ static struct kmem_cache * ext2_inode_ca
- static struct inode *ext2_alloc_inode(struct super_block *sb)
- {
- 	struct ext2_inode_info *ei;
--	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep,
--						GFP_KERNEL|__GFP_RECLAIMABLE);
-+	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, GFP_KERNEL);
- 	if (!ei)
- 		return NULL;
- #ifdef CONFIG_EXT2_FS_POSIX_ACL
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/fs/ext3/super.c linux-2.6.21-mm1-004_account_reclaimable/fs/ext3/super.c
---- linux-2.6.21-mm1-003_deprecate/fs/ext3/super.c	2007-05-08 09:24:38.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/fs/ext3/super.c	2007-05-08 09:33:49.000000000 +0100
-@@ -445,7 +445,7 @@ static struct inode *ext3_alloc_inode(st
- {
- 	struct ext3_inode_info *ei;
- 
--	ei = kmem_cache_alloc(ext3_inode_cachep, GFP_NOFS|__GFP_RECLAIMABLE);
-+	ei = kmem_cache_alloc(ext3_inode_cachep, GFP_NOFS);
- 	if (!ei)
- 		return NULL;
- #ifdef CONFIG_EXT3_FS_POSIX_ACL
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/fs/ntfs/inode.c linux-2.6.21-mm1-004_account_reclaimable/fs/ntfs/inode.c
---- linux-2.6.21-mm1-003_deprecate/fs/ntfs/inode.c	2007-05-08 09:24:39.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/fs/ntfs/inode.c	2007-05-08 09:33:49.000000000 +0100
-@@ -323,7 +323,7 @@ struct inode *ntfs_alloc_big_inode(struc
- 	ntfs_inode *ni;
- 
- 	ntfs_debug("Entering.");
--	ni = kmem_cache_alloc(ntfs_big_inode_cache, GFP_NOFS|__GFP_RECLAIMABLE);
-+	ni = kmem_cache_alloc(ntfs_big_inode_cache, GFP_NOFS);
- 	if (likely(ni != NULL)) {
- 		ni->state = 0;
- 		return VFS_I(ni);
-@@ -348,7 +348,7 @@ static inline ntfs_inode *ntfs_alloc_ext
- 	ntfs_inode *ni;
- 
- 	ntfs_debug("Entering.");
--	ni = kmem_cache_alloc(ntfs_inode_cache, GFP_NOFS|__GFP_RECLAIMABLE);
-+	ni = kmem_cache_alloc(ntfs_inode_cache, GFP_NOFS);
- 	if (likely(ni != NULL)) {
- 		ni->state = 0;
- 		return ni;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/fs/reiserfs/super.c linux-2.6.21-mm1-004_account_reclaimable/fs/reiserfs/super.c
---- linux-2.6.21-mm1-003_deprecate/fs/reiserfs/super.c	2007-05-08 09:24:39.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/fs/reiserfs/super.c	2007-05-08 09:33:49.000000000 +0100
-@@ -496,8 +496,7 @@ static struct inode *reiserfs_alloc_inod
- {
- 	struct reiserfs_inode_info *ei;
- 	ei = (struct reiserfs_inode_info *)
--	    kmem_cache_alloc(reiserfs_inode_cachep,
--						GFP_KERNEL|__GFP_RECLAIMABLE);
-+	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
- 	if (!ei)
- 		return NULL;
- 	return &ei->vfs_inode;
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/mm/slab.c linux-2.6.21-mm1-004_account_reclaimable/mm/slab.c
---- linux-2.6.21-mm1-003_deprecate/mm/slab.c	2007-05-08 09:24:40.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/mm/slab.c	2007-05-08 09:33:49.000000000 +0100
-@@ -1660,6 +1660,8 @@ static void *kmem_getpages(struct kmem_c
- #endif
- 
- 	flags |= cachep->gfpflags;
-+	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-+		flags |= __GFP_RECLAIMABLE;
- 
- 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
- 	if (!page)
-diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.21-mm1-003_deprecate/mm/slub.c linux-2.6.21-mm1-004_account_reclaimable/mm/slub.c
---- linux-2.6.21-mm1-003_deprecate/mm/slub.c	2007-05-08 09:24:40.000000000 +0100
-+++ linux-2.6.21-mm1-004_account_reclaimable/mm/slub.c	2007-05-08 09:33:49.000000000 +0100
-@@ -785,6 +785,9 @@ static struct page *allocate_slab(struct
- 	if (s->flags & SLAB_CACHE_DMA)
- 		flags |= SLUB_DMA;
- 
-+	if (s->flags & SLAB_ACCOUNT_RECLAIM)
-+		gfpflags |= __GFP_RECLAIMABLE;
-+
- 	if (node == -1)
- 		page = alloc_pages(flags, s->order);
- 	else
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
