@@ -1,49 +1,28 @@
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0705090956050.28244@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten>
-	 <1178310543.5236.43.camel@localhost>
-	 <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
-	 <1178728661.5047.64.camel@localhost>
-	 <Pine.LNX.4.64.0705090956050.28244@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 09 May 2007 15:17:25 -0400
-Message-Id: <1178738245.5047.67.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 9 May 2007 12:21:22 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 4/4] Use SLAB_ACCOUNT_RECLAIM to determine when
+ __GFP_RECLAIMABLE should be used
+In-Reply-To: <20070509082908.19219.63588.sendpatchset@skynet.skynet.ie>
+Message-ID: <Pine.LNX.4.64.0705091219340.29526@schroedinger.engr.sgi.com>
+References: <20070509082748.19219.48015.sendpatchset@skynet.skynet.ie>
+ <20070509082908.19219.63588.sendpatchset@skynet.skynet.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, Anton Blanchard <anton@samba.org>
-Cc: linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-09 at 09:57 -0700, Christoph Lameter wrote:
-> On Wed, 9 May 2007, Lee Schermerhorn wrote:
-> 
-> > +  					HUGETLB_PAGE_ORDER);
-> > +
-> > +		nid = next_node(nid, node_online_map);
-> > +		if (nid == MAX_NUMNODES)
-> > +			nid = first_node(node_online_map);
-> 
-> Maybe use nr_node_ids here? May save some scanning over online maps?
+On Wed, 9 May 2007, Mel Gorman wrote:
 
-Good idea.  I won't get to it until next week.  Maybe we'll have more
-comments by then.
+> Credit goes to Christoph Lameter for identifying this problem during review
+> and suggesting this fix.
 
-Anton:  anything to add?  
+It was not a problem. It is just much simpler to use the existing 
+information. Does not affect the correctness of what you are doing.
 
-> 
-> >   * int node_possible(node)		Is some node possible?
-> > + * int node_populated(node)		Is some node populated [at 'HIGHUSER]
-> >   *
-> 
-> Good.
-
-Thanks.
-
-Later,
-Lee
+Acked-by: Christoph Lameter <clameter@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
