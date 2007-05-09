@@ -1,44 +1,52 @@
-Subject: Re: vm changes from linux-2.6.14 to linux-2.6.15
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.61.0705092005060.29444@mtfhpc.demon.co.uk>
-References: <20070430145414.88fda272.akpm@linux-foundation.org>
-	 <20070430.150407.07642146.davem@davemloft.net>
-	 <1177977619.24962.6.camel@localhost.localdomain>
-	 <20070430.173806.112621225.davem@davemloft.net>
-	 <Pine.LNX.4.61.0705010223040.3556@mtfhpc.demon.co.uk>
-	 <1177985136.24962.8.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705011453380.4771@mtfhpc.demon.co.uk>
-	 <1178055110.13263.2.camel@localhost.localdomain>
-	 <Pine.LNX.4.61.0705012354290.12808@mtfhpc.demon.co.uk>
-	 <Pine.LNX.4.61.0705092005060.29444@mtfhpc.demon.co.uk>
-Content-Type: text/plain
-Date: Thu, 10 May 2007 08:48:02 +1000
-Message-Id: <1178750882.14928.199.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id l49NBoYT029750
+	for <linux-mm@kvack.org>; Wed, 9 May 2007 16:11:51 -0700
+Received: from an-out-0708.google.com (andd40.prod.google.com [10.100.30.40])
+	by zps38.corp.google.com with ESMTP id l49NBjXq016444
+	for <linux-mm@kvack.org>; Wed, 9 May 2007 16:11:45 -0700
+Received: by an-out-0708.google.com with SMTP id d40so102774and
+        for <linux-mm@kvack.org>; Wed, 09 May 2007 16:11:45 -0700 (PDT)
+Message-ID: <b040c32a0705091611mb35258ap334426e42d33372c@mail.gmail.com>
+Date: Wed, 9 May 2007 16:11:44 -0700
+From: "Ken Chen" <kenchen@google.com>
+Subject: [patch] check cpuset mems_allowed for sys_mbind
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Fortescue <mark@mtfhpc.demon.co.uk>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@ozlabs.org, wli@holomorphy.com, linux-mm@kvack.org, andrea@suse.de, sparclinux@vger.kernel.org
+To: Paul Jackson <pj@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2007-05-09 at 20:44 +0100, Mark Fortescue wrote:
-> Hi Ben,
-> 
-> Is it worth formally sending in either of my patches or does more work 
-> need to be done first?
+I wonder why we don't check cpuset's mems_allowed node mask in the
+sys_mbind() path?  sys_set_mempolicy() however, does the enforcement
+against cpuset so process can not accidentally set mempolicy with
+memory node mask that are not allowed to allocated from.  I think we
+should have the equivalent check in the mbind path.   Otherwise, there
+are discrepancy in what sys_mbind agrees to versus what the page
+allocation policy that enforced by cpuset.  This discrepancy
+subsequently causes performance surprises to the application.
 
-Sorry, I've been busy with other things...
+Or is it left out intentionally?  for what reason?
 
-What do other thing about it ? Having update_mmu_cache() call buried
-inside the ptep_set_access_flags() sounds good ? Somebody has a better
-idea ?
 
-One thing I was thinking was that we could replace the whole logic with
-having ptep_set_access_flags() compare the new PTE bits with what was
-already there and return wether an update_mmu_cache() is required....
+Signed-off-by: Ken Chen <kenchen@google.com>
 
-Ben.
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d76e8eb..ef81080 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -762,7 +762,7 @@ long do_mbind(unsigned long start, unsig
+ 	if (end == start)
+ 		return 0;
+
+-	if (mpol_check_policy(mode, nmask))
++	if (contextualize_policy(mode, nmask))
+ 		return -EINVAL;
+
+ 	new = mpol_new(mode, nmask);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
