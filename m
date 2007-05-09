@@ -1,10 +1,10 @@
 Subject: [KJ PATCH] Replacing alloc_pages(gfp,0) with alloc_page(gfp) in
-	arch/i386/mm/pageattr.c.
+	arch/i386/mm/pgtable.c.
 From: Shani Moideen <shani.moideen@wipro.com>
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: Wed, 09 May 2007 17:27:19 +0530
-Message-Id: <1178711839.2280.21.camel@shani-win>
+Date: Wed, 09 May 2007 17:30:41 +0530
+Message-Id: <1178712041.2280.25.camel@shani-win>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -15,25 +15,27 @@ List-ID: <linux-mm.kvack.org>
 Hi,
  
 Replacing alloc_pages(gfp,0) with alloc_page(gfp) in
-arch/i386/mm/pageattr.c.
+arch/i386/mm/pgtable.c.
 
 Signed-off-by: Shani Moideen <shani.moideen@wipro.com>
 ----
 
-diff --git a/arch/i386/mm/pageattr.c b/arch/i386/mm/pageattr.c
-index 412ebbd..12f7f14 100644
---- a/arch/i386/mm/pageattr.c
-+++ b/arch/i386/mm/pageattr.c
-@@ -45,7 +45,7 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
- 	pte_t *pbase;
+diff --git a/arch/i386/mm/pgtable.c b/arch/i386/mm/pgtable.c
+index fa0cfbd..5d2b0fb 100644
+--- a/arch/i386/mm/pgtable.c
++++ b/arch/i386/mm/pgtable.c
+@@ -191,9 +191,9 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ 	struct page *pte;
 
- 	spin_unlock_irq(&cpa_lock);
--	base = alloc_pages(GFP_KERNEL, 0);
-+	base = alloc_page(GFP_KERNEL);
- 	spin_lock_irq(&cpa_lock);
- 	if (!base) 
- 		return NULL;
-
+ #ifdef CONFIG_HIGHPTE
+-	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
++	pte = alloc_page(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO);
+ #else
+-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	pte = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+ #endif
+ 	return pte;
+ }
 
 -- 
 Shani 
