@@ -1,34 +1,36 @@
-Date: Wed, 9 May 2007 09:57:38 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: [PATCH] Fix hugetlb pool allocation with empty nodes - V2 -> V3
-In-Reply-To: <1178728661.5047.64.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0705090956050.28244@schroedinger.engr.sgi.com>
-References: <20070503022107.GA13592@kryten>  <1178310543.5236.43.camel@localhost>
-  <Pine.LNX.4.64.0705041425450.25764@schroedinger.engr.sgi.com>
- <1178728661.5047.64.camel@localhost>
+Received: by nz-out-0506.google.com with SMTP id f1so273974nzc
+        for <linux-mm@kvack.org>; Wed, 09 May 2007 10:15:18 -0700 (PDT)
+Message-ID: <a36005b50705091015u3b0ccc3brb4cb99fc0fa29d82@mail.gmail.com>
+Date: Wed, 9 May 2007 10:15:17 -0700
+From: "Ulrich Drepper" <drepper@gmail.com>
+Subject: Re: [PATCH] stub MADV_FREE implementation
+In-Reply-To: <20070508160547.e1576146.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <4632D0EF.9050701@redhat.com> <463B108C.10602@yahoo.com.au>
+	 <463B598B.80200@redhat.com> <463BC62C.3060605@yahoo.com.au>
+	 <463FF3D3.9060007@redhat.com>
+	 <20070508160547.e1576146.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, ak@suse.de, nish.aravamudan@gmail.com, mel@csn.ul.ie, apw@shadowen.org, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jakub Jelinek <jakub@redhat.com>, Dave Jones <davej@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2007, Lee Schermerhorn wrote:
+On 5/8/07, Andrew Morton <akpm@linux-foundation.org> wrote:
+> And has Ulrich indicated that glibc would indeed go out ahead of
+> the kernel in this fashion?
 
-> +  					HUGETLB_PAGE_ORDER);
-> +
-> +		nid = next_node(nid, node_online_map);
-> +		if (nid == MAX_NUMNODES)
-> +			nid = first_node(node_online_map);
+Rik is concerned to get a glibc version which allows him to test the
+improvements.  That's really not a big problem.  We laready have a
+patch for this and can provide appropriate RPMs easily.
 
-Maybe use nr_node_ids here? May save some scanning over online maps?
-
->   * int node_possible(node)		Is some node possible?
-> + * int node_populated(node)		Is some node populated [at 'HIGHUSER]
->   *
-
-Good.
+I don't want to set a precedence for adding glibc support for phantom
+features.  So, I would not add support to the official glibc anyway
+until there is a fixed implementation which then also means a fixed
+ABI.  So, Andrew, applying the patch won't do any good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
