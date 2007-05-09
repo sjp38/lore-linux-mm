@@ -1,30 +1,38 @@
-Date: Wed, 9 May 2007 12:26:05 +0900
+Date: Wed, 9 May 2007 13:12:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memory hotremove patch take 2 [10/10] (retry swap-in
- page)
-Message-Id: <20070509122605.e178e516.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20070509120947.B91A.Y-GOTO@jp.fujitsu.com>
-References: <20070509115506.B904.Y-GOTO@jp.fujitsu.com>
-	<20070509120947.B91A.Y-GOTO@jp.fujitsu.com>
+Subject: Re: [PATCH] change zonelist order v5 [1/3] implements zonelist
+ order selection
+Message-Id: <20070509131238.598e5c3d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20070508175855.b126caf7.akpm@linux-foundation.org>
+References: <20070508201401.8f78ec37.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070508201642.c63b3f65.kamezawa.hiroyu@jp.fujitsu.com>
+	<1178643985.5203.27.camel@localhost>
+	<Pine.LNX.4.64.0705081021340.9446@schroedinger.engr.sgi.com>
+	<1178645622.5203.53.camel@localhost>
+	<Pine.LNX.4.64.0705081104180.9941@schroedinger.engr.sgi.com>
+	<1178656627.5203.84.camel@localhost>
+	<20070509092912.3140bb78.kamezawa.hiroyu@jp.fujitsu.com>
+	<20070508175855.b126caf7.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org, clameter@sgi.com, mel@csn.ul.ie
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee.Schermerhorn@hp.com, clameter@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ak@suse.de, jbarnes@virtuousgeek.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 09 May 2007 12:12:32 +0900
-Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
+On Tue, 8 May 2007 17:58:55 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> There is a race condition between swap-in and unmap_and_move().
-> When swap-in occur, page_mapped might be not set yet.
-> So, unmap_and_move() gives up at once, and tries later.
 > 
+> I'm still cowering in fear of these patches, btw.
 > 
-Note: this will not happen in sys_migratepage(), it holds mm->sem and
-gathers migration target page from page table.
+> Please keep testing and sending them ;)
+> 
+I'll repost "Request-Fot-Test" version "6" against next -mm and
+add x86 as my test target at least. (I don't have other hardware.)
+
 
 -Kame
 
